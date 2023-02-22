@@ -5,6 +5,7 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/util/log.hpp"
+#include "translate_session.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -34,9 +35,9 @@ OutputVector translate_if(NodeContext& context) {
 
     std::map<size_t, ParameterVector> inputs_map;
     std::map<size_t, ResultVector> outputs_map;
+    auto session = context.get_session();
     for (const auto& param : then_body->get_parameters()) {
-        auto name = param->get_output_tensor(0).get_any_name();
-        size_t input_idx = (size_t)std::stoll(name);
+        auto input_idx = session->decode_tensor_name(param->output(0));
         FRONT_END_OP_CONVERSION_CHECK(inputs_map.count(input_idx) == 0,
                                       "More than one then_body input with same tensor name: ",
                                       input_idx,
@@ -47,8 +48,7 @@ OutputVector translate_if(NodeContext& context) {
         inputs_map[input_idx] = {param, nullptr};
     }
     for (const auto& param : else_body->get_parameters()) {
-        auto name = param->get_output_tensor(0).get_any_name();
-        size_t input_idx = (size_t)std::stoll(name);
+        auto input_idx = session->decode_tensor_name(param->output(0));
         if (inputs_map.count(input_idx)) {
             inputs_map[input_idx][1] = param;
         } else {
@@ -56,7 +56,7 @@ OutputVector translate_if(NodeContext& context) {
         }
     }
     OutputVector res;
-    const auto num_outs = context.num_of_outputs();
+    const auto num_outs = context.get_output_size();
     const auto then_results = then_body->get_results();
     const auto else_results = else_body->get_results();
     FRONT_END_OP_CONVERSION_CHECK(then_results.size() >= num_outs && else_results.size() >= num_outs,
@@ -70,8 +70,7 @@ OutputVector translate_if(NodeContext& context) {
     std::set<size_t> extra_output_idxs;
     for (size_t i = num_outs; i < then_results.size(); i++) {
         const auto result = then_results[i];
-        const auto name = result->input(0).get_tensor().get_any_name();
-        size_t output_idx = (size_t)std::stoll(name);
+        auto output_idx = session->decode_tensor_name(result->input(0).get_source_output());
         FRONT_END_OP_CONVERSION_CHECK(extra_then_body_results.count(output_idx) == 0,
                                       "More than one then_body output with same tensor name: ",
                                       output_idx,
@@ -84,8 +83,7 @@ OutputVector translate_if(NodeContext& context) {
     }
     for (size_t i = num_outs; i < else_results.size(); i++) {
         const auto result = else_results[i];
-        const auto name = result->input(0).get_tensor().get_any_name();
-        size_t output_idx = (size_t)std::stoll(name);
+        auto output_idx = session->decode_tensor_name(result->input(0).get_source_output());
         FRONT_END_OP_CONVERSION_CHECK(extra_else_body_results.count(output_idx) == 0,
                                       "More than one else_body output with same tensor name: ",
                                       output_idx,
@@ -102,7 +100,7 @@ OutputVector translate_if(NodeContext& context) {
         if (!extra_then_body_results.count(output_idx)) {
             // Need to add Parameter->Result construction in then body
             auto new_parameter = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
-            new_parameter->get_output_tensor(0).add_names({std::to_string(output_idx)});
+            session->encode_tensor_name(new_parameter->output(0), output_idx);
             auto new_result = std::make_shared<opset10::Result>(new_parameter);
             then_body->add_parameters({new_parameter});
             then_body->add_results({new_result});
@@ -114,7 +112,7 @@ OutputVector translate_if(NodeContext& context) {
         } else if (!extra_else_body_results.count(output_idx)) {
             // Need to add Parameter->Result construction in else body
             auto new_parameter = std::make_shared<opset10::Parameter>(element::dynamic, PartialShape::dynamic());
-            new_parameter->get_output_tensor(0).add_names({std::to_string(output_idx)});
+            session->encode_tensor_name(new_parameter->output(0), output_idx);
             auto new_result = std::make_shared<opset10::Result>(new_parameter);
             else_body->add_parameters({new_parameter});
             else_body->add_results({new_result});

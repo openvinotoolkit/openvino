@@ -5,12 +5,15 @@
 #pragma once
 
 #include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/iinfer_request.hpp"
+#include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "template_config.hpp"
-#include "template_infer_request.hpp"
 
 namespace TemplatePlugin {
 
 class Plugin;
+class InferRequest;
 
 /**
  * @class ExecutableNetwork
@@ -34,23 +37,21 @@ public:
     virtual ov::Any get_property(const std::string& name) const override;
 
     ov::RemoteContext get_context() const override;
-    std::shared_ptr<InferenceEngine::IInferRequestInternal> create_infer_request() const override;
+    std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
 protected:
-    std::shared_ptr<InferenceEngine::IInferRequestInternal> create_sync_infer_request() const override;
+    std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
 
 private:
-    friend class TemplateInferRequest;
+    friend class InferRequest;
     friend class Plugin;
 
     void compile_model(const std::shared_ptr<ov::Model>& model);
     std::shared_ptr<const Plugin> get_template_plugin() const;
 
-    std::atomic<std::size_t> _requestId = {0};
+    mutable std::atomic<std::size_t> _requestId = {0};
     Configuration _cfg;
     std::shared_ptr<ov::Model> m_model;
-    std::map<std::string, std::size_t> _inputIndex;
-    std::map<std::string, std::size_t> _outputIndex;
 };
 // ! [executable_network:header]
 

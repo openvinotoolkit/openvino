@@ -606,11 +606,14 @@ int main(int argc, char* argv[]) {
                 device_nstreams.erase(device);
             }
         }
-
-        for (auto&& item : config) {
-            core.set_property(item.first, item.second);
-        }
-
+        auto result = std::find_if(config.begin(), config.end(), [&](const std::pair<std::string, ov::AnyMap>& item) {
+            if (device_name.find(item.first) == 0)
+                return true;
+            return false;
+        });
+        ov::AnyMap device_config = {};
+        if (result != config.end())
+            device_config = result->second;
         size_t batchSize = FLAGS_b;
         ov::element::Type type = ov::element::undefined;
         std::string topology_name = "";
@@ -642,7 +645,7 @@ int main(int argc, char* argv[]) {
             next_step();
             slog::info << "Skipping the step for loading model from file" << slog::endl;
             auto startTime = Time::now();
-            compiledModel = core.compile_model(FLAGS_m, device_name);
+            compiledModel = core.compile_model(FLAGS_m, device_name, device_config);
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Compile model took " << double_to_string(duration_ms) << " ms" << slog::endl;
             slog::info << "Original model I/O parameters:" << slog::endl;
@@ -686,7 +689,7 @@ int main(int argc, char* argv[]) {
 
             const auto& inputInfo = std::const_pointer_cast<const ov::Model>(model)->inputs();
             if (inputInfo.empty()) {
-                throw std::logic_error("no inputs info is provided");
+                throw std::logic_error("No inputs info is provided");
             }
 
             // ----------------- 5. Resizing network to match image sizes and given
@@ -821,7 +824,7 @@ int main(int argc, char* argv[]) {
             // --------------------------------------------------------
             next_step();
             startTime = Time::now();
-            compiledModel = core.compile_model(model, device_name);
+            compiledModel = core.compile_model(model, device_name, device_config);
             duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Compile model took " << double_to_string(duration_ms) << " ms" << slog::endl;
             if (statistics)

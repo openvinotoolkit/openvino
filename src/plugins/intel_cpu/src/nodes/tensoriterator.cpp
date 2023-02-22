@@ -13,6 +13,7 @@
 #include "utils/ngraph_utils.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common/cpu_memcpy.h"
+#include "common/reorder_prim.h"
 #include <utils/shape_inference/shape_inference_internal_dyn.hpp>
 
 using namespace dnnl;
@@ -80,7 +81,7 @@ static void nullifyUndefinedDims(VectorDims& dims) {
 
 class PortIteratorHelper : public PortMapHelper {
 public:
-    PortIteratorHelper(const MemoryPtr &from, const MemoryPtr &to, bool sliced_src,
+    PortIteratorHelper(MultiCachePtr cache, const MemoryPtr &from, const MemoryPtr &to, bool sliced_src,
                        const PortMap &slice_rule, const dnnl::engine& eng)
                        : sliced_src(sliced_src) {
         const auto &full_blob = sliced_src ? from : to;
@@ -122,7 +123,7 @@ public:
             mem_holder_src = from->GetPrimitive();
             mem_holder_dst = chunk_mem;
         }
-        reorder = {mem_holder_src, mem_holder_dst};
+        reorder = getReorderPrim(cache, mem_holder_dst.get_engine(), mem_holder_src.get_desc(), mem_holder_dst.get_desc());
     }
 
     void execute(dnnl::stream strm, int iter) override {
@@ -132,7 +133,7 @@ public:
         chunk_mem.set_data_handle(static_cast<uint8_t *>(full_mem.get_data_handle()) +
                                           chunk_offset_in_byte + chunk_stride_in_byte * iter);
 
-        reorder.execute(strm, mem_holder_src, mem_holder_dst);
+        reorder.execute(strm, {{DNNL_ARG_FROM, mem_holder_src}, {DNNL_ARG_TO, mem_holder_dst}});
     }
 
 private:
@@ -147,15 +148,15 @@ private:
 
 class BackEdgePortHelper : public PortMapHelper {
 public:
-    BackEdgePortHelper(const MemoryPtr &from, const MemoryPtr &to, const dnnl::engine& eng) {
+    BackEdgePortHelper(MultiCachePtr cache, const MemoryPtr &from, const MemoryPtr &to, const dnnl::engine& eng) {
         mem_holder_src = from->GetPrimitive();
         mem_holder_dst = to->GetPrimitive();
-        reorder = {mem_holder_src, mem_holder_dst};
+        reorder = getReorderPrim(cache, mem_holder_dst.get_engine(), mem_holder_src.get_desc(), mem_holder_dst.get_desc());
     }
 
     void execute(dnnl::stream strm, int iter = -1) override {
         if (iter != 0) {
-            reorder.execute(strm, mem_holder_src, mem_holder_dst);
+            reorder.execute(strm, {{DNNL_ARG_FROM, mem_holder_src}, {DNNL_ARG_TO, mem_holder_dst}});
         }
     }
 };
@@ -230,88 +231,141 @@ DynamicBuffer::DynamicBuffer(const MemoryPtr &from_, const std::vector<MemoryPtr
 }
 
 void DynamicBuffer::execute(const dnnl::engine& eng, const int iter) {
+    if (from->getStaticDims()[map_rule.axis] != std::abs(map_rule.stride))
+        IE_THROW() << "TensorIterator (Loop) has incorrect output shape[axis] after iteration for concatenation. " << std::abs(map_rule.stride) <<
+        " is expected, but actual: " << from->getStaticDims()[map_rule.axis];
+
     if (iter == 0) {
         init(eng);
-        return;
     }
 
-    auto new_buffer = create_buffer(eng);
-    move_buffer(new_buffer);
+    // if chunk_offset_in_byte out of range of buffer holder, reallocate a larger chunk
+    if (check_buffer()) {
+        auto new_buffer = create_buffer(eng);
+        move_buffer(new_buffer);
+    }
+
     move_data();
 }
 
-void DynamicBuffer::init(const dnnl::engine& eng) {
-    chunk_offset_in_byte = 0;
-    buffer_offset_in_byte = 0;
+void DynamicBuffer::reset(int max_iter_count_) {
+    max_iter_count = max_iter_count_;
+}
 
-    const auto axis = map_rule.axis;
+void DynamicBuffer::init(const dnnl::engine& eng) {
     const auto stride = map_rule.stride;
     const auto abs_stride = std::abs(stride);
 
-    auto src_mem = from->GetPrimitive();
-    auto src_desc = src_mem.get_desc();
-    auto dims = src_desc.dims();
-
-    if (dims[axis] != abs_stride)
-        IE_THROW() << "TensorIterator (Loop) has incorrect output shape[axis] after iteration for concatenation. " << abs_stride <<
-                   " is expected, but actual: " << dims[axis];
-
+    // We have no idea of "from" node memory dims until the sub_graph has been executed.
+    const auto& src_mem = from->GetPrimitive();
+    const auto& src_desc = src_mem.get_desc();
+    const auto& dims = src_desc.dims();
     count = std::accumulate(dims.begin(), dims.begin() + map_rule.axis, size_t(1), std::multiplies<size_t>());
     len = std::accumulate(dims.begin() + map_rule.axis + 1, dims.end(), elem_size, std::multiplies<size_t>());
-    mem_holder_buffer.reset(new memory(src_desc, eng));
-    copy(reinterpret_cast<const uint8_t*>(from->GetPtr()), get_ptr(*mem_holder_buffer.get()), 0, 0, 1, from->GetSize());
-}
+    chunk_unit_in_byte = abs_stride * len;
 
-std::shared_ptr<dnnl::memory> DynamicBuffer::create_buffer(const dnnl::engine& eng) {
-    const auto axis = map_rule.axis;
-    const auto stride = map_rule.stride;
-    const auto abs_stride = std::abs(stride);
-
-    const auto old_desc = mem_holder_buffer->get_desc();
-    auto dims = old_desc.dims();
-
-    if (from->getStaticDims()[axis] != abs_stride)
-        IE_THROW() << "TensorIterator (Loop) has incorrect output shape[axis] after iteration for concatenation. " << abs_stride <<
-        " is expected, but actual: " << from->getStaticDims()[axis];
-
-    dims[axis] += abs_stride;
-    dnnl::memory::desc new_buffer_desc(dims, old_desc.data_type(), DnnlExtensionUtils::GetPlainFormatByRank(dims.size()));
-
-    if (stride > 0.0f) {
-        chunk_offset_in_byte += new_buffer_desc.data.format_desc.blocking.strides[axis] * elem_size * abs_stride;
-    } else {
-        buffer_offset_in_byte = from->GetPrimitive().get_desc().data.format_desc.blocking.strides[axis] * elem_size * abs_stride;
+    if (!mem_holder_buffer) { // else reuse buffer holder of last inference
+        // preallocate a large chunk of memory to hold intermediate concated outputs of all iterations.
+        mem_holder_buffer = create_buffer(eng);
     }
 
-    return std::make_shared<dnnl::memory>(new_buffer_desc, eng);
+    // reset chunk_offset_in_byte since the first execution
+    chunk_stride_in_byte = mem_holder_buffer->GetSize() / count;
+    chunk_offset_in_byte = stride > 0 ? 0 : (chunk_stride_in_byte - chunk_unit_in_byte);
+    num_execs = 0;
 }
 
-void DynamicBuffer::move_buffer(std::shared_ptr<dnnl::memory> new_buffer) {
-    const auto axis = map_rule.axis;
-    const auto src_stride = mem_holder_buffer->get_desc().dims()[axis] * len;
-    const auto dst_stride = new_buffer->get_desc().dims()[axis] * len;
+bool DynamicBuffer::check_buffer() {
+    if (map_rule.stride > 0) {
+        if (chunk_offset_in_byte + chunk_unit_in_byte > chunk_stride_in_byte) return true;
+    } else {
+        if (chunk_offset_in_byte < 0) return true;
+    }
+    return false;
+}
 
-    copy(get_ptr(*mem_holder_buffer.get()), get_ptr(*new_buffer.get()) + buffer_offset_in_byte,
-         src_stride, dst_stride, count, src_stride);
+MemoryPtr DynamicBuffer::create_buffer(const dnnl::engine& eng) {
+    const auto abs_stride = std::abs(map_rule.stride);
+
+    const auto estimate_iters = [&] () {
+        if (max_iter_count != -1) return max_iter_count;
+
+        // in case of no idea of memory upper boundary
+        return (num_execs == 0) ? 1 : 2 * num_execs; // growth factor 2
+    };
+    const auto estimated_iters = estimate_iters();
+    const Shape _shape = Shape({count, static_cast<size_t>(abs_stride * estimated_iters), len/elem_size});
+    auto _descCreator = BlockedDescCreator::getCommonCreators().at(LayoutType::ncsp);
+    auto new_buffer_desc = _descCreator->createSharedDesc(from->getDesc().getPrecision(), _shape);
+
+    auto _ptr = std::make_shared<Memory>(eng);
+    _ptr->Create(*new_buffer_desc);
+    return _ptr;
+}
+
+void DynamicBuffer::move_buffer(const MemoryPtr& new_buffer) {
+    const auto stride = map_rule.stride;
+
+    // copy data from old buffer to new buffer
+    const auto src_stride = chunk_stride_in_byte;
+    const auto dst_stride = new_buffer->getStaticDims()[1] * len;
+
+    const auto valid_size = chunk_unit_in_byte * num_execs;
+    const auto src_offset_in_byte = stride > 0 ? 0 : (src_stride - valid_size);
+    chunk_offset_in_byte = stride > 0 ? 0 : (dst_stride - valid_size);  // reset chunk_offset_in_byte
+
+    copy(reinterpret_cast<uint8_t*>(mem_holder_buffer->GetPtr()) + src_offset_in_byte, reinterpret_cast<uint8_t*>(new_buffer->GetPtr()) + chunk_offset_in_byte,
+        src_stride, dst_stride, count, valid_size);
+
+    // assign mem_holder_buffer
     mem_holder_buffer = new_buffer;
+    chunk_stride_in_byte = mem_holder_buffer->GetSize() / count;
+
+    // adjust for next execution
+    if (stride > 0) {
+        chunk_offset_in_byte += valid_size;
+    } else {
+        chunk_offset_in_byte -= chunk_unit_in_byte;
+    }
 }
 
 void DynamicBuffer::move_data() {
-    const auto axis = map_rule.axis;
     const auto src_stride = abs(map_rule.stride) * len;
-    const auto dst_stride = mem_holder_buffer->get_desc().dims()[axis] * len;
+    const auto dst_stride = chunk_stride_in_byte;
 
-    copy(reinterpret_cast<const uint8_t*>(from->GetPtr()), get_ptr(*mem_holder_buffer.get()) + chunk_offset_in_byte,
-         src_stride, dst_stride, count, src_stride);
+    copy(reinterpret_cast<const uint8_t*>(from->GetPtr()), reinterpret_cast<uint8_t*>(mem_holder_buffer->GetPtr()) + chunk_offset_in_byte,
+         src_stride, dst_stride, count, chunk_unit_in_byte);
+
+    // adjust for next execution
+    num_execs++;
+    if (map_rule.stride > 0) {
+        chunk_offset_in_byte += chunk_unit_in_byte;
+    } else {
+        chunk_offset_in_byte -= chunk_unit_in_byte;
+    }
 }
 
 void DynamicBuffer::transfer(const Node* node) {
-    if (mem_holder_buffer) {
+    if (mem_holder_buffer && num_execs > 0) {
+        const auto axis = map_rule.axis;
+        const auto stride = map_rule.stride;
+        const auto abs_stride = std::abs(stride);
+
+        const auto& src_mem = from->GetPrimitive();
+        const auto& src_desc = src_mem.get_desc();
+        auto dims = src_desc.dims();
+        dims[axis] = abs_stride * num_execs;
         const auto desc = node->getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(
-                DnnlExtensionUtils::convertToVectorDims(mem_holder_buffer->get_desc().dims()));
+                DnnlExtensionUtils::convertToVectorDims(dims));
+
         redefineToMemories(to, desc);
 
-        copy(get_ptr(*mem_holder_buffer.get()), reinterpret_cast<uint8_t*>(to.front()->GetPtr()), 0, 0, 1, to.front()->GetSize());
+        const auto src_stride = chunk_stride_in_byte;
+        const auto dst_stride = to.front()->getStaticDims()[axis] * len;
+        const auto valid_size = chunk_unit_in_byte * num_execs;
+        const auto src_offset_in_byte = stride > 0 ? 0 : (src_stride - valid_size);
+        copy(reinterpret_cast<uint8_t*>(mem_holder_buffer->GetPtr()) + src_offset_in_byte, reinterpret_cast<uint8_t*>(to.front()->GetPtr()),
+            src_stride, dst_stride, count, dst_stride);
     } else {
         VectorDims newDims = to.front()->GetShape().getDims();
         nullifyUndefinedDims(newDims);
@@ -319,21 +373,12 @@ void DynamicBuffer::transfer(const Node* node) {
         const auto desc = node->getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(newDims);
         redefineToMemories(to, desc);
     }
-
-    mem_holder_buffer.reset();
 }
 
 void DynamicBuffer::copy(const uint8_t* src, uint8_t* dst, const size_t src_stride, const size_t dst_stride, const size_t count, const size_t len) {
     parallel_for(count, [&](const size_t i) {
         cpu_memcpy(&dst[i * dst_stride], &src[i * src_stride], len);
     });
-}
-
-uint8_t* DynamicBuffer::get_ptr(dnnl::memory& prim) {
-    auto ptr = static_cast<uint8_t*>(prim.get_data_handle());
-    auto md = prim.get_desc().data;
-    dnnl::impl::memory_desc_wrapper wrapper(md);
-    return ptr + wrapper.offset0() * wrapper.data_type_size();
 }
 
 bool TensorIterator::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -516,6 +561,10 @@ void TensorIterator::prepareParams() {
             prepareOutputPorts();
             prepareBackEdges();
         }
+
+        // reset local states of DynamicBuffer
+        for (auto& buffer : buffers)
+            buffer->reset(lastUsedTripCount);
     }
 }
 
@@ -590,10 +639,10 @@ void TensorIterator::prepareInputPorts() {
         auto &to_mem = input_mems[map_rule.to].front();  // first memory is enough to access the shared underlying physical memory
 
         if (map_rule.axis == -1)
-            first_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_mem, to_mem, eng));
+            first_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(context->getParamsCache(), from_mem, to_mem, eng));
         else
             before_mappers.emplace_back(
-                    std::make_shared<PortIteratorHelper>(from_mem, to_mem, true, map_rule, eng));
+                    std::make_shared<PortIteratorHelper>(context->getParamsCache(), from_mem, to_mem, true, map_rule, eng));
     }
 }
 
@@ -604,9 +653,9 @@ void TensorIterator::prepareOutputPorts() {
         auto &from_mem = output_mem[map_rule.to];
 
         if (map_rule.axis == -1)
-            last_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_mem, to_mem, eng));
+            last_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(context->getParamsCache(), from_mem, to_mem, eng));
         else
-            after_mappers.emplace_back(std::make_shared<PortIteratorHelper>(from_mem, to_mem, false, map_rule, eng));
+            after_mappers.emplace_back(std::make_shared<PortIteratorHelper>(context->getParamsCache(), from_mem, to_mem, false, map_rule, eng));
     }
 }
 
@@ -616,7 +665,7 @@ void TensorIterator::prepareBackEdges() {
         auto from_mem = output_mem[map_rule.from];
         auto to_mem = input_mems[map_rule.to].front();
 
-        before_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_mem, to_mem, eng));
+        before_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(context->getParamsCache(), from_mem, to_mem, eng));
     }
 }
 
@@ -630,7 +679,7 @@ void TensorIterator::prepareDynamicBackEdges() {
         redefineToMemories(to_mems, from_mem->getDescPtr());
 
         // first memory is enough to get common memory ptr
-        back_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(from_mem, to_mems.front(), eng));
+        back_mappers.emplace_back(std::make_shared<BackEdgePortHelper>(context->getParamsCache(), from_mem, to_mems.front(), eng));
     }
 }
 
@@ -715,7 +764,7 @@ void TensorIterator::reshapeAndFillOutput(dnnl::stream strm) {
             redefineToMemories(to_mems, desc);
 
             if (!newShape.isDynamic()) {
-                BackEdgePortHelper mapper(from_mem, to_mems.front(), eng);
+                BackEdgePortHelper mapper(context->getParamsCache(), from_mem, to_mems.front(), eng);
                 mapper.execute(strm);
             }
         }

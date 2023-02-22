@@ -28,18 +28,15 @@
 #include "log/log.hpp"
 #include "memory/gna_mem_requests.hpp"
 
-using namespace ov::intel_gna;
+namespace ov {
+namespace intel_gna {
+using namespace common;
 
 std::mutex GNADeviceHelper::acrossPluginsSync{};
 
-GNADeviceHelper::GNADeviceHelper(std::string executionTargetIn,
-                                 std::string compileTargetIn,
-                                 bool swExactModeIn,
-                                 bool isPerformanceMeasuring,
-                                 bool deviceEmbedded)
-    : nGnaDeviceIndex{selectGnaDevice()},
-      executionTarget(executionTargetIn),
-      compileTarget(compileTargetIn),
+GNADeviceHelper::GNADeviceHelper(std::shared_ptr<Target> targetIn, bool isPerformanceMeasuring, bool deviceEmbedded)
+    : target(targetIn),
+      nGnaDeviceIndex{selectGnaDevice()},
       useDeviceEmbeddedExport(deviceEmbedded),
       isPerformanceMeasuring(isPerformanceMeasuring) {
     per_request_diagnostics = log::get_log_level() >= ov::log::Level::TRACE;
@@ -53,7 +50,7 @@ GNADeviceHelper::GNADeviceHelper(std::string executionTargetIn,
     maxLayersCount_ = retrieveMaxLayersCount();
 }
 
-GNADeviceHelper ::~GNADeviceHelper() {
+GNADeviceHelper::~GNADeviceHelper() {
     if (deviceOpened) {
         close();
     }
@@ -151,7 +148,7 @@ uint32_t GNADeviceHelper::enqueueRequest(const uint32_t requestConfigID, Gna2Acc
     uint32_t reqId{};
     if ((gna2AccelerationMode == Gna2AccelerationModeHardware ||
          gna2AccelerationMode == Gna2AccelerationModeHardwareWithSoftwareFallback) &&
-        detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation) {
+        target->get_detected_device_version() == DeviceVersion::SoftwareEmulation) {
         log::warning() << "GNA Device not detected, consider using other mode of acceleration";
     }
 
@@ -213,7 +210,8 @@ uint32_t GNADeviceHelper::createModel(Gna2Model& gnaModel) const {
             "./";
 #endif
         const std::string mode = useDeviceEmbeddedExport ? "_ee" : "";
-        const auto fileSuffix = mode + "_devVersion_" + toHexString(detectedGnaDevVersion);
+        const auto fileSuffix =
+            mode + "_devVersion_" + toHexString(DeviceToString(target->get_detected_device_version()));
         dump::DumpGna2Model(gnaModel, path, false, allAllocations, fileSuffix);
     }
 
@@ -230,37 +228,8 @@ void GNADeviceHelper::releaseModel(const uint32_t model_id) {
 }
 
 bool GNADeviceHelper::enforceLegacyCnnNeeded() const {
-    const auto execTargetDevice = getTargetDevice(true);
-    return isUpTo20HwGnaDevice(execTargetDevice);
-}
-
-Gna2DeviceVersion GNADeviceHelper::parseTarget(const std::string& target) {
-    static const std::map<std::string, Gna2DeviceVersion> targetMap{
-        {common::kGnaTarget2_0, Gna2DeviceVersion2_0},
-        {common::kGnaTarget3_0, Gna2DeviceVersion3_0},
-        {common::kGnaTarget3_5, Gna2DeviceVersion3_5},
-        {common::kGnaTargetUnspecified, Gna2DeviceVersionSoftwareEmulation},
-    };
-    const auto f = targetMap.find(target);
-    if (f != targetMap.end()) {
-        return f->second;
-    }
-    THROW_GNA_EXCEPTION << "Unsupported "
-                        << "GNA target: \"" << target << "\"\n";
-}
-
-Gna2DeviceVersion GNADeviceHelper::getDefaultTarget() const {
-    if (detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation)
-        return parseTarget(common::kGnaDefaultTarget);
-    return detectedGnaDevVersion;
-}
-
-Gna2DeviceVersion GNADeviceHelper::getTargetDevice(const bool execTarget) const {
-    const auto declared = execTarget ? executionTarget : compileTarget;
-    if (declared == common::kGnaTargetUnspecified) {
-        return execTarget ? getDefaultTarget() : getTargetDevice(true);
-    }
-    return parseTarget(declared);
+    const auto execution_target = target->get_effective_execution_target();
+    return is_up_to_20_hw(execution_target);
 }
 
 uint32_t GNADeviceHelper::createRequestConfig(const uint32_t modelID) const {
@@ -501,42 +470,42 @@ void GNADeviceHelper::dumpTLVForDeviceVersion(const uint32_t modelId,
                                               std::ostream& outStream,
                                               const std::vector<GnaEndpoint>& inputsContainer,
                                               const std::vector<GnaEndpoint>& outputsContainer) {
-    const auto compileTarget = GetCompileTarget();
     ExportTlvModel(modelId,
                    nGnaDeviceIndex,
                    outStream,
-                   compileTarget,
+                   target->get_effective_compile_target(),
                    inputsContainer,
                    outputsContainer,
                    allAllocations);
 }
 
-void GNADeviceHelper::createVirtualDevice(Gna2DeviceVersion devVersion) {
-    const auto status = Gna2DeviceCreateForExport(devVersion, &nGnaDeviceIndex);
-    GNADeviceHelper::checkGna2Status(status, "Gna2DeviceCreateForExport(" + std::to_string(devVersion) + ")");
+void GNADeviceHelper::createVirtualDevice(const DeviceVersion& devVersion) {
+    const auto status = Gna2DeviceCreateForExport(DeviceToGna(devVersion), &nGnaDeviceIndex);
+    GNADeviceHelper::checkGna2Status(status, "Gna2DeviceCreateForExport(" + DeviceToString(devVersion) + ")");
 }
 
 void GNADeviceHelper::updateGnaDeviceVersion() {
-    const auto status = Gna2DeviceGetVersion(nGnaDeviceIndex, &detectedGnaDevVersion);
+    Gna2DeviceVersion device_version = Gna2DeviceVersionSoftwareEmulation;
+    const auto status = Gna2DeviceGetVersion(nGnaDeviceIndex, &device_version);
     checkGna2Status(status, "Gna2DeviceGetVersion");
+    target->set_detected_device_version(GnaToDevice(device_version));
 }
 
 void GNADeviceHelper::open() {
     std::unique_lock<std::mutex> lockGnaCalls{acrossPluginsSync};
     updateGnaDeviceVersion();
-    const auto gnaExecTarget = parseTarget(executionTarget);
-    if (useDeviceEmbeddedExport) {
-        const auto gnaCompileTarget = GetCompileTarget();
-        const auto exportGeneration = getEmbeddedTargetFromCompileTarget(gnaCompileTarget);
+    const auto execution_target = target->get_user_set_execution_target();
 
-        createVirtualDevice(exportGeneration);
+    if (useDeviceEmbeddedExport) {
+        createVirtualDevice(target->get_user_set_compile_target());
         updateGnaDeviceVersion();
-    } else if (!executionTarget.empty() && gnaExecTarget != detectedGnaDevVersion) {
-        createVirtualDevice(gnaExecTarget);
+    } else if (execution_target != DeviceVersion::NotSet && execution_target != target->get_detected_device_version()) {
+        createVirtualDevice(execution_target);
         updateGnaDeviceVersion();
-        if (detectedGnaDevVersion != gnaExecTarget) {
-            THROW_GNA_EXCEPTION << "Wrong virtual GNA device version reported: " << detectedGnaDevVersion
-                                << " instead of: " << gnaExecTarget;
+        if (target->get_detected_device_version() != execution_target) {
+            THROW_GNA_EXCEPTION << "Wrong virtual GNA device version reported: "
+                                << DeviceToString(target->get_detected_device_version())
+                                << " instead of: " << DeviceToString(execution_target);
         }
     } else {
         const auto status = Gna2DeviceOpen(nGnaDeviceIndex);
@@ -593,21 +562,6 @@ void GNADeviceHelper::getGnaPerfCounters(
     retPerfCounters["1.2 Stall scoring time in HW"] = info;
 }
 
-std::string GNADeviceHelper::GetCompileTarget() const {
-    static const std::map<Gna2DeviceVersion, std::string> targetMap = {
-        {Gna2DeviceVersion2_0, common::kGnaTarget2_0},
-        {Gna2DeviceVersion3_0, common::kGnaTarget3_0},
-        {Gna2DeviceVersion3_5, common::kGnaTarget3_5},
-        {Gna2DeviceVersionEmbedded3_5, common::kGnaTarget3_5},
-    };
-    const auto target = getTargetDevice(false);
-    auto found = targetMap.find(target);
-    if (found == targetMap.end()) {
-        THROW_GNA_EXCEPTION << "Unknown target Gna2DeviceVersion == " << target;
-    }
-    return found->second;
-}
-
 uint32_t GNADeviceHelper::maxLayersCount() const {
     return maxLayersCount_;
 }
@@ -615,14 +569,15 @@ uint32_t GNADeviceHelper::maxLayersCount() const {
 uint32_t GNADeviceHelper::retrieveMaxLayersCount() {
     using namespace limitations;
 
-    switch (getTargetDevice(true)) {
-    case Gna2DeviceVersion1_0:
-        return kMaxLayersCountGNA1_0;
-    case Gna2DeviceVersion2_0:
+    switch (target->get_effective_execution_target()) {
+    case DeviceVersion::GNA2_0:
         return kMaxLayersCountGNA2_0;
-    case Gna2DeviceVersion3_0:
-    case Gna2DeviceVersion3_5:
+    case DeviceVersion::GNA3_0:
+    case DeviceVersion::GNA3_5:
     default:
         return kMaxLayersCountGNA3_X;
     }
 }
+
+}  // namespace intel_gna
+}  // namespace ov

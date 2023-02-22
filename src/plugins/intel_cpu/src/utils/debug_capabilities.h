@@ -3,6 +3,10 @@
 //
 #pragma once
 
+// To avoid "unused variable" warnings `when debug caps
+// need more information than non-debug caps version
+#define CPU_DEBUG_CAPS_MAYBE_UNUSED(x) (void)x
+
 #ifdef CPU_DEBUG_CAPS
 
 #define CPU_DEBUG_CAP_ENABLE(...) __VA_ARGS__
