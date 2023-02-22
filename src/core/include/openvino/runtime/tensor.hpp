@@ -20,6 +20,7 @@
 namespace InferenceEngine {
 class Blob;
 class IAsyncInferRequestWrapper;
+class IVariableStateWrapper;
 }  // namespace InferenceEngine
 
 namespace ov {
@@ -29,7 +30,9 @@ class CoreImpl;
 class InferRequest;
 class RemoteContext;
 class VariableState;
+class ISyncInferRequest;
 class IInferRequestInternalWrapper;
+class IVariableStateInternalWrapper;
 
 /**
  * @brief Tensor API holding host memory
@@ -54,8 +57,11 @@ protected:
     friend class ov::InferRequest;
     friend class ov::RemoteContext;
     friend class ov::VariableState;
+    friend class ov::ISyncInferRequest;
     friend class ov::IInferRequestInternalWrapper;
+    friend class ov::IVariableStateInternalWrapper;
     friend class InferenceEngine::IAsyncInferRequestWrapper;
+    friend class InferenceEngine::IVariableStateWrapper;
 
 public:
     /// @brief Default constructor
@@ -136,6 +142,13 @@ public:
      * @return A tensor shape
      */
     Shape get_shape() const;
+
+    /**
+     * @brief Reports whether the tensor is continuous or not
+     *
+     * @return true if blob is continuous
+     */
+    bool is_continuous() const;
 
     /**
      * @brief Returns the total number of elements (a product of all the dims or 1 for scalar)
