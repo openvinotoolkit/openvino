@@ -67,7 +67,10 @@ void op::v0::NormalizeL2::validate_and_infer_types() {
 AxisSet op::v0::NormalizeL2::get_reduction_axes() const {
     AxisSet axes;
     if (auto const_op = get_constant_from_source(input_value(1))) {
-        axes = const_op->get_axis_set_val();
+        const auto const_data = const_op->cast_vector<int64_t>();
+        const auto input_data_rank = get_input_partial_shape(0).rank();
+        const auto normalized_axes = ov::normalize_axes(get_friendly_name(), const_data, input_data_rank);
+        axes = AxisSet{normalized_axes};
     }
     return axes;
 }
