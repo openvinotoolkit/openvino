@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "openvino/core/core_visibility.hpp"
+#include "openvino/runtime/common.hpp"
 #include "threading/ie_istreams_executor.hpp"
 #include "threading/ie_itask_executor.hpp"
 
@@ -24,7 +24,7 @@ namespace ov {
  * to not optimal CPU usage. More efficient to run the corresponding tasks one by one via single executor.
  * @ingroup ov_dev_api_threading
  */
-class OPENVINO_API ExecutorManager {
+class OPENVINO_RUNTIME_API ExecutorManager {
 public:
     /**
      * @brief Returns executor by unique identificator
