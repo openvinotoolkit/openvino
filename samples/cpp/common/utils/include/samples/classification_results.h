@@ -148,7 +148,7 @@ public:
             std::cout << std::endl << std::endl;
             printHeader();
 
-            for (size_t id = image_id * _nTop, cnt = 0; id < (image_id + 1) * _nTop; ++cnt, ++id) {
+            for (size_t id = image_id * _nTop; id < (image_id + 1) * _nTop; ++id) {
                 std::cout.precision(7);
                 // Getting probability for resulting class
                 const auto index = _results.at(id) + image_id * (_outTensor.get_size() / _batchSize);
@@ -179,7 +179,7 @@ public:
             std::cout << std::endl << std::endl;
             printHeader();
 
-            for (size_t id = image_id * _nTop, cnt = 0; id < (image_id + 1) * _nTop; ++cnt, ++id) {
+            for (size_t id = image_id * _nTop; id < (image_id + 1) * _nTop; ++id) {
                 std::cout.precision(7);
                 // Getting probability for resulting class
                 const auto result = _outTensor.data<float>();
