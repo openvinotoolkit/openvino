@@ -200,7 +200,7 @@ struct CPU {
     std::vector<std::vector<int>> _cpu_mapping_table;
 
     CPU() {
-#ifdef _WIN32
+#    ifdef _WIN32
         DWORD len = 0;
         if (GetLogicalProcessorInformationEx(RelationAll, nullptr, &len) ||
             GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
@@ -216,7 +216,7 @@ struct CPU {
         _processors = GetMaximumProcessorCount(ALL_PROCESSOR_GROUPS);
 
         parse_processor_info_win(base_ptr, len, _processors, _sockets, _cores, _proc_type_table, _cpu_mapping_table);
-#else
+#    else
         std::vector<std::vector<std::string>> system_info_table;
 
         auto GetCatchInfoLinux = [&]() {
@@ -281,12 +281,12 @@ struct CPU {
             }
         }
         std::vector<std::vector<std::string>>().swap(system_info_table);
-#endif
+#    endif
     }
 };
 static CPU cpu;
 
-#ifndef _WIN32
+#    ifndef _WIN32
 int getNumberOfCPUCores(bool bigCoresOnly) {
     unsigned numberOfProcessors = cpu._processors;
     unsigned totalNumberOfCpuCores = cpu._cores;
@@ -308,24 +308,24 @@ int getNumberOfCPUCores(bool bigCoresOnly) {
         }
     }
     int phys_cores = CPU_COUNT(&currentCoreSet);
-#    if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#        if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
     auto core_types = custom::info::core_types();
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
         phys_cores = custom::info::default_concurrency(
             custom::task_arena::constraints{}.set_core_type(core_types.back()).set_max_threads_per_core(1));
     }
-#    endif
+#        endif
     return phys_cores;
 }
 
-#    if !((IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO))
+#        if !((IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO))
 std::vector<int> getAvailableNUMANodes() {
     std::vector<int> nodes((0 == cpu._sockets) ? 1 : cpu._sockets);
     std::iota(std::begin(nodes), std::end(nodes), 0);
     return nodes;
 }
+#        endif
 #    endif
-#endif
 
 std::vector<std::vector<int>> get_num_available_cpu_cores(const int plugin_task) {
     std::vector<std::vector<int>> proc_type_table;
