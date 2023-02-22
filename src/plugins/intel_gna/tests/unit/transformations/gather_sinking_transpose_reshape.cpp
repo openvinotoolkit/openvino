@@ -18,67 +18,6 @@
 using namespace ov;
 using namespace ov::opset9;
 
-// DEBUG
-std::shared_ptr<void> GenerateFloatInput(size_t size, float initial_value, float delta) { 
-    float * array = new float[size]; 
-    float value = initial_value; 
-    for (size_t i = 0; i < size; ++i) { 
-        array[i] = value; 
-        value += delta; 
-    } 
-    return std::shared_ptr<void>(array); 
-} 
-template <typename T> 
-void AssertEq(const T& first, const T& second, const std::string& first_name, const std::string& second_name) { 
-    if (first == second) 
-        return; 
-    std::ostringstream ss; 
-    ss << "[EMUTEX ASSERT] " << first_name << " (" << first  << ") != " << second_name << "(" << second << ")"; 
-    throw std::runtime_error(ss.str()); 
-} 
-#define EMUTEX_DEBUG_ASSERT_EQ(first, second) AssertEq(first, second, #first, #second); 
-template <typename T, typename T1> 
-void AssertEqPrecision(const T& first, const T& second, const T1& delta, const std::string& first_name, const std::string& second_name) { 
-    if (std::abs(first - second) <= delta) 
-        return; 
-    std::ostringstream ss; 
-    ss << "[EMUTEX ASSERT] " << first_name << " (" << first  << ")  != " << second_name << " (" << second << ") with precision " << delta; 
-    throw std::runtime_error(ss.str()); 
-} 
-#define EMUTEX_DEBUG_ASSERT_EQ_PRECISION(first, second, delta) AssertEqPrecision(first, second, delta, #first, #second); 
-void CompareOutput(std::shared_ptr<ov::Model> function, std::shared_ptr<ov::Model> function_ref) { 
-    auto function_input = function->input(0).get_node_shared_ptr(); 
-    auto function_ref_input = function_ref->input(0).get_node_shared_ptr(); 
-    const auto& function_input_shape = function_input->get_output_shape(0); 
-    const auto& function_ref_input_shape = function_ref_input->get_output_shape(0); 
-    bool rc = std::equal(function_input_shape.begin(), function_input_shape.end(), function_ref_input_shape.begin()); 
-    if (!rc) 
-        throw std::runtime_error("function_input_shape != function_ref_input_shape"); 
-    const size_t n_outputs = function->outputs().size(); 
-    ov::TensorVector result(n_outputs), result_ref(n_outputs); 
-    const size_t input_shape_product = std::accumulate(function_input_shape.begin(), function_input_shape.end(), 1, std::multiplies<size_t>()); 
-    auto inputs = GenerateFloatInput(input_shape_product, 0.0, 0.1); 
-    ov::Tensor input{ov::element::f32, function_input_shape, inputs.get()}; 
-    rc = function->evaluate(result, ov::TensorVector{input}); 
-    if (!rc) 
-        throw std::runtime_error("function->evaluate"); 
-    rc = function_ref->evaluate(result_ref, ov::TensorVector{input}); 
-    if (!rc) 
-        throw std::runtime_error("function_ref->evaluate"); 
-    EMUTEX_DEBUG_ASSERT_EQ(result.size(), result_ref.size()); 
-    for (size_t output_idx = 0; output_idx < n_outputs; ++output_idx) { 
-        EMUTEX_DEBUG_ASSERT_EQ(result[output_idx].get_element_type(), result_ref[output_idx].get_element_type()); 
-        EMUTEX_DEBUG_ASSERT_EQ(result[output_idx].get_shape(), result_ref[output_idx].get_shape()); 
-        EMUTEX_DEBUG_ASSERT_EQ(result[output_idx].get_size(), result_ref[output_idx].get_size()); 
-        const float * result_data = result[output_idx].data<float>(); 
-        const float * expected_result = result_ref[output_idx].data<float>(); 
-        for (size_t i = 0; i < result[output_idx].get_size(); ++i) { 
-            EMUTEX_DEBUG_ASSERT_EQ_PRECISION(result_data[i], expected_result[i], 0.000001); 
-        } 
-    } 
-}
-// DEBUG
-
 namespace testing {
 
 TEST(GatherSinkingTransposeReshape, ForwardSinking) {
@@ -135,7 +74,6 @@ TEST(GatherSinkingTransposeReshape, ForwardSinking) {
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(function, reference_function);
     ASSERT_TRUE(result.valid);
-    CompareOutput(function, reference_function); // DEBUG
 }
 
 TEST(GatherSinkingTransposeReshape, ForwardSinking3D) {
@@ -192,7 +130,6 @@ TEST(GatherSinkingTransposeReshape, ForwardSinking3D) {
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(function, reference_function);
     ASSERT_TRUE(result.valid);
-    CompareOutput(function, reference_function); // DEBUG
 }
 
 
@@ -306,7 +243,6 @@ TEST(GatherSinkingTransposeReshape, BackwardSinking3D) {
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(function, reference_function);
     ASSERT_TRUE(result.valid) << result.message;
-    CompareOutput(function, reference_function); // DEBUG
 }
 
 } // namespace testing
