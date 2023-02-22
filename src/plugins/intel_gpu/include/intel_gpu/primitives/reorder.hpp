@@ -6,6 +6,8 @@
 #include "primitive.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include <vector>
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
+#include "intel_gpu/graph/serialization/vector_serializer.hpp"
 
 namespace cldnn {
 
@@ -23,6 +25,10 @@ enum class reorder_mean_mode {
 /// NOTE THAT THIS WILL SUBTRACT THE SAME VALUES FROM EACH BATCH.
 struct reorder : public primitive_base<reorder> {
     CLDNN_DECLARE_PRIMITIVE(reorder)
+
+    reorder() : primitive_base("", {}), output_format(format::any) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief reorder memory types
     enum class memory_type {
@@ -176,6 +182,24 @@ struct reorder : public primitive_base<reorder> {
                input_mem_type == rhs_casted.input_mem_type &&
                truncate == rhs_casted.truncate &&
                mean.empty() == rhs_casted.mean.empty();
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        ob << make_data(&output_format, sizeof(format));
+        ob << mean;
+        ob << subtract_per_feature;
+        ob << make_data(&mean_mode, sizeof(reorder_mean_mode));
+        ob << make_data(&input_mem_type, sizeof(memory_type));
+        ob << truncate;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        ib >> make_data(&output_format, sizeof(format));
+        ib >> mean;
+        ib >> subtract_per_feature;
+        ib >> make_data(&mean_mode, sizeof(reorder_mean_mode));
+        ib >> make_data(&input_mem_type, sizeof(memory_type));
+        ib >> truncate;
     }
 
 protected:

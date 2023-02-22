@@ -165,7 +165,7 @@ struct region_yolo_test_params {
 };
 
 template <typename T>
-void runRegionTest(region_yolo_test_params& params) {
+void runRegionTest(region_yolo_test_params& params, bool is_caching_test = false) {
     auto& engine = get_test_engine();
     const tensor kInputTensor(params.tensor[0], params.tensor[1], params.tensor[2], params.tensor[3]);
     auto inputData = generate_random_1d<T>(params.tensor[0] * params.tensor[1] * params.tensor[2] * params.tensor[3], -1, 1);
@@ -180,10 +180,11 @@ void runRegionTest(region_yolo_test_params& params) {
                              params.regionNum, static_cast<uint32_t>(params.mask.size()), params.softMax));
     topology.add(reorder("reorder_post", input_info("region_yolo"), format::bfyx, params.dataType));
 
-    network network(engine, topology);
-    network.set_input_data("InputData", inputPrim);
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
-    auto outputs = network.execute();
+    network->set_input_data("InputData", inputPrim);
+
+    auto outputs = network->execute();
     auto output = outputs.at("reorder_post").get_memory();
     cldnn::mem_lock<T> outputData(output, get_test_stream());
 
@@ -238,4 +239,45 @@ TEST(region_yolo_gpu_fp16, byxf) {
 TEST(region_yolo_gpu_fp16, byxf_softmax) {
     region_yolo_test_params params{{ 1, 33, 52, 52 }, { 0, 1, 2 }, 4, 6, 3, data_types::f16, format::byxf, true};
     runRegionTest<FLOAT16>(params);
+}
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST(region_yolo_gpu_fp32, bfyx_cached) {
+    region_yolo_test_params params{{ 1, 33, 52, 52 }, { 0, 1, 2 }, 4, 6, 3, data_types::f32, format::bfyx, false};
+    runRegionTest<float>(params, true);
+}
+
+TEST(region_yolo_gpu_fp32, bfyx_softmax_cached) {
+    region_yolo_test_params params{{ 1, 33, 52, 52 }, { 0, 1, 2 }, 4, 6, 3, data_types::f32, format::bfyx, true};
+    runRegionTest<float>(params, true);
+}
+
+TEST(region_yolo_gpu_fp32, byxf_cached) {
+    region_yolo_test_params params{{ 1, 33, 52, 52 }, { 0, 1, 2 }, 4, 6, 3, data_types::f32, format::byxf, false};
+    runRegionTest<float>(params, true);
+}
+
+TEST(region_yolo_gpu_fp32, byxf_softmax_cached) {
+    region_yolo_test_params params{{ 1, 33, 52, 52 }, { 0, 1, 2 }, 4, 6, 3, data_types::f32, format::byxf, true};
+    runRegionTest<float>(params, true);
+}
+
+TEST(region_yolo_gpu_fp16, bfyx_cached) {
+    region_yolo_test_params params{{ 1, 33, 52, 52 }, { 0, 1, 2 }, 4, 6, 3, data_types::f16, format::bfyx, false};
+    runRegionTest<FLOAT16>(params, true);
+}
+
+TEST(region_yolo_gpu_fp16, bfyx_softmax_cached) {
+    region_yolo_test_params params{{ 1, 33, 52, 52 }, { 0, 1, 2 }, 4, 6, 3, data_types::f16, format::bfyx, true};
+    runRegionTest<FLOAT16>(params, true);
+}
+
+TEST(region_yolo_gpu_fp16, byxf_cached) {
+    region_yolo_test_params params{{ 1, 33, 52, 52 }, { 0, 1, 2 }, 4, 6, 3, data_types::f16, format::byxf, false};
+    runRegionTest<FLOAT16>(params, true);
+}
+#endif  // RUN_ALL_MODEL_CACHING_TESTS
+TEST(region_yolo_gpu_fp16, byxf_softmax_cached) {
+    region_yolo_test_params params{{ 1, 33, 52, 52 }, { 0, 1, 2 }, 4, 6, 3, data_types::f16, format::byxf, true};
+    runRegionTest<FLOAT16>(params, true);
 }

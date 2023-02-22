@@ -163,3 +163,4 @@ attach_activation_impl::attach_activation_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::activation_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::activation)

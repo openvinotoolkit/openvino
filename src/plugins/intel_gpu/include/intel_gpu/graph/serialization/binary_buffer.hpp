@@ -43,6 +43,9 @@ public:
     void setKernlImplParams(void* impl_params) { _impl_params = impl_params; }
     void* getKernlImplParams() const { return _impl_params; }
 
+    std::streampos tellg() { return stream.tellg(); }
+    void seekg(std::streampos pos) { stream.seekg(pos); }
+
 private:
     std::istream& stream;
     void* _impl_params;

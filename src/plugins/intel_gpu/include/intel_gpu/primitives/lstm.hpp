@@ -7,6 +7,7 @@
 #include "activation.hpp"
 #include <vector>
 #include <algorithm>
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
 
 namespace cldnn {
 
@@ -189,6 +190,11 @@ protected:
 
 struct lstm_gemm : public primitive_base<lstm_gemm> {
     CLDNN_DECLARE_PRIMITIVE(lstm_gemm)
+
+    lstm_gemm() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs lstm layer.
     /// @param id This primitive id.
     /// @param input input primitive id.
@@ -242,6 +248,22 @@ struct lstm_gemm : public primitive_base<lstm_gemm> {
                hidden.empty() == rhs_casted.hidden.empty();
     }
 
+    void save(BinaryOutputBuffer& ob) const override {
+        ob << weights;
+        ob << recurrent;
+        ob << bias;
+        ob << hidden;
+        ob << direction;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        ib >> weights;
+        ib >> recurrent;
+        ib >> bias;
+        ib >> hidden;
+        ib >> direction;
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
@@ -257,6 +279,11 @@ protected:
 
 struct lstm_elt : public primitive_base<lstm_elt> {
     CLDNN_DECLARE_PRIMITIVE(lstm_elt)
+
+    lstm_elt() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     using vec_activation = std::vector<activation_func>;
     using vec_activation_param = std::vector<activation_additional_params>;
 
@@ -340,6 +367,22 @@ struct lstm_elt : public primitive_base<lstm_elt> {
                cmp_fields(direction) &&
                cmp_fields(cell.empty());
         #undef cmp_fields
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        ob << cell;
+        ob << clip;
+        ob << input_forget;
+        ob << make_data(&offset_order, sizeof(lstm_weights_order));
+        ob << direction;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        ib >> cell;
+        ib >> clip;
+        ib >> input_forget;
+        ib >> make_data(&offset_order, sizeof(lstm_weights_order));
+        ib >> direction;
     }
 
 protected:

@@ -1695,24 +1695,7 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
 
         ExecutionConfig config{ov::intel_gpu::custom_outputs(std::vector<std::string>{"activation"})};
 
-        std::shared_ptr<cldnn::network> net;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topo, config);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                net = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
-            }
-        } else {
-            net = std::make_shared<cldnn::network>(engine, topo, config);
-        }
+        cldnn::network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
 
         net->set_input_data("in", in_mem);
 

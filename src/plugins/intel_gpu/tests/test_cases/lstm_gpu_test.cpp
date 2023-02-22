@@ -191,7 +191,7 @@ void lstm_reference(VVVVF<T>& input, VVVVF<T>& hidden, VVVVF<T>& cell,
 
 template<typename T>
 void generic_lstm_gemm_gpu_test(int sequence_len, int direction, int batch_size, int input_size, int hidden_size,
-    bool hasBias = true, bool hasHidden = true) {
+    bool hasBias, bool hasHidden, bool is_caching_test = false) {
     int min_random = -2, max_random = 2;
 
     VVVVF<T> ref_input = generate_random_4d<T>(batch_size, sequence_len, 1, input_size, min_random, max_random);
@@ -244,13 +244,13 @@ void generic_lstm_gemm_gpu_test(int sequence_len, int direction, int batch_size,
 
     topology.add(lstm_gemm("lstm_gemm", input_info("input"), "weights", "recurrent", hasBias ? "biases" : "", hasHidden ? "hidden" : ""));
 
-    network network(engine, topology);
-    network.set_input_data("input", input);
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    network->set_input_data("input", input);
     if (hasHidden) {
-        network.set_input_data("hidden", hidden);
+        network->set_input_data("hidden", hidden);
     }
 
-    auto outputs = network.execute();
+    auto outputs = network->execute();
     ASSERT_EQ(outputs.size(), size_t(1));
 
     auto output = outputs.begin()->second.get_memory();
@@ -264,8 +264,8 @@ void generic_lstm_gemm_gpu_test(int sequence_len, int direction, int batch_size,
 
 template<typename T>
 void generic_lstm_elt_gpu_test(int /* sequence_len */, int direction, int batch_size,
-    int /* input_size */, int hidden_size, bool hasCell = true,
-    T clip_threshold = (T)0.f, bool input_forget = false) {
+    int /* input_size */, int hidden_size, bool hasCell,
+    T clip_threshold, bool input_forget, bool is_caching_test = false) {
     // tempGEMM  = [        1, direction,           batch, 4 * hidden_size ] input
     // cell      = [        1, direction,           batch,     hidden_size ] optional
     // output    = [        2, direction,           batch,     hidden_size ] output concat[hidden, cell]
@@ -307,13 +307,13 @@ void generic_lstm_elt_gpu_test(int /* sequence_len */, int direction, int batch_
     }
     topology.add(lstm_elt("lstm_elt", input_info("tempGEMM"), hasCell ? "cell" : "", clip_threshold, input_forget));
 
-    network network(engine, topology);
-    network.set_input_data("tempGEMM", tempGEMM);
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    network->set_input_data("tempGEMM", tempGEMM);
     if (hasCell) {
-        network.set_input_data("cell", cell);
+        network->set_input_data("cell", cell);
     }
 
-    auto outputs = network.execute();
+    auto outputs = network->execute();
     ASSERT_EQ(outputs.size(), size_t(1));
 
     auto output = outputs.begin()->second.get_memory();
@@ -390,7 +390,7 @@ void generate_lstm_topology(topology& t, memory::ptr input, memory::ptr hidden, 
 
 template<typename T>
 void generic_lstm_custom_gpu_test(int sequence_len, int direction, int batch_size, int input_size, int hidden_size,
-    bool hasBias = true, bool hasInitialHidden = true, bool hasInitialCell = true) {
+    bool hasBias, bool hasInitialHidden, bool hasInitialCell, bool is_caching_test = false) {
     std::cout << "Input Size = " << input_size << " Hidden Size = " << hidden_size << " Sequence Len = " << sequence_len << " Batch Size = " << batch_size << std::endl;
     int min_random = -2, max_random = 2;
     VVVVF<T> ref_input = generate_random_4d<T>(batch_size, sequence_len, 1, input_size, min_random, max_random);
@@ -430,11 +430,11 @@ void generic_lstm_custom_gpu_test(int sequence_len, int direction, int batch_siz
     generate_lstm_topology(topology, input, hidden, cell, weights, recurrent, biases, sequence_len,
         hasBias, hasInitialHidden, hasInitialCell);
 
-    network network(engine, topology);
-    network.set_input_data("input", input);
-    if (hasInitialHidden) network.set_input_data("hidden", hidden);
-    if (hasInitialCell) network.set_input_data("cell", cell);
-    auto outputs = network.execute();
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    network->set_input_data("input", input);
+    if (hasInitialHidden) network->set_input_data("hidden", hidden);
+    if (hasInitialCell) network->set_input_data("cell", cell);
+    auto outputs = network->execute();
 
     ASSERT_EQ(outputs.size(), size_t(1));
     size_t output_size = outputs.begin()->second.get_memory()->size() / sizeof(T);
@@ -457,8 +457,8 @@ void generic_lstm_custom_gpu_test(int sequence_len, int direction, int batch_siz
 // -------------------------------------------------------
 template<typename T>
 void generic_lstm_gpu_test(int layers, int sequence_len, int direction, int batch_size, int input_size, int hidden_size,
-                            bool hasBias = true, bool hasInitialHidden = true, bool hasInitialCell = true,
-                            T clip_threshold = 0, bool input_forget = false) {
+                            bool hasBias, bool hasInitialHidden, bool hasInitialCell,
+                            T clip_threshold, bool input_forget, bool is_caching_test = false) {
     std::cout << "Layers = " << layers << " Input Size = " << input_size << " Hidden Size = " << hidden_size
             << " Sequence Len = " << sequence_len << " Direction = " << direction << " Batch Size = " << batch_size << std::endl;
     int min_random = -2, max_random = 2;
@@ -596,14 +596,14 @@ void generic_lstm_gpu_test(int layers, int sequence_len, int direction, int batc
         prev_lstm_id = lstm_id;
     }
 
-    network network(engine, topology);
-    network.set_input_data("input", input);
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    network->set_input_data("input", input);
     for (int i = 0; i < layers; ++i) {
         std::string sid = get_string_id(i);
-        if (hasInitialHidden) network.set_input_data("hidden" + sid, hidden[i]);
-        if (hasInitialCell) network.set_input_data("cell" + sid, cell[i]);
+        if (hasInitialHidden) network->set_input_data("hidden" + sid, hidden[i]);
+        if (hasInitialCell) network->set_input_data("cell" + sid, cell[i]);
     }
-    auto outputs = network.execute();
+    auto outputs = network->execute();
     {
         ASSERT_EQ(outputs.size(), size_t(1));
         size_t output_size = outputs.begin()->second.get_memory()->size() / sizeof(T);
@@ -637,7 +637,7 @@ void generic_lstm_gpu_test(int layers, int sequence_len, int direction, int batc
 
 // -------------------------------------------------------
 template<typename T>
-void lstm_gpu_output_test(const lstm_output_selection& output_selection, int directions) {
+void lstm_gpu_output_test(const lstm_output_selection& output_selection, int directions, bool is_caching_test = false) {
     int layers = 1;
     int sequence_len = 4;
     int batch_size = 3;
@@ -722,12 +722,12 @@ void lstm_gpu_output_test(const lstm_output_selection& output_selection, int dir
         topology.add(crop("crop:last_cell", input_info("lstm"), cell_tensor, tensor{0, concatenation_len - 1, 0, 0}));
     }
 
-    network network(engine, topology);
-    network.set_input_data("input", input);
-    network.set_input_data("hidden", hidden);
-    network.set_input_data("cell", cell);
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    network->set_input_data("input", input);
+    network->set_input_data("hidden", hidden);
+    network->set_input_data("cell", cell);
 
-    auto outputs = network.execute();
+    auto outputs = network->execute();
 	uint32_t ref_num_output_primitives = 1;  // Output will return atleast 1 primitive
 
 	if (emit_last_cell) {
@@ -798,7 +798,7 @@ void lstm_gpu_output_test(const lstm_output_selection& output_selection, int dir
 
 // -------------------------------------------------------
 template<typename T>
-void lstm_gpu_format_test(const cldnn::format& format, int directions) {
+void lstm_gpu_format_test(const cldnn::format& format, int directions, bool is_caching_test = false) {
     int layers = 1;
     int sequence_len = 6;
     int batch_size = 3;
@@ -886,13 +886,14 @@ void lstm_gpu_format_test(const cldnn::format& format, int directions) {
         topology.add(crop("crop:last_cell", input_info("lstm"), cell_tensor, tensor{0, concatenation_len - 1, 0, 0}));
     }
 
-    network network(engine, topology);
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+
     std::map<primitive_id, network_output> outputs;
 
-    network.set_input_data("input", input);
-    network.set_input_data("hidden", hidden);
-    network.set_input_data("cell", cell);
-    outputs = network.execute();
+    network->set_input_data("input", input);
+    network->set_input_data("hidden", hidden);
+    network->set_input_data("cell", cell);
+    outputs = network->execute();
 
     uint32_t ref_num_output_primitives = 1;  // Output will return atleast 1 primitive
 
@@ -979,7 +980,7 @@ void lstm_gpu_format_test(const cldnn::format& format, int directions) {
 
 // -------------------------------------------------------
 template<typename T>
-void lstm_gpu_users_test() {
+void lstm_gpu_users_test(bool is_caching_test = false) {
     int sequence_len = 2;
     int batch_size = 1;
     int input_size = 1;
@@ -1052,13 +1053,14 @@ void lstm_gpu_users_test() {
     std::vector<input_info> output_ids_offsets { input_info("lstm"), input_info("hidden") };
     topology.add(concatenation("concatenation", output_ids_offsets, 1));
 
-    network network(engine, topology);
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+
     std::map<primitive_id, network_output> outputs;
 
-    network.set_input_data("input", input);
-    network.set_input_data("hidden", hidden);
-    network.set_input_data("cell", cell);
-    outputs = network.execute();
+    network->set_input_data("input", input);
+    network->set_input_data("hidden", hidden);
+    network->set_input_data("cell", cell);
+    outputs = network->execute();
 
     // check if the number of returned primitives match the expected number of output primitives
     ASSERT_EQ(size_t(1), outputs.size());
@@ -1081,9 +1083,9 @@ void lstm_gpu_users_test() {
 template<typename T>
 void lstm_gpu_concatenated_input_test(int layers, int sequence_len, int direction,
 						              int batch_size, int input_size, int hidden_size,
-						              bool has_bias = true, bool has_initial_hidden = true,
-						              bool has_initial_cell = true, float clip_threshold = 0,
-						              bool input_forget = false)
+						              bool has_bias, bool has_initial_hidden,
+						              bool has_initial_cell, float clip_threshold,
+						              bool input_forget, bool is_caching_test = false)
 {
 	std::cout << "Layers = " << layers << " Input Size = " << input_size << " Hidden Size = " << hidden_size
 		<< " Sequence Len = " << sequence_len << " Direction = " << direction << " Batch Size = " << batch_size << std::endl;
@@ -1210,14 +1212,14 @@ void lstm_gpu_concatenated_input_test(int layers, int sequence_len, int directio
 		prev_node_id = output_crop_id;
 	}
 
-	network network(engine, topology);
-	network.set_input_data("input", input);
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+	network->set_input_data("input", input);
 	for (int i = 0; i < layers; ++i) {
 		std::string sid = get_string_id(i);
-		if (has_initial_hidden) network.set_input_data("hidden" + sid, hidden[i]);
-		if (has_initial_cell) network.set_input_data("cell" + sid, cell[i]);
+		if (has_initial_hidden) network->set_input_data("hidden" + sid, hidden[i]);
+		if (has_initial_cell) network->set_input_data("cell" + sid, cell[i]);
 	}
-	auto outputs = network.execute();
+	auto outputs = network->execute();
 	{
 		ASSERT_EQ(outputs.size(), size_t(1));
 		size_t output_size = outputs.begin()->second.get_memory()->size() / sizeof(T);
@@ -1254,7 +1256,7 @@ void lstm_gpu_concatenated_input_test(int layers, int sequence_len, int directio
 template<typename T>
 void lstm_gpu_chain_test(int batch_size, int input_size, int hidden_size,
                          int directions, size_t layers, size_t chains, int sequence_len,
-                         const lstm_output_selection& output_selection)
+                         const lstm_output_selection& output_selection, bool is_caching_test = false)
 {
     int min_random = -2, max_random = 2;
     bool has_bias = false;
@@ -1553,15 +1555,15 @@ void lstm_gpu_chain_test(int batch_size, int input_size, int hidden_size,
     }
 
     // Creating network out of the above designed topology
-    cldnn::network network(engine, topology);
-    network.set_input_data("input", input);
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    network->set_input_data("input", input);
     for (size_t layer = 0; layer < layers; layer++) {
         std::string sid = get_string_id(layer);
-        if (has_initial_hidden) network.set_input_data("hidden:000:" + sid, hidden[0][layer]); // 0 is the chain link index
-        if (has_initial_cell) network.set_input_data("cell:000:" + sid, cell[0][layer]); // 0 is the chain link index
+        if (has_initial_hidden) network->set_input_data("hidden:000:" + sid, hidden[0][layer]); // 0 is the chain link index
+        if (has_initial_cell) network->set_input_data("cell:000:" + sid, cell[0][layer]); // 0 is the chain link index
     }
 
-    auto outputs = network.execute();
+    auto outputs = network->execute();
     for (auto itr = outputs.begin(); itr != outputs.end(); itr++)
     {
         auto output_layout = itr->second.get_memory()->get_layout();
@@ -1666,23 +1668,23 @@ TEST(lstm_gemm_gpu, gemv_bfyx_1x64_lstm_gemm_no_hidden_bias_f32) {
 
 // LSTM ELT Tests
 TEST(DISABLED_lstm_elt_gpu, generic_lstm_elt_test_clip_f32) {
-    generic_lstm_elt_gpu_test<float>(1, 1, 4, 6, 3, true, 0.3f);
+    generic_lstm_elt_gpu_test<float>(1, 1, 4, 6, 3, true, 0.3f, false);
 }
 
 TEST(lstm_elt_gpu, generic_lstm_elt_test_input_forget_f32) {
-    generic_lstm_elt_gpu_test<float>(1, 1, 4, 6, 3, true, 0.f, 1);
+    generic_lstm_elt_gpu_test<float>(1, 1, 4, 6, 3, true, 0.f, true);
 }
 
 TEST(DISABLED_lstm_elt_gpu, generic_lstm_elt_test_clip_input_forget_f32) {
-    generic_lstm_elt_gpu_test<float>(1, 1, 4, 6, 3, true, 0.5f, 1);
+    generic_lstm_elt_gpu_test<float>(1, 1, 4, 6, 3, true, 0.5f, true);
 }
 
 TEST(lstm_elt_gpu, generic_lstm_elt_test_f32) {
-    generic_lstm_elt_gpu_test<float>(1, 1, 4, 6, 3, true);
+    generic_lstm_elt_gpu_test<float>(1, 1, 4, 6, 3, true, 0.f, false);
 }
 
 TEST(lstm_elt_gpu, generic_lstm_elt_no_cell_f32) {
-    generic_lstm_elt_gpu_test<float>(1, 1, 4, 6, 3, false);
+    generic_lstm_elt_gpu_test<float>(1, 1, 4, 6, 3, false, 0.f, false);
 }
 
 TEST(lstm_custom_gpu, generic_lstm_custom_f32) {
@@ -1720,35 +1722,35 @@ TEST(lstm_custom_gpu, generic_lstm_custom_no_bias_hidden_cell_f32) {
 // generic_lstm_gpu_test paramters:
 // layers, sequence, dir, batch, input, hidden, bias, initial_h, initial_cell, threshold, coupled_input_forget
 TEST(lstm_gpu, generic_lstm_f32) {
-    generic_lstm_gpu_test<float>(1, 7, 1, 3, 3, 2, true, true, true);
+    generic_lstm_gpu_test<float>(1, 7, 1, 3, 3, 2, true, true, true, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_no_bias_f32) {
-    generic_lstm_gpu_test<float>(1, 7, 1, 3, 3, 2, false, true, true);
+    generic_lstm_gpu_test<float>(1, 7, 1, 3, 3, 2, false, true, true, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_no_hidden_f32) {
-    generic_lstm_gpu_test<float>(1, 7, 1, 5, 4, 3, true, false, true);
+    generic_lstm_gpu_test<float>(1, 7, 1, 5, 4, 3, true, false, true, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_no_bias_hidden_f32) {
-    generic_lstm_gpu_test<float>(1, 7, 1, 5, 4, 3, false, false, true);
+    generic_lstm_gpu_test<float>(1, 7, 1, 5, 4, 3, false, false, true, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_no_cell_f32) {
-    generic_lstm_gpu_test<float>(1, 7, 1, 5, 4, 3, true, true, false);
+    generic_lstm_gpu_test<float>(1, 7, 1, 5, 4, 3, true, true, false, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_no_bias_cell_f32) {
-    generic_lstm_gpu_test<float>(1, 7, 1, 5, 4, 3, false, true, false);
+    generic_lstm_gpu_test<float>(1, 7, 1, 5, 4, 3, false, true, false, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_no_hidden_cell_f32) {
-    generic_lstm_gpu_test<float>(1, 7, 1, 5, 4, 3, true, false, false);
+    generic_lstm_gpu_test<float>(1, 7, 1, 5, 4, 3, true, false, false, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_no_bias_hidden_cell_f32) {
-    generic_lstm_gpu_test<float>(1, 7, 1, 5, 4, 3, false, false, false);
+    generic_lstm_gpu_test<float>(1, 7, 1, 5, 4, 3, false, false, false, 0, false);
 }
 
 TEST(DISABLED_lstm_gpu, generic_lstm_clip_f32) {
@@ -1765,46 +1767,46 @@ TEST(DISABLED_lstm_gpu, generic_lstm_clip_input_forget_f32) {
 
 TEST(lstm_gpu, generic_lstm_offset_order_ifoz_f32) {
     default_offset_type = lstm_weights_order::ifoz;
-    generic_lstm_gpu_test<float>(1, 7, 1, 3, 3, 2, true, true, true);
+    generic_lstm_gpu_test<float>(1, 7, 1, 3, 3, 2, true, true, true, 0, false);
     default_offset_type = lstm_weights_order::iofz;
 }
 
 TEST(lstm_gpu, generic_lstm_canonical_f32) {
-    generic_lstm_gpu_test<float>(1, 1, 1, 1, 1, 1, true, true, true);
+    generic_lstm_gpu_test<float>(1, 1, 1, 1, 1, 1, true, true, true, 0, false);
 }
 
 // bidirectional support
 TEST(lstm_gpu, generic_lstm_bi_f32) {
-    generic_lstm_gpu_test<float>(1, 7, 2, 2, 3, 4, false, false, false);
+    generic_lstm_gpu_test<float>(1, 7, 2, 2, 3, 4, false, false, false, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_bi_bias_f32) {
-    generic_lstm_gpu_test<float>(1, 7, 2, 2, 3, 4, true, false, false);
+    generic_lstm_gpu_test<float>(1, 7, 2, 2, 3, 4, true, false, false, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_bi_bias_hidden_f32) {
-    generic_lstm_gpu_test<float>(1, 7, 2, 2, 3, 4, true, true, false);
+    generic_lstm_gpu_test<float>(1, 7, 2, 2, 3, 4, true, true, false, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_bi_bias_hidden_cell_f32) {
-    generic_lstm_gpu_test<float>(1, 7, 2, 2, 3, 4, true, true, true);
+    generic_lstm_gpu_test<float>(1, 7, 2, 2, 3, 4, true, true, true, 0, false);
 }
 
 // multi-layer support
 TEST(lstm_gpu, generic_lstm_stacked_no_seq_f32) {
-    generic_lstm_gpu_test<float>(4, 1, 1, 3, 3, 2, true, true, true);
+    generic_lstm_gpu_test<float>(4, 1, 1, 3, 3, 2, true, true, true, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_stacked_seq_f32) {
-    generic_lstm_gpu_test<float>(4, 7, 1, 3, 3, 2, true, true, true);
+    generic_lstm_gpu_test<float>(4, 7, 1, 3, 3, 2, true, true, true, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_stacked_bi_f32) {
-    generic_lstm_gpu_test<float>(4, 7, 2, 3, 3, 2, true, true, true);
+    generic_lstm_gpu_test<float>(4, 7, 2, 3, 3, 2, true, true, true, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_stacked_seq_bi_f32) {
-    generic_lstm_gpu_test<float>(4, 7, 2, 3, 3, 2, true, true, true);
+    generic_lstm_gpu_test<float>(4, 7, 2, 3, 3, 2, true, true, true, 0, false);
 }
 
 // optional outputs support
@@ -1864,11 +1866,11 @@ TEST(lstm_gpu, lstm_users_f32) {
 
 // Test for LSTM with concatenated input
 TEST(lstm_gpu, generic_lstm_concatenated_input) {
-    lstm_gpu_concatenated_input_test<float>(1, 2, 2, 1, 1, 1, true, true, true);
+    lstm_gpu_concatenated_input_test<float>(1, 2, 2, 1, 1, 1, true, true, true, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_concatenated_input_multi_layer) {
-    lstm_gpu_concatenated_input_test<float>(5, 5, 2, 1, 1, 4, true, true, true);
+    lstm_gpu_concatenated_input_test<float>(5, 5, 2, 1, 1, 4, true, true, true, 0, false);
 }
 
 // test for LSTM with chain and stack (multilayer)
@@ -1938,55 +1940,55 @@ TEST(lstm_gemm_gpu, generic_lstm_gemm_no_hidden_bias_f16) {
 }
 
 TEST(DISABLED_lstm_elt_gpu, generic_lstm_elt_test_clip_f16) {
-    generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, true, 0.3f);
+    generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, true, 0.3f, false);
 }
 
 TEST(lstm_elt_gpu, generic_lstm_elt_test_input_forget_f16) {
-    generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, true, 0.f, 1);
+    generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, true, 0.f, true);
 }
 
 TEST(DISABLED_lstm_elt_gpu, generic_lstm_elt_test_clip_input_forget_f16) {
-    generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, true, 0.5f, 1);
+    generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, true, 0.5f, true);
 }
 
 TEST(lstm_elt_gpu, generic_lstm_elt_test_f16) {
-    generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, true);
+    generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, true, 0.f, false);
 }
 
 TEST(lstm_elt_gpu, generic_lstm_elt_no_cell_f16) {
-    generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, false);
+    generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, false, 0.f, false);
 }
 
 TEST(lstm_gpu, generic_lstm_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true);
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_no_bias_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, false, true, true);
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, false, true, true, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_no_hidden_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, true, false, true);
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, true, false, true, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_no_bias_hidden_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, false, false, true);
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, false, false, true, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_no_cell_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, true, true, false);
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, true, true, false, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_no_bias_cell_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, false, true, false);
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, false, true, false, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_no_hidden_cell_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, true, false, false);
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, true, false, false, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_no_bias_hidden_cell_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, false, false, false);
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, false, false, false, 0, false);
 }
 
 TEST(DISABLED_lstm_gpu, generic_lstm_clip_f16) {
@@ -2003,37 +2005,396 @@ TEST(DISABLED_lstm_gpu, generic_lstm_clip_input_forget_f16) {
 
 TEST(lstm_gpu, generic_lstm_offset_order_ifoz_f16) {
     default_offset_type = lstm_weights_order::ifoz;
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true);
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true, 0, false);
     default_offset_type = lstm_weights_order::iofz;
 }
 
 TEST(lstm_gpu, generic_lstm_canonical_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 1, 1, 1, 1, 1, true, true, true);
+    generic_lstm_gpu_test<FLOAT16>(1, 1, 1, 1, 1, 1, true, true, true, 0, false);
 }
 
 // bidirectional support
 TEST(lstm_gpu, generic_lstm_bi_bias_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 2, 2, 3, 4, true, false, false);
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 2, 2, 3, 4, true, false, false, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_bi_bias_hidden_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 2, 2, 3, 4, true, true, false);
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 2, 2, 3, 4, true, true, false, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_bi_bias_hidden_cell_f16) {
-    generic_lstm_gpu_test<FLOAT16>(1, 7, 2, 2, 3, 4, true, true, true);
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 2, 2, 3, 4, true, true, true, 0, false);
 }
 
 // multi-layer support
 TEST(lstm_gpu, generic_lstm_stacked_seq_f16) {
-    generic_lstm_gpu_test<FLOAT16>(4, 7, 1, 3, 3, 2, true, true, true);
+    generic_lstm_gpu_test<FLOAT16>(4, 7, 1, 3, 3, 2, true, true, true, 0, false);
 }
 
 TEST(lstm_gpu, generic_lstm_stacked_bi_f16) {
-    generic_lstm_gpu_test<FLOAT16>(4, 7, 2, 3, 3, 2, true, true, true);
+    generic_lstm_gpu_test<FLOAT16>(4, 7, 2, 3, 3, 2, true, true, true, 0, false);
 }
 
 // TODO: Add tests for the following:
 // integration testing using multi-layer and chained LSTMs
 // LSTMs single input
 // optional activation list
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST(lstm_gemm_gpu, generic_lstm_gemm_test_f32_cached) {
+    generic_lstm_gemm_gpu_test<float>(1, 1, 3, 6, 2, true, true, true);
+}
+
+TEST(lstm_gemm_gpu, generic_lstm_gemm_no_bias_f32_cached) {
+    generic_lstm_gemm_gpu_test<float>(1, 1, 3, 6, 2, false, true, true);
+}
+
+TEST(lstm_gemm_gpu, generic_lstm_gemm_no_hidden_f32_cached) {
+    generic_lstm_gemm_gpu_test<float>(1, 1, 3, 6, 2, true, false, true);
+}
+
+TEST(lstm_gemm_gpu, generic_lstm_gemm_no_hidden_bias_f32_cached) {
+    generic_lstm_gemm_gpu_test<float>(1, 1, 3, 6, 2, false, false, true);
+}
+
+TEST(lstm_gemm_gpu, gemv_bfyx_1x64_lstm_gemm_test_f32_cached) {
+    generic_lstm_gemm_gpu_test<float>(5, 1, 1, 1024, 1024, true, true, true);
+}
+
+TEST(lstm_gemm_gpu, gemv_bfyx_1x64_lstm_gemm_no_bias_f32_cached) {
+    generic_lstm_gemm_gpu_test<float>(1, 1, 1, 256, 2, false, true, true);
+}
+
+TEST(lstm_gemm_gpu, gemv_bfyx_1x64_lstm_gemm_no_hidden_f32_cached) {
+    generic_lstm_gemm_gpu_test<float>(1, 1, 1, 64, 2, true, false, true);
+}
+
+TEST(lstm_gemm_gpu, gemv_bfyx_1x64_lstm_gemm_no_hidden_bias_f32_cached) {
+    generic_lstm_gemm_gpu_test<float>(1, 1, 1, 64, 2, false, false, true);
+}
+
+TEST(DISABLED_lstm_elt_gpu, generic_lstm_elt_test_clip_f32_cached) {
+    generic_lstm_elt_gpu_test<float>(1, 1, 4, 6, 3, true, 0.3f, false, true);
+}
+
+TEST(lstm_elt_gpu, generic_lstm_elt_test_input_forget_f32_cached) {
+    generic_lstm_elt_gpu_test<float>(1, 1, 4, 6, 3, true, 0.f, true, true);
+}
+
+TEST(DISABLED_lstm_elt_gpu, generic_lstm_elt_test_clip_input_forget_f32_cached) {
+    generic_lstm_elt_gpu_test<float>(1, 1, 4, 6, 3, true, 0.5f, true, true);
+}
+
+TEST(lstm_elt_gpu, generic_lstm_elt_test_f32_cached) {
+    generic_lstm_elt_gpu_test<float>(1, 1, 4, 6, 3, true, 0.f, false, true);
+}
+
+TEST(lstm_elt_gpu, generic_lstm_elt_no_cell_f32_cached) {
+    generic_lstm_elt_gpu_test<float>(1, 1, 4, 6, 3, false, 0.f, false, true);
+}
+
+TEST(lstm_custom_gpu, generic_lstm_custom_f32_cached) {
+    generic_lstm_custom_gpu_test<float>(3, 1, 3, 3, 2, true, true, true, true);
+}
+
+TEST(lstm_custom_gpu, generic_lstm_custom_no_biasf32_cached) {
+    generic_lstm_custom_gpu_test<float>(3, 1, 3, 3, 2, false, true, true, true);
+}
+
+TEST(lstm_custom_gpu, generic_lstm_custom_no_hidden_f32_cached) {
+    generic_lstm_custom_gpu_test<float>(3, 1, 3, 3, 2, true, false, true, true);
+}
+
+TEST(lstm_custom_gpu, generic_lstm_custom_no_bias_hidden_f32_cached) {
+    generic_lstm_custom_gpu_test<float>(3, 1, 3, 3, 2, false, false, true, true);
+}
+
+TEST(lstm_custom_gpu, generic_lstm_custom_no_cell_f32_cached) {
+    generic_lstm_custom_gpu_test<float>(3, 1, 3, 3, 2, true, true, false, true);
+}
+
+TEST(lstm_custom_gpu, generic_lstm_custom_no_bias_cell_f32_cached) {
+    generic_lstm_custom_gpu_test<float>(3, 1, 3, 3, 2, false, true, false, true);
+}
+
+TEST(lstm_custom_gpu, generic_lstm_custom_no_hidden_cell_f32_cached) {
+    generic_lstm_custom_gpu_test<float>(3, 1, 3, 3, 2, true, false, false, true);
+}
+
+TEST(lstm_custom_gpu, generic_lstm_custom_no_bias_hidden_cell_f32_cached) {
+    generic_lstm_custom_gpu_test<float>(3, 1, 3, 3, 2, false, false, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_f32_cached) {
+    generic_lstm_gpu_test<float>(1, 7, 1, 3, 3, 2, true, true, true, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_no_bias_f32_cached) {
+    generic_lstm_gpu_test<float>(1, 7, 1, 3, 3, 2, false, true, true, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_no_hidden_f32_cached) {
+    generic_lstm_gpu_test<float>(1, 7, 1, 5, 4, 3, true, false, true, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_no_bias_hidden_f32_cached) {
+    generic_lstm_gpu_test<float>(1, 7, 1, 5, 4, 3, false, false, true, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_no_cell_f32_cached) {
+    generic_lstm_gpu_test<float>(1, 7, 1, 5, 4, 3, true, true, false, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_no_bias_cell_f32_cached) {
+    generic_lstm_gpu_test<float>(1, 7, 1, 5, 4, 3, false, true, false, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_no_hidden_cell_f32_cached) {
+    generic_lstm_gpu_test<float>(1, 7, 1, 5, 4, 3, true, false, false, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_no_bias_hidden_cell_f32_cached) {
+    generic_lstm_gpu_test<float>(1, 7, 1, 5, 4, 3, false, false, false, 0, false, true);
+}
+
+TEST(DISABLED_lstm_gpu, generic_lstm_clip_f32_cached) {
+    generic_lstm_gpu_test<float>(1, 7, 1, 3, 3, 2, true, true, true, 0.3f, 0, true);
+}
+
+TEST(lstm_gpu, generic_lstm_input_forget_f32_cached) {
+    generic_lstm_gpu_test<float>(1, 7, 1, 3, 3, 2, true, true, true, 0.f, 1, true);
+}
+
+TEST(DISABLED_lstm_gpu, generic_lstm_clip_input_forget_f32_cached) {
+    generic_lstm_gpu_test<float>(1, 7, 1, 3, 3, 2, true, true, true, 0.3f, 1, true);
+}
+
+TEST(lstm_gpu, generic_lstm_offset_order_ifoz_f32_cached) {
+    default_offset_type = lstm_weights_order::ifoz;
+    generic_lstm_gpu_test<float>(1, 7, 1, 3, 3, 2, true, true, true, 0, false, true);
+    default_offset_type = lstm_weights_order::iofz;
+}
+
+TEST(lstm_gpu, generic_lstm_canonical_f32_cached) {
+    generic_lstm_gpu_test<float>(1, 1, 1, 1, 1, 1, true, true, true, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_bi_f32_cached) {
+    generic_lstm_gpu_test<float>(1, 7, 2, 2, 3, 4, false, false, false, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_bi_bias_f32_cached) {
+    generic_lstm_gpu_test<float>(1, 7, 2, 2, 3, 4, true, false, false, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_bi_bias_hidden_f32_cached) {
+    generic_lstm_gpu_test<float>(1, 7, 2, 2, 3, 4, true, true, false, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_bi_bias_hidden_cell_f32_cached) {
+    generic_lstm_gpu_test<float>(1, 7, 2, 2, 3, 4, true, true, true, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_stacked_no_seq_f32_cached) {
+    generic_lstm_gpu_test<float>(4, 1, 1, 3, 3, 2, true, true, true, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_stacked_seq_f32_cached) {
+    generic_lstm_gpu_test<float>(4, 7, 1, 3, 3, 2, true, true, true, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_stacked_bi_f32_cached) {
+    generic_lstm_gpu_test<float>(4, 7, 2, 3, 3, 2, true, true, true, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_stacked_seq_bi_f32_cached) {
+    generic_lstm_gpu_test<float>(4, 7, 2, 3, 3, 2, true, true, true, 0, false, true);
+}
+
+TEST(lstm_gpu, output_test_sequence_f32_cached) {
+    lstm_gpu_output_test<float>(lstm_output_selection::sequence, 1, true);
+}
+
+TEST(lstm_gpu, output_test_hidden_f32_cached) {
+    lstm_gpu_output_test<float>(lstm_output_selection::hidden, 1, true);
+}
+
+TEST(lstm_gpu, output_test_hidden_cell_f32_cached) {
+    lstm_gpu_output_test<float>(lstm_output_selection::hidden_cell, 1, true);
+}
+
+TEST(lstm_gpu, output_test_sequence_cell_f32_cached) {
+    lstm_gpu_output_test<float>(lstm_output_selection::sequence_cell, 1, true);
+}
+
+TEST(lstm_gpu, output_test_sequence_bi_f32_cached) {
+    lstm_gpu_output_test<float>(lstm_output_selection::sequence, 2, true);
+}
+
+TEST(lstm_gpu, output_test_hidden_bi_f32_cached) {
+    lstm_gpu_output_test<float>(lstm_output_selection::hidden, 2, true);
+}
+
+TEST(lstm_gpu, output_test_hidden_cell_bi_f32_cached) {
+    lstm_gpu_output_test<float>(lstm_output_selection::hidden_cell, 2, true);
+}
+
+TEST(lstm_gpu, output_test_sequence_cell_bi_f32_cached) {
+    lstm_gpu_output_test<float>(lstm_output_selection::sequence_cell, 2, true);
+}
+
+TEST(lstm_gpu, lstm_gpu_format_bfyx_f32_cached) {
+    lstm_gpu_format_test<float>(cldnn::format::bfyx, 1, true);
+}
+
+TEST(lstm_gpu, lstm_gpu_format_bfyx_bi_f32_cached) {
+    lstm_gpu_format_test<float>(cldnn::format::bfyx, 2, true);
+}
+
+TEST(lstm_gpu, lstm_gpu_format_fyxb_f32_cached) {
+    lstm_gpu_format_test<float>(cldnn::format::fyxb, 1, true);
+}
+
+TEST(lstm_gpu, lstm_gpu_format_fyxb_bi_f32_cached) {
+    lstm_gpu_format_test<float>(cldnn::format::fyxb, 2, true);
+}
+
+TEST(lstm_gpu, lstm_users_f32_cached) {
+    lstm_gpu_users_test<float>(true);
+}
+
+TEST(lstm_gpu, generic_lstm_concatenated_input_cached) {
+    lstm_gpu_concatenated_input_test<float>(1, 2, 2, 1, 1, 1, true, true, true, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_concatenated_input_multi_layer_cached) {
+    lstm_gpu_concatenated_input_test<float>(5, 5, 2, 1, 1, 4, true, true, true, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_chained_unidirectional_f32_cached) {
+    lstm_gpu_chain_test<float>(1, 2, 4, 1, 1, 2, 1, lstm_output_selection::sequence_cell, true);
+}
+
+TEST(lstm_gpu, generic_lstm_chained_bidirectional_f32_cached) {
+    lstm_gpu_chain_test<float>(1, 2, 4, 2, 1, 1, 1, lstm_output_selection::sequence_cell, true);
+}
+
+TEST(lstm_gpu, generic_lstm_chained_no_stack_bidirectional_f32_cached) {
+    lstm_gpu_chain_test<float>(2, 2, 4, 2, 1, 2, 5, lstm_output_selection::sequence_cell, true);
+}
+
+TEST(lstm_gpu, generic_lstm_chained_stacked_bidirectional_f32_cached) {
+    lstm_gpu_chain_test<float>(2, 2, 4, 2, 4, 2, 5, lstm_output_selection::sequence_cell, true);
+}
+
+// FP16 Half precision tests
+TEST(lstm_gemm_gpu, generic_lstm_gemm_test_f16_cached) {
+    generic_lstm_gemm_gpu_test<FLOAT16>(1, 1, 3, 6, 2, true, true, true);
+}
+
+TEST(lstm_gemm_gpu, generic_lstm_gemm_no_bias_f16_cached) {
+    generic_lstm_gemm_gpu_test<FLOAT16>(1, 1, 3, 6, 2, false, true, true);
+}
+
+TEST(lstm_gemm_gpu, generic_lstm_gemm_no_hidden_f16_cached) {
+    generic_lstm_gemm_gpu_test<FLOAT16>(1, 1, 3, 6, 2, true, false, true);
+}
+
+TEST(lstm_gemm_gpu, generic_lstm_gemm_no_hidden_bias_f16_cached) {
+    generic_lstm_gemm_gpu_test<FLOAT16>(1, 1, 3, 6, 2, false, false, true);
+}
+
+TEST(DISABLED_lstm_elt_gpu, generic_lstm_elt_test_clip_f16_cached) {
+    generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, true, 0.3f, false, true);
+}
+
+TEST(lstm_elt_gpu, generic_lstm_elt_test_input_forget_f16_cached) {
+    generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, true, 0.f, true, true);
+}
+
+TEST(DISABLED_lstm_elt_gpu, generic_lstm_elt_test_clip_input_forget_f16_cached) {
+    generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, true, 0.5f, true, true);
+}
+
+TEST(lstm_elt_gpu, generic_lstm_elt_test_f16_cached) {
+    generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, true, 0.f, false, true);
+}
+
+TEST(lstm_elt_gpu, generic_lstm_elt_no_cell_f16_cached) {
+    generic_lstm_elt_gpu_test<FLOAT16>(1, 1, 4, 6, 3, false, 0.f, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_f16_cached) {
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_no_bias_f16_cached) {
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, false, true, true, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_no_hidden_f16_cached) {
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, true, false, true, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_no_bias_hidden_f16_cached) {
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, false, false, true, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_no_cell_f16_cached) {
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, true, true, false, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_no_bias_cell_f16_cached) {
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, false, true, false, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_no_hidden_cell_f16_cached) {
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, true, false, false, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_no_bias_hidden_cell_f16_cached) {
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 5, 4, 3, false, false, false, 0, false, true);
+}
+
+TEST(DISABLED_lstm_gpu, generic_lstm_clip_f16_cached) {
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true, 0.3f, 0, true);
+}
+
+TEST(lstm_gpu, generic_lstm_input_forget_f16_cached) {
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true, 0.f, 1, true);
+}
+
+TEST(DISABLED_lstm_gpu, generic_lstm_clip_input_forget_f16_cached) {
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true, 0.3f, 1, true);
+}
+
+TEST(lstm_gpu, generic_lstm_offset_order_ifoz_f16_cached) {
+    default_offset_type = lstm_weights_order::ifoz;
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 1, 3, 3, 2, true, true, true, 0, false, true);
+    default_offset_type = lstm_weights_order::iofz;
+}
+
+TEST(lstm_gpu, generic_lstm_canonical_f16_cached) {
+    generic_lstm_gpu_test<FLOAT16>(1, 1, 1, 1, 1, 1, true, true, true, 0, false, true);
+}
+
+// bidirectional support
+TEST(lstm_gpu, generic_lstm_bi_bias_f16_cached) {
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 2, 2, 3, 4, true, false, false, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_bi_bias_hidden_f16_cached) {
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 2, 2, 3, 4, true, true, false, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_bi_bias_hidden_cell_f16_cached) {
+    generic_lstm_gpu_test<FLOAT16>(1, 7, 2, 2, 3, 4, true, true, true, 0, false, true);
+}
+
+TEST(lstm_gpu, generic_lstm_stacked_seq_f16_cached) {
+    generic_lstm_gpu_test<FLOAT16>(4, 7, 1, 3, 3, 2, true, true, true, 0, false, true);
+}
+#endif
+TEST(lstm_gpu, generic_lstm_stacked_bi_f16_cached) {
+    generic_lstm_gpu_test<FLOAT16>(4, 7, 2, 3, 3, 2, true, true, true, 0, false, true);
+}

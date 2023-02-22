@@ -140,3 +140,4 @@ attach_reorder_impl::attach_reorder_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reorder_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::reorder)

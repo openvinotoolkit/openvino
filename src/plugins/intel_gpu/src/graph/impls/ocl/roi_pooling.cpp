@@ -49,7 +49,7 @@ protected:
     kernel_arguments_data get_arguments(const typed_primitive_inst<roi_pooling>& instance) const override {
         kernel_arguments_data args;
 
-        if (instance.argument->mode == pooling_mode::deformable_bilinear && !instance.argument->no_trans)
+        if (instance.get_typed_desc<roi_pooling>()->mode == pooling_mode::deformable_bilinear && !instance.get_typed_desc<roi_pooling>()->no_trans)
             args.inputs = {
                 instance.input_memory_ptr(),
                 instance.rois_memory(),
@@ -109,3 +109,4 @@ attach_roi_pooling_impl::attach_roi_pooling_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::roi_pooling_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::roi_pooling)

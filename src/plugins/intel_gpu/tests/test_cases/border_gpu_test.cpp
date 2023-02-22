@@ -85,25 +85,7 @@ public:
                                    pad_mode,
                                    pad_value),
                             reorder("output", input_info("border"), cldnn::format::bfyx, T_dt));
-        std::shared_ptr<cldnn::network> target_network;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, target_topology);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                target_network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-            }
-        } else {
-            target_network = std::make_shared<cldnn::network>(engine, target_topology);
-        }
-
+        cldnn::network::ptr target_network = get_network(engine, target_topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
         target_network->set_input_data("input", input);
         auto target_output = target_network->execute().at("output").get_memory();
         cldnn::mem_lock<T> target_output_ptr(target_output, get_test_stream());

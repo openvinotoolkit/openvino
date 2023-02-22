@@ -1142,41 +1142,9 @@ void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
 
     if (_impl != nullptr) {
         ob << true;
-        kernel_arguments_data args = _impl->get_arguments(*this);
-        kernel_arguments_data_idx args_idx;
-        convert_args(args, args_idx);
-        _impl->set_arguments(args_idx);
         ob << _impl;
     } else {
         ob << false;
-    }
-}
-
-void primitive_inst::convert_args(const kernel_arguments_data& args, kernel_arguments_data_idx& args_idx) const {
-    if (args.inputs.size() > 0) {
-        args_idx.inputs.resize(args.inputs.size());
-        for (uint32_t idx = 0; idx < args.inputs.size(); ++idx) {
-            args_idx.inputs[idx] = get_index_in_deps(args.inputs[idx]);
-        }
-    }
-
-    args_idx.weights = (args.weights == nullptr) ? -1 : get_index_in_deps(args.weights);
-    args_idx.recurrent = (args.recurrent == nullptr) ? -1 : get_index_in_deps(args.recurrent);
-    args_idx.hidden = (args.hidden == nullptr) ? -1 : get_index_in_deps(args.hidden);
-    args_idx.cell = (args.cell == nullptr) ? -1 : get_index_in_deps(args.cell);
-    args_idx.bias = (args.bias == nullptr) ? -1 : get_index_in_deps(args.bias);
-    args_idx.weights_zero_points = (args.weights_zero_points == nullptr) ? -1 : get_index_in_deps(args.weights_zero_points);
-    args_idx.activations_zero_points = (args.activations_zero_points == nullptr) ? -1 : get_index_in_deps(args.activations_zero_points);
-    args_idx.compensation = (args.compensation == nullptr) ? -1 : get_index_in_deps(args.compensation);
-    args_idx.lookup_table = (args.lookup_table == nullptr) ? -1 : get_index_in_deps(args.lookup_table);
-    args_idx.scale_table = (args.scale_table == nullptr) ? -1 : get_index_in_deps(args.scale_table);
-    args_idx.slope = (args.slope == nullptr) ? -1 : get_index_in_deps(args.slope);
-
-    if (args.fused_op_inputs.size() > 0) {
-        args_idx.fused_op_inputs.resize(args.fused_op_inputs.size());
-        for (uint32_t idx = 0; idx < args.fused_op_inputs.size(); ++idx) {
-            args_idx.fused_op_inputs[idx] = get_index_in_deps(args.fused_op_inputs[idx]);
-        }
     }
 }
 

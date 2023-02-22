@@ -31,19 +31,19 @@ protected:
             args.inputs.push_back(instance.input_memory_ptr(i));
         }
 
-        if (instance.has_num_select_per_class() && !instance.node->num_select_per_class_node().is_constant()) {
+        if (instance.has_num_select_per_class() && !instance.num_select_per_class_inst()->is_constant()) {
             args.inputs.push_back(instance.num_select_per_class_mem());
         }
 
-        if (instance.has_iou_threshold() && !instance.node->iou_threshold_node().is_constant()) {
+        if (instance.has_iou_threshold() && !instance.iou_threshold_inst()->is_constant()) {
             args.inputs.push_back(instance.iou_threshold_mem());
         }
 
-        if (instance.has_score_threshold() && !instance.node->score_threshold_node().is_constant()) {
+        if (instance.has_score_threshold() && !instance.score_threshold_inst()->is_constant()) {
             args.inputs.push_back(instance.score_threshold_mem());
         }
 
-        if (instance.has_soft_nms_sigma() && !instance.node->soft_nms_sigma_node().is_constant()) {
+        if (instance.has_soft_nms_sigma() && !instance.soft_nms_sigma_inst()->is_constant()) {
             args.inputs.push_back(instance.soft_nms_sigma_mem());
         }
 
