@@ -140,6 +140,11 @@ TEST_F(TypePropTileTest, preserve_partial_values_and_labels) {
 }
 
 using TileTestParam = std::tuple<PartialShape, std::vector<int64_t>, PartialShape>;
+#if INTPTR_MAX == INT64_MAX
+using data_type = int64_t;
+#else
+using data_type = int32_t;
+#endif
 
 class TileTest : public TypePropTileTest, public WithParamInterface<TileTestParam> {
 protected:
@@ -152,7 +157,7 @@ protected:
 
         if (!labels.empty()) {
             auto repeats = repeats_val;
-            ssize_t size_diff = labels.size() - repeats.size();
+            data_type size_diff = labels.size() - repeats.size();
 
             if (size_diff >= 0) {
                 repeats.insert(repeats.begin(), size_diff, 1);
