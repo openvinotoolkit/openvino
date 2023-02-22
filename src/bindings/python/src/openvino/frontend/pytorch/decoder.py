@@ -220,7 +220,9 @@ class TorchScriptPythonDecoder (Decoder):
             value = self.raw_inputs[0]
             if value.type().isSubtypeOf(torch.TensorType.get()):
                 tensor = typing.cast(torch.TensorType, value.type())
-                return str(tensor.device())
+                device = tensor.device()
+                if device:
+                    return str(device)
         # Device cannot be statically determined.
         return "cpu"
 
