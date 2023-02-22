@@ -355,6 +355,7 @@ void Input::cloneBlobIfRequired() {
     if (weightCache) {
         MemoryPtr ptr = *weightCache->findOrCreate(blobKey(), cloneBlob);
         memoryPtr = std::const_pointer_cast<const Memory>(ptr);
+    // todo: at offline phase we always flush subnormals to zero, probably hasSubnormals can be removed?
     } else if (isBlobAligned() && !hasSubnormals() && !isWA()) {
         auto ptr = new Memory(getEngine());
         ptr->Create(memDesc, constOp->get_data_ptr());

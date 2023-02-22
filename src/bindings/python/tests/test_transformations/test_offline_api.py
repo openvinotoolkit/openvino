@@ -12,6 +12,7 @@ from openvino._offline_transformations import (
     apply_low_latency_transformation,
     apply_pruning_transformation,
     apply_make_stateful_transformation,
+    apply_flush_fp32_subnormals_to_zero,
     compress_model_transformation,
     convert_sequence_to_tensor_iterator_transformation,
     apply_fused_names_cleanup,
@@ -339,3 +340,27 @@ def test_convert_gru_to_tensor_iterator():
     # assert that GRU sequence got transformed into TensorIterator
     assert "GRUSequence" not in ops_types
     assert "TensorIterator" in ops_types
+
+
+
+def test_flush_fp32_subnormals_to_zero():
+    parameter = ov.opset10.parameter([1, 4, 12, 12], name="X")
+    subnormal_val = -2.0e-45
+
+    weights = ov.opset10.constant(np.array([[[[0.0], [1.0], [2.0]],
+                                             [[3.0], [4.0], [5.0]],
+                                             [[subnormal_val], [subnormal_val], [subnormal_val]],
+                                             [[subnormal_val], [subnormal_val], [subnormal_val]]]]),
+                                  dtype=np.float32)
+
+    conv = ov.opset10.convolution(parameter,
+                                  weights,
+                                  strides=[1, 1], pads_begin=[0, 0], pads_end=[0, 0], dilations=[1, 1])
+
+    result = ov.opset10.result(conv)
+    model = Model([result], [parameter])
+
+    apply_flush_fp32_subnormals_to_zero(model)
+
+    assert np.all(weights.data[0, 2:3] != subnormal_val)
+    assert np.all(weights.data[0, 2:3] == 0.0)
