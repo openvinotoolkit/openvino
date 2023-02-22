@@ -95,7 +95,14 @@ RDFT::RDFT(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr con
 
     inverse = ov::is_type<ov::op::v9::IRDFT>(op);
 
-    std::shared_ptr<ov::op::v0::Constant> signalSizesNode;
+    auto axesNode = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(1));
+    if (axesNode) {
+        axes = axesNode->cast_vector<int>();
+        isAxesConstant = true;
+        auto rank = inputShapes[DATA_INDEX].getRank() - inverse;
+        normalizeAxes(axes, rank);
+    }
+
     if (numInputs > 2) {
         const auto signalSizeRank = inputShapes[SIGNAL_SIZE_INDEX].getRank();
         if (signalSizeRank != 1) {
@@ -106,18 +113,7 @@ RDFT::RDFT(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr con
             return;
         isSignalSizesConstant = true;
         signalSizes = signalSizesNode->cast_vector<int>();
-    }
-
-    auto axesNode = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(1));
-    if (!axesNode)
-        return;
-
-    axes = axesNode->cast_vector<int>();
-    isAxesConstant = true;
-    auto rank = inputShapes[DATA_INDEX].getRank() - inverse;
-    normalizeAxes(axes, rank);
-
-    if (numInputs < 3) {
+    } else if (isAxesConstant) {
         const auto& inputShape = inputShapes[DATA_INDEX].getDims();
         signalSizes = getDefaultSignalSizes(inputShape, axes, inverse);
     }
