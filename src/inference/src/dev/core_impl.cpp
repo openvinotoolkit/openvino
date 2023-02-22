@@ -279,7 +279,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
             model,
             create_compile_config(plugin, parsed._deviceName, parsed._config));
         bool loadedFromCache = false;
-        auto lock = cacheGuard.getHashLock(cacheContent.blobId);
+        auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, {}, loadedFromCache);
         if (!loadedFromCache) {
             res = compile_model_impl(model, plugin, parsed._config, {}, cacheContent, forceDisableCache);
@@ -317,7 +317,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
             model,
             create_compile_config(plugin, parsed._deviceName, parsed._config));
         bool loadedFromCache = false;
-        auto lock = cacheGuard.getHashLock(cacheContent.blobId);
+        auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, loadedFromCache);
         if (!loadedFromCache) {
             res = compile_model_impl(model, plugin, parsed._config, context, cacheContent);
@@ -367,7 +367,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         cacheContent.blobId = ov::NetworkCompilationContext::compute_hash(
             model_path,
             create_compile_config(plugin, parsed._deviceName, parsed._config));
-        auto lock = cacheGuard.getHashLock(cacheContent.blobId);
+        auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, {}, loadedFromCache);
         if (!loadedFromCache) {
             auto cnnNetwork = ReadNetwork(model_path, std::string());
@@ -400,7 +400,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
             model_str,
             weights,
             create_compile_config(plugin, parsed._deviceName, parsed._config));
-        auto lock = cacheGuard.getHashLock(cacheContent.blobId);
+        auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, {}, loadedFromCache);
         if (!loadedFromCache) {
             auto cnnNetwork = read_model(model_str, weights);

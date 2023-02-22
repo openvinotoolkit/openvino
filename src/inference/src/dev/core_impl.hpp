@@ -9,9 +9,9 @@
 #include <ie_remote_context.hpp>
 
 #include "any_copy.hpp"
+#include "cache_guard.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "dev/plugin.hpp"
-#include "ie_cache_guard.hpp"
 #include "ie_cache_manager.hpp"
 #include "ie_extension.h"
 #include "ie_icore.hpp"
@@ -134,7 +134,7 @@ private:
 
     Any get_property_for_core(const std::string& name) const;
 
-    mutable InferenceEngine::CacheGuard cacheGuard;
+    mutable ov::CacheGuard cacheGuard;
 
     struct PluginDescriptor {
         ov::util::FilePath libraryLocation;
