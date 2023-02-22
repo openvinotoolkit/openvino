@@ -207,10 +207,10 @@ bool ngraph::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
     if (!input_low_constant || !input_high_constant || !output_low_constant || !output_high_constant)
         return false;
 
-    const auto input_low_pshape = input_low_constant->get_output_partial_shape(0);
-    const auto input_high_pshape = input_high_constant->get_output_partial_shape(0);
-    const auto output_low_pshape = output_low_constant->get_output_partial_shape(0);
-    const auto output_high_pshape = output_high_constant->get_output_partial_shape(0);
+    const auto input_low_shape = input_low_constant->get_shape();
+    const auto input_high_shape = input_high_constant->get_shape();
+    const auto output_low_shape = output_low_constant->get_shape();
+    const auto output_high_shape = output_high_constant->get_shape();
 
     auto input_low = input_low_constant->cast_vector<float>();
     auto input_high = input_high_constant->cast_vector<float>();
@@ -221,7 +221,7 @@ bool ngraph::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
     // Calculations of input scales and shift:
     //   - isc := (levels-1) / (ih - il)
     //   - ish := -il * isc
-    if (input_low_pshape == input_high_pshape || shape_size(input_low_pshape.get_shape()) == 1 || shape_size(input_high_pshape.get_shape()) == 1) {
+    if (input_low_shape == input_high_shape || shape_size(input_low_shape) == 1 || shape_size(input_high_shape) == 1) {
         const auto input_size = std::max(input_low.size(), input_high.size());
         isc.resize(input_size, 0);
         ish.resize(input_size, 0);
@@ -235,19 +235,17 @@ bool ngraph::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
         cl = input_low;
         ch = input_high;
     } else {  // NUMPY broadcasting
-        PartialShape scale_pshape = input_low_pshape;
-        ngraph::PartialShape::broadcast_merge_into(scale_pshape, input_high_pshape, ov::op::AutoBroadcastType::NUMPY);
-        const auto input_size = ngraph::shape_size(scale_pshape.get_shape());
+        PartialShape scale_pshape = input_low_constant->get_output_partial_shape(0);
+        PartialShape::broadcast_merge_into(scale_pshape, input_high_shape, ov::op::AutoBroadcastType::NUMPY);
+        const auto scale_shape = scale_pshape.get_shape();
+        const auto input_size = ngraph::shape_size(scale_shape);
         isc.resize(input_size, 0);
         ish.resize(input_size, 0);
         ngraph::runtime::reference::autobroadcast_binop(input_high.data(), input_low.data(), isc.data(),
-                                                        input_high_pshape.get_shape(),
-                                                        input_low_pshape.get_shape(), ov::op::AutoBroadcastType::NUMPY,
+                                                        input_high_shape, input_low_shape, ov::op::AutoBroadcastType::NUMPY,
                                                         [levels](float x, float y) -> float { return (levels - 1) / (x - y); });
         ngraph::runtime::reference::autobroadcast_binop(input_low.data(), isc.data(), ish.data(),
-                                                        input_low_pshape.get_shape(),
-                                                        scale_pshape.get_shape(),
-                                                        ov::op::AutoBroadcastType::NUMPY,
+                                                        input_low_shape, scale_shape, ov::op::AutoBroadcastType::NUMPY,
                                                         [](float x, float y) -> float { return -x * y; });
         auto broadcast = [](const std::vector<float>& original_data, std::vector<float>& out_data,
                             const ov::Shape& original_shape, const ov::Shape& out_shape, size_t size) -> void {
@@ -261,14 +259,14 @@ bool ngraph::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
                                                   broadcast_axes,
                                                   sizeof(float));
         };
-        broadcast(input_low, cl, input_low_pshape.get_shape(), scale_pshape.get_shape(), input_size);
-        broadcast(input_high, ch, input_high_pshape.get_shape(), scale_pshape.get_shape(), input_size);
+        broadcast(input_low, cl, input_low_shape, scale_shape, input_size);
+        broadcast(input_high, ch, input_high_shape, scale_shape, input_size);
     }
 
     // Calculations of output scales and shift:
     //   - osc := (oh - ol) / (levels-1)
     //   - osh := ol
-    if (output_low_pshape == output_high_pshape || shape_size(output_low_pshape.get_shape()) == 1 || shape_size(output_high_pshape.get_shape()) == 1) {
+    if (output_low_shape == output_high_shape || shape_size(output_low_shape) == 1 || shape_size(output_high_shape) == 1) {
         const auto output_size = std::max(output_low.size(), output_high.size());
         osc.resize(output_size, 0);
         osh.resize(output_size, 0);
@@ -280,13 +278,12 @@ bool ngraph::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
             osh[i] = ol;
         }
     } else {  // NUMPY broadcasting
-        PartialShape scale_pshape = output_low_pshape;
-        ngraph::PartialShape::broadcast_merge_into(scale_pshape, output_high_pshape, ov::op::AutoBroadcastType::NUMPY);
+        PartialShape scale_pshape = output_low_constant->get_output_partial_shape(0);
+        PartialShape::broadcast_merge_into(scale_pshape, output_high_constant->get_output_partial_shape(0), ov::op::AutoBroadcastType::NUMPY);
         const auto output_size = ngraph::shape_size(scale_pshape.get_shape());
         osc.resize(output_size, 0);
         ngraph::runtime::reference::autobroadcast_binop(output_high.data(), output_low.data(), osc.data(),
-                                                        output_high_pshape.get_shape(),
-                                                        output_low_pshape.get_shape(), ov::op::AutoBroadcastType::NUMPY,
+                                                        output_high_shape, output_low_shape, ov::op::AutoBroadcastType::NUMPY,
                                                         [levels](float x, float y) -> float { return (x - y) / (levels - 1); });
         osh = output_low;
     }
