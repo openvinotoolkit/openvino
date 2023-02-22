@@ -324,13 +324,13 @@ int getNumberOfCPUCores(bool bigCoresOnly) {
         }
     }
     int phys_cores = CPU_COUNT(&currentCoreSet);
-#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#    if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
     auto core_types = custom::info::core_types();
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
         phys_cores = custom::info::default_concurrency(
             custom::task_arena::constraints{}.set_core_type(core_types.back()).set_max_threads_per_core(1));
     }
-#endif
+#    endif
     return phys_cores;
 }
 #endif
