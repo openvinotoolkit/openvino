@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
-
 #include "transformations/gather_sinking_transpose_reshape.hpp"
+
+#include <gtest/gtest.h>
 
 #include <openvino/opsets/opset9.hpp>
 #include <openvino/pass/manager.hpp>
@@ -12,8 +12,6 @@
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
-
-#include "ngraph/pass/visualize_tree.hpp" // DEBUG
 
 using namespace ov;
 using namespace ov::opset9;
@@ -62,7 +60,8 @@ TEST(GatherSinkingTransposeReshape, ForwardSinking) {
             return indices;
         };
         auto gather_indices = generate_indices();
-        auto gather_indices_const = std::make_shared<Constant>(element::i64, Shape{gather_indices.size()}, gather_indices);
+        auto gather_indices_const =
+            std::make_shared<Constant>(element::i64, Shape{gather_indices.size()}, gather_indices);
         auto gather_axis_const = std::make_shared<Constant>(element::i64, Shape{}, 1);
         auto gather = std::make_shared<Gather>(reshape, gather_indices_const, gather_axis_const);
 
@@ -71,7 +70,8 @@ TEST(GatherSinkingTransposeReshape, ForwardSinking) {
         reference_function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
     }
 
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(function, reference_function);
     ASSERT_TRUE(result.valid);
 }
@@ -118,7 +118,8 @@ TEST(GatherSinkingTransposeReshape, ForwardSinking3D) {
             return indices;
         };
         auto gather_indices = generate_indices();
-        auto gather_indices_const = std::make_shared<Constant>(element::i64, Shape{gather_indices.size()}, gather_indices);
+        auto gather_indices_const =
+            std::make_shared<Constant>(element::i64, Shape{gather_indices.size()}, gather_indices);
         auto gather_axis_const = std::make_shared<Constant>(element::i64, Shape{}, 1);
         auto gather = std::make_shared<Gather>(reshape, gather_indices_const, gather_axis_const);
 
@@ -127,11 +128,11 @@ TEST(GatherSinkingTransposeReshape, ForwardSinking3D) {
         reference_function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
     }
 
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(function, reference_function);
     ASSERT_TRUE(result.valid);
 }
-
 
 TEST(GatherSinkingTransposeReshape, BackwardSinking) {
     std::shared_ptr<Model> function;
@@ -172,7 +173,8 @@ TEST(GatherSinkingTransposeReshape, BackwardSinking) {
             return indices;
         };
         auto gather_indices = generate_indices();
-        auto gather_indices_const = std::make_shared<Constant>(element::i64, Shape{gather_indices.size()}, gather_indices);
+        auto gather_indices_const =
+            std::make_shared<Constant>(element::i64, Shape{gather_indices.size()}, gather_indices);
         auto gather_axis_const = std::make_shared<Constant>(element::i64, Shape{}, 1);
         auto gather = std::make_shared<Gather>(tanh0, gather_indices_const, gather_axis_const);
 
@@ -184,7 +186,8 @@ TEST(GatherSinkingTransposeReshape, BackwardSinking) {
         reference_function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
     }
 
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(function, reference_function);
     ASSERT_TRUE(result.valid) << result.message;
 }
@@ -228,7 +231,8 @@ TEST(GatherSinkingTransposeReshape, BackwardSinking3D) {
             return indices;
         };
         auto gather_indices = generate_indices();
-        auto gather_indices_const = std::make_shared<Constant>(element::i64, Shape{gather_indices.size()}, gather_indices);
+        auto gather_indices_const =
+            std::make_shared<Constant>(element::i64, Shape{gather_indices.size()}, gather_indices);
         auto gather_axis_const = std::make_shared<Constant>(element::i64, Shape{}, 1);
         auto gather = std::make_shared<Gather>(tanh0, gather_indices_const, gather_axis_const);
 
@@ -240,9 +244,10 @@ TEST(GatherSinkingTransposeReshape, BackwardSinking3D) {
         reference_function = std::make_shared<Model>(OutputVector{result}, ParameterVector{input_params});
     }
 
-    const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
+    const FunctionsComparator func_comparator =
+        FunctionsComparator::with_default().enable(FunctionsComparator::ATTRIBUTES);
     const FunctionsComparator::Result result = func_comparator(function, reference_function);
     ASSERT_TRUE(result.valid) << result.message;
 }
 
-} // namespace testing
+}  // namespace testing

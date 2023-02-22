@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <openvino/cc/ngraph/itt.hpp>
-#include <ngraph/rt_info.hpp>
-
 #include "transformations/gather_sinking_transpose_reshape.hpp"
 
-#include "transformations/utils/transformation_helper.hpp"
-#include "transformations/utils/gather_sinking_utils.hpp"
+#include <ngraph/rt_info.hpp>
+#include <openvino/cc/ngraph/itt.hpp>
 
 #include "openvino/opsets/opset9.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/gather_sinking_utils.hpp"
+#include "transformations/utils/transformation_helper.hpp"
 
 using namespace ov::intel_gna::pass;
 using namespace ov;
@@ -49,31 +48,30 @@ size_t GetSliceNum(const Shape& transpose_order) {
 }
 
 std::vector<int64_t> CreateGatherIndices(const Shape& transpose_input_shape,
-                                                       const Shape& reshape_output_shape,
-                                                       const Shape& transpose_order) {
-
+                                         const Shape& reshape_output_shape,
+                                         const Shape& transpose_order) {
     const size_t slice_0_end = FindEndOfSlice(transpose_order, 0);
     const size_t slice_1_start = slice_0_end + 1;
     const size_t slice_1_end = FindEndOfSlice(transpose_order, slice_1_start);
     const size_t slice_2_start = slice_1_end + 1;
 
-    if (slice_0_end >= transpose_input_shape.size() ||
-        slice_1_start >= transpose_input_shape.size() ||
-        slice_1_end >= transpose_input_shape.size() ||
-        slice_2_start >= transpose_input_shape.size()) {
-            return {};
-        }
+    if (slice_0_end >= transpose_input_shape.size() || slice_1_start >= transpose_input_shape.size() ||
+        slice_1_end >= transpose_input_shape.size() || slice_2_start >= transpose_input_shape.size()) {
+        return {};
+    }
 
     const int64_t transpose_part_0 = std::accumulate(transpose_order.begin() + slice_1_start,
-                                                     transpose_order.begin() + slice_1_end + 1, 1,
-                                 [&transpose_input_shape](int64_t result, int64_t order_value) {
-                                    return result *= transpose_input_shape[order_value];
-                                 });
+                                                     transpose_order.begin() + slice_1_end + 1,
+                                                     1,
+                                                     [&transpose_input_shape](int64_t result, int64_t order_value) {
+                                                         return result *= transpose_input_shape[order_value];
+                                                     });
     const int64_t transpose_part_1 = std::accumulate(transpose_order.begin() + slice_2_start,
-                                                     transpose_order.end(), 1,
-                                 [&transpose_input_shape](int64_t result, int64_t order_value) {
-                                    return result *= transpose_input_shape[order_value];
-                                 });
+                                                     transpose_order.end(),
+                                                     1,
+                                                     [&transpose_input_shape](int64_t result, int64_t order_value) {
+                                                         return result *= transpose_input_shape[order_value];
+                                                     });
 
     std::vector<int64_t> gather_indices_value(reshape_output_shape.back());
     for (size_t i = 0; i < gather_indices_value.size(); ++i) {
@@ -85,14 +83,15 @@ std::vector<int64_t> CreateGatherIndices(const Shape& transpose_input_shape,
 
 NodePair SinkForward(NodePtr transpose, std::shared_ptr<Constant> transpose_constant, NodePtr reshape) {
     const auto gather_indices_value = CreateGatherIndices(transpose->get_input_shape(0),
-                                                                        reshape->get_output_shape(0),
-                                                                        transpose_constant->get_axis_vector_val());
+                                                          reshape->get_output_shape(0),
+                                                          transpose_constant->get_axis_vector_val());
     const int64_t gather_axis_value = reshape->get_output_shape(0).size() - 1;
 
     auto reshape_new = reshape->clone_with_new_inputs({transpose->input_value(0), reshape->input_value(1)});
 
     auto gather_axis = std::make_shared<Constant>(element::i64, Shape{}, gather_axis_value);
-    auto gather_indices = std::make_shared<Constant>(element::i64, Shape{gather_indices_value.size()}, gather_indices_value);
+    auto gather_indices =
+        std::make_shared<Constant>(element::i64, Shape{gather_indices_value.size()}, gather_indices_value);
     auto gather = std::make_shared<Gather>(reshape_new, gather_indices, gather_axis);
 
     ov::replace_node(reshape, gather);
@@ -114,16 +113,19 @@ Shape TransposeShape(const Shape& shape, AxisVector transpose_axis) {
 NodePair SinkBackward(NodePtr transpose, std::shared_ptr<Constant> transpose_constant, NodePtr reshape) {
     const int64_t gather_axis_value = reshape->get_input_shape(0).size() - 1;
 
-    const auto gather_indices_value = CreateGatherIndices(TransposeShape(transpose->get_output_shape(0),
-                                                                                       transpose_constant->get_axis_vector_val()),
-                                                                        reshape->get_input_shape(0),
-                                                                        transpose_constant->get_axis_vector_val());
+    const auto gather_indices_value =
+        CreateGatherIndices(TransposeShape(transpose->get_output_shape(0), transpose_constant->get_axis_vector_val()),
+                            reshape->get_input_shape(0),
+                            transpose_constant->get_axis_vector_val());
 
     auto gather_axis = std::make_shared<Constant>(element::i64, Shape{}, gather_axis_value);
-    auto gather_indices = std::make_shared<Constant>(element::i64, Shape{gather_indices_value.size()}, gather_indices_value);
+    auto gather_indices =
+        std::make_shared<Constant>(element::i64, Shape{gather_indices_value.size()}, gather_indices_value);
     auto gather = std::make_shared<Gather>(reshape->input_value(0), gather_indices, gather_axis);
 
-    auto reshape_const_new = std::make_shared<Constant>(element::i64, Shape{transpose->get_output_shape(0).size()}, transpose->get_output_shape(0));
+    auto reshape_const_new = std::make_shared<Constant>(element::i64,
+                                                        Shape{transpose->get_output_shape(0).size()},
+                                                        transpose->get_output_shape(0));
     auto reshape_new = std::make_shared<Reshape>(gather, reshape_const_new, false);
 
     ov::replace_node(transpose, reshape_new);
@@ -137,7 +139,9 @@ NodePair SinkBackward(NodePtr transpose, std::shared_ptr<Constant> transpose_con
 bool AreFlattenShapes(const Shape& shape1, const Shape& shape2) {
     size_t i = 0;
     // find non-equal parts
-    while(shape1[i] == shape2[i]) { ++i; }
+    while (shape1[i] == shape2[i]) {
+        ++i;
+    }
     // min_shape.back() == MULTIPLY(max_shape.begin() + i, max_shape.end())
     const size_t mult1 = std::accumulate(shape1.begin() + i, shape1.end(), 1, std::multiplies<size_t>());
     const size_t mult2 = std::accumulate(shape2.begin() + i, shape2.end(), 1, std::multiplies<size_t>());
@@ -158,8 +162,7 @@ bool IsTailFlatten(const Output<Node>& output) {
         return false;
     const Shape& input_shape = reshape_node->get_input_shape(0);
     const Shape& output_shape = reshape_node->get_output_shape(0);
-    return output_shape.size() < input_shape.size() &&
-           AreFlattenShapes(input_shape, output_shape);
+    return output_shape.size() < input_shape.size() && AreFlattenShapes(input_shape, output_shape);
 }
 
 bool IsTailUnflatten(const Output<Node>& output) {
@@ -169,10 +172,9 @@ bool IsTailUnflatten(const Output<Node>& output) {
         return false;
     const Shape& input_shape = reshape_node->get_input_shape(0);
     const Shape& output_shape = reshape_node->get_output_shape(0);
-    return output_shape.size() > input_shape.size() &&
-           AreFlattenShapes(input_shape, output_shape);
+    return output_shape.size() > input_shape.size() && AreFlattenShapes(input_shape, output_shape);
 }
-} // namespace
+}  // namespace
 
 // working with situation when we transpose dims that are flatten/unflatten
 // consider only if flatten/unflatten are last dimensions
