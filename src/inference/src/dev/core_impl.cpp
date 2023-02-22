@@ -858,14 +858,14 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_impl(const std::shared
         try {
             // need to export network for further import from "cache"
             OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "Core::compile_model::Export");
-            cacheContent.cacheManager->writeCacheEntry(cacheContent.blobId, [&](std::ostream& networkStream) {
+            cacheContent.cacheManager->write_cache_entry(cacheContent.blobId, [&](std::ostream& networkStream) {
                 networkStream << ov::CompiledBlobHeader(
                     InferenceEngine::GetInferenceEngineVersion()->buildNumber,
                     ov::NetworkCompilationContext::calculate_file_info(cacheContent.modelPath));
                 execNetwork->export_model(networkStream);
             });
         } catch (...) {
-            cacheContent.cacheManager->removeCacheEntry(cacheContent.blobId);
+            cacheContent.cacheManager->remove_cache_entry(cacheContent.blobId);
             throw;
         }
     }
@@ -882,7 +882,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(const CacheCon
 
     OPENVINO_ASSERT(cacheContent.cacheManager != nullptr);
     try {
-        cacheContent.cacheManager->readCacheEntry(cacheContent.blobId, [&](std::istream& networkStream) {
+        cacheContent.cacheManager->read_cache_entry(cacheContent.blobId, [&](std::istream& networkStream) {
             OV_ITT_SCOPE(FIRST_INFERENCE,
                          InferenceEngine::itt::domains::IE_LT,
                          "Core::LoadNetworkFromCache::ReadStreamAndImport");
@@ -909,10 +909,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(const CacheCon
         });
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work
-        cacheContent.cacheManager->removeCacheEntry(cacheContent.blobId);
+        cacheContent.cacheManager->remove_cache_entry(cacheContent.blobId);
         networkIsImported = false;
     } catch (...) {
-        cacheContent.cacheManager->removeCacheEntry(cacheContent.blobId);
+        cacheContent.cacheManager->remove_cache_entry(cacheContent.blobId);
         networkIsImported = false;
         // TODO: temporary disabled by #54335. In future don't throw only for new 'blob_outdated' exception
         // throw;
@@ -1052,7 +1052,7 @@ void ov::CoreImpl::CoreConfig::fill_config(CacheConfig& config, const std::strin
     config._cacheDir = dir;
     if (!dir.empty()) {
         FileUtils::createDirectoryRecursive(dir);
-        config._cacheManager = std::make_shared<InferenceEngine::FileStorageCacheManager>(dir);
+        config._cacheManager = std::make_shared<ov::FileStorageCacheManager>(dir);
     } else {
         config._cacheManager = nullptr;
     }
