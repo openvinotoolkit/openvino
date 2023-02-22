@@ -84,7 +84,6 @@ private:
     ExecutionConfig _config;
     uint32_t _prog_id = 0;
     kernels_code _kernels_code;
-    static std::atomic<size_t> _kernels_counts;
     static std::atomic<size_t> _kernel_idx;
     std::atomic<bool> _pending_compilation{false};
     std::map<const std::string, kernel::ptr> _kernels;
@@ -99,7 +98,7 @@ private:
 
     inline std::string gen_kernel_id(std::string entry_point) {
         // we need unique id in order to avoid conflict across topologies.
-        return entry_point + "_" + std::to_string(_kernels_counts + (_kernel_idx++));
+        return entry_point + "_" + std::to_string((_kernel_idx++));
     }
 
 public:

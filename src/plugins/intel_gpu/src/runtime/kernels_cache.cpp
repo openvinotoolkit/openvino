@@ -54,7 +54,6 @@ std::string reorder_options(const std::string& org_options) {
 }  // namespace
 
 namespace cldnn {
-std::atomic<size_t> kernels_cache::_kernels_counts{0};
 std::atomic<size_t> kernels_cache::_kernel_idx{0};
 std::mutex kernels_cache::_mutex;
 
@@ -290,7 +289,6 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
                     kernel::ptr kernel = kernels_factory::create(_engine, context, kern, entry_point);
                     const auto& kmap = std::make_pair(k_id->second, kernel);
                     compiled_kernels.insert(kmap);
-                    _kernels_counts++;
                 } else {
                     throw std::runtime_error("Could not find entry point");
                 }
@@ -458,7 +456,7 @@ void kernels_cache::add_kernels(const std::vector<std::string>& kernel_ids, cons
     for (size_t i = 0; i < kernel_ids.size(); i++) {
         const auto& kmap = std::make_pair(kernel_ids[i], kernels[i]);
         _kernels.insert(kmap);
-        _kernels_counts++;
+        _kernel_idx++;
     }
 }
 
@@ -544,7 +542,7 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
                     cl_context cl_context = build_engine->get_cl_context().get();
                     kernel::ptr kernel = kernels_factory::create(_engine, cl_context, cl_kernel, entry_point);
                     _kernels.insert({k_id->second, kernel});
-                    _kernels_counts++;
+                    _kernel_idx++;
                 }
             }
         }
