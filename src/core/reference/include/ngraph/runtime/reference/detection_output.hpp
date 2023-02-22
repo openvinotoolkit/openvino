@@ -489,7 +489,7 @@ public:
             int numDet = 0;
             if (!attrs.decrease_label_id) {
                 // Caffe style
-                for (int c = 0; c < numClasses; ++c) {
+                for (size_t c = 0; c < numClasses; ++c) {
                     if (c == attrs.background_label_id) {
                         continue;
                     }
