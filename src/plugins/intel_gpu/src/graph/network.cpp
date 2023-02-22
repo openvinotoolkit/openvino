@@ -464,7 +464,8 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
 }
 
 network::~network() {
-    get_program()->get_compilation_context().cancel();
+    if (_program != nullptr)
+        _program->cancel_compilation_context();
     _memory_pool->clear_pool_for_network(net_id);
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {

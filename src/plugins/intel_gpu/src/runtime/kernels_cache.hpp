@@ -23,8 +23,6 @@
 
 namespace cldnn {
 
-class primitive_impl;
-
 class kernels_cache {
 public:
     using source_code = std::vector<std::string>;

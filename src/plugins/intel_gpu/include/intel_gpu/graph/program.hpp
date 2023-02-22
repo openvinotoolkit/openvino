@@ -255,6 +255,7 @@ public:
 
     ImplementationsCache& get_implementations_cache() const { return *_impls_cache; }
     ICompilationContext& get_compilation_context() const { return *_compilation_context; }
+    void cancel_compilation_context();
 
 private:
     uint32_t prog_id = 0;

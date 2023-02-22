@@ -1731,3 +1731,8 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
 void program::remove_kernel(kernel_id id) {
     _kernels_cache->remove_kernel(id);
 }
+
+void program::cancel_compilation_context() {
+    if (_compilation_context != nullptr)
+        _compilation_context->cancel();
+}
