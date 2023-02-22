@@ -8,7 +8,7 @@ import os
 import numpy as np
 import pytest
 
-import openvino.runtime.opset8 as ops
+import openvino.runtime.opset10 as ops
 from openvino.runtime import Core, Model
 from openvino.runtime.passes import Manager, Serialize, ConstantFolding, Version
 from tests.test_graph.util import count_ops_of_type
