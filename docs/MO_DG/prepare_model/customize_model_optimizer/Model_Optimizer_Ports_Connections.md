@@ -12,7 +12,7 @@ the `mo.graph.graph.Graph` object. For example, the following methods belong to 
    * `graph.out_edges(node_id)` 
    * other methods where `graph` is a an instance of the `networkx.MultiDiGraph` class.
 
-   **This is the lowest-level API. Avoid using it in the Model Optimizer transformations**. For more details, refer to the :doc:`Model Representation in Memory <mo-model-representation-in-memory>` section. 
+   **This is the lowest-level API. Avoid using it in the Model Optimizer transformations**. For more details, refer to the :doc:`Model Representation in Memory <mo_model_representation_in_memory>` section. 
 
 2. The API built around the `mo.graph.graph.Node` class. The `Node` class is the primary class to work with graph nodes
 and their attributes. Examples of such methods and functions are:
@@ -43,7 +43,7 @@ semantic to the graph. This is achieved with introduction of concepts of ports a
 .. note:: 
    This article is dedicated to the Model Optimizer Graph API only and does not cover other two non-recommended APIs.
 
-@anchor mo-intro-ports
+@anchor mo_intro_ports
 Ports
 -----
 
@@ -63,7 +63,7 @@ the `mo.graph.port.Port` class). The `Port` object has several attributes:
 * `data` - the object that should be used to get attributes of the corresponding data node. This object has methods `get_shape()` / `set_shape()` and `get_value()` / `set_value()` to get/set shape/value of the corresponding data node. For example, `in_port.data.get_shape()` returns an input shape of a tensor connected to input port `in_port` (`in_port.type == 'in'`), `out_port.data.get_value()` returns a value of a tensor produced from output port `out_port` (`out_port.type == 'out'`).
 
 .. note:: 
-   Functions `get_shape()` and `get_value()` return `None` until the partial inference phase. For more information  about model conversion phases, refer to the :doc:`Model Conversion Pipeline <mo-model-conversion-pipeline>`. For information about partial inference phase, see the :doc:`Partial Inference <mo-partial-inference>`.
+   Functions `get_shape()` and `get_value()` return `None` until the partial inference phase. For more information  about model conversion phases, refer to the :doc:`Model Conversion Pipeline <mo_model_conversion_pipeline>`. For information about partial inference phase, see the :doc:`Partial Inference <mo_partial_inference>`.
 
 There are several methods of the `Node` class to get the instance of a corresponding port:
 
@@ -113,7 +113,8 @@ data nodes do not exist, the method creates edge and properly sets `in` and `out
 
 For example, applying the following two methods to the graph above will result in the graph depicted below:
 
-.. code-block:: sh
+.. code-block:: py
+
    op4.in_port(1).disconnect()
    op3.out_port(0).connect(op4.in_port(1))
 
@@ -165,8 +166,8 @@ different.
 Additional Resources
 --------------------
 
-* :doc:`Model Optimizer Extensibility <Customize_Model_Optimizer.md>`
-* :doc:`Model Optimizer Extensions <Model_Optimizer_Extensions.md>`
-* :doc:`Extending Model Optimizer with Caffe Python Layers <Extending_Model_Optimizer_with_Caffe_Python_Layers.md>`
+* :doc:`Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`
+* :doc:`Model Optimizer Extensions <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions>`
+* :doc:`Extending Model Optimizer with Caffe Python Layers <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers>`
 
 @endsphinxdirective

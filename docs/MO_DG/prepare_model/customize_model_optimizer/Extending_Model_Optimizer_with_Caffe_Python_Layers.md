@@ -45,7 +45,7 @@ The full code with additional checks can be found `here <https://github.com/open
 The sample code uses operation `ProposalOp` which corresponds to `Proposal` operation described in the :doc:`Available Operations Sets <openvino_docs_ops_opset>`
 page. For a detailed explanation of the extractor, refer to the source code below.
 
-.. code-block:: sh
+.. code-block:: py
 
    from openvino.tools.mo.ops.proposal import ProposalOp
    from openvino.tools.mo.front.extractor import CaffePythonFrontExtractorOp

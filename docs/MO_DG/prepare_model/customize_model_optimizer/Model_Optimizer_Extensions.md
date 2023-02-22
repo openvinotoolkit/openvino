@@ -21,6 +21,7 @@ An extension is just a plain text file with a Python code. The file should conta
 one of extension base classes. Extension files should be saved to a directory with the following structure:
 
 .. code-block:: sh
+   
    ./<MY_EXT>/
               ops/                  - custom operations
               front/                - framework independent front transformations

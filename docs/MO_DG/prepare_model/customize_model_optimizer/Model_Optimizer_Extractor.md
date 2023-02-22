@@ -16,7 +16,7 @@ node. The extractor goal is to parse this attribute and save necessary attribute
 graph. Consider the extractor for the `Const` TensorFlow operation (refer to the
 `extensions/front/tf/const_ext.py` file):
 
-.. code-block:: sh
+.. code-block:: py
 
    from openvino.tools.mo.front.extractor import FrontExtractorOp
    from openvino.tools.mo.front.tf.extractors.utils import tf_dtype_extractor, tf_tensor_shape, tf_tensor_content
@@ -53,7 +53,7 @@ graph. Consider the extractor for the `Const` TensorFlow operation (refer to the
 Consider another example with an extractor of the `Constant` ONNX operation (refer to the
 `extensions/front/onnx/const_ext.py` file):
 
-.. code-block:: sh
+.. code-block:: py
 
    from onnx import numpy_helper
    from onnx.numpy_helper import to_array

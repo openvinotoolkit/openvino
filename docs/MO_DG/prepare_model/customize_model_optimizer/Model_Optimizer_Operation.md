@@ -33,7 +33,7 @@ operation. Thus, the attribute `op` is used as a type of this internal operation
 from an internal operation will be replaced during front, middle or back phase with node(s) created from the opset.
 * `infer` — the attribute defines a function calculating output tensor(s) shape and optional value(s). The attribute
 may be set to `None` for the internal Model Optimizer operations used during the front phase only. For more information 
-about the shape inference function, refer to the :doc:`Partial Inference <mo-partial-inference>`.
+about the shape inference function, refer to the :doc:`Partial Inference <mo_partial_inference>`.
 * `type_infer` — the attribute defines a function calculating output tensor(s) data type. If the attribute is not
 defined, the default function is used. The function checks if the `data_type` node attribute is set and then
 propagates this type to the output tensor from the "port 0". Otherwise, it propagates the data type of the tensor coming
@@ -46,7 +46,8 @@ redundant ports can be removed using dedicated `Node` class API methods.
 Below is an example of the Model Optimizer class for the :doc:`SoftMax <openvino_docs_ops_activation_SoftMax_1>` operation from
 the `mo/ops/softmax.py` file with the comments in code.
 
-.. code-block:: sh
+.. code-block:: py
+   
    class Softmax(Op):
        # The class attribute defines a name of the operation so the operation class can be obtained using the
        # "Op.get_op_class_by_name()" static method
@@ -81,7 +82,8 @@ the `mo/ops/softmax.py` file with the comments in code.
 There is a dedicated method called `backend_attrs()` defining a list of attributes to be saved to the IR. Consider an
 example from the `mo/ops/pooling.py` file:
 
-.. code-block:: sh
+.. code-block:: py
+   
       def backend_attrs(self):
            return [
                ('strides', lambda node: ','.join(map(str, node['stride'][node.spatial_dims]))),
@@ -105,9 +107,9 @@ The `backend_attrs()` function returns a list of records. A record can be of one
 Additional Resources
 --------------------
 
-* :doc:`Model Optimizer Extensibility <Customize_Model_Optimizer.md>`
-* :doc:`Graph Traversal and Modification Using Ports and Connections <Model_Optimizer_Ports_Connections.md>`
-* :doc:`Model Optimizer Extensions <Model_Optimizer_Extensions.md>`
-* :doc:`Extending Model Optimizer with Caffe Python Layers <Extending_Model_Optimizer_with_Caffe_Python_Layers.md>`
+* :doc:`Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`
+* :doc:`Graph Traversal and Modification Using Ports and Connections <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections>`
+* :doc:`Model Optimizer Extensions <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions>`
+* :doc:`Extending Model Optimizer with Caffe Python Layers <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers>`
 
 @endsphinxdirective

@@ -24,7 +24,7 @@ going into details of the Model Optimizer extensibility mechanism.
 .. note:: 
    All paths in this article are provided relatively to the Model Optimizer installation directory if not stated otherwise.
 
-@anchor mo-model-representation-in-memory
+@anchor mo_model_representation_in_memory
 Model Representation in Memory
 ------------------------------
 
@@ -56,7 +56,7 @@ is strongly not recommended.
 Further details and examples related to a model representation in memory are provided in the sections below, in a context
 for a better explanation. For more information on how to use ports and connections, refer to the :doc:`Graph Traversal and Modification Using Ports and Connections <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections>` article.
 
-@anchor mo-model-conversion-pipeline
+@anchor mo_model_conversion_pipeline
 Model Conversion Pipeline
 -------------------------
 
@@ -152,9 +152,9 @@ the following (when `axis` is not equal to 0 and 1):
 It is highly recommended to write shape-agnostic transformations to avoid model reshape-ability issues. For more information related to the reshaping of a model, refer to the :doc:`Using Shape Inference <openvino_docs_OV_UG_ShapeInference>` guide.
 
 More information on how to develop front phase transformations and dedicated API description is provided in the
-:doc:`Front Phase Transformations <mo-front-phase-transformations>`.
+:doc:`Front Phase Transformations <mo_front_phase_transformations>`.
 
-@anchor mo-partial-inference
+@anchor mo_partial_inference
 Partial Inference
 =================
 
@@ -204,8 +204,8 @@ A shape inference function should calculate an operation (node) output shape(s) 
 example of the shape infer function for the :doc:`Reshape <openvino_docs_ops_shape_Reshape_1>` operation (the full version is
 available in the `mo/ops/reshape.py` file):
 
-.. code-block:: sh
-
+.. code-block:: py
+   
     @staticmethod
     def infer(node: Node):
         name = node.soft_get('name', node.id)
@@ -230,7 +230,7 @@ how to use them, refer to the [Graph Traversal and Modification Using Ports and 
    A shape inference function should perform output shape calculation in the original model layout. For example, OpenVINO supports Convolution operations in NCHW layout only but TensorFlow supports NHWC layout as well. Model Optimizer shape inference function calculates output shapes for NHWC Convolutions in NHWC layout and only during the layout change phase the shape is converted to NCHW.
 
 .. note::
-   There is a legacy approach to read data node attribute, like `input_shape = op_node.in_node(0).shape` and modify data nodes attributes, like `op_node.out_node(0).shape = some_value`. This approach is still used in the Model Optimizer code but is not recommended. Instead, use the approach described in the :doc:`Ports <mo-intro-ports>`.
+   There is a legacy approach to read data node attribute, like `input_shape = op_node.in_node(0).shape` and modify data nodes attributes, like `op_node.out_node(0).shape = some_value`. This approach is still used in the Model Optimizer code but is not recommended. Instead, use the approach described in the :doc:`Ports <mo_intro_ports>`.
 
 Middle Phase
 ============
@@ -241,7 +241,7 @@ attribute for all newly added operations. It is highly recommended to use API de
 :doc:`Graph Traversal and Modification Using Ports and Connections <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections>` because modification of a graph using this API causes automatic re-inference of affected nodes as well as necessary data nodes creation.
 
 More information on how to develop middle transformations and dedicated API description is provided in the
-:doc:`Middle Phase Transformations <mo-middle-phase-transformations>`.
+:doc:`Middle Phase Transformations <mo_middle_phase_transformations>`.
 
 NHWC to NCHW Layout Change
 ==========================
@@ -277,7 +277,7 @@ A graph structure during the back phase is the same as during the middle phase. 
 and back transformations.
 
 More information on how to develop back transformations and dedicated API description is provided in the
-:doc:`Back Phase Transformations <mo-back-phase-transformations>`.
+:doc:`Back Phase Transformations <mo_back_phase_transformations>`.
 
 Intermediate Representation Emitting
 ====================================
