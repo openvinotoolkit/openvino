@@ -12,6 +12,7 @@
 #include "cnn_network_ngraph_impl.hpp"
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
+#include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
 #include "icompiled_model_wrapper.hpp"
 #include "ie_blob.h"
 #include "ie_common.h"
@@ -29,6 +30,7 @@
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -184,6 +186,31 @@ std::shared_ptr<const ov::Model> ov::legacy_convert::convert_model(const Inferen
 }
 
 namespace ov {
+
+class IVariableStateInternalWrapper : public InferenceEngine::IVariableStateInternal {
+    std::shared_ptr<ov::IVariableState> m_state;
+
+public:
+    IVariableStateInternalWrapper(const std::shared_ptr<ov::IVariableState>& state)
+        : InferenceEngine::IVariableStateInternal(state->get_name()),
+          m_state(state) {}
+
+    std::string GetName() const override {
+        return m_state->get_name();
+    }
+
+    void Reset() override {
+        m_state->reset();
+    }
+
+    void SetState(const InferenceEngine::Blob::Ptr& newState) override {
+        m_state->set_state(ov::Tensor(newState, {}));
+    }
+
+    InferenceEngine::Blob::CPtr GetState() const override {
+        return m_state->get_state()._impl;
+    }
+};
 
 class IInferencePluginWrapper : public InferenceEngine::IInferencePlugin {
 public:
@@ -467,15 +494,27 @@ public:
     }
 
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) override {
-        m_request->set_tensor(find_port(name), ov::Tensor{data, {}});
+        try {
+            m_request->set_tensor(find_port(name), ov::Tensor{data, {}});
+        } catch (const ov::Exception& ex) {
+            const std::string what = ex.what();
+            if (what.find("Failed to set tensor") != std::string::npos) {
+                IE_THROW(ParameterMismatch) << what;
+            }
+            IE_THROW(GeneralError) << what;
+        }
     }
 
     void SetBlobs(const std::string& name, const std::vector<InferenceEngine::Blob::Ptr>& blobs) override {
-        std::vector<ov::Tensor> tensors;
-        for (const auto& blob : blobs) {
-            tensors.emplace_back(ov::Tensor{blob, {}});
+        try {
+            std::vector<ov::Tensor> tensors;
+            for (const auto& blob : blobs) {
+                tensors.emplace_back(ov::Tensor{blob, {}});
+            }
+            m_request->set_tensors(find_port(name), tensors);
+        } catch (const ov::Exception& ex) {
+            IE_THROW(GeneralError) << ex.what();
         }
-        m_request->set_tensors(find_port(name), tensors);
     }
 
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override {
@@ -509,7 +548,7 @@ public:
         auto res = m_request->query_state();
         std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> ret;
         for (const auto& state : res) {
-            ret.emplace_back(state._impl);
+            ret.emplace_back(std::make_shared<ov::IVariableStateInternalWrapper>(state));
         }
         return ret;
     }
@@ -545,6 +584,30 @@ private:
 }  // namespace ov
 
 namespace InferenceEngine {
+
+class IVariableStateWrapper : public ov::IVariableState {
+private:
+    std::shared_ptr<InferenceEngine::IVariableStateInternal> m_state;
+    mutable ov::Tensor m_converted_state;
+
+public:
+    explicit IVariableStateWrapper(const std::shared_ptr<InferenceEngine::IVariableStateInternal>& state)
+        : ov::IVariableState(state->GetName()),
+          m_state(state) {}
+
+    void reset() override {
+        m_state->Reset();
+    }
+
+    void set_state(const ov::Tensor& state) override {
+        m_state->SetState(state._impl);
+    }
+
+    const ov::Tensor& get_state() const override {
+        m_converted_state = ov::Tensor(std::const_pointer_cast<InferenceEngine::Blob>(m_state->GetState()), {});
+        return m_converted_state;
+    }
+};
 
 class IAsyncInferRequestWrapper : public ov::IAsyncInferRequest {
 public:
@@ -664,12 +727,11 @@ public:
         m_request->SetBlobs(get_legacy_name_from_port(port), blobs);
     }
 
-    std::vector<ov::VariableState> query_state() const override {
-        std::vector<ov::VariableState> variable_states;
+    std::vector<std::shared_ptr<ov::IVariableState>> query_state() const override {
+        std::vector<std::shared_ptr<ov::IVariableState>> variable_states;
         std::vector<std::shared_ptr<void>> soVec;
-        soVec = {m_request->getPointerToSo()};
         for (auto&& state : m_request->QueryState()) {
-            variable_states.emplace_back(ov::VariableState{state, soVec});
+            variable_states.emplace_back(std::make_shared<InferenceEngine::IVariableStateWrapper>(state));
         }
         return variable_states;
     }
@@ -678,7 +740,7 @@ public:
         m_request->SetCallback(std::move(callback));
     }
 
-    const std::shared_ptr<ov::ICompiledModel>& get_compiled_model() const override {
+    const std::shared_ptr<const ov::ICompiledModel>& get_compiled_model() const override {
         if (!m_compiled_model) {
             std::lock_guard<std::mutex> lock(m_mutex);
             if (!m_compiled_model) {
@@ -700,7 +762,7 @@ public:
 
 private:
     std::shared_ptr<InferenceEngine::IInferRequestInternal> m_request;
-    mutable std::shared_ptr<ov::ICompiledModel> m_compiled_model;
+    mutable std::shared_ptr<const ov::ICompiledModel> m_compiled_model;
     mutable std::mutex m_mutex;
 };
 
