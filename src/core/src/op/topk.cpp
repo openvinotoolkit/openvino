@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/topk.hpp"
+#include "openvino/op/topk.hpp"
 
 #include <memory>
 #include <topk_shape_inference.hpp>
@@ -484,5 +484,41 @@ bool op::v3::TopK::has_evaluate() const {
         }
     }
 
+    return true;
+}
+
+// =============== V11 ===============
+ov::op::v11::TopK::TopK(const Output<Node>& data,
+                        const Output<Node>& k,
+                        const int64_t axis,
+                        const std::string& mode,
+                        const std::string& sort,
+                        const element::Type& index_element_type,
+                        const bool stable)
+    : TopK(data, k, axis, as_enum<Mode>(mode), as_enum<SortType>(sort), index_element_type, stable) {}
+
+ov::op::v11::TopK::TopK(const Output<Node>& data,
+                        const Output<Node>& k,
+                        const int64_t axis,
+                        const Mode mode,
+                        const SortType sort,
+                        const element::Type& index_element_type,
+                        const bool stable)
+    : op::v3::TopK{} {
+    set_arguments(OutputVector{data, k});
+    m_axis = axis;
+    m_normalized_axis = UNKNOWN_NORMALIZED_AXIS;
+    m_mode = mode;
+    m_sort = sort;
+    m_index_element_type = index_element_type;
+    m_stable = stable;
+    ov::mark_as_precision_sensitive(input(1));
+    constructor_validate_and_infer_types();
+}
+
+bool ov::op::v11::TopK::visit_attributes(AttributeVisitor& visitor) {
+    OV_OP_SCOPE(v11_TopK_visit_attributes);
+    ov::op::v3::TopK::visit_attributes(visitor);
+    visitor.on_attribute("stable", m_stable);
     return true;
 }

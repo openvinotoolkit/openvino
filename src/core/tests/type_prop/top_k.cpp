@@ -4,14 +4,13 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "dimension_tracker.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset11.hpp"
 #include "topk_shape_inference.hpp"
 #include "util/type_prop.hpp"
 
 using namespace ov;
-using namespace ov::opset10;
+using namespace ov::opset11;
 using namespace testing;
-// Since v3::TopK is backward compatible with v1::TopK all of these tests should pass
 template <typename T>
 class topk_type_prop : public TypePropOpTest<T> {
 protected:
@@ -374,7 +373,7 @@ REGISTER_TYPED_TEST_SUITE_P(topk_type_prop,
                             negative_axis_dynamic_rank,
                             incorrect_index_element_type);
 
-typedef Types<op::v1::TopK, op::v3::TopK> TopKTypes;
+typedef Types<op::v1::TopK, op::v3::TopK, op::v11::TopK> TopKTypes;
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, topk_type_prop, TopKTypes);
 
 class TypePropTopKV1Test : public TypePropOpTest<op::v1::TopK> {};
