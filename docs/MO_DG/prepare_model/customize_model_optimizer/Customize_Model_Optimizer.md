@@ -10,18 +10,13 @@
    openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions
    openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers
 
-Model Optimizer extensibility mechanism enables support of new operations and custom transformations to generate the optimized intermediate representation (IR) as described [here](@ref openvino_docs_MO_DG_IR_and_opsets). This mechanism is a core part of Model Optimizer, as a huge set of examples showing how to add custom logic to support your model.
+Model Optimizer extensibility mechanism enables support of new operations and custom transformations to generate the optimized intermediate representation (IR) as described :doc:`here <openvino_docs_MO_DG_IR_and_opsets>`. This mechanism is a core part of Model Optimizer, as a huge set of examples showing how to add custom logic to support your model.
 
 There are several cases when the customization is needed:
 
-* A model contains operation(s) not known for the Model Optimizer, but these operation(s) could be expressed as a
-combination of supported operations. In this case, a custom transformation should be implemented to replace unsupported
-operation(s) with supported ones.
-* A model contains a sub-graph of operations that can be replaced with a smaller number of operations to get better
-performance. This example corresponds to so-called *fusing transformations* (e.g., replacing a sub-graph performing the calculation \f$x / (1.0 + e^{-(beta * x)})\f$ with a single operation of type [Swish](@ref openvino_docs_ops_activation_Swish_4).
-* A model contains a custom framework operation (the operation that is not a part of an official operation set of the
-framework) that was developed using the framework extensibility mechanism. In this case, Model Optimizer should know
-how to handle the operation and generate a corresponding section in an IR for it.
+* A model contains operation(s) not known for the Model Optimizer, but these operation(s) could be expressed as a combination of supported operations. In this case, a custom transformation should be implemented to replace unsupported operation(s) with supported ones.
+* A model contains a sub-graph of operations that can be replaced with a smaller number of operations to get better performance. This example corresponds to so-called *fusing transformations* (e.g., replacing a sub-graph performing the calculation \f$x / (1.0 + e^{-(beta * x)})\f$ with a single operation of type :doc:`Swish <openvino_docs_ops_activation_Swish_4)>`.
+* A model contains a custom framework operation (the operation that is not a part of an official operation set of the framework) that was developed using the framework extensibility mechanism. In this case, Model Optimizer should know how to handle the operation and generate a corresponding section in an IR for it.
 
 It is necessary to figure out how Model Optimizer represents a model in a memory and converts it to an IR before
 going into details of the Model Optimizer extensibility mechanism.
@@ -45,7 +40,7 @@ dictionary, and provides many convenient methods to work with the node. For exam
 name `my_attr` can be retrieved from the node with the following code `my_node.my_attr`, which is equivalent to obtaining
 attribute with name `my_attr` in the `graph.node[my_node]` dictionary. For the class implementation details, refer to the `mo/graph/graph.py` file.
 
-An operation may have several inputs and outputs. For example, operation [Split](@ref openvino_docs_ops_movement_Split_1) has
+An operation may have several inputs and outputs. For example, operation :doc:`Split <openvino_docs_ops_movement_Split_1>` has
 two inputs: data to split and axis to split along, and variable number of outputs depending on a value of attribute
 `num_splits`. Each input data to the operation is passed to a specific operation **input port**. An operation produces
 the output data from an **output port**. Input and output ports are numbered from 0 independently. Model Optimizer uses
@@ -59,7 +54,7 @@ edge attributes if needed. Meanwhile, most manipulations with nodes connections 
 is strongly not recommended.
 
 Further details and examples related to a model representation in memory are provided in the sections below, in a context
-for a better explanation. For more information on how to use ports and connections, refer to the [Graph Traversal and Modification Using Ports and Connections](@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections) article.
+for a better explanation. For more information on how to use ports and connections, refer to the :doc:`Graph Traversal and Modification Using Ports and Connections <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections>` article.
 
 @anchor mo-model-conversion-pipeline
 Model Conversion Pipeline
@@ -80,7 +75,7 @@ is a separate loader for each supported framework. These loaders are implemented
 `extensions/load/<FRAMEWORK>/loader.py` files of Model Optimizer.
 
 .. note:: 
-   Model Optimizer uses a special parser for Caffe models built on top of the `caffe.proto` file. In the case of a model loading failure, Model Optimizer throws an error and requests preparation of the parser that can read the model. For more information on how to prepare the custom Caffe parser, refer to the [question #1](@ref openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ#mo-question-1) in the [Model Optimizer FAQ](@ref openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ).
+   Model Optimizer uses a special parser for Caffe models built on top of the `caffe.proto` file. In the case of a model loading failure, Model Optimizer throws an error and requests preparation of the parser that can read the model. For more information on how to prepare the custom Caffe parser, refer to the :doc:`question #1 <openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ#mo-question-1>` in the :doc:`Model Optimizer FAQ <openvino_docs_MO_DG_prepare_model_Model_Optimizer_FAQ>`.
 
 The result of a model loading step is a `Graph` object, which can be depicted like in the following example:
 
@@ -89,7 +84,7 @@ The result of a model loading step is a `Graph` object, which can be depicted li
 Model Optimizer loader saves an operation instance framework description (usually it is a Protobuf message) into a node
 attribute usually with a name `pb` for each operation of an input model. It is important that this is a
 **framework-specific** description of an operation. This means that an operation (e.g. 
-[Convolution](@ref openvino_docs_ops_convolution_Convolution_1) may be represented differently in, for example, Caffe and
+:doc:`Convolution <openvino_docs_ops_convolution_Convolution_1>` may be represented differently in, for example, Caffe and
 TensorFlow frameworks but performs the same calculations from a mathematical point of view.
 
 In the image above, the **Operation 2** has one input and two outputs. The tensor produced from the output **port 0** is
@@ -107,15 +102,11 @@ Operations Attributes Extracting
 The next step is to parse framework-dependent operation representation saved in a node attribute and update the node
 attributes with the operation specific attributes. There are three options to do this.
 
-1.  The extractor extension approach (recommended way to extract attributes for an operation). Explained in details in the [Operation Extractor](@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Extractor) article.
-
-2.  The legacy approach with a built-in extractor. The `mo/front/<FRAMEWORK>/extractor.py` file (for example, the one
-for Caffe) defines a dictionary with extractors for specific operation types. A key in the dictionary is a type of an
-operation to trigger the extracting function for and the value is the function. The function has one parameter – a node
-to extract attributes from. This is a legacy and non-extensible approach so it should be avoided. This mechanism will be
-removed in future versions of Model Optimizer.
+1.  The extractor extension approach (recommended way to extract attributes for an operation). Explained in details in the :doc:`Operation Extractor <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Extractor>` article.
+2.  The legacy approach with a built-in extractor. The `mo/front/<FRAMEWORK>/extractor.py` file (for example, the one for Caffe) defines a dictionary with extractors for specific operation types. A key in the dictionary is a type of an operation to trigger the extracting function for and the value is the function. The function has one parameter – a node to extract attributes from. This is a legacy and non-extensible approach so it should be avoided. This mechanism will be removed in future versions of Model Optimizer.
 
 The extractors execution order is the following:
+
 * `CustomLayersMapping.xml` (for Caffe models only).
 * Model Optimizer extension.
 * Built-in Model Optimizer extractor.
@@ -129,7 +120,7 @@ operation-specific attributes needed for Model Optimizer. However, from this ste
 need the original representation of the operation/model and just uses Model Optimizer representation (there are some
 peculiar cases in which Model Optimizer still uses the `pb` attribute, covered in this
 article partially). A detailed list of common node attributes and their values is provided in the
-[Model Optimizer Operation](@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Operation) article.
+:doc:`Model Optimizer Operation <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Operation>` article.
 
 Front Phase
 ===========
@@ -144,7 +135,7 @@ During the front phase, Model Optimizer knows shape of the model inputs and cons
 transformation. For example, the transformation `extensions/front/TopKNormalize.py` removes an attribute `k`  from a
 `TopK` node and adds an input constant with the value `k`. The transformation is needed to convert a `TopK` operation.
 It comes from frameworks, where a number of output elements is defined as an attribute of the operation to the
-OpenVINO [TopK](@ref openvino_docs_ops_sort_TopK_3) operation semantic, which requires this value to be a separate input.
+OpenVINO :doc:`TopK <openvino_docs_ops_sort_TopK_3>` operation semantic, which requires this value to be a separate input.
 
 It is important to mention that sometimes it seems like transformation cannot be implemented during the front phase
 because the actual values of inputs or shapes are needed. In fact, manipulations of shapes or values can be implemented
@@ -153,17 +144,15 @@ using operations that are added to the graph. Consider the
 `Flatten <https://github.com/onnx/onnx/blob/master/docs/Operators.md#Flatten>`__ operation with a sub-graph of operations performing
 the following (when `axis` is not equal to 0 and 1):
 
-1. Calculate a shape of the `Flatten` input tensor, using the [ShapeOf](@ref openvino_docs_ops_shape_ShapeOf_3) operation.
-2. Get the first `axis` elements from the output of `Shape` operation and calculate their product, using the
-[ReduceProd](@ref openvino_docs_ops_reduction_ReduceProd_1) operation.
-3. Concatenate output of the `ReduceProd` and constant with the value of `-1` (for an explanation of this value
-refer to the [Reshape](@ref openvino_docs_ops_shape_Reshape_1) specification page).
+1. Calculate a shape of the `Flatten` input tensor, using the :doc:`ShapeOf <openvino_docs_ops_shape_ShapeOf_3>` operation.
+2. Get the first `axis` elements from the output of `Shape` operation and calculate their product, using the :doc:`ReduceProd <openvino_docs_ops_reduction_ReduceProd_1>` operation.
+3. Concatenate output of the `ReduceProd` and constant with the value of `-1` (for an explanation of this value refer to the :doc:`Reshape <openvino_docs_ops_shape_Reshape_1>` specification page).
 4. Use the concatenated value as the second input to the `Reshape` operation.
 
-It is highly recommended to write shape-agnostic transformations to avoid model reshape-ability issues. For more information related to the reshaping of a model, refer to the [Using Shape Inference](@ref openvino_docs_OV_UG_ShapeInference) guide.
+It is highly recommended to write shape-agnostic transformations to avoid model reshape-ability issues. For more information related to the reshaping of a model, refer to the :doc:`Using Shape Inference <openvino_docs_OV_UG_ShapeInference>` guide.
 
 More information on how to develop front phase transformations and dedicated API description is provided in the
-[Front Phase Transformations](@ref mo-front-phase-transformations).
+:doc:`Front Phase Transformations <mo-front-phase-transformations>`.
 
 @anchor mo-partial-inference
 Partial Inference
@@ -172,22 +161,22 @@ Partial Inference
 Model Optimizer performs a partial inference of a model during model conversion. This procedure includes output shapes
 calculation of all operations in a model and constant folding (value calculation for constant sub-graphs). The constant
 folding is needed for the shape inference because in some cases evaluation of constant sub-graph is needed to calculate
-output shapes. For example, the output shape for the [Reshape](@ref openvino_docs_ops_shape_Reshape_1) operation may be
-defined as a mathematical expression using the [ShapeOf](@ref openvino_docs_ops_shape_ShapeOf_3) operation output.
+output shapes. For example, the output shape for the :doc:`Reshape <openvino_docs_ops_shape_Reshape_1>` operation may be
+defined as a mathematical expression using the :doc:`ShapeOf <openvino_docs_ops_shape_ShapeOf_3>` operation output.
 
 .. note::
-   Model Optimizer does not fold sub-graphs starting from the [ShapeOf](@ref openvino_docs_ops_shape_ShapeOf_3) operation by default because this leads to a model non-reshape-ability (the command-line parameter `--static_shape` can override this behavior). For more information related to reshaping of a model, refer to the [Using Shape Inference](@ref openvino_docs_OV_UG_ShapeInference) guide.
+   Model Optimizer does not fold sub-graphs starting from the :doc:`ShapeOf <openvino_docs_ops_shape_ShapeOf_3>` operation by default because this leads to a model non-reshape-ability (the command-line parameter `--static_shape` can override this behavior). For more information related to reshaping of a model, refer to the :doc:`Using Shape Inference <openvino_docs_OV_UG_ShapeInference>` guide.
 
 Model Optimizer calculates output shapes for all operations in a model to write them to Intermediate Representation files.
 
 .. note:: 
-   This is a legacy requirement. Starting with IR version 10, OpenVINO Runtime needs to know shapes of the [Const](@ref openvino_docs_ops_infrastructure_Constant_1) and the [Parameter](@ref openvino_docs_ops_infrastructure_Parameter_1) operations only. The OpenVINO Runtime calculates output shapes for all operations in a model, using shapes of [Parameter](@ref openvino_docs_ops_infrastructure_Parameter_1) and [Const](@ref openvino_docs_ops_infrastructure_Constant_1) operations defined with respective operation attributes.
+   This is a legacy requirement. Starting with IR version 10, OpenVINO Runtime needs to know shapes of the :doc:`Const <openvino_docs_ops_infrastructure_Constant_1>` and the :doc:`Parameter <openvino_docs_ops_infrastructure_Parameter_1>` operations only. The OpenVINO Runtime calculates output shapes for all operations in a model, using shapes of :doc:`Parameter <openvino_docs_ops_infrastructure_Parameter_1>` and :doc:`Const <openvino_docs_ops_infrastructure_Constant_1>` operations defined with respective operation attributes.
 
 Model Optimizer inserts **data** nodes to the computation graph before starting the partial inference phase. The data node
 corresponds to the specific tensor produced with the operation. Each data node contains two attributes: `shape`,
 containing the shape of the tensor, and `value`, which may contain the actual value of the tensor. The value for a `value`
 attribute is equal to `None` if this tensor value cannot be calculated. This happens in two cases: when a tensor value
-depends on a values passed to the [Parameter](@ref openvino_docs_ops_infrastructure_Parameter_1) operation of a model or
+depends on a values passed to the :doc:`Parameter <openvino_docs_ops_infrastructure_Parameter_1>` operation of a model or
 Model Optimizer does not have value propagation implementation for the operation.
 
 Before running partial inference, the graph can be depicted like in the following example:
@@ -208,11 +197,11 @@ each node in the graph, according to the topological order. Each node of the gra
 with a shape inference function, which is a function with one parameter – an instance of the `Node` class. The `infer`
 attribute is usually set in the operation extractor or when a node is added in some transformation using the Model
 Optimizer operation class inherited from the `mo.pos.Op` class. For more information on how to specify a shape inference function,
-refer to the [Model Optimizer Operation](@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Operation) and [Operation Extractor](@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Extractor) articles.
+refer to the :doc:`Model Optimizer Operation <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Operation>` and :doc:`Operation Extractor <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Extractor>` articles.
 
 A shape inference function should calculate an operation (node) output shape(s) based on input shape(s) and operation
 (node) attribute(s) and update `shape` and optionally `value` attributes of the corresponding data node(s). A simplified
-example of the shape infer function for the [Reshape](@ref openvino_docs_ops_shape_Reshape_1) operation (the full version is
+example of the shape infer function for the :doc:`Reshape <openvino_docs_ops_shape_Reshape_1>` operation (the full version is
 available in the `mo/ops/reshape.py` file):
 
 .. code-block:: sh
@@ -241,7 +230,7 @@ how to use them, refer to the [Graph Traversal and Modification Using Ports and 
    A shape inference function should perform output shape calculation in the original model layout. For example, OpenVINO supports Convolution operations in NCHW layout only but TensorFlow supports NHWC layout as well. Model Optimizer shape inference function calculates output shapes for NHWC Convolutions in NHWC layout and only during the layout change phase the shape is converted to NCHW.
 
 .. note::
-   There is a legacy approach to read data node attribute, like `input_shape = op_node.in_node(0).shape` and modify data nodes attributes, like `op_node.out_node(0).shape = some_value`. This approach is still used in the Model Optimizer code but is not recommended. Instead, use the approach described in the [Ports](#intro-ports).> Optimizer code but is not recommended. Instead, use the approach described in the [Ports](@ref mo-intro-ports).
+   There is a legacy approach to read data node attribute, like `input_shape = op_node.in_node(0).shape` and modify data nodes attributes, like `op_node.out_node(0).shape = some_value`. This approach is still used in the Model Optimizer code but is not recommended. Instead, use the approach described in the :doc:`Ports <mo-intro-ports>`.
 
 Middle Phase
 ============
@@ -249,10 +238,10 @@ Middle Phase
 The middle phase starts after partial inference. At this phase, a graph contains data nodes and output shapes of all
 operations in the graph have been calculated. Any transformation implemented at this stage must update the `shape`
 attribute for all newly added operations. It is highly recommended to use API described in the
-[Graph Traversal and Modification Using Ports and Connections](@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections) because modification of a graph using this API causes automatic re-inference of affected nodes as well as necessary data nodes creation.
+:doc:`Graph Traversal and Modification Using Ports and Connections <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections>` because modification of a graph using this API causes automatic re-inference of affected nodes as well as necessary data nodes creation.
 
 More information on how to develop middle transformations and dedicated API description is provided in the
-[Middle Phase Transformations](@ref mo-middle-phase-transformations).
+:doc:`Middle Phase Transformations <mo-middle-phase-transformations>`.
 
 NHWC to NCHW Layout Change
 ==========================
@@ -263,14 +252,9 @@ This layout change is disabled automatically if the model does not have operatio
 
 For more details on how it works, refer to the source code of the transformations mentioned in the below summary of the process: 
 
-1. Model Optimizer changes output shapes of most of operations producing 4D and 5D (four dimensional and five
-dimensional) tensors as if they were in NHWC layout to NCHW layout: `nchw_shape = np.array(nhwc_shape)[0, 3, 1, 2]` for
-4D and `nchw_shape = np.array(nhwc_shape)[0, 4, 1, 2, 3]` for 5D. This permutation does not happen for some operations
-with specific conditions identified during a model conversion.
-2. Model Optimizer inserts [Gather](@ref openvino_docs_ops_movement_Gather_1) operations to the sub-graph relates to shapes
-calculation in order to perform shape calculation in a correct layout.
-3. Model Optimizer inserts [Transpose](@ref openvino_docs_ops_movement_Transpose_1) operations for some operations with
-specific conditions, identified during a model conversion, to produce correct inference results.
+1. Model Optimizer changes output shapes of most of operations producing 4D and 5D (four dimensional and five dimensional) tensors as if they were in NHWC layout to NCHW layout: `nchw_shape = np.array(nhwc_shape)[0, 3, 1, 2]` for 4D and `nchw_shape = np.array(nhwc_shape)[0, 4, 1, 2, 3]` for 5D. This permutation does not happen for some operations with specific conditions identified during a model conversion.
+2. Model Optimizer inserts :doc:`Gather <openvino_docs_ops_movement_Gather_1>` operations to the sub-graph relates to shapes calculation in order to perform shape calculation in a correct layout.
+3. Model Optimizer inserts :doc:`Transpose <openvino_docs_ops_movement_Transpose_1>` operations for some operations with specific conditions, identified during a model conversion, to produce correct inference results.
 
 The main transformations responsible for a layout change are: 
 * `extensions/middle/ApplyPermutations.py`
@@ -284,10 +268,8 @@ Back Phase
 
 The back phase starts after the layout change to NCHW. This phase contains mostly the following transformations:
 
-1. Transformations that should work with a graph in the NCHW layout and thus cannot be implemented in the middle
-phase.
-2. Transformations that replace nodes corresponding to internal Model Optimizer operations with nodes corresponding to the
-[opset](@ref openvino_docs_ops_opset) operations.
+1. Transformations that should work with a graph in the NCHW layout and thus cannot be implemented in the middle phase.
+2. Transformations that replace nodes corresponding to internal Model Optimizer operations with nodes corresponding to the :doc:`opset <openvino_docs_ops_opset>` operations.
 3. Transformations that normalize operations inputs according to the specification.
 4. Final optimization transformations.
 
@@ -295,7 +277,7 @@ A graph structure during the back phase is the same as during the middle phase. 
 and back transformations.
 
 More information on how to develop back transformations and dedicated API description is provided in the
-[Back Phase Transformations](@ref mo-back-phase-transformations).
+:doc:`Back Phase Transformations <mo-back-phase-transformations>`.
 
 Intermediate Representation Emitting
 ====================================
@@ -303,30 +285,21 @@ Intermediate Representation Emitting
 The last phase of a model conversion is the Intermediate Representation emitting. Model Optimizer performs the following
 steps:
 
-1. Iterates over all operation nodes in the graph and checks that all nodes have the `type` attribute set. This attribute
-defines the operation type and is used in the OpenVINO to instantiate proper operation from the
-[opset](@ref openvino_docs_ops_opset) specified in the `version` attribute of the node. If a node does not have
-attribute `type` or its value is equal to `None`, Model Optimizer exits with an error.
-2. Performs type inference of graph operations similar to the shape inference. Inferred data types are saved to a port
-attributes in the IR.
-3. Performs topological sort of the graph and changes `id` attribute of all operation nodes to be sequential integer
-values starting from 0.
+1. Iterates over all operation nodes in the graph and checks that all nodes have the `type` attribute set. This attribute defines the operation type and is used in the OpenVINO to instantiate proper operation from the :doc:`opset <openvino_docs_ops_opset>` specified in the `version` attribute of the node. If a node does not have attribute `type` or its value is equal to `None`, Model Optimizer exits with an error.
+2. Performs type inference of graph operations similar to the shape inference. Inferred data types are saved to a port attributes in the IR.
+3. Performs topological sort of the graph and changes `id` attribute of all operation nodes to be sequential integer values starting from 0.
 4. Saves all Constants values to the `.bin` file. Constants with the same value are shared among different operations.
-5. Generates an `.xml` file defining a graph structure. The information about operation inputs and outputs are prepared
-uniformly for all operations regardless of their type. A list of attributes to be saved to the `.xml` file is defined
-with the `backend_attrs()` or `supported_attrs()` of the `Op` class used for a graph node instantiation. For more
-information on how the operation attributes are saved to XML, refer to the function `prepare_emit_ir()` in
-the `mo/pipeline/common.py` file and [Model Optimizer Operation](@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Operation) article.
+5. Generates an `.xml` file defining a graph structure. The information about operation inputs and outputs are prepared uniformly for all operations regardless of their type. A list of attributes to be saved to the `.xml` file is defined with the `backend_attrs()` or `supported_attrs()` of the `Op` class used for a graph node instantiation. For more information on how the operation attributes are saved to XML, refer to the function `prepare_emit_ir()` in the `mo/pipeline/common.py` file and :doc:`Model Optimizer Operation <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Operation>` article.
 
 Additional Resources
 --------------------
 
-* [Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™](@ref openvino_docs_MO_DG_IR_and_opsets)
-* [Converting a Model to Intermediate Representation (IR)](@ref openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model)
-* [OpenVINO Model Representation](@ref openvino_docs_OV_UG_Model_Representation)
-* [OpenVINO™ Extensibility Mechanism](@ref openvino_docs_Extensibility_UG_Intro)
-* [Graph Traversal and Modification Using Ports and Connections](@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections)
-* [Model Optimizer Extensions](@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions)
-* [Extending Model Optimizer with Caffe Python Layers](@ref openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers)
+* :doc:`Deep Learning Network Intermediate Representation and Operation Sets in OpenVINO™ <openvino_docs_MO_DG_IR_and_opsets>`
+* :doc:`Converting a Model to Intermediate Representation (IR) <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`
+* :doc:`OpenVINO Model Representation <openvino_docs_OV_UG_Model_Representation>`
+* :doc:`OpenVINO™ Extensibility Mechanism <openvino_docs_Extensibility_UG_Intro>`
+* :doc:`Graph Traversal and Modification Using Ports and Connections <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections>`
+* :doc:`Model Optimizer Extensions <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions>`
+* :doc:`Extending Model Optimizer with Caffe Python Layers <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers>`
 
 @endsphinxdirective
