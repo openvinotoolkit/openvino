@@ -13,7 +13,6 @@
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "pt_framework_node.hpp"
-#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
