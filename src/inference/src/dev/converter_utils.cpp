@@ -216,10 +216,10 @@ public:
     }
 
     void setTbbFlag(bool flag) override {
-        m_manager->set_tbb_flag(flag);
+        m_manager->set_property({{ov::force_tbb_terminate.name(), flag}});
     }
     bool getTbbFlag() override {
-        return m_manager->get_tbb_flag();
+        return m_manager->get_property(ov::force_tbb_terminate.name()).as<bool>();
     }
 };
 

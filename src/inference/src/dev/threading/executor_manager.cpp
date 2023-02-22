@@ -5,6 +5,7 @@
 #include "openvino/runtime/threading/executor_manager.hpp"
 
 #include "openvino/core/parallel.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
 #    if (TBB_INTERFACE_VERSION < 12000)
@@ -30,18 +31,19 @@ public:
     size_t get_executors_number() const override;
     size_t get_idle_cpu_streams_executors_number() const override;
     void clear(const std::string& id = {}) override;
-    void set_tbb_flag(bool flag) override;
-    bool get_tbb_flag() override;
+    void set_property(const ov::AnyMap& properties) override;
+    ov::Any get_property(const std::string& name) const override;
 
 private:
     void reset_tbb();
+
     std::unordered_map<std::string, InferenceEngine::ITaskExecutor::Ptr> executors;
     std::vector<std::pair<InferenceEngine::IStreamsExecutor::Config, InferenceEngine::IStreamsExecutor::Ptr>>
         cpuStreamsExecutors;
     mutable std::mutex streamExecutorMutex;
     mutable std::mutex taskExecutorMutex;
     bool tbbTerminateFlag = false;
-    mutable std::mutex tbbMutex;
+    mutable std::mutex global_mutex;
     bool tbbThreadsCreated = false;
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
 #    if (TBB_INTERFACE_VERSION < 12000)
@@ -58,34 +60,40 @@ ExecutorManagerImpl::~ExecutorManagerImpl() {
     reset_tbb();
 }
 
-void ExecutorManagerImpl::set_tbb_flag(bool flag) {
-    std::lock_guard<std::mutex> guard(tbbMutex);
-    tbbTerminateFlag = flag;
+void ExecutorManagerImpl::set_property(const ov::AnyMap& properties) {
+    std::lock_guard<std::mutex> guard(global_mutex);
+    for (const auto& it : properties) {
+        if (it.first == ov::force_tbb_terminate.name()) {
+            tbbTerminateFlag = it.second.as<bool>();
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
-    if (tbbTerminateFlag) {
-        if (!tbbTaskScheduler) {
+            if (tbbTerminateFlag) {
+                if (!tbbTaskScheduler) {
 #    if (TBB_INTERFACE_VERSION < 12000)
-            tbbTaskScheduler = std::make_shared<tbb::task_scheduler_init>();
+                    tbbTaskScheduler = std::make_shared<tbb::task_scheduler_init>();
 #    elif (TBB_INTERFACE_VERSION < 12060)
-            tbbTaskScheduler =
-                std::make_shared<oneapi::tbb::task_scheduler_handle>(oneapi::tbb::task_scheduler_handle::get());
+                    tbbTaskScheduler =
+                        std::make_shared<oneapi::tbb::task_scheduler_handle>(oneapi::tbb::task_scheduler_handle::get());
 #    else
-            tbbTaskScheduler = std::make_shared<oneapi::tbb::task_scheduler_handle>(tbb::attach{});
+                    tbbTaskScheduler = std::make_shared<oneapi::tbb::task_scheduler_handle>(tbb::attach{});
 #    endif
-        }
-    } else {
-        tbbTaskScheduler = nullptr;
-    }
+                }
+            } else {
+                tbbTaskScheduler = nullptr;
+            }
 #endif
+        }
+    }
 }
-
-bool ExecutorManagerImpl::get_tbb_flag() {
-    std::lock_guard<std::mutex> guard(tbbMutex);
-    return tbbTerminateFlag;
+ov::Any ExecutorManagerImpl::get_property(const std::string& name) const {
+    std::lock_guard<std::mutex> guard(global_mutex);
+    if (name == ov::force_tbb_terminate.name()) {
+        return tbbTerminateFlag;
+    }
+    OPENVINO_UNREACHABLE("Property ", name, " is not supported.");
 }
 
 void ExecutorManagerImpl::reset_tbb() {
-    std::lock_guard<std::mutex> guard(tbbMutex);
+    std::lock_guard<std::mutex> guard(global_mutex);
     if (tbbTerminateFlag) {
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
         if (tbbTaskScheduler && tbbThreadsCreated) {

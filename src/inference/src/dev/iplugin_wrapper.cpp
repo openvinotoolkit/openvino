@@ -42,11 +42,16 @@ public:
         return m_manager->clear(id);
     }
 
-    void set_tbb_flag(bool flag) override {
-        m_manager->setTbbFlag(flag);
+    void set_property(const ov::AnyMap& property) override {
+        for (const auto& it : property) {
+            if (it.first == ov::force_tbb_terminate.name())
+                m_manager->setTbbFlag(it.second.as<bool>());
+        }
     }
-    bool get_tbb_flag() override {
-        return m_manager->getTbbFlag();
+    ov::Any get_property(const std::string& name) const override {
+        if (name == ov::force_tbb_terminate.name())
+            return m_manager->getTbbFlag();
+        OPENVINO_UNREACHABLE("Cannot find property ", name);
     }
 };
 

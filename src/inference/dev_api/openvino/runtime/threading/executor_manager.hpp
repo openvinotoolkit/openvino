@@ -33,9 +33,30 @@ public:
      */
     virtual InferenceEngine::ITaskExecutor::Ptr get_executor(const std::string& id) = 0;
 
-    /// @private
+    /**
+     * @brief Returns idle cpu streams executor
+     *
+     * @param config Streams executor config
+     *
+     * @return pointer to streams executor config
+     */
     virtual InferenceEngine::IStreamsExecutor::Ptr get_idle_cpu_streams_executor(
         const InferenceEngine::IStreamsExecutor::Config& config) = 0;
+
+    /**
+     * @brief Allows to configure executor manager
+     *
+     * @param properties map with configuration
+     */
+    virtual void set_property(const ov::AnyMap& properties) = 0;
+    /**
+     * @brief Returns configuration
+     *
+     * @param name property name
+     *
+     * @return Property value
+     */
+    virtual ov::Any get_property(const std::string& name) const = 0;
 
     /**
      * @cond
@@ -48,18 +69,7 @@ public:
     /**
      * @endcond
      */
-
     virtual ~ExecutorManager() = default;
-
-    /**
-     * @brief Set TBB terminate flag
-     * @param flag A boolean value:
-     * True to terminate tbb during destruction
-     * False to not terminate tbb during destruction
-     * @return void
-     */
-    virtual void set_tbb_flag(bool flag) = 0;
-    virtual bool get_tbb_flag() = 0;
 };
 
 OPENVINO_API std::shared_ptr<ExecutorManager> executor_manager();
