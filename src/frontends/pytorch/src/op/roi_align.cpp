@@ -34,9 +34,10 @@ OutputVector translate_roi_align(NodeContext& context) {
     auto boxes = context.mark_node(std::make_shared<v1::ConvertLike>(boxes_input, input_real_type));
 
     auto spatial_scale = context.const_input<float>(2);
-    auto output_size_h = context.const_input<int64_t>(3);
-    auto output_size_w = context.const_input<int64_t>(4);
-    auto sampling_ratio = context.const_input<int64_t>(5);
+    int output_size_h = context.const_input<int64_t>(3);
+    int output_size_w = context.const_input<int64_t>(4);
+    int sampling_ratio = context.const_input<int64_t>(5);
+
     auto aligned = context.const_input<bool>(6);
 
     auto rois = context.mark_node(std::make_shared<v8::Gather>(boxes, const_rois_indices, const_1));

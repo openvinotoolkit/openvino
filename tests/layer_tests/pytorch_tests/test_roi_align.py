@@ -39,7 +39,7 @@ class TestROIAlign(PytorchLayerTest):
         return (torchvision_roi_align(output_size, spatial_scale, sampling_ratio, aligned),
                 ref_net, "torchvision::roi_align")
 
-    @pytest.mark.parametrize('input_tensor', (np.random.randn(4, 4, 4, 4).astype(np.float32),))
+    @pytest.mark.parametrize('input_tensor', (np.random.randn(4, 5, 6, 7).astype(np.float32),))
     @pytest.mark.parametrize('boxes', (np.array([[1, 2, 2, 3, 3]]).astype(np.float32),
                                        np.array([[0, 1, 2, 5, 4],
                                                  [2, 1, 2, 5, 4],
