@@ -61,14 +61,6 @@ public:
     std::shared_ptr<PassConfig> get_pass_config() {
         return m_pass_config;
     }
-    /// \brief Applies callback for given node. By default callback returns false.
-    /// This method remains here only for backward compatibility and will be removed
-    /// after all transformations are moved to transformation_callback() method.
-    /// \return result of callback execution for given node
-    OPENVINO_DEPRECATED("Please use transformation_callback method instead")
-    bool m_transformation_callback(const std::shared_ptr<const Node>& node) {
-        return m_pass_config->get_callback(get_type_info())(node);
-    }
 
     /// \brief Applies callback for given node. By default callback returns false.
     /// \param node which will be used inside callback
