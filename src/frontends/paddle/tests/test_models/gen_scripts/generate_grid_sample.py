@@ -19,6 +19,7 @@ def grid_sample(name: str, x, grid, mode="bilinear", padding_mode="zeros", align
         out = paddle.nn.functional.grid_sample(x_node, grid_node, mode=mode, padding_mode=padding_mode, align_corners=align_corners)
         place = paddle.CPUPlace()
         exe = paddle.static.Executor(place)
+        exe.run(paddle.static.default_startup_program())
         outs = exe.run(feed={"x": x, "grid": grid}, fetch_list=[out])
         saveModel(name, exe, feedkeys=['x', 'grid'], fetchlist=[out], inputs=[x, grid], outputs=[outs[0]], target_dir=sys.argv[1])
 
