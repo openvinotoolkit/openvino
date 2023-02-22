@@ -4,7 +4,9 @@
 
 #include "threading/ie_executor_manager.hpp"
 
+#include "dev/executor_manager_wrapper.hpp"
 #include "ie_parallel.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
 #    if (TBB_INTERFACE_VERSION < 12000)
@@ -188,8 +190,7 @@ public:
 }  // namespace
 
 ExecutorManager::Ptr executorManager() {
-    static ExecutorManagerHolder executorManagerHolder;
-    return executorManagerHolder.get();
+    return std::make_shared<ov::ExecutorManagerWrapper>(ov::executor_manager());
 }
 
 ExecutorManager* ExecutorManager::getInstance() {

@@ -13,6 +13,7 @@
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
+#include "dev/executor_manager_wrapper.hpp"
 #include "icompiled_model_wrapper.hpp"
 #include "ie_blob.h"
 #include "ie_common.h"
@@ -188,42 +189,6 @@ std::shared_ptr<const ov::Model> ov::legacy_convert::convert_model(const Inferen
 }
 
 namespace ov {
-
-class ExecutorManagerWrapper : public InferenceEngine::ExecutorManager {
-private:
-    std::shared_ptr<ov::ExecutorManager> m_manager;
-
-public:
-    ExecutorManagerWrapper(const std::shared_ptr<ov::ExecutorManager>& manager) : m_manager(manager) {}
-
-    InferenceEngine::ITaskExecutor::Ptr getExecutor(const std::string& id) override {
-        return m_manager->get_executor(id);
-    }
-
-    InferenceEngine::IStreamsExecutor::Ptr getIdleCPUStreamsExecutor(
-        const InferenceEngine::IStreamsExecutor::Config& config) override {
-        return m_manager->get_idle_cpu_streams_executor(config);
-    }
-
-    size_t getExecutorsNumber() const override {
-        return m_manager->get_executors_number();
-    }
-
-    size_t getIdleCPUStreamsExecutorsNumber() const override {
-        return m_manager->get_idle_cpu_streams_executors_number();
-    }
-
-    void clear(const std::string& id = {}) override {
-        return m_manager->clear(id);
-    }
-
-    void setTbbFlag(bool flag) override {
-        m_manager->set_property({{ov::force_tbb_terminate.name(), flag}});
-    }
-    bool getTbbFlag() override {
-        return m_manager->get_property(ov::force_tbb_terminate.name()).as<bool>();
-    }
-};
 
 class IVariableStateInternalWrapper : public InferenceEngine::IVariableStateInternal {
     std::shared_ptr<ov::IVariableState> m_state;
