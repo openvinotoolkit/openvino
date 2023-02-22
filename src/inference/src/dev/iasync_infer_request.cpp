@@ -62,6 +62,7 @@ void ov::IAsyncInferRequest::wait() {
     }
 
     future.wait();
+    future.get();
 }
 
 bool ov::IAsyncInferRequest::wait_for(const std::chrono::milliseconds& timeout) {
@@ -247,14 +248,18 @@ void ov::IAsyncInferRequest::stop_and_wait() {
 }
 
 void ov::IAsyncInferRequest::infer() {
-    m_sync_request->infer();
+    DisableCallbackGuard disableCallbackGuard{this};
+    infer_impl([&] {
+        infer_thread_unsafe();
+    });
+    wait();
 }
 
 void ov::IAsyncInferRequest::check_tensors() const {
     m_sync_request->check_tensors();
 }
 
-const std::shared_ptr<ov::ICompiledModel>& ov::IAsyncInferRequest::get_compiled_model() const {
+const std::shared_ptr<const ov::ICompiledModel>& ov::IAsyncInferRequest::get_compiled_model() const {
     return m_sync_request->get_compiled_model();
 }
 
