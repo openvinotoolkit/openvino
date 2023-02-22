@@ -187,11 +187,6 @@ std::shared_ptr<const ov::Model> ov::legacy_convert::convert_model(const Inferen
     return cloned_model;
 }
 
-namespace InferenceEngine {
-extern std::shared_ptr<InferenceEngine::ExecutorManager> create_old_manager(
-    const std::shared_ptr<ov::ExecutorManager>& manager);
-}
-
 namespace ov {
 
 class IVariableStateInternalWrapper : public InferenceEngine::IVariableStateInternal {

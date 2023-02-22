@@ -92,4 +92,7 @@ private:
 
 INFERENCE_ENGINE_API_CPP(ExecutorManager::Ptr) executorManager();
 
+std::shared_ptr<InferenceEngine::ExecutorManager> create_old_manager(
+    const std::shared_ptr<ov::ExecutorManager>& manager);
+
 }  // namespace InferenceEngine
