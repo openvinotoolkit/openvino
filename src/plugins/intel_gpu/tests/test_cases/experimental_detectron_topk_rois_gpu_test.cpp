@@ -159,22 +159,7 @@ TEST(experimental_detectron_topk_rois_gpu_test, export_import) {
                                                   rois_num));
     topology.add(reorder("plane_output", input_info(experimental_detectron_topk_rois_id), format::bfyx, test_data_type));
 
-    cldnn::network::ptr network;
-
-    {
-        membuf mem_buf;
-        {
-            cldnn::network _network(engine, topology);
-            std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-            _network.save(ob);
-        }
-        {
-            std::istream in_mem(&mem_buf);
-            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-        }
-    }
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), true);
 
     network->set_input_data(input_rois_id, roi_input);
     network->set_input_data(input_indices_id, roi_indices);
