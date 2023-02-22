@@ -52,12 +52,12 @@ The logic behind the choice is as follows:
 
 
 To put it simply, when loading the model to the first device on the list fails, AUTO will try to load it to the next device in line, until one of them succeeds.
-What is important, **AUTO always starts inference with the CPU of the system**, as it provides very low latency and can start inference with no additional delays.
+What is important, **AUTO starts inference with the CPU of the system by default**, as it provides very low latency and can start inference with no additional delays.
 While the CPU is performing inference, AUTO continues to load the model to the device best suited for the purpose and transfers the task to it when ready.
 This way, the devices which are much slower in compiling models, GPU being the best example, do not impede inference at its initial stages.
 For example, if you use a CPU and a GPU, the first-inference latency of AUTO will be better than that of using GPU alone.
 
-Note that if you choose to exclude CPU from the priority list, it will be unable to support the initial model compilation stage.
+Note that if you choose to exclude CPU from the priority list or disable the initial CPU acceleration feature via ``ov::intel_auto::enable_startup_fallback``, it will be unable to support the initial model compilation stage.
 
 
 .. image:: _static/images/autoplugin_accelerate.svg
@@ -88,49 +88,56 @@ Using AUTO
 Following the OpenVINO™ naming convention, the Automatic Device Selection mode is assigned the label of "AUTO". It may be defined with no additional parameters, resulting in defaults being used, or configured further with the following setup options:
 
 
-+----------------------------------+----------------------------------------------------------------------+
-| | Property                       | | Values and Description                                             |
-+==================================+======================================================================+
-| | <device candidate list>        | | **Values**:                                                        |
-| |                                | |       empty                                                        |
-| |                                | |       ``AUTO``                                                     |
-| |                                | |       ``AUTO: <device names>`` (comma-separated, no spaces)        |
-| |                                | |                                                                    |
-| |                                | | Lists the devices available for selection.                         |
-| |                                | | The device sequence will be taken as priority from high to low.    |
-| |                                | | If not specified, ``AUTO`` will be used as default,                |
-| |                                | | and all devices will be "viewed" as candidates.                    |
-+----------------------------------+----------------------------------------------------------------------+
-| | ``ov::device::priorities``     | | **Values**:                                                        |
-| |                                | |       ``<device names>`` (comma-separated, no spaces)              |
-| |                                | |                                                                    |
-| |                                | | Specifies the devices for AUTO to select.                          |
-| |                                | | The device sequence will be taken as priority from high to low.    |
-| |                                | | This configuration is optional.                                    |
-+----------------------------------+----------------------------------------------------------------------+
-| | ``ov::hint::performance_mode`` | | **Values**:                                                        |
-| |                                | |       ``ov::hint::PerformanceMode::LATENCY``                       |
-| |                                | |       ``ov::hint::PerformanceMode::THROUGHPUT``                    |
-| |                                | |       ``ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT``         |
-| |                                | |                                                                    |
-| |                                | | Specifies the performance option preferred by the application.     |
-+----------------------------------+----------------------------------------------------------------------+
-| | ``ov::hint::model_priority``   | | **Values**:                                                        |
-| |                                | |       ``ov::hint::Priority::HIGH``                                 |
-| |                                | |       ``ov::hint::Priority::MEDIUM``                               |
-| |                                | |       ``ov::hint::Priority::LOW``                                  |
-| |                                | |                                                                    |
-| |                                | | Indicates the priority for a model.                                |
-| |                                | | IMPORTANT: This property is not fully supported yet.               |
-+----------------------------------+----------------------------------------------------------------------+
-| | ``ov::execution_devices``      | | Lists the runtime target devices on which the inferences are being |
-| |                                | | executed.                                                          |
-| |                                | | Examples of returning results could be ``CPU_HELP``(``CPU_HELP``   |
-| |                                | | is a temporary device, indicating that CPU is used for             |
-| |                                | | acceleration at the model compilation stage),                      |
-| |                                | | ``CPU``, ``GPU``, ``CPU GPU``, ``GPU.0``, etc.                     |
-+----------------------------------+----------------------------------------------------------------------+
-
++-----------------------------------------------+----------------------------------------------------------------------+
+| | Property                                    | | Values and Description                                             |
++===============================================+======================================================================+
+| | <device candidate list>                     | | **Values**:                                                        |
+| |                                             | |       empty                                                        |
+| |                                             | |       ``AUTO``                                                     |
+| |                                             | |       ``AUTO: <device names>`` (comma-separated, no spaces)        |
+| |                                             | |                                                                    |
+| |                                             | | Lists the devices available for selection.                         |
+| |                                             | | The device sequence will be taken as priority from high to low.    |
+| |                                             | | If not specified, ``AUTO`` will be used as default,                |
+| |                                             | | and all devices will be "viewed" as candidates.                    |
++-----------------------------------------------+----------------------------------------------------------------------+
+| | ``ov::device::priorities``                  | | **Values**:                                                        |
+| |                                             | |       ``<device names>`` (comma-separated, no spaces)              |
+| |                                             | |                                                                    |
+| |                                             | | Specifies the devices for AUTO to select.                          |
+| |                                             | | The device sequence will be taken as priority from high to low.    |
+| |                                             | | This configuration is optional.                                    |
++-----------------------------------------------+----------------------------------------------------------------------+
+| | ``ov::hint::performance_mode``              | | **Values**:                                                        |
+| |                                             | |       ``ov::hint::PerformanceMode::LATENCY``                       |
+| |                                             | |       ``ov::hint::PerformanceMode::THROUGHPUT``                    |
+| |                                             | |       ``ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT``         |
+| |                                             | |                                                                    |
+| |                                             | | Specifies the performance option preferred by the application.     |
++-----------------------------------------------+----------------------------------------------------------------------+
+| | ``ov::hint::model_priority``                | | **Values**:                                                        |
+| |                                             | |       ``ov::hint::Priority::HIGH``                                 |
+| |                                             | |       ``ov::hint::Priority::MEDIUM``                               |
+| |                                             | |       ``ov::hint::Priority::LOW``                                  |
+| |                                             | |                                                                    |
+| |                                             | | Indicates the priority for a model.                                |
+| |                                             | | IMPORTANT: This property is not fully supported yet.               |
++-----------------------------------------------+----------------------------------------------------------------------+
+| | ``ov::execution_devices``                   | | Lists the runtime target devices on which the inferences are being |
+| |                                             | | executed.                                                          |
+| |                                             | | Examples of returning results could be ``(CPU)``(``CPU`` is a      |
+| |                                             | | temporary device, indicating that CPU is used for acceleration at  |
+| |                                             | | the model compilation stage), ``CPU``, ``GPU``, ``CPU GPU``,       |
+| |                                             | | ``GPU.0``, etc.                                                    |
++-----------------------------------------------+----------------------------------------------------------------------+
+| | ``ov::intel_auto::enable_startup_fallback`` | | **Values**:                                                        |
+| |                                             | |       ``true``                                                     |
+| |                                             | |       ``false``                                                    |
+| |                                             | |                                                                    |
+| |                                             | | Enables/disables CPU as acceleration (or the helper device) in the |
+| |                                             | | beginning. The default value is `true`, indicating that CPU is     |
+| |                                             | | used as acceleration by default.                                   |
++-----------------------------------------------+----------------------------------------------------------------------+
 
 Inference with AUTO is configured similarly to when device plugins are used:
 you compile the model on the plugin with configuration and execute inference.
