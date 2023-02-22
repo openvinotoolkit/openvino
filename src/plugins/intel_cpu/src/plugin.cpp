@@ -222,8 +222,6 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
     };
 
     auto getNumStreams = [&](int nstreams) {
-        StreamCfg streams_info;
-
         auto num_requests = config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
         if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
             auto val = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second);
@@ -233,12 +231,12 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             nstreams = std::min(nstreams, engConfig.perfHintsConfig.ovPerfHintNumRequests);
         }
 
-        int model_prefer = GetModelPreferThreads(ngraphFunc);
+        const int model_prefer = GetModelPreferThreads(ngraphFunc);
         const std::vector<std::vector<int>> proc_type_table =
             get_num_available_cpu_cores(engConfig.streamExecutorConfig._plugin_task);
         const std::vector<std::vector<int>> stream_info_table =
             get_streams_info_table(nstreams, engConfig.streamExecutorConfig._threads, model_prefer, proc_type_table);
-        streams_info = ParseStreamsTable(stream_info_table);
+        StreamCfg streams_info = ParseStreamsTable(stream_info_table);
 
         return std::pair<std::string, Engine::StreamCfg>(std::to_string(streams_info.num_streams), streams_info);
     };

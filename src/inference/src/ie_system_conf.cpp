@@ -190,22 +190,6 @@ int getNumberOfLogicalCPUCores(bool bigCoresOnly) {
 #    endif
     return logical_cores;
 }
-#endif
-
-#if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
-std::vector<int> getAvailableNUMANodes() {
-    return custom::info::numa_nodes();
-}
-// this is impl only with the TBB
-std::vector<int> getAvailableCoresTypes() {
-    return custom::info::core_types();
-}
-#else
-// as the core types support exists only with the TBB, the fallback is same for any other threading API
-std::vector<int> getAvailableCoresTypes() {
-    return {-1};
-}
-#endif
 
 struct CPU {
     int _processors = 0;
@@ -424,5 +408,21 @@ void set_cpu_used(std::vector<int> cpu_ids, int used) {
         }
     }
 }
+#endif
+
+#if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
+std::vector<int> getAvailableNUMANodes() {
+    return custom::info::numa_nodes();
+}
+// this is impl only with the TBB
+std::vector<int> getAvailableCoresTypes() {
+    return custom::info::core_types();
+}
+#else
+// as the core types support exists only with the TBB, the fallback is same for any other threading API
+std::vector<int> getAvailableCoresTypes() {
+    return {-1};
+}
+#endif
 
 }  // namespace InferenceEngine
