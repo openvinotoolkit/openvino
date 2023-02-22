@@ -330,7 +330,7 @@ JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& param
                         jit.AddConstant(MakeJitConstant(name,
                                                         "input" + toCodeString(input.index) +
                                                         "[GET_INDEX(INPUT, " + toCodeString(input.index) +
-                                                        "," + idx_order + ")]"));
+                                                        "," + idx_order + ") " + (params.is_shape_agnostic ? "+ runtime_offset]" : "]")));
                     break;
                 case EltwiseInputMode::OUTPUT_BUFFER:
                     jit.AddConstant(MakeJitConstant(name, "output[GET_INDEX(OUTPUT,,OUTPUT_IDX_ORDER)]"));
@@ -711,7 +711,9 @@ KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params, const 
                                    GetFusedPrimitiveInputsCount(params),
                                    1,
                                    is_dynamic);
-
+    if (params.is_shape_agnostic) {
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
+    }
     return {kd};
 }
 }  // namespace kernel_selector
