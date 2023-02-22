@@ -57,7 +57,8 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
             if (!g_node.is_constant()) {
                 g_node.set_selected_impl(g_node.type()->choose_impl(g_node));
                 if (auto impl = g_node.get_selected_impl()) {
-                    impl->set_kernel_ids(p.get_kernels_cache());
+                    auto kernel_ids = p.get_kernels_cache().add_kernels_source(impl->get_kernels_source());
+                    impl->set_kernel_ids(kernel_ids);
                 }
             }
         }

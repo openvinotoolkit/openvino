@@ -350,7 +350,8 @@ bool primitive_inst::update_impl() {
                     }
 
                     auto impl = _node->type()->choose_impl(*_node, updated_params);
-                    impl->build_kernels(_program->get_kernels_cache());
+                    auto kernels = _program->get_kernels_cache().compile(impl->get_kernels_source());
+                    impl->set_kernels(kernels);
                     cache.add(impl_key, impl->clone());
                 });
                 _impl = _dynamic_impl->clone();
@@ -359,7 +360,9 @@ bool primitive_inst::update_impl() {
                 update_shape_info(*_impl_params);
             } else {
                 _impl = _node->type()->choose_impl(*_node, updated_params);
-                _impl->build_kernels(get_network().get_program()->get_kernels_cache());
+                auto& kernels_cache = get_network().get_program()->get_kernels_cache();
+                auto kernels = kernels_cache.compile(_impl->get_kernels_source());
+                _impl->set_kernels(kernels);
                 cache.add(impl_key, _impl->clone());
 
                 auto new_impl_str = _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
