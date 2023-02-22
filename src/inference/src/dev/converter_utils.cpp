@@ -32,8 +32,10 @@
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/variable_state.hpp"
 #include "so_ptr.hpp"
+#include "threading/ie_executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace {
@@ -185,6 +187,42 @@ std::shared_ptr<const ov::Model> ov::legacy_convert::convert_model(const Inferen
 
 namespace ov {
 
+class ExecutorManagerWrapper : public InferenceEngine::ExecutorManager {
+private:
+    std::shared_ptr<ov::ExecutorManager> m_manager;
+
+public:
+    ExecutorManagerWrapper(const std::shared_ptr<ov::ExecutorManager>& manager) : m_manager(manager) {}
+
+    InferenceEngine::ITaskExecutor::Ptr getExecutor(const std::string& id) override {
+        return m_manager->get_executor(id);
+    }
+
+    InferenceEngine::IStreamsExecutor::Ptr getIdleCPUStreamsExecutor(
+        const InferenceEngine::IStreamsExecutor::Config& config) override {
+        return m_manager->get_idle_cpu_streams_executor(config);
+    }
+
+    size_t getExecutorsNumber() const override {
+        return m_manager->get_executors_number();
+    }
+
+    size_t getIdleCPUStreamsExecutorsNumber() const override {
+        return m_manager->get_idle_cpu_streams_executors_number();
+    }
+
+    void clear(const std::string& id = {}) override {
+        return m_manager->clear(id);
+    }
+
+    void setTbbFlag(bool flag) override {
+        m_manager->set_tbb_flag(flag);
+    }
+    bool getTbbFlag() override {
+        return m_manager->get_tbb_flag();
+    }
+};
+
 class IInferencePluginWrapper : public InferenceEngine::IInferencePlugin {
 public:
     IInferencePluginWrapper(const std::shared_ptr<ov::IPlugin>& plugin) : m_plugin(plugin) {
@@ -194,7 +232,7 @@ public:
         version.description = ver.description;
         SetVersion(version);
         _isNewAPI = plugin->is_new_api();
-        _executorManager = plugin->get_executor_manager();
+        _executorManager = std::make_shared<ExecutorManagerWrapper>(plugin->get_executor_manager());
     }
     std::string GetName() const noexcept override {
         return m_plugin->get_device_name();

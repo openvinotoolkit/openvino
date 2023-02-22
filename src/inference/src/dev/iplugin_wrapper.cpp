@@ -9,8 +9,46 @@
 #include "any_copy.hpp"
 #include "dev/converter_utils.hpp"
 #include "ie_icore.hpp"
+#include "threading/ie_executor_manager.hpp"
 
 namespace InferenceEngine {
+
+class ExecutorManagerWrapper : public ov::ExecutorManager {
+private:
+    std::shared_ptr<InferenceEngine::ExecutorManager> m_manager;
+
+public:
+    ExecutorManagerWrapper(const std::shared_ptr<InferenceEngine::ExecutorManager>& manager) : m_manager(manager) {}
+
+    InferenceEngine::ITaskExecutor::Ptr get_executor(const std::string& id) override {
+        return m_manager->getExecutor(id);
+    }
+
+    /// @private
+    InferenceEngine::IStreamsExecutor::Ptr get_idle_cpu_streams_executor(
+        const InferenceEngine::IStreamsExecutor::Config& config) override {
+        return m_manager->getIdleCPUStreamsExecutor(config);
+    }
+
+    size_t get_executors_number() const override {
+        return m_manager->getExecutorsNumber();
+    }
+
+    size_t get_idle_cpu_streams_executors_number() const override {
+        return m_manager->getIdleCPUStreamsExecutorsNumber();
+    }
+
+    void clear(const std::string& id = {}) override {
+        return m_manager->clear(id);
+    }
+
+    void set_tbb_flag(bool flag) override {
+        m_manager->setTbbFlag(flag);
+    }
+    bool get_tbb_flag() override {
+        return m_manager->getTbbFlag();
+    }
+};
 
 IPluginWrapper::IPluginWrapper(const std::shared_ptr<InferenceEngine::IInferencePlugin>& ptr) : m_old_plugin(ptr) {
     OPENVINO_ASSERT(m_old_plugin);
@@ -20,7 +58,7 @@ IPluginWrapper::IPluginWrapper(const std::shared_ptr<InferenceEngine::IInference
     m_plugin_name = m_old_plugin->GetName();
     m_is_new_api = m_old_plugin->IsNewAPI();
     m_core = m_old_plugin->GetCore();
-    m_executor_manager = m_old_plugin->executorManager();
+    m_executor_manager = std::make_shared<InferenceEngine::ExecutorManagerWrapper>(m_old_plugin->executorManager());
 }
 
 const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& IPluginWrapper::update_exec_network(
