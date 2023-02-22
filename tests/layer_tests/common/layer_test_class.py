@@ -54,6 +54,11 @@ class CommonLayerTest:
         if 'input_names' in kwargs and len(kwargs['input_names']):
             mo_params.update(dict(input=','.join(kwargs['input_names'])))
 
+        if use_new_frontend:
+            mo_params["use_new_frontend"] = True
+        if use_legacy_frontend:
+            mo_params["use_legacy_frontend"] = True
+
         exit_code, stderr = generate_ir(**mo_params)
 
         del os.environ['MO_ENABLED_TRANSFORMS']
