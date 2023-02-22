@@ -1097,8 +1097,6 @@ std::tuple<bool, std::string> ov::CoreImpl::CheckStatic(const InferenceEngine::C
     return {res, errMsg.str()};
 }
 
-#ifndef OPENVINO_STATIC_LIBRARY
-
 std::string ov::findPluginXML(const std::string& xmlFile) {
     std::string xmlConfigFile_ = xmlFile;
     if (xmlConfigFile_.empty()) {
@@ -1124,8 +1122,6 @@ std::string ov::findPluginXML(const std::string& xmlFile) {
     }
     return xmlConfigFile_;
 }
-
-#endif
 
 ov::AnyMap ov::flatten_sub_properties(const std::string& device, const ov::AnyMap& properties) {
     ov::AnyMap result = properties;
