@@ -223,6 +223,7 @@ void TransformationsPipeline::apply_legacy(const InferenceEngine::CNNNetwork& ne
     passes->registerPass<HandleMultipleActivationsForTheLayerPass>();
     passes->registerPass<ForbidActivationFusingPass>();
     passes->registerPass<FuseMultipleIdentitiesPass>();
+    passes->registerPass<FuseFullyConnectedWithEltwisePass>();
     legacy_pass_index = passes->run(legacy_pass_index);
 }
 

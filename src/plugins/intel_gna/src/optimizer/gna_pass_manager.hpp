@@ -222,6 +222,12 @@ DECL_PASS(MoveFakeQuantizeLayerIntoQuantParams);
  */
 DECL_PASS(TransposeWeightsFromNCHWToNHWC);
 
+/**
+ * @brief fuse FullyConnected and Eltwise layers, also in case there is a Reshape between them having input with only
+ * one dimension > 1
+ */
+DECL_PASS(FuseFullyConnectedWithEltwise);
+
 struct PassManagerSettings {
     /// @brief whether to run passes before copy
     bool runBeforeCopy;
