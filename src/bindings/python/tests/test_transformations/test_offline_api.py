@@ -6,7 +6,7 @@ import os
 import pytest
 import numpy as np
 from openvino.runtime import serialize
-from openvino.offline_transformations import (
+from openvino._offline_transformations import (
     apply_moc_transformations,
     apply_pot_transformations,
     apply_low_latency_transformation,
