@@ -7,7 +7,7 @@
 /**
  * @brief This is a header file for the Inference Engine Cache Guard class C++ API
  *
- * @file ie_cache_guard.hpp
+ * @file cache_guard.hpp
  */
 
 #include <atomic>
@@ -17,7 +17,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace InferenceEngine {
+namespace ov {
 
 class CacheGuard;
 /**
@@ -58,7 +58,7 @@ public:
      *
      * @note Will be called only by CacheGuard, it shall not be called from client's code
      */
-    void performLock();
+    void perform_lock();
 
 private:
     CacheGuard& m_cacheGuard;
@@ -92,7 +92,7 @@ public:
      *
      * @return RAII pointer to CacheGuardEntry
      */
-    std::unique_ptr<CacheGuardEntry> getHashLock(const std::string& hash);
+    std::unique_ptr<CacheGuardEntry> get_hash_lock(const std::string& hash);
 
     /**
      * @brief Checks whether there is any clients holding the lock after CacheGuardEntry deletion
@@ -103,7 +103,7 @@ public:
      *
      * @return RAII pointer to CacheGuardEntry
      */
-    void checkForRemove(const std::string& hash);
+    void check_for_remove(const std::string& hash);
 
 private:
     struct Item {
@@ -121,4 +121,4 @@ private:
     std::unordered_map<std::string, Item> m_table;
 };
 
-}  // namespace InferenceEngine
+}  // namespace ov

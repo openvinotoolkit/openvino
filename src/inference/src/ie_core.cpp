@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "any_copy.hpp"
+#include "cache_guard.hpp"
 #include "check_network_batchable.hpp"
 #include "cnn_network_ngraph_impl.hpp"
 #include "compilation_context.hpp"
@@ -23,7 +24,6 @@
 #include "dev/converter_utils.hpp"
 #include "dev/core_impl.hpp"
 #include "file_utils.h"
-#include "ie_cache_guard.hpp"
 #include "ie_cache_manager.hpp"
 #include "ie_icore.hpp"
 #include "ie_itt.hpp"

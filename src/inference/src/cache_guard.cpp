@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ie_cache_guard.hpp"
+#include "cache_guard.hpp"
 
 #include "ie_common.h"
 
-namespace InferenceEngine {
+namespace ov {
 
 CacheGuardEntry::CacheGuardEntry(CacheGuard& cacheGuard,
                                  const std::string& hash,
@@ -23,16 +23,16 @@ CacheGuardEntry::CacheGuardEntry(CacheGuard& cacheGuard,
 CacheGuardEntry::~CacheGuardEntry() {
     m_refCount--;
     m_mutex->unlock();
-    m_cacheGuard.checkForRemove(m_hash);
+    m_cacheGuard.check_for_remove(m_hash);
 }
 
-void CacheGuardEntry::performLock() {
+void CacheGuardEntry::perform_lock() {
     m_mutex->lock();
 }
 
 //////////////////////////////////////////////////////
 
-std::unique_ptr<CacheGuardEntry> CacheGuard::getHashLock(const std::string& hash) {
+std::unique_ptr<CacheGuardEntry> CacheGuard::get_hash_lock(const std::string& hash) {
     std::unique_lock<std::mutex> lock(m_tableMutex);
     auto& data = m_table[hash];
     std::unique_ptr<CacheGuardEntry> res;
@@ -47,12 +47,12 @@ std::unique_ptr<CacheGuardEntry> CacheGuard::getHashLock(const std::string& hash
         }
         throw;
     }
-    lock.unlock();       // can unlock table lock here, as refCounter is positive and nobody can remove entry
-    res->performLock();  // in case of exception, 'res' will be destroyed and item will be cleaned up from table
+    lock.unlock();        // can unlock table lock here, as refCounter is positive and nobody can remove entry
+    res->perform_lock();  // in case of exception, 'res' will be destroyed and item will be cleaned up from table
     return res;
 }
 
-void CacheGuard::checkForRemove(const std::string& hash) {
+void CacheGuard::check_for_remove(const std::string& hash) {
     std::lock_guard<std::mutex> lock(m_tableMutex);
     if (m_table.count(hash)) {
         auto& data = m_table[hash];
@@ -63,4 +63,4 @@ void CacheGuard::checkForRemove(const std::string& hash) {
     }
 }
 
-}  // namespace InferenceEngine
+}  // namespace ov
