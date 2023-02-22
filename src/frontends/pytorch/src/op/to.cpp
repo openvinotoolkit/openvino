@@ -32,7 +32,7 @@ OutputVector translate_to(NodeContext& context) {
         }
         if (fw_node && fw_node->get_op_type() == "prim::Constant") {
             // Device param can be set using constant.
-            if (context.get_input_type(dtype_idx).is<type::Tensor>() == false) {
+            if (!context.get_input_type(dtype_idx).is<type::Tensor>()) {
                 // Cast only to device without changing dtype. Return input node unchanged.
                 return {context.get_input(0)};
             }

@@ -8,9 +8,9 @@ from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecode
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
 
+import typing
 import warnings
 import torch
-from torch.onnx._internal import jit_utils
 
 
 def get_type_from_py_type(value):
@@ -217,9 +217,10 @@ class TorchScriptPythonDecoder (Decoder):
 
     def get_device(self) -> str:
         if self.graph_element.kind() == "prim::device":
-            device = jit_utils.get_device_from_value(self.raw_inputs[0])
-            if device is not None:
-                return str(device)
+            value = self.raw_inputs[0]
+            if value.type().isSubtypeOf(torch.TensorType.get()):
+                tensor = typing.cast(torch.TensorType, value.type())
+                return str(tensor.device())
         # Device cannot be statically determined.
         return "cpu"
 

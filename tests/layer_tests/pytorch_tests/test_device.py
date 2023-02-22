@@ -9,9 +9,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestDevice(PytorchLayerTest):
-    def _prepare_input(
-        self,
-    ):
+    def _prepare_input(self):
         input_data = np.random.randint(127, size=(1, 3, 224, 224))
         return (input_data,)
 

@@ -109,13 +109,7 @@ class TestAtenToDevice(PytorchLayerTest):
 
         return aten_to(), ref_net, "aten::to"
 
-    @pytest.mark.parametrize(
-        ("use_trace"),
-        [
-            True,
-            False
-        ],
-    )
+    @pytest.mark.parametrize("use_trace", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_aten_to_device(self, use_trace, ie_device, precision, ir_version):
@@ -137,13 +131,7 @@ class TestAtenToDeviceConst(PytorchLayerTest):
 
         return aten_to(), ref_net, "aten::to"
 
-    @pytest.mark.parametrize(
-        ("use_trace"),
-        [
-            True,
-            False
-        ],
-    )
+    @pytest.mark.parametrize("use_trace", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_aten_to_device_const(self, use_trace, ie_device, precision, ir_version):

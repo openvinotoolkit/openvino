@@ -22,10 +22,8 @@ namespace pass {
 using namespace ov::pass;
 using namespace ov::op;
 
-std::string get_str_val(std::shared_ptr<PtFrameworkNode> fw_node) {
-    if (!fw_node) {
-        return nullptr;
-    }
+std::string get_str_val(const std::shared_ptr<PtFrameworkNode> fw_node) {
+    FRONT_END_OP_CONVERSION_CHECK(fw_node, "Framework node does not exist.");
     auto attrs = fw_node->get_attrs();
     if (attrs.find("string_value") != attrs.end()) {
         return attrs.at("string_value");

@@ -14,8 +14,7 @@ OutputVector translate_device(NodeContext& context) {
     auto decoder = context.get_decoder();
     auto node = std::make_shared<PtFrameworkNode>(context.get_decoder(), context.inputs());
     auto attrs = node->get_attrs();
-    auto device = decoder->get_device();
-    attrs["string_value"] = device;
+    attrs["string_value"] = decoder->get_device();
     node->set_attrs(attrs);
     return {context.mark_node(node)};
 };
