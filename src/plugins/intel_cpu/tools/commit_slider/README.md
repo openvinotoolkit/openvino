@@ -17,14 +17,14 @@ ccache >= *3.0*
 `echo 'export PATH="/usr/lib/ccache:$PATH"' | tee -a ~/.bashrc`
 `source ~/.bashrc && echo $PATH`
 2. Check if **Ccache** installed via `which g++ gcc`
-3. Run `sudo sh setup.sh`
+3. Run `sudo sh setup.sh` (only for *Linux*)
 
 ## Setup custom config
 
 *custom_cfg.json* may override every field in general *util/cfg.json*. Here are the most necessary.
 
 1. Define `makeCmd` - build command, which you need for your application.
-2. Define `commandList`. Adjust *commandList* if you need more specific way to build target app. More details in [Custom command list](#ccl).
+2. Define `commandList`. Adjust *commandList* if you need more specific way to build target app. In a case of *Win OS* it's reasonable to override `commandList` with specific make command, like `cmake --build . --config Release` after `{makeCmd}`. More details in [Custom command list](#ccl).
 3. Replace `gitPath, buildPath` if your target is out of current **Openvino** repo. 
 4. Set `appCmd, appPath` (mandatory) regarding target application
 5. Set up `runConfig` (mandatory):
@@ -144,5 +144,3 @@ The structure of build command is
     ]
 ```
 *cmd* - command to run, e.g. `git rm --cached -r .`, *path* - command directory, commonly git root or build directory, *tag* - necessary to check, if command should be executed with some special conditions, commonly `preprocess` or `clean`, *catchMsg* - string to check output, necessary because of unreliability of exceptions handling in python subprocess API.
-
-
