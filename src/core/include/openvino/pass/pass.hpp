@@ -91,12 +91,9 @@ class OPENVINO_API ModelPass : public PassBase {
 public:
     OPENVINO_RTTI("ov::pass::ModelPass");
     ~ModelPass() override;
-    OPENVINO_DEPRECATED("run_on_function() method is deprecated. Please use run_on_model() instead.")
-    virtual bool run_on_function(std::shared_ptr<ov::Model> m);
     virtual bool run_on_model(const std::shared_ptr<ov::Model>& m);
 
 private:
-    bool call_on_function{false};
     bool call_on_model{false};
 };
 
