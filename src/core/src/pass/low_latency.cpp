@@ -11,7 +11,6 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <ngraph/variant.hpp>
 #include <openvino/cc/pass/itt.hpp>
 #include <openvino/op/util/variable.hpp>
 #include <openvino/opsets/opset1.hpp>

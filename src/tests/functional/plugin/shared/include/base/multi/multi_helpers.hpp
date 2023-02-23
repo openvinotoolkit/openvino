@@ -5,10 +5,11 @@
 #include <string>
 #include <vector>
 
+#include "base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
-#include "base/ov_behavior_test_utils.hpp"
+#include "openvino/util/common_util.hpp"
 
 using namespace ::testing;
 
@@ -22,39 +23,68 @@ static std::string getDeviceStringWithMulti(std::vector<std::string> names) {
 }
 using DeviceName = std::string;
 using DevicesNames = std::vector<DeviceName>;
-using DevicesNamesAndSupportPair = std::pair<DevicesNames, bool>;
+using DevicesNamesAndSupportTuple = std::tuple<DevicesNames, bool, ov::AnyMap>;
+using DevicesNamseAndProperties = std::pair<DevicesNames, ov::AnyMap>;
 
-class MultiDevice_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<DevicesNames> {
+class MultiDevice_Test : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<DevicesNamseAndProperties> {
     void SetUp() override {
-        device_names = getDeviceStringWithMulti(this->GetParam());
+        std::vector<DeviceName> deviceNameList;
+        std::tie(deviceNameList, _properties) = this->GetParam();
+        device_names = getDeviceStringWithMulti(deviceNameList);
         fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
     }
+
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<DevicesNames> &obj) {
-        auto s = getDeviceStringWithMulti(obj.param);
+    static std::string getTestCaseName(const testing::TestParamInfo<DevicesNamseAndProperties>& obj) {
+        auto s = getDeviceStringWithMulti(obj.param.first);
+        ov::AnyMap properties = obj.param.second;
         std::replace(s.begin(), s.end(), ',', '_');
-        return "device_names_" + s;
+        std::replace(s.begin(), s.end(), ':', '_');
+        std::ostringstream result;
+        result << "device_names_" << s << "_";
+        if (!properties.empty()) {
+            result << "properties=" << ov::util::join(ov::util::split(ov::util::to_string(properties), ' '), "_");
+        } else {
+            result << "no_property";
+        }
+        return result.str();
     }
+
 protected:
     std::string device_names;
+    ov::AnyMap _properties;
     std::shared_ptr<ngraph::Function> fn_ptr;
 };
 
-class MultiDevice_SupportTest : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<DevicesNamesAndSupportPair> {
+class MultiDevice_SupportTest : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<DevicesNamesAndSupportTuple> {
     void SetUp() override {
-        device_names = getDeviceStringWithMulti(this->GetParam().first);
-        expected_status = this->GetParam().second;
+        std::vector<DeviceName> deviceNameList;
+        std::tie(deviceNameList, expected_status, _properties) = this->GetParam();
+        device_names = getDeviceStringWithMulti(deviceNameList);
         fn_ptr = ngraph::builder::subgraph::makeSplitMultiConvConcat();
     }
+
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<DevicesNamesAndSupportPair> &obj) {
-        auto s = getDeviceStringWithMulti(obj.param.first);
+    static std::string getTestCaseName(const testing::TestParamInfo<DevicesNamesAndSupportTuple>& obj) {
+        auto s = getDeviceStringWithMulti(std::get<0>(obj.param));
+        std::string expected_status = std::get<1>(obj.param) == true ? "expect_TRUE" : "expect_FALSE";
+        ov::AnyMap properties = std::get<2>(obj.param);
         std::replace(s.begin(), s.end(), ',', '_');
-        return "device_names_" + s;
+        std::replace(s.begin(), s.end(), ':', '_');
+        std::ostringstream result;
+        result << "device_names_" << s << "_" << expected_status << "_";
+        if (!properties.empty()) {
+            result << "properties=" << ov::util::join(ov::util::split(ov::util::to_string(properties), ' '), "_");
+        } else {
+            result << "no_property";
+        }
+        return result.str();
     }
+
 protected:
     std::string device_names;
     bool expected_status;
+    ov::AnyMap _properties;
     std::shared_ptr<ngraph::Function> fn_ptr;
 };
 
@@ -68,6 +98,7 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<DevicesNames> &obj) {
         auto s = getDeviceStringWithMulti(obj.param);
         std::replace(s.begin(), s.end(), ',', '_');
+        std::replace(s.begin(), s.end(), ':', '_');
         return "device_names_" + s;
     }
 protected:

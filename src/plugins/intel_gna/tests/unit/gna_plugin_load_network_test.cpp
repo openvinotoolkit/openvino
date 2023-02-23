@@ -25,10 +25,10 @@ typedef struct {
     bool load_succesfull;
 } ConvModelTestParams;
 
-std::vector<ConvModelTestParams> all_tests{{models[0], Gna2DeviceVersion3_0, false},
-                                           {models[1], Gna2DeviceVersion3_0, false},
-                                           {models[0], Gna2DeviceVersion3_5, true},
-                                           {models[1], Gna2DeviceVersion3_5, true}};
+std::vector<ConvModelTestParams> all_tests{{models[0], Gna2DeviceVersion::Gna2DeviceVersion3_0, false},
+                                           {models[1], Gna2DeviceVersion::Gna2DeviceVersion3_0, false},
+                                           {models[0], Gna2DeviceVersion::Gna2DeviceVersion3_5, true},
+                                           {models[1], Gna2DeviceVersion::Gna2DeviceVersion3_5, true}};
 
 class GNAPluginLoadNetworkTest : public ::testing::Test, public ::testing::WithParamInterface<ConvModelTestParams> {
     std::shared_ptr<ngraph::Function> function;

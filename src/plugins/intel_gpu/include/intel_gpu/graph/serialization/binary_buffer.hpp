@@ -43,6 +43,9 @@ public:
     void setKernlImplParams(void* impl_params) { _impl_params = impl_params; }
     void* getKernlImplParams() const { return _impl_params; }
 
+    std::streampos tellg() { return stream.tellg(); }
+    void seekg(std::streampos pos) { stream.seekg(pos); }
+
 private:
     std::istream& stream;
     void* _impl_params;
@@ -84,12 +87,12 @@ public:
 
 #define ASSIGN_TYPE_NAME(cls_name) \
             namespace cldnn {                            \
-            const std::string cls_name::type = #cls_name; \
+            const std::string cls_name::type_for_serialization = #cls_name; \
             }
 
 #define BIND_BINARY_BUFFER_WITH_TYPE(cls_name) \
             namespace cldnn {                            \
-            const std::string cls_name::type = #cls_name; \
+            const std::string cls_name::type_for_serialization = #cls_name; \
             BIND_TO_BUFFER(BinaryOutputBuffer, cls_name) \
             BIND_TO_BUFFER(BinaryInputBuffer, cls_name)  \
             }

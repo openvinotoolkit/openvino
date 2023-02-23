@@ -64,6 +64,18 @@ struct dft : public primitive_base<dft> {
         seed = hash_combine(seed, mode);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const dft>(rhs);
+
+        return axes == rhs_casted.axes &&
+               signal_size == rhs_casted.signal_size &&
+               direction == rhs_casted.direction &&
+               mode == rhs_casted.mode;
+    }
 };
 
 }  // namespace cldnn

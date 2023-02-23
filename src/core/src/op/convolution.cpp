@@ -91,12 +91,6 @@ shared_ptr<Node> op::v1::Convolution::clone_with_new_inputs(const OutputVector& 
                                         m_auto_pad);
 }
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-shared_ptr<Node> op::v1::Convolution::get_default_value() const {
-    return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
-}
-NGRAPH_SUPPRESS_DEPRECATED_END
-
 // *** ConvolutionBackpropData OP SET 1 ***
 op::v1::ConvolutionBackpropData::ConvolutionBackpropData(const Output<Node>& data,
                                                          const Output<Node>& filters,

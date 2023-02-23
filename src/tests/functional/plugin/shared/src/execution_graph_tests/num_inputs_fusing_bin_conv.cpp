@@ -8,7 +8,6 @@
 #include <exec_graph_info.hpp>
 
 #include <ngraph/function.hpp>
-#include <ngraph/variant.hpp>
 
 #include "functional_test_utils/plugin_cache.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
