@@ -19,7 +19,3 @@ std::shared_ptr<ov::runtime::Backend> ov::runtime::Backend::create() {
 
     return inner_backend;
 }
-
-std::shared_ptr<ov::runtime::Executable> ov::runtime::Backend::load(std::istream& /* input_stream */) {
-    OPENVINO_NOT_IMPLEMENTED;
-}

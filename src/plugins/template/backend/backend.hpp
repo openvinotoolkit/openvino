@@ -68,11 +68,6 @@ public:
     /// \param func The function to compile
     /// \returns compiled function or nullptr on failure
     virtual std::shared_ptr<Executable> compile(std::shared_ptr<ov::Model> model) = 0;
-
-    /// \brief Loads a previously saved Executable object from a stream.
-    /// \param input_stream the opened input stream containing the saved Executable
-    /// \returns A compiled function or throws an exception on error
-    virtual std::shared_ptr<Executable> load(std::istream& input_stream);
 };
 
 }  // namespace runtime

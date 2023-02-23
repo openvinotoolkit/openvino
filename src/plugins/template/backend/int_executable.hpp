@@ -30,8 +30,6 @@ public:
 
     bool call(const std::vector<ov::Tensor>& outputs, const std::vector<ov::Tensor>& inputs) override;
 
-    void set_nan_check(bool enable);
-
     ov::Tensor create_input_tensor(size_t input_index) override;
 
     ov::Tensor create_output_tensor(size_t output_index) override;

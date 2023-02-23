@@ -41,12 +41,6 @@ void ov::runtime::Executable::validate(const std::vector<ov::Tensor>& outputs, c
                << parameters[i]->get_element_type() << "'";
             throw std::runtime_error(ss.str());
         }
-        // if (!(parameters[i]->get_output_partial_shape(0).relaxes(inputs[i].get_partial_shape()))) {
-        //     std::stringstream ss;
-        //     ss << "Input " << i << " shape " << inputs[i]->get_partial_shape() << " does not match Parameter shape "
-        //        << parameters[i]->get_output_partial_shape(0);
-        //     throw runtime_error(ss.str());
-        // }
     }
 
     for (size_t i = 0; i < results.size(); i++) {
@@ -57,13 +51,6 @@ void ov::runtime::Executable::validate(const std::vector<ov::Tensor>& outputs, c
                << results[i]->get_element_type() << "'";
             throw std::runtime_error(ss.str());
         }
-        // if (!outputs[i]->get_partial_shape().relaxes(results[i]->get_output_partial_shape(0))) {
-        //     std::stringstream ss;
-        //     ss << "Output " << i << " shape " << outputs[i]->get_partial_shape() << " does not match max Result shape
-        //     "
-        //        << results[i]->get_output_partial_shape(0).get_max_shape();
-        //     throw std::runtime_error(ss.str());
-        // }
     }
 }
 
@@ -80,23 +67,11 @@ void ov::runtime::Executable::set_parameters_and_results(const ov::Model& model)
     m_results = model.get_results();
 }
 
-void ov::runtime::Executable::save(std::ostream& /* output_stream */) {
-    OPENVINO_NOT_IMPLEMENTED;
-}
-
 ov::Tensor ov::runtime::Executable::create_input_tensor(size_t /* input_index */) {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-ov::Tensor ov::runtime::Executable::create_input_tensor(size_t /* input_index */, void* /* memory_pointer */) {
-    OPENVINO_NOT_IMPLEMENTED;
-}
-
 ov::Tensor ov::runtime::Executable::create_output_tensor(size_t /* output_index */) {
-    OPENVINO_NOT_IMPLEMENTED;
-}
-
-ov::Tensor ov::runtime::Executable::create_output_tensor(size_t /* output_index */, void* /* memory_pointer */) {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
@@ -105,19 +80,7 @@ std::vector<ov::Tensor> ov::runtime::Executable::create_input_tensor(size_t /* i
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::vector<ov::Tensor> ov::runtime::Executable::create_input_tensor(size_t /* input_index */,
-                                                                     size_t /* pipeline_depth */,
-                                                                     std::vector<void*> /* memory_pointer */) {
-    OPENVINO_NOT_IMPLEMENTED;
-}
-
 std::vector<ov::Tensor> ov::runtime::Executable::create_output_tensor(size_t /* output_index */,
                                                                       size_t /* pipeline_depth */) {
-    OPENVINO_NOT_IMPLEMENTED;
-}
-
-std::vector<ov::Tensor> ov::runtime::Executable::create_output_tensor(size_t /* output_index */,
-                                                                      size_t /* pipeline_depth */,
-                                                                      std::vector<void*> /* memory_pointer */) {
     OPENVINO_NOT_IMPLEMENTED;
 }
