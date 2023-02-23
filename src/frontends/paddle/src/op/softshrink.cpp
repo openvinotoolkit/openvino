@@ -13,10 +13,8 @@ NamedOutputs softshrink(const NodeContext& node) {
     auto lambda = node.get_attribute<float>("lambda");
 
     const auto input_element_type = data.get_element_type();
-    std::shared_ptr<default_opset::Constant> negative_lambda =
-        default_opset::Constant::create(input_element_type, Shape{}, {-lambda});
-
     const auto positive_lambda = default_opset::Constant::create(input_element_type, Shape{}, {lambda});
+    const auto negative_lambda = default_opset::Constant::create(input_element_type, Shape{}, {-lambda});
 
     // Create masks for values below negative lambda and above positive lambda
     std::shared_ptr<ngraph::Node> values_below_neg_lambda =
@@ -24,22 +22,16 @@ NamedOutputs softshrink(const NodeContext& node) {
     std::shared_ptr<ngraph::Node> values_above_pos_lambda =
         std::make_shared<default_opset::Greater>(data, positive_lambda);
 
-    // Convert masks to the same type as input data
-    values_below_neg_lambda = std::make_shared<default_opset::Convert>(values_below_neg_lambda, input_element_type);
-    values_above_pos_lambda = std::make_shared<default_opset::Convert>(values_above_pos_lambda, input_element_type);
-
-    std::shared_ptr<ngraph::Node> adjusted_inputs =
-        default_opset::Constant::create(input_element_type, Shape{data.get_shape()}, {0});
-    std::shared_ptr<ngraph::Node> adjusted_inputs_below_neg_lambda =
-        std::make_shared<default_opset::Multiply>(std::make_shared<default_opset::Add>(data, positive_lambda),
-                                                  values_below_neg_lambda);
-    std::shared_ptr<ngraph::Node> adjusted_inputs_above_pos_lambda =
-        std::make_shared<default_opset::Multiply>(std::make_shared<default_opset::Add>(data, negative_lambda),
-                                                  values_above_pos_lambda);
-    adjusted_inputs = std::make_shared<default_opset::Add>(adjusted_inputs, adjusted_inputs_below_neg_lambda);
-    adjusted_inputs = std::make_shared<default_opset::Add>(adjusted_inputs, adjusted_inputs_above_pos_lambda);
-
-    return node.default_single_output_mapping({adjusted_inputs}, {"Out"});
+    std::shared_ptr<ngraph::Node> output;
+    std::shared_ptr<ngraph::Node> zero_node = default_opset::Constant::create(input_element_type, Shape{}, {0});
+    std::shared_ptr<ngraph::Node> positive_node = std::make_shared<default_opset::Add>(data, positive_lambda);
+    std::shared_ptr<ngraph::Node> negative_node = std::make_shared<default_opset::Add>(data, negative_lambda);
+    output = std::make_shared<default_opset::Select>(values_above_pos_lambda, data, positive_node);
+    output = std::make_shared<default_opset::Select>(values_below_neg_lambda, output, negative_node);
+    std::shared_ptr<ngraph::Node> zero_mask =
+        std::make_shared<default_opset::LogicalOr>(values_below_neg_lambda, values_above_pos_lambda);
+    output = std::make_shared<default_opset::Select>(zero_mask, output, zero_node);
+    return node.default_single_output_mapping({output}, {"Out"});
 }
 }  // namespace op
 }  // namespace paddle
