@@ -242,7 +242,7 @@ This option prioritizes high throughput, balancing between latency and power. It
 
 
 CUMULATIVE_THROUGHPUT
---------------------
+---------------------
 
 While ``LATENCY`` and ``THROUGHPUT`` can select one target device with your preferred performance option, the ``CUMULATIVE_THROUGHPUT`` option enables running inference on multiple devices for higher throughput. With ``CUMULATIVE_THROUGHPUT``, AUTO loads the network model to all available devices in the candidate list, and then runs inference on them based on the default or specified priority.
 
