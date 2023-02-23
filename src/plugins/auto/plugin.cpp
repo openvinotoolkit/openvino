@@ -633,20 +633,7 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
     auto queryconfig = _pluginConfig;
     // updateFromMap will check config valid
     queryconfig.UpdateFromMap(config, GetName(), true);
-    bool workModeAuto = GetName() == "AUTO";
     auto fullConfig = queryconfig._keyConfigMap;
-    if (!queryconfig._isSetPerHint) {
-        fullConfig.erase(PluginConfigParams::KEY_PERFORMANCE_HINT);
-        if (workModeAuto) {
-            // set performance hint to 'LATENCY' model for AutoExecutable Network.
-            queryconfig._perfHintsConfig.SetConfig(PluginConfigParams::KEY_PERFORMANCE_HINT,
-                                                   PluginConfigParams::LATENCY);
-        } else {
-            // set performance hint to 'THROUGHPUT' model for MultiExecutable Network.
-            queryconfig._perfHintsConfig.SetConfig(PluginConfigParams::KEY_PERFORMANCE_HINT,
-                                                   PluginConfigParams::THROUGHPUT);
-        }
-    }
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
     if (!priorities->second.empty()) {
         auto metaDevices = ParseMetaDevices(priorities->second, fullConfig);
