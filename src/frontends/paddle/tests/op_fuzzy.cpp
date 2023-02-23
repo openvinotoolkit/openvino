@@ -259,6 +259,7 @@ static const std::vector<std::string> models{
     std::string("linear_upsample_true_0"),
     std::string("linspace_1"),
     std::string("linspace_2"),
+    std::string("linspace_3"),
     std::string("log"),
     std::string("logical_and"),
     std::string("logical_not"),
