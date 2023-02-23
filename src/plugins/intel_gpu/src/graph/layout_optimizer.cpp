@@ -1757,7 +1757,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         // Set default format for issue 92967/98750
         // TODO: will remove when arg_max_min_ref supports blocked format
         expected = format::get_default_format(node.get_input_layouts()[0].get_rank(), false, false);
-    } else if (node.is_type<fully_connected>()) {
+    } else if (node.is_type<fully_connected>() || node.is_type<gemm>()) {
         if (use_onednn_impls) {
             expected = node.get_preferred_output_fmt();
         }
