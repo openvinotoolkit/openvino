@@ -1717,14 +1717,14 @@ TEST_P(conv_swap_xy_with_eltwise_diff_sizes, basic) {
 // in_shape; out_shape; eltw_shape; kernel; stride; pad; dilation; groups; data_type; input_format; weights_type; weights_format; default_type; default_format;
 #define CASE_CONV_ELTW_FP16_SWAP_XY_1 { 1, 16, 1, 5 }, { 1, 32, 1, 7 }, { 1, 32, 1, 1 }, { 1, 1, 1, 3 }, { 1, 1 }, { 2, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::os_iyx_osv16, data_types::f16, format::bfyx
 #define CASE_CONV_ELTW_FP16_SWAP_XY_2 { 1, 16, 1, 5 }, { 1, 32, 1, 7 }, { 1, 32, 1, 7 }, { 1, 1, 1, 3 }, { 1, 1 }, { 2, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::os_iyx_osv16, data_types::f16, format::bfyx
-#define CASE_CONV_ELTW_FP32_SWAP_XY_1 { 3, 16, 1, 5 }, { 3, 32, 1, 7 }, { 1, 32, 1, 1 }, { 1, 1, 1, 3 }, { 1, 1 }, { 2, 0 }, { 1, 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
-#define CASE_CONV_ELTW_FP32_SWAP_XY_2 { 3, 16, 1, 5 }, { 3, 32, 1, 7 }, { 3, 32, 1, 7 }, { 1, 1, 1, 3 }, { 1, 1 }, { 2, 0 }, { 1, 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
+#define CASE_CONV_ELTW_FP16_SWAP_XY_3 { 3, 16, 1, 5 }, { 3, 32, 1, 7 }, { 1, 32, 1, 1 }, { 1, 1, 1, 3 }, { 1, 1 }, { 2, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::os_iyx_osv16, data_types::f16, format::bfyx
+#define CASE_CONV_ELTW_FP16_SWAP_XY_4 { 3, 16, 1, 5 }, { 3, 32, 1, 7 }, { 3, 32, 1, 7 }, { 1, 1, 1, 3 }, { 1, 1 }, { 2, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::os_iyx_osv16, data_types::f16, format::bfyx
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_swap_xy_with_eltwise_diff_sizes, ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP16_SWAP_XY_1, 3, 3, 4 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP16_SWAP_XY_2, 3, 3, 4 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_SWAP_XY_1, 3, 3, 4 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_SWAP_XY_2, 3, 3, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP16_SWAP_XY_1, 3, 2, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP16_SWAP_XY_2, 3, 2, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP16_SWAP_XY_3, 3, 2, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP16_SWAP_XY_4, 3, 2, 4 },
 }));
 
 class conv_scale_activation_eltwise_fp32_quantize_i8 : public ConvEltwTest {};
