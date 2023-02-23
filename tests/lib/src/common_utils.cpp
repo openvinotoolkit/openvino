@@ -65,3 +65,38 @@ void fillBlobs(InferenceEngine::InferRequest inferRequest,
         }
     }
 }
+
+/**
+ * @brief Get input/output precision
+ */
+ov::element::Type getType(std::string value,
+                          const std::unordered_map<std::string,
+                          ov::element::Type> &supported_precisions) {
+    std::transform(value.begin(), value.end(), value.begin(), ::toupper);
+
+    const auto precision = supported_precisions.find(value);
+    if (precision == supported_precisions.end()) {
+        throw std::logic_error("\"" + value + "\"" + " is not a valid precision");
+    }
+
+    return precision->second;
+}
+
+ov::element::Type getType(const std::string &value) {
+    static const std::unordered_map<std::string, ov::element::Type> supported_precisions = {
+        {"FP32", ov::element::f32},
+        {"FP16", ov::element::f16},
+        {"BF16", ov::element::bf16},
+        {"U64", ov::element::u64},
+        {"I64", ov::element::i64},
+        {"U32", ov::element::u32},
+        {"I32", ov::element::i32},
+        {"U16", ov::element::u16},
+        {"I16", ov::element::i16},
+        {"U8", ov::element::u8},
+        {"I8", ov::element::i8},
+        {"BOOL", ov::element::boolean},
+    };
+
+    return getType(value, supported_precisions);
+}
