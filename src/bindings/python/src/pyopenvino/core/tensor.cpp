@@ -17,7 +17,7 @@ void regclass_Tensor(py::module m) {
     cls.doc() = "openvino.runtime.Tensor holding either copy of memory or shared host memory.";
 
     cls.def(py::init([](py::array& array, bool shared_memory) {
-                return Common::tensor_from_numpy(array, shared_memory);
+                return Common::object_from_data<ov::Tensor>(array, shared_memory);
             }),
             py::arg("array"),
             py::arg("shared_memory") = false,
@@ -209,7 +209,7 @@ void regclass_Tensor(py::module m) {
         [](ov::Tensor& self) {
             auto ov_type = self.get_element_type();
             auto dtype = Common::ov_type_to_dtype().at(ov_type);
-            if (ov_type.bitwidth() < 8) {
+            if (ov_type.bitwidth() < Common::values::min_bitwidth) {
                 return py::array(dtype, self.get_byte_size(), self.data(), py::cast(self));
             }
             return py::array(dtype, self.get_shape(), self.get_strides(), self.data(), py::cast(self));
