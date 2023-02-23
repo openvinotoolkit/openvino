@@ -185,7 +185,12 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
             auto tensor = op->output(i).get_tensor_ptr();
             tensor_map.insert({tensor, op_outputs[i]});
             if (op::util::is_output(op)) {
-                outputs[results_map[tensor]] = op_outputs[i];
+                auto& output = outputs[results_map[tensor]];
+                if (!output || output.get_shape() != op_outputs[i].get_shape()) {
+                    outputs[results_map[tensor]] = op_outputs[i];
+                } else {
+                    op_outputs[i].copy_to(output);
+                }
             }
         }
     }
