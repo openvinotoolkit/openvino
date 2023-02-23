@@ -264,16 +264,14 @@ std::vector<VariableState> InferRequest::query_state() {
     std::vector<VariableState> variable_states;
     OV_INFER_REQ_CALL_STATEMENT({
         for (auto&& state : _impl->query_state()) {
-            auto soVec = state._so;
-            soVec.emplace_back(_so);
-            variable_states.emplace_back(ov::VariableState{state._impl, soVec});
+            variable_states.emplace_back(ov::VariableState{state, {_so}});
         }
     })
     return variable_states;
 }
 
 CompiledModel InferRequest::get_compiled_model() {
-    OV_INFER_REQ_CALL_STATEMENT(return {_impl->get_compiled_model(), _so});
+    OV_INFER_REQ_CALL_STATEMENT(return {std::const_pointer_cast<ICompiledModel>(_impl->get_compiled_model()), _so});
 }
 
 bool InferRequest::operator!() const noexcept {

@@ -230,24 +230,7 @@ TEST_P(binary_convolution_test, conv) {
     topology_bin.add(binary_convolution(output_name, input_info(input_name), {output_name + weights_suffix},
                                         stride, pad, dilation, os_size, 1, p.pad_value, p.dt));
 
-    cldnn::network::ptr network_bin;
-
-    if (p.is_caching_test) {
-        membuf mem_buf;
-        {
-            cldnn::network _network(engine, topology_bin, config);
-            std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-            _network.save(ob);
-        }
-        {
-            std::istream in_mem(&mem_buf);
-            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-            network_bin = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-        }
-    } else {
-        network_bin = std::make_shared<cldnn::network>(engine, topology_bin, config);
-    }
+    cldnn::network::ptr network_bin = get_network(engine, topology_bin, config, get_test_stream_ptr(), p.is_caching_test);
 
     network_bin->set_input_data(input_name, input);
 
