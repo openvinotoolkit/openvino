@@ -14,8 +14,6 @@ ie_option (ENABLE_COMPILE_TOOL "Enables compile_tool" ON)
 
 ie_option (ENABLE_STRICT_DEPENDENCIES "Skip configuring \"convinient\" dependencies for efficient parallel builds" ON)
 
-ie_option(GENERATE_PLUGINS_XML "Generate plugins.xml configuration file or not" OFF)
-
 ie_dependent_option (ENABLE_CLDNN "clDnn based plugin for OpenVINO Runtime" ON "X86_64;NOT APPLE;NOT MINGW;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
 ie_dependent_option (ENABLE_INTEL_GPU "GPU plugin for OpenVINO Runtime on Intel GPU" ON "ENABLE_CLDNN" OFF)
 
@@ -93,6 +91,8 @@ ie_option (ENABLE_AUTO_BATCH "Enables Auto-Batching Plugin" ON)
 ie_option (ENABLE_HETERO "Enables Hetero Device Plugin" ON)
 
 ie_option (ENABLE_TEMPLATE "Enable template plugin" ON)
+
+ie_option (GENERATE_PLUGINS_XML "Generate plugins.xml configuration file or not" OFF)
 
 ie_dependent_option (GAPI_TEST_PERF "if GAPI unit tests should examine performance" OFF "ENABLE_TESTS;ENABLE_GAPI_PREPROCESSING" OFF)
 

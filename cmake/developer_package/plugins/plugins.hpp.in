@@ -8,7 +8,6 @@
 
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 
-namespace {
 @IE_PLUGINS_DECLARATIONS@
 
 struct Value {
@@ -20,26 +19,20 @@ struct Value {
 using Key = std::string;
 using PluginsStaticRegistry = std::map<Key, Value>;
 
-const std::map<Key, Value> getStaticPluginsRegistry() {
+inline const std::map<Key, Value> getStaticPluginsRegistry() {
 @IE_PLUGINS_MAP_DEFINITION@
     return plugins_hpp;
 }
 
-} // namespace
-
 #else
-
-namespace {
 
 using Key = std::string;
 using Value = std::string;
 using PluginsCompiledRegistry = std::map<Key, Value>;
 
-const std::map<Key, Value> getCompiledPluginsRegistry() {
+inline const std::map<Key, Value> getCompiledPluginsRegistry() {
 @IE_PLUGINS_COMPILED@
     return plugins_hpp;
 }
-
-} // namespace
 
 #endif
