@@ -3,7 +3,13 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-SCRIPT_DIR="$( cd "$( dirname "$(realpath "${BASH_SOURCE[0]}")" )" >/dev/null 2>&1 && pwd )"
+abs_path () {
+    path=$(eval echo "$1")
+    directory=$(dirname "$path")
+    echo "$(cd "$directory" || exit; pwd -P)/$(basename "$path")";
+}
+
+SCRIPT_DIR="$( cd "$( dirname "$(abs_path "${BASH_SOURCE[0]}")" )" >/dev/null 2>&1 && pwd )"
 INSTALLDIR="${SCRIPT_DIR}"
 export INTEL_OPENVINO_DIR="$INSTALLDIR"
 
@@ -79,10 +85,12 @@ fi
 
 # OpenCV environment
 if [ -f "$INSTALLDIR/opencv/setupvars.sh" ]; then
+    # shellcheck source=/dev/null
     source "$INSTALLDIR/opencv/setupvars.sh"
 fi
 
 if [ -f "$INSTALLDIR/extras/opencv/setupvars.sh" ]; then
+    # shellcheck source=/dev/null
     source "$INSTALLDIR/extras/opencv/setupvars.sh"
 fi
 
@@ -97,23 +105,12 @@ MAX_SUPPORTED_PYTHON_VERSION_MINOR="10"
 
 check_python_version () {
     if [ -z "$python_version" ]; then
-        python_version=$(python3 -c 'import sys; print(str(sys.version_info[0])+"."+str(sys.version_info[1]))')
-    fi
-
-    # splitting Python version variable depending on the used shell
-    if [ -n "$ZSH_VERSION" ]; then
-        version_arr=(${(@s:.:)python_version})
-        if [ "${#version_arr[@]}" -ge "2" ]; then
-            # zsh starts indexing from 1
-            python_version_major=${version_arr[1]}
-            python_version_minor=${version_arr[2]}
-        fi
+        python_version_major=$( python3 -c 'import sys; print(str(sys.version_info[0]))' )
+        python_version_minor=$( python3 -c 'import sys; print(str(sys.version_info[1]))' )
+        python_version="$python_version_major.$python_version_minor"
     else
-        version_arr=(${python_version//./ })
-        if [ "${#version_arr[@]}" -ge "2" ]; then
-            python_version_major=${version_arr[0]}
-            python_version_minor=${version_arr[1]}
-        fi
+        python_version_major=$( python3 -c "import sys; print(str(\"${python_version}\".split('.')[0]))" )
+        python_version_minor=$( python3 -c "import sys; print(str(\"${python_version}\".split('.')[1]))" )
     fi
 
     if  [ "$PYTHON_VERSION_MAJOR" != "$python_version_major" ] ||
