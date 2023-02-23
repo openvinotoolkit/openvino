@@ -1067,7 +1067,7 @@ const std::map<const ngraph::DiscreteTypeInfo, Eltwise::Initializer> Eltwise::in
         node.alpha = swishOp->get_alpha();
     }},
     {ngraph::op::v4::HSwish::get_type_info_static(), [](const std::shared_ptr<ngraph::Node>& op, Eltwise& node) {
-        // since v3.0 oneDNN has flexible version of hardswish, ov still uses the one with hardcoded alpha and beta
+        // since v3.0 version, oneDNN has flexible implementation of hardswish, ov still uses the one with hardcoded alpha and beta
         node.alpha = 1.f / 6.f;
         node.beta = 0.5f;
         node.algorithm = Algorithm::EltwiseHswish;
@@ -2315,7 +2315,6 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp,
         case dnnl::algorithm::eltwise_square:
         case dnnl::algorithm::eltwise_abs:
         case dnnl::algorithm::eltwise_sqrt:
-        // case dnnl::algorithm::eltwise_bounded_relu:
         case dnnl::algorithm::eltwise_soft_relu:
         case dnnl::algorithm::eltwise_logistic:
         case dnnl::algorithm::eltwise_exp:

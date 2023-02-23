@@ -342,7 +342,6 @@ RegistersPool::Ptr RegistersPool::create(x64::cpu_isa_t isa, std::initializer_li
         case x64::avx512_core_amx_fp16:
         case x64::isa_all:
             IE_THROW() << "Invalid isa argument in RegistersPool::create()";
-            break;
         }
     IE_THROW() << "Invalid isa argument in RegistersPool::create()";
 #undef ISA_SWITCH_CASE

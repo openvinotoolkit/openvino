@@ -436,7 +436,6 @@ void RNN::configurePortDataTypes() {
     inDataTypes[hIdx] = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(1));
     if (haveCellState(cell_type))
         inDataTypes[cIdx] = memory::data_type::f32; // @todo bf16 is also allowed, should be tried out
-        // inDataTypes[cIdx] = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(2));
     if (!is_cell)
         inDataTypes[sIdx] = memory::data_type::s32;
     inDataTypes[wIdx] = DnnlExtensionUtils::IEPrecisionToDataType(getOriginalInputPrecisionAtPort(wIdx));
@@ -1073,29 +1072,7 @@ void RNN::prepareParams() {
                                                        key.wDescs,
                                                        key.attr);
 
-        if (key.cellType == dnnl::algorithm::vanilla_rnn) {
-            auto primDesc = std::static_pointer_cast<dnnl::vanilla_rnn_forward::primitive_desc>(descPtr);
-            return dnnl::vanilla_rnn_forward(*primDesc);
-        } else if (key.cellType == dnnl::algorithm::vanilla_gru) {
-            auto primDesc = std::static_pointer_cast<dnnl::gru_forward::primitive_desc>(descPtr);
-            return dnnl::gru_forward(*primDesc);
-        } else if (key.cellType == dnnl::algorithm::lbr_gru) {
-            auto primDesc = std::static_pointer_cast<dnnl::lbr_gru_forward::primitive_desc>(descPtr);
-            return dnnl::lbr_gru_forward(*primDesc);
-        } else if (key.cellType == dnnl::algorithm::vanilla_lstm) {
-            auto primDesc = std::static_pointer_cast<dnnl::lstm_forward::primitive_desc>(descPtr);
-            return dnnl::lstm_forward(*primDesc);
-        } else if (key.cellType == dnnl::algorithm::vanilla_augru) {
-            auto primDesc = std::static_pointer_cast<dnnl::augru_forward::primitive_desc>(descPtr);
-            return dnnl::augru_forward(*primDesc);
-        } else if (key.cellType == dnnl::algorithm::lbr_augru) {
-            auto primDesc = std::static_pointer_cast<dnnl::lbr_augru_forward::primitive_desc>(descPtr);
-            return dnnl::lbr_augru_forward(*primDesc);
-        } else {
-            return dnnl::primitive();
-        }
-
-        // return dnnl::primitive(desc);
+        return dnnl::primitive(*descPtr);
     };
 
     auto cache = context->getParamsCache();
@@ -1115,7 +1092,6 @@ void RNN::prepareParams() {
         auto query_weights_md = [&](int idx = 0) -> dnnl::memory::desc {
             auto what = dnnl::convert_to_c(dnnl::query::weights_md);
             const_dnnl_memory_desc_t cdesc = dnnl_primitive_desc_query_md(pd, what, idx);
-            // auto cdesc = pd.query(what, idx, result);
             if (!cdesc)
                 IE_THROW() << "query_weights_md failed for node " << getName() << " idx " << idx << ".";
             dnnl_memory_desc_t cloned_md = nullptr;

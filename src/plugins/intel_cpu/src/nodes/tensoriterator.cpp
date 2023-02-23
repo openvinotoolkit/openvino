@@ -103,7 +103,6 @@ public:
 
         // make chunk view
         auto chunk_desc = full_blob->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-        // @ TODO ONEDNN_3_0 direct access to internal elements should be avoided
         chunk_desc.get()->dims[axis] = abs_stride;
         chunk_desc.get()->padded_dims[axis] = abs_stride;  // TODO: asamption that plain tensor
 
@@ -354,7 +353,7 @@ void DynamicBuffer::transfer(const Node* node) {
 
         const auto& src_mem = from->GetPrimitive();
         const auto& src_desc = src_mem.get_desc();
-        auto dims = src_desc.dims();
+        auto dims = src_desc.get_dims();
         dims[axis] = abs_stride * num_execs;
         const auto desc = node->getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(
                 DnnlExtensionUtils::convertToVectorDims(dims));

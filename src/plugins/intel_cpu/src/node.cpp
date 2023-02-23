@@ -266,23 +266,27 @@ void Node::selectOptimalPrimitiveDescriptor() {
 }
 
 void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs) {
-    // std::cerr << *this << ":" << "selectPreferPrimitiveDescriptor: " << priority.front() << "\n";
-
     for (auto& type : priority) {
         int selectedPrimitive = -1;
         int equalsFormatCount = -1;
         for (size_t i = 0; i < getSupportedPrimitiveDescriptors().size(); i++) {
-            impl_desc_type supportedType = getSupportedPrimitiveDescriptors()[i].getImplementationType();
+            const auto& supportedPrimitiveDesc = getSupportedPrimitiveDescriptors()[i];
+            const impl_desc_type supportedType = supportedPrimitiveDesc.getImplementationType();
 
-            // std::cerr << getName() << ": selectPreferPrimitiveDescriptor: " << supportedType << "\n";
-
-            if (type != supportedType)
+            if (supportedType != type) {
                 continue;
+            }
 
             int equalsLocalFormatCount = 0;
-            if (getSupportedPrimitiveDescriptors()[i].getConfig().inConfs.size() > getParentEdges().size())
+            const size_t descInConfSize = supportedPrimitiveDesc.getConfig().inConfs.size();
+
+            if (descInConfSize > getParentEdges().size()) {
+                DEBUG_LOG(getName(), " Desc ", i, " with type: ", supportedType,
+                          " has more input ports than node: ", descInConfSize, " vs ", getParentEdges().size());
                 continue;
-            for (size_t j = 0; j < getSupportedPrimitiveDescriptors()[i].getConfig().inConfs.size(); j++) {
+            }
+
+            for (size_t j = 0; j < descInConfSize; j++) {
                 auto parentEdge = getParentEdgeAt(j);
                 auto parentPtr = parentEdge->getParent();
 
@@ -299,30 +303,31 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
                     if (inNum < 0 || inNum >= parent_spd->getConfig().outConfs.size()) {
                         inNum = 0;
                     }
-                    auto curDesc = getSupportedPrimitiveDescriptors()[i].getConfig().inConfs[j].getMemDesc();
+                    auto curDesc = supportedPrimitiveDesc.getConfig().inConfs[j].getMemDesc();
                     auto parentDesc = parent_spd->getConfig().outConfs[inNum].getMemDesc();
 
-                    if (curDesc->isCompatible(*parentDesc)) {
+                    const bool isCompatible = curDesc->isCompatible(*parentDesc);
+
+                    if (isCompatible) {
                         equalsLocalFormatCount++;
-                        DEBUG_LOG(getName(), " pd[", i, "].inConfs[", j, "]"
-                                  " is compatible with parent ", parentPtr->getName(),
-                                  " outConfs[", inNum, "], equalsLocalFormatCount add to ", equalsLocalFormatCount);
-                    } else {
-                        DEBUG_LOG(getName(), " pd[", i, "].inConfs[", j, "]"
-                                  " is NOT compatible with parent ", parentPtr->getName(),
-                                  " outConfs[", inNum, "], equalsLocalFormatCount add to ", equalsLocalFormatCount);
                     }
+
+                    DEBUG_LOG(getName(), " pd[", i, "].inConfs[", j, "]"
+                              " is ", (isCompatible ? "compatible" : "not compatible"),
+                              " with parent ", parentPtr->getName(),
+                              " outConfs[", inNum, "], equalsLocalFormatCount add to ", equalsLocalFormatCount);
                 }
 
                 if (equalsLocalFormatCount > equalsFormatCount) {
                     equalsFormatCount = equalsLocalFormatCount;
                     selectedPrimitive = static_cast<int>(i);
+                    DEBUG_LOG(getName(), " Select primitive desc: ", i, " ", supportedPrimitiveDesc);
                 }
             }
         }
+
         if (selectedPrimitive >= 0) {
             selectPrimitiveDescriptorByIndex(selectedPrimitive);
-            // std::cout << getName() << ": selectPreferPrimitiveDescriptors: "  << supportedPrimitiveDescriptors[selectedPrimitive] << "\n";
             return;
         }
     }
@@ -631,16 +636,7 @@ void Node::initSupportedPrimitiveDescriptors() {
     auto attr = initPrimitiveAttr();
 
     for (auto& desc : descs) {
-        primitive_desc_iterator itpd;
-        if (attr) {
-            // itpd = desc.createPrimitiveDescriptorIterator(engine, *attr);
-            itpd = *desc;
-        } else {
-            // itpd = desc.createPrimitiveDescriptorIterator(engine);
-            itpd = *desc;
-        }
-
-        // const auto& initial_desc = *desc;
+        primitive_desc_iterator itpd = *desc;
 
         while (static_cast<bool>(itpd)) {
             NodeConfig config;
@@ -672,17 +668,17 @@ void Node::initSupportedPrimitiveDescriptors() {
             }
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
 
-            // std::cout << getName() << ": initSupportedPrimitiveDescriptors: " << "Add " << *config.inConfs[0].getMemDesc() << " " << impl_type << "\n";
             supportedPrimitiveDescriptors.emplace_back(config, impl_type);
             if (!itpd.next_impl())
                 break;
         }
-
-        // desc = std::make_shared<dnnl::primitive_desc>(initial_desc);
     }
 }
 
 void Node::filterSupportedPrimitiveDescriptors() {
+    if (inputMemoryFormatsFilter.empty() && outputMemoryFormatsFilter.empty())
+        return;
+
     // Compare by format tag
     auto areCompatible = [](const MemoryDesc& desc, dnnl::memory::format_tag fmt) -> bool {
         auto fmt_tdesc = DnnlBlockedMemoryDesc(desc.getShape(),
@@ -691,30 +687,33 @@ void Node::filterSupportedPrimitiveDescriptors() {
         return desc.isCompatible(fmt_tdesc);
     };
 
-    if (!inputMemoryFormatsFilter.empty() || !outputMemoryFormatsFilter.empty()) {
-        auto itpd = supportedPrimitiveDescriptors.begin();
-        while (itpd != supportedPrimitiveDescriptors.end()) {
-            const auto &config = itpd->getConfig();
-            if (inputMemoryFormatsFilter.size() > config.inConfs.size() || outputMemoryFormatsFilter.size() > config.outConfs.size())
-                IE_THROW() << "Incorrect number of input or output memory formats";
+    auto isNotSuitableDesc = [&](const NodeDesc& desc) {
+        const auto &config = desc.getConfig();
+        if (inputMemoryFormatsFilter.size() > config.inConfs.size() || outputMemoryFormatsFilter.size() > config.outConfs.size())
+            IE_THROW() << "Incorrect number of input or output memory formats";
 
-            bool isSuitableDesc = true;
-            for (int i = 0; i < inputMemoryFormatsFilter.size(); i++) {
-                const bool matched = areCompatible(*config.inConfs[i].getMemDesc(), inputMemoryFormatsFilter[i]);
-                isSuitableDesc &= matched;
-            }
-            for (int i = 0; i < outputMemoryFormatsFilter.size(); i++) {
-                const bool matched = areCompatible(*config.outConfs[i].getMemDesc(), outputMemoryFormatsFilter[i]);
-                isSuitableDesc &= matched;
-            }
-            if (!isSuitableDesc) {
-                // std::cout << "filterSupportedPrimitiveDescriptors: Erase - " << *itpd << "\n";
-                itpd = supportedPrimitiveDescriptors.erase(itpd);
-            } else {
-                itpd++;
+        for (int i = 0; i < inputMemoryFormatsFilter.size(); i++) {
+            if (!areCompatible(*config.inConfs[i].getMemDesc(), inputMemoryFormatsFilter[i])) {
+                DEBUG_LOG(getName(), " input memory format filter: ", inputMemoryFormatsFilter[i],
+                          " not matched. Erase desc from supported primitive descriptors: ", desc);
+                return true;
             }
         }
-    }
+
+        for (int i = 0; i < outputMemoryFormatsFilter.size(); i++) {
+            if (!areCompatible(*config.outConfs[i].getMemDesc(), outputMemoryFormatsFilter[i])) {
+                DEBUG_LOG(getName(), " Output memory format filter: ", outputMemoryFormatsFilter[i],
+                          " not matched. Erase desc from supported primitive descriptors: ", desc);
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    supportedPrimitiveDescriptors.erase(
+        std::remove_if(supportedPrimitiveDescriptors.begin(), supportedPrimitiveDescriptors.end(), isNotSuitableDesc),
+        supportedPrimitiveDescriptors.end());
 }
 
 void Node::initDescriptor(const NodeConfig& config) {
@@ -743,60 +742,31 @@ void Node::initDescriptor(const NodeConfig& config) {
         return;
     }
 
-    descs.clear();
-    const auto& currentConfig = selectedPD->getConfig();
+    auto updateNodeConfig = [&](const NodeConfig& cfg){
+        auto updatedConfig = cfg;
 
-    std::vector<MemoryDescPtr> inDescs0;
-    for (const auto& inConf : currentConfig.inConfs)
-        inDescs0.emplace_back(inConf.getMemDesc());
-    std::vector<MemoryDescPtr> outDescs0;
-    for (const auto& outConf : currentConfig.outConfs)
-        outDescs0.emplace_back(outConf.getMemDesc());
-    createDescriptor(inDescs0, outDescs0);
+        for (size_t i = 0; i < descInputNumbers(); i++) {
+            PortConfig& dataConfig = updatedConfig.inConfs[i];
+            dataConfig.inPlace(canBeInPlace() ? 0 : -1);    // update inPlace
+            dataConfig.setMemDesc(dataConfig.getMemDesc()); // reset desc with default compatibility mask
+        }
 
-    std::vector<MemoryDescPtr> inDescs;
-    for (const auto& inConf : config.inConfs)
-        inDescs.emplace_back(inConf.getMemDesc());
-    std::vector<MemoryDescPtr> outDescs;
-    for (const auto& outConf : config.outConfs)
-        outDescs.emplace_back(outConf.getMemDesc());
-    createDescriptor(inDescs, outDescs);
+        for (size_t i = 0; i < descOutputNumbers(); i++) {
+            PortConfig& dataConfig = updatedConfig.outConfs[i];
+            dataConfig.inPlace(-1);                         // update inPlace
+            dataConfig.setMemDesc(dataConfig.getMemDesc()); // reset desc with default compatibility mask
+        }
 
-    NodeConfig rightConfig = selectedPD->getConfig();
+        return updatedConfig;
+    };
 
-    // if (!rightConfig.inConfs.empty())
-    //     DEBUG_LOG(getName(), ": rightConfig in PortDesc before: ", *rightConfig.inConfs[0].getMemDesc());
-    // if (!rightConfig.outConfs.empty())
-    //     DEBUG_LOG(getName(), ": rightConfig out PortDesc before: ", *rightConfig.outConfs[0].getMemDesc());
-
-    auto getProperPrimitiveDesc = [&](dnnl::primitive_desc& desc) {
-        primitive_desc_iterator itpd = desc;
+    auto haveProperImplementationType = [](dnnl::primitive_desc& desc, impl_desc_type implType) {
+        primitive_desc_iterator& itpd = desc;
 
         while (itpd) {
-            NodeConfig cfg;
-            cfg.dynBatchSupport = true;
-            for (size_t i = 0; i < descInputNumbers(); i++) {
-                PortConfig dataConfig;
-                dataConfig.inPlace(canBeInPlace() ? 0 : -1);
-                dataConfig.constant(false);
-                dataConfig.setMemDesc(getSrcMemDesc(itpd, i));
-                cfg.inConfs.push_back(dataConfig);
-            }
+            const impl_desc_type descImplType = parse_impl_name(itpd.impl_info_str());
 
-            for (size_t i = 0; i < descOutputNumbers(); i++) {
-                PortConfig dataConfig;
-                dataConfig.inPlace(-1);
-                dataConfig.constant(false);
-                dataConfig.setMemDesc(getDstMemDesc(itpd, i));
-                cfg.outConfs.push_back(dataConfig);
-            }
-
-            const impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-            DEBUG_LOG(getName(), "impl_type: ", impl_type, " vs selectedPD impl_type: ", selectedPD->getImplementationType());
-
-            if (impl_type == selectedPD->getImplementationType()) {
-                DEBUG_LOG(getName(), ": rightConfig PortDesc after: ", *rightConfig.outConfs[0].getMemDesc());
-                rightConfig = cfg;
+            if (descImplType == implType) {
                 return true;
             }
 
@@ -807,10 +777,27 @@ void Node::initDescriptor(const NodeConfig& config) {
         return false;
     };
 
-    if (!getProperPrimitiveDesc(*descs.back()))
-        getProperPrimitiveDesc(*descs.front());
+    descs.clear();
 
-    selectedPD->setConfig(rightConfig);
+    std::vector<MemoryDescPtr> inDescs;
+    for (const auto& inConf : config.inConfs)
+        inDescs.emplace_back(inConf.getMemDesc());
+    std::vector<MemoryDescPtr> outDescs;
+    for (const auto& outConf : config.outConfs)
+        outDescs.emplace_back(outConf.getMemDesc());
+    createDescriptor(inDescs, outDescs);
+
+    for (auto& desc : descs) {
+        if (haveProperImplementationType(*desc, selectedPD->getImplementationType())) {
+            selectedPD->setConfig(config);
+            return;
+        }
+    }
+
+    const auto& currentConfig = selectedPD->getConfig();
+    const auto& updatedConfig = updateNodeConfig(currentConfig);
+
+    selectedPD->setConfig(updatedConfig);
 }
 
 void Node::prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs) {
@@ -1034,8 +1021,9 @@ PortDescBasePtr Node::getConsistentInputDesc(const NodeConfig &config, size_t id
     int num = getParentEdgeAt(idx)->getInputNum();
     if (num >= 0) {
         auto parentConf = parentSelectedPD->getConfig().outConfs[num];
+        const auto desc = parentConf.getMemDesc()->cloneWithNewPrecision(inConf.getMemDesc()->getPrecision());
+        parentConf.setMemDesc(desc);
 
-        parentConf.setMemDesc(parentConf.getMemDesc()->cloneWithNewPrecision(inConf.getMemDesc()->getPrecision()));
         if (!parentConf.getMemDesc()->isDefined() && parentConf.inPlace() >= 0)
             getParentEdgeAt(idx)->getParent()->initOptimalPrimitiveDescriptor();
 
@@ -1050,87 +1038,52 @@ PortDescBasePtr Node::getConsistentInputDesc(const NodeConfig &config, size_t id
 }
 
 PortDescBasePtr Node::getConsistentOutputDesc(const NodeConfig &config, size_t idx) const {
-    // if (config.outConfs[idx].inPlace() >= 0) {
-    //     auto inplaceIndx = static_cast<size_t>(config.outConfs[idx].inPlace());
-    //     PortDescBasePtr inpPortDesc;
-    //     const auto& inpConf = config.inConfs[inplaceIndx];
-    //     if (inpConf.inPlace() == idx) {
-    //         inpPortDesc = inpConf.getPortDesc();
-    //     } else {
-    //         inpPortDesc = getConsistentInputDesc(config, inplaceIndx);
-    //     }
-    //     if (config.outConfs[idx].getPortDesc()->isCompatible(*inpPortDesc)) {
-    //         return inpPortDesc;
-    //     }
-    // }
+    const auto& outConf = config.outConfs[idx];
 
-    // auto *childSelectedPD = getChildEdgeAt(idx)->getChild()->getSelectedPrimitiveDescriptor();
-    // if (!childSelectedPD)
-    //     IE_THROW() << "Cannot get selected primitive descriptor for node: " << getChildEdgeAt(idx)->getChild()->getName();
-
-    // int num = getChildEdgeAt(idx)->getOutputNum();
-    // if (num >= 0) {
-    //     auto childConf = childSelectedPD->getConfig().inConfs[num];
-
-    //     childConf.setMemDesc(childConf.getMemDesc()->cloneWithNewPrecision(config.outConfs[idx].getMemDesc()->getPrecision()));
-    //     if (!childConf.getMemDesc()->isDefined() && childConf.inPlace() >= 0)
-    //         getChildEdgeAt(idx)->getChild()->initOptimalPrimitiveDescriptor();
-
-    //     // config might be changed
-    //     childConf = childSelectedPD->getConfig().inConfs[num];
-    //     if (childConf.getMemDesc()->isDefined() && config.outConfs[idx].getPortDesc()->isCompatible(*childConf.getPortDesc())) {
-    //         return childConf.getPortDesc();
-    //     }
-    // }
-
-    // return config.outConfs[idx].getPortDesc();
-    int num = getChildEdgeAt(idx)->getOutputNum();
-    auto *selectedPD = getChildEdgeAt(idx)->getChild()->getSelectedPrimitiveDescriptor();
-    if (!selectedPD)
-        IE_THROW() << "Cannot get selected primitive descriptor for node: " << getChildEdgeAt(idx)->getChild()->getName();
-
-    if (config.outConfs[idx].inPlace() >= 0) {
-        auto inplaceIndx = static_cast<size_t>(config.outConfs[idx].inPlace());
+    if (outConf.inPlace() >= 0) { // node have inplace output
+        auto inplaceIndx = static_cast<size_t>(outConf.inPlace());
         PortDescBasePtr inpPortDesc;
         const auto& inpConf = config.inConfs[inplaceIndx];
-        if (inpConf.inPlace() == idx) {
-            inpPortDesc = inpConf.getPortDesc();
+        if (inpConf.inPlace() == idx) { // the input desc port is the same port used for inplace output
+            inpPortDesc = inpConf.getPortDesc(); // just use desc from this output port
         } else {
-            inpPortDesc = getConsistentInputDesc(config, inplaceIndx);
+            inpPortDesc = getConsistentInputDesc(config, inplaceIndx); // get consistent desc otherwise
         }
-        if (config.outConfs[idx].getPortDesc()->isCompatible(*inpPortDesc)) {
+        if (outConf.getPortDesc()->isCompatible(*inpPortDesc)) { // use the desc if compatible
             return inpPortDesc;
         }
     }
 
-    if (num >= 0) {
-        auto childConf = selectedPD->getConfig().inConfs[num];
-        // childConf.setMemDesc(childConf.getMemDesc()->cloneWithNewPrecision(config.outConfs[idx].getMemDesc()->getPrecision()));
+    auto *childSelectedPD = getChildEdgeAt(idx)->getChild()->getSelectedPrimitiveDescriptor();
+    if (!childSelectedPD)
+        IE_THROW() << "Cannot get selected primitive descriptor for node: " << getChildEdgeAt(idx)->getChild()->getName();
 
-        // childConf.getMemDesc()->cloneWithNewPrecision(config.outConfs[idx].getMemDesc()->getPrecision());
-        const auto desc = childConf.getMemDesc()->cloneWithNewPrecision(config.outConfs[idx].getMemDesc()->getPrecision());
+    int num = getChildEdgeAt(idx)->getOutputNum();
+    if (num >= 0) {
+        auto childConf = childSelectedPD->getConfig().inConfs[num];
+        const auto desc = childConf.getMemDesc()->cloneWithNewPrecision(outConf.getMemDesc()->getPrecision());
         childConf.setMemDesc(desc);
 
         if (!childConf.getMemDesc()->isDefined() && childConf.inPlace() >= 0)
             getChildEdgeAt(idx)->getChild()->initOptimalPrimitiveDescriptor();
-        childConf = getChildEdgeAt(idx)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num];
-        if (childConf.getMemDesc()->isDefined() && config.outConfs[idx].getPortDesc()->isCompatible(*childConf.getPortDesc())) {
+
+        // config might be changed
+        childConf = childSelectedPD->getConfig().inConfs[num];
+        if (childConf.getMemDesc()->isDefined() && outConf.getPortDesc()->isCompatible(*childConf.getPortDesc())) {
             return childConf.getPortDesc();
         }
     }
 
-    return config.outConfs[idx].getPortDesc();
+    return outConf.getPortDesc();
 }
 
 void Node::initOptimalPrimitiveDescriptor() {
-    if (one_of(getType(), Type::RNNCell, Type::RNNSeq))
+    if (one_of(getType(), Type::RNNCell, Type::RNNSeq)) // can be skipped for RNN node
         return;
 
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
-
-    // std::cout << getName() << " initOptimalPrimitiveDescriptor: " << *selected_pd << "\n";
 
     auto config = selected_pd->getConfig();
     if (isDynamicNode()) {
@@ -1215,9 +1168,6 @@ void Node::setDynamicBatchLim(int lim) {
         if (param != primArgs.end()) {
             auto oldMem = param->second;
             dnnl::memory::desc newMemDesc(oldMem.get_desc());
-            // newMemDesc.data.dims[0] = newBatch;
-            // newMemDesc.data.padded_dims[0] = newBatch;
-            // @ TODO ONEDNN_3_0 direct access to internal elements should be avoided
             newMemDesc.get()->dims[0] = newBatch;
             newMemDesc.get()->padded_dims[0] = newBatch;
 

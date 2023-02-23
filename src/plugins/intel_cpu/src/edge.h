@@ -81,8 +81,6 @@ public:
     }
 
     std::string name() const;
-    const MemoryDesc& getInputDesc() const;
-    const MemoryDesc& getOutputDesc() const;
 
 private:
     std::weak_ptr<Node> parent;
@@ -95,8 +93,8 @@ private:
     MemoryPtr memoryPtr;
     Status status = Status::Uninitialized;
 
-    // const MemoryDesc& getInputDesc() const;
-    // const MemoryDesc& getOutputDesc() const;
+    const MemoryDesc& getInputDesc() const;
+    const MemoryDesc& getOutputDesc() const;
     PortDescBaseCPtr getInputPortDesc() const;
     PortDescBaseCPtr getOutputPortDesc() const;
 

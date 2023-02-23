@@ -3,28 +3,30 @@
 //
 
 #include "fullyconnected.h"
+
 #include "eltwise.h"
 #include "input.h"
 #include "fake_quantize.h"
 #include "input.h"
 #include "reorder.h"
 #include "ngraph_transformations/op/fully_connected.hpp"
-#include <ngraph/opsets/opset1.hpp>
-#include <oneapi/dnnl/dnnl.hpp>
-#include <string>
-#include <vector>
-#include <dnnl_extension_utils.h>
-#include <onednn/dnnl.h>
+#include "ngraph/opsets/opset1.hpp"
+#include "dnnl_extension_utils.h"
+#include "onednn/dnnl.h"
 #include "utils/general_utils.h"
-#include "cpu/x64/cpu_isa_traits.hpp"
-#include <memory_desc/cpu_memory_desc_utils.h>
+#include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "utils/cpu_utils.hpp"
-#include <common/primitive_hashing_utils.hpp>
-#include <common/primitive_desc.hpp>
-#include <common/primitive_desc_iface.hpp>
+
 #include "onednn/dnnl.h"
+#include "oneapi/dnnl/dnnl.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "common/primitive_hashing_utils.hpp"
+#include "common/primitive_desc.hpp"
+#include "common/primitive_desc_iface.hpp"
+
+#include <string>
+#include <vector>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -338,14 +340,14 @@ void FullyConnected::prepareParams() {
         // fallback
         if (!execPtr) {
             auto inDesc = key.inp0->getDnnlDesc();
-            auto inDims = inDesc.get_dims();
+            const auto& inDims = inDesc.get_dims(); // @TODO query + copy might be slow
             if (inDims.size() == 3) {
                 auto normalizedInDims = {inDims[0] * inDims[1], inDims[2]};
                 inDesc = inDesc.reshape(normalizedInDims);
             }
 
             auto outDesc = key.out->getDnnlDesc();
-            auto outDims = outDesc.get_dims();
+            const auto& outDims = outDesc.get_dims(); // @TODO query + copy might be slow
 
             if (outDims.size() == 3) {
                 auto normalizedOutDims = { outDims[0] * outDims[1], outDims[2] };
@@ -372,21 +374,11 @@ void FullyConnected::prepareParams() {
                     key.attr);
             }
 
-            ERROR_LOG("prepareParams: createDescriptorInternal: ", fcDsc->get()->info());
-            ERROR_LOG("prepareParams: in_candidate: ", md2fmt_str(inDesc.get()));
-            ERROR_LOG("prepareParams: wgh_candidate: ", md2fmt_str(key.inp1->getDnnlDesc().get()));
-            ERROR_LOG("prepareParams: out_candidate: ", md2fmt_str(outDesc.get()));
-
-            // DnnlDesriptor desc(fcDsc);
-            // primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
             primitive_desc_iterator itpd = *fcDsc;
             inner_product_forward::primitive_desc prim_desc;
 
-            ERROR_LOG("prepareParams: key_impl_type: ", key.implType);
-
-            while (static_cast<bool>(itpd)) {
+            while (itpd) {
                 impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-                DEBUG_LOG("impl_type: ", impl_type, " vs selectedPD impl_type: ", key.implType);
 
                 if (impl_type == key.implType) {
                     prim_desc = itpd.get();
@@ -470,10 +462,6 @@ void FullyConnected::setDynamicBatchLim(int lim) {
 
     auto setBatchPrimArgs = [this](int argType, const dnnl::memory& oldMem) {
         dnnl::memory::desc newMemDesc(oldMem.get_desc());
-        // newMemDesc.data.dims[0] = batchToProcess();
-        // newMemDesc.data.padded_dims[0] = batchToProcess();
-
-        // @ TODO ONEDNN_3_0 direct access to internal elements should be avoided
         newMemDesc.get()->dims[0] = batchToProcess();
         newMemDesc.get()->padded_dims[0] = batchToProcess();
 
@@ -718,7 +706,6 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
 
     for (auto& desc : descs) {
         primitive_desc_iterator itpd = *desc;
-        // auto itpd = desc.createPrimitiveDescriptorIterator(getEngine());
         while (static_cast<bool>(itpd)) {
             // 3D FC requires implicit reshape so strides should be defined
             auto supportsUndefStridesAndOffset = [&]() {

@@ -131,10 +131,12 @@ void SoftMax::initOptimalPrimitiveDescriptor() {
 }
 
 void SoftMax::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
-                                         const std::vector<MemoryDescPtr> &outputDesc) {
+                               const std::vector<MemoryDescPtr> &outputDesc) {
     auto inpDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
     DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
     auto in_candidate = definedInpMemDesc->getDnnlDesc();
+
+    dnnl::primitive_attr attr;
 
     auto desc = std::make_shared<softmax_forward::primitive_desc>(
         getEngine(),
@@ -142,7 +144,9 @@ void SoftMax::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
         algorithm::softmax_accurate,
         in_candidate,
         in_candidate,
-        axis);
+        axis,
+        attr,
+        true);
 
     descs.push_back(desc);
 }
@@ -157,8 +161,9 @@ void SoftMax::prepareParams() {
     dnnl::primitive_attr attr;
     attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
-    SoftmaxKey key = {inpDesc, selected_pd->getImplementationType(), axis};
+    SoftmaxKey key = {inpDesc, selected_pd->getImplementationType(), axis, attr};
     auto engine = getEngine();
+
     auto builder = [&engine](const SoftmaxKey& key) -> dnnl::primitive {
         softmax_forward::primitive_desc prim_desc;
         auto desc = std::make_shared<softmax_forward::primitive_desc>(
@@ -168,9 +173,9 @@ void SoftMax::prepareParams() {
             key.inp0->getDnnlDesc(),
             key.inp0->getDnnlDesc(),
             key.axis,
-            key.attr);
+            key.attr,
+            true);
 
-        // primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, attr);
         primitive_desc_iterator itpd = *desc;
 
         while (itpd) {
