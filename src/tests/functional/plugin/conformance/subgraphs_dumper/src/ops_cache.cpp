@@ -18,8 +18,8 @@ void OPCache::update_ops_cache(const std::shared_ptr<ov::Node> &op,
     const std::shared_ptr<ov::Node> cachedOp = [&] {
         for (auto &&it : m_ops_cache) {
             if (manager.match_any(it.first, op, it.second)) {
-                it.second.found_in_models[source_model.name].op_cnt += 1;
-                it.second.found_in_models[source_model.name].model_paths.insert(source_model.path);
+                it.second.found_in_models[source_model.name].unique_op_cnt += 1;
+                it.second.found_in_models[source_model.name].model_paths.insert({{source_model.path, source_model.op_cnt}});
                 return it.first;
             }
         }
@@ -29,7 +29,7 @@ void OPCache::update_ops_cache(const std::shared_ptr<ov::Node> &op,
     auto saveOpToCash = [&] {
         try {
             const auto& clone_fn = SubgraphsDumper::ClonersMap::cloners.at(op->get_type_info());
-            LayerTestsUtils::OPInfo meta(source_model.name, source_model.path);
+            LayerTestsUtils::OPInfo meta(source_model.name, source_model.path, source_model.op_cnt);
             const std::shared_ptr<ov::Node> op_clone = clone_fn(op, meta);
             if (!op_clone) {
                 return;
@@ -123,15 +123,26 @@ void OPCache::serialize_meta_info(const LayerTestsUtils::OPInfo &info, const std
     pugi::xml_document doc;
     pugi::xml_node root = doc.append_child("meta_info");
     pugi::xml_node models = root.append_child("models");
+    double k = 0;
     for (const auto &model : info.found_in_models) {
         pugi::xml_node model_node = models.append_child("model");
         model_node.append_attribute("name").set_value(model.first.c_str());
-        model_node.append_attribute("count").set_value(static_cast<unsigned long long>(model.second.op_cnt));
-        auto paths = models.append_child("paths");
+        double model_k = model.second.unique_op_cnt;
+        model_node.append_attribute("count").set_value(static_cast<unsigned long long>(model.second.unique_op_cnt));
+        auto paths = model_node.append_child("paths");
+        size_t tmp = 0;
         for (const auto& model_path : model.second.model_paths) {
-            paths.append_child(model_path.c_str());
+            if (model_path.second) {
+                paths.append_child(model_path.first.c_str());
+                tmp += model_path.second;
+            }
         }
+        model_k /= tmp;
+        model_k /= model.second.model_paths.size();
+        k += model_k;
     }
+    k *=  info.found_in_models.size();
+    root.append_child("graph_priority").append_attribute("value").set_value(k);
     auto ports_info = root.append_child("ports_info");
     for (const auto &port : info.ports_info) {
         auto port_node = ports_info.append_child("port");

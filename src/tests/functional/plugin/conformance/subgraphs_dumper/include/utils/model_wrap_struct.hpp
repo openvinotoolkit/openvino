@@ -13,13 +13,16 @@ struct Model {
     std::string path;
     size_t size = 0;
     std::string name;
+    size_t op_cnt = 0;
 
     Model(std::string model) {
         path = model;
         auto pos = model.rfind(CommonTestUtils::FileSeparator);
         name = pos == std::string::npos ? model : CommonTestUtils::replaceExt(model.substr(pos + 1), "");
         try {
-            size = ov::test::utils::PluginCache::get().core()->read_model(path)->get_graph_size();
+            auto ov_model = ov::test::utils::PluginCache::get().core()->read_model(path);
+            size = ov_model->get_graph_size();
+            op_cnt = ov_model->get_ops().size() - (ov_model->inputs().size() + ov_model->outputs().size());
         } catch (...) {
             std::cout << "Impossible to read network: " << path << std::endl;
         }
