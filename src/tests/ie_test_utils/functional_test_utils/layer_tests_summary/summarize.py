@@ -146,10 +146,10 @@ def collect_statistic(root: Element, is_conformance_mode: bool):
             if op_test_cnt == 0:
                 continue
             covered_ops[device.tag] += 1
-            pass_rate = round(float(results[device.tag][op]["passrate"]), 1)
-            relative_pass_rate = round(float(results[device.tag][op]["relative_passrate"]), 1)
+            pass_rate = float("%.2f"%results[device.tag][op]["passrate"])
+            relative_pass_rate = float("%.2f"%results[device.tag][op]["relative_passrate"])
             results[device.tag][op]["passrate"] = pass_rate
-            results[device.tag][op]["relative_passrate"] = pass_rate
+            results[device.tag][op]["relative_passrate"] = relative_pass_rate
 
             if pass_rate == 100.:
                 trusted_ops[device.tag] += 1
