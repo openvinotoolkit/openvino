@@ -10,7 +10,7 @@
 #include "streams_executor.hpp"
 
 using namespace testing;
-using namespace InferenceEngine;
+using namespace ov;
 
 namespace {
 
