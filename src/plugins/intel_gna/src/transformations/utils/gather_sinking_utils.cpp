@@ -57,7 +57,7 @@ bool IfNodeHasGatherInputs(const Output<Node>& output) {
 namespace {
 
 bool HasDynamicRankInput(NodePtr node) {
-    for (auto& input_node : node->input_values()) {
+    for (const auto& input_node : node->input_values()) {
         const Rank output_rank = input_node.get_partial_shape().rank();
         if (output_rank.is_dynamic())
             return true;
@@ -148,7 +148,7 @@ bool CanPropagateGatherForwardThrough(Node* node) {
 #undef CHECK_GATHER_SINKING_SUPPORTED
 
 bool CanGatherPropagateForward(NodePtr node) {
-    for (auto output : node->outputs()) {
+    for (const auto& output : node->outputs()) {
         for (auto& consumer_input : output.get_target_inputs()) {
             if (!CanPropagateGatherForwardThrough(consumer_input.get_node()))
                 return false;
@@ -209,7 +209,7 @@ GatherInfo GetGatherInfo(Node* node) {
 }
 
 Node* FindFirstConsumer(NodePtr node) {
-    for (auto output : node->outputs()) {
+    for (const auto& output : node->outputs()) {
         auto inputs = output.get_target_inputs();
         if (inputs.empty())
             continue;
