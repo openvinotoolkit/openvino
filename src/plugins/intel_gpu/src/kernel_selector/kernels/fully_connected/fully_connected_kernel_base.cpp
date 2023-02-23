@@ -21,18 +21,7 @@ JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_par
         auto w = toCodeString(input.W(), 2);
         auto f = toCodeString(input.Feature(), 1);
 
-        auto multiply = [](std::vector<std::string> dims) -> std::string {
-            std::string res = "(";
-            for (size_t i = 0; i < dims.size(); i++) {
-                auto& d = dims[i];
-                res += d;
-                if (i != dims.size() - 1)
-                    res += "*";
-            }
-            res += ")";
-            return res;
-        };
-        jit.AddConstant(MakeJitConstant("INPUT0_ELEMENTS_COUNT", multiply({x, y, z, w, f})));
+        jit.AddConstant(MakeJitConstant("INPUT0_ELEMENTS_COUNT", toVectorMulString({x, y, z, w, f})));
     } else {
         const auto x_size = input.LogicalSize() / input.Batch().v;
         jit.AddConstant(MakeJitConstant("INPUT0_ELEMENTS_COUNT", x_size));

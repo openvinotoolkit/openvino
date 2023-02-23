@@ -119,7 +119,8 @@ const std::vector<ov::AnyMap> multiDevicePriorityConfigs = {
 INSTANTIATE_TEST_SUITE_P(smoke_OVClassExecutableNetworkGetMetricTest,
                          OVClassExecutableNetworkGetMetricTest_DEVICE_PRIORITY,
                          ::testing::Combine(::testing::Values("MULTI", "AUTO"),
-                                            ::testing::ValuesIn(multiDevicePriorityConfigs)));
+                                            ::testing::ValuesIn(multiDevicePriorityConfigs)),
+                         OVClassExecutableNetworkGetMetricTest_DEVICE_PRIORITY::getTestCaseName);
 
 const std::vector<ov::AnyMap> multiModelPriorityConfigs = {
         {ov::hint::model_priority(ov::hint::Priority::HIGH)},
