@@ -248,7 +248,8 @@ void StridedSlice::initSupportedPrimitiveDescriptors() {
                 return false;
             auto channelBeginNormalized = tmpAttrs.begin[1] > 0 ? tmpAttrs.begin[1] : tmpAttrs.begin[1] + static_cast<std::int64_t>(srcDims[1]);
             return srcDims[1] % blockSize == 0 && abs(tmpAttrs.stride[1]) == 1 &&
-            (channelBeginNormalized > srcDims[1] || channelBeginNormalized % blockSize == 0 || channelBeginNormalized < 0 || tmpAttrs.beginMask[1] == 0);
+                   (channelBeginNormalized > static_cast<long>(srcDims[1]) || channelBeginNormalized % blockSize == 0 ||
+                    channelBeginNormalized < 0 || tmpAttrs.beginMask[1] == 0);
         };
 
         supportedTypes.push_back(LayoutType::nspc);

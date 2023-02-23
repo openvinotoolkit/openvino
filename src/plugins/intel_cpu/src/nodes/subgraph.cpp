@@ -359,7 +359,7 @@ std::vector<VectorDims> Snippet::shapeInfer() const {
         dst.insert(dst.begin(), new_rank - dst_rank, 1);
         std::vector<Dimension> dims(new_rank);
         bool success = true;
-        for (int64_t i = 0; i < new_rank; i++) {
+        for (size_t i = 0; i < new_rank; i++) {
             auto dsti = i < (new_rank - dst_rank) ? 1 : dst[i - (new_rank - dst_rank)];
             auto srci = i < (new_rank - src_rank) ? 1 : src[i - (new_rank - src_rank)];
             if (dsti != srci && srci != Shape::UNDEFINED_DIM) {
