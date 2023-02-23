@@ -57,12 +57,6 @@ shared_ptr<Node> op::v0::CumSum::clone_with_new_inputs(const OutputVector& new_a
     }
 }
 
-OPENVINO_SUPPRESS_DEPRECATED_START
-shared_ptr<Node> op::v0::CumSum::get_default_value() const {
-    return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
-}
-OPENVINO_SUPPRESS_DEPRECATED_END
-
 namespace {
 template <element::Type_t DATA_ET, element::Type_t AXIS_ET>
 bool evaluate_cum_sum(TensorVector& outputs, const TensorVector& inputs, const bool exclusive, const bool reverse) {

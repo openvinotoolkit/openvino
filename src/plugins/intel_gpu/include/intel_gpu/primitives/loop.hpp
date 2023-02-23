@@ -7,6 +7,8 @@
 #include <functional>
 #include "primitive.hpp"
 #include "intel_gpu/graph/topology.hpp"
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
+#include "intel_gpu/graph/serialization/vector_serializer.hpp"
 
 #define DEFAULT_MAX_NUM_ITERATION 256
 namespace cldnn {
@@ -52,6 +54,10 @@ namespace cldnn {
 struct loop : public primitive_base<loop> {
     CLDNN_DECLARE_PRIMITIVE(loop)
 
+    loop() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     struct io_primitive_map {
         /// @brief Constructs a mapping from external input/output primitive to input/output primitive in body topology
         ///
@@ -77,6 +83,24 @@ struct loop : public primitive_base<loop> {
         int64_t start;
         int64_t end;
         int64_t stride;
+
+        void save(BinaryOutputBuffer& ob) const {
+            ob << external_id;
+            ob << internal_id;
+            ob << axis;
+            ob << start;
+            ob << end;
+            ob << stride;
+        }
+
+        void load(BinaryInputBuffer& ib) {
+            ib >> external_id;
+            ib >> internal_id;
+            ib >> axis;
+            ib >> start;
+            ib >> end;
+            ib >> stride;
+        }
     };
 
     struct backedge_mapping {
@@ -89,6 +113,16 @@ struct loop : public primitive_base<loop> {
         backedge_mapping() {}
         primitive_id from;
         primitive_id to;
+
+        void save(BinaryOutputBuffer& ob) const {
+            ob << from;
+            ob << to;
+        }
+
+        void load(BinaryInputBuffer& ib) {
+            ib >> from;
+            ib >> to;
+        }
     };
 
     /// @brief Constructs loop primitive.
@@ -171,6 +205,30 @@ struct loop : public primitive_base<loop> {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, id);
         return seed;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        ob << trip_count_id;
+        ob << initial_execution_id;
+        ob << num_iteration_id;
+        ob << current_iteration_id;
+        ob << condition_id;
+        ob << input_primitive_maps;
+        ob << output_primitive_maps;
+        ob << back_edges;
+        ob << max_iteration;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        ib >> trip_count_id;
+        ib >> initial_execution_id;
+        ib >> num_iteration_id;
+        ib >> current_iteration_id;
+        ib >> condition_id;
+        ib >> input_primitive_maps;
+        ib >> output_primitive_maps;
+        ib >> back_edges;
+        ib >> max_iteration;
     }
 
 protected:

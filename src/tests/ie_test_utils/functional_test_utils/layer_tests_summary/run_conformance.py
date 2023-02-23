@@ -30,9 +30,8 @@ API_CONFORMANCE_BIN_NAME = "apiConformanceTests"
 OP_CONFORMANCE_BIN_NAME = "conformanceTests"
 SUBGRAPH_DUMPER_BIN_NAME = "subgraphsDumper"
 
-NO_MODEL_CONSTANT = "http://ov-share-03.sclab.intel.com/Shares/conformance_ir/dlb/master/2022.3.0-8953-8c3425ff698.tar"
-
 SCRIPT_DIR_PATH, SCRIPT_NAME = os.path.split(os.path.abspath(__file__))
+NO_MODEL_CONSTANT = os.path.join(SCRIPT_DIR_PATH, "data", "models.lst")
 
 def get_default_working_dir():
     path = Path(__file__).parent.resolve()
@@ -41,7 +40,7 @@ def get_default_working_dir():
 def parse_arguments():
     parser = ArgumentParser()
 
-    models_path_help = "Path to the directory/ies containing models to dump subgraph (the default way is to download conformance IR). It may be directory, archieve file, .lst file or http link to download something . If --s=0, specify the Conformance IRs directory"
+    models_path_help = "Path to the directory/ies containing models to dump subgraph (the default way is to download conformance IR). It may be directory, archieve file, .lst file with model to download or http link to download something . If --s=0, specify the Conformance IRs directory"
     device_help = " Specify the target device. The default value is CPU"
     ov_help = "OV repo path. The default way is try to find the absolute path of OV repo (by using script path)"
     working_dir_help = "Specify a working directory to save all artifacts, such as reports, models, conformance_irs, etc."
@@ -50,6 +49,7 @@ def parse_arguments():
     gtest_filter_helper = "Specify gtest filter to apply when running test. E.g. *Add*:*BinaryConv*. The default value is None"
     ov_config_path_helper = "Specify path to file contains plugin config"
     dump_conformance_help = "Set '1' if you want to create Conformance IRs from custom/downloaded models. In other cases, set 0. The default value is '1'"
+    shape_mode_help = "Specify shape mode for conformance. Default value is ``. Possible values: `static`, `dynamic`, ``"
 
     parser.add_argument("-m", "--models_path", help=models_path_help, type=str, required=False, default=NO_MODEL_CONSTANT)
     parser.add_argument("-d", "--device", help= device_help, type=str, required=False, default="CPU")
@@ -60,12 +60,13 @@ def parse_arguments():
     parser.add_argument("--gtest_filter", help=gtest_filter_helper, type=str, required=False, default="*")
     parser.add_argument("-c", "--ov_config_path", help=ov_config_path_helper, type=str, required=False, default="")
     parser.add_argument("-s", "--dump_conformance", help=dump_conformance_help, type=int, required=False, default=0)
+    parser.add_argument("-sm", "--shape_mode", help=shape_mode_help, type=str, required=False, default="")
 
     return parser.parse_args()
 
 class Conformance:
     def __init__(self, device:str, model_path:os.path, ov_path:os.path, type:str, workers:int,
-                 gtest_filter:str, working_dir:os.path, ov_config_path:os.path):
+                 gtest_filter:str, working_dir:os.path, ov_config_path:os.path, shape_mode:str):
         self._device = device
         self._model_path = model_path
         self._ov_path = ov_path
@@ -85,21 +86,30 @@ class Conformance:
             logger.error(f"Specified config file does not exist: {ov_config_path}.")
             exit(-1)
         self._ov_config_path = ov_config_path
-
-    def __download_conformance_ir(self):
-        _, file_name = os.path.split(urlparse(self._model_path).path)
-        model_archieve_path = os.path.join(self._working_dir, file_name)
-        try:
-            logger.info(f"Conformance IRs will be downloaded from {self._model_path} to {model_archieve_path}")
-            ur.urlretrieve(self._model_path, filename=model_archieve_path)
-        except:
-            logger.error(f"Please verify URL: {self._model_path}. Looks like that is incorrect")
+        if shape_mode == "static" or shape_mode == "dynamic" or shape_mode == "":
+            self._shape_mode = shape_mode
+        else:
+            logger.error(f'Incorrect value to set shape mode: {shape_mode}. Please check to get possible values')
             exit(-1)
-        logger.info(f"Conformance IRs were downloaded from {self._model_path} to {model_archieve_path}")
-        if not file_utils.is_archieve(model_archieve_path):
-            logger.error(f"The file {model_archieve_path} is not archieve! It should be the archieve!")
-            exit()
-        self._model_path = file_utils.unzip_archieve(model_archieve_path, self._working_dir)
+
+    def __download_models(self, url_to_download, path_to_save):
+        _, file_name = os.path.split(urlparse(url_to_download).path)
+        download_path = os.path.join(path_to_save, file_name)
+        try:
+            logger.info(f"Conformance IRs will be downloaded from {url_to_download} to {download_path}")
+            ur.urlretrieve(url_to_download, filename=download_path)
+        except:
+            logger.error(f"Please verify URL: {url_to_download}. Looks like that is incorrect")
+            exit(-1)
+        logger.info(f"Conformance IRs were downloaded from {url_to_download} to {download_path}")
+        if not os.path.isfile(download_path):
+            logger.error(f"{download_path} is not a file. Exit!")
+            exit(-1)
+        if file_utils.is_archieve(download_path):
+            logger.info(f"The file {download_path} is archieve. Should be unzip to {path_to_save}")
+            return file_utils.unzip_archieve(download_path, path_to_save)
+        return download_path
+        
 
     def __dump_subgraph(self):
         subgraph_dumper_path = os.path.join(self._ov_bin_path, f'{SUBGRAPH_DUMPER_BIN_NAME}{constants.OS_BIN_FILE_EXT}')
@@ -111,6 +121,7 @@ class Conformance:
             logger.info(f"Remove directory {conformance_ir_path}")
             rmtree(conformance_ir_path)
         os.mkdir(conformance_ir_path)
+        self._model_path = file_utils.prepare_filelist(self._model_path, ["*.onnx", "*.pdmodel", "*.__model__", "*.pb", "*.xml", "*.tflite"])
         logger.info(f"Stating model dumping from {self._model_path}")
         cmd = f'{subgraph_dumper_path} --input_folders="{self._model_path}" --output_folder="{conformance_ir_path}"'
         process = Popen(cmd, shell=True)
@@ -154,7 +165,8 @@ class Conformance:
         
         command_line_args = [f"--device={self._device}", f'--input_folders="{self._model_path}"',
                              f"--report_unique_name", f'--output_folder="{parallel_report_dir}"',
-                             f'--gtest_filter={self._gtest_filter}', f'--config_path="{self._ov_config_path}"']
+                             f'--gtest_filter={self._gtest_filter}', f'--config_path="{self._ov_config_path}"',
+                             f'--shape_mode={self._shape_mode}']
         conformance = TestParallelRunner(f"{conformance_path}", command_line_args, self._workers, logs_dir, "")
         conformance.run()
         conformance.postprocess_logs()
@@ -194,9 +206,18 @@ class Conformance:
         logger.info(f"[ARGUMENTS] --gtest_filter = {self._gtest_filter}")
         logger.info(f"[ARGUMENTS] --ov_config_path = {self._ov_config_path}")
         logger.info(f"[ARGUMENTS] --dump_conformance = {dump_models}")
+        logger.info(f"[ARGUMENTS] --shape_mode = {self._shape_mode}")
 
-        if self._model_path == NO_MODEL_CONSTANT or file_utils.is_url(self._model_path):
-            self.__download_conformance_ir()
+        if file_utils.is_url(self._model_path):
+            self._model_path = self.__download_models(self._model_path, self._working_dir)
+        if self._model_path == NO_MODEL_CONSTANT or os.path.splitext(self._model_path)[1] == ".lst":
+            with open(self._model_path, "r") as model_list_file:
+                model_dir = os.path.join(self._working_dir, "models")
+                if not os.path.isdir(model_dir):
+                    os.mkdir(model_dir)
+                for model in model_list_file.readlines():
+                    self.__download_models(model, model_dir)
+                self._model_path = model_dir
         if dump_models:
             self.__dump_subgraph()
         if not os.path.exists(self._model_path):
@@ -214,5 +235,6 @@ if __name__ == "__main__":
     conformance = Conformance(args.device, args.models_path,
                               args.ov_path, args.type,
                               args.workers, args.gtest_filter,
-                              args.working_dir, args.ov_config_path)
+                              args.working_dir, args.ov_config_path,
+                              args.shape_mode)
     conformance.run(args.dump_conformance)

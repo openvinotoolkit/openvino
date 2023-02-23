@@ -6,6 +6,7 @@
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/map_serializer.hpp"
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
+#include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/runtime/profiling.hpp"
@@ -21,7 +22,6 @@
 #include <exec_graph_info.hpp>
 
 #include <ie_ngraph_utils.hpp>
-#include <ngraph/variant.hpp>
 
 #include <list>
 #include <set>
@@ -36,7 +36,6 @@
 #include <sys/stat.h>
 #include <exec_graph_info.hpp>
 #include <ie_ngraph_utils.hpp>
-#include <ngraph/variant.hpp>
 #include <ngraph/ngraph.hpp>
 
 using namespace InferenceEngine;
@@ -77,10 +76,19 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, const
     }
 
     ib >> m_program->inputLayouts;
+    Program::variables_state_info_map variablesStateInfoMap;
+    ib >> variablesStateInfoMap;
+    for (const auto& variablesStateInfo : variablesStateInfoMap) {
+        m_program->AddVariableStateInfo(variablesStateInfo.first, *variablesStateInfo.second.begin());
+    }
     ib >> primitiveIDs;
     ib >> outputDims;
 
-    m_networks.emplace_back(std::make_shared<cldnn::network>(ib, get_engine().create_stream(config), get_engine(), m_stream_id));
+    size_t num_networks;
+    ib >> num_networks;
+    for (size_t i = 0; i < num_networks; ++i) {
+        m_networks.emplace_back(std::make_shared<cldnn::network>(ib, get_engine().create_stream(config), get_engine(), m_stream_id));
+    }
 }
 
 Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
@@ -492,12 +500,14 @@ void Graph::Export(cldnn::BinaryOutputBuffer &ob) {
     ob << need_onednn_engine;
 
     ob << m_program->inputLayouts;
+    ob << m_program->GetVariablesStatesInfo();
     ob << primitiveIDs;
     ob << outputDims;
 
-    auto m_network = m_networks.back();
-
-    m_network->save(ob);
+    ob << m_networks.size();
+    for (auto net : m_networks) {
+        net->save(ob);
+    }
 }
 
 std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfo() {

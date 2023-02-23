@@ -14,18 +14,9 @@ namespace tensorflow {
 namespace op {
 
 OutputVector translate_no_op(const NodeContext& node) {
-    if (node.get_input_size() == 0) {
-        return OutputVector{};
-    }
-
-    TENSORFLOW_OP_VALIDATION(node,
-                             node.get_input_size() == 1,
-                             "NoOp has " + to_string(node.get_input_size()) + " inputs, should have 1");
-
-    auto input = node.get_input(0);
-    set_out_name(node.get_name(), input);
-    set_out_name(node.get_name() + ":" + "0", input);
-    return {input};
+    // the operation does nothing in terms of data generation
+    default_op_checks(node, 0, {"NoOp", "SaveV2"});
+    return {};
 }
 }  // namespace op
 }  // namespace tensorflow

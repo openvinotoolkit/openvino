@@ -173,7 +173,7 @@ class TestParallelRunner:
                     input_path = argument.replace('"', '')
                     if os.path.isfile(input_path) and file_utils.is_archieve(input_path):
                         input_path = file_utils.unzip_archieve(input_path, self._working_dir)
-                    buf = file_utils.prepare_filelist(input_path, "*.xml")
+                    buf = file_utils.prepare_filelist(input_path, ["*.xml"])
                     buf += ","
                 argument = buf 
             else:
@@ -359,7 +359,7 @@ class TestParallelRunner:
         total_seconds = (t_end - t_start).total_seconds()
         sec = round(total_seconds % 60, 2)
         min = int(total_seconds / 60) % 60
-        h = int(total_seconds / 360) % 60
+        h = int(total_seconds / 3600) % 60
         logger.info(f"Run test parallel is finished successfully. Total time is {h}h:{min}m:{sec}s")
 
 
@@ -374,7 +374,7 @@ class TestParallelRunner:
                 return False
             else:
                 hash_map.update({hash_str: (dir, test_name)})
-            test_log_filename = os.path.join(logs_dir, dir, f'{hash_str}.txt')
+            test_log_filename = os.path.join(logs_dir, dir, f'{hash_str}.log')
             if os.path.isfile(test_log_filename):
                 # logger.warning(f"Log file {test_log_filename} is exist!")
                 return False

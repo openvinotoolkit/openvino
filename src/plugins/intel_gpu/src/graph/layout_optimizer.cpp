@@ -28,6 +28,7 @@
 #include "depth_to_space_inst.h"
 #include "region_yolo_inst.h"
 #include "prior_box_inst.h"
+#include "scatter_nd_update_inst.h"
 #include "to_string_utils.h"
 #include <vector>
 #include <memory>
@@ -1601,9 +1602,12 @@ format layout_optimizer::get_preferred_format(program_node& node) {
 
         // Let reorder_input pass to check input format instead of output_format in forward investigation, vice versa
         auto out_lay_rank = node.get_output_layout(false).get_rank();
-        auto in_lay_rank = node.get_dependencies().size() > 0 ? node.get_dependency(0).get_output_layout(false).get_rank() : out_lay_rank;
-        if (in_lay_rank != out_lay_rank)
-            node.set_preferred_input_fmt(0, get_preferred_format(node.get_dependency(0)));
+        auto dep_size = node.get_dependencies().size();
+        for (size_t i = 0; i < dep_size; i++) {
+            auto in_lay_rank = node.get_dependency(i).get_output_layout(false).get_rank();
+            if (in_lay_rank != out_lay_rank)
+                node.set_preferred_input_fmt(i, get_preferred_format(node.get_dependency(i)));
+        }
 
         // shape_infer_dep should be plain format because the memory is being read by ngraph shape infer as is
         if (node.is_shape_infer_dep()) {
@@ -1800,7 +1804,9 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
                 // In this case, it can be handled by changing only the shape of permute without the kernel execution.
                 if (node.get_output_layout().get_rank() == 4 && node.get_dependency(0).is_type<permute>()) {
                     auto& pnode = node.get_dependency(0).as<permute>();
-                    can_optimize_permute = pnode.get_users().size() == 1 && pnode.get_dependencies().size() == 1
+                    can_optimize_permute = pnode.get_users().size() == 1
+                        && pnode.get_output_layout().data_type == node.get_output_layout().data_type
+                        && !pnode.has_fused_primitives()
                         && !pnode.is_output() && pnode.get_dependency(0).get_output_layout().is_static()
                         && pnode.is_reverse_rotating_except_batch();
                 }
@@ -1835,7 +1841,8 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             if (node.get_output_layout().get_rank() == 4
                 && node.get_users().size() == 1 && node.get_users().front()->is_type<permute>()) {
                 auto& pnode = node.get_users().front()->as<permute>();
-                auto can_optimize_permute = pnode.get_dependencies().size() == 1
+                auto can_optimize_permute = pnode.get_output_layout().data_type == node.get_output_layout().data_type
+                    && !pnode.has_fused_primitives()
                     && !pnode.is_output() && pnode.get_dependency(0).get_output_layout().is_static()
                     && pnode.is_rotating_except_batch();
                 if (can_optimize_permute) {

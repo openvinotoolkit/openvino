@@ -49,7 +49,6 @@ struct primitive_impl {
     virtual void set_node_params(const program_node&) {}
     virtual std::string get_type() const = 0;
     virtual void set_arguments(primitive_inst& instance) = 0;
-    virtual void set_arguments(kernel_arguments_data_idx& args_idx) = 0;
     virtual kernel_arguments_data get_arguments(const primitive_inst& instance) const = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
     std::string get_kernel_name() const { return _kernel_name; }
@@ -185,7 +184,7 @@ public:
     bool is_dynamic() const { return _is_dynamic; }
     bool can_share_buffer() const { return _can_share_buffer; }
     bool is_constant() const { return _is_constant; }
-
+    bool is_output_event() const { return _is_output_event; }
 
     void allocate_internal_buffers();
     static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node,
@@ -198,7 +197,7 @@ public:
     void rebuild_deps(
         std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> const& primitives);
     void rebuild_exec_deps(
-        std::list<std::shared_ptr<primitive_inst>> const& primitives);
+        std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> const& primitives);
     std::string get_implementation_name() const;
 
     void add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, int64_t time);
@@ -211,6 +210,8 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::vector<cldnn::fused_primitive_desc_onednn>& get_fused_primitives_onednn() const { return _impl_params->fused_desc_onednn; }
 #endif // ENABLE_ONEDNN_FOR_GPU
+    template <class PType>
+    std::shared_ptr<const PType> get_typed_desc() const { return _impl_params->typed_desc<PType>(); }
 
     virtual void update_output_memory() {}
 
@@ -231,7 +232,7 @@ protected:
     // this is a set of dependencies in terms of memory, if execution of this primitive requires data from another one,
     // it should be added to this set
     std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> _deps;
-    std::vector<cldnn::primitive_id> _dep_ids;
+    std::vector<std::pair<cldnn::primitive_id, int32_t>> _dep_ids;
 
     // this is a set of dependencies in terms of execution
     // execution of all primitives from this set should be enough to guarantee that all memory deps (see _deps)
@@ -277,6 +278,7 @@ protected:
     bool _can_be_optimized = false;
     bool _can_share_buffer = true;
     bool _is_constant = false;
+    bool _is_output_event = false;
 
     size_t max_output_layout_size = 0;
     std::vector<size_t> max_intermediates_memory_sizes;
@@ -285,7 +287,6 @@ protected:
     memory::ptr allocate_internal_buffer(size_t idx);
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
         std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> const& mem_deps);
-    void convert_args(const kernel_arguments_data& args, kernel_arguments_data_idx& args_idx) const;
     int32_t get_index_in_deps(memory::cptr arg) const;
 
     // event function called by primitive_inst::execute after checking if primitive should rerun and before calling
@@ -379,16 +380,11 @@ private:
         return set_arguments_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
 
-    void set_arguments(kernel_arguments_data_idx& args_idx) override {
-        return set_arguments_impl(args_idx);
-    }
-
     kernel_arguments_data get_arguments(const primitive_inst& instance) const override {
         return get_arguments_impl(reinterpret_cast<const typed_primitive_inst<PType>&>(instance));
     }
 
     virtual void set_arguments_impl(typed_primitive_inst<PType>& /*instance*/) {}
-    virtual void set_arguments_impl(kernel_arguments_data_idx& /*args_idx*/) {}
     virtual kernel_arguments_data get_arguments_impl(const typed_primitive_inst<PType>& /*instance*/) const {
         kernel_arguments_data args;
         return args;

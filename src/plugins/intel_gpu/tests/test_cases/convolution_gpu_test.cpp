@@ -30,12 +30,11 @@ namespace {
 void add_primitives(engine& engine, topology& topology) {
     auto weights = engine.allocate_memory({ data_types::i8, format::bfyx, { 2, 1, 3, 2 } });
 
-    std::vector<char> weights_values = { 1, 2, 1,
-                                         2, 1, 2,
-
-                                         19, 17, -1,
+    std::vector<int8_t> weights_values = { 1,  2,  1,
+                                           2,  1,  2,
+                                          19, 17, -1,
                                          -10, 32, 23 };
-    set_values<char>(weights, weights_values);
+    set_values<int8_t>(weights, weights_values);
     auto biases = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 1, 1 } });
     set_values(biases, { 1.0f, -8.0f });
 
@@ -3996,7 +3995,7 @@ TEST(convolution_f32_fw_gpu, byte_activation) {
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::i8, format::bfyx, { 1, 1, 5, 4 } });
 
-    VVVF<char> output_vec = {
+    VVVF<int8_t> output_vec = {
         {
             { 11, 0, 15 },
             { 0,  0, 2 }
@@ -4009,10 +4008,10 @@ TEST(convolution_f32_fw_gpu, byte_activation) {
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
 
-    set_values<char>(input, {  1,  2, -3,  4, -5,
-                               2, -2,  3, -4,  6,
-                              -3,  3, -3,  5, -1,
-                              -1, -1, -1, -1, -1 });
+    set_values<int8_t>(input, {  1,  2, -3,  4, -5,
+                                 2, -2,  3, -4,  6,
+                                -3,  3, -3,  5, -1,
+                                -1, -1, -1, -1, -1 });
 
     topology topology(
         input_layout("input", input->get_layout()));
@@ -9423,24 +9422,7 @@ void test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1(
     config.set_property(ov::intel_gpu::optimize_data(true));
     ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_depthwise" };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_fsv", conv_impl } }));
-    cldnn::network::ptr network;
-
-    if (is_caching_test) {
-        membuf mem_buf;
-        {
-            cldnn::network _network(engine, topology, config);
-            std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-            _network.save(ob);
-        }
-        {
-            std::istream in_mem(&mem_buf);
-            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-        }
-    } else {
-        network = std::make_shared<cldnn::network>(engine, topology, config);
-    }
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input_mem);
 

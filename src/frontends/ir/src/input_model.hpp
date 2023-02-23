@@ -16,7 +16,6 @@ namespace frontend {
 namespace ir {
 
 class InputModel : public ov::frontend::InputModel {
-    friend class FrontEnd;
     class InputModelIRImpl;
     std::shared_ptr<InputModelIRImpl> _impl;
 

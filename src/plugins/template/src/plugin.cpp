@@ -11,8 +11,10 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "template/config.hpp"
+#include "template_itt.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
+#include "transformations/control_flow/unroll_if.hpp"
 #include "transformations/disable_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
 #include "transformations/template_pattern_transformation.hpp"
@@ -33,7 +35,7 @@ Plugin::Plugin() {
     _backend = ngraph::runtime::Backend::create();
 
     // create default stream executor with a given name
-    _waitExecutor = get_executor_manager()->getIdleCPUStreamsExecutor({wait_executor_name});
+    _waitExecutor = get_executor_manager()->get_idle_cpu_streams_executor({wait_executor_name});
 }
 // ! [plugin:ctor]
 
@@ -61,6 +63,7 @@ void transform_model(const std::shared_ptr<ov::Model>& model) {
     ov::pass::Manager passManager;
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ov::pass::CommonOptimizations>();
+    passManager.get_pass_config()->disable<ov::pass::UnrollIf>();
     // This transformation changes output name
     passManager.get_pass_config()->disable<ov::pass::ConvertReduceSumToPooling>();
     // Example: register plugin specific transformation
@@ -91,9 +94,9 @@ std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::compile_model(const 
         InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(fullConfig._streamsExecutorConfig);
     streamsExecutorConfig._name = stream_executor_name;
     auto compiled_model =
-        std::make_shared<CompiledModel>(model,
+        std::make_shared<CompiledModel>(model->clone(),
                                         shared_from_this(),
-                                        get_executor_manager()->getIdleCPUStreamsExecutor(streamsExecutorConfig),
+                                        get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig),
                                         fullConfig);
     return compiled_model;
 }
@@ -122,7 +125,7 @@ std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::import_model(std::is
     ov::Tensor weights;
     model.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
     if (0 != dataSize) {
-        weights = ov::Tensor(ov::element::from<char>(), ov::Shape{dataSize});
+        weights = ov::Tensor(ov::element::from<char>(), ov::Shape{static_cast<ov::Shape::size_type>(dataSize)});
         model.read(weights.data<char>(), dataSize);
     }
 
@@ -133,7 +136,7 @@ std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::import_model(std::is
     auto compiled_model =
         std::make_shared<CompiledModel>(ov_model,
                                         shared_from_this(),
-                                        get_executor_manager()->getIdleCPUStreamsExecutor(streamsExecutorConfig),
+                                        get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig),
                                         fullConfig);
     return compiled_model;
 }
@@ -148,7 +151,7 @@ std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::import_model(std::is
 // ! [plugin:query_network]
 ov::SupportedOpsMap TemplatePlugin::Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                                         const ov::AnyMap& properties) const {
-    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::query_model");
+    OV_ITT_SCOPED_TASK(TemplatePlugin::itt::domains::TemplatePlugin, "Plugin::query_model");
 
     Configuration fullConfig{properties, _cfg, false};
 

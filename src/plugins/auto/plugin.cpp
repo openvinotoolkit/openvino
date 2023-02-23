@@ -246,6 +246,8 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetConfig(const std::stri
                 return ov::util::from_string(val, ov::log::level);
             } else if (name == ov::device::priorities) {
                 return ov::util::from_string(val, ov::device::priorities);
+            } else if (name == ov::intel_auto::enable_startup_fallback) {
+                return val == PluginConfigParams::YES ? true : false;
             } else {
                 return val;
             }
@@ -418,6 +420,13 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         }
         // reset the strDevices to support devices
         strDevices = "";
+        // calling GetValidDevices() to get a prioritized list of devices
+        auto devicesWithPriority = GetValidDevice(supportDevices, networkPrecision);
+        for (auto iter = devicesWithPriority.begin(); iter != devicesWithPriority.end(); iter++) {
+            strDevices += iter->deviceName;
+            strDevices += ",";
+        }
+        strDevices.pop_back();
         for (auto iter = supportDevices.begin(); iter != supportDevices.end(); iter++) {
             auto& configs = iter->config;
             for (auto& config : configs) {
@@ -432,8 +441,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
             if (config.find(CONFIG_KEY(AUTO_BATCH_TIMEOUT)) != config.end())
                 insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), iter->deviceName, configs);
             insertPropToConfig(CONFIG_KEY(CACHE_DIR), iter->deviceName, configs);
-            strDevices += iter->deviceName;
-            strDevices += ((iter + 1) == supportDevices.end()) ? "" : ",";
             LOG_INFO_TAG("device:%s, priority:%ld", iter->deviceName.c_str(), iter->devicePriority);
         }
         autoSContext->_modelPath = clonedModelPath;
@@ -448,6 +455,9 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         auto tmpiter = fullConfig.find(ov::intel_auto::device_bind_buffer.name());
         if (tmpiter != fullConfig.end() && tmpiter->second == PluginConfigParams::YES)
             autoSContext->_bindBuffer = true;
+        auto tmpiter_enableStartupFallback = fullConfig.find(ov::intel_auto::enable_startup_fallback.name());
+        if (tmpiter_enableStartupFallback != fullConfig.end() && tmpiter_enableStartupFallback->second == PluginConfigParams::NO)
+            autoSContext->_startupfallback = false;
         return std::make_shared<AutoExecutableNetwork>(autoSContext, std::make_shared<AutoSchedule>());
     }
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl:MultiMode");
@@ -528,7 +538,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                              deviceName.c_str(),
                              sThreadNums.c_str());
             }
-        } catch (...) {
+        } catch (const IE::Exception&) {
             LOG_DEBUG_TAG("deviceName:%s cannot get streamNums and threadNums from exec_net", deviceName.c_str());
         }
         std::unique_lock<std::mutex> lock{load_mutex};
@@ -587,7 +597,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                 num_plugins_supporting_perf_counters +=
                         n.second->GetConfig(PluginConfigParams::KEY_PERF_COUNT).as<std::string>() ==
                         PluginConfigParams::YES;
-            } catch (...) {
+            } catch (const IE::Exception&) {
             }
     }
     // MULTI can enable the perf counters only if all  devices support/enable that
@@ -813,9 +823,14 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
     auto deviceListConfig = config.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
     if (deviceListConfig->second.empty()) {
         for (auto&& device : deviceList) {
-            allDevices += device;
-            allDevices += ((device == deviceList[deviceList.size()-1]) ? "" : ",");
+            // filter out the supported devices
+            if (!_pluginConfig.isSupportedDevice(device))
+                continue;
+            allDevices += device + ",";
         }
+        // remove the last ',' if exist
+        if (allDevices.back() == ',')
+            allDevices.pop_back();
     } else {
         auto priorities = deviceListConfig->second;
         // parsing the string and splitting the comma-separated tokens
