@@ -8,8 +8,8 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
-#include <numeric>
 #include <map>
+#include <numeric>
 #include <vector>
 
 #include "ie_common.h"
