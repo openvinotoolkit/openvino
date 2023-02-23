@@ -20,9 +20,6 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4334)
     # plugin: inherits 'XXX' via dominance
     ie_add_compiler_flags(/wd4250)
-    # '<': signed/unsigned mismatch
-    ie_add_compiler_flags(/wd4018)
-    ie_add_compiler_flags(/wd4309)
 endif()
 
 if (WIN32)
