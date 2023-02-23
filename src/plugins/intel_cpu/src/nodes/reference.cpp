@@ -4,6 +4,7 @@
 
 #include "reference.h"
 #include <ie_ngraph_utils.hpp>
+#include <shape_util.hpp>
 #include <dnnl_extension_utils.h>
 #include "openvino/runtime/tensor.hpp"
 #include "common/blocked_desc_creator.h"
@@ -80,7 +81,7 @@ void Reference::executeDynamicImpl(dnnl::stream strm) {
             if (mem_desc->isDefined()) {
                 outputs.emplace_back(ngraphOp->get_output_element_type(i), mem_desc->getShape().getStaticDims());
             } else {
-                outputs.emplace_back(ngraphOp->get_output_element_type(i), ov::Shape(mem_desc->getShape().getRank()));
+                outputs.emplace_back(ngraphOp->get_output_element_type(i), ov::util::make_dynamic_shape());
             }
         }
     } else {

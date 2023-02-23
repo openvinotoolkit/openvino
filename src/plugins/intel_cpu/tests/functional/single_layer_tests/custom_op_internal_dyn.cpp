@@ -3,6 +3,7 @@
 //
 
 #include <openvino/op/op.hpp>
+#include <shape_util.hpp>
 #include <shared_test_classes/base/ov_subgraph.hpp>
 #include <ngraph_functions/builders.hpp>
 #include <common_test_utils/ov_tensor_utils.hpp>
@@ -52,9 +53,9 @@ public:
     }
 
     bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const override {
-        auto in = inputs[0];
-        auto out0 = outputs[0];
-        auto out1 = outputs[1];
+        const auto& in = inputs[0];
+        auto& out0 = outputs[0];
+        auto& out1 = outputs[1];
         std::vector<float> out0_data(100, 1.5);
         auto out0_shape = ov::Shape({100});
         out0.set_shape(out0_shape);
@@ -65,26 +66,11 @@ public:
         return true;
     }
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    // old fashion evaluate method, just to make the whole test subsystem work
-    bool evaluate(const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) const override {
-        ov::TensorVector tmp_inputs;
-        for (auto& input : inputs) {
-            tmp_inputs.emplace_back(input->get_element_type(), input->get_shape(), input->get_data_ptr());
-        }
-        ov::TensorVector tmp_outputs;
-        for (auto& output : outputs) {
-            tmp_outputs.emplace_back(output->get_element_type(), ov::Shape(output->get_partial_shape().rank().get_length()));
-        }
-        evaluate(tmp_outputs, tmp_inputs);
-        OPENVINO_ASSERT(tmp_outputs.size() == outputs.size());
-        for (size_t i = 0; i < tmp_outputs.size(); ++i) {
-            outputs[i]->set_shape(tmp_outputs[i].get_shape());
-            outputs[i]->write(tmp_outputs[i].data(), tmp_outputs[i].get_byte_size());
-        }
-        return true;
+    bool evaluate(ov::TensorVector& output_values,
+                  const ov::TensorVector& input_values,
+                  const ov::EvaluationContext& evaluationContext) const override {
+        return evaluate(output_values, input_values);
     }
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
     bool has_evaluate() const override {
         return true;
