@@ -238,10 +238,7 @@ size_t op::v1::TopK::validate_and_get_k(const shared_ptr<op::v0::Constant>& k_co
 shared_ptr<Node> op::v1::TopK::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_TopK_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    auto new_v1_topk =
-        make_shared<v1::TopK>(new_args.at(0), new_args.at(1), m_axis, m_mode, m_sort, m_index_element_type);
-
-    return std::move(new_v1_topk);
+    return make_shared<v1::TopK>(new_args.at(0), new_args.at(1), m_axis, m_mode, m_sort, m_index_element_type);
 }
 
 size_t op::v1::TopK::get_k() const {
@@ -433,10 +430,7 @@ void op::v3::TopK::k_type_check(const element::Type& k_element_type) const {
 shared_ptr<Node> op::v3::TopK::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v3_TopK_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    auto new_v3_topk =
-        make_shared<v3::TopK>(new_args.at(0), new_args.at(1), m_axis, m_mode, m_sort, m_index_element_type);
-
-    return std::move(new_v3_topk);
+    return make_shared<v3::TopK>(new_args.at(0), new_args.at(1), m_axis, m_mode, m_sort, m_index_element_type);
 }
 
 bool op::v3::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
@@ -521,4 +515,16 @@ bool ov::op::v11::TopK::visit_attributes(AttributeVisitor& visitor) {
     ov::op::v3::TopK::visit_attributes(visitor);
     visitor.on_attribute("stable", m_stable);
     return true;
+}
+
+std::shared_ptr<Node> ov::op::v11::TopK::clone_with_new_inputs(const OutputVector& new_args) const {
+    OV_OP_SCOPE(v11_TopK_clone_with_new_inputs);
+    check_new_args_count(this, new_args);
+    return make_shared<ov::op::v11::TopK>(new_args.at(0),
+                                          new_args.at(1),
+                                          m_axis,
+                                          m_mode,
+                                          m_sort,
+                                          m_index_element_type,
+                                          m_stable);
 }
