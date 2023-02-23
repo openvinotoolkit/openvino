@@ -589,6 +589,26 @@ std::vector<float> get_output_values_to_float(network& net, const primitive_id& 
         ret.push_back(mem[i]);
     return ret;
 }
+
+inline std::vector<float> get_output_values_to_float(network& net, const primitive_id& output_id, size_t max_cnt = std::numeric_limits<size_t>::max()) {
+    switch(net.get_output_layout(output_id).data_type){
+        case data_types::f16:
+            return get_output_values_to_float<FLOAT16>(net, output_id, max_cnt);
+        case data_types::f32:
+            return get_output_values_to_float<float>(net, output_id, max_cnt);
+        case data_types::i8:
+            return get_output_values_to_float<int8_t>(net, output_id, max_cnt);
+        case data_types::u8:
+            return get_output_values_to_float<uint8_t>(net, output_id, max_cnt);
+        case data_types::i32:
+            return get_output_values_to_float<int32_t>(net, output_id, max_cnt);
+        case data_types::i64:
+            return get_output_values_to_float<int64_t>(net, output_id, max_cnt);
+        default:
+            IE_THROW() << "Unknown output data_type";
+    }
+}
+
 double default_tolerance(data_types dt);
 // inline void print_bin_blob(cldnn::memory& mem, std::string name)
 // {
