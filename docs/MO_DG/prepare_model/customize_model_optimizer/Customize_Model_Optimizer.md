@@ -71,7 +71,7 @@ A model conversion pipeline can be represented with the following diagram:
 Each conversion step is reviewed in details below.
 
 Model Loading
-
+#############
 
 Model Optimizer gets a trained model file as an input. The model loader component of Model Optimizer reads a model file
 using Python bindings provided with the framework and builds an in-memory representation of a computation graph. There
@@ -107,7 +107,7 @@ The next step is to parse framework-dependent operation representation saved in 
 attributes with the operation specific attributes. There are three options to do this.
 
 1.  The extractor extension approach (recommended way to extract attributes for an operation). Explained in details in the :doc:`Operation Extractor <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions_Model_Optimizer_Extractor>` article.
-2.  The legacy approach with a built-in extractor. The `mo/front/<FRAMEWORK>/extractor.py` file (for example, the one for Caffe) defines a dictionary with extractors for specific operation types. A key in the dictionary is a type of an operation to trigger the extracting function for and the value is the function. The function has one parameter – a node to extract attributes from. This is a legacy and non-extensible approach so it should be avoided. This mechanism will be removed in future versions of Model Optimizer.
+2.  The legacy approach with a built-in extractor. The ``mo/front/<FRAMEWORK>/extractor.py`` file (for example, the one for Caffe) defines a dictionary with extractors for specific operation types. A key in the dictionary is a type of an operation to trigger the extracting function for and the value is the function. The function has one parameter – a node to extract attributes from. This is a legacy and non-extensible approach so it should be avoided. This mechanism will be removed in future versions of Model Optimizer.
 
 The extractors execution order is the following:
 
@@ -144,7 +144,7 @@ OpenVINO :doc:`TopK <openvino_docs_ops_sort_TopK_3>` operation semantic, which r
 It is important to mention that sometimes it seems like transformation cannot be implemented during the front phase
 because the actual values of inputs or shapes are needed. In fact, manipulations of shapes or values can be implemented
 using operations that are added to the graph. Consider the
-`extensions/front/onnx/flattenONNX_to_reshape.py` transformation, which replaces an ONNX
+``extensions/front/onnx/flattenONNX_to_reshape.py`` transformation, which replaces an ONNX
 `Flatten <https://github.com/onnx/onnx/blob/master/docs/Operators.md#Flatten>`__ operation with a sub-graph of operations performing
 the following (when ``axis`` is not equal to 0 and 1):
 
@@ -229,7 +229,7 @@ available in the ``mo/ops/reshape.py`` file):
 
 
 Methods ``in_port()`` and ``output_port()`` of the ``Node`` class are used to get and set data node attributes. For more information on
-how to use them, refer to the [Graph Traversal and Modification Using Ports and Connections](Model_Optimizer_Ports_Connections.md) article.
+how to use them, refer to the :doc:`Graph Traversal and Modification Using Ports and Connections <Model_Optimizer_Ports_Connections.md>` article.
 
 .. note::
    A shape inference function should perform output shape calculation in the original model layout. For example, OpenVINO supports Convolution operations in NCHW layout only but TensorFlow supports NHWC layout as well. Model Optimizer shape inference function calculates output shapes for NHWC Convolutions in NHWC layout and only during the layout change phase the shape is converted to NCHW.
@@ -262,6 +262,7 @@ For more details on how it works, refer to the source code of the transformation
 3. Model Optimizer inserts :doc:`Transpose <openvino_docs_ops_movement_Transpose_1>` operations for some operations with specific conditions, identified during a model conversion, to produce correct inference results.
 
 The main transformations responsible for a layout change are: 
+
 * ``extensions/middle/ApplyPermutations.py``
 * ``extensions/middle/InsertLayoutPropagationTransposes.py``
 * ``extensions/middle/MarkSubgraphsWithCorrectLayout.py``

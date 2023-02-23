@@ -14,7 +14,7 @@ for an operation used in the Model Optimizer. The instance of the ``Op`` class s
 It is important to mention that there is no connection between the instance of the ``Op`` class and the ``Node`` object
 created from it. The ``Op`` class is just a container for attributes describing the operation. Model Optimizer uses the ``Op``
 class during a model conversion to create a node of the graph with attributes copied from the ``Op`` class instance. Graph
-manipulations are performed with graph ``Node``s and their attributes and does not involve ``Op``s.
+manipulations are performed with graph ``Nodes`` and their attributes and does not involve ``Ops``.
 
 There are a number of common attributes used in the operations. Below is the list of these attributes with description.
 
@@ -24,8 +24,8 @@ There are a number of common attributes used in the operations. Below is the lis
 * ``version`` — **(Mandatory)** —  the operation set (opset) name the operation belongs to. If not specified,  Model Optimizer sets it equal to ``experimental``. For more information about operation sets, refer to  :doc:`OpenVINO Model Representation <openvino_docs_OV_UG_Model_Representation>` section. 
 * ``op`` — Model Optimizer type of the operation. In many cases, the value of ``type`` is equal to the value of ``op``. However, when Model Optimizer cannot instantiate the opset operation during model loading, it creates an instance of an internal operation. Thus, the attribute ``op`` is used as a type of this internal operation. Later in the pipeline, the node created from an internal operation will be replaced during front, middle or back phase with node(s) created from the opset.
 * ``infer`` — the attribute defines a function calculating output tensor(s) shape and optional value(s). The attribute may be set to ``None`` for the internal Model Optimizer operations used during the front phase only. For more information  about the shape inference function, refer to the :ref:`Partial Inference <mo_partial_inference>`.
-* ``type_infer`` — the attribute defines a function calculating output tensor(s) data type. If the attribute is not defined, the default function is used. The function checks if the ``data_type`` node attribute is set and then propagates this type to the output tensor from the "port 0". Otherwise, it propagates the data type of the tensor coming into the input "port 0" to the output tensor from the "port 0".
-* ``in_ports_count`` — default number of input ports to be created for the operation. Additional ports can be created or redundant ports can be removed using dedicated `Node` class API methods.
+* ``type_infer`` — the attribute defines a function calculating output tensor(s) data type. If the attribute is not defined, the default function is used. The function checks if the ``data_type`` node attribute is set and then propagates this type to the output tensor from the **port 0**. Otherwise, it propagates the data type of the tensor coming into the input **port 0** to the output tensor from the **port 0**.
+* ``in_ports_count`` — default number of input ports to be created for the operation. Additional ports can be created or redundant ports can be removed using dedicated ``Node`` class API methods.
 * ``out_ports_count`` — default number of output ports to be created for the operation. Additional ports can be created or redundant ports can be removed using dedicated ``Node`` class API methods.
 
 Below is an example of the Model Optimizer class for the :doc:`SoftMax <openvino_docs_ops_activation_SoftMax_1>` operation from
