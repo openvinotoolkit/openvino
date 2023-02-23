@@ -28,7 +28,7 @@ class INTExecutable : public Executable {
 public:
     INTExecutable(const std::shared_ptr<ov::Model>& model);
 
-    bool call(const std::vector<ov::Tensor>& outputs, const std::vector<ov::Tensor>& inputs) override;
+    bool call(std::vector<ov::Tensor>& outputs, const std::vector<ov::Tensor>& inputs) override;
 
     ov::Tensor create_input_tensor(size_t input_index) override;
 

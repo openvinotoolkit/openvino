@@ -12,7 +12,7 @@ ov::runtime::Executable::Executable() {}
 
 ov::runtime::Executable::~Executable() {}
 
-bool ov::runtime::Executable::call_with_validate(const std::vector<ov::Tensor>& outputs,
+bool ov::runtime::Executable::call_with_validate(std::vector<ov::Tensor>& outputs,
                                                  const std::vector<ov::Tensor>& inputs) {
     validate(outputs, inputs);
     return call(outputs, inputs);

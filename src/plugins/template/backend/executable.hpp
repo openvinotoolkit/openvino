@@ -22,13 +22,13 @@ public:
     /// \param outputs vector of runtime::Tensor used as outputs
     /// \param inputs vector of runtime::Tensor used as inputs
     /// \returns true if iteration is successful, false otherwise
-    virtual bool call(const std::vector<ov::Tensor>& outputs, const std::vector<ov::Tensor>& inputs) = 0;
+    virtual bool call(std::vector<ov::Tensor>& outputs, const std::vector<ov::Tensor>& inputs) = 0;
 
     /// \brief Executes a single iteration of a Function.
     /// \param outputs vector of runtime::Tensor used as outputs
     /// \param inputs vector of runtime::Tensor used as inputs
     /// \returns true if iteration is successful, false otherwise
-    bool call_with_validate(const std::vector<ov::Tensor>& outputs, const std::vector<ov::Tensor>& inputs);
+    bool call_with_validate(std::vector<ov::Tensor>& outputs, const std::vector<ov::Tensor>& inputs);
 
     /// \brief Validates a Function.
     /// \param outputs vector of runtime::Tensor used as outputs
@@ -62,7 +62,6 @@ public:
     /// you would specify pipeline_depth=2
     /// \returns A vector of Tensors, one for each stage of the pipeline
     virtual std::vector<ov::Tensor> create_input_tensor(size_t input_index, size_t pipeline_depth);
-
 
     /// \brief Create a vector of output Tensors
     /// \param output_index The index position in the output Result vector. This would be the same

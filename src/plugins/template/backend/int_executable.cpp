@@ -5,6 +5,7 @@
 #include "int_executable.hpp"
 
 #include <cstring>
+#include <limits>
 #include <openvino/op/util/variable_context.hpp>
 
 #include "evaluates_map.hpp"
@@ -102,27 +103,15 @@ ov::runtime::interpreter::INTExecutable::INTExecutable(const std::shared_ptr<ov:
     set_parameters_and_results(*m_model);
 }
 
-bool ov::runtime::interpreter::INTExecutable::call(const std::vector<ov::Tensor>& outputs,
+bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outputs,
                                                    const std::vector<ov::Tensor>& inputs) {
-    // convert inputs to HostTensor
-    std::vector<ov::Tensor> func_inputs;
-    for (const auto& tensor : inputs) {
-        func_inputs.push_back(tensor);
-    }
-
-    // convert outputs to HostTensor
-    std::vector<ov::Tensor> func_outputs;
-    for (const auto& tensor : outputs) {
-        func_outputs.push_back(tensor);
-    }
-
     // map function params -> HostTensor
     std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::Tensor> tensor_map;
     size_t input_count = 0;
     for (const auto& param : get_parameters()) {
         for (size_t i = 0; i < param->get_output_size(); ++i) {
             auto tensor = param->output(i).get_tensor_ptr();
-            tensor_map.insert({tensor, func_inputs[input_count++]});
+            tensor_map.insert({tensor, inputs[input_count++]});
         }
     }
 
@@ -152,11 +141,11 @@ bool ov::runtime::interpreter::INTExecutable::call(const std::vector<ov::Tensor>
         }
 
         TemporaryOverrideOutputs overrider(op, op_inputs);
-        OutputVector outputs;
+        OutputVector output_ports;
         for (size_t i = 0; i < op->inputs().size(); ++i) {
-            outputs.push_back(op->get_input_source_output(i));
+            output_ports.push_back(op->get_input_source_output(i));
         }
-        auto cloned_node = op->clone_with_new_inputs(outputs);
+        auto cloned_node = op->clone_with_new_inputs(output_ports);
 
         // get op outputs from map or create
         std::vector<ov::Tensor> op_outputs;
@@ -164,14 +153,12 @@ bool ov::runtime::interpreter::INTExecutable::call(const std::vector<ov::Tensor>
             auto tensor = op->output(i).get_tensor_ptr();
             ov::Tensor host_tensor;
             auto it = tensor_map.find(tensor);
-            if (op::util::is_output(op)) {
-                host_tensor = func_outputs[results_map[tensor]];
-            } else if (it == tensor_map.end()) {
-                // Use cloned_node to create HostTensor with static dimensions
-                auto output = cloned_node->output(i);
+            auto output = cloned_node->output(i);
+            if (op::util::is_output(op) || it == tensor_map.end()) {
                 host_tensor = ov::Tensor(output.get_element_type(),
-                                         output.get_partial_shape().is_dynamic() ? ov::Shape{0} : output.get_shape());
-                tensor_map.insert({tensor, host_tensor});
+                                         output.get_partial_shape().is_dynamic()
+                                             ? ov::Shape{0, std::numeric_limits<size_t>::max()}
+                                             : output.get_shape());
             } else {
                 host_tensor = it->second;
             }
@@ -192,6 +179,14 @@ bool ov::runtime::interpreter::INTExecutable::call(const std::vector<ov::Tensor>
         // Call evaluate for cloned_node with static shapes
         if (!cloned_node->evaluate(op_outputs, op_inputs, eval_context)) {
             evaluate_node(cloned_node, op_outputs, op_inputs);
+        }
+        // Update tensors in tensor map
+        for (size_t i = 0; i < op->get_output_size(); ++i) {
+            auto tensor = op->output(i).get_tensor_ptr();
+            tensor_map.insert({tensor, op_outputs[i]});
+            if (op::util::is_output(op)) {
+                outputs[results_map[tensor]] = op_outputs[i];
+            }
         }
     }
 
