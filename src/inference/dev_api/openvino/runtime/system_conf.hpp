@@ -4,145 +4,135 @@
 
 /**
  * @brief Abstraction over platform specific implementations
- * @file ie_system_conf.h
+ * @file openvino/runtime/system_conf.hpp
  */
 
 #pragma once
 
-#include <exception>
 #include <vector>
 
-#include "openvino/runtime/system_conf.hpp"
+#include "openvino/runtime/common.hpp"
 
-namespace InferenceEngine {
+namespace ov {
 
 /**
  * @brief      Checks whether OpenMP environment variables are defined
- * @ingroup    ie_dev_api_system_conf
+ * @ingroup    ov_dev_api_system_conf
  *
- * @param[in]  includeOMPNumThreads  Indicates if the omp number threads is included
+ * @param[in]  include_omp_num_threads  Indicates if the omp number threads is included
  * @return     `True` if any OpenMP environment variable is defined, `false` otherwise
  */
-inline bool checkOpenMpEnvVars(bool includeOMPNumThreads = true) {
-    return ov::check_open_mp_env_vars(includeOMPNumThreads);
-}
+OPENVINO_RUNTIME_API bool check_open_mp_env_vars(bool include_omp_num_threads = true);
 
 /**
  * @brief      Returns available CPU NUMA nodes (on Linux, and Windows [only with TBB], single node is assumed on all
  * other OSes)
- * @ingroup    ie_dev_api_system_conf
+ * @ingroup    ov_dev_api_system_conf
  * @return     NUMA nodes
  */
-inline std::vector<int> getAvailableNUMANodes() {
-    return ov::get_available_numa_nodes();
-}
+OPENVINO_RUNTIME_API std::vector<int> get_available_numa_nodes();
 
 /**
  * @brief      Returns available CPU cores types (on Linux, and Windows) and ONLY with TBB, single core type is assumed
  * otherwise
- * @ingroup    ie_dev_api_system_conf
+ * @ingroup    ov_dev_api_system_conf
  * @return     Vector of core types
  */
-inline std::vector<int> getAvailableCoresTypes() {
-    return ov::get_available_cores_types();
-}
+OPENVINO_RUNTIME_API std::vector<int> get_available_cores_types();
 
 /**
  * @brief      Returns number of CPU physical cores on Linux/Windows (which is considered to be more performance
  * friendly for servers) (on other OSes it simply relies on the original parallel API of choice, which usually uses the
  * logical cores). call function with 'false' to get #phys cores of all types call function with 'true' to get #phys
  * 'Big' cores number of 'Little' = 'all' - 'Big'
- * @ingroup    ie_dev_api_system_conf
- * @param[in]  bigCoresOnly Additionally limits the number of reported cores to the 'Big' cores only.
+ * @ingroup    ov_dev_api_system_conf
+ * @param[in]  big_cores_only Additionally limits the number of reported cores to the 'Big' cores only.
  * @return     Number of physical CPU cores.
  */
-inline int getNumberOfCPUCores(bool bigCoresOnly = false) {
-    return ov::get_number_of_cpu_cores(bigCoresOnly);
-}
+OPENVINO_RUNTIME_API int get_number_of_cpu_cores(bool big_cores_only = false);
 
 /**
  * @brief      Returns number of CPU logical cores on Linux/Windows (on other OSes it simply relies on the original
  * parallel API of choice, which uses the 'all' logical cores). call function with 'false' to get #logical cores of
  * all types call function with 'true' to get #logical 'Big' cores number of 'Little' = 'all' - 'Big'
- * @ingroup    ie_dev_api_system_conf
- * @param[in]  bigCoresOnly Additionally limits the number of reported cores to the 'Big' cores only.
+ * @ingroup    ov_dev_api_system_conf
+ * @param[in]  big_cores_only Additionally limits the number of reported cores to the 'Big' cores only.
  * @return     Number of logical CPU cores.
  */
-inline int getNumberOfLogicalCPUCores(bool bigCoresOnly = false) {
-    return ov::get_number_of_logical_cpu_cores(bigCoresOnly);
-}
+OPENVINO_RUNTIME_API int get_number_of_logical_cpu_cores(bool big_cores_only = false);
 
 /**
  * @brief      Checks whether CPU supports SSE 4.2 capability
- * @ingroup    ie_dev_api_system_conf
+ * @ingroup    ov_dev_api_system_conf
  * @return     `True` is SSE 4.2 instructions are available, `false` otherwise
  */
-using ov::with_cpu_x86_sse42;
+OPENVINO_RUNTIME_API bool with_cpu_x86_sse42();
 
 /**
  * @brief      Checks whether CPU supports AVX capability
- * @ingroup    ie_dev_api_system_conf
+ * @ingroup    ov_dev_api_system_conf
  * @return     `True` is AVX instructions are available, `false` otherwise
  */
-using ov::with_cpu_x86_avx;
+OPENVINO_RUNTIME_API bool with_cpu_x86_avx();
 
 /**
  * @brief      Checks whether CPU supports AVX2 capability
- * @ingroup    ie_dev_api_system_conf
+ * @ingroup    ov_dev_api_system_conf
  * @return     `True` is AVX2 instructions are available, `false` otherwise
  */
-using ov::with_cpu_x86_avx2;
+OPENVINO_RUNTIME_API bool with_cpu_x86_avx2();
 
 /**
  * @brief      Checks whether CPU supports AVX 512 capability
- * @ingroup    ie_dev_api_system_conf
+ * @ingroup    ov_dev_api_system_conf
  * @return     `True` is AVX512F (foundation) instructions are available, `false` otherwise
  */
-using ov::with_cpu_x86_avx512f;
+OPENVINO_RUNTIME_API bool with_cpu_x86_avx512f();
 
 /**
  * @brief      Checks whether CPU supports AVX 512 capability
- * @ingroup    ie_dev_api_system_conf
+ * @ingroup    ov_dev_api_system_conf
  * @return     `True` is AVX512F, AVX512BW, AVX512DQ instructions are available, `false` otherwise
  */
-using ov::with_cpu_x86_avx512_core;
+OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core();
 
 /**
  * @brief      Checks whether CPU supports AVX 512 VNNI capability
- * @ingroup    ie_dev_api_system_conf
+ * @ingroup    ov_dev_api_system_conf
  * @return     `True` is AVX512F, AVX512BW, AVX512DQ, AVX512_VNNI instructions are available, `false` otherwise
  */
-using ov::with_cpu_x86_avx512_core_vnni;
+OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_vnni();
 
 /**
  * @brief      Checks whether CPU supports BFloat16 capability
- * @ingroup    ie_dev_api_system_conf
+ * @ingroup    ov_dev_api_system_conf
  * @return     `True` is tAVX512_BF16 instructions are available, `false` otherwise
  */
-using ov::with_cpu_x86_bfloat16;
+OPENVINO_RUNTIME_API bool with_cpu_x86_bfloat16();
 
 /**
  * @brief      Checks whether CPU supports AMX int8 capability
- * @ingroup    ie_dev_api_system_conf
+ * @ingroup    ov_dev_api_system_conf
  * @return     `True` is tAMX_INT8 instructions are available, `false` otherwise
  */
-using ov::with_cpu_x86_avx512_core_amx_int8;
+OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx_int8();
 
 /**
  * @brief      Checks whether CPU supports AMX bf16 capability
- * @ingroup    ie_dev_api_system_conf
+ * @ingroup    ov_dev_api_system_conf
  * @return     `True` is tAMX_BF16 instructions are available, `false` otherwise
  */
-using ov::with_cpu_x86_avx512_core_amx_bf16;
+OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx_bf16();
 
 /**
  * @brief      Checks whether CPU supports AMX capability
- * @ingroup    ie_dev_api_system_conf
+ * @ingroup    ov_dev_api_system_conf
  * @return     `True` is tAMX_INT8 or tAMX_BF16 instructions are available, `false` otherwise
  */
-using ov::with_cpu_x86_avx512_core_amx;
+OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx();
 
 /**
+ * @enum       column_of_processor_type_table
  * @brief      This enum contains defination of each columns in processor type table which bases on cpu core types. Will
  * extend to support other CPU core type like ARM.
  *
@@ -159,9 +149,16 @@ using ov::with_cpu_x86_avx512_core_amx;
  *  ALL_PROC | MAIN_CORE_PROC | EFFICIENT_CORE_PROC | HYPER_THREADING_PROC
  *     32            8                 16                       8           // Total number of one socket
  */
-using ov::column_of_processor_type_table;
+typedef enum {
+    ALL_PROC = 0,              //!< All processors, regardless of backend cpu
+    MAIN_CORE_PROC = 1,        //!< Processor based on physical core of Intel Performance-cores
+    EFFICIENT_CORE_PROC = 2,   //!< Processor based on Intel Efficient-cores
+    HYPER_THREADING_PROC = 3,  //!< Processor based on logical core of Intel Performance-cores
+    PROC_TYPE_TABLE_SIZE = 4   //!< Size of processor type table
+} column_of_processor_type_table;
 
 /**
+ * @enum       column_of_cpu_mapping_table
  * @brief      This enum contains defination of each columns in CPU mapping table which use processor id as index.
  *
  * GROUP_ID is generated according to the following rules.
@@ -183,6 +180,14 @@ using ov::column_of_processor_type_table;
  *       6             0          4          2          2        0
  *       7             0          5          2          2        0
  */
-using ov::column_of_cpu_mapping_table;
+typedef enum {
+    CPU_MAP_PROCESSOR_ID = 0,  //!< column for processor id of the processor
+    CPU_MAP_SOCKET_ID = 1,     //!< column for socket id of the processor
+    CPU_MAP_CORE_ID = 2,       //!< column for hardware core id of the processor
+    CPU_MAP_CORE_TYPE = 3,     //!< column for CPU core type corresponding to the processor
+    CPU_MAP_GROUP_ID = 4,      //!< column for group id to the processor. Processors in one group have dependency.
+    CPU_MAP_USED_FLAG = 5,     //!< column for resource management of the processor
+    CPU_MAP_TABLE_SIZE = 6     //!< Size of CPU mapping table
+} column_of_cpu_mapping_table;
 
-}  // namespace InferenceEngine
+}  // namespace ov
