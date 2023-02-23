@@ -6,14 +6,14 @@ Model Optimizer provides various base classes to implement :ref:`Front Phase Tra
 :ref:`Middle Phase Transformations <mo_middle_phase_transformations>`, and :ref:`Back Phase Transformations <mo_back_phase_transformations>`.
 All classes have the following common class attributes and methods:
 
-1. The `enabled` attribute specifies whether the transformation is enabled or not. The value can be changed during runtime to enable or disable execution of the transformation during a model conversion. Default value is `True`.
-2. The `id` attribute specifies a unique transformation string identifier. This transformation identifier can be used to enable (disable) the transformation by setting environment variable `MO_ENABLED_TRANSFORMS` (`MO_DISABLED_TRANSFORMS`) with a comma separated list of `id`s. The environment variables override the value of the `enabled` attribute of the transformation. Instead of using `id` attribute value you can add fully defined class name to `MO_ENABLED_TRANSFORMS` (`MO_DISABLED_TRANSFORMS`) variable, `extensions.back.NonmalizeToNormalizeL2.NormalizeToNormalizeL2` for example. It is an optional attribute.
-3. The `run_not_recursively` attribute specifies whether the transformation should be executed in the sub-graphs, for example, body of the :doc:`TensorIterator <openvino_docs_ops_infrastructure_TensorIterator_1>` and the :doc:`Loop <openvino_docs_ops_infrastructure_Loop_5>`. Default value is `True`.
-4. The `force_clean_up` attribute specifies whether the graph clean up should be executed after the transformation. The graph cleanup removes nodes of the graph not reachable from the model inputs. Default value is `False`.
-5. The `force_shape_inference` attribute specifies whether the nodes marked with `need_shape_inference` attribute equal to `True` should be re-inferred after the transformation. Model Optimizer sets this attribute automatically for nodes, input(s) of which were changed during the transformation, or you can set this attribute manually in the transformation for the specific nodes. Default value is `False`.
-6. Attribute `graph_condition` specifies a list of functions with one parameter -- `Graph` object. The transformation is executed if and only if all functions return `True`. If the attribute is not set, no check is performed.
-7. Method `run_before()` returns a list of transformation classes which this transformation should be executed before.
-8. Method `run_after()` returns a list of transformation classes which this transformation should be executed after.
+1. The ``enabled`` attribute specifies whether the transformation is enabled or not. The value can be changed during runtime to enable or disable execution of the transformation during a model conversion. Default value is ``True``.
+2. The ``id`` attribute specifies a unique transformation string identifier. This transformation identifier can be used to enable (disable) the transformation by setting environment variable ``MO_ENABLED_TRANSFORMS`` (``MO_DISABLED_TRANSFORMS``) with a comma separated list of ``id``s. The environment variables override the value of the ``enabled`` attribute of the transformation. Instead of using ``id`` attribute value you can add fully defined class name to ``MO_ENABLED_TRANSFORMS`` (``MO_DISABLED_TRANSFORMS``) variable, ``extensions.back.NonmalizeToNormalizeL2.NormalizeToNormalizeL2`` for example. It is an optional attribute.
+3. The ``run_not_recursively`` attribute specifies whether the transformation should be executed in the sub-graphs, for example, body of the :doc:`TensorIterator <openvino_docs_ops_infrastructure_TensorIterator_1>` and the :doc:`Loop <openvino_docs_ops_infrastructure_Loop_5>`. Default value is ``True``.
+4. The ``force_clean_up`` attribute specifies whether the graph clean up should be executed after the transformation. The graph cleanup removes nodes of the graph not reachable from the model inputs. Default value is ``False``.
+5. The ``force_shape_inference`` attribute specifies whether the nodes marked with ``need_shape_inference`` attribute equal to ``True`` should be re-inferred after the transformation. Model Optimizer sets this attribute automatically for nodes, input(s) of which were changed during the transformation, or you can set this attribute manually in the transformation for the specific nodes. Default value is ``False``.
+6. Attribute ``graph_condition`` specifies a list of functions with one parameter -- ``Graph`` object. The transformation is executed if and only if all functions return ``True``. If the attribute is not set, no check is performed.
+7. Method ``run_before()`` returns a list of transformation classes which this transformation should be executed before.
+8. Method ``run_after()`` returns a list of transformation classes which this transformation should be executed after.
 
 .. note:: 
    Some of the transformation types have specific class attributes and methods, which are explained in the corresponding sections of this document.
@@ -25,21 +25,22 @@ The diagram below shows anchor transformations, some of built-in transformations
 
 .. image:: _static/images/MO_transformations_graph.svg
 
-User-defined transformations are executed after the corresponding `Start` and before the corresponding `Finish` anchor
-transformations by default (if `run_before()` and `run_after()` methods have not been overridden).
+User-defined transformations are executed after the corresponding ``Start`` and before the corresponding ``Finish`` anchor
+transformations by default (if ``run_before()`` and ``run_after()`` methods have not been overridden).
 
 .. note:: 
-   The `PreMiddleStart` and `PostMiddleStart` anchors were introduced due to historical reasons to refactor the Model Optimizer pipeline, which initially had a hardcoded order of transformations.
+   The ``PreMiddleStart`` and ``PostMiddleStart`` anchors were introduced due to historical reasons to refactor the Model Optimizer pipeline, which initially had a hardcoded order of transformations.
 
 .. _mo_front_phase_transformations:
 
+===========================
 Front Phase Transformations
----------------------------
+===========================
 
 There are several types of a front phase transformation:
 
 1. :ref:`Pattern-Defined Front Phase Transformations <pattern_defined_front_phase_transformations>` triggered for each sub-graph of the original graph isomorphic to the specified pattern.
-2. :ref:`Specific Operation Front Phase Transformations <specific_operation_front_phase_transformations>` triggered for the node with a specific `op` attribute value.
+2. :ref:`Specific Operation Front Phase Transformations <specific_operation_front_phase_transformations>` triggered for the node with a specific ``op`` attribute value.
 3. :ref:`Generic Front Phase Transformations <generic_front_phase_transformations)`.
 4. Manually enabled transformation, defined with a JSON configuration file (for TensorFlow, ONNX, Apache MXNet, and PaddlePaddle models), specified using the `--transformations_config` command-line parameter:
     1. :ref:`Node Name Pattern Front Phase Transformations <node_name_pattern_front_phase_transformations>`.
@@ -49,29 +50,29 @@ There are several types of a front phase transformation:
 .. _pattern_defined_front_phase_transformations:
 
 Pattern-Defined Front Phase Transformations
-===========================================
+###########################################
 
-This type of transformation is implemented using `mo.front.common.replacement.FrontReplacementSubgraph` and
-`mo.front.common.replacement.FrontReplacementPattern` as base classes and works as follows:
+This type of transformation is implemented using ``mo.front.common.replacement.FrontReplacementSubgraph`` and
+``mo.front.common.replacement.FrontReplacementPattern`` as base classes and works as follows:
 
 1. Define a sub-graph to be matched, using a list of nodes with attributes and edges connecting them (edges may also have attributes).
 2. Model Optimizer searches for all sub-graphs of the original graph, isomorphic to the specified sub-graph (pattern).
 3. Model Optimizer executes the defined function performing graph transformation for each instance of a matched sub-graph. You can override different functions in the base transformation class so the Model Optimizer works differently:
-   1. The `replace_sub_graph(self, graph, match)` override the method. In this case Model Optimizer only executes the overridden function, pass the `graph` object and a dictionary describing the matched sub-graph. You are required to write the transformation and connect the newly created nodes to the rest of the graph.
-   2. The `generate_sub_graph(self, graph, match)` override the method. This case is not recommended for use because it is the most complicated approach. It can be effectively replaced with one of two previous approaches. 
+   1. The ``replace_sub_graph(self, graph, match)`` override the method. In this case Model Optimizer only executes the overridden function, pass the ``graph`` object and a dictionary describing the matched sub-graph. You are required to write the transformation and connect the newly created nodes to the rest of the graph.
+   2. The ``generate_sub_graph(self, graph, match)`` override the method. This case is not recommended for use because it is the most complicated approach. It can be effectively replaced with one of two previous approaches. 
 
-The sub-graph pattern is defined in the `pattern()` function. This function should return a dictionary with two keys:
-`nodes` and `edges`:
+The sub-graph pattern is defined in the ``pattern()`` function. This function should return a dictionary with two keys:
+``nodes`` and ``edges``:
 
-* The value for the `nodes` key is a list of tuples with two elements.
+* The value for the ``nodes`` key is a list of tuples with two elements.
    * The first element is an alias name for a node that will be used to define edges between nodes and in the transformation function.
    * The second element is a dictionary with attributes. The key is a name of an attribute that should exist in the node. The value for the attribute can be some specific value to match or a function that gets a single parameter - the attribute value from the node. The function should return the result of attribute comparison with a dedicated value.
-* The value for the `edges` key is a list of tuples with two or three elements.
+* The value for the ``edges`` key is a list of tuples with two or three elements.
    * The first element is the alias name of the node producing a tensor.
    * The second element is the alias name of the node consuming the tensor.
-   * The third element (optional) is the dictionary with expected edge attributes. This dictionary usually contains attributes like `in` and `out`, defining input and output ports.
+   * The third element (optional) is the dictionary with expected edge attributes. This dictionary usually contains attributes like ``in`` and ``out``, defining input and output ports.
 
-Consider the example of a front transformation implemented in the `extensions/front/Mish_fusion.py` file performing
+Consider the example of a front transformation implemented in the ``extensions/front/Mish_fusion.py`` file performing
 fusing of the sub-graph defining the :doc:`Mish <openvino_docs_ops_activation_Mish_4>` activation function into a single
 operation:
 
@@ -128,21 +129,21 @@ operation:
 .. _specific_operation_front_phase_transformations:
 
 Specific Operation Front Phase Transformations
-==============================================
+##############################################
 
-This type of transformation is implemented using `mo.front.common.replacement.FrontReplacementOp` as base class and
+This type of transformation is implemented using ``mo.front.common.replacement.FrontReplacementOp`` as base class and
 works as follows:
 1. Define an operation type to trigger the transformation.
-2. Model Optimizer searches for all nodes in the graph with the attribute `op` equal to the specified value.
+2. Model Optimizer searches for all nodes in the graph with the attribute ``op`` equal to the specified value.
 3. Model Optimizer executes the defined function performing graph transformation for each instance of a matched node. You can override different functions in the base transformation class and Model Optimizer works differently:
-   1. The `replace_sub_graph(self, graph, match)` override method. In this case, Model Optimizer only executes the overridden function. Pass the `graph` object and a dictionary with a single key `op` with the matched node as value. You are required to write the transformation and connect the newly created nodes to the rest of the graph.
-   2. The `replace_op(self, graph, node)` override method. In this case, Model Optimizer executes the overridden function. Pass the `graph` object and the matched node as `node` parameter. If the function returns an `id` of some node, then the `Node` with this `id` is connected to the consumers of the matched node. After applying the transformation, the matched node is removed from the graph.
+   1. The ``replace_sub_graph(self, graph, match)`` override method. In this case, Model Optimizer only executes the overridden function. Pass the ``graph`` object and a dictionary with a single key ``op`` with the matched node as value. You are required to write the transformation and connect the newly created nodes to the rest of the graph.
+   2. The ``replace_op(self, graph, node)`` override method. In this case, Model Optimizer executes the overridden function. Pass the ``graph`` object and the matched node as ``node`` parameter. If the function returns an ``id`` of some node, then the ``Node`` with this ``id`` is connected to the consumers of the matched node. After applying the transformation, the matched node is removed from the graph.
 
-The `FrontReplacementOp` class provides a simpler mechanism to match a single operation with specific value of the `op`
-(write the `op` attribute in the class instead of defining a `pattern()` function) attribute and perform the
+The ``FrontReplacementOp`` class provides a simpler mechanism to match a single operation with specific value of the ``op``
+(write the ``op`` attribute in the class instead of defining a ``pattern()`` function) attribute and perform the
 transformation.
 
-Consider an example transformation from the `extensions/front/Pack.py` file, which replaces `Pack` operation from
+Consider an example transformation from the ``extensions/front/Pack.py`` file, which replaces ``Pack`` operation from
 the TensorFlow:
 
 .. code-block:: py
@@ -180,15 +181,15 @@ the TensorFlow:
 .. _generic_front_phase_transformations:
 
 Generic Front Phase Transformations
-===================================
+###################################
 
 Model Optimizer provides a mechanism to implement generic front phase transformation. This type of transformation is
-implemented using `mo.front.common.replacement.FrontReplacementSubgraph` or
-`mo.front.common.replacement.FrontReplacementPattern` as base classes. Make sure the transformation is enabled before trying to execute it. 
-Then, Model Optimizer executes the `find_and_replace_pattern(self, graph)` method and
-provides a `Graph` object as an input.
+implemented using ``mo.front.common.replacement.FrontReplacementSubgraph`` or
+``mo.front.common.replacement.FrontReplacementPattern`` as base classes. Make sure the transformation is enabled before trying to execute it. 
+Then, Model Optimizer executes the ``find_and_replace_pattern(self, graph)`` method and
+provides a ``Graph`` object as an input.
 
-Consider the example of a generic front transformation from the `extensions/front/SqueezeNormalize.py` file performing
+Consider the example of a generic front transformation from the ``extensions/front/SqueezeNormalize.py`` file performing
 normalization of the :doc:`Squeeze <openvino_docs_ops_shape_Squeeze_1>` operation. Older version of the operation had a list of
 axes to squeeze as an attribute, but now it is a separate input. For backward compatibility, the Model Optimizer
 operation supports both semantics. Before IR generation, however, the operation should be normalized according to the
@@ -229,13 +230,13 @@ specification.
                    raise Error('The Squeeze layer "{}" should either have 2 inputs or one input and an "squeeze_dims" '
                                'attribute'.format(squeeze_node.soft_get('name')))
 
-For the details on implementation and how these front phase transformations work, refer to the `mo/front/common/replacement.py`
+For the details on implementation and how these front phase transformations work, refer to the ``mo/front/common/replacement.py``
 file.
 
 .. _node_name_pattern_front_phase_transformations:
 
 Node Name Pattern Front Phase Transformations
-=============================================
+#############################################
 
 TensorFlow uses a mechanism of scope to group related operation nodes. It is a good practice to put nodes performing
 particular task into the same scope. This approach divides a graph into logical blocks that are easier to review in the
@@ -244,20 +245,20 @@ TensorBoard. The scope, in fact, just defines a common name prefix for the nodes
 For example, Inception topologies contain several types of so-called "Inception blocks". Some of them are equal to each
 other, but located in different places of the network. For example, Inception V4 from the
 `TensorFlow-Slim image classification model library <https://github.com/tensorflow/models/tree/master/research/slim>`__ has
-`Mixed_5b`, `Mixed_5c` and `Mixed_5d` inception blocks with exactly the same nodes, with the same set of attributes.
+``Mixed_5b``, ``Mixed_5c`` and ``Mixed_5d`` inception blocks with exactly the same nodes, with the same set of attributes.
 
 Consider a situation when these Inception blocks are implemented extremely efficiently using a single Inference
-Engine operation called `InceptionBlock` and these blocks in the model need to be replaced with instances of this operation.
+Engine operation called ``InceptionBlock`` and these blocks in the model need to be replaced with instances of this operation.
 Model Optimizer provides mechanism to trigger the transformation for a sub-graph of operations defined by the node name
-regular expressions (scope). In this particular case, some of the patterns are: `.*InceptionV4/Mixed_5b`,
-`.*InceptionV4/Mixed_5c`* and `.*InceptionV4/Mixed_5d`. Each pattern starts with `.*`, because the `InceptionV4` prefix 
+regular expressions (scope). In this particular case, some of the patterns are: ``.*InceptionV4/Mixed_5b``,
+``.*InceptionV4/Mixed_5c``* and ``.*InceptionV4/Mixed_5d``. Each pattern starts with ``.*``, because the ``InceptionV4`` prefix 
 is added to all nodes names during a model freeze.
 
-This type of transformation is implemented using `mo.front.tf.replacement.FrontReplacementFromConfigFileSubGraph` as a
+This type of transformation is implemented using ``mo.front.tf.replacement.FrontReplacementFromConfigFileSubGraph`` as a
 base class and works as follows:
 1. Prepare a JSON configuration file template defining node names patterns.
-2. Run Model Optimizer with the `--tensorflow_custom_operations_config_update` command-line parameter, and Model Optimizer adds information about input and output nodes of the specified sub-graphs.
-3. Model Optimizer executes the defined transformation **only** when you specify the path to the configuration file updated in step 2 using the `--transformations_config` command-line parameter.
+2. Run Model Optimizer with the ``--tensorflow_custom_operations_config_update`` command-line parameter, and Model Optimizer adds information about input and output nodes of the specified sub-graphs.
+3. Model Optimizer executes the defined transformation **only** when you specify the path to the configuration file updated in step 2 using the ``--transformations_config`` command-line parameter.
 
 Consider the following possible configuration file template for the Inception Block transformation:
 
@@ -282,13 +283,13 @@ Consider the following possible configuration file template for the Inception Bl
 The configuration file contains a list of dictionaries. Each dictionary defines one transformation. Each transformation
 is defined with several parameters:
 
-* `id` - **(Mandatory)** — is a unique identifier of the transformation. It is used in the Python code that implements the transformation to link the class and the transformation description from the configuration file.
-* `match_kind` - **(Mandatory)** —  is a string that specifies the matching algorithm. For the node name pattern case, the value should be equal to `scope`. Another possible values are described in the dedicated sections below.
-* `instances` - **(Mandatory)** —  specifies instances of the sub-graph to be matched. It contains a list of node names prefixes patterns for the match kind of the `scope` type.
-* `custom_attributes` - **(Optional)** —  is a dictionary with attributes that can be used in the transformation code.
+* ``id`` - **(Mandatory)** — is a unique identifier of the transformation. It is used in the Python code that implements the transformation to link the class and the transformation description from the configuration file.
+* ``match_kind`` - **(Mandatory)** —  is a string that specifies the matching algorithm. For the node name pattern case, the value should be equal to ``scope``. Another possible values are described in the dedicated sections below.
+* ``instances`` - **(Mandatory)** —  specifies instances of the sub-graph to be matched. It contains a list of node names prefixes patterns for the match kind of the ``scope`` type.
+* ``custom_attributes`` - **(Optional)** —  is a dictionary with attributes that can be used in the transformation code.
 
-After running Model Optimizer with additional `--tensorflow_custom_operations_config_update` parameter pointing to
-the template configuration file, the content of the file should be updated with two new sections `inputs` and `outputs`.
+After running Model Optimizer with additional ``--tensorflow_custom_operations_config_update`` parameter pointing to
+the template configuration file, the content of the file should be updated with two new sections ``inputs`` and ``outputs``.
 The file content after the update is as follows:
 
 .. code-block:: json
@@ -335,27 +336,27 @@ The file content after the update is as follows:
        }
    ]
 
-The value for `inputs` key is a list of lists describing input tensors of the sub-graph. Each element of the top-level
+The value for ``inputs`` key is a list of lists describing input tensors of the sub-graph. Each element of the top-level
 list corresponds to one unique input tensor of the sub-graph. Each internal list describes a list of nodes consuming
 this tensor and port numbers, where the tensor is consumed. Model Optimizer generates regular expressions for the input
-nodes names to uniquely identify them in each instance of the sub-graph, defined by the `instances`. Denote these nodes
+nodes names to uniquely identify them in each instance of the sub-graph, defined by the ``instances``. Denote these nodes
 as input nodes of the sub-graph.
 
-In the InceptionV4 topology, the `InceptionV4/Mixed_5b` block has four input tensors from outside of the sub-graph,
-but all of them are produced by the `InceptionV4/Mixed_5a/concat` node. Therefore, the top-level list of the `inputs`
+In the InceptionV4 topology, the ``InceptionV4/Mixed_5b`` block has four input tensors from outside of the sub-graph,
+but all of them are produced by the ``InceptionV4/Mixed_5a/concat`` node. Therefore, the top-level list of the ``inputs``
 contains one list corresponding to this tensor. Four input nodes of the sub-graph consume the tensor produced by
-`InceptionV4/Mixed_5a/concat` node. In this case, all four input nodes consume input tensor into "port 0".
+``InceptionV4/Mixed_5a/concat`` node. In this case, all four input nodes consume input tensor into "port 0".
 
 The order of items in the internal list describing nodes does not matter, but the order of elements in the top-level
 list is important. This order defines how Model Optimizer attaches input tensors to a new generated
-node if the sub-graph is replaced with a single node. The `i`-th input node of the sub-graph is obtained using 
-`match.single_input_node(i)` call in the sub-graph transformation code. More information about API is given below. If it is
+node if the sub-graph is replaced with a single node. The ``i``-th input node of the sub-graph is obtained using 
+``match.single_input_node(i)`` call in the sub-graph transformation code. More information about API is given below. If it is
 necessary to change the order of input tensors, the configuration file can be edited in the text editor.
 
-The value for the `outputs` key is a list describing nodes of the sub-graph producing tensor, that goes outside of the
+The value for the ``outputs`` key is a list describing nodes of the sub-graph producing tensor, that goes outside of the
 sub-graph or does not have child nodes. Denote these nodes as output nodes of the sub-graph. The order of elements in
-the list is important. The `i`-th element of the list describes the `i`-th output tensor of the sub-graph, which could be
-obtained using `match.output_node(i)` call. The order of elements can be manually changed in the configuration file.
+the list is important. The ``i``-th element of the list describes the ``i``-th output tensor of the sub-graph, which could be
+obtained using ``match.output_node(i)`` call. The order of elements can be manually changed in the configuration file.
 Model Optimizer uses this order to connect output edges if the sub-graph is replaced with a single node.
 
 For more examples of this type of transformation, refer to the :doc:`Converting TensorFlow Object Detection API Models <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models>` guide.
@@ -363,13 +364,13 @@ For more examples of this type of transformation, refer to the :doc:`Converting 
 .. _start_end_points_front_phase_transformations:
 
 Front Phase Transformations Using Start and End Points
-======================================================
+######################################################
 
-This type of transformation is implemented using `mo.front.tf.replacement.FrontReplacementFromConfigFileSubGraph` as a
+This type of transformation is implemented using ``mo.front.tf.replacement.FrontReplacementFromConfigFileSubGraph`` as a
 base class and works as follows:
 
 1. Prepare a JSON configuration file that defines the sub-graph to match, using two lists of node names: "start" and "end" nodes.
-2. Model Optimizer executes the defined transformation **only** when you specify the path to the configuration file using the `--transformations_config` command-line parameter . Model Optimizer performs the following steps to match the sub-graph:
+2. Model Optimizer executes the defined transformation **only** when you specify the path to the configuration file using the ``--transformations_config`` command-line parameter . Model Optimizer performs the following steps to match the sub-graph:
    1. Starts a graph traversal from every start node following the direction of the graph edges. The search stops in an end node or in the case of a node without consumers. All visited nodes are added to the matched sub-graph.
    2. Starts another graph traversal from each non-start node of the sub-graph, i.e. every node except nodes from the "start" list. In this step, the edges are traversed in the opposite edge direction. All newly visited nodes are added to the matched sub-graph. This step is needed to add nodes required for calculation values of internal nodes of the matched sub-graph.
    3. Checks that all "end" nodes were reached from "start" nodes. If not, it exits with an error.
@@ -379,7 +380,7 @@ This algorithm finds all nodes "between" start and end nodes and nodes needed fo
 matched sub-graph.
 
 The example of a JSON configuration file for a transformation with start and end points is
-`extensions/front/tf/ssd_support_api_v1.15.json`:
+``extensions/front/tf/ssd_support_api_v1.15.json``:
 
 .. code-block:: json
    
@@ -415,12 +416,12 @@ The example of a JSON configuration file for a transformation with start and end
 
 The format of the file is similar to the one provided as an example in the
 :ref:`Node Name Pattern Front Phase Transformations <node_name_pattern_front_phase_transformations>` section. The difference is in
-the value of the `match_kind` parameter, which should be equal to the `points` and the format of the `instances` parameter,
-which should be a dictionary with two keys `start_points` and `end_points`, defining start and end node names
+the value of the ``match_kind`` parameter, which should be equal to the ``points`` and the format of the ``instances`` parameter,
+which should be a dictionary with two keys ``start_points`` and ``end_points``, defining start and end node names
 respectively.
 
 .. note:: 
-   The `include_inputs_to_sub_graph` and `include_outputs_to_sub_graph` parameters are redundant and should be always equal to `true`.
+   The ``include_inputs_to_sub_graph`` and ``include_outputs_to_sub_graph`` parameters are redundant and should be always equal to ``true``.
 
 .. note:: 
    This sub-graph match algorithm has a limitation that each start node must have only one input. Therefore, it is not possible to specify, for example, the :doc:`Convolution <openvino_docs_ops_convolution_Convolution_1>` node as input because it has two inputs: data tensor and tensor with weights.
@@ -431,7 +432,7 @@ For other examples of transformations with points, refer to the
 .. _generic_transformations_config_front_phase_transformations:
 
 Generic Front Phase Transformations Enabled with Transformations Configuration File
-===================================================================================
+###################################################################################
 
 This type of transformation works similarly to the :ref:`Generic Front Phase Transformations <generic_front_phase_transformations)`
 but require a JSON configuration file to enable it similarly to
@@ -439,11 +440,11 @@ but require a JSON configuration file to enable it similarly to
 :ref:`Front Phase Transformations Using Start and End Points <start_end_points_front_phase_transformations>`.
 
 The base class for this type of transformation is
-`mo.front.common.replacement.FrontReplacementFromConfigFileGeneral`. Model Optimizer executes the 
-`transform_graph(self, graph, replacement_descriptions)` method and provides the `Graph` object and dictionary with values
+``mo.front.common.replacement.FrontReplacementFromConfigFileGeneral``. Model Optimizer executes the 
+``transform_graph(self, graph, replacement_descriptions)`` method and provides the ``Graph`` object and dictionary with values
 parsed from the `custom_attributes` attribute of the provided JSON configuration file.
 
-The example of the configuration file for this type of transformation is `extensions/front/tf/yolo_v1_tiny.json`:
+The example of the configuration file for this type of transformation is ``extensions/front/tf/yolo_v1_tiny.json``:
 
 .. code-block:: json
    
@@ -459,7 +460,8 @@ The example of the configuration file for this type of transformation is `extens
        }
      }
    ]
-and the corresponding transformation file is `./extensions/front/YOLO.py`:
+
+and the corresponding transformation file is ``./extensions/front/YOLO.py``:
 
 .. code-block:: py
    
@@ -495,13 +497,14 @@ and the corresponding transformation file is `./extensions/front/YOLO.py`:
                Result(graph).create_node([region_layer_node])
                graph.remove_node(op_output)
 
-The configuration file has only 3 parameters: `id` identifier of the transformation , `match_kind` (which should be equal
-to `general`) and the `custom_attributes` dictionary with custom attributes accessible in the transformation.
+The configuration file has only 3 parameters: ``id`` identifier of the transformation , ``match_kind`` (which should be equal
+to ``general``) and the ``custom_attributes`` dictionary with custom attributes accessible in the transformation.
 
 .. _mo_middle_phase_transformations:
 
+============================
 Middle Phase Transformations
-----------------------------
+============================
 
 There are two types of middle phase transformations:
 
@@ -511,34 +514,35 @@ There are two types of middle phase transformations:
 .. _pattern_defined_middle_phase_transformations:
 
 Pattern-Defined Middle Phase Transformations
-============================================
+############################################
 
-This type of transformation is implemented using `mo.middle.replacement.MiddleReplacementPattern` as a base class and
+This type of transformation is implemented using ``mo.middle.replacement.MiddleReplacementPattern`` as a base class and
 works similarly to the :ref:`Pattern-Defined Middle Phase Transformations <pattern_defined_middle_phase_transformations>`
 The are two differences:
-1. The transformation entry function name is `replace_pattern(self, graph, match)`.
+1. The transformation entry function name is ``replace_pattern(self, graph, match)``.
 2. The pattern defining the graph should contain data nodes because the structure of the graph is different between
 front and middle phases. For more information about the
 graph structure changes, refer to the :ref:`Partial Inference <mo_partial_inference>`.
 
-For the example of a pattern-defined middle transformation, refer to the `extensions/middle/L2NormToNorm.py` file.
+For the example of a pattern-defined middle transformation, refer to the ``extensions/middle/L2NormToNorm.py`` file.
 
 .. _generic_middle_phase_transformations:
 
 Generic Middle Phase Transformations
-====================================
+####################################
 
 Model Optimizer provides a mechanism to implement generic middle phase transformations. This type of transformation is
-implemented using `mo.middle.replacement.MiddleReplacementPattern` as a base class and works similarly to the
+implemented using ``mo.middle.replacement.MiddleReplacementPattern`` as a base class and works similarly to the
 :ref:`Generic Front Phase Transformations <generic_front_phase_transformations)`. The only difference is that the
-transformation entry function name is `find_and_replace_pattern(self, graph: Graph)`.
+transformation entry function name is ``find_and_replace_pattern(self, graph: Graph)``.
 
-For the example of this transformation, refer to the `extensions/middle/CheckForCycle.py` file.
+For the example of this transformation, refer to the ``extensions/middle/CheckForCycle.py`` file.
 
 .. _mo_back_phase_transformations:
 
+==========================
 Back Phase Transformations
---------------------------
+==========================
 
 There are two types of back phase transformations:
 
@@ -551,26 +555,27 @@ There are two types of back phase transformations:
 .. _pattern_defined_back_phase_transformations:
 
 Pattern-Defined Back Phase Transformations
-==========================================
+##########################################
 
-This type of transformation is implemented using `mo.back.replacement.MiddleReplacementPattern` as a base class and
+This type of transformation is implemented using ``mo.back.replacement.MiddleReplacementPattern`` as a base class and
 works the same way as :ref:`Pattern-Defined Middle Phase Transformations <pattern_defined_middle_phase_transformations>`.
 
-For the example of a pattern-defined back transformation, refer to the `extensions/back/ShufflenetReLUReorder.py` file.
+For the example of a pattern-defined back transformation, refer to the ``extensions/back/ShufflenetReLUReorder.py`` file.
 
 .. _generic_back_phase_transformations:
 
 Generic Back Phase Transformations
-==================================
+##################################
 
 Model Optimizer provides mechanism to implement generic back phase transformations. This type of transformation is
-implemented using `mo.back.replacement.BackReplacementPattern` as a base class and works the same way as
+implemented using ``mo.back.replacement.BackReplacementPattern`` as a base class and works the same way as
 :ref:`Generic Middle Phase Transformations <generic_middle_phase_transformations>`.
 
-For the example of this transformation, refer to the `extensions/back/GatherNormalizer.py` file.
+For the example of this transformation, refer to the ``extensions/back/GatherNormalizer.py`` file.
 
+====================
 Additional Resources
---------------------
+====================
 
 * :doc:`Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`
 * :doc:`Graph Traversal and Modification Using Ports and Connections <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections>`

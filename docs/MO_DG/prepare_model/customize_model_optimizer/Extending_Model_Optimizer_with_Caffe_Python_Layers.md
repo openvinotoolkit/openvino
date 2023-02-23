@@ -28,21 +28,22 @@ This article describes only a procedure on how to extract operator attributes in
 operation enabling pipeline and information on how to support other Caffe operations (written in C++) is described in
 the :doc:`Customize Model Optimizer <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` guide.
 
+========================================
 Writing Extractor for Caffe Python Layer
-----------------------------------------
+========================================
 
-Custom Caffe Python layers have an attribute `type` (defining the type of the operation) equal to `Python` and two
-mandatory attributes `module` and `layer` in the `python_param` dictionary. The `module` defines the Python module name
-with the layer implementation, while `layer` value is an operation type defined by a user. In order to extract
+Custom Caffe Python layers have an attribute ``type`` (defining the type of the operation) equal to ``Python`` and two
+mandatory attributes ``module`` and ``layer`` in the ``python_param`` dictionary. The ``module`` defines the Python module name
+with the layer implementation, while ``layer`` value is an operation type defined by a user. In order to extract
 attributes for such an operation it is necessary to implement extractor class inherited from the
-`CaffePythonFrontExtractorOp` class instead of `FrontExtractorOp` class, used for standard framework layers. The `op`
-class attribute value should be set to the `module + "." + layer` value so the extractor is triggered for this kind of
+``CaffePythonFrontExtractorOp`` class instead of ``FrontExtractorOp`` class, used for standard framework layers. The ``op``
+class attribute value should be set to the ``module + "." + layer`` value so the extractor is triggered for this kind of
 operation.
 
 Below is a simplified example of the extractor for the custom operation Proposal from the mentioned Faster-R-CNN model.
 The full code with additional checks can be found `here <https://github.com/openvinotoolkit/openvino/blob/releases/2022/1/tools/mo/openvino/tools/mo/front/caffe/proposal_python_ext.py>`__.
 
-The sample code uses operation `ProposalOp` which corresponds to `Proposal` operation described in the :doc:`Available Operations Sets <openvino_docs_ops_opset>`
+The sample code uses operation ``ProposalOp`` which corresponds to ``Proposal`` operation described in the :doc:`Available Operations Sets <openvino_docs_ops_opset>`
 page. For a detailed explanation of the extractor, refer to the source code below.
 
 .. code-block:: py
@@ -89,8 +90,9 @@ page. For a detailed explanation of the extractor, refer to the source code belo
            cls.extract_proposal_params(node, defaults)
            return cls.enabled
 
+====================
 Additional Resources
---------------------
+====================
 
 * :doc:`Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`
 * :doc:`Graph Traversal and Modification Using Ports and Connections <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections>`

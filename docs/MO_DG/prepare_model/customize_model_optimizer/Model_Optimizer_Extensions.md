@@ -32,7 +32,7 @@ one of extension base classes. Extension files should be saved to a directory wi
               back/                 - back transformations
 
 Model Optimizer uses the same layout internally to keep built-in extensions. The only exception is that the 
-`mo/ops/` directory is also used as a source of the Model Optimizer operations due to historical reasons.
+``mo/ops/`` directory is also used as a source of the Model Optimizer operations due to historical reasons.
 
 .. note:: 
    The name of a root directory with extensions should not be equal to "extensions" because it will result in a name conflict with the built-in Model Optimizer extensions.
@@ -40,8 +40,9 @@ Model Optimizer uses the same layout internally to keep built-in extensions. The
 .. note:: 
    Model Optimizer itself is built by using these extensions, so there is a huge number of examples of their usage in the Model Optimizer code.
 
+====================
 Additional Resources
---------------------
+====================
 
 * :doc:`Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`
 * :doc:`Graph Traversal and Modification Using Ports and Connections <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections>`

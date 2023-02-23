@@ -2,49 +2,34 @@
 
 @sphinxdirective
 
-Model Optimizer defines a `mo.ops.Op` class (`Op` will be used later in the document to be short), which is a base class
-for an operation used in the Model Optimizer. The instance of the `Op` class serves several purposes:
+Model Optimizer defines a ``mo.ops.Op`` class (``Op`` will be used later in the document to be short), which is a base class
+for an operation used in the Model Optimizer. The instance of the ``Op`` class serves several purposes:
 
 1. Stores the operation attributes.
 2. Stores the operation shape/value and type inference functions.
 3. Defines operation attributes to be saved to the corresponding IR section.
-4. Contains convenient methods to create a graph node from an `Op` object instance and connect it with the existing graph.
+4. Contains convenient methods to create a graph node from an ``Op`` object instance and connect it with the existing graph.
 5. Used in the extractors to store parsed attributes and operation specific attributes in the dedicated graph node.
 
-It is important to mention that there is no connection between the instance of the `Op` class and the `Node` object
-created from it. The `Op` class is just a container for attributes describing the operation. Model Optimizer uses the `Op`
-class during a model conversion to create a node of the graph with attributes copied from the `Op` class instance. Graph
-manipulations are performed with graph `Node`s and their attributes and does not involve `Op`s.
+It is important to mention that there is no connection between the instance of the ``Op`` class and the ``Node`` object
+created from it. The ``Op`` class is just a container for attributes describing the operation. Model Optimizer uses the ``Op``
+class during a model conversion to create a node of the graph with attributes copied from the ``Op`` class instance. Graph
+manipulations are performed with graph ``Node``s and their attributes and does not involve ``Op``s.
 
 There are a number of common attributes used in the operations. Below is the list of these attributes with description.
 
-* `id` — **(Mandatory)** — unique identifier of a node in a graph. Generated automatically, equal to the number of nodes in the graph plus
-1 if not specified.
-* `name` — **(Mandatory)** — name of the operation. Generated automatically, equal to the `id` if not specified.
-* `type` — **(Mandatory)** —  type of the operation according to the :doc:`opset specification <openvino_docs_ops_opset>`. For the internal
-Model Optimizer operations, this attribute should be set to `None`. The model conversion fails if an operation with
-`type` equal to `None` comes to the IR emitting phase.
-* `version` — **(Mandatory)** —  the operation set (opset) name the operation belongs to. If not specified, 
-Model Optimizer sets it equal to `experimental`. For more information about operation sets, refer to 
-:doc:`OpenVINO Model Representation <openvino_docs_OV_UG_Model_Representation>` section. 
-* `op` — Model Optimizer type of the operation. In many cases, the value of `type` is equal to the value of `op`. However,
-when Model Optimizer cannot instantiate the opset operation during model loading, it creates an instance of an internal
-operation. Thus, the attribute `op` is used as a type of this internal operation. Later in the pipeline, the node created
-from an internal operation will be replaced during front, middle or back phase with node(s) created from the opset.
-* `infer` — the attribute defines a function calculating output tensor(s) shape and optional value(s). The attribute
-may be set to `None` for the internal Model Optimizer operations used during the front phase only. For more information 
-about the shape inference function, refer to the :ref:`Partial Inference <mo_partial_inference>`.
-* `type_infer` — the attribute defines a function calculating output tensor(s) data type. If the attribute is not
-defined, the default function is used. The function checks if the `data_type` node attribute is set and then
-propagates this type to the output tensor from the "port 0". Otherwise, it propagates the data type of the tensor coming
-into the input "port 0" to the output tensor from the "port 0".
-* `in_ports_count` — default number of input ports to be created for the operation. Additional ports can be created or
-redundant ports can be removed using dedicated `Node` class API methods.
-* `out_ports_count` — default number of output ports to be created for the operation. Additional ports can be created or
-redundant ports can be removed using dedicated `Node` class API methods.
+* ``id`` — **(Mandatory)** — unique identifier of a node in a graph. Generated automatically, equal to the number of nodes in the graph plus 1 if not specified.
+* ``name`` — **(Mandatory)** — name of the operation. Generated automatically, equal to the ``id`` if not specified.
+* ``type`` — **(Mandatory)** —  type of the operation according to the :doc:`opset specification <openvino_docs_ops_opset>`. For the internal Model Optimizer operations, this attribute should be set to ``None``. The model conversion fails if an operation with ``type`` equal to ``None`` comes to the IR emitting phase.
+* ``version`` — **(Mandatory)** —  the operation set (opset) name the operation belongs to. If not specified,  Model Optimizer sets it equal to ``experimental``. For more information about operation sets, refer to  :doc:`OpenVINO Model Representation <openvino_docs_OV_UG_Model_Representation>` section. 
+* ``op`` — Model Optimizer type of the operation. In many cases, the value of ``type`` is equal to the value of ``op``. However, when Model Optimizer cannot instantiate the opset operation during model loading, it creates an instance of an internal operation. Thus, the attribute ``op`` is used as a type of this internal operation. Later in the pipeline, the node created from an internal operation will be replaced during front, middle or back phase with node(s) created from the opset.
+* ``infer`` — the attribute defines a function calculating output tensor(s) shape and optional value(s). The attribute may be set to ``None`` for the internal Model Optimizer operations used during the front phase only. For more information  about the shape inference function, refer to the :ref:`Partial Inference <mo_partial_inference>`.
+* ``type_infer`` — the attribute defines a function calculating output tensor(s) data type. If the attribute is not defined, the default function is used. The function checks if the ``data_type`` node attribute is set and then propagates this type to the output tensor from the "port 0". Otherwise, it propagates the data type of the tensor coming into the input "port 0" to the output tensor from the "port 0".
+* ``in_ports_count`` — default number of input ports to be created for the operation. Additional ports can be created or redundant ports can be removed using dedicated `Node` class API methods.
+* ``out_ports_count`` — default number of output ports to be created for the operation. Additional ports can be created or redundant ports can be removed using dedicated ``Node`` class API methods.
 
 Below is an example of the Model Optimizer class for the :doc:`SoftMax <openvino_docs_ops_activation_SoftMax_1>` operation from
-the `mo/ops/softmax.py` file with the comments in code.
+the ``mo/ops/softmax.py`` file with the comments in code.
 
 .. code-block:: py
    
@@ -79,8 +64,8 @@ the `mo/ops/softmax.py` file with the comments in code.
        def infer(node: Node):
            "some code calculating output shape and values"
 
-There is a dedicated method called `backend_attrs()` defining a list of attributes to be saved to the IR. Consider an
-example from the `mo/ops/pooling.py` file:
+There is a dedicated method called ``backend_attrs()`` defining a list of attributes to be saved to the IR. Consider an
+example from the ``mo/ops/pooling.py`` file:
 
 .. code-block:: py
    
@@ -99,13 +84,14 @@ example from the `mo/ops/pooling.py` file:
                'auto_pad',
            ]
 
-The `backend_attrs()` function returns a list of records. A record can be of one of the following formats:
-1. A string defining the attribute to be saved to the IR. If the value of the attribute is `None`, the attribute is not saved. Examples of this case are `rounding_type` and `auto_pad`.
-2. A tuple, where the first element is a string defining the name of the attribute as it will appear in the IR and the second element is a function to produce the value for this attribute. The function gets an instance of the `Node` as the only parameter and returns a string with the value to be saved to the IR. Examples of this case are `strides`, `kernel`, `pads_begin` and `pads_end`.
-3. A tuple, where the first element is a string defining the name of the attribute as it will appear in the IR and the second element is the name of the `Node` attribute to get the value from. Examples of this case are `pool-method` and `exclude-pad`.
+The ``backend_attrs()`` function returns a list of records. A record can be of one of the following formats:
+1. A string defining the attribute to be saved to the IR. If the value of the attribute is ``None``, the attribute is not saved. Examples of this case are ``rounding_type`` and ``auto_pad``.
+2. A tuple, where the first element is a string defining the name of the attribute as it will appear in the IR and the second element is a function to produce the value for this attribute. The function gets an instance of the ``Node`` as the only parameter and returns a string with the value to be saved to the IR. Examples of this case are ``strides``, ``kernel``, ``pads_begin`` and ``pads_end``.
+3. A tuple, where the first element is a string defining the name of the attribute as it will appear in the IR and the second element is the name of the ``Node`` attribute to get the value from. Examples of this case are ``pool-method`` and ``exclude-pad``.
 
+====================
 Additional Resources
---------------------
+====================
 
 * :doc:`Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`
 * :doc:`Graph Traversal and Modification Using Ports and Connections <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections>`

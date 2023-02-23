@@ -9,12 +9,12 @@ There are several types of Model Optimizer extractor extensions:
 2. The special extractor for Caffe models with Python layers. This kind of extractor is described in the :doc:`Extending Model Optimizer with Caffe Python Layers <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers>` guide.
 
 Generic extension provides a generic mechanism for the operation extractor applicable for
-all frameworks. Model Optimizer provides the `mo.front.extractor.FrontExtractorOp` class as a base class to implement the
-extractor. It has the `extract` class method, which gets the only parameter `Node`, which corresponds to the graph node to
-extract data from. The operation description in the original framework format is stored in the attribute `pb` of the
+all frameworks. Model Optimizer provides the ``mo.front.extractor.FrontExtractorOp`` class as a base class to implement the
+extractor. It has the ``extract`` class method, which gets the only parameter ``Node``, which corresponds to the graph node to
+extract data from. The operation description in the original framework format is stored in the attribute ``pb`` of the
 node. The extractor goal is to parse this attribute and save necessary attributes to the corresponding node of the
-graph. Consider the extractor for the `Const` TensorFlow operation (refer to the
-`extensions/front/tf/const_ext.py` file):
+graph. Consider the extractor for the ``Const`` TensorFlow operation (refer to the
+``extensions/front/tf/const_ext.py`` file):
 
 .. code-block:: py
 
@@ -50,8 +50,8 @@ graph. Consider the extractor for the `Const` TensorFlow operation (refer to the
            Const.update_node_stat(node, attrs)
            return cls.enabled
 
-Consider another example with an extractor of the `Constant` ONNX operation (refer to the
-`extensions/front/onnx/const_ext.py` file):
+Consider another example with an extractor of the ``Constant`` ONNX operation (refer to the
+``extensions/front/onnx/const_ext.py`` file):
 
 .. code-block:: py
 
@@ -87,18 +87,19 @@ Consider another example with an extractor of the `Constant` ONNX operation (ref
 The extractors for operations from different frameworks work similarly. The only difference is in the helper methods
 used to parse operation attributes encoded with a framework-specific representation.
 
-A common practice is to use `update_node_stat()` method of the dedicated `Op` class to update the node attributes. This
+A common practice is to use ``update_node_stat()`` method of the dedicated ``Op`` class to update the node attributes. This
 method does the following:
 
-1. Sets values for common attributes like `op`, `type`, `infer`, `in_ports_count`, `out_ports_count`, `version` to values specific to the dedicated operation (`Const` operation in this case).
-2. Uses `supported_attrs()` and `backend_attrs()` methods, defined in the `Op` class to update specific node attribute `IE`. The IR emitter uses the value stored in the `IE` attribute to pre-process attribute values and save them to IR.
-3. Optionally sets additional attributes provided to the `update_node_stat()` function as a second parameter. Usually these attributes are parsed from the particular instance of the operation.
+1. Sets values for common attributes like ``op``, ``type``, ``infer``, ``in_ports_count``, ``out_ports_count``, ``version`` to values specific to the dedicated operation (``Const`` operation in this case).
+2. Uses ``supported_attrs()`` and ``backend_attrs()`` methods, defined in the ``Op`` class to update specific node attribute ``IE``. The IR emitter uses the value stored in the ``IE`` attribute to pre-process attribute values and save them to IR.
+3. Optionally sets additional attributes provided to the ``update_node_stat()`` function as a second parameter. Usually these attributes are parsed from the particular instance of the operation.
 
 .. note:: 
-   Model Optimizer uses numpy arrays to store values and numpy arrays of `np.int64` type to store shapes in the graph.
+   Model Optimizer uses numpy arrays to store values and numpy arrays of ``np.int64`` type to store shapes in the graph.
 
+====================
 Additional Resources
---------------------
+====================
 
 * :doc:`Model Optimizer Extensibility <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`
 * :doc:`Graph Traversal and Modification Using Ports and Connections <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections>`
