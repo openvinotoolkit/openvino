@@ -37,7 +37,6 @@ concurrency.
 *         - Immediate task executor can be used to satisfy `InferenceEngine::ITaskExecutor` interface restrictions but
 run tasks in current thread.
 * @note  Implementation should guaranty thread safety of all methods
-* @section Synchronization
 *        It is `InferenceEngine::ITaskExecutor` user responsibility to wait for task execution completion.
 *        The `c++11` standard way to wait task completion is to use `std::packaged_task` or `std::promise` with
 `std::future`.
