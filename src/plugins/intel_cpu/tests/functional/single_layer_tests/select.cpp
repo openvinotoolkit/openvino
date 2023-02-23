@@ -69,15 +69,13 @@ protected:
 
    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
-        const auto& funcInputs = function->inputs();
-
-        auto cond_tensor = utils::create_and_fill_tensor(funcInputs[0].get_element_type(), targetInputStaticShapes[0], 1, 0, 1);
-        inputs.insert({funcInputs[0].get_node_shared_ptr(), cond_tensor});
-
-        for (int i = 1; i < funcInputs.size(); ++i) {
-            auto tensor = utils::create_and_fill_tensor(funcInputs[i].get_element_type(), targetInputStaticShapes[i]);
-            inputs.insert({funcInputs[i].get_node_shared_ptr(), tensor});
-        }
+        const auto& modelInputs = function->inputs();
+        auto condTensor = ov::test::utils::create_and_fill_tensor(modelInputs[0].get_element_type(), targetInputStaticShapes[0], 3, -1, 2);
+        auto thenTensor = ov::test::utils::create_and_fill_tensor(modelInputs[1].get_element_type(), targetInputStaticShapes[1], 10, -10, 2);
+        auto elseTensor = ov::test::utils::create_and_fill_tensor(modelInputs[2].get_element_type(), targetInputStaticShapes[2], 10, 0, 2);
+        inputs.insert({modelInputs[0].get_node_shared_ptr(), condTensor});
+        inputs.insert({modelInputs[1].get_node_shared_ptr(), thenTensor});
+        inputs.insert({modelInputs[2].get_node_shared_ptr(), elseTensor});
     }
 };
 
