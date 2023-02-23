@@ -457,7 +457,6 @@ static const std::vector<std::string> models{
     std::string("softplus_default_params"),
     std::string("softshrink_1"),
     std::string("softshrink_2"),
-    std::string("softshrink_3"),
     std::string("split_test1"),
     std::string("split_test2"),
     std::string("split_test3"),

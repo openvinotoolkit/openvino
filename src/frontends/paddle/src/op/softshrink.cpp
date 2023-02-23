@@ -10,15 +10,15 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs softshrink(const NodeContext& node) {
-    auto loss = node.get_input("x");
+    auto loss = node.get_input("X");
     auto lambda  = node.get_attribute<float>("lambda", 0.5);
     //initialize
-    auto pos_lam = default_opset::Constant::create(element::f32, {1}, {lambda});
-    auto neg_lam = default_opset::Constant::create(element::f32, {1}, {-lambda});
-    auto zero = default_opset::Constant::create(element::f32, {1}, 0);
+    auto pos_lam = default_opset::Constant::create(loss.get_element_type(), Shape{}, {lambda});
+    auto neg_lam = default_opset::Constant::create(loss.get_element_type(), Shape{}, {-lambda});
+    auto zero = default_opset::Constant::create(loss.get_element_type(), Shape{}, {0});
     //comparison
     auto pos_mask = std::make_shared<default_opset::Greater>(loss, pos_lam);
-    auto neg_mask = std::make_shared<default_opset::Greater>(neg_lam, loss);
+    auto neg_mask = std::make_shared<default_opset::Less>(loss, neg_lam);
     //select
     auto positive = std::make_shared<default_opset::Subtract>(loss, pos_lam);
     auto negative = std::make_shared<default_opset::Add>(loss, neg_lam);
