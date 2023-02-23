@@ -15,7 +15,11 @@ Model Optimizer extensibility mechanism enables support of new operations and cu
 There are several cases when the customization is needed:
 
 * A model contains operation(s) not known for the Model Optimizer, but these operation(s) could be expressed as a combination of supported operations. In this case, a custom transformation should be implemented to replace unsupported operation(s) with supported ones.
-* A model contains a sub-graph of operations that can be replaced with a smaller number of operations to get better performance. This example corresponds to so-called *fusing transformations* (e.g., replacing a sub-graph performing the calculation \f$x/(1.0+e^{-(beta*x)})\f$ with a single operation of type :doc:`Swish <openvino_docs_ops_activation_Swish_4>`.
+* A model contains a sub-graph of operations that can be replaced with a smaller number of operations to get better performance. This example corresponds to so-called *fusing transformations* (e.g., replacing a sub-graph performing the calculation 
+
+.. math:: x/(1.0+e^{-(beta*x)})
+
+with a single operation of type :doc:`Swish <openvino_docs_ops_activation_Swish_4>`.
 * A model contains a custom framework operation (the operation that is not a part of an official operation set of the framework) that was developed using the framework extensibility mechanism. In this case, Model Optimizer should know how to handle the operation and generate a corresponding section in an IR for it.
 
 It is necessary to figure out how Model Optimizer represents a model in a memory and converts it to an IR before
