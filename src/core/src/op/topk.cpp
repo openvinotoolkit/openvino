@@ -347,7 +347,16 @@ op::v3::TopK::TopK(const Output<Node>& data,
                    const Mode mode,
                    const SortType sort,
                    const element::Type& index_element_type)
-    : op::v1::TopK{data, k, axis, mode, sort, index_element_type} {}
+    : op::v3::TopK{} {
+    set_arguments(OutputVector{data, k});
+    m_axis = axis;
+    m_normalized_axis = UNKNOWN_NORMALIZED_AXIS;
+    m_mode = mode;
+    m_sort = sort;
+    m_index_element_type = index_element_type;
+    ov::mark_as_precision_sensitive(input(1));
+    constructor_validate_and_infer_types();
+}
 
 bool ngraph::op::v3::TopK::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v3_TopK_visit_attributes);
