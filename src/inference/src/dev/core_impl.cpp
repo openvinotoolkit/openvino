@@ -966,7 +966,7 @@ void ov::CoreImpl::CoreConfig::set_core_config(ov::AnyMap& config, const std::st
         // Some special processing if needed, which is case by case
         if (it->first == ov::force_tbb_terminate.name()) {
             auto flag = it->second.as<std::string>() == CONFIG_VALUE(YES) ? true : false;
-            InferenceEngine::executorManager()->setTbbFlag(flag);
+            ov::executor_manager()->set_property({{it->first, flag}});
         }
         it = config.erase(it);
     }
@@ -993,7 +993,7 @@ ov::Any ov::CoreImpl::CoreConfig::get_core_config(const std::string& config_name
     item = _core_global_properties._properties.find(config_name);
     if (item != _core_global_properties._properties.end()) {
         if (config_name == ov::force_tbb_terminate.name()) {
-            const auto flag = InferenceEngine::executorManager()->getTbbFlag();
+            const auto flag = ov::executor_manager()->get_property(config_name).as<bool>();
             return flag ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
         }
         return item->second;
