@@ -129,7 +129,7 @@ TEST(GraphRewriteTest, ManagerCallbackDeprecated) {
     pass::Manager manager;
     auto anchor = manager.register_pass<Anchor>();
     anchor->add_matcher<TestPass>();
-    manager.set_callback(get_callback());
+    manager.get_pass_config()->set_callback(get_callback());
     manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
@@ -153,7 +153,7 @@ TEST(GraphRewriteTest, ManagerCallback2) {
 
     pass::Manager manager;
     auto anchor = manager.register_pass<TestPass>();
-    manager.set_callback(get_callback());
+    manager.get_pass_config()->set_callback(get_callback());
     manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
