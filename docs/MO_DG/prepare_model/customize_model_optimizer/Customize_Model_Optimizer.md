@@ -233,7 +233,7 @@ available in the ``mo/ops/reshape.py`` file):
 
 
 Methods ``in_port()`` and ``output_port()`` of the ``Node`` class are used to get and set data node attributes. For more information on
-how to use them, refer to the :doc:`Graph Traversal and Modification Using Ports and Connections <Model_Optimizer_Ports_Connections.md>` article.
+how to use them, refer to the :doc:`Graph Traversal and Modification Using Ports and Connections <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections>` article.
 
 .. note::
    A shape inference function should perform output shape calculation in the original model layout. For example, OpenVINO supports Convolution operations in NCHW layout only but TensorFlow supports NHWC layout as well. Model Optimizer shape inference function calculates output shapes for NHWC Convolutions in NHWC layout and only during the layout change phase the shape is converted to NCHW.
