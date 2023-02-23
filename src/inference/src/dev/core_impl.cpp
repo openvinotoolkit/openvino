@@ -265,7 +265,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     auto cacheManager =
         coreConfig.get_cache_config_for_device(plugin, ov::cache_dir.name(), parsed._config)._cacheManager;
     auto cacheContent = CacheContent{cacheManager};
-    auto& _config = parsed._config;
+    ov::AnyMap& _config = parsed._config;
     coreConfig.update_input_config(plugin, _config);
     if (!forceDisableCache && cacheManager && device_supports_import_export(plugin)) {
         cacheContent.blobId =
@@ -303,7 +303,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     auto cacheManager =
         coreConfig.get_cache_config_for_device(plugin, ov::cache_dir.name(), parsed._config)._cacheManager;
     auto cacheContent = CacheContent{cacheManager};
-    auto& _config = parsed._config;
+    ov::AnyMap& _config = parsed._config;
     coreConfig.update_input_config(plugin, _config);
     if (cacheManager && device_supports_import_export(plugin)) {
         cacheContent.blobId =
@@ -355,7 +355,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     auto cacheManager =
         coreConfig.get_cache_config_for_device(plugin, ov::cache_dir.name(), parsed._config)._cacheManager;
     auto cacheContent = CacheContent{cacheManager, model_path};
-    auto& _config = parsed._config;
+    ov::AnyMap& _config = parsed._config;
     coreConfig.update_input_config(plugin, _config);
     if (cacheManager && device_supports_import_export(plugin)) {
         bool loadedFromCache = false;
@@ -388,7 +388,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     auto cacheManager =
         coreConfig.get_cache_config_for_device(plugin, ov::cache_dir.name(), parsed._config)._cacheManager;
     auto cacheContent = CacheContent{cacheManager};
-    auto& _config = parsed._config;
+    ov::AnyMap& _config = parsed._config;
     coreConfig.update_input_config(plugin, _config);
     if (cacheManager && device_supports_import_export(plugin)) {
         bool loadedFromCache = false;
@@ -1052,8 +1052,7 @@ void ov::CoreImpl::CoreConfig::remove_core_config(const ov::Plugin& plugin,
     }
 }
 
-template <typename T>
-void ov::CoreImpl::CoreConfig::update_input_config(const ov::Plugin& plugin, std::map<std::string, T>& config) const {
+void ov::CoreImpl::CoreConfig::update_input_config(const ov::Plugin& plugin, ov::AnyMap& config) const {
     std::string device_name = plugin.get_name();
     auto core_config_keys = query_core_config_keys();
     for (auto& it : core_config_keys) {
