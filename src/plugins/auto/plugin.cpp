@@ -336,23 +336,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     auto loadConfig = _pluginConfig;
     // updateFromMap will check config valid
     loadConfig.UpdateFromMap(config, GetName(), true);
-    auto fullConfig = loadConfig._keyConfigMap;
     bool workModeAuto = GetName() == "AUTO";
-    // Remove the performance hint if no setting to this property from user.
-    if (!loadConfig._isSetPerHint) {
-        fullConfig.erase(PluginConfigParams::KEY_PERFORMANCE_HINT);
-        if (workModeAuto) {
-            // set performance hint to 'LATENCY' model for AutoExecutable Network.
-            loadConfig._perfHintsConfig.SetConfig(PluginConfigParams::KEY_PERFORMANCE_HINT,
-                                                  PluginConfigParams::LATENCY);
-        } else {
-            // set performance hint to 'THROUGHPUT' model for MultiExecutable Network.
-            loadConfig._perfHintsConfig.SetConfig(PluginConfigParams::KEY_PERFORMANCE_HINT,
-                                                  PluginConfigParams::THROUGHPUT);
-        }
-    }
-    if (!loadConfig._isSetCacheDir)
-        fullConfig.erase(CONFIG_KEY(CACHE_DIR));
+    auto fullConfig = loadConfig.postConfigMap(workModeAuto);
     // collect the settings that are applicable to the devices we are loading the network to
     std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;
     std::vector<DeviceInformation> metaDevices;

@@ -168,6 +168,7 @@ struct PluginConfig {
                     ParsePrioritiesDevices(kvp.second);
                 _devicePriority = kvp.second;
             } else if (kvp.first == ov::hint::execution_mode.name()) {
+                _isSetExecutionMode = true;
                 if (kvp.second == "UNDEFINED") {
                     _executionMode = 1;
                 } else if (kvp.second == "PERFORMANCE") {
@@ -309,6 +310,25 @@ struct PluginConfig {
             _keyConfigMap[kvp.first] = kvp.second;
         }
     }
+    std::map<std::string, std::string> postConfigMap(const bool& workModeAuto = true) {
+        auto fullConfig = _keyConfigMap;
+        // Remove the performance hint if no setting to this property from user.
+        if (!_isSetPerHint) {
+            fullConfig.erase(PluginConfigParams::KEY_PERFORMANCE_HINT);
+            if (workModeAuto) {
+                // set performance hint to 'LATENCY' model for AutoExecutable Network.
+                _perfHintsConfig.SetConfig(PluginConfigParams::KEY_PERFORMANCE_HINT, PluginConfigParams::LATENCY);
+            } else {
+                // set performance hint to 'THROUGHPUT' model for MultiExecutable Network.
+                _perfHintsConfig.SetConfig(PluginConfigParams::KEY_PERFORMANCE_HINT, PluginConfigParams::THROUGHPUT);
+            }
+        }
+        if (!_isSetCacheDir)
+            fullConfig.erase(CONFIG_KEY(CACHE_DIR));
+        if (!_isSetExecutionMode)
+            fullConfig.erase(ov::hint::execution_mode.name());
+        return fullConfig;
+    }
     std::string _cacheDir{};
     bool _useProfiling;
     bool _exclusiveAsyncRequests;
@@ -324,6 +344,7 @@ struct PluginConfig {
     // Add this flag to check if user app sets hint with none value that is equal to the default value of hint.
     bool _isSetPerHint = false;
     bool _isSetCacheDir = false;
+    bool _isSetExecutionMode = false;
     bool _isBatchConfigSet = false;
     std::map<std::string, std::string> _passThroughConfig;
     std::map<std::string, std::string> _keyConfigMap;
