@@ -23,7 +23,7 @@ struct PluginConfig {
                 _batchTimeout("1000"),
                 _devicePriority(""),
                 _modelPriority(1),
-                _executionMode(2),
+                _executionMode(ov::hint::ExecutionMode::UNDEFINED),
                 _deviceBindBuffer(false),
                 _enableStartupFallback(true),
                 _logLevel("LOG_NONE") {
@@ -169,12 +169,12 @@ struct PluginConfig {
                 _devicePriority = kvp.second;
             } else if (kvp.first == ov::hint::execution_mode.name()) {
                 _isSetExecutionMode = true;
-                if (kvp.second == "UNDEFINED") {
-                    _executionMode = 1;
-                } else if (kvp.second == "PERFORMANCE") {
-                    _executionMode = 2;
-                } else if (kvp.second == "ACCURACY") {
-                    _executionMode = 3;
+                if (kvp.second == ov::util::to_string(ov::hint::ExecutionMode::UNDEFINED)) {
+                    _executionMode = ov::hint::ExecutionMode::UNDEFINED;
+                } else if (kvp.second == ov::util::to_string(ov::hint::ExecutionMode::PERFORMANCE)) {
+                    _executionMode = ov::hint::ExecutionMode::PERFORMANCE;
+                } else if (kvp.second == ov::util::to_string(ov::hint::ExecutionMode::ACCURACY)) {
+                    _executionMode = ov::hint::ExecutionMode::ACCURACY;
                 } else {
                     IE_THROW() << "Unsupported config value: " << kvp.second << " for key: " << kvp.first;
                 }
@@ -271,17 +271,7 @@ struct PluginConfig {
                 priority = ov::util::to_string(ov::hint::Priority::LOW);
             _keyConfigMap[ov::hint::model_priority.name()] = priority;
         }
-        switch (_executionMode) {
-        case 1:
-            _keyConfigMap[ov::hint::execution_mode.name()] = ov::util::to_string(ov::hint::ExecutionMode::UNDEFINED);
-            break;
-        case 2:
-            _keyConfigMap[ov::hint::execution_mode.name()] = ov::util::to_string(ov::hint::ExecutionMode::PERFORMANCE);
-            break;
-        case 3:
-            _keyConfigMap[ov::hint::execution_mode.name()] = ov::util::to_string(ov::hint::ExecutionMode::ACCURACY);
-            break;
-        }
+        _keyConfigMap[ov::hint::execution_mode.name()] = ov::util::to_string(_executionMode);
         _keyConfigMap[PluginConfigParams::KEY_PERFORMANCE_HINT] = _perfHintsConfig.ovPerfHint;
         _keyConfigMap[PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS] = std::to_string(_perfHintsConfig.ovPerfHintNumRequests);
 
@@ -336,7 +326,7 @@ struct PluginConfig {
     std::string _batchTimeout;
     std::string _devicePriority;
     int _modelPriority;
-    int _executionMode;
+    ov::hint::ExecutionMode _executionMode;
     bool _deviceBindBuffer;
     bool _enableStartupFallback;
     std::string _logLevel;
