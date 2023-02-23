@@ -172,7 +172,7 @@ template<typename Key, typename Value>
 class LruCacheThreadSafe : LruCache<Key, Value> {
 public:
     using parent = LruCache<Key, Value>;
-    using FuncRemoveItem = std::function<void(std::pair<Key, Value>)>;
+    using FuncRemoveItem = std::function<void(std::pair<Key, Value>&)>;
 
     explicit LruCacheThreadSafe(size_t caps) : parent(caps) { }
 

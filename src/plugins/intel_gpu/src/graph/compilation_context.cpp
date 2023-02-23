@@ -24,7 +24,8 @@ public:
         std::lock_guard<std::mutex> lock(_mutex);
         if (_task_keys.find(key) == _task_keys.end()) {
             _task_keys.insert(key);
-            _task_executor->run(task);
+            if (_task_executor != nullptr)
+                _task_executor->run(task);
         }
     }
 
@@ -52,8 +53,12 @@ public:
             return;
 
         _stop_compilation = true;
-        _task_executor.reset();
-        _task_keys.clear();
+        {
+            std::lock_guard<std::mutex> lock(_mutex);
+            if (_task_executor != nullptr)
+                _task_executor.reset();
+            _task_keys.clear();
+        }
     }
 
 private:
