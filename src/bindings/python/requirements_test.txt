@@ -38,5 +38,5 @@ retrying
 tox
 types-pkg_resources
 wheel>=0.38.1
-protobuf~=3.20.2
+protobuf~=3.20.3
 numpy>=1.16.6,<=1.23.4
