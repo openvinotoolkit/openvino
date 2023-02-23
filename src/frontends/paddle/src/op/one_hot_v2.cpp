@@ -17,10 +17,10 @@ NamedOutputs one_hot_v2(const NodeContext& node) {
         depth = default_opset::Constant::create(element::i32, Shape{}, {depth_value});
     } else {
         bool t = node.has_input("depth_tensor");
-        PADDLE_OP_CHECK(node, !t, "depth/num_class could only be scalar!");
+        PADDLE_OP_CHECK(node, !t, "depth/num_class could only be int, not tensor");
         auto axis = default_opset::Constant::create(element::i32, Shape{}, {1});
-        auto max = std::make_shared<default_opset::ReduceMax>(node.get_input("depth_tensor"), axis, false);
-        depth = default_opset::Constant::create(element::i32, Shape{}, {5});
+        auto depth_value = std::make_shared<default_opset::ReduceMean>(node.get_input("depth_tensor"), axis, false);
+        depth = std::make_shared<default_opset::Squeeze>(depth_value);
     }
     auto on_value = default_opset::Constant::create(element::f32, Shape{}, {1});
     auto off_value = default_opset::Constant::create(element::f32, Shape{}, {0});
