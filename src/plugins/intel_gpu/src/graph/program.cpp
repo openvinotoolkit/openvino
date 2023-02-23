@@ -173,7 +173,7 @@ void program::init_program() {
     _impls_cache = cldnn::make_unique<ImplementationsCache>(_impls_cache_capacity);
     // Remove items of compilation context's internal queue when some impl is popped in kernels_cache
     // compilation context's queue check duplication of inserted task
-    _impls_cache->set_remove_item_callback([this](std::pair<long unsigned int, std::shared_ptr<cldnn::primitive_impl>>& item) {
+    _impls_cache->set_remove_item_callback([this](std::pair<size_t, std::shared_ptr<cldnn::primitive_impl>>& item) {
         get_compilation_context().remove_keys({item.first});
     });
 }
