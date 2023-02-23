@@ -309,3 +309,41 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
     def test_conversion_model_oneshot_iterator_default(self):
         self.basic("model_oneshot_iterator.pbtxt", None, None, None, None,
                    None, None, True, True, False, False)
+
+    @generate(
+        *[
+            (
+                    "in2{f32}->[0.0 0.0 0.0 0.0]",
+                    {"in1": np.array([[1.0, 2.0], [3.0, 4.0]])},
+                    np.array([[1.0, 2.0], [3.0, 4.0]]),
+                    np.float32,
+            ),
+            (
+                    "in2->[1.0 15.0 15.5 1.0]",
+                    {"in1": np.array([[2.0, 4.0], [12.0, 8.0]])},
+                    np.array([[3.0, 19.0], [27.5, 9.0]]),
+                    np.float32,
+            ),
+        ],
+    )
+    def test_conversion_model_with_non_standard_extension(self, input_freezing_value, inputs, expected,
+                                                          dtype):
+        self.basic("model_fp32.frozen", input_freezing_value, inputs, dtype, expected, only_conversion=False,
+                   input_model_is_text=False, use_new_frontend=True,
+                   use_legacy_frontend=False)
+
+    def test_conversion_fake_model(self):
+        with self.assertRaisesRegex(Exception,
+                                    "Internal error or inconsistent input model: the frontend supports "
+                                    "only frozen binary protobuf format."):
+            self.basic("fake.pb", None, None, None, None,
+                       only_conversion=True, input_model_is_text=False, use_new_frontend=True,
+                       use_legacy_frontend=False)
+
+    def test_conversion_dir_model(self):
+        with self.assertRaisesRegex(Exception,
+                                    "Internal error or inconsistent input model: the frontend supports "
+                                    "only frozen binary protobuf format."):
+            self.basic(".", None, None, None, None,
+                       only_conversion=True, input_model_is_text=False, use_new_frontend=True,
+                       use_legacy_frontend=False)
