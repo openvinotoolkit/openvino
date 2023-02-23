@@ -202,24 +202,22 @@ void RemoveInputNode(const NodePtr& main_node, size_t input_idx) {
 NodeVector InsertOutputTransposes(const NodePtr& main_node, const TransposeInputsInfo& transpose_input_info) {
     if (transpose_input_info.isEmpty())
         return {};
-
-    auto new_transpose_order = AlignTransposeOrder(main_node->output(0), transpose_input_info);
+    const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
     const auto transpose_element_type = transpose_input_info.transpose_const->get_element_type();
 
     NodeVector new_nodes;
 
     for (size_t i = 0; i < main_node->get_output_size(); ++i) {
-        auto new_transpose_const =
-            std::make_shared<Constant>(transpose_element_type, Shape{new_transpose_order.size()}, new_transpose_order);
+        auto new_transpose_const = std::make_shared<Constant>(transpose_element_type,
+                                                              Shape{transpose_axis_order.size()},
+                                                              transpose_axis_order);
         auto main_node_consumers = main_node->output(i).get_target_inputs();
         auto new_transpose = std::make_shared<Transpose>(main_node->output(i), new_transpose_const);
         for (auto& consumer : main_node_consumers) {
             consumer.replace_source_output(new_transpose);
         }
-
         copy_runtime_info(main_node, {new_transpose, new_transpose_const});
         SwapOutputNames(main_node->output(i), new_transpose->output(0));
-
         if (main_node->get_output_size() > 1)
             new_transpose->set_friendly_name(main_node->get_friendly_name() + "." + std::to_string(i));
         else
@@ -384,22 +382,6 @@ void RemoveSingleOutputConsumers(const NodePtr& node) {
             consumer->output(0).replace(node->output(output_idx));
         }
     }
-}
-
-void ValidateForward(const std::shared_ptr<ov::Node>& main_node) {
-    main_node->validate_and_infer_types();
-    for (const auto& out : main_node->outputs()) {
-        for (const auto consumer : out.get_target_inputs()) {
-            consumer.get_node()->validate_and_infer_types();
-        }
-    }
-}
-
-void ValidateBackward(const std::shared_ptr<ov::Node>& main_node) {
-    for (size_t i = 0; i < main_node->get_input_size(); ++i) {
-        main_node->get_input_node_shared_ptr(i)->validate_and_infer_types();
-    }
-    main_node->validate_and_infer_types();
 }
 
 }  // namespace transpose_sinking

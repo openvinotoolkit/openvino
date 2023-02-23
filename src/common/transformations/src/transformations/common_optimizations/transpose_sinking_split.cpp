@@ -175,8 +175,8 @@ ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
                           new_split_axis_const);
 
         // remove split output transposes
+        split->validate_and_infer_types();
         RemoveSingleOutputConsumers(split);
-        ValidateBackward(split);
         return true;
     };
 
@@ -207,11 +207,6 @@ ov::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
         TransposeInputsInfo transpose_input_info = GetFirstTransposeInput(main_node);
 
         sink_forward::RemoveInputNode(main_node, /* input_idx */ 0);
-        for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
-            register_new_node(new_node);
-            transpose_sinking::UpdateForwardSinkingAbility(new_node);
-        }
-
         const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
         const size_t transposed_split_axis = transpose_axis_order[split_axis];
         auto new_split_axis_const =
@@ -219,7 +214,13 @@ ov::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
         split->input(1).replace_source_output(new_split_axis_const);
         copy_runtime_info({split_axis_constant, transpose_input_info.transpose, transpose_input_info.transpose_const},
                           new_split_axis_const);
-        ValidateForward(main_node);
+        split->validate_and_infer_types();
+
+        for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
+            register_new_node(new_node);
+            transpose_sinking::UpdateForwardSinkingAbility(new_node);
+        }
+
         return true;
     };
 

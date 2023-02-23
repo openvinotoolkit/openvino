@@ -111,7 +111,4 @@ ov::Output<ov::Node> ChangeValuesOrder(const ov::Output<ov::Node>& input,
                                        const ov::AxisVector& transpose_axis_order,
                                        const std::shared_ptr<ov::opset9::Constant>& axis);
 
-void ValidateForward(const std::shared_ptr<ov::Node>& main_node);
-
-void ValidateBackward(const std::shared_ptr<ov::Node>& main_node);
 }  // namespace transpose_sinking

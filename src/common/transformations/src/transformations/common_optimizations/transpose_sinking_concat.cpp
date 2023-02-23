@@ -43,16 +43,17 @@ ov::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
             return false;
         }
 
+        const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
+        const int64_t transposed_concat_axis = transpose_axis_order[concat_axis];
+        concat_node->set_axis(transposed_concat_axis);
+        concat_node->set_concatenation_axis(-1);
+
+        main_node->validate_and_infer_types();
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
             register_new_node(new_node);
             transpose_sinking::UpdateForwardSinkingAbility(new_node);
         }
 
-        const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
-        const int64_t transposed_concat_axis = transpose_axis_order[concat_axis];
-        concat_node->set_axis(transposed_concat_axis);
-        concat_node->set_concatenation_axis(-1);
-        ValidateForward(main_node);
         return true;
     };
 
@@ -88,17 +89,16 @@ ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
         for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node, transpose_const)) {
             register_new_node(new_node);
         }
-
-        // remove output transposes
-        RemoveSingleOutputConsumers(main_node);
-
-        SwapNames(transpose, main_node);
         const auto transpose_axis_order = transpose_const->get_axis_vector_val();
         const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
         const int64_t transposed_concat_axis = reversed_traspose_axis_order[concat_axis];
         concat_node->set_axis(transposed_concat_axis);
         concat_node->set_concatenation_axis(-1);
-        ValidateBackward(main_node);
+        concat_node->validate_and_infer_types();
+        // remove output transposes
+        RemoveSingleOutputConsumers(main_node);
+
+        SwapNames(transpose, main_node);
         return true;
     };
 

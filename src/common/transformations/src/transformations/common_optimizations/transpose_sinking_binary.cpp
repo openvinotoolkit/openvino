@@ -23,14 +23,15 @@ using namespace transpose_sinking;
 ov::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
     MATCHER_SCOPE(TransposeSinkingBinaryForward);
 
-    auto main_node_label = wrap_type<op::util::BinaryElementwiseArithmetic, PRelu>(IfNodeHasTransposeInputs);
+    auto main_node_label =
+        wrap_type<op::util::BinaryElementwiseArithmetic, PRelu>([](const Output<Node>& output) -> bool {
+            return has_static_rank()(output) && IfNodeHasTransposeInputs(output);
+        });
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
-
         auto& main_node_output = pattern_to_output.at(main_node_label);
         auto main_node = main_node_output.get_node_shared_ptr();
-
         TransposeInputsInfo transpose_input_info = GetFirstTransposeInput(main_node);
 
         // todo: support dynamic rank case
@@ -38,11 +39,11 @@ ov::pass::TransposeSinkingBinaryForward::TransposeSinkingBinaryForward() {
         if (!updated) {
             return false;
         }
+        main_node->validate_and_infer_types();
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
             register_new_node(new_node);
             transpose_sinking::UpdateForwardSinkingAbility(new_node);
         }
-        ValidateForward(main_node);
         return true;
     };
 
@@ -74,12 +75,11 @@ ov::pass::TransposeSinkingBinaryBackward::TransposeSinkingBinaryBackward() {
         for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node, transpose_const)) {
             register_new_node(new_node);
         }
-
+        main_node->validate_and_infer_types();
         // remove output transposes
         RemoveSingleOutputConsumers(main_node);
 
         SwapNames(transpose, main_node);
-        ValidateBackward(main_node);
         return true;
     };
 

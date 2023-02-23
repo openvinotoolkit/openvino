@@ -55,7 +55,6 @@ ov::pass::TransposeSinkingPadForward::TransposeSinkingPadForward() {
             register_new_node(new_node);
             transpose_sinking::UpdateForwardSinkingAbility(new_node);
         }
-        ValidateForward(main_node);
         return true;
     };
 
@@ -99,7 +98,7 @@ ov::pass::TransposeSinkingPadBackward::TransposeSinkingPadBackward() {
             ChangeValuesOrder(main_node->input_value(1), transpose_axis_order, axis));
         main_node->input(2).replace_source_output(
             ChangeValuesOrder(main_node->input_value(2), transpose_axis_order, axis));
-        ValidateBackward(main_node);
+        main_node->validate_and_infer_types();
         return true;
     };
 
