@@ -154,7 +154,7 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
             ov::Tensor host_tensor;
             auto it = tensor_map.find(tensor);
             auto output = cloned_node->output(i);
-            if (op::util::is_output(op) || it == tensor_map.end()) {
+            if (op::util::is_output(op) || it == tensor_map.end() || !it->second) {
                 host_tensor = ov::Tensor(output.get_element_type(),
                                          output.get_partial_shape().is_dynamic()
                                              ? ov::Shape{0, std::numeric_limits<size_t>::max()}

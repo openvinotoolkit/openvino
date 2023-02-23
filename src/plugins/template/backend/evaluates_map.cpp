@@ -3303,6 +3303,12 @@ runtime::reference::custom_evaluate_function evaluate = [](const std::shared_ptr
                  inputsNumber,
                  " input blobs");
 
+    const auto& results = function->get_results();
+    outputs.reserve(results.size());
+    for (size_t i = 0; i < results.size(); ++i) {
+        outputs.push_back(std::make_shared<HostTensor>(results[i]->output(0)));
+    }
+
     auto backend = ov::runtime::Backend::create();
     auto handle = backend->compile(function);
     OPENVINO_SUPPRESS_DEPRECATED_START
