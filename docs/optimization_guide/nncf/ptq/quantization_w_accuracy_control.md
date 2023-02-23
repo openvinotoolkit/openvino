@@ -3,7 +3,7 @@
 @sphinxdirective
 
 Introduction
-~~~~~~~~~~~~
+####################
 
 This is the advanced quantization flow that allows to apply 8-bit quantization to the model with control of accuracy metric. This is achieved by keeping the most impactful operations within the model in the original precision. The flow is based on the :doc:`Basic 8-bit quantization <basic_qauntization_flow>` and has the following differences:
 
@@ -17,7 +17,7 @@ This is the advanced quantization flow that allows to apply 8-bit quantization t
 The steps for the quantization with accuracy control are described below.
 
 Prepare datasets
-~~~~~~~~~~~~~~~~~
+####################
 
 This step is similar to the :doc:`Basic 8-bit quantization <basic_qauntization_flow>` flow. The only difference is that two datasets, calibration and validation, are required.
 
@@ -29,7 +29,7 @@ This step is similar to the :doc:`Basic 8-bit quantization <basic_qauntization_f
 
 
 Prepare validation function
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+###########################
 
 Validation funtion receives ``openvino.runtime.CompiledModel`` object and validation dataset and returns accuracy metric value. The following code snippet shows an example of validation function for OpenVINO model:
 
@@ -56,7 +56,7 @@ Now, you can run quantization with accuracy control. The following code snippet 
 ``nncf.quantize_with_accuracy_control()`` API supports all the parameters of ``nncf.quantize()`` API. For example, you can use ``nncf.quantize_with_accuracy_control()`` to quantize a model with a custom configuration.
 
 See also
-~~~~~~~~~~~~
+####################
 
 * :doc:`Optimizing Models at Training Time <tmo_introduction>`
 
