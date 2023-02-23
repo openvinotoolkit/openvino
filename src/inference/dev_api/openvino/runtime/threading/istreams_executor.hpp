@@ -29,7 +29,7 @@ namespace threading {
  * @par NUMA
  *        On NUMA hosts GetNumaNodeId() method can be used to define the NUMA node of current stream
  */
-class OPENVINO_RUNTIME_API IStreamsExecutor : public ITaskExecutor {
+class OPENVINO_RUNTIME_API IStreamsExecutor : virtual public ITaskExecutor {
 public:
     /**
      * @brief Defines inference thread binding type

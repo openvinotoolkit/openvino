@@ -23,7 +23,7 @@ namespace InferenceEngine {
  *        It would be wrapped into std::function object
  * @ingroup ie_dev_api_threading
  */
-using Task = std::function<void()>;
+using Task = ov::threading::Task;
 
 /**
 * @interface ITaskExecutor
@@ -43,7 +43,7 @@ run tasks in current thread.
 *        Here is an example of how to use `std::promise` to wait task completion and process task's exceptions:
  * @snippet example_itask_executor.cpp itask_executor:define_pipeline
  */
-class INFERENCE_ENGINE_API_CLASS(ITaskExecutor) : public ov::threading::ITaskExecutor {
+class INFERENCE_ENGINE_API_CLASS(ITaskExecutor) : virtual public ov::threading::ITaskExecutor {
 public:
     /**
      * A shared pointer to ITaskExecutor interface
