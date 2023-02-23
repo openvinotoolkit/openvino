@@ -409,7 +409,7 @@ class TestParallelRunner:
                     if constants.RUN in line:
                         test_name = line[line.find(constants.RUN) + len(constants.RUN) + 1:-1:]
                     if constants.REF_COEF in line:
-                        ref_k = int(line[line.rfind(' ') + 1:])
+                        ref_k = float(line[line.rfind(' ') + 1:])
                     if dir is None:
                         for test_st, mes_list in constants.TEST_STATUS.items():
                             for mes in mes_list:

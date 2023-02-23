@@ -129,11 +129,10 @@ void OPCache::serialize_meta_info(const LayerTestsUtils::OPInfo &info, const std
         model_node.append_attribute("name").set_value(model.first.c_str());
         double model_k = model.second.unique_op_cnt;
         model_node.append_attribute("count").set_value(static_cast<unsigned long long>(model.second.unique_op_cnt));
-        auto paths = model_node.append_child("paths");
         size_t tmp = 0;
         for (const auto& model_path : model.second.model_paths) {
             if (model_path.second) {
-                paths.append_child(model_path.first.c_str());
+                model_node.append_child("path").append_attribute("model").set_value(model_path.first.c_str());
                 tmp += model_path.second;
             }
         }

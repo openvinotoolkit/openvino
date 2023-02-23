@@ -40,7 +40,7 @@ OpSummary &OpSummary::getInstance() {
     return *p_instance;
 }
 
-void OpSummary::updateOPsStats(const ov::NodeTypeInfo &op, const PassRate::Statuses &status, size_t k) {
+void OpSummary::updateOPsStats(const ov::NodeTypeInfo &op, const PassRate::Statuses &status, double k) {
     auto it = opsStats.find(op);
     if (opsStats.find(op) == opsStats.end()) {
         opsStats.insert({op, PassRate()});
@@ -134,7 +134,7 @@ std::map<std::string, PassRate> OpSummary::getStatisticFromReport() {
     return oldOpsStat;
 }
 
-void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model> &model, const PassRate::Statuses &status, size_t k) {
+void OpSummary::updateOPsStats(const std::shared_ptr<ov::Model> &model, const PassRate::Statuses &status, double k) {
     if (model->get_parameters().empty()) {
         return;
     }

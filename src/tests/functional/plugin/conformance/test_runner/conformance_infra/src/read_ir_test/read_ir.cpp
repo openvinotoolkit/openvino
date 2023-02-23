@@ -151,10 +151,6 @@ void ReadIRTest::SetUp() {
             model_len++;
             occurance += model.attribute("count").as_uint();
         }
-        for (auto const& c : doc.child("meta_info").children()) {
-            std::cout << c.name() << std::endl;
-        }
-        auto c = doc.text();
         k = doc.child("meta_info").child("graph_priority").attribute("value").as_double();
         auto portsInfo = doc.child("meta_info").child("ports_info");
         auto getPortInfo = [&](size_t id) {

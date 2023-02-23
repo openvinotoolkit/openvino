@@ -45,8 +45,8 @@ def update_result_node(xml_node: SubElement, aggregated_res: SubElement):
             str_value = "true" if xml_value or aggregated_value else "false"
             aggregated_res.set(attr_name, str_value)
             continue
-        xml_value = int(xml_node.attrib.get(attr_name))
-        aggregated_value = int(aggregated_res.attrib.get(attr_name))
+        xml_value = float(xml_node.attrib.get(attr_name)) if "relative_" in attr_name else int(xml_node.attrib.get(attr_name))
+        aggregated_value = float(aggregated_res.attrib.get(attr_name)) if "relative_" in attr_name else int(aggregated_res.attrib.get(attr_name))
         # if attr_name == "crashed" and xml_value > 0:
             # print("f")
         aggregated_res.set(attr_name, str(xml_value + aggregated_value))
