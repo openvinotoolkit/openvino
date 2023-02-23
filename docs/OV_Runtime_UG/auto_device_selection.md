@@ -27,10 +27,10 @@ The selection also depends on your performance requirements, defined by the “h
 
 The logic behind the choice is as follows:
 
-#. Check what supported devices are available.
-#. Check precisions of the input model (for detailed information on precisions read more on the `ov::device::capabilities`)
-#. Select the highest-priority device capable of supporting the given model, as listed in the table below.
-#. If model’s precision is FP32 but there is no device capable of supporting it, offload the model to a device supporting FP16.
+1. Check what supported devices are available.
+2. Check precisions of the input model (for detailed information on precisions read more on the ``ov::device::capabilities``)
+3. Select the highest-priority device capable of supporting the given model, as listed in the table below.
+4. If model’s precision is FP32 but there is no device capable of supporting it, offload the model to a device supporting FP16.
 
 
 +----------+------------------------------------------------------+-------------------------------------+
@@ -132,7 +132,7 @@ Following the OpenVINO™ naming convention, the Automatic Device Selection mode
 | |                                             | |       ``false``                                                    |
 | |                                             | |                                                                    |
 | |                                             | | Enables/disables CPU as acceleration (or the helper device) in the |
-| |                                             | | beginning. The default value is `true`, indicating that CPU is     |
+| |                                             | | beginning. The default value is ``true``, indicating that CPU is   |
 | |                                             | | used as acceleration by default.                                   |
 +-----------------------------------------------+----------------------------------------------------------------------+
 
