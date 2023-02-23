@@ -674,3 +674,42 @@ TEST_F(TransformationTestsF, RemoveTensorIteratorDanglingResult) {
         model_ref = std::make_shared<Model>(OutputVector{res}, ParameterVector{X, Y});
     }
 }
+
+TEST_F(TransformationTestsF, RemoveTensorIteratorMultipleDanglingResult) {
+    auto X = std::make_shared<Parameter>(element::f32, Shape{32, 40, 10});
+    auto Y = std::make_shared<Parameter>(element::f32, Shape{32, 40, 10});
+
+    auto Xi = std::make_shared<Parameter>(element::f32, Shape{32, 2, 10});
+    auto Yi = std::make_shared<Parameter>(element::f32, Shape{32, 2, 10});
+    auto Zo1 = std::make_shared<Abs>(std::make_shared<Add>(Xi, Yi));
+    auto Zo2 = std::make_shared<Abs>(std::make_shared<Subtract>(Xi, Yi));
+    auto Zo3 = std::make_shared<Abs>(std::make_shared<Multiply>(Xi, Yi));
+    auto Zo4 = std::make_shared<Abs>(std::make_shared<Divide>(Xi, Yi));
+    {
+        auto body = std::make_shared<Model>(OutputVector{Zo1, Zo2, Zo3, Zo4}, ParameterVector{Xi, Yi});
+        auto tensor_iterator = std::make_shared<TensorIterator>();
+        tensor_iterator->set_body(body);
+        tensor_iterator->set_sliced_input(Xi, X, 0, 2, 2, 39, 1);
+        tensor_iterator->set_sliced_input(Yi, Y, 0, 2, 2, -1, 1);
+
+        auto out1 = tensor_iterator->get_iter_value(Zo1, -1);
+        auto out2 = tensor_iterator->get_iter_value(Zo2, -1);
+        auto out3 = tensor_iterator->get_iter_value(Zo3, -1);
+        auto out4 = tensor_iterator->get_iter_value(Zo4, -1);
+        // out1 and out3 is not used
+        model = std::make_shared<Model>(OutputVector{out2, out4}, ParameterVector{X, Y});
+
+        manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
+    }
+    {
+        auto body = std::make_shared<Model>(OutputVector{Zo2, Zo4}, ParameterVector{Xi, Yi});
+        auto tensor_iterator = std::make_shared<TensorIterator>();
+        tensor_iterator->set_body(body);
+        tensor_iterator->set_sliced_input(Xi, X, 0, 2, 2, 39, 1);
+        tensor_iterator->set_sliced_input(Yi, Y, 0, 2, 2, -1, 1);
+
+        auto out2 = tensor_iterator->get_iter_value(Zo2, -1);
+        auto out4 = tensor_iterator->get_iter_value(Zo4, -1);
+        model_ref = std::make_shared<Model>(OutputVector{out2, out4}, ParameterVector{X, Y});
+    }
+}

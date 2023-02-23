@@ -61,7 +61,7 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
             auto results = body->get_results();
             // go in reverse order to first delete last result
             for (auto it = results_idxs_to_remove.rbegin(); it != results_idxs_to_remove.rend(); ++it) {
-                body->remove_result(results[*it]);
+                body->remove_result(results.at(*it));
                 is_changed = true;
                 // We need to go over output descriptors and modify them to reflect deleted result
                 for (auto& desc : new_out_desc) {
@@ -161,18 +161,17 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
             // existing op
             std::shared_ptr<ov::op::util::MultiSubGraphOp> new_op;
             if (if_op) {
-                new_op = std::make_shared<opset10::If>(if_op->input_value(0));
-                new_op->set_arguments(multi_subgraph_op->input_values());
+                new_op = std::make_shared<opset10::If>();
             } else if (loop_op) {
-                auto new_loop_op = std::make_shared<opset10::Loop>(loop_op->input_value(0), loop_op->input_value(1));
+                auto new_loop_op = std::make_shared<opset10::Loop>();
                 new_loop_op->set_special_body_ports(loop_op->get_special_body_ports());
                 new_op = new_loop_op;
-                new_op->set_arguments(multi_subgraph_op->input_values());
             } else if (ti_op) {
-                new_op = std::make_shared<opset10::TensorIterator>(multi_subgraph_op->input_values());
+                new_op = std::make_shared<opset10::TensorIterator>();
             }
-            copy_runtime_info(multi_subgraph_op, new_op);
+            new_op->set_arguments(multi_subgraph_op->input_values());
             new_op->set_friendly_name(multi_subgraph_op->get_friendly_name());
+            copy_runtime_info(multi_subgraph_op, new_op);
             for (int body_idx = 0; static_cast<size_t>(body_idx) < subgraphs_size; ++body_idx) {
                 new_op->set_function(body_idx, multi_subgraph_op->get_function(body_idx));
                 new_op->set_input_descriptions(body_idx, multi_subgraph_op->get_input_descriptions(body_idx));
@@ -182,7 +181,6 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
             new_op->set_output_size(multi_subgraph_op->get_output_size() - outputs_to_remove.size());
             for (size_t out_idx = 0; out_idx < multi_subgraph_op->get_output_size(); ++out_idx) {
                 if (outputs_to_remove.find(out_idx) != outputs_to_remove.end()) {
-                    ++removed_outs_counter;
                     // Need to go through all output descriptors to reflect deleted output
                     for (int body_idx = 0; static_cast<size_t>(body_idx) < subgraphs_size; ++body_idx) {
                         for (auto& odesc : new_op->get_output_descriptions(body_idx)) {
@@ -191,6 +189,7 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
                             }
                         }
                     }
+                    ++removed_outs_counter;
                 } else {
                     // replace output with new one
                     multi_subgraph_op->output(out_idx).replace(new_op->output(out_idx - removed_outs_counter));
