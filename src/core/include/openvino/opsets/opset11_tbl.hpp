@@ -125,7 +125,6 @@ _OPENVINO_OP_REG(ScatterElementsUpdate, ov::op::v3)
 _OPENVINO_OP_REG(ScatterUpdate, ov::op::v3)
 _OPENVINO_OP_REG(ShuffleChannels, ov::op::v0)
 _OPENVINO_OP_REG(ShapeOf, ov::op::v3)
-_OPENVINO_OP_REG(TopK, ov::op::v11)
 
 // New operations added in opset4
 _OPENVINO_OP_REG(Acosh, ov::op::v3)
@@ -202,3 +201,6 @@ _OPENVINO_OP_REG(IsFinite, ov::op::v10)
 _OPENVINO_OP_REG(IsInf, ov::op::v10)
 _OPENVINO_OP_REG(IsNaN, ov::op::v10)
 _OPENVINO_OP_REG(Unique, ov::op::v10)
+
+// New operations added in opset11
+_OPENVINO_OP_REG(TopK, ov::op::v11)
