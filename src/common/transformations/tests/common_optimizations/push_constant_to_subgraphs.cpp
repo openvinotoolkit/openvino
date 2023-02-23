@@ -179,3 +179,78 @@ TEST_F(TransformationTestsF, PushConstantToSubgraphIf) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
+
+TEST_F(TransformationTestsF, PushConstantToSubgraphLoopMoreThan32Inputs) {
+    int num_const_inputs = 33;
+    {
+        auto trip_count = opset10::Constant::create(element::i32, Shape{}, {2});
+        auto term_cond = opset10::Constant::create(element::boolean, Shape{}, {true});
+        std::shared_ptr<Model> loop_body;
+        {
+            auto X = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 2});
+            ParameterVector params;
+            params.reserve(num_const_inputs + 1);
+            params.push_back(X);
+            NodeVector concat_inputs;
+            concat_inputs.reserve(num_const_inputs + 1);
+            concat_inputs.push_back(X);
+            for (int i = 0; i < num_const_inputs; i++) {
+                params.push_back(std::make_shared<opset10::Parameter>(element::f32, Shape{1, 2}));
+                concat_inputs.push_back(params.back());
+            }
+            auto concat = std::make_shared<opset10::Concat>(concat_inputs, 1);
+            auto cond = opset10::Constant::create(element::boolean, Shape{}, {true});
+            loop_body = std::make_shared<Model>(NodeVector{concat, cond}, params);
+        }
+        auto loop = std::make_shared<opset10::Loop>(trip_count, term_cond);
+        loop->set_function(loop_body);
+
+        auto X = std::make_shared<opset10::Parameter>(element::f32, Shape{2, 2});
+        NodeVector constants;
+        constants.reserve(num_const_inputs);
+        for (int i = 0; i < num_const_inputs; i++) {
+            constants.push_back(opset10::Constant::create(element::f32, Shape{1, 2}, {-2}));
+        }
+        const auto& loop_params = loop_body->get_parameters();
+        loop->set_special_body_ports({-1, 1});
+        loop->set_sliced_input(loop_params[0], X, 0, 1, 1, -1, 0);
+        for (int i = 0; i < num_const_inputs; i++) {
+            loop->set_invariant_input(loop_params[i + 1], constants[i]);
+        }
+        auto out = loop->get_concatenated_slices(loop_body->get_results()[0], 0, 1, 1, -1, 0);
+        function = std::make_shared<Model>(OutputVector{out}, ParameterVector{X});
+
+        manager.register_pass<pass::PushConstantToSubgraph>();
+    }
+
+    {
+        auto trip_count = opset10::Constant::create(element::i32, Shape{}, {2});
+        auto term_cond = opset10::Constant::create(element::boolean, Shape{}, {true});
+        std::shared_ptr<Model> loop_body;
+        {
+            auto constant = opset10::Constant::create(element::f32, Shape{1, 2}, {-2});
+            auto X = std::make_shared<opset10::Parameter>(element::f32, Shape{1, 2});
+            NodeVector concat_inputs;
+            concat_inputs.reserve(num_const_inputs + 1);
+            concat_inputs.push_back(X);
+            for (int i = 0; i < num_const_inputs; i++) {
+                concat_inputs.push_back(opset10::Constant::create(element::f32, Shape{1, 2}, {-2}));
+            }
+            auto concat = std::make_shared<opset10::Concat>(concat_inputs, 1);
+            auto cond = opset10::Constant::create(element::boolean, Shape{}, {true});
+            loop_body = std::make_shared<Model>(NodeVector{concat, cond}, ParameterVector{X});
+        }
+        auto loop = std::make_shared<opset10::Loop>(trip_count, term_cond);
+        loop->set_function(loop_body);
+
+        auto X = std::make_shared<opset10::Parameter>(element::f32, Shape{2, 2});
+        const auto& loop_params = loop_body->get_parameters();
+        loop->set_special_body_ports({-1, 1});
+        loop->set_sliced_input(loop_params[0], X, 0, 1, 1, -1, 0);
+        auto out = loop->get_concatenated_slices(loop_body->get_results()[0], 0, 1, 1, -1, 0);
+        function_ref = std::make_shared<Model>(OutputVector{out}, ParameterVector{X});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}

@@ -57,3 +57,5 @@ __pycache__
 /tools/mo/*.mapping
 /tools/mo/*.dat
 /tools/mo/*.svg
+/src/plugins/intel_cpu/tools/commit_slider/*.json
+/src/plugins/intel_cpu/tools/commit_slider/slider_cache/*

@@ -100,7 +100,7 @@ CompiledModel::CompiledModel(std::istream& networkModel, InferenceEngine::Remote
             ib >> precision;
             ib >> layout;
 
-            DataPtr input = std::make_shared<Data>(name, Precision::FromStr(precision), cldnn::layout_from_string(layout));
+            DataPtr input = std::make_shared<Data>(name, Precision::FromStr(precision), cldnn::serial_util::layout_from_string(layout));
             InputInfo::Ptr infoNew = std::make_shared<InputInfo>();
             infoNew->setInputData(input);
             inputs.emplace(std::make_pair(name, infoNew));
@@ -119,7 +119,7 @@ CompiledModel::CompiledModel(std::istream& networkModel, InferenceEngine::Remote
             ib >> precision;
             ib >> layout;
 
-            DataPtr output = std::make_shared<Data>(name, Precision::FromStr(precision), cldnn::layout_from_string(layout));
+            DataPtr output = std::make_shared<Data>(name, Precision::FromStr(precision), cldnn::serial_util::layout_from_string(layout));
             outputs.emplace(std::make_pair(name, output));
         }
 
@@ -229,9 +229,10 @@ CompiledModel::CompiledModel(std::istream& networkModel, InferenceEngine::Remote
         setOutputs(new_results);
     }
 
-    auto graph_base = std::make_shared<Graph>(ib, context_impl, m_config, 0);
+    auto pos = ib.tellg();
     for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
-        auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
+        ib.seekg(pos);
+        auto graph = std::make_shared<Graph>(ib, context_impl, m_config, n);
         m_graphs.push_back(graph);
     }
 }
@@ -317,10 +318,6 @@ IInferRequestInternal::Ptr CompiledModel::CreateInferRequest() {
 }
 
 bool CompiledModel::is_serializable() {
-    // Model with multiple graphs is not yet supported.
-    if (m_graphs.size() != 1)
-        return false;
-
     // Dynamic model serialization is not yet supported.
     if (m_graphs[0]->GetNetwork()->is_dynamic())
         return false;

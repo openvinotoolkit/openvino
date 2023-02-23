@@ -6,6 +6,8 @@
 
 #include <ie_plugin_config.hpp>
 
+#include "dev/converter_utils.hpp"
+
 InferenceEngine::ICompiledModelWrapper::ICompiledModelWrapper(
     const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& model)
     : ov::ICompiledModel(nullptr, ov::legacy_convert::convert_plugin(model->_plugin)),
@@ -20,9 +22,9 @@ InferenceEngine::ICompiledModelWrapper::ICompiledModelWrapper(
     m_inputs = inputs;
     m_outputs = outputs;
 }
-std::shared_ptr<InferenceEngine::IInferRequestInternal> InferenceEngine::ICompiledModelWrapper::create_infer_request()
-    const {
-    return m_model->CreateInferRequest();
+
+std::shared_ptr<ov::IAsyncInferRequest> InferenceEngine::ICompiledModelWrapper::create_infer_request() const {
+    return ov::legacy_convert::convert_infer_request(m_model->CreateInferRequest());
 }
 
 void InferenceEngine::ICompiledModelWrapper::export_model(std::ostream& model) const {
