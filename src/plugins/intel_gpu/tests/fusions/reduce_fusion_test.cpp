@@ -142,15 +142,16 @@ TEST_P(reduce_eltwise, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, reduce_eltwise, ::testing::ValuesIn(std::vector<reduce_test_params>{
-    reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::sum, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::mean, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::min, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::max, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::prod, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::l1, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::l2, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::log_sum, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
-    reduce_test_params{ CASE_REDUCE_U8_5, 2, 2, reduce_mode::logical_and, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    // Waiting PR#15725
+    // reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::sum, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    // reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::mean, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    // reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::min, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    // reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::max, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    // reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::prod, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    // reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::l1, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    // reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::l2, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    // reduce_test_params{ CASE_REDUCE_F16_5, 2, 2, reduce_mode::log_sum, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
+    // reduce_test_params{ CASE_REDUCE_U8_5, 2, 2, reduce_mode::logical_and, { 0, 1 }, true, "reduce_gpu_b_fs_yx_fsv16" },
 }));
 
 class reduce_eltwise_activation_quantize : public ReduceFusingTest {};

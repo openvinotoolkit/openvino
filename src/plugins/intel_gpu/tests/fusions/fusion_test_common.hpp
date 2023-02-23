@@ -68,8 +68,6 @@ public:
             description << "  " << i.original_id << " " << i.kernel_id << std::endl;
         }
         SCOPED_TRACE(description.str());
-        GPU_DEBUG_LOG << description.str();
-
         // Subtract reorders count to handle execution in different layouts when input/output reorders can be added in the graph
         ASSERT_EQ(fused.get_executed_primitives().size() - (count_reorder ? 0 : reorders_count_fused), p.expected_fused_primitives);
         ASSERT_EQ(not_fused.get_executed_primitives().size() - (count_reorder ? 0 : reorders_count_not_fused), p.expected_not_fused_primitives);
@@ -111,74 +109,92 @@ public:
         }
     }
 
-    cldnn::memory::ptr get_mem(cldnn::layout l, FillType ft = FillType::OnlyInsideShape) {
+    cldnn::memory::ptr get_mem(cldnn::layout l) {
         auto prim = engine.allocate_memory(l);
-        int cnt_base = ft == FillType::All ? prim->size() / data_type_traits::size_of(l.data_type) : l.count();
+        tensor s = l.get_tensor();
         if (l.data_type == data_types::bin) {
-            set_values(prim, generate_random_1d<int32_t>(cnt_base / 32, min_random, max_random), ft);
+            VF<int32_t> rnd_vec = generate_random_1d<int32_t>(s.count() / 32, min_random, max_random);
+            set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::i8 || l.data_type == data_types::u8) {
-            set_values(prim, generate_random_1d<uint8_t>(cnt_base, min_random, max_random), ft);
+            VF<uint8_t> rnd_vec = generate_random_1d<uint8_t>(s.count(), min_random, max_random);
+            set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f16) {
-            set_values(prim, generate_random_1d<uint16_t>(cnt_base, -1, 1), ft);
-        } else if (l.data_type == data_types::f32) {
-            set_values(prim, generate_random_1d<float>(cnt_base, -1, 1), ft);
+            VF<uint16_t> rnd_vec = generate_random_1d<uint16_t>(s.count(), -1, 1);
+            set_values(prim, rnd_vec);
         } else {
-            IE_THROW() << "Unimplemented data_types";
+            VF<float> rnd_vec = generate_random_1d<float>(s.count(), -1, 1);
+            set_values(prim, rnd_vec);
         }
+
         return prim;
     }
 
-    cldnn::memory::ptr get_mem(cldnn::layout l, float fill_value, FillType ft = FillType::OnlyInsideShape) {
+    cldnn::memory::ptr get_mem(cldnn::layout l, float fill_value) {
         auto prim = engine.allocate_memory(l);
-        int cnt_base = ft == FillType::All ? prim->size() / data_type_traits::size_of(l.data_type) : l.count();
+        tensor s = l.get_tensor();
         if (l.data_type == data_types::bin) {
-            set_values(prim, VF<int32_t>(cnt_base / 32, fill_value), ft);
-        } else if (l.data_type == data_types::i8 || l.data_type == data_types::u8) {
-            set_values(prim, VF<uint8_t>(cnt_base, fill_value), ft);
+            VF<int32_t> rnd_vec(s.count() / 32, static_cast<int32_t>(fill_value));
+            set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f16) {
-            set_values(prim, VF<uint16_t>(cnt_base, fill_value), ft);
+            VF<uint16_t> rnd_vec(s.count(), float_to_half(fill_value));
+            set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f32) {
-            set_values(prim, VF<float>(cnt_base, fill_value), ft);
-        } else {
-            IE_THROW() << "Unimplemented data_types";
-        }
-        return prim;
-    }
-
-    cldnn::memory::ptr get_repeatless_mem(cldnn::layout l, int min, int max, FillType ft = FillType::OnlyInsideShape) {
-        auto prim = engine.allocate_memory(l);
-        int cnt_base = ft == FillType::All ? prim->size() / data_type_traits::size_of(l.data_type) : l.count();
-        if (l.data_type == data_types::f32) {
-            set_values(prim, generate_random_norepetitions_1d<float>(cnt_base, min, max), ft);
-        } else if (l.data_type == data_types::f16) {
-            set_values(prim, generate_random_norepetitions_1d<FLOAT16>(cnt_base, min, max), ft);
-        } else if (l.data_type == data_types::i8) {
-            set_values(prim, generate_random_norepetitions_1d<int8_t>(cnt_base, min, max), ft);
-        } else if (l.data_type == data_types::bin) {
-            set_values(prim, generate_random_norepetitions_1d<int32_t>(cnt_base / 32, min, max), ft);
-        } else {
-            IE_THROW() << "Unimplemented data_types";
-        }
-
-        return prim;
-    }
-
-    cldnn::memory::ptr get_mem(cldnn::layout l, int min, int max, FillType ft = FillType::OnlyInsideShape) {
-        auto prim = engine.allocate_memory(l);
-        int cnt_base = ft == FillType::All ? prim->size() / data_type_traits::size_of(l.data_type) : l.count();
-        if (l.data_type == data_types::f32) {
-            set_values(prim, generate_random_1d<float>(cnt_base, min, max), ft);
-        } else if (l.data_type == data_types::f16) {
-            set_values(prim, generate_random_1d<FLOAT16>(cnt_base, min, max), ft);
-        } else if (l.data_type == data_types::i8) {
-            set_values(prim, generate_random_1d<int8_t>(cnt_base, min, max), ft);
+            VF<float> rnd_vec(s.count(), fill_value);
+            set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::u8) {
-            set_values(prim, generate_random_1d<uint8_t>(cnt_base, min, max), ft);
-        } else if (l.data_type == data_types::bin) {
-            set_values(prim, generate_random_1d<int32_t>(cnt_base / 32, min, max), ft);
+            VF<uint8_t> rnd_vec(s.count(), static_cast<uint8_t>(fill_value));
+            set_values(prim, rnd_vec);
+        } else if (l.data_type == data_types::i8) {
+            VF<int8_t> rnd_vec(s.count(), static_cast<int8_t>(fill_value));
+            set_values(prim, rnd_vec);
         } else {
-            IE_THROW() << "Unimplemented data_types";
+            throw std::runtime_error("get_mem: Unsupported precision");
         }
+
+        return prim;
+    }
+
+    cldnn::memory::ptr get_repeatless_mem(cldnn::layout l, int min, int max) {
+        auto prim = engine.allocate_memory(l);
+        tensor s = l.get_tensor();
+        if (l.data_type == data_types::f32) {
+            VF<float> rnd_vec = generate_random_norepetitions_1d<float>(s.count(), min, max);
+            set_values(prim, rnd_vec);
+        } else if (l.data_type == data_types::f16) {
+            VF<FLOAT16> rnd_vec = generate_random_norepetitions_1d<FLOAT16>(s.count(), min, max);
+            set_values(prim, rnd_vec);
+        } else if (l.data_type == data_types::i8) {
+            VF<int8_t> rnd_vec = generate_random_norepetitions_1d<int8_t>(s.count(), min, max);
+            set_values(prim, rnd_vec);
+        }
+        else if (l.data_type == data_types::bin) {
+            VF<int32_t> rnd_vec = generate_random_norepetitions_1d<int32_t>(s.count(), min, max);
+            set_values(prim, rnd_vec);
+        }
+
+        return prim;
+    }
+
+    cldnn::memory::ptr get_mem(cldnn::layout l, int min, int max) {
+        auto prim = engine.allocate_memory(l);
+        tensor s = l.get_tensor();
+        if (l.data_type == data_types::f32) {
+            VF<float> rnd_vec = generate_random_1d<float>(s.count(), min, max);
+            set_values(prim, rnd_vec);
+        } else if (l.data_type == data_types::f16) {
+            VF<FLOAT16> rnd_vec = generate_random_1d<FLOAT16>(s.count(), min, max);
+            set_values(prim, rnd_vec);
+        } else if (l.data_type == data_types::i8) {
+            VF<int8_t> rnd_vec = generate_random_1d<int8_t>(s.count(), min, max);
+            set_values(prim, rnd_vec);
+        } else if (l.data_type == data_types::u8) {
+            VF<uint8_t> rnd_vec = generate_random_1d<uint8_t>(s.count(), min, max);
+            set_values(prim, rnd_vec);
+        } else if (l.data_type == data_types::bin) {
+            VF<int32_t> rnd_vec = generate_random_1d<int32_t>(s.count() / 32, min, max);
+            set_values(prim, rnd_vec);
+        }
+
         return prim;
     }
 
