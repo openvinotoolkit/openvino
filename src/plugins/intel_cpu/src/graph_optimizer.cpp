@@ -315,11 +315,11 @@ void GraphOptimizer::FuseDeconvolutionAndSimpleOperation(Graph &graph) {
         const auto& strides = deconv->getStride();
         const auto& kernel = deconv->getWeightDims();
         // WA oneDNN doesn't support fusing post ops after deconvolution with strides over kernel size
-        bool isSupportedParams = strides[strides.size() - 1] <= kernel[kernel.size() - 1];
+        bool isSupportedParams = strides[strides.size() - 1] <= static_cast<dnnl_dim_t>(kernel[kernel.size() - 1]);
         if (strides.size() > 1)
-            isSupportedParams &= strides[strides.size() - 2] <= kernel[kernel.size() - 2];
+            isSupportedParams &= strides[strides.size() - 2] <= static_cast<dnnl_dim_t>(kernel[kernel.size() - 2]);
         if (strides.size() > 2)
-            isSupportedParams &= strides[strides.size() - 3] <= kernel[kernel.size() - 3];
+            isSupportedParams &= strides[strides.size() - 3] <= static_cast<dnnl_dim_t>(kernel[kernel.size() - 3]);
         return isSupportedParams;
     };
 
