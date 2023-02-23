@@ -13,7 +13,9 @@
 
 #include "itt.hpp"
 
+using namespace std;
 using namespace ov;
+using namespace ov::opset7;
 
 static bool can_propagate_conv_stride(const std::shared_ptr<ngraph::Node>& conv) {
     const auto& kernel_shape = conv->input_value(1).get_shape();
@@ -39,40 +41,36 @@ static std::tuple<ngraph::Strides, bool> check_next_ops(const std::vector<ngraph
     return std::make_tuple(strides[0], all_ops_are_valid);
 }
 
-static void insert_pooling(const ngraph::Output<ngraph::Node>& first,
-                           ngraph::Input<ngraph::Node>& second,
-                           const ngraph::Strides& strides) {
+static void insert_pooling(const Output<Node>& first, Input<Node>& second, const Strides& strides) {
+    pass::NodeRegistry rg;
     auto first_node = first.get_node_shared_ptr();
-    auto rank = first.get_partial_shape().rank();
-    bool do_reshape = rank.is_static() && static_cast<size_t>(rank.get_length()) < strides.size() + 2;
+    const auto rank = first.get_partial_shape().rank();
+    const bool do_reshape = rank.is_static() && static_cast<size_t>(rank.get_length()) < strides.size() + 2;
     if (do_reshape) {
-        size_t diff = strides.size() + 2 - static_cast<size_t>(rank.get_length());
-        auto ones = opset7::Constant::create(ngraph::element::i64, ngraph::Shape{diff}, std::vector<int64_t>(diff, 1));
-        auto current_shape = std::make_shared<opset7::ShapeOf>(first);
-        std::shared_ptr<ngraph::Node> new_shape =
-            std::make_shared<opset7::Concat>(ngraph::OutputVector{ones, current_shape}, 0);
-        std::shared_ptr<ngraph::Node> constant_new_shape = get_constant_from_source(new_shape);
-        if (constant_new_shape)
+        const size_t diff = strides.size() + 2 - static_cast<size_t>(rank.get_length());
+        const auto ones = rg.make<Constant>(element::i64, Shape{diff}, vector<int64_t>(diff, 1));
+        const auto current_shape = rg.make<ShapeOf>(first);
+        shared_ptr<Node> new_shape = rg.make<Concat>(OutputVector{ones, current_shape}, 0);
+        if (const auto constant_new_shape = get_constant_from_source(new_shape)) {
+            rg.add(constant_new_shape);
             new_shape = constant_new_shape;
-        first_node = std::make_shared<opset7::Reshape>(first_node, new_shape, false);
+        }
+        first_node = rg.make<Reshape>(first_node, new_shape, false);
     }
-    std::shared_ptr<ngraph::Node> new_node = std::make_shared<opset7::MaxPool>(first_node,
-                                                                               strides,
-                                                                               ngraph::Shape{},
-                                                                               ngraph::Shape{},
-                                                                               ngraph::Shape(strides.size(), 1));
+    shared_ptr<Node> new_node = rg.make<MaxPool>(first_node, strides, Shape{}, Shape{}, Shape(strides.size(), 1));
     if (do_reshape) {
         // squeeze dimensions back
-        size_t diff = strides.size() + 2 - static_cast<size_t>(rank.get_length());
-        std::vector<size_t> axes(diff);
-        std::iota(axes.begin(), axes.end(), 0);
-        new_node = std::make_shared<opset7::Squeeze>(
-            new_node,
-            opset7::Constant::create(ngraph::element::u64, ngraph::Shape{diff}, axes));
+        const size_t diff = strides.size() + 2 - static_cast<size_t>(rank.get_length());
+        vector<size_t> axes(diff);
+        iota(axes.begin(), axes.end(), 0);
+        new_node = rg.make<Squeeze>(new_node, rg.make<Constant>(element::u64, Shape{diff}, axes));
     }
-    std::shared_ptr<ngraph::Node> constant_new_node = get_constant_from_source(new_node);
-    if (constant_new_node)
+    if (const auto constant_new_node = get_constant_from_source(new_node)) {
+        rg.add(constant_new_node);
         new_node = constant_new_node;
+    }
+
+    copy_runtime_info(as_node_vector({second.get_source_output()}), rg.get());
     second.replace_source_output(new_node);
 }
 

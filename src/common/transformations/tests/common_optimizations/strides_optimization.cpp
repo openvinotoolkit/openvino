@@ -264,9 +264,6 @@ TEST_F(TransformationTestsF, StridesOptimization5) {
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_2}, ngraph::ParameterVector{data});
     }
-
-    // TODO: update transformation and remove this check XXX-68696
-    disable_rt_info_check();
 }
 
 // Pl->Conv(1x1,1x1)->Conv(1x1,2x2)->Conv(3x3,1x1)->Conv(1x1,2x2)
@@ -424,8 +421,6 @@ TEST_F(TransformationTestsF, StridesOptimization7) {
         function_ref =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3, conv_4}, ngraph::ParameterVector{data});
     }
-    // TODO: update transformation and remove this check XXX-68696
-    disable_rt_info_check();
 }
 
 // Pl--->Conv(1x1,1x1)->ReLU--->Eltwise-->Conv(1x1,2x2)-->Eltwise-->Conv(1x1, 2x2)
@@ -517,8 +512,6 @@ TEST_F(TransformationTestsF, StridesOptimization8) {
         function_ref =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3}, ngraph::ParameterVector{data, data_2});
     }
-    // TODO: update transformation and remove this check XXX-68696
-    disable_rt_info_check();
 }
 
 // Pl------->Conv(1x1,1x1)------>Eltwise------>Conv(1x1,2x2)---->Eltwise-->Conv(1x1, 2x2)
@@ -636,6 +629,4 @@ TEST_F(TransformationTestsF, StridesOptimization9) {
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3},
                                                           ngraph::ParameterVector{data, data_2, data_3});
     }
-    // TODO: update transformation and remove this check XXX-68696
-    disable_rt_info_check();
 }
