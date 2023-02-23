@@ -8,6 +8,7 @@
 #include <cstring>
 #include <fstream>
 #include <iostream>
+#include <numeric>
 #include <map>
 #include <vector>
 

@@ -124,13 +124,13 @@ TEST_P(ov_core, ov_core_compile_model_with_property) {
 
     ov_compiled_model_t* compiled_model = nullptr;
     const char* key = ov_property_key_num_streams;
-    const char* num = "11";
+    const char* num = "2";
     OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 2, &compiled_model, key, num));
     EXPECT_NE(nullptr, compiled_model);
 
     char* property_value = nullptr;
     OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, key, &property_value));
-    EXPECT_STREQ(property_value, "11");
+    EXPECT_STREQ(property_value, "2");
     ov_free(property_value);
 
     ov_compiled_model_free(compiled_model);
