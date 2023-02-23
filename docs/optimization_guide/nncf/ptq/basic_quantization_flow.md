@@ -3,7 +3,7 @@
 @sphinxdirective
 
 Introduction
-~~~~~~~~~~~~
+####################
 
 The basic quantization flow is the simplest way to apply 8-bit quantization to the model. It is available for models in the following frameworks: PyTorch, TensorFlow 2.x, ONNX, and OpenVINO. The basic quantization flow is based on the following steps:
 
@@ -12,7 +12,7 @@ The basic quantization flow is the simplest way to apply 8-bit quantization to t
 * Call the quantization API to apply 8-bit quantization to the model.
 
 Set up an Environment
-~~~~~~~~~~~~~~~~~~~~~
+#####################
 
 It is recommended to set up a separate Python environment for quantization with NNCF. To do this, run the following command:
 
@@ -27,9 +27,9 @@ Install all the packages required to instantiate the model object, for example, 
    pip install nncf
 
 Prepare a Calibration Dataset
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#############################
 
-At this step, create an instance of the ``nncf.Dataset`` class that represents the calibration dataset. The ``nncf.Dataset`` class can be a wrapper over the framework dataset object that is used for model training or validation. The class constructor receives the dataset object and the transformation function. For example, if you use PyTorch, you can pass an instance of the `torch.utils.data.DataLoader` object.
+At this step, create an instance of the ``nncf.Dataset`` class that represents the calibration dataset. The ``nncf.Dataset`` class can be a wrapper over the framework dataset object that is used for model training or validation. The class constructor receives the dataset object and the transformation function. For example, if you use PyTorch, you can pass an instance of the ``torch.utils.data.DataLoader`` object.
 
 The transformation function is a function that takes a sample from the dataset and returns data that can be passed to the model for inference. For example, this function can take a tuple of a data tensor and labels tensor, and return the former while ignoring the latter. The transformation function is used to avoid modifying the dataset code to make it compatible with the quantization API. The function is applied to each sample from the dataset before passing it to the model for inference. The following code snippet shows how to create an instance of the ``nncf.Dataset`` class:
 
@@ -62,7 +62,7 @@ If there is no framework dataset object, you can create your own entity that imp
 
 
 Run a Quantized Model
-~~~~~~~~~~~~~~~~~~~~~
+#####################
 
 Once the dataset is ready and the model object is instantiated, you can apply 8-bit quantization to it:
 
@@ -96,7 +96,7 @@ Once the dataset is ready and the model object is instantiated, you can apply 8-
 After that the model can be exported into th OpenVINO Intermediate Representation if needed and run faster with OpenVINO.
 
 Tune quantization parameters
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+############################
 
 ``nncf.quantize()`` function has several parameters that allow to tune quantization process to get more accurate model. Below is the list of parameters and their description:
 
@@ -154,7 +154,7 @@ Tune quantization parameters
 If the accuracy of the quantized model is not satisfactory, you can try to use the :doc:`Quantization with accuracy control <quantization_w_accuracy_control>` flow.
 
 See also
-~~~~~~~~
+####################
 
 * `Example of basic quantization flow in PyTorch <https://github.com/openvinotoolkit/nncf/tree/develop/examples/post_training_quantization/torch/mobilenet_v2>`__
 
