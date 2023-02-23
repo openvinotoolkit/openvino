@@ -1759,7 +1759,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         expected = format::get_default_format(node.get_input_layouts()[0].get_rank(), false, false);
     } else if (node.is_type<fully_connected>()) {
         if (use_onednn_impls) {
-            expected = format::bfyx;
+            expected = node.get_preferred_output_fmt();
         }
     }
 
@@ -1864,6 +1864,19 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
             }
 
             GPU_DEBUG_LOG << "select_preferred_formats:" << node.id() << ": " << fmt_to_str(src_fmt) << " --> " << fmt_to_str(dst_fmt)
+                          << " For index : " << idx << std::endl;
+        }
+    } else if (node.is_type<fully_connected>() || node.is_type<gemm>()) {
+        for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
+            if (node.get_dependency(idx).is_constant())
+                continue;
+            node.set_preferred_input_fmt(idx, cldnn::format::bfyx);
+
+            if (node.get_preferred_output_fmt() == format::any) {
+                for (size_t usr = 0; usr < std::max<size_t>(1, node.get_users().size()); usr++)
+                    node.set_preferred_output_fmt(usr, cldnn::format::bfyx);
+            }
+            GPU_DEBUG_LOG << "select_preferred_formats:" << node.id() << ": " << fmt_to_str(cldnn::format::bfyx) << " --> " << fmt_to_str(cldnn::format::bfyx)
                           << " For index : " << idx << std::endl;
         }
     }
