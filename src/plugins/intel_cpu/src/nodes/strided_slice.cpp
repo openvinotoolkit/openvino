@@ -67,7 +67,7 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
     for (size_t i = 0lu; i < op->get_input_size(); i++) {
         isConstantInput[i] = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
 
-        if (!isConstantInput[i] && one_of(i, 1, 2, 3)) {
+        if (!isConstantInput[i] && one_of(i, 1u, 2u, 3u)) {
             shapeHasDataDependency = true;
         }
     }

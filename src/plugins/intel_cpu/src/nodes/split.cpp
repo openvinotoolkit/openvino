@@ -367,7 +367,7 @@ void Split::initOptimalPrimitiveDescriptor() {
     canUseOptimizedNspc2Ncsp = false;
     IE_ASSERT(config.inConfs.size() > 0);
     const auto inConfDesc = config.inConfs[0].getMemDesc();
-    if (axis == 1 && one_of(inConfDesc->getShape().getRank(), 4, 5) && inConfDesc->hasLayoutType(LayoutType::nspc)) {
+    if (axis == 1 && one_of(inConfDesc->getShape().getRank(), 4u, 5u) && inConfDesc->hasLayoutType(LayoutType::nspc)) {
         canUseOptimizedNspc2Ncsp = true;
         for (size_t i = 0; i < config.outConfs.size(); i++) {
             if (!config.outConfs[i].getMemDesc()->hasLayoutType(LayoutType::ncsp))

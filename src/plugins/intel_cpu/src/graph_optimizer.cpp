@@ -844,8 +844,8 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph &graph) {
                 dimsEqualStrong(inDims[inDims.size() - 1], outDims[outDims.size() - 1]) &&
                 dimsEqualStrong(inDims[inDims.size() - 2], outDims[outDims.size() - 2]) &&
                 is1x1Convolution(conv) &&  // TODO [oneDNN] : fusing is permitted only with 1x1 convolutions
-                everyone_is(1, strides[strides.size() - 1], strides[strides.size() - 2]) &&
-                everyone_is(0, paddings[paddings.size() - 1], paddings[paddings.size() - 2]) &&
+                everyone_is(1u, strides[strides.size() - 1], strides[strides.size() - 2]) &&
+                everyone_is(0u, paddings[paddings.size() - 1], paddings[paddings.size() - 2]) &&
                 !conv->canBeExecutedInInt8();
         if (!isSupportedParams) return false;
 
@@ -891,13 +891,13 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph &graph) {
         const auto stridesSize = convChild->getStride().size();
         bool isSupportedParams = dimsEqualStrong(convChild->outputShapes[0].getDims()[1], convChild->getGroupNum()) &&
                                  convChild->outputShapes[0].getDims()[1] != 1 &&
-                                 everyone_is(3, convChild->getWeightDims()[weightRank - 1], convChild->getWeightDims()[weightRank - 2]) &&
-                                 everyone_is(1, convChild->getPaddingL()[stridesSize - 1], convChild->getPaddingL()[stridesSize - 2]) &&
-                                 everyone_is(1, convChild->getPaddingR()[stridesSize - 1], convChild->getPaddingR()[stridesSize - 2]) &&
-                                 everyone_is(1, convChild->getDilation()[stridesSize - 1] + 1, convChild->getDilation()[stridesSize - 2] + 1) &&
+                                 everyone_is(3u, convChild->getWeightDims()[weightRank - 1], convChild->getWeightDims()[weightRank - 2]) &&
+                                 everyone_is(1u, convChild->getPaddingL()[stridesSize - 1], convChild->getPaddingL()[stridesSize - 2]) &&
+                                 everyone_is(1u, convChild->getPaddingR()[stridesSize - 1], convChild->getPaddingR()[stridesSize - 2]) &&
+                                 everyone_is(1u, convChild->getDilation()[stridesSize - 1] + 1, convChild->getDilation()[stridesSize - 2] + 1) &&
                                  convChild->getStride()[stridesSize - 1] == convChild->getStride()[stridesSize - 2] &&
                                  withBias &&
-                                 one_of(convChild->getStride()[stridesSize - 1], 1, 2) &&
+                                 one_of(convChild->getStride()[stridesSize - 1], 1u, 2u) &&
                                  childNode->getOutputShapeAtPort(0).getRank() == 4;
 
         return isSupportedParams;
