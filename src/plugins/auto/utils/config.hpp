@@ -23,6 +23,7 @@ struct PluginConfig {
                 _batchTimeout("1000"),
                 _devicePriority(""),
                 _modelPriority(1),
+                _executionMode(2),
                 _deviceBindBuffer(false),
                 _enableStartupFallback(true),
                 _logLevel("LOG_NONE") {
@@ -315,7 +316,7 @@ struct PluginConfig {
     std::string _batchTimeout;
     std::string _devicePriority;
     int _modelPriority;
-    int _executionMode = 0;
+    int _executionMode;
     bool _deviceBindBuffer;
     bool _enableStartupFallback;
     std::string _logLevel;
