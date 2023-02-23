@@ -585,7 +585,7 @@ TEST_F(TransformationTestsF, RemoveLoopMultipleDanglingResults) {
         manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     }
     {
-        auto body = std::make_shared<Model>(OutputVector{condition, abs1}, ParameterVector{ai, bi});
+        auto body = std::make_shared<Model>(OutputVector{condition, abs1, abs3}, ParameterVector{ai, bi});
         auto loop = std::make_shared<Loop>(trip_count, condition);
         loop->set_special_body_ports({-1, 0});
         loop->set_function(body);
@@ -595,6 +595,47 @@ TEST_F(TransformationTestsF, RemoveLoopMultipleDanglingResults) {
         auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs1));
         auto loop_res2 = std::make_shared<Result>(loop->get_iter_value(abs3));
         model_ref = std::make_shared<Model>(OutputVector{loop_res, loop_res2}, ParameterVector{a, b});
+    }
+}
+
+TEST_F(TransformationTestsF, RemoveLoopDanglingResultsSpecialOutPortMoved) {
+    auto trip_count = std::make_shared<Constant>(element::i64, Shape{}, 10);
+    auto condition = std::make_shared<Constant>(element::boolean, Shape{}, true);
+
+    auto a = std::make_shared<Parameter>(element::f32, Shape{2, 2});
+    auto ai = std::make_shared<Parameter>(element::f32, Shape{2, 2});
+    auto b = std::make_shared<Parameter>(element::f32, Shape{2, 2});
+    auto bi = std::make_shared<Parameter>(element::f32, Shape{2, 2});
+
+    auto mul = std::make_shared<Multiply>(ai, bi);
+    auto abs1 = std::make_shared<Abs>(mul);
+    auto add = std::make_shared<Add>(ai, bi);
+    auto abs2 = std::make_shared<Abs>(add);
+    {
+        auto body = std::make_shared<Model>(OutputVector{abs1, abs2, condition}, ParameterVector{ai, bi});
+        auto loop = std::make_shared<Loop>(trip_count, condition);
+        loop->set_special_body_ports({-1, 2});
+        loop->set_function(body);
+        loop->set_invariant_input(ai, a);
+        loop->set_invariant_input(bi, b);
+
+        auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs1));
+        loop->get_iter_value(abs2);
+        // abs2 result is unused
+        model = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a, b});
+
+        manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
+    }
+    {
+        auto body = std::make_shared<Model>(OutputVector{abs1, condition}, ParameterVector{ai, bi});
+        auto loop = std::make_shared<Loop>(trip_count, condition);
+        loop->set_special_body_ports({-1, 1});
+        loop->set_function(body);
+        loop->set_invariant_input(ai, a);
+        loop->set_invariant_input(bi, b);
+
+        auto loop_res = std::make_shared<Result>(loop->get_iter_value(abs1));
+        model_ref = std::make_shared<Model>(OutputVector{loop_res}, ParameterVector{a, b});
     }
 }
 

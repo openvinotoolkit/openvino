@@ -59,14 +59,24 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
             }
             new_op_out_desc.push_back(new_out_desc);
             auto results = body->get_results();
-            for (const auto& idx : results_idxs_to_remove) {
-                body->remove_result(results[idx]);
+            // go in reverse order to first delete last result
+            for (auto it = results_idxs_to_remove.rbegin(); it != results_idxs_to_remove.rend(); ++it) {
+                body->remove_result(results[*it]);
                 is_changed = true;
                 // We need to go over output descriptors and modify them to reflect deleted result
                 for (auto& desc : new_out_desc) {
-                    if (desc->m_body_value_index > idx) {
+                    if (desc->m_body_value_index > *it) {
                         desc->m_body_value_index--;
                     }
+                    if (special_out_port != -1) {
+                        if (special_out_port > static_cast<int64_t>(*it)) {
+                            special_out_port--;
+                        }
+                    }
+                }
+                if (special_out_port != -1) {
+                    loop_op->set_special_body_ports(
+                        {loop_op->get_special_body_ports().current_iteration_input_idx, special_out_port});
                 }
             }
         }
