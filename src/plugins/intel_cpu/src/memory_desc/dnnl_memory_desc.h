@@ -56,7 +56,6 @@ protected:
     dnnl::memory::desc desc;
 
     void setPrecision(InferenceEngine::Precision prc) override {
-        // @ TODO ONEDNN_3_0 direct access to internal elements should be avoided
         desc.get()->data_type = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::IEPrecisionToDataType(prc));
     }
 

@@ -69,8 +69,7 @@ public:
         }
     }
     bool isCompatible(const PortDescBlocked& rhs) const {
-        // return _memDesc->isCompatible(*rhs._memDesc, _cmpMask) && (((~_cmpMask) | rhs._cmpMask).all());
-        return _memDesc->isCompatible(*rhs._memDesc, _cmpMask);
+        return _memDesc->isCompatible(*rhs._memDesc, _cmpMask) && (((~_cmpMask) | rhs._cmpMask).all());
     }
     MemoryDescPtr getMemDesc() const override {
         return _memDesc;
