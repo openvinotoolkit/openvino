@@ -78,6 +78,20 @@ def getBlobDiff(file1, file2):
 
 
 def absolutizePaths(cfg):
+    pl = sys.platform
+    if pl == "linux" or pl == "linux2":
+        cfg["workPath"] = cfg["linWorkPath"]
+    elif pl == "win32":
+        wp = cfg["winWorkPath"]
+        wp = "echo {path}".format(path=wp)
+        wp = subprocess.check_output(wp, shell=True)
+        wp = wp.decode()
+        wp = wp.rstrip()
+        cfg["workPath"] = wp
+    else:
+        raise CfgError(
+            "No support for current OS: {pl}".format(pl=pl)
+            )
     pathToAbsolutize = ["gitPath", "buildPath", "appPath", "workPath"]
     for item in pathToAbsolutize:
         path = cfg[item]
@@ -198,6 +212,7 @@ def fetchAppOutput(cfg):
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         env=newEnv,
+        shell=True
     )
     output, err = p.communicate()
     output = output.decode("utf-8")
