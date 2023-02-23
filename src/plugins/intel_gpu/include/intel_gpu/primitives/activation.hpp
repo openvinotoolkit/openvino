@@ -5,6 +5,7 @@
 #pragma once
 #include "primitive.hpp"
 #include <vector>
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
 
 namespace cldnn {
 
@@ -74,6 +75,10 @@ struct activation_additional_params {
 struct activation : public primitive_base<activation> {
     CLDNN_DECLARE_PRIMITIVE(activation)
 
+    activation() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs Relu primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -123,6 +128,30 @@ struct activation : public primitive_base<activation> {
         seed = hash_combine(seed, additional_params.b);
         seed = hash_combine(seed, additional_params_input.empty());
         return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const activation>(rhs);
+
+        return activation_function == rhs_casted.activation_function &&
+               additional_params.a == rhs_casted.additional_params.a &&
+               additional_params.b == rhs_casted.additional_params.b &&
+               additional_params_input.empty() == rhs_casted.additional_params_input.empty();
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        ob << make_data(&activation_function, sizeof(activation_func));
+        ob << make_data(&additional_params, sizeof(activation_additional_params));
+        ob << additional_params_input;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        ib >> make_data(&activation_function, sizeof(activation_func));
+        ib >> make_data(&additional_params, sizeof(activation_additional_params));
+        ib >> additional_params_input;
     }
 
 protected:

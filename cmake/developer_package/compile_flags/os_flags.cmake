@@ -412,11 +412,6 @@ else()
     # Warn if an undefined identifier is evaluated in an #if directive. Such identifiers are replaced with zero.
     ie_add_compiler_flags(-Wundef)
 
-    check_cxx_compiler_flag("-Wsuggest-override" SUGGEST_OVERRIDE_SUPPORTED)
-    if(SUGGEST_OVERRIDE_SUPPORTED)
-        set(CMAKE_CXX_FLAGS "-Wsuggest-override ${CMAKE_CXX_FLAGS}")
-    endif()
-
     #
     # Warnings as errors
     #
@@ -468,6 +463,13 @@ if(OV_COMPILER_IS_CLANG)
     ie_add_compiler_flags(-Wno-delete-non-abstract-non-virtual-dtor)
 endif()
 
+check_cxx_compiler_flag("-Wsuggest-override" SUGGEST_OVERRIDE_SUPPORTED)
+if(SUGGEST_OVERRIDE_SUPPORTED)
+    set(CMAKE_CXX_FLAGS "-Wsuggest-override ${CMAKE_CXX_FLAGS}")
+endif()
+
+check_cxx_compiler_flag("-Wunused-but-set-variable" UNUSED_BUT_SET_VARIABLE_SUPPORTED)
+
 #
 # link_system_libraries(target <PUBLIC | PRIVATE | INTERFACE> <lib1 [lib2 lib3 ...]>)
 #
@@ -499,6 +501,11 @@ endfunction()
 # Tries to use gold linker in current scope (directory, function)
 #
 function(ov_try_use_gold_linker)
+    # don't use the gold linker, if the mold linker is set
+    if(CMAKE_EXE_LINKER_FLAGS MATCHES "mold" OR CMAKE_MODULE_LINKER_FLAGS MATCHES "mold" OR CMAKE_SHARED_LINKER_FLAGS MATCHES "mold")
+        return()
+    endif()
+
     # gold linker on ubuntu20.04 may fail to link binaries build with sanitizer
     if(CMAKE_COMPILER_IS_GNUCXX AND NOT ENABLE_SANITIZER AND NOT CMAKE_CROSSCOMPILING)
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold" PARENT_SCOPE)

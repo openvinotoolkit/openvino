@@ -507,7 +507,7 @@ class generic_test : public ::testing::TestWithParam<std::tuple<std::shared_ptr<
 public:
     generic_test();
 
-    void run_single_test();
+    void run_single_test(bool is_caching_test = false);
 
     template<typename Type>
     void compare_buffers(const cldnn::memory::ptr out, const cldnn::memory::ptr ref);
@@ -771,5 +771,32 @@ double default_tolerance(data_types dt);
 //         std::cerr << "==============" << std::endl;
 //     }
 // }
+
+inline cldnn::network::ptr get_network(cldnn::engine& engine,
+                                cldnn::topology& topology,
+                                const ov::intel_gpu::ExecutionConfig& config,
+                                cldnn::stream::ptr stream,
+                                const bool is_caching_test) {
+    cldnn::network::ptr network;
+    if (is_caching_test) {
+        std::cout << "cached" << std::endl;
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology, config);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, config, stream, engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology, config);
+    }
+
+    return network;
+}
 
 } // namespace tests

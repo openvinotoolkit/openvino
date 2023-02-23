@@ -387,6 +387,27 @@ struct deconvolution : public primitive_base<deconvolution> {
         return seed;
     }
 
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const deconvolution>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(pad) &&
+               cmp_fields(stride) &&
+               cmp_fields(dilations) &&
+               cmp_fields(groups) &&
+               cmp_fields(pads_begin) &&
+               cmp_fields(pads_end) &&
+               cmp_fields(out_padding) &&
+               cmp_fields(grouped_weights_shape) &&
+               cmp_fields(weights.size()) &&
+               cmp_fields(bias.size()) &&
+               cmp_fields(output_shape_id.empty());
+        #undef cmp_fields
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
