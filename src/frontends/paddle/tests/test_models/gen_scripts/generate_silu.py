@@ -13,7 +13,7 @@ def silu(name: str, x, data_type):
     with pdpd.static.program_guard(pdpd.static.Program(), pdpd.static.Program()):
         node_x = pdpd.static.data(
             name='input_x', shape=x.shape, dtype=data_type)
-        out = pdpd.fluid.layers.silu(x=node_x, name='silu')
+        out = pdpd.nn.functional.silu(x=node_x, name='silu')
 
         cpu = pdpd.static.cpu_places(1)
         exe = pdpd.static.Executor(cpu[0])
@@ -31,9 +31,17 @@ def silu(name: str, x, data_type):
 
 
 def main():
-    data_type = 'float32'
-    x = np.random.randn(2, 3).astype(data_type)
-    silu("silu", x, data_type)
+    x = np.random.randn(2,).astype('float32')
+    silu("silu_test1", x, 'float32')
+
+    x = np.random.randn(2, 3).astype('float32')
+    silu("silu_test2", x, 'float32')
+
+    x = np.random.randn(2, 3, 4).astype('float32')
+    silu("silu_test3", x, 'float32')
+
+    x = np.random.randn(2, 3, 4, 5).astype('float32')
+    silu("silu_test4", x, 'float32')
 
 
 if __name__ == "__main__":
