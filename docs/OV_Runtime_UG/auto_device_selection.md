@@ -28,7 +28,7 @@ The selection also depends on your performance requirements, defined by the “h
 The logic behind the choice is as follows:
 
 1. Check what supported devices are available.
-2. Check precisions of the input model (for detailed information on precisions read more on the ``ov::device::capabilities``)
+2. Check precisions of the input model (for detailed information on precisions read more on the ``ov::device::capabilities``).
 3. Select the highest-priority device capable of supporting the given model, as listed in the table below.
 4. If model’s precision is FP32 but there is no device capable of supporting it, offload the model to a device supporting FP16.
 
