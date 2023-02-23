@@ -214,12 +214,14 @@ def arguments_post_parsing(argv: argparse.Namespace):
         log.error(e)
         raise_ie_not_found()
 
-    if ('data_type' in argv and argv.data_type in ['FP16', 'half']) or \
-            ('compress_to_fp16' in argv and argv.compress_to_fp16 is True):
-        argv.data_type = 'FP32'
-        argv.compress_fp16 = True
-    else:
+    # Turn off compression only if it's disabled explicitly by --compress_to_fp16=False or --data_type=FP32.
+    # By default, in all other cases compression is enabled
+    if ('data_type' in argv and argv.data_type in ['FP32', 'float']) or \
+            ('compress_to_fp16' in argv and argv.compress_to_fp16 is False):
         argv.compress_fp16 = False
+    else:
+        argv.compress_fp16 = True
+    argv.data_type = 'FP32'  # if compression was enabled will be restored back to 'FP16' after apply_offline_transformations
 
     # This is just to check that transform key is valid and transformations are available
     check_available_transforms(parse_transform(argv.transform))
@@ -332,11 +334,6 @@ def update_fallback_with_conversion_error(use_new_frontend: bool, is_tf: bool, e
         "FFT", "FFT2D", "FFT3D", "IFFT", "IFFT2D", "IFFT3D",
         "RFFT", "RFFT2D", "RFFT3D", "IRFFT", "IRFFT2D", "IRFFT3D",
         "Complex", "ComplexAbs", "Real", "Imag",
-        # corresponds to automatic pruning
-        "FIFOQueueV2", "QueueDequeueUpToV2", "QueueDequeueManyV2",
-        "QueueDequeue", "QueueDequeueV2", "IteratorGetNext",
-        "LookupTableInsert", "LookupTableInsertV2",
-        "Iterator", "IteratorV2", "OneShotIterator"
     ]
     if len(conversion_error_match) < 1 or len(conversion_error_match[0]) != 3 or \
             conversion_error_match[0][1] not in fallback_operations:

@@ -10,7 +10,6 @@
 #include "ngraph/op/util/variable.hpp"
 #include "ngraph/op/util/variable_value.hpp"
 #include "ngraph/output_vector.hpp"
-#include "ngraph/variant.hpp"
 #include "openvino/op/util/variable_context.hpp"
 
 namespace ngraph {

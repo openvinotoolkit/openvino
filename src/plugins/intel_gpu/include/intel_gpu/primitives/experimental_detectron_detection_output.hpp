@@ -86,6 +86,26 @@ struct experimental_detectron_detection_output : public primitive_base<experimen
         return seed;
     }
 
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const experimental_detectron_detection_output>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(score_threshold) &&
+               cmp_fields(nms_threshold) &&
+               cmp_fields(num_classes) &&
+               cmp_fields(post_nms_count) &&
+               cmp_fields(max_detections_per_image) &&
+               cmp_fields(class_agnostic_box_regression) &&
+               cmp_fields(max_delta_log_wh) &&
+               cmp_fields(deltas_weights) &&
+               cmp_fields(output_classes.empty()) &&
+               cmp_fields(output_scores.empty());
+        #undef cmp_fields
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
