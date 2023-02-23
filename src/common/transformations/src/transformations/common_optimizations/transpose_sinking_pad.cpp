@@ -49,6 +49,7 @@ ov::pass::TransposeSinkingPadForward::TransposeSinkingPadForward() {
         main_node->input(2).replace_source_output(
             ChangeValuesOrder(main_node->input_value(2), reversed_transpose_order, axis));
 
+        main_node->validate_and_infer_types();
         // insert Transpose for Pad output
         TransposeInputsInfo transpose_input_info = {transpose, transpose_const, 0};
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {

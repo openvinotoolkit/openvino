@@ -12,6 +12,7 @@
 
 #include "itt.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
+#include "transformations/common_optimizations/transpose_sinking_batch_to_space.hpp"
 #include "transformations/common_optimizations/transpose_sinking_binary.hpp"
 #include "transformations/common_optimizations/transpose_sinking_concat.hpp"
 #include "transformations/common_optimizations/transpose_sinking_pad.hpp"
@@ -27,6 +28,7 @@ ov::pass::TransposeSinkingGeneralForward::TransposeSinkingGeneralForward() {
     add_matcher<ov::pass::TransposeSinkingSplitForward>();
     add_matcher<ov::pass::TransposeSinkingPadForward>();
     add_matcher<ov::pass::TransposeReduction>();
+    add_matcher<ov::pass::TransposeSinkingBatchToSpaceForward>();
     add_matcher<ov::pass::TransposeFuse>();
 }
 
@@ -38,6 +40,7 @@ ov::pass::TransposeSinkingGeneralBackward::TransposeSinkingGeneralBackward() {
     add_matcher<ov::pass::TransposeSinkingSplitBackward>();
     add_matcher<ov::pass::TransposeSinkingPadBackward>();
     add_matcher<ov::pass::TransposeReductionBackward>();
+    add_matcher<ov::pass::TransposeSinkingBatchToSpaceBackward>();
     add_matcher<ov::pass::TransposeFuse>();
 }
 

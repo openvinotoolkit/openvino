@@ -20,7 +20,8 @@
 using namespace ov;
 
 namespace {
-std::vector<size_t> get_updated_order_forward(std::vector<size_t>& axes_values, std::vector<size_t>& order_values) {
+std::vector<size_t> get_updated_order_forward(const std::vector<size_t>& axes_values,
+                                              const std::vector<size_t>& order_values) {
     size_t buffer_size = order_values.size() - axes_values.size();
     std::vector<size_t> aligned_order(buffer_size, 0);
     std::vector<size_t> values_to_reduce(axes_values);
@@ -33,14 +34,15 @@ std::vector<size_t> get_updated_order_forward(std::vector<size_t>& axes_values, 
             continue;
         }
 
-        auto ub = std::lower_bound(values_to_reduce.begin(), values_to_reduce.end(), order_values[i]);
-        aligned_order[j] = order_values[i] - (ub - values_to_reduce.begin());
+        auto lb = std::lower_bound(values_to_reduce.begin(), values_to_reduce.end(), order_values[i]);
+        aligned_order[j] = order_values[i] - (lb - values_to_reduce.begin());
         ++j;
     }
     return aligned_order;
 }
 
-std::vector<size_t> get_updated_order_backward(std::vector<size_t>& axes_values, std::vector<size_t>& order_values) {
+std::vector<size_t> get_updated_order_backward(const std::vector<size_t>& axes_values,
+                                               const std::vector<size_t>& order_values) {
     size_t buffer_size = order_values.size() + axes_values.size();
     std::vector<size_t> aligned_order(buffer_size);
 

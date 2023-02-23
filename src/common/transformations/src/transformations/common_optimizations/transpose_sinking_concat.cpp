@@ -68,19 +68,18 @@ ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
         return has_static_rank()(output) && HasSameOutputTransposeNodes(output);
     });
 
-    /*        auto transpose_const_label = wrap_type<Constant>();
+    auto transpose_const_label = wrap_type<Constant>();
 
-            auto transpose_label =
-                wrap_type<Transpose>({main_node_label, transpose_const_label}, [](const Output<Node>& output) -> bool {
-                    return has_static_rank()(output);
-                });*/
+    auto transpose_label =
+        wrap_type<Transpose>({main_node_label, transpose_const_label}, [](const Output<Node>& output) -> bool {
+            return has_static_rank()(output) && is_sinking_node(output);
+        });
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
-
+        auto transpose_const = as_type_ptr<Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
+        auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
         auto main_node = pattern_to_output.at(main_node_label).get_node_shared_ptr();
-        auto transpose = main_node->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
-        auto transpose_const = as_type_ptr<Constant>(transpose->input_value(1).get_node_shared_ptr());
         auto concat_node = as_type_ptr<Concat>(main_node);
         auto concat_axis = concat_node->get_concatenation_axis();
         if (concat_axis < 0) {
@@ -102,6 +101,6 @@ ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(main_node_label, matcher_name);
+    auto m = std::make_shared<Matcher>(transpose_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
