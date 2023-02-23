@@ -94,7 +94,6 @@ OP_CONVERTER(translate_roll);
 OP_CONVERTER(translate_rsqrt);
 OP_CONVERTER(translate_rsub);
 OP_CONVERTER(translate_select);
-OP_CONVERTER(translate_set_attr);
 OP_CONVERTER(translate_set_item);
 OP_CONVERTER(translate_selu);
 OP_CONVERTER(translate_size);
@@ -320,7 +319,6 @@ const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
         {"prim::Loop", op::translate_loop},
         {"prim::NumToTensor", op::skip_node},  // In openvino we already store number as tensor with shape []
         {"prim::requires_grad", op::return_false_scalar},
-        {"prim::SetAttr", op::translate_set_attr},
         {"torchvision::nms", op::translate_nms},
     };
 };
