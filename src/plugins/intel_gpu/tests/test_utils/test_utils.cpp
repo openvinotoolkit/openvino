@@ -295,6 +295,8 @@ cldnn::engine& get_test_engine() {
     if (!test_engine) {
         test_engine = create_test_engine();
     }
+    if(test_engine->get_device_info().supports_immad)
+        test_engine->create_onednn_engine({});
     return *test_engine;
 }
 
