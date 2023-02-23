@@ -176,6 +176,28 @@ struct pooling : public primitive_base<pooling> {
         return seed;
     }
 
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const pooling>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(mode) &&
+               cmp_fields(size) &&
+               cmp_fields(stride) &&
+               cmp_fields(dilation) &&
+               cmp_fields(pads_begin) &&
+               cmp_fields(pads_end) &&
+               cmp_fields(auto_pad) &&
+               cmp_fields(rounding_type) &&
+               cmp_fields(axis) &&
+               cmp_fields(index_element_type) &&
+               cmp_fields(maxPoolOpset8Features) &&
+               cmp_fields(indices_output.empty());
+        #undef cmp_fields
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;

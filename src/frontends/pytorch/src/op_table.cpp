@@ -22,6 +22,7 @@ OP_CONVERTER(translate_addmm);
 OP_CONVERTER(translate_arange);
 OP_CONVERTER(translate_as_tensor);
 OP_CONVERTER(translate_avg_poolnd);
+OP_CONVERTER(translate_bool);
 OP_CONVERTER(translate_batch_norm);
 OP_CONVERTER(translate_clamp);
 OP_CONVERTER(translate_constant);
@@ -52,6 +53,7 @@ OP_CONVERTER(translate_group_norm);
 OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_if);
 OP_CONVERTER(translate_im2col);
+OP_CONVERTER(translate_index_put_);
 OP_CONVERTER(translate_instance_norm);
 OP_CONVERTER(translate_int);
 OP_CONVERTER(translate_layer_norm);
@@ -67,6 +69,7 @@ OP_CONVERTER(translate_max_poolnd);
 OP_CONVERTER(translate_mean);
 OP_CONVERTER(translate_meshgrid);
 OP_CONVERTER(translate_min);
+OP_CONVERTER(translate_narrow);
 OP_CONVERTER(translate_neg);
 OP_CONVERTER(translate_new_full);
 OP_CONVERTER(translate_new_ones);
@@ -90,6 +93,7 @@ OP_CONVERTER(translate_roll);
 OP_CONVERTER(translate_rsqrt);
 OP_CONVERTER(translate_rsub);
 OP_CONVERTER(translate_select);
+OP_CONVERTER(translate_set_item);
 OP_CONVERTER(translate_selu);
 OP_CONVERTER(translate_size);
 OP_CONVERTER(translate_slice);
@@ -115,13 +119,14 @@ OP_CONVERTER(translate_zeros_like);
 
 }  // namespace op
 
-const std::map<std::string, CreatorFunction> get_supported_ops() {
+const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
     return {
         {"aten::__and__", op::translate_1to1_match_2_inputs<opset10::LogicalAnd>},  // TODO: cover numerical cases
         {"aten::__getitem__", op::translate_getitem},
         {"aten::__not__", op::translate_1to1_match_1_inputs<opset10::LogicalNot>},
         {"aten::_convolution", op::translate_convolution},
         {"aten::_convolution_mode", op::translate_convolution_mode},
+        {"aten::_set_item", op::translate_set_item},
         {"aten::abs", op::translate_1to1_match_1_inputs<opset10::Abs>},
         {"aten::acos", op::translate_1to1_match_1_inputs<opset10::Acos>},
         {"aten::acos_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Acos>>},
@@ -149,7 +154,8 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::avg_pool3d", op::translate_avg_poolnd},
         {"aten::batch_norm", op::translate_batch_norm},
         {"aten::bmm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
-        //{"aten::cat", done as transformation},
+        {"aten::Bool", op::translate_bool},
+        // {"aten::cat", done as transformation},
         {"aten::ceil", op::translate_1to1_match_1_inputs<opset10::Ceiling>},
         {"aten::ceil_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Ceiling>>},
         {"aten::clamp", op::translate_clamp},
@@ -204,6 +210,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::hardtanh", op::translate_hardtanh},
         {"aten::hardtanh_", op::inplace_op<op::translate_hardtanh>},
         {"aten::im2col", op::translate_im2col},
+        {"aten::index_put_", op::inplace_op<op::translate_index_put_>},
         {"aten::instance_norm", op::translate_instance_norm},
         {"aten::Int", op::translate_int},
         {"aten::IntImplicit", op::translate_int},
@@ -233,6 +240,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::mm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::mul", op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
         {"aten::mul_", op::inplace_op<op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>>},
+        {"aten::narrow", op::translate_narrow},
         {"aten::ne", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
         {"aten::neg", op::translate_neg},
         {"aten::new_full", op::translate_new_full},

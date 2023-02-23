@@ -20,7 +20,6 @@ extern size_t bbox_pred_data_size;
 extern float proposal_ref[];
 extern size_t proposal_ref_size;
 
-const float epsilon = 0.00025f;
 const float epsilon_fp16 = 0.125f;
 
 // !!!!!!!!
@@ -106,7 +105,7 @@ TestRunnerProposal<Dtype, ImInfoType>::TestRunnerProposal(cldnn::tensor image_in
         }
     } else {
         _network.reset(new network(get_test_engine(), _topology));
-    } 
+    }
 }
 
 template <typename Dtype, typename ImInfoType>

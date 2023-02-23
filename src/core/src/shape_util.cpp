@@ -6,6 +6,8 @@
 
 #include <algorithm>
 
+#include "shape_util.hpp"
+
 using namespace ngraph;
 
 template <>
@@ -73,3 +75,18 @@ PartialShape ngraph::inject_pairs(const PartialShape& shape,
         return PartialShape{result_dims};
     }
 }
+
+namespace ov {
+namespace util {
+Shape make_dynamic_shape() {
+    return Shape{0, std::numeric_limits<size_t>::max()};
+}
+
+bool is_dynamic_shape(const Shape& s) {
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    static const auto dyn_shape = make_dynamic_shape();
+    OPENVINO_SUPPRESS_DEPRECATED_END
+    return s == dyn_shape;
+}
+}  // namespace util
+}  // namespace ov
