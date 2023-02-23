@@ -145,8 +145,8 @@ For example, the ``op3.out_port(0).get_connection()`` method returns a ``Connect
 The ``Connection`` class provides methods to get source and destination(s) ports the connection corresponds to:
 
 * ``connection.get_source()`` - returns an output ``Port`` object producing the tensor.
-* ``connection.get_destinations()``* - returns a list of input ``Port`` consuming the data.
-* ``connection.get_destination()``* - returns a single input ``Port`` consuming the data. If there are multiple consumers, the exception is raised.
+* ``connection.get_destinations()`` - returns a list of input ``Port`` consuming the data.
+* ``connection.get_destination()`` - returns a single input ``Port`` consuming the data. If there are multiple consumers, the exception is raised.
 
 The ``Connection`` class provides methods to modify a graph by changing a source or destination(s) of a connection. For
 example, the function call ``op3.out_port(0).get_connection().set_source(op1.out_port(0))`` changes source port of edges
