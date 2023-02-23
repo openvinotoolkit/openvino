@@ -134,7 +134,7 @@ inline int64_t get_sliced_value(const int64_t& dim, const int64_t& start, const 
     constexpr int64_t inf_bound = -1;
 
     const auto& norm_dim = dim == inf_bound ? std::numeric_limits<int64_t>::max() : dim;
-#if INTPTR_MAX == INT64_MAX
+#ifdef OPENVINO_ARCH_64_BIT
     const auto is_norm_dim_max = ov::internal::is_max(norm_dim);
 #else
     const auto is_norm_dim_max = ov::internal::is_max(size_t(norm_dim));
