@@ -3,7 +3,7 @@
 @sphinxdirective
 
 Introduction
-~~~~~~~~~~~~
+####################
 
 Quantization-aware Training is a popular method that allows quantizing a model and applying fine-tuning to restore accuracy 
 degradation caused by quantization. In fact, this is the most accurate quantization method. This document describes how to 
@@ -11,7 +11,7 @@ apply QAT from the Neural Network Compression Framework (NNCF) to get 8-bit quan
 knowledgeable in Python programming and familiar with the training code for the model in the source DL framework.
 
 Using NNCF QAT
-~~~~~~~~~~~~~~
+####################
 
 Here, we provide the steps that are required to integrate QAT from NNCF into the training script written with 
 PyTorch or TensorFlow 2:
@@ -22,7 +22,7 @@ PyTorch or TensorFlow 2:
    `Functional API <https://www.tensorflow.org/guide/keras/functional>`__.
 
 1. Import NNCF API
-------------------
+++++++++++++++++++++
 
 In this step, you add NNCF-related imports in the beginning of the training script:
 
@@ -40,7 +40,7 @@ In this step, you add NNCF-related imports in the beginning of the training scri
 
 
 2. Create NNCF configuration
-----------------------------
+++++++++++++++++++++++++++++
 
 Here, you should define NNCF configuration which consists of model-related parameters (``"input_info"`` section) and parameters 
 of optimization methods (``"compression"`` section). For faster convergence, it is also recommended to register a dataset object 
@@ -60,7 +60,7 @@ specific to the DL framework. It will be used at the model creation step to init
 
 
 3. Apply optimization methods
------------------------------
++++++++++++++++++++++++++++++
 
 In the next step, you need to wrap the original model object with the ``create_compressed_model()`` API using the configuration 
 defined in the previous step. This method returns a so-called compression controller and a wrapped model that can be used the 
@@ -83,7 +83,7 @@ will be shown below.
 
 
 4. Fine-tune the model
-----------------------
+++++++++++++++++++++++
 
 This step assumes that you will apply fine-tuning to the model the same way as it is done for the baseline model. In the 
 case of QAT, it is required to train the model for a few epochs with a small learning rate, for example, 10e-5. In principle, 
@@ -103,7 +103,7 @@ you can skip this step which means that the post-training optimization will be a
 
 
 5. Multi-GPU distributed training
----------------------------------
++++++++++++++++++++++++++++++++++
 
 In the case of distributed multi-GPU training (not DataParallel), you should call ``compression_ctrl.distributed()`` before 
 the fine-tuning that will inform optimization methods to do some adjustments to function in the distributed mode.
@@ -121,7 +121,7 @@ the fine-tuning that will inform optimization methods to do some adjustments to 
        :fragment: [distributed]
 
 6. Export quantized model
--------------------------
++++++++++++++++++++++++++
 
 When fine-tuning finishes, the quantized model can be exported to the corresponding format for further inference: ONNX in 
 the case of PyTorch and frozen graph - for TensorFlow 2.
@@ -148,7 +148,7 @@ These were the basic steps to applying the QAT method from the NNCF. However, it
 checkpoints during the training. Since NNCF wraps the original model with its own object it provides an API for these needs.
 
 7. (Optional) Save checkpoint
------------------------------
++++++++++++++++++++++++++++++
 
 To save model checkpoint use the following API:
 
@@ -166,7 +166,7 @@ To save model checkpoint use the following API:
 
 
 8. (Optional) Restore from checkpoint
--------------------------------------
++++++++++++++++++++++++++++++++++++++
 
 To restore the model from checkpoint you should use the following API:
 
@@ -186,13 +186,13 @@ To restore the model from checkpoint you should use the following API:
 For more details on saving/loading checkpoints in the NNCF, see the following `documentation <https://github.com/openvinotoolkit/nncf/blob/develop/docs/Usage.md#saving-and-loading-compressed-models>`__.
 
 Deploying quantized model
-~~~~~~~~~~~~~~~~~~~~~~~~~
+#########################
 
 The quantized model can be deployed with OpenVINO in the same way as the baseline model. No extra steps or options are 
 required in this case. For more details, see the corresponding :doc:`documentation <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
 
 Examples
-~~~~~~~~
+####################
 
 * `Quantizing PyTorch model with NNCF <https://github.com/openvinotoolkit/openvino_notebooks/tree/main/notebooks/302-pytorch-quantization-aware-training>`__
 
