@@ -109,6 +109,7 @@ program::program(engine& engine_ref,
       processing_order(),
       is_body_program(is_body_program),
       is_subgroup_local_block_io_supported(-1) {
+    _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
     set_options();
     query_local_block_io_supported();
@@ -141,6 +142,7 @@ program::program(engine& engine_ref,
       _task_executor(task_executor),
       processing_order(),
       is_subgroup_local_block_io_supported(-1) {
+    _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
     set_options();
     query_local_block_io_supported();
@@ -160,7 +162,9 @@ program::program(engine& engine)
       _stream(_engine.create_stream({})),
       _config(),
       processing_order(),
-      is_subgroup_local_block_io_supported(-1) { }
+      is_subgroup_local_block_io_supported(-1) {
+        _config.apply_user_properties(_engine.get_device_info());
+      }
 program::~program() {
     query_local_block_io_supported();
 }
