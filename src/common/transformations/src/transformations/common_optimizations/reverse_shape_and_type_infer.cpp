@@ -5,6 +5,7 @@
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset10.hpp"
 
 using namespace ov::opset10;
@@ -249,6 +250,32 @@ bool ov::pass::ReverseShapeAndTypeInfer::run_on_model(const std::shared_ptr<ov::
         } else if (std::dynamic_pointer_cast<ConvertLike>(op)) {
             is_changed |= inherit_output_shape(op, {0});
             is_changed |= inherit_output_type(op, {1});
+        } else if (std::dynamic_pointer_cast<Transpose>(op)) {
+            auto transpose_order = get_constant_from_source(op->input_value(1));
+            if (output_shape.rank().is_static()) {
+                if (transpose_order) {
+                    // set more precise dimensions during reverse infer
+                    // if transpose order is known
+                    int64_t rank_length = output_shape.rank().get_length();
+                    op->get_input_tensor(0).m_partial_shape = PartialShape::dynamic(output_shape.rank());
+                    auto order_value = transpose_order->cast_vector<int64_t>();
+                    OPENVINO_ASSERT(order_value.size() == static_cast<size_t>(rank_length),
+                                    "The length of Transpose order and the input rank mismatch");
+                    for (int64_t dim_idx = 0; dim_idx < rank_length; ++dim_idx) {
+                        OPENVINO_ASSERT(0 <= order_value[dim_idx] && order_value[dim_idx] < rank_length,
+                                        "Transpose order is out-of-range");
+                        op->get_input_tensor(0).m_partial_shape[order_value[dim_idx]] = output_shape[dim_idx];
+                    }
+                    is_changed = true;
+                } else {
+                    is_changed |= inherit_output_rank(op, {0});
+                }
+            } else if (transpose_order) {
+                auto order_value = transpose_order->cast_vector<int64_t>();
+                op->get_input_tensor(0).m_partial_shape = PartialShape::dynamic(order_value.size());
+                is_changed = true;
+            }
+            is_changed |= inherit_output_type(op, {0});
         }
     }
     return is_changed;
