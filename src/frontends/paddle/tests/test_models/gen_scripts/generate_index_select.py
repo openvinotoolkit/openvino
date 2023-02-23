@@ -52,6 +52,8 @@ def main():
     index = np.random.randint(0, 7, (5)).astype("int32")
     index_select("index_select_axis_0", x, index, axis=0)
     index_select("index_select_axis_1", x, index, axis=1)
+    index_select("index_select_axis_native_-1", x, index, axis=-1)
+    index_select("index_select_axis_native_-2", x, index, axis=-2)
 
 
 if __name__ == "__main__":

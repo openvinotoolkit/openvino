@@ -243,6 +243,8 @@ static const std::vector<std::string> models{
     std::string("hard_swish"),
     std::string("index_select_axis_0"),
     std::string("index_select_axis_1"),
+    std::string("index_select_axis_native_-1"),
+    std::string("index_select_axis_native_-2"),
     std::string("layer_norm"),
     std::string("layer_norm_noall"),
     std::string("layer_norm_noscale"),
