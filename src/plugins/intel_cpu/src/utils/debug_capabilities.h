@@ -86,16 +86,18 @@ public:
     }
 };
 
-std::ostream & operator<<(std::ostream & os, const dnnl::memory::desc& desc);
 std::ostream & operator<<(std::ostream & os, const NodeDesc& desc);
 std::ostream & operator<<(std::ostream & os, const Node& node);
 std::ostream & operator<<(std::ostream & os, const MemoryDesc& desc);
 std::ostream & operator<<(std::ostream & os, const Edge& edge);
-std::ostream & operator<<(std::ostream & os, const dnnl::memory::data_type& dtype);
 std::ostream & operator<<(std::ostream & os, const PrintableModel& model);
 std::ostream & operator<<(std::ostream & os, const PrintableDelta& us);
-std::ostream & operator<<(std::ostream & os, const impl_desc_type impl_type);
 std::ostream & operator<<(std::ostream & os, const Edge::ReorderStatus reorderStatus);
+
+std::ostream & operator<<(std::ostream & os, const dnnl::memory::desc& desc);
+std::ostream & operator<<(std::ostream & os, const impl_desc_type impl_type);
+std::ostream & operator<<(std::ostream & os, const dnnl::memory::data_type dtype);
+std::ostream & operator<<(std::ostream & os, const dnnl::memory::format_tag dtype);
 
 template<typename T>
 std::ostream & operator<<(std::ostream & os, const PrintableVector<T>& vec) {

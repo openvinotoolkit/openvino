@@ -13,6 +13,7 @@
 #include <graph.h>
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include <common/c_types_map.hpp>
+#include <cstdlib>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -607,7 +608,6 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
 
     DnnlPostOpsComposer dnnlpoc(getEngine(), attr, ops, args, dims, 1, isINT8);
 
-    useLegacyPostOps = false;
     DEBUG_LOG(getName(), " useLegacyPostOps=", useLegacyPostOps, " initWeights=", initWeights);
 
     for (int i = 0; i < fusedWith.size(); ++i) {
@@ -627,10 +627,10 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
             } else {
                 if (useLegacyPostOps) {
                     // try mapping with optimization w/o using binary postOps
-                    // if (eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, false)) {
-                    //     DEBUG_LOG("Append ", node->getName(), " as original post op without binary");
-                    //     continue;
-                    // }
+                    if (eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, false)) {
+                        DEBUG_LOG("Append ", node->getName(), " as original post op without binary");
+                        continue;
+                    }
                     DEBUG_LOG("Append ", node->getName(), " as legacy post op");
                     eltwiseNode->appendPostOps(ops, dims, args);
                 } else {
@@ -725,18 +725,14 @@ void Convolution::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    // SetPostOpsAndZeroPoints(attrs);
     bool containJitImpl = false;
 
-    // for (auto& desc : descs) {
     for (size_t dIdx = 0; dIdx < descs.size(); dIdx++) {
         const auto& desc  = descs[dIdx];
 
         if (containJitImpl && isPossibleToSkipInitConfig(*desc))
             continue;
-        // for (int i = 0; i < attrs.size(); i++) {
-        // auto &attr = attrs[i];
-        // auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
+
         auto itpd = *desc;
         while (itpd) {
             NodeConfig config;
@@ -799,7 +795,6 @@ void Convolution::initSupportedPrimitiveDescriptors() {
             if (impl_type & jit)
                 containJitImpl = true;
 
-            // std::cout << getName() << ": initSupportedPrimitiveDescriptors: " << "Add " << *config.inConfs[0].getMemDesc() << " " << impl_type << "\n";
             supportedPrimitiveDescriptors.emplace_back(config, impl_type);
             descIdx.push_back(dIdx);
 
@@ -858,6 +853,8 @@ createDescriptorInternal(const dnnl::engine& engine,
     } catch (...) {
         IE_THROW() << "Cannot create convolution forward descriptor";
     }
+
+    DEBUG_LOG(conv_desc->get()->info());
 
     return conv_desc;
 }
@@ -974,10 +971,10 @@ static bool attrContainsPostOp(const dnnl::primitive_attr& attr, const dnnl::imp
 
 // See the src/plugins/intel_cpu/src/docs/convPostOps.md for details
 void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &attrs) {
-    // attr[0] - Legacy post ops + Legacy zero points.
     attrs.resize(1);
     auto outputShape = outputStaticShape();
-    DEBUG_LOG("setPostOps, attr 0, useLegacyPostOps=true");
+    // attr[0] - Legacy post ops + Legacy zero points.
+    DEBUG_LOG(getName(), ": set post ops, attr 0, useLegacyPostOps=true");
     setPostOps(attrs[0], outputShape, true);
     addLegacyZeroPoints(attrs[0]);
 
@@ -993,11 +990,11 @@ void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &att
     }
     // Per channel zero point can only supported on attr[0].Avoid extra useless attribute.
     if (inputZeroPointType == zpType::PerChannel) {
-        DEBUG_LOG("Per channel zero point can only supported on attr[0].Avoid extra useless attribute.");
+        DEBUG_LOG(getName(), ": Per channel zero point can only supported on attr[0].Avoid extra useless attribute.");
         return;
     }
     if (!shouldTryBrgconv) {
-        DEBUG_LOG("shouldTryBrgconv - ", shouldTryBrgconv);
+        DEBUG_LOG(getName(), ": shouldTryBrgconv = false. Skip extra attribute");
         return;
     }
     // Try 2 attributes. Consider the shouldTRyBrgconv could be set via RTinfo to enforce brgconv.
@@ -1006,10 +1003,10 @@ void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &att
         //WR to ONEDNN limitation. attr[1] - legacy post ops + stock zero point.
         //@todo:Unify to use binary postops+stock zero point when limitation is fixed.
         //For now, have to adapt to JIT_AMX kernel for performance.
-        DEBUG_LOG("setPostOps, attr 1, useLegacyPostOps=true");
+        DEBUG_LOG(getName(), ": set post ops, attr 1, useLegacyPostOps=true");
         setPostOps(attrs[1], outputShape, true);
     } else {
-        DEBUG_LOG("setPostOps, attr 1, useLegacyPostOps=false");
+        DEBUG_LOG(getName(), ": set post ops, attr 1, useLegacyPostOps=false");
         setPostOps(attrs[1], outputShape, false);
     }
     addZeroPoints(attrs[1]);
@@ -1017,228 +1014,89 @@ void Convolution::SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &att
 
 void Convolution::initDescriptor(const NodeConfig& config) {
     auto *selectedPD = getSelectedPrimitiveDescriptor();
+
     if (!selectedPD) {
         return;
     }
 
-    // Strided blobs feature support.
-    // Works only for FP32 convolutions for now.
-    bool isStridedBlobsSupported = true;
-
-    // TODO [NM]: refactor via using global executionPrecision.
-    if (canBeExecutedInInt8()) {
-        isStridedBlobsSupported = false;
-    }
-
-    auto rightConfig = selectedPD->getConfig();
-
-    descs.clear();
-    createDescriptor({rightConfig.inConfs[0].getMemDesc()}, {rightConfig.outConfs[0].getMemDesc()});
-
-    if (isStridedBlobsSupported) {
-        createDescriptor({config.inConfs[0].getMemDesc()}, {config.outConfs[0].getMemDesc()});
-    }
-
-    // std::vector<MemoryDescPtr> inDescs;
-    // for (const auto& inConf : config.inConfs)
-    //     inDescs.emplace_back(inConf.getMemDesc());
-    // std::vector<MemoryDescPtr> outDescs;
-    // for (const auto& outConf : config.outConfs)
-    //     outDescs.emplace_back(outConf.getMemDesc());
-    // createDescriptor(inDescs, outDescs);
-
     // attr[0] for legacy post ops;
     // attr[1] is mostly for binaryPostops except when having per-tensor zp on AMX.
-    int n = attrs.size() == 1 ? 0 :
-        descIdx[selectedPrimitiveDescriptorIndex] % 2 == 0 ? 0 : 1;
+    const int descId = descIdx[selectedPrimitiveDescriptorIndex];
+    (void) descId;
+    int attrId = attrs.size() == 1 ? 0 :
+        descId % 2 == 0 ? 0 : 1;
 
-    preferLegacyPostOps = (n == 0 || (n == 1 && (inputZeroPointType == zpType::PerTensor) &&
+    preferLegacyPostOps = (attrId == 0 || (attrId == 1 && (inputZeroPointType == zpType::PerTensor) &&
                                       dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)));
     //attr[0] for legacy zero point.
     //attr[1] for stock per-tensor zero point.
-    preferLegacyZeroPoint = (n == 0);
+    preferLegacyZeroPoint = (attrId == 0);
 
-    for (auto& desc : descs) {
-        primitive_desc_iterator itpd = *desc;
+    DEBUG_LOG(getName(),
+              " selectedPrimitiveDescriptorIndex: ", selectedPrimitiveDescriptorIndex,
+              " DescIdx: ", descId,
+              " Selected impl type: ", selectedPD->getImplementationType(),
+              " Desc impl type: ", parse_impl_name(descs[descId]->impl_info_str()),
+              " preferLegacyPostOps: ", preferLegacyPostOps,
+              " preferLegacyZeroPoint: ", preferLegacyZeroPoint);
+
+    auto updateNodeConfig = [&](const NodeConfig& cfg){
+        auto updatedConfig = cfg;
+
+        for (size_t i = 0; i < descInputNumbers(); i++) {
+            PortConfig& dataConfig = updatedConfig.inConfs[i];
+            dataConfig.inPlace(-1);
+            dataConfig.setMemDesc(dataConfig.getMemDesc());
+        }
+
+        for (size_t i = 0; i < descOutputNumbers(); i++) {
+            PortConfig& dataConfig = updatedConfig.outConfs[i];
+            dataConfig.inPlace(-1);
+            dataConfig.setMemDesc(dataConfig.getMemDesc());
+            if (withSum) {
+                auto& eltwiseConfig = updatedConfig.inConfs.back();
+                eltwiseConfig.setMemDesc(eltwiseConfig.getMemDesc()->cloneWithNewPrecision(eltwisePrecision));
+                dataConfig.inPlace(getParentEdges().size() - 1);
+            }
+        }
+
+        return updatedConfig;
+    };
+
+    auto haveProperImplementationType = [](dnnl::primitive_desc& desc, impl_desc_type implType) {
+        primitive_desc_iterator& itpd = desc;
 
         while (itpd) {
-            NodeConfig cfg;
-            cfg.dynBatchSupport = true;
-            for (size_t j = 0; j < descInputNumbers(); j++) {
-                PortConfig dataConfig;
-                dataConfig.inPlace(-1);
-                dataConfig.constant(false);
-                dataConfig.setMemDesc(getSrcMemDesc(itpd, j));
-                cfg.inConfs.push_back(dataConfig);
-            }
+            const impl_desc_type descImplType = parse_impl_name(itpd.impl_info_str());
 
-            if (withDWConv) {
-                auto weightsPrc = DnnlExtensionUtils::IEPrecisionToDataType(dw_conv_in_dt == dnnl_u8 ? Precision::I8 : Precision::FP32);
-                auto biasPrc = memory::data_type::f32;
-
-                std::vector <size_t> dwWeightsDims({dw_conv_oc, 1, 1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
-                std::vector <size_t> dwBiasesDims({dw_conv_oc});
-
-                PortConfig dataConfig;
-                dataConfig.inPlace(-1);
-                dataConfig.constant(false);
-                dataConfig.setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwWeightsDims), weightsPrc, memory::format_tag::Goihw8g));
-                cfg.inConfs.push_back(dataConfig);
-
-                dataConfig.setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwBiasesDims), biasPrc, memory::format_tag::x));
-                cfg.inConfs.push_back(dataConfig);
-            }
-
-            for (size_t j = 0; j < descOutputNumbers(); j++) {
-                PortConfig dataConfig;
-                dataConfig.inPlace(-1);
-                dataConfig.constant(false);
-                dataConfig.setMemDesc(getDstMemDesc(itpd, j));
-                if (withSum) {
-                    auto eltwiseConfig = dataConfig;
-                    eltwiseConfig.setMemDesc(eltwiseConfig.getMemDesc()->cloneWithNewPrecision(eltwisePrecision));
-                    cfg.inConfs.push_back(eltwiseConfig);
-                    dataConfig.inPlace(getParentEdges().size() - 1);
-                }
-
-                cfg.outConfs.push_back(dataConfig);
-            }
-
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-
-            // if (selected_count == selectedPrimitiveDescriptorIndex) {
-            if (impl_type == selectedPD->getImplementationType()) {
-                rightConfig = cfg;
-                break;
+            if (descImplType == implType) {
+                return true;
             }
 
             if (!itpd.next_impl())
                 break;
         }
+
+        return false;
+    };
+
+    if (!canBeExecutedInInt8()) { // strided blobs are suppoted only for FP32 convolutions
+        descs.clear();
+        createDescriptor({config.inConfs[0].getMemDesc()}, {config.outConfs[0].getMemDesc()});
+
+        for (auto& desc : descs) {
+            if (haveProperImplementationType(*desc, selectedPD->getImplementationType())) {
+                selectedPD->setConfig(config);
+                return;
+            }
+        }
     }
 
-    // if (!rightConfigFound) {
-    //     if (rightConfig.inConfs.size() > 3)
-    //         std::cout << getName() << ": right config not found! Output precision: " << rightConfig.inConfs[3].getMemDesc()->getPrecision() << "\n";
-    // }
+    auto currentConfig = selectedPD->getConfig();
+    const auto& updatedConfig = updateNodeConfig(currentConfig);
 
-    selectedPD->setConfig(rightConfig);
+    selectedPD->setConfig(updatedConfig);
 }
-
-// void Convolution::initDescriptor(const NodeConfig& config) {
-//     auto *selectedPD = getSelectedPrimitiveDescriptor();
-//     if (!selectedPD) {
-//         return;
-//     }
-
-//     // Strided blobs feature support.
-//     // Works only for FP32 convolutions for now.
-//     bool isStridedBlobsSupported = true;
-
-//     // TODO [NM]: refactor via using global executionPrecision.
-//     if (canBeExecutedInInt8()) {
-//         isStridedBlobsSupported = false;
-//     }
-
-//     if (isStridedBlobsSupported) {
-//         createDescriptor({config.inConfs[0].getMemDesc()}, {config.outConfs[0].getMemDesc()});
-//     }
-
-//     auto rightConfig = selectedPD->getConfig();
-//     size_t selected_count = 0;
-
-//     bool containJitImpl = false;
-
-//     // primitive_desc_iterator itpd = *descs.back();
-//     for (size_t i = 0; i < descs.size(); i++) {
-//         primitive_desc_iterator itpd = *descs[i];
-//         if (containJitImpl && isPossibleToSkipInitConfig(itpd))
-//             continue;
-//     //     //Attributes support level differs in fork onednn.
-//     //     for (int n = 0; n < attrs.size(); n++) {
-//     //         // auto &attr = attrs[n];
-//     //         // auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
-//     //         auto itpd = desc;
-
-//     // std::cout << "InitDescriptor: " << "Choosing desc: " << itpd.get()->info() << "\n";
-
-//     while (itpd) {
-//         NodeConfig cfg;
-//         cfg.dynBatchSupport = true;
-//         for (size_t j = 0; j < descInputNumbers(); j++) {
-//             PortConfig dataConfig;
-//             dataConfig.inPlace(-1);
-//             dataConfig.constant(false);
-//             dataConfig.setMemDesc(getSrcMemDesc(itpd, j));
-//             cfg.inConfs.push_back(dataConfig);
-//         }
-
-//         if (withDWConv) {
-//             auto weightsPrc = DnnlExtensionUtils::IEPrecisionToDataType(dw_conv_in_dt == dnnl_u8 ? Precision::I8 : Precision::FP32);
-//             auto biasPrc = memory::data_type::f32;
-
-//             std::vector <size_t> dwWeightsDims({dw_conv_oc, 1, 1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
-//             std::vector <size_t> dwBiasesDims({dw_conv_oc});
-
-//             PortConfig dataConfig;
-//             dataConfig.inPlace(-1);
-//             dataConfig.constant(false);
-//             dataConfig.setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwWeightsDims), weightsPrc, memory::format_tag::Goihw8g));
-//             cfg.inConfs.push_back(dataConfig);
-
-//             dataConfig.setMemDesc(std::make_shared<DnnlBlockedMemoryDesc>(Shape(dwBiasesDims), biasPrc, memory::format_tag::x));
-//             cfg.inConfs.push_back(dataConfig);
-//         }
-
-//         for (size_t j = 0; j < descOutputNumbers(); j++) {
-//             PortConfig dataConfig;
-//             dataConfig.inPlace(-1);
-//             dataConfig.constant(false);
-//             dataConfig.setMemDesc(getDstMemDesc(itpd, j));
-//             if (withSum) {
-//                 auto eltwiseConfig = dataConfig;
-//                 eltwiseConfig.setMemDesc(eltwiseConfig.getMemDesc()->cloneWithNewPrecision(eltwisePrecision));
-//                 cfg.inConfs.push_back(eltwiseConfig);
-//                 dataConfig.inPlace(getParentEdges().size() - 1);
-//             }
-
-//             cfg.outConfs.push_back(dataConfig);
-//         }
-
-//         impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-//         if (impl_type & jit)
-//             containJitImpl = true;
-
-//         if (selected_count == selectedPrimitiveDescriptorIndex) {
-//             if (impl_type != selectedPD->getImplementationType()) {
-//                 IE_THROW() << getName() << " expected selectedPD impl_type: " << impl_type_to_string(selectedPD->getImplementationType())
-//                            << " but got: " << impl_type_to_string(impl_type);
-//             }
-//             rightConfig = cfg;
-//             int n = i;
-//             //attr[0] for legacy post ops;
-//             //attr[1] is mostly for binaryPostops except when having per-tensor zp on AMX.
-//             preferLegacyPostOps = (n == 0 || (n == 1 && (inputZeroPointType == zpType::PerTensor) &&
-//                                               dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)));
-//             //attr[0] for legacy zero point.
-//             //attr[1] for stock per-tensor zero point.
-//             preferLegacyZeroPoint = (n == 0);
-//         }
-
-//         // }
-//         // if (i == descs.size() - 1 && isStridedBlobsSupported) {
-//         //     if (impl_type == selectedPD->getImplementationType()) {
-//         //         rightConfig = config;
-//         //     }
-//         // }
-//         selected_count++;
-//         if (!itpd.next_impl())
-//             break;
-//     }
-//     }
-//     // }
-//     selectedPD->setConfig(rightConfig);
-// }
 
 void Convolution::filterSupportedPrimitiveDescriptors() {
     Node::filterSupportedPrimitiveDescriptors();
@@ -1247,28 +1105,34 @@ void Convolution::filterSupportedPrimitiveDescriptors() {
 }
 
 void Convolution::filterSupportedDescriptors() {
-    if (!inputMemoryFormatsFilter.empty() || !outputMemoryFormatsFilter.empty()) {
-        if (inputMemoryFormatsFilter.size() > 1 || outputMemoryFormatsFilter.size() > 1) {
-            IE_THROW() << "Incorrect number of input or output memory formats for Convolution node";
-        }
-        auto itd = descs.begin();
-        while (itd != descs.end()) {
-            bool isSuitableDesc = true;
-            if (!inputMemoryFormatsFilter.empty()) {
-                auto src_tdesc = DnnlExtensionUtils::makeDescriptor((*itd)->src_desc());
-                isSuitableDesc &= src_tdesc->isSame(inputMemoryFormatsFilter[0]);
-            }
-            if (!outputMemoryFormatsFilter.empty()) {
-                auto dst_tdesc = DnnlExtensionUtils::makeDescriptor((*itd)->dst_desc());
-                isSuitableDesc &= dst_tdesc->isSame(outputMemoryFormatsFilter[0]);
-            }
-            if (!isSuitableDesc) {
-                itd = descs.erase(itd);
-            } else {
-                itd++;
+    if (inputMemoryFormatsFilter.empty() && outputMemoryFormatsFilter.empty())
+        return;
+
+    if (inputMemoryFormatsFilter.size() > 1 || outputMemoryFormatsFilter.size() > 1)
+        IE_THROW() << "Incorrect number of input or output memory formats for Convolution node";
+
+    auto isNotSuitableDesc = [&](const std::shared_ptr<dnnl::primitive_desc>& desc) {
+        if (!inputMemoryFormatsFilter.empty()) {
+            auto src_tdesc = DnnlExtensionUtils::makeDescriptor(desc->src_desc());
+            if (src_tdesc->isSame(inputMemoryFormatsFilter[0])) {
+                DEBUG_LOG(getName(), " input memory format filter: ", inputMemoryFormatsFilter[0],
+                          " not matched. Erase desc from the list of dnnl primitive descriptors: ", desc);
+                return true;
             }
         }
-    }
+        if (!outputMemoryFormatsFilter.empty()) {
+            auto dst_tdesc = DnnlExtensionUtils::makeDescriptor(desc->dst_desc());
+            if (dst_tdesc->isSame(outputMemoryFormatsFilter[0])) {
+                DEBUG_LOG(getName(), " Output memory format filter: ", outputMemoryFormatsFilter[0],
+                          " not matched. Erase desc from the list of dnnl primitive descriptors: ", desc);
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    descs.erase(std::remove_if(descs.begin(), descs.end(), isNotSuitableDesc), descs.end());
 }
 
 bool Convolution::isPossibleToSkipInitConfig(dnnl::primitive_desc &desc) const {
@@ -1293,7 +1157,6 @@ bool Convolution::isPossibleToSkipInitConfig(dnnl::primitive_desc &desc) const {
         if (stride[i] != 1)
             isPossibleJitPlanar = false;
 
-    // std::shared_ptr<dnnl::convolution_forward::desc> convDesc(desc);
     auto srcMemDesc = DnnlExtensionUtils::makeDescriptor(desc.src_desc());
     auto dstMemDesc = DnnlExtensionUtils::makeDescriptor(desc.dst_desc());
     auto srcDataType = srcMemDesc->getDataType();
@@ -1647,11 +1510,6 @@ void Convolution::prepareParams() {
         auto pd = execPtr->getPrimitiveDesc();
         auto scratchpadMem = getScratchPadMem(pd);
         primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
-        // auto& prim = primArgs[DNNL_ARG_ATTR_SCALES | DNNL_ARG_DST];
-        // const memory::desc desc = prim.get_desc();
-        // const dnnl_memory_desc_t md = desc.get();
-        // dnnl::impl::memory_desc_wrapper wrapper(md);
-        // ptr += wrapper.offset0() * wrapper.data_type_size();
 
 #ifdef CPU_DEBUG_CAPS
         if (result.second == CacheEntryBase::LookUpStatus::Miss) {
@@ -1818,12 +1676,17 @@ void Convolution::initTryBrgconvFlag() {
         // heuristics: if it's  avx512 ISA model && it doesn't have binary post ops or per channel zero point.
         dnnl::primitive_attr attr;
         DEBUG_LOG("setPostOps, useLegacyPostOps=false");
-        setPostOps(attr, outputStaticShape(), false);
+        setPostOps(attr, outputStaticShape(), true);
 
-        if (attrContainsPostOp(attr, dnnl::impl::primitive_kind::binary)) {
+        // @TODO revise the heuristic, since per-channel dst scales are no more supported
+        if (attrContainsPostOp(attr, dnnl::impl::primitive_kind::depthwise) ||
+            attrContainsPostOp(attr, dnnl::impl::primitive_kind::quantization)) {
             shouldTryBrgconv = false;
         }
     }
+
+    if (std::getenv("FORCE_BRGCONV"))
+        shouldTryBrgconv = true;
 
     DEBUG_LOG("shouldTryBrgconv = ", shouldTryBrgconv);
 }
@@ -1838,10 +1701,10 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
         if (inputZpData[j] != inputZpData[0])
             inputZeroPointType = zpType::PerChannel;
     }
-    //Only enable per-tensor zero point on avx512-amx and avx512-core.
-    //If zero point is pertensor, both legacy zp and stock zp
-    //would be passed into conv node. The conv node would determine how to create
-    //post-ops attribute and prioritize to choose final onednn kernel.
+    // Only enable per-tensor zero point on avx512-amx and avx512-core.
+    // If zero point is pertensor, both legacy zp and stock zp
+    // would be passed into conv node. The conv node would determine how to create
+    // post-ops attribute and prioritize to choose final onednn kernel.
     if (inputZeroPointType == zpType::PerTensor &&
         (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_amx) || impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core_vnni)))
         inputZeroPoints.push_back(static_cast<int32_t>(inputZpData[0]));

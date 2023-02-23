@@ -65,7 +65,6 @@ public:
     using DnnlMemoryDesc::setPrecision;
     using DnnlMemoryDesc::getPrecision;
 
-    // explicit DnnlBlockedMemoryDesc(const dnnl::memory::desc& mdesc, const VectorDims& _order);
     explicit DnnlBlockedMemoryDesc(const dnnl::memory::desc& mdesc);
 
 private:

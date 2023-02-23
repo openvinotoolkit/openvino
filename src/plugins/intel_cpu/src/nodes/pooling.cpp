@@ -116,8 +116,7 @@ std::shared_ptr<dnnl::pooling_forward::primitive_desc> createDescriptorHelper(co
         convert(effective_pad_end),
         attr);
 
-    // @ TODO ONEDNN_3_0 direct access to internal elements should be avoided
-    //        For primitives it is impossible to udpate internal fields
+    // @ TODO Since oneDNN 3.0 for primitives it is impossible to udpate internal fields of the particular primitive
     // if (alg == dnnl::algorithm::pooling_avg_include_padding) {
         // In case of AVG including paddings the norm coeff should be calculated
         // with tacking into account original pads. So we need to restore
@@ -128,7 +127,7 @@ std::shared_ptr<dnnl::pooling_forward::primitive_desc> createDescriptorHelper(co
         //
         // for (int i = 0; i < data_pad_end.size(); i++) {
         //     if (data_pad_end[i] != effective_pad_end[i]) {
-        //         auto pooling_pd = dynamic_cast<dnnl::impl::pooling_pd_t*>(desc_ptr->get());;
+        //         auto pooling_pd = static_cast<dnnl::impl::pooling_pd_t*>(desc_ptr->get());;
         //         pooling_pd->desc()->padding[1][i] = static_cast<ptrdiff_t>(data_pad_end[i]);
         //     }
         // }
@@ -381,8 +380,6 @@ void Pooling::prepareParams() {
                                                                key.effective_dilation,
                                                                key.data_pad_end,
                                                                key.attr);
-        // DnnlDesriptor desc{desc_ptr};
-        // primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
         dnnl::pooling_forward::primitive_desc prim_desc = itpd.get();
         while (static_cast<bool>(itpd)) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
@@ -503,8 +500,7 @@ void Pooling::initSupportedPrimitiveDescriptors() {
     setPostOps(attr);
 
     for (auto& desc : descs) {
-        // auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
-        auto itpd = *desc;
+         auto itpd = *desc;
 
         while (static_cast<bool>(itpd)) {
             NodeConfig config;
@@ -546,114 +542,6 @@ void Pooling::initSupportedPrimitiveDescriptors() {
                 break;
         }
     }
-}
-
-void Pooling::initDescriptor(const NodeConfig& config) {
-    auto* selectedPD = getSelectedPrimitiveDescriptor();
-
-    if (!selectedPD) {
-        return;
-    }
-
-    if (descs.empty()) {
-        const auto& selectedConfig = selectedPD->getConfig();
-        if (selectedConfig.inConfs.size() != config.inConfs.size() || selectedConfig.outConfs.size() != config.outConfs.size())
-            return;
-
-        for (size_t i = 0; i < selectedConfig.inConfs.size(); i++) {
-            if (!selectedConfig.inConfs[i].getPortDesc()->isCompatible(*config.inConfs[i].getPortDesc()))
-                IE_THROW() << "Incorrect descriptor for node: " << getName() << " on " << i << " intput port";
-        }
-
-        for (size_t i = 0; i < selectedConfig.outConfs.size(); i++) {
-            if (!selectedConfig.outConfs[i].getPortDesc()->isCompatible(*config.outConfs[i].getPortDesc()))
-                IE_THROW() << "Incorrect descriptor for node: " << getName() << " on " << i << " output port";
-        }
-        selectedPD->setConfig(config);
-
-        return;
-    }
-
-    descs.clear();
-    const auto& currentConfig = selectedPD->getConfig();
-
-    std::vector<MemoryDescPtr> inDescs0;
-    for (const auto& inConf : currentConfig.inConfs)
-        inDescs0.emplace_back(inConf.getMemDesc());
-    std::vector<MemoryDescPtr> outDescs0;
-    for (const auto& outConf : currentConfig.outConfs)
-        outDescs0.emplace_back(outConf.getMemDesc());
-    createDescriptor(inDescs0, outDescs0);
-
-    std::vector<MemoryDescPtr> inDescs;
-    for (const auto& inConf : config.inConfs)
-        inDescs.emplace_back(inConf.getMemDesc());
-    std::vector<MemoryDescPtr> outDescs;
-    for (const auto& outConf : config.outConfs)
-        outDescs.emplace_back(outConf.getMemDesc());
-    createDescriptor(inDescs, outDescs);
-
-    NodeConfig rightConfig = selectedPD->getConfig();
-
-    // if (!rightConfig.inConfs.empty())
-    //     DEBUG_LOG(getName(), ": rightConfig in PortDesc before: ", *rightConfig.inConfs[0].getMemDesc());
-    // if (!rightConfig.outConfs.empty())
-    //     DEBUG_LOG(getName(), ": rightConfig out PortDesc before: ", *rightConfig.outConfs[0].getMemDesc());
-
-    auto getProperPrimitiveDesc = [&](dnnl::primitive_desc& desc) {
-        primitive_desc_iterator itpd = desc;
-
-        while (itpd) {
-            NodeConfig cfg;
-            cfg.dynBatchSupport = true;
-            for (size_t i = 0; i < descInputNumbers(); i++) {
-                PortConfig dataConfig;
-                dataConfig.inPlace(canBeInPlace() ? 0 : -1);
-                dataConfig.constant(false);
-                dataConfig.setMemDesc(getSrcMemDesc(itpd, i));
-                cfg.inConfs.push_back(dataConfig);
-            }
-
-            for (size_t i = 0; i < descOutputNumbers(); i++) {
-                PortConfig dataConfig;
-                dataConfig.inPlace(-1);
-                dataConfig.constant(false);
-                dataConfig.setMemDesc(getDstMemDesc(itpd, i));
-                cfg.outConfs.push_back(dataConfig);
-            }
-
-            // CPU plugin doesn't support second output of MaxPool-8, but anyway we should have out config for second port as stub
-            if (isMaxPool8) {
-                auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-                PortConfig dataConfig;
-                dataConfig.inPlace(-1);
-                dataConfig.constant(false);
-                dataConfig.setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(cfg.outConfs.front().getMemDesc()->getPrecision(),
-                                                                                         getOutputShapeAtPort(1)));
-
-                cfg.outConfs.push_back(dataConfig);
-            }
-
-            const impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-            DEBUG_LOG(getName(), "impl_type: ", impl_type, " vs selectedPD impl_type: ", selectedPD->getImplementationType());
-
-            if (impl_type == selectedPD->getImplementationType()) {
-                DEBUG_LOG(getName(), ": rightConfig PortDesc after: ", *rightConfig.outConfs[0].getMemDesc());
-                rightConfig = cfg;
-                return true;
-            }
-
-            if (!itpd.next_impl())
-                break;
-        }
-
-        return false;
-    };
-
-    if (!getProperPrimitiveDesc(*descs.back()))
-        getProperPrimitiveDesc(*descs.front());
-
-    selectedPD->setConfig(rightConfig);
 }
 
 Node::AttrPtr Pooling::initPrimitiveAttr() {

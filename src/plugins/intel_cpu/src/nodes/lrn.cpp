@@ -3,14 +3,16 @@
 //
 
 #include "lrn.h"
-#include <memory>
-#include <string>
+
 #include <dnnl_extension_utils.h>
 #include <ngraph/opsets/opset1.hpp>
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <common/primitive_hashing_utils.hpp>
 #include <utils/shape_inference/shape_inference_pass_through.hpp>
+
+#include <memory>
+#include <string>
 
 using namespace InferenceEngine;
 
@@ -194,10 +196,9 @@ void Lrn::prepareParams() {
             key.attr);
 
         dnnl::lrn_forward::primitive_desc prim_desc;
-        // dnnl::primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, attr);
         dnnl::primitive_desc_iterator itpd = *desc;
 
-        while (static_cast<bool>(itpd)) {
+        while (itpd) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
             if (impl_type == key.implType) {
                 prim_desc = itpd.get();
@@ -206,6 +207,7 @@ void Lrn::prepareParams() {
             if (!itpd.next_impl())
                 return dnnl::lrn_forward();
         }
+
         return dnnl::lrn_forward(prim_desc);
     };
 

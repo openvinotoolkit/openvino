@@ -5,29 +5,19 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <dnnl_types.h>
 #include <oneapi/dnnl/dnnl.h>
-#include <algorithm>
 #include <common/memory_desc_wrapper.hpp>
-#include <cstdint>
 #include <oneapi/dnnl/dnnl.hpp>
 #include "cpu_types.h"
 #include "ie_common.h"
 #include "nodes/common/dnnl_executor.h"
 
+#include <algorithm>
+#include <cstdint>
+
 using namespace InferenceEngine;
 
 namespace ov {
 namespace intel_cpu {
-
-// static dnnl::memory::desc cloneDnnlMemoryDesc(const dnnl::memory::desc& desc) {
-//     auto cdesc = desc.get();
-//     dnnl_memory_desc_t cloned_md = nullptr;
-//     dnnl_memory_desc_clone(&cloned_md, cdesc);
-//     dnnl::memory::desc clonedDesc = desc;
-//     clonedDesc.reset(cloned_md);
-
-//     // return dnnl::memory::desc(cloned_md);
-//     return clonedDesc;
-// }
 
 DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& strides)
     : MemoryDesc(shape, DnnlBlocked) {
@@ -97,10 +87,6 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
         desc.get()->padded_offsets[0] = 0;
         desc.get()->offset0 = DnnlExtensionUtils::convertToDnnlDim(offsetPadding);
 
-        // const memory::dims dims{1};
-        // desc = memory::desc(DnnlExtensionUtils::convertToDnnlDims(shape.getDims()),
-        //                     DnnlExtensionUtils::IEPrecisionToDataType(prc),
-        //                     DnnlExtensionUtils::convertToDnnlDims(strides));
         return;
     }
 
@@ -171,11 +157,6 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
     desc.get()->offset0 = DnnlExtensionUtils::convertToDnnlDim(offsetPadding);
     std::copy(dims.begin(), dims.end(), desc.get()->dims);
 
-    // desc = memory::desc(DnnlExtensionUtils::convertToDnnlDims(shape.getDims()),
-    //                     DnnlExtensionUtils::IEPrecisionToDataType(prc),
-    //                     DnnlExtensionUtils::convertToDnnlDims(strides));
-
-
     if (!offsetPaddingToData.empty()) {
         bool inner_pad_offsets_is_zero = std::all_of(offsetPaddingToData.begin() + outer_ndims, offsetPaddingToData.end(),
                                                      [](size_t pad) { return pad == 0; });
@@ -244,7 +225,6 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const Shape& shape, dnnl::memory::d
     order.insert(order.end(), inner_idxs.begin(), inner_idxs.end());
 
     if (shape.hasZeroDims()) {
-        // std::cout << "ONEDNN_3_0: Zero dims strides are not implemented is not implemented" << "\n";
         auto& blk = desc.get()->format_desc.blocking;
         std::fill(std::begin(blk.strides), std::begin(blk.strides) + desc.get()->ndims, 0);
     }
@@ -348,8 +328,7 @@ static VectorDims extractOrder(const dnnl::memory::desc& desc) {
 
 DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const dnnl::memory::desc& mdesc) :
     MemoryDesc(DnnlExtensionUtils::convertToVectorDims(mdesc.get_dims()), DnnlBlocked) {
-    // desc = cloneDnnlMemoryDesc(mdesc);
-    desc = mdesc; // @TODO ONEDNN_3_0 fork copy costructor is used
+    desc = mdesc;
     if (desc.get_format_kind() == dnnl::memory::format_kind::any)
         IE_THROW(Unexpected) << "Memory format any is prohibited!";
 
@@ -360,34 +339,12 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const dnnl::memory::desc& mdesc) :
     order = extractOrder(desc);
 
     if (getShape().hasZeroDims()) {
-        // std::cout << "ONEDNN_3_0: Zero dims strides are not implemented is not implemented" << "\n";
         auto& blk = desc.get()->format_desc.blocking;
         std::fill(std::begin(blk.strides), std::begin(blk.strides) + desc.get()->ndims, 0);
     }
 
     initBlockedParams();
 }
-
-// DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const dnnl::memory::desc& mdesc, const VectorDims& _order) :
-//     MemoryDesc(DnnlExtensionUtils::convertToVectorDims(mdesc.get_dims()), DnnlBlocked) {
-//     desc = mdesc;
-//     if (desc.get_format_kind() == dnnl::memory::format_kind::any)
-//         IE_THROW(Unexpected) << "Memory format any is prohibited!";
-
-//     dnnl::impl::memory_desc_wrapper descWrapped(desc.get());
-//     if (!descWrapped.is_blocking_desc())
-//         IE_THROW(Unexpected) << "Can't create DnnlBlockedMemoryDesc from not blocking desc";
-
-//     order = _order;
-
-//     if (getShape().hasZeroDims()) {
-//         // std::cout << "ONEDNN_3_0: Zero dims strides are not implemented is not implemented" << "\n";
-//         auto& blk = desc.get()->format_desc.blocking;
-//         std::fill(std::begin(blk.strides), std::begin(blk.strides) + desc.get()->ndims, 0);
-//     }
-
-//     initBlockedParams();
-// }
 
 bool DnnlBlockedMemoryDesc::hasLayoutType(LayoutType layoutType) const {
     switch (layoutType) {
@@ -417,8 +374,6 @@ bool DnnlBlockedMemoryDesc::isPlainFormat() const {
 }
 
 bool DnnlBlockedMemoryDesc::isBlockedCFormat(size_t blk_size) const {
-    // const auto &blocking = desc.data.format_desc.blocking;
-
     if (desc.get_format_kind()   != dnnl::memory::format_kind::blocked ||
         desc.get_inner_nblks()   != 1 ||
         desc.get_inner_idxs()[0] != 1)
@@ -471,7 +426,7 @@ static dnnl::memory::desc cloneDescWithNewDims(const dnnl::memory::desc& desc,
     auto mklDims = DnnlExtensionUtils::convertToDnnlDims(dims);
     const auto offsetPadding = desc.get()->offset0;
 
-    dnnl::memory::desc newMklDesc = desc; // @TODO ONEDNN_3_0 fork copy costructor is used
+    dnnl::memory::desc newMklDesc = desc;
 
     array_copy(newMklDesc.get()->dims, mklDims.data(), mklDims.size());
     dnnl::memory::dims perm(convert_to_vector<dnnl::memory::dim, size_t>(order.data(), mklDims.size()));
@@ -485,8 +440,6 @@ static dnnl::memory::desc cloneDescWithNewDims(const dnnl::memory::desc& desc,
     }
     // dnnl::impl::fill_blocked always set offset0 to 0
     // so we need to restore actual value
-
-    // @TODO ONEDNN_3_0 unable to update offset;
     newCdesc.offset0 = offsetPadding;
     return newMklDesc;
 }
@@ -512,7 +465,6 @@ MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims)
 
 bool DnnlBlockedMemoryDesc::isSame(dnnl::memory::format_tag fmt) const {
     dnnl::memory::desc refDesc(desc.get_dims(), desc.get_data_type(), fmt);
-    // return desc == refDesc;
 
     if (desc.get_ndims() != refDesc.get_ndims())
         return false;
@@ -627,8 +579,6 @@ bool DnnlBlockedMemoryDesc::blocksExtended() const {
 void DnnlBlockedMemoryDesc::initBlockDims() {
     const auto dims = desc.get_dims();
 
-    // const auto &blk_desc = desc.data.format_desc.blocking;
-
     const size_t outer_ndims = dims.size();
     const auto inner_ndims =   desc.get_inner_nblks();
     const size_t total_ndims = outer_ndims + inner_ndims;
@@ -665,8 +615,6 @@ void DnnlBlockedMemoryDesc::initBlockDims() {
 void DnnlBlockedMemoryDesc::initStrides() {
     const auto dims = desc.get_dims();
 
-    // const auto &blk_desc = desc.data.format_desc.blocking;
-
     const size_t outer_ndims = dims.size();
     const size_t inner_nblks = desc.get_inner_nblks();
     const auto   inner_blks  = desc.get_inner_blks();
@@ -698,12 +646,7 @@ void DnnlBlockedMemoryDesc::initOffsetPadding() {
 }
 
 MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewPrecision(const InferenceEngine::Precision prec) const {
-    // auto cdesc = desc.get();
-    // dnnl_memory_desc_t cloned_md = nullptr;
-    // dnnl_memory_desc_clone(&cloned_md, cdesc);
-    // auto newDesc = std::make_shared<DnnlBlockedMemoryDesc>(*this);
-    // newDesc->reset(cloned_md);
-    auto newDesc = std::make_shared<DnnlBlockedMemoryDesc>(*this); // @TODO ONEDNN_3_0 fork copy costructor is used
+    auto newDesc = std::make_shared<DnnlBlockedMemoryDesc>(*this);
     newDesc->setPrecision(prec);
 
     return newDesc;
@@ -753,7 +696,6 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const dnnl::memory::desc& mdesc, co
     desc = cloneDescWithNewDims(mdesc, shape.getDims(), order);
 
     if (shape.hasZeroDims()) {
-        // std::cout << "ONEDNN_3_0: Zero dims strides are not implemented is not implemented" << "\n";
         auto& blk = desc.get()->format_desc.blocking;
         std::fill(std::begin(blk.strides), std::begin(blk.strides) + desc.get()->ndims, 0);
     }

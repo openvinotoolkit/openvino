@@ -412,11 +412,10 @@ void Concat::prepareParams() {
             if (srcMemPtr->GetShape().hasZeroDims()) {
                 continue;
             }
-            auto desc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(); // @TODO ONEDNN_3_0 fork copy costructor is used
+            auto desc = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
 
             const auto& dims = srcMemPtr->getStaticDims();
             for (size_t j = 0; j < dims.size(); j++) {
-                // @ TODO ONEDNN_3_0 direct access to internal elements should be avoided
                 desc.get()->dims[j] = dims[j];
             }
             srcs_d.emplace_back(desc);
@@ -424,11 +423,10 @@ void Concat::prepareParams() {
     }
 
     if (!canExecRef) {
-        auto desc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(); // @TODO ONEDNN_3_0 fork copy costructor is used
+        auto desc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
 
         const auto& dims = dstMemPtr->getStaticDims();
         for (size_t i = 0; i < dims.size(); i++) {
-            // @ TODO ONEDNN_3_0 direct access to internal elements should be avoided
             desc.get()->dims[i] = dims[i];
             desc.get()->padded_dims[i] = dims[i];
         }
@@ -497,13 +495,16 @@ void Concat::initOptimalPrimitiveDescriptor() {
             auto oldDesc = config.inConfs[i].getMemDesc();
             auto inpBlockingDesc = oldDesc->as<BlockedMemoryDesc>();
 
-            config.inConfs[i].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(inpBlockingDesc->getPrecision(),
-                                                                                inpBlockingDesc->getShape(),
-                                                                                inpBlockingDesc->getBlockDims(),
-                                                                                inpBlockingDesc->getOrder(),
-                                                                                firstOutBlockingDesc->getOffsetPadding() + offset,
-                                                                                firstOutBlockingDesc->getOffsetPaddingToData(),
-                                                                                firstOutBlockingDesc->getStrides()), BLOCKED_DESC_FULL_MASK);
+            config.inConfs[i].setMemDesc(
+                std::make_shared<CpuBlockedMemoryDesc>(
+                    inpBlockingDesc->getPrecision(),
+                    inpBlockingDesc->getShape(),
+                    inpBlockingDesc->getBlockDims(),
+                    inpBlockingDesc->getOrder(),
+                    firstOutBlockingDesc->getOffsetPadding() + offset,
+                    firstOutBlockingDesc->getOffsetPaddingToData(),
+                    firstOutBlockingDesc->getStrides()),
+                BLOCKED_DESC_FULL_MASK);
             size_t axisSize = 1;
 
             auto firstInpBlockingDesc = config.inConfs[0].getMemDesc()->as<BlockedMemoryDesc>();

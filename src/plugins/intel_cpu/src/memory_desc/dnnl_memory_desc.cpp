@@ -4,6 +4,7 @@
 
 #include "dnnl_memory_desc.h"
 #include <dnnl_extension_utils.h>
+#include <common/memory_desc.hpp>
 #include <common/memory_desc_wrapper.hpp>
 #include <onednn/dnnl.h>
 
@@ -38,18 +39,23 @@ bool DnnlMemoryDesc::isCompatible(const MemoryDesc &rhs) const {
     }
 }
 
-// TODO: add serialization for packed format
 std::string DnnlMemoryDesc::serializeFormat() const {
-    // TODO: do we need query for packed / wino / blocking / sparse memory type formats?
-    // if (getFormatKind() == dnnl_format_kind_wino) {
-    //     switch (desc.data.format_desc.wino_desc.wino_format) {
-    //         case dnnl_wino_memory_format_t::dnnl_wino_wei_aaOIoi: return "wino_aaOIoi";
-    //         case dnnl_wino_memory_format_t::dnnl_wino_wei_aaOio: return "wino_aaOio";
-    //         case dnnl_wino_memory_format_t::dnnl_wino_wei_aaOBiOo: return "wino_aaOBiOo";
-    //         case dnnl_wino_memory_format_t::dnnl_wino_wei_OBaaIBOIio: return "wino_OBaaIBOIio";
-    //         default: return "wino_undef";
-    //     }
-    // }
+    dnnl::impl::memory_desc_wrapper wrapped(desc.get());
+    if (wrapped.is_wino_desc()) {
+        switch (desc.get()->format_desc.wino_desc.wino_format) {
+            case dnnl::impl::wino_memory_format_t::wino_wei_aaOio: return "wino_aaOio";
+            case dnnl::impl::wino_memory_format_t::wino_wei_aaOBiOo: return "wino_aaOBiOo";
+            case dnnl::impl::wino_memory_format_t::wino_wei_OBaaIBOIio: return "wino_OBaaIBOIio";
+            default: return "wino_undef";
+        }
+    } else if (wrapped.is_rnn_packed_desc()) {
+        switch (desc.get()->format_desc.rnn_packed_desc.format) {
+            case dnnl::impl::rnn_packed_format::ldigo_p: return "packed_ldigo";
+            case dnnl::impl::rnn_packed_format::ldgoi_p: return "packed_ldgoi";
+            case dnnl::impl::rnn_packed_format::ldio_p: return "packed_ldio";
+            default: return "packed_undef";
+        }
+    }
     return "undef";
 }
 

@@ -1494,8 +1494,6 @@ bool Graph::InsertNode(NodePtr parent, NodePtr child, NodePtr node, int parentPo
         node->filterSupportedPrimitiveDescriptors();
         node->selectOptimalPrimitiveDescriptor();
         node->initOptimalPrimitiveDescriptor();
-        DEBUG_LOG("#", node->getExecIndex(), " ", node->getName(), "\n",
-                  *node->getSelectedPrimitiveDescriptor(), "selectedPrimitiveDescriptorIdx = ", node->selectedPrimitiveDescriptorIndex);
     }
 
     graphEdges.push_back(beforeNode);

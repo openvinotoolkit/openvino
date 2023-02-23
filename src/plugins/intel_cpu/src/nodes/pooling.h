@@ -24,7 +24,6 @@ public:
     std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape &dims) const override;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void initDescriptor(const NodeConfig& config) override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;

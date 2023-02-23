@@ -131,10 +131,7 @@ DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const dnnl::memory::desc &d
 
 size_t DnnlExtensionUtils::getMemSizeForDnnlDesc(const dnnl::memory::desc& desc) {
     auto tmpDesc = desc;
-    // const auto offset0 = tmpDesc.data.offset0;
-    // tmpDesc.data.offset0 = 0;
 
-    // @ TODO ONEDNN_3_0 direct access to internal elements should be avoided
     const auto offset0 = tmpDesc.get()->offset0;
     tmpDesc.get()->offset0 = 0;
 
