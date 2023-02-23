@@ -50,13 +50,13 @@
 
 *   **1**: tensor with arbitrary rank and type *T*. **Required.**
 
-*   **2**: The value of *K* -- a scalar of any integer type that specifies how many elements from the input tensor should be selected. **Required.**
+*   **2**: The value of *K* - a scalar of any integer type that specifies how many elements from the input tensor should be selected. The accepted range of values of *K* is `<1;input1.shape[axis]>`. The behavior of this operator is undefined if the value of *K* does not meet those requirements. **Required.**
 
 **Outputs**:
 
-*   **1**: Output tensor of type *T* with at most *k* values from the input tensor along specified dimension *axis*. The shape of the tensor is `[input1.shape[0], ..., input1.shape[axis-1], 1..k, input1.shape[axis+1], ..., input1.shape[input1.rank - 1]]`.
+*   **1**: Output tensor of type *T* with *k* values from the input tensor along a specified *axis*. The shape of the tensor is `[input1.shape[0], ..., input1.shape[axis-1], 1..k, input1.shape[axis+1], ..., input1.shape[input1.rank - 1]]`.
 
-*   **2**: Output tensor containing indices of the corresponding elements(values) from the first output tensor. The indices point to the location of selected values in the original input tensor. The shape of this output tensor is the same as the shape of the 1st output, that is `[input1.shape[0], ..., input1.shape[axis-1], 1..k, input1.shape[axis+1], ..., input1.shape[input1.rank - 1]]`. The type of this tensor *T_IND* is controlled by the `index_element_type` attribute.
+*   **2**: Output tensor containing indices of the corresponding elements(values) from the first output tensor. The indices point to the location of selected values in the original input tensor. The shape of this output tensor is the same as the shape of the first output, that is `[input1.shape[0], ..., input1.shape[axis-1], 1..k, input1.shape[axis+1], ..., input1.shape[input1.rank - 1]]`. The type of this tensor *T_IND* is controlled by the `index_element_type` attribute.
 
 **Types**
 
@@ -70,7 +70,7 @@ The output tensor is populated by values computed in the following way:
 
     output[i1, ..., i(axis-1), j, i(axis+1) ..., iN] = top_k(input[i1, ...., i(axis-1), :, i(axis+1), ..., iN]), k, sort, mode)
 
-So for each slice `input[i1, ...., i(axis-1), :, i(axis+1), ..., iN]` *TopK* values are computed individually.
+meaning that for each slice `input[i1, ...., i(axis-1), :, i(axis+1), ..., iN]` the *TopK* values are computed individually.
 
 Sorting and minimum/maximum are controlled by `sort` and `mode` attributes with additional configurability provided by `stable`:
   * *sort*=`value`, *mode*=`max`, *stable*=`false` - descending by value, relative order of equal elements not guaranteed to be maintained
@@ -82,7 +82,7 @@ Sorting and minimum/maximum are controlled by `sort` and `mode` attributes with 
   * *sort*=`none` , *mode*=`max` - undefined
   * *sort*=`none` , *mode*=`min` - undefined
 
-The relative order of equivalent elements in a given slice is only preserved if the *stable* attribute is set to `true`. This makes the implementation use stable sorting algorithm during the computation of TopK elements. Otherwise the output order is undefined.
+The relative order of equivalent elements is only preserved if the *stable* attribute is set to `true`. This makes the implementation use stable sorting algorithm during the computation of TopK elements. Otherwise the output order is undefined.
 
 **Example**
 
