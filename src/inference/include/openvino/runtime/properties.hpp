@@ -318,7 +318,7 @@ enum class PerformanceMode {
 inline std::ostream& operator<<(std::ostream& os, const PerformanceMode& performance_mode) {
     switch (performance_mode) {
     case PerformanceMode::UNDEFINED:
-        return os << "";
+        return os << "UNDEFINED";
     case PerformanceMode::LATENCY:
         return os << "LATENCY";
     case PerformanceMode::THROUGHPUT:
@@ -339,7 +339,7 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
         performance_mode = PerformanceMode::THROUGHPUT;
     } else if (str == "CUMULATIVE_THROUGHPUT") {
         performance_mode = PerformanceMode::CUMULATIVE_THROUGHPUT;
-    } else if (str == "") {
+    } else if (str == "UNDEFINED") {
         performance_mode = PerformanceMode::UNDEFINED;
     } else {
         throw ov::Exception{"Unsupported performance mode: " + str};
