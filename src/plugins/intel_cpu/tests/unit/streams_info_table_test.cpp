@@ -156,7 +156,7 @@ StreamsCalculationTestCase _1sockets_14cores_latency_1 = {
     0,
     0,
     {{20, 6, 8, 6}},
-    {{1, MAIN_CORE_PROC, 6}},
+    {{1, ALL_PROC, 14}, {0, MAIN_CORE_PROC, 6}, {0, EFFICIENT_CORE_PROC, 8}},
 };
 
 StreamsCalculationTestCase _1sockets_14cores_latency_2 = {
@@ -164,7 +164,23 @@ StreamsCalculationTestCase _1sockets_14cores_latency_2 = {
     10,
     0,
     {{20, 6, 8, 6}},
+    {{1, ALL_PROC, 10}, {0, MAIN_CORE_PROC, 6}, {0, EFFICIENT_CORE_PROC, 4}},
+};
+
+StreamsCalculationTestCase _1sockets_14cores_latency_3 = {
+    1,
+    0,
+    6,
+    {{20, 6, 8, 6}},
     {{1, MAIN_CORE_PROC, 6}},
+};
+
+StreamsCalculationTestCase _1sockets_14cores_latency_4 = {
+    1,
+    0,
+    14,
+    {{20, 6, 8, 6}},
+    {{1, ALL_PROC, 14}, {0, MAIN_CORE_PROC, 6}, {0, EFFICIENT_CORE_PROC, 8}},
 };
 
 StreamsCalculationTestCase _1sockets_14cores_tput_1 = {
@@ -247,6 +263,22 @@ StreamsCalculationTestCase _1sockets_10cores_latency_2 = {
     {{1, ALL_PROC, 8}, {0, MAIN_CORE_PROC, 2}, {0, EFFICIENT_CORE_PROC, 6}},
 };
 
+StreamsCalculationTestCase _1sockets_10cores_latency_3 = {
+    1,
+    0,
+    2,
+    {{12, 2, 8, 2}},
+    {{1, MAIN_CORE_PROC, 2}},
+};
+
+StreamsCalculationTestCase _1sockets_10cores_latency_4 = {
+    1,
+    0,
+    10,
+    {{12, 2, 8, 2}},
+    {{1, ALL_PROC, 10}, {0, MAIN_CORE_PROC, 2}, {0, EFFICIENT_CORE_PROC, 8}},
+};
+
 StreamsCalculationTestCase _1sockets_10cores_tput_1 = {
     0,
     0,
@@ -300,7 +332,7 @@ StreamsCalculationTestCase _1sockets_8cores_latency_1 = {
     0,
     0,
     {{12, 4, 4, 4}},
-    {{1, MAIN_CORE_PROC, 4}},
+    {{1, ALL_PROC, 8}, {0, MAIN_CORE_PROC, 4}, {0, EFFICIENT_CORE_PROC, 4}},
 };
 
 StreamsCalculationTestCase _1sockets_8cores_latency_2 = {
@@ -308,7 +340,23 @@ StreamsCalculationTestCase _1sockets_8cores_latency_2 = {
     100,
     0,
     {{12, 4, 4, 4}},
+    {{1, ALL_PROC, 8}, {0, MAIN_CORE_PROC, 4}, {0, EFFICIENT_CORE_PROC, 4}},
+};
+
+StreamsCalculationTestCase _1sockets_8cores_latency_3 = {
+    1,
+    0,
+    4,
+    {{12, 4, 4, 4}},
     {{1, MAIN_CORE_PROC, 4}},
+};
+
+StreamsCalculationTestCase _1sockets_8cores_latency_4 = {
+    1,
+    0,
+    8,
+    {{12, 4, 4, 4}},
+    {{1, ALL_PROC, 8}, {0, MAIN_CORE_PROC, 4}, {0, EFFICIENT_CORE_PROC, 4}},
 };
 
 StreamsCalculationTestCase _1sockets_8cores_tput_1 = {
@@ -435,6 +483,8 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _2sockets_48cores_tput_3,
                                          _1sockets_14cores_latency_1,
                                          _1sockets_14cores_latency_2,
+                                         _1sockets_14cores_latency_3,
+                                         _1sockets_14cores_latency_4,
                                          _1sockets_14cores_tput_1,
                                          _1sockets_14cores_tput_2,
                                          _1sockets_14cores_tput_3,
@@ -445,6 +495,8 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _1sockets_14cores_tput_8,
                                          _1sockets_10cores_latency_1,
                                          _1sockets_10cores_latency_2,
+                                         _1sockets_10cores_latency_3,
+                                         _1sockets_10cores_latency_4,
                                          _1sockets_10cores_tput_1,
                                          _1sockets_10cores_tput_2,
                                          _1sockets_10cores_tput_3,
@@ -453,6 +505,8 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _1sockets_10cores_tput_6,
                                          _1sockets_8cores_latency_1,
                                          _1sockets_8cores_latency_2,
+                                         _1sockets_8cores_latency_3,
+                                         _1sockets_8cores_latency_4,
                                          _1sockets_8cores_tput_1,
                                          _1sockets_8cores_tput_2,
                                          _1sockets_8cores_tput_3,
