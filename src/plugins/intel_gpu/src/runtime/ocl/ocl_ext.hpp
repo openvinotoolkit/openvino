@@ -211,6 +211,10 @@ clEnqueueMemFillINTEL_fn)(
 
 #define CL_DEVICE_UUID_KHR          0x106A
 
+#endif // cl_khr_device_uuid
+
+#ifndef OV_GPU_USE_OPENCL_HPP
+
 // for C++ wrappers
 using uuid_array = std::array<cl_uchar, CL_UUID_SIZE_KHR>;
 
@@ -220,7 +224,7 @@ CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_UUID_KHR, uuid_array)
 }  // namespace detail
 }  // namespace cl
 
-#endif // cl_khr_device_uuid
+#endif // OV_GPU_USE_OPENCL_HPP
 
 /***************************************************************
 * cl_intel_device_attribute_query
