@@ -3,14 +3,14 @@
 @sphinxdirective
 
 Introduction
-~~~~~~~~~~~~
+####################
 
 Filter pruning is an advanced optimization method which allows reducing computational complexity of the model by removing 
 redundant or unimportant filters from convolutional operations of the model. This removal is done in two steps: 
 
-#. Unimportant filters are zeroed out by the NNCF optimization with fine-tuning.
+1. Unimportant filters are zeroed out by the NNCF optimization with fine-tuning.
 
-#. Zero filters are removed from the model during the export to OpenVINO Intermediate Representation (IR).
+2. Zero filters are removed from the model during the export to OpenVINO Intermediate Representation (IR).
 
 
 Filter Pruning method from the NNCF can be used stand-alone but we usually recommend to stack it with 8-bit quantization for 
@@ -28,12 +28,12 @@ ranges of weights and activations and helps to reduce overall quantization error
 Below, we provide the steps that are required to apply Filter Pruning + QAT to the model:
 
 Applying Filter Pruning with fine-tuning
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+########################################
 
 Here, we show the basic steps to modify the training script for the model and use it to zero out unimportant filters:
 
 1. Import NNCF API
-------------------
+++++++++++++++++++
 
 In this step, NNCF-related imports are added in the beginning of the training script:
 
@@ -50,7 +50,7 @@ In this step, NNCF-related imports are added in the beginning of the training sc
        :fragment: [imports]
 
 2. Create NNCF configuration
-----------------------------
+++++++++++++++++++++++++++++
 
 Here, you should define NNCF configuration which consists of model-related parameters (`"input_info"` section) and parameters 
 of optimization methods (`"compression"` section).
@@ -78,7 +78,7 @@ Here is a brief description of the required parameters of the Filter Pruning met
 
 
 3. Apply optimization methods
------------------------------
++++++++++++++++++++++++++++++
 
 In the next step, the original model is wrapped by the NNCF object using the ``create_compressed_model()`` API using the 
 configuration defined in the previous step. This method returns a so-called compression controller and the wrapped model 
@@ -101,7 +101,7 @@ optimization.
 
 
 4. Fine-tune the model
-----------------------
+++++++++++++++++++++++
 
 This step assumes that you will apply fine-tuning to the model the same way as it is done for the baseline model. In the case 
 of Filter Pruning method we recommend using the training schedule and learning rate similar to what was used for the training 
@@ -122,7 +122,7 @@ of original model.
 
 
 5. Multi-GPU distributed training
----------------------------------
++++++++++++++++++++++++++++++++++
 
 In the case of distributed multi-GPU training (not DataParallel), you should call ``compression_ctrl.distributed()`` before the 
 fine-tuning that will inform optimization methods to do some adjustments to function in the distributed mode.
@@ -142,7 +142,7 @@ fine-tuning that will inform optimization methods to do some adjustments to func
 
 
 6. Export quantized model
--------------------------
++++++++++++++++++++++++++
 
 When fine-tuning finishes, the quantized model can be exported to the corresponding format for further inference: ONNX in 
 the case of PyTorch and frozen graph - for TensorFlow 2.
@@ -166,7 +166,7 @@ checkpoints during the training. Since NNCF wraps the original model with its ow
 
 
 7. (Optional) Save checkpoint
------------------------------
++++++++++++++++++++++++++++++
 
 To save model checkpoint use the following API:
 
@@ -185,7 +185,7 @@ To save model checkpoint use the following API:
 
 
 8. (Optional) Restore from checkpoint
--------------------------------------
++++++++++++++++++++++++++++++++++++++
 
 To restore the model from checkpoint you should use the following API:
 
@@ -206,7 +206,7 @@ For more details on saving/loading checkpoints in the NNCF, see the following
 `documentation <https://github.com/openvinotoolkit/nncf/blob/develop/docs/Usage.md#saving-and-loading-compressed-models>`__.
 
 Deploying pruned model
-~~~~~~~~~~~~~~~~~~~~~~
+######################
 
 The pruned model requres an extra step that should be done to get performance improvement. This step involves removal of the 
 zero filters from the model. This is done at the model conversion step using  :doc:`Model Optimizer <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>` tool when model is converted from the framework representation (ONNX, TensorFlow, etc.) to OpenVINO Intermediate Representation.
@@ -218,7 +218,7 @@ For more details about model deployment with OpenVINO, see the corresponding :do
 
 
 Examples
-~~~~~~~~
+####################
 
 * `PyTorch Image Classiication example <https://github.com/openvinotoolkit/nncf/blob/develop/examples/torch/classification>`__
 
