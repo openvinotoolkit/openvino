@@ -20,6 +20,7 @@ There are several cases when the customization is needed:
 .. math:: x/(1.0+e^{-(beta*x)})
 
 with a single operation of type :doc:`Swish <openvino_docs_ops_activation_Swish_4>`.
+
 * A model contains a custom framework operation (the operation that is not a part of an official operation set of the framework) that was developed using the framework extensibility mechanism. In this case, Model Optimizer should know how to handle the operation and generate a corresponding section in an IR for it.
 
 It is necessary to figure out how Model Optimizer represents a model in a memory and converts it to an IR before
