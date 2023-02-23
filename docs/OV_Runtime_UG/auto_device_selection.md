@@ -16,7 +16,7 @@ This article introduces how Automatic Device Selection works and how to use it f
 
 
 How AUTO Works
---------------
+####################
 
 The Automatic Device Selection mode, or AUTO for short, uses a "virtual" or a "proxy" device, 
 which does not bind to a specific type of hardware, but rather selects the processing unit for inference automatically. 
@@ -80,7 +80,7 @@ This mechanism can be easily observed in the :ref:`Using AUTO with Benchmark app
 
 
 Using AUTO
-----------
+####################
 
 Following the OpenVINO™ naming convention, the Automatic Device Selection mode is assigned the label of "AUTO". It may be defined with no additional parameters, resulting in defaults being used, or configured further with the following setup options:
 
@@ -141,7 +141,7 @@ you compile the model on the plugin with configuration and execute inference.
 
 
 Device Candidates and Priority
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+++++++++++++++++++++++++++++++
 
 
 The device candidate list enables you to customize the priority and limit the choice of devices available to AUTO.
@@ -170,7 +170,7 @@ See the following code for using AUTO and specifying devices:
 Note that OpenVINO Runtime lets you use "GPU" as an alias for "GPU.0" in function calls. More details on enumerating devices can be found in :doc:`Working with devices <openvino_docs_OV_UG_Working_with_devices>`.
 
 Checking Available Devices
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+--------------------------
 
 To check what devices are present in the system, you can use Device API, as listed below. For information on how to use it, see :doc:`Query device properties and configuration <openvino_docs_OV_UG_query_api>`.
 
@@ -193,7 +193,7 @@ To check what devices are present in the system, you can use Device API, as list
 
 
 Excluding Devices from Device Candidate List
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+--------------------------------------------
 
 You can also exclude hardware devices from AUTO, for example, to reserve CPU for other jobs. AUTO will not use the device for inference then. To do that, add a minus sign ``(-)`` before CPU in ``AUTO: <device names>``, as in the following example:
 
@@ -217,13 +217,13 @@ Note that if you choose to exclude CPU from device candidate list, CPU will not 
 
 
 Performance Hints for AUTO
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+++++++++++++++++++++++++++
 
 The ``ov::hint::performance_mode`` property enables you to specify a performance option for AUTO to be more efficient for particular use cases. The default hint for AUTO is ``LATENCY``.
 
 
 LATENCY
-^^^^^^^
+--------------------
 
 This option prioritizes low latency, providing short response time for each inference job. It performs best for tasks where inference is required for a single input image, e.g. a medical analysis of an ultrasound scan image. It also fits the tasks of real-time or nearly real-time applications, such as an industrial robot's response to actions in its environment or obstacle avoidance for autonomous vehicles.
 
@@ -236,13 +236,13 @@ This option prioritizes low latency, providing short response time for each infe
 
 
 THROUGHPUT
-^^^^^^^^^^
+--------------------
 
 This option prioritizes high throughput, balancing between latency and power. It is best suited for tasks involving multiple jobs, such as inference of video feeds or large numbers of images.
 
 
 CUMULATIVE_THROUGHPUT
-^^^^^^^^^^^^^^^^^^^^^
+--------------------
 
 While ``LATENCY`` and ``THROUGHPUT`` can select one target device with your preferred performance option, the ``CUMULATIVE_THROUGHPUT`` option enables running inference on multiple devices for higher throughput. With ``CUMULATIVE_THROUGHPUT``, AUTO loads the network model to all available devices in the candidate list, and then runs inference on them based on the default or specified priority.
 
@@ -259,7 +259,7 @@ With the CUMULATIVE_THROUGHPUT option:
 
 
 Code Examples
-^^^^^^^^^^^^^
+--------------------
 
 To enable performance hints for your application, use the following code:
 
@@ -278,13 +278,13 @@ To enable performance hints for your application, use the following code:
 
 
 Disabling Auto-Batching for THROUGHPUT and CUMULATIVE_THROUGHPUT
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----------------------------------------------------------------
 
 The ``ov::hint::PerformanceMode::THROUGHPUT`` mode and the ``ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT`` mode will trigger Auto-Batching (for example, for the GPU device) by default. You can disable it by setting ``ov::hint::allow_auto_batching(false)``, or change the default timeout value to a large number, e.g. ``ov::auto_batch_timeout(1000)``. See :doc:`Automatic Batching <openvino_docs_OV_UG_Automatic_Batching>` for more details.
 
 
 Configuring Model Priority
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+++++++++++++++++++++++++++
 
 The ``ov::hint::model_priority`` property enables you to control the priorities of models in the Auto-Device plugin. A high-priority model will be loaded to a supported high-priority device. A lower-priority model will not be loaded to a device that is occupied by a higher-priority model.
 
@@ -303,7 +303,7 @@ The ``ov::hint::model_priority`` property enables you to control the priorities 
 
 
 Checking Target Runtime Devices
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++++++++++++++++++++++++++++++++
 
 To query the runtime target devices on which the inferences are being executed using AUTO, you can use the ``ov::execution_devices`` property. It must be used with ``get_property``, for example:
 
@@ -322,7 +322,7 @@ To query the runtime target devices on which the inferences are being executed u
 
 
 Configuring Individual Devices and Creating the Auto-Device plugin on Top
--------------------------------------------------------------------------
+#########################################################################
 
 Although the methods described above are currently the preferred way to execute inference with AUTO, the following steps can be also used as an alternative. It is currently available as a legacy feature and used if AUTO is incapable of utilizing the Performance Hints option.
 
@@ -342,7 +342,7 @@ Although the methods described above are currently the preferred way to execute 
 .. _using-auto-with-openvino-samples-and-benchmark-app:
 
 Using AUTO with OpenVINO Samples and Benchmark app
---------------------------------------------------
+##################################################
 
 To see how the Auto-Device plugin is used in practice and test its performance, take a look at OpenVINO™ samples. All samples supporting the "-d" command-line option (which stands for "device") will accept the plugin out-of-the-box. The Benchmark Application will be a perfect place to start – it presents the optimal performance of the plugin without the need for additional settings, like the number of requests or CPU threads. To evaluate the AUTO performance, you can use the following commands:
 
@@ -370,7 +370,7 @@ For more information, refer to the :doc:`C++ <openvino_inference_engine_samples_
 
 
 Additional Resources
---------------------
+####################
 
 - :doc:`Debugging AUTO <openvino_docs_OV_UG_supported_plugins_AUTO_debugging>`
 - :doc:`Running on Multiple Devices Simultaneously <openvino_docs_OV_UG_Running_on_multiple_devices>`
