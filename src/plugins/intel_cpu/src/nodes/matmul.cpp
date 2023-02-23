@@ -503,9 +503,8 @@ void MatMul::initSupportedPrimitiveDescriptors() {
         return;
 
     for (auto& desc : descs) {
-        // auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), *attr);
         auto itpd = *desc;
-        while (static_cast<bool>(itpd)) {
+        while (itpd) {
             NodeConfig config;
             config.dynBatchSupport = true;
             for (size_t i = 0; i < descInputNumbers(); i++) {
@@ -632,8 +631,6 @@ void MatMul::prepareParams() {
                 key.attr);
         }
 
-        // DnnlDesriptor desc(matmul_desc);
-        // primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
         primitive_desc_iterator itpd = *matmul_desc;
         matmul::primitive_desc prim_desc;
 

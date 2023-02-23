@@ -14,7 +14,6 @@
 #include <caseless.hpp>
 #include "cpu_memory.h"
 #include "edge.h"
-#include "dnnl_descriptor.h"
 #include "selective_build.h"
 #include "onednn/dnnl.h"
 #include "onednn/iml_type_mapper.h"
