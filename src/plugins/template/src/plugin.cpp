@@ -35,7 +35,7 @@ Plugin::Plugin() {
     _backend = ov::runtime::Backend::create();
 
     // create default stream executor with a given name
-    _waitExecutor = get_executor_manager()->getIdleCPUStreamsExecutor({wait_executor_name});
+    _waitExecutor = get_executor_manager()->get_idle_cpu_streams_executor({wait_executor_name});
 }
 // ! [plugin:ctor]
 
@@ -96,7 +96,7 @@ std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::compile_model(const 
     auto compiled_model =
         std::make_shared<CompiledModel>(model->clone(),
                                         shared_from_this(),
-                                        get_executor_manager()->getIdleCPUStreamsExecutor(streamsExecutorConfig),
+                                        get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig),
                                         fullConfig);
     return compiled_model;
 }
@@ -136,7 +136,7 @@ std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::import_model(std::is
     auto compiled_model =
         std::make_shared<CompiledModel>(ov_model,
                                         shared_from_this(),
-                                        get_executor_manager()->getIdleCPUStreamsExecutor(streamsExecutorConfig),
+                                        get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig),
                                         fullConfig);
     return compiled_model;
 }
