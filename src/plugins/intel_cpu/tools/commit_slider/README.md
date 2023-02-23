@@ -9,7 +9,7 @@ cmake >= OpenVino minimum required version ([CMakeLists.txt](../../../../CMakeLi
 python >= *3.6*
 ccache >= *3.0*
 
-## Preparing
+## Preparing (only for *Linux*)
 
  1. Install **CCache**:
 `sudo apt install -y ccache`
@@ -17,7 +17,7 @@ ccache >= *3.0*
 `echo 'export PATH="/usr/lib/ccache:$PATH"' | tee -a ~/.bashrc`
 `source ~/.bashrc && echo $PATH`
 2. Check if **Ccache** installed via `which g++ gcc`
-3. Run `sudo sh setup.sh` (only for *Linux*)
+3. Run `sudo sh setup.sh`
 
 ## Setup custom config
 
