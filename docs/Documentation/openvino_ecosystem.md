@@ -7,14 +7,12 @@
    :hidden:
 
    ovtf_integration
-   ote_documentation
    ovsa_get_started
    openvino_inference_engine_tools_compile_tool_README
    openvino_docs_tuning_utilities
    workbench_docs_Workbench_DG_Introduction
 
 @endsphinxdirective
-
 
 
 OpenVINO™ is not just one tool. It is an expansive ecosystem of utilities, providing a comprehensive workflow for deep learning solution development. Learn more about each of them to reach the full potential of OpenVINO™ Toolkit.
@@ -51,14 +49,14 @@ More resources:
 * [installation Guide on GitHub](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Install-Guide)
 
 ### DL Workbench
-A web-based tool for deploying deep learning models. Built on the core of OpenVINO and equipped with a graphics user interface, DL Workbench is a great way to explore the possibilities of the OpenVINO workflow, import, analyze, optimize, and build your pre-trained models. You can do all that by visiting [Intel® DevCloud for the Edge](https://software.intel.com/content/www/us/en/develop/tools/devcloud.html) and launching DL Workbench on-line.
+A web-based tool for deploying deep learning models. Built on the core of OpenVINO and equipped with a graphics user interface, DL Workbench is a great way to explore the possibilities of the OpenVINO workflow, import, analyze, optimize, and build your pre-trained models. You can do all that by visiting [Intel® Developer Cloud](https://software.intel.com/content/www/us/en/develop/tools/devcloud.html) and launching DL Workbench online.
 
 More resources:
-* [documentation](dl_workbench_overview.md)
+* [Documentation](https://docs.openvino.ai/2022.3/workbench_docs_Workbench_DG_Introduction.html)
 * [Docker Hub](https://hub.docker.com/r/openvino/workbench)
 * [PyPI](https://pypi.org/project/openvino-workbench/)
 
-### OpenVINO™ Training Extensions (OTE)
+### OpenVINO™ Training Extensions (OTX)
 A convenient environment to train Deep Learning models and convert them using the OpenVINO™ toolkit for optimized inference.
 
 More resources:

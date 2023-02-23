@@ -94,7 +94,7 @@ def create_hash(in_dir_path: Path):
         str_to_hash += ET.tostring(ports_info).decode('utf8').replace('\t', '')
 
         old_name = model_path
-        new_name = model_path.name[:model_path.name.find('_') + 1] + str(sha256(str_to_hash.encode('utf-8')).hexdigest())
+        new_name = str(sha256(str_to_hash.encode('utf-8')).hexdigest())
 
         model_path.rename(Path(model_path.parent, new_name + XML_EXTENSION))
         meta_path.rename(Path(meta_path.parent, new_name + META_EXTENSION))

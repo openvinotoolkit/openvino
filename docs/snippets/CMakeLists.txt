@@ -10,9 +10,9 @@ endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     ie_add_compiler_flags(-Wno-unused-variable)
-    if(CMAKE_COMPILER_IS_GNUCXX)
-        ie_add_compiler_flags(-Wno-unused-variable -Wno-unused-but-set-variable)
-    endif()
+endif()
+if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)
+    ie_add_compiler_flags(-Wno-unused-but-set-variable)
 endif()
 
 file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
