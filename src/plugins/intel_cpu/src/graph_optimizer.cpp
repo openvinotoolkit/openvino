@@ -214,8 +214,8 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
         if (!dimsEqualStrong(biasDims[channelAxis], parentOutDims[channelAxis]))
             return false;
 
-        for (int i = 0; i < biasDims.size(); i++) {
-            if (biasDims[i] != 1 && i != channelAxis)
+        for (size_t i = 0; i < biasDims.size(); i++) {
+            if (biasDims[i] != 1 && static_cast<int>(i) != channelAxis)
                 return false;
         }
 
@@ -364,7 +364,7 @@ void GraphOptimizer::FuseMultiplyAndAdd(Graph &graph) {
 
         auto getChannelAxis = [](const VectorDims& dims) {
             auto channelAxis = -1;
-            for (int i = 0; i < dims.size(); i ++) {
+            for (size_t i = 0; i < dims.size(); i ++) {
                 if (dims[i] != 1) {
                     if (channelAxis != -1) // more than one axis is != 1
                         return -1;
@@ -567,8 +567,8 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
         if (convNode == nullptr)
             IE_THROW() << "Cannot get convolution node " << node->getName();
 
-        int IC = node->getInputShapeAtPort(0).getDims()[1];
-        int OC = node->getOutputShapeAtPort(0).getDims()[1];
+        auto IC = node->getInputShapeAtPort(0).getDims()[1];
+        auto OC = node->getOutputShapeAtPort(0).getDims()[1];
 
         if (Shape::UNDEFINED_DIM == IC || Shape::UNDEFINED_DIM == OC)
             return false;
@@ -605,7 +605,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
         if (zpDims[0] != 1 || !dimsEqualStrong(zpDims[1], IC))
             return false;
 
-        for (int i = 2; i < zpDims.size(); i++) {
+        for (size_t i = 2; i < zpDims.size(); i++) {
             if (zpDims[i] != 1)
                 return false;
         }
@@ -656,15 +656,15 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
         if (weightsPtr == nullptr)
             IE_THROW() << "weightsBlob has not allocated buffer";
 
-        ptrdiff_t G = convNode->getGroupNum();
-        const int groupOffset = convNode->getAlgorithm() == Algorithm::ConvolutionGrouped ? 1 : 0;
+        auto G = convNode->getGroupNum();
+        const size_t groupOffset = convNode->getAlgorithm() == Algorithm::ConvolutionGrouped ? 1 : 0;
         auto& weightsConstantDims = weightsConstant->outputShapes[0].getStaticDims();
 
-        ptrdiff_t OC = weightsConstantDims[0 + groupOffset];
-        ptrdiff_t IC = weightsConstantDims[1 + groupOffset];
-        ptrdiff_t KD = weightsConstantDims.size() == (5 + groupOffset) ? weightsConstantDims[weightsConstantDims.size() - 3] : 1;
-        ptrdiff_t KH = weightsConstantDims.size() == (3 + groupOffset) ? 1 : weightsConstantDims[weightsConstantDims.size() - 2];
-        ptrdiff_t KW = weightsConstantDims[weightsConstantDims.size() - 1];
+        auto OC = weightsConstantDims[0 + groupOffset];
+        auto IC = weightsConstantDims[1 + groupOffset];
+        auto KD = weightsConstantDims.size() == (5 + groupOffset) ? weightsConstantDims[weightsConstantDims.size() - 3] : 1;
+        auto KH = weightsConstantDims.size() == (3 + groupOffset) ? 1 : weightsConstantDims[weightsConstantDims.size() - 2];
+        auto KW = weightsConstantDims[weightsConstantDims.size() - 1];
 
         for (size_t g = 0; g < G; g++) {
             for (size_t oc = 0; oc < OC; oc++) {
@@ -697,7 +697,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
         }
     };
 
-    for (int i = 0; i < graphNodes.size(); i++) {
+    for (size_t i = 0; i < graphNodes.size(); i++) {
         auto conv = graphNodes[i];
         if (!isSuitableConvNode(conv)) continue;
 
@@ -926,7 +926,7 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph &graph) {
         return (dw_conv_input_size + dw_conv_output_size > L3_cache_size / 2);
     };
 
-    for (int i = 0; i < graphNodes.size(); i++) {
+    for (size_t i = 0; i < graphNodes.size(); i++) {
         if (!isConvolutionNode(graphNodes[i])) continue;
 
         auto parentConvNode = graphNodes[i];
@@ -1070,7 +1070,7 @@ void GraphOptimizer::FusePoolingAndFakeQuantize(Graph &graph) {
         return node->getType() == Type::FakeQuantize && node->getAlgorithm() != Algorithm::FQBinarization;
     };
 
-    for (int i = 0; i < graphNodes.size(); i++) {
+    for (size_t i = 0; i < graphNodes.size(); i++) {
         auto parent = graphNodes[i];
         if (!isSuitableParentNode(parent)) continue;
 
@@ -1784,9 +1784,9 @@ void GraphOptimizer::FuseClampAndFakeQuantize(Graph &graph) {
 
         std::vector<float> newCropLow(cropLowData.size());
         std::vector<float> newCropHigh(cropHighData.size());
-        for (int i = 0; i < cropLowData.size(); i++)
+        for (size_t i = 0; i < cropLowData.size(); i++)
             newCropLow[i] = std::max(cropLowData[i], eltwiseNode->getAlpha());
-        for (int i = 0; i < cropHighData.size(); i++)
+        for (size_t i = 0; i < cropHighData.size(); i++)
             newCropHigh[i] = std::min(cropHighData[i], eltwiseNode->getBeta());
 
         fakeQuantizeNode->setCropLow(newCropLow);
@@ -1795,7 +1795,7 @@ void GraphOptimizer::FuseClampAndFakeQuantize(Graph &graph) {
         return true;
     };
 
-    for (int i = 0; i < graphNodes.size(); i++) {
+    for (size_t i = 0; i < graphNodes.size(); i++) {
         auto parent = graphNodes[i];
         if (!isSuitableClampNode(parent)) continue;
 
@@ -1879,7 +1879,7 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph &graph) {
         scalesBuffer = makeAlignedBuffer(outputDims[channelPos], scalesBuffer, 1);
         shiftsBuffer = makeAlignedBuffer(outputDims[channelPos], shiftsBuffer, 1);
 
-        for (int i = 0; i < scalesBuffer.size(); i++)
+        for (size_t i = 0; i < scalesBuffer.size(); i++)
             if (scalesBuffer[i] == 0.f)
                 return false;
 
@@ -1893,7 +1893,7 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph &graph) {
         std::vector<float> newInputScale(scalesBuffer.size());
         std::vector<float> newInputShift(scalesBuffer.size());
 
-        for (int i = 0; i < newCropLow.size(); i++) {
+        for (size_t i = 0; i < newCropLow.size(); i++) {
             float cl = cropLowData.size() == 1 ? cropLowData[0] : cropLowData[i];
             float ch = cropHighData.size() == 1 ? cropHighData[0] : cropHighData[i];
 
@@ -1917,7 +1917,7 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph &graph) {
             return (*u32data) && (((*u32data) & (0xFF << 23)) == 0);
         };
 
-        for (int i = 0; i < newInputScale.size(); i++) {
+        for (size_t i = 0; i < newInputScale.size(); i++) {
             float isc = inputScaleData.size() == 1 ? inputScaleData[0] : inputScaleData[i];
 
             newInputScale[i] = isc * scalesBuffer[i];
@@ -1935,7 +1935,7 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph &graph) {
             }
         }
 
-        for (int i = 0; i < newInputShift.size(); i++) {
+        for (size_t i = 0; i < newInputShift.size(); i++) {
             float isc = inputScaleData.size() == 1 ? inputScaleData[0] : inputScaleData[i];
             float ish = inputShiftData.size() == 1 ? inputShiftData[0] : inputShiftData[i];
 
@@ -1953,7 +1953,7 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph &graph) {
         return true;
     };
 
-    for (int i = 0; i < graphNodes.size(); i++) {
+    for (size_t i = 0; i < graphNodes.size(); i++) {
         auto parent = graphNodes[i];
         if (!isSuitableScaleShiftNode(parent)) continue;
 
@@ -2031,20 +2031,20 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
 
         // revLayoutOrder - reverse permutation for layoutOrder
         auto revLayoutOrder = VectorDims(layoutOrder.size());
-        for (int i = 0; i < revLayoutOrder.size(); i++) {
+        for (size_t i = 0; i < revLayoutOrder.size(); i++) {
             revLayoutOrder[layoutOrder[i]] = i;
         }
 
         // newTransposeOrder - Transpose layout-aware permutation
         auto newTransposeOrder = VectorDims(transposeOrder.size());
-        for (int i = 0; i < newTransposeOrder.size(); i++) {
+        for (size_t i = 0; i < newTransposeOrder.size(); i++) {
             newTransposeOrder[i] = layoutOrder[transposeOrder[revLayoutOrder[i]]];
         }
 
         // reorderOrder - Reorder layout-aware permutation
         auto reorderOrder = VectorDims(outOrder.size());
-        for (int i = 0; i < reorderOrder.size(); i++) {
-            for (int j = 0; j < reorderOrder.size(); j++) {
+        for (size_t i = 0; i < reorderOrder.size(); i++) {
+            for (size_t j = 0; j < reorderOrder.size(); j++) {
                 if (outOrder[i] == inOrder[j]) {
                     reorderOrder[i] = j;
                     continue;
@@ -2054,12 +2054,12 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
 
         // summaryOrder - resulting Transpose+Reorder permutation
         auto summaryOrder = VectorDims(transposeOrder.size());
-        for (int i = 0; i < summaryOrder.size(); i++) {
+        for (size_t i = 0; i < summaryOrder.size(); i++) {
             summaryOrder[i] = reorderOrder[newTransposeOrder[i]];
         }
 
         // check that Transpose+Reorder is the identical permutation
-        for (int i = 0; i < summaryOrder.size(); i++) {
+        for (size_t i = 0; i < summaryOrder.size(); i++) {
             if (summaryOrder[i] != i) {
                 return false;
             }
@@ -2136,7 +2136,7 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
                 // inDesc should be permuted before calling reorder
                 auto & ord = transposeNode->getOrder();
                 srcPerm = std::vector<int>(ord.size());
-                for (int i = 0; i < ord.size(); i++) {
+                for (size_t i = 0; i < ord.size(); i++) {
                     srcPerm[ord[i]] = i;
                 }
             }
@@ -2158,7 +2158,7 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         }
     };
 
-    for (int i = 0; i < graphNodes.size(); i++) {
+    for (size_t i = 0; i < graphNodes.size(); i++) {
         auto parentNode = graphNodes[i];
         if (!isSuitableParentNode(parentNode)) {
             continue;
