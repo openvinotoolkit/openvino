@@ -2,8 +2,8 @@
 
 @sphinxdirective
 
-Model Optimizer provides various base classes to implement :doc:`Front Phase Transformations <mo_front_phase_transformations>`,
-:doc:`Middle Phase Transformations <mo_middle_phase_transformations>`, and :doc:`Back Phase Transformations <mo_back_phase_transformations>`.
+Model Optimizer provides various base classes to implement :ref:`Front Phase Transformations <mo_front_phase_transformations>`,
+:ref:`Middle Phase Transformations <mo_middle_phase_transformations>`, and :ref:`Back Phase Transformations <mo_back_phase_transformations>`.
 All classes have the following common class attributes and methods:
 
 1. The `enabled` attribute specifies whether the transformation is enabled or not. The value can be changed during runtime to enable or disable execution of the transformation during a model conversion. Default value is `True`.
@@ -31,21 +31,23 @@ transformations by default (if `run_before()` and `run_after()` methods have not
 .. note:: 
    The `PreMiddleStart` and `PostMiddleStart` anchors were introduced due to historical reasons to refactor the Model Optimizer pipeline, which initially had a hardcoded order of transformations.
 
-@anchor mo_front_phase_transformations
+.. _mo_front_phase_transformations:
+
 Front Phase Transformations
 ---------------------------
 
 There are several types of a front phase transformation:
 
-1. :doc:`Pattern-Defined Front Phase Transformations <pattern_defined_front_phase_transformations>` triggered for each sub-graph of the original graph isomorphic to the specified pattern.
-2. :doc:`Specific Operation Front Phase Transformations <specific_operation_front_phase_transformations>` triggered for the node with a specific `op` attribute value.
-3. :doc:`Generic Front Phase Transformations <generic_front_phase_transformations)`.
+1. :ref:`Pattern-Defined Front Phase Transformations <pattern_defined_front_phase_transformations>` triggered for each sub-graph of the original graph isomorphic to the specified pattern.
+2. :ref:`Specific Operation Front Phase Transformations <specific_operation_front_phase_transformations>` triggered for the node with a specific `op` attribute value.
+3. :ref:`Generic Front Phase Transformations <generic_front_phase_transformations)`.
 4. Manually enabled transformation, defined with a JSON configuration file (for TensorFlow, ONNX, Apache MXNet, and PaddlePaddle models), specified using the `--transformations_config` command-line parameter:
-    1. :doc:`Node Name Pattern Front Phase Transformations <node_name_pattern_front_phase_transformations>`.
-    2. :doc:`Front Phase Transformations Using Start and End Points <start_end_points_front_phase_transformations>`.
-    3. :doc:`Generic Front Phase Transformations Enabled with Transformations Configuration File <generic_transformations_config_front_phase_transformations>`.
+    1. :ref:`Node Name Pattern Front Phase Transformations <node_name_pattern_front_phase_transformations>`.
+    2. :ref:`Front Phase Transformations Using Start and End Points <start_end_points_front_phase_transformations>`.
+    3. :ref:`Generic Front Phase Transformations Enabled with Transformations Configuration File <generic_transformations_config_front_phase_transformations>`.
 
-@anchor pattern_defined_front_phase_transformations
+.. _pattern_defined_front_phase_transformations:
+
 Pattern-Defined Front Phase Transformations
 ===========================================
 
@@ -123,7 +125,8 @@ operation:
            # Mish output.
            rename_nodes([(mul, mul_name + '/TBR'), (mish, mul_name)])
 
-@anchor specific_operation_front_phase_transformations
+.. _specific_operation_front_phase_transformations:
+
 Specific Operation Front Phase Transformations
 ==============================================
 
@@ -174,7 +177,8 @@ the TensorFlow:
            return [out_node.id]  # Reconnect the Pack operation consumers to get input from Concat instead.
 
 
-@anchor generic_front_phase_transformations
+.. _generic_front_phase_transformations:
+
 Generic Front Phase Transformations
 ===================================
 
@@ -228,7 +232,8 @@ specification.
 For the details on implementation and how these front phase transformations work, refer to the `mo/front/common/replacement.py`
 file.
 
-@anchor node_name_pattern_front_phase_transformations
+.. _node_name_pattern_front_phase_transformations:
+
 Node Name Pattern Front Phase Transformations
 =============================================
 
@@ -355,7 +360,8 @@ Model Optimizer uses this order to connect output edges if the sub-graph is repl
 
 For more examples of this type of transformation, refer to the :doc:`Converting TensorFlow Object Detection API Models <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models>` guide.
 
-@anchor start_end_points_front_phase_transformations
+.. _start_end_points_front_phase_transformations:
+
 Front Phase Transformations Using Start and End Points
 ======================================================
 
@@ -408,7 +414,7 @@ The example of a JSON configuration file for a transformation with start and end
    ]
 
 The format of the file is similar to the one provided as an example in the
-:doc:`Node Name Pattern Front Phase Transformations <node_name_pattern_front_phase_transformations>` section. The difference is in
+:ref:`Node Name Pattern Front Phase Transformations <node_name_pattern_front_phase_transformations>` section. The difference is in
 the value of the `match_kind` parameter, which should be equal to the `points` and the format of the `instances` parameter,
 which should be a dictionary with two keys `start_points` and `end_points`, defining start and end node names
 respectively.
@@ -422,14 +428,15 @@ respectively.
 For other examples of transformations with points, refer to the
 :doc:`Converting TensorFlow Object Detection API Models <openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models>` guide.
 
-@anchor generic_transformations_config_front_phase_transformations
+.. _generic_transformations_config_front_phase_transformations:
+
 Generic Front Phase Transformations Enabled with Transformations Configuration File
 ===================================================================================
 
-This type of transformation works similarly to the :doc:`Generic Front Phase Transformations <generic_front_phase_transformations)`
+This type of transformation works similarly to the :ref:`Generic Front Phase Transformations <generic_front_phase_transformations)`
 but require a JSON configuration file to enable it similarly to
-:doc:`Node Name Pattern Front Phase Transformations <node_name_pattern_front_phase_transformations>` and
-:doc:`Front Phase Transformations Using Start and End Points <start_end_points_front_phase_transformations>`.
+:ref:`Node Name Pattern Front Phase Transformations <node_name_pattern_front_phase_transformations>` and
+:ref:`Front Phase Transformations Using Start and End Points <start_end_points_front_phase_transformations>`.
 
 The base class for this type of transformation is
 `mo.front.common.replacement.FrontReplacementFromConfigFileGeneral`. Model Optimizer executes the 
@@ -491,68 +498,74 @@ and the corresponding transformation file is `./extensions/front/YOLO.py`:
 The configuration file has only 3 parameters: `id` identifier of the transformation , `match_kind` (which should be equal
 to `general`) and the `custom_attributes` dictionary with custom attributes accessible in the transformation.
 
-@anchor mo_middle_phase_transformations
+.. _mo_middle_phase_transformations:
+
 Middle Phase Transformations
 ----------------------------
 
 There are two types of middle phase transformations:
 
-1. :doc:`Pattern-Defined Middle Phase Transformations <pattern_defined_middle_phase_transformations>` triggered for each sub-graph of the original graph, isomorphic to the specified pattern.
-2. :doc:`Generic Middle Phase Transformations <generic_middle_phase_transformations>`.
+1. :ref:`Pattern-Defined Middle Phase Transformations <pattern_defined_middle_phase_transformations>` triggered for each sub-graph of the original graph, isomorphic to the specified pattern.
+2. :ref:`Generic Middle Phase Transformations <generic_middle_phase_transformations>`.
 
-@anchor pattern_defined_middle_phase_transformations
+.. _pattern_defined_middle_phase_transformations:
+
 Pattern-Defined Middle Phase Transformations
 ============================================
 
 This type of transformation is implemented using `mo.middle.replacement.MiddleReplacementPattern` as a base class and
-works similarly to the :doc:`Pattern-Defined Middle Phase Transformations <pattern_defined_middle_phase_transformations>`
+works similarly to the :ref:`Pattern-Defined Middle Phase Transformations <pattern_defined_middle_phase_transformations>`
 The are two differences:
 1. The transformation entry function name is `replace_pattern(self, graph, match)`.
 2. The pattern defining the graph should contain data nodes because the structure of the graph is different between
 front and middle phases. For more information about the
-graph structure changes, refer to the :doc:`Partial Inference <mo_partial_inference>`.
+graph structure changes, refer to the :ref:`Partial Inference <mo_partial_inference>`.
 
 For the example of a pattern-defined middle transformation, refer to the `extensions/middle/L2NormToNorm.py` file.
 
-@anchor generic_middle_phase_transformations
+.. _generic_middle_phase_transformations:
+
 Generic Middle Phase Transformations
 ====================================
 
 Model Optimizer provides a mechanism to implement generic middle phase transformations. This type of transformation is
 implemented using `mo.middle.replacement.MiddleReplacementPattern` as a base class and works similarly to the
-:doc:`Generic Front Phase Transformations <generic_front_phase_transformations)`. The only difference is that the
+:ref:`Generic Front Phase Transformations <generic_front_phase_transformations)`. The only difference is that the
 transformation entry function name is `find_and_replace_pattern(self, graph: Graph)`.
 
 For the example of this transformation, refer to the `extensions/middle/CheckForCycle.py` file.
 
-@anchor mo_back_phase_transformations
+.. _mo_back_phase_transformations:
+
 Back Phase Transformations
 --------------------------
 
 There are two types of back phase transformations:
 
-1. :doc:`Pattern-Defined Back Phase Transformations <pattern_defined_back_phase_transformations>` triggered for each sub-graph of the original graph, isomorphic to the specified pattern.
-2. :doc:`Generic Back Phase Transformations <generic_back_phase_transformations>`.
+1. :ref:`Pattern-Defined Back Phase Transformations <pattern_defined_back_phase_transformations>` triggered for each sub-graph of the original graph, isomorphic to the specified pattern.
+2. :ref:`Generic Back Phase Transformations <generic_back_phase_transformations>`.
 
 .. note:: 
-   The graph layout during the back phase is always NCHW. However, during the front and middle phases it could be NHWC if the original model was using it. For more details, refer to :doc:`Model Conversion Pipeline <mo_model_conversion_pipeline>`.
+   The graph layout during the back phase is always NCHW. However, during the front and middle phases it could be NHWC if the original model was using it. For more details, refer to :ref:`Model Conversion Pipeline <mo_model_conversion_pipeline>`.
 
-@anchor pattern_defined_back_phase_transformations
+.. _pattern_defined_back_phase_transformations:
+
 Pattern-Defined Back Phase Transformations
 ==========================================
 
 This type of transformation is implemented using `mo.back.replacement.MiddleReplacementPattern` as a base class and
-works the same way as :doc:`Pattern-Defined Middle Phase Transformations <pattern_defined_middle_phase_transformations>`.
+works the same way as :ref:`Pattern-Defined Middle Phase Transformations <pattern_defined_middle_phase_transformations>`.
 
 For the example of a pattern-defined back transformation, refer to the `extensions/back/ShufflenetReLUReorder.py` file.
 
-@anchor generic_back_phase_transformations
+.. _generic_back_phase_transformations:
+
 Generic Back Phase Transformations
 ==================================
 
 Model Optimizer provides mechanism to implement generic back phase transformations. This type of transformation is
 implemented using `mo.back.replacement.BackReplacementPattern` as a base class and works the same way as
-:doc:`Generic Middle Phase Transformations <generic_middle_phase_transformations>`.
+:ref:`Generic Middle Phase Transformations <generic_middle_phase_transformations>`.
 
 For the example of this transformation, refer to the `extensions/back/GatherNormalizer.py` file.
 

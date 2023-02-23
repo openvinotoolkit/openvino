@@ -33,7 +33,7 @@ operation. Thus, the attribute `op` is used as a type of this internal operation
 from an internal operation will be replaced during front, middle or back phase with node(s) created from the opset.
 * `infer` — the attribute defines a function calculating output tensor(s) shape and optional value(s). The attribute
 may be set to `None` for the internal Model Optimizer operations used during the front phase only. For more information 
-about the shape inference function, refer to the :doc:`Partial Inference <mo_partial_inference>`.
+about the shape inference function, refer to the :ref:`Partial Inference <mo_partial_inference>`.
 * `type_infer` — the attribute defines a function calculating output tensor(s) data type. If the attribute is not
 defined, the default function is used. The function checks if the `data_type` node attribute is set and then
 propagates this type to the output tensor from the "port 0". Otherwise, it propagates the data type of the tensor coming
