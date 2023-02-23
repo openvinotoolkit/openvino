@@ -86,8 +86,9 @@ TEST_P(SetGetValidConfigMetricTest, SetGetCorrectKeyAndValueTestCase) {
             ASSERT_NO_THROW(default_value = plugin->GetConfig(property_item.first, {}));
         } else {
             ASSERT_NO_THROW(default_value = plugin->GetMetric(property_item.first, {}));
-            if (!property_item.second.empty())
+            if (!property_item.second.empty()) {
                 ASSERT_THROW(plugin->SetConfig({{property_item.first, property_item.second.as<std::string>()}}), IE::Exception);
+            }
         }
         if (property_item.first.is_mutable() && !property_item.second.empty()) {
             ASSERT_NO_THROW(plugin->SetConfig({{property_item.first, property_item.second.as<std::string>()}}));
@@ -128,26 +129,27 @@ TEST_P(SetGetInValidConfigMetricTest, SetGetIncorrectKeyOrValueTestCase) {
             ASSERT_THROW(plugin->SetConfig({{property_item.first, property_item.second.as<std::string>()}}), IE::Exception);
     }
 }
-std::vector<std::string> test_targets = {"MULTI", "AUTO"};
 
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
+std::vector<std::string> test_plugin_targets = {"MULTI", "AUTO"};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
                          SetGetValidConfigMetricTest,
                          ::testing::Combine(
-                            ::testing::ValuesIn(test_targets),
+                            ::testing::ValuesIn(test_plugin_targets),
                             ::testing::ValuesIn((std::make_shared<ParamSet<TestParamType::VALID>>())->get_params())),
                          SetGetConfigAndGetMetricTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
                          SetGetInValidConfigMetricTest,
                          ::testing::Combine(
-                            ::testing::ValuesIn(test_targets),
+                            ::testing::ValuesIn(test_plugin_targets),
                             ::testing::ValuesIn((std::make_shared<ParamSet<TestParamType::INVALID>>())->get_params())),
                          SetGetConfigAndGetMetricTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
                          GetDefaultConfigMetricTest,
                          ::testing::Combine(
-                            ::testing::ValuesIn(test_targets),
+                            ::testing::ValuesIn(test_plugin_targets),
                             ::testing::ValuesIn((std::make_shared<ParamSet<TestParamType::DEFAULT>>())->get_params())),
                          GetDefaultConfigMetricTest::getTestCaseName);
 /*

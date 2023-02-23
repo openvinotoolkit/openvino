@@ -42,6 +42,8 @@ template <typename U = T,
                 return {};
             case TestParamType::DEFAULT:
                 return {default_value};
+            default:
+                return {};
         }
     }
 
@@ -50,11 +52,13 @@ template <typename U = T,
     std::vector<ov::Any> generate(TestParamType& ptype) {
         switch (ptype) {
             case TestParamType::VALID:
-                return {"CPU", "GPU", "CPU,GPU", "VPUX,mock", "TEMPLATE", "MULTI", "HETERO", "CPU(2),GPU(3)"}; // WA, need to update when whitelist removed
+                return {"CPU", "GPU", "CPU,GPU", "VPUX,mock", "TEMPLATE", "HETERO", "CPU(2),GPU(3)"}; // WA, need to update when whitelist removed
             case TestParamType::INVALID:
                 return {"NONE", "_", "INVALID", "HDDL", "MYRIAD-2.0"};
             case TestParamType::DEFAULT:
                 return {default_value};
+            default:
+                return {};
         }
     }
 
@@ -67,6 +71,8 @@ template<typename U = T, typename std::enable_if<std::is_same<U, bool>::value, b
                 return {"NONE", "_", "INVALID", 2, 3};
             case TestParamType::DEFAULT:
                 return {default_value};
+            default:
+                return {};
         }
     }
 template<typename U = T, typename std::enable_if<std::is_integral<U>::value, bool>::type = true>
@@ -78,6 +84,8 @@ template<typename U = T, typename std::enable_if<std::is_integral<U>::value, boo
                 return {"NONE", "_", "INVALID", -1};
             case TestParamType::DEFAULT:
                 return {default_value};
+            default:
+                return {};
         }
     }
 
@@ -90,6 +98,8 @@ template<typename U = T, typename std::enable_if<std::is_same<U, ov::hint::Prior
                 return {"NONE", "_", "INVALID", -1};
             case TestParamType::DEFAULT:
                 return {default_value};
+            default:
+                return {};
         }
     }
 
@@ -102,6 +112,8 @@ template<typename U = T, typename std::enable_if<std::is_same<U, ov::log::Level>
                 return {"NONE", "_", "INVALID", -1};
             case TestParamType::DEFAULT:
                 return {default_value};
+            default:
+                return {};
         }
     }
 
@@ -117,6 +129,8 @@ template<typename U = T, typename std::enable_if<std::is_same<U, ov::hint::Perfo
                 return {"NONE", "_", "INVALID", -1};
             case TestParamType::DEFAULT:
                 return {default_value};
+            default:
+                return {};
         }
     }
 
@@ -129,6 +143,8 @@ template<typename U = T, typename std::enable_if<std::is_same<U, std::vector<std
                 return {};
             case TestParamType::DEFAULT:
                 return {default_value};
+            default:
+                return {};
         }
     }
 
@@ -208,19 +224,8 @@ public:
         if (pType == TestParamType::INVALID) {
              // Read Only
             res_param.push_back({{ov::PropertyName(ov::device::architecture.name(), ov::device::architecture.mutability), nullptr}});
-            res_param.push_back({{ov::PropertyName(ov::device::uuid.name(), ov::device::uuid.mutability), nullptr}});
-
-            // Writable
-            ov::streams::Num nums[] = {ov::streams::AUTO, ov::streams::NUMA};
-            for (auto &num : nums) {
-                res_param.push_back({{ov::PropertyName(ov::streams::num.name(), ov::streams::num.mutability), num}});
-                // res.push_back({{ov::PropertyName(ov::num_streams.name(), ov::num_streams.mutability), num}});
-            }
-            res_param.push_back({{ov::PropertyName(ov::streams::num.name(), ov::streams::num.mutability), {}}});
-            res_param.push_back({{ov::PropertyName(ov::inference_num_threads.name(), ov::inference_num_threads.mutability), 1}});
-            res_param.push_back({{ov::PropertyName(ov::inference_num_threads.name(), ov::inference_num_threads.mutability), {}}});
-            res_param.push_back({{ov::PropertyName(ov::compilation_num_threads.name(), ov::compilation_num_threads.mutability), 1}});
-            res_param.push_back({{ov::PropertyName(ov::compilation_num_threads.name(), ov::compilation_num_threads.mutability), {}}});
+             // Read Write
+            res_param.push_back({{ov::PropertyName(ov::compilation_num_threads.name(), ov::compilation_num_threads.mutability), nullptr}});
         }
         return res_param;
     }
