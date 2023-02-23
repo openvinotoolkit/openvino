@@ -38,7 +38,7 @@ private:
     size_t offset;
     size_t numResults;
     size_t outTotalSize;
-    size_t numClasses;
+    int numClasses;
 
     void GetLocPredictions(const dataType* locData, std::vector<LabelBBox>& locations) {
         locations.resize(numImages);
@@ -445,7 +445,7 @@ public:
         offset = _attrs.normalized ? 0 : 1;
         numPriors = priorsShape[2] / priorSize;
         priorsBatchSize = priorsShape[0];
-        numClasses = classPredShape[1] / numPriors;
+        numClasses = classPredShape[1] / static_cast<int>(numPriors);
         numLocClasses = _attrs.share_location ? 1 : numClasses;
         numResults = outShape[2];
         outTotalSize = shape_size(outShape);
