@@ -182,7 +182,7 @@ public:
     /// \param mode Specifies whether TopK selects the largest or the smallest elements from each slice
     /// \param sort Specifies the order of corresponding elements of the output tensor
     /// \param index_element_type Specifies the data type type of of the elements in the 'indices' output tensor.
-    /// \param stable Specifies whether the equivalent elements should maintain their relative order 
+    /// \param stable Specifies whether the equivalent elements should maintain their relative order
     ///               from the input tensor during sorting.
     TopK(const Output<Node>& data,
          const Output<Node>& k,
@@ -200,7 +200,7 @@ public:
     /// \param mode Specifies whether TopK selects the largest or the smallest elements from each slice
     /// \param sort Specifies the order of corresponding elements of the output tensor
     /// \param index_element_type Specifies the data type type of of the elements in the 'indices' output tensor.
-    /// \param stable Specifies whether the equivalent elements should maintain their relative order 
+    /// \param stable Specifies whether the equivalent elements should maintain their relative order
     ///               from the input tensor during sorting.
     TopK(const Output<Node>& data,
          const Output<Node>& k,
@@ -223,6 +223,6 @@ public:
 protected:
     bool m_stable = false;
 };
-}
+}  // namespace v11
 }  // namespace op
 }  // namespace ov
