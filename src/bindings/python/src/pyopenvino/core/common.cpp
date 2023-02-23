@@ -6,6 +6,7 @@
 
 #include <unordered_map>
 
+#include "Python.h"
 #include "openvino/util/common_util.hpp"
 
 #define C_CONTIGUOUS py::detail::npy_api::constants::NPY_ARRAY_C_CONTIGUOUS_
@@ -51,78 +52,22 @@ const std::map<std::string, ov::element::Type>& dtype_to_ov_type() {
     return dtype_to_ov_type_mapping;
 }
 
-ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const ov::element::Type& type) {
-    bool is_contiguous = C_CONTIGUOUS == (array.flags() & C_CONTIGUOUS);
-    auto element_type = (type == ov::element::undefined) ? Common::dtype_to_ov_type().at(py::str(array.dtype())) : type;
+namespace array_helpers {
 
-    if (is_contiguous) {
-        return ov::Tensor(element_type, shape, const_cast<void*>(array.data(0)), {});
-    } else {
-        throw ov::Exception("Tensor with shared memory must be C contiguous!");
-    }
+bool is_contiguous(const py::array& array) {
+    return C_CONTIGUOUS == (array.flags() & C_CONTIGUOUS);
 }
 
-ov::Tensor tensor_from_numpy(py::array& array, bool shared_memory) {
-    // Check if passed array has C-style contiguous memory layout.
-    bool is_contiguous = C_CONTIGUOUS == (array.flags() & C_CONTIGUOUS);
-    auto type = Common::dtype_to_ov_type().at(py::str(array.dtype()));
-    std::vector<size_t> shape(array.shape(), array.shape() + array.ndim());
-
-    // If memory is going to be shared it needs to be contiguous before
-    // passing to the constructor. This case should be handled by advanced
-    // users on their side of the code.
-    if (shared_memory) {
-        if (is_contiguous) {
-            std::vector<size_t> strides(array.strides(), array.strides() + array.ndim());
-            return ov::Tensor(type, shape, const_cast<void*>(array.data(0)), strides);
-        } else {
-            throw ov::Exception("Tensor with shared memory must be C contiguous!");
-        }
-    }
-    // Convert to contiguous array if not already C-style.
-    if (!is_contiguous) {
-        array = Common::as_contiguous(array, type);
-    }
-    // Create actual Tensor and copy data.
-    auto tensor = ov::Tensor(type, shape);
-    // If ndim of py::array is 0, array is a numpy scalar. That results in size to be equal to 0.
-    // To gain access to actual raw/low-level data, it is needed to use buffer protocol.
-    py::buffer_info buf = array.request();
-    std::memcpy(tensor.data(), buf.ptr, buf.ndim == 0 ? buf.itemsize : buf.itemsize * buf.size);
-    return tensor;
+ov::element::Type get_ov_type(const py::array& array) {
+    return Common::dtype_to_ov_type().at(py::str(array.dtype()));
 }
 
-ov::PartialShape partial_shape_from_list(const py::list& shape) {
-    using value_type = ov::Dimension::value_type;
-    ov::PartialShape pshape;
-    for (py::handle dim : shape) {
-        if (py::isinstance<py::int_>(dim)) {
-            pshape.insert(pshape.end(), ov::Dimension(dim.cast<value_type>()));
-        } else if (py::isinstance<py::str>(dim)) {
-            pshape.insert(pshape.end(), ov::Dimension(dim.cast<std::string>()));
-        } else if (py::isinstance<ov::Dimension>(dim)) {
-            pshape.insert(pshape.end(), dim.cast<ov::Dimension>());
-        } else if (py::isinstance<py::list>(dim) || py::isinstance<py::tuple>(dim)) {
-            py::list bounded_dim = dim.cast<py::list>();
-            if (bounded_dim.size() != 2) {
-                throw py::type_error("Two elements are expected in tuple(lower, upper) for dynamic dimension, but " +
-                                     std::to_string(bounded_dim.size()) + " elements were given.");
-            }
-            if (!(py::isinstance<py::int_>(bounded_dim[0]) && py::isinstance<py::int_>(bounded_dim[1]))) {
-                throw py::type_error("Incorrect pair of types (" + std::string(bounded_dim[0].get_type().str()) + ", " +
-                                     std::string(bounded_dim[1].get_type().str()) +
-                                     ") for dynamic dimension, ints are expected.");
-            }
-            pshape.insert(pshape.end(),
-                          ov::Dimension(bounded_dim[0].cast<value_type>(), bounded_dim[1].cast<value_type>()));
-        } else {
-            throw py::type_error("Incorrect type " + std::string(dim.get_type().str()) +
-                                 " for dimension. Expected types are: "
-                                 "int, str, openvino.runtime.Dimension, list/tuple with lower and upper values for "
-                                 "dynamic dimension.");
-        }
-    }
-    return pshape;
+std::vector<size_t> get_shape(const py::array& array) {
+    return std::vector<size_t>(array.shape(), array.shape() + array.ndim());
+}
+
+std::vector<size_t> get_strides(const py::array& array) {
+    return std::vector<size_t>(array.strides(), array.strides() + array.ndim());
 }
 
 py::array as_contiguous(py::array& array, ov::element::Type type) {
@@ -163,6 +108,120 @@ py::array as_contiguous(py::array& array, ov::element::Type type) {
         throw ov::Exception("Tensor cannot be created as contiguous!");
         break;
     }
+}
+
+};  // namespace array_helpers
+
+template <>
+ov::op::v0::Constant create_copied(py::array& array) {
+    // Convert to contiguous array if not already in C-style.
+    if (!array_helpers::is_contiguous(array)) {
+        array = array_helpers::as_contiguous(array, array_helpers::get_ov_type(array));
+    }
+    // Create actual Constant and a constructor is copying data.
+    return ov::op::v0::Constant(array_helpers::get_ov_type(array),
+                                array_helpers::get_shape(array),
+                                const_cast<void*>(array.data(0)));
+}
+
+template <>
+ov::op::v0::Constant create_copied(ov::Tensor& tensor) {
+    // Create actual Constant and a constructor is copying data.
+    return ov::op::v0::Constant(tensor.get_element_type(), tensor.get_shape(), const_cast<void*>(tensor.data()));
+}
+
+template <>
+ov::op::v0::Constant create_shared(py::array& array) {
+    // Check if passed array has C-style contiguous memory layout.
+    // If memory is going to be shared it needs to be contiguous before passing to the constructor.
+    if (array_helpers::is_contiguous(array)) {
+        auto memory =
+            std::make_shared<ngraph::runtime::SharedBuffer<py::array>>(static_cast<char*>(array.mutable_data(0)),
+                                                                       array.nbytes(),
+                                                                       array);
+        return ov::op::v0::Constant(array_helpers::get_ov_type(array), array_helpers::get_shape(array), memory);
+    }
+    // If passed array is not C-style, throw an error.
+    throw ov::Exception(
+        "SHARED MEMORY MODE FOR THIS CONSTANT IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
+}
+
+template <>
+ov::op::v0::Constant create_shared(ov::Tensor& tensor) {
+    return ov::op::v0::Constant(tensor);
+}
+
+template <>
+ov::Tensor create_copied(py::array& array) {
+    // Convert to contiguous array if not already in C-style.
+    if (!array_helpers::is_contiguous(array)) {
+        array = array_helpers::as_contiguous(array, array_helpers::get_ov_type(array));
+    }
+    // Create actual Tensor and copy data.
+    auto tensor = ov::Tensor(array_helpers::get_ov_type(array), array_helpers::get_shape(array));
+    // If ndim of py::array is 0, array is a numpy scalar. That results in size to be equal to 0.
+    // To gain access to actual raw/low-level data, it is needed to use buffer protocol.
+    py::buffer_info buf = array.request();
+    std::memcpy(tensor.data(), buf.ptr, buf.ndim == 0 ? buf.itemsize : buf.itemsize * buf.size);
+    return tensor;
+}
+
+template <>
+ov::Tensor create_shared(py::array& array) {
+    // Check if passed array has C-style contiguous memory layout.
+    // If memory is going to be shared it needs to be contiguous before passing to the constructor.
+    if (array_helpers::is_contiguous(array)) {
+        return ov::Tensor(array_helpers::get_ov_type(array),
+                          array_helpers::get_shape(array),
+                          const_cast<void*>(array.data(0)),
+                          array_helpers::get_strides(array));
+    }
+    // If passed array is not C-style, throw an error.
+    throw ov::Exception(
+        "SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
+}
+
+ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const ov::element::Type& type) {
+    auto element_type = (type == ov::element::undefined) ? Common::dtype_to_ov_type().at(py::str(array.dtype())) : type;
+
+    if (array_helpers::is_contiguous(array)) {
+        return ov::Tensor(element_type, shape, const_cast<void*>(array.data(0)), {});
+    }
+    throw ov::Exception(
+        "SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
+}
+
+ov::PartialShape partial_shape_from_list(const py::list& shape) {
+    using value_type = ov::Dimension::value_type;
+    ov::PartialShape pshape;
+    for (py::handle dim : shape) {
+        if (py::isinstance<py::int_>(dim)) {
+            pshape.insert(pshape.end(), ov::Dimension(dim.cast<value_type>()));
+        } else if (py::isinstance<py::str>(dim)) {
+            pshape.insert(pshape.end(), ov::Dimension(dim.cast<std::string>()));
+        } else if (py::isinstance<ov::Dimension>(dim)) {
+            pshape.insert(pshape.end(), dim.cast<ov::Dimension>());
+        } else if (py::isinstance<py::list>(dim) || py::isinstance<py::tuple>(dim)) {
+            py::list bounded_dim = dim.cast<py::list>();
+            if (bounded_dim.size() != 2) {
+                throw py::type_error("Two elements are expected in tuple(lower, upper) for dynamic dimension, but " +
+                                     std::to_string(bounded_dim.size()) + " elements were given.");
+            }
+            if (!(py::isinstance<py::int_>(bounded_dim[0]) && py::isinstance<py::int_>(bounded_dim[1]))) {
+                throw py::type_error("Incorrect pair of types (" + std::string(bounded_dim[0].get_type().str()) + ", " +
+                                     std::string(bounded_dim[1].get_type().str()) +
+                                     ") for dynamic dimension, ints are expected.");
+            }
+            pshape.insert(pshape.end(),
+                          ov::Dimension(bounded_dim[0].cast<value_type>(), bounded_dim[1].cast<value_type>()));
+        } else {
+            throw py::type_error("Incorrect type " + std::string(dim.get_type().str()) +
+                                 " for dimension. Expected types are: "
+                                 "int, str, openvino.runtime.Dimension, list/tuple with lower and upper values for "
+                                 "dynamic dimension.");
+        }
+    }
+    return pshape;
 }
 
 const ov::Tensor& cast_to_tensor(const py::handle& tensor) {
