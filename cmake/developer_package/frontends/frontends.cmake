@@ -182,7 +182,7 @@ macro(ov_add_frontend)
         add_library(openvino::frontend::${OV_FRONTEND_NAME} ALIAS ${TARGET_NAME})
     endif()
 
-    # Shutdown protobuf when unloading the front dynamic library
+    # Shutdown protobuf when unloading the frontend dynamic library
     if(proto_files AND BUILD_SHARED_LIBS)
         target_link_libraries(${TARGET_NAME} PRIVATE ov_protobuf_shutdown)
     endif()
@@ -216,8 +216,6 @@ macro(ov_add_frontend)
 
     ie_add_vs_version_file(NAME ${TARGET_NAME}
                            FILEDESCRIPTION ${OV_FRONTEND_FILEDESCRIPTION})
-
-    ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
     target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime)
     target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES})
@@ -258,6 +256,11 @@ macro(ov_add_frontend)
                             EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS} ${flatbuffers_schema_files})
 
     add_dependencies(ov_frontends ${TARGET_NAME})
+
+    # must be called after all target_link_libraries
+    ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
+    # installation
 
     if(NOT OV_FRONTEND_SKIP_INSTALL)
         if(BUILD_SHARED_LIBS)

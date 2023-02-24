@@ -70,4 +70,5 @@ if(ENABLE_TESTS)
 endif()
 
 # Failed because of OpenCL
+# must be called after all target_link_libraries
 # ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})

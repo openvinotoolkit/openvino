@@ -21,34 +21,34 @@ endif()
 function(_ie_add_api_validator_post_build_step_recursive)
     cmake_parse_arguments(API_VALIDATOR "" "TARGET" "" ${ARGN})
 
-    list(APPEND API_VALIDATOR_TARGETS ${API_VALIDATOR_TARGET})
-    set(API_VALIDATOR_TARGETS ${API_VALIDATOR_TARGETS} PARENT_SCOPE)
-
-    get_target_property(IS_IMPORTED ${API_VALIDATOR_TARGET} IMPORTED)
-    if(IS_IMPORTED)
-        return()
-    endif()
-
     get_target_property(LIBRARY_TYPE ${API_VALIDATOR_TARGET} TYPE)
-    if(LIBRARY_TYPE STREQUAL "EXECUTABLE" OR LIBRARY_TYPE STREQUAL "SHARED_LIBRARY")
-        get_target_property(LINKED_LIBRARIES ${API_VALIDATOR_TARGET} LINK_LIBRARIES)
-        if(LINKED_LIBRARIES)
-            foreach(ITEM IN LISTS LINKED_LIBRARIES)
-                if(NOT TARGET ${ITEM})
-                    continue()
-                endif()
-                get_target_property(LIBRARY_TYPE_DEPENDENCY ${ITEM} TYPE)
-                if(LIBRARY_TYPE_DEPENDENCY STREQUAL "SHARED_LIBRARY")
-                    _ie_add_api_validator_post_build_step_recursive(TARGET ${ITEM})
-                endif()
-            endforeach()
-        endif()
+    if(LIBRARY_TYPE MATCHES "^(SHARED_LIBRARY|MODULE_LIBRARY|EXECUTABLE)$" AND
+        NOT ${API_VALIDATOR_TARGET} IN_LIST API_VALIDATOR_TARGETS)
+        list(APPEND API_VALIDATOR_TARGETS ${API_VALIDATOR_TARGET})
     endif()
+
+    if(NOT LIBRARY_TYPE STREQUAL "INTERFACE_LIBRARY")
+        get_target_property(LINKED_LIBRARIES ${API_VALIDATOR_TARGET} LINK_LIBRARIES)
+    else()
+        set(LINKED_LIBRARIES)
+    endif()
+    get_target_property(INTERFACE_LINKED_LIBRARIES ${API_VALIDATOR_TARGET} INTERFACE_LINK_LIBRARIES)
+
+    foreach(library IN LISTS LINKED_LIBRARIES INTERFACE_LINKED_LIBRARIES)
+        if(TARGET "${library}")
+            get_target_property(orig_library ${library} ALIASED_TARGET)
+            if(TARGET "${orig_library}")
+                _ie_add_api_validator_post_build_step_recursive(TARGET ${orig_library})
+            else()
+                _ie_add_api_validator_post_build_step_recursive(TARGET ${library})
+            endif()
+        endif()
+    endforeach()
 
     set(API_VALIDATOR_TARGETS ${API_VALIDATOR_TARGETS} PARENT_SCOPE)
 endfunction()
 
-set(VALIDATED_LIBRARIES "" CACHE INTERNAL "")
+set(VALIDATED_TARGETS "" CACHE INTERNAL "")
 
 function(_ov_add_api_validator_post_build_step)
     set(UWP_API_VALIDATOR_APIS "${PROGRAMFILES}/Windows Kits/10/build/universalDDIs/x64/UniversalDDIs.xml")
@@ -73,24 +73,9 @@ function(_ov_add_api_validator_post_build_step)
     _ie_add_api_validator_post_build_step_recursive(TARGET ${API_VALIDATOR_TARGET})
 
     # remove targets which were tested before
-    foreach(target IN LISTS API_VALIDATOR_TARGETS)
-        list(FIND VALIDATED_LIBRARIES ${target} index)
-        if (NOT index EQUAL -1)
-            list(APPEND VALIDATED_TARGETS ${target})
-        endif()
-        if(TARGET "${target}")
-            get_target_property(orig_target ${target} ALIASED_TARGET)
-            list(FIND VALIDATED_LIBRARIES ${orig_target} index)
-            if (NOT index EQUAL -1)
-                list(APPEND VALIDATED_TARGETS ${target})
-            endif()
-        endif()
-    endforeach()
     foreach(item IN LISTS VALIDATED_TARGETS)
         list(REMOVE_ITEM API_VALIDATOR_TARGETS ${item})
     endforeach()
-
-    list(REMOVE_DUPLICATES API_VALIDATOR_TARGETS)
 
     if(NOT API_VALIDATOR_TARGETS)
         return()
@@ -106,8 +91,10 @@ function(_ov_add_api_validator_post_build_step)
             get_filename_component(target_name "${target_location}" NAME_WE)
         elseif(TARGET "${orig_target}")
             set(target_name ${orig_target})
+            set(target_location $<TARGET_FILE:${orig_target}>)
         else()
             set(target_name ${target})
+            set(target_location $<TARGET_FILE:${target}>)
         endif()
     endmacro()
 
@@ -122,7 +109,7 @@ function(_ov_add_api_validator_post_build_step)
         add_custom_command(TARGET ${API_VALIDATOR_TARGET} POST_BUILD
             COMMAND ${CMAKE_COMMAND} --config $<CONFIG>
                 -D UWP_API_VALIDATOR=${UWP_API_VALIDATOR}
-                -D UWP_API_VALIDATOR_TARGET=$<TARGET_FILE:${target}>
+                -D UWP_API_VALIDATOR_TARGET=${target_location}
                 -D UWP_API_VALIDATOR_APIS=${UWP_API_VALIDATOR_APIS}
                 -D UWP_API_VALIDATOR_EXCLUSION=${UWP_API_VALIDATOR_EXCLUSION}
                 -D UWP_API_VALIDATOR_OUTPUT=${output_file}
@@ -135,8 +122,8 @@ function(_ov_add_api_validator_post_build_step)
 
     # update list of validated libraries
 
-    list(APPEND VALIDATED_LIBRARIES ${API_VALIDATOR_TARGETS})
-    set(VALIDATED_LIBRARIES "${VALIDATED_LIBRARIES}" CACHE INTERNAL "" FORCE)
+    list(APPEND VALIDATED_TARGETS ${API_VALIDATOR_TARGETS})
+    set(VALIDATED_TARGETS "${VALIDATED_TARGETS}" CACHE INTERNAL "" FORCE)
 endfunction()
 
 #

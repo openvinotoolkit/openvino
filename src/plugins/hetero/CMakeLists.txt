@@ -24,6 +24,7 @@ ie_faster_build(${TARGET_NAME}
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::pugixml)
 
+# must be called after all target_link_libraries
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})

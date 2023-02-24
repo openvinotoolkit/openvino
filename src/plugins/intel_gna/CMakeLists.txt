@@ -71,6 +71,7 @@ target_compile_definitions(${TARGET_NAME}
         _NO_MKL_
     )
 
+# must be called after all target_link_libraries
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 #
@@ -139,5 +140,3 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 add_subdirectory(tests)
-
-
