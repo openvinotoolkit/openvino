@@ -51,7 +51,6 @@ class ScaleFactorCalculator {
     using Cnt = std::vector<InferenceEngine::CNNLayerPtr>;
     Cnt net;
     const Config& gna_config;
-    const bool fake_quantized;
     mutable Cnt::const_iterator idx;
     mutable bool needRestart = false;
     int infiniteLoopCount = 0;
@@ -100,10 +99,7 @@ class ScaleFactorCalculator {
                                        const Config& gna_config) const;
 
 public:
-    ScaleFactorCalculator(Cnt& net, const Config& gna_config, const bool fake_quantized)
-        : net(net),
-          gna_config(gna_config),
-          fake_quantized(fake_quantized) {
+    ScaleFactorCalculator(Cnt& net, const Config& gna_config) : net(net), gna_config(gna_config) {
         idx = std::begin(this->net);
     }
     bool needToRestart() const {

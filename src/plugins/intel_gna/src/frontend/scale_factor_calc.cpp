@@ -60,7 +60,7 @@ float GetScaleFactor(InferenceEngine::CNNLayerPtr layer, QuantizedDataType data_
 }
 
 float CalculateScaleFactorFromStats(size_t levels, float minValue, float maxValue) {
-    return maxValue == minValue ? 1.0f : (levels - 1) / (maxValue - minValue);
+    return AreFpEq(minValue, maxValue) ? 1.0f : (levels - 1) / (maxValue - minValue);
 }
 
 /**
@@ -601,6 +601,10 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerCNN(InferenceEngine::CNNLayer* cn
     LayerInfo layerInfo(*cnnLayer);
     // TODO: current approach set input scale factor for true input layer(s) equals to provided factor,
     auto quant = InferenceEngine::getInjectedData<QuantizedLayerParams>(*cnnLayer);
+    bool fake_quantized = false;
+    if (quant && quant->_src_quant.IsStatsSet()) {
+        fake_quantized = true;
+    }
 
     if (layerInfo.isMemory()) {
         if (CNNNetHasPrevLayer(cnnLayer) && quant->_dst_quant.IsStatsSet() && !quant->_dst_quant.IsScaleSet()) {
@@ -827,6 +831,11 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerEltwise(InferenceEngine::EltwiseL
 
     auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*eltwiseLayer);
 
+    bool fake_quantized = false;
+    if (quantData && quantData->_src_quant.IsStatsSet()) {
+        fake_quantized = true;
+    }
+
     switch (eltwiseLayer->_operation) {
     case InferenceEngine::EltwiseLayer::Prod: {
         quantData->_weights_quant.SetScale(quantParams1->_dst_quant.GetScale());
@@ -949,6 +958,12 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerConcat(InferenceEngine::ConcatLay
     }
 
     auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(*concatLayer);
+
+    bool fake_quantized = false;
+    if (quantData && quantData->_src_quant.IsStatsSet()) {
+        fake_quantized = true;
+    }
+
     std::vector<InferenceEngine::CNNLayerPtr> inputLayers;
     for (auto input_idx = 0; input_idx != concatLayer->insData.size(); input_idx++) {
         auto notChangeScaleFactors = [](InferenceEngine::CNNLayerPtr layer) {
@@ -1196,6 +1211,8 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerWeightable(InferenceEngine::Weigh
     }
 
     auto quant = InferenceEngine::getInjectedData<QuantizedLayerParams>(*wl);
+    auto fake_quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(*wl)->_weights_quant.IsStatsSet();
+
     int inputsSize = GetInputPrecision().size();
     const auto weights_prec = GetWeightsPrecision(LayerInfo(wl), *quant, gna_config);
     const auto is_bias_compound = IsBiasCompound(LayerInfo(wl), *quant, gna_config);

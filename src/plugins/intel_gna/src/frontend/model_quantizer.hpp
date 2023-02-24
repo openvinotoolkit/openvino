@@ -73,7 +73,7 @@ public:
 
 private:
     void propagateScaleFactor(std::vector<InferenceEngine::CNNLayerPtr>& net) const {
-        ScaleFactorCalculator sf(net, gna_transformer.config, gna_transformer.is_fake_quantized());
+        ScaleFactorCalculator sf(net, gna_transformer.config);
         uint32_t inf_loop_count = 0;
         std::vector<std::string> inf_loop_pattern;
         std::vector<std::string> inf_loop_history;
