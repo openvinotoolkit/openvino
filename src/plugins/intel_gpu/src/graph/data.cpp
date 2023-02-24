@@ -85,15 +85,24 @@ void data_inst::load(BinaryInputBuffer& ib) {
 
     size_t data_size;
     ib >> make_data(&data_size, sizeof(size_t));
-    _outputs[0] = get_network().get_memory_pool().get_memory(output_layout, _allocation_type, false);
 
-    if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
-        ib >> make_data(_outputs[0]->buffer_ptr(), data_size);
+    if (ib.getNetwork()) {
+        const network* primary_network = reinterpret_cast<network*>(ib.getNetwork());
+        _outputs[0] = primary_network->get_primitive(id())->output_memory_ptr();
+        auto pos = ib.tellg();
+        pos += data_size;
+        ib.seekg(pos);
     } else {
-        std::vector<uint8_t> _buf;
-        _buf.resize(data_size);
-        ib >> make_data(_buf.data(), data_size);
-        _outputs[0]->copy_from(get_network().get_stream(), _buf.data());
+        _outputs[0] = get_network().get_memory_pool().get_memory(output_layout, _allocation_type, false);
+
+        if (_allocation_type == allocation_type::usm_host || _allocation_type == allocation_type::usm_shared) {
+            ib >> make_data(_outputs[0]->buffer_ptr(), data_size);
+        } else {
+            std::vector<uint8_t> _buf;
+            _buf.resize(data_size);
+            ib >> make_data(_buf.data(), data_size);
+            _outputs[0]->copy_from(get_network().get_stream(), _buf.data());
+        }
     }
 }
 
