@@ -152,6 +152,10 @@ void ReadIRTest::SetUp() {
             occurance += model.attribute("count").as_uint();
         }
         k = doc.child("meta_info").child("graph_priority").attribute("value").as_double();
+        // TODO: remove after cache update w/a
+        if (k == 0) {
+            k = 1.f;
+        }
         auto portsInfo = doc.child("meta_info").child("ports_info");
         auto getPortInfo = [&](size_t id) {
             LayerTestsUtils::PortInfo info;
