@@ -717,6 +717,10 @@ KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params, const 
                                    is_dynamic);
     if (params.is_shape_agnostic && newParams.operations[0].mode == EltwiseMode::ASSIGN) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
+        kernel_selector::ScalarDescriptor s;
+        s.t = kernel_selector::ScalarDescriptor::Types::UINT32;
+        s.v.u32 = 0;
+        kernel.params.scalars.push_back(s);
     }
     return {kd};
 }

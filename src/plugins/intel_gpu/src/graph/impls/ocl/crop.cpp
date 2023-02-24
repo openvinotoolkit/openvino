@@ -48,11 +48,9 @@ public:
             kernel_selector::ScalarDescriptor s;
             s.t = kernel_selector::ScalarDescriptor::Types::UINT32;
             s.v.u32 = runtime_offset;
-
-            if (_kernel_data.kernels[0].params.scalars.empty())
-                _kernel_data.kernels[0].params.scalars.push_back(s);
-            else
-                _kernel_data.kernels[0].params.scalars[0] = s;
+            OPENVINO_ASSERT(_kernel_data.kernels[0].params.scalars.size() == 1,
+                    "[GPU] Scalar field for runtime offset is not added for crop shape agnostic impl");
+            _kernel_data.kernels[0].params.scalars[0] = s;
             (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
             update_kernels_list_to_skip();
     }
