@@ -11,6 +11,7 @@ set(OTE_DOCS_DIR "" CACHE PATH "Path to training_extensions documentation dir.")
 set(WORKBENCH_DOCS_DIR "" CACHE PATH "Path to workbench documentation dir.")
 set(OVMS_DOCS_DIR "" CACHE PATH "Path to model server documentation dir.")
 set(GRAPH_CSV_DIR "" CACHE PATH "Path to the folder containing csv data for rendering graphs.")
+set(CONF_NAME "conf" CACHE STRING "Name of the configuration file to use for sphinx build.")
 
 function(build_docs)
     find_package(Doxygen REQUIRED dot)
@@ -42,7 +43,7 @@ function(build_docs)
     set(SPHINX_OUTPUT "${DOCS_BUILD_DIR}/_build")
 
     # Sphinx folders, doxyrest templates and config
-    set(SPHINX_CONF_IN "${DOCS_SOURCE_DIR}/conf.py")
+    set(SPHINX_CONF_IN "${DOCS_SOURCE_DIR}/${CONF_NAME}.py")
     set(SPHINX_TEMPLATES_IN "${DOCS_SOURCE_DIR}/_templates")
     set(SPHINX_TEMPLATES_OUT "${RST_OUTPUT}/_templates")
     set(SPHINX_CONF_OUT "${RST_OUTPUT}/conf.py")

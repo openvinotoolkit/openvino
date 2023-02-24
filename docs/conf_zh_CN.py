@@ -64,13 +64,10 @@ templates_path = ['_templates']
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build',
-                    'Thumbs.db',
+exclude_patterns = ['_build', 
+                    'Thumbs.db', 
                     '.DS_Store',
-                    'openvino/inference-engine',
-                    'zh_CN/*',
-                    'home_zh_CN.rst',
-                    'index_zh_CN.rst']
+                    'openvino/inference-engine']
 
 
 panels_add_bootstrap_css = False
@@ -94,9 +91,9 @@ html_theme_options = {
 }
 
 html_context = {
-    'current_language': 'English',
-    'languages': (('English', '/latest'), ('中文', '/cn/latest')),
-    'doxygen_mapping_file': '@DOXYGEN_MAPPING_FILE@',
+    'current_language': '简体中文',
+    'languages': (('English', '/latest'), ('简体中文', '/cn/latest')),
+    'doxygen_mapping_file': '',
     'doxygen_snippet_root': '@OpenVINO_SOURCE_DIR@'
 }
 
@@ -134,7 +131,7 @@ repositories = {
 }
 
 try:
-    doxygen_mapping_file = '@DOXYGEN_MAPPING_FILE@'
+    doxygen_mapping_file = ''
     with open(doxygen_mapping_file, 'r', encoding='utf-8') as f:
         doxygen_mapping_file = json.load(f)
 except JSONDecodeError:
@@ -173,7 +170,7 @@ def autodoc_skip_member(app, what, name, obj, skip, options):
     return name in exclude_pyapi_methods
 
 
-shutil.copy("../../../docs/home.rst",".")
+shutil.copy("../../../docs/index_zh_CN.rst","home_zh_CN.rst")
 
 def replace_index_with_redirect(app,exception):
     shutil.copy("../../../docs/index.html","../_build/index.html")
