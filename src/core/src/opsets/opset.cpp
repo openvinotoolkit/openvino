@@ -61,7 +61,7 @@ const std::map<std::string, std::function<const ngraph::OpSet&()>>& ngraph::get_
                                                                                            _NGRAPH_REG_OPSET(opset8),
                                                                                            _NGRAPH_REG_OPSET(opset9),
                                                                                            _NGRAPH_REG_OPSET(opset10),
-                                                                                           _NGRAPH_REG_OPSET(opset11),};
+                                                                                           _NGRAPH_REG_OPSET(opset11)};
 #undef _NGRAPH_REG_OPSET
     return opset_map;
 }
