@@ -78,13 +78,21 @@ void get_activation(ov::OutputVector& output,
         output = ov::frontend::tensorflow::op::translate_relu_6_op(context);
     } else if (activation == "TANH") {
         output = ov::frontend::tensorflow::op::translate_unary_op<opset10::Tanh>(context);
+    } else if (activation == "RELU_N1_TO_1") {
+        auto clamp = std::make_shared<opset10::Clamp>(output[0], -1.0f, 1.0f);
+        clamp->set_friendly_name(context.get_name());
+        output = clamp->outputs();
+    } else if (activation == "SIGN_BIT") {
+        auto zero = std::make_shared<opset10::ConvertLike>(opset10::Constant::create(element::i32, {}, {0}), output[0]);
+        auto less = std::make_shared<opset10::Less>(output[0], zero);
+        less->set_friendly_name(context.get_name());
+        output = less->outputs();
     } else {
-        // TODO: Fused activation to support:
-        //          RELU_N1_TO_1 = 2,
-        //          SIGN_BIT = 5,
-        if (activation != "NONE") {
-            FRONT_END_THROW("Unknown Activation fused to " + node.get_decoder()->get_op_type() + ": " + activation);
-        }
+        FRONT_END_GENERAL_CHECK(activation == "NONE",
+                                "Unknown Activation fused to ",
+                                node.get_decoder()->get_op_type(),
+                                ": ",
+                                activation);
     }
     del_output_names(output);
 }

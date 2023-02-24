@@ -1,7 +1,58 @@
 import os
 
 import tensorflow as tf
+import numpy as np
 from common.utils.tf_utils import summarize_graph, transpose_nhwc_to_nchw
+
+
+def make_positive_array(inputs_dict):
+    for input in inputs_dict.keys():
+        inputs_dict[input] = np.random.randint(1, 10, inputs_dict[input]).astype(np.float32)
+    return inputs_dict
+
+
+def short_range(inputs_dict):
+    for input in inputs_dict.keys():
+        inputs_dict[input] = np.random.randint(-1, 1, inputs_dict[input]).astype(np.float32)
+    return inputs_dict
+
+
+def make_boolean_array(inputs_dict):
+    for input in inputs_dict.keys():
+        inputs_dict[input] = np.random.randint(0, 1, inputs_dict[input]) > 1
+    return inputs_dict
+
+
+data_generators = {
+    'positive': make_positive_array,
+    'short_range': short_range,
+    'boolean': make_boolean_array,
+}
+
+
+def activation_helper(input_node, activation_name, name):
+    if activation_name is None:
+        return input_node
+    else:
+        return activation_name(input_node, name=name)
+
+
+additional_test_params = [
+    [
+        {'axis': None},
+        {'axis': -1}
+        ],
+    [
+        {'activation': None},
+        {'activation': tf.nn.relu},
+        {'activation': tf.nn.relu6},
+        # skip tanh and signbit since tflite doesn't fuse such activations
+        # https://github.com/tensorflow/tensorflow/blob/77d8c333405a080c57850c45531dbbf077b2bd0e/tensorflow/compiler/mlir/lite/transforms/optimize_patterns.td#L86:L89
+        # {'activation': tf.math.tanh},
+        # {'activation': lambda x, name: tf.identity(tf.experimental.numpy.signbit(x), name=name)},
+        {'activation': lambda x, name: tf.math.minimum(tf.math.maximum(-1., x), 1., name=name)}
+        ]
+]
 
 
 def save_pb_to_tflite(pb_model):
@@ -67,3 +118,4 @@ def get_tensors_from_graph(graph, ops: list):
             tensors.append(op_out_tensor)
 
     return tensors
+
