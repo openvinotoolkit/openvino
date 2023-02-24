@@ -342,7 +342,6 @@ def test_convert_gru_to_tensor_iterator():
     assert "TensorIterator" in ops_types
 
 
-
 def test_flush_fp32_subnormals_to_zero():
     parameter = ov.opset10.parameter([1, 4, 12, 12], name="X")
     subnormal_val = -2.0e-45
