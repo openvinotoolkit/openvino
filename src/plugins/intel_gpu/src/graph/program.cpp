@@ -1190,10 +1190,6 @@ void program::dump_program(const char* stage,
                            bool with_full_info,
                            std::function<bool(program_node const&)> const& filter) const {
     std::string path = get_dir_path(_config);
-    GPU_DEBUG_GET_INSTANCE(debug_inst);
-    GPU_DEBUG_IF(debug_inst->dump_graphs.size()) {
-        path = debug_inst->dump_graphs;
-    }
     if (path.empty() || !with_full_info) {
         return;
     }
