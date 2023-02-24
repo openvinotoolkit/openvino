@@ -5,6 +5,8 @@
 #pragma once
 
 #include <stdlib.h>
+
+#include <map>
 #include <string>
 
 namespace CommonTestUtils {
@@ -58,6 +60,16 @@ public:
     /// \param[in] fieldName Field name, any applicable string
     /// \returns True if value has been removed, false otherwise.
     bool RemoveCustomField(const std::string fieldName);
+    /// \brief Returns pointer on a global map which contains pairs of Extended Test Queries
+    /// Each pair has test name as a key and SQL-query as a value.
+    /// Query can contain a variables started with $ and be replaced by an actual values
+    /// Variables are parsed from test name.
+    static std::map<std::string, std::string>* getExtTestQueries(void);
+    /// \brief Returns pointer on a global map which contains pairs of Extended Test Names
+    /// Each pair has test name as a key and string as a value.
+    /// Query can contain a variables started with $ and be replaced by an actual values
+    /// Variables are parsed from test name.
+    static std::map<std::string, std::string>* getExtTestNames(void);
 };
 
 }  // namespace CommonTestUtils

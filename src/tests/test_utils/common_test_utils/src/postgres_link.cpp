@@ -23,6 +23,10 @@ static const char* PGQL_ENV_SESS_NAME = "OV_TEST_SESSION_ID";  // Environment va
 static const char* PGQL_ENV_RUN_NAME = "OV_TEST_RUN_ID";       // Environment variable with external run id
 static const char* PGQL_ENV_RLVL_NAME = "OV_TEST_REPORT_LVL";  // Environment variable identifies reporting
                                                                // level: default ("", empty), "fast", "suite"
+std::map<std::string, std::string>
+    ExtTestQueries;  // Map of extended test queries. It is used for do a custom query after inserting mandatory row
+std::map<std::string, std::string>
+    ExtTestNames;  // Map of extended test name convertors. It is used to change a test name automatically.
 
 typedef enum {
     /// \brief Most careful reporting, but slowest
@@ -103,6 +107,7 @@ typedef char* (*fnPQerrorMessage)(const PGconn* conn);
 typedef PGresult* (*fnPQexec)(PGconn* conn, const char* query);
 typedef ExecStatusType (*fnPQresultStatus)(const PGresult* res);
 typedef char* (*fnPQgetvalue)(const PGresult* res, int tup_num, int field_num);
+typedef int (*fnPQgetisnull)(const PGresult* res, int row_number, int column_number);
 typedef void (*fnPQclear)(PGresult* res);
 typedef char* (*fnPQresultErrorMessage)(const PGresult* res);
 
@@ -115,6 +120,7 @@ static fnPQerrorMessage PQerrorMessage;
 static fnPQexec PQexec;
 static fnPQresultStatus PQresultStatus;
 static fnPQgetvalue PQgetvalue;
+static fnPQgetisnull PQgetisnull;
 static fnPQclear PQclear;
 static fnPQresultErrorMessage PQresultErrorMessage;
 #endif
@@ -257,14 +263,14 @@ public:
             }
             std::string errStr = PQresultErrorMessage(result.get());
             std::cerr << PG_WRN << "Received unexpected result (" << static_cast<unsigned int>(execStatus)
-                        << ") from PostgreSQL, expected: " << static_cast<unsigned int>(expectedStatus) << std::endl;
+                      << ") from PostgreSQL, expected: " << static_cast<unsigned int>(expectedStatus) << std::endl;
 
             // After transactional queries were introduced - we need to check error message and try
             // do a query again if it is expected serialization error.
             // More about serialization: https://www.postgresql.org/docs/9.5/transaction-iso.html
             if (errStr.find("could not serialize access") != std::string::npos) {
                 std::cerr << PG_WRN << "Serialization error, trying again, try attempt: " << queryCounter++
-                            << std::endl;
+                          << std::endl;
 #ifdef _WIN32
                 Sleep(50);  // Wait some time for the next attempt
 #else
@@ -387,6 +393,7 @@ bool PostgreSQLConnection::Initialize() {
     GETPROC(PQexec);
     GETPROC(PQresultStatus);
     GETPROC(PQgetvalue);
+    GETPROC(PQgetisnull);
     GETPROC(PQclear);
     GETPROC(PQresultErrorMessage);
 #endif
@@ -573,6 +580,145 @@ static std::string GetHostname(void) {
     return cHostName;
 }
 
+// Procedure uses for possible customization of addint key=value pairs
+static void addPair(std::map<std::string, std::string>& keyValues, const std::string& key, const std::string& value) {
+    size_t dPos;
+    // Parse IR_name for opName and hash
+    if (key == "IR_name" && (dPos = value.find('_')) != std::string::npos) {
+        keyValues["opName"] = value.substr(0, dPos);
+        keyValues["opSet"] = "";  // Need to set
+        keyValues["hashXml"] = value.substr(dPos + 1);
+        return;
+    }
+    // Parse Function for opName and opSet
+    if (key == "Function" && (dPos = value.find('_')) != std::string::npos) {
+        keyValues["opName"] = value.substr(0, dPos);
+        keyValues["opSet"] = value.substr(dPos + 1);
+        return;
+    }
+    // Normalize target devices
+    if (key == "target_device" || key == "TargetDevice" || key == "Device") {
+        keyValues["targetDevice"] = value;
+        return;
+    }
+    std::string lKey = key;
+    std::transform(lKey.begin(), lKey.end(), lKey.begin(), [](unsigned char c) {
+        return std::tolower(c);
+    });
+    if (lKey == "config") {
+        keyValues[lKey] = value;
+        return;
+    }
+    keyValues[key] = value;
+}
+
+// Function parses test name for key=value pairs
+static bool parseTestName(const char* line, std::map<std::string, std::string>& keyValues) {
+    const std::vector<std::string> knownExceptions = {"target_device", "IR_name"};
+
+    std::string paramName;
+
+    // Looking for '/' as a delimeter between group name and parameters
+    const char *ptr = line, *grpNameEnd = nullptr;
+    while (*ptr != 0 && *ptr != '/')
+        ++ptr;
+    if (*ptr == 0) {
+        return false;  // group name isn't identified, wrong line on input
+    }
+    keyValues["__groupName__"] = std::string(line, ptr - line);
+    grpNameEnd = ptr + 1;
+
+    // Try to parse param1=value1_param2=(paramX=valueX_)... as a key=value
+    const char *paramNameStart = ptr + 1, *paramValueStart = nullptr;
+    // Brakets counter to be able catch inherited values like ((paramX=valueX)(paramY=valueY))
+    unsigned int bkt = 0;
+
+    while (*ptr != 0) {  // Do until line ends
+        while (*ptr != 0 && *ptr != '=')
+            ++ptr;  // find key=value delimeter or EOL
+        if (paramNameStart == ptr)
+            break;                                                      // break if nothing found
+        paramName = std::string(paramNameStart, ptr - paramNameStart);  // store parameter name
+        if (*ptr == '=') {                                              // if we found a key=value delimeter (not EOL)
+            paramValueStart = ++ptr;                                    // start looking for value after '=' char
+            while (*ptr != 0) {                                         // try to find a value  end
+                if (*ptr == '(')  // braket found - ignores key=value delimeter until string end or all closing braket
+                                  // will be found
+                    ++bkt;
+                else if (*ptr == ')')  // closing braket found - decrease breaket counter
+                    --bkt;
+                else if (*ptr == '=' && bkt == 0)  // stop on key=value delimeter only outside of brakets
+                    break;
+                ++ptr;
+            }
+            if (*ptr == 0) {  // if we stopped at the end of line
+                // Removing trailing underscore and non-printed symbols
+                while (ptr > paramValueStart && (*(ptr - 1) == '_' || *(ptr - 1) < 0x20))
+                    --ptr;
+                addPair(keyValues, std::string(paramName), std::string(paramValueStart, ptr - paramValueStart));
+            } else if (*ptr == '=') {  // if we stopped by item's delimeter (paramN=valueN_paramN+1=valueN+1)
+                // Because we have params which contains underscore, this algorithm may interpret '_' wrong. Best way -
+                // prohibit usage of '_' in param names, or change item's delimeter '_' to another one. In such case
+                // this part of code should be removed
+                auto excCheckLambda = [ptr, paramValueStart](const std::string& exc) {
+                    size_t len = exc.length();
+                    if ((ptr - len) < paramValueStart)
+                        return false;
+                    return exc == std::string(ptr - len, len);
+                };
+                auto found = std::find_if(knownExceptions.begin(), knownExceptions.end(), excCheckLambda);
+                if (found != knownExceptions.end()) {
+                    ptr -= found->length();
+                    paramNameStart = ptr;
+                    --ptr;
+                } else {  // in case no underscores are found (param1=value1_param2=value2)
+                    while (ptr > paramValueStart && *ptr != '_')
+                        --ptr;  // we  /\ will stop here, but we need to rewind until '_' to get a valueN
+                    paramNameStart = ptr + 1;
+                }
+                addPair(keyValues, std::string(paramName), std::string(paramValueStart, ptr - paramValueStart));
+            }
+        }
+    }
+    // If we found no key_value parameters - just store whole line after group name as a pseudo-__name__ element
+    if (keyValues.size() == 1) {
+        ptr = grpNameEnd;
+        while (*ptr >= 0x20)
+            ++ptr;
+        keyValues["__name__"] = std::string(grpNameEnd, ptr - grpNameEnd);
+    }
+    return true;
+}
+
+static bool compileString(const std::string& srcStr,
+                          const std::map<std::string, std::string>& keyValue,
+                          std::string& result) {
+    size_t varPos = std::string::npos;
+    size_t readPos = 0;
+    std::string varName;
+    result.clear();
+    varName.reserve(srcStr.length());
+    while (readPos < srcStr.length()) {
+        varPos = srcStr.find('$', readPos);
+        if (varPos == std::string::npos) {
+            result += srcStr.substr(readPos, srcStr.length() - readPos);
+            return true;
+        }
+        if (varPos > readPos)
+            result += srcStr.substr(readPos, varPos - readPos);
+        const char *ptr = srcStr.c_str() + varPos + 1, *varNamePtr = ptr;
+        while (*ptr > 0x20 &&
+               ((*ptr >= 'a' && *ptr <= 'z') || (*ptr >= 'A' && *ptr <= 'Z') || (*ptr >= '0' && *ptr <= '9') || (*ptr == '-') || (*ptr == '_')))
+            ++ptr;
+        varName = std::string(varNamePtr, ptr - varNamePtr);
+        auto val = keyValue.find(varName);
+        if (val != keyValue.end())
+            result += val->second;
+        readPos = varPos + (ptr - varNamePtr) + 1;
+    }
+    return readPos = srcStr.length();
+}
+
 /// \brief Helper for checking PostgreSQL results
 #define CHECK_PGRESULT(var_name, error_message, action)    \
     if (var_name.get() == nullptr) {                       \
@@ -580,21 +726,11 @@ static std::string GetHostname(void) {
         action;                                            \
     }
 /// \brief Helper for registering ID-retrieval functions
-#define GET_PG_IDENTIFIER(funcDefinition, sqlQuery, varName, fieldName)                  \
-    bool funcDefinition {                                                                \
-        std::stringstream sstr;                                                          \
-                                                                                         \
-        sstr << sqlQuery;                                                                \
-        auto pgresult = connectionKeeper->Query(sstr.str().c_str());                     \
-        CHECK_PGRESULT(pgresult, "Cannot retrieve a correct " #fieldName, return false); \
-                                                                                         \
-        this->varName = std::atoi(PQgetvalue(pgresult.get(), 0, 0));                     \
-        if (this->varName == 0) {                                                        \
-            std::cerr << PG_ERR << "Cannot interpret a returned " << #fieldName          \
-                      << ", value : " << PQgetvalue(pgresult.get(), 0, 0) << std::endl;  \
-            return false;                                                                \
-        }                                                                                \
-        return true;                                                                     \
+#define GET_PG_IDENTIFIER(funcDefinition, sqlQuery, varName, fieldName) \
+    bool funcDefinition {                                               \
+        std::stringstream sstr;                                         \
+        sstr << sqlQuery;                                               \
+        return _internalRequestId(sstr.str(), #fieldName, varName);     \
     }
 
 /*
@@ -620,8 +756,14 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     uint64_t testSuiteId = 0;
     uint64_t testId = 0;
     uint64_t testRunId = 0;
+    uint64_t testExtId = 0;
     std::map<std::string, std::string> testCustomFields;
     std::stringstream joinedQuery;
+
+    /* Test name parsing */
+    std::map<std::string, std::string> testDictionary;
+    std::string testName;
+    bool isTestNameParsed = false;
 
     // Unused event handlers, kept here for possible use in the future
     /*
@@ -634,6 +776,43 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     void OnTestIterationEnd(const ::testing::UnitTest& unit_test, int iteration) override {}
     void OnTestProgramEnd(const ::testing::UnitTest& unit_test) override {}
     */
+
+    /*
+        Transaction-optimized ID retrieval.
+        If string doesn't begin with "BEGIN" and contain "SELECT" regular flow is used.
+        Otherwise - tries to move pointer to start of "SELECT" part of query and queries ID first.
+        In case query has returned NULL - means no corresponding data found in database.
+        If no information found - calls transactional insert and retrieve.
+        sqlQuery = "BEGIN TRANSACTION ... COMMIT; SELECT QUERY";
+                    ^ full query will be executed ^ only if this part has returned NULL
+        Using described approach we do transactional queries only in case we don't
+        retrieve correct data from database. Otherwise it will use fast path without
+        transaction.
+    */
+    bool _internalRequestId(const std::string& sqlQuery, const char* fieldName, uint64_t& result) {
+        auto selectPos = sqlQuery.find("SELECT");
+        const char *query = sqlQuery.c_str(), *query_start = query;
+        bool isTransactionalQuery = (selectPos != std::string::npos) && (sqlQuery.find("BEGIN") == 0);
+        if (isTransactionalQuery) {
+            query += selectPos;
+        }
+        auto pgresult = connectionKeeper->Query(query);
+        CHECK_PGRESULT(pgresult, "Cannot retrieve a correct " << fieldName, return false);
+
+        bool isNull = PQgetisnull(pgresult.get(), 0, 0) != 0;
+        if (isNull && isTransactionalQuery) {
+            pgresult = connectionKeeper->Query(query_start);
+            CHECK_PGRESULT(pgresult, "Cannot retrieve a correct transactional " << fieldName, return false);
+            isNull = PQgetisnull(pgresult.get(), 0, 0) != 0;
+        }
+
+        if (!isNull && (result = std::atoi(PQgetvalue(pgresult.get(), 0, 0))) == 0) {
+            std::cerr << PG_ERR << "Cannot interpret a returned " << fieldName
+                      << ", value : " << (!isNull ? PQgetvalue(pgresult.get(), 0, 0) : "NULL") << std::endl;
+            return false;
+        }
+        return true;
+    }
 
     std::string EscapeString(const std::string sourceString) const {
         std::vector<char> escapedString;
@@ -694,6 +873,12 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                       tn_id)
     GET_PG_IDENTIFIER(RequestSuiteId(std::string query), query, testSuiteId, sr_id)
     GET_PG_IDENTIFIER(RequestTestId(std::string query), query, testId, tr_id)
+    GET_PG_IDENTIFIER(RequestTestExtId(std::string query),
+                      "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
+                          << "CALL PREPARE_" << query << "; COMMIT;"
+                          << "SELECT APPEND_" << query,
+                      testExtId,
+                      t_id)
 
     void OnTestSuiteStart(const ::testing::TestSuite& test_suite) override {
         if (!this->isPostgresEnabled || !this->testRunId || !this->sessionId)
@@ -737,14 +922,31 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             return;
         }
 
+        auto grpName = testDictionary.end();
+
+        if ((isTestNameParsed = parseTestName(test_info.name(), testDictionary)) == true &&
+            (grpName = testDictionary.find("__groupName__")) != testDictionary.end()) {
+            auto nameConvertStr = ExtTestNames.find(grpName->second);
+            if (nameConvertStr != ExtTestNames.end()) {
+                if (!compileString(nameConvertStr->second, testDictionary, testName)) {
+                    std::cerr << PG_WRN << "Error compiling test name: " << test_info.name() << std::endl;
+                    testName = grpName->second;
+                }
+            } else {
+                testName = grpName->second;
+            }
+        } else {
+            std::cerr << PG_WRN << "Error parsing test name: " << test_info.name() << std::endl;
+        }
+
         std::stringstream sstr;
         try {
             if (reportingLevel == REPORT_LVL_DEFAULT) {
-                sstr << "TEST_NAME(" << this->testSuiteNameId << ", '" << EscapeString(test_info.name()) << "'";
+                sstr << "TEST_NAME(" << this->testSuiteNameId << ", '" << EscapeString(testName) << "'";
             } else if (reportingLevel == REPORT_LVL_FAST) {
                 sstr << "CALL ADD_TEST_RESULT(" << this->appId << ", " << this->sessionId << ", " << this->testRunId
-                     << ", " << this->testSuiteId << ", " << this->testSuiteNameId << ", '"
-                     << EscapeString(test_info.name()) << "'";
+                     << ", " << this->testSuiteId << ", " << this->testSuiteNameId << ", '" << EscapeString(testName)
+                     << "'";
             }
         } catch (std::exception& e) {
             std::cerr << PG_ERR << "Query building is failed with exception: " << e.what() << std::endl;
@@ -777,6 +979,27 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 
         if (!RequestTestId(sstr.str()))
             return;
+
+        if (grpName != testDictionary.end()) {
+            // Looks query with GroupName + "_BEFORE", "ReadIR_BEFORE" as example
+            auto extQuery = ExtTestQueries.find(grpName->second + "_BEFORE");
+            if (extQuery != ExtTestQueries.end()) {
+                std::string query;
+                testDictionary["__test_id"] = std::to_string(this->testId);
+                testDictionary["__test_name_id"] = std::to_string(this->testNameId);
+                testDictionary["__suite_id"] = std::to_string(this->testSuiteId);
+                testDictionary["__suite_name_id"] = std::to_string(this->testSuiteNameId);
+                testDictionary["__session_id"] = std::to_string(this->testId);
+                testDictionary["__run_id"] = std::to_string(this->testId);
+                if (compileString(extQuery->second, testDictionary, query)) {
+                    if (!RequestTestExtId(query)) {
+                        std::cerr << PG_WRN << "Failed extended query: " << query << std::endl;
+                    }
+                } else {
+                    std::cerr << PG_WRN << "Preparing extended query is failed: " << test_info.name() << std::endl;
+                }
+            }
+        }
     }
 
     void OnTestPartResult(const ::testing::TestPartResult& test_part_result) override {
@@ -807,12 +1030,13 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             sstr << "UPDATE test_results SET finished_at=NOW(), duration=" << test_info.result()->elapsed_time()
                  << ", test_result=" << testResult << " WHERE tr_id=" << this->testId;
             auto pgresult = connectionKeeper->Query(sstr.str().c_str(), PGRES_COMMAND_OK);
-            CHECK_PGRESULT(pgresult, "Cannot update test results", return );
+            CHECK_PGRESULT(pgresult, "Cannot update test results", return);
         } else if (reportingLevel == REPORT_LVL_FAST) {
             joinedQuery << ", " << testResult << "::smallint, " << test_info.result()->elapsed_time() << ");\n";
         }
 
         this->testId = 0;
+        testDictionary.clear();
     }
 
     void OnTestSuiteEnd(const ::testing::TestSuite& test_suite) override {
@@ -830,12 +1054,12 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
              << ", run_count=" << test_suite.test_to_run_count() << ", total_count=" << test_suite.total_test_count()
              << " WHERE sr_id=" << this->testSuiteId;
         auto pgresult = connectionKeeper->Query(sstr.str().c_str(), PGRES_COMMAND_OK);
-        CHECK_PGRESULT(pgresult, "Cannot update test suite results", return );
+        CHECK_PGRESULT(pgresult, "Cannot update test suite results", return);
         this->testSuiteId = 0;
 
         if (reportingLevel == REPORT_LVL_FAST) {
             pgresult = connectionKeeper->Query(joinedQuery.str().c_str(), PGRES_COMMAND_OK);
-            CHECK_PGRESULT(pgresult, "Cannot update test cases results", return );
+            CHECK_PGRESULT(pgresult, "Cannot update test cases results", return);
         }
     }
 #ifndef GTEST_REMOVE_LEGACY_TEST_CASEAPI_
@@ -906,13 +1130,13 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         std::stringstream sstr;
         sstr << "UPDATE runs SET end_time=NOW() WHERE run_id=" << this->testRunId << " AND end_time<NOW()";
         auto pgresult = connectionKeeper->Query(sstr.str().c_str(), PGRES_COMMAND_OK);
-        CHECK_PGRESULT(pgresult, "Cannot update run finish info", return );
+        CHECK_PGRESULT(pgresult, "Cannot update run finish info", return);
 
         sstr.str("");
         sstr.clear();
         sstr << "UPDATE sessions SET end_time=NOW() WHERE session_id=" << this->sessionId << " AND end_time<NOW()";
         pgresult = connectionKeeper->Query(sstr.str().c_str(), PGRES_COMMAND_OK);
-        CHECK_PGRESULT(pgresult, "Cannot update session finish info", return );
+        CHECK_PGRESULT(pgresult, "Cannot update session finish info", return);
     }
 
     /* Prohobit creation outsize of class, need to make a Singleton */
@@ -1015,6 +1239,14 @@ PostgreSQLLink::~PostgreSQLLink() {
 #endif
 }
 
+std::map<std::string, std::string>* PostgreSQLLink::getExtTestQueries(void) {
+    return &ExtTestQueries;
+}
+
+std::map<std::string, std::string>* PostgreSQLLink::getExtTestNames(void) {
+    return &ExtTestNames;
+}
+
 bool PostgreSQLLink::SetCustomField(const std::string fieldName, const std::string fieldValue, const bool rewrite) {
     if (pgEventListener) {
         if (!pgEventListener->SetCustomField(fieldName, fieldValue, rewrite))
@@ -1052,3 +1284,12 @@ bool PostgreSQLLink::RemoveCustomField(const std::string fieldName) {
 }
 
 }  // namespace CommonTestUtils
+namespace PostgreSQLLink {
+std::map<std::string, std::string>* getExtTestQueries(void) {
+    return ::CommonTestUtils::PostgreSQLLink::getExtTestQueries();
+}
+
+std::map<std::string, std::string>* getExtTestNames(void) {
+    return ::CommonTestUtils::PostgreSQLLink::getExtTestNames();
+}
+}  // namespace PostgreSQLLink
