@@ -46,7 +46,9 @@ private:
 
     void ApplyPerformanceHints(std::map<std::string, std::string> &config, const std::shared_ptr<ngraph::Function>& ngraphFunc) const;
 
-    int GetModelPreferThreads(const std::shared_ptr<ngraph::Function>& ngraphFunc) const;
+    int GetModelPreferThreads(const int num_streams,
+                              const std::vector<std::vector<int>> proc_type_table,
+                              const std::shared_ptr<ngraph::Function>& ngraphFunc) const;
 
     void SetStreamtoConfig(const std::map<std::string, std::string> &config);
 

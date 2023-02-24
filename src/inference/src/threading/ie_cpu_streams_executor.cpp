@@ -85,16 +85,20 @@ struct CPUStreamsExecutor::Impl {
             if (cpu_map_available()) {
                 std::lock_guard<std::mutex> lock{_impl->_cpumap_mutex};
                 const auto stream_id = _streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId;
+                const bool any_cores = _impl->_config._streams > _impl->_config._big_core_streams +
+                                                                     _impl->_config._big_core_logic_streams +
+                                                                     _impl->_config._small_core_streams;
                 const auto concurrency =
-                    (stream_id < _impl->_config._big_core_streams + _impl->_config._big_core_logic_streams)
-                        ? _impl->_config._threads_per_stream_big
-                        : _impl->_config._threads_per_stream_small;
+                    any_cores ? _impl->_config._threads
+                              : (stream_id < _impl->_config._big_core_streams + _impl->_config._big_core_logic_streams
+                                     ? _impl->_config._threads_per_stream_big
+                                     : _impl->_config._threads_per_stream_small);
                 const auto selected_core_type =
                     (stream_id < _impl->_config._big_core_streams + _impl->_config._big_core_logic_streams)
                         ? custom::info::core_types().back()
                         : custom::info::core_types().front();
                 if (ThreadBindingType::CORES == _impl->_config._threadBindingType ||
-                    ThreadBindingType::NONE == _impl->_config._threadBindingType ||
+                    ThreadBindingType::NONE == _impl->_config._threadBindingType || any_cores ||
                     _streamId >= _impl->_config._streams) {
                     _taskArena.reset(new custom::task_arena{concurrency});
                 } else if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {

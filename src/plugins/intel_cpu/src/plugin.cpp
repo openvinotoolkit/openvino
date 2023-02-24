@@ -20,6 +20,7 @@
 #include "threading/ie_cpu_streams_info.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
+#include <transformations/utils/utils.hpp>
 #include <ie_ngraph_utils.hpp>
 
 #include "performance_heuristics.hpp"
@@ -231,9 +232,9 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             nstreams = std::min(nstreams, engConfig.perfHintsConfig.ovPerfHintNumRequests);
         }
 
-        const int model_prefer = GetModelPreferThreads(ngraphFunc);
         const std::vector<std::vector<int>> proc_type_table =
             get_num_available_cpu_cores(engConfig.streamExecutorConfig._plugin_task);
+        const int model_prefer = GetModelPreferThreads(nstreams, proc_type_table, ngraphFunc);
         const std::vector<std::vector<int>> stream_info_table =
             get_streams_info_table(nstreams, engConfig.streamExecutorConfig._threads, model_prefer, proc_type_table);
         StreamCfg streams_info = ParseStreamsTable(stream_info_table);
@@ -311,46 +312,63 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
     }
 }
 
-int Engine::GetModelPreferThreads(const std::shared_ptr<ngraph::Function>& ngraphFunc) const {
-    const auto isa = dnnl::get_effective_cpu_isa();
-    float isaSpecificThreshold = 1.0f;
-    switch (isa) {
-    case dnnl::cpu_isa::sse41:
-        isaSpecificThreshold = 0.5f;
-        break;
-    case dnnl::cpu_isa::avx2:
-    case dnnl::cpu_isa::avx512_core:
-        isaSpecificThreshold = 1.0f;
-        break;
-    case dnnl::cpu_isa::avx512_core_vnni:
-    case dnnl::cpu_isa::avx2_vnni:
-        isaSpecificThreshold = 2.0f;
-        break;
-    case dnnl::cpu_isa::avx512_core_amx:
-        isaSpecificThreshold = 4.0f;
-        break;
-    default:
-        isaSpecificThreshold = 1.0f;
-    }
-    // the more "capable" the CPU in general, the more streams we may want to keep to keep it utilized
-    const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED / isaSpecificThreshold;
-    const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
-    ov::MemBandwidthPressure networkToleranceForLowCache =
-        ov::MemBandwidthPressureTolerance(ngraphFunc, L2_cache_size, memThresholdAssumeLimitedForISA);
-    auto model_prefer = IStreamsExecutor::Config::StreamMode::DEFAULT;
-    if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
-        if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||
-            (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
-            // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
+int Engine::GetModelPreferThreads(const int num_streams,
+                                  const std::vector<std::vector<int>> proc_type_table,
+                                  const std::shared_ptr<ngraph::Function>& ngraphFunc) const {
+    const int sockets = static_cast<int>(getAvailableNUMANodes().size());
+    auto model_prefer = 0;
+    if (num_streams <= sockets &&
+        engConfig.streamExecutorConfig._threadBindingType == IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
+        bool fp_intesive = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(ngraphFunc);
+        const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
+        const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
+        // by default the latency case uses (faster) Big cores only, depending on the compute ratio
+        model_prefer = proc_type_table[0][MAIN_CORE_PROC] > (proc_type_table[0][EFFICIENT_CORE_PROC] /
+                                                             (fp_intesive ? fp32_threshold : int8_threshold))
+                           ? proc_type_table[0][MAIN_CORE_PROC]
+                           : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
+    } else {
+        const auto isa = dnnl::get_effective_cpu_isa();
+        float isaSpecificThreshold = 1.0f;
+        switch (isa) {
+        case dnnl::cpu_isa::sse41:
+            isaSpecificThreshold = 0.5f;
+            break;
+        case dnnl::cpu_isa::avx2:
+        case dnnl::cpu_isa::avx512_core:
+            isaSpecificThreshold = 1.0f;
+            break;
+        case dnnl::cpu_isa::avx512_core_vnni:
+        case dnnl::cpu_isa::avx2_vnni:
+            isaSpecificThreshold = 2.0f;
+            break;
+        case dnnl::cpu_isa::avx512_core_amx:
+            isaSpecificThreshold = 4.0f;
+            break;
+        default:
+            isaSpecificThreshold = 1.0f;
+        }
+        // the more "capable" the CPU in general, the more streams we may want to keep to keep it utilized
+        const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED / isaSpecificThreshold;
+        const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
+        ov::MemBandwidthPressure networkToleranceForLowCache =
+            ov::MemBandwidthPressureTolerance(ngraphFunc, L2_cache_size, memThresholdAssumeLimitedForISA);
+        model_prefer = IStreamsExecutor::Config::StreamMode::DEFAULT;
+        if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
+            if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||
+                (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
+                // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
+                model_prefer = IStreamsExecutor::Config::StreamMode::AGGRESSIVE;
+            }  // otherwise (no recognized layers) falling back to the default value
+        } else if (networkToleranceForLowCache.max_mem_tolerance > memThresholdAssumeLimitedForISA) {
+            // network is below the ISA-specific threshold
             model_prefer = IStreamsExecutor::Config::StreamMode::AGGRESSIVE;
-        }  // otherwise (no recognized layers) falling back to the default value
-    } else if (networkToleranceForLowCache.max_mem_tolerance > memThresholdAssumeLimitedForISA) {
-        // network is below the ISA-specific threshold
-        model_prefer = IStreamsExecutor::Config::StreamMode::AGGRESSIVE;
-    } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
-        // network is below general threshold
-        model_prefer = IStreamsExecutor::Config::StreamMode::LESSAGGRESSIVE;
+        } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
+            // network is below general threshold
+            model_prefer = IStreamsExecutor::Config::StreamMode::LESSAGGRESSIVE;
+        }
     }
+
     return model_prefer;
 }
 
