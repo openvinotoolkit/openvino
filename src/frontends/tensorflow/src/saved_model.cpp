@@ -39,7 +39,7 @@ static T smUnpack(char** ptr, const char* ptr_end) {
     return 0;
 }
 
-struct SMBlock {
+struct VIBlock {
     uint64_t m_size;
     uint64_t m_offset;
 
@@ -49,9 +49,9 @@ struct SMBlock {
     }
 };
 
-struct SMFooter {
-    SMBlock m_metaIndex;
-    SMBlock m_index;
+struct VIFooter {
+    VIBlock m_metaIndex;
+    VIBlock m_index;
 
     void read(char** ptr, const char* ptr_end) {
         m_index.read(ptr, ptr_end);
@@ -79,11 +79,11 @@ struct SMFooter {
     }
 };
 
-void GraphIteratorSavedModel::readSMBlock(std::ifstream& fs,
-                                          const SMBlock* index,
-                                          std::vector<char>& data,
-                                          uint32_t* offset,
-                                          uint32_t* offset_end) {
+void SMVariablesIndex::readVIBlock(std::ifstream& fs,
+                                   const VIBlock* index,
+                                   std::vector<char>& data,
+                                   uint32_t* offset,
+                                   uint32_t* offset_end) {
     data.clear();
     data.resize(index->m_size + 5 /*kBlockTrailerSize*/);
     fs.seekg(index->m_offset, std::ios::beg);
@@ -96,11 +96,11 @@ void GraphIteratorSavedModel::readSMBlock(std::ifstream& fs,
     *offset = smReadFixed<uint32_t>(data.data() + *offset_end);
 }
 
-void GraphIteratorSavedModel::readSMPair(char** ptr,
-                                         const char* ptr_end,
-                                         std::string& key,
-                                         char** value,
-                                         uint32_t* val_length) {
+void SMVariablesIndex::readVIPair(char** ptr,
+                                  const char* ptr_end,
+                                  std::string& key,
+                                  char** value,
+                                  uint32_t* val_length) {
     uint32_t shared, nonShared;
     shared = smUnpack<uint32_t>(ptr, ptr_end);
     nonShared = smUnpack<uint32_t>(ptr, ptr_end);
@@ -119,44 +119,44 @@ void GraphIteratorSavedModel::readSMPair(char** ptr,
     *ptr = *value + *val_length;
 }
 
-void GraphIteratorSavedModel::readVarIndex(std::ifstream& fs, std::map<std::string, std::vector<char>>& varIndex) {
-    SMFooter footer;
+void SMVariablesIndex::readVarIndex(std::ifstream& fs, std::map<std::string, std::vector<char>>& varIndex) {
+    VIFooter footer;
 
     footer.Read(fs);
 
-    std::vector<SMBlock> secondLevel;
+    std::vector<VIBlock> secondLevel;
     std::vector<char> blockData;
 
     uint32_t offset = 0, offset_end = 0;
 
-    readSMBlock(fs, &footer.m_index, blockData, &offset, &offset_end);
+    readVIBlock(fs, &footer.m_index, blockData, &offset, &offset_end);
     char *ptr = blockData.data() + offset, *ptr_end = blockData.data() + offset_end, *value = nullptr;
     std::string key = "";
     uint32_t valLength;
 
     while (ptr < ptr_end) {
-        readSMPair(&ptr, ptr_end, key, &value, &valLength);
+        readVIPair(&ptr, ptr_end, key, &value, &valLength);
 
-        SMBlock valBlock;
+        VIBlock valBlock;
         valBlock.read(&value, value + valLength);
         secondLevel.push_back(valBlock);
         ptr = value + valLength;
     }
 
     for (auto& block : secondLevel) {
-        readSMBlock(fs, &block, blockData, &offset, &offset_end);
+        readVIBlock(fs, &block, blockData, &offset, &offset_end);
 
         key = "";
         ptr = blockData.data() + offset;
         ptr_end = blockData.data() + offset_end;
         while (ptr < ptr_end) {
-            readSMPair(&ptr, ptr_end, key, &value, &valLength);
+            readVIPair(&ptr, ptr_end, key, &value, &valLength);
             varIndex[key] = std::vector<char>(value, value + valLength);
         }
     }
 }
 
-void GraphIteratorSavedModel::readBundleHeader() {
+void SMVariablesIndex::readBundleHeader() {
     auto item = varIndex.find("");
     FRONT_END_GENERAL_CHECK(item != varIndex.end(), "Bundle Header isn't found in index");
 
@@ -170,7 +170,7 @@ void GraphIteratorSavedModel::readBundleHeader() {
     totalShards = bundleHeader.num_shards();
 }
 
-void GraphIteratorSavedModel::readCMOGraph() {
+void SMVariablesIndex::readCMOGraph() {
     varMap.clear();
 
     auto item = varIndex.find("_CHECKPOINTABLE_OBJECT_GRAPH");
@@ -199,7 +199,7 @@ void GraphIteratorSavedModel::readCMOGraph() {
 
     // Might be need to remove this verification:
     // https://github.com/tensorflow/tensorflow/blob/d90f1947ebcf510b23c238f43c2191e5b3817cb3/tensorflow/cc/experimental/libexport/load.cc#L73
-    //FRONT_END_GENERAL_CHECK(result, "CMO: Trackable Object Graph couldn't be read");
+    // FRONT_END_GENERAL_CHECK(result, "CMO: Trackable Object Graph couldn't be read");
 
     for (const auto& node : tog.nodes()) {
         for (const auto& attr : node.attributes()) {
@@ -224,7 +224,7 @@ bool GraphIteratorSavedModel::isValidSignature(const ::tensorflow::SignatureDef&
     return true;
 }
 
-bool GraphIteratorSavedModel::readVariables(std::ifstream& vi_stream, const std::string& path) {
+bool SMVariablesIndex::readVariables(std::ifstream& vi_stream, const std::string& path) {
     varIndex.clear();
     readVarIndex(vi_stream, varIndex);
     readBundleHeader();
@@ -243,7 +243,7 @@ bool GraphIteratorSavedModel::readVariables(std::ifstream& vi_stream, const std:
 }
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-bool GraphIteratorSavedModel::readVariables(std::ifstream& vi_stream, const std::wstring& path) {
+bool SMVariablesIndex::readVariables(std::ifstream& vi_stream, const std::wstring& path) {
     varIndex.clear();
     readVarIndex(vi_stream, varIndex);
     readBundleHeader();

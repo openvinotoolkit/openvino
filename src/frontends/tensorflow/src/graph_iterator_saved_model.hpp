@@ -14,7 +14,7 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-struct SMBlock;
+struct VIBlock;
 
 template <typename T>
 std::basic_string<T> getSMName() {}
@@ -33,13 +33,72 @@ template <>
 std::basic_string<wchar_t> getVIName<wchar_t>();
 #endif
 
+// Stores information about variables index
+class SMVariablesIndex {
+    int32_t totalShards;
+    std::map<std::string, std::vector<char>> varIndex;
+    std::map<int32_t, std::shared_ptr<std::ifstream>> dataFiles;
+    std::map<std::string, std::string> varMap;
+
+public:
+    /// \brief Reads variables from opened variable index file. Can cause an asserts in case of issues.
+    /// \param vi_stream Opened stream file, file pointer doesn't matter, it will be rewind internally.
+    /// \param path A path to file with variables data
+    /// \returns Returns true in case of everything loads successfully, false otherwise
+    bool readVariables(std::ifstream& vi_stream, const std::string& path);
+#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    /// \brief Reads variables from opened variable index file. Can cause an asserts in case of issues.
+    /// \param vi_stream Opened stream file, file pointer doesn't matter, it will be rewind internally.
+    /// \param path A path to file with variables data
+    /// \returns Returns true in case of everything loads successfully, false otherwise
+    bool readVariables(std::ifstream& vi_stream, const std::wstring& path);
+#endif
+
+    /// \brief Returns data and size of data of stored variable
+    /// \param name Name of variable
+    /// \param data Pointer on a pointer where data pointer will be returned
+    /// \param size Pointer on a variable which will stores data size
+    /// \returns Returns true in case variable was found, false otherwise (data and size will be untouched)
+    bool getVariable(const std::string& name, char** data, size_t* size) {
+        auto varItem = varIndex.find(name);
+        if (varItem == varIndex.end()) {
+            return false;
+        }
+        *data = varItem->second.data();
+        *size = varItem->second.size();
+        return true;
+    }
+
+    /// \brief Returns data and size of data of mapped variable from trackable object graph to variables index
+    /// \param name Name of a mapping variable
+    /// \param data Pointer on a pointer where data pointer will be returned
+    /// \param size Pointer on a variable which will stores data size
+    /// \returns Returns true in case variable was found, false otherwise (data and size will be untouched)
+    bool getMappedVariable(const std::string& name, char** data, size_t* size) {
+        auto mapItem = varMap.find(name);
+        if (mapItem == varMap.end()) {
+            return false;
+        }
+        return getVariable(mapItem->second, data, size);
+    }
+
+private:
+    // Internal implementation of saved model reading
+    void readVIBlock(std::ifstream& fs,
+                     const VIBlock* index,
+                     std::vector<char>& data,
+                     uint32_t* offset,
+                     uint32_t* offset_end);
+    void readVIPair(char** ptr, const char* ptr_end, std::string& key, char** value, uint32_t* val_length);
+    void readVarIndex(std::ifstream& fs, std::map<std::string, std::vector<char>>& varIndex);
+    void readBundleHeader();
+    void readCMOGraph();
+};
+
 // Loads graph from Tensorflow Saved Model file (saved_model.pb)
 class GraphIteratorSavedModel : public GraphIteratorProto {
     std::shared_ptr<::tensorflow::SavedModel> m_saved_model;
-    std::map<std::string, std::vector<char>> varIndex;
-    int32_t totalShards;
-    std::map<int32_t, std::shared_ptr<std::ifstream>> dataFiles;
-    std::map<std::string, std::string> varMap;
+    std::shared_ptr<SMVariablesIndex> m_variables_index;
 
 public:
     template <typename T>
@@ -53,12 +112,12 @@ public:
     static bool isSavedModel(const std::wstring& path);
 #endif
 
+    std::shared_ptr<SMVariablesIndex> getVariablesIndex() {
+        return m_variables_index;
+    }
+
 private:
     bool isValidSignature(const ::tensorflow::SignatureDef& signature);
-    bool readVariables(std::ifstream& vi_stream, const std::string& path);
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    bool readVariables(std::ifstream& vi_stream, const std::wstring& path);
-#endif
 
     template <typename T>
     bool readSavedModel(const std::basic_string<T>& path) {
@@ -67,10 +126,11 @@ private:
 
         std::basic_string<T> varIndexPath = path + getVIName<T>();
         if (ov::util::file_exists(varIndexPath)) {
+            m_variables_index = std::make_shared<SMVariablesIndex>();
             std::ifstream vi_stream{varIndexPath, std::ifstream::in | std::ifstream::binary};
             FRONT_END_GENERAL_CHECK(vi_stream && vi_stream.is_open(),
                                     "Saved Model's variable index file does not exist");
-            FRONT_END_GENERAL_CHECK(readVariables(vi_stream, path),
+            FRONT_END_GENERAL_CHECK(m_variables_index->readVariables(vi_stream, path),
                                     "Saved Model's variable index file cannot be parsed");
         }
 
@@ -113,17 +173,6 @@ private:
 
         return true;
     }
-
-    // Internal implementation of saved model reading
-    void readSMBlock(std::ifstream& fs,
-                     const SMBlock* index,
-                     std::vector<char>& data,
-                     uint32_t* offset,
-                     uint32_t* offset_end);
-    void readSMPair(char** ptr, const char* ptr_end, std::string& key, char** value, uint32_t* val_length);
-    void readVarIndex(std::ifstream& fs, std::map<std::string, std::vector<char>>& varIndex);
-    void readBundleHeader();
-    void readCMOGraph();
 };  // GraphIteratorSavedModel
 
 }  // namespace tensorflow
