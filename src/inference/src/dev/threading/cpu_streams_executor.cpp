@@ -44,11 +44,11 @@ struct CPUStreamsExecutor::Impl {
                   _offset{streamId * threadsPerStream + threadBindingOffset},
                   _cpuIdxOffset(cpuIdxOffset) {}
             void on_scheduler_entry(bool) override {
-                PinThreadToVacantCore(_offset + tbb::this_task_arena::current_thread_index(),
-                                      _threadBindingStep,
-                                      _ncpus,
-                                      _mask,
-                                      _cpuIdxOffset);
+                InferenceEngine::PinThreadToVacantCore(_offset + tbb::this_task_arena::current_thread_index(),
+                                                       _threadBindingStep,
+                                                       _ncpus,
+                                                       _mask,
+                                                       _cpuIdxOffset);
             }
             void on_scheduler_exit(bool) override {
                 PinCurrentThreadByMask(_ncpus, _mask);
@@ -175,29 +175,32 @@ struct CPUStreamsExecutor::Impl {
 #elif OV_THREAD == OV_THREAD_OMP
             omp_set_num_threads(_impl->_config._threadsPerStream);
             if (!checkOpenMpEnvVars(false) && (ThreadBindingType::NONE != _impl->_config._threadBindingType)) {
-                CpuSet processMask;
+                InferenceEngine::CpuSet processMask;
                 int ncpus = 0;
-                std::tie(processMask, ncpus) = GetProcessMask();
+                std::tie(processMask, ncpus) = InferenceEngine::GetProcessMask();
                 if (nullptr != processMask) {
                     parallel_nt(_impl->_config._threadsPerStream, [&](int threadIndex, int threadsPerStream) {
                         int thrIdx = _streamId * _impl->_config._threadsPerStream + threadIndex +
                                      _impl->_config._threadBindingOffset;
-                        PinThreadToVacantCore(thrIdx, _impl->_config._threadBindingStep, ncpus, processMask);
+                        InferenceEngine::PinThreadToVacantCore(thrIdx,
+                                                               _impl->_config._threadBindingStep,
+                                                               ncpus,
+                                                               processMask);
                     });
                 }
             }
 #elif OV_THREAD == OV_THREAD_SEQ
             if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
-                PinCurrentThreadToSocket(_numaNodeId);
+                InferenceEngine::PinCurrentThreadToSocket(_numaNodeId);
             } else if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
-                CpuSet processMask;
+                InferenceEngine::CpuSet processMask;
                 int ncpus = 0;
-                std::tie(processMask, ncpus) = GetProcessMask();
+                std::tie(processMask, ncpus) = InferenceEngine::GetProcessMask();
                 if (nullptr != processMask) {
-                    PinThreadToVacantCore(_streamId + _impl->_config._threadBindingOffset,
-                                          _impl->_config._threadBindingStep,
-                                          ncpus,
-                                          processMask);
+                    InferenceEngine::PinThreadToVacantCore(_streamId + _impl->_config._threadBindingOffset,
+                                                           _impl->_config._threadBindingStep,
+                                                           ncpus,
+                                                           processMask);
                 }
             }
 #endif
