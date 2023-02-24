@@ -89,6 +89,7 @@ if [ "$os" == "auto" ] ; then
     case $os in
         centos7|centos8|rhel8|rhel9.1|\
         almalinux8.7|amzn2|\
+        opensuse-leap15.3| \
         fedora34|fedora35|fedora36|fedora37|fedora38|\
         raspbian9|debian9|ubuntu18.04|\
         raspbian10|debian10|ubuntu20.04|ubuntu20.10|ubuntu21.04|\
@@ -282,6 +283,11 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
         pkgs_dev+=(https://download-ib01.fedoraproject.org/pub/epel/9/Everything/$arch/Packages/g/gflags-devel-2.2.2-9.el9.$arch.rpm)
         extra_repos+=(https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm)
     fi
+elif [ "$os" == "opensuse-leap15.3" ] ; then
+    pkgs_core=(libtbb2 libtbbmalloc2 libpugixml1)
+    pkgs_gpu=()
+    pkgs_python=(python39-base python39 python39-venv python39-pip)
+    pkgs_dev=(cmake pkg-config gcc-c++ gcc gflags-devel-static zlib-devel nlohmann_json-devel make curl sudo)
 else
     echo "Internal script error: invalid OS (${os}) after check (package selection)" >&2
     exit 3
@@ -345,6 +351,14 @@ elif [ "$os" == "centos7" ] || [ "$os" == "centos8" ] ||
     [ ${#extra_repos[@]} -ne 0 ] && yum localinstall $iopt --nogpgcheck ${extra_repos[@]}
 
     yum install $iopt ${pkgs[@]}
+
+elif [ "$os" == "opensuse-leap15.3" ] ; then
+
+    [ -z "$interactive" ] && iopt="-y"
+    [ -n "$dry" ] && iopt="--dry-run"
+    [ -n "$keepcache" ] && zypper clean --all
+
+    zypper ref && zypper in --auto-agree-with-licenses --no-recommends "$iopt" "${pkgs[@]}"
 
 else
     echo "Internal script error: invalid OS (${os}) after check (package installation)" >&2
