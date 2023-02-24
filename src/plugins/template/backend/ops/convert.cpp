@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
 #include "ngraph/runtime/reference/convert.hpp"
+
+#include "evaluates_map.hpp"
 #include "openvino/op/convert_like.hpp"
 
 namespace convert_like_v1 {
@@ -17,12 +18,14 @@ inline void evaluate(const std::shared_ptr<ov::op::v1::ConvertLike>& op,
     if (((ti == ov::element::u1) || (to == ov::element::u1)) || ((ti == ov::element::u4) || (to == ov::element::u4)) ||
         ((ti == ov::element::i4) || (to == ov::element::i4))) {
         ngraph::runtime::reference::detail::lp_convert(inputs[0]->get_data_ptr<ti>(),
-                                               outputs[0]->get_data_ptr<to>(),
-                                               element_count,
-                                               ti,
-                                               to);
+                                                       outputs[0]->get_data_ptr<to>(),
+                                                       element_count,
+                                                       ti,
+                                                       to);
     } else {
-        ngraph::runtime::reference::convert(inputs[0]->get_data_ptr<ti>(), outputs[0]->get_data_ptr<to>(), element_count);
+        ngraph::runtime::reference::convert(inputs[0]->get_data_ptr<ti>(),
+                                            outputs[0]->get_data_ptr<to>(),
+                                            element_count);
     }
 }
 }  // namespace convert_like_v1

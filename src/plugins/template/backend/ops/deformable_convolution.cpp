@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
 #include "ngraph/runtime/reference/deformable_convolution.hpp"
+
+#include "evaluates_map.hpp"
 #include "openvino/op/deformable_convolution.hpp"
 
 template <ov::element::Type_t ET>

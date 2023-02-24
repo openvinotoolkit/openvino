@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
 #include "ngraph/runtime/reference/experimental_detectron_roi_feature_extractor.hpp"
+
+#include "evaluates_map.hpp"
 #include "openvino/op/experimental_detectron_roi_feature.hpp"
 
 std::vector<float> get_floats(const std::shared_ptr<ov::HostTensor>& input, const ov::Shape& shape) {
@@ -91,18 +92,18 @@ bool evaluate(const std::shared_ptr<ov::op::v6::ExperimentalDetectronROIFeatureE
     std::vector<float> output_rois(ov::shape_size(output_rois_shape));
 
     ngraph::runtime::reference::experimental_detectron_roi_feature_extractor(input_data,
-                                                                     input_shapes,
-                                                                     attrs,
-                                                                     output_rois_features.data(),
-                                                                     output_rois.data());
+                                                                             input_shapes,
+                                                                             attrs,
+                                                                             output_rois_features.data(),
+                                                                             output_rois.data());
 
     ngraph::runtime::reference::experimental_detectron_roi_feature_extractor_postprocessing(outputs[0]->get_data_ptr(),
-                                                                                    outputs[1]->get_data_ptr(),
-                                                                                    output_type,
-                                                                                    output_rois_features,
-                                                                                    output_rois,
-                                                                                    output_rois_features_shape,
-                                                                                    output_rois_shape);
+                                                                                            outputs[1]->get_data_ptr(),
+                                                                                            output_type,
+                                                                                            output_rois_features,
+                                                                                            output_rois,
+                                                                                            output_rois_features_shape,
+                                                                                            output_rois_shape);
 
     return true;
 }

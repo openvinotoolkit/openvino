@@ -2,20 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
 #include "ngraph/runtime/reference/lrn.hpp"
+
+#include "evaluates_map.hpp"
 #include "openvino/op/lrn.hpp"
 
 template <ov::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ov::op::v0::LRN>& op, const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) {
+bool evaluate(const std::shared_ptr<ov::op::v0::LRN>& op,
+              const ov::HostTensorVector& outputs,
+              const ov::HostTensorVector& inputs) {
     using T = typename ov::element_type_traits<ET>::value_type;
     ngraph::runtime::reference::lrn<T>(inputs[0]->get_data_ptr<ET>(),
-                               op->get_reduction_axes(),
-                               outputs[0]->get_data_ptr<ET>(),
-                               inputs[0]->get_shape(),
-                               op->get_alpha(),
-                               op->get_beta(),
-                               op->get_bias(),
-                               op->get_nsize());
+                                       op->get_reduction_axes(),
+                                       outputs[0]->get_data_ptr<ET>(),
+                                       inputs[0]->get_shape(),
+                                       op->get_alpha(),
+                                       op->get_beta(),
+                                       op->get_bias(),
+                                       op->get_nsize());
     return true;
 }

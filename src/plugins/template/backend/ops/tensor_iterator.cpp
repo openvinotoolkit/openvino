@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
 #include "ngraph/runtime/reference/tensor_iterator.hpp"
-#include "openvino/op/tensor_iterator.hpp"
+
 #include "backend.hpp"
+#include "evaluates_map.hpp"
+#include "openvino/op/tensor_iterator.hpp"
 namespace ti_v0 {
 ngraph::runtime::reference::custom_evaluate_function evaluate = [](const std::shared_ptr<ngraph::Function>& function,
-                                                           const ov::HostTensorVector& inputs,
-                                                           ov::HostTensorVector& outputs) -> void {
+                                                                   const ov::HostTensorVector& inputs,
+                                                                   ov::HostTensorVector& outputs) -> void {
     const auto& parameters = function->get_parameters();
     const auto& parametersNumber = parameters.size();
     const auto& inputsNumber = inputs.size();
@@ -70,11 +71,11 @@ bool evaluate(const std::shared_ptr<ov::op::v0::TensorIterator>& op,
               const ov::HostTensorVector& outputs,
               const ov::HostTensorVector& inputs) {
     ngraph::runtime::reference::tensor_iterator(op->get_num_iterations(),
-                                        op->get_function(),
-                                        op->get_output_descriptions(),
-                                        op->get_input_descriptions(),
-                                        outputs,
-                                        inputs,
-                                        ti_v0::evaluate);
+                                                op->get_function(),
+                                                op->get_output_descriptions(),
+                                                op->get_input_descriptions(),
+                                                outputs,
+                                                inputs,
+                                                ti_v0::evaluate);
     return true;
 }

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
 #include "ngraph/runtime/reference/generate_proposal.hpp"
+
+#include "evaluates_map.hpp"
 #include "openvino/op/generate_proposals.hpp"
 
 std::vector<float> get_floats(const std::shared_ptr<ov::HostTensor>& input, const ov::Shape& shape) {
@@ -44,8 +45,8 @@ bool evaluate(const std::shared_ptr<ov::op::v9::GenerateProposals>& op,
     size_t post_nms_count = 0;
     if (attrs.post_nms_count < 0) {
         throw ngraph::ngraph_error("The attribute post_nms_count of the operation "
-                           "GenerateProposals must be a "
-                           "nonnegative integer.");
+                                   "GenerateProposals must be a "
+                                   "nonnegative integer.");
     } else {
         post_nms_count = static_cast<size_t>(attrs.post_nms_count);
     }
@@ -67,17 +68,17 @@ bool evaluate(const std::shared_ptr<ov::op::v9::GenerateProposals>& op,
     std::vector<int64_t> output_num;
 
     ngraph::runtime::reference::generate_proposals(im_info_data,
-                                           anchors_data,
-                                           deltas_data,
-                                           scores_data,
-                                           attrs,
-                                           im_info_shape,
-                                           anchors_shape,
-                                           deltas_shape,
-                                           scores_shape,
-                                           output_rois,
-                                           output_scores,
-                                           output_num);
+                                                   anchors_data,
+                                                   deltas_data,
+                                                   scores_data,
+                                                   attrs,
+                                                   im_info_shape,
+                                                   anchors_shape,
+                                                   deltas_shape,
+                                                   scores_shape,
+                                                   output_rois,
+                                                   output_scores,
+                                                   output_num);
 
     size_t num_selected = static_cast<size_t>(std::accumulate(output_num.begin(), output_num.end(), 0));
 
@@ -95,15 +96,15 @@ bool evaluate(const std::shared_ptr<ov::op::v9::GenerateProposals>& op,
     outputs[2]->set_shape(output_roi_num_shape);
 
     ngraph::runtime::reference::generate_proposals_postprocessing(outputs[0]->get_data_ptr(),
-                                                          outputs[1]->get_data_ptr(),
-                                                          outputs[2]->get_data_ptr(),
-                                                          output_type,
-                                                          roi_num_type,
-                                                          output_rois,
-                                                          output_scores,
-                                                          output_num,
-                                                          output_rois_shape,
-                                                          output_scores_shape);
+                                                                  outputs[1]->get_data_ptr(),
+                                                                  outputs[2]->get_data_ptr(),
+                                                                  output_type,
+                                                                  roi_num_type,
+                                                                  output_rois,
+                                                                  output_scores,
+                                                                  output_num,
+                                                                  output_rois_shape,
+                                                                  output_scores_shape);
 
     return true;
 }

@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
 #include "ngraph/runtime/reference/is_nan.hpp"
+
+#include "evaluates_map.hpp"
 #include "openvino/op/is_nan.hpp"
 
 template <ov::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ov::op::v10::IsNaN>& op, const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) {
+bool evaluate(const std::shared_ptr<ov::op::v10::IsNaN>& op,
+              const ov::HostTensorVector& outputs,
+              const ov::HostTensorVector& inputs) {
     ov::element::Type input_et = op->get_input_element_type(0);
     switch (input_et) {
     case ov::element::Type_t::f64:

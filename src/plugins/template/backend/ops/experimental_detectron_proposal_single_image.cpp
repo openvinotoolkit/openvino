@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
 #include "ngraph/runtime/reference/experimental_detectron_proposal_single_image.hpp"
+
+#include "evaluates_map.hpp"
 #include "openvino/op/experimental_detectron_generate_proposals.hpp"
 
 std::vector<float> get_floats(const std::shared_ptr<ov::HostTensor>& input, const ov::Shape& shape) {
@@ -44,8 +45,8 @@ bool evaluate(const std::shared_ptr<ov::op::v6::ExperimentalDetectronGeneratePro
     size_t post_nms_count = 0;
     if (attrs.post_nms_count < 0) {
         throw ngraph::ngraph_error("The attribute post_nms_count of the operation "
-                           "ExperimentalDetectronGenerateProposalsSingleImage must be a "
-                           "nonnegative integer.");
+                                   "ExperimentalDetectronGenerateProposalsSingleImage must be a "
+                                   "nonnegative integer.");
     } else {
         post_nms_count = static_cast<size_t>(attrs.post_nms_count);
     }
@@ -74,23 +75,23 @@ bool evaluate(const std::shared_ptr<ov::op::v6::ExperimentalDetectronGeneratePro
     outputs[1]->set_shape(output_scores_shape);
 
     ngraph::runtime::reference::experimental_detectron_proposals_single_image(im_info_data.data(),
-                                                                      anchors_data.data(),
-                                                                      deltas_data.data(),
-                                                                      scores_data.data(),
-                                                                      attrs,
-                                                                      im_info_shape,
-                                                                      anchors_shape,
-                                                                      deltas_shape,
-                                                                      scores_shape,
-                                                                      output_rois.data(),
-                                                                      output_scores.data());
+                                                                              anchors_data.data(),
+                                                                              deltas_data.data(),
+                                                                              scores_data.data(),
+                                                                              attrs,
+                                                                              im_info_shape,
+                                                                              anchors_shape,
+                                                                              deltas_shape,
+                                                                              scores_shape,
+                                                                              output_rois.data(),
+                                                                              output_scores.data());
     ngraph::runtime::reference::experimental_detectron_proposals_single_image_postprocessing(outputs[0]->get_data_ptr(),
-                                                                                     outputs[1]->get_data_ptr(),
-                                                                                     output_type,
-                                                                                     output_rois,
-                                                                                     output_scores,
-                                                                                     output_rois_shape,
-                                                                                     output_scores_shape);
+                                                                                             outputs[1]->get_data_ptr(),
+                                                                                             output_type,
+                                                                                             output_rois,
+                                                                                             output_scores,
+                                                                                             output_rois_shape,
+                                                                                             output_scores_shape);
 
     return true;
 }

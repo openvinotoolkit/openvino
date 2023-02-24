@@ -2,13 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
-#include <ngraph/runtime/reference/generate_proposal.hpp>
 #include "ngraph/runtime/reference/is_inf.hpp"
+
+#include <ngraph/runtime/reference/generate_proposal.hpp>
+
+#include "evaluates_map.hpp"
 #include "openvino/op/is_inf.hpp"
 
 template <ov::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ov::op::v10::IsInf>& op, const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) {
+bool evaluate(const std::shared_ptr<ov::op::v10::IsInf>& op,
+              const ov::HostTensorVector& outputs,
+              const ov::HostTensorVector& inputs) {
     ov::element::Type input_et = op->get_input_element_type(0);
     switch (input_et) {
     case ov::element::Type_t::f64:

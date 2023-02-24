@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
 #include "ngraph/runtime/reference/is_finite.hpp"
+
+#include "evaluates_map.hpp"
 #include "openvino/op/is_finite.hpp"
 
 template <ov::element::Type_t ET>
@@ -24,13 +25,13 @@ bool evaluate(const std::shared_ptr<ov::op::v10::IsFinite>& op,
         break;
     case ov::element::Type_t::f16:
         ngraph::runtime::reference::is_finite<ov::float16>(inputs[0]->get_data_ptr<ov::float16>(),
-                                                       outputs[0]->get_data_ptr<ov::element::Type_t::boolean>(),
-                                                       ov::shape_size(inputs[0]->get_shape()));
+                                                           outputs[0]->get_data_ptr<ov::element::Type_t::boolean>(),
+                                                           ov::shape_size(inputs[0]->get_shape()));
         break;
     case ov::element::Type_t::bf16:
         ngraph::runtime::reference::is_finite<ov::bfloat16>(inputs[0]->get_data_ptr<ov::bfloat16>(),
-                                                        outputs[0]->get_data_ptr<ov::element::Type_t::boolean>(),
-                                                        ov::shape_size(inputs[0]->get_shape()));
+                                                            outputs[0]->get_data_ptr<ov::element::Type_t::boolean>(),
+                                                            ov::shape_size(inputs[0]->get_shape()));
         break;
     default:
         return false;

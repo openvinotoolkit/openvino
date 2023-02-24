@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
 #include "ngraph/runtime/reference/experimental_detectron_detection_output.hpp"
+
+#include "evaluates_map.hpp"
 #include "openvino/op/experimental_detectron_detection_output.hpp"
 
 std::vector<float> get_floats(const std::shared_ptr<ov::HostTensor>& input, const ov::Shape& shape) {
@@ -65,24 +66,24 @@ bool evaluate(const std::shared_ptr<ov::op::v6::ExperimentalDetectronDetectionOu
     outputs[2]->set_shape(output_scores_shape);
 
     ngraph::runtime::reference::experimental_detectron_detection_output(boxes_data.data(),
-                                                                input_deltas_data.data(),
-                                                                input_scores_data.data(),
-                                                                input_im_info_data.data(),
-                                                                attrs,
-                                                                output_boxes.data(),
-                                                                output_scores.data(),
-                                                                output_classes.data());
+                                                                        input_deltas_data.data(),
+                                                                        input_scores_data.data(),
+                                                                        input_im_info_data.data(),
+                                                                        attrs,
+                                                                        output_boxes.data(),
+                                                                        output_scores.data(),
+                                                                        output_classes.data());
 
     ngraph::runtime::reference::experimental_detectron_detection_output_postprocessing(outputs[0]->get_data_ptr(),
-                                                                               outputs[1]->get_data_ptr(),
-                                                                               outputs[2]->get_data_ptr(),
-                                                                               output_type,
-                                                                               output_boxes,
-                                                                               output_classes,
-                                                                               output_scores,
-                                                                               output_boxes_shape,
-                                                                               output_classes_shape,
-                                                                               output_scores_shape);
+                                                                                       outputs[1]->get_data_ptr(),
+                                                                                       outputs[2]->get_data_ptr(),
+                                                                                       output_type,
+                                                                                       output_boxes,
+                                                                                       output_classes,
+                                                                                       output_scores,
+                                                                                       output_boxes_shape,
+                                                                                       output_classes_shape,
+                                                                                       output_scores_shape);
 
     return true;
 }

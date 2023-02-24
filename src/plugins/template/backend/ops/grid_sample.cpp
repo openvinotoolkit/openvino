@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
 #include "ngraph/runtime/reference/grid_sample.hpp"
+
+#include "evaluates_map.hpp"
 #include "openvino/op/grid_sample.hpp"
 
 template <ov::element::Type_t DATA_ET>

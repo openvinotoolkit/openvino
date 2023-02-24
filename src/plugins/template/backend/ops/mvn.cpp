@@ -2,19 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
 #include "ngraph/runtime/reference/mvn.hpp"
+
+#include "evaluates_map.hpp"
 #include "openvino/op/mvn.hpp"
 
 template <ov::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ov::op::v0::MVN>& op, const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) {
+bool evaluate(const std::shared_ptr<ov::op::v0::MVN>& op,
+              const ov::HostTensorVector& outputs,
+              const ov::HostTensorVector& inputs) {
     using T = typename ov::element_type_traits<ET>::value_type;
     ngraph::runtime::reference::mvn<T>(inputs[0]->get_data_ptr<ET>(),
-                               outputs[0]->get_data_ptr<ET>(),
-                               inputs[0]->get_shape(),
-                               op->get_normalize_variance(),
-                               op->get_reduction_axes(),
-                               op->get_eps());
+                                       outputs[0]->get_data_ptr<ET>(),
+                                       inputs[0]->get_shape(),
+                                       op->get_normalize_variance(),
+                                       op->get_reduction_axes(),
+                                       op->get_eps());
     return true;
 }
 
@@ -39,7 +42,9 @@ ov::AxisSet mvn_6_reduction_axes(const ov::HostTensorPtr& axes_input, size_t ran
 }  // namespace mvn_6_axes
 
 template <ov::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ov::op::v6::MVN>& op, const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) {
+bool evaluate(const std::shared_ptr<ov::op::v6::MVN>& op,
+              const ov::HostTensorVector& outputs,
+              const ov::HostTensorVector& inputs) {
     using T = typename ov::element_type_traits<ET>::value_type;
     ov::AxisSet reduction_axes;
     auto rank = inputs[0]->get_shape().size();
@@ -51,11 +56,11 @@ bool evaluate(const std::shared_ptr<ov::op::v6::MVN>& op, const ov::HostTensorVe
         throw ngraph::ngraph_error("Unexpected indices type");
     }
     ngraph::runtime::reference::mvn_6<T>(inputs[0]->get_data_ptr<ET>(),
-                                 outputs[0]->get_data_ptr<ET>(),
-                                 inputs[0]->get_shape(),
-                                 reduction_axes,
-                                 op->get_normalize_variance(),
-                                 op->get_eps(),
-                                 op->get_eps_mode());
+                                         outputs[0]->get_data_ptr<ET>(),
+                                         inputs[0]->get_shape(),
+                                         reduction_axes,
+                                         op->get_normalize_variance(),
+                                         op->get_eps(),
+                                         op->get_eps_mode());
     return true;
 }

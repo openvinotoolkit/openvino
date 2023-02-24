@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
 #include "ngraph/runtime/reference/bucketize.hpp"
+
+#include "evaluates_map.hpp"
 #include "openvino/op/bucketize.hpp"
 
 namespace bucketize_v3 {
@@ -16,11 +17,11 @@ inline void evaluate(const std::shared_ptr<ov::op::v3::Bucketize>& op,
     using T3 = typename ov::element_type_traits<t3>::value_type;
 
     ngraph::runtime::reference::bucketize<T1, T2, T3>(inputs[0]->get_data_ptr<T1>(),
-                                              inputs[1]->get_data_ptr<T2>(),
-                                              outputs[0]->get_data_ptr<T3>(),
-                                              op->get_input_shape(0),
-                                              op->get_input_shape(1),
-                                              op->get_with_right_bound());
+                                                      inputs[1]->get_data_ptr<T2>(),
+                                                      outputs[0]->get_data_ptr<T3>(),
+                                                      op->get_input_shape(0),
+                                                      op->get_input_shape(1),
+                                                      op->get_with_right_bound());
 }
 
 static inline constexpr uint16_t getElementMask(ov::element::Type_t type1, ov::element::Type_t type2) {

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
 #include "ngraph/runtime/reference/detection_output.hpp"
+
+#include "evaluates_map.hpp"
 #include "openvino/op/detection_output.hpp"
 
 template <ov::element::Type_t ET>
@@ -12,10 +13,10 @@ bool evaluate(const std::shared_ptr<ov::op::v0::DetectionOutput>& op,
               const ov::HostTensorVector& inputs) {
     using T = typename ov::element_type_traits<ET>::value_type;
     ngraph::runtime::reference::referenceDetectionOutput<T> refDetOut(op->get_attrs(),
-                                                              op->get_input_shape(0),
-                                                              op->get_input_shape(1),
-                                                              op->get_input_shape(2),
-                                                              op->get_output_shape(0));
+                                                                      op->get_input_shape(0),
+                                                                      op->get_input_shape(1),
+                                                                      op->get_input_shape(2),
+                                                                      op->get_output_shape(0));
     if (op->get_input_size() == 3) {
         refDetOut.run(inputs[0]->get_data_ptr<const T>(),
                       inputs[1]->get_data_ptr<const T>(),
@@ -42,10 +43,10 @@ bool evaluate(const std::shared_ptr<ov::op::v8::DetectionOutput>& op,
               const ov::HostTensorVector& inputs) {
     using T = typename ov::element_type_traits<ET>::value_type;
     ngraph::runtime::reference::referenceDetectionOutput<T> refDetOut(op->get_attrs(),
-                                                              op->get_input_shape(0),
-                                                              op->get_input_shape(1),
-                                                              op->get_input_shape(2),
-                                                              op->get_output_shape(0));
+                                                                      op->get_input_shape(0),
+                                                                      op->get_input_shape(1),
+                                                                      op->get_input_shape(2),
+                                                                      op->get_output_shape(0));
     if (op->get_input_size() == 3) {
         refDetOut.run(inputs[0]->get_data_ptr<const T>(),
                       inputs[1]->get_data_ptr<const T>(),

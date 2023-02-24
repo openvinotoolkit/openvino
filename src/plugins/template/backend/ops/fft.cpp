@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
 #include "ngraph/runtime/reference/fft.hpp"
-#include "ngraph/runtime/reference/rdft.hpp"
+
+#include "evaluates_map.hpp"
 #include "ngraph/runtime/reference/irdft.hpp"
+#include "ngraph/runtime/reference/rdft.hpp"
 
 std::vector<int64_t> get_integers(const std::shared_ptr<ov::HostTensor>& input, const ov::Shape& shape) {
     size_t input_size = ov::shape_size(shape);
@@ -126,8 +127,9 @@ InfoForFFT7 get_info_for_fft7_eval(const std::vector<std::shared_ptr<ov::HostTen
 
     int64_t input_rank = static_cast<int64_t>(result.input_data_shape.size());
     int64_t complex_data_rank = input_rank - 1;
-    auto canonicalized_axes =
-        ngraph::runtime::reference::canonicalize_axes(result.axes_data.data(), result.axes_data_shape, complex_data_rank);
+    auto canonicalized_axes = ngraph::runtime::reference::canonicalize_axes(result.axes_data.data(),
+                                                                            result.axes_data_shape,
+                                                                            complex_data_rank);
 
     size_t num_of_axes = result.axes_data.size();
     auto signal_size = get_signal_size(inputs, num_of_axes);
@@ -147,18 +149,20 @@ InfoForFFT7 get_info_for_fft7_eval(const std::vector<std::shared_ptr<ov::HostTen
 }  // namespace fft_v7
 
 template <ov::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ov::op::v7::DFT>& op, const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) {
+bool evaluate(const std::shared_ptr<ov::op::v7::DFT>& op,
+              const ov::HostTensorVector& outputs,
+              const ov::HostTensorVector& inputs) {
     auto info = fft_v7::get_info_for_fft7_eval(inputs);
     outputs[0]->set_shape(info.output_shape);
 
     std::vector<float> fft_result(shape_size(info.output_shape), 0.0f);
     ngraph::runtime::reference::fft(info.input_data.data(),
-                            info.input_data_shape,
-                            info.axes_data.data(),
-                            info.axes_data_shape,
-                            fft_result.data(),
-                            info.output_shape,
-                            ngraph::runtime::reference::FFTKind::Forward);
+                                    info.input_data_shape,
+                                    info.axes_data.data(),
+                                    info.axes_data_shape,
+                                    fft_result.data(),
+                                    info.output_shape,
+                                    ngraph::runtime::reference::FFTKind::Forward);
 
     const auto output_type = op->get_input_element_type(0);
     ngraph::runtime::reference::fft_postprocessing(outputs, output_type, fft_result);
@@ -166,18 +170,20 @@ bool evaluate(const std::shared_ptr<ov::op::v7::DFT>& op, const ov::HostTensorVe
 }
 
 template <ov::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ov::op::v7::IDFT>& op, const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) {
+bool evaluate(const std::shared_ptr<ov::op::v7::IDFT>& op,
+              const ov::HostTensorVector& outputs,
+              const ov::HostTensorVector& inputs) {
     auto info = fft_v7::get_info_for_fft7_eval(inputs);
     outputs[0]->set_shape(info.output_shape);
 
     std::vector<float> fft_result(shape_size(info.output_shape), 0.0f);
     ngraph::runtime::reference::fft(info.input_data.data(),
-                            info.input_data_shape,
-                            info.axes_data.data(),
-                            info.axes_data_shape,
-                            fft_result.data(),
-                            info.output_shape,
-                            ngraph::runtime::reference::FFTKind::Inverse);
+                                    info.input_data_shape,
+                                    info.axes_data.data(),
+                                    info.axes_data_shape,
+                                    fft_result.data(),
+                                    info.output_shape,
+                                    ngraph::runtime::reference::FFTKind::Inverse);
 
     const auto output_type = op->get_input_element_type(0);
     ngraph::runtime::reference::fft_postprocessing(outputs, output_type, fft_result);
@@ -234,16 +240,18 @@ InfoForRFFT9 get_info_for_rfft9_eval(const std::vector<std::shared_ptr<ov::HostT
 }  // namespace rfft_v9
 
 template <ov::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ov::op::v9::RDFT>& op, const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) {
+bool evaluate(const std::shared_ptr<ov::op::v9::RDFT>& op,
+              const ov::HostTensorVector& outputs,
+              const ov::HostTensorVector& inputs) {
     auto info = rfft_v9::get_info_for_rfft9_eval(inputs);
     outputs[0]->set_shape(info.output_shape);
 
     std::vector<float> rfft_result(shape_size(info.output_shape), 0.0f);
     ngraph::runtime::reference::rdft(info.input_data,
-                             info.input_data_shape,
-                             info.axes_data,
-                             info.fft_output_shape,
-                             rfft_result.data());
+                                     info.input_data_shape,
+                                     info.axes_data,
+                                     info.fft_output_shape,
+                                     rfft_result.data());
 
     const auto output_type = op->get_input_element_type(0);
     ngraph::runtime::reference::fft_postprocessing(outputs, output_type, rfft_result);
@@ -274,8 +282,9 @@ InfoForIRFFT9 get_info_for_irfft9_eval(const std::vector<std::shared_ptr<ov::Hos
 
     int64_t input_rank = static_cast<int64_t>(result.input_data_shape.size());
     int64_t complex_data_rank = input_rank - 1;
-    auto canonicalized_axes =
-        ngraph::runtime::reference::canonicalize_axes(result.axes_data.data(), result.axes_data_shape, complex_data_rank);
+    auto canonicalized_axes = ngraph::runtime::reference::canonicalize_axes(result.axes_data.data(),
+                                                                            result.axes_data_shape,
+                                                                            complex_data_rank);
 
     size_t num_of_axes = result.axes_data.size();
     auto signal_size = fft_v7::get_signal_size(inputs, num_of_axes);
@@ -307,18 +316,20 @@ InfoForIRFFT9 get_info_for_irfft9_eval(const std::vector<std::shared_ptr<ov::Hos
 }  // namespace irfft_v9
 
 template <ov::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ov::op::v9::IRDFT>& op, const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) {
+bool evaluate(const std::shared_ptr<ov::op::v9::IRDFT>& op,
+              const ov::HostTensorVector& outputs,
+              const ov::HostTensorVector& inputs) {
     auto info = irfft_v9::get_info_for_irfft9_eval(inputs);
     outputs[0]->set_shape(info.output_shape);
 
     std::vector<float> irfft_result(shape_size(info.output_shape), 0.0f);
-   ngraph:: runtime::reference::irdft(info.input_data,
-                              info.input_data_shape,
-                              info.axes_data,
-                              irfft_result.data(),
-                              info.fft_output_shape,
-                              info.output_shape,
-                              info.last_signal_size);
+    ngraph::runtime::reference::irdft(info.input_data,
+                                      info.input_data_shape,
+                                      info.axes_data,
+                                      irfft_result.data(),
+                                      info.fft_output_shape,
+                                      info.output_shape,
+                                      info.last_signal_size);
 
     const auto output_type = op->get_input_element_type(0);
     ngraph::runtime::reference::fft_postprocessing(outputs, output_type, irfft_result);

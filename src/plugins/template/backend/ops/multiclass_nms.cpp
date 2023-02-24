@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/runtime/reference/multiclass_nms.hpp"
+
 #include "evaluates_map.hpp"
 #include "ngraph/runtime/reference/utils/nms_common.hpp"
-#include "ngraph/runtime/reference/multiclass_nms.hpp"
 #include "openvino/op/multiclass_nms.hpp"
 
 template <ov::element::Type_t ET>
@@ -18,17 +19,17 @@ bool evaluate(const std::shared_ptr<ov::op::v8::MulticlassNms>& op,
     std::vector<int64_t> valid_outputs(info.selected_numrois_shape_size);
 
     ngraph::runtime::reference::multiclass_nms(info.boxes_data.data(),
-                                       info.boxes_shape,
-                                       info.scores_data.data(),
-                                       info.scores_shape,
-                                       nullptr,
-                                       ov::Shape(),  // won't be used
-                                       op->get_attrs(),
-                                       selected_outputs.data(),
-                                       info.selected_outputs_shape,
-                                       selected_indices.data(),
-                                       info.selected_indices_shape,
-                                       valid_outputs.data());
+                                               info.boxes_shape,
+                                               info.scores_data.data(),
+                                               info.scores_shape,
+                                               nullptr,
+                                               ov::Shape(),  // won't be used
+                                               op->get_attrs(),
+                                               selected_outputs.data(),
+                                               info.selected_outputs_shape,
+                                               selected_indices.data(),
+                                               info.selected_indices_shape,
+                                               valid_outputs.data());
 
     void* pscores = nullptr;
     void* pselected_num = nullptr;
@@ -47,13 +48,13 @@ bool evaluate(const std::shared_ptr<ov::op::v8::MulticlassNms>& op,
     }
 
     ngraph::runtime::reference::nms_common::nms_common_postprocessing(prois,
-                                                              pscores,
-                                                              pselected_num,
-                                                              op->get_attrs().output_type,
-                                                              selected_outputs,
-                                                              selected_indices,
-                                                              valid_outputs,
-                                                              op->get_input_element_type(0));
+                                                                      pscores,
+                                                                      pselected_num,
+                                                                      op->get_attrs().output_type,
+                                                                      selected_outputs,
+                                                                      selected_indices,
+                                                                      valid_outputs,
+                                                                      op->get_input_element_type(0));
 
     return true;
 }
@@ -69,17 +70,17 @@ bool evaluate(const std::shared_ptr<ov::op::v9::MulticlassNms>& op,
     std::vector<int64_t> valid_outputs(info.selected_numrois_shape_size);
 
     ngraph::runtime::reference::multiclass_nms(info.boxes_data.data(),
-                                       info.boxes_shape,
-                                       info.scores_data.data(),
-                                       info.scores_shape,
-                                       info.roisnum_data.data(),
-                                       info.roisnum_shape,
-                                       op->get_attrs(),
-                                       selected_outputs.data(),
-                                       info.selected_outputs_shape,
-                                       selected_indices.data(),
-                                       info.selected_indices_shape,
-                                       valid_outputs.data());
+                                               info.boxes_shape,
+                                               info.scores_data.data(),
+                                               info.scores_shape,
+                                               info.roisnum_data.data(),
+                                               info.roisnum_shape,
+                                               op->get_attrs(),
+                                               selected_outputs.data(),
+                                               info.selected_outputs_shape,
+                                               selected_indices.data(),
+                                               info.selected_indices_shape,
+                                               valid_outputs.data());
 
     void* pscores = nullptr;
     void* pselected_num = nullptr;
@@ -98,13 +99,13 @@ bool evaluate(const std::shared_ptr<ov::op::v9::MulticlassNms>& op,
     }
 
     ngraph::runtime::reference::nms_common::nms_common_postprocessing(prois,
-                                                              pscores,
-                                                              pselected_num,
-                                                              op->get_attrs().output_type,
-                                                              selected_outputs,
-                                                              selected_indices,
-                                                              valid_outputs,
-                                                              op->get_input_element_type(0));
+                                                                      pscores,
+                                                                      pselected_num,
+                                                                      op->get_attrs().output_type,
+                                                                      selected_outputs,
+                                                                      selected_indices,
+                                                                      valid_outputs,
+                                                                      op->get_input_element_type(0));
 
     return true;
 }

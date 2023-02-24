@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
 #include "ngraph/runtime/reference/if.hpp"
+
+#include "evaluates_map.hpp"
 #include "openvino/op/if.hpp"
 #include "openvino/op/util/op_types.hpp"
 
@@ -147,7 +148,9 @@ void if_reference(const std::vector<std::shared_ptr<ngraph::Function>>& bodies,
 }  // namespace if_op
 
 template <ov::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ov::op::v8::If>& op, const ov::HostTensorVector& outputs, const ov::HostTensorVector& inputs) {
+bool evaluate(const std::shared_ptr<ov::op::v8::If>& op,
+              const ov::HostTensorVector& outputs,
+              const ov::HostTensorVector& inputs) {
     std::vector<std::shared_ptr<ngraph::Function>> bodies;
     for (size_t i = 0; i < op->get_internal_subgraphs_size(); i++) {
         bodies.emplace_back(op->get_function(static_cast<int>(i)));

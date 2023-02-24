@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "ngraph/runtime/reference/non_max_suppression.hpp"
+
 #include "evaluates_map.hpp"
 #include "ngraph/runtime/reference/utils/nms_common.hpp"
-#include "ngraph/runtime/reference/non_max_suppression.hpp"
 #include "openvino/op/non_max_suppression.hpp"
 
 std::vector<float> get_floats(const std::shared_ptr<ov::HostTensor>& input, const ov::Shape& shape) {
@@ -119,7 +120,7 @@ constexpr size_t boxes_port = 0;
 constexpr size_t scores_port = 1;
 
 ov::PartialShape infer_selected_indices_shape(const std::vector<std::shared_ptr<ov::HostTensor>>& inputs,
-                                          int64_t max_output_boxes_per_class) {
+                                              int64_t max_output_boxes_per_class) {
     const auto boxes_ps = inputs[boxes_port]->get_partial_shape();
     const auto scores_ps = inputs[scores_port]->get_partial_shape();
 
@@ -243,28 +244,28 @@ bool evaluate(const std::shared_ptr<ov::op::v5::NonMaxSuppression>& op,
     int64_t valid_outputs = 0;
 
     ngraph::runtime::reference::non_max_suppression5(info.boxes_data.data(),
-                                             info.boxes_shape,
-                                             info.scores_data.data(),
-                                             info.scores_shape,
-                                             info.max_output_boxes_per_class,
-                                             info.iou_threshold,
-                                             info.score_threshold,
-                                             info.soft_nms_sigma,
-                                             selected_indices.data(),
-                                             info.out_shape,
-                                             selected_scores.data(),
-                                             info.out_shape,
-                                             &valid_outputs,
-                                             info.sort_result_descending);
+                                                     info.boxes_shape,
+                                                     info.scores_data.data(),
+                                                     info.scores_shape,
+                                                     info.max_output_boxes_per_class,
+                                                     info.iou_threshold,
+                                                     info.score_threshold,
+                                                     info.soft_nms_sigma,
+                                                     selected_indices.data(),
+                                                     info.out_shape,
+                                                     selected_scores.data(),
+                                                     info.out_shape,
+                                                     &valid_outputs,
+                                                     info.sort_result_descending);
 
     auto selected_scores_type = (outputs.size() < 3) ? ov::element::f32 : outputs[1]->get_element_type();
 
     ngraph::runtime::reference::nms_postprocessing(outputs,
-                                           info.output_type,
-                                           selected_indices,
-                                           selected_scores,
-                                           valid_outputs,
-                                           selected_scores_type);
+                                                   info.output_type,
+                                                   selected_indices,
+                                                   selected_scores,
+                                                   valid_outputs,
+                                                   selected_scores_type);
     return true;
 }
 
@@ -290,7 +291,7 @@ constexpr size_t boxes_port = 0;
 constexpr size_t scores_port = 1;
 
 ov::PartialShape infer_selected_indices_shape(const std::vector<std::shared_ptr<ov::HostTensor>>& inputs,
-                                          int64_t max_output_boxes_per_class) {
+                                              int64_t max_output_boxes_per_class) {
     const auto boxes_ps = inputs[boxes_port]->get_partial_shape();
     const auto scores_ps = inputs[scores_port]->get_partial_shape();
 
@@ -414,28 +415,28 @@ bool evaluate(const std::shared_ptr<ov::op::v9::NonMaxSuppression>& op,
     int64_t valid_outputs = 0;
 
     ngraph::runtime::reference::non_max_suppression(info.boxes_data.data(),
-                                            info.boxes_shape,
-                                            info.scores_data.data(),
-                                            info.scores_shape,
-                                            info.max_output_boxes_per_class,
-                                            info.iou_threshold,
-                                            info.score_threshold,
-                                            info.soft_nms_sigma,
-                                            selected_indices.data(),
-                                            info.out_shape,
-                                            selected_scores.data(),
-                                            info.out_shape,
-                                            &valid_outputs,
-                                            info.sort_result_descending);
+                                                    info.boxes_shape,
+                                                    info.scores_data.data(),
+                                                    info.scores_shape,
+                                                    info.max_output_boxes_per_class,
+                                                    info.iou_threshold,
+                                                    info.score_threshold,
+                                                    info.soft_nms_sigma,
+                                                    selected_indices.data(),
+                                                    info.out_shape,
+                                                    selected_scores.data(),
+                                                    info.out_shape,
+                                                    &valid_outputs,
+                                                    info.sort_result_descending);
 
     auto selected_scores_type = (outputs.size() < 3) ? ov::element::f32 : outputs[1]->get_element_type();
 
     ngraph::runtime::reference::nms_postprocessing(outputs,
-                                           info.output_type,
-                                           selected_indices,
-                                           selected_scores,
-                                           valid_outputs,
-                                           selected_scores_type);
+                                                   info.output_type,
+                                                   selected_indices,
+                                                   selected_scores,
+                                                   valid_outputs,
+                                                   selected_scores_type);
     return true;
 }
 
@@ -461,7 +462,7 @@ constexpr size_t boxes_port = 0;
 constexpr size_t scores_port = 1;
 
 ov::PartialShape infer_selected_indices_shape(const std::vector<std::shared_ptr<ov::HostTensor>>& inputs,
-                                          int64_t max_output_boxes_per_class) {
+                                              int64_t max_output_boxes_per_class) {
     const auto boxes_ps = inputs[boxes_port]->get_partial_shape();
     const auto scores_ps = inputs[scores_port]->get_partial_shape();
 
@@ -585,28 +586,28 @@ bool evaluate(const std::shared_ptr<ov::op::v4::NonMaxSuppression>& op,
     int64_t valid_outputs = 0;
 
     ngraph::runtime::reference::non_max_suppression(info.boxes_data.data(),
-                                            info.boxes_shape,
-                                            info.scores_data.data(),
-                                            info.scores_shape,
-                                            info.max_output_boxes_per_class,
-                                            info.iou_threshold,
-                                            info.score_threshold,
-                                            info.soft_nms_sigma,
-                                            selected_indices.data(),
-                                            info.out_shape,
-                                            selected_scores.data(),
-                                            info.out_shape,
-                                            &valid_outputs,
-                                            info.sort_result_descending);
+                                                    info.boxes_shape,
+                                                    info.scores_data.data(),
+                                                    info.scores_shape,
+                                                    info.max_output_boxes_per_class,
+                                                    info.iou_threshold,
+                                                    info.score_threshold,
+                                                    info.soft_nms_sigma,
+                                                    selected_indices.data(),
+                                                    info.out_shape,
+                                                    selected_scores.data(),
+                                                    info.out_shape,
+                                                    &valid_outputs,
+                                                    info.sort_result_descending);
 
     auto selected_scores_type = (inputs.size() < 4) ? ov::element::f32 : inputs[3]->get_element_type();
 
     ngraph::runtime::reference::nms_postprocessing(outputs,
-                                           info.output_type,
-                                           selected_indices,
-                                           selected_scores,
-                                           valid_outputs,
-                                           selected_scores_type);
+                                                   info.output_type,
+                                                   selected_indices,
+                                                   selected_scores,
+                                                   valid_outputs,
+                                                   selected_scores_type);
     return true;
 }
 
@@ -632,7 +633,7 @@ constexpr size_t boxes_port = 0;
 constexpr size_t scores_port = 1;
 
 ov::PartialShape infer_selected_indices_shape(const std::vector<std::shared_ptr<ov::HostTensor>>& inputs,
-                                          int64_t max_output_boxes_per_class) {
+                                              int64_t max_output_boxes_per_class) {
     const auto boxes_ps = inputs[boxes_port]->get_partial_shape();
     const auto scores_ps = inputs[scores_port]->get_partial_shape();
 
@@ -756,28 +757,28 @@ bool evaluate(const std::shared_ptr<ov::op::v3::NonMaxSuppression>& op,
     int64_t valid_outputs = 0;
 
     ngraph::runtime::reference::non_max_suppression(info.boxes_data.data(),
-                                            info.boxes_shape,
-                                            info.scores_data.data(),
-                                            info.scores_shape,
-                                            info.max_output_boxes_per_class,
-                                            info.iou_threshold,
-                                            info.score_threshold,
-                                            info.soft_nms_sigma,
-                                            selected_indices.data(),
-                                            info.out_shape,
-                                            selected_scores.data(),
-                                            info.out_shape,
-                                            &valid_outputs,
-                                            info.sort_result_descending);
+                                                    info.boxes_shape,
+                                                    info.scores_data.data(),
+                                                    info.scores_shape,
+                                                    info.max_output_boxes_per_class,
+                                                    info.iou_threshold,
+                                                    info.score_threshold,
+                                                    info.soft_nms_sigma,
+                                                    selected_indices.data(),
+                                                    info.out_shape,
+                                                    selected_scores.data(),
+                                                    info.out_shape,
+                                                    &valid_outputs,
+                                                    info.sort_result_descending);
 
     auto selected_scores_type = (inputs.size() < 4) ? ov::element::f32 : inputs[3]->get_element_type();
 
     ngraph::runtime::reference::nms_postprocessing(outputs,
-                                           info.output_type,
-                                           selected_indices,
-                                           selected_scores,
-                                           valid_outputs,
-                                           selected_scores_type);
+                                                   info.output_type,
+                                                   selected_indices,
+                                                   selected_scores,
+                                                   valid_outputs,
+                                                   selected_scores_type);
     return true;
 }
 
@@ -803,7 +804,7 @@ constexpr size_t boxes_port = 0;
 constexpr size_t scores_port = 1;
 
 ov::PartialShape infer_selected_indices_shape(const std::vector<std::shared_ptr<ov::HostTensor>>& inputs,
-                                          int64_t max_output_boxes_per_class) {
+                                              int64_t max_output_boxes_per_class) {
     const auto boxes_ps = inputs[boxes_port]->get_partial_shape();
     const auto scores_ps = inputs[scores_port]->get_partial_shape();
 
@@ -927,27 +928,27 @@ bool evaluate(const std::shared_ptr<ov::op::v1::NonMaxSuppression>& op,
     int64_t valid_outputs = 0;
 
     ngraph::runtime::reference::non_max_suppression(info.boxes_data.data(),
-                                            info.boxes_shape,
-                                            info.scores_data.data(),
-                                            info.scores_shape,
-                                            info.max_output_boxes_per_class,
-                                            info.iou_threshold,
-                                            info.score_threshold,
-                                            info.soft_nms_sigma,
-                                            selected_indices.data(),
-                                            info.out_shape,
-                                            selected_scores.data(),
-                                            info.out_shape,
-                                            &valid_outputs,
-                                            info.sort_result_descending);
+                                                    info.boxes_shape,
+                                                    info.scores_data.data(),
+                                                    info.scores_shape,
+                                                    info.max_output_boxes_per_class,
+                                                    info.iou_threshold,
+                                                    info.score_threshold,
+                                                    info.soft_nms_sigma,
+                                                    selected_indices.data(),
+                                                    info.out_shape,
+                                                    selected_scores.data(),
+                                                    info.out_shape,
+                                                    &valid_outputs,
+                                                    info.sort_result_descending);
 
     auto selected_scores_type = (inputs.size() < 4) ? ov::element::f32 : inputs[3]->get_element_type();
 
     ngraph::runtime::reference::nms_postprocessing(outputs,
-                                           info.output_type,
-                                           selected_indices,
-                                           selected_scores,
-                                           valid_outputs,
-                                           selected_scores_type);
+                                                   info.output_type,
+                                                   selected_indices,
+                                                   selected_scores,
+                                                   valid_outputs,
+                                                   selected_scores_type);
     return true;
 }

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
 #include "ngraph/runtime/reference/binary_convolution.hpp"
+
+#include "evaluates_map.hpp"
 #include "openvino/op/binary_convolution.hpp"
 
 namespace bin_conv_v1 {
@@ -22,16 +23,16 @@ inline void evaluate(const std::shared_ptr<ov::op::v1::BinaryConvolution>& op,
     const auto out_shape = outputs[0]->get_shape();
 
     ngraph::runtime::reference::binary_convolution<T_IN, T_F>(in_data_ptr,
-                                                      filter_data_ptr,
-                                                      out_data_ptr,
-                                                      in_shape,
-                                                      filter_shape,
-                                                      out_shape,
-                                                      op->get_strides(),
-                                                      op->get_dilations(),
-                                                      op->get_pads_begin(),
-                                                      op->get_pads_end(),
-                                                      op->get_pad_value());
+                                                              filter_data_ptr,
+                                                              out_data_ptr,
+                                                              in_shape,
+                                                              filter_shape,
+                                                              out_shape,
+                                                              op->get_strides(),
+                                                              op->get_dilations(),
+                                                              op->get_pads_begin(),
+                                                              op->get_pads_end(),
+                                                              op->get_pad_value());
 }
 }  // namespace bin_conv_v1
 
