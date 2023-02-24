@@ -70,10 +70,8 @@ std::string kernels_cache::get_cache_path() const {
 }
 
 bool kernels_cache::is_cache_enabled() const {
-    if (const char* env_p = std::getenv("OV_GPU_CACHE_MODEL")) {
-        if (env_p[0] == '1') {
-            return false;
-        }
+    if (!_config.get_property(ov::intel_gpu::allow_new_shape_infer)) {
+        return false;
     }
 
     return !_config.get_property(ov::cache_dir).empty();

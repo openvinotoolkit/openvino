@@ -46,9 +46,6 @@ public:
     ExecutionConfig m_config;
     InferenceEngine::ITaskExecutor::Ptr m_taskExecutor;
     InferenceEngine::ITaskExecutor::Ptr m_waitExecutor;
-
-private:
-    bool is_serializable();
 };
 
 }  // namespace intel_gpu
