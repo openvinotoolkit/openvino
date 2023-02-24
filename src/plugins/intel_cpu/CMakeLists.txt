@@ -78,6 +78,7 @@ cross_compiled_file(${TARGET_NAME}
         NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
 )
 
+# must be called after all target_link_libraries
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 #  add test object library
