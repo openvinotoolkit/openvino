@@ -8,9 +8,21 @@ import numpy as np
 import openvino.runtime as ov
 import pytest
 import torch
+import unittest
 from openvino.runtime import PartialShape, Dimension, Model, Type
 
 from common.mo_convert_test_class import CommonMOConvertTest
+
+
+class MyTorchOp(torch.autograd.Function):
+    @staticmethod
+    def symbolic(g, in_positions):
+        return g.op("MyTorchOp", in_positions)
+
+    @staticmethod
+    def forward(self, in_positions):
+        out_pos = in_positions.reshape(-1)
+        return out_pos + 0.5
 
 
 def make_pt_model_one_input():
@@ -735,3 +747,30 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         if mo_params is not None:
             test_params.update(mo_params)
         self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
+
+
+def create_pt_model_with_custom_op():
+    #
+    #   Create PyTorch model with custom operation
+    #
+    import torch.nn as nn
+
+    class MyModel(nn.Module):
+        def __init__(self):
+            super(MyModel, self).__init__()
+            self.my_op = MyTorchOp()
+
+        def forward(self, x):
+            return self.my_op.apply(x)
+
+    return MyModel()
+
+
+class ConvertONNXFallthroughTest(unittest.TestCase):
+    def test_onnx_fallthrough(self):
+        from openvino.tools.mo import convert_model
+        pytorch_model = create_pt_model_with_custom_op()
+
+        # Check that ONNX conversion passed, so ONNX frontend raises error message of unsupported op.
+        with self.assertRaisesRegex(RuntimeError, ".*OpenVINO does not support the following ONNX operations: MyTorchOp.*"):
+            convert_model(pytorch_model, input_shape=[1, 2, 3], use_legacy_frontend=True)
