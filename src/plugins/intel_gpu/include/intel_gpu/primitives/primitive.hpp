@@ -103,7 +103,40 @@ public:
         return seed;
     }
 
-    /// @brief Implicit conversion to primiitive id.
+    bool compare_common_params(const primitive& rhs) const {
+        if (type != rhs.type)
+            return false;
+
+        if (num_outputs != rhs.num_outputs)
+            return false;
+
+        if (dependencies().size() != rhs.dependencies().size())
+            return false;
+
+        if (output_data_types.size() != rhs.output_data_types.size())
+            return false;
+
+        for (size_t i = 0; i < output_data_types.size(); ++i) {
+            if (output_data_types[i].value_or(data_types::bin) != rhs.output_data_types[i].value_or(data_types::bin))
+                return false;
+        }
+
+        if (output_paddings.size() != rhs.output_paddings.size())
+            return false;
+
+        for (size_t i = 0; i < output_paddings.size(); ++i) {
+            if (output_paddings[i] != rhs.output_paddings[i])
+                return false;
+        }
+
+        return true;
+    }
+
+    virtual bool operator==(const primitive& rhs) const { return false; }
+
+    bool operator!=(const primitive& rhs) const { return !(*this == rhs); }
+
+    /// @brief Implicit conversion to primitive id.
     operator primitive_id() const { return id; }
 
     /// @brief Primitive's type id.

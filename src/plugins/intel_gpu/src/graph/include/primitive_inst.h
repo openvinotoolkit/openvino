@@ -49,7 +49,6 @@ struct primitive_impl {
     virtual void set_node_params(const program_node&) {}
     virtual std::string get_type() const = 0;
     virtual void set_arguments(primitive_inst& instance) = 0;
-    virtual void set_arguments(kernel_arguments_data_idx& args_idx) = 0;
     virtual kernel_arguments_data get_arguments(const primitive_inst& instance) const = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
     std::string get_kernel_name() const { return _kernel_name; }
@@ -64,7 +63,6 @@ struct primitive_impl {
     }
     virtual std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() { return {}; }
     virtual void reset_kernels_source() {}
-    virtual void set_kernels(std::vector<kernel::ptr>) {}
     virtual std::vector<kernel::ptr> get_kernels() const { return {}; }
     virtual void set_kernel_ids(std::vector<kernel_id> kernel_ids) {}
     virtual void save(cldnn::BinaryOutputBuffer& ob) const {}
@@ -80,6 +78,8 @@ struct primitive_impl {
         OPENVINO_ASSERT(_is_dynamic, "[GPU] update_dispatch_data is called for static shape implementation ", _kernel_name);
         OPENVINO_ASSERT(false, "[GPU] update_dispatch_data is not implemented for dynamic implemenation ", _kernel_name);
     }
+
+    virtual void set_kernels(std::map<const std::string, kernel::ptr>& kernels) {}
 
 protected:
     std::string _kernel_name;
@@ -288,7 +288,6 @@ protected:
     memory::ptr allocate_internal_buffer(size_t idx);
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
         std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> const& mem_deps);
-    void convert_args(const kernel_arguments_data& args, kernel_arguments_data_idx& args_idx) const;
     int32_t get_index_in_deps(memory::cptr arg) const;
 
     // event function called by primitive_inst::execute after checking if primitive should rerun and before calling
@@ -382,16 +381,11 @@ private:
         return set_arguments_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
 
-    void set_arguments(kernel_arguments_data_idx& args_idx) override {
-        return set_arguments_impl(args_idx);
-    }
-
     kernel_arguments_data get_arguments(const primitive_inst& instance) const override {
         return get_arguments_impl(reinterpret_cast<const typed_primitive_inst<PType>&>(instance));
     }
 
     virtual void set_arguments_impl(typed_primitive_inst<PType>& /*instance*/) {}
-    virtual void set_arguments_impl(kernel_arguments_data_idx& /*args_idx*/) {}
     virtual kernel_arguments_data get_arguments_impl(const typed_primitive_inst<PType>& /*instance*/) const {
         kernel_arguments_data args;
         return args;
