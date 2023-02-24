@@ -154,6 +154,12 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ngraph::No
                            " and 'weight' input with rank: " + std::to_string(weightRank);
             return false;
         }
+        const auto outRank = fc->get_output_partial_shape(0).size();
+        if ((inRank != outRank) && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
+            errorMessage =
+                "Unsupported ranks with input " + std::to_string(inRank) + " output " + std::to_string(outRank);
+            return false;
+        }
     } catch (...) {
         return false;
     }

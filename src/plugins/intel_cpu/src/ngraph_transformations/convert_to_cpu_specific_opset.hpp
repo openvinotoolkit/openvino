@@ -19,6 +19,7 @@
 #include "transformations/utils/utils.hpp"
 #include "rnn_sequences_optimization.hpp"
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
+#include "nodes/fullyconnected.h"
 
 #include "itt.hpp"
 
@@ -40,6 +41,11 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     manager.register_pass<OptimizeSequenceTransposes>();
     if (!ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(nGraphFunc)) {
         manager.register_pass<ReshapeFullyConnectedFusion>();
+        auto pass_config = manager.get_pass_config();
+        pass_config->set_callback<ReshapeFullyConnectedFusion>([](const std::shared_ptr<const ov::Node>& node) -> bool {
+            std::string errMsg;
+            return !node::FullyConnected::isSupportedOperation(node, errMsg);
+        });
     }
     // after transformation "MoveEltwiseUpThroughDataMov" there can be Reshape sequences that should be eliminated or fused
     manager.register_pass<ov::pass::ReshapeSequenceFusion>();

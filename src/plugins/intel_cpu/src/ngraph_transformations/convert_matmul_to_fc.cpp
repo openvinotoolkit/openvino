@@ -10,7 +10,6 @@
 #include <transformations/utils/utils.hpp>
 
 #include "itt.hpp"
-#include <cpu/x64/cpu_isa_traits.hpp>
 
 ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
     MATCHER_SCOPE(ConvertMatMulToFC);
@@ -42,19 +41,6 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         if (rank_a == 1 || rank_b == 1 ||
             rank_a > 3 || rank_b > 3) {
             return false;
-        }
-
-        // keep to use brgemm matmul instead of gemm:jit inner_product for 4D inputs cases(sp dimensions are not all 1) on avx512_core platform
-        auto reshape = std::dynamic_pointer_cast<ngraph::opset1::Reshape>(matmul->get_input_node_shared_ptr(0));
-        if (reshape && reshape->input_value(0).get_partial_shape().is_static()) {
-            auto shape_in = reshape->input_value(0).get_shape();
-            auto shape_out = reshape->get_shape();
-            if (shape_in.size() == 4 && reshape->get_shape().size() == 2) {
-                if (shape_in[0] == shape_out[0] && ((shape_in[2] != 1) || (shape_in[3] != 1)) &&
-                    dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
-                    return false;
-                }
-            }
         }
 
         // Check that if second inputs is Constant path and it's shape without ones dimensions has length <= 2
