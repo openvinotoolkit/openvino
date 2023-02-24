@@ -302,8 +302,12 @@ cldnn::engine& get_test_engine() {
 cldnn::stream_ptr get_test_stream_ptr() {
     static std::shared_ptr<cldnn::stream> test_stream = nullptr;
     if (!test_stream) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
+#else
         // Create OOO queue for test purposes. If in-order queue is needed in a test, then it should be created there explicitly
         ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
+#endif
         test_stream = get_test_engine().create_stream(cfg);
     }
     return test_stream;
