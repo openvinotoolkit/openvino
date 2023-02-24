@@ -66,11 +66,7 @@ ov::Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std
     return {deviceName_, config_};
 }
 
-#ifndef OPENVINO_STATIC_LIBRARY
-
 std::string findPluginXML(const std::string& xmlFile);
-
-#endif
 
 ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& properties);
 
