@@ -23,7 +23,7 @@ TEST(lru_cache, basic_data_type)
         input_values.push_back(std::make_pair(i, i + 10));
     }
 
-    ASSERT_EQ(ca.get_lru_element(), int());
+    ASSERT_EQ(ca.get_lru_element().second, int());
 
     std::vector<bool> expected_hitted = {false, false, false, false, true, true, false};
     for (size_t i = 0; i < input_values.size(); i++) {
@@ -95,7 +95,7 @@ TEST(lru_cache, custom_data_type) {
 
     std::vector<bool> expected_hitted = {false, false, false, false, true, true, true, false};
 
-    ASSERT_EQ(ca.get_lru_element(), std::shared_ptr<lru_cache_test_data>());
+    ASSERT_EQ(ca.get_lru_element().second, std::shared_ptr<lru_cache_test_data>());
     for (size_t i = 0; i < inputs.size(); i++) {
         auto& in = inputs[i];
         std::shared_ptr<lru_cache_test_data> p_data;

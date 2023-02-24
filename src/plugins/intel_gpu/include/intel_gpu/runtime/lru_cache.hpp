@@ -8,6 +8,8 @@
 #include <unordered_map>
 #include <functional>
 #include <iostream>
+#include <thread>
+#include <mutex>
 
 #include "kernel.hpp"
 
@@ -30,15 +32,15 @@ public:
     }
 
     /**
-     * @brief Get the least recently used element object in the cache
+     * @brief Get the least recently used element with key and value pair in the cache
      *
      * @return Value
      */
-    Value get_lru_element() const {
+    std::pair<Key, Value> get_lru_element() const {
         if (_lru_data_list.size()) {
-            return _lru_data_list.back().second;
+            return _lru_data_list.back();
         } else {
-            return Value();
+            return std::make_pair(Key(), Value());
         }
     }
 
@@ -164,6 +166,46 @@ private:
     }
 };
 
-using ImplementationsCache = cldnn::LruCache<size_t, std::shared_ptr<primitive_impl>>;
 using KernelsCache = cldnn::LruCache<size_t, cldnn::kernel::ptr>;
+
+template<typename Key, typename Value>
+class LruCacheThreadSafe : LruCache<Key, Value> {
+public:
+    using parent = LruCache<Key, Value>;
+    using FuncRemoveItem = std::function<void(std::pair<Key, Value>&)>;
+
+    explicit LruCacheThreadSafe(size_t caps) : parent(caps) { }
+
+    bool add(const Key& key, const Value& value) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        auto popped_item = parent::get_lru_element();
+        auto ret = parent::add(key, value);
+        if (ret && _remove_popped_item) {
+            _remove_popped_item(popped_item);
+        }
+        return ret;
+    }
+
+    bool has(const Key& key) const {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return parent::has(key);
+    }
+
+    Value get(const Key& key) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return parent::get(key);
+    }
+
+    void set_remove_item_callback(FuncRemoveItem callback) {
+        _remove_popped_item = callback;
+    }
+
+private:
+    FuncRemoveItem _remove_popped_item;
+    mutable std::mutex _mutex;
+};
+
+
+using ImplementationsCache = cldnn::LruCacheThreadSafe<size_t, std::shared_ptr<primitive_impl>>;
+
 }  // namespace cldnn
