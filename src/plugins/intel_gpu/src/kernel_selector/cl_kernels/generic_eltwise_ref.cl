@@ -19,7 +19,7 @@ KERNEL(eltwise)(
 #if HAS_FUSED_OPS_DECLS
     , FUSED_OPS_DECLS
 #endif
-#if IS_DYNAMIC
+#if IS_DYNAMIC_CROP
     , int runtime_offset
 #endif
 )
