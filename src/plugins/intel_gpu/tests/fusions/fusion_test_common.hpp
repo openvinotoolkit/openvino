@@ -37,6 +37,9 @@ public:
         if (engine.get_device_info().supports_immad) {
             cfg_fused.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
             cfg_not_fused.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+#ifdef ENABLE_ONEDNN_FOR_GPU
+            engine.create_onednn_engine({});
+#endif
         }
     }
 
