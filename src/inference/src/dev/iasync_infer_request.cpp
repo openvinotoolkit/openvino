@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/variable_state.hpp"
 #include "threading/ie_immediate_executor.hpp"
 #include "threading/ie_istreams_executor.hpp"
@@ -62,6 +63,7 @@ void ov::IAsyncInferRequest::wait() {
     }
 
     future.wait();
+    future.get();
 }
 
 bool ov::IAsyncInferRequest::wait_for(const std::chrono::milliseconds& timeout) {
@@ -100,7 +102,7 @@ void ov::IAsyncInferRequest::set_callback(std::function<void(std::exception_ptr)
     m_callback = std::move(callback);
 }
 
-std::vector<ov::VariableState> ov::IAsyncInferRequest::query_state() const {
+std::vector<std::shared_ptr<ov::IVariableState>> ov::IAsyncInferRequest::query_state() const {
     check_state();
     return m_sync_request->query_state();
 }
@@ -247,14 +249,18 @@ void ov::IAsyncInferRequest::stop_and_wait() {
 }
 
 void ov::IAsyncInferRequest::infer() {
-    m_sync_request->infer();
+    DisableCallbackGuard disableCallbackGuard{this};
+    infer_impl([&] {
+        infer_thread_unsafe();
+    });
+    wait();
 }
 
 void ov::IAsyncInferRequest::check_tensors() const {
     m_sync_request->check_tensors();
 }
 
-const std::shared_ptr<ov::ICompiledModel>& ov::IAsyncInferRequest::get_compiled_model() const {
+const std::shared_ptr<const ov::ICompiledModel>& ov::IAsyncInferRequest::get_compiled_model() const {
     return m_sync_request->get_compiled_model();
 }
 
