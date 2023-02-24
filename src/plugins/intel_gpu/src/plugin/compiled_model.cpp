@@ -6,6 +6,7 @@
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/utils.hpp"
+#include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/plugin/infer_request.hpp"
@@ -96,11 +97,14 @@ CompiledModel::CompiledModel(std::istream& networkModel, InferenceEngine::Remote
             std::string name;
             std::string precision;
             std::string layout;
+            InferenceEngine::SizeVector dims;
             ib >> name;
             ib >> precision;
             ib >> layout;
+            ib >> dims;
 
             DataPtr input = std::make_shared<Data>(name, Precision::FromStr(precision), cldnn::serial_util::layout_from_string(layout));
+            input->setDims(dims);
             InputInfo::Ptr infoNew = std::make_shared<InputInfo>();
             infoNew->setInputData(input);
             inputs.emplace(std::make_pair(name, infoNew));
@@ -115,11 +119,14 @@ CompiledModel::CompiledModel(std::istream& networkModel, InferenceEngine::Remote
             std::string name;
             std::string precision;
             std::string layout;
+            InferenceEngine::SizeVector dims;
             ib >> name;
             ib >> precision;
             ib >> layout;
+            ib >> dims;
 
             DataPtr output = std::make_shared<Data>(name, Precision::FromStr(precision), cldnn::serial_util::layout_from_string(layout));
+            output->setDims(dims);
             outputs.emplace(std::make_pair(name, output));
         }
 
@@ -317,14 +324,6 @@ IInferRequestInternal::Ptr CompiledModel::CreateInferRequest() {
                                                _callbackExecutor);
 }
 
-bool CompiledModel::is_serializable() {
-    // Dynamic model serialization is not yet supported.
-    if (m_graphs[0]->GetNetwork()->is_dynamic())
-        return false;
-
-    return true;
-}
-
 // Cache blob format:
 //     [ ConstInputsDataMap / ConstOutputsDataMap ]
 //     [ ov::Node::Input/ ov::Node::Output ]
@@ -333,9 +332,6 @@ void CompiledModel::Export(std::ostream& networkModel) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::Export");
     if (m_graphs.empty())
         IE_THROW(NetworkNotLoaded);
-
-    if (!is_serializable())
-        return;
 
     cldnn::BinaryOutputBuffer ob(networkModel);
 
@@ -350,6 +346,7 @@ void CompiledModel::Export(std::ostream& networkModel) {
             std::stringstream ss;
             ss << in.second->getInputData()->getLayout();
             ob << ss.str();
+            ob << in.second->getTensorDesc().getDims();
         }
 
         ob << GetOutputsInfo().size();
@@ -361,6 +358,7 @@ void CompiledModel::Export(std::ostream& networkModel) {
             std::stringstream ss;
             ss << out.second->getLayout();
             ob << ss.str();
+            ob << out.second->getTensorDesc().getDims();
         }
     }
 
