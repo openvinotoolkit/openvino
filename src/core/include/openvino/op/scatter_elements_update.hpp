@@ -36,6 +36,9 @@ public:
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
+    bool evaluate_lower(TensorVector& output_values) const override;
+    bool evaluate_upper(TensorVector& output_values) const override;
+    bool evaluate_label(TensorLabelVector& output_labels) const override;
 
 private:
     bool evaluate_scatter_element_update(const HostTensorVector& outputs, const HostTensorVector& inputs) const;
