@@ -320,6 +320,7 @@ network::network(program::ptr program, const ExecutionConfig& config, stream::pt
     GPU_DEBUG_IF(debug_config->after_proc.size() != 0) {
         wait_for_the_turn();
     }
+    _config.apply_user_properties(_engine.get_device_info());
 
     allocate_primitives();
     configure_primitives_second_output();

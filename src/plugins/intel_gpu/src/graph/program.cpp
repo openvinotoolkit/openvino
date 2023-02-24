@@ -109,7 +109,6 @@ program::program(engine& engine_ref,
       processing_order(),
       is_body_program(is_body_program),
       is_subgroup_local_block_io_supported(-1) {
-    _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
     set_options();
     query_local_block_io_supported();
@@ -142,7 +141,6 @@ program::program(engine& engine_ref,
       _task_executor(task_executor),
       processing_order(),
       is_subgroup_local_block_io_supported(-1) {
-    _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
     set_options();
     query_local_block_io_supported();
@@ -163,7 +161,6 @@ program::program(engine& engine)
       _config(),
       processing_order(),
       is_subgroup_local_block_io_supported(-1) {
-        _config.apply_user_properties(_engine.get_device_info());
       }
 program::~program() {
     query_local_block_io_supported();
@@ -1264,6 +1261,10 @@ void program::dump_program(const char* stage,
                            bool with_full_info,
                            std::function<bool(program_node const&)> const& filter) const {
     std::string path = get_dir_path(_config);
+    GPU_DEBUG_GET_INSTANCE(debug_inst);
+    GPU_DEBUG_IF(debug_inst->dump_graphs.size()) {
+        path = debug_inst->dump_graphs;
+    }
     if (path.empty() || !with_full_info) {
         return;
     }
