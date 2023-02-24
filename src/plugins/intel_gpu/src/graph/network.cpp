@@ -331,14 +331,7 @@ network::network(program::ptr program, const ExecutionConfig& config, stream::pt
 
     if (is_dynamic()) {
         GPU_DEBUG_DEFINE_MEM_LOGGER("dynamic_network_initialization");
-        _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(program->get_engine(),
-                                                                          program->get_config(),
-                                                                          program->get_id(),
-                                                                          program->get_task_executor(),
-                                                                          kernel_selector::KernelBase::get_db().get_batch_header_str()));
-        _impls_cache = std::unique_ptr<ImplementationsCache>(new ImplementationsCache(_impls_cache_capacity));
         _in_mem_kernels_cache = std::unique_ptr<KernelsCache>(new KernelsCache(_in_mem_kernels_cache_capacity));
-        _compilation_context = ICompilationContext::create(program->get_engine(), program->get_config(), program->get_id());
     }
 }
 
@@ -409,7 +402,8 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
     for (const auto& p_inst : _exec_order) {
         ib >> *p_inst;
         _primitives[p_inst->id()] = p_inst;
-        p_inst->init_kernels(kernels_cache);
+        if (p_inst->get_impl() != nullptr)
+            p_inst->init_kernels(kernels_cache);
     }
 
     for (auto& item : _primitives) {
@@ -470,8 +464,8 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
 }
 
 network::~network() {
-    if (_compilation_context)
-        _compilation_context->cancel();
+    if (_program != nullptr)
+        _program->cancel_compilation_context();
     _memory_pool->clear_pool_for_network(net_id);
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_IF(!debug_config->dump_profiling_data.empty()) {
