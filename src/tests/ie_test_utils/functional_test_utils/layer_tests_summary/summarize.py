@@ -146,8 +146,8 @@ def collect_statistic(root: Element, is_conformance_mode: bool):
             if op_test_cnt == 0:
                 continue
             covered_ops[device.tag] += 1
-            pass_rate = float("%.2f"%results[device.tag][op]["passrate"])
-            relative_pass_rate = float("%.2f"%results[device.tag][op]["relative_passrate"])
+            pass_rate = float("%.2f"%float(results[device.tag][op]["passrate"]))
+            relative_pass_rate = float("%.2f"%float(results[device.tag][op]["relative_passrate"]))
             results[device.tag][op]["passrate"] = pass_rate
             results[device.tag][op]["relative_passrate"] = relative_pass_rate
 
@@ -166,14 +166,14 @@ def collect_statistic(root: Element, is_conformance_mode: bool):
             else:
                 op_res.update({op: {device.tag: device_general_test_count}})
         pass_rate_avg[device.tag] = 0 if covered_ops[device.tag] == 0 else pass_rate_avg[device.tag] / covered_ops[device.tag]
-        pass_rate_avg[device.tag] = round(float(pass_rate_avg[device.tag]), 1)
+        pass_rate_avg[device.tag] = float("%.2f"%float(pass_rate_avg[device.tag]))
         pass_rate_avg_rel[device.tag] = 0 if covered_ops[device.tag] == 0 else pass_rate_avg_rel[device.tag] / covered_ops[device.tag]
-        pass_rate_avg_rel[device.tag] = round(float(pass_rate_avg_rel[device.tag]), 1)
+        pass_rate_avg_rel[device.tag] = float("%.2f"%float(pass_rate_avg_rel[device.tag]))
         general_pass_rate[device.tag] = 0 if general_test_count[device.tag] == 0 else (general_passed_tests[device.tag] * 100 / general_test_count[device.tag])
-        general_pass_rate[device.tag] = round(float(general_pass_rate[device.tag]), 1)
+        general_pass_rate[device.tag] = float("%.2f"%float(general_pass_rate[device.tag]))
         general_pass_rate_rel[device.tag] = 0 if general_test_count_rel[device.tag] == 0 else (general_passed_tests_rel[device.tag] * 100 / general_test_count_rel[device.tag])
-        general_pass_rate_rel[device.tag] = round(float(general_pass_rate_rel[device.tag]), 1)
-        trusted_ops[device.tag] = round(float(trusted_ops[device.tag] * 100) / covered_ops[device.tag], 1) if device.tag in covered_ops and covered_ops[device.tag] != 0 else 0
+        general_pass_rate_rel[device.tag] = float("%.2f"%float(general_pass_rate_rel[device.tag]))
+        trusted_ops[device.tag] = float("%.2f"%(float("%.2f"%(float(trusted_ops[device.tag]) * 100)) / covered_ops[device.tag])) if device.tag in covered_ops and covered_ops[device.tag] != 0 else 0
 
     logger.info("Test number comparison between devices is started")
     for op in op_res:
