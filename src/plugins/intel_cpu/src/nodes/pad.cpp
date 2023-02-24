@@ -232,12 +232,8 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
     const auto& srcDims = srcBlockMemDesc->getBlockDims();
     const auto& dstDims = dstBlockMemDesc->getBlockDims();
 
-    auto initDims = [](const VectorDims& dims, VectorIdxs& param) {
-        param.resize(dims.size());
-        std::transform(dims.begin(), dims.end(), param.begin(), [](Dim dim) { return static_cast<int32_t>(dim); });
-    };
-    initDims(srcDims, params.srcDims);
-    initDims(dstDims, params.dstDims);
+    params.srcDims = srcDims;
+    params.dstDims = dstDims;
     params.attrs.prc = srcMemPtr->getDesc().getPrecision();
     params.dataSize = params.attrs.prc.size();
 
@@ -405,7 +401,7 @@ void Pad::executeDynamicImpl(dnnl::stream strm) {
     execute(strm);
 }
 
-static inline int32_t parallel_init(int32_t start, size_t nDims, const std::vector<int32_t>& dims, std::vector<int32_t>& indexes) {
+static inline size_t parallel_init(size_t start, size_t nDims, const VectorDims& dims, std::vector<int32_t>& indexes) {
     for (int j = nDims - 1; j >= 0; j--) {
         indexes[j] = start % dims[j];
         start = start / dims[j];
@@ -413,7 +409,7 @@ static inline int32_t parallel_init(int32_t start, size_t nDims, const std::vect
     return start;
 }
 
-static inline void parallel_step(size_t nDims, const std::vector<int32_t>& dims, std::vector<int32_t>& indexes) {
+static inline void parallel_step(size_t nDims, const VectorDims& dims, std::vector<int32_t>& indexes) {
     for (int j = nDims - 1; j >= 0; --j) {
         ++indexes[j];
         if (indexes[j] < dims[j])
@@ -462,7 +458,7 @@ void Pad::PadExecutor::padConstantCommon(MemoryPtr& srcMemPtr, MemoryPtr& dstMem
         splitter(params.workAmount, nthr, ithr, start, end);
 
         parallel_init(start, params.nDimsForWork, params.dstDims, indexes);
-        int32_t dstIdx = 0;
+        size_t dstIdx = 0;
         getDstIdx(indexes, dstIdx);
 
         for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
@@ -478,7 +474,7 @@ void Pad::PadExecutor::padConstantCommon(MemoryPtr& srcMemPtr, MemoryPtr& dstMem
                 continue;
             }
 
-            int32_t srcIdx = 0;
+            size_t srcIdx = 0;
             for (size_t idx = 0; idx < params.nDimsForWork; ++idx)
                 srcIdx += (indexes[idx] - params.attrs.padsBegin[idx]) * params.srcStrides[idx];
 
@@ -497,11 +493,11 @@ void Pad::PadExecutor::padConstantZero(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPt
 
     parallel_nt(params.nThreads, [&](const int ithr, const int nthr) {
         size_t start = 0, end = 0;
-        std::vector<int32_t> indexes(params.nDimsForWork, 0);
+        VectorIdxs indexes(params.nDimsForWork, 0);
         splitter(params.workAmount, nthr, ithr, start, end);
 
         parallel_init(start, params.nDimsForWork, params.dstDims, indexes);
-        int32_t dstIdx = 0;
+        size_t dstIdx = 0;
         getDstIdx(indexes, dstIdx);
         dstIdx *= params.dataSize;
 
@@ -518,7 +514,7 @@ void Pad::PadExecutor::padConstantZero(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPt
                 continue;
             }
 
-            int32_t srcIdx = 0;
+            size_t srcIdx = 0;
             for (size_t idx = 0; idx < params.nDimsForWork; ++idx)
                 srcIdx += (indexes[idx] - params.attrs.padsBegin[idx]) * params.srcStrides[idx];
             srcIdx *= params.dataSize;
@@ -542,12 +538,12 @@ void Pad::PadExecutor::padEdge(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr) {
         splitter(params.workAmount, nthr, ithr, start, end);
 
         parallel_init(start, params.nDimsForWork, params.dstDims, indexes);
-        int32_t dstIdx = 0;
+        size_t dstIdx = 0;
         getDstIdx(indexes, dstIdx);
         dstIdx *= params.dataSize;
 
         for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
-            int32_t srcIdx = 0;
+            size_t srcIdx = 0;
             for (size_t idx = 0; idx < params.nDimsForWork; ++idx) {
                 size_t shift =
                     (indexes[idx] < params.attrs.padsBegin[idx])
@@ -585,12 +581,12 @@ void Pad::PadExecutor::padReflectOrSymmetric(MemoryPtr& srcMemPtr, MemoryPtr& ds
         splitter(params.workAmount, nthr, ithr, start, end);
 
         parallel_init(start, params.nDimsForWork, params.dstDims, indexes);
-        int32_t dstIdx = 0;
+        size_t dstIdx = 0;
         getDstIdx(indexes, dstIdx);
         dstIdx *= params.dataSize;
 
         for (size_t iwork = start; iwork < end; ++iwork, dstIdx += params.lastDstDim) {
-            int32_t srcIdx = 0;
+            size_t srcIdx = 0;
             for (size_t i = 0; i < params.nDimsForWork; ++i) {
                 size_t idx =
                     (indexes[i] < params.attrs.padsBegin[i])
@@ -618,7 +614,7 @@ void Pad::PadExecutor::padReflectOrSymmetric(MemoryPtr& srcMemPtr, MemoryPtr& ds
     });
 }
 
-inline void Pad::PadExecutor::getDstIdx(const VectorIdxs& indexes, int32_t& dstIdx) const {
+inline void Pad::PadExecutor::getDstIdx(const VectorIdxs& indexes, size_t& dstIdx) const {
     for (size_t i = 0; i < params.nDimsForWork; ++i)
         dstIdx += indexes[i] * params.dstStrides[i];
 }

@@ -71,7 +71,7 @@ private:
                                   const std::vector<MemoryCPtr>& dstMemory);
         void workPartition();
         void innerParamsInitialization();
-        inline void getDstIdx(const VectorIdxs& indexes, int32_t& dstIdx) const;
+        inline void getDstIdx(const VectorIdxs& indexes, size_t& dstIdx) const;
 
         struct PadContext {
             PadExecutor* executor;
@@ -90,12 +90,12 @@ private:
 
         struct {
             PadAttrs attrs;
-            VectorIdxs srcDims;
-            VectorIdxs dstDims;
-            VectorIdxs srcODims;
-            VectorIdxs srcStrides;
-            VectorIdxs dstStrides;
-            VectorIdxs srcDimsForReflectOrSymmetric;
+            VectorDims srcDims;
+            VectorDims dstDims;
+            VectorDims srcODims;
+            VectorDims srcStrides;
+            VectorDims dstStrides;
+            VectorDims srcDimsForReflectOrSymmetric;
             int nThreads = 0;
             size_t nDimsForWork = 0lu;
             size_t workAmount = 0lu;
