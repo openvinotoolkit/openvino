@@ -250,7 +250,7 @@ std::shared_ptr<ngraph::Node> makeSplit(const ngraph::Output<Node> &in,
 
 std::shared_ptr<ngraph::Node> makeVariadicSplit(const ngraph::Output<Node> &in,
                                                 const std::vector<size_t> numSplits,
-                                                size_t axis);
+                                                int64_t axis);
 
 std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
                                              const element::Type &type,
