@@ -888,8 +888,8 @@ private:
 };
 
 Eltwise::BroadcastingPolicy Eltwise::determineBroadcastingPolicy(const std::shared_ptr<ngraph::Node>& op) {
-    const auto const1 = std::dynamic_pointer_cast<ngraph::opset1::Constant>(op->get_input_node_shared_ptr(0));
-    const auto const2 = std::dynamic_pointer_cast<ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1));
+    const auto const1 = ov::as_type_ptr<ngraph::opset1::Constant>(op->get_input_node_shared_ptr(0));
+    const auto const2 = ov::as_type_ptr<ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1));
     int constPort = -1;
     if (const2) {
         constPort = 1;
@@ -1659,14 +1659,14 @@ bool Eltwise::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
             errorMessage = "Doesn't support Eltwise algorithm: " +  std::string(op->get_type_name());
             return false;
         }
-        if (const auto binOp = std::dynamic_pointer_cast<const ov::op::util::BinaryElementwiseArithmetic>(op)) {
+        if (const auto binOp = ov::as_type_ptr<const ov::op::util::BinaryElementwiseArithmetic>(op)) {
             if (binOp->get_autob().m_type != ngraph::op::AutoBroadcastType::NONE &&
                 binOp->get_autob().m_type != ngraph::op::AutoBroadcastType::NUMPY) {
                 errorMessage = "Doesn't support broadcast type: " + ngraph::as_string(binOp->get_autob().m_type);
                 return false;
             }
         }
-        if (const auto select = std::dynamic_pointer_cast<const ov::op::v1::Select>(op)) {
+        if (const auto select = ov::as_type_ptr<const ov::op::v1::Select>(op)) {
             if (select->get_auto_broadcast().m_type != ngraph::op::AutoBroadcastType::NONE &&
                 select->get_auto_broadcast().m_type != ngraph::op::AutoBroadcastType::NUMPY) {
                 errorMessage = "Doesn't support broadcast type: " + ngraph::as_string(select->get_autob().m_type);

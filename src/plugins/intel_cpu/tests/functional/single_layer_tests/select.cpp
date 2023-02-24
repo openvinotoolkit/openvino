@@ -88,6 +88,7 @@ const std::vector<ElementType> precisions = {
     ElementType::f32,
     ElementType::i32,
     ElementType::bf16,
+    ElementType::i8
 };
 
 const std::vector<fusingSpecificParams> fusingParamsSet{
