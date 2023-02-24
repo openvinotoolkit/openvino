@@ -241,6 +241,9 @@ CompiledModel::CompiledModel(std::istream& networkModel, InferenceEngine::Remote
         ib.seekg(pos);
         auto graph = std::make_shared<Graph>(ib, context_impl, m_config, n);
         m_graphs.push_back(graph);
+        if (n == 0) {
+            ib.setNetwork(graph->GetNetwork().get());
+        }
     }
 }
 
