@@ -21,7 +21,6 @@ Benchmarks are available for:
 * [Intel® Distribution of OpenVINO™ toolkit](performance_benchmarks_openvino.md).
 
 
-
 You can also test performance for your system yourself, following the guide on [getting performance numbers](../MO_DG/prepare_model/Getting_performance_numbers.md).
 Performance of a particular application can also be evaluated virtually using [Intel® DevCloud for the Edge](https://devcloud.intel.com/edge/). It is a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit. To learn more about it, visit [the website](https://www.intel.com/content/www/us/en/developer/tools/devcloud/edge/overview.html) or [create an account](https://www.intel.com/content/www/us/en/forms/idz/devcloud-registration.html?tgt=https://www.intel.com/content/www/us/en/secure/forms/devcloud-enrollment/account-provisioning.html).
 
