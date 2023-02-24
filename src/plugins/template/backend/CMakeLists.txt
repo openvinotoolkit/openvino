@@ -34,7 +34,9 @@ target_compile_definitions(interpreter_backend
 )
 target_link_libraries(interpreter_backend PRIVATE ngraph::builder ngraph::reference openvino::util openvino::runtime::dev)
 
-target_include_directories(interpreter_backend PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>)
+target_include_directories(interpreter_backend PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+                           ${CMAKE_CURRENT_SOURCE_DIR}/../../..
+                           ${CMAKE_CURRENT_SOURCE_DIR}/../../../common/conditional_compilation/include)
 
 file(GLOB_RECURSE all_backends_src "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
 add_clang_format_target(interpreter_backend_clang FOR_SOURCES ${all_backends_src})
