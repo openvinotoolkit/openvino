@@ -179,7 +179,7 @@ std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<Function> &funct
                      " bytes, but corresponding input ",
                      " has ", inputTensorSize, " bytes");
 
-        inputTensors.push_back(inputTensor);
+        inputTensors[i] = inputTensor;
     }
 
     const auto &results = function->get_results();
