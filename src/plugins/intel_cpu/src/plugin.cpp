@@ -239,6 +239,23 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             get_streams_info_table(nstreams, engConfig.streamExecutorConfig._threads, model_prefer, proc_type_table);
         StreamCfg streams_info = ParseStreamsTable(stream_info_table);
 
+        DEBUG_LOG("[ p_e_core_info ] streams (threads): ",
+                  streams_info.num_streams,
+                  "(",
+                  streams_info.threads_per_stream_big *
+                          (streams_info.big_core_streams + streams_info.big_core_logic_streams) +
+                      streams_info.threads_per_stream_small * streams_info.small_core_streams,
+                  ") -- PCore: " << streams_info.big_core_streams,
+                  "(",
+                  streams_info.threads_per_stream_big,
+                  ") " << streams_info.big_core_logic_streams,
+                  "(",
+                  streams_info.threads_per_stream_big,
+                  ")  ECore: " << streams_info.small_core_streams,
+                  "(",
+                  streams_info.threads_per_stream_small,
+                  ")\n");
+
         return std::pair<std::string, Engine::StreamCfg>(std::to_string(streams_info.num_streams), streams_info);
     };
 
@@ -281,11 +298,14 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             streams = static_cast<int>(getAvailableNUMANodes().size());
         } else if (perf_hint_name == CONFIG_VALUE(THROUGHPUT)) {
             streams = 0;
+        } else if (perf_hint_name.empty()) {
+            streams = streams > 1 ? streams : (engConfig.streamExecutorConfig._set_streams ? streams : 0);
         }
         const auto common_hints = getNumStreams(streams);
 
         config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = common_hints.first;
         config[ov::num_streams.name()] = common_hints.first;
+        config[CONFIG_KEY(CPU_THREADS_NUM)] = std::to_string(common_hints.second.num_threads);
         config[CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)] = std::to_string(common_hints.second.big_core_streams);
         config[CONFIG_KEY_INTERNAL(BIG_CORE_LOGIC_STREAMS)] = std::to_string(common_hints.second.big_core_logic_streams);
         config[CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)] = std::to_string(common_hints.second.small_core_streams);
@@ -317,7 +337,7 @@ int Engine::GetModelPreferThreads(const int num_streams,
                                   const std::shared_ptr<ngraph::Function>& ngraphFunc) const {
     const int sockets = static_cast<int>(getAvailableNUMANodes().size());
     auto model_prefer = 0;
-    if (num_streams <= sockets &&
+    if (num_streams <= sockets && num_streams > 0 &&
         engConfig.streamExecutorConfig._threadBindingType == IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
         bool fp_intesive = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(ngraphFunc);
         const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
@@ -377,6 +397,7 @@ Engine::StreamCfg Engine::ParseStreamsTable(std::vector<std::vector<int>> stream
     for (int i = 0; i < streams_table.size(); i++) {
         if (streams_table[i][PROC_TYPE] == ALL_PROC) {
             streams_info.num_streams = streams_table[i][NUMBER_OF_STREAMS];
+            streams_info.num_threads = streams_table[i][THREADS_PER_STREAM];
         } else if (streams_table[i][PROC_TYPE] == MAIN_CORE_PROC) {
             streams_info.big_core_streams = streams_table[i][NUMBER_OF_STREAMS];
             streams_info.threads_per_stream_big = streams_table[i][THREADS_PER_STREAM];
@@ -392,6 +413,11 @@ Engine::StreamCfg Engine::ParseStreamsTable(std::vector<std::vector<int>> stream
         streams_info.num_streams == 0
             ? streams_info.big_core_streams + streams_info.small_core_streams + streams_info.big_core_logic_streams
             : streams_info.num_streams;
+    streams_info.num_threads = streams_info.num_threads == 0
+                                   ? ((streams_info.big_core_streams + streams_info.big_core_logic_streams) *
+                                          streams_info.threads_per_stream_big +
+                                      streams_info.small_core_streams * streams_info.threads_per_stream_small)
+                                   : streams_info.num_threads;
     return streams_info;
 }
 

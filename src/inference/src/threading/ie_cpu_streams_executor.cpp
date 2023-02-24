@@ -85,11 +85,8 @@ struct CPUStreamsExecutor::Impl {
             if (cpu_map_available()) {
                 std::lock_guard<std::mutex> lock{_impl->_cpumap_mutex};
                 const auto stream_id = _streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId;
-                const bool any_cores = _impl->_config._streams > _impl->_config._big_core_streams +
-                                                                     _impl->_config._big_core_logic_streams +
-                                                                     _impl->_config._small_core_streams;
                 const auto concurrency =
-                    any_cores ? _impl->_config._threads
+                     _impl->any_cores ? _impl->_config._threads
                               : (stream_id < _impl->_config._big_core_streams + _impl->_config._big_core_logic_streams
                                      ? _impl->_config._threads_per_stream_big
                                      : _impl->_config._threads_per_stream_small);
@@ -98,7 +95,7 @@ struct CPUStreamsExecutor::Impl {
                         ? custom::info::core_types().back()
                         : custom::info::core_types().front();
                 if (ThreadBindingType::CORES == _impl->_config._threadBindingType ||
-                    ThreadBindingType::NONE == _impl->_config._threadBindingType || any_cores ||
+                    ThreadBindingType::NONE == _impl->_config._threadBindingType || _impl->any_cores ||
                     _streamId >= _impl->_config._streams) {
                     _taskArena.reset(new custom::task_arena{concurrency});
                 } else if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
@@ -108,7 +105,7 @@ struct CPUStreamsExecutor::Impl {
                                                                 .set_core_type(selected_core_type)
                                                                 .set_max_concurrency(concurrency)});
                 }
-                if (_impl->_config._bind_cores && _streamId < _impl->_config._streams) {
+                if (_impl->bind_cores && _streamId < _impl->_config._streams) {
                     const auto cpu_core_type =
                         _streamId < _impl->_config._big_core_streams
                             ? MAIN_CORE_PROC
@@ -314,8 +311,14 @@ struct CPUStreamsExecutor::Impl {
         } else {
             _usedNumaNodes = numaNodes;
         }
+        if ((config._streams <= static_cast<int>(numaNodes.size()) && ThreadBindingType::HYBRID_AWARE == config._threadBindingType) ||
+            ThreadBindingType::CORES == config._threadBindingType) {
+            bind_cores = true;
+        }
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         if (ThreadBindingType::HYBRID_AWARE == config._threadBindingType) {
+            any_cores = config._streams >
+                        config._big_core_streams + config._big_core_logic_streams + config._small_core_streams;
             const auto core_types = custom::info::core_types();
             const auto num_core_phys = getNumberOfCPUCores();
             num_big_core_phys = getNumberOfCPUCores(true);
@@ -424,6 +427,8 @@ struct CPUStreamsExecutor::Impl {
     using StreamIdToCoreTypes = std::vector<std::pair<custom::core_type_id, int>>;
     StreamIdToCoreTypes total_streams_on_core_types;
     int num_big_core_phys;
+    bool any_cores = false;
+    bool bind_cores = false;
 #endif
     ExecutorManager::Ptr _exectorMgr;
 };

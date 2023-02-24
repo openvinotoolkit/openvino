@@ -54,6 +54,7 @@ private:
 
     struct StreamCfg {
         int num_streams;               // Number of streams
+        int num_threads;               // Number of threads
         int big_core_streams;          // Number of streams in Performance-core(big core)
         int big_core_logic_streams;    // Number of streams in Performance logical core(big core)
         int small_core_streams;        // Number of streams in Efficient-core(small core)
