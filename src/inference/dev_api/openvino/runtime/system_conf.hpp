@@ -132,7 +132,7 @@ OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx_bf16();
 OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx();
 
 /**
- * @enum       column_of_processor_type_table
+ * @enum       ColumnOfProcessorTypeTable
  * @brief      This enum contains defination of each columns in processor type table which bases on cpu core types. Will
  * extend to support other CPU core type like ARM.
  *
@@ -149,16 +149,16 @@ OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx();
  *  ALL_PROC | MAIN_CORE_PROC | EFFICIENT_CORE_PROC | HYPER_THREADING_PROC
  *     32            8                 16                       8           // Total number of one socket
  */
-typedef enum {
+enum ColumnOfProcessorTypeTable {
     ALL_PROC = 0,              //!< All processors, regardless of backend cpu
     MAIN_CORE_PROC = 1,        //!< Processor based on physical core of Intel Performance-cores
     EFFICIENT_CORE_PROC = 2,   //!< Processor based on Intel Efficient-cores
     HYPER_THREADING_PROC = 3,  //!< Processor based on logical core of Intel Performance-cores
     PROC_TYPE_TABLE_SIZE = 4   //!< Size of processor type table
-} column_of_processor_type_table;
+};
 
 /**
- * @enum       column_of_cpu_mapping_table
+ * @enum       ColumnOfCPUMappingTable
  * @brief      This enum contains defination of each columns in CPU mapping table which use processor id as index.
  *
  * GROUP_ID is generated according to the following rules.
@@ -180,7 +180,7 @@ typedef enum {
  *       6             0          4          2          2        0
  *       7             0          5          2          2        0
  */
-typedef enum {
+enum ColumnOfCPUMappingTable {
     CPU_MAP_PROCESSOR_ID = 0,  //!< column for processor id of the processor
     CPU_MAP_SOCKET_ID = 1,     //!< column for socket id of the processor
     CPU_MAP_CORE_ID = 2,       //!< column for hardware core id of the processor
@@ -188,6 +188,6 @@ typedef enum {
     CPU_MAP_GROUP_ID = 4,      //!< column for group id to the processor. Processors in one group have dependency.
     CPU_MAP_USED_FLAG = 5,     //!< column for resource management of the processor
     CPU_MAP_TABLE_SIZE = 6     //!< Size of CPU mapping table
-} column_of_cpu_mapping_table;
+};
 
 }  // namespace ov

@@ -159,7 +159,7 @@ using ov::with_cpu_x86_avx512_core_amx;
  *  ALL_PROC | MAIN_CORE_PROC | EFFICIENT_CORE_PROC | HYPER_THREADING_PROC
  *     32            8                 16                       8           // Total number of one socket
  */
-using ov::column_of_processor_type_table;
+using ov::ColumnOfProcessorTypeTable;
 
 /**
  * @brief      This enum contains defination of each columns in CPU mapping table which use processor id as index.
@@ -183,6 +183,6 @@ using ov::column_of_processor_type_table;
  *       6             0          4          2          2        0
  *       7             0          5          2          2        0
  */
-using ov::column_of_cpu_mapping_table;
+using ov::ColumnOfCPUMappingTable;
 
 }  // namespace InferenceEngine
