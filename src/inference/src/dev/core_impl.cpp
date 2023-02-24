@@ -58,7 +58,7 @@ void stripDeviceName(std::string& device, const std::string& substr) {
 
 ov::CoreImpl::CoreImpl(bool _newAPI) : m_new_api(_newAPI) {
     add_mutex("");  // Register global mutex
-    m_executor_manager = ov::executor_manager();
+    m_executor_manager = ov::threading::executor_manager();
     for (const auto& it : ov::get_available_opsets()) {
         opsetNames.insert(it.first);
     }
@@ -633,7 +633,7 @@ void ov::CoreImpl::set_property(const std::string& device_name, const AnyMap& pr
 
 ov::Any ov::CoreImpl::get_property_for_core(const std::string& name) const {
     if (name == ov::force_tbb_terminate.name()) {
-        const auto flag = ov::executor_manager()->get_property(name).as<bool>();
+        const auto flag = ov::threading::executor_manager()->get_property(name).as<bool>();
         return decltype(ov::force_tbb_terminate)::value_type(flag);
     } else if (name == ov::cache_dir.name()) {
         return ov::Any(coreConfig.get_cache_dir());
@@ -994,7 +994,7 @@ void ov::CoreImpl::CoreConfig::set_and_update(ov::AnyMap& config) {
     it = config.find(ov::force_tbb_terminate.name());
     if (it != config.end()) {
         auto flag = it->second.as<std::string>() == CONFIG_VALUE(YES) ? true : false;
-        ov::executor_manager()->set_property({{it->first, flag}});
+        ov::threading::executor_manager()->set_property({{it->first, flag}});
         config.erase(it);
     }
 

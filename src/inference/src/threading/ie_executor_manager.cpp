@@ -7,7 +7,10 @@
 #include "ie_parallel.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
+#include "openvino/runtime/threading/itask_executor.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
+#include "threading/ie_itask_executor.hpp"
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
 #    if (TBB_INTERFACE_VERSION < 12000)
 #        include <tbb/task_scheduler_init.h>
@@ -25,7 +28,7 @@ namespace InferenceEngine {
 namespace {
 class ExecutorManagerImpl : public ExecutorManager {
 public:
-    ExecutorManagerImpl(const std::shared_ptr<ov::ExecutorManager>& manager);
+    ExecutorManagerImpl(const std::shared_ptr<ov::threading::ExecutorManager>& manager);
     ITaskExecutor::Ptr getExecutor(const std::string& id) override;
     IStreamsExecutor::Ptr getIdleCPUStreamsExecutor(const IStreamsExecutor::Config& config) override;
     size_t getExecutorsNumber() const override;
@@ -35,15 +38,55 @@ public:
     bool getTbbFlag() override;
 
 private:
-    std::shared_ptr<ov::ExecutorManager> m_manager;
-    std::shared_ptr<ov::ExecutorManager> get_ov_manager() const override {
+    std::shared_ptr<ov::threading::ExecutorManager> m_manager;
+    std::shared_ptr<ov::threading::ExecutorManager> get_ov_manager() const override {
         return m_manager;
+    }
+};
+
+class TaskExecutorWrapper : public ITaskExecutor {
+    std::shared_ptr<ov::threading::ITaskExecutor> m_executor;
+
+public:
+    TaskExecutorWrapper(const std::shared_ptr<ov::threading::ITaskExecutor>& executor) : m_executor(executor) {}
+    void run(Task task) override {
+        m_executor->run(task);
+    }
+
+    void runAndWait(const std::vector<Task>& tasks) override {
+        m_executor->run_and_wait(tasks);
+    }
+};
+
+class StreamsExecutorWrapper : public IStreamsExecutor {
+    std::shared_ptr<ov::threading::IStreamsExecutor> m_executor;
+
+public:
+    StreamsExecutorWrapper(const std::shared_ptr<ov::threading::IStreamsExecutor>& executor) : m_executor(executor) {}
+    void run(Task task) override {
+        m_executor->run(task);
+    }
+
+    void runAndWait(const std::vector<Task>& tasks) override {
+        m_executor->run_and_wait(tasks);
+    }
+    int GetStreamId() override {
+        return m_executor->get_stream_id();
+    }
+
+    int GetNumaNodeId() override {
+        return m_executor->get_numa_node_id();
+    }
+
+    void Execute(Task task) override {
+        m_executor->execute(task);
     }
 };
 
 }  // namespace
 
-ExecutorManagerImpl::ExecutorManagerImpl(const std::shared_ptr<ov::ExecutorManager>& manager) : m_manager(manager) {}
+ExecutorManagerImpl::ExecutorManagerImpl(const std::shared_ptr<ov::threading::ExecutorManager>& manager)
+    : m_manager(manager) {}
 
 void ExecutorManagerImpl::setTbbFlag(bool flag) {
     m_manager->set_property({{ov::force_tbb_terminate.name(), flag}});
@@ -54,11 +97,11 @@ bool ExecutorManagerImpl::getTbbFlag() {
 }
 
 ITaskExecutor::Ptr ExecutorManagerImpl::getExecutor(const std::string& id) {
-    return m_manager->get_executor(id);
+    return std::make_shared<TaskExecutorWrapper>(m_manager->get_executor(id));
 }
 
 IStreamsExecutor::Ptr ExecutorManagerImpl::getIdleCPUStreamsExecutor(const IStreamsExecutor::Config& config) {
-    return m_manager->get_idle_cpu_streams_executor(config);
+    return std::make_shared<StreamsExecutorWrapper>(m_manager->get_idle_cpu_streams_executor(config));
 }
 
 size_t ExecutorManagerImpl::getExecutorsNumber() const {
@@ -74,7 +117,7 @@ void ExecutorManagerImpl::clear(const std::string& id) {
 }
 
 std::shared_ptr<InferenceEngine::ExecutorManager> create_old_manager(
-    const std::shared_ptr<ov::ExecutorManager>& manager) {
+    const std::shared_ptr<ov::threading::ExecutorManager>& manager) {
     return std::make_shared<ExecutorManagerImpl>(manager);
 }
 
@@ -94,7 +137,7 @@ public:
         std::lock_guard<std::mutex> lock(_mutex);
         auto manager = _manager.lock();
         if (!manager) {
-            _manager = manager = create_old_manager(ov::executor_manager());
+            _manager = manager = create_old_manager(ov::threading::executor_manager());
         }
         return manager;
     }

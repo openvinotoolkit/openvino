@@ -19,10 +19,12 @@
 #include "threading/ie_itask_executor.hpp"
 
 namespace ov {
+namespace threading {
 
 class ExecutorManager;
 
 }
+}  // namespace ov
 
 namespace InferenceEngine {
 
@@ -86,13 +88,13 @@ public:
     virtual bool getTbbFlag() = 0;
 
 private:
-    virtual std::shared_ptr<ov::ExecutorManager> get_ov_manager() const = 0;
+    virtual std::shared_ptr<ov::threading::ExecutorManager> get_ov_manager() const = 0;
     friend class IPluginWrapper;
 };
 
 INFERENCE_ENGINE_API_CPP(ExecutorManager::Ptr) executorManager();
 
 std::shared_ptr<InferenceEngine::ExecutorManager> create_old_manager(
-    const std::shared_ptr<ov::ExecutorManager>& manager);
+    const std::shared_ptr<ov::threading::ExecutorManager>& manager);
 
 }  // namespace InferenceEngine

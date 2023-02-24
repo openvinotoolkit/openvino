@@ -18,7 +18,7 @@
 #include "streams_executor.hpp"
 #include "threading/ie_parallel_custom_arena.hpp"
 
-namespace InferenceEngine {
+namespace ov {
 
 struct CPU {
     int _processors = 0;
@@ -243,13 +243,13 @@ void parse_processor_info_linux(const int _processors,
 };
 
 #if !((IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO))
-std::vector<int> getAvailableNUMANodes() {
+std::vector<int> get_available_numa_nodes() {
     std::vector<int> nodes((0 == cpu._sockets) ? 1 : cpu._sockets);
     std::iota(std::begin(nodes), std::end(nodes), 0);
     return nodes;
 }
 #endif
-int getNumberOfCPUCores(bool bigCoresOnly) {
+int get_number_of_cpu_cores(bool bigCoresOnly) {
     unsigned numberOfProcessors = cpu._processors;
     unsigned totalNumberOfCpuCores = cpu._cores;
     IE_ASSERT(totalNumberOfCpuCores != 0);
@@ -280,4 +280,4 @@ int getNumberOfCPUCores(bool bigCoresOnly) {
     return phys_cores;
 }
 
-}  // namespace InferenceEngine
+}  // namespace ov

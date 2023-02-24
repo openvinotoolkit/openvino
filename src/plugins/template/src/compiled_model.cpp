@@ -79,7 +79,7 @@ void fill_output_info(const ov::Output<ov::Node>& output, InferenceEngine::DataP
 // ! [executable_network:ctor_cnnnetwork]
 TemplatePlugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
-                                             const InferenceEngine::ITaskExecutor::Ptr& task_executor,
+                                             const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
                                              const Configuration& cfg)
     : ov::ICompiledModel(model, plugin, task_executor),  // Disable default threads creation
       _cfg(cfg),

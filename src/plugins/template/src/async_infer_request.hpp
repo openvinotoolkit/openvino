@@ -16,14 +16,14 @@ namespace TemplatePlugin {
 class AsyncInferRequest : public ov::IAsyncInferRequest {
 public:
     AsyncInferRequest(const std::shared_ptr<InferRequest>& request,
-                      const InferenceEngine::ITaskExecutor::Ptr& task_executor,
-                      const InferenceEngine::ITaskExecutor::Ptr& wait_executor,
-                      const InferenceEngine::ITaskExecutor::Ptr& callback_executor);
+                      const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
+                      const std::shared_ptr<ov::threading::ITaskExecutor>& wait_executor,
+                      const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor);
 
     ~AsyncInferRequest();
 
 private:
-    InferenceEngine::ITaskExecutor::Ptr m_wait_executor;
+    std::shared_ptr<ov::threading::ITaskExecutor> m_wait_executor;
 };
 // ! [async_infer_request:header]
 
