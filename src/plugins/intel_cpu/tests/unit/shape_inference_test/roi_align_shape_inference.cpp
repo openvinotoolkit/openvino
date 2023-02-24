@@ -4,10 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <openvino/op/parameter.hpp>
-#include <openvino/op/roi_align.hpp>
-#include <utils/shape_inference/shape_inference.hpp>
-#include <utils/shape_inference/static_shape.hpp>
+#include "utils.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;
