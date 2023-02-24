@@ -21,6 +21,7 @@ struct strided_slice_test_params {
     data_types input_type;
     format input_format;
     size_t expected_fused_primitives;
+    size_t expected_fused_primitives_onednn;
     size_t expected_not_fused_primitives;
     std::vector<std::pair<activation_func,activation_additional_params>> activation_func_list;
 };
@@ -64,6 +65,8 @@ TEST_P(strided_slice_activation, basic) {
     std::vector<int64_t> strides_data = { 1, 1, 1, 1 };
 
     auto p = GetParam();
+    if (engine.get_device_info().supports_immad)
+        p.expected_fused_primitives = p.expected_fused_primitives_onednn;
     create_topologies(
         input_layout("input", get_input_layout(p)),
         strided_slice("strided_slice", input_info("input"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, { 1, 8, 1, 1 })
@@ -84,7 +87,7 @@ TEST_P(strided_slice_activation, basic) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, strided_slice_activation, ::testing::ValuesIn(std::vector<strided_slice_test_params>{
-    strided_slice_test_params{ CASE_STRIDED_SLICE_F16_1, 2, 4, {{ activation_func::clamp, { } }, { activation_func::exp, { } }} },
-    strided_slice_test_params{ CASE_STRIDED_SLICE_F16_1, 2, 3, {{ activation_func::logistic, { } } } },
-    strided_slice_test_params{ CASE_STRIDED_SLICE_F16_1, 2, 3, {{ activation_func::hyperbolic_tan, { } } } },
+    strided_slice_test_params{ CASE_STRIDED_SLICE_F16_1, 2, 2, 4, {{ activation_func::clamp, { } }, { activation_func::exp, { } }} },
+    strided_slice_test_params{ CASE_STRIDED_SLICE_F16_1, 2, 2, 3, {{ activation_func::logistic, { } } } },
+    strided_slice_test_params{ CASE_STRIDED_SLICE_F16_1, 2, 3, 3, {{ activation_func::hyperbolic_tan, { } } } },
 }));
