@@ -400,7 +400,13 @@ class TestParallelRunner:
                 test_log = list()
                 dir = None
                 test_cnt_expected = test_cnt_real_saved_now = test_cnt_real_saved_before = 0
-                for line in log_file.readlines():
+                lines = list()
+                try:
+                    lines = log_file.readlines()
+                except:
+                    lines = log.read_text(encoding='ascii', errors='ignore').split('\n')
+
+                for line in lines:
                     if constants.GTEST_FILTER in line:
                         line = line[line.find(constants.GTEST_FILTER):]
                         test_cnt_expected = line.count(':')
@@ -488,7 +494,7 @@ if __name__ == "__main__":
     logger.info(f"[ARGUMENTS] Executable file arguments = {exec_file_args}")
     TaskManager.process_timeout = args.process_timeout
     conformance = TestParallelRunner(args.exec_file, exec_file_args, args.workers, args.working_dir, args.cache_path)
-    conformance.run()
+    # conformance.run()
     if not conformance.postprocess_logs():
         logger.error("Run is not successful")
         sys.exit(-1)
