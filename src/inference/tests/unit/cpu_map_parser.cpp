@@ -10,7 +10,7 @@
 #include "streams_executor.hpp"
 
 using namespace testing;
-using namespace InferenceEngine;
+using namespace ov;
 
 namespace {
 
@@ -36,12 +36,12 @@ public:
         std::vector<std::vector<int>> test_proc_type_table;
         std::vector<std::vector<int>> test_cpu_mapping_table;
 
-        InferenceEngine::parse_processor_info_linux(test_data._processors,
-                                                    test_data.system_info_table,
-                                                    test_sockets,
-                                                    test_cores,
-                                                    test_proc_type_table,
-                                                    test_cpu_mapping_table);
+        ov::parse_processor_info_linux(test_data._processors,
+                                       test_data.system_info_table,
+                                       test_sockets,
+                                       test_cores,
+                                       test_proc_type_table,
+                                       test_cpu_mapping_table);
 
         ASSERT_EQ(test_data._sockets, test_sockets);
         ASSERT_EQ(test_data._cores, test_cores);
@@ -629,13 +629,13 @@ public:
         std::vector<std::vector<int>> test_proc_type_table;
         std::vector<std::vector<int>> test_cpu_mapping_table;
 
-        parse_processor_info_win(test_info_ptr,
-                                 len,
-                                 test_data._processors,
-                                 test_sockets,
-                                 test_cores,
-                                 test_proc_type_table,
-                                 test_cpu_mapping_table);
+        ov::parse_processor_info_win(test_info_ptr,
+                                     len,
+                                     test_data._processors,
+                                     test_sockets,
+                                     test_cores,
+                                     test_proc_type_table,
+                                     test_cpu_mapping_table);
 
         ASSERT_EQ(test_data._sockets, test_sockets);
         ASSERT_EQ(test_data._cores, test_cores);
