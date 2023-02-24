@@ -212,7 +212,7 @@ def update_tensor(
     key: Optional[ValidKeys] = None,
 ) -> None:
     if hasattr(inputs, "__array__"):
-        update_tensor(normalize_arrays(inputs, is_shared=False), request, key=None)
+        update_tensor(normalize_arrays(inputs, is_shared=False), request, key)
         return None
     raise TypeError(f"Incompatible inputs of type: {type(inputs)} under {key} key!")
 
