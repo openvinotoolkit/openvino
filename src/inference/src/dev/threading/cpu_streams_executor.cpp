@@ -6,7 +6,10 @@
 
 #include <condition_variable>
 #include <memory>
+#include <mutex>
 #include <queue>
+#include <thread>
+#include <vector>
 
 #include "openvino/itt.hpp"
 #include "openvino/runtime/system_conf.hpp"
