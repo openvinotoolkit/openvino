@@ -43,7 +43,7 @@ ov_model = convert_model(model, example_input=torch.zeros(1, 3, 100, 100))
 * `list` or `tuple` with tensors (`openvino.runtime.Tensor` / `torch.Tensor` / `np.ndarray`)
 * `dictionary` where key is the input name, value is the tensor (`openvino.runtime.Tensor` / `torch.Tensor` / `np.ndarray`)
 
-If PyTorch model is scripted it can be converted using `convert_model()` with `input_signature` parameter for keeping dynamic dimensions of the original model.
+If PyTorch model is scripted it can be converted using `convert_model()` with `input_signature` parameter, which specifies additional names for input tensors aligned with argument names in model forward method.
 
 ```sh
 import inspect
@@ -53,7 +53,7 @@ model = torchvision.models.resnet50(pretrained=True)
 model_signature = list(inspect.signature(model.forward).parameters.keys())
 traced_model = torch.jit.trace(model, example_inputs=torch.zeros(1, 3, 224, 224))
 
-ov_model = convert_model(traced_model, input_signature=model_signature) # the model has [?,3,?,?] input shape
+ov_model = convert_model(traced_model, input_signature=model_signature)
 ```
 
 If `use_legacy_frontend` is set, it enables PyTorch model converting using temporary ONNX model.
