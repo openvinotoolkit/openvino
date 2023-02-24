@@ -262,6 +262,40 @@ TEST(TransformationTests, ConvertMatMulToFCTest10) {
     ASSERT_NO_THROW(m.run_passes(f));
 }
 
+TEST_F(TransformationTestsF, ConvertMatMulToFCTest11) {
+    auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape{18, -1, 1});
+    auto input2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{18, 80, 1}, {1});
+    auto matmul = std::make_shared<ngraph::opset1::MatMul>(input1, input2, false, true);
+    function = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1});
+    manager.register_pass<ConvertMatMulToFC>();
+}
+
+TEST_F(TransformationTestsF, ConvertMatMulToFCTest12) {
+    {
+        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape{1, -1, 1});
+        auto input2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{2, 80, 1}, {1});
+        auto matmul = std::make_shared<ngraph::opset1::MatMul>(input1, input2, false, true);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1});
+    }
+    manager.register_pass<ConvertMatMulToFC>();
+}
+
+TEST_F(TransformationTestsF, ConvertMatMulToFCTest13) {
+    {
+        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape{-1, -1, 1});
+        auto input2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1, 80, 1}, {1});
+        auto matmul = std::make_shared<ngraph::opset1::MatMul>(input1, input2, false, true);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1});
+    }
+    manager.register_pass<ConvertMatMulToFC>();
+    {
+        auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::PartialShape{-1, -1, 1});
+        auto input2 = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{80, 1}, {1});
+        auto matmul = std::make_shared<FullyConnectedNode>(input1, input2, ngraph::Rank(3));
+        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{matmul}, ngraph::ParameterVector{input1});
+    }
+}
+
 TEST(TransformationTests, FullyConnectedBiasFusionTest1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
