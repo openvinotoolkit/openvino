@@ -179,6 +179,7 @@ void TemplatePlugin::InferRequest::infer_postprocess() {
             auto host_tensor = m_backend_output_tensors[i];
             ov::Output<const ov::Node> output{result->output(0).get_node(), result->output(0).get_index()};
             allocate_tensor(output, [host_tensor](ov::Tensor& tensor) {
+                allocate_tensor_impl(tensor, host_tensor.get_element_type(), host_tensor.get_shape());
                 host_tensor.copy_to(tensor);
             });
         }
