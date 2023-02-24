@@ -322,7 +322,7 @@ static void regclass_graph_InputTensorInfo(py::module m) {
         "set_from",
         [](ov::preprocess::InputTensorInfo& self, py::array& numpy_array) {
             // Convert to contiguous array if not already C-style.
-            return &self.set_from(Common::tensor_from_numpy(numpy_array, false));
+            return &self.set_from(Common::object_from_data<ov::Tensor>(numpy_array, false));
         },
         py::arg("runtime_tensor"),
         R"(

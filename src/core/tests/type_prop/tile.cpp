@@ -152,12 +152,11 @@ protected:
 
         if (!labels.empty()) {
             auto repeats = repeats_val;
-            int64_t size_diff = labels.size() - repeats.size();
 
-            if (size_diff >= 0) {
-                repeats.insert(repeats.begin(), size_diff, 1);
+            if (labels.size() > repeats.size()) {
+                repeats.insert(repeats.begin(), labels.size() - repeats.size(), 1);
             } else {
-                labels.insert(labels.begin(), -size_diff, ov::no_label);
+                labels.insert(labels.begin(), repeats.size() - labels.size(), ov::no_label);
             }
 
             std::transform(labels.begin(),
