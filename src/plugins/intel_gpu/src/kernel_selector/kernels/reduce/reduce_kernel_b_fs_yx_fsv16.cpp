@@ -222,7 +222,7 @@ JitConstants ReduceKernel_b_fs_yx_fsv16::GetJitConstants(const reduce_params& pa
                                params.reduceMode == ReduceMode::OR || params.reduceMode == ReduceMode::SUM ||
                                params.reduceMode == ReduceMode::SUM_SQUARE;
     if (zero_invariant_mode || params.inputs[0].Feature().v % 16 == 0) {
-        if (count(params.reduceAxes.begin(), params.reduceAxes.end(), 1) > 1)
+        if (count(params.reduceAxes.begin(), params.reduceAxes.end(), 1) > 0)
             jit.AddConstant(MakeJitConstant("ZERO_INVARIANT_MODE", 1));
     }
 
