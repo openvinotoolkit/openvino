@@ -28,6 +28,7 @@ void regclass_pyngraph_DiscreteTypeInfo(py::module m) {
     discrete_type_info.def(py::self != py::self);
 
     discrete_type_info.def_readonly("name", &ngraph::DiscreteTypeInfo::name);
+    discrete_type_info.def_readonly("version_id", &ngraph::DiscreteTypeInfo::version_id);
     discrete_type_info.def_readonly("parent", &ngraph::DiscreteTypeInfo::parent);
 
     discrete_type_info.def("__repr__", [](const ngraph::DiscreteTypeInfo& self) {
