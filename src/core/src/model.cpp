@@ -118,7 +118,7 @@ ov::Model::Model(const NodeVector& results, const ngraph::ParameterVector& param
 ov::Model::Model(const std::shared_ptr<Node>& result,
                  const ngraph::ParameterVector& parameters,
                  const std::string& name)
-    : Model(result->outputs(), parameters, name) {}
+    : Model(verify_node(result)->outputs(), parameters, name) {}
 
 ov::Model::Model(const ngraph::ResultVector& results,
                  const ngraph::SinkVector& sinks,
@@ -1157,4 +1157,9 @@ void ov::set_batch(const std::shared_ptr<ov::Model>& f, ov::Dimension batch_size
         stream << "Original error message is: " << e.what();
         OPENVINO_ASSERT(false, stream.str());
     }
+}
+
+const std::shared_ptr<ov::Node>& ov::Model::verify_node(const std::shared_ptr<ov::Node>& node) {
+    OPENVINO_ASSERT(node != nullptr, "Model is incorrect! Some Node equals to nullptr.");
+    return node;
 }
