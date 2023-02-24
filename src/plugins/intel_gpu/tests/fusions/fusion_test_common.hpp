@@ -38,7 +38,7 @@ public:
             cfg_fused.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
             cfg_not_fused.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
 #ifdef ENABLE_ONEDNN_FOR_GPU
-            engine.create_onednn_engine({});
+            engine.create_onednn_engine(cfg_fused);
 #endif
         }
     }
