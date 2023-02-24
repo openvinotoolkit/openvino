@@ -10,6 +10,11 @@
    openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Model_Optimizer_Extensions
    openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Extending_Model_Optimizer_With_Caffe_Python_Layers
 
+This article describes Model Optimizer internals. Altering them may result in application instability, and in case of future changes to the API, lack of backward compatibility.
+
+.. note:: 
+   If you want to add support for ONNX, PaddlePaddle or Tensorflow operations, or you are not familiar with other extension alternatives in OpenVINO, read :doc:`this guide <openvino_docs_Extensibility_UG_Intro>` instead.
+
 Model Optimizer extensibility mechanism enables support of new operations and custom transformations to generate the optimized intermediate representation (IR) as described :doc:`here <openvino_docs_MO_DG_IR_and_opsets>`. This mechanism is a core part of Model Optimizer, as a huge set of examples showing how to add custom logic to support your model.
 
 There are several cases when the customization is needed:

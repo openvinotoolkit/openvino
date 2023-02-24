@@ -67,10 +67,12 @@ The sub-graph pattern is defined in the ``pattern()`` function. This function sh
 ``nodes`` and ``edges``:
 
 * The value for the ``nodes`` key is a list of tuples with two elements.
+
    * The first element is an alias name for a node that will be used to define edges between nodes and in the transformation function.
    * The second element is a dictionary with attributes. The key is a name of an attribute that should exist in the node. The value for the attribute can be some specific value to match or a function that gets a single parameter - the attribute value from the node. The function should return the result of attribute comparison with a dedicated value.
 
 * The value for the ``edges`` key is a list of tuples with two or three elements.
+
    * The first element is the alias name of the node producing a tensor.
    * The second element is the alias name of the node consuming the tensor.
    * The third element (optional) is the dictionary with expected edge attributes. This dictionary usually contains attributes like ``in`` and ``out``, defining input and output ports.
