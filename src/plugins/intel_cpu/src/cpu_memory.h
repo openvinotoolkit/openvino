@@ -279,6 +279,8 @@ private:
         void resetDnnlPrim();
 
     private:
+        // Since getPrim should behave as a constant method, even though it changes state, it must be thread safe.
+        // To provide thead safety we use this mutex
         mutable std::mutex m_primCachingLock;
         mutable dnnl::memory m_prim;
         const Memory* m_memObjPtr;
