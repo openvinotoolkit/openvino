@@ -221,9 +221,6 @@ public:
         target_device = GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
-        // TODO: Remove it after fixing issue 69529
-        // w/a for myriad (cann't store 2 caches simultaneously)
-        PluginCache::get().reset();
         OVClassNetworkTest::SetUp();
     }
 };
@@ -236,9 +233,6 @@ public:
         target_device = GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
-        // TODO: Remove it after fixing issue 69529
-        // w/a for myriad (cann't store 2 caches simultaneously)
-        PluginCache::get().reset();
         OVClassNetworkTest::SetUp();
     }
 };
