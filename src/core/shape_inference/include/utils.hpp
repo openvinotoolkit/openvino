@@ -463,17 +463,29 @@ inline bool get_data_as_shape<ov::PartialShape>(
     }
 }
 
-template <class T>
+/**
+ * @brief Check for valid quotient of dimension division.
+ *
+ * If quotient is not valid (quotient * divisor != dividend) throw NodeValidationFailure exception.
+ *
+ * @tparam TDim     Type of dimension.
+ *
+ * @param op        Pointer to operator.
+ * @param quotient  Dimension result after division.
+ * @param dividend  Original dimension.
+ * @param divisor   Dimension divide value.
+ */
+template <class TDim>
 inline void check_divided_result(const ov::Node* op,
-                                 const T& res,
-                                 const T& divided,
-                                 const typename T::value_type& divisor) {
+                                 const TDim& quotient,
+                                 const TDim& dividend,
+                                 const typename TDim::value_type& divisor) {
     NODE_VALIDATION_CHECK(op,
-                          res != T{},
+                          quotient != TDim{},
                           "Dimension value: [ ",
-                          divided.get_min_length(),
+                          dividend.get_min_length(),
                           ", ",
-                          divided.get_max_length(),
+                          dividend.get_max_length(),
                           "]",
                           " must be a multiple of divisor: ",
                           divisor);
@@ -481,15 +493,15 @@ inline void check_divided_result(const ov::Node* op,
 
 template <>
 inline void check_divided_result<ov::Dimension>(const ov::Node* op,
-                                                const ov::Dimension& res,
-                                                const ov::Dimension& divided,
+                                                const ov::Dimension& quotient,
+                                                const ov::Dimension& dividend,
                                                 const typename ov::Dimension::value_type& divisor) {
     NODE_VALIDATION_CHECK(op,
-                          !res.get_interval().empty(),
+                          !quotient.get_interval().empty(),
                           "Dimension value: [ ",
-                          divided.get_min_length(),
+                          dividend.get_min_length(),
                           ", ",
-                          divided.get_max_length(),
+                          dividend.get_max_length(),
                           "]",
                           " must be a multiple of divisor: ",
                           divisor);
