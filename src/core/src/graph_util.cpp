@@ -248,8 +248,6 @@ void clone_ov_nodes(const std::vector<std::shared_ptr<ov::Node>>& nodes,
                 cloned_node->input(input.get_index()).get_rt_info() = input.get_rt_info();
             }
 
-            cloned_node->set_op_annotations(node->get_op_annotations());
-
             node_map[node.get()] = cloned_node;
         }
     }
@@ -349,8 +347,6 @@ std::vector<std::shared_ptr<ngraph::Node>> ngraph::clone_nodes(const std::vector
                 new_input.get_rt_info() = output_rt_info;
             }
 
-            cloned_node->set_op_annotations(node->get_op_annotations());
-
             node_map[node.get()] = cloned_node;
         }
     }
@@ -395,7 +391,6 @@ std::list<std::shared_ptr<ngraph::Node>> ngraph::clone_nodes(const std::vector<s
                 cloned_node->set_friendly_name(node->get_friendly_name());
                 auto rt_info = node->get_rt_info();
                 cloned_node->get_rt_info() = rt_info;
-                cloned_node->set_op_annotations(node->get_op_annotations());
                 for (const auto& cloned_value : cloned_node->outputs()) {
                     auto original_value = node_outputs.at(cloned_value.get_index());
                     if (output_map.count(original_value) == 0) {
@@ -629,24 +624,6 @@ size_t ngraph::get_user_count(Node* node) {
         count += is_used(node_user.get());
     }
     return count;
-}
-
-bool ngraph::possibly_overwritten(Node* node) {
-    for (auto& output : node->outputs()) {
-        for (auto& input : output.get_target_inputs()) {
-            if (op::is_op(input.get_node())) {
-                auto op = static_cast<ngraph::op::Op*>(input.get_node());
-                if (auto op_annotations = op->get_op_annotations()) {
-                    for (auto oi_pair : op_annotations->get_in_place_oi_pairs()) {
-                        if (input.get_index() == oi_pair.input && oi_pair.destructive) {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return false;
 }
 
 bool ngraph::is_strided(const Strides& strides) {
