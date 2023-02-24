@@ -310,7 +310,7 @@ class Graph {
 
 $(document).ready(function () {
 
-    $('#build-graphs-btn').on('click', showModal);
+    $('.ov-toolkit-benchmark-results').on('click', showModal);
 
     function clickBuildGraphs(graph, networkModels, ietype, platforms, kpis, precisions) {
         renderData(graph, networkModels, ietype, platforms, kpis, precisions);

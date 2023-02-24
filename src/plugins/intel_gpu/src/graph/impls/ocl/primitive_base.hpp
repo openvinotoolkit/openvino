@@ -276,6 +276,19 @@ protected:
                 (std::accumulate(gws.begin(), gws.end(), 1, std::multiplies<size_t>()) == 0);
         }
     }
+
+    void set_kernels(std::map<const std::string, kernel::ptr>& kernels) {
+        if (is_cpu())
+            return;
+
+        _kernel_ids.clear();
+        _kernels.clear();
+        _kernels.reserve(kernels.size());
+        for (auto& k : kernels) {
+            _kernel_ids.push_back(k.first);
+            _kernels.emplace_back(std::move(k.second));
+        }
+    }
 };
 
 }  // namespace ocl
