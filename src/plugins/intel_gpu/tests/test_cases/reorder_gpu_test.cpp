@@ -2951,6 +2951,8 @@ TEST(reorder_onednn_gpu, basic_convert_int8) {
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
 TEST(reorder_gpu_optimization, compare_with_ref__b_fs_yx_fsv32_to_bfyx_f32_cached) {
+    if (get_test_engine().get_device_info().supports_immad)
+        return;
     // b_fs_yx_fsv32 -> bfyx
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv32, format::bfyx, 3, 64 + 5, 16 + 11, 3, 0, 0, true);
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv32, format::bfyx, 3, 96 - 12, 16 + 4, 3, 0, 0, true);
@@ -2964,6 +2966,8 @@ TEST(reorder_gpu_optimization, compare_with_ref__b_fs_yx_fsv32_to_bfyx_f32_cache
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__b_fs_yx_fsv32_to_bfyx_different_datatype_cached) {
+    if (get_test_engine().get_device_info().supports_immad)
+        return;
     // f32 -> other types
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::u8, format::b_fs_yx_fsv32, format::bfyx, 2, 64, 8 + 7, 2, 0, 0, true);
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::i64, format::b_fs_yx_fsv32, format::bfyx, 2, 64, 16 + 2, 2, 0, 0, true);
@@ -2975,6 +2979,8 @@ TEST(reorder_gpu_optimization, compare_with_ref__b_fs_yx_fsv32_to_bfyx_different
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__b_fs_yx_fsv16_to_bfyx_f32_cached) {
+    if (get_test_engine().get_device_info().supports_immad)
+        return;
     // u-net
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::f32, format::b_fs_yx_fsv16, format::bfyx, 1, 64, 388, 388, 0, 0, true);
     // b_fs_yx_fsv16 -> bfyx
@@ -2990,6 +2996,8 @@ TEST(reorder_gpu_optimization, compare_with_ref__b_fs_yx_fsv16_to_bfyx_f32_cache
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__b_fs_yx_fsv16_to_bfyx_different_datatype_cached) {
+    if (get_test_engine().get_device_info().supports_immad)
+        return;
     // f32 -> other types
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::u8, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, true);
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::f32, data_types::i8, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, true);
@@ -3005,6 +3013,8 @@ TEST(reorder_gpu_optimization, compare_with_ref__b_fs_yx_fsv16_to_bfyx_different
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_blocked_f32_cached) {
+    if (get_test_engine().get_device_info().supports_immad)
+        return;
     // bfyx_to_b_fs_yx_fsv4
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::b_fs_yx_fsv4, 4, 32, 16, 4, 0, 0, true);
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::b_fs_yx_fsv4, 3, 32 + 2, 32 + 3, 4, 0, 0, true);
@@ -3026,6 +3036,8 @@ TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_blocked_f32_cached) {
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32_cached) {
+    if (get_test_engine().get_device_info().supports_immad)
+        return;
     // bfyx to double blocked format (bs_fs_yx_bsv16_fsv16)
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::bs_fs_yx_bsv16_fsv16, 32, 48, 8, 4, 0, 0, true);
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfyx, format::bs_fs_yx_bsv16_fsv16, 32 + 2, 48, 16, 4, 0, 0, true);
@@ -3041,6 +3053,8 @@ TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32_cach
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32_bsv16_fsv32_cached) {
+    if (get_test_engine().get_device_info().supports_immad)
+        return;
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 3, 16, 4, 5, 7, 0, true);
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 1, 1, 1, 1, 1, 0, true);
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv16_fsv32, 32 + 2, 48, 16, 4, 2, 0, true);
@@ -3051,6 +3065,8 @@ TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32_bsv1
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32_bsv32_fsv16_cached) {
+    if (get_test_engine().get_device_info().supports_immad)
+        return;
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 1, 1, 1, 1, 1, 0, true);
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 32 + 2, 48, 16, 4, 2, 0, true);
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv16, 32, 48 + 5, 16, 4, 3, 0, true);
@@ -3059,6 +3075,8 @@ TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32_bsv3
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32_bsv32_fsv32_cached) {
+    if (get_test_engine().get_device_info().supports_immad)
+        return;
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 1, 1, 1, 1, 1, 0, true);
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 32 + 2, 48, 16, 4, 2, 0, true);
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f32, format::bfzyx, format::bs_fs_zyx_bsv32_fsv32, 32, 48 + 5, 16, 4, 3, 0, true);
@@ -3067,6 +3085,8 @@ TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_double_blocked_f32_bsv3
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_blocked_format_different_datatype_cached) {
+    if (get_test_engine().get_device_info().supports_immad)
+        return;
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::f32, data_types::f16, format::bfyx, format::b_fs_yx_fsv16, 3, 32 + 4, 16 + 7, 2, 0, 0, true);
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::i8, data_types::f32, format::bfyx, format::b_fs_yx_fsv16, 3, 32 + 4, 16 + 7, 2, 0, 0, true);
     compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format", data_types::i64, data_types::f32, format::bfyx, format::b_fs_yx_fsv16, 3, 32 + 4, 16 + 7, 2, 0, 0, true);
