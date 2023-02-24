@@ -218,6 +218,11 @@ bool ngraph::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
     auto output_high = output_high_constant->cast_vector<float>();
     auto levels = fq_node->get_levels();
 
+    // We have two ways for computations of scales and shifts to avoid model compilation time growth
+    // because common function "ngraph::runtime::reference::autobroadcast_binop()" is expensive:
+    //  - A usual case (weights with the same shapes or scalars) - optimal calculations without large broadcasting
+    //  - A rare case ("NUMPY broadcasting") - common computations using autobroadcast_binop() call with broadcasting support
+
     // Calculations of input scales and shift:
     //   - isc := (levels-1) / (ih - il)
     //   - ish := -il * isc
