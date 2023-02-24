@@ -39,8 +39,9 @@ bool is_batch_after_spatial(const std::string order) {
 }
 
 format::type get_preferred_format(fully_connected_node const& node, const kernel_impl_params& impl_param) {
-    if (node.get_preferred_impl_type() == impl_types::onednn)
-        return format::bfyx;
+    if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
+        return node.get_preferred_output_fmt();
+    }
 
     auto input_layout = impl_param.get_input_layout();
 
