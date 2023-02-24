@@ -288,10 +288,6 @@ std::vector<std::shared_ptr<test_params>> generic_test::generate_generic_test_pa
 
 std::shared_ptr<cldnn::engine> create_test_engine() {
     auto ret = cldnn::engine::create(engine_types::ocl, runtime_types::ocl);
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    if(ret->get_device_info().supports_immad)
-        ret->create_onednn_engine({});
-#endif
     return ret;
 }
 
