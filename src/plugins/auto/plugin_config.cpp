@@ -24,7 +24,7 @@ void PluginConfig::set_default() {
         std::make_tuple(ov::intel_auto::device_bind_buffer, false),
         std::make_tuple(ov::hint::performance_mode, ov::hint::PerformanceMode::UNDEFINED, PerformanceModeValidator()),
         std::make_tuple(ov::hint::num_requests, 0),
-        std::make_tuple(ov::intel_auto::enable_startup_fallback, false),
+        std::make_tuple(ov::intel_auto::enable_startup_fallback, true),
         // TODO 1) cache_dir 2) allow_auto_batch 3) auto_batch_timeout
         std::make_tuple(ov::cache_dir, ""),
         std::make_tuple(ov::hint::allow_auto_batching, true),
@@ -95,8 +95,10 @@ void PluginConfig::set_user_property(const ov::AnyMap& config, bool checkfirstle
 
 void PluginConfig::apply_user_properties() {
     full_properties = internal_properties;
-    // update internal if existed
     for (auto& kv : user_properties) {
+        // update internal if existed
+        if (is_supported(kv.first))
+            internal_properties[kv.first] = kv.second;
         full_properties[kv.first] = kv.second;
     }
 }

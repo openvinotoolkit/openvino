@@ -358,14 +358,10 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     _LogTag = GetName();
     bool workModeAuto = GetName() == "AUTO";
     auto loadConfig = _pluginConfig;
-    // updateFromMap will check config valid
-    loadConfig.set_user_property(preprocess_config(config), workModeAuto? true : false);
-    loadConfig.apply_user_properties();
-    auto fullProperty = loadConfig.get_full_properties();
-    // this can be updated when plugin switch to 2.0 API
-    std::map<std::string, std::string> fullConfig = convert_to_string_map(fullProperty);
-    // Remove the performance hint if no setting to this property from user.
-    if (!loadConfig.is_set_by_user(ov::hint::performance_mode)) {
+    // if no perf hint from user with compiled model, or already been set with plugin
+    // apply latency for AUTO, tput for MULTI
+    bool isHintSet = _pluginConfig.is_set_by_user(ov::hint::performance_mode) || config.find(ov::hint::performance_mode.name()) != config.end();
+    if (!isHintSet) {
         if (workModeAuto) {
             // set performance hint to 'LATENCY' model for AutoExecutable Network.
             loadConfig.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
@@ -374,14 +370,22 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
             loadConfig.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT));
         }
     }
+    // updateFromMap will check config valid
+    loadConfig.set_user_property(preprocess_config(config), workModeAuto? true : false);
+    loadConfig.apply_user_properties();
+    auto fullProperty = loadConfig.get_full_properties();
+    // this can be updated when plugin switch to 2.0 API
+    std::map<std::string, std::string> fullConfig = convert_to_string_map(fullProperty);
+    // Remove the performance hint as this is set by plugin logic, not from user
+    if (!isHintSet)
+        fullConfig.erase(ov::hint::performance_mode.name());
     if (!loadConfig.is_set_by_user(ov::cache_dir))
         fullConfig.erase(ov::cache_dir.name());
     // collect the settings that are applicable to the devices we are loading the network to
     std::unordered_map<std::string, ov::Any> multiNetworkConfig;
     std::vector<DeviceInformation> metaDevices;
-    auto priorities = fullConfig.find(ov::device::priorities.name());
-    if (priorities->second.find("AUTO") != std::string::npos
-        || priorities->second.find("MULTI") != std::string::npos) {
+    auto priorities = loadConfig.get_property(ov::device::priorities);
+    if (priorities.find("AUTO") != std::string::npos || priorities.find("MULTI") != std::string::npos) {
         IE_THROW() << "The device candidate list should not include the meta plugin for " << GetName() << " device";
     }
     // If the user sets the property, insert the property into the deviceConfig
@@ -416,7 +420,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
             autoSContext->_needPerfCounters = true;
         }
         autoSContext->_modelPriority = MapPriorityValues(loadConfig.get_property(ov::hint::model_priority));
-        autoSContext->_batchingDisabled = loadConfig.get_property(ov::hint::allow_auto_batching);
+        autoSContext->_batchingDisabled = !(loadConfig.get_property(ov::hint::allow_auto_batching));
         autoSContext->_performanceHint = loadConfig.get_property(ov::hint::performance_mode.name()).as<std::string>();
         // filter the device that supports filter configure
         auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
@@ -493,18 +497,18 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         _LogTag = "AUTO";
         LOG_INFO_TAG("CUMULATIVE Call MULTI PERFORMANCE_HINT set to THROUGHPUT");
     }
-    if (priorities->second.empty()) {
+    if (priorities.empty()) {
         IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() << " device";
     } else {  // for use case -d MULTI:xPU or -d AUTO:xPU
-        auto metaDevicesByConfig = ParseMetaDevices(priorities->second, fullConfig);
+        auto metaDevicesByConfig = ParseMetaDevices(priorities, fullConfig);
         metaDevices = modelPath.empty() ? FilterDeviceByNetwork(metaDevicesByConfig, network)
                                         : metaDevicesByConfig;
         if (metaDevicesByConfig.size() != metaDevices.size()) {
             LOG_DEBUG_TAG("stateful/dynamic model, loaded to single device");
-            multiNetworkConfig[MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES]
+            multiNetworkConfig[ov::device::priorities.name()]
                     = metaDevices[0].deviceName;
         } else {
-            multiNetworkConfig.insert(*priorities);
+            multiNetworkConfig[ov::device::priorities.name()] = priorities;
         }
     }
     auto multiSContext = std::make_shared<MultiScheduleContext>();
@@ -524,7 +528,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                 p.config.insert({tmpiter->first, tmpiter->second});
         }
         if (loadConfig.is_set_by_user(ov::auto_batch_timeout))
-            insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), p.deviceName, p.config);
+            insertPropToConfig(ov::auto_batch_timeout.name(), p.deviceName, p.config);
         insertPropToConfig(ov::cache_dir.name(), p.deviceName, p.config);
         const auto& deviceName = p.deviceName;
         const auto& deviceConfig = p.config;
