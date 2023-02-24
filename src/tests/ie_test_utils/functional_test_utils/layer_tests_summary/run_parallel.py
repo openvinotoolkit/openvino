@@ -494,7 +494,7 @@ if __name__ == "__main__":
     logger.info(f"[ARGUMENTS] Executable file arguments = {exec_file_args}")
     TaskManager.process_timeout = args.process_timeout
     conformance = TestParallelRunner(args.exec_file, exec_file_args, args.workers, args.working_dir, args.cache_path)
-    # conformance.run()
+    conformance.run()
     if not conformance.postprocess_logs():
         logger.error("Run is not successful")
         sys.exit(-1)
