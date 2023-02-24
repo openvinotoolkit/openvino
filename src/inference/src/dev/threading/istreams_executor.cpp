@@ -35,8 +35,9 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
 #if (defined(__APPLE__) || defined(_WIN32))
                 _threadBindingType = IStreamsExecutor::ThreadBindingType::NUMA;
 #else
-                _threadBindingType = (value == CONFIG_VALUE(YES)) ? IStreamsExecutor::ThreadBindingType::CORES
-                                                                  : IStreamsExecutor::ThreadBindingType::NUMA;
+                _threadBindingType = (value.as<std::string>() == CONFIG_VALUE(YES))
+                                         ? IStreamsExecutor::ThreadBindingType::CORES
+                                         : IStreamsExecutor::ThreadBindingType::NUMA;
 #endif
             } else if (value.as<std::string>() == CONFIG_VALUE(HYBRID_AWARE)) {
                 _threadBindingType = IStreamsExecutor::ThreadBindingType::HYBRID_AWARE;
