@@ -183,7 +183,7 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
 
     matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
-        const auto input_node = pattern_map.at(input).get_node_shared_ptr();
+        const auto input_node = pattern_map.at(input);
         const auto reduce_node =
             std::dynamic_pointer_cast<op::util::ReductionBase>(pattern_map.at(reduce).get_node_shared_ptr());
         if (!reduce_node) {
@@ -194,7 +194,7 @@ ov::pass::PullReshapeThroughReduce::PullReshapeThroughReduce() {
             return false;
         }
         const auto unsqueeze_axes =
-            try_get_unsqueeze_axes_from_reshape(reshape_node->get_shape(), input_node->get_shape());
+            try_get_unsqueeze_axes_from_reshape(reshape_node->get_shape(), input_node.get_shape());
         if (unsqueeze_axes.empty()) {
             return false;
         }

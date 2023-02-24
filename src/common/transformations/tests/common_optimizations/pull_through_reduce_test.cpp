@@ -168,6 +168,27 @@ INSTANTIATE_TEST_SUITE_P(PullUnsqueezeThroughReduceLogicalOr,
                          PullUnsqueezeThroughReduceLogicalOr,
                          ValuesIn(reduce_logical_or_params));
 
+TEST_F(TransformationTestsF, PullUnsqueezeThroughReduceMeanInputHasMoreThanOneOutput) {
+    const auto input = std::make_shared<Parameter>(element::f32, PartialShape{10, 10, 15});
+    const auto split = std::make_shared<Split>(input, Constant::create(element::i64, Shape{}, {0}), 2);
+    const auto unsqueeze_axes = Constant::create(element::i64, Shape{1}, {0});
+    {
+        const auto unsqueeze = std::make_shared<Unsqueeze>(split->output(0), unsqueeze_axes);
+        const auto reduce_axes = Constant::create(element::i64, Shape{}, {1});
+        const auto reduce_mean = std::make_shared<ReduceMean>(unsqueeze, reduce_axes);
+
+        model = std::make_shared<Model>(OutputVector{reduce_mean, split->output(1)}, ParameterVector{input});
+        manager.register_pass<pass::PullUnsqueezeThroughReduce>();
+    }
+    {
+        const auto reduce_axes = Constant::create(element::i64, Shape{}, {0});
+        const auto reduce_mean = std::make_shared<ReduceMean>(split->output(0), reduce_axes);
+        const auto unsqueeze = std::make_shared<Unsqueeze>(reduce_mean, unsqueeze_axes);
+
+        model_ref = std::make_shared<Model>(OutputVector{unsqueeze, split->output(1)}, ParameterVector{input});
+    }
+}
+
 TEST_F(TransformationTestsF, PullUnsqueezeThroughReduceSkipIfTheSameAxes) {
     model = generate_unsqueeze_model<ReduceMean>(element::f32, {5, 10, 15}, {0, 1}, {1, 2});
     manager.register_pass<pass::PullUnsqueezeThroughReduce>();
@@ -295,6 +316,28 @@ static const std::vector<PullReshapeParams> reduce_logical_or_reshape_params = {
 INSTANTIATE_TEST_SUITE_P(PullReshapeThroughReduceLogicalOr,
                          PullReshapeThroughReduceLogicalOr,
                          ValuesIn(reduce_logical_or_reshape_params));
+
+TEST_F(TransformationTestsF, PullReshapeThroughReduceMeanInputHasMoreThanOneOutput) {
+    const auto input = std::make_shared<Parameter>(element::f32, PartialShape{10, 10, 15});
+    const auto split = std::make_shared<Split>(input, Constant::create(element::i64, Shape{}, {0}), 2);
+    {
+        const auto target_shape = Constant::create(element::i64, Shape{4}, {1, 5, 10, 15});
+        const auto reshape = std::make_shared<Reshape>(split->output(0), target_shape, false);
+        const auto reduce_axes = Constant::create(element::i64, Shape{}, {1});
+        const auto reduce_mean = std::make_shared<ReduceMean>(reshape, reduce_axes);
+
+        model = std::make_shared<Model>(OutputVector{reduce_mean, split->output(1)}, ParameterVector{input});
+        manager.register_pass<pass::PullReshapeThroughReduce>();
+    }
+    {
+        const auto reduce_axes = Constant::create(element::i64, Shape{}, {0});
+        const auto reduce_mean = std::make_shared<ReduceMean>(split->output(0), reduce_axes);
+        const auto target_shape = Constant::create(element::i64, Shape{3}, {1, 10, 15});
+        const auto reshape = std::make_shared<Reshape>(reduce_mean, target_shape, false);
+
+        model_ref = std::make_shared<Model>(OutputVector{reshape, split->output(1)}, ParameterVector{input});
+    }
+}
 
 TEST_F(TransformationTestsF, PullReshapeThroughReduceMeanSkipIfDynamicInput) {
     model = generate_reshape_model<ReduceMean>(element::f32, {5, Dimension::dynamic(), 15}, {1, 5, 10, 15}, {2});
