@@ -141,7 +141,7 @@ bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
             cout << setw(7) << pass_timer.get_milliseconds() << "ms " << pass->get_name() << "\n";
         }
         function_changed = function_changed || pass_applied;
-        needs_validate = needs_validate || pass_applied;
+        needs_validate = pass_applied;
     }
     if (profile_enabled) {
         cout << "passes done in " << overall_timer.get_milliseconds() << "ms\n";
