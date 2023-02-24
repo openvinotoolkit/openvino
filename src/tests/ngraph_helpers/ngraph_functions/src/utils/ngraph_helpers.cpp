@@ -147,7 +147,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
 }
 
 std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<Function> &function,
-                                                   const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs) {
+                                          const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs) {
     auto backend = ov::runtime::Backend::create();
 
     const auto &funcInputs = function->inputs();
@@ -179,7 +179,9 @@ std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<Function> &funct
                      " bytes, but corresponding input ",
                      " has ", inputTensorSize, " bytes");
 
-        inputTensors[i] = inputTensor;
+        auto tensor = backend->create_tensor(inputType, inputShape);
+        inputTensor.copy_to(tensor);
+        inputTensors[i] = tensor;
     }
 
     const auto &results = function->get_results();
