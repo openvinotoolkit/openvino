@@ -42,7 +42,9 @@ There are several types of a front phase transformation:
 1. :ref:`Pattern-Defined Front Phase Transformations <pattern_defined_front_phase_transformations>` triggered for each sub-graph of the original graph isomorphic to the specified pattern.
 2. :ref:`Specific Operation Front Phase Transformations <specific_operation_front_phase_transformations>` triggered for the node with a specific ``op`` attribute value.
 3. :ref:`Generic Front Phase Transformations <generic_front_phase_transformations>`.
+
 4. Manually enabled transformation, defined with a JSON configuration file (for TensorFlow, ONNX, Apache MXNet, and PaddlePaddle models), specified using the ``--transformations_config`` command-line parameter:
+
     1. :ref:`Node Name Pattern Front Phase Transformations <node_name_pattern_front_phase_transformations>`.
     2. :ref:`Front Phase Transformations Using Start and End Points <start_end_points_front_phase_transformations>`.
     3. :ref:`Generic Front Phase Transformations Enabled with Transformations Configuration File <generic_transformations_config_front_phase_transformations>`.
@@ -58,8 +60,9 @@ This type of transformation is implemented using ``mo.front.common.replacement.F
 1. Define a sub-graph to be matched, using a list of nodes with attributes and edges connecting them (edges may also have attributes).
 2. Model Optimizer searches for all sub-graphs of the original graph, isomorphic to the specified sub-graph (pattern).
 3. Model Optimizer executes the defined function performing graph transformation for each instance of a matched sub-graph. You can override different functions in the base transformation class so the Model Optimizer works differently:
-   1. The ``replace_sub_graph(self, graph, match)`` override the method. In this case Model Optimizer only executes the overridden function, pass the ``graph`` object and a dictionary describing the matched sub-graph. You are required to write the transformation and connect the newly created nodes to the rest of the graph.
-   2. The ``generate_sub_graph(self, graph, match)`` override the method. This case is not recommended for use because it is the most complicated approach. It can be effectively replaced with one of two previous approaches. 
+
+    1. The ``replace_sub_graph(self, graph, match)`` override the method. In this case Model Optimizer only executes the overridden function, pass the ``graph`` object and a dictionary describing the matched sub-graph. You are required to write the transformation and connect the newly created nodes to the rest of the graph.
+    2. The ``generate_sub_graph(self, graph, match)`` override the method. This case is not recommended for use because it is the most complicated approach. It can be effectively replaced with one of two previous approaches. 
 
 The sub-graph pattern is defined in the ``pattern()`` function. This function should return a dictionary with two keys:
 ``nodes`` and ``edges``:
