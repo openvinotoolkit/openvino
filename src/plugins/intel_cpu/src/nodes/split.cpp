@@ -274,10 +274,7 @@ void Split::prepareParams() {
         const auto& splitLengthsPtr = getParentEdgeAt(2)->getMemoryPtr();
         const int* curSplitLengths = reinterpret_cast<int*>(splitLengthsPtr->GetPtr());
         const auto curLengthsSize = splitLengthsPtr->getStaticDims()[0];
-        splitLengths.resize(curLengthsSize);
-        for (size_t i = 0; i < curLengthsSize; ++i) {
-            splitLengths[i] = curSplitLengths[i];
-        }
+        splitLengths.assign(curSplitLengths, curSplitLengths + curLengthsSize);
     }
 
     dstMemPtrs.clear();
