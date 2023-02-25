@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2023 Intel Corporation
+// // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,51 +19,91 @@ std::shared_ptr<default_opset::Constant> get_max_value_by_dtype(ov::element::Typ
         return default_opset::Constant::create(dtype, {}, {MAX_VALUE(int)});
 };
 
+Output<Node> handle_minus_index(const OutputVector& node, const Output<Node>& dim) {
+    const auto zero = default_opset::Constant::create(node[0].get_element_type(), {1}, {0});
+    const auto concat_node = std::make_shared<default_opset::Concat>(node, 0);
+    const auto mask = std::make_shared<default_opset::Less>(concat_node, zero);
+    const auto res = std::make_shared<default_opset::Add>(concat_node, dim);
+    return std::make_shared<default_opset::Select>(mask, res, concat_node);
+}
+
 NamedOutputs set_value(const NodeContext& node) {
     const auto input_node = node.get_input("Input");
     auto value_node = node.get_input("ValueTensor");
     const auto input_shape = input_node.get_partial_shape().get_shape();
     const auto dims = static_cast<int64_t>(input_node.get_partial_shape().rank().get_length());
-    const auto input_value_dim = value_node.get_partial_shape().get_shape().size();
     const auto dtype = input_node.get_element_type();
-
-    PADDLE_OP_CHECK(node, (!node.has_input("StartsTensorList")), "Slice must be interger");
-    PADDLE_OP_CHECK(node, (!node.has_input("StepsTensorList")), "Slice must be interger");
-    PADDLE_OP_CHECK(node, (!node.has_input("EndsTensorList")), "Slice must be interger");
-
     const auto axes = node.get_attribute<std::vector<int64_t>>("axes");
-    const auto steps = node.get_attribute<std::vector<int64_t>>("steps");
-    const auto starts = node.get_attribute<std::vector<int64_t>>("starts");
-    const auto ends = node.get_attribute<std::vector<int64_t>>("ends");
 
-    for (size_t i = 0; i < steps.size(); i++)
-        PADDLE_OP_CHECK(node, (steps[i] == 1), "Elements of steps must be 1");
-
-    std::vector<int64_t> padding_starts(dims), padding_ends(dims);
+    Output<Node> padding_starts_node, padding_ends_node, value_target_shape;
     Shape value_shape(input_shape);
 
-    for (size_t i = 0; i < starts.size(); i++) {
-        int64_t s = starts[i], e = ends[i], axis = axes[i], dim = input_shape[axis];
-        s += s < 0 ? dim : 0;
-        e += e < 0 ? dim : 0;
-        padding_starts[axis] = s;
-        padding_ends[axis] = dim - e;
-        value_shape[axis] -= (s + padding_ends[axis]);
-    }
+    if (node.has_input("StartsTensorList") && node.has_input("StepsTensorList") && node.has_input("EndsTensorList")) {
+        const auto dim_node = default_opset::Constant::create(element::i64, {input_shape.size()}, input_shape);
+        auto starts = handle_minus_index(node.get_ng_inputs("StartsTensorList"), dim_node);
+        auto ends = handle_minus_index(node.get_ng_inputs("EndsTensorList"), dim_node);
+        const auto steps = node.get_ng_inputs("StepsTensorList");
+        std::vector<int64_t> needed_input_dim;
+        for (size_t i = 0; i < input_shape.size(); i++) {
+            if (axes[i] == static_cast<int64_t>(i))
+                needed_input_dim.push_back(input_shape[i]);
+        }
+        const auto input_shape_node =
+            default_opset::Constant::create(element::i64, {needed_input_dim.size()}, needed_input_dim);
+        const auto axes_node = default_opset::Constant::create(element::i64, {axes.size(), 1}, axes);
 
-    if (input_value_dim == 1) {
-        const auto target_shape = default_opset::Constant::create(element::i64, {value_shape.size()}, value_shape);
-        value_node = std::make_shared<default_opset::Broadcast>(value_node, target_shape);
-    }
+        // get padding starts
+        padding_starts_node =
+            default_opset::Constant::create(element::i64, {static_cast<size_t>(dims)}, std::vector<int64_t>(dims));
+        padding_starts_node = std::make_shared<default_opset::ScatterNDUpdate>(padding_starts_node, axes_node, starts);
+
+        // get padding ends
+        padding_ends_node =
+            default_opset::Constant::create(element::i64, {static_cast<size_t>(dims)}, std::vector<int64_t>(dims));
+        const auto ends_update_node = std::make_shared<default_opset::Subtract>(input_shape_node, ends);
+        padding_ends_node =
+            std::make_shared<default_opset::ScatterNDUpdate>(padding_ends_node, axes_node, ends_update_node);
+
+        // get target value shape
+        Output<Node> value_target_shape =
+            default_opset::Constant::create(element::i64, {value_shape.size()}, value_shape);
+        Output<Node> value_shape_update_node = std::make_shared<default_opset::Add>(padding_ends_node, starts);
+        value_shape_update_node = std::make_shared<default_opset::Subtract>(input_shape_node, value_shape_update_node);
+        value_target_shape =
+            std::make_shared<default_opset::ScatterNDUpdate>(value_target_shape, axes_node, value_shape_update_node);
+        // broadcast
+        value_node = std::make_shared<default_opset::Broadcast>(value_node, value_target_shape);
+
+    } else if (node.has_attribute("starts") && node.has_attribute("steps") && node.has_attribute("ends")) {
+        const auto starts = node.get_attribute<std::vector<int64_t>>("starts");
+        const auto ends = node.get_attribute<std::vector<int64_t>>("ends");
+        const auto steps = node.get_attribute<std::vector<int64_t>>("steps");
+
+        for (size_t i = 0; i < steps.size(); i++)
+            PADDLE_OP_CHECK(node, (steps[i] == 1), "Elements of steps must be 1");
+
+        std::vector<int64_t> padding_starts(dims), padding_ends(dims);
+        for (size_t i = 0; i < starts.size(); i++) {
+            int64_t s = starts[i], e = ends[i], axis = axes[i], dim = input_shape[axis];
+            s += s < 0 ? dim : 0;
+            e += e < 0 ? dim : 0;
+            padding_starts[axis] = s;
+            padding_ends[axis] = dim - e;
+            value_shape[axis] -= (s + padding_ends[axis]);
+        }
+        value_target_shape = default_opset::Constant::create(element::i64, {value_shape.size()}, value_shape);
+        padding_starts_node = default_opset::Constant::create(element::i64, {value_shape.size()}, padding_starts);
+        padding_ends_node = default_opset::Constant::create(element::i64, {value_shape.size()}, padding_ends);
+
+        value_node = std::make_shared<default_opset::Broadcast>(value_node, value_target_shape);
+    } else
+        PADDLE_OP_CHECK(node, (false), "Invalid arguments!");
 
     const auto maximum_value = get_max_value_by_dtype(dtype);
 
-    const auto p_start = default_opset::Constant::create(element::i64, {value_shape.size()}, padding_starts);
-    const auto p_end = default_opset::Constant::create(element::i64, {value_shape.size()}, padding_ends);
-
     const auto padded_value = std::make_shared<default_opset::Pad>(value_node,
-                                                                   p_start,
-                                                                   p_end,
+                                                                   padding_starts_node,
+                                                                   padding_ends_node,
                                                                    maximum_value,
                                                                    ngraph::op::PadMode::CONSTANT);
 

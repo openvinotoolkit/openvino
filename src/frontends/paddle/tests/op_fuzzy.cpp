@@ -448,6 +448,8 @@ static const std::vector<std::string> models{
     std::string("set_value1"),
     std::string("set_value2"),
     std::string("set_value3"),
+    std::string("set_value4"),
+    std::string("set_value5"),
     std::string("shape"),
     std::string("sigmoid"),
     std::string("slice"),
