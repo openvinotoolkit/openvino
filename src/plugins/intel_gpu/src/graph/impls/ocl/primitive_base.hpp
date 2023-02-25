@@ -277,7 +277,7 @@ protected:
         }
     }
 
-    void set_kernels(std::map<const std::string, kernel::ptr>& kernels) {
+    void set_kernels(std::map<const std::string, kernel::ptr>& kernels) override {
         if (is_cpu())
             return;
 
