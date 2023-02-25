@@ -62,10 +62,13 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
             MultiSubGraphOp::MultiSubgraphOutputDescriptionVector new_out_desc;
             std::set<size_t> results_idxs_to_remove;
             for (const auto& odesc : out_desc) {
-                bool to_remove = outputs_to_remove.find(odesc->m_output_index) != outputs_to_remove.end() &&
-                                 static_cast<int64_t>(odesc->m_body_value_index) != special_out_port;
+                bool to_remove = outputs_to_remove.find(odesc->m_output_index) != outputs_to_remove.end();
                 if (!to_remove) {
                     new_out_desc.push_back(odesc);
+                } else if (static_cast<int64_t>(odesc->m_body_value_index) == special_out_port) {
+                    // If this is special out port, we will remove output description and output, but do not remove
+                    // Result
+                    to_remove = false;
                 }
                 if (to_remove) {
                     for (const auto& desc : merged_input_descs) {
