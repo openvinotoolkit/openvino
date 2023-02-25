@@ -5,16 +5,22 @@
 if(WIN32)
     set(PROGRAMFILES_ENV "ProgramFiles(X86)")
     file(TO_CMAKE_PATH $ENV{${PROGRAMFILES_ENV}} PROGRAMFILES)
-    set(UWP_SDK_PATH "${PROGRAMFILES}/Windows Kits/10/bin/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/x64")
 
-    message(STATUS "Trying to find apivalidator in: ${UWP_SDK_PATH}")
-    find_host_program(UWP_API_VALIDATOR
+    set(WDK_PATHS "${PROGRAMFILES}/Windows Kits/10/bin/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/x64"
+                  "${PROGRAMFILES}/Windows Kits/10/bin/x64")
+
+    message(STATUS "Trying to find apivalidator in: ")
+    foreach(wdk_path IN LISTS WDK_PATHS)
+        message("    * ${wdk_path}")
+    endforeach()
+
+    find_host_program(ONECORE_API_VALIDATOR
                       NAMES apivalidator
-                      PATHS "${UWP_SDK_PATH}"
-                      DOC "ApiValidator for UWP compliance")
+                      PATHS ${WDK_PATHS}
+                      DOC "ApiValidator for OneCore compliance")
 
-    if(UWP_API_VALIDATOR)
-        message(STATUS "Found apivalidator: ${UWP_API_VALIDATOR}")
+    if(ONECORE_API_VALIDATOR)
+        message(STATUS "Found apivalidator: ${ONECORE_API_VALIDATOR}")
     endif()
 endif()
 
@@ -51,10 +57,15 @@ endfunction()
 set(VALIDATED_TARGETS "" CACHE INTERNAL "")
 
 function(_ov_add_api_validator_post_build_step)
-    set(UWP_API_VALIDATOR_APIS "${PROGRAMFILES}/Windows Kits/10/build/universalDDIs/x64/UniversalDDIs.xml")
-    set(UWP_API_VALIDATOR_EXCLUSION "${UWP_SDK_PATH}/BinaryExclusionlist.xml")
+    find_file(ONECORE_API_VALIDATOR_APIS NAMES UniversalDDIs.xml
+              PATHS "${PROGRAMFILES}/Windows Kits/10/build/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/universalDDIs/x64"
+                    "${PROGRAMFILES}/Windows Kits/10/build/universalDDIs/x64"
+              DOC "Path to UniversalDDIs.xml file")
+    find_file(ONECORE_API_VALIDATOR_EXCLUSION NAMES BinaryExclusionlist.xml
+              PATHS ${WDK_PATHS}
+              DOC "Path to BinaryExclusionlist.xml file")
 
-    if((NOT UWP_API_VALIDATOR) OR (WINDOWS_STORE OR WINDOWS_PHONE))
+    if((NOT ONECORE_API_VALIDATOR) OR (WINDOWS_STORE OR WINDOWS_PHONE))
         return()
     endif()
 
@@ -84,11 +95,18 @@ function(_ov_add_api_validator_post_build_step)
     # apply check
 
     macro(api_validator_get_target_name)
-        get_target_property(IS_IMPORTED ${target} IMPORTED)
+        get_target_property(is_imported ${target} IMPORTED)
         get_target_property(orig_target ${target} ALIASED_TARGET)
-        if(IS_IMPORTED)
-            get_target_property(target_location ${target} LOCATION)
-            get_filename_component(target_name "${target_location}" NAME_WE)
+        if(is_imported)
+            get_target_property(imported_configs ${target} IMPORTED_CONFIGURATIONS)
+            foreach(imported_config RELEASE RELWITHDEBINFO DEBUG)
+                if(imported_config IN_LIST imported_configs)
+                    get_target_property(target_location ${target} IMPORTED_LOCATION_${imported_config})
+                    get_filename_component(target_name "${target_location}" NAME_WE)
+                    break()
+                endif()
+            endforeach()
+            unset(imported_configs)
         elseif(TARGET "${orig_target}")
             set(target_name ${orig_target})
             set(target_location $<TARGET_FILE:${orig_target}>)
@@ -96,29 +114,39 @@ function(_ov_add_api_validator_post_build_step)
             set(target_name ${target})
             set(target_location $<TARGET_FILE:${target}>)
         endif()
+
+        unset(orig_target)
+        unset(is_imported)
     endmacro()
 
     foreach(target IN LISTS API_VALIDATOR_TARGETS)
         api_validator_get_target_name()
-        if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.21 AND OV_GENERATOR_MULTI_CONFIG)
-            set(output_file "${CMAKE_BINARY_DIR}/api_validator/$<CONFIG>/${target_name}.txt")
+        if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.20 AND OV_GENERATOR_MULTI_CONFIG)
+            set(output_file "${OpenVINO_BINARY_DIR}/api_validator/$<CONFIG>/${target_name}.txt")
         else()
-            set(output_file "${CMAKE_BINARY_DIR}/api_validator/${target_name}.txt")
+            set(output_file "${OpenVINO_BINARY_DIR}/api_validator/${target_name}.txt")
         endif()
 
-        add_custom_command(TARGET ${API_VALIDATOR_TARGET} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} --config $<CONFIG>
-                -D UWP_API_VALIDATOR=${UWP_API_VALIDATOR}
-                -D UWP_API_VALIDATOR_TARGET=${target_location}
-                -D UWP_API_VALIDATOR_APIS=${UWP_API_VALIDATOR_APIS}
-                -D UWP_API_VALIDATOR_EXCLUSION=${UWP_API_VALIDATOR_EXCLUSION}
-                -D UWP_API_VALIDATOR_OUTPUT=${output_file}
+        list(APPEND post_build_commands
+             ${CMAKE_COMMAND} --config $<CONFIG>
+                -D ONECORE_API_VALIDATOR=${ONECORE_API_VALIDATOR}
+                -D ONECORE_API_VALIDATOR_TARGET=${target_location}
+                -D ONECORE_API_VALIDATOR_APIS=${ONECORE_API_VALIDATOR_APIS}
+                -D ONECORE_API_VALIDATOR_EXCLUSION=${ONECORE_API_VALIDATOR_EXCLUSION}
+                -D ONECORE_API_VALIDATOR_OUTPUT=${output_file}
                 -D CMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}
-                -P "${IEDevScripts_DIR}/api_validator/api_validator_run.cmake"
-            BYPRODUCTS ${output_file}
-            COMMENT "[apiValidator] Check ${target_name} for OneCore compliance"
-            VERBATIM)
+                -P "${IEDevScripts_DIR}/api_validator/api_validator_run.cmake")
+        list(APPEND byproducts_files ${output_file})
+
+        unset(target_name)
+        unset(target_location)
     endforeach()
+
+    add_custom_command(TARGET ${API_VALIDATOR_TARGET} POST_BUILD
+        COMMAND ${post_build_commands}
+        BYPRODUCTS ${byproducts_files}
+        COMMENT "[apiValidator] Check ${API_VALIDATOR_TARGET} and dependencies for OneCore compliance"
+        VERBATIM)
 
     # update list of validated libraries
 
