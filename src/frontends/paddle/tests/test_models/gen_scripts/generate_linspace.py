@@ -42,15 +42,15 @@ def main():
     num = np.random.randint(1, 5, size=1).astype(np.int32)
     linspace("linspace_1", start, stop, num, "float32")
 
-    start = np.array([5]).astype(np.int32)
-    stop = np.array([0]).astype(np.int32)
+    start = np.array([0]).astype(np.int32)
+    stop = np.array([1]).astype(np.int32)
     num = np.array([4]).astype(np.int32)
     linspace("linspace_2", start, stop, num, "int32")
 
-    start = np.array([3]).astype(np.int64)
-    stop = np.array([0]).astype(np.int64)
+    start = np.array([-4]).astype(np.int32)
+    stop = np.array([-5]).astype(np.int32)
     num = np.array([1]).astype(np.int32)
-    linspace("linspace_3", start, stop, num, "int64")
+    linspace("linspace_3", start, stop, num, "int32")
 
 
 if __name__ == "__main__":
