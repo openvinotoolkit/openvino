@@ -151,6 +151,14 @@ StreamsCalculationTestCase _2sockets_48cores_tput_3 = {
     {{12, MAIN_CORE_PROC, 4}},
 };
 
+StreamsCalculationTestCase _2sockets_48cores_tput_4 = {
+    2,
+    20,
+    1,
+    {{48, 48, 0, 0}, {24, 24, 0, 0}, {24, 24, 0, 0}},
+    {{2, MAIN_CORE_PROC, 10}},
+};
+
 StreamsCalculationTestCase _1sockets_14cores_latency_1 = {
     1,
     0,
@@ -481,6 +489,7 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _2sockets_48cores_tput_1,
                                          _2sockets_48cores_tput_2,
                                          _2sockets_48cores_tput_3,
+                                         _2sockets_48cores_tput_4,
                                          _1sockets_14cores_latency_1,
                                          _1sockets_14cores_latency_2,
                                          _1sockets_14cores_latency_3,
