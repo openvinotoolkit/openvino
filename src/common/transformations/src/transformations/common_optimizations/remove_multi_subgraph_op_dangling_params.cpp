@@ -22,7 +22,6 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
         auto multi_subgraph_op = std::dynamic_pointer_cast<MultiSubGraphOp>(*it);
         if (!multi_subgraph_op)
             continue;
-            
         auto if_op = std::dynamic_pointer_cast<opset10::If>(multi_subgraph_op);
         auto loop_op = std::dynamic_pointer_cast<opset10::Loop>(multi_subgraph_op);
         auto ti_op = std::dynamic_pointer_cast<opset10::TensorIterator>(multi_subgraph_op);
