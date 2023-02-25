@@ -22,11 +22,6 @@ list(APPEND shellcheck_skip_list
     "${OpenVINO_SOURCE_DIR}/src/bindings/python/tests/test_onnx/model_zoo_preprocess.sh"
     "${OpenVINO_SOURCE_DIR}/src/bindings/python/tests_compatibility/test_onnx/model_zoo_preprocess.sh")
 
-if(shellcheck_VERSION VERSION_GREATER_EQUAL 0.7.0)
-    list(APPEND shellcheck_skip_list
-        "${OpenVINO_SOURCE_DIR}/scripts/setupvars/setupvars.sh")
-endif()
-
 ie_shellcheck_process(DIRECTORY "${OpenVINO_SOURCE_DIR}"
                       SKIP ${shellcheck_skip_list})
 
