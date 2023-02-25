@@ -39,8 +39,7 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
         // Starting from outputs
         std::set<size_t> outputs_to_remove;
         for (size_t out_idx = 0; out_idx < multi_subgraph_op->get_output_size(); ++out_idx) {
-            if (multi_subgraph_op->output(out_idx).get_target_inputs().empty() &&
-                static_cast<int64_t>(out_idx) != special_out_port) {
+            if (multi_subgraph_op->output(out_idx).get_target_inputs().empty()) {
                 outputs_to_remove.insert(out_idx);
             }
         }
@@ -63,7 +62,8 @@ bool ov::pass::RemoveMultiSubGraphOpDanglingParamsResults::run_on_model(const st
             MultiSubGraphOp::MultiSubgraphOutputDescriptionVector new_out_desc;
             std::set<size_t> results_idxs_to_remove;
             for (const auto& odesc : out_desc) {
-                bool to_remove = outputs_to_remove.find(odesc->m_output_index) != outputs_to_remove.end();
+                bool to_remove = outputs_to_remove.find(odesc->m_output_index) != outputs_to_remove.end() &&
+                                 static_cast<int64_t>(odesc->m_body_value_index) != special_out_port;
                 if (!to_remove) {
                     new_out_desc.push_back(odesc);
                 }
