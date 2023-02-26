@@ -45,10 +45,7 @@ op::PadType convert_pad(const std::string& pt_pad);
 
 std::shared_ptr<Node> concat_list_construct(std::shared_ptr<Node> input);
 
-std::shared_ptr<Model> convert_pytorch_model(std::shared_ptr<TorchDecoder> pytorch_model,
-                                             const TensorMap& external_tensor_map = {});
-
-OutputVector convert_node(NodeContext* context);
+OutputVector make_framework_node(NodeContext& context);
 
 std::shared_ptr<op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node, const std::string& type);
 

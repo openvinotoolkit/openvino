@@ -14,7 +14,6 @@
 #include <vector>
 
 #include "format_reader_ptr.h"
-#include "npy.h"
 #include "samples/slog.hpp"
 #include "shared_tensor_allocator.hpp"
 #include "utils.hpp"
