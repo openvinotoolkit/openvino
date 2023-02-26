@@ -442,9 +442,9 @@ void IStreamsExecutor::Config::update_hybrid_custom_threads(Config& config) {
 }
 
 IStreamsExecutor::Config IStreamsExecutor::Config::set_executor_config(std::string name,
-                                                                     int num_streams,
-                                                                     ThreadBindingType thread_binding_type,
-                                                                     PreferredCoreType thread_core_type) {
+                                                                       int num_streams,
+                                                                       ThreadBindingType thread_binding_type,
+                                                                       PreferredCoreType thread_core_type) {
     Config streamExecutorConfig = Config{name, num_streams};
     if (cpu_map_available()) {
         if (name.find("CPU") == std::string::npos) {

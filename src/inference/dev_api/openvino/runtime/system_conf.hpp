@@ -237,7 +237,7 @@ enum ColumnOfCPUMappingTable {
  * @enum       cpu_use_status
  * @brief      Defination of CPU_MAP_USED_FLAG column in CPU mapping table.
  */
-enum CpuUseStatus{
+enum CpuUseStatus {
     NOT_USED = -1,       //!< CPU is not bound to thread
     CPU_USED = 1,        //!< CPU is in using
     GPU_PRE_USED = 100,  //!< GPU need to use
