@@ -44,6 +44,8 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     int32_t b_in, int32_t f_in, int32_t x_in, int32_t y_in, int32_t z_in, int32_t w_in,
     bool is_caching_test) {
     auto& engine = get_test_engine();
+    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
+    auto stream = std::shared_ptr<cldnn::stream>(engine.create_stream(cfg));
 
     tensor ts;
     if (input_format.dimension() == 4) {
@@ -60,7 +62,7 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     layout output_layout(output_data_type, output_format, ts);
 
     if (input_data_type == data_types::i8) {
-        mem_lock<uint8_t> input_ptr{input, get_test_stream()};
+        mem_lock<uint8_t> input_ptr{input, *stream};
         unsigned char i = 1;
         for (auto it = input_ptr.begin(); it != input_ptr.end(); ++it)
         {
@@ -70,7 +72,7 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
             }
         }
     } else {
-        mem_lock<float> input_ptr{input, get_test_stream()};
+        mem_lock<float> input_ptr{input, *stream};
         float i = 1.f;
         for (auto it = input_ptr.begin(); it != input_ptr.end(); ++it)
         {
@@ -88,7 +90,7 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     ov::intel_gpu::ImplementationDesc reorder_ref = { output_format, "reorder_data" };
     config_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"reorder", reorder_ref} }));
 
-    cldnn::network::ptr network_ref = get_network(engine, topology, config_ref, get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network_ref = get_network(engine, topology, config_ref, stream, is_caching_test);
 
     network_ref->set_input_data("input", input);
 
@@ -101,7 +103,7 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     ov::intel_gpu::ImplementationDesc reorder_optimized = { output_format, kernel_name };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"reorder", reorder_optimized} }));
 
-    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, config, stream, is_caching_test);
 
     network->set_input_data("input", input);
 
