@@ -31,7 +31,7 @@ OutputVector translate_nms(NodeContext& context) {
     auto axis_01 = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {0, 1}));
     auto scores = context.mark_node(std::make_shared<v0::Unsqueeze>(context.get_input(1), axis_01));
     auto max_output_per_class =
-        context.mark_node(v0::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int64_t>::max()}));
+        context.mark_node(v0::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>::max()}));
     auto iou_threshold = context.get_input(2);
 
     auto nms_out =

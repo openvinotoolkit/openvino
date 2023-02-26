@@ -85,7 +85,7 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<N
     auto c_out_value = make_shared<opset10::Divide>(kernel_shape_0_uns, groups_const);
 
     auto start = opset10::Constant::create(element::i32, Shape{1}, {2});
-    auto stop = opset10::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int64_t>::max()});
+    auto stop = opset10::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>::max()});
     auto step = opset10::Constant::create(element::i32, Shape{1}, {1});
     auto remaining_shape = make_shared<opset10::Slice>(kernel_shape, start, stop, step);
 
@@ -127,7 +127,7 @@ const std::unordered_map<int64_t, element::Type> TORCH_TO_OV_TYPE{{0, element::u
                                                                   {1, element::i8},
                                                                   {2, element::i16},
                                                                   {3, element::i32},
-                                                                  {4, element::i32},
+                                                                  {4, element::i64},
                                                                   {5, element::f16},
                                                                   {6, element::f32},
                                                                   {7, element::f64},
@@ -306,7 +306,7 @@ std::unordered_map<size_t, element::Type> bit_to_int{
     {8, element::i8},
     {16, element::i16},
     {32, element::i32},
-    {64, element::i32},
+    {64, element::i64},
 };
 }  // namespace
 
