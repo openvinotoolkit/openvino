@@ -63,16 +63,38 @@ endfunction()
 set(VALIDATED_TARGETS "" CACHE INTERNAL "")
 
 function(_ov_add_api_validator_post_build_step)
+    if((NOT ONECORE_API_VALIDATOR) OR (WINDOWS_STORE OR WINDOWS_PHONE))
+        return()
+    endif()
+
+    # see https://learn.microsoft.com/en-us/windows-hardware/drivers/develop/validating-windows-drivers#known-apivalidator-issues
+    # ApiValidator does not run on Arm64 because AitStatic does not work on Arm64
+    if(HOST_AARCH64)
+        return()
+    endif()
+
+    if(X86_64)
+        set(wdk_platform "x64")
+    elseif(X86)
+        set(wdk_platform "x86")
+    elseif(ARM)
+        set(wdk_platform "arm")
+    elseif(AARCH64)
+        set(wdk_platform "arm64")
+    else()
+        message(FATAL_ERROR "Unknown configuration: ${CMAKE_HOST_SYSTEM_PROCESSOR}")
+    endif()
+
     find_file(ONECORE_API_VALIDATOR_APIS NAMES UniversalDDIs.xml
-              PATHS "${PROGRAMFILES}/Windows Kits/10/build/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/universalDDIs/x64"
-                    "${PROGRAMFILES}/Windows Kits/10/build/universalDDIs/x64"
+              PATHS "${PROGRAMFILES}/Windows Kits/10/build/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/universalDDIs/${wdk_platform}"
+                    "${PROGRAMFILES}/Windows Kits/10/build/universalDDIs/${wdk_platform}"
               DOC "Path to UniversalDDIs.xml file")
     find_file(ONECORE_API_VALIDATOR_EXCLUSION NAMES BinaryExclusionlist.xml
               PATHS ${WDK_PATHS}
               DOC "Path to BinaryExclusionlist.xml file")
 
-    if((NOT ONECORE_API_VALIDATOR) OR (WINDOWS_STORE OR WINDOWS_PHONE))
-        return()
+    if(NOT ONECORE_API_VALIDATOR_APIS)
+        message(FATAL_ERROR "Internal error: apiValidator is found (${ONECORE_API_VALIDATOR}), but UniversalDDIs.xml file has not been found for ${wdk_platform} platform")
     endif()
 
     cmake_parse_arguments(API_VALIDATOR "" "TARGET" "" ${ARGN})
