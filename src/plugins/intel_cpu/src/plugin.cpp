@@ -245,13 +245,16 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
                   streams_info.threads_per_stream_big *
                           (streams_info.big_core_streams + streams_info.big_core_logic_streams) +
                       streams_info.threads_per_stream_small * streams_info.small_core_streams,
-                  ") -- PCore: " << streams_info.big_core_streams,
+                  ") -- PCore: ",
+                  streams_info.big_core_streams,
                   "(",
                   streams_info.threads_per_stream_big,
-                  ") " << streams_info.big_core_logic_streams,
+                  ") ",
+                  streams_info.big_core_logic_streams,
                   "(",
                   streams_info.threads_per_stream_big,
-                  ")  ECore: " << streams_info.small_core_streams,
+                  ")  ECore: ",
+                  streams_info.small_core_streams,
                   "(",
                   streams_info.threads_per_stream_small,
                   ")\n");

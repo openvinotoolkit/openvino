@@ -14,7 +14,7 @@
 #include "streams_executor.hpp"
 #include "threading/ie_parallel_custom_arena.hpp"
 
-namespace InferenceEngine {
+namespace ov {
 
 void parse_processor_info_linux(const int _processors,
                                 const std::vector<std::vector<std::string>> system_info_table,

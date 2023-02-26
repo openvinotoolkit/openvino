@@ -53,6 +53,7 @@ OP_CONVERTER(translate_group_norm);
 OP_CONVERTER(translate_hardtanh);
 OP_CONVERTER(translate_if);
 OP_CONVERTER(translate_im2col);
+OP_CONVERTER(translate_index_put_);
 OP_CONVERTER(translate_instance_norm);
 OP_CONVERTER(translate_int);
 OP_CONVERTER(translate_layer_norm);
@@ -68,6 +69,7 @@ OP_CONVERTER(translate_max_poolnd);
 OP_CONVERTER(translate_mean);
 OP_CONVERTER(translate_meshgrid);
 OP_CONVERTER(translate_min);
+OP_CONVERTER(translate_narrow);
 OP_CONVERTER(translate_neg);
 OP_CONVERTER(translate_new_full);
 OP_CONVERTER(translate_new_ones);
@@ -87,10 +89,12 @@ OP_CONVERTER(translate_repeat);
 OP_CONVERTER(translate_repeat_interleave);
 OP_CONVERTER(translate_reshape);
 OP_CONVERTER(translate_reshape_as);
+OP_CONVERTER(translate_roi_align);
 OP_CONVERTER(translate_roll);
 OP_CONVERTER(translate_rsqrt);
 OP_CONVERTER(translate_rsub);
 OP_CONVERTER(translate_select);
+OP_CONVERTER(translate_set_item);
 OP_CONVERTER(translate_selu);
 OP_CONVERTER(translate_size);
 OP_CONVERTER(translate_slice);
@@ -107,7 +111,11 @@ OP_CONVERTER(translate_triu);
 OP_CONVERTER(translate_unfold);
 OP_CONVERTER(translate_upsample_bicubic2d);
 OP_CONVERTER(translate_upsample_bilinear2d);
+OP_CONVERTER(translate_upsample_linear1d);
+OP_CONVERTER(translate_upsample_nearest1d);
 OP_CONVERTER(translate_upsample_nearest2d);
+OP_CONVERTER(translate_upsample_nearest3d);
+OP_CONVERTER(translate_upsample_trilinear3d);
 OP_CONVERTER(translate_var);
 OP_CONVERTER(translate_var_mean);
 OP_CONVERTER(translate_where);
@@ -116,13 +124,14 @@ OP_CONVERTER(translate_zeros_like);
 
 }  // namespace op
 
-const std::map<std::string, CreatorFunction> get_supported_ops() {
+const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
     return {
         {"aten::__and__", op::translate_1to1_match_2_inputs<opset10::LogicalAnd>},  // TODO: cover numerical cases
         {"aten::__getitem__", op::translate_getitem},
         {"aten::__not__", op::translate_1to1_match_1_inputs<opset10::LogicalNot>},
         {"aten::_convolution", op::translate_convolution},
         {"aten::_convolution_mode", op::translate_convolution_mode},
+        {"aten::_set_item", op::translate_set_item},
         {"aten::abs", op::translate_1to1_match_1_inputs<opset10::Abs>},
         {"aten::acos", op::translate_1to1_match_1_inputs<opset10::Acos>},
         {"aten::acos_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Acos>>},
@@ -206,6 +215,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::hardtanh", op::translate_hardtanh},
         {"aten::hardtanh_", op::inplace_op<op::translate_hardtanh>},
         {"aten::im2col", op::translate_im2col},
+        {"aten::index_put_", op::inplace_op<op::translate_index_put_>},
         {"aten::instance_norm", op::translate_instance_norm},
         {"aten::Int", op::translate_int},
         {"aten::IntImplicit", op::translate_int},
@@ -235,6 +245,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::mm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::mul", op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>},
         {"aten::mul_", op::inplace_op<op::translate_1to1_match_2_inputs_align_types<opset10::Multiply>>},
+        {"aten::narrow", op::translate_narrow},
         {"aten::ne", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
         {"aten::neg", op::translate_neg},
         {"aten::new_full", op::translate_new_full},
@@ -297,7 +308,11 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::unsqueeze_", op::inplace_op<op::translate_1to1_match_2_inputs<opset10::Unsqueeze>>},
         {"aten::upsample_bicubic2d", op::translate_upsample_bicubic2d},
         {"aten::upsample_bilinear2d", op::translate_upsample_bilinear2d},
+        {"aten::upsample_linear1d", op::translate_upsample_linear1d},
+        {"aten::upsample_nearest1d", op::translate_upsample_nearest1d},
         {"aten::upsample_nearest2d", op::translate_upsample_nearest2d},
+        {"aten::upsample_nearest3d", op::translate_upsample_nearest3d},
+        {"aten::upsample_trilinear3d", op::translate_upsample_trilinear3d},
         {"aten::var", op::translate_var},
         {"aten::var_mean", op::translate_var_mean},
         {"aten::view", op::translate_reshape},
@@ -313,6 +328,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"prim::NumToTensor", op::skip_node},  // In openvino we already store number as tensor with shape []
         {"prim::requires_grad", op::return_false_scalar},
         {"torchvision::nms", op::translate_nms},
+        {"torchvision::roi_align", op::translate_roi_align},
     };
 };
 
