@@ -6,10 +6,9 @@ import abc
 import json
 import csv
 import numpy as np
-from io import TextIOWrapper
 from enum import Enum
 from datetime import timedelta
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Any
 from .logging import logger
 
 ## statistics reports types
@@ -186,24 +185,33 @@ class JsonStatisticsReport(StatisticsReport):
             json.dump(json_statistics, file)
             logger.info(f"Statistics report is stored to {file.name}")
 
-    def dump_performance_counters(self, prof_info_list):
+    def dump_performance_counters(self, prof_info_list: List[List[Any]]): #ProfilingInfo
         def profiling_info_to_dict_list(prof_info_list):
-            total, total_cpu = timedelta(), timedelta()
-            json_profiling_info_list: List[Dict[str, str]] = []
-            for profiling_info in prof_info_list:
-                for info in profiling_info:
-                    json_profiling_info_list.append({
-                        'name': info.node_name,
-                        'node_type': info.node_type,
-                        'status': str(info.status),
-                        'real_time': f"{info.real_time / timedelta(milliseconds=1):.3f}",
-                        'cpu_time': f"{info.cpu_time / timedelta(milliseconds=1):.3f}",
-                        'exec_type': info.exec_type
-                    })
-                    total += info.real_time
-                    total_cpu += info.cpu_time
+            
+            profiling_info_json_list = [0]*len(prof_info_list)
+            for i, profiling_info in enumerate(prof_info_list):
 
-            return json_profiling_info_list, total, total_cpu
+                total, total_cpu = timedelta(), timedelta()
+                layers_info = [0] * len(profiling_info)
+                for l, layer in enumerate(profiling_info):
+                    layers_info[l] = {
+                        'name': layer.node_name,
+                        'node_type': layer.node_type,
+                        'status': str(layer.status),
+                        'real_time': f"{layer.real_time / timedelta(milliseconds=1):.3f}",
+                        'cpu_time': f"{layer.cpu_time / timedelta(milliseconds=1):.3f}",
+                        'exec_type': layer.exec_type
+                    }
+                    total += layer.real_time
+                    total_cpu += layer.cpu_time
+
+                profiling_info_json_list[i] = {
+                    'nodes': layers_info,
+                    'total_real_time': f"{total / timedelta(milliseconds=1):.3f}",
+                    'total_cpu_time': f"{total_cpu / timedelta(milliseconds=1):.3f}"
+                }
+
+            return profiling_info_json_list
 
         def get_average_performance_counters(prof_info_list):
             performance_counters_avg = []
@@ -232,25 +240,17 @@ class JsonStatisticsReport(StatisticsReport):
         filename = os.path.join(self.config.report_folder, f'benchmark_{self.config.report_type}_report.json')
         with open(filename, 'w') as file:
             if self.config.report_type == detailedCntReport:
-                nodes_info_list, total, total_cpu = profiling_info_to_dict_list(prof_info_list)
+                profiling_info_json =  profiling_info_to_dict_list(prof_info_list)
                 json_statistics = {
                     'report_type': 'detailed',
-                    'detailed_performance': {
-                        'nodes': nodes_info_list,
-                        'total_real_time': f"{total / timedelta(milliseconds=1):.3f}",
-                        'total_cpu_time': f"{total_cpu / timedelta(milliseconds=1):.3f}"
-                    }
+                    'detailed_performance': profiling_info_json
                 }
             elif self.config.report_type == averageCntReport:
                 prof_info_list_avg = get_average_performance_counters(prof_info_list)
-                nodes_info_list, total, total_cpu = profiling_info_to_dict_list(prof_info_list_avg)
+                profiling_info_json = profiling_info_to_dict_list(prof_info_list_avg)
                 json_statistics = {
                     'report_type': 'average',
-                    'avg_performance': {
-                        'nodes': nodes_info_list,
-                        'total_real_time': f"{total / timedelta(milliseconds=1):.3f}",
-                        'total_cpu_time': f"{total_cpu / timedelta(milliseconds=1):.3f}"
-                    }
+                    'avg_performance': profiling_info_json[0]
                 }
             else:
                 raise Exception('PM data can only be collected for average or detailed report types')
@@ -259,36 +259,38 @@ class JsonStatisticsReport(StatisticsReport):
             logger.info(f'Performance counters report is stored to {filename}')
 
     def dump_performance_counters_sorted(self, prof_sorted_info) -> None:
-        def profiling_info_to_dict_list(prof_info_matrix: np.ndarray) -> Tuple[List[Dict[str, str]], int, int]:
+        def profiling_info_to_dict_list(prof_info_matrix: np.ndarray) -> List[Dict[str, str]]:
             total, total_cpu = 0, 0
 
-            json_profiling_info_list: List[Dict[str, str]] = []
-            for info in prof_info_matrix:
-                json_profiling_info_list.append({
+            nodes_info_list = [0]*len(prof_info_matrix)
+            for i, info in enumerate(prof_info_matrix):
+                nodes_info_list[i] = {
                     'name': info[0],
                     'node_type': info[2],
                     'status': str(info[1]),
                     'real_time': f"{info[3] / 1000:.3f}",
                     'cpu_time': f"{info[4] / 1000:.3f}",
                     'exec_type': info[6],
-                    '%': str("%.2f"%(info[5]*100))+"%"
-                })
+                    '%': str("%.2f"%(info[5] * 100))+"%"
+                }
 
                 total += info[3]
                 total_cpu += info[4]
 
-            return json_profiling_info_list, total, total_cpu
+            prof_info_json = {
+                'nodes': nodes_info_list,
+                'total_real_time': f"{total / 1000:.3f}",
+                'total_cpu_time': f"{total_cpu / 1000:.3f}"
+            }
+
+            return prof_info_json
 
         filename = os.path.join(self.config.report_folder, f'benchmark_sorted_report.json')
         with open(filename, 'w') as file:
-            nodes_info_list, total, total_cpu = profiling_info_to_dict_list(prof_sorted_info)
+            profiling_info_json = profiling_info_to_dict_list(prof_sorted_info)
             json_statistics = {
                 'report_type': 'sorted',
-                'avg_performance': {
-                    'nodes': nodes_info_list,
-                    'total_real_time': f"{total / 1000:.3f}",
-                    'total_cpu_time': f"{total_cpu / 1000:.3f}"
-                }
+                'avg_performance': profiling_info_json
             }
             json.dump(json_statistics, file, indent=4)
             logger.info(f'Sorted performance counters report is stored to {filename}')
