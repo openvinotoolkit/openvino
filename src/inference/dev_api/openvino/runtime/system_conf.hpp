@@ -234,7 +234,7 @@ enum ColumnOfCPUMappingTable {
 };
 
 /**
- * @enum       cpu_use_status
+ * @enum       CpuUseStatus
  * @brief      Defination of CPU_MAP_USED_FLAG column in CPU mapping table.
  */
 enum CpuUseStatus {

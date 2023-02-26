@@ -17,6 +17,27 @@
 
 namespace ov {
 
+void init_cpu(int& _processors,
+                 int& _sockets,
+                 int& _cores,
+                 std::vector<std::vector<int>>& _proc_type_table,
+                 std::vector<std::vector<int>>& _cpu_mapping_table) {
+    DWORD len = 0;
+    if (GetLogicalProcessorInformationEx(RelationAll, nullptr, &len) || GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+        return;
+    }
+
+    std::shared_ptr<char> base_shared_ptr(new char[len]);
+    char* base_ptr = base_shared_ptr.get();
+    if (!GetLogicalProcessorInformationEx(RelationAll, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX)base_ptr, &len)) {
+        return;
+    }
+
+    _processors = GetMaximumProcessorCount(ALL_PROCESSOR_GROUPS);
+
+    parse_processor_info_win(base_ptr, len, _processors, _sockets, _cores, _proc_type_table, _cpu_mapping_table);
+}
+
 void parse_processor_info_win(const char* base_ptr,
                               const unsigned long len,
                               const int _processors,

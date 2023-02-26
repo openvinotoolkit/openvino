@@ -6,6 +6,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <fstream>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -15,6 +17,77 @@
 #include "threading/ie_parallel_custom_arena.hpp"
 
 namespace ov {
+
+void init_cpu(int& _processors,
+                 int& _sockets,
+                 int& _cores,
+                 std::vector<std::vector<int>>& _proc_type_table,
+                 std::vector<std::vector<int>>& _cpu_mapping_table) {
+    std::vector<std::vector<std::string>> system_info_table;
+
+    auto GetCatchInfoLinux = [&]() {
+        _processors = sysconf(_SC_NPROCESSORS_ONLN);
+        system_info_table.resize(_processors, std::vector<std::string>(3));
+
+        for (int n = 0; n < _processors; n++) {
+            for (int m = 0; m < 3; m++) {
+                int Ln = (m == 0) ? m : m + 1;
+
+                std::ifstream cache_file("/sys/devices/system/cpu/cpu" + std::to_string(n) + "/cache/index" +
+                                         std::to_string(Ln) + "/shared_cpu_list");
+                if (!cache_file.is_open()) {
+                    return -1;
+                }
+                std::string cache_info;
+                std::getline(cache_file, cache_info);
+                system_info_table[n][m] += cache_info;
+            }
+        }
+        return 0;
+    };
+
+    if (!GetCatchInfoLinux()) {
+        parse_processor_info_linux(_processors,
+                                   system_info_table,
+                                   _sockets,
+                                   _cores,
+                                   _proc_type_table,
+                                   _cpu_mapping_table);
+    } else {
+        /*Previous CPU resource based on calculation*/
+        std::ifstream cpuinfo("/proc/cpuinfo");
+        std::vector<int> processors;
+        std::map<int, int> sockets;
+        int socketId = 0;
+        while (!cpuinfo.eof()) {
+            std::string line;
+            std::getline(cpuinfo, line);
+            if (line.empty())
+                continue;
+            auto delimeter = line.find(':');
+            auto key = line.substr(0, delimeter);
+            auto value = line.substr(delimeter + 1);
+            if (0 == key.find("processor")) {
+                processors.emplace_back(std::stoi(value));
+            }
+            if (0 == key.find("physical id")) {
+                socketId = std::stoi(value);
+            }
+            if (0 == key.find("cpu cores")) {
+                sockets[socketId] = std::stoi(value);
+            }
+        }
+        _processors = processors.size();
+        _sockets = sockets.size();
+        for (auto&& socket : sockets) {
+            _cores += socket.second;
+        }
+        if (_cores == 0) {
+            _cores = _processors;
+        }
+    }
+    std::vector<std::vector<std::string>>().swap(system_info_table);
+}
 
 void parse_processor_info_linux(const int _processors,
                                 const std::vector<std::vector<std::string>> system_info_table,

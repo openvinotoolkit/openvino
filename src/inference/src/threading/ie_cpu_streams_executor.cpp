@@ -312,12 +312,12 @@ struct CPUStreamsExecutor::Impl {
         } else {
             _usedNumaNodes = numaNodes;
         }
+#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         if ((config._streams <= static_cast<int>(numaNodes.size()) &&
              ThreadBindingType::HYBRID_AWARE == config._threadBindingType) ||
             ThreadBindingType::CORES == config._threadBindingType) {
             bind_cores = true;
         }
-#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
         if (ThreadBindingType::HYBRID_AWARE == config._threadBindingType) {
             any_cores = config._streams >
                         config._big_core_streams + config._big_core_logic_streams + config._small_core_streams;
