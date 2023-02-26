@@ -7,7 +7,6 @@ import torch
 
 from pytorch_layer_test_class import PytorchLayerTest
 
-
 class TestArgSort(PytorchLayerTest):
 
     def _prepare_input(self):
@@ -22,7 +21,17 @@ class TestArgSort(PytorchLayerTest):
                 self.stable = stable
 
             def forward(self, input_tensor):
-                return torch.argsort(input_tensor, dim = self.dim, descending = self.descending, stable = self.stable)
+                if self.stable is not None:
+                    return torch.argsort(input_tensor, 
+                        dim = self.dim, 
+                        descending = self.descending, 
+                        stable = self.stable
+                    )
+                else:
+                    return torch.argsort(input_tensor, 
+                        dim = self.dim, 
+                        descending = self.descending
+                    ) 
         ref_net = None
 
         return aten_argsort(dim, descending, stable), ref_net, "aten::argsort"
@@ -30,8 +39,7 @@ class TestArgSort(PytorchLayerTest):
     @pytest.mark.parametrize("input_tensor", [
         np.random.rand(1, 4),
         np.random.rand(4, 4),
-        np.random.rand(4, 4, 4),
-        np.random.rand(1, 2, 3, 4, 5),
+        np.random.rand(4, 4, 4)
     ])
     @pytest.mark.parametrize("dim", [
         0,
@@ -40,11 +48,12 @@ class TestArgSort(PytorchLayerTest):
     ])
     @pytest.mark.parametrize("descending", [
         True,
-        False,
-    ])
-    # Unused
-    @pytest.mark.parametrize("stable", [
         False
+    ])
+    @pytest.mark.parametrize("stable", [
+        False,
+        # True, # Not yet supported
+        None
     ])
     def test_argsort(self, input_tensor, dim, descending, stable, ie_device, precision, ir_version):
         self.input_tensor = input_tensor

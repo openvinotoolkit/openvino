@@ -23,17 +23,27 @@ using namespace opset10;
 
 OutputVector translate_argsort(NodeContext& context) {
     const auto input_tensor = context.get_input(0);
-    const int64_t dim = !context.input_is_none(2) ? context.const_input<int64_t>(2) : -1;
-    const bool descending = !context.input_is_none(3) ? context.const_input<bool>(3) : false;
-    const bool stable = !context.input_is_none(1) ? context.const_input<bool>(1) : false;
+    bool stable;
+    int64_t dim;
+    bool descending;
 
-    const auto mode = descending ? ov::op::TopKMode::MAX : ov::op::TopKMode::MIN;
+    if (context.get_input_size() == 4) {
+        stable = context.const_input<bool>(1);
+        FRONT_END_OP_CONVERSION_CHECK(stable == false, "Stable sorting in aten::argsort is not yet supported.");
+        dim = context.const_input<int64_t>(2);
+        descending = context.const_input<bool>(3);
+    } else {
+        dim = context.const_input<int64_t>(1);
+        descending = context.const_input<bool>(2);
+    }
+    auto mode = descending ? ov::op::TopKMode::MAX : ov::op::TopKMode::MIN;
+
     auto zero_axis = mark(Constant::create(element::i64, Shape({1}), {0}));
     auto dim_axis = mark(Constant::create(element::i64, Shape({1}), {dim}));
     auto shape = mark(shared<ShapeOf>(input_tensor));
-    auto elements_node = mark(shared<Gather>(shape, dim_axis, zero_axis));
-    auto elements_count = mark(shared<Squeeze>(elements_node));
-    auto topk = mark(shared<TopK>(input_tensor, elements_count, dim, mode, ov::op::TopKSortType::NONE));
+    auto k_values_node = mark(shared<Gather>(shape, dim_axis, zero_axis));
+    auto k_values = mark(shared<Squeeze>(k_values_node));
+    auto topk = mark(shared<TopK>(input_tensor, k_values, dim, mode, ov::op::TopKSortType::NONE));
     auto indices = mark(shared<Convert>(topk->output(1), element::i64));
 
     return {indices};
