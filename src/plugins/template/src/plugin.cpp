@@ -91,7 +91,7 @@ std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::compile_model(const 
 
     auto fullConfig = Configuration{properties, _cfg};
     auto streamsExecutorConfig =
-        InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(fullConfig._streamsExecutorConfig);
+        ov::threading::IStreamsExecutor::Config::make_default_multi_threaded(fullConfig._streamsExecutorConfig);
     streamsExecutorConfig._name = stream_executor_name;
     auto compiled_model =
         std::make_shared<CompiledModel>(model->clone(),
