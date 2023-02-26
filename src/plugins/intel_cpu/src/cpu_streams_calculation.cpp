@@ -26,17 +26,15 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
 
     if (1 == input_streams) {
         stream_info[NUMBER_OF_STREAMS] = 1;
-        int limit_threads = (input_threads == 0)          ? model_prefer_threads
-                            : (model_prefer_threads == 0) ? input_threads
-                                                          : std::min(model_prefer_threads, input_threads);
-        if (((limit_threads == 0) || (limit_threads > proc_type_table[0][MAIN_CORE_PROC])) && (proc_type_table[0][EFFICIENT_CORE_PROC] > 0)) {
+        int limit_threads = (input_threads == 0) ? model_prefer_threads : input_threads;
+        if ((proc_type_table[0][EFFICIENT_CORE_PROC] > 0) &&
+            ((limit_threads == 0) || (limit_threads > proc_type_table[0][MAIN_CORE_PROC]))) {
             stream_info[PROC_TYPE] = ALL_PROC;
             int n_threads = std::accumulate(proc_type_table[0].begin() + MAIN_CORE_PROC,
                                             proc_type_table[0].begin() + HYPER_THREADING_PROC,
                                             0);
             stream_info[THREADS_PER_STREAM] = (limit_threads == 0) ? n_threads : std::min(n_threads, limit_threads);
             streams_info_table.push_back(stream_info);
-
             stream_info[NUMBER_OF_STREAMS] = 0;
             n_threads = stream_info[THREADS_PER_STREAM];
             for (int n = MAIN_CORE_PROC; n < HYPER_THREADING_PROC; n++) {
@@ -63,10 +61,8 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         return streams_info_table;
 
     } else if ((proc_type_table.size() > 1) && (proc_type_table.size() == input_streams + 1)) {
-        int limit_threads = (input_threads == 0) ? model_prefer_threads
-                            : (model_prefer_threads == 0)
-                                ? static_cast<int>(input_threads / input_streams)
-                                : std::min(model_prefer_threads, static_cast<int>(input_threads / input_streams));
+        int limit_threads =
+            (input_threads == 0) ? model_prefer_threads : static_cast<int>(input_threads / input_streams);
         stream_info[NUMBER_OF_STREAMS] = input_streams;
         stream_info[PROC_TYPE] = MAIN_CORE_PROC;
         stream_info[THREADS_PER_STREAM] =
