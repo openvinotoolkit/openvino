@@ -19,10 +19,10 @@
 namespace ov {
 
 void init_cpu(int& _processors,
-                 int& _sockets,
-                 int& _cores,
-                 std::vector<std::vector<int>>& _proc_type_table,
-                 std::vector<std::vector<int>>& _cpu_mapping_table) {
+              int& _sockets,
+              int& _cores,
+              std::vector<std::vector<int>>& _proc_type_table,
+              std::vector<std::vector<int>>& _cpu_mapping_table) {
     std::vector<std::vector<std::string>> system_info_table;
 
     auto GetCatchInfoLinux = [&]() {

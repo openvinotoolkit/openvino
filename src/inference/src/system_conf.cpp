@@ -316,7 +316,6 @@ void set_cpu_used(std::vector<int> cpu_ids, int used) {
         }
     }
 }
-#endif
 
 int get_number_of_logical_cpu_cores(bool bigCoresOnly) {
     int logical_cores = parallel_get_max_threads();
@@ -329,6 +328,7 @@ int get_number_of_logical_cpu_cores(bool bigCoresOnly) {
 #    endif
     return logical_cores;
 }
+#endif
 
 #if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
 std::vector<int> get_available_numa_nodes() {
