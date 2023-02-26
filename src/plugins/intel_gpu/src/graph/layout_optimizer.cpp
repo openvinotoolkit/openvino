@@ -1693,7 +1693,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
         }
 
         // In case of input -> ... -> quantize -> concat
-        if (expected == format::any
+        if (layout.is_static() && expected == format::any
             && (node.get_users().size() == 1 && node.get_users().front()->is_type<concatenation>())
             && (layout.batch() < 4 && layout.feature() < 4)) {
                 expected = format::get_default_format(layout.get_rank(), false, false);
