@@ -79,14 +79,6 @@
 namespace ov {
 namespace intel_cpu {
 
-void shape_inference(ov::Node* op,
-                     const std::vector<StaticShape>& input_shapes,
-                     std::vector<StaticShape>& output_shapes,
-                     const std::map<size_t, HostTensorPtr>& constant_data) {
-    auto shapeInfer = make_shape_inference(op->shared_from_this());
-    output_shapes = shapeInfer->infer(input_shapes, constant_data);
-}
-
 class entryBase : public IShapeInferCommon {
 public:
     using iface_type = IShapeInferCommon;
