@@ -82,6 +82,11 @@ public:
         return getVariable(mapItem->second, data, size);
     }
 
+    std::shared_ptr<std::ifstream> getDataFile(const int32_t shard_id) {
+        auto result = dataFiles.find(shard_id);
+        return result != dataFiles.end() ? result->second : nullptr;
+    }
+
 private:
     // Internal implementation of saved model reading
     void readVIBlock(std::ifstream& fs,

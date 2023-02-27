@@ -124,9 +124,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
             // handle binary protobuf format
             return std::make_shared<InputModel>(std::make_shared<GraphIteratorProto>(model_path), m_telemetry);
         } else if (GraphIteratorSavedModel::isSavedModel(model_path)) {
-            return std::make_shared<InputModel>(
-                std::make_shared<::ov::frontend::tensorflow::GraphIteratorSavedModel>(model_path),
-                m_telemetry);
+            auto graph_iterator = std::make_shared<::ov::frontend::tensorflow::GraphIteratorSavedModel>(model_path);
+            return std::make_shared<InputModel>(graph_iterator, m_telemetry, graph_iterator->getVariablesIndex());
         }
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -136,9 +135,8 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
             // handle binary protobuf format with a path in Unicode
             return std::make_shared<InputModel>(std::make_shared<GraphIteratorProto>(model_path), m_telemetry);
         } else if (GraphIteratorSavedModel::isSavedModel(model_path)) {
-            return std::make_shared<InputModel>(
-                std::make_shared<::ov::frontend::tensorflow::GraphIteratorSavedModel>(model_path),
-                m_telemetry);
+            auto graph_iterator = std::make_shared<::ov::frontend::tensorflow::GraphIteratorSavedModel>(model_path);
+            return std::make_shared<InputModel>(graph_iterator, m_telemetry, graph_iterator->getVariablesIndex());
         }
     }
 #endif
