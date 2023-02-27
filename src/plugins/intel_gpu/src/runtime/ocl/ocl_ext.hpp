@@ -967,8 +967,7 @@ public:
     KernelIntel(const Kernel &other, const UsmHelper& usmHelper) : Kernel(other), _usmHelper(usmHelper) { }
 
     KernelIntel clone() const {
-        Kernel cloned_kernel(this->getInfo<CL_KERNEL_PROGRAM>(), this->getInfo<CL_KERNEL_FUNCTION_NAME>().c_str());
-        return KernelIntel(cloned_kernel, _usmHelper);
+        return KernelIntel(*this, _usmHelper);
     }
 
     cl_int setArgUsm(cl_uint index, const UsmMemory& mem) {
