@@ -518,7 +518,7 @@ void primitive_inst::rebuild_exec_deps(
 primitive_inst::primitive_inst(network& network)
     : _network(network)
     , _node(nullptr)
-    , _impl_params(nullptr)
+    , _impl_params(make_unique<kernel_impl_params>())
     , _impl(nullptr)
     , _dynamic_impl(nullptr)
     , _outputs({memory::ptr()})
@@ -1149,8 +1149,6 @@ int32_t primitive_inst::get_index_in_deps(memory::cptr arg) const {
 }
 
 void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
-    _impl_params.release();
-    _impl_params = make_unique<kernel_impl_params>();
     _impl_params->load(ib);
     ib.setKernlImplParams(_impl_params.get());
 
