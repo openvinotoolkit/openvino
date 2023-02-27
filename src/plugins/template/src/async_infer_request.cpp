@@ -9,10 +9,11 @@
 #include "template_itt.hpp"
 
 // ! [async_infer_request:ctor]
-TemplatePlugin::AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<TemplatePlugin::InferRequest>& request,
-                                                     const InferenceEngine::ITaskExecutor::Ptr& task_executor,
-                                                     const InferenceEngine::ITaskExecutor::Ptr& wait_executor,
-                                                     const InferenceEngine::ITaskExecutor::Ptr& callback_executor)
+TemplatePlugin::AsyncInferRequest::AsyncInferRequest(
+    const std::shared_ptr<TemplatePlugin::InferRequest>& request,
+    const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
+    const std::shared_ptr<ov::threading::ITaskExecutor>& wait_executor,
+    const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor)
     : ov::IAsyncInferRequest(request, task_executor, callback_executor),
       m_wait_executor(wait_executor) {
     // In current implementation we have CPU only tasks and no needs in 2 executors
