@@ -21,7 +21,7 @@
 #include "openvino/core/version.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
-#include "threading/ie_executor_manager.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
 
 #ifdef OPENVINO_STATIC_LIBRARY
 #    include "ie_plugins.hpp"
@@ -162,7 +162,7 @@ private:
         }
     };
 
-    InferenceEngine::ExecutorManager::Ptr executorManagerPtr;
+    std::shared_ptr<ov::threading::ExecutorManager> m_executor_manager;
     mutable std::unordered_set<std::string> opsetNames;
     // TODO: make extensions to be optional with conditional compilation
     mutable std::vector<InferenceEngine::IExtensionPtr> extensions;
