@@ -79,12 +79,13 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
         }
     };
     auto shape = output.get_partial_shape();
-    auto rank = shape.rank().is_static() ? shape.rank().get_length() : -1;
     SizeVector dims(1, 0);
-    if (shape.is_static()) {
-        dims = output.get_shape();
-    } else if (rank >= 0) {
-        dims = SizeVector(rank, 0);
+    if (shape.rank().is_static()) {
+        dims.resize(shape.size(), 0);
+        for (size_t i = 0; i < shape.size(); ++i) {
+            if (shape[i].get_max_length() != -1)  // dimension has an estimation
+                dims[i] = shape[i].get_max_length();
+        }
     }
     // query shape from ngraph::Parameter output shape and check there are no zeros in it
     for (const auto& dim : shape) {
@@ -92,6 +93,7 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
             IE_THROW() << outName << " has zero dimension which is not allowed";
     }
 
+    auto rank = shape.rank().is_static() ? shape.rank().get_length() : -1;
     const Layout rankLayout = rank < 0 ? Layout::BLOCKED : TensorDesc::getLayoutByRank(rank);
     if (ptr) {
         const auto origLayout = ptr->getTensorDesc().getLayout();

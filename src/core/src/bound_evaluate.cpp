@@ -78,7 +78,6 @@ ov::Tensor evaluate_bound(const Output<Node>& output, bool is_upper, bool invali
 
     std::vector<Node*> order;
     if (could_propagate(output, order)) {
-        reverse(order.begin(), order.end());
         for (const auto& node : order) {
             ov::TensorVector outputs;
             for (const auto& out : node->outputs()) {
@@ -223,25 +222,50 @@ ov::Tensor make_tensor_max_of_type(ov::element::Type_t t) {
 
 }  // namespace
 
-bool ov::could_propagate(const Output<Node>& output, std::vector<Node*>& order) {
+bool ov::could_propagate(const Output<Node>& output, std::vector<Node*>& result) {
     auto status = true;
 
-    std::deque<Node*> nodes_to_calculate = {output.get_node()};
-    order.push_back(output.get_node());
+    std::stack<Node*, std::vector<Node*>> nodes_to_do;
+    nodes_to_do.push(output.get_node());
+    std::unordered_set<Node*> nodes_done;
 
-    while (status && !nodes_to_calculate.empty()) {
-        auto current_node = nodes_to_calculate.front();
-        nodes_to_calculate.pop_front();
+    while (status && nodes_to_do.size() > 0) {
+        Node* node = nodes_to_do.top();
+        if (nodes_done.count(node) == 0) {
+            bool can_add = true;
+            size_t arg_count = node->get_input_size();
 
-        if (current_node->inputs().empty() && !is_type<op::v0::Constant>(current_node)) {
-            status = false;
-        } else if (!is_type<op::v0::ShapeOf>(current_node) && !is_type<op::v3::ShapeOf>(current_node)) {
-            // not a leaf, not a shape_of -- continue to search
-            for (const auto& input_value : current_node->input_values()) {
-                const auto& input_node = input_value.get_node();
-                order.push_back(input_node);
-                nodes_to_calculate.push_front(input_node);
+            if (arg_count == 0 && !is_type<op::v0::Constant>(node)) {
+                status = false;
+                continue;
+            } else if (is_type<op::v0::ShapeOf>(node) || is_type<op::v3::ShapeOf>(node)) {
+                result.push_back(node);
+                nodes_to_do.pop();
+                nodes_done.insert(node);
+                continue;
             }
+
+            for (size_t i = 0; i < arg_count; ++i) {
+                Node* dep = node->get_input_node_ptr(arg_count - i - 1);
+                if (nodes_done.count(dep) == 0) {
+                    can_add = false;
+                    nodes_to_do.push(dep);
+                }
+            }
+            for (auto& depptr : node->get_control_dependencies()) {
+                Node* dep = depptr.get();
+                if (nodes_done.count(dep) == 0) {
+                    can_add = false;
+                    nodes_to_do.push(dep);
+                }
+            }
+            if (can_add) {
+                result.push_back(node);
+                nodes_to_do.pop();
+                nodes_done.insert(node);
+            }
+        } else {
+            nodes_to_do.pop();
         }
     }
     return status;
@@ -256,9 +280,54 @@ ov::Tensor ov::evaluate_upper_bound(const Output<Node>& output) {
 }
 
 std::pair<ov::Tensor, ov::Tensor> ov::evaluate_both_bounds(const Output<Node>& output) {
-    evaluate_bound(output, false, false);
-    evaluate_bound(output, true);
-    return {output.get_tensor_ptr()->get_lower_value(), output.get_tensor_ptr()->get_upper_value()};
+    const auto& output_tensor = output.get_tensor();
+    if (output_tensor.get_lower_value() && output_tensor.get_upper_value())
+        return {output_tensor.get_lower_value(), output_tensor.get_upper_value()};
+
+    std::vector<Node*> order;
+    if (could_propagate(output, order)) {
+        for (const auto& node : order) {
+            ov::TensorVector outputs_lower, outputs_upper;
+            for (const auto& out : node->outputs()) {
+                OPENVINO_SUPPRESS_DEPRECATED_START
+                outputs_lower.push_back(util::wrap_tensor(out));
+                outputs_upper.push_back(util::wrap_tensor(out));
+                OPENVINO_SUPPRESS_DEPRECATED_END
+            }
+
+            if (!node->evaluate_lower(outputs_lower) || !node->evaluate_upper(outputs_upper)) {
+                break;
+            }
+
+            for (size_t i = 0; i < node->get_output_size(); ++i) {
+                auto& out_tensor = node->get_output_tensor(i);
+                out_tensor.set_lower_value(outputs_lower[i]);
+                out_tensor.set_upper_value(outputs_upper[i]);
+                if (are_equal(outputs_lower[i], outputs_upper[i])) {
+                    out_tensor.set_upper_value(outputs_lower[i]);
+                }
+            }
+            TensorLabelVector output_labels(node->get_output_size());
+            if (node->evaluate_label(output_labels))
+                for (size_t i = 0; i < output_labels.size(); ++i)
+                    node->get_output_tensor(i).set_value_label(output_labels[i]);
+
+            for (const auto& input : node->input_values()) {
+                auto& tensor = input.get_tensor();
+                bool should_invalidate = true;
+                const auto& lower = tensor.get_lower_value();
+                const auto& upper = tensor.get_upper_value();
+                if (lower && shape_size(lower.get_shape()) > 10)
+                    should_invalidate |= true;
+                if (upper && shape_size(upper.get_shape()) > 10)
+                    should_invalidate |= true;
+                if (should_invalidate && input.get_target_inputs().size() == 1)
+                    tensor.invalidate_values();
+            }
+            propagate_rt_info(node, output);
+        }
+    }
+    return {output_tensor.get_lower_value(), output_tensor.get_upper_value()};
 }
 
 bool ov::default_lower_bound_evaluator(const Node* node, TensorVector& output_values) {

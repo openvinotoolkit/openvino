@@ -340,37 +340,30 @@ Dimension resolve_minus_one(const Node* reshape_node,
                                   input_dim.get_length() % output_dim.get_length() == 0,
                                   "Non-'-1' output dimensions do not evenly divide the input dimensions");
         }
-        if (output_dim.get_min_length() == 0 || output_dim == Dimension() || input_dim == Dimension()) {
+
+        if (output_dim == Dimension() || input_dim == Dimension()) {
             return Dimension::dynamic();
         } else {
+            auto in_min = input_dim.get_min_length(), in_max = input_dim.get_max_length();
+            auto out_min = output_dim.get_min_length(), out_max = output_dim.get_max_length();
+
             Dimension::value_type lower;
-            if (input_dim.get_min_length() == 0)
-                lower = 0;
-            else if (input_dim.get_min_length() == -1 || output_dim.get_max_length() == 0 ||
-                     output_dim.get_max_length() == -1)
+            if (in_min == -1 || out_max == -1)
                 lower = -1;  // dynamic
             else
-                lower = static_cast<Dimension::value_type>(
-                    ceil(static_cast<double>(input_dim.get_min_length()) / output_dim.get_max_length()));
+                lower = static_cast<Dimension::value_type>(ceil(static_cast<double>(in_min) / (out_max ? out_max : 1)));
 
             Dimension::value_type upper;
-            if (input_dim.get_max_length() == 0)
-                upper = 0;
-            else if (input_dim.get_max_length() == -1 || output_dim.get_min_length() == 0 ||
-                     output_dim.get_min_length() == -1)
+            if (in_max == -1 || out_min == -1)
                 upper = -1;  // dynamic
             else
-                upper = static_cast<Dimension::value_type>(
-                    floor(static_cast<double>(input_dim.get_max_length()) / output_dim.get_min_length()));
+                upper =
+                    static_cast<Dimension::value_type>(floor(static_cast<double>(in_max) / (out_min ? out_min : 1)));
 
-            if (lower == -1)
-                return Dimension::dynamic();
-            else if (upper == -1)
-                return Dimension(lower, upper);
-            else if (lower > upper)  // empty intersection
+            if (lower == -1 || (lower > upper && upper > -1))
                 return Dimension::dynamic();
             else
-                return Dimension(lower, upper);
+                return {lower, upper};
         }
     }
 }

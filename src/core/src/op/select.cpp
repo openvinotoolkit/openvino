@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/runtime/reference/select.hpp"
@@ -119,6 +120,14 @@ bool op::v1::Select::evaluate(const HostTensorVector& output_values, const HostT
     NGRAPH_CHECK(validate_host_tensor_vector(output_values, 1));
     const auto autob = get_auto_broadcast();
     return detail::evaluate_select(output_values, input_values, autob, output_values[0]->get_element_type());
+}
+
+bool op::v1::Select::evaluate_lower(ov::TensorVector& output_values) const {
+    return get_input_tensor(0).has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v1::Select::evaluate_upper(ov::TensorVector& output_values) const {
+    return get_input_tensor(0).has_and_set_bound() && default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v1::Select::has_evaluate() const {

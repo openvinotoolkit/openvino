@@ -4,7 +4,10 @@
 
 #include "ngraph/op/equal.hpp"
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
+#include "ngraph/op/constant.hpp"
+#include "ngraph/op/less_eq.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/equal.hpp"
 
@@ -73,6 +76,53 @@ shared_ptr<Node> op::v1::Equal::clone_with_new_inputs(const OutputVector& new_ar
 bool op::v1::Equal::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_Equal_evaluate);
     return equal::evaluate_equal(inputs[0], inputs[1], outputs[0], get_autob());
+}
+
+bool op::v1::Equal::evaluate_lower(ov::TensorVector& output_values) const {
+    if (get_input_tensor(0).has_and_set_bound() && get_input_tensor(1).has_and_set_bound())
+        return default_upper_bound_evaluator(this, output_values);
+    // if input intervals intersect -- there could be both true and false, else -- only false
+    std::memset(output_values[0].data(), 0, output_values[0].get_byte_size());
+    return true;
+}
+
+bool op::v1::Equal::evaluate_upper(ov::TensorVector& output_values) const {
+    const auto &lhs = get_input_tensor(0), &rhs = get_input_tensor(1);
+    if (!lhs.has_and_set_bound() && !rhs.has_and_set_bound())
+        return false;  // we require one input to be constant
+    if (lhs.has_and_set_bound() && rhs.has_and_set_bound())
+        return default_upper_bound_evaluator(this, output_values);
+
+    // lower <= constant <= upper -- case when it could be equal, otherwise -- it could not
+    ov::Tensor constant = lhs.has_and_set_bound() ? lhs.get_upper_value() : rhs.get_upper_value();
+    ov::Tensor lower = lhs.has_and_set_bound() ? rhs.get_lower_value() : lhs.get_lower_value();
+    ov::Tensor upper = lhs.has_and_set_bound() ? rhs.get_upper_value() : lhs.get_upper_value();
+
+    auto size = ov::shape_size(output_values[0].get_shape());
+    bool less_eq_data[size];
+    const auto& less_eq_op = ov::op::v1::LessEqual();
+    auto outputs = std::vector<ov::Tensor>{ov::Tensor(element::boolean, output_values[0].get_shape(), less_eq_data)};
+    auto inputs = std::vector<ov::Tensor>{lower, constant};
+    if (!less_eq_op.evaluate(outputs, inputs))
+        return false;
+    for (size_t i = 0; i < size; ++i) {
+        if (!less_eq_data[i]) {
+            std::memset(output_values[0].data(), 0, output_values[0].get_byte_size());
+            return true;
+        }
+    }
+
+    inputs = std::vector<ov::Tensor>{constant, upper};
+    if (!less_eq_op.evaluate(outputs, inputs))
+        return false;
+    for (size_t i = 0; i < size; ++i) {
+        if (!less_eq_data[i]) {
+            std::memset(output_values[0].data(), 0, output_values[0].get_byte_size());
+            return true;
+        }
+    }
+    std::memset(output_values[0].data(), 1, output_values[0].get_byte_size());
+    return true;
 }
 
 bool op::v1::Equal::has_evaluate() const {
