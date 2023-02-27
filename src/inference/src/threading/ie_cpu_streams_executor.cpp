@@ -118,11 +118,6 @@ struct CPUStreamsExecutor::Impl {
                     const auto num_cpus = small_core_threads_3 ? concurrency + 1 : concurrency;
                     _cpu_ids = get_available_cpus(cpu_core_type, num_cpus, _impl->_config._plugin_task);
                     if (_cpu_ids.size() > 0) {
-                        if (cpu_core_type == ov::MAIN_CORE_PROC && _impl->_config._logic_core_disable == true) {
-                            std::vector<int> logic_cores = get_logic_cores(_cpu_ids);
-                            _cpu_ids.insert(_cpu_ids.end(), logic_cores.begin(), logic_cores.end());
-                        }
-                        set_cpu_used(_cpu_ids, ov::CPU_USED);
                         CpuSet processMask;
                         int ncpus = 0;
                         std::tie(processMask, ncpus) = GetProcessMask();

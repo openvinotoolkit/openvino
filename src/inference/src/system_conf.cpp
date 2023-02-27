@@ -171,7 +171,8 @@ bool cpu_map_available() {
 }
 std::vector<int> get_available_cpus(const ColumnOfProcessorTypeTable core_type,
                                     const int num_cpus,
-                                    const int plugin_task) {
+                                    const int seek_status,
+                                    const int reset_status) {
     return {};
 }
 std::vector<int> get_logic_cores(const std::vector<int> cpu_ids) {
@@ -193,6 +194,7 @@ struct CPU {
     }
 };
 static CPU cpu;
+static std::mutex _cpu_mutex;
 
 #    ifndef _WIN32
 int get_number_of_cpu_cores(bool bigCoresOnly) {
@@ -270,18 +272,21 @@ bool cpu_map_available() {
 
 std::vector<int> get_available_cpus(const ColumnOfProcessorTypeTable core_type,
                                     const int num_cpus,
-                                    const int plugin_task) {
+                                    const int seek_status,
+                                    const int reset_status) {
+    std::lock_guard<std::mutex> lock{_cpu_mutex};
     std::vector<int> cpu_ids;
     if (core_type < PROC_TYPE_TABLE_SIZE && core_type >= ALL_PROC) {
         for (int i = 0; i < cpu._processors; i++) {
             if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == core_type &&
-                cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] == plugin_task) {
+                cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] == seek_status) {
                 cpu_ids.push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
             }
             if (static_cast<int>(cpu_ids.size()) == num_cpus) {
                 break;
             }
         }
+        set_cpu_used(cpu_ids, reset_status);
     } else {
         IE_THROW() << "Wrong value for core_type " << core_type;
     }

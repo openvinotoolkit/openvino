@@ -189,16 +189,28 @@ enum ColumnOfProcessorTypeTable {
 };
 
 /**
+ * @enum       CpuUseStatus
+ * @brief      Defination of CPU_MAP_USED_FLAG column in CPU mapping table.
+ */
+enum CpuUseStatus {
+    NOT_USED = -1,       //!< CPU is not bound to thread
+    CPU_USED = 1,        //!< CPU is in using
+    GPU_PRE_USED = 100,  //!< GPU need to use
+};
+
+/**
  * @brief      Returns available cpu ids
  * @ingroup    ie_dev_api_system_conf
  * @param[in]  core_type core type.
  * @param[in]  num_cpus number of cpus.
- * @param[in]  cpu_task is cpu task, not other plugin tasks
+ * @param[in]  seek_status look for CPU_MAP_USED_FLAG of seek_status in CPU mapping table
+ * @param[in]  reset_status reset CPU_MAP_USED_FLAG with reset_status.
  * @return     Array of available cpu ids.
  */
 OPENVINO_RUNTIME_API std::vector<int> get_available_cpus(const ColumnOfProcessorTypeTable core_type,
                                                          const int num_cpus,
-                                                         const int plugin_task = -1);
+                                                         const int seek_status = NOT_USED,
+                                                         const int reset_status = CPU_USED);
 
 /**
  * @enum       ColumnOfCPUMappingTable
@@ -231,16 +243,6 @@ enum ColumnOfCPUMappingTable {
     CPU_MAP_GROUP_ID = 4,      //!< column for group id to the processor. Processors in one group have dependency.
     CPU_MAP_USED_FLAG = 5,     //!< column for resource management of the processor
     CPU_MAP_TABLE_SIZE = 6     //!< Size of CPU mapping table
-};
-
-/**
- * @enum       CpuUseStatus
- * @brief      Defination of CPU_MAP_USED_FLAG column in CPU mapping table.
- */
-enum CpuUseStatus {
-    NOT_USED = -1,       //!< CPU is not bound to thread
-    CPU_USED = 1,        //!< CPU is in using
-    GPU_PRE_USED = 100,  //!< GPU need to use
 };
 
 }  // namespace ov

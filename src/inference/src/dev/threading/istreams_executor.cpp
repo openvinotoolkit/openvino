@@ -448,7 +448,6 @@ IStreamsExecutor::Config IStreamsExecutor::Config::set_executor_config(std::stri
     Config streamExecutorConfig = Config{name, num_streams};
     if (cpu_map_available()) {
         if (name.find("CPU") == std::string::npos) {
-            streamExecutorConfig._logic_core_disable = true;
             if (name.find("GPU") != std::string::npos) {
                 streamExecutorConfig._plugin_task = GPU_PRE_USED;
             }
@@ -470,9 +469,10 @@ IStreamsExecutor::Config IStreamsExecutor::Config::set_executor_config(std::stri
             auto num_cores = streamExecutorConfig._threadPreferredCoreType == LITTLE
                                  ? streamExecutorConfig._small_core_streams
                                  : streamExecutorConfig._big_core_streams;
-            auto cpu_ids = get_available_cpus(core_type, num_cores);
-            if (cpu_ids.size() > 0) {
-                set_cpu_used(cpu_ids, streamExecutorConfig._plugin_task);
+            auto cpu_ids = get_available_cpus(core_type, num_cores, streamExecutorConfig._plugin_task);
+            if (core_type == MAIN_CORE_PROC) {
+                std::vector<int> logic_cores = get_logic_cores(cpu_ids);
+                set_cpu_used(logic_cores, streamExecutorConfig._plugin_task);
             }
         }
     }
