@@ -106,6 +106,8 @@ void cacheModels(std::unique_ptr<SubgraphsDumper::OPCache> &cache,
                 std::shared_ptr<ov::Model> function;
                 try {
                     function = core->read_model(model.path);
+                    // TODO: remove w/a after enabling transformations in `load_model`
+                    core->compile_model(function);
                 } catch (std::exception &e) {
                     not_read_models_file << model.path << std::endl;
                     std::cout << "Model reading failed with exception:" << std::endl << e.what() << std::endl;

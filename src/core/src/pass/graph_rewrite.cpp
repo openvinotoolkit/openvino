@@ -299,7 +299,7 @@ void ov::pass::GraphRewrite::set_pass_config(const std::shared_ptr<PassConfig>& 
     }
 }
 
-static int counter = 0;
+// static int counter = 0;
 void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pattern::Matcher>& m,
                                              const ov::graph_rewrite_callback& callback,
                                              const PassPropertyMask& property) {
@@ -310,79 +310,83 @@ void ov::pass::MatcherPass::register_matcher(const std::shared_ptr<ov::pass::pat
         if (m->match(node->output(0))) {
             const auto& matched_values = m->get_matched_values();
             const auto& matched_nodes = m->get_matched_nodes();
-            ov::ParameterVector pv;
-            ov::ResultVector rv;
-            ov::OutputVector new_inputs;
+            if (matched_nodes.size() > 1) {
+                ov::ParameterVector pv;
+                ov::ResultVector rv;
+                ov::OutputVector new_inputs;
 
-            std::unordered_map<std::shared_ptr<Node>, std::shared_ptr<Node>> graph_node_to_cloned_node;
-            std::queue<std::shared_ptr<Node>> nodes_todo;
-            for (const auto& it : matched_nodes) {
-                nodes_todo.push(it);
-            }
-            while(!nodes_todo.empty()) {
-                auto nd = nodes_todo.front();
-                nodes_todo.pop();
+                std::unordered_map<std::shared_ptr<Node>, std::shared_ptr<Node>> graph_node_to_cloned_node;
+                std::queue<std::shared_ptr<Node>> nodes_todo;
+                for (const auto& it : matched_nodes) {
+                    nodes_todo.push(it);
+                }
+                while(!nodes_todo.empty()) {
+                    auto nd = nodes_todo.front();
+                    nodes_todo.pop();
 
-                if (!std::dynamic_pointer_cast<ov::op::v0::Constant>(nd)) {
-                    if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(nd)) {
-                        auto new_param = std::make_shared<ov::op::v0::Parameter>(nd->output(0).get_element_type(),
-                                                                                 nd->output(0).get_partial_shape());
-                        graph_node_to_cloned_node[nd] = new_param;
-                        pv.push_back(new_param);
-                        continue;
-                    }
+                    if (!std::dynamic_pointer_cast<ov::op::v0::Constant>(nd)) {
+                        if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(nd)) {
+                            auto new_param = std::make_shared<ov::op::v0::Parameter>(nd->output(0).get_element_type(),
+                                                                                    nd->output(0).get_partial_shape());
+                            graph_node_to_cloned_node[nd] = new_param;
+                            pv.push_back(new_param);
+                            continue;
+                        }
 
-                    bool no_in_values_matched = true;
-                    for (const auto &in: nd->input_values()) {
-                        if (std::find(matched_values.begin(), matched_values.end(), in) != matched_values.end()) {
-                            no_in_values_matched = false;
-                            break;
+                        bool no_in_values_matched = true;
+                        for (const auto &in: nd->input_values()) {
+                            if (std::find(matched_values.begin(), matched_values.end(), in) != matched_values.end()) {
+                                no_in_values_matched = false;
+                                break;
+                            }
+                        }
+                        if (no_in_values_matched && matched_nodes.size() != 1) {
+                            auto new_param = std::make_shared<ov::op::v0::Parameter>(nd->output(0).get_element_type(),
+                                                                                    nd->output(0).get_partial_shape());
+                            graph_node_to_cloned_node[nd] = new_param;
+                            pv.push_back(new_param);
+                            continue;
                         }
                     }
-                    if (no_in_values_matched && matched_nodes.size() != 1) {
-                        auto new_param = std::make_shared<ov::op::v0::Parameter>(nd->output(0).get_element_type(),
-                                                                                 nd->output(0).get_partial_shape());
-                        graph_node_to_cloned_node[nd] = new_param;
-                        pv.push_back(new_param);
-                        continue;
-                    }
-                }
-                for (const auto& in : nd->input_values()) {
-                    if (std::find(matched_values.begin(), matched_values.end(), in) == matched_values.end()) {
-                        // this is not a part of the pattern
-                        auto in_node = in.get_node_shared_ptr();
-                        if (!std::dynamic_pointer_cast<ov::op::v0::Constant>(in_node)) {
-                            auto new_param = std::make_shared<ov::op::v0::Parameter>(in.get_element_type(), in.get_partial_shape());
-                            pv.push_back(new_param);
-                            new_inputs.push_back(new_param);
+                    for (const auto& in : nd->input_values()) {
+                        if (std::find(matched_values.begin(), matched_values.end(), in) == matched_values.end()) {
+                            // this is not a part of the pattern
+                            auto in_node = in.get_node_shared_ptr();
+                            if (!std::dynamic_pointer_cast<ov::op::v0::Constant>(in_node)) {
+                                auto new_param = std::make_shared<ov::op::v0::Parameter>(in.get_element_type(), in.get_partial_shape());
+                                pv.push_back(new_param);
+                                new_inputs.push_back(new_param);
+                            } else {
+                                new_inputs.push_back(in_node);
+                            }
                         } else {
-                            new_inputs.push_back(in_node);
+                        if (graph_node_to_cloned_node[in.get_node_shared_ptr()]) {
+                            new_inputs.push_back(graph_node_to_cloned_node[in.get_node_shared_ptr()]);
+                        }
+                        }
+                    }
+                    if (nd->get_input_size() == new_inputs.size()) {
+                        auto new_node = nd->clone_with_new_inputs(new_inputs);
+                        graph_node_to_cloned_node[nd] = new_node;
+                        for (const auto& out : new_node->outputs()) {
+                            //if (std::find(matched_values.begin(), matched_values.end(), out) == matched_values.end()) {
+                            // this is not a part of the pattern
+                            rv.push_back(std::make_shared<ov::op::v0::Result>(out));
+                            //}
                         }
                     } else {
-                       if (graph_node_to_cloned_node[in.get_node_shared_ptr()]) {
-                           new_inputs.push_back(graph_node_to_cloned_node[in.get_node_shared_ptr()]);
-                       }
+                        nodes_todo.push(nd);
                     }
+                    new_inputs.clear();
                 }
-                if (nd->get_input_size() == new_inputs.size()) {
-                    auto new_node = nd->clone_with_new_inputs(new_inputs);
-                    graph_node_to_cloned_node[nd] = new_node;
-                    for (const auto& out : new_node->outputs()) {
-                        //if (std::find(matched_values.begin(), matched_values.end(), out) == matched_values.end()) {
-                        // this is not a part of the pattern
-                        rv.push_back(std::make_shared<ov::op::v0::Result>(out));
-                        //}
-                    }
-                } else {
-                    nodes_todo.push(nd);
-                }
-                new_inputs.clear();
+                auto model = std::make_shared<ov::Model>(rv, pv);
+                ov::pass::Manager manager;
+                // std::string out_name = m->get_name() + std::to_string(counter++);
+                std::string out_name = m->get_name();
+                manager.register_pass<ov::pass::Serialize>("/nfs/inn/proj/vdp/Share/conformance_ir/dlb/master/temp/test_subgraph" + out_name + ".xml",
+                                                           "/nfs/inn/proj/vdp/Share/conformance_ir/dlb/master/temp/test_subgraph" + out_name + ".bin");
+                manager.run_passes(model);
             }
-            auto model = std::make_shared<ov::Model>(rv, pv);
-/*            ov::pass::Manager manager;
-            std::string out_name = m->get_name() + std::to_string(counter++);
-            manager.register_pass<ov::pass::Serialize>("/home/tikhonov/OpenVINO/tmp/test_dir/" + out_name + ".xml", "/home/tikhonov/OpenVINO/tmp/test_dir/" + out_name + ".bin");
-            manager.run_passes(model);*/
             NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
             OV_PASS_CALLBACK(m);
             const bool status = callback(*m.get());
