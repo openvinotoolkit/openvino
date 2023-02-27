@@ -74,7 +74,15 @@ bool DiscreteTypeInfo::operator<(const DiscreteTypeInfo& b) const {
 bool DiscreteTypeInfo::operator==(const DiscreteTypeInfo& b) const {
     if (hash_value != 0 && b.hash_value != 0)
         return hash() == b.hash();
-    return strcmp(version_id, b.version_id) == 0 && strcmp(name, b.name) == 0;
+    if (name != nullptr && b.name != nullptr) {
+        if (strcmp(name, b.name) == 0) {
+            std::string v_id(version_id == nullptr ? "" : version_id);
+            std::string bv_id(b.version_id == nullptr ? "" : b.version_id);
+            if (v_id == bv_id)
+                return true;
+        }
+    }
+    return false;
 }
 bool DiscreteTypeInfo::operator<=(const DiscreteTypeInfo& b) const {
     return *this == b || *this < b;
