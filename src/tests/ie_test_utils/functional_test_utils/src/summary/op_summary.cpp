@@ -40,7 +40,7 @@ OpSummary &OpSummary::getInstance() {
     return *p_instance;
 }
 
-void OpSummary::updateOPsStats(const ov::NodeTypeInfo &op, const PassRate::Statuses &status, double k) {
+void OpSummary::updateOPsStats(const ov::NodeTypeInfo &op, const PassRate::Statuses &status, double rel_influence_coef) {
     auto it = opsStats.find(op);
     if (opsStats.find(op) == opsStats.end()) {
         opsStats.insert({op, PassRate()});
@@ -51,7 +51,7 @@ void OpSummary::updateOPsStats(const ov::NodeTypeInfo &op, const PassRate::Statu
         if (passrate.crashed > 0)
             passrate.crashed--;
     } else {
-        passrate.rel_all += k;
+        passrate.rel_all += rel_influence_coef;
     }
     if (isHangReported) {
         isHangReported = false;
@@ -63,7 +63,7 @@ void OpSummary::updateOPsStats(const ov::NodeTypeInfo &op, const PassRate::Statu
                 passrate.isImplemented = true;
             }
             passrate.passed++;
-            passrate.rel_passed += k;
+            passrate.rel_passed += rel_influence_coef;
             break;
         case PassRate::FAILED:
             passrate.failed++;

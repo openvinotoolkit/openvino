@@ -151,10 +151,10 @@ void ReadIRTest::SetUp() {
             model_len++;
             occurance += model.attribute("count").as_uint();
         }
-        k = doc.child("meta_info").child("graph_priority").attribute("value").as_double();
+        rel_influence_coef = doc.child("meta_info").child("graph_priority").attribute("value").as_double();
         // TODO: remove after cache update w/a
-        if (k == 0) {
-            k = 1.f;
+        if (rel_influence_coef == 0) {
+            rel_influence_coef = 1.f;
         }
         auto portsInfo = doc.child("meta_info").child("ports_info");
         auto getPortInfo = [&](size_t id) {
@@ -271,7 +271,7 @@ void ReadIRTest::SetUp() {
     if (inputShapes.empty()) {
         GTEST_SKIP() << "The graph is constant. The case is not applicable for Operation conformance scenario";
     }
-    std::cout << "[ CONFORMANCE ] Influence coefficient: " << k << std::endl;
+    std::cout << "[ CONFORMANCE ] Influence coefficient: " << rel_influence_coef << std::endl;
     init_input_shapes(inputShapes);
     is_report_stages = true;
 }

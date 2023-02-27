@@ -61,7 +61,7 @@ struct PassRate {
         }
     }
 
-    float getRelPassrate() const {
+    double getRelPassrate() const {
         if (rel_all == 0) {
             return 100.f;
         } else {

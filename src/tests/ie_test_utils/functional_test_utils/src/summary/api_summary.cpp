@@ -47,7 +47,7 @@ ApiSummary &ApiSummary::getInstance() {
     return *p_instance;
 }
 
-void ApiSummary::updateStat(ov_entity entity, const std::string& target_device, PassRate::Statuses status, size_t k) {
+void ApiSummary::updateStat(ov_entity entity, const std::string& target_device, PassRate::Statuses status, double rel_influence_coef) {
     if (apiStats.empty()) {
         std::string outputFilePath = outputFolder + std::string(CommonTestUtils::FileSeparator) + reportFilename + CommonTestUtils::REPORT_EXTENSION;
         const bool fileExists = CommonTestUtils::fileExists(outputFilePath);
@@ -74,7 +74,7 @@ void ApiSummary::updateStat(ov_entity entity, const std::string& target_device, 
         isHangReported = false;
         return;
     }
-    cur_stat[real_device].rel_all += k;
+    cur_stat[real_device].rel_all += rel_influence_coef;
     switch (status) {
         case PassRate::Statuses::SKIPPED: {
             cur_stat[real_device].skipped++;
@@ -85,7 +85,7 @@ void ApiSummary::updateStat(ov_entity entity, const std::string& target_device, 
                 cur_stat[real_device].isImplemented = true;
             }
             cur_stat[real_device].passed++;
-            cur_stat[real_device].rel_passed += k;
+            cur_stat[real_device].rel_passed += rel_influence_coef;
             break;
         }
         case PassRate::Statuses::HANGED: {
