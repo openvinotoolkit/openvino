@@ -54,4 +54,31 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs,
                                             ::testing::Values(additional_config)),
                          ComparisonLayerTest::getTestCaseName);
 
+const std::vector<InputShapesTuple> inputShapesIsOps = {
+    {{5}, {1}},
+    {{2, 2}, {1}},
+    {{2, 2, 2}, {1}},
+    {{2, 17, 3, 4}, {1}},
+    {{2, 17, 3, 4, 8}, {1}},
+    {{2, 17, 3, 4, 8, 2}, {1}},
+};
+
+const std::vector<InferenceEngine::Precision> inputsPrecisionsIsOps = {
+    InferenceEngine::Precision::FP32,
+    InferenceEngine::Precision::FP16,
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_IsOp,
+                         ComparisonLayerTest,
+                         ::testing::Combine(::testing::ValuesIn(inputShapesIsOps),
+                                            ::testing::ValuesIn(inputsPrecisionsIsOps),
+                                            ::testing::Values(ngraph::helpers::ComparisonTypes::IS_FINITE,
+                                                              ngraph::helpers::ComparisonTypes::IS_NAN),
+                                            ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT),
+                                            ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                            ::testing::Values(InferenceEngine::Precision::BOOL),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                            ::testing::Values(additional_config)),
+                         ComparisonLayerTest::getTestCaseName);
+
 }  // namespace
