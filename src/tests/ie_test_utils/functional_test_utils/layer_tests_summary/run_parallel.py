@@ -359,7 +359,7 @@ class TestParallelRunner:
         total_seconds = (t_end - t_start).total_seconds()
         sec = round(total_seconds % 60, 2)
         min = int(total_seconds / 60) % 60
-        h = int(total_seconds / 360) % 60
+        h = int(total_seconds / 3600) % 60
         logger.info(f"Run test parallel is finished successfully. Total time is {h}h:{min}m:{sec}s")
 
 
@@ -400,7 +400,12 @@ class TestParallelRunner:
                 test_log = list()
                 dir = None
                 test_cnt_expected = test_cnt_real_saved_now = test_cnt_real_saved_before = 0
-                for line in log_file.readlines():
+                try:
+                    lines = log_file.readlines()
+                except:
+                    lines = log.read_text(encoding='ascii', errors='ignore').split('\n')
+
+                for line in lines:
                     if constants.GTEST_FILTER in line:
                         line = line[line.find(constants.GTEST_FILTER):]
                         test_cnt_expected = line.count(':')

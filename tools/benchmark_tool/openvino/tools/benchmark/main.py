@@ -112,7 +112,7 @@ def main():
                 if is_flag_set_in_command_line('hint'):
                     if args.perf_hint=='none':
                         logger.warning(f"No device {device} performance hint is set.")
-                        args.perf_hint = ''
+                        args.perf_hint = 'UNDEFINED'
                 else:
                     args.perf_hint = "THROUGHPUT" if benchmark.api_type == "async" else "LATENCY"
                     logger.warning(f"Performance hint was not explicitly specified in command line. " +
@@ -322,7 +322,10 @@ def main():
                     del device_number_streams[device]
 
         perf_counts = perf_counts
-        benchmark.set_config(config)
+        device_config = {}
+        for device in config:
+            if benchmark.device.find(device) == 0:
+                device_config = config[device]
         if args.cache_dir:
             benchmark.set_cache_dir(args.cache_dir)
 
@@ -348,7 +351,7 @@ def main():
             next_step()
 
             start_time = datetime.utcnow()
-            compiled_model = benchmark.core.compile_model(args.path_to_model, benchmark.device)
+            compiled_model = benchmark.core.compile_model(args.path_to_model, benchmark.device, device_config)
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
             logger.info(f"Compile model took {duration_ms} ms")
             if statistics:
@@ -411,7 +414,7 @@ def main():
             next_step()
 
             start_time = datetime.utcnow()
-            compiled_model = benchmark.core.compile_model(model, benchmark.device)
+            compiled_model = benchmark.core.compile_model(model, benchmark.device, device_config)
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
             logger.info(f"Compile model took {duration_ms} ms")
             if statistics:

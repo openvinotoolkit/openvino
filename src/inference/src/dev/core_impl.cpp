@@ -28,6 +28,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/remote_context.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "preprocessing/preprocessing.hpp"
@@ -57,7 +58,7 @@ void stripDeviceName(std::string& device, const std::string& substr) {
 
 ov::CoreImpl::CoreImpl(bool _newAPI) : m_new_api(_newAPI) {
     add_mutex("");  // Register global mutex
-    executorManagerPtr = InferenceEngine::executorManager();
+    m_executor_manager = ov::threading::executor_manager();
     for (const auto& it : ov::get_available_opsets()) {
         opsetNames.insert(it.first);
     }
@@ -279,7 +280,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
             model,
             create_compile_config(plugin, parsed._deviceName, parsed._config));
         bool loadedFromCache = false;
-        auto lock = cacheGuard.getHashLock(cacheContent.blobId);
+        auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, {}, loadedFromCache);
         if (!loadedFromCache) {
             res = compile_model_impl(model, plugin, parsed._config, {}, cacheContent, forceDisableCache);
@@ -317,7 +318,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
             model,
             create_compile_config(plugin, parsed._deviceName, parsed._config));
         bool loadedFromCache = false;
-        auto lock = cacheGuard.getHashLock(cacheContent.blobId);
+        auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, context, loadedFromCache);
         if (!loadedFromCache) {
             res = compile_model_impl(model, plugin, parsed._config, context, cacheContent);
@@ -367,7 +368,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         cacheContent.blobId = ov::NetworkCompilationContext::compute_hash(
             model_path,
             create_compile_config(plugin, parsed._deviceName, parsed._config));
-        auto lock = cacheGuard.getHashLock(cacheContent.blobId);
+        auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, {}, loadedFromCache);
         if (!loadedFromCache) {
             auto cnnNetwork = ReadNetwork(model_path, std::string());
@@ -400,7 +401,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
             model_str,
             weights,
             create_compile_config(plugin, parsed._deviceName, parsed._config));
-        auto lock = cacheGuard.getHashLock(cacheContent.blobId);
+        auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         res = load_model_from_cache(cacheContent, plugin, parsed._config, {}, loadedFromCache);
         if (!loadedFromCache) {
             auto cnnNetwork = read_model(model_str, weights);
@@ -615,29 +616,24 @@ void ov::CoreImpl::set_property(const std::string& device_name, const AnyMap& pr
                     "set_property is supported only for BATCH itself (without devices). "
                     "You can configure the devices with set_property before creating the BATCH on top.");
 
-    bool isMetaDevice = device_name.find("AUTO") != std::string::npos ||
-                        device_name.find("MULTI") != std::string::npos ||
-                        device_name.find("HETERO") != std::string::npos;
-    if (!isMetaDevice) {
-        // unsupport to set ov::device::properties to HW device through this function
-        auto devices = get_registered_devices();
-        for (auto&& config : properties) {
-            auto parsed = parseDeviceNameIntoConfig(config.first);
-            auto is_secondary_config_for_hw_device =
-                std::any_of(devices.begin(), devices.end(), [&](const std::string& device) {
-                    return device == parsed._deviceName;
-                });
-            OPENVINO_ASSERT(!is_secondary_config_for_hw_device,
-                            "set_property only supported ov::device::propreties for Meta device (AUTO/MULTI/HETERO). "
-                            "You can configure the devices through the compile_model()/loadNetwork() API.");
-        }
+    // unsupport to set ov::device::properties to HW device through this function
+    auto devices = get_registered_devices();
+    for (auto&& config : properties) {
+        auto parsed = parseDeviceNameIntoConfig(config.first);
+        auto is_secondary_config_for_hw_device =
+            std::any_of(devices.begin(), devices.end(), [&](const std::string& device) {
+                return device == parsed._deviceName;
+            });
+        OPENVINO_ASSERT(!is_secondary_config_for_hw_device,
+                        "set_property do not support ov::device::propreties. "
+                        "You can configure the devices through the compile_model()/loadNetwork() API.");
     }
-    set_property_for_devivce(properties, device_name);
+    set_property_for_device(properties, device_name);
 }
 
 ov::Any ov::CoreImpl::get_property_for_core(const std::string& name) const {
     if (name == ov::force_tbb_terminate.name()) {
-        const auto flag = InferenceEngine::executorManager()->getTbbFlag();
+        const auto flag = ov::threading::executor_manager()->get_property(name).as<bool>();
         return decltype(ov::force_tbb_terminate)::value_type(flag);
     } else if (name == ov::cache_dir.name()) {
         return ov::Any(coreConfig.get_cache_dir());
@@ -724,7 +720,7 @@ std::vector<std::string> ov::CoreImpl::get_registered_devices() const {
  * @note  `deviceName` is not allowed in form of MULTI:CPU, HETERO:GPU,CPU, AUTO:CPU
  *        just simple forms like CPU, GPU, MULTI, GPU.0, etc
  */
-void ov::CoreImpl::set_property_for_devivce(const ov::AnyMap& configMap, const std::string& deviceName) {
+void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const std::string& deviceName) {
     auto config = configMap;
     if (config.empty()) {
         return;
@@ -863,14 +859,14 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_impl(const std::shared
         try {
             // need to export network for further import from "cache"
             OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "Core::compile_model::Export");
-            cacheContent.cacheManager->writeCacheEntry(cacheContent.blobId, [&](std::ostream& networkStream) {
+            cacheContent.cacheManager->write_cache_entry(cacheContent.blobId, [&](std::ostream& networkStream) {
                 networkStream << ov::CompiledBlobHeader(
                     InferenceEngine::GetInferenceEngineVersion()->buildNumber,
                     ov::NetworkCompilationContext::calculate_file_info(cacheContent.modelPath));
                 execNetwork->export_model(networkStream);
             });
         } catch (...) {
-            cacheContent.cacheManager->removeCacheEntry(cacheContent.blobId);
+            cacheContent.cacheManager->remove_cache_entry(cacheContent.blobId);
             throw;
         }
     }
@@ -887,7 +883,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(const CacheCon
 
     OPENVINO_ASSERT(cacheContent.cacheManager != nullptr);
     try {
-        cacheContent.cacheManager->readCacheEntry(cacheContent.blobId, [&](std::istream& networkStream) {
+        cacheContent.cacheManager->read_cache_entry(cacheContent.blobId, [&](std::istream& networkStream) {
             OV_ITT_SCOPE(FIRST_INFERENCE,
                          InferenceEngine::itt::domains::IE_LT,
                          "Core::LoadNetworkFromCache::ReadStreamAndImport");
@@ -914,10 +910,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(const CacheCon
         });
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work
-        cacheContent.cacheManager->removeCacheEntry(cacheContent.blobId);
+        cacheContent.cacheManager->remove_cache_entry(cacheContent.blobId);
         networkIsImported = false;
     } catch (...) {
-        cacheContent.cacheManager->removeCacheEntry(cacheContent.blobId);
+        cacheContent.cacheManager->remove_cache_entry(cacheContent.blobId);
         networkIsImported = false;
         // TODO: temporary disabled by #54335. In future don't throw only for new 'blob_outdated' exception
         // throw;
@@ -998,7 +994,7 @@ void ov::CoreImpl::CoreConfig::set_and_update(ov::AnyMap& config) {
     it = config.find(ov::force_tbb_terminate.name());
     if (it != config.end()) {
         auto flag = it->second.as<std::string>() == CONFIG_VALUE(YES) ? true : false;
-        InferenceEngine::executorManager()->setTbbFlag(flag);
+        ov::threading::executor_manager()->set_property({{it->first, flag}});
         config.erase(it);
     }
 
@@ -1057,7 +1053,7 @@ void ov::CoreImpl::CoreConfig::fill_config(CacheConfig& config, const std::strin
     config._cacheDir = dir;
     if (!dir.empty()) {
         FileUtils::createDirectoryRecursive(dir);
-        config._cacheManager = std::make_shared<InferenceEngine::FileStorageCacheManager>(dir);
+        config._cacheManager = std::make_shared<ov::FileStorageCacheManager>(dir);
     } else {
         config._cacheManager = nullptr;
     }

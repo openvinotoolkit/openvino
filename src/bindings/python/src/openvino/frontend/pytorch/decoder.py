@@ -10,6 +10,7 @@ from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
 
 import warnings
 import torch
+import numpy as np
 
 
 def get_type_from_py_type(value):
@@ -36,18 +37,17 @@ def ivalue_to_constant(ivalue):
         assert ov_type.is_static(), "Can't deduce type for list"
         return op.Constant(ov_type, Shape([len(ivalue)]), ivalue).outputs()
 
-    if isinstance(ivalue, torch.Tensor) and ivalue.type() in pt_to_ov_type_map:
-        try:
-            ovshape = PartialShape(ivalue.size())
-            ovtype = pt_to_ov_type_map[ivalue.type()]
-            ov_const = op.Constant(ovtype, ovshape.get_shape(), ivalue.data_ptr())
-        except Exception:
-            # old variant that makes a slow data copying
-            warnings.warn("[ WARNING ] Constant wasn't able to convert from data_ptr.")
-            nvalues = ivalue.numpy()
-            ovtype = np_to_ov_type_map[str(nvalues.dtype)]
-            ovshape = PartialShape(nvalues.shape)
-            ov_const = op.Constant(ovtype, ovshape.get_shape(), nvalues.flatten().tolist())
+    if isinstance(ivalue, torch.Tensor):
+        if ivalue.ndim == 0:
+            assert str(ivalue.dtype()) in pt_to_ov_type_map, f"Type is not known {ivalue.dtype()}"
+            ov_type = pt_to_ov_type_map[str(ivalue.dtype)]
+            ov_const = op.Constant(ov_type, Shape([]), [ivalue.item()])
+        else:
+            ivalue = ivalue.to(memory_format=torch.contiguous_format)
+            narr = ivalue.numpy(force=True)
+            if not narr.flags['C_CONTIGUOUS']:
+                narr = np.ascontiguousarray(narr)
+            ov_const = op.Constant(narr, shared_memory=True)
         return ov_const.outputs()
     return None
 
@@ -89,11 +89,6 @@ pt_to_ov_type_map = {
     "torch.BoolTensor": OVType.boolean,
 }
 
-np_to_ov_type_map = {
-    "float32": OVType.f32,
-    "int32": OVType.i32,
-}
-
 
 class TorchScriptPythonDecoder (Decoder):
     def __init__(self, pt_module, graph_element=None):
@@ -115,6 +110,9 @@ class TorchScriptPythonDecoder (Decoder):
     def get_input(self, index: int):
         return self.inputs()[index]
 
+    def get_input_debug_name(self, index: int) -> str:
+        return self._raw_input(index).debugName()
+
     def get_input_shape(self, index: int):
         raw_input = self._raw_input(index)
         return self.get_shape_for_value(raw_input)
@@ -122,6 +120,9 @@ class TorchScriptPythonDecoder (Decoder):
     def get_input_type(self, index: int):
         raw_input = self._raw_input(index)
         return self.get_type_for_value(raw_input)
+
+    def get_output_debug_name(self, index: int) -> str:
+        return self._raw_output(index).debugName()
 
     def get_output_shape(self, index: int):
         output = self._raw_output(index)
@@ -259,29 +260,20 @@ class TorchScriptPythonDecoder (Decoder):
     def _as_constant_tensor(pt_value: torch.Value):
         ivalue = pt_value.toIValue()
         if pt_value.isCompleteTensor():
-            try:
-                ivalue = ivalue.to(memory_format=torch.contiguous_format).detach().cpu()
-            except Exception:
-                warnings.warn("[ WARNING ] Tensor couldn't detach")
-            if str(pt_value.type().dtype()) in pt_to_ov_type_map:
+            if ivalue.ndim == 0:
+                assert str(ivalue.dtype) in pt_to_ov_type_map, f"Type is not known {ivalue.dtype}"
+                ov_type = pt_to_ov_type_map[str(ivalue.dtype)]
+                ov_const = op.Constant(ov_type, Shape([]), [ivalue.item()])
+            else:
+                ivalue = ivalue.to(memory_format=torch.contiguous_format)
+                narr = ivalue.numpy(force=True)
+                if not narr.flags['C_CONTIGUOUS']:
+                    narr = np.ascontiguousarray(narr)
                 # Constant interpretation doesn't respect new-full type of PT
                 # It recognizes only tensors, and give lists as 1D tensors, and scalars as Tensor scalars
                 # So only tensor-type constants are supported
-                ovshape = PartialShape(pt_value.type().sizes())
-                ovtype = pt_to_ov_type_map[str(pt_value.type().dtype())]
-
-                # TODO: try-except here is a temporary WA for issues with data_ptr that we currently cannot predict; provide better solution
-                try:
-                    # this is only possible with adding a new ctor for Constant Python binding
-                    # TODO Check strides and pass them somehow
-                    values = ivalue.data_ptr()
-                    ov_const = op.Constant(ovtype, ovshape.get_shape(), values)
-                except Exception:
-                    # old variant that makes a slow data copying
-                    warnings.warn("[ WARNING ] Constant wasn't able to convert from data_ptr.")
-                    values = ivalue.flatten().tolist()
-                    ov_const = op.Constant(ovtype, ovshape.get_shape(), values)
-                return ov_const.outputs()
+                ov_const = op.Constant(narr, shared_memory=True)
+            return ov_const.outputs()
         else:
             return ivalue_to_constant(ivalue)
         return None
