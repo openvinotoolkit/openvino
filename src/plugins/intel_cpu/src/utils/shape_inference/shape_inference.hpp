@@ -14,11 +14,6 @@
 namespace ov {
 namespace intel_cpu {
 
-void shape_inference(ov::Node* op,
-                     const std::vector<StaticShape>& input_shapes,
-                     std::vector<StaticShape>& output_shapes,
-                     const std::map<size_t, HostTensorPtr>& constant_data = {});
-
 class IShapeInferCommon {
 public:
     virtual std::vector<StaticShape> infer(const std::vector<StaticShape>& input_shapes,
