@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <openvino/op/adaptive_avg_pool.hpp>
+#include <openvino/op/adaptive_max_pool.hpp>
 
 #include "adaptive_pool_shape_inference.hpp"
 #include "utils.hpp"
@@ -14,14 +14,14 @@ namespace op {
 namespace v8 {
 
 template <class TShape>
-std::vector<TShape> shape_infer(const AdaptiveAvgPool* op,
+std::vector<TShape> shape_infer(const AdaptiveMaxPool* op,
                                 const std::vector<TShape>& input_shapes,
                                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
-    return {adaptive_pool::out_shape_infer(op, input_shapes, constant_data)};
+    return {2, adaptive_pool::out_shape_infer(op, input_shapes, constant_data)};
 }
 
 template <class TShape>
-void shape_infer(const AdaptiveAvgPool* op,
+void shape_infer(const AdaptiveMaxPool* op,
                  const std::vector<TShape>& input_shapes,
                  std::vector<TShape>& output_shapes,
                  const std::map<size_t, HostTensorPtr>& constant_data = {}) {

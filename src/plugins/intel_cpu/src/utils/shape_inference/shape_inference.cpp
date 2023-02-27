@@ -9,6 +9,7 @@
 #include <openvino/opsets/opset7.hpp>
 
 #include "adaptive_avg_pool_shape_inference.hpp"
+#include "adaptive_max_pool_shape_inference.hpp"
 #include "assign_shape_inference.hpp"
 #include "augru_cell_shape_inference.hpp"
 #include "augru_sequence_shape_inference.hpp"
@@ -510,6 +511,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG(Softmax, entryCopy),
     _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG(Swish, entryFirstPassthrough),
     _OV_OP_SHAPE_INFER_REG(AdaptiveAvgPool, entryIOC),
+    _OV_OP_SHAPE_INFER_REG(AdaptiveMaxPool, entryIOC),
     _OV_OP_SHAPE_INFER_REG(Assign, entryIO),
     _OV_OP_SHAPE_INFER_REG(AvgPool, entryFallbackWithPadding),
     _OV_OP_SHAPE_INFER_REG(BatchToSpace, entryIOC),
