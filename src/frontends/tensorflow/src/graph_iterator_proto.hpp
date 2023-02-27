@@ -163,7 +163,8 @@ public:
 struct SMBlock;
 
 // Loads graph from Tensorflow Saved Model file (saved_model.pb)
-class SavedModelIteratorProto : public GraphIteratorProto {
+//GraphIteratorSavedModel
+class GraphIteratorSavedModel : public GraphIteratorProto {
     std::shared_ptr<::tensorflow::SavedModel> m_saved_model;
     std::map<std::string, std::vector<char>> varIndex;
     int32_t totalShards;
@@ -172,7 +173,7 @@ class SavedModelIteratorProto : public GraphIteratorProto {
 
 public:
     template <typename T>
-    SavedModelIteratorProto(const std::basic_string<T>& path)
+    GraphIteratorSavedModel(const std::basic_string<T>& path)
         : m_saved_model(std::make_shared<::tensorflow::SavedModel>()) {
         this->readSavedModel(path);
     }

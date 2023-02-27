@@ -81,7 +81,7 @@ struct SMFooter {
     }
 };
 
-void SavedModelIteratorProto::readSMBlock(std::ifstream& fs,
+void GraphIteratorSavedModel::readSMBlock(std::ifstream& fs,
                                           const SMBlock* index,
                                           std::vector<char>& data,
                                           uint32_t* offset,
@@ -98,7 +98,7 @@ void SavedModelIteratorProto::readSMBlock(std::ifstream& fs,
     *offset = smReadFixed<uint32_t>(data.data() + *offset_end);
 }
 
-void SavedModelIteratorProto::readSMPair(char** ptr,
+void GraphIteratorSavedModel::readSMPair(char** ptr,
                                          const char* ptr_end,
                                          std::string& key,
                                          char** value,
@@ -121,7 +121,7 @@ void SavedModelIteratorProto::readSMPair(char** ptr,
     *ptr = *value + *val_length;
 }
 
-void SavedModelIteratorProto::readVarIndex(std::ifstream& fs, std::map<std::string, std::vector<char>>& varIndex) {
+void GraphIteratorSavedModel::readVarIndex(std::ifstream& fs, std::map<std::string, std::vector<char>>& varIndex) {
     SMFooter footer;
 
     footer.Read(fs);
@@ -158,7 +158,7 @@ void SavedModelIteratorProto::readVarIndex(std::ifstream& fs, std::map<std::stri
     }
 }
 
-void SavedModelIteratorProto::readBundleHeader() {
+void GraphIteratorSavedModel::readBundleHeader() {
     auto item = varIndex.find("");
     FRONT_END_GENERAL_CHECK(item != varIndex.end(), "Bundle Header isn't found in index");
 
@@ -172,7 +172,7 @@ void SavedModelIteratorProto::readBundleHeader() {
     totalShards = bundleHeader.num_shards();
 }
 
-void SavedModelIteratorProto::readCMOGraph() {
+void GraphIteratorSavedModel::readCMOGraph() {
     varMap.clear();
 
     auto item = varIndex.find("_CHECKPOINTABLE_OBJECT_GRAPH");
@@ -210,7 +210,7 @@ void SavedModelIteratorProto::readCMOGraph() {
     }
 }
 
-bool SavedModelIteratorProto::isValidSignature(const ::tensorflow::SignatureDef& signature) {
+bool GraphIteratorSavedModel::isValidSignature(const ::tensorflow::SignatureDef& signature) {
     for (const auto& it : signature.inputs()) {
         if (it.second.name().empty()
             //			|| !isRefType(it.second.dtype())
@@ -226,7 +226,7 @@ bool SavedModelIteratorProto::isValidSignature(const ::tensorflow::SignatureDef&
     return true;
 }
 
-bool SavedModelIteratorProto::readVariables(std::ifstream& vi_stream, const std::string& path) {
+bool GraphIteratorSavedModel::readVariables(std::ifstream& vi_stream, const std::string& path) {
     varIndex.clear();
     readVarIndex(vi_stream, varIndex);
     readBundleHeader();
@@ -244,7 +244,7 @@ bool SavedModelIteratorProto::readVariables(std::ifstream& vi_stream, const std:
     return true;
 }
 
-bool SavedModelIteratorProto::readVariables(std::ifstream& vi_stream, const std::wstring& path) {
+bool GraphIteratorSavedModel::readVariables(std::ifstream& vi_stream, const std::wstring& path) {
     varIndex.clear();
     readVarIndex(vi_stream, varIndex);
     readBundleHeader();
@@ -263,11 +263,11 @@ bool SavedModelIteratorProto::readVariables(std::ifstream& vi_stream, const std:
     return true;
 }
 
-bool SavedModelIteratorProto::isSavedModel(const std::string& path) {
+bool GraphIteratorSavedModel::isSavedModel(const std::string& path) {
     return ov::util::directory_exists(path) && ov::util::file_exists(ov::util::path_join({path, "saved_model.pb"}));
 }
 
-bool SavedModelIteratorProto::isSavedModel(const std::wstring& path) {
+bool GraphIteratorSavedModel::isSavedModel(const std::wstring& path) {
     return ov::util::directory_exists(path) && ov::util::file_exists(ov::util::path_join_w({path, L"saved_model.pb"}));
 }
 
