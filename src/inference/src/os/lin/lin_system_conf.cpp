@@ -15,7 +15,7 @@
 
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/runtime/system_conf.h"
+#include "openvino/runtime/system_conf.hpp"
 #include "streams_executor.hpp"
 
 namespace ov {
