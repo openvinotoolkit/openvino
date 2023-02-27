@@ -11,6 +11,10 @@
 namespace ov {
 namespace intel_cpu {
 
+#if defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma warning(disable : 4250)
+#endif
 class DnnlBlockedMemoryDesc : public BlockedMemoryDesc, public DnnlMemoryDesc {
 public:
     // Creates planar DnnlBlockedMemoryDesc
@@ -100,6 +104,9 @@ private:
     friend std::shared_ptr<DnnlBlockedMemoryDesc> DnnlExtensionUtils::makeUndefinedDesc(const dnnl::memory::desc &desc, const Shape& shape);
     friend class MemoryDescUtils;
 };
+#if defined(_MSC_VER)
+#    pragma warning(pop)
+#endif
 
 using DnnlBlockedMemoryDescPtr = std::shared_ptr<DnnlBlockedMemoryDesc>;
 using DnnlBlockedMemoryDescCPtr = std::shared_ptr<const DnnlBlockedMemoryDesc>;
