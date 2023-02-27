@@ -294,21 +294,6 @@ static void CreateRoundOp(Program& p, const std::shared_ptr<ngraph::op::v5::Roun
     CreateUnaryEltwiseOp(p, op, func, {});
 }
 
-static void CreateIsFiniteOp(Program& p, const std::shared_ptr<ngraph::op::v10::IsFinite>& op) {
-    CreateUnaryEltwiseOp(p, op, cldnn::activation_func::is_finite, {});
-}
-
-static void CreateIsInfOp(Program& p, const std::shared_ptr<ngraph::op::v10::IsInf>& op) {
-    const auto& attributes = op->get_attributes();
-    const auto a = static_cast<float>(attributes.detect_negative);
-    const auto b = static_cast<float>(attributes.detect_positive);
-    CreateUnaryEltwiseOp(p, op, cldnn::activation_func::is_inf, {a, b});
-}
-
-static void CreateIsNaNOp(Program& p, const std::shared_ptr<ngraph::op::v10::IsNaN>& op) {
-    CreateUnaryEltwiseOp(p, op, cldnn::activation_func::is_nan, {});
-}
-
 REGISTER_FACTORY_IMPL(v0, Tanh);
 REGISTER_FACTORY_IMPL(v0, Elu);
 REGISTER_FACTORY_IMPL(v0, Sigmoid);
@@ -347,9 +332,6 @@ REGISTER_FACTORY_IMPL(v0, Sign);
 REGISTER_FACTORY_IMPL(v5, HSigmoid);
 REGISTER_FACTORY_IMPL(v5, Round);
 REGISTER_FACTORY_IMPL(v9, SoftSign);
-REGISTER_FACTORY_IMPL(v10, IsFinite);
-REGISTER_FACTORY_IMPL(v10, IsInf);
-REGISTER_FACTORY_IMPL(v10, IsNaN);
 
 }  // namespace intel_gpu
 }  // namespace ov

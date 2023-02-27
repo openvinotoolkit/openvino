@@ -78,9 +78,6 @@ std::string toString(ActivationFunction activation) {
         case ActivationFunction::GELU_TANH:                 method = "GELU_TANH"; break;
         case ActivationFunction::ROUND_HALF_TO_EVEN:        method = "ROUND_HALF_TO_EVEN"; break;
         case ActivationFunction::ROUND_HALF_AWAY_FROM_ZERO: method = "ROUND_HALF_AWAY_FROM_ZERO"; break;
-        case ActivationFunction::IS_FINITE:                 method = "IS_FINITE"; break;
-        case ActivationFunction::IS_INF:                    method = "IS_INF"; break;
-        case ActivationFunction::IS_NAN:                    method = "IS_NAN"; break;
         default: break;
     }
     return method;

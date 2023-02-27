@@ -66,21 +66,6 @@ JitTerm operator/(const JitTerm& lhs, const JitTerm& rhs) {
     return jit_term;
 }
 
-JitTerm operator&&(const JitTerm& lhs, const JitTerm& rhs) {
-    JitTerm jit_term{"(" + lhs.str() + " && " + rhs.str() + ")"};
-    return jit_term;
-}
-
-JitTerm operator||(const JitTerm& lhs, const JitTerm& rhs) {
-    JitTerm jit_term{"(" + lhs.str() + " || " + rhs.str() + ")"};
-    return jit_term;
-}
-
-JitTerm operator!(const JitTerm& arg) {
-    JitTerm jit_term{"(!" + arg.str() + ")"};
-    return jit_term;
-}
-
 JitTerm neg(const JitTerm& arg) {
     JitTerm jit_term{"(-" + arg.str() + ")"};
     return jit_term;
@@ -92,24 +77,8 @@ JitTerm ternary(const JitTerm& condition,
     JitTerm jit_term{"(" + condition.str() + " ? " + true_expr.str() + " : " + false_expr.str() + ")"};
     return jit_term;
 }
-
-JitTerm isfinite(const JitTerm& arg) {
-    JitTerm jit_term{"(isfinite(" + arg.str() + "))"};
-    return jit_term;
-}
-
 JitTerm isinf(const JitTerm& arg) {
     JitTerm jit_term{"(isinf(" + arg.str() + "))"};
-    return jit_term;
-}
-
-JitTerm isnan(const JitTerm& arg) {
-    JitTerm jit_term{"(isnan(" + arg.str() + "))"};
-    return jit_term;
-}
-
-JitTerm signbit(const JitTerm& arg) {
-    JitTerm jit_term{"(signbit(" + arg.str() + "))"};
     return jit_term;
 }
 
@@ -130,11 +99,6 @@ JitTerm tanh(const JitTerm& arg) {
 
 JitTerm log(const JitTerm& arg) {
     JitTerm jit_term{"(log(" + arg.str() + "))"};
-    return jit_term;
-}
-
-JitTerm to_bool(const JitTerm& arg) {
-    JitTerm jit_term{"(bool)" + arg.str()};
     return jit_term;
 }
 
@@ -1059,14 +1023,6 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
         return jit_term;
     };
 
-    // The workaround for OpenCL's vector type result in relational functions
-    // Convert from vector true(-1) to scalar true(1)
-    auto convert_vector_bool = [&](const JitTerm& arg) -> JitTerm {
-        // We need "to_bool" conversion here for `zero` with `arg` comparison, as `arg` can be integer vector type, and
-        // `zero` can be scalar floating-point type
-        return ternary(arg.eq(to_bool(zero)), zero, one);
-    };
-
     std::string macro_def = name + (use_type_parameter ? "(jit_type, input, m, n)" : "(input, m, n)");
     std::string macro_def_params = use_type_parameter ? "(jit_type, input, params)" : "(input, params)";
 
@@ -1295,22 +1251,6 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             break;
         case ActivationFunction::ROUND_HALF_AWAY_FROM_ZERO:
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(round(input))"));
-            break;
-        case ActivationFunction::IS_FINITE:
-            jitConstants.AddConstant(MakeJitConstant(macro_def, convert_vector_bool(isfinite(input)).str()));
-            break;
-        case ActivationFunction::IS_INF: {
-            const auto detect_negative = disable_type_conversion ? "m"_jit : to_type("m"_jit);
-            const auto detect_positive = disable_type_conversion ? "n"_jit : to_type("n"_jit);
-            jitConstants.AddConstant(
-                MakeJitConstant(macro_def,
-                                convert_vector_bool(isinf(input) && ((to_bool(detect_negative) && signbit(input)) ||
-                                                                     (to_bool(detect_positive) && !signbit(input))))
-                                    .str()));
-            break;
-        }
-        case ActivationFunction::IS_NAN:
-            jitConstants.AddConstant(MakeJitConstant(macro_def, convert_vector_bool(isnan(input)).str()));
             break;
         case ActivationFunction::NONE:
         default:

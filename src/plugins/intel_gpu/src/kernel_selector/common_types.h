@@ -174,10 +174,7 @@ enum class ActivationFunction {
     GELU,
     GELU_TANH,
     ROUND_HALF_TO_EVEN,
-    ROUND_HALF_AWAY_FROM_ZERO,
-    IS_FINITE,
-    IS_INF,
-    IS_NAN,
+    ROUND_HALF_AWAY_FROM_ZERO
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
