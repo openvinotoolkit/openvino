@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 
-#include "dev/threading/ie_parallel_custom_arena.hpp"
+#include "dev/threading/parallel_custom_arena.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/system_conf.h"
 #include "streams_executor.hpp"

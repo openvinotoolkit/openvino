@@ -11,7 +11,7 @@
 #include <memory>
 #include <vector>
 
-#include "dev/threading/ie_parallel_custom_arena.hpp"
+#include "dev/threading/parallel_custom_arena.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "streams_executor.hpp"
 
