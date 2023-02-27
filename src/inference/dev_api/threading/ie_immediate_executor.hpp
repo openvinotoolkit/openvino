@@ -12,6 +12,7 @@
 #include <memory>
 #include <string>
 
+#include "openvino/runtime/threading/immediate_executor.hpp"
 #include "threading/ie_itask_executor.hpp"
 
 namespace InferenceEngine {
@@ -20,7 +21,7 @@ namespace InferenceEngine {
  * @brief Task executor implementation that just run tasks in current thread during calling of run() method
  * @ingroup ie_dev_api_threading
  */
-class ImmediateExecutor : public ITaskExecutor {
+class ImmediateExecutor : public ITaskExecutor, public ov::threading::ImmediateExecutor {
 public:
     /**
      * @brief A shared pointer to a ImmediateExecutor object
@@ -31,10 +32,6 @@ public:
      * @brief Destroys the object.
      */
     ~ImmediateExecutor() override = default;
-
-    void run(Task task) override {
-        task();
-    }
 };
 
 }  // namespace InferenceEngine
