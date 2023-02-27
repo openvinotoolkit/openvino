@@ -24,7 +24,7 @@ class CompiledModel : public ov::ICompiledModel {
 public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
-                  const InferenceEngine::ITaskExecutor::Ptr& task_executor,
+                  const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
                   const Configuration& cfg);
 
     // Methods from a base class ov::ICompiledModel
