@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ie_system_conf.h"
+#include "openvino/runtime/system_conf.hpp"
 
 #include <cstdlib>
 #include <cstring>
@@ -15,7 +15,7 @@
 #define XBYAK_UNDEF_JNL
 #include <xbyak/xbyak_util.h>
 
-namespace InferenceEngine {
+namespace ov {
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 
@@ -102,7 +102,7 @@ bool with_cpu_x86_avx512_core_amx() {
 
 #endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64
 
-bool checkOpenMpEnvVars(bool includeOMPNumThreads) {
+bool check_open_mp_env_vars(bool include_omp_num_threads) {
     for (auto&& var : {"GOMP_CPU_AFFINITY",
                        "GOMP_DEBUG"
                        "GOMP_RTEMS_THREAD_POOLS",
@@ -134,7 +134,7 @@ bool checkOpenMpEnvVars(bool includeOMPNumThreads) {
                        "PHI_KMP_PLACE_THREADS"
                        "PHI_OMP_NUM_THREADS"}) {
         if (getenv(var)) {
-            if (0 != strcmp(var, "OMP_NUM_THREADS") || includeOMPNumThreads)
+            if (0 != strcmp(var, "OMP_NUM_THREADS") || include_omp_num_threads)
                 return true;
         }
     }
@@ -144,19 +144,19 @@ bool checkOpenMpEnvVars(bool includeOMPNumThreads) {
 #if defined(__APPLE__) || defined(__EMSCRIPTEN__)
 // for Linux and Windows the getNumberOfCPUCores (that accounts only for physical cores) implementation is OS-specific
 // (see cpp files in corresponding folders), for __APPLE__ it is default :
-int getNumberOfCPUCores(bool) {
+int get_number_of_cpu_cores(bool) {
     return parallel_get_max_threads();
 }
 #    if !((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
-std::vector<int> getAvailableNUMANodes() {
+std::vector<int> get_available_numa_nodes() {
     return {-1};
 }
 #    endif
-int getNumberOfLogicalCPUCores(bool) {
+int get_number_of_logical_cpu_cores(bool) {
     return parallel_get_max_threads();
 }
 #else
-int getNumberOfLogicalCPUCores(bool bigCoresOnly) {
+int get_number_of_logical_cpu_cores(bool bigCoresOnly) {
     int logical_cores = parallel_get_max_threads();
 #    if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
     auto core_types = custom::info::core_types();
@@ -170,18 +170,18 @@ int getNumberOfLogicalCPUCores(bool bigCoresOnly) {
 #endif
 
 #if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
-std::vector<int> getAvailableNUMANodes() {
+std::vector<int> get_available_numa_nodes() {
     return custom::info::numa_nodes();
 }
 // this is impl only with the TBB
-std::vector<int> getAvailableCoresTypes() {
+std::vector<int> get_available_cores_types() {
     return custom::info::core_types();
 }
 #else
 // as the core types support exists only with the TBB, the fallback is same for any other threading API
-std::vector<int> getAvailableCoresTypes() {
+std::vector<int> get_available_cores_types() {
     return {-1};
 }
 #endif
 
-}  // namespace InferenceEngine
+}  // namespace ov
