@@ -43,8 +43,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
         manager.register_pass<ReshapeFullyConnectedFusion>();
         auto pass_config = manager.get_pass_config();
         pass_config->set_callback<ReshapeFullyConnectedFusion>([](const std::shared_ptr<const ov::Node>& node) -> bool {
-            std::string errMsg;
-            return !node::FullyConnected::isSupportedOperation(node, errMsg);
+            return (node->get_input_partial_shape(0).size() != node->get_output_partial_shape(0).size());
         });
     }
     // after transformation "MoveEltwiseUpThroughDataMov" there can be Reshape sequences that should be eliminated or fused
