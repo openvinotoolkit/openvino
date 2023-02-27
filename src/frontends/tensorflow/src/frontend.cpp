@@ -86,8 +86,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
             // for automatic deduction of the frontend to convert the model
             // we have more strict rule that is to have `.pb` extension in the path
             return true;
-        } else if (ov::util::directory_exists(model_path) && ov::util::file_exists(model_path + "/saved_model.pb") &&
-                   ov::util::file_exists(model_path + "/variables/variables.index")) {
+        } else if (SavedModelIteratorProto::isSavedModel(model_path)) {
             return true;
         }
     }
@@ -100,8 +99,7 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
             // for automatic deduction of the frontend to convert the model
             // we have more strict rule that is to have `.pb` extension in the path
             return true;
-        } else if (ov::util::directory_exists(model_path) && ov::util::file_exists(model_path + L"/saved_model.pb") &&
-                   ov::util::file_exists(model_path + L"/variables/variables.index")) {
+        } else if (SavedModelIteratorProto::isSavedModel(model_path)) {
             return true;
         }
     }
@@ -124,7 +122,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         if (GraphIteratorProto::is_supported(model_path)) {
             // handle binary protobuf format
             return std::make_shared<InputModel>(std::make_shared<GraphIteratorProto>(model_path), m_telemetry);
-        } else if (ov::util::directory_exists(model_path)) {
+        } else if (SavedModelIteratorProto::isSavedModel(model_path)) {
             return std::make_shared<InputModel>(
                 std::make_shared<::ov::frontend::tensorflow::SavedModelIteratorProto>(model_path),
                 m_telemetry);
@@ -136,7 +134,7 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         if (GraphIteratorProto::is_supported(model_path)) {
             // handle binary protobuf format with a path in Unicode
             return std::make_shared<InputModel>(std::make_shared<GraphIteratorProto>(model_path), m_telemetry);
-        } else if (ov::util::directory_exists(model_path)) {
+        } else if (SavedModelIteratorProto::isSavedModel(model_path)) {
             return std::make_shared<InputModel>(
                 std::make_shared<::ov::frontend::tensorflow::SavedModelIteratorProto>(model_path),
                 m_telemetry);

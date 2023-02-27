@@ -5,6 +5,8 @@
 #pragma once
 
 #include <fstream>
+#include <map>
+#include <vector>
 
 #include "decoder_argdef.hpp"
 #include "decoder_proto.hpp"
@@ -158,9 +160,15 @@ public:
     }
 };
 
+struct SMBlock;
+
 // Loads graph from Tensorflow Saved Model file (saved_model.pb)
 class SavedModelIteratorProto : public GraphIteratorProto {
     std::shared_ptr<::tensorflow::SavedModel> m_saved_model;
+    std::map<std::string, std::vector<char>> varIndex;
+    int32_t totalShards;
+    std::map<int32_t, std::shared_ptr<std::ifstream>> dataFiles;
+    std::map<std::string, std::string> varMap;
 
 public:
     template <typename T>
@@ -168,6 +176,9 @@ public:
         : m_saved_model(std::make_shared<::tensorflow::SavedModel>()) {
         this->readSavedModel(path);
     }
+
+    static bool isSavedModel(const std::string& path);
+    static bool isSavedModel(const std::wstring& path);
 
 private:
     bool isValidSignature(const ::tensorflow::SignatureDef& signature);
@@ -183,9 +194,14 @@ private:
         std::ifstream sm_stream{path + getSMName<T>(), std::ifstream::in | std::ifstream::binary};
         FRONT_END_GENERAL_CHECK(sm_stream && sm_stream.is_open(), "Model file does not exist");
 
-        std::ifstream vi_stream{path + getVIName<T>(), std::ifstream::in | std::ifstream::binary};
-        FRONT_END_GENERAL_CHECK(vi_stream && vi_stream.is_open(), "Saved Model's variable index file does not exist");
-        FRONT_END_GENERAL_CHECK(readVariables(vi_stream, path), "Saved Model's variable index file cannot be parsed");
+        std::basic_string<T> varIndexPath = path + getVIName<T>();
+        if (ov::util::file_exists(varIndexPath)) {
+            std::ifstream vi_stream{varIndexPath, std::ifstream::in | std::ifstream::binary};
+            FRONT_END_GENERAL_CHECK(vi_stream && vi_stream.is_open(),
+                                    "Saved Model's variable index file does not exist");
+            FRONT_END_GENERAL_CHECK(readVariables(vi_stream, path),
+                                    "Saved Model's variable index file cannot be parsed");
+        }
 
         bool res = m_saved_model->ParseFromIstream(&sm_stream);
         FRONT_END_GENERAL_CHECK(res && m_saved_model->meta_graphs_size(), "Saved Model cannot be parsed");
@@ -243,7 +259,19 @@ private:
     std::basic_string<wchar_t> getVIName<wchar_t>() {
         return L"/variables/variables.index";
     }
-};
+
+    // Internal implementation of saved model reading
+    void readSMBlock(std::ifstream& fs,
+                     const SMBlock* index,
+                     std::vector<char>& data,
+                     uint32_t* offset,
+                     uint32_t* offset_end);
+    void readSMPair(char** ptr, const char* ptr_end, std::string& key, char** value, uint32_t* val_length);
+    void readVarIndex(std::ifstream& fs, std::map<std::string, std::vector<char>>& varIndex);
+    void readBundleHeader();
+    void readCMOGraph();
+};  // SavedModelIteratorProto
+
 }  // namespace tensorflow
 }  // namespace frontend
 }  // namespace ov

@@ -26,7 +26,7 @@
 /// @brief Get absolute file path, returns NULL in case of error
 #    define get_absolute_path(result, path) _fullpath(result, path.c_str(), MAX_ABS_PATH)
 /// @brief Windows-specific 'stat' wrapper
-#    define stat _stat
+#    define stat  _stat
 #    define wstat _wstat
 /// @brief Windows-specific 'mkdir' wrapper
 #    define makedir(dir) _mkdir(dir)
