@@ -40,7 +40,7 @@ GPU plugin uses 3<sup>rd</sup>-party components licensed under following license
 
 ## Support
 
-To report issues and suggestions, see [GitHub issues](https://github.com/openvinotoolkit/openvino/issues).
+To report issues and make suggestions, see [GitHub issues](https://github.com/openvinotoolkit/openvino/issues).
 
 ## How to Contribute
 

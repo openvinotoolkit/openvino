@@ -1,6 +1,6 @@
 # CPU Target for SnippetS Code Generator
 
-Snippets in its first generation can be seen as a generalization over a generic eltwise node. First generation of snippets has a lack of integration with oneDNN, and the patterns it supports should be kept orthogonal to what is fused with post-ops.
+Snippets in its first generation can be seen as a generalization over a generic eltwise node. First generation of snippets does not have integration with oneDNN, and the patterns it supports should be kept orthogonal to what is fused with post-ops.
 
 See the example of POC CPU implementation [here](https://github.com/openvinotoolkit/openvino/pull/2824).
 

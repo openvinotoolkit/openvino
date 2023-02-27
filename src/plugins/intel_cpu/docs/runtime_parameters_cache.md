@@ -4,9 +4,7 @@
 
 1. Determine what data will be cached.
 
-   It is usually recommended to use:
-   * the Executor concept that represents a junction of the executable code,
-   * JIT generated kernel, with some precomputed algorithm parameters.
+1. Determine what data will be cached. It is commonly recommended to use the Executor concept that represents a junction of the executable code, usually JIT generated kernel, with some precomputed algorithm parameters.
 
 2. Provide a key that uniquely identifies the cached value as a function of dynamically changing parameters, that is, shapes, dynamic input that determines the algorithm parameters, etc. To be used in a hash table, the key must have the following static interface:
    ```cpp
