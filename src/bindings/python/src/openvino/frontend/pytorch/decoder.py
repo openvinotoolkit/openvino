@@ -242,7 +242,7 @@ class TorchScriptPythonDecoder (Decoder):
 
         pt_type = pt_value.type()
         if isinstance(pt_type, torch.TensorType):
-            return self._as_constant_tensor(pt_value)
+            return ivalue_to_constant(pt_value.toIValue())
         if isinstance(pt_type, torch.ListType):
             return self._as_constant_list(pt_value)
         return ivalue_to_constant(pt_value.toIValue())
@@ -256,27 +256,27 @@ class TorchScriptPythonDecoder (Decoder):
             return pt_value.toIValue()
         return None
 
-    @staticmethod
-    def _as_constant_tensor(pt_value: torch.Value):
-        ivalue = pt_value.toIValue()
-        if isinstance(ivalue, torch.Tensor):
-            if ivalue.dim() == 0:
-                assert str(ivalue.dtype) in pt_to_ov_type_map, f"Type is not known {ivalue.dtype}"
-                ov_type = pt_to_ov_type_map[str(ivalue.dtype)]
-                ov_const = op.Constant(ov_type, Shape([]), [ivalue.item()])
-            else:
-                ivalue = ivalue.to(memory_format=torch.contiguous_format)
-                narr = ivalue.numpy(force=True)
-                if not narr.flags['C_CONTIGUOUS']:
-                    narr = np.ascontiguousarray(narr)
-                # Constant interpretation doesn't respect new-full type of PT
-                # It recognizes only tensors, and give lists as 1D tensors, and scalars as Tensor scalars
-                # So only tensor-type constants are supported
-                ov_const = op.Constant(narr, shared_memory=True)
-            return ov_const.outputs()
-        else:
-            return ivalue_to_constant(ivalue)
-        return None
+    # @staticmethod
+    # def _as_constant_tensor(pt_value: torch.Value):
+    #     ivalue = pt_value.toIValue()
+    #     if isinstance(ivalue, torch.Tensor):
+    #         if ivalue.dim() == 0:
+    #             assert str(ivalue.dtype) in pt_to_ov_type_map, f"Type is not known {ivalue.dtype}"
+    #             ov_type = pt_to_ov_type_map[str(ivalue.dtype)]
+    #             ov_const = op.Constant(ov_type, Shape([]), [ivalue.item()])
+    #         else:
+    #             ivalue = ivalue.to(memory_format=torch.contiguous_format)
+    #             narr = ivalue.numpy(force=True)
+    #             if not narr.flags['C_CONTIGUOUS']:
+    #                 narr = np.ascontiguousarray(narr)
+    #             # Constant interpretation doesn't respect new-full type of PT
+    #             # It recognizes only tensors, and give lists as 1D tensors, and scalars as Tensor scalars
+    #             # So only tensor-type constants are supported
+    #             ov_const = op.Constant(narr, shared_memory=True)
+    #         return ov_const.outputs()
+    #     else:
+    #         return ivalue_to_constant(ivalue)
+    #     return None
 
     @staticmethod
     def _as_constant_list(pt_value: torch.Value):
