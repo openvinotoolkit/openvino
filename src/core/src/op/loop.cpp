@@ -42,11 +42,11 @@ void op::v5::Loop::validate_and_infer_types() {
                           "Loop contains output descriptions for other bodies");
 
     if (m_special_body_ports.current_iteration_input_idx >= 0) {
-        const auto& cur_iter_rank = m_bodies[0]
-                                        ->get_parameters()
-                                        .at(m_special_body_ports.current_iteration_input_idx)
-                                        ->get_partial_shape()
-                                        .rank();
+        // Propagate current_iteration input shape and type
+        auto& iter_param = m_bodies[0]->get_parameters().at(m_special_body_ports.current_iteration_input_idx);
+        iter_param->set_element_type(get_input_element_type(0));
+        iter_param->set_partial_shape(get_input_partial_shape(0));
+        const auto& cur_iter_rank = iter_param->get_partial_shape().rank();
         if (cur_iter_rank.is_static()) {
             NODE_VALIDATION_CHECK(this,
                                   cur_iter_rank.compatible(1) || cur_iter_rank.compatible(0),
@@ -162,6 +162,8 @@ void op::v5::Loop::validate_and_infer_types() {
         if (auto slice_input_description = ov::as_type_ptr<SliceInputDescription>(input_description)) {
             auto body_parameter = m_bodies[0]->get_parameters().at(slice_input_description->m_body_parameter_index);
             const auto& input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
+            const auto& input_type = inputs().at(index).get_source_output().get_element_type();
+            body_parameter->set_element_type(input_type);
             if (input_partial_shape.rank().is_dynamic()) {
                 body_parameter->set_partial_shape(ov::PartialShape::dynamic());
             } else {
@@ -176,19 +178,21 @@ void op::v5::Loop::validate_and_infer_types() {
 
             auto body_parameter = m_bodies[0]->get_parameters().at(merged_input_description->m_body_parameter_index);
 
-            auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = input(index).get_partial_shape();
+            auto input_type = input(index).get_element_type();
 
             body_parameter->set_partial_shape(input_partial_shape);
+            body_parameter->set_element_type(input_type);
             back_edges[merged_input_description->m_body_value_index] = merged_input_description->m_body_parameter_index;
         } else if (auto invariant_input_description =
                        ov::as_type_ptr<v0::TensorIterator::InvariantInputDescription>(input_description)) {
             auto body_parameter = m_bodies[0]->get_parameters().at(invariant_input_description->m_body_parameter_index);
 
-            auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = input(index).get_partial_shape();
+            auto input_type = input(index).get_element_type();
 
             body_parameter->set_partial_shape(input_partial_shape);
+            body_parameter->set_element_type(input_type);
         }
     }
 
