@@ -7,39 +7,56 @@
 #include <memory>
 #include <tuple>
 
-#include "dev/threading/thread_affinity.hpp"
-
 #if !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
 #    include <sched.h>
 #endif
 
-namespace InferenceEngine {
+namespace ov {
+namespace threading {
+
 #if (defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
-using cpu_set_t = ov::threading::cpu_set_t;
+using cpu_set_t = void;
 #endif  // (defined(__APPLE__) || defined(_WIN32))
 
 /**
  * @brief      Release the cores affinity mask for the current process
- * @ingroup    ie_dev_api_threading
+ * @ingroup    ov_dev_api_threading
  *
  * @param      mask  The mask
  */
-void ReleaseProcessMask(cpu_set_t* mask);
+void release_process_mask(cpu_set_t* mask);
 
-using ReleaseProcessMaskDeleter = ov::threading::ReleaseProcessMaskDeleter;
+/**
+ * @brief      Deleter for process mask
+ * @ingroup    ov_dev_api_threading
+ */
+struct ReleaseProcessMaskDeleter {
+    /**
+     * @brief      A callable operator to release object
+     *
+     * @param      mask  The mask to release
+     */
+    void operator()(cpu_set_t* mask) const {
+        release_process_mask(mask);
+    }
+};
 
-using CpuSet = ov::threading::CpuSet;
+/**
+ * @brief A unique pointer to CPU set structure with the ReleaseProcessMaskDeleter deleter
+ * @ingroup ov_dev_api_threading
+ */
+using CpuSet = std::unique_ptr<cpu_set_t, ReleaseProcessMaskDeleter>;
 
 /**
  * @brief Get the cores affinity mask for the current process
- * @ingroup ie_dev_api_threading
+ * @ingroup ov_dev_api_threading
  * @return A core affinity mask
  */
-std::tuple<CpuSet, int> GetProcessMask();
+std::tuple<CpuSet, int> get_process_mask();
 
 /**
  * @brief      Pins current thread to a set of cores determined by the mask
- * @ingroup    ie_dev_api_threading
+ * @ingroup    ov_dev_api_threading
  *
  * @param[in]  thrIdx        The thr index
  * @param[in]  hyperThreads  The hyper threads
@@ -47,25 +64,30 @@ std::tuple<CpuSet, int> GetProcessMask();
  * @param[in]  processMask   The process mask
  * @return     `True` in case of success, `false` otherwise
  */
-bool PinThreadToVacantCore(int thrIdx, int hyperThreads, int ncores, const CpuSet& processMask, int cpuIdxOffset = 0);
+bool pin_thread_to_vacant_core(int thrIdx,
+                               int hyperThreads,
+                               int ncores,
+                               const CpuSet& processMask,
+                               int cpuIdxOffset = 0);
 
 /**
  * @brief      Pins thread to a spare core in the round-robin scheme, while respecting the given process mask.
  *             The function can also handle the hyper-threading (by populating the physical cores first)
- * @ingroup    ie_dev_api_threading
+ * @ingroup    ov_dev_api_threading
  *
  * @param[in]  ncores       The ncores
  * @param[in]  processMask  The process mask
  * @return     `True` in case of success, `false` otherwise
  */
-bool PinCurrentThreadByMask(int ncores, const CpuSet& processMask);
+bool pin_current_thread_by_mask(int ncores, const CpuSet& processMask);
 
 /**
  * @brief      Pins a current thread to a socket.
- * @ingroup    ie_dev_api_threading
+ * @ingroup    ov_dev_api_threading
  *
  * @param[in]  socket  The socket id
  * @return     `True` in case of success, `false` otherwise
  */
-bool PinCurrentThreadToSocket(int socket);
-}  //  namespace InferenceEngine
+bool pin_current_thread_to_socket(int socket);
+}  // namespace threading
+}  // namespace ov
