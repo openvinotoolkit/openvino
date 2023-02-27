@@ -62,7 +62,7 @@ endif()
 
 set(SETUP_PY "${CMAKE_CURRENT_SOURCE_DIR}/setup.py")
 
-set(openvino_wheel_name "openvino_dev-${WHEEL_VERSION}+${WHEEL_BUILD}-py3-none-any.whl")
+set(openvino_wheel_name "openvino_dev-${WHEEL_VERSION}-${WHEEL_BUILD}-py3-none-any.whl")
 set(openvino_wheels_output_dir "${CMAKE_BINARY_DIR}/wheels")
 set(openvino_wheel_path "${openvino_wheels_output_dir}/${openvino_wheel_name}")
 

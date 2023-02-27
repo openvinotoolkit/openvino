@@ -13,7 +13,7 @@ def get_version():
     version_txt = os.path.join(os.path.dirname(os.path.realpath(__file__)), "version.txt")
     if os.path.isfile(version_txt):
         with open(version_txt) as f:
-            version = f.readline().replace('\n', '')
+            version = f.readline().replace('\n', '').replace('-', '+')
         return version
 
     logger.warning('POT is not installed correctly. Please follow README.md')
