@@ -10,7 +10,8 @@
 #include "openvino/runtime/tensor.hpp"
 #include "template_config.hpp"
 
-namespace TemplatePlugin {
+namespace ov {
+namespace template_plugin {
 
 class Plugin;
 class InferRequest;
@@ -55,4 +56,5 @@ private:
 };
 // ! [executable_network:header]
 
-}  // namespace TemplatePlugin
+}  // namespace template_plugin
+}  // namespace ov

@@ -9,7 +9,7 @@
 
 #include "template/config.hpp"
 
-using namespace TemplatePlugin;
+using namespace ov::template_plugin;
 
 Configuration::Configuration() {}
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "infer_request.hpp"
+#include "sync_infer_request.hpp"
 
 #include <algorithm>
 #include <map>
@@ -31,7 +31,7 @@ void allocate_tensor_impl(ov::Tensor& tensor, const ov::element::Type& element_t
 }  // namespace
 
 // ! [infer_request:ctor]
-TemplatePlugin::InferRequest::InferRequest(const std::shared_ptr<const TemplatePlugin::CompiledModel>& model)
+ov::template_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::template_plugin::CompiledModel>& model)
     : ov::ISyncInferRequest(model) {
     // TODO: allocate infer request device and host buffers if needed, fill actual list of profiling tasks
 
@@ -75,23 +75,24 @@ TemplatePlugin::InferRequest::InferRequest(const std::shared_ptr<const TemplateP
 }
 // ! [infer_request:ctor]
 
-std::vector<std::shared_ptr<ov::IVariableState>> TemplatePlugin::InferRequest::query_state() const {
+std::vector<std::shared_ptr<ov::IVariableState>> ov::template_plugin::InferRequest::query_state() const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<const TemplatePlugin::CompiledModel> TemplatePlugin::InferRequest::get_template_model() const {
+std::shared_ptr<const ov::template_plugin::CompiledModel> ov::template_plugin::InferRequest::get_template_model()
+    const {
     auto& compiled_model = get_compiled_model();
-    auto template_model = std::dynamic_pointer_cast<const TemplatePlugin::CompiledModel>(compiled_model);
+    auto template_model = std::dynamic_pointer_cast<const ov::template_plugin::CompiledModel>(compiled_model);
     OPENVINO_ASSERT(template_model);
     return template_model;
 }
 
 // ! [infer_request:dtor]
-TemplatePlugin::InferRequest::~InferRequest() = default;
+ov::template_plugin::InferRequest::~InferRequest() = default;
 // ! [infer_request:dtor]
 
 // ! [infer_request:infer_impl]
-void TemplatePlugin::InferRequest::infer() {
+void ov::template_plugin::InferRequest::infer() {
     // TODO: fill with actual list of pipeline stages, which are executed synchronously for sync infer requests
     infer_preprocess();
     start_pipeline();
@@ -101,7 +102,7 @@ void TemplatePlugin::InferRequest::infer() {
 // ! [infer_request:infer_impl]
 
 // ! [infer_request:infer_preprocess]
-void TemplatePlugin::InferRequest::infer_preprocess() {
+void ov::template_plugin::InferRequest::infer_preprocess() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[Preprocess]);
     auto start = Time::now();
     convert_batched_tensors();
@@ -168,7 +169,7 @@ void TemplatePlugin::InferRequest::infer_preprocess() {
 // ! [infer_request:infer_preprocess]
 
 // ! [infer_request:start_pipeline]
-void TemplatePlugin::InferRequest::start_pipeline() {
+void ov::template_plugin::InferRequest::start_pipeline() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[StartPipeline])
     auto start = Time::now();
     m_executable->call(m_backend_output_tensors, m_backend_input_tensors);
@@ -176,7 +177,7 @@ void TemplatePlugin::InferRequest::start_pipeline() {
 }
 // ! [infer_request:start_pipeline]
 
-void TemplatePlugin::InferRequest::wait_pipeline() {
+void ov::template_plugin::InferRequest::wait_pipeline() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[WaitPipeline])
     auto start = Time::now();
     // TODO: Wait pipeline using driver API or other synchronizations methods
@@ -185,7 +186,7 @@ void TemplatePlugin::InferRequest::wait_pipeline() {
 }
 
 // ! [infer_request:infer_postprocess]
-void TemplatePlugin::InferRequest::infer_postprocess() {
+void ov::template_plugin::InferRequest::infer_postprocess() {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, m_profiling_task[Postprocess]);
     auto start = Time::now();
     OPENVINO_ASSERT(get_outputs().size() == m_backend_output_tensors.size());
@@ -206,8 +207,8 @@ void TemplatePlugin::InferRequest::infer_postprocess() {
 // ! [infer_request:infer_postprocess]
 
 // ! [infer_request:set_blobs_impl]
-void TemplatePlugin::InferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
-                                                    const std::vector<ov::Tensor>& tensors) {
+void ov::template_plugin::InferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
+                                                         const std::vector<ov::Tensor>& tensors) {
     for (const auto& input : get_inputs()) {
         if (input == port) {
             m_batched_tensors[input.get_tensor_ptr()] = tensors;
@@ -219,7 +220,7 @@ void TemplatePlugin::InferRequest::set_tensors_impl(const ov::Output<const ov::N
 // ! [infer_request:set_blobs_impl]
 
 // ! [infer_request:get_performance_counts]
-std::vector<ov::ProfilingInfo> TemplatePlugin::InferRequest::get_profiling_info() const {
+std::vector<ov::ProfilingInfo> ov::template_plugin::InferRequest::get_profiling_info() const {
     std::vector<ov::ProfilingInfo> info;
     const auto fill_profiling_info = [](const std::string& name,
                                         const std::chrono::duration<float, std::micro>& time) -> ov::ProfilingInfo {

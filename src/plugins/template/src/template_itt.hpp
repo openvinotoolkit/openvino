@@ -11,10 +11,12 @@
 
 #include <openvino/itt.hpp>
 
-namespace TemplatePlugin {
+namespace ov {
+namespace template_plugin {
 namespace itt {
 namespace domains {
 OV_ITT_DOMAIN(TemplatePlugin);
 }
 }  // namespace itt
-}  // namespace TemplatePlugin
+}  // namespace template_plugin
+}  // namespace ov

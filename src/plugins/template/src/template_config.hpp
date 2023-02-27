@@ -10,7 +10,8 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 
-namespace TemplatePlugin {
+namespace ov {
+namespace template_plugin {
 
 // ! [configuration:header]
 using ConfigMap = std::map<std::string, ov::Any>;
@@ -37,4 +38,5 @@ struct Configuration {
 };
 // ! [configuration:header]
 
-}  //  namespace TemplatePlugin
+}  // namespace template_plugin
+}  // namespace ov
