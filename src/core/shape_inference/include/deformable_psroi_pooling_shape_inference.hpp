@@ -10,7 +10,7 @@ namespace v1 {
 
 template <class TShape>
 std::vector<TShape> shape_infer(const DeformablePSROIPooling* op, const std::vector<TShape>& input_shapes) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() >= 2);
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 2 || input_shapes.size() == 3);
 
     const auto& input_pshape = input_shapes[0];
     const auto& box_coords_pshape = input_shapes[1];
