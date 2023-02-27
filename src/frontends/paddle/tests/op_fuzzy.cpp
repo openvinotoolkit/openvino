@@ -363,7 +363,6 @@ static const std::vector<std::string> models{
     std::string("not_equal_int64"),
     std::string("one_hot_v2_1"),
     std::string("one_hot_v2_2"),
-    std::string("one_hot_v2_3"),
     std::string("p_norm1"),
     std::string("p_norm2"),
     std::string("p_norm3"),
