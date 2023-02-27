@@ -1073,30 +1073,29 @@ void RNN::prepareParams() {
     auto pd = prim.get_primitive_desc();
     scratchpadMem = getScratchPadMem(pd);
 
-    if (true) {
-        auto pd = prim.get_primitive_desc();
-        auto query_weights_md = [&](int idx = 0) -> dnnl::memory::desc {
-            auto what = dnnl::convert_to_c(dnnl::query::weights_md);
-            const dnnl_memory_desc_t *cdesc = dnnl_primitive_desc_query_md(pd, what, idx);
-            if (!cdesc)
-                IE_THROW() << "query_weights_md failed for node " << getName() << " idx " << idx << ".";
-            return dnnl::memory::desc(*cdesc);
-        };
-        std::vector<DnnlMemoryDescPtr> intDescs {
-            DnnlExtensionUtils::makeDescriptor(query_weights_md(0)),
-            DnnlExtensionUtils::makeDescriptor(query_weights_md(1)),
-            DnnlExtensionUtils::makeDescriptor(query_weights_md(2))
-        };
+    // to determine if need to prepare weights memory again.
+    auto pd = prim.get_primitive_desc();
+    auto query_weights_md = [&](int idx = 0) -> dnnl::memory::desc {
+        auto what = dnnl::convert_to_c(dnnl::query::weights_md);
+        const dnnl_memory_desc_t *cdesc = dnnl_primitive_desc_query_md(pd, what, idx);
+        if (!cdesc)
+            IE_THROW() << "query_weights_md failed for node " << getName() << " idx " << idx << ".";
+        return dnnl::memory::desc(*cdesc);
+    };
+    std::vector<DnnlMemoryDescPtr> intDescs {
+        DnnlExtensionUtils::makeDescriptor(query_weights_md(0)),
+        DnnlExtensionUtils::makeDescriptor(query_weights_md(1)),
+        DnnlExtensionUtils::makeDescriptor(query_weights_md(2))
+    };
 
-        if (intDescs[1]->getFormatKind() == dnnl_format_kind_rnn_packed) {
-            // Need to update its weights memory format of rnn_packed as the primitive gets updated.
-            wFormatWasChanged = true;
-        }
+    if (intDescs[1]->getFormatKind() == dnnl_format_kind_rnn_packed) {
+        // Need to update its weights memory format of rnn_packed as the primitive gets updated.
+        wFormatWasChanged = true;
+    }
 
-        if (!wasMemoryPrepared || wFormatWasChanged) {
-            prepareMemory(intDescs);
-            wasMemoryPrepared = true;
-        }
+    if (!wasMemoryPrepared || wFormatWasChanged) {
+        prepareMemory(intDescs);
+        wasMemoryPrepared = true;
     }
 }
 
