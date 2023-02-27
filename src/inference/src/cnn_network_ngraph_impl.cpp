@@ -9,18 +9,24 @@
 #include <cassert>
 #include <map>
 #include <memory>
+#include <openvino/cc/pass/itt.hpp>
+#include <openvino/op/util/op_types.hpp>
 #include <set>
 #include <string>
+#include <transformations/common_optimizations/fold_subgraph_empty_inputs.hpp>
+#include <transformations/common_optimizations/nop_elimination.hpp>
+#include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
+#include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
 #include <unordered_set>
 #include <vector>
 
 #include "blob_factory.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "ie_common.h"
+#include "ie_itt.hpp"
 #include "ie_memcpy.h"
+#include "ie_ngraph_utils.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/ngraph.hpp"
-#include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/pass/serialize.hpp"
@@ -28,26 +34,6 @@
 #include "transformations/smart_reshape/set_batch_size.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 #include "transformations/utils/utils.hpp"
-
-// TODO: remove this pass usage
-#include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
-#include <openvino/cc/pass/itt.hpp>
-#include <transformations/common_optimizations/dimension_tracking.hpp>
-#include <transformations/common_optimizations/fold_subgraph_empty_inputs.hpp>
-#include <transformations/common_optimizations/nop_elimination.hpp>
-#include <transformations/common_optimizations/remove_concat_zero_dim_input.hpp>
-#include <transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp>
-#include <transformations/disable_decompression_convert_constant_folding.hpp>
-#include <transformations/low_precision/mark_dequantization_subgraph.hpp>
-#include <transformations/op_conversions/convert_gp9_to_gp_ie_internal.hpp>
-#include <transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp>
-#include <transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp>
-#include <transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp>
-
-#include "exec_graph_info.hpp"
-#include "ie_itt.hpp"
-#include "ie_ngraph_utils.hpp"
 
 using namespace std;
 using namespace InferenceEngine;
@@ -120,7 +106,7 @@ void CNNNetworkNGraphImpl::validateFunctionNames() const {
         if (parent->get_output_size() > 1) {
             name += "." + std::to_string(result->get_input_source_output(0).get_index());
         }
-        if (unique_names.count(name) && !ngraph::op::is_parameter(parent) && parent != unique_names.at(name)) {
+        if (unique_names.count(name) && !ov::op::util::is_parameter(parent) && parent != unique_names.at(name)) {
             IE_THROW() << "Function contains several inputs and outputs with one friendly name: " << name;
         }
         unique_names.insert({name, parent});
