@@ -38,8 +38,8 @@ def ivalue_to_constant(ivalue):
         return op.Constant(ov_type, Shape([len(ivalue)]), ivalue).outputs()
 
     if isinstance(ivalue, torch.Tensor):
-        if ivalue.ndim == 0:
-            assert str(ivalue.dtype()) in pt_to_ov_type_map, f"Type is not known {ivalue.dtype()}"
+        if ivalue.dim() == 0:
+            assert str(ivalue.dtype) in pt_to_ov_type_map, f"Type is not known {ivalue.dtype}"
             ov_type = pt_to_ov_type_map[str(ivalue.dtype)]
             ov_const = op.Constant(ov_type, Shape([]), [ivalue.item()])
         else:
@@ -259,8 +259,8 @@ class TorchScriptPythonDecoder (Decoder):
     @staticmethod
     def _as_constant_tensor(pt_value: torch.Value):
         ivalue = pt_value.toIValue()
-        if pt_value.isCompleteTensor():
-            if ivalue.ndim == 0:
+        if isinstance(ivalue, torch.Tensor):
+            if ivalue.dim() == 0:
                 assert str(ivalue.dtype) in pt_to_ov_type_map, f"Type is not known {ivalue.dtype}"
                 ov_type = pt_to_ov_type_map[str(ivalue.dtype)]
                 ov_const = op.Constant(ov_type, Shape([]), [ivalue.item()])
