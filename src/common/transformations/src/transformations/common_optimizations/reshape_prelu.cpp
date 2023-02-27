@@ -37,7 +37,7 @@ ReshapePRelu::ReshapePRelu() {
         if (slope_pshape.is_static()) {
             const auto slope_shape = slope_pshape.to_shape();
             if (!prelu_pshape[channel_dim_idx].is_dynamic() &&
-                slope_shape[0] != prelu_pshape[channel_dim_idx].get_length()) {
+                static_cast<int64_t>(slope_shape[0]) != prelu_pshape[channel_dim_idx].get_length()) {
                 return false;
             }
         }

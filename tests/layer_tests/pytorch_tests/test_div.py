@@ -3,6 +3,7 @@
 
 import numpy as np
 import pytest
+import torch
 
 from pytorch_layer_test_class import PytorchLayerTest
 
@@ -12,7 +13,6 @@ class TestDiv(PytorchLayerTest):
         return (self.input_array.astype(self.input_type), self.other_array.astype(self.other_type))
 
     def create_model(self, rounding_mode):
-        import torch
 
         class aten_div(torch.nn.Module):
             def __init__(self, rounding_mode):
@@ -25,34 +25,6 @@ class TestDiv(PytorchLayerTest):
         ref_net = None
 
         return aten_div(rounding_mode), ref_net, "aten::div"
-
-    @pytest.mark.parametrize(("input_array", "other_array"), [
-        [10 * np.random.rand(5, 5), np.random.uniform(low=1, high=5, size=(1))],
-        [10 * np.random.rand(5, 5, 1), np.random.uniform(low=1, high=5, size=(1))],
-        [10 * np.random.rand(1, 1, 5, 5), np.random.uniform(
-            low=1, high=5, size=(1))],
-        [10 * np.random.rand(5, 5, 1), np.random.uniform(
-            low=1, high=5, size=(5, 1))]
-    ])
-    @pytest.mark.parametrize(("types"), [
-        (np.float32, np.float32),
-        pytest.param((np.int32, np.float32), marks=pytest.mark.xfail),
-        pytest.param((np.float32, np.int32), marks=pytest.mark.xfail),
-        pytest.param((np.int32, np.int32), marks=pytest.mark.xfail)
-    ])
-    @pytest.mark.parametrize('rounding_mode', ([
-        None,
-        "floor",
-        "trunc"
-    ]))
-    @pytest.mark.nightly
-    def test_div(self, input_array, other_array, types, rounding_mode, ie_device, precision, ir_version):
-        self.input_array = input_array
-        self.input_type = types[0]
-        self.other_array = other_array
-        self.other_type = types[1]
-        self._test(*self.create_model(rounding_mode),
-                   ie_device, precision, ir_version)
 
     @pytest.mark.parametrize(("input_array", "other_array"), [
         [np.array([0.7620, 2.5548, -0.5944, -0.7438, 0.9274]), np.array(0.5)],
@@ -75,4 +47,75 @@ class TestDiv(PytorchLayerTest):
         self.other_array = other_array
         self.other_type = np.float32
         self._test(*self.create_model(rounding_mode),
+                   ie_device, precision, ir_version)
+
+
+class TestDivTypes(PytorchLayerTest):
+
+    def _prepare_input(self):
+        if len(self.lhs_shape) == 0:
+            return (torch.randint(2, 5, self.rhs_shape).to(self.rhs_type).numpy(),)
+        elif len(self.rhs_shape) == 0:
+            return (10 * torch.randn(self.lhs_shape).to(self.lhs_type).numpy(),)
+        return (10 * torch.randn(self.lhs_shape).to(self.lhs_type).numpy(),
+                torch.randint(2, 5, self.rhs_shape).to(self.rhs_type).numpy())
+
+    def create_model(self, lhs_type, lhs_shape, rhs_type, rhs_shape, rounding_mode):
+
+        class aten_div(torch.nn.Module):
+            def __init__(self, lhs_type, lhs_shape, rhs_type, rhs_shape, rounding_mode):
+                super().__init__()
+                self.lhs_type = lhs_type
+                self.rhs_type = rhs_type
+                self.rm = rounding_mode
+                if len(lhs_shape) == 0:
+                    self.forward = self.forward1
+                elif len(rhs_shape) == 0:
+                    self.forward = self.forward2
+                else:
+                    self.forward = self.forward3
+
+            def forward1(self, rhs):
+                return torch.div(torch.tensor(3).to(self.lhs_type), rhs.to(self.rhs_type), rounding_mode=self.rm)
+
+            def forward2(self, lhs):
+                return torch.div(lhs.to(self.lhs_type), torch.tensor(3).to(self.rhs_type), rounding_mode=self.rm)
+
+            def forward3(self, lhs, rhs):
+                return torch.div(lhs.to(self.lhs_type), rhs.to(self.rhs_type), rounding_mode=self.rm)
+
+        ref_net = None
+
+        return aten_div(lhs_type, lhs_shape, rhs_type, rhs_shape, rounding_mode), ref_net, "aten::div"
+
+    @pytest.mark.parametrize(("lhs_type", "rhs_type"),
+                             [[torch.int32, torch.int64],
+                              [torch.int32, torch.float32],
+                              [torch.int32, torch.float64],
+                              [torch.int64, torch.int32],
+                              [torch.int64, torch.float32],
+                              [torch.int64, torch.float64],
+                              [torch.float32, torch.int32],
+                              [torch.float32, torch.int64],
+                              [torch.float32, torch.float64],
+                              ])
+    @pytest.mark.parametrize(("lhs_shape", "rhs_shape"), [([2, 3], [2, 3]),
+                                                          ([2, 3], []),
+                                                          ([], [2, 3]),
+                                                          ])
+    @pytest.mark.parametrize('rounding_mode', ([
+        None,
+        "floor",
+        "trunc"
+    ]))
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_div_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type, rhs_shape, rounding_mode):
+        self.lhs_type = lhs_type
+        self.lhs_shape = lhs_shape
+        self.rhs_type = rhs_type
+        self.rhs_shape = rhs_shape
+        if rounding_mode == "floor" and not lhs_type.is_floating_point and not rhs_type.is_floating_point:
+            pytest.skip("Floor rounding mode and int inputs produce wrong results")
+        self._test(*self.create_model(lhs_type, lhs_shape, rhs_type, rhs_shape, rounding_mode),
                    ie_device, precision, ir_version)

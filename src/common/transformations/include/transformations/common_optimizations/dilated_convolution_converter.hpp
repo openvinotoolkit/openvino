@@ -31,9 +31,3 @@ public:
     OPENVINO_RTTI("DilatedConvolutionConverter", "0");
     DilatedConvolutionConverter();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::DilatedConvolutionConverter;
-}  // namespace pass
-}  // namespace ngraph

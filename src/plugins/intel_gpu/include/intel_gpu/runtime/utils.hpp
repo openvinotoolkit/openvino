@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <sstream>
 #include <vector>
+#include <set>
 
 namespace cldnn {
 
@@ -139,7 +140,7 @@ inline derived_type& downcast(base_type& base) {
     } catch (std::bad_cast& /* ex */) {
         throw std::runtime_error("Unable to cast reference from base to derived type");
     }
-    throw std::runtime_error("downcast failed with unhadnled exception");
+    throw std::runtime_error("downcast failed with unhandled exception");
 }
 
 template <typename T>
@@ -192,6 +193,14 @@ template <typename T, typename std::enable_if<std::is_enum<T>::value , int>::typ
 static size_t hash_combine(size_t seed, const T &v) {
     using underlying_t = typename std::underlying_type<T>::type;
     return hash_combine(seed, static_cast<underlying_t>(v));
+}
+
+template <class It>
+static size_t hash_range(size_t seed, It first, It last) {
+    for (; first != last; ++first) {
+        seed = hash_combine(seed, *first);
+    }
+    return seed;
 }
 
 /// @}

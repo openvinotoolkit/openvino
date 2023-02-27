@@ -252,6 +252,10 @@ public:
                    const std::string& netPrecision, unsigned int priority) {
                return plugin->MultiDeviceInferencePlugin::SelectDevice(metaDevices, netPrecision, priority);
                });
+       ON_CALL(*plugin, GetValidDevice)
+           .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
+               return plugin->MultiDeviceInferencePlugin::GetValidDevice(metaDevices, netPrecision);
+           });
     }
 };
 

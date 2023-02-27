@@ -26,7 +26,7 @@ ov::pass::TransposeSinkingGeneralForward::TransposeSinkingGeneralForward() {
     add_matcher<ov::pass::TransposeSinkingConcatForward>();
     add_matcher<ov::pass::TransposeSinkingSplitForward>();
     add_matcher<ov::pass::TransposeSinkingPadForward>();
-    add_matcher<ngraph::pass::TransposeFuse>();
+    add_matcher<ov::pass::TransposeFuse>();
 }
 
 ov::pass::TransposeSinkingGeneralBackward::TransposeSinkingGeneralBackward() {
@@ -36,7 +36,7 @@ ov::pass::TransposeSinkingGeneralBackward::TransposeSinkingGeneralBackward() {
     add_matcher<ov::pass::TransposeSinkingConcatBackward>();
     add_matcher<ov::pass::TransposeSinkingSplitBackward>();
     add_matcher<ov::pass::TransposeSinkingPadBackward>();
-    add_matcher<ngraph::pass::TransposeFuse>();
+    add_matcher<ov::pass::TransposeFuse>();
 }
 
 bool ov::pass::TransposeSinkingGeneral::run_on_model(const std::shared_ptr<ov::Model>& f) {

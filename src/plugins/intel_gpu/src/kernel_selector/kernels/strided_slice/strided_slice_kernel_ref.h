@@ -64,12 +64,16 @@ public:
     StridedSliceKernelRef() : KernelBaseOpenCL("strided_slice_ref") {}
     virtual ~StridedSliceKernelRef() {}
     virtual JitConstants GetJitConstants(const strided_slice_params& params) const;
-    virtual CommonDispatchData SetDefault(const strided_slice_params& params, const optional_params&) const;
+    virtual CommonDispatchData SetDefault(const strided_slice_params& params) const;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
 protected:
     bool Validate(const Params& p, const optional_params& o) const override;
+
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return { FusedOpType::ACTIVATION };
+    }
 };
 }  // namespace kernel_selector

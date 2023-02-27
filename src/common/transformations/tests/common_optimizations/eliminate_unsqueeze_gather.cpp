@@ -45,7 +45,7 @@ protected:
                                                                  "Actual");
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::EliminateUnsqueezeGather>();
+        manager.register_pass<ov::pass::EliminateUnsqueezeGather>();
         manager.run_passes(function);
 
         return function;

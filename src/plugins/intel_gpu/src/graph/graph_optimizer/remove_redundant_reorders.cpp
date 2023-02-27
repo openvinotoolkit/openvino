@@ -169,6 +169,18 @@ void remove_redundant_reorders::run(program& p) {
             !r_node.get_primitive()->has_surface_input();
 
         if (remove_dep) {
+            // for chains like
+            // b_fs_yx_fsv16 -> reorder(ofmt:bfyx) -> bfyx -> reorder(ofmt:any) -> bfyx
+            // if output_format of current node is format::any, input format of the dependency node is propagated as it is
+            // b_fs_yx_fsv16 -> reorder(ofmt:any) -> b_fs_yx_fsv16
+            // so output format of dependency node must be stored in output_format of current node
+            // b_fs_yx_fsv16 -> reorder(ofmt:bfyx) -> bfyx
+            auto output_layout = r_dep_node.get_output_layout();
+            auto prim = std::const_pointer_cast<reorder>(r_node.get_primitive());
+            if (prim->output_format == format::any)
+                prim->output_format = output_layout.format;
+
+            LOG_NODE_REMOVAL(r_dep_node.id());
             r_dep_node.can_be_optimized(true);
             p.add_optimized_primitive_info(r_dep_node.id());
             p.extract_and_remove(r_dep_node);
@@ -592,6 +604,9 @@ void remove_redundant_reorders::run(program& p) {
             continue;
 
         auto& reshape_input_node = dep_node.as<reshape>();
+
+        if (reshape_node.is_dynamic())
+            continue;
 
         bool remove_dep = reshape_input_node.get_users().size() == 1 && !reshape_input_node.is_output() &&
                           !reshape_input_node.has_fused_primitives();

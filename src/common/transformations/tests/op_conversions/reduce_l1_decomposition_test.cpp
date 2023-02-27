@@ -26,7 +26,7 @@ TEST_F(TransformationTestsF, ReduceL1DecompositionTest) {
         function =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{reduce_l1}, ngraph::ParameterVector{data, axes});
 
-        manager.register_pass<ngraph::pass::ReduceL1Decomposition>();
+        manager.register_pass<ov::pass::ReduceL1Decomposition>();
     }
 
     {

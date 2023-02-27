@@ -10,15 +10,14 @@ try:
     import openvino_telemetry as tm
 except ImportError:
     import openvino.tools.mo.utils.telemetry_stub as tm
-
+from openvino.tools.mo.utils.get_ov_update_message import get_compression_message
 from openvino.tools.mo.convert_impl import _convert
 from openvino.tools.mo.pipeline.common import get_ir_version
-from openvino.tools.mo.utils.cli_parser import get_model_name_from_args
 from openvino.tools.mo.utils.logger import init_logger
 from openvino.tools.mo.utils.error import Error, FrameworkError
 import traceback
 from openvino.tools.mo.utils.get_ov_update_message import get_ov_update_message, get_ov_api20_message, \
-    get_tf_fe_message, get_tf_fe_legacy_message
+    get_tf_fe_message
 from openvino.tools.mo.utils.model_analysis import AnalysisResults
 from openvino.tools.mo.utils.guess_framework import deduce_legacy_frontend_by_namespace
 
@@ -35,17 +34,21 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
 
     ngraph_function = None
     argv = None
-    is_tf = False
     try:
         ngraph_function, argv = _convert(cli_parser, framework, {})
         is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
+        if ('compress_to_fp16' in argv and argv.compress_to_fp16) \
+                or ('data_type' in argv and argv.data_type in ['half', 'FP16']):
+            print(get_compression_message())
+
         ov_update_message = get_ov_update_message()
         ov_api20_message = get_ov_api20_message()
         if ov_update_message is not None:
             print(ov_update_message)
         if ov_api20_message is not None and ngraph_function is not None:
             print(ov_api20_message)
-        if argv.use_new_frontend and is_tf:
+        if not argv.use_legacy_frontend and is_tf:
+            # now TF FE is default frontend for TensorFlow models conversion
             print(get_tf_fe_message())
 
     except (FileNotFoundError, NotADirectoryError) as e:
@@ -57,8 +60,6 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
             for el in analysis_results.get_messages():
                 log.error(el, extra={'analysis_info': True})
         log.error(err)
-        if hasattr(argv, 'use_new_frontend') and not argv.use_new_frontend and is_tf:
-            print(get_tf_fe_legacy_message())
         log.debug(traceback.format_exc())
     except FrameworkError as err:
         log.error(err, extra={'framework_error': True})
@@ -72,8 +73,6 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
         log.error(traceback.format_exc())
         log.error("---------------- END OF BUG REPORT --------------")
         log.error("-------------------------------------------------")
-        if hasattr(argv, 'use_new_frontend') and not argv.use_new_frontend and is_tf:
-            print(get_tf_fe_legacy_message())
 
     if ngraph_function is None:
         return 1

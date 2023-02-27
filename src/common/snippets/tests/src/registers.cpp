@@ -6,7 +6,6 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <ngraph/variant.hpp>
 
 #include <snippets/snippets_isa.hpp>
 #include <snippets/pass/assign_registers.hpp>
@@ -37,7 +36,7 @@ TEST(TransformationTests, AssignRegisters) {
         f->get_result()->set_friendly_name("r00");
 
         pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<snippets::pass::AssignRegisters>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -126,7 +125,7 @@ TEST(TransformationTests, AssignRegisters2) {
         f->get_result()->set_friendly_name("res00");
 
         pass::Manager m;
-        m.register_pass<pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<snippets::pass::AssignRegisters>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));

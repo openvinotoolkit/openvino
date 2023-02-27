@@ -25,7 +25,7 @@ TEST_F(TransformationTestsF, HSwishDecompositionTest) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{hswish}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSwishDecomposition>();
+        manager.register_pass<ov::pass::HSwishDecomposition>();
     }
 
     {

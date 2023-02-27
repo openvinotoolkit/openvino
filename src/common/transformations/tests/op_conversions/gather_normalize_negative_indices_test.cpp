@@ -27,7 +27,7 @@ TEST_F(TransformationTestsF, GatherNegativeIndicesNormalize) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::GatherNegativeConstIndicesNormalize>();
+        manager.register_pass<ov::pass::GatherNegativeConstIndicesNormalize>();
     }
 
     {
@@ -62,7 +62,7 @@ TEST_F(TransformationTestsF, GatherNegativeIndicesNormalize_neg_axis) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::GatherNegativeConstIndicesNormalize>();
+        manager.register_pass<ov::pass::GatherNegativeConstIndicesNormalize>();
     }
 
     {
@@ -97,7 +97,7 @@ TEST_F(TransformationTestsF, GatherNegativeIndicesNormalize_dif_input_types) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::GatherNegativeConstIndicesNormalize>();
+        manager.register_pass<ov::pass::GatherNegativeConstIndicesNormalize>();
     }
 
     {
@@ -133,7 +133,7 @@ TEST_F(TransformationTestsF, GatherNegativeIndicesNormalize_static_axis_dim) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::GatherNegativeConstIndicesNormalize>();
+        manager.register_pass<ov::pass::GatherNegativeConstIndicesNormalize>();
     }
 
     {
@@ -160,7 +160,7 @@ TEST_F(TransformationTestsF, GatherNegativeIndicesNormalize_static_axis_dim_neg_
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::GatherNegativeConstIndicesNormalize>();
+        manager.register_pass<ov::pass::GatherNegativeConstIndicesNormalize>();
     }
 
     {
@@ -188,7 +188,7 @@ TEST_F(TransformationTestsF, GatherNegativeIndicesNormalize_non_static_axis_dim)
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::GatherNegativeConstIndicesNormalize>();
+        manager.register_pass<ov::pass::GatherNegativeConstIndicesNormalize>();
     }
 
     {
@@ -215,7 +215,7 @@ TEST_F(TransformationTestsF, GatherNegativeIndicesNormalize_positive_ind) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::GatherNegativeConstIndicesNormalize>();
+        manager.register_pass<ov::pass::GatherNegativeConstIndicesNormalize>();
     }
 
     {
@@ -240,7 +240,7 @@ TEST_F(TransformationTestsF, GatherNegativeIndicesNormalize_non_static_rank) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{gather}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::GatherNegativeConstIndicesNormalize>();
+        manager.register_pass<ov::pass::GatherNegativeConstIndicesNormalize>();
     }
 
     {

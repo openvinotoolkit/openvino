@@ -4,7 +4,7 @@
 
 #include "openvino/runtime/iplugin.hpp"
 
-ov::IPlugin::IPlugin() : m_executor_manager(InferenceEngine::executorManager()), m_is_new_api(true) {}
+ov::IPlugin::IPlugin() : m_executor_manager(ov::threading::executor_manager()), m_is_new_api(true) {}
 
 void ov::IPlugin::set_version(const ov::Version& version) {
     m_version = version;
@@ -42,6 +42,14 @@ bool ov::IPlugin::is_new_api() const {
     return m_is_new_api;
 }
 
-const std::shared_ptr<InferenceEngine::ExecutorManager>& ov::IPlugin::get_executor_manager() const {
+const std::shared_ptr<ov::threading::ExecutorManager>& ov::IPlugin::get_executor_manager() const {
     return m_executor_manager;
+}
+
+std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::string& model_path,
+                                                               const ov::AnyMap& properties) const {
+    auto core = get_core();
+    OPENVINO_ASSERT(core);
+    auto model = core->read_model(model_path, std::string());
+    return compile_model(model, properties);
 }

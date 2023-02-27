@@ -42,9 +42,3 @@ public:
     OPENVINO_RTTI("SoftSignDecomposition", "0");
     SoftSignDecomposition();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::SoftSignDecomposition;
-}  // namespace pass
-}  // namespace ngraph
