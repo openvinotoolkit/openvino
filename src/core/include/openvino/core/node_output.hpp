@@ -103,6 +103,7 @@ public:
     bool operator>(const Output& other) const;
     bool operator<=(const Output& other) const;
     bool operator>=(const Output& other) const;
+    operator Output<const Node>() const;
 
 private:
     std::shared_ptr<Node> m_node;
