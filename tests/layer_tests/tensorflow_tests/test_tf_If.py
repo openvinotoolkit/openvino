@@ -62,6 +62,8 @@ class TestIfFloat(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir,
                       use_new_frontend, use_old_api):
+        if ie_device == 'GPU':
+            pytest.xfail('104855')
         self._test(*self.create_if_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)
@@ -123,6 +125,8 @@ class TestIfInt(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_if_basic(self, params, ie_device, precision, ir_version, temp_dir,
                       use_new_frontend, use_old_api):
+        if ie_device == 'GPU':
+            pytest.xfail('104855')
         self._test(*self.create_if_net(**params),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
                    use_new_frontend=use_new_frontend, use_old_api=use_old_api)

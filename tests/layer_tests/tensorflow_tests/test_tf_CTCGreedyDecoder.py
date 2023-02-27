@@ -62,6 +62,8 @@ class TestCTCGreedyDecoder(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_ctcgreedydecoder_placeholder_const(self, params, merge_repeated, ie_device, precision, ir_version, temp_dir,
                                       use_new_frontend, use_old_api):
+        if ie_device == 'GPU':
+            pytest.xfail('104860')
         self._test(*self.create_ctcgreedydecoder_placeholder_const_net(**params, ir_version=ir_version,
                                                              use_new_frontend=use_new_frontend, merge_repeated=merge_repeated),
                    ie_device, precision, ir_version, temp_dir=temp_dir,
