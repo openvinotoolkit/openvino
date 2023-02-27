@@ -158,12 +158,6 @@ Plugin::Plugin() : m_default_contexts({}) {
             m_default_contexts.insert({device.first, ctx});
         }
     }
-
-    if (const char* env_p = std::getenv("OV_GPU_CACHE_MODEL")) {
-        if (env_p[0] == '1') {
-            isModelCachingEnabled = true;
-        }
-    }
 }
 
 auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
@@ -220,6 +214,9 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::LoadExeNetworkImpl::CreateExeNetwork");
         CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(transformedNetwork, context, config);
+        if (exeNetwork->m_graphs[0]->GetNetwork()->is_dynamic()) {
+            isModelCachingEnabled = false;
+        }
         update_memory_statistics(context->get_impl());
         return exeNetwork;
     }

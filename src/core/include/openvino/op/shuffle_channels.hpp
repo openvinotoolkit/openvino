@@ -35,9 +35,14 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    void set_axis(int64_t axis);
+
     const int64_t& get_axis() const {
         return m_axis;
     }
+
+    void set_group(int64_t group);
+
     const int64_t& get_group() const {
         return m_group;
     }
