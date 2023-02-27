@@ -12,6 +12,7 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "ie_plugin_config.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/util/log.hpp"
@@ -22,263 +23,211 @@ namespace threading {
 
 IStreamsExecutor::~IStreamsExecutor() {}
 
+IStreamsExecutor::Config::Config(std::string name,
+                                 int streams,
+                                 int threadsPerStream,
+                                 ThreadBindingType threadBindingType,
+                                 int threadBindingStep,
+                                 int threadBindingOffset,
+                                 int threads,
+                                 PreferredCoreType threadPreferredCoreType)
+    : _name{name},
+      _streams{streams},
+      _threadsPerStream{threadsPerStream},
+      _threadBindingType{threadBindingType},
+      _threadBindingStep{threadBindingStep},
+      _threadBindingOffset{threadBindingOffset},
+      _threads{threads},
+      _threadPreferredCoreType(threadPreferredCoreType) {
+    m_properties
+        .add(
+            ov::legacy_property(CONFIG_KEY(CPU_BIND_THREAD)),
+            [this]() -> std::string {
+                switch (_threadBindingType) {
+                case IStreamsExecutor::ThreadBindingType::NONE:
+                    return {CONFIG_VALUE(NO)};
+                case IStreamsExecutor::ThreadBindingType::CORES:
+                    return {CONFIG_VALUE(YES)};
+                case IStreamsExecutor::ThreadBindingType::NUMA:
+                    return {CONFIG_VALUE(NUMA)};
+                case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
+                    return {CONFIG_VALUE(HYBRID_AWARE)};
+                default:
+                    OPENVINO_UNREACHABLE("Unsupported thread binding type");
+                }
+            },
+            [this](const std::string& value) {
+                if (value == CONFIG_VALUE(YES) || value == CONFIG_VALUE(NUMA)) {
+#if (defined(__APPLE__) || defined(_WIN32))
+                    _threadBindingType = IStreamsExecutor::ThreadBindingType::NUMA;
+#else
+_threadBindingType = (value == CONFIG_VALUE(YES)) ? IStreamsExecutor::ThreadBindingType::CORES
+          : IStreamsExecutor::ThreadBindingType::NUMA;
+#endif
+                } else if (value == CONFIG_VALUE(HYBRID_AWARE)) {
+                    _threadBindingType = IStreamsExecutor::ThreadBindingType::HYBRID_AWARE;
+                } else if (value == CONFIG_VALUE(NO)) {
+                    _threadBindingType = IStreamsExecutor::ThreadBindingType::NONE;
+                } else {
+                    IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_BIND_THREAD);
+                }
+            })
+        .add(
+            ov::legacy_property(CONFIG_KEY(CPU_THROUGHPUT_STREAMS)),
+            [this] {
+                return std::to_string(_streams);
+            },
+            [this](const std::string& value) {
+                if (value == CONFIG_VALUE(CPU_THROUGHPUT_NUMA)) {
+                    _streams = static_cast<int>(get_available_numa_nodes().size());
+                } else if (value == CONFIG_VALUE(CPU_THROUGHPUT_AUTO)) {
+                    // bare minimum of streams (that evenly divides available number of cores)
+                    _streams = get_default_num_streams();
+                } else {
+                    int val_i;
+                    try {
+                        val_i = std::stoi(value);
+                    } catch (const std::exception&) {
+                        IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THROUGHPUT_STREAMS)
+                                   << ". Expected only positive numbers (#streams) or "
+                                   << "PluginConfigParams::CPU_THROUGHPUT_NUMA/CPU_THROUGHPUT_AUTO";
+                    }
+                    if (val_i < 0) {
+                        IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THROUGHPUT_STREAMS)
+                                   << ". Expected only positive numbers (#streams)";
+                    }
+                    _streams = val_i;
+                }
+            })
+        .add(ov::internal_property(CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)),
+             std::ref(_threadsPerStream),
+             [](const int32_t& threads) {
+                 OPENVINO_ASSERT(threads >= 0);
+             })
+        .add(ov::internal_property(CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)),
+             std::ref(_big_core_streams),
+             [](const int32_t& streams) {
+                 OPENVINO_ASSERT(streams >= 0);
+             })
+        .add(ov::internal_property(CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)),
+             std::ref(_threads_per_stream_big),
+             [](const int32_t& threads) {
+                 OPENVINO_ASSERT(threads >= 0);
+             })
+        .add(ov::internal_property(CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)),
+             std::ref(_small_core_streams),
+             [](const int32_t& streams) {
+                 OPENVINO_ASSERT(streams >= 0);
+             })
+        .add(ov::internal_property(CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)),
+             std::ref(_threads_per_stream_small),
+             [](const int32_t& threads) {
+                 OPENVINO_ASSERT(threads >= 0);
+             })
+        .add(ov::internal_property(CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)),
+             std::ref(_small_core_offset),
+             [](const int32_t& offset) {
+                 OPENVINO_ASSERT(offset >= 0);
+             })
+        .add(ov::internal_property(CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD)), std::ref(_enable_hyper_thread))
+        .add(
+            ov::legacy_property(CONFIG_KEY(CPU_THREADS_NUM)),
+            [this] {
+                return std::to_string(_threads);
+            },
+            [this](const std::string& value) {
+                int val_i;
+                try {
+                    val_i = std::stoi(value);
+                } catch (const std::exception&) {
+                    IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THREADS_NUM)
+                               << ". Expected only positive numbers (#threads)";
+                }
+                if (val_i < 0) {
+                    IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THREADS_NUM)
+                               << ". Expected only positive numbers (#threads)";
+                }
+                _threads = val_i;
+            })
+        .add(
+            ov::streams::num,
+            [this] {
+                return _streams;
+            },
+            [this](const int32_t& streams) {
+                if (streams == ov::streams::NUMA) {
+                    _streams = static_cast<int32_t>(get_available_numa_nodes().size());
+                } else if (streams == ov::streams::AUTO) {
+                    // bare minimum of streams (that evenly divides available number of cores)
+                    _streams = get_default_num_streams();
+                } else {
+                    _streams = streams;
+                }
+            },
+            [](const int32_t& streams) {
+                OPENVINO_ASSERT((streams == ov::streams::NUMA) || (streams == ov::streams::AUTO) || (streams >= 0),
+                                "Wrong value for property key ",
+                                ov::streams::num.name(),
+                                ". Expected non negative numbers (#streams) or ",
+                                "ov::streams::NUMA|ov::streams::AUTO: ",
+                                streams);
+            })
+        .add(ov::inference_num_threads,
+             std::ref(_threads),
+             [](const int32_t& threads) {
+                 OPENVINO_ASSERT(threads >= 0);
+             })
+        .add(
+            ov::affinity,
+            [this] {
+                switch (_threadBindingType) {
+                case ThreadBindingType::NONE:
+                    return ov::Affinity::NONE;
+                case ThreadBindingType::CORES:
+                    return ov::Affinity::CORE;
+                case ThreadBindingType::NUMA:
+                    return ov::Affinity::NUMA;
+                case ThreadBindingType::HYBRID_AWARE:
+                    return ov::Affinity::HYBRID_AWARE;
+                default:
+                    OPENVINO_UNREACHABLE("Unsupported thread binding type");
+                };
+            },
+            [this](const ov::Affinity& affinity) {
+                switch (affinity) {
+                case ov::Affinity::NONE:
+                    _threadBindingType = ThreadBindingType::NONE;
+                    break;
+                case ov::Affinity::CORE: {
+#if (defined(__APPLE__) || defined(_WIN32))
+                    _threadBindingType = ThreadBindingType::NUMA;
+#else
+                    _threadBindingType = ThreadBindingType::CORES;
+#endif
+                    break;
+                }
+                case ov::Affinity::NUMA:
+                    _threadBindingType = ThreadBindingType::NUMA;
+                    break;
+                case ov::Affinity::HYBRID_AWARE:
+                    _threadBindingType = ThreadBindingType::HYBRID_AWARE;
+                    break;
+                default:
+                    OPENVINO_UNREACHABLE("Unsupported affinity type");
+                };
+            });
+}
+
 void IStreamsExecutor::Config::set_property(const std::string& key, const ov::Any& value) {
     set_property({{key, value}});
 }
 
 void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
-    for (const auto& it : property) {
-        const auto& key = it.first;
-        const auto value = it.second;
-        if (key == CONFIG_KEY(CPU_BIND_THREAD)) {
-            if (value.as<std::string>() == CONFIG_VALUE(YES) || value.as<std::string>() == CONFIG_VALUE(NUMA)) {
-#if (defined(__APPLE__) || defined(_WIN32))
-                _threadBindingType = IStreamsExecutor::ThreadBindingType::NUMA;
-#else
-                _threadBindingType = (value.as<std::string>() == CONFIG_VALUE(YES))
-                                         ? IStreamsExecutor::ThreadBindingType::CORES
-                                         : IStreamsExecutor::ThreadBindingType::NUMA;
-#endif
-            } else if (value.as<std::string>() == CONFIG_VALUE(HYBRID_AWARE)) {
-                _threadBindingType = IStreamsExecutor::ThreadBindingType::HYBRID_AWARE;
-            } else if (value.as<std::string>() == CONFIG_VALUE(NO)) {
-                _threadBindingType = IStreamsExecutor::ThreadBindingType::NONE;
-            } else {
-                IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_BIND_THREAD)
-                           << ". Expected only YES(binds to cores) / NO(no binding) / NUMA(binds to NUMA nodes) / "
-                              "HYBRID_AWARE (let the runtime recognize and use the hybrid cores)";
-            }
-        } else if (key == ov::affinity) {
-            ov::Affinity affinity;
-            std::stringstream{value.as<std::string>()} >> affinity;
-            switch (affinity) {
-            case ov::Affinity::NONE:
-                _threadBindingType = ThreadBindingType::NONE;
-                break;
-            case ov::Affinity::CORE: {
-#if (defined(__APPLE__) || defined(_WIN32))
-                _threadBindingType = ThreadBindingType::NUMA;
-#else
-                _threadBindingType = ThreadBindingType::CORES;
-#endif
-            } break;
-            case ov::Affinity::NUMA:
-                _threadBindingType = ThreadBindingType::NUMA;
-                break;
-            case ov::Affinity::HYBRID_AWARE:
-                _threadBindingType = ThreadBindingType::HYBRID_AWARE;
-                break;
-            default:
-                OPENVINO_UNREACHABLE("Unsupported affinity type");
-            }
-        } else if (key == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
-            if (value.as<std::string>() == CONFIG_VALUE(CPU_THROUGHPUT_NUMA)) {
-                _streams = static_cast<int>(get_available_numa_nodes().size());
-            } else if (value.as<std::string>() == CONFIG_VALUE(CPU_THROUGHPUT_AUTO)) {
-                // bare minimum of streams (that evenly divides available number of cores)
-                _streams = get_default_num_streams();
-            } else {
-                int val_i;
-                try {
-                    val_i = value.as<int>();
-                } catch (const std::exception&) {
-                    IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THROUGHPUT_STREAMS)
-                               << ". Expected only positive numbers (#streams) or "
-                               << "PluginConfigParams::CPU_THROUGHPUT_NUMA/CPU_THROUGHPUT_AUTO";
-                }
-                if (val_i < 0) {
-                    IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THROUGHPUT_STREAMS)
-                               << ". Expected only positive numbers (#streams)";
-                }
-                _streams = val_i;
-            }
-        } else if (key == ov::num_streams) {
-            auto streams = value.as<ov::streams::Num>();
-            if (streams == ov::streams::NUMA) {
-                _streams = static_cast<int32_t>(get_available_numa_nodes().size());
-            } else if (streams == ov::streams::AUTO) {
-                // bare minimum of streams (that evenly divides available number of cores)
-                _streams = get_default_num_streams();
-            } else if (streams.num >= 0) {
-                _streams = streams.num;
-            } else {
-                OPENVINO_UNREACHABLE("Wrong value for property key ",
-                                     ov::num_streams.name(),
-                                     ". Expected non negative numbers (#streams) or ",
-                                     "ov::streams::NUMA|ov::streams::AUTO, Got: ",
-                                     streams);
-            }
-        } else if (key == CONFIG_KEY(CPU_THREADS_NUM) || key == ov::inference_num_threads) {
-            int val_i;
-            try {
-                val_i = value.as<int>();
-            } catch (const std::exception&) {
-                IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THREADS_NUM)
-                           << ". Expected only positive numbers (#threads)";
-            }
-            if (val_i < 0) {
-                IE_THROW() << "Wrong value for property key " << CONFIG_KEY(CPU_THREADS_NUM)
-                           << ". Expected only positive numbers (#threads)";
-            }
-            _threads = val_i;
-        } else if (key == CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)) {
-            int val_i;
-            try {
-                val_i = value.as<int>();
-            } catch (const std::exception&) {
-                IE_THROW() << "Wrong value for property key " << CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)
-                           << ". Expected only non negative numbers (#threads)";
-            }
-            if (val_i < 0) {
-                IE_THROW() << "Wrong value for property key " << CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)
-                           << ". Expected only non negative numbers (#threads)";
-            }
-            _threadsPerStream = val_i;
-        } else if (key == CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)) {
-            int val_i;
-            try {
-                val_i = value.as<int>();
-            } catch (const std::exception&) {
-                IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)
-                           << ". Expected only non negative numbers (#streams)";
-            }
-            if (val_i < 0) {
-                IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)
-                           << ". Expected only non negative numbers (#streams)";
-            }
-            _big_core_streams = val_i;
-        } else if (key == CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)) {
-            int val_i;
-            try {
-                val_i = value.as<int>();
-            } catch (const std::exception&) {
-                IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)
-                           << ". Expected only non negative numbers (#streams)";
-            }
-            if (val_i < 0) {
-                IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)
-                           << ". Expected only non negative numbers (#streams)";
-            }
-            _small_core_streams = val_i;
-        } else if (key == CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)) {
-            int val_i;
-            try {
-                val_i = value.as<int>();
-            } catch (const std::exception&) {
-                IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)
-                           << ". Expected only non negative numbers (#threads)";
-            }
-            if (val_i < 0) {
-                IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)
-                           << ". Expected only non negative numbers (#threads)";
-            }
-            _threads_per_stream_big = val_i;
-        } else if (key == CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)) {
-            int val_i;
-            try {
-                val_i = value.as<int>();
-            } catch (const std::exception&) {
-                IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)
-                           << ". Expected only non negative numbers (#threads)";
-            }
-            if (val_i < 0) {
-                IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)
-                           << ". Expected only non negative numbers (#threads)";
-            }
-            _threads_per_stream_small = val_i;
-        } else if (key == CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)) {
-            int val_i;
-            try {
-                val_i = value.as<int>();
-            } catch (const std::exception&) {
-                IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)
-                           << ". Expected only non negative numbers";
-            }
-            if (val_i < 0) {
-                IE_THROW() << "Wrong value for HYBRID_AWARE key " << CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)
-                           << ". Expected only non negative numbers";
-            }
-            _small_core_offset = val_i;
-        } else if (key == CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD)) {
-            if (value.as<std::string>() == CONFIG_VALUE(YES)) {
-                _enable_hyper_thread = true;
-            } else if (value.as<std::string>() == CONFIG_VALUE(NO)) {
-                _enable_hyper_thread = false;
-            } else {
-                OPENVINO_UNREACHABLE("Unsupported enable hyper thread type");
-            }
-        } else {
-            IE_THROW() << "Wrong value for property key " << key;
-        }
-    }
+    m_properties.set(property);
 }
 
 ov::Any IStreamsExecutor::Config::get_property(const std::string& key) const {
-    if (key == ov::supported_properties) {
-        std::vector<std::string> properties{
-            CONFIG_KEY(CPU_THROUGHPUT_STREAMS),
-            CONFIG_KEY(CPU_BIND_THREAD),
-            CONFIG_KEY(CPU_THREADS_NUM),
-            CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM),
-            CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS),
-            CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS),
-            CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG),
-            CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL),
-            CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET),
-            CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD),
-            ov::num_streams.name(),
-            ov::inference_num_threads.name(),
-            ov::affinity.name(),
-        };
-        return properties;
-    } else if (key == ov::affinity) {
-        switch (_threadBindingType) {
-        case IStreamsExecutor::ThreadBindingType::NONE:
-            return ov::Affinity::NONE;
-        case IStreamsExecutor::ThreadBindingType::CORES:
-            return ov::Affinity::CORE;
-        case IStreamsExecutor::ThreadBindingType::NUMA:
-            return ov::Affinity::NUMA;
-        case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
-            return ov::Affinity::HYBRID_AWARE;
-        }
-    } else if (key == CONFIG_KEY(CPU_BIND_THREAD)) {
-        switch (_threadBindingType) {
-        case IStreamsExecutor::ThreadBindingType::NONE:
-            return {CONFIG_VALUE(NO)};
-        case IStreamsExecutor::ThreadBindingType::CORES:
-            return {CONFIG_VALUE(YES)};
-        case IStreamsExecutor::ThreadBindingType::NUMA:
-            return {CONFIG_VALUE(NUMA)};
-        case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
-            return {CONFIG_VALUE(HYBRID_AWARE)};
-        }
-    } else if (key == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
-        return {std::to_string(_streams)};
-    } else if (key == ov::num_streams) {
-        return decltype(ov::num_streams)::value_type{_streams};
-    } else if (key == CONFIG_KEY(CPU_THREADS_NUM)) {
-        return {std::to_string(_threads)};
-    } else if (key == ov::inference_num_threads) {
-        return decltype(ov::inference_num_threads)::value_type{_threads};
-    } else if (key == CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)) {
-        return {std::to_string(_threadsPerStream)};
-    } else if (key == CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)) {
-        return {std::to_string(_big_core_streams)};
-    } else if (key == CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)) {
-        return {std::to_string(_small_core_streams)};
-    } else if (key == CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)) {
-        return {std::to_string(_threads_per_stream_big)};
-    } else if (key == CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)) {
-        return {std::to_string(_threads_per_stream_small)};
-    } else if (key == CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)) {
-        return {std::to_string(_small_core_offset)};
-    } else if (key == CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD)) {
-        return {_enable_hyper_thread ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO)};
-    } else {
-        OPENVINO_UNREACHABLE("Wrong value for property key ", key);
-    }
-    return {};
+    return m_properties.get(key);
 }
 
 int IStreamsExecutor::Config::get_default_num_streams(const bool enable_hyper_thread) {

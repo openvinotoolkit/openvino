@@ -196,8 +196,11 @@ private:
         P precondition_impl;
     };
 
+    template <typename...>
+    struct Ref;
+
     template <typename T, typename R>
-    struct Ref : public Access {
+    struct Ref<T, R> : public Access {
         Ref(std::reference_wrapper<R> ref_, const PropertyMutability mutability_)
             : ref{ref_},
               mutability{mutability_},
@@ -220,6 +223,17 @@ private:
         std::reference_wrapper<R> ref;
         PropertyMutability mutability = PropertyMutability::RW;
         PropertyMutability initial_mutability = PropertyMutability::RW;
+    };
+
+    template <typename T, typename R, typename P>
+    struct Ref<T, R, P> : public Ref<T, R> {
+        Ref(std::reference_wrapper<R> ref_, const P precondition_)
+            : Ref<T, R>{ref_, PropertyMutability::RW},
+              precondition_impl{std::move(precondition_)} {}
+        void precondition(const Any& any) const override {
+            precondition_impl(SetterArg{any});
+        }
+        P precondition_impl;
     };
 
     template <class T>
@@ -526,6 +540,26 @@ public:
                                                                                G get,
                                                                                Args&&... args) {
         find_or_create(name) = std::make_shared<FunctionAccess<G, Args...>>(std::move(get), std::move(args)...);
+        return *this;
+    }
+
+    /**
+     * @brief Add read only property access
+     * @tparam T property value type
+     * @tparam M property mutability
+     * @param property property property variable
+     * @param ref reference wrapper to property value
+     * @param precondition set property precondition
+     * @return Reference to current object
+     */
+    template <typename Pr, typename P, typename R>
+    util::EnableIfPropertyT<Pr, PropertySupervisor&> add(const Pr& property,
+                                                         std::reference_wrapper<R> ref,
+                                                         P precondition) {
+        static_assert(Pr::mutability == PropertyMutability::RW,
+                      "Could not add property with Set precondition to no RW value");
+        find_or_create(property.name()) =
+            std::make_shared<Ref<util::GetPropertyType<Pr>, R, P>>(ref, std::move(precondition));
         return *this;
     }
 };

@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/property_supervisor.hpp"
 #include "openvino/runtime/threading/itask_executor.hpp"
 
 namespace ov {
@@ -83,6 +84,7 @@ public:
         static int get_hybrid_num_streams(std::map<std::string, std::string>& config, const int stream_mode);
         static void update_hybrid_custom_threads(Config& config);
 
+        ov::PropertySupervisor m_properties;
         std::string _name;          //!< Used by `ITT` to name executor threads
         int _streams = 1;           //!< Number of streams.
         int _threadsPerStream = 0;  //!< Number of threads per stream that executes `ie_parallel` calls
@@ -129,15 +131,7 @@ public:
                int threadBindingStep = 1,
                int threadBindingOffset = 0,
                int threads = 0,
-               PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY)
-            : _name{name},
-              _streams{streams},
-              _threadsPerStream{threadsPerStream},
-              _threadBindingType{threadBindingType},
-              _threadBindingStep{threadBindingStep},
-              _threadBindingOffset{threadBindingOffset},
-              _threads{threads},
-              _threadPreferredCoreType(threadPreferredCoreType) {}
+               PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY);
     };
 
     /**
