@@ -16,10 +16,26 @@ namespace ov {
 
 /**
  * @brief This class to configure access to accesses of runtime objects
+ *
+ * The idea of this class is to group properties per groups.
+ * Each component can extend or change the properties list which was got from previous level.
+ *
+ * This class contains set of properties with accessor type in the hierarchy view.
+ *
+ * Initially property supervisor can contains several groups of properties:
+ *
+ * - ov::legacy_property - a subset of legacy properties (SUPPORTED_METRICS and SUPPORTED_CONFIGS uses this and
+ * ov::common_property sets, excludes ov::exclude_from_legacy)
+ * - ov::common_property - a subset of common properties (for OV 2.0 API)
+ * - ov::internal_property - a set of plugin internal properties
+ * - ov::stream_executor_property - a set of stream executor properties
  */
 class OPENVINO_RUNTIME_API PropertySupervisor {
 private:
     struct SubAccess;
+    /**
+     * @brief Main accessor structure which can have internal sublevels
+     */
     struct Access {
         using Ptr = std::shared_ptr<Access>;
         virtual Any get(const AnyMap&) const = 0;
@@ -54,6 +70,9 @@ private:
         ~Access() = default;
     };
 
+    /**********************************************************
+     * Helpers which provide interfaces to parse variable type
+     **********************************************************/
     template <typename T>
     using AsAnyType = typename std::conditional<
         (std::is_array<T>::value &&
@@ -230,17 +249,46 @@ private:
      * @return All supported properties names
      */
     std::vector<PropertyName> get_supported() const;
+
+    /**
+     * @brief Find and return accessor or create the new one for the name
+     *
+     * @param name property name
+     *
+     * @return Found or created accessor
+     */
     std::shared_ptr<PropertySupervisor::Access>& find_or_create(const std::string& name);
 
+    /**
+     * @brief Find accessor for the path
+     *
+     * @param path property path with internal sublevels
+     *
+     * @return const pointer to accessor and nullptr if accessor wasn't found
+     */
     const void* find_access(const std::vector<std::string>& path) const;
+
+    /**
+     * @brief Find accessor for the path
+     *
+     * @param path property path with internal sublevels
+     *
+     * @return pointer to accessor and nullptr if accessor wasn't found
+     */
     void* find_access(const std::vector<std::string>& path);
     PropertySupervisor* find_property_access(const std::vector<std::string>& path);
 
     std::vector<std::vector<std::string>> get_all_pathes() const;
     std::vector<std::vector<std::string>> find_property(const std::vector<std::string>& rout) const;
 
+    /**
+     * @brief Supervisor name
+     */
     std::string m_name;
-    std::map<std::string, std::shared_ptr<Access>> m_accesses;
+    /**
+     * @brief map of registered properties
+     */
+    std::unordered_map<std::string, std::shared_ptr<Access>> m_accesses;
 
 public:
     /**
