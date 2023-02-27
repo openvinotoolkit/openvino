@@ -9,72 +9,13 @@
 #include "async_infer_request.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "plugin.hpp"
 #include "template/config.hpp"
 #include "template_itt.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace TemplatePlugin;
-
-namespace {
-
-InferenceEngine::SizeVector get_dims(const ov::Output<ov::Node>& port) {
-    InferenceEngine::SizeVector dims = {};
-    const auto& p_shape = port.get_partial_shape();
-    if (p_shape.is_static())
-        dims = p_shape.get_shape();
-    return dims;
-}
-
-}  // namespace
-
-namespace ov {
-namespace legacy_convert {
-
-void fill_input_info(const ov::Output<ov::Node>& input, InferenceEngine::InputInfo::Ptr& input_info) {
-    if (!input_info) {
-        // Create input info
-        auto param_name = input.get_node()->get_friendly_name();
-        auto dims = get_dims(input);
-        InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(input.get_element_type()),
-                                         dims,
-                                         InferenceEngine::TensorDesc::getLayoutByDims(dims));
-        auto data = std::make_shared<InferenceEngine::Data>(param_name, desc);
-        input_info = std::make_shared<InferenceEngine::InputInfo>();
-        input_info->setInputData(data);
-    }
-    auto& rt_info = input.get_rt_info();
-    auto it = rt_info.find("ie_legacy_preproc");
-    if (it != rt_info.end()) {
-        input_info->getPreProcess() = it->second.as<InferenceEngine::PreProcessInfo>();
-    }
-    it = rt_info.find("ie_legacy_td");
-    if (it != rt_info.end()) {
-        auto td = it->second.as<InferenceEngine::TensorDesc>();
-        input_info->getInputData()->reshape(td.getDims(), td.getLayout());
-        input_info->setPrecision(td.getPrecision());
-    }
-}
-void fill_output_info(const ov::Output<ov::Node>& output, InferenceEngine::DataPtr& output_info) {
-    if (!output_info) {
-        // Create input info
-        const auto& res_name = ov::op::util::create_ie_output_name(output);
-        auto dims = get_dims(output);
-        InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(output.get_element_type()),
-                                         dims,
-                                         InferenceEngine::TensorDesc::getLayoutByDims(dims));
-        output_info = std::make_shared<InferenceEngine::Data>(res_name, desc);
-    }
-    auto& rt_info = output.get_rt_info();
-    auto it = rt_info.find("ie_legacy_td");
-    if (it != rt_info.end()) {
-        auto td = it->second.as<InferenceEngine::TensorDesc>();
-        output_info->reshape(td.getDims(), td.getLayout());
-        output_info->setPrecision(td.getPrecision());
-    }
-}
-}  // namespace legacy_convert
-}  // namespace ov
 
 // ! [executable_network:ctor_cnnnetwork]
 TemplatePlugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -89,8 +30,9 @@ TemplatePlugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& m
     // In this case, _waitExecutor should also be created per device.
     try {
         compile_model(m_model);
-    } catch (const InferenceEngine::Exception&) {
-        throw;
+    } catch (const InferenceEngine::Exception& e) {
+        // Some transformations can throw legacy exception
+        throw ov::Exception(e.what());
     } catch (const std::exception& e) {
         OPENVINO_ASSERT(false, "Standard exception from compilation library: ", e.what());
     } catch (...) {
@@ -148,7 +90,7 @@ std::shared_ptr<const Plugin> TemplatePlugin::CompiledModel::get_template_plugin
 }
 
 // ! [executable_network:get_config]
-InferenceEngine::Parameter TemplatePlugin::CompiledModel::get_property(const std::string& name) const {
+ov::Any TemplatePlugin::CompiledModel::get_property(const std::string& name) const {
     const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
         properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
     };
@@ -179,7 +121,9 @@ InferenceEngine::Parameter TemplatePlugin::CompiledModel::get_property(const std
         return to_string_vector(metrics);
     } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         auto configs = default_rw_properties();
-        auto streamExecutorConfigKeys = InferenceEngine::IStreamsExecutor::Config{}.SupportedKeys();
+        auto streamExecutorConfigKeys = ov::threading::IStreamsExecutor::Config{}
+                                            .get_property(ov::supported_properties.name())
+                                            .as<std::vector<std::string>>();
         for (auto&& configKey : streamExecutorConfigKeys) {
             configs.emplace_back(configKey);
         }
