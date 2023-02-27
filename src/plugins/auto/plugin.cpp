@@ -285,8 +285,7 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetConfig(const std::stri
 
 void MultiDeviceInferencePlugin::SetConfig(const std::map<std::string, std::string> & config) {
     // with setConfig, only multi/auto supported internal configs can be accepted
-    _pluginConfig.set_user_property(preprocess_config(config));
-    _pluginConfig.apply_user_properties();
+    _pluginConfig.set_property(preprocess_config(config));
 }
 
 static const Version version = {{2, 1}, CI_BUILD_NUMBER, "MultiDevicePlugin"};

@@ -4,7 +4,7 @@
 #include "utils/plugin_config.hpp"
 
 namespace MultiDevicePlugin {
-const std::set<std::string> PluginConfig::_availableDevices = {"AUTO", "CPU", "GPU", "TEMPLATE", "MYRIAD", "VPUX", "MULTI", "HETERO", "mock"};
+const std::set<std::string> PluginConfig::_availableDevices = {"AUTO", "CPU", "GPU", "TEMPLATE", "VPUX", "MULTI", "HETERO", "mock"};
 
 PluginConfig::PluginConfig() {
     set_default();
@@ -22,7 +22,7 @@ void PluginConfig::set_default() {
         std::make_tuple(ov::hint::model_priority, ov::hint::Priority::MEDIUM),
         std::make_tuple(ov::log::level, ov::log::Level::NO),
         std::make_tuple(ov::intel_auto::device_bind_buffer, false),
-        std::make_tuple(ov::hint::performance_mode, ov::hint::PerformanceMode::UNDEFINED, PerformanceModeValidator()),
+        std::make_tuple(ov::hint::performance_mode, ov::hint::PerformanceMode::UNDEFINED),
         std::make_tuple(ov::hint::num_requests, 0),
         std::make_tuple(ov::intel_auto::enable_startup_fallback, true),
         // TODO 1) cache_dir 2) allow_auto_batch 3) auto_batch_timeout
@@ -79,6 +79,7 @@ void PluginConfig::set_user_property(const ov::AnyMap& config, bool checkfirstle
         if (is_supported(name)) {
             OPENVINO_ASSERT(property_validators.at(name)->is_valid(val),
                         "[AUTO]", "Invalid value for property ", name,  ": ", val.as<std::string>());
+            internal_properties[kv.first] = kv.second;
             user_properties[kv.first] = kv.second;
         } else {
             if (device_property_validator->is_valid(ov::Any(name))) { // if it's a valid secondary, accept it
@@ -95,12 +96,8 @@ void PluginConfig::set_user_property(const ov::AnyMap& config, bool checkfirstle
 
 void PluginConfig::apply_user_properties() {
     full_properties = internal_properties;
-    for (auto& kv : user_properties) {
-        // update internal if existed
-        if (is_supported(kv.first))
-            internal_properties[kv.first] = kv.second;
+    for (auto& kv : user_properties)
         full_properties[kv.first] = kv.second;
-    }
 }
 
 ov::AnyMap PluginConfig::get_full_properties() {

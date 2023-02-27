@@ -48,17 +48,6 @@ public:
     }
 };
 
-class PerformanceModeValidator : public BaseValidator {
-public:
-    bool is_valid(const ov::Any& v) const override {
-        auto mode = v.as<ov::hint::PerformanceMode>();
-        return mode == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT ||
-               mode == ov::hint::PerformanceMode::THROUGHPUT ||
-               mode == ov::hint::PerformanceMode::LATENCY ||
-               mode == ov::hint::PerformanceMode::UNDEFINED;
-    }
-};
-
 class PluginConfig {
 public:
     PluginConfig();
@@ -149,7 +138,7 @@ public:
             auto res = PerfHintsConfig::SupportedKeys();
             res.push_back(ov::device::priorities.name());
             res.push_back(ov::enable_profiling.name());
-            res.push_back(PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS);
+            res.push_back(exclusive_asyc_requests.name());
             res.push_back(ov::hint::model_priority.name());
             res.push_back(ov::hint::allow_auto_batching.name());
             res.push_back(ov::log::level.name());
@@ -182,7 +171,8 @@ public:
                                                        RW_property(ov::hint::performance_mode.name()),
                                                        RW_property(ov::hint::num_requests.name()),
                                                        RW_property(ov::intel_auto::device_bind_buffer.name()),
-                                                       RW_property(ov::cache_dir.name())};
+                                                       RW_property(ov::cache_dir.name()),
+                                                       RW_property(exclusive_asyc_requests.name())};
             std::vector<ov::PropertyName> supportedProperties;
             supportedProperties.reserve(roProperties.size() + rwProperties.size());
             supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
