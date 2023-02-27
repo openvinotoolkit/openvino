@@ -536,9 +536,6 @@ private:
     /// model and registers them, otherwise checks all the Parameters are registered.
     void prerequirements(bool detect_variables, bool detect_parameters);
 
-    // Check that a Node argument for ctor isn't nullptr.
-    static const std::shared_ptr<Node>& verify_node(const std::shared_ptr<Node>& node);
-
     static std::atomic<size_t> m_next_instance_id;
     std::string m_name;
     const std::string m_unique_name;

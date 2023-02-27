@@ -86,6 +86,12 @@ ngraph::ParameterVector auto_detect_parameters(const std::vector<std::shared_ptr
     return parameter_vector;
 }
 
+// Check that a Node argument for ctor isn't nullptr.
+const std::shared_ptr<ov::Node>& verify_node(const std::shared_ptr<ov::Node>& node) {
+    OPENVINO_ASSERT(node != nullptr, "Model is incorrect! Some Node equals to nullptr.");
+    return node;
+}
+
 }  // namespace
 
 ov::Model::Model(const ResultVector& results, const ngraph::ParameterVector& parameters, const std::string& name)
@@ -1157,9 +1163,4 @@ void ov::set_batch(const std::shared_ptr<ov::Model>& f, ov::Dimension batch_size
         stream << "Original error message is: " << e.what();
         OPENVINO_ASSERT(false, stream.str());
     }
-}
-
-const std::shared_ptr<ov::Node>& ov::Model::verify_node(const std::shared_ptr<ov::Node>& node) {
-    OPENVINO_ASSERT(node != nullptr, "Model is incorrect! Some Node equals to nullptr.");
-    return node;
 }
