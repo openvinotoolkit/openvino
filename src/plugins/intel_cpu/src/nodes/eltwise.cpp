@@ -354,30 +354,54 @@ struct jit_uni_eltwise_generic : public jit_uni_eltwise_kernel, public jit_gener
         const int offset_count = jep.input_size - 1;
 
         // ptrs initializing
-        auto init_ptrs_with_offsets = [this, offset_count](Reg64 pointer, const std::vector<size_t>& offsets) {
-            for (int j = 0; j < offset_count; j++) {
-                if (jep_.dims[j] != 1 && offsets[j] != 0) {
-                    mov(reg_tmp_64, offsets[j]);
+        if (jep.use_runtime_ptrs) {
+            for (int i = 0; i < jep.inputs_number; i++) {
+                mov(start_to_offsets, ptr[reg_const_params + GET_OFF(src_offsets) + i * sizeof(size_t)]);
+                mov(get_src_reg(i), ptr[reg_const_params + GET_OFF(src_ptr[0]) + i * sizeof(size_t)]);
+                for (int j = 0; j < offset_count; j++) {
+                    mov(reg_tmp_64, ptr[start_to_offsets + j * sizeof(size_t)]);
                     imul(reg_tmp_64, ptr[reg_indexes + j * sizeof(size_t)]);
-                    add(pointer, reg_tmp_64);
+                    add(get_src_reg(i), reg_tmp_64);
                 }
             }
-        };
 
-        for (int i = 0; i < jep.inputs_number; i++) {
-            mov(get_src_reg(i), ptr[reg_const_params + GET_OFF(src_ptr[0]) + i * sizeof(size_t)]);
-            init_ptrs_with_offsets(get_src_reg(i), jep.src_offsets[i]);
+            mov(start_to_offsets, ptr[reg_const_params + GET_OFF(dst_offsets)]);
+            mov(reg_dst, ptr[reg_const_params + GET_OFF(dst_ptr)]);
+            for (int j = 0; j < offset_count; j++) {
+                mov(reg_tmp_64, ptr[start_to_offsets + j * sizeof(size_t)]);
+                imul(reg_tmp_64, ptr[reg_indexes + j * sizeof(size_t)]);
+                add(reg_dst, reg_tmp_64);
+            }
+
+            xor_(reg_oc_off, reg_oc_off);
+
+            mov(reg_work_amount, ptr[reg_const_params + GET_OFF(work_amount)]);
+        } else {
+            auto init_ptrs_with_offsets = [this, offset_count](Reg64 pointer, const std::vector<size_t>& offsets) {
+                for (int j = 0; j < offset_count; j++) {
+                    if (jep_.dims[j] != 1 && offsets[j] != 0) {
+                        mov(reg_tmp_64, offsets[j]);
+                        imul(reg_tmp_64, ptr[reg_indexes + j * sizeof(size_t)]);
+                        add(pointer, reg_tmp_64);
+                    }
+                }
+            };
+
+            for (int i = 0; i < jep.inputs_number; i++) {
+                mov(get_src_reg(i), ptr[reg_const_params + GET_OFF(src_ptr[0]) + i * sizeof(size_t)]);
+                init_ptrs_with_offsets(get_src_reg(i), jep.src_offsets[i]);
+            }
+
+            mov(reg_dst, ptr[reg_const_params + GET_OFF(dst_ptr)]);
+            init_ptrs_with_offsets(reg_dst, jep.dst_offsets);
+
+            xor_(reg_oc_off, reg_oc_off);
+            init_ptrs_with_offsets(reg_oc_off, jep.oc_offsets);
+
+            mov(reg_work_amount, jep.work_amount);
         }
 
-        mov(reg_dst, ptr[reg_const_params + GET_OFF(dst_ptr)]);
-        init_ptrs_with_offsets(reg_dst, jep.dst_offsets);
-
         mov(reg_post_op_ptrs, ptr[reg_const_params + GET_OFF(post_op_data)]);
-
-        xor_(reg_oc_off, reg_oc_off);
-        init_ptrs_with_offsets(reg_oc_off, jep.oc_offsets);
-
-        mov(reg_work_amount, jep.work_amount);
 
         Xbyak::Label unroll_loop_label;
         Xbyak::Label unroll_loop_end_label;
@@ -565,6 +589,7 @@ private:
     }
 
     Reg64 reg_post_op_ptrs = rax;
+    Reg64 start_to_offsets = reg_post_op_ptrs; // rax
     Reg64 reg_dst = rbx;
     Reg64 reg_work_amount = rdx;
 
@@ -1186,7 +1211,7 @@ struct EltwiseKey {
     InferenceEngine::Precision outPrc;
     dnnl::post_ops postOps;
     bool useDynBatch;
-    bool useJit;
+    EltwiseImplType implType;
 
     size_t hash() const {
         using namespace dnnl::impl;
@@ -1204,10 +1229,17 @@ struct EltwiseKey {
             seed = hash_combine_eltwiseData(seed, item);
         });
         seed = get_vector_hash(seed, ops_list);
-        seed = get_vector_hash(seed, outBlkDims);
-        seed = get_vector_hash(seed, outOrder);
-        for (auto&& item : inpDims) {
-            seed = get_vector_hash(seed, item);
+        if (implType == optimizedShapeAgnostic) {
+            seed = hash_combine(seed, outBlkDims.back() == 1);
+            for (auto&& item : inpDims) {
+                seed = hash_combine(seed, item.back() == 1);
+            }
+        } else {
+            seed = get_vector_hash(seed, outOrder);
+            seed = get_vector_hash(seed, outBlkDims);
+            for (auto&& item : inpDims) {
+                seed = get_vector_hash(seed, item);
+            }
         }
         std::for_each(inpPrc.begin(), inpPrc.end(), [&](const Precision& item) {
             seed = hash_combine(seed, item.getPrecVal());
@@ -1215,7 +1247,7 @@ struct EltwiseKey {
         seed = hash_combine(seed, outPrc.getPrecVal());
         seed = get_post_op_hash(seed, *postOps.get());
         seed = hash_combine(seed, useDynBatch);
-        seed = hash_combine(seed, useJit);
+        seed = hash_combine(seed, implType);
         return seed;
     }
 
@@ -1226,17 +1258,30 @@ struct EltwiseKey {
 
         bool result = eltwise_data == rhs.eltwise_data &&
                       ops_list == rhs.ops_list &&
-                      outBlkDims == rhs.outBlkDims &&
-                      outOrder == rhs.outOrder &&
                       inpPrc == rhs.inpPrc &&
                       outPrc == rhs.outPrc &&
                       *postOps.get() == *rhs.postOps.get() &&
                       useDynBatch == rhs.useDynBatch &&
-                      useJit == rhs.useJit;
+                      implType == rhs.implType;
 
-        for (size_t i = 0; i < inpDims.size() && result; ++i) {
-            result = result && (inpDims[i] == rhs.inpDims[i]);
+        if (result) {
+            if (implType == optimizedShapeAgnostic) {
+                bool broadcast, rhsBroadcast;
+                for (size_t i = 0; i < inpDims.size() && result; ++i) {
+                    broadcast = (inpDims[i].back() == 1);
+                    rhsBroadcast = (rhs.inpDims[i].back() == 1);
+                    if (broadcast != rhsBroadcast)
+                        return false;
+                }
+            } else {
+                result = result && outOrder == rhs.outOrder &&
+                         outBlkDims == rhs.outBlkDims;
+                for (size_t i = 0; i < inpDims.size() && result; ++i) {
+                    result = result && (inpDims[i] == rhs.inpDims[i]);
+                }
+            }
         }
+
         return result;
     }
 };
@@ -1267,7 +1312,8 @@ public:
                        const std::vector<InferenceEngine::Precision>& inpPrc,
                        const InferenceEngine::Precision& outPrc,
                        const dnnl::post_ops& post_ops,
-                       bool useDynBatch) {
+                       bool useDynBatch,
+                       bool useRuntimePtrs) {
         auto collapseLastDims = [](std::vector<size_t>& dims, int dimsToCollapse) {
             for (int i = dims.size() - 2; i > dims.size() - dimsToCollapse - 2; i--) {
                 dims[dims.size() - 1] *= dims[i];
@@ -1314,6 +1360,8 @@ public:
         jit_eltwise_params jep = {};
         size_t inputsNumber = inpDims.size();
 
+        jep.use_runtime_ptrs = useRuntimePtrs;
+
         jep.input_size = inpDims.front().size();
 
         jep.dims.resize(jep.input_size, 1);
@@ -1335,7 +1383,7 @@ public:
         }
 
         if (outBlkDims.size() != outOrder.size()) {
-            IE_THROW() << "Can not make Elwtise executor due to out blocked dims and out order vectors size mismatch.";
+            IE_THROW() << "Can not make Eltwise executor due to out blocked dims and out order vectors size mismatch.";
         }
 
         int lastUnchangedAxis = 0;
@@ -1370,7 +1418,7 @@ public:
         int collapsedDims = 0;
 
         bool hasDifferentDims = false;
-        while (currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount &&
+        while (!useRuntimePtrs && currentJitWorkAmount < minimalJitWorkAmount && currentJitWorkAmount < fullWorkAmount &&
                // we shouldn't collapse batch dimension in case dynamic batch is enabled
                (!useDynBatch || (outBlkDims.size() - collapsedDims > 2))) {
             if (collapsedDims >= maxCollapsedDims)
@@ -1418,25 +1466,27 @@ public:
             }
         }
 
-        _batchDimIdx = jep.input_size - outBlkDims.size() + collapsedDims;
-        _schedulerWorkAmount = fullWorkAmount / jep.dims[jep.dims.size() - 1];
-
         if (inpPrc.size() != inputsNumber) {
-            IE_THROW() << "Can not make Elwtise executor. Wrong input precisions vector size.";
+            IE_THROW() << "Can not make Eltwise executor. Wrong input precisions vector size.";
         }
 
-        // init offset
-        jep.dst_offsets.resize(jep.input_size, 1);
-        offset_out_calc(jep.dst_offsets, jep.dims);
-        for (int j = 0; j < jep.input_size; j++) {
-            jep.dst_offsets[j] *= outPrc.size();
-        }
+        if (!useRuntimePtrs) {
+            _batchDimIdx = jep.input_size - outBlkDims.size() + collapsedDims;
+            _schedulerWorkAmount = fullWorkAmount / jep.dims[jep.dims.size() - 1];
 
-        for (int i = 0; i < inputsNumber; i++) {
-            jep.src_offsets[i].resize(jep.input_size, 1);
-            offset_in_calc(jep.src_offsets[i], inpDims[i], jep.dims);
+            // init offset
+            jep.dst_offsets.resize(jep.input_size, 1);
+            offset_out_calc(jep.dst_offsets, jep.dims);
             for (int j = 0; j < jep.input_size; j++) {
-                jep.src_offsets[i][j] *= inpPrc[i].size();
+                jep.dst_offsets[j] *= outPrc.size();
+            }
+
+            for (int i = 0; i < inputsNumber; i++) {
+                jep.src_offsets[i].resize(jep.input_size, 1);
+                offset_in_calc(jep.src_offsets[i], inpDims[i], jep.dims);
+                for (int j = 0; j < jep.input_size; j++) {
+                    jep.src_offsets[i][j] *= inpPrc[i].size();
+                }
             }
         }
 
@@ -1486,6 +1536,13 @@ public:
                            });
         } else {
             // execute Optimized Generic
+            if (_pKernel->jep_.use_runtime_ptrs) {
+                // recalculate _schedulerWorkAmount
+                _schedulerWorkAmount = 1;
+                for (size_t i = 0; i < dims_out.size() - 1; i++) {
+                    _schedulerWorkAmount *= dims_out[i];
+                }
+            }
             parallel_nt(0, [&](const int ithr, const int nthr) {
                 size_t start = 0, end = 0;
                 splitter(_schedulerWorkAmount, nthr, ithr, start, end);
@@ -1538,7 +1595,7 @@ public:
         }
 
         if (outBlkDims.empty()) {
-            IE_THROW() << "Can not make Elwtise executor from empty output blocked dims vector";
+            IE_THROW() << "Can not make Eltwise executor from empty output blocked dims vector";
         }
 
         _inputNum = inpDims.size();
@@ -1699,7 +1756,7 @@ bool Eltwise::EltwiseData::operator==(const EltwiseData &rhs) const noexcept {
 
 static Eltwise::executorPtr buildExecutor(const EltwiseKey& key) {
     Eltwise::executorPtr execPtr;
-    if (key.useJit) {
+    if (key.implType != reference) {
         execPtr = std::make_shared<EltwiseJitExecutor>(key.eltwise_data,
                                                        key.ops_list,
                                                        key.outBlkDims,
@@ -1708,7 +1765,8 @@ static Eltwise::executorPtr buildExecutor(const EltwiseKey& key) {
                                                        key.inpPrc,
                                                        key.outPrc,
                                                        key.postOps,
-                                                       key.useDynBatch);
+                                                       key.useDynBatch,
+                                                       key.implType == optimizedShapeAgnostic);
     } else {
         execPtr = std::make_shared<EltwiseRefExecutor>(key.eltwise_data.front(),
                                                        key.outBlkDims,
@@ -1840,7 +1898,8 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         return;
 
     // if dim rank is greater than the maximum possible, we should use the reference execution
-    canUseOptimizedImpl = mayiuse(x64::sse41) && getInputShapeAtPort(0).getRank() <= MAX_ELTWISE_DIM_RANK;
+    bool canUseOptimizedImpl = mayiuse(x64::sse41) && getInputShapeAtPort(0).getRank() <= MAX_ELTWISE_DIM_RANK;
+    bool canUseOptimizedShapeAgnosticImpl = isDynamicNode() && canUseOptimizedImpl;
 
     if (!canUseOptimizedImpl && !fusedWith.empty()) {
         IE_THROW(Unexpected) << "Eltwise node with name '" << getName() << "' uses reference impl, but unexpectedly fused with other ops";
@@ -1873,7 +1932,11 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                     inputPrecisions.push_back(fusedNode->getOriginalInputPrecisionAtPort(i));
             }
         }
+        if (fusedNode->getType() == Type::FakeQuantize) {
+            canUseOptimizedShapeAgnosticImpl = false;
+        }
     }
+    implType = canUseOptimizedShapeAgnosticImpl ? optimizedShapeAgnostic : canUseOptimizedImpl ? optimized : reference;
 
     if (inputPrecisions.size() != getParentEdges().size())
         IE_THROW() << "Eltwise node with name `" << getName() << "` has invalid input precisions configuration.";
@@ -1894,7 +1957,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     }
 
     auto filterPrecision = [&](Precision& prc) {
-        if (!canUseOptimizedImpl) {
+        if (implType == reference) {
             return Precision(Precision::FP32);
         } else if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), prc) == supportedPrecisions.end()) {
             if (prc == Precision::U32 || prc == Precision::I64 || prc == Precision::U64) {
@@ -2051,17 +2114,35 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     currentInBlkDims.resize(inputNum);
 }
 
-void Eltwise::prepareParams() {
+void Eltwise::createPrimitive() {
     if (memPtrs.empty()) {
         for (auto i = 0; i < inputNum; i++)
             memPtrs.push_back(getParentEdgeAt(i)->getMemoryPtr());
         memPtrs.push_back(getChildEdgeAt(0)->getMemoryPtr());
     }
 
+    isDynBatchEnabled = getSelectedPrimitiveDescriptor()->getConfig().dynBatchSupport;
+
+    start_offset_in.resize(inputNum);
+    for (size_t i = 0; i < inputNum; i++) {
+        const auto desc = getParentEdgeAt(i)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+        start_offset_in[i] = desc->getOffsetPadding() * desc->getPrecision().size();
+    }
+    const auto desc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
+    start_offset_out = desc->getOffsetPadding() * desc->getPrecision().size();
+
+    for (size_t i = 0; i < inputNum; ++i) {
+        inpPrc.push_back(getParentEdgeAt(i)->getMemory().getDesc().getPrecision());
+    }
+
+    outPrc = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
+    Node::createPrimitive();
+}
+
+void Eltwise::prepareParams() {
     auto outBlockingDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
     const auto &outOrder = outBlockingDesc->getOrder();
     const auto &currentOutBlkDims = outBlockingDesc->getBlockDims();
-    isDynBatchEnabled = getSelectedPrimitiveDescriptor()->getConfig().dynBatchSupport;
 
     size_t input_size = std::max(static_cast<size_t>(EltwiseJitExecutor::optimalTensorRank), currentOutBlkDims.size());
 
@@ -2094,43 +2175,97 @@ void Eltwise::prepareParams() {
         }
     }
 
-    start_offset_in.resize(inputNum);
-    for (size_t i = 0; i < inputNum; i++) {
-        const auto desc = getParentEdgeAt(i)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-        start_offset_in[i] = desc->getOffsetPadding() * desc->getPrecision().size();
-    }
-    const auto desc = getChildEdgeAt(0)->getMemory().GetDescWithType<BlockedMemoryDesc>();
-    start_offset_out = desc->getOffsetPadding() * desc->getPrecision().size();
-
-    std::vector<InferenceEngine::Precision> inpPrc;
-    for (size_t i = 0; i < inputNum; ++i) {
-        inpPrc.push_back(getParentEdgeAt(i)->getMemory().getDesc().getPrecision());
-    }
-
-    auto outPrc = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
-
-    EltwiseData thisOp{getAlgorithm(), getOneDnnAlgorithm(), getAlpha(), getBeta(), getGamma()};
-
-    EltwiseKey key = {{thisOp}, {getType()}, currentOutBlkDims, outOrder, dims_in, inpPrc, outPrc, dnnl::post_ops(), isDynBatchEnabled, canUseOptimizedImpl};
-
-    fqDataPtrs.clear();
-    for (const auto &node : fusedWith) {
-        key.ops_list.push_back(node->getType());
-        if (node->getType() == Type::Eltwise) {
-            if (auto eltwise = std::dynamic_pointer_cast<Eltwise>(node)) {
-                key.eltwise_data.push_back({eltwise->getAlgorithm(), eltwise->getOneDnnAlgorithm(), eltwise->getAlpha(),
-                                            eltwise->getBeta(), eltwise->getGamma()});
+    // we can skip searching in the cache if broadcast policy for last input dims is not changed
+    // last input dim == 1 means broadcasted (also if output dim == 1)
+    // last input dim != 1 means not broadcasted
+    bool canSkipSearchInCache = false;
+    if (implType == optimizedShapeAgnostic) {
+        if (execPtr) {
+            canSkipSearchInCache = true;
+            // check broadcast policy
+            for (int i = 0; i < inputNum; i++) {
+                if (broadcastPolicy[i] != (dims_in[i].back() == 1)) {
+                    broadcastPolicy[i] = (dims_in[i].back() == 1);
+                    canSkipSearchInCache = false;
+                }
             }
-        } else if (node->getType() == Type::FakeQuantize) {
-            node->appendPostOps(key.postOps, {}, fqDataPtrs);
         } else {
-            IE_THROW(Unexpected) << "Eltwise node with name '" << getName() << "' has unexpected fused op of type '" << node->getTypeStr() << "'";
+            // fill broadcast policy
+            broadcastPolicy.resize(inputNum);
+            for (int i = 0; i < inputNum; i++) {
+                broadcastPolicy[i] = (dims_in[i].back() == 1);
+            }
         }
     }
 
-    auto cache = context->getParamsCache();
-    auto result = cache->getOrCreate(key, buildExecutor);
-    execPtr = result.first;
+    if (!canSkipSearchInCache) {
+        EltwiseData thisOp{getAlgorithm(), getOneDnnAlgorithm(), getAlpha(), getBeta(), getGamma()};
+        EltwiseKey key = {{thisOp}, {getType()}, currentOutBlkDims, outOrder, dims_in, inpPrc, outPrc, dnnl::post_ops(), isDynBatchEnabled, implType};
+        fqDataPtrs.clear();
+        for (const auto &node : fusedWith) {
+            key.ops_list.push_back(node->getType());
+            if (node->getType() == Type::Eltwise) {
+                if (auto eltwise = std::dynamic_pointer_cast<Eltwise>(node)) {
+                    key.eltwise_data.push_back({eltwise->getAlgorithm(), eltwise->getOneDnnAlgorithm(), eltwise->getAlpha(),
+                                                eltwise->getBeta(), eltwise->getGamma()});
+                }
+            } else if (node->getType() == Type::FakeQuantize) {
+                node->appendPostOps(key.postOps, {}, fqDataPtrs);
+            } else {
+                IE_THROW(Unexpected) << "Eltwise node with name '" << getName() << "' has unexpected fused op of type '" << node->getTypeStr() << "'";
+            }
+        }
+
+        auto cache = context->getParamsCache();
+        auto result = cache->getOrCreate(key, buildExecutor);
+        execPtr = result.first;
+    }
+
+    // update execParams for shape agnostic kernel
+    if (implType == optimizedShapeAgnostic) {
+        auto &outDims = execParams.outDims;
+        auto &inOffsets = execParams.inOffsets;
+        auto &outOffsets = execParams.outOffsets;
+
+        // outDims recalculation
+        outDims.resize(dims_in[0].size(), 1);
+        for (int i = 0; i < outRank; i++) {
+            outDims[outDims.size() - 1 - i] = currentOutBlkDims[outRank - 1 - i];
+        }
+        // offsets recalculation
+        auto offset_out_calc = [](VectorDims& offset, const VectorDims& dims) {
+            int k = 1;
+            for (int i = offset.size() - 1; i >= 0; i--) {
+                offset[i] = k;
+                k *= dims[i];
+            }
+        };
+
+        auto offset_in_calc = [](VectorDims& offset, const VectorDims& dims_in, const VectorDims& dims_out) {
+            int k = 1;
+            for (int i = offset.size() - 1; i >= 0; i--) {
+                offset[i] = (dims_in[i] == dims_out[i]) ? k : 0;
+                k *= dims_in[i];
+            }
+        };
+
+        auto inputSize = dims_in.front().size();
+        outOffsets.resize(inputSize, 1);
+        offset_out_calc(outOffsets, outDims);
+        for (int j = 0; j < inputSize; j++) {
+            outOffsets[j] *= outPrc.size();
+        }
+
+        auto inputsNumber = dims_in.size();
+        inOffsets.resize(inputsNumber);
+        for (int i = 0; i < inputsNumber; i++) {
+            inOffsets[i].resize(inputSize, 1);
+            offset_in_calc(inOffsets[i], dims_in[i], outDims);
+            for (int j = 0; j < inputSize; j++) {
+                inOffsets[i][j] *= inpPrc[i].size();
+            }
+        }
+    }
 }
 
 bool Eltwise::needPrepareParams() const {
@@ -2148,20 +2283,29 @@ void Eltwise::selectOptimalPrimitiveDescriptor() {
 void Eltwise::execute(dnnl::stream strm) {
     if (execPtr) {
         jit_eltwise_call_args_ptrs args_ptrs = {};
-        auto batchDimIdx = execPtr->getBatchDimIdx();
-        VectorDims dims_out = execPtr->getOutDims();
+        VectorDims dims_out = implType == optimizedShapeAgnostic ? execParams.outDims : execPtr->getOutDims();
         for (int i = 0; i < memPtrs.size() - 1; i++)
             args_ptrs.src_ptr[i] = reinterpret_cast<const uint8_t*>(memPtrs[i]->GetData()) + start_offset_in[i];
         args_ptrs.dst_ptr = reinterpret_cast<uint8_t*>(memPtrs.back()->GetData()) + start_offset_out;
 
         // In general case we need to recompute offsets as well but currently all supported layout assumes batch to be outermost dimension
         if (isDynBatchEnabled) {
+            auto batchDimIdx = execPtr->getBatchDimIdx();
             if (dims_out.size() <= batchDimIdx)
                 IE_THROW() << "Can't set batch dims for eltwise node with rank: " << dims_out.size() << " and batch idx: " << batchDimIdx;
             dims_out[batchDimIdx] = static_cast<size_t>(batchToProcess());
         }
 
         args_ptrs.post_op_data = fqDataPtrs.data();
+
+        // shape agnostic kernel: offsets and work amount initialization
+        if (implType == optimizedShapeAgnostic) {
+            args_ptrs.work_amount = dims_out.back();
+            for (int i = 0; i < execParams.inOffsets.size(); i++) {
+                args_ptrs.src_offsets[i] = execParams.inOffsets[i].data();
+            }
+            args_ptrs.dst_offsets = execParams.outOffsets.data();
+        }
 
         execPtr->exec(args_ptrs, dims_out);
     } else {
