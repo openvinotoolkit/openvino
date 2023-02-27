@@ -4,7 +4,7 @@
 #include "utils/plugin_config.hpp"
 
 namespace MultiDevicePlugin {
-const std::set<std::string> PluginConfig::_availableDevices = {"AUTO", "CPU", "GPU", "TEMPLATE", "VPUX", "MULTI", "HETERO", "mock"};
+const std::set<std::string> PluginConfig::_availableDevices = {"AUTO", "CPU", "GPU", "TEMPLATE", "NVIDIA", "VPUX", "MULTI", "HETERO", "mock"};
 
 PluginConfig::PluginConfig() {
     set_default();
