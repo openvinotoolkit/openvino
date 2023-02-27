@@ -39,7 +39,6 @@ OutputVector translate_loop(NodeContext& context) {
         auto external_output = context.get_tensor_from_model_or_create_input(input_idx);
         loop->set_invariant_inputs(external_output, {param});
     }
-    // TODO: Connect back edges (merged inputs)
     auto body_results = body->get_results();
     FRONT_END_OP_CONVERSION_CHECK(body_results.size() > 0, "At least one output from loop is required - condition.");
     std::set<size_t> output_idxs;
