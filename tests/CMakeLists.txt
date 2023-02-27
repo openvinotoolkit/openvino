@@ -1,0 +1,25 @@
+# Copyright (C) 2018-2023 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+cmake_minimum_required(VERSION 3.13)
+
+set (CMAKE_CXX_STANDARD 11)
+set (CMAKE_CXX_EXTENSIONS OFF)
+set (CMAKE_CXX_STANDARD_REQUIRED ON)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set (CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+endif()
+
+set(CMAKE_BUILD_TYPE "Release" CACHE STRING "CMake build type")
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release" "Debug" "RelWithDebInfo" "MinSizeRel")
+
+# Define directory where artifacts will be placed
+set(OUTPUT_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+
+set(OpenVINO_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../")
+
+install(FILES constraints.txt
+        DESTINATION tests/
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
