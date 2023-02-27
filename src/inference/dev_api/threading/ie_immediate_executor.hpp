@@ -21,7 +21,7 @@ namespace InferenceEngine {
  * @brief Task executor implementation that just run tasks in current thread during calling of run() method
  * @ingroup ie_dev_api_threading
  */
-class ImmediateExecutor : public ITaskExecutor, public ov::threading::ImmediateExecutor {
+class ImmediateExecutor : public ITaskExecutor {
 public:
     /**
      * @brief A shared pointer to a ImmediateExecutor object
@@ -32,6 +32,10 @@ public:
      * @brief Destroys the object.
      */
     ~ImmediateExecutor() override = default;
+
+    void run(Task task) override {
+        task();
+    }
 };
 
 }  // namespace InferenceEngine

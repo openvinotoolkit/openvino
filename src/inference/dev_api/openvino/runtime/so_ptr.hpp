@@ -90,4 +90,3 @@ struct SoPtr {
 };
 
 }  // namespace ov
-
