@@ -2,7 +2,7 @@
 
 If you see errors like `[CLDNN ERROR]. clGetPlatformIDs error -1001` when running OpenVINO samples / demos, then most likely you have some issues with OpenCL runtime on your machine. This document contains several hints on what to check and how to troubleshoot such issues.
 
-In order to make sure that OpenCL runtime is functional on your machine, you can use [clinfo](https://github.com/Oblomov/clinfo) tool. On many linux distributions it can be installed via package manager. If it is not available for your system, it can be easily built from sources.
+To make sure that OpenCL runtime is functional on your machine, you can use [clinfo](https://github.com/Oblomov/clinfo) tool. On many linux distributions it can be installed via package manager. If it is not available for your system, it can be easily built from sources.
 
 Example of clinfo output:
 ```
@@ -28,8 +28,8 @@ Some Intel® CPUs might not have integrated GPU, so if you want to run OpenVINO 
 
 ## 2. Make sure that OpenCL® Runtime is installed
 
-OpenCL runtime is a part of the GPU driver on Windows, but on linux it should be installed separately. For the installation tips, refer to [OpenVINO docs](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_linux_header.html) and [OpenCL Compute Runtime docs](https://github.com/intel/compute-runtime/tree/master/opencl/doc).
-To get support of Intel® Iris® Xe MAX Graphics with Linux please follow [driver installation guide](https://dgpu-docs.intel.com/devices/iris-xe-max-graphics/index.html)
+OpenCL runtime is a part of the GPU driver on Windows, but on Linux it should be installed separately. For the installation tips, refer to [OpenVINO docs](https://docs.openvino.ai/latest/openvino_docs_install_guides_installing_openvino_linux_header.html) and [OpenCL Compute Runtime docs](https://github.com/intel/compute-runtime/tree/master/opencl/doc).
+To get the support of Intel® Iris® Xe MAX Graphics with Linux, follow the [driver installation guide](https://dgpu-docs.intel.com/devices/iris-xe-max-graphics/index.html)
 
 ## 3. Make sure that user has all required permissions to work with GPU device
 

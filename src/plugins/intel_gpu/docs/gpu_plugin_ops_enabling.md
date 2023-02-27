@@ -65,7 +65,7 @@
         * Test scope needs to be comprehensive, but not wasteful. These tests run for every PR in CI. Let's save the planet.
 
     1. Support layer fusion, if applicable
-        * It is usually easy to fuse some layers, such as *scale*, *activation*, *quantize* and *eltwise*, into the previous layer. This fusing rule can be added to `prepare_primitive_fusing::fuse_simple_primitives`.
+        * It is usually easy to fuse some layers, such as *scale*, *activation*, *quantize*, and *eltwise*, into the previous layer. This fusing rule can be added to `prepare_primitive_fusing::fuse_simple_primitives`.
         * `fuse_simple_primitives` is called during [graph compilation phase](https://github.com/openvinotoolkit/openvino/blob/71c50c224964bf8c24378d16f015d74e2c1e1ce8/inference-engine/thirdparty/clDNN/src/program.cpp#L430)
         * See general description of layer fusion [here](https://docs.openvinotoolkit.org/latest/openvino_docs_IE_DG_supported_plugins_CL_DNN.html#optimizations)
         * Unit tests for layer fusion are placed in a single file: [fusings_gpu_test.cpp](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/thirdparty/clDNN/tests/test_cases/fusings_gpu_test.cpp). It is also compiled into `clDNN_unit_tests`.
@@ -78,7 +78,7 @@
     | [cldnn_engine/ops/scatter_elements_update.cpp](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/src/cldnn_engine/ops/scatter_elements_update.cpp) | Instantiation from clDNN plugin for IE |
     | [cldnn_primitives_list.hpp](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/src/cldnn_engine/cldnn_primitives_list.hpp) | Registration for primitives |
 
-1. Add functional single layer tests for the operation and try to cover most of the difference use cases of this operation.
+1. Add functional single-layer tests for the operation and try to cover most of the different use cases of this operation.
 
     | File | Description |
     |------|-------------|
@@ -100,14 +100,14 @@
 
 * The process is quite similar to the previous one. You can skip already existing steps.
 * Main work is adding a new kernel and registering it from the kernel selector.
-* You may need to add a unit test for that new kernel. Specific kernel can be chosen with `build_option::force_implementations`.
+* You may need to add a unit test for that new kernel. A specific kernel can be chosen with `build_option::force_implementations`.
 * It is not possible to specify a kernel from a functional test(IE).
 
 ## Writing OCL kernel
 
 ### Jitter
 
-In GPU OCL kernels, many conditional statements are processed with `#ifdef` so that it can be handled during compile-time. The definitions are created with `jitter.cpp`. It is set during graph compilation. You can see generated macros, following the steps in [source dumps](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/docs/gpu_debug_utils.md#sources-dumps).
+In GPU OCL kernels, many conditional statements are processed with `#ifdef` so that they can be handled during compile-time. The definitions are created with `jitter.cpp`. It is set during graph compilation. You can see generated macros, following the steps in [source dumps](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/docs/gpu_debug_utils.md#sources-dumps).
 Jitter also contains run-time parameters such as input and output size.
 Additional macros can be defined from the host-code of a kernel itself. For example, see the code snippet below. It passes `SUB_GROUP_SIZE` through macro definition through jitter.
 ```
@@ -124,7 +124,7 @@ Jitter generates macros for index calculations. With these macros, you can progr
 ### Layout support
 
 If a kernel is not performance-critical, you can support `bfyx`, `bfzyx` and `bfwzyx` only for layout. Those are default layouts. As an optimized format, `b_fs_yx_fsv16`, `b_fs_yx_fsv4` or `byxf` can be used as well.
-[General description of layout can be found here](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/docs/gpu_memory_formats.md) and [header file is here](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/thirdparty/clDNN/api/tensor.hpp)
+[General description of layout can be found here](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/docs/gpu_memory_formats.md) and [header file is here](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/thirdparty/clDNN/api/tensor.hpp).
 
 ### Layer fusion
 

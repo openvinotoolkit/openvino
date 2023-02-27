@@ -4,7 +4,7 @@ The page describes a list of useful debug features, controlled by environment va
 
 They can be activated at runtime and might be used for analyzing issues, getting more context, comparing execution results, etc.
 
-To have CPU debug capabilities available at runtime, the following CMake option should be used when building the plugin:
+To have CPU debug capabilities available at runtime, use the following CMake option when building the plugin:
 * `ENABLE_DEBUG_CAPS`. Default is `OFF`
 
 The following debug capabilities are available with the latest OpenVINO:

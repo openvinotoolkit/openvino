@@ -20,7 +20,7 @@
    ```cpp
    ValueType build(const KeyType& key);
    ```
-   The `ValueType` is a type to be cached (for example, shared pointer to Executor object). Remember that in the current cache implementation, a default constructed `ValueType()` object is considered empty. Therefore, it is better to use `std::shared_ptr` as the `ValueType`. The builder instantiates a specific type of cached entity from the `key`, so the `key` completely defines the cached data. The builder is used to create the `ValueType` object in case of cache miss.
+   The `ValueType` is a type to be cached (for example, a shared pointer to Executor object). Remember that in the current cache implementation, a default constructed `ValueType()` object is considered empty. Therefore, it is better to use `std::shared_ptr` as the `ValueType`. The builder instantiates a specific type of cached entity from the `key`, so the `key` completely defines the cached data. The builder is used to create the `ValueType` object in case of a cache miss.
 
 4. Refactor the specific implementation of the `prepareParams()` method to extract the cached object construction logic (for example, the algorithm parameters recalculation and JIT kernel generation) into the builder.
 

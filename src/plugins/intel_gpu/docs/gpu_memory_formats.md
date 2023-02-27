@@ -8,7 +8,7 @@ The memory format descriptor in GPU plugin usually uses the following letters:
  - `o` - output channels (for weights layout only)
  - `g` - groups (for weights layout only)
 
-The combination of the characters above defines tensor format, that is, the actual layout of tensor values in a memory buffer. For example:
+The combination of the characters above defines the tensor format, that is, the actual layout of tensor values in a memory buffer. For example:
 `bfyx` format means that the tensor has 4 dimensions in planar layout and `x` coordinate changes faster than `y`, `y` - faster than `f`, and so on.
 It means that for a tensor with size `[b: 2; f: 2; y: 2; x: 2]`, there is a linear memory buffer with `size=16`, where:
 ```
@@ -37,7 +37,7 @@ i = 14 => [b=1; f=1; y=1; x=0];
 i = 15 => [b=1; f=1; y=1; x=1];
 ```
 
-Usually, planar memory formats are not very efficient for DNN operations, so GPU plugin has plenty of *blocked* format. Blocking means that you take some tensor dimension
+Usually, planar memory formats are not very efficient for DNN operations, so GPU plugin has plenty of *blocked* formats. Blocking means that you take some tensor dimension
 and put blocks of adjacent elements closer in memory (in the format with a single blocking, they are stored linearly in the memory). Consider the most widely used
 blocked format in GPU plugin: `b_fs_yx_fsv16`. First of all, let's understand what these additional letters mean. There are `b`, `f`, `y`, `x` dimensions here, so
 this is a 4D tensor.

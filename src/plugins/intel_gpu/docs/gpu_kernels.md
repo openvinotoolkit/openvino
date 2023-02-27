@@ -12,7 +12,7 @@ Each operation has 3 major entities in kernel selector:
 ## Kernel selector instance
 
 For each operation, you create `kernel_selector` class derived from `kernel_selector_base`. Basically, this class is needed to specify available kernels
-for given operation. Each kernel selector is used as a singleton. For example:
+for a given operation. Each kernel selector is used as a singleton. For example:
 
 ```cpp
 class mvn_kernel_selector : public kernel_selector_base {

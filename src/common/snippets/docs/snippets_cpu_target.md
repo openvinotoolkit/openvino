@@ -2,11 +2,11 @@
 
 Snippets in its first generation can be seen as a generalization over a generic eltwise node. First generation of snippets has a lack of integration with oneDNN, and the patterns it supports should be kept orthogonal to what is fused with post-ops.
 
-See the example of POC CPU implementation [here](https://github.com/openvinotoolkit/openvino/pull/2824)
+See the example of POC CPU implementation [here](https://github.com/openvinotoolkit/openvino/pull/2824).
 
 First 8 kernel parameters are passed by structure which is unpacked inside a kernel into the registers. The rest are passed through the stack.
 
-The loop trip count should be placed to some GP register, as well as work amount. Moreover, you need to load all the parameters into GP registers. If you assume that you have enough registers, then it can be done before the loop body.
+The loop trip count should be placed to a GP register, as well as the work amount. Moreover, you need to load all the parameters into GP registers. If you assume that you have enough registers, then it can be done before the loop body.
 
 ```
 auto param0 = abi_params[0];
@@ -18,7 +18,7 @@ auto work_amount = abi_params[3];
 
 ## Memory operations
 
-A load could be Vector, Scalar and Broadcast. Only the native vector size for an architecture is supported (for example, 16 on AVX-512)
+A load could be Vector, Scalar, and Broadcast. Only the native vector size for an architecture is supported (for example, 16 on AVX-512).
 
 Memory operation also generates post increments for the pointer it uses.
 

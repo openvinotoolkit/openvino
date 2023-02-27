@@ -10,7 +10,7 @@ For each plugin
     * Affinity is equal to the plugin name
 2. Select an adjacent node to any node in a present subgraph which is not on the *rejected* list
     * If there are no such nodes **end**
-3. Verify that selected node has same affinity
+3. Verify that the selected node has the same affinity
 4. Add a node to a subgraph if the check has been successful or add to the *rejected* list otherwise
 5. Check a global condition
     * Nodes in the *rejected* list can never be added to a subgraph
@@ -131,7 +131,7 @@ The final result is:
     * in the nodes find nodes through which you can reach `dst`. These will be the `path` nodes.
 3. Results for pairs are cached.
 4. Check whether there is an intersection between `path` nodes set and rejected nodes set for each pair of nodes in a subgraph.
-5. If intersection happens, a self-reference occurs, and a subgraph is invalid.
+5. If an intersection happens, a self-reference occurs, and a subgraph is invalid.
 
 ## See also
 

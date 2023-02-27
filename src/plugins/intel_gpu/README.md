@@ -44,7 +44,7 @@ To report issues and suggestions, see [GitHub issues](https://github.com/openvin
 
 ## How to Contribute
 
-Community contributions to GPU plugin are highly welcome. If you have an idea how to improve the library:
+Community contributions to GPU plugin are highly welcome. If you have a suggestion on how to improve the library:
 
 - Share your proposal via
  [GitHub issues](https://github.com/openvinotoolkit/openvino/issues)
