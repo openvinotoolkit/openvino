@@ -899,6 +899,90 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
     }
 }
 
+TEST(activation_f32_fw_gpu, basic_yxfb_relational_functions) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::f32, format::yxfb, {1, 1, 5, 4}});
+    set_values(input,
+               {
+                   0.0f, -2.0f, -3.0f, 4.0f,  std::numeric_limits<float>::infinity(),
+                   2.0f, 2.0f,  3.0f,  4.0f,  -std::numeric_limits<float>::infinity(),
+                   3.0f, -3.0f, 3.0f,  5.0f,  std::numeric_limits<float>::quiet_NaN(),
+                   1.0f, 1.0f,  1.0f,  -1.0f, -std::numeric_limits<float>::quiet_NaN(),
+               });
+
+    const std::vector<activation_func> funcs = {
+        activation_func::is_finite,
+        activation_func::is_inf,
+        activation_func::is_nan,
+    };
+
+    for (auto func : funcs) {
+        std::vector<activation_additional_params> params_list = {{0.f, 0.f}};
+        if (func == activation_func::is_inf) {
+            // Set detect_negative and detect_positive values
+            params_list = {
+                {0.f, 0.f},
+                {0.f, 1.f},
+                {1.f, 0.f},
+                {1.f, 1.f},
+            };
+        }
+        for (auto params : params_list) {
+            for (auto k = 0; k < 2; ++k) {
+                topology topology(input_layout("input", input->get_layout()));
+
+                if (k == 0) {
+                    topology.add(activation("activation", input_info("input"), func, params));
+                } else {
+                    auto input_params = engine.allocate_memory({data_types::f32, format::yxfb, {1, 2, 1, 1}});
+                    set_values(input_params, {params.a, params.b});
+                    topology.add(data("input_params", input_params));
+                    topology.add(activation("activation", input_info("input"), "input_params", func));
+                }
+
+                network network(engine, topology);
+                network.set_input_data("input", input);
+                const auto outputs = network.execute();
+                ASSERT_EQ(outputs.size(), size_t(1));
+                ASSERT_EQ(outputs.begin()->first, "activation");
+
+                const auto output_memory = outputs.at("activation").get_memory();
+                const auto output_layout = output_memory->get_layout();
+                const cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+                const cldnn::mem_lock<float> input_ptr(input, get_test_stream());
+
+                const int y_size = output_layout.spatial(1);
+                const int x_size = output_layout.spatial(0);
+                const int f_size = output_layout.feature();
+                const int b_size = output_layout.batch();
+                ASSERT_EQ(output_layout.format, format::yxfb);
+                ASSERT_EQ(y_size, 4);
+                ASSERT_EQ(x_size, 5);
+                ASSERT_EQ(f_size, 1);
+                ASSERT_EQ(b_size, 1);
+
+                for (size_t i = 0; i < output_layout.get_linear_size(); ++i) {
+                    switch (func) {
+                    case activation_func::is_finite:
+                        ASSERT_EQ(std::isfinite(input_ptr[i]), output_ptr[i]);
+                        break;
+                    case activation_func::is_inf:
+                        ASSERT_EQ(std::isinf(input_ptr[i]) && ((params.a && std::signbit(input_ptr[i])) ||
+                                                               (params.b && !std::signbit(input_ptr[i]))),
+                                  output_ptr[i]);
+                        break;
+                    case activation_func::is_nan:
+                        ASSERT_EQ(std::isnan(input_ptr[i]), output_ptr[i]);
+                        break;
+                    default:
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
 TEST(activation_f16_fw_gpu, basic_bfyx_all_functions)
 {
     auto& engine = get_test_engine();

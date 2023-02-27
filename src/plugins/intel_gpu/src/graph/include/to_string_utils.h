@@ -107,6 +107,9 @@ inline std::string activation_type_to_str(activation_func activation) {
     case activation_func::gelu_tanh: return "gelu_tanh";
     case activation_func::round_half_to_even: return "round_half_to_even";
     case activation_func::round_half_away_from_zero: return "round_half_away_from_zero";
+    case activation_func::is_finite: return "is_finite";
+    case activation_func::is_inf: return "is_inf";
+    case activation_func::is_nan: return "is_nan";
     default: return "unknown activation";
     }
 }
