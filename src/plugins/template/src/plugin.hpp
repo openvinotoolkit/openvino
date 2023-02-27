@@ -12,7 +12,8 @@
 #include "template_config.hpp"
 
 //! [plugin:header]
-namespace TemplatePlugin {
+namespace ov {
+namespace template_plugin {
 
 class Plugin : public ov::IPlugin {
 public:
@@ -46,7 +47,7 @@ public:
                                     const ov::AnyMap& properties) const override;
 
 private:
-    friend class TemplatePlugin::CompiledModel;
+    friend class CompiledModel;
     friend class InferRequest;
 
     std::shared_ptr<ngraph::runtime::Backend> _backend;
@@ -54,5 +55,6 @@ private:
     std::shared_ptr<ov::threading::ITaskExecutor> _waitExecutor;
 };
 
-}  // namespace TemplatePlugin
+}  // namespace template_plugin
+}  // namespace ov
    //! [plugin:header]
