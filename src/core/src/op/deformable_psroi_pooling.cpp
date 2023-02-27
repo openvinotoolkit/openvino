@@ -106,3 +106,11 @@ shared_ptr<Node> op::v1::DeformablePSROIPooling::clone_with_new_inputs(const Out
         throw ngraph_error("Not supported number of DeformablePSROIPooling args");
     }
 }
+
+void op::v1::DeformablePSROIPooling::set_output_dim(int64_t output_dim) {
+    m_output_dim = output_dim;
+}
+
+void op::v1::DeformablePSROIPooling::set_group_size(int64_t group_size) {
+    m_group_size = group_size;
+}
