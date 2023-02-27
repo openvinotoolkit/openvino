@@ -43,13 +43,12 @@ void PluginConfig::set_property(const ov::AnyMap& properties) {
         auto& val = kv.second;
         if (is_supported(kv.first)) {
             OPENVINO_ASSERT(property_validators.at(name)->is_valid(val),
-                    "[AUTO]", "Invalid value for property ", name,  ": ", val.as<std::string>());
+                    "Invalid value for property ", name,  ": ", val.as<std::string>());
             internal_properties[name] = val;
             // when user call set_property to set some config to plugin, we also respect this and pass through the config in this case
             user_properties[name] = val;
         } else {
-            OPENVINO_ASSERT(false,
-                    "[AUTO]", "property", name,  ": not supported");
+            OPENVINO_ASSERT(false, "property:", name,  ": not supported");
         }
     }
 }
@@ -78,7 +77,7 @@ void PluginConfig::set_user_property(const ov::AnyMap& config, bool checkfirstle
         auto& val = kv.second;
         if (is_supported(name)) {
             OPENVINO_ASSERT(property_validators.at(name)->is_valid(val),
-                        "[AUTO]", "Invalid value for property ", name,  ": ", val.as<std::string>());
+                        "Invalid value for property ", name,  ": ", val.as<std::string>());
             internal_properties[kv.first] = kv.second;
             user_properties[kv.first] = kv.second;
         } else {
@@ -87,8 +86,7 @@ void PluginConfig::set_user_property(const ov::AnyMap& config, bool checkfirstle
             } else if (!checkfirstlevel) { // for multi, accept it anyway when compiled model
                 user_properties[kv.first] = kv.second;
             } else {
-                OPENVINO_ASSERT(false,
-                    "[AUTO]", "property", name,  ": not supported");
+                OPENVINO_ASSERT(false, "property", name,  ": not supported");
             }
         }
     }

@@ -164,15 +164,19 @@ public:
             // the whole config is RW before network is loaded.
             std::vector<ov::PropertyName> rwProperties{RW_property(ov::hint::model_priority.name()),
                                                        RW_property(ov::log::level.name()),
-                                                       RW_property(ov::device::priorities.name()),
                                                        RW_property(ov::enable_profiling.name()),
-                                                       RW_property(ov::hint::allow_auto_batching.name()),
-                                                       RW_property(ov::auto_batch_timeout.name()),
                                                        RW_property(ov::hint::performance_mode.name()),
                                                        RW_property(ov::hint::num_requests.name()),
+                                                       // used internally
+                                                       RW_property(ov::device::priorities.name()),
                                                        RW_property(ov::intel_auto::device_bind_buffer.name()),
-                                                       RW_property(ov::cache_dir.name()),
-                                                       RW_property(exclusive_asyc_requests.name())};
+                                                       RW_property(ov::intel_auto::enable_startup_fallback.name()),
+                                                       // legacy
+                                                       RW_property(exclusive_asyc_requests.name()),
+                                                       // to be removed
+                                                       RW_property(ov::hint::allow_auto_batching.name()),
+                                                       RW_property(ov::auto_batch_timeout.name()),
+                                                       RW_property(ov::cache_dir.name())};
             std::vector<ov::PropertyName> supportedProperties;
             supportedProperties.reserve(roProperties.size() + rwProperties.size());
             supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
@@ -239,7 +243,6 @@ private:
     ov::AnyMap user_properties; // user set properties, including secondary properties
     ov::AnyMap full_properties; // combined with user set properties, including secondary properties
     std::map<std::string, BaseValidator::Ptr> property_validators;
-    //std::string plugin_name;
     BaseValidator::Ptr device_property_validator;
     static const std::set<std::string> _availableDevices;
 };
