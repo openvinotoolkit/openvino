@@ -31,7 +31,7 @@ static PartShape getTestShape_2in_2out_dynbatch() {
 
 static PartShape getTestShape_conv2d() {
     PartShape res;
-    res.m_modelName = "conv2d_s/conv2d.pdmodel";
+    res.m_modelName = "conv2d/conv2d.pdmodel";
     res.m_tensorName = "x";
     res.m_oldPartialShape = PartialShape{1, 3, 4, 4};
     res.m_newPartialShape = PartialShape{1, 3, 8, 8};
@@ -40,7 +40,7 @@ static PartShape getTestShape_conv2d() {
 
 static PartShape getTestShape_conv2d_setDynamicBatch() {
     PartShape res;
-    res.m_modelName = "conv2d_s/conv2d.pdmodel";
+    res.m_modelName = "conv2d/conv2d.pdmodel";
     res.m_tensorName = "x";
     res.m_oldPartialShape = PartialShape{1, 3, 4, 4};
     res.m_newPartialShape = PartialShape{Dimension::dynamic(), 3, 8, 8};

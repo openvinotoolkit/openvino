@@ -24,6 +24,7 @@ OP_CONVERTER(conv2d);
 OP_CONVERTER(conv2d_transpose);
 OP_CONVERTER(cumsum);
 OP_CONVERTER(deformable_conv);
+OP_CONVERTER(dequantize_linear);
 OP_CONVERTER(dropout);
 OP_CONVERTER(elementwise_add);
 OP_CONVERTER(elementwise_div);
@@ -73,6 +74,7 @@ OP_CONVERTER(pad3d);
 OP_CONVERTER(pow);
 OP_CONVERTER(pool2d);
 OP_CONVERTER(prior_box);
+OP_CONVERTER(quantize_linear);
 OP_CONVERTER(range);
 OP_CONVERTER(reduce_max);
 OP_CONVERTER(reduce_mean);
@@ -135,6 +137,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"deformable_conv_v1", op::deformable_conv},
             {"depthwise_conv2d", op::conv2d},
             {"depthwise_conv2d_transpose", op::conv2d_transpose},
+            {"dequantize_linear", op::dequantize_linear},
             {"dropout", op::dropout},
             {"elementwise_add", op::elementwise_add},
             {"elementwise_div", op::elementwise_div},
@@ -187,6 +190,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"pow", op::pow},
             {"pool2d", op::pool2d},
             {"prior_box", op::prior_box},
+            {"quantize_linear", op::quantize_linear},
             {"range", op::range},
             {"reduce_max", op::reduce_max},
             {"reduce_mean", op::reduce_mean},

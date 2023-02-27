@@ -34,9 +34,9 @@ def batch_norm1(name : str, x, scale, bias, mean, var, data_layout):
 
     outs = exe.run(
         feed={'x': x},
-        fetch_list=[out])             
+        fetch_list=[out])
 
-    saveModel(name, exe, feedkeys=['x'], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
+    saveModel(name, exe, feedkeys=[node_x], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1], use_static_api=True)
 
     return outs[0]
 
@@ -67,7 +67,7 @@ def batch_norm2(name : str, x, scale, bias, mean, var, data_layout):
         feed={'x': x},
         fetch_list=[out])
 
-    saveModel(name, exe, feedkeys=['x'], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1])
+    saveModel(name, exe, feedkeys=[node_x], fetchlist=[out], inputs=[x], outputs=[outs[0]], target_dir=sys.argv[1], use_static_api=True)
 
     return outs[0]
 
@@ -89,4 +89,4 @@ def main():
     batch_norm2("batch_norm_nhwc", data, scale, bias, mean, var, "NHWC")
 
 if __name__ == "__main__":
-    main()     
+    main()
