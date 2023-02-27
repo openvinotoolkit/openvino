@@ -21,6 +21,10 @@ namespace InferenceEngine {
 
 static constexpr size_t invalid_data_idx = std::numeric_limits<size_t>::max();
 
+inline bool DoNotSkip(CNNLayerPtr layer) {
+    return false;
+};
+
 // compares data, for copied network and in old network
 inline bool areEqualDatas(DataPtr source, DataPtr target) {
     if (source.get() == target.get()) {
@@ -691,6 +695,47 @@ std::vector<std::pair<CNNLayerPtr, int>> CNNNetGetPrevLayersSkip(CNNLayerPtr ori
     }
 
     return prevLayers;
+}
+
+/**
+ * @brief Removes 'to_remove' layer from between two other - 'prev' and 'next', then connects 'prev' and 'next'
+ * @param prev           Layer before 'to_remove'
+ * @param to_remove      Layer to be removed
+ * @param prevOutputNo   Output number of 'prev', which will be connected with 'next'
+ * @param nextInputNo    Input number of 'next', which will be connected with 'prev'
+ * @return true if layer was removed, otherwise return false
+ */
+
+inline bool CNNRemoveAndConnect(CNNLayerPtr prev, CNNLayerPtr to_remove, int prevOutputNo = 0, int nextInputNo = 0) {
+    CNNLayerPtr next = CNNNetCheckNextLayerSkipCertain(to_remove, 0, 0, true, DoNotSkip).first;
+
+    if (!prev || !next) {
+        return false;
+    }
+
+    IE_ASSERT(prev->outData.size() > 0);
+    IE_ASSERT(next->outData.size() > 0);
+
+    if (to_remove->outData.size() != 1) {
+        // Cannot remove layer, which has different number of outputs than 1
+        return false;
+    }
+
+    // Get first output ptr of 'prev'
+    auto prevDPtr = prev->outData[prevOutputNo];
+
+    // Assign first output of 'prev' to first input of 'next'
+    next->insData[nextInputNo] = prevDPtr;
+
+    // Add 'next' to inputTo map of 'prev',
+    // so now it will point 'next' as a layer, which uses 'prev' as its input.
+    auto& prevInputToMap = getInputTo(prevDPtr);
+    prevInputToMap[next->name] = next;
+
+    // Remove reference to 'to_remove' from inputTo map of 'prev'
+    prevInputToMap.erase(to_remove->name);
+
+    return true;
 }
 
 /**
