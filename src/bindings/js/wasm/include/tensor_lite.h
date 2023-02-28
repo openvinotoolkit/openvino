@@ -21,6 +21,6 @@ public:
   std::vector<float> get_vector();
 private:
   ov::element::Type type;
-  ShapeLite* shape;
+  std::shared_ptr<ShapeLite> shape;
   std::vector<float> tensor;
 };
