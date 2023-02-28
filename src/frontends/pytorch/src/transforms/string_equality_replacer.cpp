@@ -22,13 +22,6 @@ namespace pass {
 using namespace ov::pass;
 using namespace ov::op;
 
-std::string get_str_val(const std::shared_ptr<PtFrameworkNode> fw_node) {
-    FRONT_END_OP_CONVERSION_CHECK(fw_node, "Framework node does not exist.");
-    auto attrs = fw_node->get_attrs();
-    FRONT_END_OP_CONVERSION_CHECK(attrs.find("string_value") != attrs.end(), "Could not retrieve string value.");
-    return attrs.at("string_value");
-}
-
 StringEqualityReplacer::StringEqualityReplacer() {
     auto framework_node_lhs = pattern::wrap_type<PtFrameworkNode>();
     auto framework_node_rhs = pattern::wrap_type<PtFrameworkNode>();
@@ -46,14 +39,22 @@ StringEqualityReplacer::StringEqualityReplacer() {
         if (!lhs_node) {
             return false;
         }
-        std::string lhs = get_str_val(lhs_node);
+        auto lhs_attrs = lhs_node->get_attrs();
+        if (lhs_attrs.find("string_value") == lhs_attrs.end()) {
+            return false;
+        }
+        std::string lhs = lhs_attrs.at("string_value");
 
         auto rhs_node =
             std::dynamic_pointer_cast<PtFrameworkNode>(pattern_map.at(framework_node_rhs).get_node_shared_ptr());
         if (!rhs_node) {
             return false;
         }
-        std::string rhs = get_str_val(rhs_node);
+        auto rhs_attrs = rhs_node->get_attrs();
+        if (rhs_attrs.find("string_value") == rhs_attrs.end()) {
+            return false;
+        }
+        std::string rhs = rhs_attrs.at("string_value");
 
         auto equal_node = pattern_map.at(equal_op).get_node_shared_ptr();
         if (auto equal = std::dynamic_pointer_cast<v1::Equal>(equal_node)) {
