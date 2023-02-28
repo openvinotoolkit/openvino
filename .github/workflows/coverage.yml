@@ -270,8 +270,8 @@ jobs:
           cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P $(BUILD_DIR)/cmake_install.cmake
 
       - name: List install test files
-        runs: |
-          ls -alR $(INSTALL_DIR)
+        run: ls -alR $(INSTALL_DIR)
+
       - name: nGraph and IE Python Bindings Tests
         runs: |
           . $(PY_VENV)/bin/activate
