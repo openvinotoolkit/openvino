@@ -8,9 +8,13 @@
 class ShapeLite {
 public:
   ShapeLite(uintptr_t data, int dim);
+  ShapeLite(ov::Shape* shape);
+  
   uintptr_t get_data();
   int get_dim();
+  int shape_size();
+  std::string to_string();
+  
 private:
-  uintptr_t data;
-  int dim;
+  std::vector<uint16_t> shape;
 };
