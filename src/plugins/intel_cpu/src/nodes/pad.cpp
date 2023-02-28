@@ -70,7 +70,7 @@ Pad::Pad(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr conte
     shapeHasDataDependency = !ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(PADS_BEGIN_ID)) ||
             !ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(PADS_END_ID));
 
-    auto fillingInParameters = [&](std::vector<int>& parameter, const size_t type) {
+    auto fillingInParameters = [&](VectorIdxs& parameter, const size_t type) {
         if (type < PADS_BEGIN_ID)
             return;
 
@@ -238,7 +238,7 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
     params.dataSize = params.attrs.prc.size();
 
     auto fillingInParameters =
-        [&](std::vector<int>& parameter, const size_t type, const size_t size, const int value) {
+        [&](VectorIdxs& parameter, const size_t type, const size_t size, const int value) {
             const int* ptr = reinterpret_cast<const int32_t*>(srcMemory[type]->GetPtr());
             parameter.resize(size);
             for (size_t i = 0; i < size; i++) {
