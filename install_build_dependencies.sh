@@ -29,6 +29,8 @@ if [ -f /etc/lsb-release ] || [ -f /etc/debian_version ] ; then
         file \
         `# build tools` \
         build-essential \
+        ninja-build \
+        scons \
         ccache \
         "${cmake_packages[@]}" \
         "${x86_64_specific_packages[@]}" \
@@ -93,6 +95,8 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
         `# build tools` \
         cmake3 \
         ccache \
+        ninja-build \
+        scons \
         gcc \
         gcc-c++ \
         make \
@@ -121,6 +125,46 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
         `# samples and tools` \
         zlib-devel \
         gflags-devel
+elif [ -f /etc/os-release ] && grep -q "SUSE" /etc/os-release ; then
+    zypper refresh
+    zypper install -y \
+        file \
+        `# build tools` \
+        cmake \
+        ccache \
+        ninja \
+        scons \
+        gcc \
+        gcc-c++ \
+        make \
+        `# to determine openvino version via git` \
+        git \
+        git-lfs \
+        `# to build and check pip packages` \
+        patchelf \
+        fdupes \
+        `# to build and check rpm packages` \
+        rpm-build \
+        rpmlint \
+        `# check bash scripts for correctness` \
+        ShellCheck \
+          `# main openvino dependencies` \
+        tbb-devel \
+        pugixml-devel \
+        `# GPU plugin dependency` \
+         libva-devel \
+        `# OpenCL for GPU` \
+        ocl-icd-devel \
+        opencl-cpp-headers \
+        opencl-headers \
+        `# python API` \
+        python39-pip \
+        python39-setuptools \
+        python39-devel \
+        `# samples and tools` \
+        zlib-devel \
+        gflags-devel-static \
+        nlohmann_json-devel
 elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
     # Raspbian
     apt update
@@ -129,6 +173,8 @@ elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
         `# build tools` \
         build-essential \
         ccache \
+        ninja-build \
+        scons \
         `# to find dependencies` \
         pkg-config \
         `# to deternime product version via git` \
@@ -170,8 +216,10 @@ if [ ! "$(printf '%s\n' "$required_cmake_ver" "$current_cmake_ver" | sort -V | h
 
     if command -v apt-get &> /dev/null; then
         apt-get install -y --no-install-recommends wget
-    else
+    elif command -v yum &> /dev/null; then
         yum install -y wget
+    elif command -v zypper &> /dev/null; then
+        zypper in -y wget
     fi
 
     cmake_install_bin="cmake-${installed_cmake_ver}-linux-${arch}.sh"

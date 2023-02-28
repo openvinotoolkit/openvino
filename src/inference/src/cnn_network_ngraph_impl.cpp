@@ -152,7 +152,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
         REGISTER_PASS(m, FixRtInfo)
         REGISTER_PASS(m, EliminateScatterUpdate)
         REGISTER_PASS(m, RemoveConcatZeroDimInput)
-        REGISTER_PASS(m, RemoveMultiSubGraphOpDanglingParams)
+        REGISTER_PASS(m, RemoveMultiSubGraphOpDanglingParamsResults)
         REGISTER_PASS(m, FoldSubgraphEmptyInputs)
         m.run_passes(_ngraph_function);
     }
