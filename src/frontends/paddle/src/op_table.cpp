@@ -90,6 +90,7 @@ OP_CONVERTER(roi_align);
 OP_CONVERTER(scale);
 OP_CONVERTER(select_input);
 OP_CONVERTER(shape);
+OP_CONVERTER(silu);
 OP_CONVERTER(slice);
 OP_CONVERTER(softmax);
 OP_CONVERTER(softplus);
@@ -206,6 +207,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"scale", op::scale},
             {"select_input", op::select_input},
             {"shape", op::shape},
+            {"silu", op::silu},
             {"slice", op::slice},
             {"softmax", op::softmax},
             {"softplus", op::softplus},
