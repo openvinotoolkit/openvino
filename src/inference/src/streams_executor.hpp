@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-namespace InferenceEngine {
+namespace ov {
 
 #ifdef __linux__
 /**
@@ -55,4 +55,4 @@ void parse_processor_info_win(const char* base_ptr,
                               std::vector<std::vector<int>>& _cpu_mapping_table);
 #endif
 
-}  // namespace InferenceEngine
+}  // namespace ov
