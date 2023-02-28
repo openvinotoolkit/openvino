@@ -20,6 +20,7 @@ ov::template_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Mode
                                                   const std::shared_ptr<const ov::IPlugin>& plugin,
                                                   const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
                                                   const Configuration& cfg)
+    // FIXME: Remote last nullptr arg
     : ov::ICompiledModel(model, plugin, task_executor, nullptr),  // Disable default threads creation
       _cfg(cfg),
       m_model(model) {

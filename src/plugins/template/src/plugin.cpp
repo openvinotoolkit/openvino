@@ -96,7 +96,7 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
     auto compiled_model =
         std::make_shared<CompiledModel>(model->clone(),
                                         shared_from_this(),
-                                        nullptr,
+                                        nullptr, // FIXME: Revert back get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig) instead of nullptr
                                         fullConfig);
     return compiled_model;
 }
