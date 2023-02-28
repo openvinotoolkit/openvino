@@ -94,6 +94,7 @@ set(SRC
     telemetry.cpp
     lib_close.cpp
     model_support_tests.cpp
+    onnx_ops_registration.cpp
     onnx_reader_external_data.cpp
     skip_tests_config.cpp)
 
