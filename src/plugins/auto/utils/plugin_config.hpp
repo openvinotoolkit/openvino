@@ -48,6 +48,24 @@ public:
     }
 };
 
+class UnsignedTypeValidator : public BaseValidator {
+public:
+    bool is_valid(const ov::Any& v) const override {
+        int val_i = -1;
+        try {
+            // work around for negative value check (inconsistent behavior on windows/linux)
+            auto val = v.as<std::string>();
+            val_i = std::stoi(val);
+            if (val_i >= 0)
+                return true;
+            else
+                throw std::logic_error("wrong val");
+        } catch (ov::Exception&) {
+            return false;
+        }
+    }
+};
+
 class PluginConfig {
 public:
     PluginConfig();
@@ -76,6 +94,19 @@ public:
     void register_property_impl(const std::tuple<ov::Property<T, mutability>, ValueT>& property, PropertyInitializer&&... properties) {
         auto p = std::get<0>(property)(std::get<1>(property));
         auto v = std::dynamic_pointer_cast<BaseValidator>(std::make_shared<PropertyTypeValidator<T>>());
+        register_property_impl(std::move(p), std::move(v));
+        register_property_impl(properties...);
+    }
+
+    template <typename T,
+              ov::PropertyMutability mutability,
+              typename ValueT,
+              typename ValidatorT,
+              typename... PropertyInitializer>
+    typename std::enable_if<std::is_base_of<BaseValidator, ValidatorT>::value, void>::type
+    register_property_impl(const std::tuple<ov::Property<T, mutability>, ValueT, ValidatorT>& property, PropertyInitializer&&... properties) {
+        auto p = std::get<0>(property)(std::get<1>(property));
+        auto v = std::dynamic_pointer_cast<BaseValidator>(std::make_shared<ValidatorT>(std::get<2>(property)));
         register_property_impl(std::move(p), std::move(v));
         register_property_impl(properties...);
     }
