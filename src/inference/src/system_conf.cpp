@@ -8,8 +8,8 @@
 #include <cstring>
 #include <vector>
 
-#include "openvino/core/visibility.hpp"
 #include "dev/threading/parallel_custom_arena.hpp"
+#include "openvino/core/visibility.hpp"
 
 #define XBYAK_NO_OP_NAMES
 #define XBYAK_UNDEF_JNL
