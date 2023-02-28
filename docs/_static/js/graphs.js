@@ -289,9 +289,9 @@ class Graph {
             case 'int8':
                 return { data: null, color: '#00C7FD', label: 'FPS (INT8)' };
             case 'fp16':
-                return { data: null, color: '#0068B5', label: 'FPS (FP16)' };
+                return { data: null, color: '#009fca', label: 'FPS (FP16)' };
             case 'fp32':
-                return { data: null, color: '#00C7FD', label: 'FPS (FP32)' };
+                return { data: null, color: '#007797', label: 'FPS (FP32)' };
             default:
                 return {};
         }
