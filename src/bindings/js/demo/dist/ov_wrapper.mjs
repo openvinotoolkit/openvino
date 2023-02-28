@@ -1,3 +1,6 @@
+import Tensor from "../../common/tensor.mjs";
+import Shape from "../../common/shape.mjs";
+
 export default { initialize };
 
 async function initialize(openvinojs) {
@@ -21,15 +24,16 @@ function loadModel(ov) {
     uploadFile(ov, xmlFilename, xmlData);
     uploadFile(ov, binFilename, binData);
 
-    const session = new ov.Session(xmlFilename, binFilename, shape, layout);
+    const originalShape = shape.convert(ov);
+    const session = new ov.Session(xmlFilename, binFilename, originalShape.obj, layout);
 
     // Do not freeze UI wrapper
     return { 
-      run: (data) => {
+      run: (tensor) => {
         const run = runInference(ov, session);
         
         return new Promise(resolve => {
-          setTimeout(() => resolve(run(data)), 0)
+          setTimeout(() => resolve(run(tensor)), 0)
         });
       }
     };
@@ -37,27 +41,21 @@ function loadModel(ov) {
 }
 
 function runInference(ov, session) {
-  return inputData => {
-    let heapSpace = null;
-    let heapResult = null;
-    try {
-      heapSpace = ov._malloc(inputData.length*inputData.BYTES_PER_ELEMENT);
-      ov.HEAPU8.set(inputData, heapSpace); 
+  return tensor => {
+    let originalTensor;
+    let originalOutputTensor; 
 
+    try {
       console.time('== Inference time');
-      heapResult = session.run(heapSpace, inputData.length);
+      originalTensor = tensor.convert(ov);
+      originalOutputTensor = session.run(originalTensor.obj);
       console.timeEnd('== Inference time');
     } finally {
-      ov._free(heapSpace);
+      if (originalTensor) originalTensor.free();
     }
 
-    const outputTensorSize = session.outputTensorSize;
-    const outputTensorData = [];
-    for (let v = 0; v < outputTensorSize; v++) {
-      outputTensorData.push(ov.HEAPF32[heapResult/Float32Array.BYTES_PER_ELEMENT + v]);
-    }
 
-    return outputTensorData;
+    return originalOutputTensor ? Tensor.parse(ov, originalOutputTensor) : null;
   };
 }
 

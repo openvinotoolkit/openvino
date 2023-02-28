@@ -54,9 +54,13 @@ export default class Shape {
   convert(ov) {
     return Shape.convert(ov, this);
   }
+
+  toString() {
+    return `[${this.#dimensions.join(',')}]`;
+  }
 };
 
-/*
+/* # Demo of usage:
 
 // const s = new Shape([1, 224, 224, 3]);
 const shapeExample = new Shape(1, 224, 224, 3);

@@ -22,9 +22,3 @@ public:
     OPENVINO_RTTI("ConvertDepthToSpace", "0");
     ConvertDepthToSpace();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertDepthToSpace;
-}  // namespace pass
-}  // namespace ngraph

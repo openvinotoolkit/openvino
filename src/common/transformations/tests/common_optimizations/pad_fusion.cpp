@@ -36,7 +36,7 @@ TEST_F(TransformationTestsF, PadElimination) {
                                                           CoordinateDiff{1, 1},
                                                           Shape{1, 1});
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
-        manager.register_pass<pass::EliminatePad>();
+        manager.register_pass<ov::pass::EliminatePad>();
     }
     {
         auto data = std::make_shared<opset5::Parameter>(element::i32, data_shape);
@@ -67,7 +67,7 @@ TEST_F(TransformationTestsF, PadFusionAvgPoolExcludePad) {
                                                           true,
                                                           op::RoundingType::FLOOR);
         function = std::make_shared<Function>(NodeVector{avg_pool}, ParameterVector{data});
-        manager.register_pass<pass::PadFusion>();
+        manager.register_pass<ov::pass::PadFusion>();
     }
     {
         auto data = std::make_shared<opset5::Parameter>(element::i32, data_shape);
@@ -98,7 +98,7 @@ TEST_F(TransformationTestsF, PadFusionAvgPoolDontExcludePad) {
                                                           false,
                                                           op::RoundingType::FLOOR);
         function = std::make_shared<Function>(NodeVector{avg_pool}, ParameterVector{data});
-        manager.register_pass<pass::PadFusion>();
+        manager.register_pass<ov::pass::PadFusion>();
     }
     {
         auto data = std::make_shared<opset5::Parameter>(element::i32, data_shape);
@@ -129,7 +129,7 @@ TEST_F(TransformationTestsF, PadFusionConvolution) {
                                                           CoordinateDiff{1, 1},
                                                           Shape{1, 1});
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
-        manager.register_pass<pass::PadFusion>();
+        manager.register_pass<ov::pass::PadFusion>();
     }
     {
         auto data = std::make_shared<opset5::Parameter>(element::i32, data_shape);
@@ -162,7 +162,7 @@ TEST_F(TransformationTestsF, PadFusionConvolutionBackpropData) {
                                                                       Shape{1, 1});
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
-        manager.register_pass<pass::PadFusion>();
+        manager.register_pass<ov::pass::PadFusion>();
     }
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
@@ -194,7 +194,7 @@ TEST_F(TransformationTestsF, PadFusionGroupConvolution) {
                                                                Shape{1, 1});
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
-        manager.register_pass<pass::PadFusion>();
+        manager.register_pass<ov::pass::PadFusion>();
     }
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
@@ -225,7 +225,7 @@ TEST_F(TransformationTestsF, PadFusionGroupConvolutionBackpropData) {
                                                                            CoordinateDiff{4, 3},
                                                                            Shape{1, 1});
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
-        manager.register_pass<pass::PadFusion>();
+        manager.register_pass<ov::pass::PadFusion>();
     }
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
@@ -257,7 +257,7 @@ TEST_F(TransformationTestsF, PadFusionAvgPoolNonConstPadValue) {
                                                           true,
                                                           op::RoundingType::FLOOR);
         function = std::make_shared<Function>(NodeVector{avg_pool}, ParameterVector{data});
-        manager.register_pass<pass::PadFusion>();
+        manager.register_pass<ov::pass::PadFusion>();
     }
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
@@ -290,7 +290,7 @@ TEST_F(TransformationTestsF, PadFusionConvolutionNonConstPadValue) {
                                                           CoordinateDiff{1, 1},
                                                           Shape{1, 1});
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
-        manager.register_pass<pass::PadFusion>();
+        manager.register_pass<ov::pass::PadFusion>();
     }
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
@@ -325,7 +325,7 @@ TEST_F(TransformationTestsF, PadFusionConvolutionBackpropDataNonConstPadValue) {
                                                                       Shape{1, 1});
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
-        manager.register_pass<pass::PadFusion>();
+        manager.register_pass<ov::pass::PadFusion>();
     }
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
@@ -359,7 +359,7 @@ TEST_F(TransformationTestsF, PadFusionGroupConvolutionNonConstPadValue) {
                                                                Shape{1, 1});
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
-        manager.register_pass<pass::PadFusion>();
+        manager.register_pass<ov::pass::PadFusion>();
     }
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
@@ -392,7 +392,7 @@ TEST_F(TransformationTestsF, PadFusionGroupConvolutionBackpropDataNonConstPadVal
                                                                            CoordinateDiff{4, 3},
                                                                            Shape{1, 1});
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
-        manager.register_pass<pass::PadFusion>();
+        manager.register_pass<ov::pass::PadFusion>();
     }
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);
@@ -422,7 +422,7 @@ TEST_F(TransformationTestsF, NegativePadFusionNonConstantPadMode) {
                                                           CoordinateDiff{1, 1},
                                                           Shape{1, 1});
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
-        manager.register_pass<pass::PadFusion>();
+        manager.register_pass<ov::pass::PadFusion>();
     }
     {
         auto data = std::make_shared<opset5::Parameter>(element::i32, data_shape);
@@ -456,7 +456,7 @@ TEST_F(TransformationTestsF, NegativePadFusionNonZeroPadValue) {
                                                           CoordinateDiff{1, 1},
                                                           Shape{1, 1});
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
-        manager.register_pass<pass::PadFusion>();
+        manager.register_pass<ov::pass::PadFusion>();
     }
     {
         auto data = std::make_shared<opset5::Parameter>(element::i32, data_shape);
@@ -491,7 +491,7 @@ TEST_F(TransformationTestsF, NegativePadFusionPadForBatchSize) {
                                                           CoordinateDiff{1, 1},
                                                           Shape{1, 1});
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
-        manager.register_pass<pass::PadFusion>();
+        manager.register_pass<ov::pass::PadFusion>();
     }
     {
         auto data = std::make_shared<opset5::Parameter>(element::i32, data_shape);
@@ -525,7 +525,7 @@ TEST_F(TransformationTestsF, NegativePadFusionAvgPoolExcludePadNonZeroPads) {
                                                           true,
                                                           op::RoundingType::FLOOR);
         function = std::make_shared<Function>(NodeVector{avg_pool}, ParameterVector{data});
-        manager.register_pass<pass::PadFusion>();
+        manager.register_pass<ov::pass::PadFusion>();
     }
     {
         auto data = std::make_shared<opset5::Parameter>(element::i32, data_shape);
@@ -561,7 +561,7 @@ TEST_F(TransformationTestsF, NegativePadFusionConvolutionBackpropDataTooSmallPad
                                                                       Shape{1, 1});
 
         function = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data, filters});
-        manager.register_pass<pass::PadFusion>();
+        manager.register_pass<ov::pass::PadFusion>();
     }
     {
         auto data = std::make_shared<opset5::Parameter>(element::f32, data_shape);

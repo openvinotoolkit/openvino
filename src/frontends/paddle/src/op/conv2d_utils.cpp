@@ -71,10 +71,10 @@ std::shared_ptr<Node> get_reshaped_filter(const Output<Node>& filters, const int
      *  The final grouped filters' layout is [groups, grouped_O, I, W, H]
      */
     const std::vector<size_t> o_indices{0};
-    auto filter_o_node = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(filters, o_indices);
+    auto filter_o_node = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(filters, o_indices);
 
     const std::vector<size_t> ihw_indices{1, 2, 3};
-    auto filter_ihw_node = ngraph::op::util::node_to_get_shape_value_of_indices_from_shape_source(filters, ihw_indices);
+    auto filter_ihw_node = ov::op::util::node_to_get_shape_value_of_indices_from_shape_source(filters, ihw_indices);
 
     auto groups_node = opset6::Constant::create(element::i64, Shape{1}, {groups});
     auto grouped_o_node = std::make_shared<opset6::Divide>(filter_o_node, groups_node);

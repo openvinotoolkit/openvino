@@ -9,8 +9,10 @@ std::shared_ptr<ov::Model> loadModel(std::string xml_path, std::string bin_path)
 		std::cout << xml_path << std::endl;
 
 		return core.read_model(xml_path, bin_path);
-	} catch(std::exception e) {
-		std::cout << "== Was error 123: " << e.what() << std::endl;
+	} 
+	catch(const std::exception& e) {
+		std::cout << "== Error in load_model: " << e.what() << std::endl;
+		throw e;
 	}
 }
 
@@ -20,24 +22,21 @@ ov::CompiledModel compileModel(std::shared_ptr<ov::Model> model, std::string sha
 	ov::Core core;
 	std::cout << "== Model name: " << model->get_friendly_name() << std::endl;
 
-	std::cout << "=== 22" << std::endl;
 	ov::element::Type input_type = ov::element::u8;
-	std::cout << "=== 33" << std::endl;
 	ov::preprocess::PrePostProcessor ppp(model);
 	ppp.input().tensor().set_shape(shape).set_element_type(input_type).set_layout(tensor_layout);
 	ppp.input().preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
 	ppp.output().tensor().set_element_type(ov::element::f32);
 	ppp.input().model().set_layout(tensor_layout);
 	ppp.build();
-	std::cout << "=== 44" << std::endl;
 	ov::CompiledModel compiled_model;
 	std::string backend = "TEMPLATE";
 	try {
 		compiled_model = core.compile_model(model, backend);
-	} catch(std::exception e) {
-		std::cout << "== Was error 2: " << e.what() << std::endl;
+	} catch(const std::exception& e) {
+		std::cout << "== Error in compile_model: " << e.what() << std::endl;
+		throw e;
 	}
-	std::cout << "=== 55" << std::endl;
 
 	return compiled_model;
 }

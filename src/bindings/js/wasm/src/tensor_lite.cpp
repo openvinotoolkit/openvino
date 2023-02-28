@@ -6,31 +6,58 @@
 #include "../include/tensor_lite.h"
 #include "../include/shape_lite.h"
 
-TensorLite::TensorLite(ov::element::Type type, uintptr_t data_buffer, ShapeLite* shape) {
-  this->type = type;
-  this->data_buffer = data_buffer;
-  this->shape = shape;
+std::vector<float> to_vector(uintptr_t data_buffer, int length) {
+  std::vector<float> vector;
+
+  float* data_array = reinterpret_cast<float*>(data_buffer);
+
+  for (int i = 0; i < length; i++) {
+    vector.push_back(data_array[i]);
+  }
+
+  return vector;
 }
 
-TensorLite::TensorLite(std::string typeStr, uintptr_t data_buffer, ShapeLite* shape) {
-  this->type = ov::element::f16;
-  this->data_buffer = data_buffer;
+TensorLite::TensorLite(ov::element::Type type, uintptr_t data_buffer, ShapeLite* shape) {
+  this->type = type;
   this->shape = shape;
+  this->tensor = to_vector(data_buffer, this->shape->shape_size());
+}
+
+TensorLite::TensorLite(std::string type_str, uintptr_t data_buffer, ShapeLite* shape) {
+  // FIXME: replace hardcoded precision
+  this->type = ov::element::f32;
+  this->shape = shape;
+  this->tensor = to_vector(data_buffer, this->shape->shape_size());
+}
+
+TensorLite::TensorLite(ov::Tensor* tensor) {
+  ov::Shape originalShape = tensor->get_shape();
+
+  int tensor_size = tensor->get_size();
+  auto data_tensor = reinterpret_cast<float*>(tensor->data(ov::element::f32)); 
+
+	for (int i = 0; i < tensor_size; i++) { 
+		this->tensor.push_back(data_tensor[i]);
+	}
+
+  // FIXME: replace hardcoded precision
+  this->type = ov::element::f32;
+  this->shape = new ShapeLite(&originalShape);
 }
 
 ShapeLite* TensorLite::get_shape() {
-  // std::string s = "float16";
-  // std::cout << "= Val: " << this->type << std::endl;
-
   return this->shape;
 }
 
 uintptr_t TensorLite::get_data() {
-  return this->data_buffer;
+  return uintptr_t(&this->tensor[0]);
 }
 
 std::string get_precision() {
-  std::string s = "float16";
+  return "float32";
+}
 
-  return s + "123";
+std::vector<float> TensorLite::get_vector() {
+  return this->tensor;
 }

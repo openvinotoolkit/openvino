@@ -5,8 +5,9 @@
 #pragma once
 
 #include <cstdint>
-#include "openvino/runtime/intel_gna/properties.hpp"
+
 #include "gna/gna_config.hpp"
+#include "openvino/runtime/intel_gna/properties.hpp"
 
 namespace ov {
 namespace intel_gna {

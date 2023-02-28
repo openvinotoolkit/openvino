@@ -46,11 +46,8 @@ std::shared_ptr<Node> ov::op::v0::SpaceToDepth::clone_with_new_inputs(const Outp
 void ngraph::op::v0::SpaceToDepth::validate_and_infer_types() {
     OV_OP_SCOPE(v0_SpaceToDepth_validate_and_infer_types);
 
-    const auto& data_type = get_input_element_type(0);
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    const std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0)};
-    shape_infer(this, input_shapes, output_shapes);
-    set_output_type(0, data_type, output_shapes[0]);
+    const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
+    set_output_type(0, get_input_element_type(0), output_shape);
 }
 
 namespace {
@@ -85,6 +82,14 @@ bool ngraph::op::v0::SpaceToDepth::evaluate(const HostTensorVector& outputs, con
 bool ngraph::op::v0::SpaceToDepth::has_evaluate() const {
     OV_OP_SCOPE(v0_SpaceToDepth_has_evaluate);
     return !get_input_partial_shape(0).is_dynamic();
+}
+
+void op::v0::SpaceToDepth::set_block_size(size_t block_size) {
+    m_blocksize = block_size;
+}
+
+void op::v0::SpaceToDepth::set_mode(SpaceToDepthMode mode) {
+    m_mode = mode;
 }
 
 std::ostream& ov::operator<<(std::ostream& s, const op::v0::SpaceToDepth::SpaceToDepthMode& type) {

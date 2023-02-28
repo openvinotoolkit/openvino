@@ -29,9 +29,9 @@ export default class Tensor {
   static parse(ov, originalTensor) {
     // FIXME:
     // const precison = originalTensor.getPrecision();
-    const precison = 'float32';
+    const precision = 'float32';
     const shape = Shape.parse(ov, originalTensor.getShape());
-    const dataType = jsTypeByPrecisionMap[precison];
+    const dataType = jsTypeByPrecisionMap[precision];
     const heapTypeLabel = heapLabelByTypeMap[dataType.name];
     const originalDataPointer = originalTensor.getData();
 
@@ -44,10 +44,37 @@ export default class Tensor {
       data[i] = element;
     }
 
-    return new Tensor(precison, data, shape);
+    return new Tensor(precision, data, shape);
+  }
+
+  static convert(ov, tensor) {
+    const { precision } = tensor;
+    const dataType = jsTypeByPrecisionMap[precision];
+    const originalShape = tensor.shape.convert(ov);
+
+    const originalData = new dataType(tensor.data);
+    const elementSizeInBytes = originalData.BYTES_PER_ELEMENT;
+    const heapSpace = ov._malloc(originalData.length*elementSizeInBytes);
+    const offset = Math.sqrt(elementSizeInBytes);
+    const waPrecision = heapLabelByTypeMap[dataType.name];
+
+    ov[waPrecision].set(originalData, heapSpace>>offset); 
+
+    return { 
+      obj: new ov.Tensor(precision, heapSpace, originalShape.obj),
+      free: () => {
+        originalShape.free();
+        ov._free(heapSpace);
+      }
+     };
+  }
+
+  convert(ov) {
+    return Tensor.convert(ov, this);
   }
 };
 
+// # Demo of usage:
 // const inputData = (new Array(224*224*3)).fill(1);
 
 // const tensor = new Tensor('float16', inputData, [1, 224, 224, 3]);

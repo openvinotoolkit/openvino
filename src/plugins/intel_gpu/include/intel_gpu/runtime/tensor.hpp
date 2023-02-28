@@ -318,6 +318,15 @@ public:
         return os;
     }
 
+    size_t hash() const {
+        size_t seed = 0;
+        seed = hash_range(seed, batch.begin(),      batch.end());
+        seed = hash_range(seed, feature.begin(),    feature.end());
+        seed = hash_range(seed, spatial.begin(),    spatial.end());
+        seed = hash_range(seed, group.begin(),      group.end());
+        return seed;
+    }
+
     std::string to_string() const {
         std::stringstream out;
         const char* delim = "";

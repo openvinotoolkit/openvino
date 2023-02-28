@@ -49,7 +49,7 @@ auto compiled_model = core.compile_model(model, "HETERO",
     // profiling is enabled only for GPU
     ov::device::properties("GPU", ov::enable_profiling(true)),
     // FP32 inference precision only for CPU
-    ov::device::properties("CPU", ov::hint::inference_precision(ov::element::f32))
+    ov::device::properties("CPU", ov::inference_precision(ov::element::f32))
 );
 //! [configure_fallback_devices]
 }

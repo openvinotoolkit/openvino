@@ -16,13 +16,17 @@ struct slice : public primitive_base<slice> {
     /// @param id This primitive id.
     /// @param inputs List of primitive ids.
     slice(const primitive_id& id,
-                  const std::vector<input_info>& inputs,
-                  const tensor output_shape,
-                  const padding& output_padding = padding())
+          const std::vector<input_info>& inputs,
+          const tensor output_shape,
+          const padding& output_padding = padding())
         : primitive_base{id, inputs, {output_padding}},
           output_shape {output_shape}
     {}
 
     tensor output_shape;
+
+    bool operator==(const primitive& rhs) const override {
+        return compare_common_params(rhs);
+    }
 };
 }  // namespace cldnn

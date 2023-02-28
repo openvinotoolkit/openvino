@@ -28,7 +28,7 @@ TEST_F(TransformationTestsF, LeakyReluFusionConstant) {
         auto max = std::make_shared<opset8::Maximum>(data, multiply);
         function = std::make_shared<Function>(NodeVector{max}, ParameterVector{data});
 
-        manager.register_pass<pass::LeakyReluFusion>();
+        manager.register_pass<ov::pass::LeakyReluFusion>();
     }
 
     {
@@ -47,7 +47,7 @@ TEST_F(TransformationTestsF, LeakyReluFusionScalar) {
         auto max = std::make_shared<opset8::Maximum>(data, multiply);
         function = std::make_shared<Function>(NodeVector{max}, ParameterVector{data});
 
-        manager.register_pass<pass::LeakyReluFusion>();
+        manager.register_pass<ov::pass::LeakyReluFusion>();
     }
 
     {
@@ -66,7 +66,7 @@ TEST_F(TransformationTestsF, LeakyReluFusionParameter) {
         auto max = std::make_shared<opset8::Maximum>(data, multiply);
         function = std::make_shared<Function>(NodeVector{max}, ParameterVector{data, alpha});
 
-        manager.register_pass<pass::LeakyReluFusion>();
+        manager.register_pass<ov::pass::LeakyReluFusion>();
     }
 
     {

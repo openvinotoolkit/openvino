@@ -80,7 +80,8 @@ void MHASelect::generate_inputs(const std::vector<ngraph::Shape>& targetInputSta
         ov::Tensor tensor;
         int seed = 0;
         if (name.find("less") != std::string::npos) {
-            tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), 5 + seed, -2, 10, seed++);
+            tensor = ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), model_input.get_shape(), 5 + seed, -2, 10, seed);
+            seed++;
         } else {
             tensor = ov::test::utils::create_and_fill_tensor_normal_distribution(model_input.get_element_type(), model_input.get_shape(), 1.0f, 0.5f);
         }

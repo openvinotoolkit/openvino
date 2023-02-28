@@ -13,11 +13,14 @@ class TensorLite {
 public:
   TensorLite(std::string type_str, uintptr_t data_buffer, ShapeLite* shape);
   TensorLite(ov::element::Type type, uintptr_t data_buffer, ShapeLite* shape);
-  ShapeLite* get_shape();
+  TensorLite(ov::Tensor* tensor);
+
   uintptr_t get_data();
+  ShapeLite* get_shape();
   std::string get_precision();
+  std::vector<float> get_vector();
 private:
   ov::element::Type type;
   ShapeLite* shape;
-  uintptr_t data_buffer;
+  std::vector<float> tensor;
 };

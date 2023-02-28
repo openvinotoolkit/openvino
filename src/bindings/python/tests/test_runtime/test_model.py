@@ -453,7 +453,7 @@ def test_reshape_with_python_types(device):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_serialize_rt_info(request):
+def test_serialize_rt_info(request, tmp_path):
     version = "TestVersion"
     config = "TestConfig"
     framework_batch = "1"
@@ -474,7 +474,7 @@ def test_serialize_rt_info(request):
             assert model.get_rt_info(["optimization", "test"])
 
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name)
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
     relu1 = ops.relu(param, name="relu1")
@@ -518,7 +518,7 @@ def test_serialize_rt_info(request):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_serialize_complex_rt_info(request):
+def test_serialize_complex_rt_info(request, tmp_path):
     def check_rt_info(model, serialized):
         if serialized:
             threshold = "13.23"
@@ -561,7 +561,7 @@ def test_serialize_complex_rt_info(request):
         assert model.get_rt_info(["config", "model_parameters", "mean_values"]) == mean
 
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name)
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     input_shape = PartialShape([1])
     param = ops.parameter(input_shape, dtype=np.float32, name="data")
     relu1 = ops.relu(param, name="relu1")

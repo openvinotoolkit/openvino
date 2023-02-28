@@ -24,7 +24,7 @@ TEST_F(TransformationTestsF, LogSoftmaxDecomposition) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{log_softmax}, ngraph::ParameterVector{data});
 
-        manager.register_pass<ngraph::pass::LogSoftmaxDecomposition>();
+        manager.register_pass<ov::pass::LogSoftmaxDecomposition>();
     }
 
     {

@@ -34,9 +34,3 @@ public:
     OPENVINO_RTTI("NormalizeL2Fusion", "0");
     NormalizeL2Fusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::NormalizeL2Fusion;
-}  // namespace pass
-}  // namespace ngraph

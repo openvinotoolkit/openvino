@@ -28,7 +28,7 @@ public:
     }
 
     bool is_in_place() const {
-        if (this->is_output() || !this->get_fused_activations_funcs().empty())
+        if (this->is_output() || this->has_fused_primitives())
             return false;
         return (!this->get_output_layout().data_padding && !input().get_output_layout(false).data_padding);
     }
