@@ -176,7 +176,9 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) const {
             for (size_t i = 0; i < data_size; i++) {
                 int i16n = blob_ptr[desc.getElementOffset(i)];
                 i16n = i16n << 16;
-                float fn = *(reinterpret_cast<const float *>(&i16n));
+                float fn;
+                assert(sizeof(fn) == sizeof(i16n));
+                memcpy(&fn, &i16n, sizeof(fn));  // Avoid -Wstrict-aliasing
                 stream << fn << std::endl;
             }
             break;
