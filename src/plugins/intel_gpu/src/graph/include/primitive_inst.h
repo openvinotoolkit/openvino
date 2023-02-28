@@ -63,7 +63,6 @@ struct primitive_impl {
     }
     virtual std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() { return {}; }
     virtual void reset_kernels_source() {}
-    virtual void set_kernels(std::vector<kernel::ptr>) {}
     virtual std::vector<kernel::ptr> get_kernels() const { return {}; }
     virtual void set_kernel_ids(std::vector<kernel_id> kernel_ids) {}
     virtual void save(cldnn::BinaryOutputBuffer& ob) const {}
@@ -79,6 +78,8 @@ struct primitive_impl {
         OPENVINO_ASSERT(_is_dynamic, "[GPU] update_dispatch_data is called for static shape implementation ", _kernel_name);
         OPENVINO_ASSERT(false, "[GPU] update_dispatch_data is not implemented for dynamic implemenation ", _kernel_name);
     }
+
+    virtual void set_kernels(std::map<const std::string, kernel::ptr>& kernels) {}
 
 protected:
     std::string _kernel_name;

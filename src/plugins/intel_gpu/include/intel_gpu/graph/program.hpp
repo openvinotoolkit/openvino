@@ -26,6 +26,7 @@ class pass_manager;
 class base_pass;
 class program_wrapper;
 class kernels_cache;
+class ICompilationContext;
 
 
 struct program {
@@ -252,6 +253,10 @@ public:
     void query_local_block_io_supported();
     void calc_nodes_hash();
 
+    ImplementationsCache& get_implementations_cache() const { return *_impls_cache; }
+    ICompilationContext& get_compilation_context() const { return *_compilation_context; }
+    void cancel_compilation_context();
+
 private:
     uint32_t prog_id = 0;
     engine& _engine;
@@ -266,6 +271,9 @@ private:
     std::unique_ptr<pass_manager> pm;
     bool is_body_program;
     int8_t is_subgroup_local_block_io_supported;
+    std::unique_ptr<ImplementationsCache> _impls_cache;
+    const size_t _impls_cache_capacity = 10000;
+    std::unique_ptr<ICompilationContext> _compilation_context;
 
     std::map<primitive_id, std::shared_ptr<program_node>> nodes_map;
     std::list<primitive_id> optimized_out;
@@ -305,7 +313,9 @@ private:
     void cleanup();
     void transfer_memory_to_device();
 
+    InferenceEngine::CPUStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags = "") const;
     std::shared_ptr<InferenceEngine::CPUStreamsExecutor> make_task_executor(const ExecutionConfig& config) const;
+
     /*
     ** Analysis functions
     */
@@ -343,6 +353,8 @@ private:
     // old_node - node which will be replaced
     // new_node - node which will replace the old one
     void replace(program_node& old_node, program_node& new_node);
+
+    void init_program();
 };
 
 }  // namespace cldnn

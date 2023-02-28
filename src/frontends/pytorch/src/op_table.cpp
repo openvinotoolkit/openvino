@@ -24,6 +24,7 @@ OP_CONVERTER(translate_as_tensor);
 OP_CONVERTER(translate_avg_poolnd);
 OP_CONVERTER(translate_bool);
 OP_CONVERTER(translate_batch_norm);
+OP_CONVERTER(translate_cat);
 OP_CONVERTER(translate_clamp);
 OP_CONVERTER(translate_constant);
 OP_CONVERTER(translate_conv_transposend);
@@ -89,6 +90,7 @@ OP_CONVERTER(translate_repeat);
 OP_CONVERTER(translate_repeat_interleave);
 OP_CONVERTER(translate_reshape);
 OP_CONVERTER(translate_reshape_as);
+OP_CONVERTER(translate_roi_align);
 OP_CONVERTER(translate_roll);
 OP_CONVERTER(translate_rsqrt);
 OP_CONVERTER(translate_rsub);
@@ -110,7 +112,11 @@ OP_CONVERTER(translate_triu);
 OP_CONVERTER(translate_unfold);
 OP_CONVERTER(translate_upsample_bicubic2d);
 OP_CONVERTER(translate_upsample_bilinear2d);
+OP_CONVERTER(translate_upsample_linear1d);
+OP_CONVERTER(translate_upsample_nearest1d);
 OP_CONVERTER(translate_upsample_nearest2d);
+OP_CONVERTER(translate_upsample_nearest3d);
+OP_CONVERTER(translate_upsample_trilinear3d);
 OP_CONVERTER(translate_var);
 OP_CONVERTER(translate_var_mean);
 OP_CONVERTER(translate_where);
@@ -155,7 +161,7 @@ const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
         {"aten::batch_norm", op::translate_batch_norm},
         {"aten::bmm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::Bool", op::translate_bool},
-        // {"aten::cat", done as transformation},
+        {"aten::cat", op::translate_cat},
         {"aten::ceil", op::translate_1to1_match_1_inputs<opset10::Ceiling>},
         {"aten::ceil_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Ceiling>>},
         {"aten::clamp", op::translate_clamp},
@@ -303,7 +309,11 @@ const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
         {"aten::unsqueeze_", op::inplace_op<op::translate_1to1_match_2_inputs<opset10::Unsqueeze>>},
         {"aten::upsample_bicubic2d", op::translate_upsample_bicubic2d},
         {"aten::upsample_bilinear2d", op::translate_upsample_bilinear2d},
+        {"aten::upsample_linear1d", op::translate_upsample_linear1d},
+        {"aten::upsample_nearest1d", op::translate_upsample_nearest1d},
         {"aten::upsample_nearest2d", op::translate_upsample_nearest2d},
+        {"aten::upsample_nearest3d", op::translate_upsample_nearest3d},
+        {"aten::upsample_trilinear3d", op::translate_upsample_trilinear3d},
         {"aten::var", op::translate_var},
         {"aten::var_mean", op::translate_var_mean},
         {"aten::view", op::translate_reshape},
@@ -319,6 +329,7 @@ const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
         {"prim::NumToTensor", op::skip_node},  // In openvino we already store number as tensor with shape []
         {"prim::requires_grad", op::return_false_scalar},
         {"torchvision::nms", op::translate_nms},
+        {"torchvision::roi_align", op::translate_roi_align},
     };
 };
 
