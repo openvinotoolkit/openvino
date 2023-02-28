@@ -47,7 +47,7 @@ def get_version():
         with open(version_txt) as f:
             version = f.readline().replace('\n', '')
     else:
-        version = generate_pot_version()
+        version = generate_pot_version().replace('-', '+')
         with open(version_txt, 'w') as f:
             f.write(version + '\n')
     return version
