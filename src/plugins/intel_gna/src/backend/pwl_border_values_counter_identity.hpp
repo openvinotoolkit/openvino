@@ -6,7 +6,8 @@
 
 #include "pwl_border_values_counter.hpp"
 
-class FakeQuantizeParams;
+struct FakeQuantizeParams;
+
 namespace ov {
 namespace intel_gna {
 namespace backend {

@@ -22,9 +22,3 @@ public:
     OPENVINO_RTTI("ConvertShapeOf3", "0");
     ConvertShapeOf3();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertShapeOf3;
-}  // namespace pass
-}  // namespace ngraph

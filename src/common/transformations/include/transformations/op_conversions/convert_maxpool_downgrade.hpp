@@ -24,9 +24,3 @@ public:
     OPENVINO_RTTI("ConvertMaxPool8ToMaxPool1");
     ConvertMaxPool8ToMaxPool1();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertMaxPool8ToMaxPool1;
-}  // namespace pass
-}  // namespace ngraph

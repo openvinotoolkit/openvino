@@ -36,7 +36,6 @@ addIeTargetTest(
             CPU
 )
 
-
 # remove all non-common files from debug
 set(EXCLUDED_SOURCE_PATHS_FOR_DEBUG
     ${CMAKE_CURRENT_SOURCE_DIR}/behavior

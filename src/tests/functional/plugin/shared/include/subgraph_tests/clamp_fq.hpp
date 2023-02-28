@@ -9,7 +9,7 @@
 namespace SubgraphTestsDefinitions {
 
 TEST_P(ClampFakeQuantizeSubgraphTest, CompareWithRefs) {
-Run();
+    Run();
 }
 
 }  // namespace SubgraphTestsDefinitions

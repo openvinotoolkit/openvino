@@ -150,7 +150,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_ENFORCE_BF16
                     << ". Expected only YES/NO";
             }
-        } else if (key == ov::hint::inference_precision.name()) {
+        } else if (key == ov::inference_precision.name()) {
             if (val == "bf16") {
                 if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
                     enforceBF16 = true;
@@ -162,7 +162,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 enforceBF16 = false;
                 manualEnforceBF16 = false;
             } else {
-                IE_THROW() << "Wrong value for property key " << ov::hint::inference_precision.name()
+                IE_THROW() << "Wrong value for property key " << ov::inference_precision.name()
                     << ". Supported values: bf16, f32";
             }
         } else if (key == PluginConfigParams::KEY_CACHE_DIR) {
@@ -266,4 +266,3 @@ void Config::updateProperties() {
 
 }   // namespace intel_cpu
 }   // namespace ov
-

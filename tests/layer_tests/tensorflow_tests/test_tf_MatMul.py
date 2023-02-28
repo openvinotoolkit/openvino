@@ -57,6 +57,7 @@ class TestMatMul(CommonTFLayerTest):
                                          'MatMul',
                                          ])
     @pytest.mark.precommit_tf_fe
+    @pytest.mark.nightly
     def test_matmul_op_precommit(self, params, ie_device, precision, ir_version, temp_dir, op_type,
                                  use_new_frontend, use_old_api):
         self._test(*self.create_net_with_matmul_op(**params, ir_version=ir_version, op_type=op_type,

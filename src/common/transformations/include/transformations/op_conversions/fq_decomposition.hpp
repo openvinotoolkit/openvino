@@ -47,9 +47,3 @@ public:
     OPENVINO_RTTI("FakeQuantizeDecomposition", "0");
     FakeQuantizeDecomposition();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::FakeQuantizeDecomposition;
-}  // namespace pass
-}  // namespace ngraph

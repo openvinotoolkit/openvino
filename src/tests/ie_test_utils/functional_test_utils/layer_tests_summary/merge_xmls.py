@@ -8,7 +8,8 @@ import glob
 import defusedxml.ElementTree as ET
 from defusedxml import defuse_stdlib
 
-from utils import utils
+from utils.conformance_utils import get_logger
+from utils import stat_update_utils
 
 # defuse_stdlib provide patched version of xml.etree.ElementTree which allows to use objects from xml.etree.ElementTree
 # in a safe manner without including unsafe xml.etree.ElementTree
@@ -16,7 +17,7 @@ ET_defused = defuse_stdlib()[ET]
 Element = ET_defused.Element
 SubElement = ET_defused.SubElement
 
-logger = utils.get_logger('XmlMerger')
+logger = get_logger('xml_merge_tool')
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -36,7 +37,7 @@ def parse_arguments():
 
 def update_result_node(xml_node: SubElement, aggregated_res: SubElement):
     for attr_name in xml_node.attrib:
-        if attr_name == "passrate":
+        if attr_name == "passrate" or attr_name == "relative_passrate":
             continue
         if attr_name == "implemented":
             xml_value = xml_node.attrib.get(attr_name) == "true"
@@ -44,8 +45,8 @@ def update_result_node(xml_node: SubElement, aggregated_res: SubElement):
             str_value = "true" if xml_value or aggregated_value else "false"
             aggregated_res.set(attr_name, str_value)
             continue
-        xml_value = int(xml_node.attrib.get(attr_name))
-        aggregated_value = int(aggregated_res.attrib.get(attr_name))
+        xml_value = float(xml_node.attrib.get(attr_name)) if "relative_" in attr_name else int(xml_node.attrib.get(attr_name))
+        aggregated_value = float(aggregated_res.attrib.get(attr_name)) if "relative_" in attr_name else int(aggregated_res.attrib.get(attr_name))
         # if attr_name == "crashed" and xml_value > 0:
             # print("f")
         aggregated_res.set(attr_name, str(xml_value + aggregated_value))
@@ -54,7 +55,7 @@ def update_result_node(xml_node: SubElement, aggregated_res: SubElement):
 def aggregate_test_results(aggregated_results: SubElement, xml_reports: list, report_type: str):
     aggregated_timestamp = None
     for xml in xml_reports:
-        logger.info(f" Processing: {xml}")
+        # logger.info(f" Processing: {xml}")
         try:
             xml_root = ET.parse(xml).getroot()
         except ET.ParseError:
@@ -131,10 +132,10 @@ def merge_xml(input_folder_paths: list, output_folder_paths: str, output_filenam
                 SubElement(entity_list, entity.tag)
         timestamp = aggregate_test_results(results, xml_reports, report_type)
         if report_type == "OP":
-            utils.update_passrates(results)
+            stat_update_utils.update_passrates(results)
         else:
             for sub_result in results:
-                utils.update_passrates(sub_result)
+                stat_update_utils.update_passrates(sub_result)
         summary.set("timestamp", timestamp)
         logger.info(f" Processing is finished")
 

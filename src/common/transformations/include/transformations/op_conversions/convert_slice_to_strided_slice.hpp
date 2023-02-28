@@ -24,9 +24,3 @@ public:
     OPENVINO_RTTI("SliceToStridedSlice", "0");
     SliceToStridedSlice(bool use_shapes);
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::SliceToStridedSlice;
-}  // namespace pass
-}  // namespace ngraph

@@ -8,7 +8,6 @@
 #include <cassert>
 #include <cstdint>
 #include <fstream>
-#include <ngraph/variant.hpp>
 #include <openvino/cc/pass/itt.hpp>
 #include <unordered_map>
 #include <unordered_set>
@@ -397,11 +396,11 @@ public:
             size_t body_id;
             if (id_pos != std::string::npos) {
                 id_str.erase(id_pos, id.length());
-                std::stoi(id_str, &body_id);
+                (void)std::stoi(id_str, &body_id);
                 is_body_target = true;
             } else if (od_pos != std::string::npos) {
                 id_str.erase(od_pos, od.length());
-                std::stoi(id_str, &body_id);
+                (void)std::stoi(id_str, &body_id);
                 is_body_target = true;
             }
             if (is_body_target) {
@@ -735,15 +734,6 @@ bool is_exec_graph(const ngraph::Function& f) {
     return false;
 }
 
-bool has_dynamic_output(const std::shared_ptr<Node>& n) {
-    for (size_t i = 0; i < n->get_output_size(); i++) {
-        if (n->get_output_partial_shape(i).is_dynamic()) {
-            return true;
-        }
-    }
-    return false;
-}
-
 void auto_pad_resolving(ov::Node* node) {
     const std::set<ov::op::PadType> pad_agnostic_types = {
         ov::op::PadType::SAME_LOWER,
@@ -871,7 +861,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         // <layers/data> general attributes
         pugi::xml_node data = layer.append_child("data");
 
-        auto append_runtime_info = [](pugi::xml_node& node, RTMap& attributes) {
+        auto append_runtime_info = [](pugi::xml_node& node, ov::RTMap& attributes) {
             pugi::xml_node rt_node = node.append_child("rt_info");
             bool has_attrs = false;
             for (auto& item : attributes) {
@@ -1076,7 +1066,7 @@ void serializeFunc(std::ostream& xml_file,
 namespace ov {
 bool pass::Serialize::run_on_model(const std::shared_ptr<ngraph::Function>& f_orig) {
     RUN_ON_FUNCTION_SCOPE(Serialize);
-    auto f = ov::clone_model(*f_orig);
+    auto f = f_orig->clone();
     if (m_xmlFile && m_binFile) {
         serializeFunc(*m_xmlFile, *m_binFile, f, m_version, m_custom_opsets);
     } else {

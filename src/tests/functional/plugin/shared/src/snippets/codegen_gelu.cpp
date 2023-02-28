@@ -64,7 +64,7 @@ namespace snippets {
             "CodegenGelu");
 
         if (useSubgraph) {
-            ngraph::pass::InitNodeInfo().run_on_function(function);
+            ov::pass::InitNodeInfo().run_on_function(function);
             ngraph::pass::ConstantFolding().run_on_function(function);
         }
     }

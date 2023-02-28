@@ -114,15 +114,3 @@ ov::matcher_pass_callback CvtReduceBase::convert_reduce_to_reshape() {
         return false;
     };
 }
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertReduceLogicalAndToReshape;
-using ov::pass::ConvertReduceLogicalOrToReshape;
-using ov::pass::ConvertReduceMaxToReshape;
-using ov::pass::ConvertReduceMeanToReshape;
-using ov::pass::ConvertReduceMinToReshape;
-using ov::pass::ConvertReduceSumToReshape;
-using ov::pass::ConvertReduceToReshape;
-}  // namespace pass
-}  // namespace ngraph

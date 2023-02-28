@@ -8,7 +8,6 @@
 #include <string>
 #include <vector>
 #include <ngraph/node.hpp>
-#include <ngraph/variant.hpp>
 #include "low_precision/lpt_visibility.hpp"
 #include "low_precision/rt_info/precision_preserved_attribute.hpp"
 
@@ -26,7 +25,7 @@ class LP_TRANSFORMATIONS_API AvgPoolPrecisionPreservedAttribute : public Precisi
 public:
     OPENVINO_RTTI("LowPrecision::AvgPoolPrecisionPreserved", "", ov::RuntimeAttribute, 0);
     using PrecisionPreservedAttribute::PrecisionPreservedAttribute;
-    void merge(std::vector<ov::Any>& attributes);
+    void merge_attributes(std::vector<ov::Any>& attributes);
     bool is_skipped() const;
     std::string to_string() const override;
 };

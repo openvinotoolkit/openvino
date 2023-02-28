@@ -48,8 +48,8 @@ struct SoPtr {
      * @param that copied SoPtr object
      */
     template <typename U>
-    SoPtr(const SoPtr<U>& that) : _so{that._so},
-                                  _ptr{std::dynamic_pointer_cast<T>(that._ptr)} {
+    SoPtr(const SoPtr<U>& that) : _ptr{std::dynamic_pointer_cast<T>(that._ptr)},
+                                  _so{that._so} {
         IE_ASSERT(_ptr != nullptr);
     }
 

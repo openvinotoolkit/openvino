@@ -222,10 +222,11 @@ def test_exec_graph(device):
     del ie_core
 
 
-@pytest.mark.skipif(os.environ.get("TEST_DEVICE", "CPU") != "CPU",
-                    reason="Device specific test. Only CPU plugin implements network export")
-def test_export_import():
+def test_export_import(device):
     ie_core = ie.IECore()
+    if "EXPORT_IMPORT" not in ie_core.get_metric(device, "OPTIMIZATION_CAPABILITIES"):
+        pytest.skip(f"{ie_core.get_metric(device, 'FULL_DEVICE_NAME')} plugin due-to export, import model API isn't implemented.")
+
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
     exec_net = ie_core.load_network(net, "CPU")
     exported_net_file = 'exported_model.bin'

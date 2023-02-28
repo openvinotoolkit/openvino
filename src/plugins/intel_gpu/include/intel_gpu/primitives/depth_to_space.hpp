@@ -38,5 +38,22 @@ struct depth_to_space : public primitive_base<depth_to_space> {
     size_t block_size;
     /// @brief depth division mode
     depth_to_space_mode mode;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, block_size);
+        seed = hash_combine(seed, mode);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const depth_to_space>(rhs);
+
+        return block_size == rhs_casted.block_size &&
+               mode == rhs_casted.mode;
+    }
 };
 }  // namespace cldnn

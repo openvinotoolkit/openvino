@@ -10,6 +10,14 @@
 #include "kernel_selector_helper.h"
 #include "primitive_base.hpp"
 
+namespace {
+inline void convert_new_activation_func(const activation& prim, std::vector<kernel_selector::base_activation_params>& params) {
+    params.insert(params.begin(), {get_kernel_selector_activation_param(prim.activation_function),
+                                   prim.additional_params.a,
+                                   prim.additional_params.b});
+}
+}  // namespace
+
 namespace cldnn {
 namespace ocl {
 
@@ -35,12 +43,12 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
         return args;
     }
 
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<activation>();
-        auto params = get_default_params<kernel_selector::activation_params>(impl_param);
+        auto params = get_default_params<kernel_selector::activation_params>(impl_param, is_shape_agnostic);
         auto optional_params = get_default_optional_params<kernel_selector::activation_optional_params>(impl_param.get_program());
 
-        convert_new_activation_func(primitive, params.activations);
+        convert_new_activation_func(*primitive, params.activations);
 
         bool is_parameterized = !primitive->additional_params_input.empty();
         if (is_parameterized) {
@@ -56,12 +64,38 @@ struct activation_impl : typed_primitive_impl_ocl<activation> {
 
         return {params, optional_params};
     }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto kernel_params = get_kernel_params(impl_param, true);
+        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        update_kernels_list_to_skip();
+    }
 };
 
 namespace detail {
 
 attach_activation_impl::attach_activation_impl() {
-    implementation_map<activation>::add(impl_types::ocl, typed_primitive_impl_ocl<activation>::create<activation_impl>, {
+     auto dyn_types = {
+        data_types::f32,
+        data_types::f16,
+        data_types::i8,
+        data_types::u8,
+        data_types::i32
+    };
+
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx
+    };
+
+    implementation_map<activation>::add(impl_types::ocl,
+                                        shape_types::dynamic_shape,
+                                        typed_primitive_impl_ocl<activation>::create<activation_impl>,
+                                        dyn_types,
+                                        dyn_formats);
+
+    implementation_map<activation>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<activation>::create<activation_impl>, {
         std::make_tuple(data_types::f32, format::yxfb),
         std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::f32, format::bfyx),
@@ -129,3 +163,4 @@ attach_activation_impl::attach_activation_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::activation_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::activation)

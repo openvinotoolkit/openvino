@@ -5,11 +5,11 @@
 #pragma once
 
 #include <cstdint>
+
 #include "backend/dnn_types.hpp"
 #include "serial/headers/2dot3/gna_model_header.hpp"
 
 #pragma pack(push, 1)
-
 
 namespace ov {
 namespace intel_gna {
