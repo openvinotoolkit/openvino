@@ -10,7 +10,8 @@
 #include "openvino/runtime/tensor.hpp"
 #include "template_config.hpp"
 
-namespace TemplatePlugin {
+namespace ov {
+namespace template_plugin {
 
 class Plugin;
 class InferRequest;
@@ -24,7 +25,7 @@ class CompiledModel : public ov::ICompiledModel {
 public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
-                  const InferenceEngine::ITaskExecutor::Ptr& task_executor,
+                  const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
                   const Configuration& cfg);
 
     // Methods from a base class ov::ICompiledModel
@@ -55,4 +56,5 @@ private:
 };
 // ! [executable_network:header]
 
-}  // namespace TemplatePlugin
+}  // namespace template_plugin
+}  // namespace ov

@@ -143,6 +143,11 @@ ngraph::Shape NodeContext::const_input<ngraph::Shape>(size_t index) const {
 }
 
 template <>
+int32_t NodeContext::const_input<int32_t>(size_t index) const {
+    return get_constant_at_input(*this, index)->cast_vector<int32_t>()[0];
+}
+
+template <>
 int64_t NodeContext::const_input<int64_t>(size_t index) const {
     return get_constant_at_input(*this, index)->cast_vector<int64_t>()[0];
 }
