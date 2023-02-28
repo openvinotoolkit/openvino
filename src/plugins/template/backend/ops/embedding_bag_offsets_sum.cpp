@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/embedding_bag_offsets_sum.hpp"
-
 #include "evaluates_map.hpp"
 #include "openvino/op/embeddingbag_offsets_sum.hpp"
 

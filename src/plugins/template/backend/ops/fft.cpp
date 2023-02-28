@@ -2,11 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/fft.hpp"
-
 #include "evaluates_map.hpp"
-#include "ngraph/runtime/reference/irdft.hpp"
-#include "ngraph/runtime/reference/rdft.hpp"
 
 std::vector<int64_t> get_integers(const std::shared_ptr<ov::HostTensor>& input, const ov::Shape& shape) {
     size_t input_size = ov::shape_size(shape);

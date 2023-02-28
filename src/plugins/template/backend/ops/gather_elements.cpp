@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/gather_elements.hpp"
-
 #include "evaluates_map.hpp"
 #include "openvino/op/gather_elements.hpp"
 

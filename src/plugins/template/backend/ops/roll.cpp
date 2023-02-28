@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/roll.hpp"
-
 #include "evaluates_map.hpp"
+#include <ngraph/runtime/reference/roll.hpp>
 #include "openvino/op/roll.hpp"
 
 template <ov::element::Type_t ET>

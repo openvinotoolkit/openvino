@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/roi_align.hpp"
-
 #include "evaluates_map.hpp"
 #include "ngraph/util.hpp"
 #include "openvino/op/roi_align.hpp"

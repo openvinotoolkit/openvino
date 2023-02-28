@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/tensor_iterator.hpp"
-
 #include "backend.hpp"
 #include "evaluates_map.hpp"
 #include "openvino/op/tensor_iterator.hpp"

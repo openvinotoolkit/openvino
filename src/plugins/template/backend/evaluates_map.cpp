@@ -4,9 +4,6 @@
 
 #include "evaluates_map.hpp"
 
-#include "ngraph/runtime/reference/generate_proposal.hpp"
-#include "ov_ops/augru_cell.hpp"
-
 using namespace ngraph;
 using namespace std;
 namespace {

@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/grn.hpp"
-
 #include "evaluates_map.hpp"
 #include "openvino/op/grn.hpp"
 

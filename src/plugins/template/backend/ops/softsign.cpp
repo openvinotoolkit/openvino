@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/softsign.hpp"
-
 #include "evaluates_map.hpp"
 #include "openvino/op/softsign.hpp"
 

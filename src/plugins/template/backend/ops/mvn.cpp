@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/mvn.hpp"
-
 #include "evaluates_map.hpp"
 #include "openvino/op/mvn.hpp"
 

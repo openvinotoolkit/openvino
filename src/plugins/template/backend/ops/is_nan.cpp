@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/is_nan.hpp"
-
 #include "evaluates_map.hpp"
 #include "openvino/op/is_nan.hpp"
 

@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/adaptive_max_pool.hpp"
-
 #include "evaluates_map.hpp"
-#include "ngraph/runtime/reference/adaptive_avg_pool.hpp"
 #include "openvino/op/adaptive_max_pool.hpp"
 
 template <ov::element::Type_t ET>

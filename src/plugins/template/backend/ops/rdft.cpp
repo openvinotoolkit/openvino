@@ -3,7 +3,6 @@
 //
 
 #include "evaluates_map.hpp"
-#include "ngraph/runtime/reference/abs.hpp"
 #include "openvino/op/abs.hpp"
 
 template <ov::element::Type_t ET>

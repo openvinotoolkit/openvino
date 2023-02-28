@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/matrix_nms.hpp"
-
 #include "evaluates_map.hpp"
-#include "ngraph/runtime/reference/utils/nms_common.hpp"
 #include "openvino/op/matrix_nms.hpp"
 
 std::vector<float> get_floats(const std::shared_ptr<ov::HostTensor>& input, const ov::Shape& shape) {

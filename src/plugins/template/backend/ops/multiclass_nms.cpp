@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/runtime/reference/multiclass_nms.hpp"
-
 #include "evaluates_map.hpp"
-#include "ngraph/runtime/reference/utils/nms_common.hpp"
 #include "openvino/op/multiclass_nms.hpp"
 
 template <ov::element::Type_t ET>
