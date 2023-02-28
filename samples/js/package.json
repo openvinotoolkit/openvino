@@ -1,0 +1,15 @@
+{
+    "name": "hello",
+    "version": "0.0.0",
+    "private": true,
+
+    "dependencies": {
+      "bindings": "~1.2.1",
+      "jimp": "^0.16.1"
+    },
+
+    "scripts": {
+        "preinstall": "echo ${INTEL_OPENVINO_DIR?\\$INTEL_OPENVINO_DIR should set before installation. Please execute 'source ~/intel/openvino/setupvars.sh' and run 'npm i' again.}"
+      }
+
+}
