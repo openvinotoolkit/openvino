@@ -59,7 +59,7 @@ void ov::pass::Manager::set_per_pass_validation(bool new_state) {
     m_per_pass_validation = new_state;
 }
 
-void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
+bool ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     OV_ITT_SCOPED_TASK(ov::itt::domains::core, "pass::Manager::run_passes");
 
@@ -70,7 +70,9 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
     ngraph::stopwatch pass_timer;
     ngraph::stopwatch overall_timer;
     overall_timer.start();
+    bool pass_applied = false;
     bool function_changed = false;
+    bool needs_validate = false;
     for (auto& pass : m_pass_list) {
         if (m_pass_config->is_disabled(pass->get_type_info())) {
             NGRAPH_DEBUG << "Pass " << pass->get_name() << " is disabled";
@@ -91,7 +93,7 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
             }
             // GraphRewrite is a temporary container for MatcherPass to make execution
             // on on entire ngraph::Function
-            function_changed = GraphRewrite(matcher_pass).run_on_model(func);
+            pass_applied = GraphRewrite(matcher_pass).run_on_model(func);
         } else if (auto function_pass = dynamic_pointer_cast<ModelPass>(pass)) {
             // This checks is to skip the graph transformation when the graph pass relies on
             // static shape but the function state is dynamic.
@@ -102,12 +104,12 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
             }
 
             if (dynamic_pointer_cast<Validate>(pass)) {
-                if (function_changed) {
+                if (needs_validate) {
                     function_pass->run_on_model(func);
-                    function_changed = false;
+                    needs_validate = false;
                 }
             } else {
-                function_changed = function_pass->run_on_model(func);
+                pass_applied = function_pass->run_on_model(func);
             }
         } else if (auto node_pass = dynamic_pointer_cast<ngraph::pass::NodePass>(pass)) {
             if (node_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic()) {
@@ -116,7 +118,7 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
                 continue;
             }
             for (const shared_ptr<Node>& n : func->get_ops()) {
-                function_changed |= node_pass->run_on_node(n);
+                pass_applied |= node_pass->run_on_node(n);
             }
         }
 
@@ -138,9 +140,13 @@ void ov::pass::Manager::run_passes(shared_ptr<ov::Model> func) {
         if (profile_enabled) {
             cout << setw(7) << pass_timer.get_milliseconds() << "ms " << pass->get_name() << "\n";
         }
+        function_changed = function_changed || pass_applied;
+        needs_validate = pass_applied;
     }
     if (profile_enabled) {
         cout << "passes done in " << overall_timer.get_milliseconds() << "ms\n";
     }
     NGRAPH_SUPPRESS_DEPRECATED_END
+
+    return function_changed;
 }
