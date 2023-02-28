@@ -47,7 +47,7 @@ TEST(type_info, compare_new_type) {
 
 TEST(type_info, compare_new_with_old_type) {
     ov::DiscreteTypeInfo type1("type1", "version1");
-    ov::DiscreteTypeInfo type1_o("type1");
+    ov::DiscreteTypeInfo type1_o("type1", "version1");
     ASSERT_TRUE(type1 == type1_o);
 }
 
@@ -76,7 +76,7 @@ TEST(type_info, find_in_map) {
     ov::DiscreteTypeInfo b("Prelu", "opset1");
     ov::DiscreteTypeInfo c("Vector");
     ov::DiscreteTypeInfo d("Mod", "opset3");
-    ov::DiscreteTypeInfo f("Mod");
+    ov::DiscreteTypeInfo f("Mod", "opset2");
 
     std::map<ov::DiscreteTypeInfo, int> test_map;
     test_map[a] = 1;
