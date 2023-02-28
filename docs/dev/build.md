@@ -24,8 +24,8 @@ For the OpenVINO build next tools are required:
 <details><summary>Windows</summary>
 <p>
     
-- [CMake]\* 3.14 or higher
-- Microsoft\* Visual Studio 2019, version 16.8 or later
+- [CMake] 3.14 or higher
+- Microsoft Visual Studio 2019, version 16.8 or later
 - (Optional) Intel® Graphics Driver for Windows* (30.0) [driver package](https://www.intel.com/content/www/us/en/download/19344/intel-graphics-windows-dch-drivers.html).
 - Python 3.7 or higher for OpenVINO Runtime Python API
 - [Git for Windows*](https://gitforwindows.org/)

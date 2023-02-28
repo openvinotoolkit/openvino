@@ -163,7 +163,7 @@ The system requirements vary depending on platform and are available on dedicate
 
 ## How to build
 
-See the [OpenVINO Wiki](https://github.com/openvinotoolkit/openvino/wiki#how-to-build) to get more information about the OpenVINO build process.
+See [How to build OpenVINO](./docs/dev/build.md) to get more information about the OpenVINO build process.
 
 ## How to contribute
 
@@ -173,7 +173,7 @@ See [CONTRIBUTING](./CONTRIBUTING.md) for details. Thank you!
 
 Report questions, issues and suggestions, using:
 
-* [GitHub* Issues](https://github.com/openvinotoolkit/openvino/issues)
+* [GitHub Issues](https://github.com/openvinotoolkit/openvino/issues)
 * The [`openvino`](https://stackoverflow.com/questions/tagged/openvino) tag on StackOverflow\*
 * [Forum](https://software.intel.com/en-us/forums/computer-vision)
 
