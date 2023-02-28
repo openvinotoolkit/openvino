@@ -19,7 +19,7 @@
 #    define OPENVINO_RUNTIME_API_C(...) OPENVINO_EXTERN_C __VA_ARGS__
 #    define OPENVINO_RUNTIME_API
 #else
-#    ifdef IMPLEMENT_INFERENCE_ENGINE_API  // defined if we are building the OpenVINO runtime DLL (instead of using it)
+#    ifdef IMPLEMENT_OPENVINO_API  // defined if we are building the OpenVINO runtime DLL (instead of using it)
 #        define OPENVINO_RUNTIME_API_C(...) OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS __VA_ARGS__ OPENVINO_CDECL
 #        define OPENVINO_RUNTIME_API        OPENVINO_CORE_EXPORTS
 #    else
