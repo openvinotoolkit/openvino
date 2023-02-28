@@ -187,17 +187,20 @@ public:
         for (int i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
-            tensor = ov::test::utils::create_and_fill_tensor_normal_distribution(funcInput.get_element_type(), targetInputStaticShapes[i], 1.0f, 0.5f);
+            if (patternType == 0)
+                tensor = ov::test::utils::create_and_fill_tensor_normal_distribution(funcInput.get_element_type(), targetInputStaticShapes[i], 1.0f, 0.5f);
+            else
+                tensor = ov::test::utils::create_and_fill_tensor_unique_sequence(funcInput.get_element_type(), targetInputStaticShapes[i], -1, -5);
             inputs.insert({funcInput.get_node_shared_ptr(), tensor});
         }
     }
 
 protected:
+    size_t patternType;
     void SetUp() override {
         std::vector<InputShape> inputShapes;
         std::vector<ElementType> inputPrecisions;
         std::vector<ElementType> matMulIn0Precisions;
-        size_t patternType;
         std::string expectedNode;
         std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNode, targetDevice) = this->GetParam();
 
