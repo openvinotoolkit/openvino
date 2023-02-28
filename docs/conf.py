@@ -79,7 +79,7 @@ html_theme = "openvino_sphinx_theme"
 html_theme_path = ['_themes']
 
 html_theme_options = {
-    "navigation_depth": 6,
+    "navigation_depth": 8,
     "show_nav_level": 2,
     "use_edit_page_button": True,
     "github_url": "https://github.com/openvinotoolkit/openvino",
