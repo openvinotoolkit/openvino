@@ -21,7 +21,7 @@ namespace ov {
 /**
  * @interface ICore
  * @brief Minimal ICore interface to allow plugin to get information from Core Inference Engine class.
- * @ingroup ie_dev_api_plugin_api
+ * @ingroup ov_dev_api_plugin_api
  */
 class ICore {
 public:

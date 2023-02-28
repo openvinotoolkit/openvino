@@ -7,6 +7,7 @@
 #include "activation.hpp"
 #include <vector>
 #include <algorithm>
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
 
 namespace cldnn {
 
@@ -143,6 +144,32 @@ struct lstm : public primitive_base<lstm> {
         return seed;
     }
 
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const lstm>(rhs);
+
+        bool act_params_eq = activation_params.size() == rhs_casted.activation_params.size();
+        for (size_t i = 0; i < activation_params.size(); ++i) {
+            act_params_eq &= activation_params[i].a == rhs_casted.activation_params[i].a &&
+                             activation_params[i].b == rhs_casted.activation_params[i].b;
+        }
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return act_params_eq &&
+               cmp_fields(clip) &&
+               cmp_fields(input_forget) &&
+               cmp_fields(activations) &&
+               cmp_fields(output_selection) &&
+               cmp_fields(offset_order) &&
+               cmp_fields(initial_hidden.empty()) &&
+               cmp_fields(initial_cell.empty()) &&
+               cmp_fields(peepholes.empty()) &&
+               cmp_fields(bias.empty());
+        #undef cmp_fields
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
@@ -163,6 +190,11 @@ protected:
 
 struct lstm_gemm : public primitive_base<lstm_gemm> {
     CLDNN_DECLARE_PRIMITIVE(lstm_gemm)
+
+    lstm_gemm() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs lstm layer.
     /// @param id This primitive id.
     /// @param input input primitive id.
@@ -205,6 +237,33 @@ struct lstm_gemm : public primitive_base<lstm_gemm> {
         return seed;
     }
 
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const lstm_gemm>(rhs);
+
+        return direction == rhs_casted.direction &&
+               bias.empty() == rhs_casted.bias.empty() &&
+               hidden.empty() == rhs_casted.hidden.empty();
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        ob << weights;
+        ob << recurrent;
+        ob << bias;
+        ob << hidden;
+        ob << direction;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        ib >> weights;
+        ib >> recurrent;
+        ib >> bias;
+        ib >> hidden;
+        ib >> direction;
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
@@ -220,6 +279,11 @@ protected:
 
 struct lstm_elt : public primitive_base<lstm_elt> {
     CLDNN_DECLARE_PRIMITIVE(lstm_elt)
+
+    lstm_elt() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     using vec_activation = std::vector<activation_func>;
     using vec_activation_param = std::vector<activation_additional_params>;
 
@@ -280,6 +344,45 @@ struct lstm_elt : public primitive_base<lstm_elt> {
         seed = hash_combine(seed, direction);
         seed = hash_combine(seed, cell.empty());
         return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const lstm_elt>(rhs);
+
+        bool act_params_eq = activation_params.size() == rhs_casted.activation_params.size();
+        for (size_t i = 0; i < activation_params.size(); ++i) {
+            act_params_eq &= activation_params[i].a == rhs_casted.activation_params[i].a &&
+                             activation_params[i].b == rhs_casted.activation_params[i].b;
+        }
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return act_params_eq &&
+               cmp_fields(clip) &&
+               cmp_fields(input_forget) &&
+               cmp_fields(activations) &&
+               cmp_fields(offset_order) &&
+               cmp_fields(direction) &&
+               cmp_fields(cell.empty());
+        #undef cmp_fields
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        ob << cell;
+        ob << clip;
+        ob << input_forget;
+        ob << make_data(&offset_order, sizeof(lstm_weights_order));
+        ob << direction;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        ib >> cell;
+        ib >> clip;
+        ib >> input_forget;
+        ib >> make_data(&offset_order, sizeof(lstm_weights_order));
+        ib >> direction;
     }
 
 protected:

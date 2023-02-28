@@ -36,5 +36,14 @@ struct quantize : public primitive_base<quantize> {
         seed = cldnn::hash_combine(seed, levels);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const quantize>(rhs);
+
+        return levels == rhs_casted.levels;
+    }
 };
 }  // namespace cldnn

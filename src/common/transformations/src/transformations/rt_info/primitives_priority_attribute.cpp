@@ -11,7 +11,6 @@
 #include <memory>
 #include <ngraph/node.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/variant.hpp>
 #include <ostream>
 
 using namespace ov;

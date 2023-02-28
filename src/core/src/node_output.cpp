@@ -6,7 +6,6 @@
 
 #include "ngraph/log.hpp"
 #include "ngraph/rt_info.hpp"
-#include "ngraph/variant.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/op/parameter.hpp"
 
@@ -146,6 +145,10 @@ bool Output<Node>::operator<=(const Output& other) const {
 }
 bool Output<Node>::operator>=(const Output& other) const {
     return !(*this < other);
+}
+
+Output<Node>::operator Output<const Node>() const {
+    return Output<const Node>(get_node(), get_index());
 }
 
 Output<const Node>::Output(const Node* node, size_t index) : m_index(index) {

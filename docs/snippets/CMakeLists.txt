@@ -10,9 +10,9 @@ endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     ie_add_compiler_flags(-Wno-unused-variable)
-    if(CMAKE_COMPILER_IS_GNUCXX)
-        ie_add_compiler_flags(-Wno-unused-variable -Wno-unused-but-set-variable)
-    endif()
+endif()
+if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)
+    ie_add_compiler_flags(-Wno-unused-but-set-variable)
 endif()
 
 file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
@@ -24,7 +24,9 @@ file(GLOB SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
 if (NOT TARGET OpenCL::OpenCL)
     list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/gpu/context_sharing_va.cpp"
                              "${CMAKE_CURRENT_SOURCE_DIR}/gpu/context_sharing.cpp"
-                             "${CMAKE_CURRENT_SOURCE_DIR}/gpu/preprocessing.cpp"
+                             "${CMAKE_CURRENT_SOURCE_DIR}/gpu/preprocessing_nv12_two_planes.cpp"
+                             "${CMAKE_CURRENT_SOURCE_DIR}/gpu/preprocessing_nv12_single_plane.cpp"
+                             "${CMAKE_CURRENT_SOURCE_DIR}/gpu/preprocessing_nv12_to_gray.cpp"                             
                              "${CMAKE_CURRENT_SOURCE_DIR}/gpu/queue_sharing.cpp"
                              "${CMAKE_CURRENT_SOURCE_DIR}/gpu/remote_objects_creation.cpp")
 endif()
