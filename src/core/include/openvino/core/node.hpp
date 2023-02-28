@@ -417,10 +417,6 @@ public:
         OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
-    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon.")
-    virtual std::shared_ptr<Node> get_default_value() const {
-        return nullptr;
-    }
     /// Use instance ids for comparison instead of memory addresses to improve determinism
     bool operator<(const Node& other) const {
         return m_instance_id < other.m_instance_id;
@@ -460,17 +456,6 @@ public:
     /// \throw std::out_of_range if the node does not have at least `output_index+1` outputs.
     Output<const Node> output(size_t output_index) const;
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon.")
-    void set_op_annotations(std::shared_ptr<ngraph::op::util::OpAnnotations> op_annotations) {
-        m_op_annotations = op_annotations;
-    }
-    OPENVINO_DEPRECATED("This method is deprecated and will be removed soon.")
-    std::shared_ptr<ngraph::op::util::OpAnnotations> get_op_annotations() const {
-        return m_op_annotations;
-    }
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
     virtual bool match_value(ov::pass::pattern::Matcher* matcher,
                              const Output<Node>& pattern_value,
                              const Output<Node>& graph_value);
@@ -494,9 +479,6 @@ private:
     static std::atomic<size_t> m_next_instance_id;
     std::deque<descriptor::Input> m_inputs;
     std::deque<descriptor::Output> m_outputs;
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<ngraph::op::util::OpAnnotations> m_op_annotations;
-    OPENVINO_SUPPRESS_DEPRECATED_END
     RTMap m_rt_info;
 
     // The vector of SharedRTInfo attributes associated to Functions
