@@ -45,9 +45,9 @@ class Automation:
         verson = "{0}.{1}.{2}.{3}".format(major_version, minor_version, build_number, git_hash_short)
         timestamp = datetime.now().strftime("%I:%M%p %B %d, %Y")
         with open(os.path.join(dst_path, "version.txt"), 'w') as f:
-            f.write(timestamp + '\nDEBUG')
-            f.write(verson + '\nDEBUG')
-            f.write(git_hash + '\nDEBUG')
+            f.write(timestamp + '\n')
+            f.write(verson + '\n')
+            f.write(git_hash + '\n')
         return verson
 
     @staticmethod

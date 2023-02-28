@@ -38,8 +38,8 @@ class Automation:
     def add_version_txt(dst_path, build_number):
         timestamp = datetime.now().strftime("%I:%M%p %B %d, %Y")
         with open(os.path.join(dst_path, "version.txt"), 'w') as f:
-            f.write(timestamp + '\n')
-            f.write(build_number + '\n')
+            f.write(timestamp + '\nDEBUG')
+            f.write(build_number + '\nDEBUG')
 
     @staticmethod
     def make_tarfile(out_file_name, source_dir):
