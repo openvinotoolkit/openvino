@@ -39,8 +39,7 @@ def test_make_stateful():
     model = Model([res], [param], "test")
 
     manager = Manager()
-    model_pass = MakeStateful([(param, res)])
-    manager.register_pass(model_pass)
+    manager.register_pass(MakeStateful([(param, res)]))
     manager.run_passes(model)
 
     assert model is not None
