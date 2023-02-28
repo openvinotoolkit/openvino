@@ -128,13 +128,12 @@ Shape Tensor::get_shape() const {
 }
 
 void Tensor::copy_to(ov::Tensor& dst) const {
-    const auto shapes_equal = [](const ov::Shape& src, const ov::Shape& dst) {
-        if (src == dst)
-            return true;
-        // WA for some plugins to copy {1} to {} or otherwise
-        if (!src.empty() && !dst.empty())
-            return false;
-        return (src.size() == 1 && src[0] == 1) || (dst.size() == 1 && dst[0] == 1);
+    const auto& is_scalar = [](const ov::Shape& shape) {
+        return shape.empty() || (shape.size() == 1 && shape[0] == 1);
+    };
+    const auto shapes_equal = [is_scalar](const ov::Shape& src, const ov::Shape& dst) {
+        // WA for scalar tensors to copy {1} to {} or otherwise
+        return src == dst || (is_scalar(src) && is_scalar(dst));
     };
     OV_TENSOR_STATEMENT({
         OPENVINO_ASSERT(dst, "Destination tensor was not initialized.");
@@ -162,7 +161,8 @@ void Tensor::copy_to(ov::Tensor& dst) const {
         ov::Shape cur_pos{0};
         ov::Shape max_pos{1};
 
-        if (get_element_type().bitwidth() < 8 || (get_strides() == dst.get_strides() && is_continuous())) {
+        if (get_element_type().bitwidth() < 8 || (get_strides() == dst.get_strides() && is_continuous()) ||
+            (is_scalar(get_shape()) && is_scalar(dst.get_shape()))) {
             // OpenVINO doesn't support strides for LP types
             // or both tensors have default strides
             // Strides and positions already initialized
