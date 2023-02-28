@@ -34,7 +34,7 @@ public:
     /**
      * @brief Get the least recently used element with key and value pair in the cache
      *
-     * @return Value
+     * @return std::pair<Key, Value>
      */
     std::pair<Key, Value> get_lru_element() const {
         if (_lru_data_list.size()) {
@@ -45,11 +45,24 @@ public:
     }
 
     /**
+     * @brief Get the most recently used element with key and value pair in the cache
+     *
+     * @return std::pair<Key, Value>
+     */
+    std::pair<Key, Value> get_recent_element() const {
+        if (_lru_data_list.size()) {
+            return _lru_data_list.front();
+        } else {
+            return std::make_pair(Key(), Value());
+        }
+    }
+
+    /**
      * @brief Add new value with associated key into the LRU cache
      *
      * @param key if same key is existed in the cache, the value of key is updated new entry.
      * @param value
-     * @return true, if cache is full and lease recently used entry are removed to add new entry.
+     * @return true, if cache is full and least recently used entry are removed to add new entry.
      * @return false Otherwise
      */
     bool add(const Key& key, const Value& value) {
@@ -124,6 +137,15 @@ public:
     }
 
     /**
+     * @brief Return whether the cache is full or not
+     *
+     * @return true, if cache is full, false otherwise
+     */
+    size_t is_full() const {
+        return _lru_data_list.size() == _capacity;
+    }
+
+    /**
      * @brief Get the all keys object
      *
      * @return std::vector<Key>
@@ -154,7 +176,7 @@ private:
     }
 
     /**
-     * @brief Pop n lease recently used cache data.
+     * @brief Pop n least recently used cache data.
      *
      * @param n number of data to be popped
      */

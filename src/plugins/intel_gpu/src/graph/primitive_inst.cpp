@@ -558,6 +558,7 @@ primitive_inst::primitive_inst(network& network)
     , _impl(nullptr)
     , _dynamic_impl(nullptr)
     , _outputs({memory::ptr()})
+    , _reordered_weights_cache(_weights_cache_capacity)
     , _output_changed(false)
     , _mem_allocated(false) {}
 
@@ -569,6 +570,7 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     , _impl(node.get_selected_impl() ? node.get_selected_impl()->clone() : nullptr)
     , _dynamic_impl(nullptr)
     , _outputs({memory::ptr()})
+    , _reordered_weights_cache(_weights_cache_capacity)
     , _output_changed(false)
     , _mem_allocated(allocate_memory)
     , _is_dynamic(node.is_dynamic() || node.generates_dynamic_output())
@@ -707,19 +709,22 @@ event::ptr primitive_inst::update_weights() {
         return nullptr;
 
     auto& weights_params = _impl->_weights_reorder_params;
-    bool requires_reorder = weights_params.engine != kernel_selector::GenericKernelParams::Engine::NONE &&
-                            (!_impl_params->reordered_weights || _impl_params->reordered_weights->get_layout() != from_weights_tensor(weights_params.dest));
-    if (requires_reorder) {
+    bool requires_reorder = weights_params.engine != kernel_selector::GenericKernelParams::Engine::NONE;
+
+    const auto weights_idx = _node->get_primitive()->input.size();
+    const auto original_weights_memory = dep_memory_ptr(weights_idx);
+    const auto expected_layout = requires_reorder ? from_weights_tensor(weights_params.dest)
+                                                  : original_weights_memory->get_layout();
+    const auto expected_layout_hash = expected_layout.hash();
+
+    if (requires_reorder && !_reordered_weights_cache.has(expected_layout_hash)) {
         GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(false);
-        auto weights_idx = _node->get_primitive()->input.size();
-        auto original_weights_memory = dep_memory_ptr(weights_idx);
         auto original_layout = original_weights_memory->get_layout();
-        layout expected_layout = from_weights_tensor(weights_params.dest);
         auto& engine = _network.get_engine();
 
         auto get_kernel_key = [&]() -> size_t {
             auto seed = _node->get_primitive()->hash();
-            seed = hash_combine(seed, expected_layout.hash());
+            seed = hash_combine(seed, expected_layout_hash);
             seed = hash_combine(seed, original_layout.hash());
             return seed;
         };
@@ -744,18 +749,27 @@ event::ptr primitive_inst::update_weights() {
 
         auto& stream = get_network().get_stream();
 
-        bool can_reuse = _impl_params->reordered_weights != nullptr && _impl_params->reordered_weights->size() <= expected_layout.bytes_count();
+        bool can_reuse = false;
+        memory::ptr weights_memory = nullptr;
+        if (_reordered_weights_cache.is_full()) {
+            weights_memory = _reordered_weights_cache.get_lru_element().second;
+            can_reuse = weights_memory->size() <= expected_layout.bytes_count() && weights_memory != original_weights_memory;
+        }
+
         if (can_reuse) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": reuse weights memory" << std::endl;
-            _impl_params->reordered_weights = engine.reinterpret_buffer(*_impl_params->reordered_weights, expected_layout);
+            weights_memory = engine.reinterpret_buffer(*weights_memory, expected_layout);
         } else {
+            GPU_DEBUG_TRACE_DETAIL << id() << ": allocate weights memory" << std::endl;
             auto alloc_type = engine.get_preferred_memory_allocation_type();
-            _impl_params->reordered_weights = engine.allocate_memory(expected_layout, alloc_type);
+            weights_memory = engine.allocate_memory(expected_layout, alloc_type);
         }
+
+        _reordered_weights_cache.add(expected_layout_hash, weights_memory);
 
         kernel_arguments_data args;
         args.inputs.push_back(original_weights_memory);
-        args.outputs.push_back(_impl_params->reordered_weights);
+        args.outputs.push_back(weights_memory);
         stream.set_arguments(*kernel, weights_params.clKernel->params, args);
         auto ev = stream.enqueue_kernel(*kernel, weights_params.clKernel->params, args, {}, true);
 
@@ -767,9 +781,9 @@ event::ptr primitive_inst::update_weights() {
         return ev;
     } else {
         // If kernel doesn't says that it doesn't require weights reorder, but weights were reordered previously, then
-        // incorrect memory buffer may be assigned, so reset cached weights for such case
+        // incorrect memory buffer may be assigned, so push front original memory in LRU cache
         if (weights_params.engine == kernel_selector::GenericKernelParams::Engine::NONE) {
-            _impl_params->reordered_weights.reset();
+            _reordered_weights_cache.add(expected_layout_hash, original_weights_memory);
         }
     }
     GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);

@@ -53,7 +53,11 @@ public:
     typed_primitive_inst(network& network, fully_connected_node const& node);
 
     memory::ptr weights_memory() const {
-        return is_dynamic() && _impl_params->reordered_weights != nullptr ? _impl_params->reordered_weights : dep_memory_ptr(1);
+        if (is_dynamic() && _reordered_weights_cache.size() != 0) {
+            return _reordered_weights_cache.get_recent_element().second;
+        } else {
+            return dep_memory_ptr(1);
+        }
     }
     memory::ptr bias_memory() const { return dep_memory_ptr(2); }
 

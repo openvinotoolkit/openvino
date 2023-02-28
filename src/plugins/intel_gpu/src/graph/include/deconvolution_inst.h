@@ -80,8 +80,8 @@ public:
     typed_primitive_inst(network& network, deconvolution_node const& node);
 
     memory::ptr weights_memory() const {
-        if (is_dynamic() && _impl_params->reordered_weights != nullptr) {
-            return _impl_params->reordered_weights;
+        if (is_dynamic() && _reordered_weights_cache.size() != 0) {
+            return _reordered_weights_cache.get_recent_element().second;
         } else {
             return dep_memory_ptr(1);
         }
