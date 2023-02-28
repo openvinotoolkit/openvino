@@ -74,6 +74,7 @@ export default class Tensor {
   }
 };
 
+// # Demo of usage:
 // const inputData = (new Array(224*224*3)).fill(1);
 
 // const tensor = new Tensor('float16', inputData, [1, 224, 224, 3]);
