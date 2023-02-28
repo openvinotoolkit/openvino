@@ -14,6 +14,7 @@
 #include "openvino/itt.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
 #include "threading/ie_parallel_custom_arena.hpp"
 #include "threading/ie_thread_affinity.hpp"
 #include "threading/ie_thread_local.hpp"
@@ -66,21 +67,34 @@ struct CPUStreamsExecutor::Impl {
                     _impl->_streamIdQueue.pop();
                 }
             }
-            _numaNodeId = _impl->_config._streams
-                              ? _impl->_usedNumaNodes.at((_streamId % _impl->_config._streams) /
-                                                         ((_impl->_config._streams + _impl->_usedNumaNodes.size() - 1) /
-                                                          _impl->_usedNumaNodes.size()))
-                              : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
+            auto streams = _impl->_config.get_property(Config::streams.name()).as<int32_t>();
+            auto thread_binding_offset =
+                _impl->_config.get_property(Config::thread_binding_offset.name()).as<int32_t>();
+            auto _small_core_offset = _impl->_config.get_property(Config::small_core_offset.name()).as<int32_t>();
+            auto small_core_streams = _impl->_config.get_property(Config::small_core_streams.name()).as<int32_t>();
+            auto threads_per_stream = _impl->_config.get_property(Config::threads_per_stream.name()).as<int32_t>();
+            auto thread_binding_step = _impl->_config.get_property(Config::thread_binding_step.name()).as<int32_t>();
+            auto threads_per_stream_big =
+                _impl->_config.get_property(Config::threads_per_stream_big.name()).as<int32_t>();
+            auto threads_per_stream_small =
+                _impl->_config.get_property(Config::threads_per_stream_small.name()).as<int32_t>();
+            auto thread_binding_type =
+                _impl->_config.get_property(Config::thread_binding_type.name()).as<ThreadBindingType>();
+            auto thread_preferred_core_type =
+                _impl->_config.get_property(Config::thread_preferred_core_type.name()).as<Config::PreferredCoreType>();
+            _numaNodeId = streams ? _impl->_usedNumaNodes.at(
+                                        (_streamId % streams) /
+                                        ((streams + _impl->_usedNumaNodes.size() - 1) / _impl->_usedNumaNodes.size()))
+                                  : _impl->_usedNumaNodes.at(_streamId % _impl->_usedNumaNodes.size());
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
-            const auto concurrency = (0 == _impl->_config._threadsPerStream) ? custom::task_arena::automatic
-                                                                             : _impl->_config._threadsPerStream;
-            if (ThreadBindingType::HYBRID_AWARE == _impl->_config._threadBindingType) {
-                if (Config::PreferredCoreType::ROUND_ROBIN != _impl->_config._threadPreferredCoreType) {
-                    if (Config::PreferredCoreType::ANY == _impl->_config._threadPreferredCoreType) {
+            const auto concurrency = (0 == threads_per_stream) ? custom::task_arena::automatic : threads_per_stream;
+            if (ThreadBindingType::HYBRID_AWARE == thread_binding_type) {
+                if (Config::PreferredCoreType::ROUND_ROBIN != thread_preferred_core_type) {
+                    if (Config::PreferredCoreType::ANY == thread_preferred_core_type) {
                         _taskArena.reset(new custom::task_arena{concurrency});
                     } else {
                         const auto selected_core_type =
-                            Config::PreferredCoreType::BIG == _impl->_config._threadPreferredCoreType
+                            Config::PreferredCoreType::BIG == thread_preferred_core_type
                                 ? custom::info::core_types().back()    // running on Big cores only
                                 : custom::info::core_types().front();  // running on Little cores only
                         _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
@@ -95,9 +109,7 @@ struct CPUStreamsExecutor::Impl {
                     const auto big_core_streams = _impl->total_streams_on_core_types.front().second;
                     const auto hybrid_core = _impl->total_streams_on_core_types.size() > 1;
                     const auto phy_core_streams =
-                        _impl->_config._big_core_streams == 0
-                            ? 0
-                            : _impl->num_big_core_phys / _impl->_config._threads_per_stream_big;
+                        big_core_streams == 0 ? 0 : _impl->num_big_core_phys / threads_per_stream_big;
                     const auto streamId_wrapped = _streamId % total_streams;
                     const auto& selected_core_type =
                         std::find_if(
@@ -109,24 +121,22 @@ struct CPUStreamsExecutor::Impl {
                             ->first;
                     const auto small_core = hybrid_core && selected_core_type == 0;
                     const auto logic_core = !small_core && streamId_wrapped >= phy_core_streams;
-                    const auto small_core_skip = small_core && _impl->_config._threads_per_stream_small == 3 &&
-                                                 _impl->_config._small_core_streams > 1;
-                    const auto max_concurrency =
-                        small_core ? _impl->_config._threads_per_stream_small : _impl->_config._threads_per_stream_big;
-                    // Special handling of _threads_per_stream_small == 3
+                    const auto small_core_skip = small_core && threads_per_stream_small == 3 && small_core_streams > 1;
+                    const auto max_concurrency = small_core ? threads_per_stream_small : threads_per_stream_big;
+                    // Special handling of threads_per_stream_small == 3
                     const auto small_core_id = small_core_skip ? 0 : streamId_wrapped - big_core_streams;
                     const auto stream_id =
                         hybrid_core
                             ? (small_core ? small_core_id
                                           : (logic_core ? streamId_wrapped - phy_core_streams : streamId_wrapped))
                             : streamId_wrapped;
-                    const auto thread_binding_step = hybrid_core ? (small_core ? _impl->_config._threadBindingStep : 2)
-                                                                 : _impl->_config._threadBindingStep;
-                    // Special handling of _threads_per_stream_small == 3, need to skip 4 (Four cores share one L2 cache
+                    const auto thread_binding_step_ =
+                        hybrid_core ? (small_core ? thread_binding_step : 2) : thread_binding_step;
+                    // Special handling of threads_per_stream_small == 3, need to skip 4 (Four cores share one L2 cache
                     // on the small core), stream_id = 0, cpu_idx_offset cumulative plus 4
-                    const auto small_core_offset =
-                        small_core_skip ? _impl->_config._small_core_offset + (streamId_wrapped - big_core_streams) * 4
-                                        : _impl->_config._small_core_offset;
+                    const auto small_core_offset = small_core_skip
+                                                       ? _small_core_offset + (streamId_wrapped - big_core_streams) * 4
+                                                       : _small_core_offset;
                     const auto cpu_idx_offset =
                         hybrid_core
                             // Prevent conflicts with system scheduling, so default cpu id on big core starts from 1
@@ -145,18 +155,17 @@ struct CPUStreamsExecutor::Impl {
                                                      ncpus,
                                                      stream_id,
                                                      max_concurrency,
-                                                     thread_binding_step,
-                                                     _impl->_config._threadBindingOffset,
+                                                     thread_binding_step_,
+                                                     thread_binding_offset,
                                                      cpu_idx_offset});
                         _observer->observe(true);
                     }
                 }
-            } else if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
+            } else if (ThreadBindingType::NUMA == thread_binding_type) {
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
-            } else if ((0 != _impl->_config._threadsPerStream) ||
-                       (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
+            } else if ((0 != threads_per_stream) || (ThreadBindingType::CORES == thread_binding_type)) {
                 _taskArena.reset(new custom::task_arena{concurrency});
-                if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
+                if (ThreadBindingType::CORES == thread_binding_type) {
                     InferenceEngine::CpuSet processMask;
                     int ncpus = 0;
                     std::tie(processMask, ncpus) = InferenceEngine::GetProcessMask();
@@ -165,40 +174,36 @@ struct CPUStreamsExecutor::Impl {
                                                      std::move(processMask),
                                                      ncpus,
                                                      _streamId,
-                                                     _impl->_config._threadsPerStream,
-                                                     _impl->_config._threadBindingStep,
-                                                     _impl->_config._threadBindingOffset});
+                                                     threads_per_stream,
+                                                     thread_binding_step,
+                                                     thread_binding_offset});
                         _observer->observe(true);
                     }
                 }
             }
 #elif OV_THREAD == OV_THREAD_OMP
-            omp_set_num_threads(_impl->_config._threadsPerStream);
-            if (!checkOpenMpEnvVars(false) && (ThreadBindingType::NONE != _impl->_config._threadBindingType)) {
+            omp_set_num_threads(threads_per_stream);
+            if (!checkOpenMpEnvVars(false) && (ThreadBindingType::NONE != thread_binding_type)) {
                 InferenceEngine::CpuSet processMask;
                 int ncpus = 0;
                 std::tie(processMask, ncpus) = InferenceEngine::GetProcessMask();
                 if (nullptr != processMask) {
-                    parallel_nt(_impl->_config._threadsPerStream, [&](int threadIndex, int threadsPerStream) {
-                        int thrIdx = _streamId * _impl->_config._threadsPerStream + threadIndex +
-                                     _impl->_config._threadBindingOffset;
-                        InferenceEngine::PinThreadToVacantCore(thrIdx,
-                                                               _impl->_config._threadBindingStep,
-                                                               ncpus,
-                                                               processMask);
+                    parallel_nt(threads_per_stream, [&](int threadIndex, int threadsPerStream) {
+                        int thrIdx = _streamId * threads_per_stream + threadIndex + thread_binding_offset;
+                        InferenceEngine::PinThreadToVacantCore(thrIdx, thread_binding_step, ncpus, processMask);
                     });
                 }
             }
 #elif OV_THREAD == OV_THREAD_SEQ
-            if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
+            if (ThreadBindingType::NUMA == thread_binding_type) {
                 InferenceEngine::PinCurrentThreadToSocket(_numaNodeId);
-            } else if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
+            } else if (ThreadBindingType::CORES == thread_binding_type) {
                 InferenceEngine::CpuSet processMask;
                 int ncpus = 0;
                 std::tie(processMask, ncpus) = InferenceEngine::GetProcessMask();
                 if (nullptr != processMask) {
-                    InferenceEngine::PinThreadToVacantCore(_streamId + _impl->_config._threadBindingOffset,
-                                                           _impl->_config._threadBindingStep,
+                    InferenceEngine::PinThreadToVacantCore(_streamId + thread_binding_offset,
+                                                           thread_binding_step,
                                                            ncpus,
                                                            processMask);
                 }
@@ -235,15 +240,17 @@ struct CPUStreamsExecutor::Impl {
           }) {
         _exectorMgr = executor_manager();
         auto numaNodes = get_available_numa_nodes();
-        if (_config._streams != 0) {
+        if (_config.get_property(Config::streams.name()).as<int32_t>() != 0) {
             std::copy_n(std::begin(numaNodes),
-                        std::min(static_cast<std::size_t>(_config._streams), numaNodes.size()),
+                        std::min(static_cast<std::size_t>(_config.get_property(Config::streams.name()).as<int32_t>()),
+                                 numaNodes.size()),
                         std::back_inserter(_usedNumaNodes));
         } else {
             _usedNumaNodes = numaNodes;
         }
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
-        if (ThreadBindingType::HYBRID_AWARE == config._threadBindingType) {
+        if (ThreadBindingType::HYBRID_AWARE ==
+            config.get_property(Config::thread_binding_type.name()).as<ThreadBindingType>()) {
             const auto core_types = custom::info::core_types();
             const auto num_core_phys = get_number_of_cpu_cores();
             num_big_core_phys = get_number_of_cpu_cores(true);
@@ -254,16 +261,24 @@ struct CPUStreamsExecutor::Impl {
                 const auto& type = *iter;
                 // calculating the #streams per core type
                 const int num_streams_for_core_type =
-                    type == 0 ? std::max(1,
-                                         std::min(config._small_core_streams,
-                                                  config._threads_per_stream_small == 0
-                                                      ? 0
-                                                      : num_small_core_phys / config._threads_per_stream_small))
-                              : std::max(1,
-                                         std::min(config._big_core_streams,
-                                                  config._threads_per_stream_big == 0
-                                                      ? 0
-                                                      : num_big_core_phys / config._threads_per_stream_big * 2));
+                    type == 0
+                        ? std::max(
+                              1,
+                              std::min(
+                                  config.get_property(Config::small_core_streams.name()).as<int32_t>(),
+                                  config.get_property(Config::threads_per_stream_small.name()).as<int32_t>() == 0
+                                      ? 0
+                                      : num_small_core_phys /
+                                            config.get_property(Config::threads_per_stream_small.name()).as<int32_t>()))
+                        : std::max(
+                              1,
+                              std::min(
+                                  config.get_property(Config::big_core_streams.name()).as<int32_t>(),
+                                  config.get_property(Config::threads_per_stream_big.name()).as<int32_t>() == 0
+                                      ? 0
+                                      : num_big_core_phys /
+                                            config.get_property(Config::threads_per_stream_big.name()).as<int32_t>() *
+                                            2));
                 sum += num_streams_for_core_type;
                 // prefix sum, so the core type for a given stream id will be deduced just as a upper_bound
                 // (notice that the map keeps the elements in the descending order, so the big cores are populated
@@ -272,9 +287,10 @@ struct CPUStreamsExecutor::Impl {
             }
         }
 #endif
-        for (auto streamId = 0; streamId < _config._streams; ++streamId) {
+        for (auto streamId = 0; streamId < _config.get_property(Config::streams.name()).as<int32_t>(); ++streamId) {
             _threads.emplace_back([this, streamId] {
-                openvino::itt::threadName(_config._name + "_" + std::to_string(streamId));
+                openvino::itt::threadName(_config.get_property(Config::name.name()).as<std::string>() + "_" +
+                                          std::to_string(streamId));
                 for (bool stopped = false; !stopped;) {
                     Task task;
                     {
@@ -386,7 +402,7 @@ void CPUStreamsExecutor::execute(Task task) {
 }
 
 void CPUStreamsExecutor::run(Task task) {
-    if (0 == _impl->_config._streams) {
+    if (0 == _impl->_config.get_property(Config::streams.name()).as<int32_t>()) {
         _impl->Defer(std::move(task));
     } else {
         _impl->Enqueue(std::move(task));

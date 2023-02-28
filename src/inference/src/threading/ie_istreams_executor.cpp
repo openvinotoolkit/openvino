@@ -17,10 +17,32 @@
 #include "ie_plugin_config.hpp"
 #include "ie_system_conf.h"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
 #include "openvino/util/common_util.hpp"
 
 namespace InferenceEngine {
 IStreamsExecutor::~IStreamsExecutor() {}
+
+IStreamsExecutor::Config::Config(std::string name,
+                                 int streams,
+                                 int threadsPerStream,
+                                 ThreadBindingType threadBindingType,
+                                 int threadBindingStep,
+                                 int threadBindingOffset,
+                                 int threads,
+                                 PreferredCoreType threadPreferredCoreType)
+    : ov::threading::IStreamsExecutor::Config(
+          name,
+          {{ov::threading::IStreamsExecutor::Config::streams.name(), streams},
+           {ov::threading::IStreamsExecutor::Config::threads_per_stream.name(), threadsPerStream},
+           {ov::threading::IStreamsExecutor::Config::thread_binding_type.name(), threadBindingType},
+           {ov::threading::IStreamsExecutor::Config::thread_binding_step.name(), threadBindingStep},
+           {ov::threading::IStreamsExecutor::Config::thread_binding_offset.name(), threadBindingOffset},
+           {ov::threading::IStreamsExecutor::Config::threads.name(), threads},
+           {ov::threading::IStreamsExecutor::Config::thread_preferred_core_type.name(), threadPreferredCoreType}}) {}
+
+IStreamsExecutor::Config::Config(const ov::threading::IStreamsExecutor::Config& config)
+    : ov::threading::IStreamsExecutor::Config(config) {}
 
 std::vector<std::string> IStreamsExecutor::Config::SupportedKeys() const {
     auto property_names = get_property(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
