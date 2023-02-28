@@ -13,6 +13,7 @@ TEST_STATUS = {
 RUN = "[ RUN      ]"
 GTEST_FILTER = "Google Test filter = "
 DISABLED_PREFIX = "DISABLED_"
+REF_COEF = "[ CONFORMANCE ] Influence coefficient: "
 
 IS_WIN = "windows" in platform or "win32" in platform
 

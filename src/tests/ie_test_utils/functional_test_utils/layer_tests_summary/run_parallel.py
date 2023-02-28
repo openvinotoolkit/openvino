@@ -393,12 +393,14 @@ class TestParallelRunner:
                 os.mkdir(os.path.join(logs_dir, test_st))
         hash_map = dict()
         test_times = list()
+        fix_priority = list()
         for log in Path(self._working_dir).rglob("log_*.log"):
             log_filename = os.path.join(self._working_dir, log)
             with open(log_filename, "r") as log_file:
                 test_name = None
                 test_log = list()
                 dir = None
+                ref_k = None
                 test_cnt_expected = test_cnt_real_saved_now = test_cnt_real_saved_before = 0
                 try:
                     lines = log_file.readlines()
@@ -411,6 +413,8 @@ class TestParallelRunner:
                         test_cnt_expected = line.count(':')
                     if constants.RUN in line:
                         test_name = line[line.find(constants.RUN) + len(constants.RUN) + 1:-1:]
+                    if constants.REF_COEF in line:
+                        ref_k = float(line[line.rfind(' ') + 1:])
                     if dir is None:
                         for test_st, mes_list in constants.TEST_STATUS.items():
                             for mes in mes_list:
@@ -432,6 +436,9 @@ class TestParallelRunner:
                                     test_results[dir] += 1
                                 else:
                                     test_results[dir] = 1
+                                if dir != "passed" and ref_k != None:
+                                    fix_priority.append((ref_k, test_name))
+                                ref_k = None
                                 test_cnt_real_saved_now += 1
                                 test_name = None
                                 test_log = list()
@@ -458,6 +465,15 @@ class TestParallelRunner:
                 dir, name = st
                 csv_writer.writerow([dir, hash, name])
             logger.info(f"Hashed test list is saved to: {hash_table_path}")
+        if len(fix_priority) > 0:
+            fix_priority_path = os.path.join(logs_dir, "fix_priority.csv")
+            with open(fix_priority_path, "w") as csv_file:
+                fix_priority.sort(reverse=True)
+                csv_writer = csv.writer(csv_file, dialect='excel')
+                csv_writer.writerow(["Test Name", "Fix Priority"])
+                for priority, name in fix_priority:
+                    csv_writer.writerow([name, priority])
+                logger.info(f"Fix priorities list is saved to: {fix_priority_path}")
 
 
         disabled_tests_path = os.path.join(logs_dir, "disabled_tests.lst")

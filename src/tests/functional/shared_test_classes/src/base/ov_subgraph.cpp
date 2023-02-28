@@ -47,7 +47,7 @@ void SubgraphBaseTest::run() {
          ov::test::utils::PassRate::Statuses::SKIPPED :
          ov::test::utils::PassRate::Statuses::CRASHED;
     summary.setDeviceName(targetDevice);
-    summary.updateOPsStats(function, status);
+    summary.updateOPsStats(function, status, rel_influence_coef);
 
     if (isCurrentTestDisabled)
         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
@@ -92,14 +92,14 @@ void SubgraphBaseTest::run() {
             status = ov::test::utils::PassRate::Statuses::FAILED;
             errorMessage = "Unknown failure occurred.";
         }
-        summary.updateOPsStats(function, status);
+        summary.updateOPsStats(function, status, rel_influence_coef);
         if (status != ov::test::utils::PassRate::Statuses::PASSED) {
             GTEST_FATAL_FAILURE_(errorMessage.c_str());
         }
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
         IE_THROW() << "Crash happens";
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
-        summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED);
+        summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
         IE_THROW() << "Crash happens";
     }
 }

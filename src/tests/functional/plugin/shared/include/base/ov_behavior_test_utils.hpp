@@ -50,6 +50,7 @@ private:
     const std::unique_ptr<CommonTestUtils::CrashHandler> crashHandler = std::unique_ptr<CommonTestUtils::CrashHandler>(new CommonTestUtils::CrashHandler());
 
 protected:
+    size_t k = 1;
     std::string target_device = "";
     ov::test::utils::ov_entity api_entity = ov::test::utils::ov_entity::undefined;
     ov::test::utils::ApiSummary& api_summary = ov::test::utils::ApiSummary::getInstance();
@@ -61,7 +62,10 @@ public:
 
     void SetUp() override {
         set_api_entity();
-        api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::CRASHED);
+        auto test_name = this->GetTestName();
+        k = test_name.find("_mandatory") != std::string::npos || test_name.find("mandatory_") != std::string::npos ? 1 : 0;
+        std::cout << "[ CONFORMANCE ] Influence coefficient: " << k << std::endl;
+        api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::CRASHED, k);
 #ifdef _WIN32
         jmpRes = setjmp(CommonTestUtils::env);
 #else
@@ -70,7 +74,7 @@ public:
         if (jmpRes == CommonTestUtils::JMP_STATUS::ok) {
             crashHandler->StartTimer();
         } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
-            api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::HANGED);
+            api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::HANGED, k);
             GTEST_FAIL();
         }
     }
@@ -80,11 +84,11 @@ public:
             set_api_entity();
         }
         if (this->HasFailure()) {
-            api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::FAILED);
+            api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::FAILED, k);
         } else if (this->IsSkipped()) {
-            api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::SKIPPED);
+            api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::SKIPPED, k);
         } else {
-            api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::PASSED);
+            api_summary.updateStat(api_entity, target_device, ov::test::utils::PassRate::Statuses::PASSED, k);
         }
     }
 };

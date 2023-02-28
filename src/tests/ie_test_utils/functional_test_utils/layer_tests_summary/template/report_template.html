@@ -111,15 +111,9 @@
                 {% endfor %}
             </tr>
             <tr>
-                <th class="table-primary" scope="row">Tested op counter:</th>
+                <th class="table-primary" scope="row">AVG passrate (=sum_pass_rates/covered_ops_num):</th>
                 {% for d in devices -%}
-                <td class="table-primary  {{ d }} tested-ops_count">{{general_test_count[d]}}</td>
-                {% endfor %}
-            </tr>
-            <tr>
-                <th class="table-primary" scope="row">AVG passrate per op (=sum_pass_rates/covered_ops_num):</th>
-                {% for d in devices -%}
-                <td class="table-primary  {{ d }} avg_pass_rate">{{pass_rate_avg[d]}} {% if pass_rate_avg[d] != "NOT RUN" -%}%{% endif -%}</td>
+                <td class="table-primary  {{ d }} rel_pass_rate">{{pass_rate_avg_rel[d]}} {% if pass_rate_avg_rel[d] != "NOT RUN" -%}%{% endif -%}</td>
                 {% endfor %}
             </tr>
             <tr>
@@ -143,7 +137,7 @@
                             passed="{{ results[d][op].passed }}" failed="{{ results[d][op].failed }}"
                             skipped="{{ results[d][op].skipped }}" crashed="{{ results[d][op].crashed }}"
                             hanged="{{ results[d][op].hanged }}"
-                            value="{% if (results[d][op].passed != '0' or results[d][op].failed != '0' or results[d][op].crashed != '0' or results[d][op].skipped) != '0' -%}{{ results[d][op].passrate }}{% else -%}---{% endif -%}"
+                            value="{% if (results[d][op].passed != '0' or results[d][op].failed != '0' or results[d][op].crashed != '0' or results[d][op].skipped) != '0' -%}{{ results[d][op].relative_passrate }}{% else -%}---{% endif -%}"
                             title="{% if results[d][op].implemented == 'true' -%}
                                     {{op}} is implemented in {{d}} plugin
                                 {% else -%}
@@ -151,7 +145,7 @@
                                 {% endif -%}">
                             <span class="{% if results[d][op].implemented == 'true' -%} checkmark {% else -%} check {% endif -%}"></span>
                             {% if (results[d][op].passed != '0' or results[d][op].failed != '0' or results[d][op].crashed != '0' or results[d][op].skipped != '0' or results[d][op].hanged != '0') -%}
-                                {{ results[d][op].passrate }} % <br />
+                                {{ results[d][op].relative_passrate }} % <br />
                             {% else -%}
                                 ---<br />
                             {% endif -%}
