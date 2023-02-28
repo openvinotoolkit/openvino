@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,8 @@
 #include "model_wrapper.hpp"
 #include "subrequest.hpp"
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 namespace request {
 
 WorkerImpl::WorkerImpl(std::shared_ptr<ModelWrapper> model, std::vector<std::shared_ptr<Subrequest>> modelSubrequests)
@@ -129,4 +130,5 @@ void WorkerImpl::cleanup_subrequests() {
 }
 
 }  // namespace request
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

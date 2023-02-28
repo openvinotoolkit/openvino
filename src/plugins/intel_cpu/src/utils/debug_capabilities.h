@@ -1,7 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
+
+// To avoid "unused variable" warnings `when debug caps
+// need more information than non-debug caps version
+#define CPU_DEBUG_CAPS_MAYBE_UNUSED(x) (void)x
 
 #ifdef CPU_DEBUG_CAPS
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -147,24 +147,23 @@ protected:
         std::tie(shape_in, repeats_val, exp_shape) = GetParam();
     }
 
-    std::vector<size_t> get_exp_labels() const {
+    ov::TensorLabel get_exp_labels() const {
         auto labels = get_shape_labels(shape_in);
 
         if (!labels.empty()) {
             auto repeats = repeats_val;
-            int64_t size_diff = labels.size() - repeats.size();
 
-            if (size_diff >= 0) {
-                repeats.insert(repeats.begin(), size_diff, 1);
+            if (labels.size() > repeats.size()) {
+                repeats.insert(repeats.begin(), labels.size() - repeats.size(), 1);
             } else {
-                labels.insert(labels.begin(), -size_diff, ov::no_label);
+                labels.insert(labels.begin(), repeats.size() - labels.size(), ov::no_label);
             }
 
             std::transform(labels.begin(),
                            labels.end(),
                            repeats.begin(),
                            labels.begin(),
-                           [](const size_t label, const int64_t repeat) {
+                           [](const ov::label_t label, const int64_t repeat) {
                                return (label != ov::no_label && repeat == 1) ? label : ov::no_label;
                            });
         }

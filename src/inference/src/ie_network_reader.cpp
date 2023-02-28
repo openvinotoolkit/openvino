@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,6 @@
 #include "legacy_op_extension.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/type/element_type.hpp"
-#include "ngraph/variant.hpp"
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
@@ -259,12 +258,14 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
 
     // only for IR cases we need preprocessing or postprocessing steps
     if (is_ir) {
+        IR_READER_SCOPE(is_ir);
         using namespace ov::preprocess;
         PrePostProcessor prepost(function);
 
         const int64_t ir_version = function->get_rt_info<int64_t>("version");
 
         if (ir_version == 10 && newAPI) {
+            IR_READER_SCOPE(ir10_new_api);
             std::unordered_map<std::string, std::shared_ptr<ov::descriptor::Tensor>> leaf_names;
             const auto inputs = function->inputs();
             for (size_t i = 0; i < inputs.size(); ++i) {
@@ -306,7 +307,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             // we need to add operation names as tensor names for inputs and outputs
             {
                 for (const auto& result : function->get_results()) {
-                    auto res_name = ngraph::op::util::create_ie_output_name(result->input_value(0));
+                    auto res_name = ov::op::util::create_ie_output_name(result->input_value(0));
                     OPENVINO_ASSERT(
                         leaf_names.find(res_name) == leaf_names.end() ||
                             result->output(0).get_names().find(res_name) != result->output(0).get_names().end(),
@@ -332,6 +333,7 @@ CNNNetwork convert_to_cnnnetwork(std::shared_ptr<ngraph::Function>& function,
             // Set version to 10
             rt_info["version"] = int64_t(10);
         } else if (ir_version == 11 && !newAPI) {
+            IR_READER_SCOPE(ir11_old_api);
             const std::string& old_api_map_key_order = ov::OldApiMapOrder::get_type_info_static();
             const std::string& old_api_map_key_type = ov::OldApiMapElementType::get_type_info_static();
 

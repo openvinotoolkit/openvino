@@ -1,18 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Normalizes results so they sum to 1.
 /// @details
@@ -48,9 +41,29 @@ struct region_yolo : public primitive_base<region_yolo> {
     uint32_t num;
     uint32_t mask_size;
     bool do_softmax;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, coords);
+        seed = hash_combine(seed, classes);
+        seed = hash_combine(seed, num);
+        seed = hash_combine(seed, mask_size);
+        seed = hash_combine(seed, do_softmax);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const region_yolo>(rhs);
+
+        return coords == rhs_casted.coords &&
+               classes == rhs_casted.classes &&
+               num == rhs_casted.num &&
+               mask_size == rhs_casted.mask_size &&
+               do_softmax == rhs_casted.do_softmax;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn
 #pragma once

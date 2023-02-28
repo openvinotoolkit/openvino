@@ -61,7 +61,7 @@ When using the `reshape` method, you may take one of the approaches:
          :fragment: simple_spatials_change
 
 
-   To do the opposite - to resize input image to match the input shapes of the model, use the :ref:`pre-processing API <openvino_docs_OV_UG_Preprocessing_Overview>`.
+   To do the opposite - to resize input image to match the input shapes of the model, use the :doc:`pre-processing API <openvino_docs_OV_UG_Preprocessing_Overview>`.
 
 
 #. You can express a reshape plan, specifying the input by the port, the index, and the tensor name:
@@ -161,7 +161,7 @@ There are other approaches to change model input shapes during the stage of [IR 
 
 .. important::
 
-   Shape-changing functionality could be used to turn dynamic model input into a static one and vice versa. Always set static shapes when the shape of data is NOT going to change from one inference to another. Setting static shapes can avoid memory and runtime overheads for dynamic shapes which may vary depending on hardware plugin and model used. For more information, refer to the :ref:`Dynamic Shapes <openvino_docs_OV_UG_DynamicShapes>`.
+   Shape-changing functionality could be used to turn dynamic model input into a static one and vice versa. Always set static shapes when the shape of data is NOT going to change from one inference to another. Setting static shapes can avoid memory and runtime overheads for dynamic shapes which may vary depending on hardware plugin and model used. For more information, refer to the :doc:`Dynamic Shapes <openvino_docs_OV_UG_DynamicShapes>`.
 
 @endsphinxdirective
 

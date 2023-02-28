@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from typing import Dict
@@ -82,7 +82,6 @@ class CompressQuantizeWeights(BackReplacementPattern):
     """
 
     enabled = True
-    graph_condition = [lambda graph: not graph.graph['cmd_params'].disable_weights_compression]
 
     force_clean_up = True
 

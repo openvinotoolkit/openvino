@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -63,6 +63,8 @@ const std::vector<std::vector<size_t>> inputOrder5D = {
         std::vector<size_t>{},
         // use permute_8x8_4x4 kernel
         std::vector<size_t>{0, 2, 3, 4, 1},
+        // use permute_kernel_bfzyx_bfyxz
+        std::vector<size_t>{0, 1, 3, 4, 2},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_Transpose_5D,

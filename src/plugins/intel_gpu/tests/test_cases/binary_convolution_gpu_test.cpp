@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -180,8 +180,13 @@ class binary_convolution_test : public ::testing::TestWithParam<TestParams> {
 
 TEST_P(binary_convolution_test, conv) {
     auto& engine = get_test_engine();
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::optimize_data(true));
+
+    // DG2 is not validated for binary convolution: https://github.com/openvinotoolkit/openvino/pull/12486
+    if(engine.get_device_info().supports_immad)
+        return;
+
+    ov::intel_gpu::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
     topology topology_bin;
 
     std::string weights_suffix = "_w_";
@@ -225,24 +230,7 @@ TEST_P(binary_convolution_test, conv) {
     topology_bin.add(binary_convolution(output_name, input_info(input_name), {output_name + weights_suffix},
                                         stride, pad, dilation, os_size, 1, p.pad_value, p.dt));
 
-    cldnn::network::ptr network_bin;
-
-    if (p.is_caching_test) {
-        membuf mem_buf;
-        {
-            cldnn::network _network(engine, topology_bin, options);
-            std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-            _network.save(ob);
-        }
-        {
-            std::istream in_mem(&mem_buf);
-            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-            network_bin = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-        }
-    } else {
-        network_bin = std::make_shared<cldnn::network>(engine, topology_bin, options);
-    }
+    cldnn::network::ptr network_bin = get_network(engine, topology_bin, config, get_test_stream_ptr(), p.is_caching_test);
 
     network_bin->set_input_data(input_name, input);
 
@@ -337,6 +325,9 @@ static void set_binary_values(cldnn::memory::ptr mem, std::vector<T> args) {
 
 TEST(binary_convolution, basic_convolution_1x1_single_packed_channel) {
     auto& engine = get_test_engine();
+    // DG2 is not validated for binary convolution: https://github.com/openvinotoolkit/openvino/pull/12486
+    if(engine.get_device_info().supports_immad)
+        return;
 
     auto input = engine.allocate_memory({ data_types::bin, format::b_fs_yx_32fp, { 1, 16, 2, 2 } });
     auto weights = engine.allocate_memory({ data_types::bin, format::bfyx, { 4, 16, 1, 1 } });
@@ -391,10 +382,10 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel) {
                                padding{ { 0,0,0,0 }, 0 })
     );
 
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::optimize_data(true));
+    ov::intel_gpu::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
-    network network(engine, topology, options);
+    network network(engine, topology, config);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -420,6 +411,9 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel) {
 
 TEST(binary_convolution, basic_convolution_1x1_single_packed_channel_fp16) {
     auto& engine = get_test_engine();
+    // DG2 is not validated for binary convolution: https://github.com/openvinotoolkit/openvino/pull/12486
+    if(engine.get_device_info().supports_immad)
+        return;
 
     auto input = engine.allocate_memory({ data_types::bin, format::b_fs_yx_32fp, { 1, 16, 2, 2 } });
     auto weights = engine.allocate_memory({ data_types::bin, format::bfyx, { 4, 16, 1, 1 } });
@@ -474,10 +468,10 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel_fp16) {
                                padding{ { 0,0,0,0 }, 0 })
     );
 
-    cldnn::build_options options;
-    options.set_option(cldnn::build_option::optimize_data(true));
+    ov::intel_gpu::ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
-    network network(engine, topology, options);
+    network network(engine, topology, config);
     network.set_input_data("input", input);
 
     auto outputs = network.execute();

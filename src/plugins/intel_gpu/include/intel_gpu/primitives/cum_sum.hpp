@@ -1,18 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
 
 struct cum_sum : public primitive_base<cum_sum> {
     CLDNN_DECLARE_PRIMITIVE(cum_sum)
@@ -38,8 +32,24 @@ struct cum_sum : public primitive_base<cum_sum> {
     bool exclusive;
     /// @brief If set to true will perform the sums in reverse direction.
     bool reverse;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, axis);
+        seed = hash_combine(seed, exclusive);
+        seed = hash_combine(seed, reverse);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const cum_sum>(rhs);
+
+        return axis == rhs_casted.axis &&
+               exclusive == rhs_casted.exclusive &&
+               reverse == rhs_casted.reverse;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

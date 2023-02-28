@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -217,9 +217,6 @@ public:
         target_device = GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
-        // TODO: Remove it after fixing issue 69529
-        // w/a for myriad (cann't store 2 caches simultaneously)
-        PluginCache::get().reset();
         OVClassNetworkTest::SetUp();
     }
 };
@@ -232,9 +229,6 @@ public:
         target_device = GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         APIBaseTest::SetUp();
-        // TODO: Remove it after fixing issue 69529
-        // w/a for myriad (cann't store 2 caches simultaneously)
-        PluginCache::get().reset();
         OVClassNetworkTest::SetUp();
     }
 };
@@ -250,6 +244,7 @@ protected:
     std::shared_ptr<ngraph::Function> simpleNetwork;
 
 public:
+    static std::string getTestCaseName(testing::TestParamInfo<PriorityParams> obj);
     void SetUp() override {
         std::tie(target_device, configuration) = GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();

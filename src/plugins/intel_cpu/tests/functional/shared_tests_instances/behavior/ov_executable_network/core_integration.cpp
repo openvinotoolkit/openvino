@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "behavior/ov_executable_network/get_metric.hpp"
+#include "behavior/ov_plugin/properties_tests.hpp"
 #include "openvino/runtime/core.hpp"
 
 using namespace ov::test::behavior;
@@ -43,6 +44,14 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
         ::testing::Values("CPU", "MULTI:CPU", "HETERO:CPU", "AUTO:CPU"));
+
+const std::vector<std::tuple<std::string, std::pair<ov::AnyMap, std::string>>> GetMetricTest_ExecutionDevice_CPU = {
+        {"CPU", std::make_pair(ov::AnyMap{}, "CPU")}};
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_EXEC_DEVICES,
+        ::testing::ValuesIn(GetMetricTest_ExecutionDevice_CPU),
+        OVCompileModelGetExecutionDeviceTests::getTestCaseName);
 
 //
 // Executable Network GetConfig / SetConfig

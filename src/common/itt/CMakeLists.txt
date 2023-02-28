@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -24,10 +24,6 @@ if(TARGET ittnotify)
     else()
         message(FATAL_ERROR "The ${ENABLE_PROFILING_FILTER} profiling filter isn't supported")
     endif()
-endif()
-
-if(CMAKE_COMPILER_IS_GNUCXX)
-    target_compile_options(${TARGET_NAME} PRIVATE -Wall)
 endif()
 
 target_include_directories(${TARGET_NAME} PUBLIC

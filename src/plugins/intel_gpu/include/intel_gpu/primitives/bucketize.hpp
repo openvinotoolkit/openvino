@@ -6,12 +6,6 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Bucketize operation bucketizes the input based on boundaries.
 struct bucketize : primitive_base<bucketize> {
@@ -31,9 +25,21 @@ struct bucketize : primitive_base<bucketize> {
           with_right_bound(with_right_bound) {}
 
     bool with_right_bound;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, with_right_bound);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const bucketize>(rhs);
+
+        return with_right_bound == rhs_casted.with_right_bound;
+    }
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

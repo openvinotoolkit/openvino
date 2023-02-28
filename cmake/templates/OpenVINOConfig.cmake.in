@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 # FindOpenVINO
@@ -12,7 +12,9 @@
 #  * `Runtime`: OpenVINO C++ and C Core & Inference Runtime, frontend common
 #  * `ONNX`: OpenVINO ONNX frontend
 #  * `Paddle`: OpenVINO Paddle frontend
+#  * `PyTorch`: OpenVINO PyTorch frontend
 #  * `TensorFlow`: OpenVINO TensorFlow frontend
+#  * `TensorFlowLite`: OpenVINO TensorFlow Lite frontend
 #
 # If no components are specified, `Runtime` component is provided:
 #
@@ -41,8 +43,14 @@
 #   `openvino::frontend::paddle`
 #   Paddle FrontEnd target (optional)
 #
+#   `openvino::frontend::pytorch`
+#   PyTorch FrontEnd target (optional)
+#
 #   `openvino::frontend::tensorflow`
 #   TensorFlow FrontEnd target (optional)
+#
+#   `openvino::frontend::tensorflow_lite`
+#   TensorFlow Lite FrontEnd target (optional)
 #
 # Result variables:
 # ------
@@ -61,8 +69,14 @@
 #   `OpenVINO_Frontend_Paddle_FOUND`
 #   OpenVINO Paddle frontend is available
 #
+#   `OpenVINO_Frontend_PyTorch_FOUND`
+#   OpenVINO PyTorch frontend is available
+#
 #   `OpenVINO_Frontend_TensorFlow_FOUND`
 #   OpenVINO TensorFlow frontend is available
+#
+#   `OpenVINO_Frontend_TensorFlowLite_FOUND`
+#   OpenVINO TensorFlow Lite frontend is available
 #
 #   `OpenVINO_Frontend_IR_FOUND`
 #   OpenVINO IR frontend is available
@@ -231,29 +245,6 @@ macro(_ov_find_intel_gna_dependencies)
     unset(_OV_ENABLE_INTEL_GNA)
 endmacro()
 
-macro(_ov_find_intel_myriad_dependencies)
-    set(_OV_ENABLE_INTEL_MYRIAD "@ENABLE_INTEL_MYRIAD@")
-    if(_OV_ENABLE_INTEL_MYRIAD)
-        find_package(PkgConfig QUIET)
-        if(PkgConfig_FOUND AND NOT ANDROID)
-            if(${CMAKE_FIND_PACKAGE_NAME}_FIND_QUIETLY)
-                set(pkg_config_quiet_arg QUIET)
-            endif()
-            if(${CMAKE_FIND_PACKAGE_NAME}_FIND_REQUIRED)
-                set(pkg_config_required_arg REQUIRED)
-            endif()
-            pkg_search_module(libusb
-                            ${pkg_config_quiet_arg}
-                            ${pkg_config_required_arg}
-                            IMPORTED_TARGET
-                            libusb-1.0)
-            unset(pkg_config_quiet_arg)
-            unset(pkg_config_required_arg)
-        endif()
-    endif()
-    unset(_OV_ENABLE_INTEL_MYRIAD)
-endmacro()
-
 function(_ov_target_no_deprecation_error)
     if(NOT MSVC)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
@@ -282,7 +273,6 @@ set(_OV_ENABLE_OPENVINO_BUILD_SHARED "@BUILD_SHARED_LIBS@")
 if(NOT _OV_ENABLE_OPENVINO_BUILD_SHARED)
     _ov_find_tbb()
     _ov_find_intel_gna_dependencies()
-    _ov_find_intel_myriad_dependencies()
 endif()
 
 _ov_find_dependency(Threads)
@@ -316,12 +306,16 @@ set(${CMAKE_FIND_PACKAGE_NAME}_Runtime_FOUND ON)
 set(${CMAKE_FIND_PACKAGE_NAME}_ONNX_FOUND @ENABLE_OV_ONNX_FRONTEND@)
 set(${CMAKE_FIND_PACKAGE_NAME}_Paddle_FOUND @ENABLE_OV_PADDLE_FRONTEND@)
 set(${CMAKE_FIND_PACKAGE_NAME}_TensorFlow_FOUND @ENABLE_OV_TF_FRONTEND@)
+set(${CMAKE_FIND_PACKAGE_NAME}_TensorFlowLite_FOUND @ENABLE_OV_TF_LITE_FRONTEND@)
 set(${CMAKE_FIND_PACKAGE_NAME}_IR_FOUND @ENABLE_OV_IR_FRONTEND@)
+set(${CMAKE_FIND_PACKAGE_NAME}_PyTorch_FOUND @ENABLE_OV_PYTORCH_FRONTEND@)
 
 set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_ONNX_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_ONNX_FOUND})
 set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_Paddle_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_Paddle_FOUND})
 set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_TensorFlow_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_TensorFlow_FOUND})
+set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_TensorFlowLite_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_TensorFlowLite_FOUND})
 set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_IR_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_IR_FOUND})
+set(${CMAKE_FIND_PACKAGE_NAME}_Frontend_PyTorch_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_PyTorch_FOUND})
 
 # if no components specified, only Runtime is provided
 if(NOT ${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS)

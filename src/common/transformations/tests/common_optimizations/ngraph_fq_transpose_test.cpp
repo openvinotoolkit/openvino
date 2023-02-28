@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,7 +37,7 @@ TEST_F(TransformationTestsF, FQTransposeTest1) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{transpose}, ngraph::ParameterVector{});
 
-        manager.register_pass<ngraph::pass::PullTransposeThroughFQUp>();
+        manager.register_pass<ov::pass::PullTransposeThroughFQUp>();
         manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
             check_rt_info(f);
         });
@@ -74,8 +74,8 @@ TEST_F(TransformationTestsF, FQTransposeNegativeCase) {
     };
     function = create_graph();
 
-    manager.register_pass<ngraph::pass::InitNodeInfo>();
-    manager.register_pass<ngraph::pass::PullTransposeThroughFQUp>();
+    manager.register_pass<ov::pass::InitNodeInfo>();
+    manager.register_pass<ov::pass::PullTransposeThroughFQUp>();
     manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
         check_rt_info(f);
     });

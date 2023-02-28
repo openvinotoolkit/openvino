@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -155,18 +155,34 @@ macro(ov_add_frontend)
         list(APPEND PROTO_HDRS "${OUTPUT_PB_HEADER}")
     endforeach()
 
+    file(GLOB flatbuffers_schema_files ${frontend_root_dir}/src/schema/*.fbs)
+    foreach(INFILE IN LISTS flatbuffers_schema_files)
+        get_filename_component(FILE_WE ${INFILE} NAME_WE)
+        set(OUTPUT_FC_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${FILE_WE}_generated.h)
+        set(GENERATED_PROTO ${INFILE})
+        add_custom_command(
+                OUTPUT "${OUTPUT_FC_HEADER}"
+                COMMAND ${flatbuffers_COMPILER} ARGS -c --gen-mutable -o ${CMAKE_CURRENT_BINARY_DIR} ${INFILE}
+                DEPENDS ${flatbuffers_DEPENDENCY} ${GENERATED_PROTO}
+                COMMENT "Running C++ flatbuffers compiler (${flatbuffers_COMPILER}) on ${GENERATED_PROTO}"
+                VERBATIM
+                COMMAND_EXPAND_LISTS)
+        list(APPEND PROTO_HDRS "${OUTPUT_FC_HEADER}")
+    endforeach()
+
     # Disable all warnings for generated code
     set_source_files_properties(${PROTO_SRCS} ${PROTO_HDRS} PROPERTIES COMPILE_OPTIONS -w GENERATED TRUE)
 
     # Create library
-    add_library(${TARGET_NAME} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS} ${PROTO_SRCS} ${PROTO_HDRS})
+    add_library(${TARGET_NAME} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${LIBRARY_PUBLIC_HEADERS}
+        ${PROTO_SRCS} ${PROTO_HDRS} ${flatbuffers_schema_files} ${proto_files})
 
     if(OV_FRONTEND_LINKABLE_FRONTEND)
         # create beautiful alias
         add_library(openvino::frontend::${OV_FRONTEND_NAME} ALIAS ${TARGET_NAME})
     endif()
 
-    # Shutdown protobuf when unloading the front dynamic library
+    # Shutdown protobuf when unloading the frontend dynamic library
     if(proto_files AND BUILD_SHARED_LIBS)
         target_link_libraries(${TARGET_NAME} PRIVATE ov_protobuf_shutdown)
     endif()
@@ -201,8 +217,6 @@ macro(ov_add_frontend)
     ie_add_vs_version_file(NAME ${TARGET_NAME}
                            FILEDESCRIPTION ${OV_FRONTEND_FILEDESCRIPTION})
 
-    ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
-
     target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime)
     target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES})
     ov_add_library_version(${TARGET_NAME})
@@ -234,10 +248,19 @@ macro(ov_add_frontend)
         endif()
     endif()
 
+    if(flatbuffers_schema_files)
+        target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${flatbuffers_INCLUDE_DIRECTORIES})
+    endif()
+
     add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
-                            EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS})
+                            EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS} ${flatbuffers_schema_files})
 
     add_dependencies(ov_frontends ${TARGET_NAME})
+
+    # must be called after all target_link_libraries
+    ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
+    # installation
 
     if(NOT OV_FRONTEND_SKIP_INSTALL)
         if(BUILD_SHARED_LIBS)

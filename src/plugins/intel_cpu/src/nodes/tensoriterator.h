@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,7 @@ public:
     virtual ~PortMapHelper() = default;
     virtual void execute(dnnl::stream strm, int n_iter = -1) = 0;
 protected:
-    dnnl::reorder reorder;
+    dnnl::primitive reorder;
     dnnl::memory mem_holder_src;
     dnnl::memory mem_holder_dst;
 };
@@ -65,38 +65,45 @@ protected:
 class DynamicBuffer {
 public:
     DynamicBuffer(const MemoryPtr &from_, const std::vector<MemoryPtr> &to_, const PortMap &map_rule_);
-    ~DynamicBuffer() = default;
 
     void execute(const dnnl::engine& eng, const int iter);
     void transfer(const Node* node);
+
+    void reset(int max_iter_count_);   // reset local
 
 private:
     void init(const dnnl::engine& eng);
 
     /* methods for resize and refill buffer */
-    std::shared_ptr<dnnl::memory> create_buffer(const dnnl::engine& eng);
-    void move_buffer(std::shared_ptr<dnnl::memory> new_buffer);
+    bool check_buffer();
+    MemoryPtr create_buffer(const dnnl::engine& eng);
+    void move_buffer(const MemoryPtr& new_buffer);
     void move_data();
 
     static void copy(const uint8_t* src, uint8_t* dst, const size_t src_stride, const size_t dst_stride, const size_t count, const size_t len);
-    static uint8_t* get_ptr(dnnl::memory& prim);
 
+    /* variable states */
     size_t len = 1lu;
     size_t count = 1lu;
-    size_t elem_size = 0lu;
-    ptrdiff_t chunk_offset_in_byte = 0;
-    ptrdiff_t buffer_offset_in_byte = 0;
 
+    ptrdiff_t chunk_stride_in_byte = 0;
+    ptrdiff_t chunk_offset_in_byte = 0;
+    size_t chunk_unit_in_byte = 0lu;   // the amount of bytes copied per each count per each execution (iteration)
+    int num_execs = 0lu;      // number of executions happened
+    int max_iter_count = -1;   // estimated maximum iter count
+
+    /* invariable states */
     MemoryPtr from;
     std::vector<MemoryPtr> to;
     PortMap map_rule;
+    size_t elem_size = 0lu;
 
-    std::shared_ptr<dnnl::memory> mem_holder_buffer;
+    MemoryPtr mem_holder_buffer;
 };
 
 class TensorIterator : public Node {
 public:
-    TensorIterator(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    TensorIterator(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void initSupportedPrimitiveDescriptors() override;
@@ -105,8 +112,6 @@ public:
     bool created() const override;
     void execute(dnnl::stream strm) override;
     bool isExecutable() const override { return true; }
-
-    void setExtManager(const ExtensionManager::Ptr& extMgr) { ext_mng = extMgr; }
 
 protected:
     //  needShapeInfer() should return false

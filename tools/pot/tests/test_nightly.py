@@ -80,6 +80,9 @@ def test_default_quantization(model_params, tmp_path, models, algorithm, preset)
             }}]})
 
     model_name, model_framework, model_precision, expected_accuracy_dict = model_params
+    if model_framework == 'mxnet':
+        pytest.skip('Skipped due to conflict with numpy version in mxnet #99501.')
+
     run_quantization(models=models,
                      model_name=model_name,
                      model_framework=model_framework,

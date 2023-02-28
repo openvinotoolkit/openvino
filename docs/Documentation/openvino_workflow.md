@@ -9,7 +9,7 @@
 
    Model Preparation <openvino_docs_model_processing_introduction>
    Model Optimization and Compression <openvino_docs_model_optimization_guide>
-   Deployment <openvino_docs_deployment_guide_introduction>
+   Running and Deploying Inference <openvino_docs_deployment_guide_introduction>
    
 
 | :doc:`Model Preparation <openvino_docs_model_processing_introduction>`

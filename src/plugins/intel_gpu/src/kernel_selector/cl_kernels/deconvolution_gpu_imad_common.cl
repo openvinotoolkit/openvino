@@ -1,11 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
-
-#define CEIL_DIV(a, b) (((a) + ((b) - 1)) / (b))
-#define ALIGN(a, b) (CEIL_DIV(a, b) * (b))
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
 
 #define VEC_TO_ARR_1(var, arr, idx)             \
     arr[idx] = var

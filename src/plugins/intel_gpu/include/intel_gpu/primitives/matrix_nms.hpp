@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <vector>
 
@@ -10,12 +9,6 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs matrix nms of input boxes and returns indices of selected boxes.
 struct matrix_nms : public primitive_base<matrix_nms> {
@@ -125,6 +118,41 @@ struct matrix_nms : public primitive_base<matrix_nms> {
 
     attributes attribs;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, attribs.sort_type);
+        seed = hash_combine(seed, attribs.sort_result_across_batch);
+        seed = hash_combine(seed, attribs.score_threshold);
+        seed = hash_combine(seed, attribs.nms_top_k);
+        seed = hash_combine(seed, attribs.keep_top_k);
+        seed = hash_combine(seed, attribs.background_class);
+        seed = hash_combine(seed, attribs.decay);
+        seed = hash_combine(seed, attribs.gaussian_sigma);
+        seed = hash_combine(seed, attribs.post_threshold);
+        seed = hash_combine(seed, attribs.normalized);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const matrix_nms>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(attribs.sort_type) &&
+               cmp_fields(attribs.sort_result_across_batch) &&
+               cmp_fields(attribs.score_threshold) &&
+               cmp_fields(attribs.nms_top_k) &&
+               cmp_fields(attribs.keep_top_k) &&
+               cmp_fields(attribs.background_class) &&
+               cmp_fields(attribs.decay) &&
+               cmp_fields(attribs.gaussian_sigma) &&
+               cmp_fields(attribs.post_threshold) &&
+               cmp_fields(attribs.normalized);
+        #undef cmp_fields
+    }
+
 private:
     static cldnn::matrix_nms::decay_function from(ngraph::op::v8::MatrixNms::DecayFunction decay) {
         switch (decay) {
@@ -148,7 +176,4 @@ private:
         }
     }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

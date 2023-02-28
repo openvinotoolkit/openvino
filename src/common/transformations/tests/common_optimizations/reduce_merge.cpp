@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,7 @@ TEST_F(TransformationTestsF, ReduceMergeReduceL1) {
         function =
             std::make_shared<Function>(OutputVector{std::make_shared<opset9::ReduceL1>(reduce1, reduce2_axis, true)},
                                        ParameterVector{data});
-        manager.register_pass<pass::ReduceMerge>();
+        manager.register_pass<ov::pass::ReduceMerge>();
     }
     {
         auto data = std::make_shared<op::Parameter>(element::f32, Shape{3, 2});
@@ -43,7 +43,7 @@ TEST_F(TransformationTestsF, ReduceMergeReduceL2) {
         function =
             std::make_shared<Function>(OutputVector{std::make_shared<opset9::ReduceL2>(reduce1, reduce2_axis, true)},
                                        ParameterVector{data});
-        manager.register_pass<pass::ReduceMerge>();
+        manager.register_pass<ov::pass::ReduceMerge>();
     }
     {
         auto data = std::make_shared<op::Parameter>(element::f32, Shape{3, 2});
@@ -64,7 +64,7 @@ TEST_F(TransformationTestsF, ReduceMergeReduceLogicalAnd) {
         function = std::make_shared<Function>(
             OutputVector{std::make_shared<opset9::ReduceLogicalAnd>(reduce1, reduce2_axis, true)},
             ParameterVector{data});
-        manager.register_pass<pass::ReduceMerge>();
+        manager.register_pass<ov::pass::ReduceMerge>();
     }
     {
         auto data = std::make_shared<op::Parameter>(element::boolean, Shape{3, 2});
@@ -85,7 +85,7 @@ TEST_F(TransformationTestsF, ReduceMergeReduceLogicalOr) {
         function = std::make_shared<Function>(
             OutputVector{std::make_shared<opset9::ReduceLogicalOr>(reduce1, reduce2_axis, true)},
             ParameterVector{data});
-        manager.register_pass<pass::ReduceMerge>();
+        manager.register_pass<ov::pass::ReduceMerge>();
     }
     {
         auto data = std::make_shared<op::Parameter>(element::boolean, Shape{1});
@@ -106,7 +106,7 @@ TEST_F(TransformationTestsF, ReduceMergeReduceMax) {
         function =
             std::make_shared<Function>(OutputVector{std::make_shared<opset9::ReduceMax>(reduce1, reduce2_axis, true)},
                                        ParameterVector{data});
-        manager.register_pass<pass::ReduceMerge>();
+        manager.register_pass<ov::pass::ReduceMerge>();
     }
     {
         auto data = std::make_shared<op::Parameter>(element::i64, Shape{3, 2});
@@ -127,7 +127,7 @@ TEST_F(TransformationTestsF, ReduceMergeReduceMean) {
         function =
             std::make_shared<Function>(OutputVector{std::make_shared<opset9::ReduceMean>(reduce1, reduce2_axis, true)},
                                        ParameterVector{data});
-        manager.register_pass<pass::ReduceMerge>();
+        manager.register_pass<ov::pass::ReduceMerge>();
     }
     {
         auto data = std::make_shared<op::Parameter>(element::i64, Shape{3, 2});
@@ -148,7 +148,7 @@ TEST_F(TransformationTestsF, ReduceMergeReduceMin) {
         function =
             std::make_shared<Function>(OutputVector{std::make_shared<opset9::ReduceMin>(reduce1, reduce2_axis, true)},
                                        ParameterVector{data});
-        manager.register_pass<pass::ReduceMerge>();
+        manager.register_pass<ov::pass::ReduceMerge>();
     }
     {
         auto data = std::make_shared<op::Parameter>(element::i64, Shape{3, 2});
@@ -169,7 +169,7 @@ TEST_F(TransformationTestsF, ReduceMergeReduceProd) {
         function =
             std::make_shared<Function>(OutputVector{std::make_shared<opset9::ReduceProd>(reduce1, reduce2_axis, true)},
                                        ParameterVector{data});
-        manager.register_pass<pass::ReduceMerge>();
+        manager.register_pass<ov::pass::ReduceMerge>();
     }
     {
         auto data = std::make_shared<op::Parameter>(element::i64, Shape{3, 2});
@@ -190,7 +190,7 @@ TEST_F(TransformationTestsF, ReduceMergeReduceSum) {
         function =
             std::make_shared<Function>(OutputVector{std::make_shared<opset9::ReduceSum>(reduce1, reduce2_axis, true)},
                                        ParameterVector{data});
-        manager.register_pass<pass::ReduceMerge>();
+        manager.register_pass<ov::pass::ReduceMerge>();
     }
     {
         auto data = std::make_shared<op::Parameter>(element::i64, Shape{3, 2});
@@ -211,7 +211,7 @@ TEST_F(TransformationTestsF, ReduceMergeNoReduceDiffKeepDims) {
         function =
             std::make_shared<Function>(OutputVector{std::make_shared<opset9::ReduceL1>(reduce1, reduce2_axis, false)},
                                        ParameterVector{A});
-        manager.register_pass<pass::ReduceMerge>();
+        manager.register_pass<ov::pass::ReduceMerge>();
     }
     {
         auto data = std::make_shared<op::Parameter>(element::i64, Shape{3, 2});
@@ -235,7 +235,7 @@ TEST_F(TransformationTestsF, ReduceMergeNotPassInvalidAxes) {
         function =
             std::make_shared<Function>(OutputVector{std::make_shared<opset9::ReduceL2>(reduce1, reduce2_axis, false)},
                                        ParameterVector{data});
-        manager.register_pass<pass::ReduceMerge>();
+        manager.register_pass<ov::pass::ReduceMerge>();
     }
     {
         auto data = std::make_shared<op::Parameter>(element::f32, Shape{3, 2});
@@ -260,7 +260,7 @@ TEST_F(TransformationTestsF, ReduceMergeDynamicShapes) {
         function =
             std::make_shared<Function>(OutputVector{std::make_shared<opset9::ReduceL2>(reduce1, reduce2_axis, true)},
                                        ParameterVector{data});
-        manager.register_pass<pass::ReduceMerge>();
+        manager.register_pass<ov::pass::ReduceMerge>();
     }
     {
         auto data =
@@ -283,7 +283,7 @@ TEST_F(TransformationTestsF, ReduceMerge3ReducesL1) {
         auto reduce3_axis = op::Constant::create(element::i64, Shape{1}, {1});
         auto reduce3 = std::make_shared<opset9::ReduceL1>(reduce2, reduce3_axis, true);
         function = std::make_shared<Function>(OutputVector{reduce3}, ParameterVector{data});
-        manager.register_pass<pass::ReduceMerge>();
+        manager.register_pass<ov::pass::ReduceMerge>();
     }
     {
         auto data = std::make_shared<op::Parameter>(element::i64, Shape{3, 2, 4});
@@ -303,7 +303,7 @@ TEST_F(TransformationTestsF, ReduceMergeConcatAxes) {
         auto axis2 = std::make_shared<op::Parameter>(element::i64, Shape{1});
         auto reduce2 = std::make_shared<opset9::ReduceL1>(reduce1, axis2, true);
         function = std::make_shared<Function>(OutputVector{reduce2}, ParameterVector{data, axis1, axis2});
-        manager.register_pass<pass::ReduceMerge>();
+        manager.register_pass<ov::pass::ReduceMerge>();
     }
     {
         auto data = std::make_shared<op::Parameter>(element::i64, Shape{3, 2, 4});

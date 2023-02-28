@@ -1,6 +1,13 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # 'argument': conversion from 'size_t' to 'int', possible loss of data
+    ie_add_compiler_flags(/wd4267)
+    ie_add_compiler_flags(/wd4244)
+endif()
+
 set(TARGET_NAME ov_core_unit_tests)
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
@@ -16,10 +23,6 @@ endif()
 
 message(STATUS "OpenVINO Core unit tests enabled")
 
-if(LINUX)
-    set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-endif()
-
 # For type relaxed types
 set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/threading.cpp
         PROPERTIES INCLUDE_DIRECTORIES $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -33,8 +36,7 @@ endif()
 list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_extension)
 list(APPEND UNIT_TESTS_DEPENDENCIES template_extension)
 
-list(APPEND EXCLUDE_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/frontend
-                          ${CMAKE_CURRENT_SOURCE_DIR}/dnnl.cpp)
+list(APPEND EXCLUDE_TESTS ${CMAKE_CURRENT_SOURCE_DIR}/dnnl.cpp)
 if (ENABLE_TEMPLATE)
     list(APPEND UNIT_TESTS_DEPENDENCIES openvino_template_plugin)
 else()
@@ -77,7 +79,11 @@ target_include_directories(${TARGET_NAME} PRIVATE ${OV_CORE_SRC_DIR}/src
 target_compile_definitions(${TARGET_NAME}
     PRIVATE
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
-        SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
+        SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
+        FRONTEND_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}${FRONTEND_NAME_PREFIX}"
+        # Assume <lib>.so is an existed symlink to <lib><version>.so (or <lib>.so<version>
+        FRONTEND_LIB_SUFFIX="${FRONTEND_NAME_SUFFIX}${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
+        )
 
 add_dependencies(${TARGET_NAME} ${UNIT_TESTS_DEPENDENCIES})
 

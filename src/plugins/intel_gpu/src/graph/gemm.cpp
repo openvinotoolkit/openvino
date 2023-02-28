@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #include "gemm_inst.h"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
@@ -80,6 +78,10 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
 
     auto output_format = input0_layout.format;
 
+    if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
+        output_format = node.get_preferred_output_fmt();
+    }
+
     return layout(output_shape, output_type, output_format, prim->output_paddings[0]);
 }
 
@@ -112,6 +114,28 @@ std::vector<layout> gemm_inst::calc_output_layouts(gemm_node const& /*node*/, co
 }
 
 template std::vector<layout> gemm_inst::calc_output_layouts<ov::PartialShape>(gemm_node const& node, const kernel_impl_params& impl_param);
+
+std::vector<size_t> gemm_inst::extend_input_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t input_idx) {
+    ov::PartialShape ps = orig_impl_param.get_input_layout(input_idx).get_partial_shape();
+
+    if (ps.size() < 4) {
+        ps.insert(ps.begin(), 4 - ps.size(), ov::Dimension(1));
+    }
+
+    layout l(ps, data_types::i32, format::get_default_format(ps.size()));
+    return l.transform(format::bfwzyx).to_shape();
+}
+
+std::vector<size_t> gemm_inst::extend_output_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t output_idx) {
+    ov::PartialShape ps = orig_impl_param.get_output_layout(output_idx).get_partial_shape();
+
+    if (ps.size() < 4) {
+        ps.insert(ps.begin(), 4 - ps.size(), ov::Dimension(1));
+    }
+
+    layout l(ps, data_types::i32, format::get_default_format(ps.size()));
+    return l.transform(format::bfwzyx).to_shape();
+}
 
 std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<const gemm> primitive,
                                                        const std::vector<layout>& input_layouts,
@@ -165,7 +189,7 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
     layouts[0].set_partial_shape(updated_input0_pshape);
     layouts[1].set_partial_shape(updated_input1_pshape);
 
-    if (input_layouts.size() == 3) {
+    if (primitive->input_size() == 3) {
         auto bias_pshape = input_layouts[2].get_partial_shape();
         auto updated_bias_pshape = get_updated_input_shape(bias_pshape, weight_rank, output_rank, primitive->transpose_input1, false);
         layouts[2].set_partial_shape(updated_bias_pshape);

@@ -1,10 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-namespace GNAPluginNS {
+namespace ov {
+namespace intel_gna {
 
 /**
  * @brief Enum representing status of request
@@ -17,4 +18,5 @@ enum class RequestStatus {
     kCompletedWithError = 4  /// request was completed with error
 };
 
-}  // namespace GNAPluginNS
+}  // namespace intel_gna
+}  // namespace ov

@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <algorithm>
 
@@ -48,7 +46,7 @@ void add_required_reorders::add_reorder(program& p, program_node* node, program_
 }
 
 void add_required_reorders::run(program& p) {
-    bool optimize_data = p.get_options().get<build_option_type::optimize_data>()->enabled();
+    bool optimize_data = p.get_config().get_property(ov::intel_gpu::optimize_data);
     auto usr_itr = p.get_processing_order().begin();
     while (usr_itr != p.get_processing_order().end()) {
         auto& usr = *usr_itr++;

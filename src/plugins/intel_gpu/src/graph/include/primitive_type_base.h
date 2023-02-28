@@ -1,12 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/layout.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include "meta_utils.h"
 #include "primitive_type.h"
@@ -85,10 +85,26 @@ struct primitive_type_base : primitive_type {
     std::vector<cldnn::layout> calc_output_layouts(const cldnn::program_node& node, const kernel_impl_params& impl_param) const override {
         OPENVINO_ASSERT(node.type() == this, "primitive_type_base::calc_output_layouts: primitive type mismatch");
 
-        return typed_primitive_inst<PType>::template calc_output_layouts<ov::PartialShape>(node, impl_param);
+        for (auto& t : impl_param.input_layouts) {
+            GPU_DEBUG_TRACE_DETAIL << impl_param.desc->id << " input tensor: " << t.to_short_string() << std::endl;
+        }
+
+        auto res = typed_primitive_inst<PType>::template calc_output_layouts<ov::PartialShape>(node, impl_param);
+
+        for (auto& t : res) {
+            GPU_DEBUG_TRACE_DETAIL << impl_param.desc->id << " output tensor: " << t.to_short_string() << std::endl;
+        }
+
+        return res;
     }
     kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param) const override {
         return typed_primitive_inst<PType>::get_fake_aligned_params(orig_impl_param);
+    }
+    std::vector<size_t> extend_input_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t input_idx) const override {
+        return typed_primitive_inst<PType>::extend_input_shape_to_6d(orig_impl_param, input_idx);
+    }
+    std::vector<size_t> extend_output_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t output_idx) const override {
+        return typed_primitive_inst<PType>::extend_output_shape_to_6d(orig_impl_param, output_idx);
     }
     std::string to_string(const cldnn::program_node& node) const override {
         OPENVINO_ASSERT(node.type() == this, "[GPU] primitive_type_base::to_string: primitive type mismatch");

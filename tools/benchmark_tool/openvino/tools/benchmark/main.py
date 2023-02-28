@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -10,7 +10,7 @@ from openvino.runtime import Dimension
 from openvino.tools.benchmark.benchmark import Benchmark
 from openvino.tools.benchmark.parameters import parse_args
 from openvino.tools.benchmark.utils.constants import MULTI_DEVICE_NAME, \
-    CPU_DEVICE_NAME, GPU_DEVICE_NAME, MYRIAD_DEVICE_NAME, \
+    CPU_DEVICE_NAME, GPU_DEVICE_NAME, \
     BLOB_EXTENSION, AUTO_DEVICE_NAME
 from openvino.tools.benchmark.utils.inputs_filling import get_input_data
 from openvino.tools.benchmark.utils.logging import logger
@@ -112,7 +112,7 @@ def main():
                 if is_flag_set_in_command_line('hint'):
                     if args.perf_hint=='none':
                         logger.warning(f"No device {device} performance hint is set.")
-                        args.perf_hint = ''
+                        args.perf_hint = 'UNDEFINED'
                 else:
                     args.perf_hint = "THROUGHPUT" if benchmark.api_type == "async" else "LATENCY"
                     logger.warning(f"Performance hint was not explicitly specified in command line. " +
@@ -255,23 +255,22 @@ def main():
                     logger.warning(f"-nstreams default value is determined automatically for {device} device. " +
                                    "Although the automatic selection usually provides a reasonable performance, "
                                    "but it still may be non-optimal for some cases, for more information look at README.")
-                    if device != MYRIAD_DEVICE_NAME:  ## MYRIAD sets the default number of streams implicitly
-                        if key in supported_properties:
-                            config[device][key] = get_device_type_from_name(device) + "_THROUGHPUT_AUTO"
-                        elif "NUM_STREAMS" in supported_properties:
-                            key = "NUM_STREAMS"
-                            config[device][key] = "-1"  # Set AUTO mode for streams number
-                        elif device in [MULTI_DEVICE_NAME, AUTO_DEVICE_NAME]:
-                            # Set nstreams to default value auto if no nstreams specified from cmd line.
-                            for hw_device in hw_devices_list:
-                                hw_supported_properties = benchmark.core.get_property(hw_device, 'SUPPORTED_PROPERTIES')
-                                key = get_device_type_from_name(hw_device) + "_THROUGHPUT_STREAMS"
-                                value = get_device_type_from_name(hw_device) + "_THROUGHPUT_AUTO"
-                                if key not in hw_supported_properties:
-                                    key = "NUM_STREAMS"
-                                    value = "AUTO"
-                                if key in hw_supported_properties:
-                                    update_configs(hw_device, key, value)
+                    if key in supported_properties:
+                        config[device][key] = get_device_type_from_name(device) + "_THROUGHPUT_AUTO"
+                    elif "NUM_STREAMS" in supported_properties:
+                        key = "NUM_STREAMS"
+                        config[device][key] = "-1"  # Set AUTO mode for streams number
+                    elif device in [MULTI_DEVICE_NAME, AUTO_DEVICE_NAME]:
+                        # Set nstreams to default value auto if no nstreams specified from cmd line.
+                        for hw_device in hw_devices_list:
+                            hw_supported_properties = benchmark.core.get_property(hw_device, 'SUPPORTED_PROPERTIES')
+                            key = get_device_type_from_name(hw_device) + "_THROUGHPUT_STREAMS"
+                            value = get_device_type_from_name(hw_device) + "_THROUGHPUT_AUTO"
+                            if key not in hw_supported_properties:
+                                key = "NUM_STREAMS"
+                                value = "AUTO"
+                            if key in hw_supported_properties:
+                                update_configs(hw_device, key, value)
                 if key in config[device].keys():
                     device_number_streams[device] = config[device][key]
                 return
@@ -301,9 +300,6 @@ def main():
                 ## for GPU execution, more throughput-oriented execution via streams
                 set_throughput_streams()
                 set_infer_precision()
-            elif MYRIAD_DEVICE_NAME in device:
-                set_throughput_streams()
-                config[device]['LOG_LEVEL'] = 'LOG_INFO'
             elif AUTO_DEVICE_NAME in device:
                 set_throughput_streams()
                 set_infer_precision()
@@ -326,7 +322,10 @@ def main():
                     del device_number_streams[device]
 
         perf_counts = perf_counts
-        benchmark.set_config(config)
+        device_config = {}
+        for device in config:
+            if benchmark.device.find(device) == 0:
+                device_config = config[device]
         if args.cache_dir:
             benchmark.set_cache_dir(args.cache_dir)
 
@@ -352,7 +351,7 @@ def main():
             next_step()
 
             start_time = datetime.utcnow()
-            compiled_model = benchmark.core.compile_model(args.path_to_model, benchmark.device)
+            compiled_model = benchmark.core.compile_model(args.path_to_model, benchmark.device, device_config)
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
             logger.info(f"Compile model took {duration_ms} ms")
             if statistics:
@@ -415,7 +414,7 @@ def main():
             next_step()
 
             start_time = datetime.utcnow()
-            compiled_model = benchmark.core.compile_model(model, benchmark.device)
+            compiled_model = benchmark.core.compile_model(model, benchmark.device, device_config)
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
             logger.info(f"Compile model took {duration_ms} ms")
             if statistics:
