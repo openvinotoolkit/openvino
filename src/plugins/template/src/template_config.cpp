@@ -9,13 +9,13 @@
 
 #include "template/config.hpp"
 
-using namespace TemplatePlugin;
+using namespace ov::template_plugin;
 
 Configuration::Configuration() {}
 
 Configuration::Configuration(const ConfigMap& config, const Configuration& defaultCfg, bool throwOnUnsupported) {
     *this = defaultCfg;
-    // If plugin needs to use InferenceEngine::StreamsExecutor it should be able to process its configuration
+    // If plugin needs to use ov::threading::StreamsExecutor it should be able to process its configuration
     auto streamExecutorConfigKeys =
         _streamsExecutorConfig.get_property(ov::supported_properties.name()).as<std::vector<std::string>>();
     for (auto&& c : config) {
