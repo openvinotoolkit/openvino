@@ -45,9 +45,9 @@ def get_version():
     version_txt = os.path.join(here, prefix, "pot", "version.txt")
     if os.path.isfile(version_txt):
         with open(version_txt) as f:
-            version = f.readline().replace('\n', '')
+            version = f.readline()
     else:
-        version = generate_pot_version().replace('-', '+')
+        version = generate_pot_version()
         with open(version_txt, 'w') as f:
             f.write(version + '\n')
     return version
