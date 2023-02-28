@@ -26,8 +26,8 @@ KERNEL(gather_tree_gpu_ref)(
     }
 
     for (int parent = beam; time >= 0; time--) {
-        output[OUTPUT_GET_INDEX(time, batch, beam, 0)] = step_input[INPUT0_GET_INDEX(time, batch, parent, 0)];
-        parent = parent_input[INPUT1_GET_INDEX(time, batch, parent, 0)];
+        output[OUTPUT_GET_INDEX(time, batch, beam, 0)] = TO_OUTPUT_TYPE(step_input[INPUT0_GET_INDEX(time, batch, parent, 0)]);
+        parent = (int)parent_input[INPUT1_GET_INDEX(time, batch, parent, 0)];
     }
     bool finished = false;
     for (int time = 0; time < max_sequence_in_beam; time++) {
