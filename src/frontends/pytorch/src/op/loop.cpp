@@ -26,7 +26,12 @@ OutputVector translate_loop(NodeContext& context) {
     loop->set_special_body_ports(spec_ports);
 
     auto body_parameters = body->get_parameters();
-    // #0 body parameter is counter; #0 loop input is counter, #1 loop input is condition
+    // #0 body parameter is counter;
+    FRONT_END_OP_CONVERSION_CHECK(body_parameters.size() > 0, "At least one input to Loop body is required");
+    // Set counter type and shape
+    body_parameters[0]->set_element_type(element::i32);
+    body_parameters[0]->set_partial_shape(PartialShape{});
+    // #0 loop input is  trip_count, #1 loop input is condition
     // Connect other inputs
     for (size_t i = 2; i < inputs.size(); i++) {
         loop->set_invariant_inputs(inputs[i], {body_parameters[i - 1]});
@@ -39,7 +44,6 @@ OutputVector translate_loop(NodeContext& context) {
         auto external_output = context.get_tensor_from_model_or_create_input(input_idx);
         loop->set_invariant_inputs(external_output, {param});
     }
-    // TODO: Connect back edges (merged inputs)
     auto body_results = body->get_results();
     FRONT_END_OP_CONVERSION_CHECK(body_results.size() > 0, "At least one output from loop is required - condition.");
     std::set<size_t> output_idxs;
