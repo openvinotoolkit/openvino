@@ -97,7 +97,7 @@ function(_ov_add_api_validator_post_build_step)
         message(FATAL_ERROR "Internal error: apiValidator is found (${ONECORE_API_VALIDATOR}), but UniversalDDIs.xml file has not been found for ${wdk_platform} platform")
     endif()
 
-    cmake_parse_arguments(API_VALIDATOR "" "TARGET" "" ${ARGN})
+    cmake_parse_arguments(API_VALIDATOR "" "TARGET" "EXTRA" "" ${ARGN})
 
     if(NOT API_VALIDATOR_TARGET)
         message(FATAL_ERROR "RunApiValidator requires TARGET to validate!")
@@ -108,8 +108,12 @@ function(_ov_add_api_validator_post_build_step)
     endif()
 
     # collect targets
-
     _ie_add_api_validator_post_build_step_recursive(TARGET ${API_VALIDATOR_TARGET})
+    if (API_VALIDATOR_EXTRA)
+        foreach(target IN LISTS API_VALIDATOR_EXTRA)
+            _ie_add_api_validator_post_build_step_recursive(TARGET ${target})
+        endforeach()
+    endif()
 
     # remove targets which were tested before
     foreach(item IN LISTS VALIDATED_TARGETS)
@@ -121,7 +125,6 @@ function(_ov_add_api_validator_post_build_step)
     endif()
 
     # apply check
-
     macro(api_validator_get_target_name)
         get_target_property(is_imported ${target} IMPORTED)
         get_target_property(orig_target ${target} ALIASED_TARGET)
