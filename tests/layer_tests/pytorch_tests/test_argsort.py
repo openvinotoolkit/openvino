@@ -71,6 +71,6 @@ class TestArgSort(PytorchLayerTest):
         True
     ])
     @pytest.mark.xfail
-    def test_argsort(self, input_tensor, dim, descending, stable, ie_device, precision, ir_version):
+    def test_argsort_stable_throws(self, input_tensor, dim, descending, stable, ie_device, precision, ir_version):
         self.input_tensor = input_tensor
         self._test(*self.create_model(dim, descending, stable), ie_device, precision, ir_version)
