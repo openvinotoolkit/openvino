@@ -30,6 +30,7 @@ else()
     set(WHEEL_VERSION ${OpenVINO_VERSION} CACHE STRING "Version of this release" FORCE)
 endif()
 set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
+string(REGEX REPLACE "-" "+" VARIABLE "${WHEEL_VERSION}")
 
 # outbound requirements.txt files for openvino-dev package
 
