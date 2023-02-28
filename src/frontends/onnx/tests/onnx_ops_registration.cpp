@@ -27,6 +27,28 @@ NGRAPH_TEST(ops_registration, check_importing_abs_in_all_opset_versions) {
     for (int version = 1; version <= ONNX_OPSET_VERSION; ++version) {
         const auto changed_opset_model = change_opset_version(editor.model_string(), {version});
         std::stringstream model_stream{changed_opset_model};
-        ONNXModelEditor(model_stream).get_function();
+        ASSERT_NO_THROW(ONNXModelEditor(model_stream).get_function());
+    }
+}
+
+NGRAPH_TEST(ops_registration, check_importing_add_in_different_opsets) {
+    const auto legacy_broadcast_detected = [](const std::vector<std::shared_ptr<ov::Node>>& ops) {
+        return std::find_if(std::begin(ops), std::end(ops), [](const std::shared_ptr<ov::Node>& op) {
+                   return std::string{op->get_type_name()} == "Reshape";
+               }) != std::end(ops);
+    };
+    ONNXModelEditor editor{ngraph::file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                        SERIALIZED_ZOO,
+                                                        "onnx/add_v6_broadcast_dynamic.onnx")};
+    for (int version = 1; version <= ONNX_OPSET_VERSION; ++version) {
+        const auto changed_opset_model = change_opset_version(editor.model_string(), {version});
+        std::stringstream model_stream{changed_opset_model};
+        const auto model = ONNXModelEditor(model_stream).get_function();
+        const bool legacy_add = legacy_broadcast_detected(model->get_ops());
+        if (version <= 6) {
+            ASSERT_TRUE(legacy_add);
+        } else {
+            ASSERT_FALSE(legacy_add);
+        }
     }
 }
