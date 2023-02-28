@@ -60,7 +60,13 @@ public:
         return pass;
     }
 
-    void run_passes(std::shared_ptr<Model>);
+    /// \brief      Runs registered transformations on a given model
+    ///
+    /// \param      model Input model
+    ///
+    /// \return     Returns true if the model was changed by transformations,
+    ///             false otherwise.
+    bool run_passes(std::shared_ptr<Model> model);
 
     void set_pass_visualization(bool new_state) {
         m_visualize = new_state;
