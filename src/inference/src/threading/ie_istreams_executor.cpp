@@ -23,7 +23,12 @@ namespace InferenceEngine {
 IStreamsExecutor::~IStreamsExecutor() {}
 
 std::vector<std::string> IStreamsExecutor::Config::SupportedKeys() const {
-    return get_property(ov::supported_properties.name()).as<std::vector<std::string>>();
+    auto property_names = get_property(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
+    std::vector<std::string> res;
+    res.reserve(property_names.size());
+    for (const auto& property : property_names)
+        res.emplace_back(property);
+    return res;
 }
 int IStreamsExecutor::Config::GetDefaultNumStreams(const bool enable_hyper_thread) {
     return get_default_num_streams(enable_hyper_thread);

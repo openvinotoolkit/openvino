@@ -121,7 +121,7 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
         auto configs = default_rw_properties();
         auto streamExecutorConfigKeys = ov::threading::IStreamsExecutor::Config{}
                                             .get_property(ov::supported_properties.name())
-                                            .as<std::vector<std::string>>();
+                                            .as<std::vector<ov::PropertyName>>();
         for (auto&& configKey : streamExecutorConfigKeys) {
             configs.emplace_back(configKey);
         }

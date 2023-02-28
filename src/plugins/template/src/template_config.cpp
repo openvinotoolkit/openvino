@@ -17,7 +17,7 @@ Configuration::Configuration(const ConfigMap& config, const Configuration& defau
     *this = defaultCfg;
     // If plugin needs to use ov::threading::StreamsExecutor it should be able to process its configuration
     auto streamExecutorConfigKeys =
-        _streamsExecutorConfig.get_property(ov::supported_properties.name()).as<std::vector<std::string>>();
+        _streamsExecutorConfig.get_property(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
     for (auto&& c : config) {
         const auto& key = c.first;
         const auto& value = c.second;
@@ -45,7 +45,7 @@ Configuration::Configuration(const ConfigMap& config, const Configuration& defau
 
 ov::Any Configuration::Get(const std::string& name) const {
     auto streamExecutorConfigKeys =
-        _streamsExecutorConfig.get_property(ov::supported_properties.name()).as<std::vector<std::string>>();
+        _streamsExecutorConfig.get_property(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
     if ((streamExecutorConfigKeys.end() !=
          std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), name))) {
         return _streamsExecutorConfig.get_property(name);

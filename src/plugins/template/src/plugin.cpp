@@ -238,7 +238,7 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         auto configs = default_rw_properties();
         auto streamExecutorConfigKeys = ov::threading::IStreamsExecutor::Config{}
                                             .get_property(ov::supported_properties.name())
-                                            .as<std::vector<std::string>>();
+                                            .as<std::vector<PropertyName>>();
         for (auto&& configKey : streamExecutorConfigKeys) {
             if (configKey != InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) {
                 configs.emplace_back(configKey);
