@@ -61,6 +61,11 @@ using compileKernelsCacheParams = std::tuple<
         std::string,            // device name
         std::pair<std::map<std::string, std::string>, std::string>   // device and cache configuration
 >;
+
+#if defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma warning(disable : 4250)
+#endif
 class LoadNetworkCompiledKernelsCacheTest : virtual public LayerTestsUtils::LayerTestsCommon,
                                             virtual public BehaviorTestsUtils::IEPluginTestBase,
                                             public testing::WithParamInterface<compileKernelsCacheParams> {
@@ -92,4 +97,7 @@ protected:
         cache_path = "LoadNetwork" + test_name + "_cache";
     }
 };
+#if defined(_MSC_VER)
+#    pragma warning(pop)
+#endif
 } // namespace LayerTestsDefinitions
