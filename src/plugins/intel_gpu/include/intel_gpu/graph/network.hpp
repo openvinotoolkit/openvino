@@ -259,6 +259,8 @@ private:
     std::list<std::shared_ptr<primitive_inst>> _data_outputs;
     variables_states_map _variables_states;
     std::vector<std::shared_ptr<primitive_inst>> _variable_state_primitives;
+    program::primitives_info _prims_info;
+    std::map<primitive_id, primitive_id> _ext_id_mapping;
 
     std::unordered_map<primitive_id, event::ptr> _events;
     output_chains_map _output_chains;
