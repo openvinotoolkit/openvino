@@ -102,7 +102,7 @@ jobs:
           mkdir -p $(CCACHE_DIR)
 
       - name: Install lcov
-        if: ${{ success() && $(CMAKE_BUILD_SHARED_LIBS) == 'ON'}}
+        #if: ${{ success() && $(CMAKE_BUILD_SHARED_LIBS) == 'ON'}}
         runs: sudo apt --assume-yes install lcov
 
       - name: Clone OpenVINO
@@ -286,7 +286,7 @@ jobs:
         continue-on-error: false
 
       - name: Python API 2.0 Tests
-        if: ${{ success() }}
+        #if: ${{ success() }}
         runs: |
           . $(PY_VENV)/bin/activate
           echo "DATA_PATH=$(MODELS_PATH)" >> $GITHUB_ENV
@@ -412,7 +412,7 @@ jobs:
         continueOnError: false
 
       - name: Build Coverage
-        if: ${{ success() }}
+        #if: ${{ success() }}
         runs: |
           echo "CCACHE_DIR=$(CCACHE_DIR)" >> $GITHUB_ENV
           echo "CCACHE_TEMPDIR=$(TMP_DIR)/ccache" >> $GITHUB_ENV
@@ -421,7 +421,7 @@ jobs:
           cmake --build $(BUILD_DIR) --target ov_coverage -- -C $(BUILD_DIR)
 
       - name: Collect Coverage
-        if: ${{ success() }}
+        #if: ${{ success() }}
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
