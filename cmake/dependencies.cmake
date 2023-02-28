@@ -180,14 +180,14 @@ function(ov_download_tbbbind_2_5)
                 ARCHIVE_WIN "tbbbind_2_5_static_win_v2.zip"
                 TARGET_PATH "${TEMP}/tbbbind_2_5"
                 ENVIRONMENT "TBBBIND_2_5_ROOT"
-                SHA256 "6e764e06d75f52c7d775ccd8c81d4472f4084b27906e6213b93df39f728b6e64"
+                SHA256 "49ae93b13a13953842ff9ae8d01681b269b5b0bc205daf18619ea9a828c44bee"
                 USE_NEW_LOCATION TRUE)
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(TBBBIND_2_5
                 ARCHIVE_LIN "tbbbind_2_5_static_lin_v3.tgz"
                 TARGET_PATH "${TEMP}/tbbbind_2_5"
                 ENVIRONMENT "TBBBIND_2_5_ROOT"
-                SHA256 "db07a7bb10f483fe75d137ec760ec5802b332041b855a786267a1e1642ff6f97"
+                SHA256 "d39deb262c06981b5e2d2e3c593e9fc9be62ce4feb91dd4e648e92753659a6b3"
                 USE_NEW_LOCATION TRUE)
     else()
         # TMP: for Apple Silicon TBB does not provide TBBBind
