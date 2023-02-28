@@ -21,18 +21,14 @@ OutputVector translate_pythonop(NodeContext& context) {
     std::map<size_t, ParameterVector> inputs_map;
     for (const auto& param : body->get_parameters()) {
         auto tensor_idx = session->decode_tensor_name(param->output(0));
-        if (!inputs_map.count(tensor_idx)) {
-            inputs_map[tensor_idx] = {param};
-        } else {
-            inputs_map[tensor_idx].push_back(param);
-        }
+        FRONT_END_OP_CONVERSION_CHECK(!inputs_map.count(tensor_idx),
+                                      "Multiple nodes with the same id are not allowed.");
+        inputs_map[tensor_idx] = {param};
     }
     for (const auto& input : inputs_map) {
-        auto external_output = context.get_tensor_from_model(input.first);
+        auto external_output = context.get_input((int)input.first);
         if (external_output.get_node()) {
-            for (auto input_node : input.second) {
-                replace_node(input_node, context.get_input((int)input.first).get_node_shared_ptr());
-            }
+            input.second[0]->output(0).replace(external_output);
         }
     }
 
