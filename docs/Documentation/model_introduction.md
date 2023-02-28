@@ -20,7 +20,7 @@ Every deep learning workflow begins with obtaining a model. You can choose to pr
 
 The approach to fully convert a model is considered the default choice, as it allows the full extent of OpenVINO features. The OpenVINO IR model format is used by other conversion and preparation tools, such as the Post-Training Optimization Tool, for further optimization of the converted model.
 
-Conversion is not required for ONNX, PaddlePaddle, and Tensorflow models, as OpenVINO provides C++ and Python APIs for importing them to OpenVINO Runtime directly. It provides a convenient way to quickly switch from framework-based code to OpenVINO-based code in your inference application.
+Conversion is not required for ONNX, PaddlePaddle, and Tensorflow models (check [TensorFlow Frontend Capabilities and Limitations](../resources/tensorflow_frontend.md)), as OpenVINO provides C++ and Python APIs for importing them to OpenVINO Runtime directly. It provides a convenient way to quickly switch from framework-based code to OpenVINO-based code in your inference application.
 
 This section describes how to obtain and prepare your model for work with OpenVINO to get the best inference results:
 * [See the supported formats and how to use them in your project](../MO_DG/prepare_model/convert_model/supported_model_formats.md)
