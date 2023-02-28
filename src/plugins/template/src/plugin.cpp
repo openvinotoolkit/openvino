@@ -33,7 +33,8 @@ ov::template_plugin::Plugin::Plugin() {
     _backend = ngraph::runtime::Backend::create();
 
     // create default stream executor with a given name
-    _waitExecutor = get_executor_manager()->get_idle_cpu_streams_executor({wait_executor_name});
+    // FIXME: revert back
+    // _waitExecutor = get_executor_manager()->get_idle_cpu_streams_executor({wait_executor_name});
 }
 // ! [plugin:ctor]
 
@@ -95,7 +96,7 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
     auto compiled_model =
         std::make_shared<CompiledModel>(model->clone(),
                                         shared_from_this(),
-                                        get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig),
+                                        nullptr,
                                         fullConfig);
     return compiled_model;
 }
