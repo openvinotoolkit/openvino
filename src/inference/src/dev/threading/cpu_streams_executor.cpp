@@ -11,6 +11,8 @@
 #include <thread>
 #include <vector>
 
+#include <ie_system_conf.h>
+
 #include "dev/threading/parallel_custom_arena.hpp"
 #include "dev/threading/thread_affinity.hpp"
 #include "openvino/itt.hpp"
@@ -176,6 +178,8 @@ struct CPUStreamsExecutor::Impl {
             omp_set_num_threads(_impl->_config._threadsPerStream);
             if (!checkOpenMpEnvVars(false) && (ThreadBindingType::NONE != _impl->_config._threadBindingType)) {
                 CpuSet processMask;
+            if (!InferenceEngine::checkOpenMpEnvVars(false) && (ThreadBindingType::NONE != _impl->_config._threadBindingType)) {
+                InferenceEngine::CpuSet processMask;
                 int ncpus = 0;
                 std::tie(processMask, ncpus) = get_process_mask();
                 if (nullptr != processMask) {
