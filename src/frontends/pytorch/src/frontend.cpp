@@ -114,7 +114,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
 
     // Usually if nn.Module.forward is given as a source model for conversion, there is the first Parameter
     // that represents original `self` argument in forward(self, ...). `self` shouldn't play any role in model
-    // inference if model is completelly frozed and all methods are inlined. So we check if it doesn't have any
+    // inference if model is completely frozen and all methods are inlined. So we check if it doesn't have any
     // consumers in the finally converted model and remove this parameter. This parameter should have index 0.
     if (model->get_parameters().size() > 0) {
         auto self = model->get_parameters()[0];

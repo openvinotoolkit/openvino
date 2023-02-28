@@ -8,6 +8,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "pt_framework_node.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -28,8 +29,17 @@ Output<Node> base_translate_full_with_convert(const NodeContext& context,
                                               size_t dtype_id) {
     auto filled_tensor = base_translate_full(context, sizes, value);
     if (!context.input_is_none(dtype_id)) {
-        auto dtype = convert_dtype(context.const_input<int64_t>(dtype_id));
-        filled_tensor = context.mark_node(std::make_shared<v0::Convert>(filled_tensor, dtype));
+        if (std::dynamic_pointer_cast<v0::Constant>(
+                context.get_input_from_visible_context(dtype_id).get_node_shared_ptr())) {
+            auto dtype = convert_dtype(context.const_input<int64_t>(dtype_id));
+            filled_tensor = context.mark_node(std::make_shared<v0::Convert>(filled_tensor, dtype));
+        } else if (const auto& fw_node =
+                       cast_fw_node(context.get_input(dtype_id).get_node_shared_ptr(), "prim::dtype")) {
+            filled_tensor =
+                context.mark_node(std::make_shared<v1::ConvertLike>(filled_tensor, fw_node->input_value(0)));
+        } else {
+            FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
+        }
     }
     return filled_tensor;
 }
@@ -104,6 +114,8 @@ OutputVector translate_zeros(NodeContext& context) {
         }
         return {base_translate_full(context, sizes, value)};
     }
+    // aten::zeros(SymInt[] size, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool?
+    // pin_memory=None) -> Tensor
     size_t dtype_id = num_inputs == 5 ? 1 : 2;
     return {base_translate_full_with_convert(context, sizes, value, dtype_id)};
 };
@@ -172,7 +184,7 @@ OutputVector translate_new_ones(NodeContext& context) {
 };
 
 OutputVector translate_empty(NodeContext& context) {
-    num_inputs_check(context, 1, 2);
+    num_inputs_check(context, 1, 5);
     auto sizes = context.get_input(0);
     // In OV uninitialised data is not supported, so we create a tensor filled with zeros with a given shape and type.
     auto value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
@@ -182,6 +194,23 @@ OutputVector translate_empty(NodeContext& context) {
         empty = base_translate_full_with_convert(context, sizes, value, dtype_id);
     } else {
         empty = base_translate_full(context, sizes, value);
+    }
+    return {empty};
+};
+
+OutputVector translate_new_empty(NodeContext& context) {
+    // aten::new_empty(Tensor self, SymInt[] size, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None,
+    // bool? pin_memory=None) -> Tensor
+    num_inputs_check(context, 2, 6);
+    auto input = context.get_input(0);
+    auto sizes = context.get_input(1);
+    auto value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
+    int dtype_id = 2;
+    Output<Node> empty;
+    if (!context.input_is_none(dtype_id)) {
+        empty = base_translate_full_with_convert(context, sizes, value, dtype_id);
+    } else {
+        empty = base_translate_full_with_convertlike(context, sizes, value, input);
     }
     return {empty};
 };

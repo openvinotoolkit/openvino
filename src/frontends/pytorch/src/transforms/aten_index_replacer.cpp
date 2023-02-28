@@ -47,9 +47,9 @@ std::shared_ptr<Node> flatten(const Output<Node>& value, size_t axis) {
     } else {
         const auto value_shape = std::make_shared<v3::ShapeOf>(value, element::i32);
         const auto value_rank = std::make_shared<v3::ShapeOf>(value_shape, element::i32);
-        const auto axis_node = v0::Constant::create(element::i32, Shape{}, {axis});
-        auto start = v0::Constant::create(element::i32, Shape{}, {0});
-        auto step = v0::Constant::create(element::i32, Shape{}, {1});
+        const auto axis_node = v0::Constant::create(element::i32, Shape{1}, {axis});
+        auto start = v0::Constant::create(element::i32, Shape{1}, {0});
+        auto step = v0::Constant::create(element::i32, Shape{1}, {1});
         const auto first_part_dims = std::make_shared<v8::Slice>(value_shape, start, axis_node, step);
         auto zero = v0::Constant::create(element::i32, {}, {0});
         auto first_part_dims_length = std::make_shared<ov::op::v1::ReduceProd>(first_part_dims, zero, true);
@@ -70,7 +70,7 @@ AtenIndexToSelect::AtenIndexToSelect() {
         if (!index_op) {
             return false;
         }
-        auto input_node = index_op->input_value(0).get_node_shared_ptr();
+        auto input_node = index_op->input_value(0);
         auto indicies = index_op->input_value(1).get_node_shared_ptr();
         auto list_indicies = cast_fw_node(indicies, "prim::ListConstruct");
         if (list_indicies) {
@@ -108,8 +108,8 @@ AtenIndexToSelect::AtenIndexToSelect() {
                         continue;
                     }
                 }
-                auto id_dtype = ids[i].get_node_shared_ptr()->get_element_type();
-                if (id_dtype == element::boolean || id_dtype == element::u8) {
+                auto id_dtype = ids[i].get_element_type();
+                if (id_dtype == element::boolean || id_dtype == element::u8 || true) {
                     auto idx = std::make_shared<ov::op::v0::Convert>(ids[i], element::u8);
                     auto nonzero = std::make_shared<ov::op::v3::NonZero>(idx);
                     auto input_order = v0::Constant::create(element::i32, Shape{2}, {1, 0});
@@ -125,31 +125,30 @@ AtenIndexToSelect::AtenIndexToSelect() {
 
             // all indicies prim::Constant(None), return input as is
             if (advanced_ids.size() == 0) {
-                copy_runtime_info({index_op, input_node}, input_node);
-                replace_node(index_op, input_node);
+                replace_node(index_op, input_node.get_node_shared_ptr());
                 return true;
             }
             // perform gather for single element case
             if (advanced_ids.size() == 1) {
-                auto index = masked_indicies[advanced_ids[0]];
+                auto index = masked_indicies[0];
                 index = std::make_shared<v0::Convert>(index, element::i32);
-                if (is_masked_bool[advanced_ids[0]]) {
+                if (is_masked_bool[0]) {
+                    //return false;
                     auto gather = std::make_shared<v8::GatherND>(input_node, index);
-                    copy_runtime_info({index_op, input_node, indicies}, gather);
+                    copy_runtime_info({index_op, indicies}, gather);
+                    gather->set_friendly_name(index_op->get_friendly_name());
                     replace_node(index_op, gather);
                     return true;
                 }
                 auto dim = v0::Constant::create(element::i32, Shape{}, {advanced_ids[0]});
                 auto gather = std::make_shared<v8::Gather>(input_node, index, dim);
-                copy_runtime_info({index_op, input_node, indicies}, gather);
+                copy_runtime_info({index_op, indicies}, gather);
                 replace_node(index_op, gather);
                 return true;
             }
             auto adv_idx_count = advanced_ids.size();
-            auto rank = input_node->get_input_partial_shape(0).rank();
-            if (rank.is_dynamic()) {
-                FRONT_END_CHECK_IMPLEMENTED(false, "indexing for tensor with dynamic rank is not implemented ");
-            }
+            auto rank = input_node.get_partial_shape().rank();
+            FRONT_END_CHECK_IMPLEMENTED(rank.is_static(), "indexing for tensor with dynamic rank is not implemented ");
             auto input_shape = std::make_shared<v3::ShapeOf>(input_node, element::i32);
             auto zero = v0::Constant::create(element::i32, Shape{}, {0});
             auto input_dims = std::make_shared<v1::Split>(input_shape, zero, rank.get_length());
@@ -223,7 +222,7 @@ AtenIndexToSelect::AtenIndexToSelect() {
             }
             auto final_shape = std::make_shared<v0::Concat>(concat_dims, 0);
             gather = std::make_shared<v1::Reshape>(gather, final_shape, false);
-            copy_runtime_info({index_op, input_node, indicies}, gather);
+            copy_runtime_info({index_op, indicies}, gather);
             replace_node(index_op, gather);
             return true;
 
@@ -234,8 +233,7 @@ AtenIndexToSelect::AtenIndexToSelect() {
                 // index is None, stay input as is
                 const auto& attrs = const_input->get_attrs();
                 if (attrs.find("none_value") != attrs.end()) {
-                    copy_runtime_info({index_op, input_node, indicies}, input_node);
-                    replace_node(index_op, input_node);
+                    replace_node(index_op, input_node.get_node_shared_ptr());
                     return true;
                 }
             }
@@ -245,7 +243,7 @@ AtenIndexToSelect::AtenIndexToSelect() {
                 auto input_order = v0::Constant::create(element::i32, Shape{2}, {1, 0});
                 auto masked_id = std::make_shared<v1::Transpose>(nonzero, input_order);
                 auto gather = std::make_shared<v8::GatherND>(input_node, masked_id);
-                copy_runtime_info({index_op, input_node, indicies}, gather);
+                copy_runtime_info({index_op, indicies}, gather);
                 replace_node(index_op, gather);
                 return true;
             }
@@ -254,7 +252,7 @@ AtenIndexToSelect::AtenIndexToSelect() {
             }
             auto dim = v0::Constant::create(element::i32, Shape{}, {0});
             auto gather = std::make_shared<v8::Gather>(input_node, indicies, dim);
-            copy_runtime_info({index_op, input_node, indicies}, gather);
+            copy_runtime_info({index_op, indicies}, gather);
             replace_node(index_op, gather);
             return true;
         }
