@@ -128,6 +128,14 @@ Shape Tensor::get_shape() const {
 }
 
 void Tensor::copy_to(ov::Tensor& dst) const {
+    const auto shapes_equal = [](const ov::Shape& src, const ov::Shape& dst) {
+        if (src == dst)
+            return true;
+        // WA for some plugins to copy {1} to {} or otherwise
+        if (!src.empty() && !dst.empty())
+            return false;
+        return (src.size() == 1 && src[0] == 1) || (dst.size() == 1 && dst[0] == 1);
+    };
     OV_TENSOR_STATEMENT({
         OPENVINO_ASSERT(dst, "Destination tensor was not initialized.");
         OPENVINO_ASSERT(!is<ov::RemoteTensor>(), "Default copy to doesn't support copy from remote tensor.");
@@ -140,7 +148,7 @@ void Tensor::copy_to(ov::Tensor& dst) const {
                         ")");
         if (dst.get_shape() == ov::Shape{0})
             dst.set_shape(get_shape());
-        OPENVINO_ASSERT(dst.get_shape() == get_shape(),
+        OPENVINO_ASSERT(shapes_equal(get_shape(), dst.get_shape()),
                         "Tensor shapes are not equal. (src: ",
                         get_shape(),
                         " != dst: ",
