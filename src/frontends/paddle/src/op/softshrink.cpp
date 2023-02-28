@@ -11,15 +11,15 @@ namespace paddle {
 namespace op {
 NamedOutputs softshrink(const NodeContext& node) {
     auto loss = node.get_input("X");
-    auto lambda  = node.get_attribute<float>("lambda", 0.5);
-    //initialize
+    auto lambda = node.get_attribute<float>("lambda", 0.5);
+    // initialize
     auto pos_lam = default_opset::Constant::create(loss.get_element_type(), Shape{}, {lambda});
     auto neg_lam = default_opset::Constant::create(loss.get_element_type(), Shape{}, {-lambda});
     auto zero = default_opset::Constant::create(loss.get_element_type(), Shape{}, {0});
-    //comparison
+    // comparison
     auto pos_mask = std::make_shared<default_opset::Greater>(loss, pos_lam);
     auto neg_mask = std::make_shared<default_opset::Less>(loss, neg_lam);
-    //select
+    // select
     auto positive = std::make_shared<default_opset::Subtract>(loss, pos_lam);
     auto negative = std::make_shared<default_opset::Add>(loss, neg_lam);
     auto mid_result = std::make_shared<default_opset::Select>(pos_mask, positive, zero);
