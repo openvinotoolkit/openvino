@@ -521,6 +521,21 @@ div.highlight {
     left: 0;
 }
 
+.modal-footer-content {
+    display: flex;
+    justify-content: space-between;
+}
+
+.modal-disclaimer-box {
+    padding-right: 0.5rem;
+}
+
+.modal-disclaimer-box p {
+    color: #00000098;
+    font-size: 0.8rem;
+    margin-bottom: 0rem;
+}
+
 .benchmark-graph-results-header {
     display: flex;
     justify-content: space-between;
@@ -649,6 +664,7 @@ div.highlight {
     background-color: #0054AE;
     color: #fefefe;
     float: right;
+    align-self: flex-start;
 }
 
 

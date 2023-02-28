@@ -1,3 +1,8 @@
+const chartDisclaimers = {
+    Value: 'Value: Performance/(No_of_sockets * Price_of_CPU_dGPU), where prices are in USD as of December 2022.',
+    Efficiency: 'Efficiency: Performance/(No_of_sockets * TDP_of_CPU_dGPU), where total power dissipation (TDP) is in Watt as of December 2022.'
+}
+
 class Filter {
 
     // param: GraphData[], networkModels[]
@@ -653,6 +658,7 @@ $(document).ready(function () {
     function renderData(graph, networkModels, ietype, platforms, kpis, precisions) {
 
         $('.chart-placeholder').empty();
+        $('.modal-disclaimer-box').empty();
         networkModels.forEach((networkModel) => {
             var chartName = networkModel;
             var chartSlug = chartName.replace(')', '').replace(' (', '-');
@@ -679,8 +685,12 @@ $(document).ready(function () {
             } else {
               createEmptyChartContainer(chartContainer);
             }
-
         })
+       
+        for (let kpi of kpis) {
+            if (chartDisclaimers[kpi])
+                $('.modal-disclaimer-box').append($('<p>').text(chartDisclaimers[kpi]))
+        }
     };
 
     function createEmptyChartContainer(chartContainer) {
