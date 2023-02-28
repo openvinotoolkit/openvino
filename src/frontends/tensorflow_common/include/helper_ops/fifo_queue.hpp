@@ -26,7 +26,6 @@ public:
         : InternalOperation(decoder, OutputVector{}, 1),
           m_component_types(component_types),
           m_shapes(shapes),
-          m_capacity(capacity),
           m_container(container),
           m_shared_name(shared_name) {
         validate_and_infer_types();
@@ -47,7 +46,6 @@ public:
 private:
     std::vector<ov::element::Type> m_component_types;
     std::vector<ov::PartialShape> m_shapes;
-    int64_t m_capacity;
     std::string m_container;
     std::string m_shared_name;
 };

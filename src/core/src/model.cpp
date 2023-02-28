@@ -27,6 +27,7 @@
 #include "openvino/op/util/variable_extension.hpp"
 #include "openvino/pass/manager.hpp"
 #include "shared_node_info.hpp"
+#include "tensor_conversion_util.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 
 using namespace std;
@@ -85,6 +86,12 @@ ngraph::ParameterVector auto_detect_parameters(const std::vector<std::shared_ptr
     return parameter_vector;
 }
 
+// Check that a Node argument for ctor isn't nullptr.
+const std::shared_ptr<ov::Node>& verify_node(const std::shared_ptr<ov::Node>& node) {
+    OPENVINO_ASSERT(node != nullptr, "Model is incorrect! Some Node equals to nullptr.");
+    return node;
+}
+
 }  // namespace
 
 ov::Model::Model(const ResultVector& results, const ngraph::ParameterVector& parameters, const std::string& name)
@@ -117,7 +124,7 @@ ov::Model::Model(const NodeVector& results, const ngraph::ParameterVector& param
 ov::Model::Model(const std::shared_ptr<Node>& result,
                  const ngraph::ParameterVector& parameters,
                  const std::string& name)
-    : Model(result->outputs(), parameters, name) {}
+    : Model(verify_node(result)->outputs(), parameters, name) {}
 
 ov::Model::Model(const ngraph::ResultVector& results,
                  const ngraph::SinkVector& sinks,
@@ -485,50 +492,15 @@ int64_t ov::Model::get_result_index(const Output<const Node>& value) const {
     return -1;
 }
 
-namespace {
-
-inline ov::Tensor create_tmp_tensor(const ngraph::HostTensorPtr& tensor) {
-    if (tensor->get_partial_shape().is_static()) {
-        ov::Shape shape = tensor->get_shape();
-        return ov::Tensor(tensor->get_element_type(), shape, tensor->get_data_ptr());
-    } else {
-        if (tensor->get_element_type().is_dynamic()) {
-            return {};
-        } else {
-            return ov::Tensor(tensor->get_element_type(), {0});
-        }
-    }
-}
-inline ov::TensorVector create_tmp_tensors(const ngraph::HostTensorVector& tensors) {
-    ov::TensorVector result;
-    result.reserve(tensors.size());
-    for (const auto& tensor : tensors) {
-        result.emplace_back(create_tmp_tensor(tensor));
-    }
-    return result;
-}
-
-inline void update_output_tensors(const ngraph::HostTensorVector& output_values, const ov::TensorVector& outputs) {
-    OPENVINO_ASSERT(output_values.size(), outputs.size());
-    for (size_t i = 0; i < outputs.size(); i++) {
-        const auto& tensor = output_values[i];
-        if (tensor->get_partial_shape().is_dynamic()) {
-            tensor->set_element_type(outputs[i].get_element_type());
-            tensor->set_shape(outputs[i].get_shape());
-            void* dst_data = tensor->get_data_ptr();
-            memcpy(dst_data, outputs[i].data(), tensor->get_size_in_bytes());
-        }
-    }
-}
-}  // namespace
-
 bool ov::Model::evaluate(const HostTensorVector& output_tensors,
                          const HostTensorVector& input_tensors,
                          EvaluationContext evaluation_context) const {
-    ov::TensorVector outputs = create_tmp_tensors(output_tensors);
-    ov::TensorVector inputs = create_tmp_tensors(input_tensors);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    auto outputs = ov::util::wrap_tensors(output_tensors);
+    auto inputs = ov::util::wrap_tensors(input_tensors);
     bool sts = evaluate(outputs, inputs, std::move(evaluation_context));
-    update_output_tensors(output_tensors, outputs);
+    ov::util::update_output_host_tensors(output_tensors, outputs);
+    OPENVINO_SUPPRESS_DEPRECATED_END
     return sts;
 }
 
@@ -560,13 +532,7 @@ bool ov::Model::evaluate(ov::TensorVector& output_tensors,
             for (const auto& v : node->outputs()) {
                 auto it = output_tensor_map.find(v);
                 if (it == output_tensor_map.end()) {
-                    if (v.get_partial_shape().is_dynamic() || v.get_element_type().is_dynamic()) {
-                        ov::Tensor c = create_tmp_tensor(std::make_shared<HostTensor>(v));
-                        output_tensors.push_back(c);
-                    } else {
-                        ov::Tensor c(v.get_element_type(), v.get_shape());
-                        output_tensors.push_back(c);
-                    }
+                    output_tensors.push_back(util::wrap_tensor(v));
                 } else {
                     output_tensors.push_back(it->second);
                 }
