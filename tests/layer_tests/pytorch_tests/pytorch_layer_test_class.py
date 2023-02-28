@@ -52,7 +52,8 @@ class PytorchLayerTest:
             else:
                 torch_inputs = [torch.from_numpy(inp) for inp in inputs]
                 model = torch.jit.trace(model, torch_inputs)
-            model = torch.jit.freeze(model)
+            if kwargs.get('freeze_model', True):
+                model = torch.jit.freeze(model)
             graph = model.inlined_graph
             print(graph)
 
