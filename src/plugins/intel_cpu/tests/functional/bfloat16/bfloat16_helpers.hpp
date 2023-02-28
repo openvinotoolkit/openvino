@@ -62,6 +62,7 @@ public:
         float f = in;
         int* i = reinterpret_cast<int*>(&f);
         int t2 = *i & 0xFFFF0000;
+        float ft1;
         memcpy(&ft1, &t2, sizeof(float));
         if ((*i & 0x8000) && (*i & 0x007F0000) != 0x007F0000) {
             t2 += 0x10000;
