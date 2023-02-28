@@ -42,11 +42,11 @@ void op::v5::Loop::validate_and_infer_types() {
                           "Loop contains output descriptions for other bodies");
 
     if (m_special_body_ports.current_iteration_input_idx >= 0) {
-        // Propagate current_iteration input shape and type
-        auto& iter_param = m_bodies[0]->get_parameters().at(m_special_body_ports.current_iteration_input_idx);
-        iter_param->set_element_type(get_input_element_type(0));
-        iter_param->set_partial_shape(get_input_partial_shape(0));
-        const auto& cur_iter_rank = iter_param->get_partial_shape().rank();
+        const auto& cur_iter_rank = m_bodies[0]
+                                        ->get_parameters()
+                                        .at(m_special_body_ports.current_iteration_input_idx)
+                                        ->get_partial_shape()
+                                        .rank();
         if (cur_iter_rank.is_static()) {
             NODE_VALIDATION_CHECK(this,
                                   cur_iter_rank.compatible(1) || cur_iter_rank.compatible(0),
