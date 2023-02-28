@@ -59,14 +59,14 @@ StringEqualityReplacer::StringEqualityReplacer() {
         auto equal_node = pattern_map.at(equal_op).get_node_shared_ptr();
         if (auto equal = std::dynamic_pointer_cast<v1::Equal>(equal_node)) {
             auto const_result = v0::Constant::create(element::boolean, Shape{}, {lhs == rhs});
-            copy_runtime_info({lhs_node, rhs_node}, const_result);
+            copy_runtime_info({lhs_node, rhs_node, equal_node}, const_result);
             replace_node(equal_node, const_result);
             return true;
         };
         auto not_equal_node = pattern_map.at(not_equal_op).get_node_shared_ptr();
         if (auto equal = std::dynamic_pointer_cast<v1::NotEqual>(not_equal_node)) {
             auto const_result = v0::Constant::create(element::boolean, Shape{}, {lhs != rhs});
-            copy_runtime_info({lhs_node, rhs_node}, const_result);
+            copy_runtime_info({lhs_node, rhs_node, not_equal_node}, const_result);
             replace_node(equal_node, const_result);
             return true;
         };
