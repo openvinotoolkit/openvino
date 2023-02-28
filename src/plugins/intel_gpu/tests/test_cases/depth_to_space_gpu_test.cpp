@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "test_utils.h"
 
@@ -247,10 +245,8 @@ TEST(depth_to_space_fp32_gpu, d112960540_bs2) {
         reshape("reshape2", input_info("perm"), tensor(1, 3, 2 * 960, 2 * 540))
     );
 
-    build_options build_opt;
-
-    build_opt.set_option(build_option::optimize_data(true));
-    network network_ref(engine, topology_ref, build_opt);
+    ExecutionConfig config(ov::intel_gpu::optimize_data(true));
+    network network_ref(engine, topology_ref, config);
     network_ref.set_input_data("Input0", input1);
 
     auto outputs_ref = network_ref.execute();
@@ -397,24 +393,7 @@ void test_depth_to_space_fp32_gpu_d1822_bs2_depth_first(bool is_caching_test) {
         depth_to_space("depth_to_space", input_info("Input0"), block_size, depth_to_space_mode::depth_first)
     );
 
-    cldnn::network::ptr network;
-
-    if (is_caching_test) {
-        membuf mem_buf;
-        {
-            cldnn::network _network(engine, topology);
-            std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-            _network.save(ob);
-        }
-        {
-            std::istream in_mem(&mem_buf);
-            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-        }
-    } else {
-        network = std::make_shared<cldnn::network>(engine, topology);
-    }
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("Input0", input1);
 

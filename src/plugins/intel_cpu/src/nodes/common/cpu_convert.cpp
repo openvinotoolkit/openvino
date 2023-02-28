@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -462,13 +462,6 @@ struct ConvertPrecision<std::tuple<ov::float16, ov::float16>> {
         ctx.converted = true;
     }
 };
-
-bool isConversionTruncatesRange(const Precision & from, const Precision & to) {
-    return to.bitsSize() < from.bitsSize()
-            || (from.is_float() && !to.is_float())      // float -> integral
-            || (from.isSigned() != to.isSigned())       // signed <-> unsigned
-            || (to == Precision::BOOL && from != to);   // T -> bool
-}
 
 }   // namespace
 

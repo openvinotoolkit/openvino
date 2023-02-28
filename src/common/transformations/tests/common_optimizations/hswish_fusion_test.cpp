@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithReluDivF16) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSwishFusion>();
+        manager.register_pass<ov::pass::HSwishFusion>();
     }
 
     {
@@ -60,7 +60,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithReluDivF32) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSwishFusion>();
+        manager.register_pass<ov::pass::HSwishFusion>();
     }
 
     {
@@ -86,7 +86,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithReluMul) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_second}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSwishFusion>();
+        manager.register_pass<ov::pass::HSwishFusion>();
     }
 
     {
@@ -115,8 +115,8 @@ TEST_F(TransformationTestsF, HSwishFusionWithoutRelu) {
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
 
         auto gr = manager.register_pass<ngraph::pass::GraphRewrite>();
-        gr->add_matcher<ngraph::pass::HSigmoidFusion>();
-        gr->add_matcher<ngraph::pass::HSwishFusion>();
+        gr->add_matcher<ov::pass::HSigmoidFusion>();
+        gr->add_matcher<ov::pass::HSwishFusion>();
     }
 
     {
@@ -142,8 +142,8 @@ TEST_F(TransformationTestsF, HSwishFusionWithClampMul) {
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_second}, ngraph::ParameterVector{input});
 
         auto gr = manager.register_pass<ngraph::pass::GraphRewrite>();
-        gr->add_matcher<ngraph::pass::HSigmoidFusion>();
-        gr->add_matcher<ngraph::pass::HSwishFusion>();
+        gr->add_matcher<ov::pass::HSigmoidFusion>();
+        gr->add_matcher<ov::pass::HSwishFusion>();
     }
 
     {
@@ -169,8 +169,8 @@ TEST_F(TransformationTestsF, HSwishFusionWithClampDiv) {
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
 
         auto gr = manager.register_pass<ngraph::pass::GraphRewrite>();
-        gr->add_matcher<ngraph::pass::HSigmoidFusion>();
-        gr->add_matcher<ngraph::pass::HSwishFusion>();
+        gr->add_matcher<ov::pass::HSigmoidFusion>();
+        gr->add_matcher<ov::pass::HSwishFusion>();
     }
 
     {
@@ -197,7 +197,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithReluMulWrongConstValue) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_second}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSwishFusion>();
+        manager.register_pass<ov::pass::HSwishFusion>();
     }
 
     {
@@ -231,7 +231,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithReluDivWrongConstValue) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSwishFusion>();
+        manager.register_pass<ov::pass::HSwishFusion>();
     }
 
     {
@@ -266,8 +266,8 @@ TEST_F(TransformationTestsF, HSwishFusionWithoutReluWrongConstValue) {
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
 
         auto gr = manager.register_pass<ngraph::pass::GraphRewrite>();
-        gr->add_matcher<ngraph::pass::HSigmoidFusion>();
-        gr->add_matcher<ngraph::pass::HSwishFusion>();
+        gr->add_matcher<ov::pass::HSigmoidFusion>();
+        gr->add_matcher<ov::pass::HSwishFusion>();
     }
 
     {
@@ -301,8 +301,8 @@ TEST_F(TransformationTestsF, HSwishFusionWithClampWrongConstValue) {
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_second}, ngraph::ParameterVector{input});
 
         auto gr = manager.register_pass<ngraph::pass::GraphRewrite>();
-        gr->add_matcher<ngraph::pass::HSigmoidFusion>();
-        gr->add_matcher<ngraph::pass::HSwishFusion>();
+        gr->add_matcher<ov::pass::HSigmoidFusion>();
+        gr->add_matcher<ov::pass::HSwishFusion>();
     }
 
     {
@@ -329,7 +329,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithHSigmoidMul) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSwishFusion>();
+        manager.register_pass<ov::pass::HSwishFusion>();
     }
 
     {
@@ -353,7 +353,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithClamp) {
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
 
         auto gr = manager.register_pass<ngraph::pass::GraphRewrite>();
-        gr->add_matcher<ngraph::pass::HSwishFusion>();
+        gr->add_matcher<ov::pass::HSwishFusion>();
     }
 
     {
@@ -379,7 +379,7 @@ TEST_F(TransformationTestsF, HSwishFusionWithClampWithWrongConstant) {
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input});
 
         auto gr = manager.register_pass<ngraph::pass::GraphRewrite>();
-        gr->add_matcher<ngraph::pass::HSwishFusion>();
+        gr->add_matcher<ov::pass::HSwishFusion>();
     }
 
     {

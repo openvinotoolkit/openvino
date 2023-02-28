@@ -1,18 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Creates a one-hot encoding of the input.
 /// @details Creates a one-hot encoding of the input, putting the new one-hot axis in the position
@@ -94,8 +87,25 @@ struct one_hot : public primitive_base<one_hot> {
     float on_value;
     /// @brief all other locations take value this value.
     float off_value;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, one_hot_axis);
+        seed = hash_combine(seed, on_value);
+        seed = hash_combine(seed, off_value);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const one_hot>(rhs);
+
+        return one_hot_axis == rhs_casted.one_hot_axis &&
+               depth == rhs_casted.depth &&
+               on_value == rhs_casted.on_value &&
+               off_value == rhs_casted.off_value;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

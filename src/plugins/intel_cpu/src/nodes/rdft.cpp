@@ -76,8 +76,8 @@ static std::vector<int> getDefaultSignalSizes(const VectorDims& inputShape, cons
     return signalSizes;
 }
 
-RDFT::RDFT(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-               Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+RDFT::RDFT(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+               Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -308,10 +308,6 @@ static void scatterComplex(float* output, const float* input, size_t axis,
 
 static bool isPowerOfTwo(size_t n) {
     return (n != 0) && (n & (n - 1)) == 0;
-}
-
-static size_t dftSimdSize(int vlen) {
-    return vlen / (2 * sizeof(float));
 }
 
 bool RDFTExecutor::canUseFFT(size_t dim) {
@@ -915,7 +911,7 @@ void RDFT::prepareParams() {
         return executor;
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, buildExecutor);
     executor = result.first;
     if (axes.size() > 0 && signalSizes.size() > 0 && outputShapes[0].isStatic()) {

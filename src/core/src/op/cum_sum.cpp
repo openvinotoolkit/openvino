@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,12 +56,6 @@ shared_ptr<Node> op::v0::CumSum::clone_with_new_inputs(const OutputVector& new_a
         return make_shared<op::v0::CumSum>(new_args.at(0), m_exclusive, m_reverse);
     }
 }
-
-OPENVINO_SUPPRESS_DEPRECATED_START
-shared_ptr<Node> op::v0::CumSum::get_default_value() const {
-    return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
-}
-OPENVINO_SUPPRESS_DEPRECATED_END
 
 namespace {
 template <element::Type_t DATA_ET, element::Type_t AXIS_ET>

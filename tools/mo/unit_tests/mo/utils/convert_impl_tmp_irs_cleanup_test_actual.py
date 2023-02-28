@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -25,15 +25,17 @@ class TestConvertImplTmpIrsCleanup(unittest.TestCase):
         with patch("openvino.tools.mo.back.offline_transformations.apply_offline_transformations") as emit_ir_func:
             emit_ir_func.side_effect = Error('offline transformations step has failed')
 
-            params = {'input_model': self.test_model_file, 'input_model_is_text': True, 'input': 'x[3],y[1 3]'}
-            self.assertRaisesRegex(Error, 'offline transformations step has failed',  convert_model, **params)
+            params = {'input_model': self.test_model_file, 'input_model_is_text': True, 'input': 'x[3],y[1 3]',
+                      'use_legacy_frontend': True}
+            self.assertRaisesRegex(Error, 'offline transformations step has failed', convert_model, **params)
             self.assertFalse(self.are_tmp_files_left(self.test_model_file))
 
     def test_tmp_irs_cleanup_convert_impl_2(self):
         with patch("openvino.tools.mo.back.ie_ir_ver_2.emitter.add_net_rt_info") as emit_ir_func:
             emit_ir_func.side_effect = Error('emitting tmp IR has failed')
 
-            params = {'input_model': self.test_model_file, 'input_model_is_text': True, 'input': 'x[3],y[1 3]'}
+            params = {'input_model': self.test_model_file, 'input_model_is_text': True, 'input': 'x[3],y[1 3]',
+                      'use_legacy_frontend': True}
             self.assertRaisesRegex(Error, 'emitting tmp IR has failed', convert_model, **params)
             self.assertFalse(self.are_tmp_files_left(self.test_model_file))
 
@@ -41,6 +43,7 @@ class TestConvertImplTmpIrsCleanup(unittest.TestCase):
         with patch("openvino.tools.mo.convert_impl.read_model") as emit_ir_func:
             emit_ir_func.side_effect = Exception('FEM read_model has failed')
 
-            params = {'input_model': self.test_model_file, 'input_model_is_text': True, 'input': 'x[3],y[1 3]'}
+            params = {'input_model': self.test_model_file, 'input_model_is_text': True, 'input': 'x[3],y[1 3]',
+                      'use_legacy_frontend': True}
             self.assertRaisesRegex(Error, 'FEM read_model has failed', convert_model, **params)
             self.assertFalse(self.are_tmp_files_left(self.test_model_file))

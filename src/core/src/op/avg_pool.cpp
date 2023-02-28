@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -199,8 +199,4 @@ shared_ptr<ov::Node> ov::op::v1::AvgPool::clone_with_new_inputs(const OutputVect
                                     m_exclude_pad,
                                     m_rounding_type,
                                     m_auto_pad);
-}
-
-shared_ptr<ov::Node> ov::op::v1::AvgPool::get_default_value() const {
-    return op::v0::Constant::create(get_element_type(), get_shape(), {0});
 }

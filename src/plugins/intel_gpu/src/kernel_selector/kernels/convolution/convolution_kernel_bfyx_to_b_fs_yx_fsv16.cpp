@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,8 +53,6 @@ ParamsKey ConvolutionKernel_bfyx_to_bfyx_f16::GetSupportedKey() const {
     // TODO Add bias per output support to kernel
     // k.EnableBiasPerOutput();
     k.EnableNonBiasTerm();
-    k.EnableSplitSupport();
-    k.EnableDepthwiseSeparableOpt();
     k.EnableBatching();
     k.EnableDifferentTypes();
     return k;

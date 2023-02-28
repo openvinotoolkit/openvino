@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <numeric>
 #include <split_shape_inference.hpp>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/split.hpp"
@@ -102,13 +103,13 @@ bool op::v1::Split::has_evaluate() const {
     return get_input_element_type(1).is_integral_number();
 }
 
-bool op::v1::Split::evaluate_lower(const HostTensorVector& output_values) const {
+bool op::v1::Split::evaluate_lower(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v1_Split_evaluate_lower);
 
     return input(1).get_tensor().has_and_set_bound() && default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v1::Split::evaluate_upper(const HostTensorVector& output_values) const {
+bool op::v1::Split::evaluate_upper(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v1_Split_evaluate_upper);
 
     return input(1).get_tensor().has_and_set_bound() && default_upper_bound_evaluator(this, output_values);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 
 #include "openvino/core/any.hpp"
 #include "openvino/frontend/tensorflow/decoder.hpp"
-#include "openvino/frontend/visibility.hpp"
+#include "openvino/frontend/tensorflow/visibility.hpp"
 
 namespace ov {
 namespace frontend {
@@ -40,6 +40,12 @@ public:
     /// \brief Checks if the main model graph contains a function of the requested name in the library
     /// Returns GraphIterator to this function and nullptr, if it does not exist
     virtual std::shared_ptr<GraphIterator> get_body_graph_iterator(const std::string& func_name) const = 0;
+
+    /// \brief Returns a vector of input names in the original order
+    virtual std::vector<std::string> get_input_names() const = 0;
+
+    /// \brief Returns a vector of output names in the original order
+    virtual std::vector<std::string> get_output_names() const = 0;
 };
 
 }  // namespace tensorflow

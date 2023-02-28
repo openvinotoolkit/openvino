@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -388,6 +388,38 @@ const std::vector<AddTransformationTestValues> testValuesWithoutConstantBranches
       ngraph::element::i8,
       {{}, {}, {}},
       {{}, {}, {5.f}},
+      {}},
+     ""},
+    // Multiply with the value that mustn't be transformed (to avoid infinite values in multiply constant)
+    {false,
+     -1,
+     LayerTransformation::createParamsU8I8(),
+     {ngraph::element::u8,
+      {{ngraph::element::f32}, {1.f}, {std::numeric_limits<float>::max()}},
+      ngraph::element::u8,
+      {{ngraph::element::f32}, {}, {0.009f}},
+      {}},
+     {ngraph::element::u8,
+      {{ngraph::element::f32}, {1.f}, {std::numeric_limits<float>::max()}},
+      ngraph::element::u8,
+      {{ngraph::element::f32}, {}, {0.009f}},
+      {{}, {}, {}},
+      {}},
+     ""},
+    // Subtract with the value that mustn't be transformed (to avoid infinite values in multiply constant)
+    {false,
+     -1,
+     LayerTransformation::createParamsU8I8(),
+     {ngraph::element::u8,
+      {{ngraph::element::f32}, {}, {0.009f}},
+      ngraph::element::u8,
+      {{ngraph::element::f32}, {std::numeric_limits<float>::max()}, {2.f}},
+      {}},
+     {ngraph::element::u8,
+      {{ngraph::element::f32}, {}, {0.009f}},
+      ngraph::element::u8,
+      {{ngraph::element::f32}, {std::numeric_limits<float>::max()}, {2.f}},
+      {{}, {}, {}},
       {}},
      ""},
 

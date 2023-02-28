@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,9 +31,3 @@ public:
     OPENVINO_RTTI("ClampFusion", "0");
     ClampFusion();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ClampFusion;
-}  // namespace pass
-}  // namespace ngraph

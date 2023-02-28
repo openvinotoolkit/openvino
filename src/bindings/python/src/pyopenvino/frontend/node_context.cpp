@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,7 @@ struct is_std_vector<std::vector<T, A>> : std::true_type {};
                 for (auto el : casted) {                                           \
                     py_list.append(py_type(el));                                   \
                 }                                                                  \
-                return py_list;                                                    \
+                return std::move(py_list);                                         \
             }                                                                      \
             return py::cast(casted);                                               \
         }                                                                          \

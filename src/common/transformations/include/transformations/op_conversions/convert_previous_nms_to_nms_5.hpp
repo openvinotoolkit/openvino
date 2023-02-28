@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,11 +36,3 @@ public:
     OPENVINO_RTTI("ConvertNMS4ToNMS5", "0");
     ConvertNMS4ToNMS5();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::ConvertNMS1ToNMS5;
-using ov::pass::ConvertNMS3ToNMS5;
-using ov::pass::ConvertNMS4ToNMS5;
-}  // namespace pass
-}  // namespace ngraph

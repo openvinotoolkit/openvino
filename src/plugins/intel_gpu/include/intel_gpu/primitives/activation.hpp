@@ -1,19 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include <vector>
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief activation functions
 enum class activation_func {
@@ -81,6 +75,10 @@ struct activation_additional_params {
 struct activation : public primitive_base<activation> {
     CLDNN_DECLARE_PRIMITIVE(activation)
 
+    activation() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief Constructs Relu primitive.
     /// @param id This primitive id.
     /// @param input Input primitive id.
@@ -123,6 +121,39 @@ struct activation : public primitive_base<activation> {
     /// All other dimensions should be 1.
     primitive_id additional_params_input;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, activation_function);
+        seed = hash_combine(seed, additional_params.a);
+        seed = hash_combine(seed, additional_params.b);
+        seed = hash_combine(seed, additional_params_input.empty());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const activation>(rhs);
+
+        return activation_function == rhs_casted.activation_function &&
+               additional_params.a == rhs_casted.additional_params.a &&
+               additional_params.b == rhs_casted.additional_params.b &&
+               additional_params_input.empty() == rhs_casted.additional_params_input.empty();
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        ob << make_data(&activation_function, sizeof(activation_func));
+        ob << make_data(&additional_params, sizeof(activation_additional_params));
+        ob << additional_params_input;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        ib >> make_data(&activation_function, sizeof(activation_func));
+        ib >> make_data(&additional_params, sizeof(activation_additional_params));
+        ib >> additional_params_input;
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         if (additional_params_input.empty())
@@ -130,7 +161,4 @@ protected:
         return {additional_params_input};
     }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

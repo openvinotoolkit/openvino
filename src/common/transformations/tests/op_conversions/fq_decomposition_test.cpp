@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -84,8 +84,8 @@ protected:
             f = std::make_shared<ngraph::Function>(ngraph::NodeVector{fq}, ngraph::ParameterVector{data});
 
             ngraph::pass::Manager manager;
-            manager.register_pass<ngraph::pass::InitNodeInfo>();
-            manager.register_pass<ngraph::pass::FakeQuantizeDecomposition>();
+            manager.register_pass<ov::pass::InitNodeInfo>();
+            manager.register_pass<ov::pass::FakeQuantizeDecomposition>();
             manager.run_passes(f);
 
             ASSERT_NO_THROW(check_rt_info(f));

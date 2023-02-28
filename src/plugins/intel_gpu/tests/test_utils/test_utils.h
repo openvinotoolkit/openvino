@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,7 @@
 #include <intel_gpu/primitives/pooling.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include "intel_gpu/graph/serialization/utils.hpp"
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -52,12 +53,8 @@ struct type_to_data_type<FLOAT16> {
 
 namespace tests {
 
-std::shared_ptr<cldnn::engine> create_test_engine(cldnn::queue_types queue_type = cldnn::queue_types::out_of_order);
+std::shared_ptr<cldnn::engine> create_test_engine();
 cldnn::engine& get_test_engine();
-cldnn::engine& get_test_engine(const cldnn::engine_configuration& configuration);
-#ifdef ENABLE_ONEDNN_FOR_GPU
-cldnn::engine& get_onednn_test_engine();
-#endif
 cldnn::stream_ptr get_test_stream_ptr();
 cldnn::stream& get_test_stream();
 
@@ -412,10 +409,10 @@ public:
 
     test_params() : fmt(cldnn::format::bfyx) { }
 
-    test_params(cldnn::data_types dt, cldnn::format input_format, int32_t batch_size, int32_t feature_size, cldnn::tensor input_size, cldnn::build_options const& options = cldnn::build_options()) :
+    test_params(cldnn::data_types dt, cldnn::format input_format, int32_t batch_size, int32_t feature_size, cldnn::tensor input_size, ExecutionConfig config = {}) :
         data_type(dt),
         fmt(input_format),
-        network_build_options(options) {
+        network_config(config) {
         cldnn::tensor t = cldnn::tensor(batch_size, feature_size, input_size.spatial[0],  input_size.spatial[1] );
         input_layouts.push_back( cldnn::layout(dt, fmt, t) );
     }
@@ -426,7 +423,7 @@ public:
 
     void * opaque_custom_param = nullptr;
 
-    cldnn::build_options network_build_options;
+    ExecutionConfig network_config;
 
     std::string print();
     static std::string print_tensor(cldnn::tensor tensor);
@@ -454,7 +451,7 @@ class generic_test : public ::testing::TestWithParam<std::tuple<std::shared_ptr<
 public:
     generic_test();
 
-    void run_single_test();
+    void run_single_test(bool is_caching_test = false);
 
     template<typename Type>
     void compare_buffers(const cldnn::memory::ptr out, const cldnn::memory::ptr ref);
@@ -466,8 +463,6 @@ public:
     static memory_desc get_linear_memory_desc(const cldnn::layout & layout);
 
     static std::vector<std::shared_ptr<test_params>> generate_generic_test_params(std::vector<std::shared_ptr<test_params>>& all_generic_params);
-
-    static void dump_graph(const std::string test_name, cldnn::build_options& bo);
 
     virtual bool is_format_supported(cldnn::format format) = 0;
 
@@ -488,7 +483,6 @@ protected:
     std::shared_ptr<cldnn::primitive> layer_params;
     int max_ulps_diff_allowed; //Max number of ulps allowed between 2 values when comparing the output buffer and the reference buffer.
     bool random_values; // if set memory buffers will be filled with random values
-    bool dump_graphs; // if set tests will dump graphs to file
     bool dump_memory; // if set memory buffers will be dumped to file
     virtual cldnn::memory::ptr generate_reference(const std::vector<cldnn::memory::ptr>& inputs) = 0;
     // Allows the test to override the random input data that the framework generates
@@ -579,27 +573,43 @@ T div_up(const T a, const U b) {
     return (a + b - 1) / b;
 }
 
+template <class T>
+std::vector<float> get_output_values_to_float(network& net, const primitive_id& output_id, size_t max_cnt = std::numeric_limits<size_t>::max()) {
+    std::vector<float> ret;
+    auto ptr = net.get_output_memory(output_id);
+    auto out_ids = net.get_output_ids();
+    if (find(out_ids.begin(), out_ids.end(), output_id) == out_ids.end())
+        IE_THROW() << "Non output node's memory may have been reused. "
+                      "Make target node to output by using ov::intel_gpu::custom_outputs in ExecutionConfig.";
+    mem_lock<T, mem_lock_type::read> mem(ptr, net.get_stream());
+    if (ptr->get_layout().data_type != type_to_data_type<T>::value)
+        IE_THROW() << "target type " << data_type_traits::name(type_to_data_type<T>::value)
+                    << " mismatched with actual type " << data_type_traits::name(ptr->get_layout().data_type);
+    for (size_t i = 0; i < std::min(max_cnt, ptr->get_layout().count()); i++)
+        ret.push_back(mem[i]);
+    return ret;
+}
+
+inline std::vector<float> get_output_values_to_float(network& net, const primitive_id& output_id, size_t max_cnt = std::numeric_limits<size_t>::max()) {
+    switch(net.get_output_layout(output_id).data_type){
+        case data_types::f16:
+            return get_output_values_to_float<FLOAT16>(net, output_id, max_cnt);
+        case data_types::f32:
+            return get_output_values_to_float<float>(net, output_id, max_cnt);
+        case data_types::i8:
+            return get_output_values_to_float<int8_t>(net, output_id, max_cnt);
+        case data_types::u8:
+            return get_output_values_to_float<uint8_t>(net, output_id, max_cnt);
+        case data_types::i32:
+            return get_output_values_to_float<int32_t>(net, output_id, max_cnt);
+        case data_types::i64:
+            return get_output_values_to_float<int64_t>(net, output_id, max_cnt);
+        default:
+            IE_THROW() << "Unknown output data_type";
+    }
+}
+
 double default_tolerance(data_types dt);
-
-class membuf : public std::streambuf
-{
-public:
-    membuf() : _pos(0) { }
-
-protected:
-    virtual int_type overflow (int_type c) {
-        _buf.emplace_back(c);
-        return c;
-    }
-
-    virtual int_type uflow() {
-        return (_pos < _buf.size()) ? _buf[_pos++] : EOF;
-    }
-
-private:
-    std::vector<int_type> _buf;
-    size_t _pos;
-};
 // inline void print_bin_blob(cldnn::memory& mem, std::string name)
 // {
 //     auto&& size = mem.get_layout().get_tensor();
@@ -725,5 +735,32 @@ private:
 //         std::cerr << "==============" << std::endl;
 //     }
 // }
+
+inline cldnn::network::ptr get_network(cldnn::engine& engine,
+                                cldnn::topology& topology,
+                                const ov::intel_gpu::ExecutionConfig& config,
+                                cldnn::stream::ptr stream,
+                                const bool is_caching_test) {
+    cldnn::network::ptr network;
+    if (is_caching_test) {
+        std::cout << "cached" << std::endl;
+        membuf mem_buf;
+        {
+            cldnn::network _network(engine, topology, config);
+            std::ostream out_mem(&mem_buf);
+            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            _network.save(ob);
+        }
+        {
+            std::istream in_mem(&mem_buf);
+            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            network = std::make_shared<cldnn::network>(ib, config, stream, engine);
+        }
+    } else {
+        network = std::make_shared<cldnn::network>(engine, topology, config);
+    }
+
+    return network;
+}
 
 } // namespace tests

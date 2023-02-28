@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,7 +27,6 @@ ParamsKey ConvolutionKernel_Winograd_2x3_s1::GetSupportedKey() const {
     k.EnableBiasPerOutput();
     k.EnableNonBiasTerm();
     k.EnableBatching();
-    k.EnableSplitSupport();
     return k;
 }
 
@@ -106,9 +105,8 @@ bool ConvolutionKernel_Winograd_2x3_s1::Validate(const Params& p, const optional
     const bool bStrideOK = (cp.stride.x == 1 && cp.stride.y == 1);
     const bool bDilationOK = (cp.stride.x == 1 && cp.stride.y == 1);
     const bool bFilter3x3 = (cp.filterSize.x == 3 && cp.filterSize.y == 3);
-    const bool bNoSplit = cp.split == 1;
 
-    if (!bStrideOK || !bDilationOK || !bFilter3x3 || !bNoSplit) {
+    if (!bStrideOK || !bDilationOK || !bFilter3x3) {
         return false;
     }
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -47,6 +47,17 @@ ov::op::v0::Constant::Constant(const shared_ptr<ngraph::runtime::Tensor>& tensor
         allocate_buffer(false);
         tensor->read(get_data_ptr_nc(), tensor->get_size_in_bytes());
     }
+    constructor_validate_and_infer_types();
+}
+
+ov::op::v0::Constant::Constant(const ov::Tensor& tensor) {
+    m_element_type = tensor.get_element_type();
+    m_shape = tensor.get_shape();
+    // Share data from ov::Tensor
+    m_data = make_shared<ngraph::runtime::SharedBuffer<ov::Tensor>>(static_cast<char*>(tensor.data()),
+                                                                    tensor.get_byte_size(),
+                                                                    tensor);
+
     constructor_validate_and_infer_types();
 }
 
@@ -454,11 +465,6 @@ ov::AxisSet ov::op::v0::Constant::get_axis_set_val() const {
     return output_axis_set;
 }
 
-void ov::op::v0::Constant::set_data_shape(const ov::Shape& shape) {
-    NGRAPH_CHECK(shape_size(shape) == shape_size(m_shape));
-    m_shape = shape;
-}
-
 shared_ptr<ov::Node> ov::op::v0::Constant::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Constant_clone_with_new_inputs);
     check_new_args_count(this, new_args);
@@ -552,6 +558,7 @@ bool ov::op::v0::Constant::visit_attributes(AttributeVisitor& visitor) {
 bool ov::op::v0::Constant::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v0_Constant_evaluate);
     auto output = outputs[0];
+    output->set_shape(get_shape());
     output->write(get_data_ptr(), output->get_size_in_bytes());
     return true;
 }
@@ -561,9 +568,9 @@ bool ov::op::v0::Constant::has_evaluate() const {
     return true;
 }
 
-bool ov::op::v0::Constant::evaluate_lower(const HostTensorVector& outputs) const {
+bool ov::op::v0::Constant::evaluate_lower(TensorVector& outputs) const {
     return evaluate(outputs, {});
 }
-bool ov::op::v0::Constant::evaluate_upper(const HostTensorVector& outputs) const {
+bool ov::op::v0::Constant::evaluate_upper(TensorVector& outputs) const {
     return evaluate(outputs, {});
 }

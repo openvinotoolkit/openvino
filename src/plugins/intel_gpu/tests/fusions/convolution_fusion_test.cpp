@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -79,6 +79,26 @@ struct conv_eltw_test_params {
     size_t expected_not_fused_primitives;
 };
 
+struct conv_activation_onednn_test_params {
+    tensor in_shape;
+    tensor out_shape;
+    tensor kernel;
+    ov::Strides stride;
+    ov::CoordinateDiff pad;
+    ov::Strides dilation;
+    uint32_t groups;
+    data_types data_type;
+    format input_format;
+    data_types weights_type;
+    format weights_format;
+    data_types default_type;
+    format default_format;
+    activation_func activation_function_type;
+    size_t expected_fused_primitives;
+    size_t expected_fused_primitives_onednn;
+    size_t expected_not_fused_primitives;
+};
+
 class ConvFusingTest : public BaseFusingTest<convolution_test_params> {
 public:
     void execute(convolution_test_params& p, int min=0, int max=0) {
@@ -90,8 +110,8 @@ public:
         } else {
             input_prim = get_mem(get_input_layout(p), min, max);
         }
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
@@ -101,7 +121,6 @@ public:
                 return true;
             return false;
         };
-
         auto pi_fused = network_fused.get_primitives_info();
         auto info_fused = std::find_if(pi_fused.begin(), pi_fused.end(), find_conv);
         if (info_fused != pi_fused.end())
@@ -127,8 +146,8 @@ class ConvReorderFusingTest : public BaseFusingTest<convolution_test_params> {
 public:
     void execute(convolution_test_params& p, std::map<std::string, std::vector<std::string>> expected_fused_primitives_ids = {}) {
         auto input_prim = get_mem(get_input_layout(p));
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
@@ -155,8 +174,8 @@ public:
             p.expected_fused_primitives = p.expected_fused_primitives_onednn;
 
         auto input_prim = get_mem(get_input_layout(p));
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
@@ -189,13 +208,13 @@ class ConvFusingForceKernelTest : public BaseFusingTest<bc_force_kernel_params> 
     public:
     void execute(bc_force_kernel_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
-        build_options options;
-        options.set_option(build_option::optimize_data(true));
-        implementation_desc conv_impl = { p.input_format, p.kernel_name };
-        options.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        ov::intel_gpu::ImplementationDesc conv_impl = { p.input_format, p.kernel_name };
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, options);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, config);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
@@ -234,8 +253,7 @@ public:
 
         auto input_prim = p.data_type == data_types::u8 ? get_mem(get_input_layout(p), 0, 10) : get_mem(get_input_layout(p));
 
-        auto impl_forcing_bo = bo_fused.get<build_option_type::force_implementations>();
-        const auto& impl_forcing = impl_forcing_bo->forcing;
+        auto impl_forcing = cfg_fused.get_property(ov::intel_gpu::force_implementations);
 
         auto forcing_format = p.input_format;
         for (auto& forcing : impl_forcing) {
@@ -244,11 +262,12 @@ public:
             }
         }
 
-        implementation_desc conv_impl = { forcing_format, "", impl_types::onednn };
-        bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+        ov::intel_gpu::ImplementationDesc conv_impl = { forcing_format, "", impl_types::onednn };
 
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, bo_fused);
+        auto cfg = cfg_fused;
+        cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
@@ -280,6 +299,49 @@ public:
     }
 };
 #endif  // ENABLE_ONEDNN_FOR_GPU
+
+class ConvActivationTestOnednn : public BaseFusingTest<conv_activation_onednn_test_params> {
+public:
+    void execute(conv_activation_onednn_test_params& p, int min=0, int max=0) {
+        if(engine.get_device_info().supports_immad)
+            p.expected_fused_primitives = p.expected_fused_primitives_onednn;
+        cldnn::memory::ptr input_prim;
+        if (min == max) {
+            input_prim = get_mem(get_input_layout(p));
+        } else {
+            input_prim = get_mem(get_input_layout(p), min, max);
+        }
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
+        network_fused.set_input_data("input", input_prim);
+        network_not_fused.set_input_data("input", input_prim);
+
+        compare(network_not_fused, network_fused, p);
+        auto find_conv = [](primitive_info& p) -> bool {
+            if (p.original_id == "conv_prim")
+                return true;
+            return false;
+        };
+        auto pi_fused = network_fused.get_primitives_info();
+        auto info_fused = std::find_if(pi_fused.begin(), pi_fused.end(), find_conv);
+        if (info_fused != pi_fused.end())
+            std::cout << "kernel: " << info_fused->kernel_id << std::endl;
+    }
+
+    layout get_input_layout(conv_activation_onednn_test_params& p) {
+        auto pad = p.pad;
+        std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
+        return layout{ p.data_type, p.input_format, p.in_shape, padding{ pad_ } };
+    }
+
+    layout get_per_channel_layout(conv_activation_onednn_test_params& p) {
+        return layout{ p.default_type, p.default_format, tensor{1, p.out_shape.feature[0], 1, 1} };
+    }
+
+    layout get_prelu_slope_layout(conv_activation_onednn_test_params& p) {
+        return layout{ p.default_type, p.input_format, tensor{1, p.out_shape.feature[0], p.out_shape.spatial[0], 1} };
+    }
+};
 
 }  // namespace
 
@@ -598,9 +660,9 @@ class conv_fp32_add_per_element_planar_const : public ConvFusingTest {};
 TEST_P(conv_fp32_add_per_element_planar_const, basic) {
     auto p = GetParam();
 
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16" };
-    implementation_desc permute_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl },
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16" };
+    ov::intel_gpu::ImplementationDesc permute_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl },
                                                               { "permute", permute_impl } }));
 
     auto out_layout = get_output_layout(p);
@@ -787,8 +849,8 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(p.data_type);
     execute(p);
@@ -808,8 +870,8 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops_slope_2) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(p.data_type);
     execute(p);
@@ -830,8 +892,8 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops_mixed_types) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(p.data_type);
     execute(p);
@@ -852,8 +914,8 @@ TEST_P(conv_fp32_prelu_eltwise, vector_ops_mixed_types_slope_2) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(p.data_type);
     execute(p);
@@ -888,8 +950,8 @@ TEST_P(conv_fp32_multi_eltwise_2, basic) {
         eltwise("eltwise2", input_info("eltwise1"), input_info("conv_prim"), eltwise_mode::prod),
         reorder("reorder_bfyx", input_info("eltwise2"), p.default_format, data_types::f32)
     );
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(p.default_type);
     execute(p);
@@ -924,8 +986,8 @@ TEST_P(conv_fp32_multi_eltwise_2_clamp, basic) {
         eltwise("eltwise2", input_info("activation"), input_info("conv_prim"), eltwise_mode::prod),
         reorder("reorder_bfyx", input_info("eltwise2"), p.default_format, data_types::f32)
     );
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(p.default_type);
     execute(p);
@@ -964,8 +1026,8 @@ TEST_P(conv_fp32_multi_eltwise_4_clamp, basic) {
         eltwise("eltwise4_add", input_info("eltwise3_div"), input_info("eltwise4_data"), eltwise_mode::sum),
         reorder("reorder_bfyx", input_info("eltwise4_add"), p.default_format, data_types::f32)
     );
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(p.default_type);
     execute(p);
@@ -1003,8 +1065,8 @@ TEST_P(conv_fp32_eltwise_fusing_extend_ops, pattern01_simple_sub) {
         concatenation("concat", { input_info("eltwise4_sum"), input_info("eltwise4_sum") }, 1),
         reorder("reorder_bfyx", input_info("concat"), p.default_format, data_types::f32)
     );
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(p.default_type);
     execute(p);
@@ -1031,8 +1093,8 @@ TEST_P(conv_fp32_eltwise_fusing_extend_ops, pattern02_sub_scale) {
         concatenation("concat", { input_info("scale"), input_info("scale") }, 1),
         reorder("reorder_bfyx", input_info("concat"), p.default_format, data_types::f32)
     );
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(p.default_type);
     execute(p);
@@ -1060,8 +1122,8 @@ TEST_P(conv_fp32_eltwise_fusing_extend_ops, pattern03_sub_div) {
         concatenation("concat", { input_info("eltwise4_sum"), input_info("eltwise4_sum") }, 1),
         reorder("reorder_bfyx", input_info("concat"), p.default_format, data_types::f32)
     );
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(p.default_type);
     execute(p);
@@ -1098,8 +1160,8 @@ TEST_P(conv_fp32_eltwise_fusing_2conv, basic) {
         concatenation("concat", { input_info("eltwise3"), input_info("eltwise3") }, 1),
         reorder("reorder_bfyx", input_info("concat"), p.default_format, data_types::f32)
     );
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim0", conv_impl }, { "conv_prim", conv_impl }  }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim0", conv_impl }, { "conv_prim", conv_impl }  }));
 
     tolerance = default_tolerance(p.default_type);
     execute(p);
@@ -1135,8 +1197,8 @@ TEST_P(conv_fp32_multi_eltwise_3_fusing, basic) {
         eltwise("eltwise3", input_info("eltwise1"), input_info("eltwise2"), eltwise_mode::prod),
         reorder("reorder_bfyx", input_info("eltwise3"), p.default_format, data_types::f32)
     );
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(p.default_type);
     execute(p);
@@ -1208,8 +1270,8 @@ TEST_P(conv_fp32_multi_eltwise_concat, basic) {
             padding{ { 0, 0, 0, 0 }, 0 }),
         reorder("reorder_bfyx", input_info("concat"), p.default_format, data_types::f32)
     );
-    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(output_type);
     execute(p);
@@ -1239,8 +1301,8 @@ TEST_P(conv_fp32_eltwise_b_fs_zyx_fsv16, vector_ops) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    implementation_desc conv_impl = { format::b_fs_zyx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_zyx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(p.default_type);
     execute(p);
@@ -1280,7 +1342,7 @@ TEST_P(conv_fp32_eltwise_b_fs_zyx_fsv16, splitted_vector_ops) {
 
     std::vector<std::string> weights_idx;
     for (size_t w = 0; w < p.groups; w++) {
-        create_topologies(data("weights" + std::to_string(w), get_mem(get_weights_layout(p, p.groups))));
+        create_topologies(data("weights" + std::to_string(w), get_mem(get_weights_layout(p))));
         weights_idx.push_back(("weights" + std::to_string(w)));
     }
 
@@ -1292,8 +1354,8 @@ TEST_P(conv_fp32_eltwise_b_fs_zyx_fsv16, splitted_vector_ops) {
         reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
     );
 
-    implementation_desc conv_impl = { format::b_fs_zyx_fsv16, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_zyx_fsv16, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(p.default_type);
     //  commented because split mode is disabled
@@ -1611,8 +1673,8 @@ class conv_fp32_group_conv_eltwise_sum : public ConvEltwTest {};
 TEST_P(conv_fp32_group_conv_eltwise_sum, basic) {
     auto p = GetParam();
 
-    implementation_desc conv_impl = { format::bfyx, "convolution_gpu_bfyx_os_iyx_osv16", impl_types::ocl };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::bfyx, "convolution_gpu_bfyx_os_iyx_osv16", impl_types::ocl };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -1655,14 +1717,14 @@ TEST_P(conv_swap_xy_with_eltwise_diff_sizes, basic) {
 // in_shape; out_shape; eltw_shape; kernel; stride; pad; dilation; groups; data_type; input_format; weights_type; weights_format; default_type; default_format;
 #define CASE_CONV_ELTW_FP16_SWAP_XY_1 { 1, 16, 1, 5 }, { 1, 32, 1, 7 }, { 1, 32, 1, 1 }, { 1, 1, 1, 3 }, { 1, 1 }, { 2, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::os_iyx_osv16, data_types::f16, format::bfyx
 #define CASE_CONV_ELTW_FP16_SWAP_XY_2 { 1, 16, 1, 5 }, { 1, 32, 1, 7 }, { 1, 32, 1, 7 }, { 1, 1, 1, 3 }, { 1, 1 }, { 2, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::os_iyx_osv16, data_types::f16, format::bfyx
-#define CASE_CONV_ELTW_FP32_SWAP_XY_1 { 3, 16, 1, 5 }, { 3, 32, 1, 7 }, { 1, 32, 1, 1 }, { 1, 1, 1, 3 }, { 1, 1 }, { 2, 0 }, { 1, 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
-#define CASE_CONV_ELTW_FP32_SWAP_XY_2 { 3, 16, 1, 5 }, { 3, 32, 1, 7 }, { 3, 32, 1, 7 }, { 1, 1, 1, 3 }, { 1, 1 }, { 2, 0 }, { 1, 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
+#define CASE_CONV_ELTW_FP16_SWAP_XY_3 { 3, 16, 1, 5 }, { 3, 32, 1, 7 }, { 1, 32, 1, 1 }, { 1, 1, 1, 3 }, { 1, 1 }, { 2, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::os_iyx_osv16, data_types::f16, format::bfyx
+#define CASE_CONV_ELTW_FP16_SWAP_XY_4 { 3, 16, 1, 5 }, { 3, 32, 1, 7 }, { 3, 32, 1, 7 }, { 1, 1, 1, 3 }, { 1, 1 }, { 2, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::os_iyx_osv16, data_types::f16, format::bfyx
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_swap_xy_with_eltwise_diff_sizes, ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP16_SWAP_XY_1, 3, 3, 4 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP16_SWAP_XY_2, 3, 3, 4 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_SWAP_XY_1, 3, 3, 4 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_SWAP_XY_2, 3, 3, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP16_SWAP_XY_1, 3, 2, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP16_SWAP_XY_2, 3, 2, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP16_SWAP_XY_3, 3, 2, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP16_SWAP_XY_4, 3, 2, 4 },
 }));
 
 class conv_scale_activation_eltwise_fp32_quantize_i8 : public ConvEltwTest {};
@@ -1898,8 +1960,8 @@ TEST_P(conv_int8_prelu_eltwise, fsv16) {
     );
 
     if (p.default_format.dimension() == 4) {
-        implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-        bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+        ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
     } else {
         // TODO Add 5D int8 optimized convolution implementations
         return;
@@ -1924,8 +1986,8 @@ TEST_P(conv_int8_prelu_eltwise, fsv16_slope_2) {
     );
 
     if (p.default_format.dimension() == 4) {
-        implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-        bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+        ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
     } else {
         // TODO Add 5D int8 optimized convolution implementations
         return;
@@ -1982,8 +2044,8 @@ TEST_P(conv_int8_activation_eltwise_quantize, fsv16) {
     );
 
     if (p.default_format.dimension() == 4) {
-        implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-        bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+        ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
     } else {
         // TODO Add 5D int8 optimized convolution implementations
         return;
@@ -2013,8 +2075,8 @@ TEST_P(conv_int8_activation_eltwise_quantize, fsv32) {
     );
 
     if (p.default_format.dimension() == 4) {
-        implementation_desc conv_impl = { format::b_fs_yx_fsv32, "" };
-        bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+        ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv32, "" };
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
     } else {
         // TODO Add 5D int8 optimized convolution implementations
         return;
@@ -2025,18 +2087,46 @@ TEST_P(conv_int8_activation_eltwise_quantize, fsv32) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_activation_eltwise_quantize, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_7, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_U8S8_8, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_7, 2, 4, 5 },
-    convolution_test_params{ CASE_CONV_S8S8_8, 2, 4, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_7, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_U8S8_8, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_7, 2, 2, 5 },
+    convolution_test_params{ CASE_CONV_S8S8_8, 2, 2, 5 },
+}));
+
+class conv_int8_activation : public ConvFusingTest {};
+TEST_P(conv_int8_activation, fsv16) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        convolution("conv_prim", input_info("input"), { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", input_info("conv_prim"), activation_func::negative),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
+    );
+
+    if (p.default_format.dimension() == 4) {
+        ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_b_fs_zyx_fsv16_imad" };
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
+    } else {
+        // TODO Add 5D int8 optimized convolution implementations
+        return;
+    }
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_activation, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 3 },
 }));
 
 class conv_int8_activation_eltwise : public ConvFusingTest {};
@@ -2054,8 +2144,8 @@ TEST_P(conv_int8_activation_eltwise, fsv16) {
     );
 
     if (p.default_format.dimension() == 4) {
-        implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
-        bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+        ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "" };
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
     } else {
         // TODO Add 5D int8 optimized convolution implementations
         return;
@@ -2079,8 +2169,8 @@ TEST_P(conv_int8_activation_eltwise, fsv32) {
     );
 
     if (p.default_format.dimension() == 4) {
-        implementation_desc conv_impl = { format::b_fs_yx_fsv32, "" };
-        bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+        ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv32, "" };
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
     } else {
         // TODO Add 5D int8 optimized convolution implementations
         return;
@@ -2091,18 +2181,18 @@ TEST_P(conv_int8_activation_eltwise, fsv32) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_int8_activation_eltwise, ::testing::ValuesIn(std::vector<convolution_test_params>{
-    convolution_test_params{ CASE_CONV_U8S8_1, 2, 4, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_2, 2, 4, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_3, 2, 4, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_4, 2, 4, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_7, 2, 4, 4 },
-    convolution_test_params{ CASE_CONV_U8S8_8, 2, 4, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_1, 2, 4, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_2, 2, 4, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_3, 2, 4, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_4, 2, 4, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_7, 2, 4, 4 },
-    convolution_test_params{ CASE_CONV_S8S8_8, 2, 4, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_4, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_7, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_U8S8_8, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_1, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_2, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_3, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_4, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_7, 2, 2, 4 },
+    convolution_test_params{ CASE_CONV_S8S8_8, 2, 2, 4 },
 }));
 
 class conv_int8_quantize_u8 : public ConvFusingTest {};
@@ -2238,8 +2328,8 @@ TEST_P(conv_int8_scale_quantize_i8_conv_b_fs_yx_fsv4_int8, basic) {
                  input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
         reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
-    implementation_desc conv_impl = { format::b_fs_yx_fsv4, "convolution_gpu_b_fs_yx_fsv4_int8" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv4, "convolution_gpu_b_fs_yx_fsv4_int8" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = 1.f;
     execute(p);
@@ -2543,8 +2633,8 @@ TEST_P(conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec, vector_op
         reorder("reorder_bfyx", input_info("quantize_1"), p.default_format, data_types::f32)
     );
 
-    implementation_desc conv_impl = { format::b_fs_yx_fsv4, "convolution_gpu_b_fs_yx_fsv4_1x1" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv4, "convolution_gpu_b_fs_yx_fsv4_1x1" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = 1.f;
     execute(p);
@@ -2578,8 +2668,8 @@ TEST_P(conv_int8_scale_prelu_quantize_i8_eltwise_fp32_quantize_i8_vec, vector_op
         reorder("reorder_bfyx", input_info("quantize_1"), p.default_format, data_types::f32)
     );
 
-    implementation_desc conv_impl = { format::b_fs_yx_fsv4, "convolution_gpu_b_fs_yx_fsv4_1x1" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv4, "convolution_gpu_b_fs_yx_fsv4_1x1" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = 1.f;
     execute(p);
@@ -2596,7 +2686,7 @@ class conv_int8_asymmetric_weights : public ConvFusingTest {};
 TEST_P(conv_int8_asymmetric_weights, basic) {
     auto p = GetParam();
     auto weights_format = (p.weights_format == format::goiyx) ? format::bfyx : format::bfzyx;
-    auto weights_layout = (p.groups > 1) ? get_weights_layout(p, 1, weights_format) :
+    auto weights_layout = (p.groups > 1) ? get_weights_layout(p, weights_format) :
                                            get_weights_layout(p);
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -2611,8 +2701,8 @@ TEST_P(conv_int8_asymmetric_weights, basic) {
     tolerance = 1.f;
 
     auto input_prim = get_mem(get_input_layout(p));
-    network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-    network network_fused(this->engine, this->topology_fused, bo_fused);
+    network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+    network network_fused(this->engine, this->topology_fused, cfg_fused);
     network_fused.set_input_data("input", input_prim);
     network_not_fused.set_input_data("input", input_prim);
 
@@ -2666,7 +2756,7 @@ TEST_P(conv_int8_asymmetric_data, basic) {
     layout weights_layout = get_weights_layout(p);
     if (!engine.get_device_info().supports_immad) {
         auto weights_format = (p.weights_format == format::goiyx) ? format::bfyx : format::bfzyx;
-        weights_layout = (p.groups > 1) ? get_weights_layout(p, 1, weights_format) : get_weights_layout(p);
+        weights_layout = (p.groups > 1) ? get_weights_layout(p, weights_format) : get_weights_layout(p);
     }
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -2681,8 +2771,8 @@ TEST_P(conv_int8_asymmetric_data, basic) {
     tolerance = 1.f;
 
     auto input_prim = get_mem(get_input_layout(p));
-    network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-    network network_fused(this->engine, this->topology_fused, bo_fused);
+    network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+    network network_fused(this->engine, this->topology_fused, cfg_fused);
     network_fused.set_input_data("input", input_prim);
     network_not_fused.set_input_data("input", input_prim);
 
@@ -2736,7 +2826,7 @@ class conv_int8_asymmetric_data_and_weights : public ConvFusingTest {};
 TEST_P(conv_int8_asymmetric_data_and_weights, basic) {
     auto p = GetParam();
     auto weights_format = (p.weights_format == format::goiyx) ? format::bfyx : format::bfzyx;
-    auto weights_layout = (p.groups > 1) ? get_weights_layout(p, 1, weights_format) :
+    auto weights_layout = (p.groups > 1) ? get_weights_layout(p, weights_format) :
                           get_weights_layout(p);
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -2753,8 +2843,8 @@ TEST_P(conv_int8_asymmetric_data_and_weights, basic) {
     tolerance = 1.f;
 
     auto input_prim = get_mem(get_input_layout(p));
-    network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-    network network_fused(this->engine, this->topology_fused, bo_fused);
+    network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+    network network_fused(this->engine, this->topology_fused, cfg_fused);
     network_fused.set_input_data("input", input_prim);
     network_not_fused.set_input_data("input", input_prim);
 
@@ -2880,6 +2970,30 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp16_scale, ::testing::ValuesIn(std::
     bc_force_kernel_params{ CASE_CONV_FP16_15, 2, 3, "convolution_gpu_bfyx_f16_depthwise" },
 }));
 
+class conv_activation_onednn : public ConvActivationTestOnednn {};
+TEST_P(conv_activation_onednn, basic) {
+    if (!engine.get_device_info().supports_immad)
+        return;
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        convolution("conv_prim", input_info("input"), { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", input_info("conv_prim"), p.activation_function_type),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
+    );
+
+    execute(p);
+}
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_activation_onednn, ::testing::ValuesIn(std::vector<conv_activation_onednn_test_params>{
+    conv_activation_onednn_test_params{ CASE_CONV_U8S8_1, activation_func::relu, 2, 2, 3},
+    conv_activation_onednn_test_params{ CASE_CONV_U8S8_2, activation_func::relu_negative_slope, 2, 2, 3 },
+    conv_activation_onednn_test_params{ CASE_CONV_U8S8_3, activation_func::hard_sigmoid, 2, 2, 3 },
+    conv_activation_onednn_test_params{ CASE_CONV_S8S8_1, activation_func::hsigmoid, 2, 2, 3 },
+    conv_activation_onednn_test_params{ CASE_CONV_S8S8_2, activation_func::negative, 2, 2, 3 },
+    conv_activation_onednn_test_params{ CASE_CONV_S8S8_3, activation_func::sqrt, 2, 2, 3 },
+}));
 
 /* ----------------------------------------------------------------------------------------------------- */
 /* ---------------------- reorder(bfyx to fs_b_yx_fsv32) + convolution kernel cases -------------------- */
@@ -2900,8 +3014,8 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_basic, basic) {
         reorder("reorder_out", input_info("activation"), format::bfyx, data_types::f32)
     );
 
-    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     execute(p);
 }
@@ -2925,8 +3039,8 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_mean, have_mean) {
         activation("activation", input_info("conv_prim"), activation_func::abs)
     );
 
-    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     execute(p);
 }
@@ -2958,8 +3072,8 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_subtract, have_subtract_per_feature)
         convolution("conv_output", input_info("reorder_fsv32"), { "weights_dw" }, p.out_shape.feature[0], dw_stride, p.pad, p.dilation)
     );
 
-    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     execute(p);
 }
@@ -2988,9 +3102,9 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_fused_activation, have_fused_activat
         activation("activation", input_info("conv_prim2"), activation_func::abs)
     );
 
-    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim2", conv_impl } }));
-    bo_fused.set_option(build_option::force_implementations({ { "activation", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim2", conv_impl } }));
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "activation", conv_impl } }));
 
     execute(p);
 }
@@ -3019,9 +3133,9 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_fused_through_activation, have_fused
         activation("activation", input_info("conv_prim2"), activation_func::abs)
     );
 
-    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim2", conv_impl } }));
-    bo_fused.set_option(build_option::force_implementations({ { "activation", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim2", conv_impl } }));
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "activation", conv_impl } }));
 
     execute(p, {{"conv_prim", {"activation_quantize"}}});
 }
@@ -3049,8 +3163,8 @@ TEST_P(conv_fp32_reorder_bfyx_to_fsv32_conv_data_padding, have_data_padding) {
         reorder("reorder_out", input_info("conv_prim2"), format::fs_b_yx_fsv32, data_types::f32)
     );
 
-    implementation_desc conv_impl = { format::fs_b_yx_fsv32, "" };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim2", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::fs_b_yx_fsv32, "" };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim2", conv_impl } }));
 
     execute(p);
 }
@@ -3334,8 +3448,8 @@ TEST_P(conv_int8_activation_eltwise_quantize_onednn, bsv32_fsv32) {
         reorder("reorder_bfyx", input_info("quantize"), p.default_format, data_types::f32)
     );
 
-    implementation_desc conv_impl = { format::bs_fs_yx_bsv32_fsv32, "", impl_types::onednn };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::bs_fs_yx_bsv32_fsv32, "", impl_types::onednn };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = 1.f;
     execute(p);
@@ -3383,8 +3497,8 @@ TEST_P(conv_int8_scale_shift_swish_onednn, bsv32_fsv32) {
         reorder("reorder_bfyx", input_info("shift1"), p.default_format, data_types::f32)
     );
 
-    implementation_desc conv_impl = { format::bs_fs_yx_bsv32_fsv32, "", impl_types::onednn };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { format::bs_fs_yx_bsv32_fsv32, "", impl_types::onednn };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = 1.f;
     execute(p);
@@ -3408,6 +3522,9 @@ class conv_int8_eltwise_scale_onednn : public WeightsPrimitiveFusingTestOneDNN {
 TEST_P(conv_int8_eltwise_scale_onednn, u8_eltwise_prod_out_reuse) {
     auto p = GetParam();
 
+    if (!engine.get_device_info().supports_immad)
+        return;
+
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p), -2, 2)),
@@ -3425,11 +3542,11 @@ TEST_P(conv_int8_eltwise_scale_onednn, u8_eltwise_prod_out_reuse) {
     auto input_prim = get_mem(get_input_layout(p));
 
     auto forcing_format = p.input_format;
-    implementation_desc conv_impl = { forcing_format, "", impl_types::onednn };
-    bo_fused.set_option(build_option::force_implementations({ { "conv_prim", conv_impl } }));
+    ov::intel_gpu::ImplementationDesc conv_impl = { forcing_format, "", impl_types::onednn };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
-    network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-    network network_fused(this->engine, this->topology_fused, bo_fused);
+    network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+    network network_fused(this->engine, this->topology_fused, cfg_fused);
     network_fused.set_input_data("input", input_prim);
     network_not_fused.set_input_data("input", input_prim);
 
@@ -3839,8 +3956,8 @@ public:
             return;
         auto input_prim = p.data_type == data_types::u8 ? get_mem(get_input_layout(p), 0, 10) : get_mem(get_input_layout(p));
 
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
 
@@ -3970,15 +4087,15 @@ public:
     void execute(implicit_crop_concat_convolution_test_params& p) {
         auto input_prim = p.data_type == data_types::u8 ? get_mem(get_input_layout(p), 0, 10) : get_mem(get_input_layout(p));
 
-        bo_not_fused = bo_fused;
-        // implementation_desc quantize_impl = { p.output_format, "quantize_gpu_ref", impl_types::ocl };
-        bo_not_fused.set_option(build_option::force_implementations({
+        cfg_not_fused = cfg_fused;
+        // ov::intel_gpu::ImplementationDesc quantize_impl = { p.output_format, "quantize_gpu_ref", impl_types::ocl };
+        cfg_not_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
             { "quantize1", { p.output_format, "quantize_gpu_scale_shift_opt", impl_types::ocl } },
             { "quantize2", { p.output_format, "quantize_gpu_scale_shift_opt", impl_types::ocl } },
             { "quantize3", { p.output_format, "quantize_gpu_scale_shift_opt", impl_types::ocl } } }));
 
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
         compare(network_not_fused, network_fused, p);
@@ -4050,5 +4167,168 @@ TEST_P(implicit_crop_concat_bfyx_input_tensor, basic) {
 INSTANTIATE_TEST_SUITE_P(implicit_crop_concat_conv_fusings_gpu, implicit_crop_concat_bfyx_input_tensor, ::testing::ValuesIn(std::vector<implicit_crop_concat_convolution_test_params>{
     implicit_crop_concat_convolution_test_params{ CASE_CROP_FQ_CONCAT_1, 5, 9 },
 }));
+
+
+class PermuteOptimizingTestOnednn : public BaseFusingTest<convolution_test_params> {
+public:
+    void execute(convolution_test_params& p, bool is_permute_optimized = true) {
+        if (!engine.get_device_info().supports_immad)
+            return;
+
+        p.expected_fused_primitives = p.expected_fused_primitives_onednn;
+
+        cldnn::memory::ptr input_prim = get_mem(get_input_layout(p));
+        cfg_fused.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+        cfg_not_fused.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
+        network_fused.set_input_data("input", input_prim);
+        network_not_fused.set_input_data("input", input_prim);
+
+        compare(network_not_fused, network_fused, p);
+        auto find_conv = [](primitive_info& p) -> bool {
+            if (p.original_id == "conv_prim")
+                return true;
+            return false;
+        };
+
+        auto pi_fused = network_fused.get_primitives_info();
+        auto info_fused = std::find_if(pi_fused.begin(), pi_fused.end(), find_conv);
+        if (info_fused != pi_fused.end())
+            std::cout << "kernel: " << info_fused->kernel_id << std::endl;
+
+        auto permute_prim = std::find_if(pi_fused.begin(), pi_fused.end(), [](primitive_info& p) -> bool {
+            if (p.original_id == "permute")
+                return true;
+            return false;
+        });
+
+        ASSERT_TRUE(permute_prim != pi_fused.end());
+        if (is_permute_optimized) {
+            ASSERT_TRUE(permute_prim->kernel_id == "undef");
+        } else {
+            ASSERT_FALSE(permute_prim->kernel_id == "undef");
+        }
+    }
+
+    layout get_input_layout(convolution_test_params& p) {
+        auto pad = p.pad;
+        std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
+        return layout{ p.data_type, p.input_format, p.in_shape, padding{ pad_ } };
+    }
+
+    layout get_per_channel_layout(convolution_test_params& p) {
+        return layout{ p.default_type, p.default_format, tensor{1, p.out_shape.feature[0], 1, 1} };
+    }
+
+    layout get_prelu_slope_layout(convolution_test_params& p) {
+        return layout{ p.default_type, p.input_format, tensor{1, p.out_shape.feature[0], p.out_shape.spatial[0], 1} };
+    }
+};
+
+
+#define CASE_CONV_FP16_PERMUTE_1 { 1, 4, 3, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_CONV_FP16_PERMUTE_2 { 1, 15, 4, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+
+class conv_after_permute_optimizing : public PermuteOptimizingTestOnednn {};
+TEST_P(conv_after_permute_optimizing, basic) {
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    auto p = GetParam();
+
+    auto weights_layout = cldnn::layout { p.weights_type, p.weights_format,
+                                        cldnn::tensor(batch(p.out_shape.feature[0]), feature(p.in_shape.spatial[0]),
+                                        spatial(p.kernel.spatial[0], p.kernel.spatial[1], p.kernel.spatial[2])) };
+
+    auto bias_layout = cldnn::layout{ p.default_type, format::bfyx, tensor{1, p.out_shape.feature[0], 1, 1} };
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(weights_layout)),
+        data("bias", get_mem(bias_layout)),
+        permute("permute", input_info("input"), {0, 3, 1, 2}),
+        convolution("conv_prim", input_info("permute"), { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", input_info("conv_prim"), activation_func::abs),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_after_permute_optimizing, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP16_PERMUTE_1, 3, 2, 4 },
+}));
+
+#define CASE_CONV_INT8_PERMUTE_1 { 1, 4, 3, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+
+class conv_after_permute_not_optimizing : public PermuteOptimizingTestOnednn {};
+TEST_P(conv_after_permute_not_optimizing, basic) {
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    auto p = GetParam();
+
+    auto weights_layout = cldnn::layout { p.weights_type, p.weights_format,
+                                        cldnn::tensor(batch(p.out_shape.feature[0]), feature(p.in_shape.spatial[0]),
+                                        spatial(p.kernel.spatial[0], p.kernel.spatial[1], p.kernel.spatial[2])) };
+
+    auto bias_layout = cldnn::layout{ p.default_type, format::bfyx, tensor{1, p.out_shape.feature[0], 1, 1} };
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(weights_layout)),
+        data("bias", get_mem(bias_layout)),
+        data("in_lo1", get_mem(get_single_element_layout(p), 0)),
+        data("in_hi1", get_mem(get_single_element_layout(p), 100)),
+        data("out_lo1", get_mem(get_single_element_layout(p), 0)),
+        data("out_hi1", get_mem(get_single_element_layout(p), 100)),
+        permute("permute", input_info("input"), {0, 3, 1, 2}),
+        quantize("quantize1", input_info("permute"), input_info("in_lo1"), input_info("in_hi1"),
+                 input_info("out_lo1"), input_info("out_hi1"), 256, data_types::i8),
+        convolution("conv_prim", input_info("quantize1"), { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", input_info("conv_prim"), activation_func::abs),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p, false);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_after_permute_not_optimizing, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_INT8_PERMUTE_1, 3, 3, 5 },
+}));
+
+class conv_before_permute_optimizing : public PermuteOptimizingTestOnednn {};
+TEST_P(conv_before_permute_optimizing, basic) {
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    auto p = GetParam();
+
+    ov::intel_gpu::ImplementationDesc conv_impl = { cldnn::format::type::any, "", impl_types::onednn };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_bias_layout(p))),
+        convolution("conv_prim", input_info("input"), { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", input_info("conv_prim"), activation_func::abs),
+        permute("permute", input_info("activation"), {0, 2, 3, 1}),
+        reorder("reorder_bfyx", input_info("permute"), p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_before_permute_optimizing, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP16_PERMUTE_2, 3, 2, 4 },
+}));
+
+
 
 #endif  // ENABLE_ONEDNN_FOR_GPU

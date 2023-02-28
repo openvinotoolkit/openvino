@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,7 +35,6 @@
 #include "ngraph/output_vector.hpp"
 #include "ngraph/strides.hpp"
 #include "ngraph/type.hpp"
-#include "ngraph/variant.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/node.hpp"
 
@@ -56,8 +55,6 @@ class HostTensor;
 using HostTensor = runtime::HostTensor;
 using HostTensorPtr = std::shared_ptr<HostTensor>;
 using HostTensorVector = std::vector<HostTensorPtr>;
-using TensorLabel = std::vector<size_t>;
-using TensorLabelVector = std::vector<TensorLabel>;
 
 namespace op {
 

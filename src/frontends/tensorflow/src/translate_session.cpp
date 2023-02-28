@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,19 +11,46 @@
 
 using namespace ov::frontend::tensorflow;
 
+namespace {
+template <typename T>
+std::vector<T> reorder_ops_by_names(const std::vector<std::string>& names, const std::vector<T>& ops) {
+    if (names.empty()) {
+        // in case unspecified names, return the initial order of operations
+        return ops;
+    }
+    FRONT_END_GENERAL_CHECK(names.size() == ops.size(),
+                            "[TensorFlow Frontend] Internal error: cannot perform reordering of operations. The number "
+                            "of names mismatches the number of operations.");
+    std::vector<T> resulted_ops(ops.size(), nullptr);
+    for (const auto& op : ops) {
+        const auto& op_name = op->get_friendly_name();
+        auto iter = std::find(names.begin(), names.end(), op_name);
+        FRONT_END_GENERAL_CHECK(iter != names.end(),
+                                "[TensorFlow Frontend] Internal error: cannot perform reordering of operations. The "
+                                "requested name is not found among operations.");
+        auto ind = std::distance(names.begin(), iter);
+        FRONT_END_GENERAL_CHECK(resulted_ops[ind] == nullptr,
+                                "[TensorFlow Frontend] Internal error: incorrect reordering of operations. "
+                                "Found two operations that are mapped to the same name.");
+        resulted_ops[ind] = op;
+    }
+    return resulted_ops;
+};
+}  // namespace
+
 TranslateSession::TranslateSession(const ov::frontend::InputModel::Ptr& input_model,
                                    const std::shared_ptr<TranslatorDictionaryType>& translator_map,
                                    const std::string& model_name,
                                    bool fail_fast,
                                    bool telemetry)
-    : m_fail_fast(fail_fast),
+    : m_input_model(input_model),
+      m_fail_fast(fail_fast),
       m_telemetry(telemetry),
-      m_input_model(input_model),
       m_translator_map(translator_map),
       m_model_name(model_name),
-      m_ov_model(nullptr),
       m_cached_body_models(std::make_shared<CachedBodyModelsType>()),
-      m_telemetry_data(std::make_shared<TelemetryDataType>()) {}
+      m_telemetry_data(std::make_shared<TelemetryDataType>()),
+      m_ov_model(nullptr) {}
 
 std::shared_ptr<ov::Model> TranslateSession::get_converted_model() {
     if (m_ov_model) {
@@ -187,7 +214,9 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 }
                 is_converted = true;
             }
-            FRONT_END_OP_CONVERSION_CHECK(is_converted, "No translator found for " + operation_type + " node.");
+            FRONT_END_OP_CONVERSION_CHECK(
+                is_converted,
+                "[TensorFlow Frontend] Internal error: No translator found for " + operation_type + " node.");
         } catch (...) {
             if (m_fail_fast) {
                 // in case of decode, unsupported operation will be converted to FrameworkNode
@@ -209,14 +238,13 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
         // register OV node outputs in the map for new operation node
         for (const auto& output : ov_outputs) {
-            if (auto result = std::dynamic_pointer_cast<ov::opset10::Result>(output.get_node_shared_ptr())) {
+            if (auto result = as_type_ptr<ov::opset10::Result>(output.get_node_shared_ptr())) {
                 // do not add RetVal type operation to ng_op_map
                 results.push_back(result);
             } else {
-                auto param = std::dynamic_pointer_cast<ov::opset8::Parameter>(output.get_node_shared_ptr());
+                auto param = as_type_ptr<ov::opset8::Parameter>(output.get_node_shared_ptr());
                 // avoid duplicating Parameter nodes if they are already in the Parameters vector
-                if (param && operation_decoder->get_op_type() != "Identity" &&
-                    std::find(params.begin(), params.end(), param) == params.end()) {
+                if (param && std::find(params.begin(), params.end(), param) == params.end()) {
                     params.push_back(param);
                 }
                 ng_op_map[operation_name].push_back(output);
@@ -240,7 +268,9 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             if (port_type == "none") {
                 for (const auto& node_output : ng_op_map[operation_name]) {
                     auto result_node = std::make_shared<ov::opset8::Result>(node_output);
-                    result_node->set_friendly_name(model_output_name);
+                    // to be aligned with Legacy Frontend we set a name along with output port index
+                    // though, the Result name is not used in the OV API 2.0 but it is checked in MO args tests
+                    result_node->set_friendly_name(model_output_name + ":0");
                     results.push_back(result_node);
                 }
             } else if (port_type == "out") {
@@ -281,7 +311,10 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                         "Output port with index " + std::to_string(producer_port_idx) + " of " +
                                             producer_name + "node specified as custom output does not exist");
                 auto result_node = std::make_shared<ov::opset8::Result>(node_outputs[producer_port_idx]);
-                result_node->set_friendly_name(model_output_name);
+                // to be aligned with Legacy Frontend we set a name of the output tensor name
+                // of the producer to the Result node
+                // though, the Result name is not used in the OV API 2.0 but it is checked in MO args tests
+                result_node->set_friendly_name(producer_name + ":" + std::to_string(producer_port_idx));
                 results.push_back(result_node);
             }
         }
@@ -305,10 +338,15 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         }
     }
 
-    // TODO: reorder results and params according to indices given in RT info (if any)
+    // reorder Parameter and Result nodes according to the requested order
+    // of input and output names from the original model
+    // during translation and topologically sorting this order could be lost
+    auto input_names = model_tf->get_input_names();
+    auto output_names = model_tf->get_output_names();
+    ov::ParameterVector ordered_params = reorder_ops_by_names(input_names, params);
+    ov::ResultVector ordered_results = reorder_ops_by_names(output_names, results);
 
-    // create the OV Model
-    ov_model = std::make_shared<ov::Model>(results, params, m_model_name);
+    ov_model = std::make_shared<ov::Model>(ordered_results, ordered_params, m_model_name);
 }
 
 std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string& body_graph_name) {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <ngraph/validation_util.hpp>
 #include <numeric>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/concat.hpp"
@@ -233,7 +234,7 @@ void ov::op::util::BroadcastBase::validate_and_infer_types() {
                                   " doesn't match rank of input tensor ",
                                   input_rank);
 
-            if (output_shape_defined && ngraph::has_and_set_equal_bounds(input_value(2))) {
+            if (output_shape_defined && has_and_set_equal_bounds(input_value(2))) {
                 auto axes_mapping_val = get_constant_from_source(input_value(2))->get_axis_vector_val();
                 validate_target_shape_none(arg_shape, axes_mapping_val, output_shape);
             }
@@ -478,16 +479,16 @@ bool ov::op::util::BroadcastBase::evaluate(const HostTensorVector& outputs, cons
     return evaluate_broadcast(inputs[0], outputs[0], pair_broadcast_axes, result_shape.to_shape());
 }
 
-bool ov::op::util::BroadcastBase::evaluate_lower(const HostTensorVector& output_values) const {
+bool ov::op::util::BroadcastBase::evaluate_lower(ov::TensorVector& output_values) const {
     if (!input_value(1).get_tensor().has_and_set_bound() ||
         (get_input_size() > 2 && !input_value(2).get_tensor().has_and_set_bound()))
         return false;
-    return ngraph::default_lower_bound_evaluator(this, output_values);
+    return default_lower_bound_evaluator(this, output_values);
 }
 
-bool ov::op::util::BroadcastBase::evaluate_upper(const HostTensorVector& output_values) const {
+bool ov::op::util::BroadcastBase::evaluate_upper(ov::TensorVector& output_values) const {
     if (!input_value(1).get_tensor().has_and_set_bound() ||
         (get_input_size() > 2 && !input_value(2).get_tensor().has_and_set_bound()))
         return false;
-    return ngraph::default_upper_bound_evaluator(this, output_values);
+    return default_upper_bound_evaluator(this, output_values);
 }

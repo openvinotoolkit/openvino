@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <utility>
 #include <vector>
@@ -12,12 +11,6 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief multiclass NMS
 struct multiclass_nms : public primitive_base<multiclass_nms> {
@@ -132,6 +125,43 @@ struct multiclass_nms : public primitive_base<multiclass_nms> {
     attributes attrs;
     bool has_roisnum{false};
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, has_roisnum);
+        seed = hash_combine(seed, attrs.background_class);
+        seed = hash_combine(seed, attrs.indices_output_type);
+        seed = hash_combine(seed, attrs.iou_threshold);
+        seed = hash_combine(seed, attrs.keep_top_k);
+        seed = hash_combine(seed, attrs.nms_eta);
+        seed = hash_combine(seed, attrs.nms_top_k);
+        seed = hash_combine(seed, attrs.normalized);
+        seed = hash_combine(seed, attrs.score_threshold);
+        seed = hash_combine(seed, attrs.sort_result);
+        seed = hash_combine(seed, attrs.sort_result_across_batch);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const multiclass_nms>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(has_roisnum) &&
+               cmp_fields(attrs.background_class) &&
+               cmp_fields(attrs.indices_output_type) &&
+               cmp_fields(attrs.iou_threshold) &&
+               cmp_fields(attrs.keep_top_k) &&
+               cmp_fields(attrs.nms_eta) &&
+               cmp_fields(attrs.nms_top_k) &&
+               cmp_fields(attrs.normalized) &&
+               cmp_fields(attrs.score_threshold) &&
+               cmp_fields(attrs.sort_result) &&
+               cmp_fields(attrs.sort_result_across_batch);
+        #undef cmp_fields
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
@@ -150,7 +180,4 @@ private:
     };
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

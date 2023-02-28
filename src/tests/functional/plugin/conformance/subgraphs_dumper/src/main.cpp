@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,6 +32,12 @@ static std::vector<std::regex> getRegexByFrontend() {
 #endif
 #ifdef ENABLE_OV_IR_FRONTEND
     result.push_back(std::regex(R"(.*\.xml)"));
+#endif
+#ifdef ENABLE_OV_TF_LITE_FRONTEND
+    result.push_back(std::regex(R"(.*\.tflite)"));
+#endif
+#ifdef ENABLE_OV_PYTORCH_FRONTEND
+    result.push_back(std::regex(R"(.*\.pt)"));
 #endif
     return result;
 }
@@ -106,7 +112,7 @@ void cacheModels(std::unique_ptr<SubgraphsDumper::OPCache> &cache,
                     ret_code = 1;
                     continue;
                 }
-                cache->update_ops_cache(function, extract_body, model.path);
+                cache->update_ops_cache(function, model, extract_body);
                 successful_models_file << model.path << std::endl;
             } catch (std::exception &e) {
                 not_fully_cached_models_file << model.path << std::endl;

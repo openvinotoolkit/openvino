@@ -27,10 +27,10 @@ std::string MaxNumParamsEltwise::getTestCaseName(testing::TestParamInfo<ov::test
 void MaxNumParamsEltwise::SetUp() {
     ov::Shape inputShape;
     std::tie(inputShape, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    std::vector<ov::Shape> expandedShapes(10, inputShape);
+    std::vector<ov::PartialShape> expandedShapes(10, inputShape);
     std::vector<InputShape> input_shapes;
     for (const auto& s : expandedShapes) {
-        input_shapes.emplace_back(InputShape {{}, {s, }});
+        input_shapes.emplace_back(InputShape {{}, {s.get_shape(), }});
     }
 
     init_input_shapes(input_shapes);

@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "intel_gpu/primitives/reorder.hpp"
@@ -66,7 +65,7 @@ public:
     memory::ptr mean_nv12_memory() const { return dep_memory_ptr(2); }
     memory::ptr mean_memory() const { return dep_memory_ptr(1); }
 
-    bool has_mean() const { return !argument->mean.empty(); }
+    bool has_mean() const { return !get_typed_desc<reorder>()->mean.empty(); }
 
     void update_output_memory() override;
     bool requires_reinterpret() const { return _req_reinterpr; }

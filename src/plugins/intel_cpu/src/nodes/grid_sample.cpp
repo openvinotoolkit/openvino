@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,8 +34,8 @@ bool GridSample::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
     return true;
 }
 
-GridSample::GridSample(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, PortMask(1))) {
+GridSample::GridSample(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, PortMask(1))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -202,12 +202,16 @@ void GridSample::prepareParams() {
 
         auto& p = execParamsPerThread[ithr];
 
+        p.workAmount = dstEnd - dstStart;
+        if (p.workAmount == 0lu) {
+            return;
+        }
+
         p.batchNum      = srcDataShape[0];
         p.channelsNum   = srcDataShape[1];
         p.srcHeightF[0] = srcDataShape[2];
         p.srcWidthF[0]  = srcDataShape[3];
 
-        p.workAmount = dstEnd - dstStart;
         p.gridStartB = dstStart * 2 * gridTypeSize;
         p.dstStartB  = dstStart * dataTypeSize;
 
