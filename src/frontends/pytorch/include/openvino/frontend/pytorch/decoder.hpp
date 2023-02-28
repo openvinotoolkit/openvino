@@ -103,9 +103,6 @@ public:
 
     /// Probably this toghether with immediate nodes visitor is a replacement for visit_subgraphs with an index
     virtual std::shared_ptr<TorchDecoder> get_subgraph_decoder(size_t index) const = 0;
-
-    /// @brief Returns string containing device name for `prim::device` PyTorch operator.
-    virtual const std::string& get_device() const = 0;
 };
 
 }  // namespace pytorch

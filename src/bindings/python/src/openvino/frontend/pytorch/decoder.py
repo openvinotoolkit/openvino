@@ -152,7 +152,7 @@ class TorchScriptPythonDecoder (Decoder):
         elif isinstance(pt_type, torch.ListType):
             element_type = pt_type.getElementType()
             return OVAny(DecoderType.List(self._get_known_type_for_value(element_type)))
-        elif isinstance(pt_type, torch.StringType):
+        elif isinstance(pt_type, (torch.StringType, torch.DeviceObjType)):
             return OVAny(DecoderType.Str())
         elif isinstance(pt_type, torch.NoneType):
             return OVAny(DecoderType.PyNone())
@@ -215,17 +215,6 @@ class TorchScriptPythonDecoder (Decoder):
     def get_schema(self) -> str:
         return self.graph_element.schema()
 
-    def get_device(self) -> str:
-        if self.graph_element.kind() == "prim::device":
-            value = self.raw_inputs[0]
-            if value.type().isSubtypeOf(torch.TensorType.get()):
-                tensor = typing.cast(torch.TensorType, value.type())
-                device = tensor.device()
-                if device:
-                    return str(device)
-        # Device cannot be statically determined.
-        return "cpu"
-
     def outputs(self) -> list:
         return [x.unique() for x in self.raw_outputs]
 
@@ -265,14 +254,14 @@ class TorchScriptPythonDecoder (Decoder):
         return ivalue_to_constant(pt_value.toIValue())
 
     def as_string(self):
-        if not self.get_op_type() == "prim::Constant":
-            return None
-        pt_value = self._raw_output(0)
-
-        if str(pt_value.type()) in ["torch.StringType", "str"]:
-            return pt_value.toIValue()
-        elif str(pt_value.type()) == "Device":
-            return pt_value.toIValue().type
+        if self.get_op_type() == "prim::Constant":
+            pt_value = self._raw_output(0)
+            if str(pt_value.type()) in ["torch.StringType", "str"]:
+                return pt_value.toIValue()
+            elif str(pt_value.type()) == "Device":
+                return pt_value.toIValue().type
+        elif self.get_op_type() == "prim::device":
+            return self._get_device_string()
         return None
 
     @staticmethod
@@ -319,6 +308,17 @@ class TorchScriptPythonDecoder (Decoder):
             ovshape = PartialShape([len(ivalue)])
             ov_const = op.Constant(ovtype, ovshape.get_shape(), ivalue)
             return ov_const.outputs()
+
+    def _get_device_string(self) -> str:
+        assert self.graph_element.kind() == "prim::device", "This function can be called for prim::device node."
+        value = self.raw_inputs[0]
+        if value.type().isSubtypeOf(torch.TensorType.get()):
+            tensor = typing.cast(torch.TensorType, value.type())
+            device = tensor.device()
+            if device:
+                return str(device)
+        # Device cannot be statically determined.
+        return "cpu"
 
     def input_is_none(self, index: int) -> bool:
         if index >= len(self.inputs()) or self._raw_input(index) is None:

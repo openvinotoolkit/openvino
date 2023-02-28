@@ -25,10 +25,8 @@ using namespace ov::op;
 std::string get_str_val(const std::shared_ptr<PtFrameworkNode> fw_node) {
     FRONT_END_OP_CONVERSION_CHECK(fw_node, "Framework node does not exist.");
     auto attrs = fw_node->get_attrs();
-    if (attrs.find("string_value") != attrs.end()) {
-        return attrs.at("string_value");
-    }
-    return fw_node->get_decoder()->as_string();
+    FRONT_END_OP_CONVERSION_CHECK(attrs.find("string_value") != attrs.end(), "Could not retrieve string value.");
+    return attrs.at("string_value");
 }
 
 StringEqualityReplacer::StringEqualityReplacer() {
