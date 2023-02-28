@@ -38,8 +38,11 @@ public:
                                      const InferenceEngine::SoIInferRequestInternal & request_to_share_blobs_with,
                                      InferenceEngine::RemoteContext::Ptr ctx = nullptr);
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
-    void InferImpl() override;
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& blob) override;
+    /**
+     * @deprecated This method will be removed in 2024.1 release
+     * @brief Sets blob with a pre-process information
+     */
     void SetBlob(const std::string& name,
                  const InferenceEngine::Blob::Ptr& blob,
                  const InferenceEngine::PreProcessInfo& info) override;

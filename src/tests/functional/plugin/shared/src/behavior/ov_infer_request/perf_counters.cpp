@@ -33,6 +33,11 @@ TEST_P(OVInferRequestPerfCountersTest, NotEmptyAfterSyncInfer) {
     OV_ASSERT_NO_THROW(perf = req.get_profiling_info());
     ASSERT_FALSE(perf.empty());
 }
+
+TEST_P(OVInferRequestPerfCountersExceptionTest, perfCountWereNotEnabledExceptionTest) {
+    EXPECT_ANY_THROW(req.get_profiling_info());
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
