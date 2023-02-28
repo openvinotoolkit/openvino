@@ -57,3 +57,20 @@ class TestSortConstants(PytorchLayerTest):
     def test_sort(self, input_tensor, dim, descending, stable, ie_device, precision, ir_version):
         self.input_tensor = input_tensor 
         self._test(*self.create_model(dim, descending, stable), ie_device, precision, ir_version)
+
+    @pytest.mark.parametrize("input_tensor", [
+        np.array([1, 2, 4, 6, 5])
+    ])
+    @pytest.mark.parametrize("dim", [
+        0
+    ])
+    @pytest.mark.parametrize("descending", [
+        False 
+    ])
+    @pytest.mark.parametrize("stable", [
+        True
+    ])
+    @pytest.mark.xfail
+    def test_sort_stable_throws(self, input_tensor, dim, descending, stable, ie_device, precision, ir_version):
+        self.input_tensor = input_tensor 
+        self._test(*self.create_model(dim, descending, stable), ie_device, precision, ir_version)

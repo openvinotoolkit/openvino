@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,6 +17,7 @@ namespace op {
 #define shared    std::make_shared
 
 using namespace opset10;
+using namespace ov::op;
 
 OutputVector translate_sort(NodeContext& context) {
     const auto input_tensor = context.get_input(0);
@@ -33,10 +34,10 @@ OutputVector translate_sort(NodeContext& context) {
         dim = context.const_input<int64_t>(1);
         descending = context.const_input<bool>(2);
     }
-    auto mode = descending ? ov::op::TopKMode::MAX : ov::op::TopKMode::MIN;
+    auto mode = descending ? TopKMode::MAX : TopKMode::MIN;
 
-    auto zero_axis = mark(Constant::create(element::i64, Shape({1}), {0}));
-    auto dim_axis = mark(Constant::create(element::i64, Shape({1}), {dim}));
+    auto zero_axis = mark(Constant::create(element::i32, Shape{1}, {0}));
+    auto dim_axis = mark(Constant::create(element::i64, Shape{1}, {dim}));
     auto shape = mark(shared<ShapeOf>(input_tensor));
     auto k_values_node = mark(shared<Gather>(shape, dim_axis, zero_axis));
     auto k_values = mark(shared<Squeeze>(k_values_node));
