@@ -112,21 +112,21 @@ public:
 
         auto m = make_shared<TestMatcher>(make_shared<op::v1::Multiply>(pattern, iconst1));
         auto match_pass = std::make_shared<ov::pass::MatcherPass>(
-                m->get_name(),
-                m,
-                [m, callback](const std::shared_ptr<Node>& node) -> bool {
-                    NGRAPH_DEBUG << "Running matcher " << m->get_name() << " on " << node;
-                    if (std::dynamic_pointer_cast<ov::pass::pattern::Matcher>(m)->match(node->output(0))) {
-                        NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
-                        bool status = callback(*m.get());
-                        // explicitly clear Matcher state because it holds pointers to matched nodes
-                        m->clear_state();
-                        return status;
-                    }
+            m->get_name(),
+            m,
+            [m, callback](const std::shared_ptr<Node>& node) -> bool {
+                NGRAPH_DEBUG << "Running matcher " << m->get_name() << " on " << node;
+                if (std::dynamic_pointer_cast<ov::pass::pattern::Matcher>(m)->match(node->output(0))) {
+                    NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+                    bool status = callback(*m.get());
+                    // explicitly clear Matcher state because it holds pointers to matched nodes
+                    m->clear_state();
+                    return status;
+                }
                 m->clear_state();
                 return false;
-                },
-                ov::pass::PassProperty::REQUIRE_STATIC_SHAPE);
+            },
+            ov::pass::PassProperty::REQUIRE_STATIC_SHAPE);
         this->add_matcher(match_pass);
     }
 
@@ -170,22 +170,22 @@ public:
 
         auto add = make_shared<op::v1::Add>(pattern, iconst0);
         auto m = make_shared<TestMatcher>(add);
-                auto match_pass = std::make_shared<ov::pass::MatcherPass>(
-                m->get_name(),
-                m,
-                [m, callback](const std::shared_ptr<Node>& node) -> bool {
-                    NGRAPH_DEBUG << "Running matcher " << m->get_name() << " on " << node;
-                    if (std::dynamic_pointer_cast<ov::pass::pattern::Matcher>(m)->match(node->output(0))) {
-                        NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
-                        bool status = callback(*m.get());
-                        // explicitly clear Matcher state because it holds pointers to matched nodes
-                        m->clear_state();
-                        return status;
-                    }
+        auto match_pass = std::make_shared<ov::pass::MatcherPass>(
+            m->get_name(),
+            m,
+            [m, callback](const std::shared_ptr<Node>& node) -> bool {
+                NGRAPH_DEBUG << "Running matcher " << m->get_name() << " on " << node;
+                if (std::dynamic_pointer_cast<ov::pass::pattern::Matcher>(m)->match(node->output(0))) {
+                    NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+                    bool status = callback(*m.get());
+                    // explicitly clear Matcher state because it holds pointers to matched nodes
+                    m->clear_state();
+                    return status;
+                }
                 m->clear_state();
                 return false;
-                },
-                ov::pass::PassProperty::REQUIRE_STATIC_SHAPE);
+            },
+            ov::pass::PassProperty::REQUIRE_STATIC_SHAPE);
         this->add_matcher(match_pass);
     }
 

@@ -6,6 +6,7 @@
 
 #include <numeric>
 
+#include "core/src/itt.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/range.hpp"
@@ -14,7 +15,6 @@
 #include "ngraph/pattern/op/label.hpp"
 #include "ngraph/runtime/reference/range.hpp"
 #include "ngraph/slice_plan.hpp"
-#include "core/src/itt.hpp"
 
 NGRAPH_SUPPRESS_DEPRECATED_START
 
@@ -124,21 +124,21 @@ void pass::DynElimination::construct_range() {
 
     auto range_matcher = make_shared<pattern::Matcher>(range_pat, "DynElimination.Range");
     auto match_pass = std::make_shared<ov::pass::MatcherPass>(
-            range_matcher->get_name(),
-            range_matcher,
-            [range_matcher, range_callback](const std::shared_ptr<Node>& node) -> bool {
-                NGRAPH_DEBUG << "Running matcher " << range_matcher->get_name() << " on " << node;
-                OV_PASS_CALLBACK(m);
-                if (std::dynamic_pointer_cast<ov::pass::pattern::Matcher>(range_matcher)->match(node->output(0))) {
-                    NGRAPH_DEBUG << "Matcher " << range_matcher->get_name() << " matched " << node;
-                    bool status = range_callback(*range_matcher.get());
-                    // explicitly clear Matcher state because it holds pointers to matched nodes
-                    range_matcher->clear_state();
-                    return status;
-                }
+        range_matcher->get_name(),
+        range_matcher,
+        [range_matcher, range_callback](const std::shared_ptr<Node>& node) -> bool {
+            NGRAPH_DEBUG << "Running matcher " << range_matcher->get_name() << " on " << node;
+            OV_PASS_CALLBACK(m);
+            if (std::dynamic_pointer_cast<ov::pass::pattern::Matcher>(range_matcher)->match(node->output(0))) {
+                NGRAPH_DEBUG << "Matcher " << range_matcher->get_name() << " matched " << node;
+                bool status = range_callback(*range_matcher.get());
+                // explicitly clear Matcher state because it holds pointers to matched nodes
+                range_matcher->clear_state();
+                return status;
+            }
             range_matcher->clear_state();
             return false;
-            },
-            all_pass_property_off);
+        },
+        all_pass_property_off);
     add_matcher(match_pass);
 }
