@@ -142,7 +142,19 @@ class Property : public util::BaseProperty<T, mutability_> {
 
         template <typename U,
                   typename std::enable_if<!std::is_same<typename std::decay<U>::type, std::string>::value &&
-                                              !std::is_convertible<V, std::string>::value,
+                                              !std::is_convertible<V, std::string>::value && std::is_signed<V>::value,
+                                          bool>::type = true>
+        explicit operator U() {
+            if (std::is_unsigned<U>::value) {
+                if (value < 0)
+                    throw ov::Exception{"Expecting positive value for unsigned type"};
+            }
+            return value;
+        }
+
+        template <typename U,
+                  typename std::enable_if<!std::is_same<typename std::decay<U>::type, std::string>::value &&
+                                              !std::is_convertible<V, std::string>::value && !std::is_signed<V>::value,
                                           bool>::type = true>
         explicit operator U() {
             return value;
