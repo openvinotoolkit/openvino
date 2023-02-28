@@ -29,7 +29,6 @@ Refer to the following articles for details on conversion for different formats 
 * [How to convert ONNX](./Convert_Model_From_ONNX.md)
 * [How to convert PaddlePaddle](./Convert_Model_From_Paddle.md)
 * [How to convert TensorFlow](./Convert_Model_From_TensorFlow.md)
-* [How to convert PyTorch](./Convert_Model_From_PyTorch.md)
 * [How to convert MXNet](./Convert_Model_From_MxNet.md)
 * [How to convert Caffe](./Convert_Model_From_Caffe.md)
 * [How to convert Kaldi](./Convert_Model_From_Kaldi.md)
