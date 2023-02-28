@@ -321,7 +321,7 @@ OperatorsBridge::OperatorsBridge() {
     register_operator("Add", VersionRange{7, 12}, op::set_7::add);
     register_operator("Add", VersionRange::in_version(13), op::set_13::add);
     register_operator("Add", VersionRange::from_version(14), op::set_14::add);
-    register_operator("And", VersionRange{1,6}, op::set_1::and, "Legacy broadcast mode is not supported");
+    register_operator("And", VersionRange{1, 6}, op::set_1::and, "Legacy broadcast mode is not supported");
     register_operator("And", VersionRange::from_version(6), op::set_6::and);
     REGISTER_OPERATOR("ArgMin", 1, argmin);
     REGISTER_OPERATOR("ArgMin", 12, argmin);
