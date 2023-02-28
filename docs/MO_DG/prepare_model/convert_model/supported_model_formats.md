@@ -20,9 +20,9 @@
 
 **OpenVINO IR (Intermediate Representation)** - the proprietary format of OpenVINO™, benefiting from the full extent of its features.
 
-**ONNX, PaddlePaddle, Tensorflow** - formats supported directly, which means they can be used with OpenVINO Runtime without any prior conversion. For a guide on how to run inference on ONNX, PaddlePaddle, or Tensorflow, see how to [Integrate OpenVINO™ with Your Application](../../../OV_Runtime_UG/integrate_with_your_application.md).
+**ONNX, PaddlePaddle, TensorFlow** - formats supported directly, which means they can be used with OpenVINO Runtime without any prior conversion. For a guide on how to run inference on ONNX, PaddlePaddle, or TensorFlow, see how to [Integrate OpenVINO™ with Your Application](../../../OV_Runtime_UG/integrate_with_your_application.md).
 
-**PyTorch, MXNet, Caffe, Kaldi** - formats supported indirectly, which means they need to be converted to OpenVINO IR before running inference. The conversion is done with Model Optimizer and in some cases may involve intermediate steps.
+**MXNet, Caffe, Kaldi** - formats supported indirectly, which means they need to be converted to OpenVINO IR before running inference. The conversion is done with Model Optimizer and in some cases may involve intermediate steps.
 
 Refer to the following articles for details on conversion for different formats and models:
 
