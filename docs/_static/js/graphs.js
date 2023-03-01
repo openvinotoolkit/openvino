@@ -1,6 +1,31 @@
+// general output config
 const chartDisclaimers = {
     Value: 'Value: Performance/(No_of_sockets * Price_of_CPU_dGPU), where prices are in USD as of December 2022.',
     Efficiency: 'Efficiency: Performance/(No_of_sockets * TDP_of_CPU_dGPU), where total power dissipation (TDP) is in Watt as of December 2022.'
+}
+
+const defaultSelections = {
+    platforms: {name: 'platform',
+        data: [
+            'Intel® Core™  i9-12900K CPU-only',
+            'Intel® Core™  i5-10500TE CPU-only',
+            'Intel® Core™  i5-8500 CPU-only',
+            'Intel® Core™  i7-8700T CPU-only',
+            'Intel® Core™  i9-10900TE CPU-only',
+            'Intel® Core™  i7-1165G7 CPU-only'
+        ]
+    },
+    platformFilters: {name: 'coretype', data: ['CPU']},
+    models: {name: 'networkmodel',
+        data: [
+            'bert-large-uncased-whole-word-masking-squad-0001 ',
+            'mobilenet-ssd ',
+            'resnet-50',
+            'yolo_v3_tiny'
+        ]
+    },
+    parameters: {name: 'kpi', data: ['Throughput']},
+    pracision: {name: 'precision', data: ['INT8', 'FP32']}
 }
 
 class Filter {
@@ -468,20 +493,13 @@ $(document).ready(function () {
             $('body').prepend(modal);
 
             renderClientPlatforms(graph.data, modal, true);
+            preselectDefaultSettings(graph.data, modal);
 
-            $('.clear-all-btn').on('click', () => {
-                $('.modal-content-grid-container input:checkbox').each((index, object) => $(object).prop('checked', false));
-                disableAllCheckboxes(precisions);
-                // Uncomment if you want the Clear All button to reset the Platform Type column as well
-                // modal.find('.ietype-column input').first().prop('checked', true);
-                validateSelections();
-            });
-
+            $('.clear-all-btn').on('click', clearAll);
             $('#build-graphs-btn').on('click', () => {
                 $('#modal-configure-graphs').hide();
                 clickBuildGraphs(graph, getSelectedNetworkModels(), getSelectedIeType(), getSelectedClientPlatforms(), getSelectedKpis(), Modal.getPrecisions(getSelectedPrecisions()));
             });
-
             $('.modal-close').on('click', hideModal);
             $('.close-btn').on('click', hideModal);
             modal.find('.models-column-one input[data-networkmodel="Select All"]').on('click', function() {
@@ -490,16 +508,47 @@ $(document).ready(function () {
                 else deSelectAllCheckboxes(models);
             });
             modal.find('.ietype-column input').on('click', () => renderClientPlatforms(graph.data, modal, true));
-            modal.find('.kpi-column input').on('click', function (event) {
-                if (getSelectedKpis().includes('Throughput')) {
-                    enableAllCheckboxes(precisions);
-                }
-                else {
-                    disableAllCheckboxes(precisions);
-                }
-            });
+            modal.find('.kpi-column input').on('click', validateThroughputSelection);
             modal.find('input').on('click', validateSelections);
         });
+    }
+    
+    function validateThroughputSelection() {
+        const precisions = $('.precisions-column').find('input')
+        if (getSelectedKpis().includes('Throughput')) {
+            precisions.prop('disabled', false);
+        }
+        else {
+            precisions.prop('disabled', true);
+        }
+    }
+
+    function clearAll() {
+        $('.modal-content-grid-container input:checkbox').each((index, object) => $(object).prop('checked', false));
+        // Uncomment if you want the Clear All button to reset the Platform Type column as well
+        // modal.find('.ietype-column input').first().prop('checked', true);
+        validateThroughputSelection();
+        validateSelections();
+    }
+
+    function preselectDefaultSettings(data, modal) {
+        if (defaultSelections.platformFilters) {
+            const filters = modal.find('.selectable-box-container').children('.selectable-box');
+            filters.removeClass('selected');
+            defaultSelections.platformFilters.data.forEach(selection => {
+                filters.filter(`[data-${defaultSelections.platformFilters.name}="${selection}"]`).addClass('selected');
+            });
+            renderClientPlatforms(data, modal);
+        }
+        clearAll();
+        for (setting in defaultSelections) {
+            let name = defaultSelections[setting].name;
+            defaultSelections[setting].data.forEach(selection => {
+                $(`input[data-${name}="${selection}"]`).prop('checked', true);
+            });
+        }
+        validateThroughputSelection();
+        validateSelections();
     }
 
     function showCoreSelectorTypes(coreTypes, graphDataArr,  modal) {
@@ -523,7 +572,7 @@ $(document).ready(function () {
                 $(this).addClass('selected');
             }
             var fPlatforms = filterClientPlatforms(graphDataArr, getSelectedNetworkModels(), getSelectedIeType(), Modal.getCoreTypes(getSelectedCoreTypes()));
-            renderClientPlatformsItems(modal, Graph.getPlatformNames(fPlatforms), checkAll=true);
+            renderClientPlatformsItems(modal, Graph.getPlatformNames(fPlatforms), true);
             validateSelections();
         });
     }
