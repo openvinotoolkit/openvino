@@ -5,7 +5,7 @@ are available by default, but some others might require plugin recompilation.
 
 ## Debug Config
 
-`Debug_config` is an infra structure that contains a number of easy-to-use debugging features. It has various control parameters. You can check list of parameters from the source code `cldnn::debug_configuration`.
+`Debug_config` is an infrastructure that contains several easy-to-use debugging features. It has various control parameters, which you can check from the source code `cldnn::debug_configuration`.
 
 ### How to use it
 
@@ -39,7 +39,9 @@ Behavior when both versions are specified is not defined.
 
 Some options also allow multiple prefixes: `OV` and `OV_GPU`. `OV` prefix is intended to be used for options common for all OpenVINO components. When an option is set twice with different prefixes, then `OV_GPU` has higher priority.
 
-### List of parameters (There are actually more than this, see OV_GPU_Help result)
+### List of parameters 
+
+This is a part of the full list. To get all parameters, see OV_GPU_Help result.
 
 * `OV_GPU_Help`: Shows help message of debug config.
 * `OV_GPU_Verbose`: Verbose execution. Currently, `Verbose=1` and `2` are supported.
@@ -105,12 +107,12 @@ A typical node in GPU execution graph looks as follows:
 </layer>
 ```
 
-Most of the data here is very handy for the performance analysis. For example, for each node you can check whether:
-- Nodes fusion works as expected on given models (that is, some node is missing in execution graph and it's name is a part of `originalLayersNames` list for some other node)
+Most of the data here is very handy for performance analysis. For example, for each node you can check whether:
+- Nodes fusion works as expected on given models (that is, some node is missing in the execution graph and its name is a part of `originalLayersNames` list for some other node)
 - Input and output layouts of a node are optimal in each case
 - Input and output precisions are valid in each case
-- The node used expected kernel for execution
-- And the most important: actual execution time of each operation
+- The node used the expected kernel for execution
+- And most important: the actual execution time of each operation
 
 This graph can be visualized using Netron tool and all these properties can be analyzed there.
 
@@ -139,14 +141,13 @@ relu                OPTIMIZED_OUT  layerType: ReLU               realTime: 0    
 Total time: 53877 microseconds
 ```
 
-So it allows you to quickly check execution time of some operation on the device and make sure that correct primitive is used. Also, the output can be easily
-converted into the *.csv* format and then used to collect any kind of statistics (for example, execution time distribution by layer types).
+So it allows you to quickly check the execution time of some operation on the device and make sure that the correct primitive is used. Also, the output can be easily converted into the *.csv* format and then used to collect any kind of statistics (for example, execution time distribution by layer types).
 
 ## Graph dumps
 
 *Intel_GPU* plugin allows you to dump some info about intermediate stages in the graph optimizer.
 
-* You can dump graphs with `OV_GPU_DumpGraphs` of debug config. For the usage of debug config, see [link](#debug-config).
+* You can dump graphs with `OV_GPU_DumpGraphs` of debug config. For the usage of debug config, see the [link](#debug-config).
 
 * Alternatively, you can also enable the dumps from the application source code:
 clDNN plugin has the special internal config option - `graph_dumps_dir`, which can be set from the user app via plugin config:
@@ -191,9 +192,9 @@ clDNN_program_${program_id}_part_${bucket_id}.cl
 > **Note**: `program_id` here might differ from `program_id` for the graph dumps, as it is just a static counter for enumerating incoming programs.
 
 Each file contains a bucket of kernels that are compiled together. In case of any compilation errors, *Intel_GPU* plugin will append compiler output
-to the end of corresponding source file.
+to the end of the corresponding source file.
 
-If you want to find some specific layer, then you will need to use "Debug/RelWithDebInfo" build or modify base jitter method to append `LayerID` in the release build:
+To find a specific layer, use "Debug/RelWithDebInfo" build or modify the base jitter method to append `LayerID` in the release build:
 ```cpp
 // inference-engine/thirdparty/clDNN/kernel_selector/core/kernel_base.cpp
 JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params) const {
@@ -204,19 +205,19 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params) c
 }
 ```
 
-When source is dumped, it actually contains a huge amount of macros(`#define`). For readability, you can run *c preprocessor* to apply the macros.
+When the source is dumped, it contains a huge amount of macros(`#define`). For readability, you can run *c preprocessor* to apply the macros.
 
 `$ cpp dumped_source.cl > clean_source.cl`
 
 
 ## Layer in/out buffer dumps
 
-In some cases, you might want to get actual values in each layer execution to compare it with some reference blob. In order to do that, choose
+In some cases, you might want to get actual values in each layer execution to compare it with some reference blob. To do that, choose the
 `OV_GPU_DumpLayersPath` option in debug config. For the usage of debug config, see [link](#debug-config).
 
-As a prerequisite, enable `ENABLE_DEBUG_CAPS` from cmake configuration.
+As a prerequisite, enable `ENABLE_DEBUG_CAPS` from the cmake configuration.
 
-Then, check runtime layer name by executing *benchmark_app* with `OV_GPU_Verbose=1`. It is better to check it with `OV_GPU_Verbose=1` than through IR because this may be slightly different. `OV_GPU_Verbose=1` will show the log of execution of each layer.
+Then, check the runtime layer name by executing *benchmark_app* with `OV_GPU_Verbose=1`. It is better to check it with `OV_GPU_Verbose=1` than through IR because this may be slightly different. `OV_GPU_Verbose=1` will show the log of execution of each layer.
 
 ```
 # As a prerequisite, enable ENABLE_DEBUG_CAPS from cmake configuration.
@@ -230,7 +231,7 @@ Dump files are named in the following convention:
 ${layer_name_with_underscores}_${src/dst}_${port_id}.txt
 ```
 
-Each file contains a single buffer in common planar format (`bfyx`, `bfzyx` or `bfwzyx`), where each value is stored on a separate line. The first line in the file contains a buffer description, for example:
+Each file contains a single buffer in a common planar format (`bfyx`, `bfzyx`, or `bfwzyx`), where each value is stored on a separate line. The first line in the file contains a buffer description, for example:
 ```
 shape: [b:1, f:1280, x:1, y:1, z:1, w:1, g:1] (count: 1280, original format: b_fs_yx_fsv16)
 ```
@@ -238,15 +239,15 @@ shape: [b:1, f:1280, x:1, y:1, z:1, w:1, g:1] (count: 1280, original format: b_f
 For troubleshooting the accuracy, you may want to compare the results of GPU plugin and CPU plugin. For CPU dump, see [Blob dumping](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_cpu/src/docs/blob_dumping.md)
 
 
-## Run int8 model on gen9 HW
+## Run int8 model on Gen9 HW
 
-As gen9 HW does not have hardware acceleration, low precision transformations are disabled by default. Therefore, quantized networks are executed in full precision (FP16 or FP32), with explicit execution of quantize operations.
-If you do not have gen12 HW, but want to debug network's accuracy or performance of simple operations (which does not require dp4a support), then you can enable low precision pipeline on gen9, with one of the following approaches:
+As Gen9 HW does not have hardware acceleration, low-precision transformations are disabled by default. Therefore, quantized networks are executed in full precision (FP16 or FP32), with explicit execution of quantize operations.
+If you do not have Gen12 HW, but want to debug the network's accuracy or performance of simple operations (which does not require dp4a support), then you can enable low precision pipeline on Gen9, with one of the following approaches:
 1. Add `{PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE, PluginConfigParams::YES}` option to the plugin config.
 2. Enforce `supports_imad = true` [here](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/thirdparty/clDNN/src/gpu/device_info.cpp#L226)
 3. Enforce `conf.enableInt8 = true` [here](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/src/cldnn_engine/cldnn_engine.cpp#L366)
 
-After that, the plugin will run exactly the same scope of transformations as on gen12 HW and generate similar kernels (small difference is possible due to different EUs count)
+After that, the plugin will run exactly the same scope of transformations as on Gen12 HW and generate similar kernels (a small difference is possible due to different EUs count).
 
 ## See also
 

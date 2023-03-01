@@ -7,8 +7,8 @@ GPU plugin has two types of tests: functional and unit tests. This article is ab
 
 # Structure of a unit test
 
-Intel GPU unit test (aka clDNN unit test) is a set of unit tests, each of which is for testing all primitives, fusions and fundamental core types of GPU plugin.
-There are 4 subcategories of unit tests as below.
+Intel GPU unit test (aka clDNN unit test) is a set of unit tests, each of which is for testing all primitives, fusions, and fundamental core types of GPU plugin.
+There are four subcategories of unit tests as below.
 
 ```bash
 openvino/src/plugins/intel_gpu/tests	- root of Intel GPU unit test
@@ -23,7 +23,7 @@ openvino/src/plugins/intel_gpu/tests	- root of Intel GPU unit test
   - Fusion is an algorithm that fuses several operations into one optimized operation. For example, two nodes of `conv -> relu` may be fused into a single node of `conv`.
   - Fusion unit tests checks whether the fusion is done as expected.
   - fusion_test_common.cpp
-     - The base class for fusing test, that is, [BaseFusingTest](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/tests/fusions/fusion_test_common.hpp#L19), is implemented here. It tests whether the fusing is successful or not by comparing the execution results of the two networks, one is the fused network, the other is non fused network for same topology.
+     - The base class for a fusing test, that is, [BaseFusingTest](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/tests/fusions/fusion_test_common.hpp#L19), is implemented here. It tests whether the fusing is successful or not by comparing the execution results of the two networks, one is the fused network, the other is non-fused network for the same topology.
        - [BaseFusingTest](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/tests/fusions/fusion_test_common.hpp#L19) has an important method called `compare()`.
        - `compare()` method has the following three tasks:
             - Execute two networks (fused network and not fused network)
@@ -121,14 +121,14 @@ GPU unit tests are using two types of test macros (**TEST** and **TEST_P**)  in 
 
 - ### **TEST_P**
   - **TEST_P** is used to set a test case using test parameter sets
-  - To make a test-case using **TEST_P**, define an individual value-parameterized test named `TestName` that uses the test fixture class `TestFixtureName`, which is the test suite name:
+  - To make a test case using **TEST_P**, define an individual value-parameterized test named `TestName` that uses the test fixture class `TestFixtureName`, which is the test suite name:
 
     ```
     TEST_P(TestFixtureName, TestName) {
       ... statements ...
     }
     ```
-  - Then, instantiates the value-parameterized test suite `TestSuiteName`, which is defined defined with **TEST_P**
+  - Then, instantiates the value-parameterized test suite `TestSuiteName`, which is defined with **TEST_P**
     ```c++
     INSTANTIATE_TEST_SUITE_P(InstantiationName,TestSuiteName,param_generator)
     ```
@@ -155,7 +155,7 @@ GPU unit tests are using two types of test macros (**TEST** and **TEST_P**)  in 
 
 - It is implemented based on **TEST_P** because there are many cases where multiple layouts are tested in the same topology.
 - If the fusing test class already exists, you can use it. Otherwise, you should make a new fusing test class, which is inherited [BaseFusingTest](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/tests/fusions/fusion_test_common.hpp#L19).
-  - The new fusing test class should create the `execute()` method, which creates fused / non fused networks and calls `compare` method after setting input.
+  - The new fusing test class should create the `execute()` method, which creates fused / non-fused networks and calls `compare` method after setting input.
 - Create a test case, using **TEST_P**:
   - You can make the desired networks using create_topologies.
 ```mermaid
@@ -217,9 +217,9 @@ class nodeA4,nodeA1,nodeA6,nodeA9,nodeA11 carbon1
     
     ```
 
-  - If you want to change some node's layout format to specific format, you can change it, using `build_option::force_implementations`.
+  - If you want to change some node's layout format to a specific format, you can change it using `build_option::force_implementations`.
     - In the sample codes, `conv_prim` is set to `format::b_fs_yx_fsv16` by `build_option::force_implementations`.
-- `tolerance` is used as to threshold to check whether or not output result are same between fused network and non fused network in `compare` function.
+- `tolerance` is used as a threshold to check whether or not the output results are the same between a fused network and a non-fused network in the `compare` function.
 - After the test case is implemented, use `INSTANTIATE_TEST_SUITE_P` to set the test suite for each parameter case as follows.
   - Check all variables in `convolution_test_params` to make `CASE_CONV_FP32_2`.
     - In `convolution_test_params`, all tensor, format, and `data_types` are used in common in all convolution fusing tests. Therefore, you can define `CASE_CONV_FP32_2` with all variables except `expected_fused_primitives` and `expected_not_fused_primitives`.

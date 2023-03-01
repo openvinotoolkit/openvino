@@ -30,7 +30,7 @@ A result of the `conformanceTests` run is the `report_opset.xml` file. It shows 
 
 ## How to build
 
-Run the following commands in build directory:
+Run the following commands in the build directory:
 1. Generate CMake project:
    ```
    cmake -DENABLE_TESTS=ON -DENABLE_FUNCTIONAL_TESTS=ON ..
@@ -66,7 +66,7 @@ The script has the following arguments:
 * `-d DEVICE, --device DEVICE`
                         Specify the target device. The default value is `CPU`.
 * `-ov OV_PATH, --ov_path OV_PATH`
-                        OV repo path. The default method is try to find the absolute path of OV repo (by using script path).
+                        OV repo path. The default method is to try to find the absolute path of OV repo (by using the script path).
 * `-w WORKING_DIR, --working_dir WORKING_DIR`
                         Specify a working directory to save all artifacts, such as reports, models, `conformance_irs`, etc.
 * `-t TYPE, --type TYPE`
@@ -121,19 +121,19 @@ The target is able to take the following command-line arguments:
 * `--disable_test_config` allows ignoring all skipped tests with the exception of `DISABLED_` prefix using.
 * `--skip_config_path` allows specifying paths to files. It contains a list of regular expressions to skip tests. [Examples](./op_conformance_runner/skip_configs/skip_config_example.lst)
 * `--config_path` allows specifying the path to a file that contains plugin config. [Example](./op_conformance_runner/config/config_example.txt)
-* `--extend_report` allows you not to re-write device results to the report (add results of this run to the existing). Mutually exclusive with `--report_unique_name`.
+* `--extend_report` allows you not to re-write device results to the report (add results of this run to the existing one). Mutually exclusive with `--report_unique_name`.
 * `--report_unique_name` allows you to save a report with a unique name (`report_pid_timestamp.xml`). Mutually exclusive with `--extend_report`.
 * `--save_report_timeout` allows saving a report in the cycle, using timeout (in seconds).
 * `--output_folder` specifies the path to the output folder to save a report.
 * `--extract_body` allows you to count extracted operation bodies to a report.
-* `--shape_mode` is optional. It allows you to run `static`, `dynamic` or both scenarios. The default value is empty string, which allows running both scenarios. Possible values
+* `--shape_mode` is optional. It allows you to run `static`, `dynamic` , or both scenarios. The default value is an empty string, which allows running both scenarios. Possible values
   are `static`, `dynamic`, ``
-* `--test_timeout` specifies setup timeout for each test in seconds. The default timeout is 900seconds (15 minutes).
+* `--test_timeout` specifies setup timeout for each test in seconds. The default timeout is 900 seconds (15 minutes).
 * All `gtest` command-line parameters
 
 > **NOTE**:
 >
-> Using [`parallel_runner`](./../../../../ie_test_utils/functional_test_utils/layer_tests_summary/run_parallel.py) tool to run a conformance suite helps to report crashed tests and collect correct statistic after unexpected crashes.
+> Using [`parallel_runner`](./../../../../ie_test_utils/functional_test_utils/layer_tests_summary/run_parallel.py) tool to run a conformance suite helps to report crashed tests and collect correct statistics after unexpected crashes.
 > The tool is able to work in two modes:
 > * one test is run in a separate thread (first run, as the output the cache will be saved as a custom file).
 > * similar load time per one worker based on test execution time. May contain different test count per worker.
@@ -161,7 +161,7 @@ The example of using the script is:
 ```
 python3 summarize.py --xml /opt/repo/infrastructure-master/thirdparty/gtest-parallel/report.xml --out /opt/repo/infrastructure-master/thirdparty/gtest-parallel/
 ```
-> **NOTE**: Remember to copy [styles folder](./../../../../ie_test_utils/functional_test_utils/layer_tests_summary/template) to the output directory. It helps to provide a report with the filters and other usable features.
+> **NOTE**: Remember to copy [styles folder](./../../../../ie_test_utils/functional_test_utils/layer_tests_summary/template) to the output directory. It helps to provide a report with filters and other useful features.
 
 The report contains statistics based on conformance results and filter fields at the top of the page.
 
