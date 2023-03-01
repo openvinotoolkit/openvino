@@ -190,7 +190,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(nightly_dynamic_bf16/RNNSequenceCPUTest.*activations=\(relu\).*)",
         R"(smoke_dynamic_BatchSizeOne/RNNSequenceCPUTest.*IS=\(\[1\.\?\.10\]_\[1\.1\.10\]_\[\?\]_\)_TS=\{\(1\.2\.10\)_\(1\.1\.10\)_\(1\)\}_\{\(1\.4\.10\)_\(1\.1\.10\)_\(1\)\}_\{\(1\.8\.10\)_\(1\.1\.10\)_\(1\)\}_seqMode=PURE_SEQ_activations=\(relu\)_clip=0_direction=forward_netPrec=f32__inFmts=ncw\.ntc_outFmts=ncw\.ncw_primitive=ref_any)", // NOLINT
         // 98151. Not valid sorting for slices in reference.
-        R"(.*UniqueLayerTestCPU.*axis.*True.*)"
+        R"(.*UniqueLayerTestCPU.*axis.*True.*)",
+        // Issue: 104402. Incorrect broadcasting in FQ reference implentation
+        R"(.*smoke_FakeQuantizeLayerCPUTest_Decompos.*IS=\[4\.5\.6\.6\]_TS=\(\(4\.5\.6\.6\)\)_RS=\(\(1\.1\.6\.6\)\)_\(\(1\.1\.6\.6\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.5\.1\.6\)\).*)",
+        R"(.*smoke_FakeQuantizeLayerCPUTest_Decompos.*IS=\[4\.5\.6\.6\]_TS=\(\(4\.5\.6\.6\)\)_RS=\(\(1\.5\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.5\.6\.1\)\)_\(\(1\.5\.1\.6\)\).*)",
     };
 
 #define FIX_62820 0
