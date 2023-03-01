@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstring>
 #include <vector>
 #include <memory>
 #include <queue>
@@ -16,6 +17,7 @@
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
 #include <ngraph/opsets/opset.hpp>
 #include <backend.hpp>
+#include "openvino/runtime/tensor.hpp"
 
 namespace ngraph {
 namespace helpers {
@@ -84,7 +86,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
         interpreterFunction(const std::shared_ptr<Function> &function,
                             const std::vector<std::vector<std::uint8_t>> &inputs,
                             const std::vector<ngraph::element::Type> &inputTypes) {
-    auto backend = runtime::Backend::create();
+    auto backend = ov::runtime::Backend::create();
 
     const auto &parameters = function->get_parameters();
     const auto &parametersNumber = parameters.size();
@@ -98,7 +100,7 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
                      inputTypes.size(), " types");
     }
 
-    auto inputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
+    ov::TensorVector inputTensors(parametersNumber);
     for (size_t i = 0; i < parametersNumber; ++i) {
         const auto &parameter = parameters[i];
         const auto &parameterIndex = function->get_parameter_index(parameter);
@@ -120,14 +122,14 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
                      " has ", inputSize, " bytes");
 
         auto tensor = backend->create_tensor(parameterType, parameterShape);
-        tensor->write(input.data(), parameterSize);
-        inputTensors.push_back(tensor);
+        std::memcpy(tensor.data(), input.data(), parameterSize);
+        inputTensors[i] = tensor;
     }
 
-    auto outputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
     const auto &results = function->get_results();
+    ov::TensorVector outputTensors(results.size());
     for (size_t i = 0; i < results.size(); ++i) {
-        outputTensors.push_back(std::make_shared<HostTensor>());
+        outputTensors[i] = ov::Tensor(results[i]->get_element_type(), {0});
     }
 
     auto handle = backend->compile(function);
@@ -137,16 +139,16 @@ std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>
         auto& output = outputs[resultIndex];
         output.first = results[resultIndex]->get_element_type();
         const auto& outputTensor = outputTensors[resultIndex];
-        output.second.resize((shape_size(outputTensor->get_shape()) * outputTensor->get_element_type().bitwidth() + 7) >> 3);
-        outputTensors[resultIndex]->read(output.second.data(), output.second.size());
+        output.second.resize((shape_size(outputTensor.get_shape()) * outputTensor.get_element_type().bitwidth() + 7) >> 3);
+        std::memcpy(output.second.data(), outputTensors[resultIndex].data(), output.second.size());
     }
 
     return outputs;
 }
 
 std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<Function> &function,
-                                                   const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs) {
-    auto backend = runtime::Backend::create();
+                                          const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs) {
+    auto backend = ov::runtime::Backend::create();
 
     const auto &funcInputs = function->inputs();
     const auto &funcInputsNumber = funcInputs.size();
@@ -155,7 +157,7 @@ std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<Function> &funct
                  "Got function (", function->get_friendly_name(), ") with ", funcInputsNumber, " parameters, but ",
                  inputsNumber, " input blobs");
 
-    auto inputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
+    ov::TensorVector inputTensors(funcInputsNumber);
     for (size_t i = 0; i < funcInputsNumber; ++i) {
         const auto &input = funcInputs[i];
         const auto &inputShape = input.get_shape();
@@ -178,26 +180,20 @@ std::vector<ov::Tensor> interpretFunction(const std::shared_ptr<Function> &funct
                      " has ", inputTensorSize, " bytes");
 
         auto tensor = backend->create_tensor(inputType, inputShape);
-        tensor->write(inputTensor.data(), inputSize);
-        inputTensors.push_back(tensor);
+        inputTensor.copy_to(tensor);
+        inputTensors[i] = tensor;
     }
 
-    std::vector<std::shared_ptr<runtime::Tensor>> outputTensors;
     const auto &results = function->get_results();
+    ov::TensorVector outputTensors(results.size());
     for (size_t i = 0; i < results.size(); ++i) {
-        outputTensors.push_back(std::make_shared<HostTensor>());
+        outputTensors[i] = ov::Tensor(results[i]->get_element_type(), {0});
     }
 
     auto handle = backend->compile(function);
     handle->call_with_validate(outputTensors, inputTensors);
-    std::vector<ov::Tensor> outputs;
-    for (const auto& outTensor : outputTensors) {
-        ov::Tensor tmpBuffer(outTensor->get_element_type(), outTensor->get_shape());
-        outTensor->read(tmpBuffer.data(), tmpBuffer.get_byte_size());
-        outputs.push_back(tmpBuffer);
-    }
 
-    return outputs;
+    return outputTensors;
 }
 
 std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function> &function,
