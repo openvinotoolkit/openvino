@@ -105,8 +105,6 @@ class TaskManager:
                     if float((datetime.datetime.now() - self._timers[pid]).total_seconds()) > self.process_timeout:
                         logger.warning(f"Process {pid} exceed time limetattion per process")
                         self._process_list[pid].kill()
-                        # self._process_list[pid].send_signal(signal.SIGKILL)
-                        pass
                     self._process_list[pid].wait(timeout=0)
                     # logger.info(f"{self._idx}/{len(self._command_list)} is started")
                     return pid
