@@ -87,6 +87,15 @@ public:
         return result != dataFiles.end() ? result->second : nullptr;
     }
 
+    bool mapVariable(const std::string var_name, const std::string map_name, bool rewrite = false) {
+        if (varMap.find(var_name) != varMap.end() && rewrite == false) {
+            return false;
+        }
+
+        varMap[var_name] = map_name;
+        return true;
+    }
+
 private:
     // Internal implementation of saved model reading
     void readVIBlock(std::ifstream& fs,
