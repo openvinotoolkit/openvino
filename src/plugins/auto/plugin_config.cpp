@@ -30,11 +30,21 @@ void PluginConfig::set_default() {
         std::make_tuple(ov::hint::allow_auto_batching, true),
         std::make_tuple(ov::auto_batch_timeout, 1000),
         // Legacy API properties
-        std::make_tuple(exclusive_asyc_requests, false));
+        std::make_tuple(exclusive_asyc_requests, false),
+        // RO for register only
+        std::make_tuple(ov::device::full_name),
+        std::make_tuple(ov::device::capabilities),
+        std::make_tuple(ov::supported_properties));
 }
-void PluginConfig::register_property_impl(const ov::AnyMap::value_type& property, BaseValidator::Ptr validator) {
+void PluginConfig::register_property_impl(const ov::AnyMap::value_type& property, ov::PropertyMutability mutability, BaseValidator::Ptr validator) {
     property_validators[property.first] = validator;
     internal_properties[property.first] = property.second;
+    property_mutabilities[property.first] = mutability;
+}
+
+template <typename T, ov::PropertyMutability mutability>
+void PluginConfig::register_property_impl(const ov::Property<T, mutability>& property) {
+    property_mutabilities[property.name()] = mutability;
 }
 
 void PluginConfig::set_property(const ov::AnyMap& properties) {

@@ -77,7 +77,11 @@ public:
     ov::Any get_property(const std::string& name) const;
     bool is_set_by_user(const std::string& name) const;
     bool is_supported(const std::string& name) const;
-    void register_property_impl(const ov::AnyMap::value_type& propertiy, BaseValidator::Ptr validator);
+
+    void register_property_impl(const ov::AnyMap::value_type& property, ov::PropertyMutability mutability, BaseValidator::Ptr validator = nullptr);
+
+    template <typename T, ov::PropertyMutability mutability>
+    void register_property_impl(const ov::Property<T, mutability>&);
 
     template <typename... PropertyInitializer, typename std::enable_if<(sizeof...(PropertyInitializer) == 0), bool>::type = true>
     void register_property_impl() { }
@@ -86,7 +90,14 @@ public:
     void register_property_impl(const std::tuple<ov::device::Priorities, ValueT>& property, PropertyInitializer&&... properties) {
         auto p = std::get<0>(property)(std::get<1>(property));
         auto v = std::dynamic_pointer_cast<BaseValidator>(std::make_shared<PropertyTypeValidator<std::string>>());
-        register_property_impl(std::move(p), std::move(v));
+        register_property_impl(std::move(p), ov::PropertyMutability::RW, std::move(v));
+        register_property_impl(properties...);
+    }
+
+    template <typename T,  ov::PropertyMutability mutability, typename... PropertyInitializer>
+    void register_property_impl(const std::tuple<ov::Property<T, mutability>>& property, PropertyInitializer&&... properties) {
+        auto p = std::get<0>(property);
+        register_property_impl(std::move(p));
         register_property_impl(properties...);
     }
 
@@ -94,7 +105,7 @@ public:
     void register_property_impl(const std::tuple<ov::Property<T, mutability>, ValueT>& property, PropertyInitializer&&... properties) {
         auto p = std::get<0>(property)(std::get<1>(property));
         auto v = std::dynamic_pointer_cast<BaseValidator>(std::make_shared<PropertyTypeValidator<T>>());
-        register_property_impl(std::move(p), std::move(v));
+        register_property_impl(std::move(p), mutability, std::move(v));
         register_property_impl(properties...);
     }
 
@@ -107,7 +118,7 @@ public:
     register_property_impl(const std::tuple<ov::Property<T, mutability>, ValueT, ValidatorT>& property, PropertyInitializer&&... properties) {
         auto p = std::get<0>(property)(std::get<1>(property));
         auto v = std::dynamic_pointer_cast<BaseValidator>(std::make_shared<ValidatorT>(std::get<2>(property)));
-        register_property_impl(std::move(p), std::move(v));
+        register_property_impl(std::move(p), mutability, std::move(v));
         register_property_impl(properties...);
     }
 
@@ -139,68 +150,38 @@ public:
     ov::AnyMap get_full_properties();
 
     std::vector<std::string> supportedConfigKeys(const std::string& pluginName = "AUTO") const {
-        std::vector<std::string> supported_configKeys = []() -> decltype(PerfHintsConfig::SupportedKeys()) {
-            auto res = PerfHintsConfig::SupportedKeys();
-            res.push_back(ov::device::priorities.name());
-            res.push_back(ov::enable_profiling.name());
-            res.push_back(exclusive_asyc_requests.name());
-            res.push_back(ov::hint::model_priority.name());
-            res.push_back(ov::hint::allow_auto_batching.name());
-            res.push_back(ov::log::level.name());
-            res.push_back(ov::intel_auto::device_bind_buffer.name());
-            res.push_back(ov::auto_batch_timeout.name());
-            return res;
-        }();
+        std::vector<std::string> supported_configKeys;
+        for (const auto& iter : property_mutabilities) {
+            if (iter.second.as<ov::PropertyMutability>() == ov::PropertyMutability::RW)
+                supported_configKeys.push_back(iter.first);
+        }
         auto multi_supported_configKeys = supported_configKeys;
+        multi_supported_configKeys.erase(std::remove(
+                                multi_supported_configKeys.begin(), multi_supported_configKeys.end(), ov::intel_auto::enable_startup_fallback.name()),
+                                multi_supported_configKeys.end());
         return pluginName == "AUTO" ? supported_configKeys : multi_supported_configKeys;
     }
 
     std::vector<ov::PropertyName> supportedProperties(const std::string& pluginName = "AUTO") const {
-        std::vector<ov::PropertyName> supported_properties = []() -> std::vector<ov::PropertyName> {
-            auto RO_property = [](const std::string& propertyName) {
-                return ov::PropertyName(propertyName, ov::PropertyMutability::RO);
-            };
-            auto RW_property = [](const std::string& propertyName) {
-                return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
-            };
-            std::vector<ov::PropertyName> roProperties{RO_property(ov::supported_properties.name()),
-                                                       RO_property(ov::device::full_name.name()),
-                                                       RO_property(ov::device::capabilities.name())};
-            // the whole config is RW before network is loaded.
-            std::vector<ov::PropertyName> rwProperties{RW_property(ov::hint::model_priority.name()),
-                                                       RW_property(ov::log::level.name()),
-                                                       RW_property(ov::enable_profiling.name()),
-                                                       RW_property(ov::hint::performance_mode.name()),
-                                                       RW_property(ov::hint::num_requests.name()),
-                                                       // used internally
-                                                       RW_property(ov::device::priorities.name()),
-                                                       RW_property(ov::intel_auto::device_bind_buffer.name()),
-                                                       RW_property(ov::intel_auto::enable_startup_fallback.name()),
-                                                       // legacy
-                                                       RW_property(exclusive_asyc_requests.name()),
-                                                       // to be removed
-                                                       RW_property(ov::hint::allow_auto_batching.name()),
-                                                       RW_property(ov::auto_batch_timeout.name()),
-                                                       RW_property(ov::cache_dir.name())};
-            std::vector<ov::PropertyName> supportedProperties;
-            supportedProperties.reserve(roProperties.size() + rwProperties.size());
-            supportedProperties.insert(supportedProperties.end(), roProperties.begin(), roProperties.end());
-            supportedProperties.insert(supportedProperties.end(), rwProperties.begin(), rwProperties.end());
-            return supportedProperties;
-        }();
+        std::vector<ov::PropertyName> supported_properties;
+        for (const auto& iter : property_mutabilities)
+            supported_properties.push_back(ov::PropertyName(iter.first, iter.second.as<ov::PropertyMutability>()));
+
         auto multi_supported_properties = supported_properties;
+        multi_supported_properties.erase(std::remove(
+                                multi_supported_properties.begin(), multi_supported_properties.end(), ov::intel_auto::enable_startup_fallback),
+                                multi_supported_properties.end());
         return pluginName == "AUTO" ? supported_properties : multi_supported_properties;
     }
 
     std::vector<std::string> supportedMetrics(const std::string& pluginName = "AUTO") const {
-        std::vector<std::string> supported_metrics = []() -> std::vector<std::string> {
-            std::vector<std::string> metrics;
-            metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
-            metrics.push_back(METRIC_KEY(FULL_DEVICE_NAME));
-            metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-            metrics.push_back(METRIC_KEY(OPTIMIZATION_CAPABILITIES));
-            return metrics;
-        }();
+        std::vector<std::string> supported_metrics;
+        for (const auto& iter : property_mutabilities) {
+            if (iter.second.as<ov::PropertyMutability>() == ov::PropertyMutability::RO)
+                supported_metrics.push_back(iter.first);
+        }
+        supported_metrics.push_back(METRIC_KEY(SUPPORTED_METRICS));
+        supported_metrics.push_back(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
         auto multi_supported_metrics = supported_metrics;
         return pluginName == "AUTO" ? supported_metrics : multi_supported_metrics;
     }
@@ -244,9 +225,10 @@ public:
     }
 
 private:
-    ov::AnyMap internal_properties; // internal supported properties for auto/multi
-    ov::AnyMap user_properties; // user set properties, including secondary properties
-    ov::AnyMap full_properties; // combined with user set properties, including secondary properties
+    ov::AnyMap internal_properties;   // internal supported properties for auto/multi
+    ov::AnyMap user_properties;       // user set properties, including secondary properties
+    ov::AnyMap full_properties;       // combined with user set properties, including secondary properties
+    ov::AnyMap property_mutabilities; // mutability for supported configs/metrics installation
     std::map<std::string, BaseValidator::Ptr> property_validators;
     BaseValidator::Ptr device_property_validator;
     static const std::set<std::string> _availableDevices;
