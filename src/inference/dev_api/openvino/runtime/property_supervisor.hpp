@@ -302,7 +302,7 @@ private:
     /**
      * @brief map of registered properties
      */
-    std::unordered_map<std::string, std::shared_ptr<Access>> m_accesses;
+    std::map<std::string, std::shared_ptr<Access>> m_accesses;
 
 public:
     /**
