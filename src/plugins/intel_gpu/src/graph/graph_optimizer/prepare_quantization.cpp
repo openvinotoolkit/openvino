@@ -19,6 +19,8 @@
 #include <memory>
 #include <vector>
 
+using namespace cldnn;
+
 template<typename T>
 bool check_binarization(memory::ptr mem_input_low, memory::ptr mem_input_high, program& p) {
     bool is_binarization = true;

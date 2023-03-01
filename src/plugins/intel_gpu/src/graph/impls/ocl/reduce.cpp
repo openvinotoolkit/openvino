@@ -2,17 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "reduce_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "reduce_inst.h"
 #include "reduce/reduce_kernel_selector.h"
 #include "reduce/reduce_kernel_ref.h"
-#include "reduce/reduce_kernel_b_fs_yx_fsv16.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "data_inst.h"
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {

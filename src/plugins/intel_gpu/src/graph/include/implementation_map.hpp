@@ -4,16 +4,15 @@
 
 #pragma once
 
+#include "intel_gpu/primitives/implementation_desc.hpp"
+#include "kernel_impl_params.hpp"
+
 #include <functional>
 #include <map>
-#include <sstream>
 #include <string>
 #include <tuple>
 #include <typeinfo>
 
-#include "intel_gpu/primitives/implementation_desc.hpp"
-#include "to_string_utils.h"
-#include "kernel_selector_helper.h"
 
 namespace cldnn {
 
@@ -30,25 +29,11 @@ public:
     }
 };
 
-
-struct permute;
-struct reorder;
-struct custom_gpu_primitive;
-struct generic_layer;
-struct reshape;
-struct data;
-struct mutable_data;
-struct input_layout;
-struct prior_box;
-struct loop;
-struct shape_of;
-
 struct primitive_impl;
 
 template <class PType>
 struct typed_program_node;
 
-template <typename primitive_kind>
 struct implementation_key {
     typedef std::tuple<data_types, format::type> type;
     type operator()(const layout& proposed_layout) {
@@ -56,16 +41,10 @@ struct implementation_key {
     }
 };
 
-namespace {
-template <typename key_type>
-std::string get_key_name(const key_type &) { return std::string(""); }
-
-} // namespace
-
 template <typename primitive_kind>
 class implementation_map {
 public:
-    using key_builder = implementation_key<primitive_kind>;
+    using key_builder = implementation_key;
     using key_type = typename key_builder::type;
     using factory_type = std::function<std::unique_ptr<primitive_impl>(const typed_program_node<primitive_kind>&, const kernel_impl_params&)>;
     using map_type = singleton_map<std::pair<impl_types, shape_types>, std::pair<std::set<key_type>, factory_type>>;
@@ -87,7 +66,7 @@ public:
             }
         }
         OPENVINO_ASSERT(false, "[GPU] implementation_map for ", typeid(primitive_kind).name(),
-                               " could not find any implementation to match key: ", get_key_name(key),
+                               " could not find any implementation to match key: ", std::get<0>(key), "|", std::get<1>(key),
                                ", impl_type: ", preferred_impl_type, ", shape_type: ", target_shape_type, ", node_id: ",  impl_params.desc->id);
     }
 

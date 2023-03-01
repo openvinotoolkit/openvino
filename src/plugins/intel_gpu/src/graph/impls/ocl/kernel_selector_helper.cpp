@@ -34,7 +34,10 @@
 #include <string>
 #include <vector>
 
+
 namespace {
+using namespace cldnn;
+
 kernel_selector::dev_type get_device_type(cldnn::device_type type) {
     switch (type) {
         case cldnn::device_type::integrated_gpu:
@@ -46,6 +49,8 @@ kernel_selector::dev_type get_device_type(cldnn::device_type type) {
     }
 }
 }  // namespace
+
+namespace cldnn {
 
 kernel_selector::data_type to_data_type(data_types dt) {
     switch (dt) {
@@ -1244,3 +1249,5 @@ void kernel_impl_params::load(BinaryInputBuffer& ib) {
 #endif // ENABLE_ONEDNN_FOR_GPU
     ib >> primary_input_idx;
 }
+
+}  // namespace cldnn

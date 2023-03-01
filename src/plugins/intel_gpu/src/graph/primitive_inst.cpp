@@ -32,6 +32,7 @@
 #include <memory>
 #include <algorithm>
 
+namespace cldnn {
 namespace {
 
 bool is_optimized_output_user(const program_node* user) {
@@ -80,7 +81,6 @@ bool is_user_cpu(const program_node* user) {
 }
 }  // namespace
 
-namespace cldnn {
 bool is_any_user_cpu(const std::list<const program_node*>& users) {
     for (const auto& user : users) {
         if (is_user_cpu(user))

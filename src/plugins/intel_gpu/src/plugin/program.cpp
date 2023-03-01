@@ -380,7 +380,7 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
         try {
             program = cldnn::program::build_program(m_engine, *m_topology, m_config);
         } catch (std::exception& e) {
-            IE_THROW() << "cldnn program build failed! " << e.what();
+            OPENVINO_ASSERT(false, "GPU program build failed!\n", e.what());
         }
         CleanupBuild();
 

@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/graph/program.hpp"
 
 #include <ie_system_conf.h>
 
-#include "kernel_selector_helper.h"
 #include "auto_tuner.h"
 #include "layout_optimizer.h"
 #include "pass_manager.h"
@@ -66,8 +65,11 @@
 #include "loop_inst.h"
 #include "reverse_inst.h"
 #include "to_string_utils.h"
-#include "intel_gpu/runtime/itt.hpp"
+
+// TODO: Remove once we have interface for kernels cache
 #include "runtime/kernels_cache.hpp"
+
+// TODO: implement self-registration for impls
 #include "impls/ocl/register.hpp"
 #include "impls/cpu/register.hpp"
 #include "impls/common/register.hpp"
@@ -96,6 +98,7 @@
 #include <sys/resource.h>
 #endif
 
+using namespace cldnn;
 using namespace ov::intel_gpu;
 
 program::program(engine& engine_ref,
