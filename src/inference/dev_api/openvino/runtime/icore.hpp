@@ -13,14 +13,14 @@
 
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "so_ptr.hpp"
 
 namespace ov {
 
 /**
  * @interface ICore
- * @brief Minimal ICore interface to allow plugin to get information from Core Inference Engine class.
+ * @brief Minimal ICore interface to allow plugin to get information from Core OpenVINO class.
  * @ingroup ov_dev_api_plugin_api
  */
 class ICore {

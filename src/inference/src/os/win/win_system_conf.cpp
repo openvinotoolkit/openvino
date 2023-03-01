@@ -11,9 +11,9 @@
 #include <memory>
 #include <vector>
 
+#include "dev/threading/parallel_custom_arena.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "streams_executor.hpp"
-#include "threading/ie_parallel_custom_arena.hpp"
 
 namespace ov {
 
@@ -189,7 +189,7 @@ int get_number_of_cpu_cores(bool bigCoresOnly) {
         phys_cores++;
     } while (offset < sz);
 
-#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
     auto core_types = custom::info::core_types();
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
         phys_cores = custom::info::default_concurrency(
@@ -199,7 +199,7 @@ int get_number_of_cpu_cores(bool bigCoresOnly) {
     return phys_cores;
 }
 
-#if !(IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#if !(OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 // OMP/SEQ threading on the Windows doesn't support NUMA
 std::vector<int> get_available_numa_nodes() {
     return {-1};

@@ -1,13 +1,13 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "ie_parallel_custom_arena.hpp"
+#include "dev/threading/parallel_custom_arena.hpp"
 
 #include <cstring>
 
-#include "itt.hpp"
+#include "dev/threading/itt.hpp"
 
-#if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
 
 #    ifndef TBBBIND_2_5_AVAILABLE
 #        define TBBBIND_2_5_AVAILABLE 0
@@ -329,4 +329,4 @@ int default_concurrency(numa_node_id id) {
 
 }  // namespace info
 }  // namespace custom
-#endif /*IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO*/
+#endif /*OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO*/

@@ -12,7 +12,7 @@ TemplateNonTypeParameter: '^\w*$'
 ClassTemplate: '^([A-Z][\w]+|element_type_traits)$'
 TemplateTypeParameter: '^\w*$'
 ParameterName: '^\w*$'
-FunctionTemplate: '^(operator.+|[\w]+|Impl<.*>)$'
+FunctionTemplate: '^(operator.+|[\w]+|SoPtr.+|Impl<.*>)$'
 TypeAliasName: '^\w+$'
 VariableReference: '^\w+$'
 

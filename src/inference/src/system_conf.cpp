@@ -8,8 +8,8 @@
 #include <cstring>
 #include <vector>
 
+#include "dev/threading/parallel_custom_arena.hpp"
 #include "openvino/core/visibility.hpp"
-#include "threading/ie_parallel_custom_arena.hpp"
 
 #define XBYAK_NO_OP_NAMES
 #define XBYAK_UNDEF_JNL
@@ -147,7 +147,7 @@ bool check_open_mp_env_vars(bool include_omp_num_threads) {
 int get_number_of_cpu_cores(bool) {
     return parallel_get_max_threads();
 }
-#    if !((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
+#    if !((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO))
 std::vector<int> get_available_numa_nodes() {
     return {-1};
 }
@@ -158,7 +158,7 @@ int get_number_of_logical_cpu_cores(bool) {
 #else
 int get_number_of_logical_cpu_cores(bool bigCoresOnly) {
     int logical_cores = parallel_get_max_threads();
-#    if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#    if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
     auto core_types = custom::info::core_types();
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
         logical_cores = custom::info::default_concurrency(
@@ -169,7 +169,7 @@ int get_number_of_logical_cpu_cores(bool bigCoresOnly) {
 }
 #endif
 
-#if ((IE_THREAD == IE_THREAD_TBB) || (IE_THREAD == IE_THREAD_TBB_AUTO))
+#if ((OV_THREAD == OV_THREAD_TBB) || (OV_THREAD == OV_THREAD_TBB_AUTO))
 std::vector<int> get_available_numa_nodes() {
     return custom::info::numa_nodes();
 }
