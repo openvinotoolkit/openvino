@@ -46,6 +46,8 @@ class TestDynamicPartition(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_dynamic_partition_basic(self, params, ie_device, precision, ir_version, temp_dir,
                                      use_new_frontend, use_old_api):
+        if ie_device == 'GPU':
+            pytest.xfail('104855')
         if not use_new_frontend:
             pytest.skip("DynamicPartition operation is not supported via legacy frontend.")
         self._test(*self.create_dynamic_partition_net(**params),
@@ -61,6 +63,8 @@ class TestDynamicPartition(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_dynamic_partition_other_types(self, params, ie_device, precision, ir_version, temp_dir,
                                            use_new_frontend, use_old_api):
+        if ie_device == 'GPU':
+            pytest.xfail('104855')
         if not use_new_frontend:
             pytest.skip("DynamicPartition operation is not supported via legacy frontend.")
         self._test(*self.create_dynamic_partition_net(**params),

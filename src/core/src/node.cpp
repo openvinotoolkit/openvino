@@ -730,7 +730,8 @@ bool ov::Node::evaluate(ov::TensorVector& output_values, const ov::TensorVector&
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool sts = evaluate(output, input);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    update_output_tensors(output_values, output);
+    if (sts)
+        update_output_tensors(output_values, output);
     return sts;
 }
 
@@ -743,7 +744,8 @@ bool ov::Node::evaluate(ov::TensorVector& output_values,
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool sts = evaluate(output, input, evaluationContext);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    update_output_tensors(output_values, output);
+    if (sts)
+        update_output_tensors(output_values, output);
     // Call evaluate for ov::Tensor if op doesn't have evaluate with EvaluationContext
     return sts ? sts : evaluate(output_values, input_values);
 }

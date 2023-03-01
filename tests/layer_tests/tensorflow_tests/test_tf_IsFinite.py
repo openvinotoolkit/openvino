@@ -41,6 +41,8 @@ class TestIsFinite(CommonTFLayerTest):
     @pytest.mark.nightly
     def test_is_finite_basic(self, params, ie_device, precision, ir_version, temp_dir,
                              use_new_frontend, use_old_api):
+        if ie_device == 'GPU':
+            pytest.xfail('104855')
         if not use_new_frontend:
             pytest.skip("IsFinite operation is not supported via legacy frontend.")
         self._test(*self.create_is_finite_net(**params),
