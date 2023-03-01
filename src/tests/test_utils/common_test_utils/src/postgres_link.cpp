@@ -150,7 +150,7 @@ class PGresultHolder {
     PGresult* _ptr;
     volatile uint32_t* refCounter;
 
-    inline void decRefCounter() {
+    inline void decRefCounter(void) {
         if (_ptr != nullptr && refCounter != nullptr) {
             if (*refCounter > 0) {
                 --*refCounter;
@@ -165,7 +165,7 @@ class PGresultHolder {
     }
 
 public:
-    PGresultHolder() : _ptr(nullptr), refCounter(nullptr) {}
+    PGresultHolder(void) : _ptr(nullptr), refCounter(nullptr) {}
     PGresultHolder(PGresult* ptr) : _ptr(ptr), refCounter(new uint32_t()) {
         *refCounter = 1;
     }
@@ -191,10 +191,10 @@ public:
             _ptr = ptr;
         }
     }
-    PGresult* get() {
+    PGresult* get(void) {
         return _ptr;
     }
-    ~PGresultHolder() {
+    ~PGresultHolder(void) {
         decRefCounter();
         _ptr = nullptr;
         refCounter = nullptr;
@@ -208,7 +208,7 @@ class PostgreSQLConnection {
 #endif
     PGconn* activeConnection;
 
-    PostgreSQLConnection() : activeConnection(nullptr), isConnected(false) {}
+    PostgreSQLConnection(void) : activeConnection(nullptr), isConnected(false) {}
 
     /// \brief Prohobit creation outsize of class, need to make a Singleton
     PostgreSQLConnection(const PostgreSQLConnection&) = delete;
@@ -218,7 +218,7 @@ public:
     bool isConnected;
 
     static std::shared_ptr<PostgreSQLConnection> GetInstance(void);
-    bool Initialize();
+    bool Initialize(void);
     /// \brief Make a common query to a server. Result will be returned as self-desctructable pointer. But application
     /// should check result pointer isn't a nullptr. And result status by itself. \param[in] query SQL query to a server
     /// \returns Object which keep pointer on received PGresult. It contains nullptr in case of any error.
@@ -306,10 +306,10 @@ public:
         Initialize();
     }
 
-    PGconn* GetConnection(void) {
+    PGconn* GetConnection(void) const {
         return this->activeConnection;
     }
-    ~PostgreSQLConnection();
+    ~PostgreSQLConnection(void);
 };
 
 static std::shared_ptr<PostgreSQLConnection> connection(nullptr);
@@ -320,7 +320,7 @@ std::shared_ptr<PostgreSQLConnection> PostgreSQLConnection::GetInstance(void) {
     return connection;
 }
 
-PostgreSQLConnection::~PostgreSQLConnection() {
+PostgreSQLConnection::~PostgreSQLConnection(void) {
     if (activeConnection) {
         PQfinish(this->activeConnection);
         this->activeConnection = nullptr;
@@ -331,7 +331,7 @@ PostgreSQLConnection::~PostgreSQLConnection() {
 /// \brief Initialization of exact object. Uses environment variable PGQL_ENV_CONN_NAME for making a connection.
 /// \returns Returns false in case of failure or absence of ENV-variable.
 ///          Returns true in case of connection has been succesfully established.
-bool PostgreSQLConnection::Initialize() {
+bool PostgreSQLConnection::Initialize(void) {
     if (this->activeConnection != nullptr) {
         std::cerr << PG_WRN << "PostgreSQL connection is already established.\n";
         return true;
@@ -762,7 +762,8 @@ static bool compileString(const std::string& srcStr,
 class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     std::shared_ptr<PostgreSQLConnection> connectionKeeper;
 
-    const char* session_id = nullptr;
+    const char* session_id = nullptr;  // String value of session id, it will be converted to sessinoId
+    const char* run_id = nullptr;      // String value of run (might be char[33]), it will be converted to testRunId
     bool isPostgresEnabled = false;
     PostgreSQLReportingLevel reportingLevel = REPORT_LVL_DEFAULT;
 
@@ -860,8 +861,9 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                       appId,
                       app_id)
     GET_PG_IDENTIFIER(RequestRunId(void),
-                      "SELECT GET_RUN(" << this->testRunId << ", " << this->appId << ", " << this->sessionId << ", "
-                                        << static_cast<uint16_t>(this->reportingLevel) << "::smallint);",
+                      "SELECT GET_RUN('" << this->run_id << "', " << this->appId << ", " << this->sessionId << ", "
+                                         << this->hostId << ", " << static_cast<uint16_t>(this->reportingLevel)
+                                         << "::smallint);",
                       testRunId,
                       run_id)
     GET_PG_IDENTIFIER(RequestHostId(void),
@@ -870,7 +872,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                           << "COMMIT; "
                           << "SELECT GET_HOST('" << GetHostname() << "', '" << GetOSVersion() << "');",
                       hostId,
-                      host_id)
+                      host_info_id)
     GET_PG_IDENTIFIER(RequestSessionId(void),
                       "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
                           << "CALL CHECK_SESSION('" << this->session_id << "');"
@@ -891,6 +893,15 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                           << "SELECT GET_" << query,
                       testNameId,
                       tn_id)
+    GET_PG_IDENTIFIER(RequestSuiteId(void),
+                      "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
+                          << "CALL CHECK_SUITE_ID(" << this->testSuiteNameId << ", " << this->sessionId << ", "
+                          << this->testRunId << ");"
+                          << "COMMIT; "
+                          << "SELECT GET_SUITE_ID(" << this->testSuiteNameId << ", " << this->sessionId << ", "
+                          << this->testRunId << ");",
+                      testSuiteId,
+                      sr_id)
     GET_PG_IDENTIFIER(RequestSuiteId(std::string query), query, testSuiteId, sr_id)
     GET_PG_IDENTIFIER(RequestTestId(std::string query), query, testId, tr_id)
     GET_PG_IDENTIFIER(RequestTestExtId(std::string query),
@@ -916,11 +927,14 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
             std::cerr << PG_ERR << "Requesting suite name is failed with exception: " << e.what() << std::endl;
             return;
         }
-
+        /*
         std::stringstream sstr;
         sstr << "INSERT INTO suite_results (sr_id, session_id, run_id, suite_id) VALUES (DEFAULT, " << this->sessionId
              << ", " << this->testRunId << ", " << this->testSuiteNameId << ") RETURNING sr_id";
         if (!RequestSuiteId(sstr.str()))
+            return;
+        */
+        if (!RequestSuiteId())
             return;
 
         // Cleanup accumulator for quieries
@@ -1075,7 +1089,8 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                         std::cerr << PG_WRN << "Failed extended update query: " << query << std::endl;
                     }
                 } else {
-                    std::cerr << PG_WRN << "Preparing extended update query is failed: " << test_info.name() << std::endl;
+                    std::cerr << PG_WRN << "Preparing extended update query is failed: " << test_info.name()
+                              << std::endl;
                 }
             }
         }
@@ -1134,12 +1149,12 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                 std::cerr << PG_WRN << "Wrong reporting level is passed, default reporting level is using\n";
             }
 
-            char* env_run_id = std::getenv(PGQL_ENV_RUN_NAME);
-            if (env_run_id != nullptr) {
-                // In case of not-numeric it will be set to default value - 0, and will be generated at
-                // RequestRunId()
-                this->testRunId = std::atoi(env_run_id);
-                std::cerr << PG_INF << "External Run ID is provided: " << this->testRunId << std::endl;
+            this->run_id = std::getenv(PGQL_ENV_RUN_NAME);
+            if (this->run_id != nullptr) {
+                std::cerr << PG_INF << "External Run ID is provided: " << this->run_id << std::endl;
+            } else {
+                // Run id will be generated on database side, each run unique
+                this->run_id = "";
             }
 
             std::cerr << PG_INF << "Test session ID has been found\n";
@@ -1168,7 +1183,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
         }
     }
 
-    ~PostgreSQLEventListener() {
+    ~PostgreSQLEventListener(void) {
         if (!this->isPostgresEnabled)
             return;
 
@@ -1217,7 +1232,7 @@ public:
         return false;
     }
 
-    void ClearCustomFields() {
+    void ClearCustomFields(void) {
         this->testCustomFields.clear();
     }
 };
@@ -1230,9 +1245,9 @@ static PostgreSQLEventListener* pgEventListener = nullptr;
 ///        for registering PostgreSQLEventListener
 class PostgreSQLEnvironment : public ::testing::Environment {
 public:
-    PostgreSQLEnvironment() {}
-    ~PostgreSQLEnvironment() {}
-    void SetUp() override {
+    PostgreSQLEnvironment(void) {}
+    ~PostgreSQLEnvironment(void) {}
+    void SetUp(void) override {
         if (std::getenv(PGQL_ENV_SESS_NAME) != nullptr && std::getenv(PGQL_ENV_CONN_NAME) != nullptr) {
             if (pgEventListener == nullptr) {
                 pgEventListener = new PostgreSQLEventListener();
@@ -1242,7 +1257,7 @@ public:
             std::cerr << PG_INF << "PostgreSQL Reporting is disabled due to missing environment settings\n";
         }
     }
-    void TearDown() override {
+    void TearDown(void) override {
         // Don't see any reason to do additional tear down
     }
 };
@@ -1272,7 +1287,7 @@ PostgreSQLLink::PostgreSQLLink(void* ptrParentObject)
 #endif
 }
 
-PostgreSQLLink::~PostgreSQLLink() {
+PostgreSQLLink::~PostgreSQLLink(void) {
     if (this->customData) {
         delete this->customData;
         this->customData = nullptr;

@@ -27,17 +27,17 @@ class PostgreSQLLink {
 
 public:
     /// \brief Simple constructor
-    PostgreSQLLink();
+    PostgreSQLLink(void);
     /// \brief Constructor allows to store unsafe pointer to parent object. Might be user
     ///        as external identifier.
     /// \param[in] ptrParentObject Unsafe pointer to a parent object
     PostgreSQLLink(void* ptrParentObject);
     /// \brief Simple destructor
-    ~PostgreSQLLink();
+    ~PostgreSQLLink(void);
 
     /// \brief Returns pointer to stored parentObject.
     /// \returns Unsafe pointer to parent object.
-    void* GetParentObject() {
+    void* GetParentObject(void) {
         return this->parentObject;
     }
     /// \brief Replaces stored pointer on parent object. Might be nullptr to reset stored pointer.
