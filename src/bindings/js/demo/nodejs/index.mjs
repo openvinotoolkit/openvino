@@ -36,7 +36,7 @@ async function run() {
 
   const img = await getImgByPath(IMAGE_PATH);
   const imgData = await getArrayByImg(img);
-  const imgTensor = new Tensor('float32', imgData, shape);
+  const imgTensor = new Tensor('uint8', imgData, shape);
 
   const outputTensor = await model.run(imgTensor);
 
@@ -63,6 +63,7 @@ async function getArrayByImg(image) {
   ctx.drawImage(image, 0, 0);
   const rgbaData = ctx.getImageData(0, 0, width, height).data;
   
+  // Filter alpha channel
   return rgbaData.filter((_, index) => (index + 1)%4);
 }
 

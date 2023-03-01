@@ -1,3 +1,18 @@
+export const ovTypesMap = {
+  'uint8_t': 'uint8',
+  'int8_t': 'int8',
+  'uint16_t': 'uint16',
+  'int16_t': 'int16',
+  'uint32_t': 'uint32',
+  'int32_t': 'int32',
+
+  'float': 'float32',
+  'double': 'float64',
+
+  'uint64_t': 'uint64',
+  'int64_t': 'int64',
+};
+
 export const jsTypeByPrecisionMap = {
   int8: Int8Array,
   uint8: Uint8Array,

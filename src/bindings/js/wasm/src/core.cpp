@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #include <stdio.h>
 #include <iostream>
 #include <fstream>
@@ -55,9 +56,7 @@ EMSCRIPTEN_BINDINGS(my_module) {
 		.constructor<std::string, uintptr_t, ShapeLite*>()
 		.function("getShape", &TensorLite::get_shape, allow_raw_pointers())
 		.function("getData", &TensorLite::get_data)
-		// .function("getPrecision", &TensorLite::get_precision)
+		.function("getPrecision", &TensorLite::get_precision)
 		;
-
-	register_vector<float>("vector<float>");
 }
 #endif

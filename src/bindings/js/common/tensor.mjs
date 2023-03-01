@@ -1,5 +1,5 @@
 import Shape from './shape.mjs';
-import { jsTypeByPrecisionMap, heapLabelByTypeMap } from './types.mjs';
+import { ovTypesMap, jsTypeByPrecisionMap, heapLabelByTypeMap } from './types.mjs';
 
 export default class Tensor {
   #precision;
@@ -27,10 +27,10 @@ export default class Tensor {
   }
 
   static parse(ov, originalTensor) {
-    // FIXME:
-    // const precison = originalTensor.getPrecision();
-    const precision = 'float32';
+    console.log(originalTensor.getPrecision());
+    const precision = ovTypesMap[originalTensor.getPrecision()];
     const shape = Shape.parse(ov, originalTensor.getShape());
+
     const dataType = jsTypeByPrecisionMap[precision];
     const heapTypeLabel = heapLabelByTypeMap[dataType.name];
     const originalDataPointer = originalTensor.getData();
@@ -55,7 +55,7 @@ export default class Tensor {
     const originalData = new dataType(tensor.data);
     const elementSizeInBytes = originalData.BYTES_PER_ELEMENT;
     const heapSpace = ov._malloc(originalData.length*elementSizeInBytes);
-    const offset = Math.sqrt(elementSizeInBytes);
+    const offset = Math.log2(elementSizeInBytes);
     const waPrecision = heapLabelByTypeMap[dataType.name];
 
     ov[waPrecision].set(originalData, heapSpace>>offset); 

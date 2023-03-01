@@ -1,5 +1,4 @@
 import Tensor from "../../common/tensor.mjs";
-import Shape from "../../common/shape.mjs";
 
 export default { initialize };
 
@@ -53,7 +52,6 @@ function runInference(ov, session) {
     } finally {
       if (originalTensor) originalTensor.free();
     }
-
 
     return originalOutputTensor ? Tensor.parse(ov, originalOutputTensor) : null;
   };

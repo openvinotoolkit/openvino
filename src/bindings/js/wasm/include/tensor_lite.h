@@ -1,6 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 #pragma once
 
 #include <iostream>
@@ -13,14 +14,14 @@ class TensorLite {
 public:
   TensorLite(std::string type_str, uintptr_t data_buffer, ShapeLite* shape);
   TensorLite(ov::element::Type type, uintptr_t data_buffer, ShapeLite* shape);
-  TensorLite(ov::Tensor* tensor);
+  TensorLite(const ov::Tensor& tensor);
+
+  ShapeLite* get_shape();
+  ov::Tensor* get_tensor();
 
   uintptr_t get_data();
-  ShapeLite* get_shape();
   std::string get_precision();
-  std::vector<float> get_vector();
 private:
-  ov::element::Type type;
   std::shared_ptr<ShapeLite> shape;
-  std::vector<float> tensor;
+  ov::Tensor tensor;
 };

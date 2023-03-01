@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include <iostream>
 #include <limits.h>
 
@@ -19,18 +23,16 @@ Session::Session(std::string xml_path, std::string bin_path, ShapeLite* shape, s
 	this->shape = shape;
 }
 
-TensorLite Session::run(TensorLite* tensor) {
-	std::vector<float> v = tensor->get_vector();
+TensorLite Session::run(TensorLite* tensor_lite) {
+	std::cout << "== Run inference: " << std::endl;
+	ov::Tensor output_tensor;
 
-	// FIXME: this transformation should be automatically processed by Tensor
-	std::vector<uint8_t> arr;
-	int size = v.size();
-	for (int i = 0; i < size; i++) {
-		arr.push_back(v[i]);
+	try {
+		output_tensor = performInference(this->model, *tensor_lite->get_tensor());
+	} catch(const std::exception& e) {
+		std::cout << "== Error in run: " << e.what() << std::endl;
+		throw e;
 	}
 
-	ov::Tensor input_tensor = ov::Tensor(ov::element::u8, this->shape->to_string(), &arr[0]);
-	ov::Tensor output_tensor = performInference(this->model, input_tensor);
-
-	return TensorLite(&output_tensor);
+	return TensorLite(output_tensor);
 }
