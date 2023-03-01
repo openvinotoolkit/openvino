@@ -16,3 +16,5 @@ Explore other resources to learn more about OpenVINO:
 ## See also
  * [OpenVINO Developer Documentation](./index.md)
  * [OpenVINO Samples](../../samples)
+ * [OpenVINO Building Documentation](./building_documentation.md)
+ * [CMake Options for Custom Compilation](./cmake_options_for_custom_comiplation.md)
