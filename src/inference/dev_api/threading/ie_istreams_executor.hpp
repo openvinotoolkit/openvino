@@ -94,29 +94,18 @@ public:
                int threadBindingStep = 1,
                int threadBindingOffset = 0,
                int threads = 0,
-               PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY);
+               PreferredCoreType threadPreferredCoreType = PreferredCoreType::ANY)
+            : ov::threading::IStreamsExecutor::Config(name,
+                                                      streams,
+                                                      threadsPerStream,
+                                                      threadBindingType,
+                                                      threadBindingStep,
+                                                      threadBindingOffset,
+                                                      threads,
+                                                      threadPreferredCoreType) {}
 
-        Config(const ov::threading::IStreamsExecutor::Config& config);
-
-        std::string _name = "StreamsExecutor";  //!< Used by `ITT` to name executor threads
-        int32_t _streams = 1;                   //!< Number of streams.
-        int32_t _threadsPerStream = 0;          //!< Number of threads per stream that executes `ie_parallel` calls
-        ThreadBindingType _threadBindingType = ThreadBindingType::NONE;  //!< Thread binding to hardware resource
-                                                                         //!< type. No binding by default
-        int32_t _threadBindingStep = 1;                                  //!< In case of @ref CORES binding offset type
-                                                                         //!< thread binded to cores with defined step
-        int32_t _threadBindingOffset = 0;       //!< In case of @ref CORES binding offset type thread binded to cores
-                                                //!< starting from offset
-        int32_t _threads = 0;                   //!< Number of threads distributed between streams.
-                                                //!< Reserved. Should not be used.
-        int32_t _big_core_streams = 0;          //!< Number of streams in Performance-core(big core)
-        int32_t _small_core_streams = 0;        //!< Number of streams in Efficient-core(small core)
-        int32_t _threads_per_stream_big = 0;    //!< Threads per stream in big cores
-        int32_t _threads_per_stream_small = 0;  //!< Threads per stream in small cores
-        int32_t _small_core_offset = 0;         //!< Calculate small core start offset when binding cpu cores
-        bool _enable_hyper_thread = true;       //!< enable hyper thread
-        PreferredCoreType _threadPreferredCoreType =
-            PreferredCoreType::ANY;  //!< In case of @ref HYBRID_AWARE hints the TBB to affinitize
+        Config(const ov::threading::IStreamsExecutor::Config& config)
+            : ov::threading::IStreamsExecutor::Config(config) {}
     };
 
     /**

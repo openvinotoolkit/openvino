@@ -7,7 +7,6 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
-#include "openvino/runtime/threading/istreams_executor.hpp"
 #include "threading/ie_cpu_streams_executor.hpp"
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
 #    if (TBB_INTERFACE_VERSION < 12000)
@@ -134,31 +133,13 @@ std::shared_ptr<ov::threading::IStreamsExecutor> ExecutorManagerImpl::get_idle_c
             continue;
 
         const auto& executorConfig = it.first;
-        auto binding_type =
-            executorConfig.get_property(ov::threading::IStreamsExecutor::Config::thread_binding_step.name())
-                .as<ov::threading::IStreamsExecutor::ThreadBindingType>();
-        if (executorConfig.get_property(ov::threading::IStreamsExecutor::Config::name.name()).as<std::string>() ==
-                config.get_property(ov::threading::IStreamsExecutor::Config::name.name()).as<std::string>() &&
-            executorConfig.get_property(ov::threading::IStreamsExecutor::Config::streams.name()).as<std::string>() ==
-                config.get_property(ov::threading::IStreamsExecutor::Config::streams.name()).as<std::string>() &&
-            executorConfig.get_property(ov::threading::IStreamsExecutor::Config::threads_per_stream.name())
-                    .as<int32_t>() ==
-                config.get_property(ov::threading::IStreamsExecutor::Config::threads_per_stream.name()).as<int32_t>() &&
-            executorConfig.get_property(ov::threading::IStreamsExecutor::Config::thread_binding_type.name())
-                    .as<int32_t>() ==
-                config.get_property(ov::threading::IStreamsExecutor::Config::thread_binding_type.name())
-                    .as<int32_t>() &&
-            binding_type == config.get_property(ov::threading::IStreamsExecutor::Config::thread_binding_step.name())
-                                .as<ov::threading::IStreamsExecutor::ThreadBindingType>() &&
-            executorConfig.get_property(ov::threading::IStreamsExecutor::Config::thread_binding_offset.name())
-                    .as<int32_t>() ==
-                config.get_property(ov::threading::IStreamsExecutor::Config::thread_binding_offset.name())
-                    .as<int32_t>())
-            if (binding_type != ov::threading::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE ||
-                executorConfig.get_property(ov::threading::IStreamsExecutor::Config::thread_preferred_core_type.name())
-                        .as<int32_t>() ==
-                    config.get_property(ov::threading::IStreamsExecutor::Config::thread_preferred_core_type.name())
-                        .as<int32_t>())
+        if (executorConfig._name == config._name && executorConfig._streams == config._streams &&
+            executorConfig._threadsPerStream == config._threadsPerStream &&
+            executorConfig._threadBindingType == config._threadBindingType &&
+            executorConfig._threadBindingStep == config._threadBindingStep &&
+            executorConfig._threadBindingOffset == config._threadBindingOffset)
+            if (executorConfig._threadBindingType != ov::threading::IStreamsExecutor::ThreadBindingType::HYBRID_AWARE ||
+                executorConfig._threadPreferredCoreType == config._threadPreferredCoreType)
                 return executor;
     }
     auto newExec = std::make_shared<ov::threading::CPUStreamsExecutor>(config);
@@ -190,8 +171,7 @@ void ExecutorManagerImpl::clear(const std::string& id) {
                            cpuStreamsExecutors.end(),
                            [&](const std::pair<ov::threading::IStreamsExecutor::Config,
                                                std::shared_ptr<ov::threading::IStreamsExecutor>>& it) {
-                               return it.first.get_property(ov::threading::IStreamsExecutor::Config::name.name())
-                                          .as<std::string>() == id;
+                               return it.first._name == id;
                            }),
             cpuStreamsExecutors.end());
     }
