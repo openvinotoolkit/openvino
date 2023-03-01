@@ -4,7 +4,9 @@
 
 #include "ngraph/op/deformable_psroi_pooling.hpp"
 
+#include "deformable_psroi_pooling_shape_inference.hpp"
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -70,46 +72,8 @@ bool op::v1::DeformablePSROIPooling::visit_attributes(AttributeVisitor& visitor)
 void op::v1::DeformablePSROIPooling::validate_and_infer_types() {
     OV_OP_SCOPE(v1_DeformablePSROIPooling_validate_and_infer_types);
     const auto& input_et = get_input_element_type(0);
-
-    const auto& input_pshape = get_input_partial_shape(0);
-    const auto& box_coords_pshape = get_input_partial_shape(1);
-
-    NODE_VALIDATION_CHECK(this,
-                          input_pshape.rank().compatible(4),
-                          "First input rank must be compatible with 4 (input rank: ",
-                          input_pshape.rank(),
-                          ")");
-    NODE_VALIDATION_CHECK(this,
-                          box_coords_pshape.rank().compatible(2),
-                          "Second input rank must be compatible with 2 (input rank: ",
-                          box_coords_pshape.rank(),
-                          ")");
-
-    if (get_input_size() == 3)  // offsets input is provided
-    {
-        const auto& offsets_pshape = get_input_partial_shape(2);
-        NODE_VALIDATION_CHECK(this,
-                              offsets_pshape.rank().compatible(4),
-                              "Third input rank must be compatible with 4 (input rank: ",
-                              offsets_pshape.rank(),
-                              ")");
-    }
-
-    NODE_VALIDATION_CHECK(this, m_group_size > 0, "Value of `group_size` attribute has to be greater than 0 ");
-
-    NODE_VALIDATION_CHECK(this, m_output_dim > 0, "Value of `output_dim` attribute has to be greater than 0 ");
-
-    int64_t output_rank = 4;
-    std::vector<Dimension> output_dim_vec(output_rank, Dimension::dynamic());
-    if (box_coords_pshape.rank().is_static()) {
-        output_dim_vec[0] = box_coords_pshape[0];  // Number of ROIs
-    }
-    output_dim_vec[1] = m_output_dim;
-    for (int i = 2; i < output_rank; ++i) {
-        output_dim_vec[i] = m_group_size;
-    }
-
-    set_output_type(0, input_et, ov::PartialShape(output_dim_vec));
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    set_output_type(0, input_et, shape_infer(this, input_shapes)[0]);
 }
 
 shared_ptr<Node> op::v1::DeformablePSROIPooling::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -141,4 +105,12 @@ shared_ptr<Node> op::v1::DeformablePSROIPooling::clone_with_new_inputs(const Out
     } else {
         throw ngraph_error("Not supported number of DeformablePSROIPooling args");
     }
+}
+
+void op::v1::DeformablePSROIPooling::set_output_dim(int64_t output_dim) {
+    m_output_dim = output_dim;
+}
+
+void op::v1::DeformablePSROIPooling::set_group_size(int64_t group_size) {
+    m_group_size = group_size;
 }

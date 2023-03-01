@@ -70,9 +70,11 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    void set_output_dim(int64_t output_dim);
     int64_t get_output_dim() const {
         return m_output_dim;
     }
+    void set_group_size(int64_t group_size);
     int64_t get_group_size() const {
         return m_group_size;
     }
