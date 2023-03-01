@@ -45,11 +45,11 @@ env:
   OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
   MODELS_PATH: $(REPO_DIR)/../testdata
   WORK_DIR: ${{ github.workspace }}
-  BUILD_DIR: $(WORK_DIR)/build
-  BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
-  BUILD_LAYER_TESTS_DIR: $(WORK_DIR)/build_layer_tests
-  BUILD_SAMPLES_TESTS_DIR: $(WORK_DIR)/build_samples_tests
-  INSTALL_DIR: $(WORK_DIR)/install_pkg
+  BUILD_DIR: ${{ github.workspace }}/build
+  BUILD_SAMPLES_DIR: ${{ github.workspace }}/build_samples
+  BUILD_LAYER_TESTS_DIR: ${{ github.workspace }}/build_layer_tests
+  BUILD_SAMPLES_TESTS_DIR: ${{ github.workspace }}/build_samples_tests
+  INSTALL_DIR: ${{ github.workspace }}/install_pkg
   INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
   LAYER_TESTS_DIR: $(INSTALL_TEST_DIR)/layer_tests
   SETUPVARS: $(INSTALL_DIR)/setupvars.sh
