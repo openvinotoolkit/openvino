@@ -170,10 +170,6 @@ struct OPENVINO_API AutoBroadcastSpec {
     bool operator!=(const AutoBroadcastSpec& a) const {
         return !(*this == a);
     }
-    OPENVINO_DEPRECATED("Use ov::op::AutoBroadcastType::NUMPY")
-    static const AutoBroadcastSpec NUMPY;
-    OPENVINO_DEPRECATED("Use ov::op::AutoBroadcastType::NONE")
-    static const AutoBroadcastSpec NONE;
 
 private:
     AutoBroadcastType type_from_string(const std::string& type) const;
