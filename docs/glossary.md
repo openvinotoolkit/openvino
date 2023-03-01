@@ -73,13 +73,13 @@ Glossary of terms used in OpenVINO™
 |   OpenVINO™ Core is a software component that manages inference on certain Intel(R) hardware devices: CPU, GPU, GNA, etc.    
 
 | OpenVINO™ API 
-|   The basic default API for all supported devices, which allows you to load a model from Intermediate Representation or convert from ONNX, PaddlePaddle file formars, set input and output formats and execute the model on various devices.
+|   The basic default API for all supported devices, which allows you to load a model from Intermediate Representation or convert from ONNX, PaddlePaddle, TensorFlow file formats, set input and output formats and execute the model on various devices.
 
 | OpenVINO™ Runtime 
 |   A C++ library with a set of classes that you can use in your application to infer input tensors and get the results.
 
 | <code>ov::Model</code> 
-|   A class of the Model that OpenVINO™ Runtime reads from IR or converts from ONNX, PaddlePaddle formats. Consists of model structure, weights and biases.
+|   A class of the Model that OpenVINO™ Runtime reads from IR or converts from ONNX, PaddlePaddle, TensorFlow formats. Consists of model structure, weights and biases.
 
 | <code>ov::CompiledModel</code> 
 |   An instance of the compiled model which allows the OpenVINO™ Runtime to request (several) infer requests and perform inference synchronously or asynchronously.
