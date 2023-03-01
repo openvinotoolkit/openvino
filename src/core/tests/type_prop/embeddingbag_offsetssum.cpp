@@ -9,6 +9,21 @@
 using namespace std;
 using namespace ngraph;
 
+TEST(type_prop, ebos_default_ctor) {
+    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2, 6});
+    auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
+    auto offsets = make_shared<op::Parameter>(element::i64, Shape{3});
+    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{4});
+    auto default_index = make_shared<op::Parameter>(element::i64, Shape{});
+
+    auto op = make_shared<op::v3::EmbeddingBagOffsetsSum>();
+    op->set_arguments(OutputVector{emb_table, indices, offsets, default_index, per_sample_weights});
+    op->validate_and_infer_types();
+
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 2, 6}));
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+}
+
 TEST(type_prop, ebos) {
     auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
     auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
