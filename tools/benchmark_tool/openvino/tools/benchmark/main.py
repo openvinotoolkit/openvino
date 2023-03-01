@@ -276,6 +276,11 @@ def main():
                 return
 
             def set_nthreads_pin(property_name, property_value):
+                if property_name == "AFFINITY":
+                    if property_value == "YES":
+                        property_value = "CORE"
+                    elif property_value == "NO":
+                        property_value = "NONE"
                 if property_name in supported_properties or device_name == AUTO_DEVICE_NAME:
                     # create nthreads/pin primary property for HW device or AUTO if -d is AUTO directly.
                     config[device][property_name] = property_value
