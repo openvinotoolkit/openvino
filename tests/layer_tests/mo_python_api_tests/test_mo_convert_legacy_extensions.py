@@ -4,16 +4,12 @@
 import numpy as np
 import openvino.runtime as ov
 import os
-import pytest
-import subprocess
 import tempfile
 import tensorflow as tf
 import unittest
+
 from openvino.runtime import PartialShape, Model
 from openvino.test_utils import compare_functions
-
-from common.mo_convert_test_class import CommonMOConvertTest
-from common.onnx_layer_test_class import save_to_onnx
 from common.utils.common_utils import generate_ir
 
 
