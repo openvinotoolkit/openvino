@@ -27,45 +27,45 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  OPENVINO_REPO_NAME: openvino
+  OPENVINO_CONTRIB_REPO_NAME: openvino_contrib
+  OPENVINO_TESTDATA_REPO_NAME: testdata
+  CMAKE_BUILD_SHARED_LIBS: 'ON'
+  PYTHON_STATIC_ARGS:
+  CMAKE_CPACK_GENERATOR:
+  SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
+  PYTHON_SAMPLES_INSTALL_DIR: $(SAMPLES_INSTALL_DIR)/python
+  RUN_PREFIX: . $(SETUPVARS) -pyver 3.8 &&
+  system.debug: true
+  VSTS_HTTP_RETRY: 5
+  VSTS_HTTP_TIMEOUT: 200
+  BUILD_TYPE: Release
+  REPO_DIR: $(Build.Repository.LocalPath)
+  OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
+  MODELS_PATH: $(REPO_DIR)/../testdata
+  WORK_DIR: $(Pipeline.Workspace)/_w
+  BUILD_DIR: $(WORK_DIR)/build
+  BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
+  BUILD_LAYER_TESTS_DIR: $(WORK_DIR)/build_layer_tests
+  BUILD_SAMPLES_TESTS_DIR: $(WORK_DIR)/build_samples_tests
+  INSTALL_DIR: $(WORK_DIR)/install_pkg
+  INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
+  LAYER_TESTS_DIR: $(INSTALL_TEST_DIR)/layer_tests
+  SETUPVARS: $(INSTALL_DIR)/setupvars.sh
+  TMP_DIR: /mnt/tmp
+  SHARE_DIR: /mount/cinfsshare/onnxtestdata
+  CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
+  CMAKE_VERSION: 3.24.0
+  BUILD_PYTHON: $(WORK_DIR)/build_python
+  INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
+  LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
+  OV_PYTHON_VERSION: 3.10.10 # Full version of Python its required for LD_LIBRARY_PATH. More details https://github.com/microsoft/azure-pipelines-tool-lib/blob/master/docs/overview.md#tool-cache
 
 
 jobs:
   Code_Coverage:
     runs-on: ubuntu-20.04
-    env:
-      OPENVINO_REPO_NAME: openvino
-      OPENVINO_CONTRIB_REPO_NAME: openvino_contrib
-      OPENVINO_TESTDATA_REPO_NAME: testdata
-      CMAKE_BUILD_SHARED_LIBS: 'ON'
-      PYTHON_STATIC_ARGS:
-      CMAKE_CPACK_GENERATOR:
-      SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
-      PYTHON_SAMPLES_INSTALL_DIR: $(SAMPLES_INSTALL_DIR)/python
-      RUN_PREFIX: . $(SETUPVARS) -pyver 3.8 &&
-      system.debug: true
-      VSTS_HTTP_RETRY: 5
-      VSTS_HTTP_TIMEOUT: 200
-      BUILD_TYPE: Release
-      REPO_DIR: $(Build.Repository.LocalPath)
-      OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
-      MODELS_PATH: $(REPO_DIR)/../testdata
-      WORK_DIR: $(Pipeline.Workspace)/_w
-      BUILD_DIR: $(WORK_DIR)/build
-      BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
-      BUILD_LAYER_TESTS_DIR: $(WORK_DIR)/build_layer_tests
-      BUILD_SAMPLES_TESTS_DIR: $(WORK_DIR)/build_samples_tests
-      INSTALL_DIR: $(WORK_DIR)/install_pkg
-      INSTALL_TEST_DIR: $(INSTALL_DIR)/tests
-      LAYER_TESTS_DIR: $(INSTALL_TEST_DIR)/layer_tests
-      SETUPVARS: $(INSTALL_DIR)/setupvars.sh
-      TMP_DIR: /mnt/tmp
-      SHARE_DIR: /mount/cinfsshare/onnxtestdata
-      CCACHE_DIR: $(SHARE_DIR)/ccache/master/linux
-      CMAKE_VERSION: 3.24.0
-      BUILD_PYTHON: $(WORK_DIR)/build_python
-      INSTALL_PYTHON: $(INSTALL_OPENVINO)/extras/python
-      LD_LIBRARY_PATH: $(Agent.ToolsDirectory)/Python/$(OV_PYTHON_VERSION)/x64/lib
-      OV_PYTHON_VERSION: 3.10.10 # Full version of Python its required for LD_LIBRARY_PATH. More details https://github.com/microsoft/azure-pipelines-tool-lib/blob/master/docs/overview.md#tool-cache
     steps:
       - name: Print system information
         run: |
@@ -91,9 +91,12 @@ jobs:
       - name: Setup directories
         run: |
           set -e
+          env
           echo $WORK_DIR
+          echo "$WORK_DIR"
           echo $(WORK_DIR)
           echo ${WORK_DIR}
+          echo ${{WORK_DIR}}
           rm -rf $WORK_DIR ; mkdir $WORK_DIR
           rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
           rm -rf $(BUILD_SAMPLES_DIR) ; mkdir $(BUILD_SAMPLES_DIR)
