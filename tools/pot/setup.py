@@ -131,7 +131,7 @@ DEPENDENCY_LINKS = [torch_source_url]
 
 setup(
     name='pot',
-    version=get_version(),
+    version=get_version().replace('-', '+'),
     author='Intel',
     author_email='alexander.kozlov@intel.com',
     description='Post-training Optimization Toolkit',
