@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <slice_inst.h>
-#include <slice/slice_kernel_ref.h>
-#include <data_inst.h>
-#include <intel_gpu/runtime/error_handler.hpp>
-#include <impls/implementation_map.hpp>
-#include <slice/slice_kernel_selector.h>
 #include "primitive_base.hpp"
-#include <vector>
+
+#include "slice_inst.h"
+#include "data_inst.h"
+#include "slice/slice_kernel_selector.h"
+#include "slice/slice_kernel_ref.h"
+
 #include <algorithm>
 #include <cstddef>
 
@@ -30,7 +29,8 @@ std::vector<std::int32_t> extractIntegerData(const data_node& node, const stream
 }
 
 std::vector<std::int32_t> extractIntegerData(const data_node& node, const stream& stream) {
-    switch (node.get_output_layout().data_type) {
+    auto dt = node.get_output_layout().data_type;
+    switch (dt) {
     case data_types::u8:
         return extractIntegerData<std::uint8_t>(node, stream);
     case data_types::i8:
@@ -40,9 +40,7 @@ std::vector<std::int32_t> extractIntegerData(const data_node& node, const stream
     case data_types::i64:
         return extractIntegerData<std::int64_t>(node, stream);
     default:
-        CLDNN_ERROR_DATA_TYPES_MISMATCH(node.id(), "Slice parameter",
-                node.get_output_layout().data_type, "Any integral type",
-                data_types::i32, "Slice parameters should be of integral type.");
+        OPENVINO_ASSERT(false, "[GPU] Slice parameters should be of integral type for node ", node.id(), " while got ", dt);
     }
     return {};
 }
