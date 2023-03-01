@@ -24,6 +24,7 @@ OP_CONVERTER(translate_as_tensor);
 OP_CONVERTER(translate_avg_poolnd);
 OP_CONVERTER(translate_bool);
 OP_CONVERTER(translate_batch_norm);
+OP_CONVERTER(translate_cat);
 OP_CONVERTER(translate_clamp);
 OP_CONVERTER(translate_constant);
 OP_CONVERTER(translate_conv_transposend);
@@ -160,7 +161,7 @@ const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
         {"aten::batch_norm", op::translate_batch_norm},
         {"aten::bmm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::Bool", op::translate_bool},
-        // {"aten::cat", done as transformation},
+        {"aten::cat", op::translate_cat},
         {"aten::ceil", op::translate_1to1_match_1_inputs<opset10::Ceiling>},
         {"aten::ceil_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Ceiling>>},
         {"aten::clamp", op::translate_clamp},
