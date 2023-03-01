@@ -16,6 +16,7 @@
 namespace MultiDevicePlugin {
 struct AutoLoadContext {
     std::atomic<bool> isEnabled = {false};
+    std::atomic<bool> usefeature = {true};
     std::atomic<bool> isAlready = {false};
     std::atomic<bool> isLoadSuccess = {false};
     std::future<void> future;
@@ -36,7 +37,8 @@ struct AutoLoadContext {
 enum AutoLoadContextIndex {
     CPU = 0,
     ACTUALDEVICE = 1,
-    CONTEXTNUM = 2
+    FALLBACKDEVICE = 2,
+    CONTEXTNUM = 3
 };
 class AutoSchedule : public MultiSchedule {
 public:
@@ -52,12 +54,14 @@ public:
 protected:
     void GenerateWorkers(const std::string& device, const SoExecNetwork& executableNetwork) override;
     bool ScheduleToWorkerInferRequest(IE::Task, DeviceName preferred_device = "") override;
-    static bool RunPipelineTask(IE::Task& inferPipelineTask, NotBusyPriorityWorkerRequests& idleWorkerRequests, const DeviceName& preferred_device);
+    static bool RunPipelineTask(IE::Task& inferPipelineTask, NotBusyPriorityWorkerRequests& idleWorkerRequests,
+                                const DeviceName& preferred_device, const std::string select_device);
     DeviceMap<NotBusyPriorityWorkerRequests> _idleWorkerRequests;
 
 private:
     void WaitFirstNetworkReady();
     void TryToLoadNetWork(AutoLoadContext& context, const std::string& modelPath, const IE::CNNNetwork& network);
+    void selectOtherDevice(std::string currentDeviceName);
 
 private:
     IE::IStreamsExecutor::Ptr                _executor;

@@ -79,23 +79,73 @@ void AutoSchedule::GenerateWorkers(const std::string& device,
                 IdleGuard<NotBusyPriorityWorkerRequests> idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
                 workerRequestPtr->_exceptionPtr = exceptionPtr;
                 {
-                    auto capturedTask = std::move(workerRequestPtr->_task);
-                    capturedTask();
-                }
-                // try to return the request to the idle list (fails if the overall object destruction has began)
-                if (idleGuard.Release()->try_push(std::make_pair(workerRequestPtr->_index, workerRequestPtr))) {
-                    // let's try to pop a task, as we know there is at least one idle request, schedule if succeeded
-                    // if no device-agnostic tasks, let's try pop the device specific task, schedule if succeeded
-                    IE::Task t;
-                    do {
-                        _inferPipelineTasks.try_pop(t);
-                    } while (t && ScheduleToWorkerInferRequest(std::move(t)));
-                    do {
-                        _inferPipelineTasksDeviceSpecific[device]->try_pop(t);
-                    } while (t && ScheduleToWorkerInferRequest(std::move(t), device));
+                    if (workerRequestPtr->_exceptionPtr != nullptr) {
+                        if (workerRequestPtr->_testExec->count == 1) {
+                            auto capturedTask = std::move(workerRequestPtr->_task);
+                            capturedTask();
+                        } else {
+                            workerRequestPtr->_reload = true;
+                            auto capturedTask = std::move(workerRequestPtr->_testExec->_task);
+                            workerRequestPtr->_testExec->count++;
+                            selectOtherDevice(workerRequestPtr->_deviceName);
+                            if (_loadContext[FALLBACKDEVICE].isAlready) {
+                                workerRequestPtr->_startTimes.pop_back();
+                            }
+                            capturedTask();
+                        }
+                    } else {
+                        workerRequestPtr->_testExec->count = 0;
+                        workerRequestPtr->_reload = false;
+                        auto capturedTask = std::move(workerRequestPtr->_task);
+                        capturedTask();
+                    }
+                    // try to return the request to the idle list (fails if the overall object destruction has began)
+                    if (idleGuard.Release()->try_push(std::make_pair(workerRequestPtr->_index, workerRequestPtr))) {
+                        // let's try to pop a task, as we know there is at least one idle request, schedule if succeeded
+                        // if no device-agnostic tasks, let's try pop the device specific task, schedule if succeeded
+                        IE::Task t;
+                        do {
+                            _inferPipelineTasks.try_pop(t);
+                        } while (t && ScheduleToWorkerInferRequest(std::move(t)));
+                        do {
+                            _inferPipelineTasksDeviceSpecific[device]->try_pop(t);
+                        } while (t && ScheduleToWorkerInferRequest(std::move(t), device));
+                    }
                 }
             });
     }
+}
+
+void AutoSchedule::selectOtherDevice(std::string currentDeviceName) {
+    std::unique_lock<std::mutex> lck(_mutex);
+    _loadContext[FALLBACKDEVICE].isLoadSuccess = false;
+    if (_autoSContext->_modelPath.empty())
+        _loadContext[FALLBACKDEVICE].networkPrecision = GetNetworkPrecision(_autoSContext->_network);
+    _loadContext[FALLBACKDEVICE].metaDevices = _autoSContext->_devicePriorities;
+    if (currentDeviceName == "CPU_HELP") {
+        currentDeviceName = "CPU";
+    }
+    {
+        std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
+        const auto CurrentDeviceIter = std::find_if(_autoSContext->_devicePriorities.begin(), _autoSContext->_devicePriorities.end(),
+                                            [=](const DeviceInformation& d) -> bool {
+                                            return d.deviceName.find(currentDeviceName) != std::string::npos;});
+        if (CurrentDeviceIter != _autoSContext->_devicePriorities.end()) {
+            _autoSContext->_devicePriorities.erase(CurrentDeviceIter);
+        } else {
+            return;
+        }
+    }
+    _loadContext[FALLBACKDEVICE].deviceInfo =
+        _autoSContext->_plugin->SelectDevice(_autoSContext->_devicePriorities,
+                                                _loadContext[FALLBACKDEVICE].networkPrecision,
+                                                _autoSContext->_modelPriority);
+    _executor->run(_loadContext[FALLBACKDEVICE].task);
+    _cond.wait(lck);
+    _loadContext[ACTUALDEVICE].isEnabled = false;
+    _loadContext[ACTUALDEVICE].isLoadSuccess = false;
+    _loadContext[ACTUALDEVICE].isAlready = false;
+    LOG_INFO_TAG("Select fallback device:%s", _loadContext[FALLBACKDEVICE].deviceInfo.deviceName.c_str());
 }
 
 void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
@@ -113,9 +163,10 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     }
     _autoSContext->_config[IE::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = _autoSContext->_strDevices;
     std::string profilingTask = "AutoSchedule::AutoSchedule:AutoMode";
-    // loadContext[ACTUALDEVICE] is always enabled,
+    // loadContext[ACTUALDEVICE] and loadContext[FALLBACKDEVICE] is always enabled,
     // when there is CPU and there are more than two devices, loadContext[CPU] is enabled
     _loadContext[ACTUALDEVICE].isEnabled = true;
+    _loadContext[FALLBACKDEVICE].isEnabled = true;
     if (_autoSContext->_modelPath.empty())
         _loadContext[ACTUALDEVICE].networkPrecision = GetNetworkPrecision(_autoSContext->_network);
     _loadContext[ACTUALDEVICE].metaDevices = _autoSContext->_devicePriorities;
@@ -176,14 +227,19 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
             _loadContext[CPU].isEnabled = false;
         }
     }
+    _loadContext[FALLBACKDEVICE].usefeature = false;
     // initialize the rest members of load context
     for (int i = 0; i < CONTEXTNUM; i++) {
         if (_loadContext[i].isEnabled) {
-            _loadContext[i].future =  _loadContext[i].promise.get_future();
+            if (_loadContext[i].usefeature)
+                _loadContext[i].future =  _loadContext[i].promise.get_future();
             auto* contextPtr = &_loadContext[i];
             auto modelPath = _autoSContext->_modelPath;
             auto network = _autoSContext->_network;
             _loadContext[i].task = [this, contextPtr, modelPath, network, isCumulative]() mutable {
+                if (!contextPtr->usefeature) {
+                    std::unique_lock<std::mutex> lck(_mutex);
+                }
                 TryToLoadNetWork(*contextPtr, modelPath, network);
                 if (contextPtr->isLoadSuccess) {
                     if (contextPtr->workName.empty()) {
@@ -197,12 +253,15 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                         _autoSContext->_config.insert(contextPtr->deviceInfo.config.begin(), contextPtr->deviceInfo.config.end());
                     }
                     contextPtr->isAlready = true;
+                    if (!contextPtr->usefeature) {
+                        _cond.notify_all();
+                    }
                     auto& deviceName = contextPtr->deviceInfo.deviceName;
                     LOG_INFO_TAG("device:%s loading Network finished", deviceName.c_str());
                     if (!isCumulative) {
                         auto supported_config_keys =
                             _autoSContext->_core->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS))
-                                      .as<std::vector<std::string>>();
+                                          .as<std::vector<std::string>>();
                         DEBUG_RUN([this, &contextPtr, &deviceName, &supported_config_keys] {
                             std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
                             for (const auto& cfg : supported_config_keys) {
@@ -218,7 +277,8 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                         });
                     }
                 }
-                contextPtr->promise.set_value();
+                if (contextPtr->usefeature)
+                    contextPtr->promise.set_value();
                 // the first load network process finished
                 std::call_once(_firstLoadOC, [this]() {
                     _firstLoadPromise.set_value();
@@ -412,13 +472,13 @@ void AutoSchedule::WaitFirstNetworkReady() {
         _firstLoadFuture.wait();
     }
     // check if there is any device that have loaded network successfully
-    for (int i = CONTEXTNUM - 1; i >= 0; i--) {
+    for (int i = CONTEXTNUM - 2; i >= 0; i--) {
         if (_loadContext[i].isEnabled && _loadContext[i].isAlready) {
             return;
         }
     }
     // the first loading is failed, wait for another loading
-    for (int i = CONTEXTNUM - 1; i >= 0; i--) {
+    for (int i = CONTEXTNUM - 2; i >= 0; i--) {
         if (_loadContext[i].isEnabled) {
             _loadContext[i].future.wait();
             // check if loading is successful
@@ -428,7 +488,7 @@ void AutoSchedule::WaitFirstNetworkReady() {
         }
     }
     //print errMessage
-    for (int i = CONTEXTNUM - 1; i >= 0; i--) {
+    for (int i = CONTEXTNUM - 2; i >= 0; i--) {
         if (_loadContext[i].isEnabled) {
             LOG_ERROR_TAG("load failed, %s", _loadContext[i].errMessage.c_str());
         }
@@ -460,21 +520,25 @@ bool AutoSchedule::ScheduleToWorkerInferRequest(IE::Task inferPipelineTask, Devi
         devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
     } else {
         // _acceleratorDevice could be the same as _cpuDevice, such as AUTO:CPU
-        if (_loadContext[ACTUALDEVICE].isAlready) {
-            devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
+        if (_loadContext[FALLBACKDEVICE].isAlready) {
+            devices.push_back(_loadContext[FALLBACKDEVICE].deviceInfo);
         } else {
-            // replace deviceName with workName, so schedule can select correct
-            // idleWorkerQueue
-            auto deviceInfo =  _loadContext[CPU].deviceInfo;
-            deviceInfo.deviceName = _loadContext[CPU].workName;
-            devices.push_back(std::move(deviceInfo));
+            if (_loadContext[ACTUALDEVICE].isAlready) {
+                devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
+            } else {
+                // replace deviceName with workName, so schedule can select correct
+                // idleWorkerQueue
+                auto deviceInfo =  _loadContext[CPU].deviceInfo;
+                deviceInfo.deviceName = _loadContext[CPU].workName;
+                devices.push_back(std::move(deviceInfo));
+            }
         }
     }
     for (auto&& device : devices) {
         if (!preferred_device.empty() && (device.deviceName != preferred_device)) {
             continue;
         }
-        if (RunPipelineTask(inferPipelineTask, _idleWorkerRequests[device.deviceName], preferred_device)) {
+        if (RunPipelineTask(inferPipelineTask, _idleWorkerRequests[device.deviceName], preferred_device, device.deviceName)) {
             return true;
         }
     }
@@ -489,11 +553,13 @@ bool AutoSchedule::ScheduleToWorkerInferRequest(IE::Task inferPipelineTask, Devi
 
 bool AutoSchedule::RunPipelineTask(IE::Task& inferPipelineTask,
     NotBusyPriorityWorkerRequests& idleWorkerRequests,
-    const DeviceName& preferred_device) {
+    const DeviceName& preferred_device,
+    const std::string select_device) {
     WorkerInferRequest* workerRequestPtr = nullptr;
     std::pair<int, WorkerInferRequest*> worker;
     if (idleWorkerRequests.try_pop(worker)) {
         workerRequestPtr = worker.second;
+        workerRequestPtr->_deviceName = select_device;
         IdleGuard<NotBusyPriorityWorkerRequests> idleGuard{workerRequestPtr, idleWorkerRequests};
         _thisWorkerInferRequest = workerRequestPtr;
         {

@@ -54,10 +54,11 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInf
             }
         });
     } else {
+        MultiImmediateExecutor::Ptr _FirstExecutor = std::make_shared<MultiImmediateExecutor>();
         pipeline = {
             // if the request is coming with device-specific remote blobs make sure it is scheduled to the specific device only:
             Stage {
-                /*TaskExecutor*/ std::make_shared<IE::ImmediateExecutor>(), /*task*/ [this, &syncInferRequest]() {
+                /*TaskExecutor*/ _FirstExecutor, /*task*/ [this, &syncInferRequest]() {
                     // by default, no preferred device:
                     _thisPreferredDeviceName = "";
                     auto execNetwork = _multiSContext->_executableNetwork.lock();
@@ -94,15 +95,25 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInf
                     *workerInferRequest = _thisWorkerInferRequest;
                     auto multiSyncInferRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>(syncInferRequest);
                     multiSyncInferRequest->SetBlobsToAnotherRequest(_thisWorkerInferRequest->_inferRequest);
-                    INFO_RUN([workerInferRequest]() {
-                        (*workerInferRequest)->_startTimes.push_back(std::chrono::steady_clock::now());
-                });
+                    if (!(*workerInferRequest)->_reload) {
+                        INFO_RUN([workerInferRequest]() {
+                            (*workerInferRequest)->_startTimes.push_back(std::chrono::steady_clock::now());
+                            });
+                    } else {
+                        (*workerInferRequest)->_reload = false;
+                    }
                 }},
             // final task in the pipeline:
             Stage {
-                /*TaskExecutor*/std::make_shared<ThisRequestExecutor>(workerInferRequest), /*task*/ [this, &syncInferRequest, workerInferRequest]() {
-                    if (nullptr != (*workerInferRequest)->_exceptionPtr) {
-                        std::rethrow_exception((*workerInferRequest)->_exceptionPtr);
+                /*TaskExecutor*/std::make_shared<ThisRequestExecutor>(workerInferRequest, _FirstExecutor), /*task*/
+                [this, &syncInferRequest, workerInferRequest]() {
+                    std::exception_ptr eptr = (*workerInferRequest)->_exceptionPtr;
+                    if (nullptr != eptr) {
+                        try {
+                            std::rethrow_exception(eptr);
+                        } catch(const std::exception& e) {
+                            LOG_DEBUG_TAG("Pipeline caught exception with error: %s", e.what());
+                        }
                     }
                     if (_multiSContext->_needPerfCounters) {
                         auto multiSyncInferRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>
@@ -154,8 +165,19 @@ void MultiSchedule::GenerateWorkers(const std::string& device,
                 IdleGuard<NotBusyWorkerRequests> idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
                 workerRequestPtr->_exceptionPtr = exceptionPtr;
                 {
-                    auto capturedTask = std::move(workerRequestPtr->_task);
-                    capturedTask();
+                    if (workerRequestPtr->_exceptionPtr != nullptr) {
+                        if (workerRequestPtr->_reload) {
+                            auto capturedTask = std::move(workerRequestPtr->_testExec->_task);
+                            workerRequestPtr->_testExec->count++;
+                            capturedTask();
+                        } else {
+                            auto capturedTask = std::move(workerRequestPtr->_task);
+                            capturedTask();
+                        }
+                    } else {
+                        auto capturedTask = std::move(workerRequestPtr->_task);
+                        capturedTask();
+                    }
                 }
                 // try to return the request to the idle list (fails if the overall object destruction has began)
                 if (idleGuard.Release()->try_push(workerRequestPtr)) {

@@ -42,6 +42,27 @@ using Time = std::chrono::time_point<std::chrono::steady_clock>;
 
 template<typename T>
 using DeviceMap = std::unordered_map<DeviceName, T>;
+
+struct MultiImmediateExecutor : public IE::ITaskExecutor {
+public:
+    /**
+     * @brief A shared pointer to a ImmediateExecutor object
+     */
+    using Ptr = std::shared_ptr<MultiImmediateExecutor>;
+
+    /**
+     * @brief Destroys the object.
+     */
+    ~MultiImmediateExecutor() override = default;
+
+    void run(IE::Task task) override {
+        task();
+        _task = std::move(task);
+    }
+    InferenceEngine::Task _task;
+    int  count;
+};
+
 struct DeviceInformation {
     DeviceName deviceName;
     std::map<std::string, std::string> config;
@@ -58,6 +79,9 @@ struct WorkerInferRequest {
     std::list<Time>    _startTimes;
     std::list<Time>    _endTimes;
     int                _index = 0;
+    std::string        _deviceName;
+    bool               _reload = {false};
+    MultiImmediateExecutor::Ptr  _testExec;
 };
 
 using NotBusyPriorityWorkerRequests = IE::ThreadSafeBoundedPriorityQueue<std::pair<int, WorkerInferRequest*>>;

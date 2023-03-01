@@ -17,8 +17,12 @@ AutoExecutableNetwork::AutoExecutableNetwork(AutoScheduleContext::Ptr& context, 
 }
 
 std::shared_ptr<IE::RemoteContext> AutoExecutableNetwork::GetContext() const {
-    _autoSchedule->WaitActualNetworkReady();
-    return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetContext();
+    if (_autoSchedule->_loadContext[FALLBACKDEVICE].isAlready) {
+        return _autoSchedule->_loadContext[FALLBACKDEVICE].executableNetwork->GetContext();
+    } else {
+        _autoSchedule->WaitActualNetworkReady();
+        return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetContext();
+    }
 }
 
 void AutoExecutableNetwork::SetConfig(const std::map<std::string, IE::Parameter>
