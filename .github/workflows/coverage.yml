@@ -371,44 +371,44 @@ jobs:
 
       - name: GNA UT
         run: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_gna_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_gna_unit_tests.xml
-        continueOnError: false
+        continue-on-error: false
 
       - name: VPU UT
         run: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/vpuUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-vpuUnitTests.xml
-        continueOnError: false
+        continue-on-error: false
 
       - name: XLink Tests
         run: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/XLinkTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-XLinkTests.xml
-        continueOnError: false
+        continue-on-error: false
 
       - name: MULTI UT
         run: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
-        continueOnError: false
+        continue-on-error: false
 
       - name: IE FuncTests
         run: |
           # because of IR reader v7
           echo "LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)" >> $GITHUB_ENV
           $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieFuncTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieFuncTests.xml
-        continueOnError: false
+        continue-on-error: false
 
       - name: TEMPLATE FuncTests
         run: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-templateFuncTests.xml
-        continueOnError: false
+        continue-on-error: false
 
       - name: IE CAPITests
         run: |
           echo "DATA_PATH=$(MODELS_PATH)" >> $GITHUB_ENV
           echo "MODELS_PATH=$(MODELS_PATH)" >> $GITHUB_ENV
           $(RUN_PREFIX) $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineCAPITests.xml
-        continueOnError: false
+        continue-on-error: false
 
       - name: OV CAPITests
         run: |
           echo "DATA_PATH=$(MODELS_PATH)" >> $GITHUB_ENV
           echo "MODELS_PATH=$(MODELS_PATH) >> $GITHUB_ENV
           $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_capi_test --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_capi_test.xml
-        continueOnError: false
+        continue-on-error: false
 
       - name: Build Coverage
         #if: ${{ success() }}
