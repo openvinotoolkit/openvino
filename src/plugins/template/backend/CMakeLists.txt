@@ -5,16 +5,11 @@
 set (SRC
     backend.cpp
     backend.hpp
-    cache.cpp
-    cache.hpp
     executable.cpp
     executable.hpp
-    performance_counter.hpp
-    pass/dyn_elimination.cpp
-    pass/dyn_elimination.hpp
-    pass/shape_relevance.cpp
-    pass/shape_relevance.hpp
-    int_backend.cpp int_executable.cpp evaluates_map.cpp
+    int_backend.cpp 
+    int_executable.cpp 
+    evaluates_map.cpp
     )
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")

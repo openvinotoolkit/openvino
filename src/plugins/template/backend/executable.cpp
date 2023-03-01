@@ -6,133 +6,81 @@
 
 #include <sstream>
 
-#include "ngraph/file_util.hpp"
-#include "ngraph/runtime/tensor.hpp"
-#include "ngraph/util.hpp"
+#include "openvino/core/except.hpp"
 
-using namespace std;
-using namespace ngraph;
+ov::runtime::Executable::Executable() {}
 
-runtime::Executable::Executable() {}
+ov::runtime::Executable::~Executable() {}
 
-runtime::Executable::~Executable() {}
-
-bool runtime::Executable::call_with_validate(const vector<shared_ptr<runtime::Tensor>>& outputs,
-                                             const vector<shared_ptr<runtime::Tensor>>& inputs) {
+bool ov::runtime::Executable::call_with_validate(std::vector<ov::Tensor>& outputs,
+                                                 const std::vector<ov::Tensor>& inputs) {
     validate(outputs, inputs);
     return call(outputs, inputs);
 }
 
-void runtime::Executable::validate(const vector<std::shared_ptr<runtime::Tensor>>& outputs,
-                                   const vector<std::shared_ptr<runtime::Tensor>>& inputs) {
+void ov::runtime::Executable::validate(const std::vector<ov::Tensor>& outputs, const std::vector<ov::Tensor>& inputs) {
     const ParameterVector& parameters = get_parameters();
     const ResultVector& results = get_results();
     if (parameters.size() != inputs.size()) {
-        stringstream ss;
+        std::stringstream ss;
         ss << "Call input count " << inputs.size() << " does not match Function's Parameter count "
            << parameters.size();
-        throw runtime_error(ss.str());
+        throw std::runtime_error(ss.str());
     }
     if (results.size() != outputs.size()) {
-        stringstream ss;
+        std::stringstream ss;
         ss << "Call output count " << outputs.size() << " does not match Function's Result count " << results.size();
-        throw runtime_error(ss.str());
+        throw std::runtime_error(ss.str());
     }
 
     for (size_t i = 0; i < parameters.size(); i++) {
         if (parameters[i]->get_element_type().is_static() &&
-            parameters[i]->get_element_type() != inputs[i]->get_element_type()) {
-            stringstream ss;
-            ss << "Input " << i << " type '" << inputs[i]->get_element_type() << "' does not match Parameter type '"
+            parameters[i]->get_element_type() != inputs[i].get_element_type()) {
+            std::stringstream ss;
+            ss << "Input " << i << " type '" << inputs[i].get_element_type() << "' does not match Parameter type '"
                << parameters[i]->get_element_type() << "'";
-            throw runtime_error(ss.str());
-        }
-        if (!(parameters[i]->get_output_partial_shape(0).relaxes(inputs[i]->get_partial_shape()))) {
-            stringstream ss;
-            ss << "Input " << i << " shape " << inputs[i]->get_partial_shape() << " does not match Parameter shape "
-               << parameters[i]->get_output_partial_shape(0);
-            throw runtime_error(ss.str());
+            throw std::runtime_error(ss.str());
         }
     }
 
     for (size_t i = 0; i < results.size(); i++) {
-        if (outputs[i]->get_element_type().is_static() && results[i]->get_element_type().is_static() &&
-            results[i]->get_element_type() != outputs[i]->get_element_type()) {
-            stringstream ss;
-            ss << "Output " << i << " type '" << outputs[i]->get_element_type() << "' does not match Result type '"
+        if (outputs[i].get_element_type().is_static() && results[i]->get_element_type().is_static() &&
+            results[i]->get_element_type() != outputs[i].get_element_type()) {
+            std::stringstream ss;
+            ss << "Output " << i << " type '" << outputs[i].get_element_type() << "' does not match Result type '"
                << results[i]->get_element_type() << "'";
-            throw runtime_error(ss.str());
-        }
-        if (!outputs[i]->get_partial_shape().relaxes(results[i]->get_output_partial_shape(0))) {
-            stringstream ss;
-            ss << "Output " << i << " shape " << outputs[i]->get_partial_shape() << " does not match max Result shape "
-               << results[i]->get_output_partial_shape(0).get_max_shape();
-            throw runtime_error(ss.str());
+            throw std::runtime_error(ss.str());
         }
     }
 }
 
-const ngraph::ParameterVector& runtime::Executable::get_parameters() const {
+const ov::ParameterVector& ov::runtime::Executable::get_parameters() const {
     return m_parameters;
 }
 
-const ngraph::ResultVector& runtime::Executable::get_results() const {
+const ov::ResultVector& ov::runtime::Executable::get_results() const {
     return m_results;
 }
 
-size_t runtime::Executable::get_preferred_pipeline_depth() const {
-    return 2;
+void ov::runtime::Executable::set_parameters_and_results(const ov::Model& model) {
+    m_parameters = model.get_parameters();
+    m_results = model.get_results();
 }
 
-void runtime::Executable::set_parameters_and_results(const Function& func) {
-    m_parameters = func.get_parameters();
-    m_results = func.get_results();
+ov::Tensor ov::runtime::Executable::create_input_tensor(size_t /* input_index */) {
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
-vector<runtime::PerformanceCounter> runtime::Executable::get_performance_data() const {
-    return vector<PerformanceCounter>();
+ov::Tensor ov::runtime::Executable::create_output_tensor(size_t /* output_index */) {
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
-void runtime::Executable::save(std::ostream& /* output_stream */) {
-    throw runtime_error("save operation unimplemented.");
+std::vector<ov::Tensor> ov::runtime::Executable::create_input_tensor(size_t /* input_index */,
+                                                                     size_t /* pipeline_depth */) {
+    OPENVINO_NOT_IMPLEMENTED;
 }
 
-shared_ptr<runtime::Tensor> runtime::Executable::create_input_tensor(size_t /* input_index */) {
-    throw runtime_error("create_input_tensor unimplemented");
-}
-
-shared_ptr<runtime::Tensor> runtime::Executable::create_input_tensor(size_t /* input_index */,
-                                                                     void* /* memory_pointer */) {
-    throw runtime_error("create_input_tensor unimplemented");
-}
-
-shared_ptr<runtime::Tensor> runtime::Executable::create_output_tensor(size_t /* output_index */) {
-    throw runtime_error("create_output_tensor unimplemented");
-}
-
-shared_ptr<runtime::Tensor> runtime::Executable::create_output_tensor(size_t /* output_index */,
-                                                                      void* /* memory_pointer */) {
-    throw runtime_error("create_output_tensor unimplemented");
-}
-
-vector<shared_ptr<runtime::Tensor>> runtime::Executable::create_input_tensor(size_t /* input_index */,
-                                                                             size_t /* pipeline_depth */) {
-    throw runtime_error("create_input_tensor unimplemented");
-}
-
-vector<shared_ptr<runtime::Tensor>> runtime::Executable::create_input_tensor(size_t /* input_index */,
-                                                                             size_t /* pipeline_depth */,
-                                                                             std::vector<void*> /* memory_pointer */) {
-    throw runtime_error("create_input_tensor unimplemented");
-}
-
-vector<shared_ptr<runtime::Tensor>> runtime::Executable::create_output_tensor(size_t /* output_index */,
-                                                                              size_t /* pipeline_depth */) {
-    throw runtime_error("create_output_tensor unimplemented");
-}
-
-vector<shared_ptr<runtime::Tensor>> runtime::Executable::create_output_tensor(size_t /* output_index */,
-                                                                              size_t /* pipeline_depth */,
-                                                                              std::vector<void*> /* memory_pointer */) {
-    throw runtime_error("create_output_tensor unimplemented");
+std::vector<ov::Tensor> ov::runtime::Executable::create_output_tensor(size_t /* output_index */,
+                                                                      size_t /* pipeline_depth */) {
+    OPENVINO_NOT_IMPLEMENTED;
 }

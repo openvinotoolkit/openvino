@@ -6,19 +6,15 @@
 
 #include <memory>
 
-#include "ngraph/function.hpp"
-#include "ngraph/runtime/tensor.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/type/element_type.hpp"
-#include "performance_counter.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/runtime/tensor.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace runtime {
-class Executable;
-}
-}  // namespace ngraph
 
-class ngraph::runtime::Executable {
+class Executable {
 public:
     Executable();
     virtual ~Executable();
@@ -26,71 +22,38 @@ public:
     /// \param outputs vector of runtime::Tensor used as outputs
     /// \param inputs vector of runtime::Tensor used as inputs
     /// \returns true if iteration is successful, false otherwise
-    virtual bool call(const std::vector<std::shared_ptr<runtime::Tensor>>& outputs,
-                      const std::vector<std::shared_ptr<runtime::Tensor>>& inputs) = 0;
+    virtual bool call(std::vector<ov::Tensor>& outputs, const std::vector<ov::Tensor>& inputs) = 0;
 
     /// \brief Executes a single iteration of a Function.
     /// \param outputs vector of runtime::Tensor used as outputs
     /// \param inputs vector of runtime::Tensor used as inputs
     /// \returns true if iteration is successful, false otherwise
-    bool call_with_validate(const std::vector<std::shared_ptr<runtime::Tensor>>& outputs,
-                            const std::vector<std::shared_ptr<runtime::Tensor>>& inputs);
-
-    /// \brief Collect performance information gathered on a Function.
-    /// \returns Vector of PerformanceCounter information.
-    virtual std::vector<PerformanceCounter> get_performance_data() const;
+    bool call_with_validate(std::vector<ov::Tensor>& outputs, const std::vector<ov::Tensor>& inputs);
 
     /// \brief Validates a Function.
     /// \param outputs vector of runtime::Tensor used as outputs
     /// \param inputs vector of runtime::Tensor used as inputs
-    void validate(const std::vector<std::shared_ptr<runtime::Tensor>>& outputs,
-                  const std::vector<std::shared_ptr<runtime::Tensor>>& inputs);
+    void validate(const std::vector<ov::Tensor>& outputs, const std::vector<ov::Tensor>& inputs);
 
     /// \brief Query the input Parameters
     /// \returns an ngraph::op::ParameterVector of all input parameters
-    const ngraph::ParameterVector& get_parameters() const;
+    const ov::ParameterVector& get_parameters() const;
 
     /// \brief Query the output Results
     /// \returns an ngraph::ResultVector of all input parameters
-    const ngraph::ResultVector& get_results() const;
-
-    /// \brief Get the preferred pipeline_depth for this executable
-    /// \returns  preferred pipeline_depth
-    virtual size_t get_preferred_pipeline_depth() const;
-
-    /// \brief Save this compiled Executable to an output stream.
-    ///    Saved stream may be read with Backend::load
-    virtual void save(std::ostream& output_stream);
+    const ov::ResultVector& get_results() const;
 
     /// \brief Create an input Tensor
     /// \param input_index The index position in the input Parameter vector. This would be the same
     /// order of Parameters passed into the inputs in the call() method.
     /// \returns A Tensor
-    virtual std::shared_ptr<runtime::Tensor> create_input_tensor(size_t input_index);
-
-    /// \brief Create an input Tensor
-    /// \param input_index The index position in the input Parameter vector. This would be the same
-    /// order of Parameters passed into the inputs in the call() method.
-    /// \param memory_pointer A pointer to a buffer used for this tensor. The size of the buffer
-    ///     must be sufficient to contain the tensor. The lifetime of the buffer is the
-    ///     responsibility of the caller and must outlive the created Tensor.
-    /// \returns A Tensor
-    virtual std::shared_ptr<runtime::Tensor> create_input_tensor(size_t input_index, void* memory_pointer);
+    virtual ov::Tensor create_input_tensor(size_t input_index);
 
     /// \brief Create an output Tensor
     /// \param output_index The index position in the output Result vector. This would be the same
     /// order of Results passed into the outputs in the call() method.
     /// \returns A Tensor
-    virtual std::shared_ptr<runtime::Tensor> create_output_tensor(size_t output_index);
-
-    /// \brief Create an output Tensor
-    /// \param output_index The index position in the output Result vector. This would be the same
-    /// order of Results passed into the outputs in the call() method.
-    /// \param memory_pointer A pointer to a buffer used for this tensor. The size of the buffer
-    ///     must be sufficient to contain the tensor. The lifetime of the buffer is the
-    ///     responsibility of the caller and must outlive the created Tensor.
-    /// \returns A Tensor
-    virtual std::shared_ptr<runtime::Tensor> create_output_tensor(size_t output_index, void* memory_pointer);
+    virtual ov::Tensor create_output_tensor(size_t output_index);
 
     /// \brief Create a vector of input Tensors
     /// \param input_index The index position in the input Parameter vector. This would be the same
@@ -98,21 +61,7 @@ public:
     /// \param pipeline_depth The number of stages in the input pipeline. For double-buffered input
     /// you would specify pipeline_depth=2
     /// \returns A vector of Tensors, one for each stage of the pipeline
-    virtual std::vector<std::shared_ptr<runtime::Tensor>> create_input_tensor(size_t input_index,
-                                                                              size_t pipeline_depth);
-
-    /// \brief Create a vector of input Tensors
-    /// \param input_index The index position in the input Parameter vector. This would be the same
-    /// order of Parameters passed into the inputs in the call() method.
-    /// \param pipeline_depth The number of stages in the input pipeline. For double-buffered input
-    /// you would specify pipeline_depth=2
-    /// \param memory_pointers A vector of pointers to buffers used for this tensors. The size of
-    ///     the buffer must be sufficient to contain the tensor. The lifetime of the buffers is the
-    ///     responsibility of the caller and must outlive the created Tensor.
-    /// \returns A vector of Tensors, one for each stage of the pipeline
-    virtual std::vector<std::shared_ptr<runtime::Tensor>> create_input_tensor(size_t input_index,
-                                                                              size_t pipeline_depth,
-                                                                              std::vector<void*> memory_pointers);
+    virtual std::vector<ov::Tensor> create_input_tensor(size_t input_index, size_t pipeline_depth);
 
     /// \brief Create a vector of output Tensors
     /// \param output_index The index position in the output Result vector. This would be the same
@@ -120,28 +69,17 @@ public:
     /// \param pipeline_depth The number of stages in the output pipeline. For double-buffered
     ///                       output you would specify pipeline_depth=2
     /// \returns A vector of Tensors, one for each stage of the pipeline
-    virtual std::vector<std::shared_ptr<runtime::Tensor>> create_output_tensor(size_t output_index,
-                                                                               size_t pipeline_depth);
-
-    /// \brief Create a vector of output Tensors
-    /// \param output_index The index position in the output Result vector. This would be the same
-    ///                     order of Results passed into the outputs in the call() method.
-    /// \param pipeline_depth The number of stages in the output pipeline. For double-buffered
-    ///                       output you would specify pipeline_depth=2
-    /// \param memory_pointers A vector of pointers to buffers used for this tensors. The size of
-    ///     the buffer must be sufficient to contain the tensor. The lifetime of the buffers is the
-    ///     responsibility of the caller and must outlive the created Tensor.
-    /// \returns A vector of Tensors, one for each stage of the pipeline
-    virtual std::vector<std::shared_ptr<runtime::Tensor>> create_output_tensor(size_t output_index,
-                                                                               size_t pipeline_depth,
-                                                                               std::vector<void*> memory_pointers);
+    virtual std::vector<ov::Tensor> create_output_tensor(size_t output_index, size_t pipeline_depth);
 
 protected:
     /// \brief Called at the end of compile to the values to be returned by get_parameters
     ///        and get_results
     /// \param func The function with Results fully resolved.
-    void set_parameters_and_results(const Function& func);
+    void set_parameters_and_results(const ov::Model& model);
 
-    ngraph::ParameterVector m_parameters;
-    ngraph::ResultVector m_results;
+    ov::ParameterVector m_parameters;
+    ov::ResultVector m_results;
 };
+
+}  // namespace runtime
+}  // namespace ov
