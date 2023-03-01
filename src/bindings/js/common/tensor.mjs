@@ -27,7 +27,6 @@ export default class Tensor {
   }
 
   static parse(ov, originalTensor) {
-    console.log(originalTensor.getPrecision());
     const precision = ovTypesMap[originalTensor.getPrecision()];
     const shape = Shape.parse(ov, originalTensor.getShape());
 

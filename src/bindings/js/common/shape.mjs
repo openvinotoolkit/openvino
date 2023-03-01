@@ -1,6 +1,6 @@
 import { jsTypeByPrecisionMap, heapLabelByTypeMap } from './types.mjs';
 
-const defaultPrecision = 'uint16';
+const defaultPrecision = 'uint32';
 const TYPE = jsTypeByPrecisionMap[defaultPrecision];
 const PRECISION = heapLabelByTypeMap[TYPE.name];
 

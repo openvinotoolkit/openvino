@@ -22,6 +22,5 @@ public:
   uintptr_t get_data();
   std::string get_precision();
 private:
-  std::shared_ptr<ShapeLite> shape;
   ov::Tensor tensor;
 };

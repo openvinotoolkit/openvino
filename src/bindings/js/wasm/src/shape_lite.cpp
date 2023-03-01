@@ -8,7 +8,7 @@
 #include "../include/shape_lite.h" 
 
 ShapeLite::ShapeLite(uintptr_t data, int dim) {
-  uint16_t* data_array = reinterpret_cast<uint16_t*>(data);
+  size_t* data_array = reinterpret_cast<size_t*>(data);
 
   for (int i = 0; i < dim; i++) {
     this->shape.push_back(data_array[i]);
@@ -16,9 +16,7 @@ ShapeLite::ShapeLite(uintptr_t data, int dim) {
 }
 
 ShapeLite::ShapeLite(ov::Shape* shape) {
-  for (auto d : *shape) {
-    this->shape.push_back(d);
-  }
+  this->shape = ov::Shape(*shape);
 }
 
 uintptr_t ShapeLite::get_data() {
@@ -30,24 +28,9 @@ int ShapeLite::get_dim() {
 }
 
 int ShapeLite::shape_size() {
-  int size = 1;
-
-  for (auto d : this->shape) size *= d;
-
-  return size;
+  return ov::shape_size(this->shape);
 }
 
-std::string ShapeLite::to_string() {
-  std::string result = "[";
-  int counter = 0;
-
-  for (uint16_t d : this->shape) {
-    result = result + std::to_string(d);
-
-    counter++;
-
-    if (counter != this->shape.size()) result = result + ",";
-  }
-
-  return result + "]";
+ov::Shape ShapeLite::get_original() {
+  return this->shape;
 }

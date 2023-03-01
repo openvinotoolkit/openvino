@@ -46,54 +46,52 @@ uintptr_t get_data_by_tensor(ov::Tensor tensor) {
 } 
 
 TensorLite::TensorLite(ov::element::Type type, uintptr_t data_buffer, ShapeLite* shape) {
-  this->shape = std::shared_ptr<ShapeLite>(shape);
-  this->tensor = ov::Tensor(type, shape->to_string(), &data_buffer);
+  this->tensor = ov::Tensor(type, shape->get_original(), &data_buffer);
 }
 
 TensorLite::TensorLite(std::string type_str, uintptr_t data_buffer, ShapeLite* shape) {
   try {
     ov::element::Type type = get_type(type_str);
-    this->shape = std::shared_ptr<ShapeLite>(shape);
 
     if (type == ov::element::u8) {
       auto arr = reinterpret_cast<uint8_t*>(data_buffer);
-      this->tensor = ov::Tensor(type, shape->to_string(), &arr[0]);
+      this->tensor = ov::Tensor(type, shape->get_original(), &arr[0]);
     }
     if (type == ov::element::i8) {
       auto arr = reinterpret_cast<int8_t*>(data_buffer);
-      this->tensor = ov::Tensor(type, shape->to_string(), &arr[0]);
+      this->tensor = ov::Tensor(type, shape->get_original(), &arr[0]);
     }
     if (type == ov::element::u16) {
       auto arr = reinterpret_cast<uint16_t*>(data_buffer);
-      this->tensor = ov::Tensor(type, shape->to_string(), &arr[0]);
+      this->tensor = ov::Tensor(type, shape->get_original(), &arr[0]);
     }
     if (type == ov::element::i16) {
       auto arr = reinterpret_cast<int16_t*>(data_buffer);
-      this->tensor = ov::Tensor(type, shape->to_string(), &arr[0]);
+      this->tensor = ov::Tensor(type, shape->get_original(), &arr[0]);
     }
     if (type == ov::element::u32) {
       auto arr = reinterpret_cast<uint32_t*>(data_buffer);
-      this->tensor = ov::Tensor(type, shape->to_string(), &arr[0]);
+      this->tensor = ov::Tensor(type, shape->get_original(), &arr[0]);
     }
     if (type == ov::element::i32) {
       auto arr = reinterpret_cast<uint32_t*>(data_buffer);
-      this->tensor = ov::Tensor(type, shape->to_string(), &arr[0]);
+      this->tensor = ov::Tensor(type, shape->get_original(), &arr[0]);
     }
     if (type == ov::element::f32) {
       auto arr = reinterpret_cast<float*>(data_buffer);
-      this->tensor = ov::Tensor(type, shape->to_string(), &arr[0]);
+      this->tensor = ov::Tensor(type, shape->get_original(), &arr[0]);
     }
     if (type == ov::element::f64) {
       auto arr = reinterpret_cast<double*>(data_buffer);
-      this->tensor = ov::Tensor(type, shape->to_string(), &arr[0]);
+      this->tensor = ov::Tensor(type, shape->get_original(), &arr[0]);
     }
     if (type == ov::element::u64) {
       auto arr = reinterpret_cast<uint64_t*>(data_buffer);
-      this->tensor = ov::Tensor(type, shape->to_string(), &arr[0]);
+      this->tensor = ov::Tensor(type, shape->get_original(), &arr[0]);
     }
     if (type == ov::element::i64) {
       auto arr = reinterpret_cast<int64_t*>(data_buffer);
-      this->tensor = ov::Tensor(type, shape->to_string(), &arr[0]);
+      this->tensor = ov::Tensor(type, shape->get_original(), &arr[0]);
     }
   } catch (const std::exception& e) {
     std::cout << "== Error in Tensor constructor: " << e.what() << std::endl;
@@ -104,12 +102,13 @@ TensorLite::TensorLite(std::string type_str, uintptr_t data_buffer, ShapeLite* s
 TensorLite::TensorLite(const ov::Tensor& tensor) {
   ov::Shape originalShape = tensor.get_shape();
 
-  this->shape = std::shared_ptr<ShapeLite>(new ShapeLite(&originalShape));
   this->tensor = tensor;
 }
 
 ShapeLite* TensorLite::get_shape() {
-  return this->shape.get();
+  ov::Shape originalShape = tensor.get_shape();
+  
+  return new ShapeLite(&originalShape);
 }
 
 uintptr_t TensorLite::get_data() {

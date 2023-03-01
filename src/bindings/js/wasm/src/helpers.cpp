@@ -20,7 +20,7 @@ std::shared_ptr<ov::Model> loadModel(std::string xml_path, std::string bin_path)
 	}
 }
 
-ov::CompiledModel compileModel(std::shared_ptr<ov::Model> model, std::string shape, std::string layout) {
+ov::CompiledModel compileModel(std::shared_ptr<ov::Model> model, ov::Shape shape, std::string layout) {
 	ov::Layout tensor_layout = ov::Layout(layout);
 
 	ov::Core core;

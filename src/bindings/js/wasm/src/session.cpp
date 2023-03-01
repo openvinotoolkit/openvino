@@ -14,7 +14,7 @@
 Session::Session(std::string xml_path, std::string bin_path, ShapeLite* shape, std::string layout) {
 	auto model = loadModel(xml_path, bin_path);
 	try {
-		this->model = compileModel(model, shape->to_string(), layout);
+		this->model = compileModel(model, shape->get_original(), layout);
 	} catch(const std::exception& e) {
 		std::cout << "== Error in Session constructor: " << e.what() << std::endl;
 		throw e;

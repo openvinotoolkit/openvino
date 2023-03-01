@@ -49,6 +49,7 @@ EMSCRIPTEN_BINDINGS(my_module) {
 	class_<ShapeLite>("Shape")
 		.constructor<uintptr_t, int>()
 		.function("getDim", &ShapeLite::get_dim)
+		.function("shapeSize", &ShapeLite::shape_size)
 		.function("getData", &ShapeLite::get_data)
 		;
 

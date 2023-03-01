@@ -14,8 +14,8 @@ public:
   uintptr_t get_data();
   int get_dim();
   int shape_size();
-  std::string to_string();
+  ov::Shape get_original();
   
 private:
-  std::vector<uint16_t> shape;
+  ov::Shape shape;
 };
