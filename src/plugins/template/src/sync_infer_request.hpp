@@ -16,7 +16,8 @@
 #include "openvino/itt.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 
-namespace TemplatePlugin {
+namespace ov {
+namespace template_plugin {
 
 // forward declaration
 class CompiledModel;
@@ -24,7 +25,7 @@ class CompiledModel;
 // ! [infer_request:header]
 class InferRequest : public ov::ISyncInferRequest {
 public:
-    explicit InferRequest(const std::shared_ptr<const TemplatePlugin::CompiledModel>& compiled_model);
+    explicit InferRequest(const std::shared_ptr<const ov::template_plugin::CompiledModel>& compiled_model);
     ~InferRequest();
 
     void infer() override;
@@ -48,10 +49,11 @@ private:
     // for performance counters
     std::array<std::chrono::duration<float, std::micro>, numOfStages> m_durations;
 
-    std::vector<std::shared_ptr<ngraph::runtime::Tensor>> m_backend_input_tensors;
-    std::vector<std::shared_ptr<ngraph::runtime::Tensor>> m_backend_output_tensors;
-    std::shared_ptr<ngraph::runtime::Executable> m_executable;
+    std::vector<ov::Tensor> m_backend_input_tensors;
+    std::vector<ov::Tensor> m_backend_output_tensors;
+    std::shared_ptr<ov::runtime::Executable> m_executable;
 };
 // ! [infer_request:header]
 
-}  // namespace TemplatePlugin
+}  // namespace template_plugin
+}  // namespace ov
