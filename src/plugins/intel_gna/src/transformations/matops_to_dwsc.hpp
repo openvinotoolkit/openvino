@@ -1,35 +1,33 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #pragma once
 
-#include "ngraph/ngraph.hpp"
-#include "ngraph/opsets/opset1.hpp"
-#include "ngraph/opsets/opset2.hpp"
-#include "ngraph/opsets/opset3.hpp"
-#include <transformations_visibility.hpp>
+#include <ngraph/pass/graph_rewrite.hpp>
 
-namespace ngraph {
+namespace ov {
+namespace intel_gna {
 namespace pass {
 
-    class AddDecomposition;
-    class SubDecomposition;
-    class MulDecomposition;
+class AddDecomposition : public ngraph::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("AddDecomposition", "0");
+    AddDecomposition();
+};
+
+class SubDecomposition : public ngraph::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("SubDecomposition", "0");
+    SubDecomposition();
+};
+
+class MulDecomposition : public ngraph::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("MulDecomposition", "0");
+    MulDecomposition();
+};
 
 }  // namespace pass
-}  // namespace ngraph
-
-class ngraph::pass::AddDecomposition: public ngraph::pass::FunctionPass {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
-};
-
-class ngraph::pass::SubDecomposition: public ngraph::pass::FunctionPass {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
-};
-
-class ngraph::pass::MulDecomposition: public ngraph::pass::FunctionPass {
-public:
-    NGRAPH_RTTI_DECLARATION;
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
-};
+}  // namespace intel_gna
+}  // namespace ov
