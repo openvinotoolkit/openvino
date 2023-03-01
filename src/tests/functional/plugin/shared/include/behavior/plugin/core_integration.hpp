@@ -906,7 +906,7 @@ TEST(IEClassBasicTest, smoke_LoadNetworkToDefaultDeviceNoThrow) {
     std::shared_ptr<ngraph::Function> actualNetwork = ngraph::builder::subgraph::makeSplitConvConcat();
     ASSERT_NO_THROW(actualCnnNetwork = InferenceEngine::CNNNetwork(actualNetwork));
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork));
+    ie.LoadNetwork(actualCnnNetwork);
 }
 
 TEST_P(IEClassNetworkTestP, LoadNetworkActualNoThrow) {
