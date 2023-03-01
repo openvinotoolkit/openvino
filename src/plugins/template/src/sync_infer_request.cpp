@@ -131,23 +131,7 @@ void ov::template_plugin::InferRequest::infer_preprocess() {
                 get_template_model()->get_template_plugin()->_backend->create_tensor(tensor.get_element_type(),
                                                                                      tensor.get_shape());
             auto* src_data = static_cast<uint8_t*>(tensor.data());
-            auto dst_tensor = std::dynamic_pointer_cast<ngraph::runtime::HostTensor>(m_backend_input_tensors[i]);
-            OPENVINO_ASSERT(dst_tensor, "Template plugin error: Can't cast created tensor to HostTensor");
-            auto* dst_data = dst_tensor->get_data_ptr<uint8_t>();
-            std::vector<size_t> indexes(shape.size());
-            for (size_t dst_idx = 0; dst_idx < ov::shape_size(shape); dst_idx++) {
-                size_t val = dst_idx;
-                size_t src_idx = 0;
-                for (size_t j1 = 0; j1 < indexes.size(); j1++) {
-                    size_t j = indexes.size() - j1 - 1;
-                    indexes[j] = val % shape[j];
-                    val /= shape[j];
-                    src_idx += indexes[j] * tensor.get_strides()[j];
-                }
-                memcpy(dst_data + dst_idx * tensor.get_element_type().size(),
-                       src_data + src_idx,
-                       tensor.get_element_type().size());
-            }
+            tensor.copy_to(m_backend_input_tensors[i]);
         }
     }
     // Tensors can be dynamic, so in this case we need to allocate tensors with right shape
@@ -196,9 +180,8 @@ void ov::template_plugin::InferRequest::infer_postprocess() {
             auto host_tensor = m_backend_output_tensors[i];
             ov::Output<const ov::Node> output{result->output(0).get_node(), result->output(0).get_index()};
             allocate_tensor(output, [host_tensor](ov::Tensor& tensor) {
-                allocate_tensor_impl(tensor, host_tensor->get_element_type(), host_tensor->get_shape());
-                // tensor.set_shape(host_tensor->get_shape());
-                host_tensor->read(static_cast<char*>(tensor.data()), host_tensor->get_size_in_bytes());
+                allocate_tensor_impl(tensor, host_tensor.get_element_type(), host_tensor.get_shape());
+                host_tensor.copy_to(tensor);
             });
         }
     }
