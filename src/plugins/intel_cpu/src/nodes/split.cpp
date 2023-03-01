@@ -98,7 +98,7 @@ void Split::initSupportedPrimitiveDescriptors() {
     }
 
     InferenceEngine::Precision inpPrecision = getOriginalInputPrecisionAtPort(0);
-    const auto axisPrecision = getOriginalInputPrecisionAtPort(1);
+    const auto axisPrecision = Precision::I32;
     auto outPrecision = inpPrecision; // the split layer doesn't convert precisions
 
     bool dynBatchSupport = true;
