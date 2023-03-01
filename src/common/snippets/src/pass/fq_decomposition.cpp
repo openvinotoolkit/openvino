@@ -12,6 +12,8 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <ngraph/runtime/reference/autobroadcast_binop.hpp>
+#include <ngraph/runtime/reference/broadcast.hpp>
 #include <numeric>
 
 namespace {
@@ -68,6 +70,7 @@ ngraph::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         const Output<Node> output_low{fake_quantize_node->input_value(3)};
         const Output<Node> output_high{fake_quantize_node->input_value(4)};
         auto input_type = data.get_element_type();
+        auto broadcast_type = fake_quantize_node->get_auto_broadcast();
 
         std::vector<float> out_scales;
         std::vector<float> cl, ch, isc, ish, osc, osh;
@@ -107,7 +110,7 @@ ngraph::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
             PartialShape scale_shape = input_low.get_partial_shape();
             ngraph::PartialShape::broadcast_merge_into(scale_shape,
                                                        input_high.get_partial_shape(),
-                                                       ov::op::AutoBroadcastType::NUMPY);
+                                                       broadcast_type);
             const auto scales =
                 std::make_shared<ngraph::opset1::Constant>(ngraph::element::f32, scale_shape.get_shape(), out_scales);
             decomp_ops.push_back(scales);
@@ -205,48 +208,103 @@ bool ngraph::snippets::pass::FakeQuantizeDecomposition::getScalesAndShifts(
     if (!input_low_constant || !input_high_constant || !output_low_constant || !output_high_constant)
         return false;
 
+    const auto input_low_shape = input_low_constant->get_shape();
+    const auto input_high_shape = input_high_constant->get_shape();
+    const auto output_low_shape = output_low_constant->get_shape();
+    const auto output_high_shape = output_high_constant->get_shape();
+
     auto input_low = input_low_constant->cast_vector<float>();
     auto input_high = input_high_constant->cast_vector<float>();
     auto output_low = output_low_constant->cast_vector<float>();
     auto output_high = output_high_constant->cast_vector<float>();
     auto levels = fq_node->get_levels();
+    auto broadcast_type = fq_node->get_auto_broadcast();
 
-    const auto input_size = std::max(input_low.size(), input_high.size());
-    const auto output_size = std::max(output_low.size(), output_high.size());
+    // We have two ways for computations of scales and shifts to avoid model compilation time growth
+    // because common function "ngraph::runtime::reference::autobroadcast_binop()" is expensive:
+    //  - A usual case (weights with the same shapes or scalars) - optimal calculations without large broadcasting
+    //  - A rare case ("general broadcasting") - common computations using autobroadcast_binop() call with broadcasting support
 
-    cl = input_low;
-    ch = input_high;
-    isc.resize(input_size, 0);
-    ish.resize(input_size, 0);
-    osc.resize(output_size, 0);
-    osh.resize(output_size, 0);
+    // Calculations of input scales and shift:
+    //   - isc := (levels-1) / (ih - il)
+    //   - ish := -il * isc
+    if (input_low_shape == input_high_shape || shape_size(input_low_shape) == 1 || shape_size(input_high_shape) == 1) {
+        const auto input_size = std::max(input_low.size(), input_high.size());
+        isc.resize(input_size, 0);
+        ish.resize(input_size, 0);
+        for (size_t i = 0; i < input_size; i++) {
+            float il = input_low[input_low.size() == 1 ? 0 : i];
+            float ih = input_high[input_high.size() == 1 ? 0 : i];
 
-    for (size_t i = 0; i < input_size; i++) {
-        float il = input_low[input_low.size() == 1 ? 0 : i];
-        float ih = input_high[input_high.size() == 1 ? 0 : i];
-
-        isc[i] = (levels - 1) / (ih - il);
-        ish[i] = -il * isc[i];
+            isc[i] = (levels - 1) / (ih - il);
+            ish[i] = -il * isc[i];
+        }
+        cl = input_low;
+        ch = input_high;
+    } else {  // general broadcasting
+        PartialShape scale_pshape = input_low_constant->get_output_partial_shape(0);
+        PartialShape::broadcast_merge_into(scale_pshape, input_high_shape, broadcast_type);
+        const auto scale_shape = scale_pshape.get_shape();
+        const auto input_size = ngraph::shape_size(scale_shape);
+        isc.resize(input_size, 0);
+        ish.resize(input_size, 0);
+        ngraph::runtime::reference::autobroadcast_binop(input_high.data(), input_low.data(), isc.data(),
+                                                        input_high_shape, input_low_shape, broadcast_type,
+                                                        [levels](float x, float y) -> float { return (levels - 1) / (x - y); });
+        ngraph::runtime::reference::autobroadcast_binop(input_low.data(), isc.data(), ish.data(),
+                                                        input_low_shape, scale_shape, broadcast_type,
+                                                        [](float x, float y) -> float { return -x * y; });
+        auto broadcast = [](const std::vector<float>& original_data, std::vector<float>& out_data,
+                            const ov::Shape& original_shape, const ov::Shape& out_shape, size_t size) -> void {
+            out_data.resize(size, 0);
+            std::vector<size_t> broadcast_axes(out_shape.size() - original_shape.size());
+            std::iota(broadcast_axes.begin(), broadcast_axes.end(), 0);
+            ngraph::runtime::reference::broadcast(reinterpret_cast<const char*>(original_data.data()),
+                                                  reinterpret_cast<char*>(out_data.data()),
+                                                  original_shape,
+                                                  out_shape,
+                                                  broadcast_axes,
+                                                  sizeof(float));
+        };
+        broadcast(input_low, cl, input_low_shape, scale_shape, input_size);
+        broadcast(input_high, ch, input_high_shape, scale_shape, input_size);
     }
 
-    for (size_t i = 0; i < output_size; i++) {
-        float ol = output_low[output_low.size() == 1 ? 0 : i];
-        float oh = output_high[output_high.size() == 1 ? 0 : i];
+    // Calculations of output scales and shift:
+    //   - osc := (oh - ol) / (levels-1)
+    //   - osh := ol
+    if (output_low_shape == output_high_shape || shape_size(output_low_shape) == 1 || shape_size(output_high_shape) == 1) {
+        const auto output_size = std::max(output_low.size(), output_high.size());
+        osc.resize(output_size, 0);
+        osh.resize(output_size, 0);
+        for (size_t i = 0; i < output_size; i++) {
+            float ol = output_low[output_low.size() == 1 ? 0 : i];
+            float oh = output_high[output_high.size() == 1 ? 0 : i];
 
-        osc[i] = (oh - ol) / (levels - 1);
-        osh[i] = ol;
+            osc[i] = (oh - ol) / (levels - 1);
+            osh[i] = ol;
+        }
+    } else {  // general broadcasting
+        PartialShape scale_pshape = output_low_constant->get_output_partial_shape(0);
+        PartialShape::broadcast_merge_into(scale_pshape, output_high_constant->get_output_partial_shape(0), broadcast_type);
+        const auto output_size = ngraph::shape_size(scale_pshape.get_shape());
+        osc.resize(output_size, 0);
+        ngraph::runtime::reference::autobroadcast_binop(output_high.data(), output_low.data(), osc.data(),
+                                                        output_high_shape, output_low_shape, broadcast_type,
+                                                        [levels](float x, float y) -> float { return (x - y) / (levels - 1); });
+        osh = output_low;
     }
 
     return true;
 }
 
 std::vector<float> ngraph::snippets::pass::FakeQuantizeDecomposition::calculateScales(const ngraph::element::Type& out_type,
-                                                                            const std::vector<float>& cl,
-                                                                            const std::vector<float>& ch,
-                                                                            const std::vector<float>& isc,
-                                                                            const std::vector<float>& ish,
-                                                                            const std::vector<float>& osc,
-                                                                            const std::vector<float>& osh) {
+                                                                                      const std::vector<float>& cl,
+                                                                                      const std::vector<float>& ch,
+                                                                                      const std::vector<float>& isc,
+                                                                                      const std::vector<float>& ish,
+                                                                                      const std::vector<float>& osc,
+                                                                                      const std::vector<float>& osh) {
     std::vector<float> out_scales;
     if (out_type == ngraph::element::u8 &&
         std::all_of(cl.cbegin(),
