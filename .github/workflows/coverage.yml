@@ -91,7 +91,7 @@ jobs:
       - name: Setup directories
         run: |
           set -e
-          rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
+          rm -rf $WORK_DIR ; mkdir $WORK_DIR
           rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
           rm -rf $(BUILD_SAMPLES_DIR) ; mkdir $(BUILD_SAMPLES_DIR)
           sudo rm -rf $(TMP_DIR) ; sudo mkdir $(TMP_DIR) ; sudo chmod 777 -R $(TMP_DIR)
