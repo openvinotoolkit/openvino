@@ -34,8 +34,8 @@ env:
   CMAKE_BUILD_SHARED_LIBS: 'ON'
   PYTHON_STATIC_ARGS:
   CMAKE_CPACK_GENERATOR:
-  SAMPLES_INSTALL_DIR: $(INSTALL_DIR)/samples
-  PYTHON_SAMPLES_INSTALL_DIR: $(SAMPLES_INSTALL_DIR)/python
+  SAMPLES_INSTALL_DIR: ${{ github.workspace }}/install_pkg/samples
+  PYTHON_SAMPLES_INSTALL_DIR: ${{ github.workspace }}/install_pkg/samples/python
   RUN_PREFIX: . $(SETUPVARS) -pyver 3.8 &&
   system.debug: true
   VSTS_HTTP_RETRY: 5
@@ -67,6 +67,9 @@ jobs:
   Code_Coverage:
     runs-on: ubuntu-20.04
     steps:
+      - name: Print env variables
+        run: env
+
       - name: Print system information
         run: |
           curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
