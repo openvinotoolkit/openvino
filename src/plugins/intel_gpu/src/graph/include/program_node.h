@@ -9,8 +9,8 @@
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "intel_gpu/graph/program.hpp"
 
-#include "kernel_selector_helper.h"
 #include "fused_primitive_desc.h"
+#include "kernel_impl_params.hpp"
 #include "meta_utils.h"
 
 #include <set>
@@ -20,6 +20,11 @@
 #include <list>
 #include <algorithm>
 #include <thread>
+
+// TODO: Remove forward declarations for kernel_selector once fused ops descriptors don't depend on OCL stuff
+namespace kernel_selector {
+struct fuse_params;
+}
 
 namespace cldnn {
 

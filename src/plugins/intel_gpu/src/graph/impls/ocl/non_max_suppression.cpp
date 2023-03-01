@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "primitive_base.hpp"
+
+#include "non_max_suppression_inst.h"
 #include "data_inst.h"
-#include "kernel_selector_helper.h"
 #include "non_max_suppression/non_max_suppression_kernel_ref.h"
 #include "non_max_suppression/non_max_suppression_kernel_selector.h"
-#include "non_max_suppression_inst.h"
-#include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
 
 namespace cldnn {
 namespace ocl {
