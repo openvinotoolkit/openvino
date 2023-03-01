@@ -5,12 +5,11 @@ from utils.conformance_utils import get_logger, progressbar
 from utils import constants
 from utils import file_utils
 from argparse import ArgumentParser
-from subprocess import Popen, STDOUT, TimeoutExpired, run
+from subprocess import Popen, STDOUT, TimeoutExpired
 from hashlib import sha256
 from pathlib import Path
 from shutil import rmtree
 
-import signal
 import os
 import sys
 import threading
@@ -136,11 +135,8 @@ class TaskManager:
                 try:
                     if float((datetime.datetime.now() - self._timers[pid]).total_seconds()) > self.process_timeout:
                         logger.warning(f"Process {pid} exceed time limetation per process. The process will be killed")
-                        # self.kill_process(self._process_list[pid].pid)
                         self._process_list[pid].kill()
-                        # self._process_list[pid].send_signal(signal.SIGKILL)
                         self._process_list[pid].wait(timeout=1)
-                        pass
                     self._process_list[pid].wait(timeout=0)
                     # logger.info(f"Process {pid} takes {float((datetime.datetime.now() - self._timers[pid]).total_seconds())}")
                     self._process_list.pop(pid)
@@ -500,7 +496,6 @@ class TestParallelRunner:
 
         not_run_tests_path = os.path.join(logs_dir, "not_run_tests.log")
         with open(not_run_tests_path, "w") as not_run_tests_path_file:
-            # todo
             test_list_runtime = self.__get_test_list_by_runtime()
             diff_set = set(test_list_runtime).difference(set(saved_tests))
             diff_list = list()
