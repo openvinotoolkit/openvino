@@ -19,6 +19,7 @@
 #include "ctc_greedy_decoder_seq_len_shape_inference.hpp"
 #include "ctc_greedy_decoder_shape_inference.hpp"
 #include "ctc_loss_shape_inference.hpp"
+#include "deformable_psroi_pooling_shape_inference.hpp"
 #include "depth_to_space_shape_inference.hpp"
 #include "detection_output_shape_inference.hpp"
 #include "einsum_shape_inference.hpp"
@@ -530,6 +531,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(CTCGreedyDecoderSeqLen, entryIO),
     _OV_OP_SHAPE_INFER_REG(CTCLoss, entryIO),
     _OV_OP_SHAPE_INFER_REG(DeformableConvolution, entryFallbackWithPadding),
+    _OV_OP_SHAPE_INFER_REG(DeformablePSROIPooling, entryIO),
     _OV_OP_SHAPE_INFER_REG(DepthToSpace, entryIO),
     _OV_OP_SHAPE_INFER_REG(DetectionOutput, entryIO),
     _OV_OP_SHAPE_INFER_REG(DFT, entryIOC),
