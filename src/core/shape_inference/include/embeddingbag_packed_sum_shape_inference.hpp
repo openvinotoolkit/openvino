@@ -4,38 +4,29 @@
 
 #pragma once
 
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/embeddingbag_offsets_sum.hpp>
-
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/util/embeddingbag_packed_base.hpp"
 #include "utils.hpp"
 namespace ov {
 namespace op {
 namespace util {
 
 template <class TShape>
-std::vector<TShape> shape_infer(const ov::op::util::EmbeddingBagOffsetsBase* op,
+std::vector<TShape> shape_infer(const ov::op::util::EmbeddingBagPackedBase* op,
                                 const std::vector<TShape>& input_shapes) {
     const auto input_size = input_shapes.size();
-
-    NODE_VALIDATION_CHECK(op, (input_size >= 3 && input_size <= 5));
+    NODE_VALIDATION_CHECK(op, input_size == 2 || input_size == 3);
 
     static constexpr int EMB_TABLE = 0;
     static constexpr int INDICES = 1;
-    static constexpr int OFFSETS = 2;
-    static constexpr int DEFAULT_INDEX = 3;
-    static constexpr int PER_SAMPLE_WEIGHTS = 4;
+    static constexpr int PER_SAMPLE_WEIGHTS = 2;
 
-    NODE_VALIDATION_CHECK(op, input_shapes[INDICES].rank().compatible(1), "INDICES must be 1D");
-    NODE_VALIDATION_CHECK(op, input_shapes[OFFSETS].rank().compatible(1), "OFFSETS must be 1D");
+    NODE_VALIDATION_CHECK(op, input_shapes[INDICES].rank().compatible(2), "INDICES must be 2D");
 
-    if (input_size >= 4) {
-        NODE_VALIDATION_CHECK(op, input_shapes[DEFAULT_INDEX].rank().compatible(0), "DEFAULT_INDEX must be a scalar");
-    }
-
-    if (input_size == 5) {
+    if (input_size == 3) {
         NODE_VALIDATION_CHECK(op,
-                              input_shapes[PER_SAMPLE_WEIGHTS].rank().compatible(1),
-                              "PER_SAMPLE_WEIGHTS must be 1D");
+                              input_shapes[PER_SAMPLE_WEIGHTS].rank().compatible(2),
+                              "PER_SAMPLE_WEIGHTS must be 2D");
 
         NODE_VALIDATION_CHECK(op,
                               input_shapes[INDICES].compatible(input_shapes[PER_SAMPLE_WEIGHTS]),
@@ -43,12 +34,12 @@ std::vector<TShape> shape_infer(const ov::op::util::EmbeddingBagOffsetsBase* op,
     }
 
     const auto& emb_table_shape = input_shapes[EMB_TABLE];
-    const auto& offsets_shape = input_shapes[OFFSETS];
+    const auto& indices_shape = input_shapes[INDICES];
 
     TShape output_shape;
     if (emb_table_shape.rank().is_static()) {
         output_shape = emb_table_shape;
-        output_shape[0] = offsets_shape.rank().is_static() ? offsets_shape[0] : Dimension::dynamic();
+        output_shape[0] = indices_shape.rank().is_static() ? indices_shape[0] : Dimension::dynamic();
     } else {
         output_shape = PartialShape::dynamic();
     }
@@ -56,12 +47,11 @@ std::vector<TShape> shape_infer(const ov::op::util::EmbeddingBagOffsetsBase* op,
 }
 
 template <class TShape>
-void shape_infer(const ov::op::util::EmbeddingBagOffsetsBase* op,
+void shape_infer(const ov::op::util::EmbeddingBagPackedBase* op,
                  const std::vector<TShape>& input_shapes,
                  std::vector<TShape>& output_shapes) {
     output_shapes = shape_infer(op, input_shapes);
 }
-
 }  // namespace util
 }  // namespace op
 }  // namespace ov
