@@ -149,7 +149,6 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
             if (_autoSContext->_bindBuffer)
                 _loadContext[ACTUALDEVICE].deviceInfo.config[ov::intel_auto::device_bind_buffer.name()] =
                     InferenceEngine::PluginConfigParams::YES;
-            _AutoCallMulti = true;
         }
     } else {
         _loadContext[ACTUALDEVICE].deviceInfo =

@@ -48,8 +48,6 @@ public:
 
 public:
     AutoLoadContext                           _loadContext[CONTEXTNUM];
-    // The flag to show if AUTO will call MULTI logic
-    bool                                      _AutoCallMulti = {false};
 
 protected:
     void GenerateWorkers(const std::string& device, const SoExecNetwork& executableNetwork) override;
