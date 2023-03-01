@@ -70,6 +70,10 @@ function(add_clang_format_target TARGET_NAME)
             continue()
         endif()
 
+        if(IS_DIRECTORY "${source_file}")
+            message(FATAL_ERROR "Directory ${source_file} cannot be passed to clang-format")
+        endif()
+
         file(RELATIVE_PATH source_file_relative "${CMAKE_CURRENT_SOURCE_DIR}" "${source_file}")
         set(output_file "${CMAKE_CURRENT_BINARY_DIR}/clang_format/${source_file_relative}.clang")
         string(REPLACE ".." "__" output_file "${output_file}")

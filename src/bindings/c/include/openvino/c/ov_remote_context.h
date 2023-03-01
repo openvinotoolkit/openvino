@@ -8,10 +8,10 @@
  * @file ov_remote_context.h
  */
 #pragma once
+#include "openvino/c/gpu/gpu_plugin_properties.h"
 #include "openvino/c/ov_common.h"
 #include "openvino/c/ov_shape.h"
 #include "openvino/c/ov_tensor.h"
-#include "openvino/c/gpu/gpu_plugin_properties.h"
 
 typedef struct ov_remote_context ov_remote_context_t;
 

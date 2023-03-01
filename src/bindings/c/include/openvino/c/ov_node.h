@@ -83,7 +83,7 @@ ov_port_get_element_type(const ov_output_const_port_t* port, ov_element_type_e* 
  * @ingroup ov_node_c_api
  * @param port The pointer to the instance of the ov_output_port_t to free.
  */
-OPENVINO_C_API(void) 
+OPENVINO_C_API(void)
 ov_output_port_free(ov_output_port_t* port);
 
 /**

@@ -61,8 +61,8 @@ typedef struct {
  * @brief Represent all available devices.
  */
 typedef struct {
-    char** devices;             //!< devices' name
-    size_t size;                //!< devices' number
+    char** devices;  //!< devices' name
+    size_t size;     //!< devices' number
 } ov_available_devices_t;
 
 /**
@@ -142,10 +142,7 @@ ov_core_free(ov_core_t* core);
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_core_read_model(const ov_core_t* core,
-                   const char* model_path,
-                   const char* bin_path,
-                   ov_model_t** model);
+ov_core_read_model(const ov_core_t* core, const char* model_path, const char* bin_path, ov_model_t** model);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 /**
@@ -282,10 +279,7 @@ ov_core_set_property(const ov_core_t* core, const char* device_name, ...);
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_core_get_property(const ov_core_t* core,
-                     const char* device_name,
-                     const char* property_key,
-                     char** property_value);
+ov_core_get_property(const ov_core_t* core, const char* device_name, const char* property_key, char** property_value);
 
 /**
  * @brief Returns devices available for inference.
@@ -335,9 +329,7 @@ ov_core_import_model(const ov_core_t* core,
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_core_get_versions_by_device_name(const ov_core_t* core,
-                                    const char* device_name,
-                                    ov_core_version_list_t* versions);
+ov_core_get_versions_by_device_name(const ov_core_t* core, const char* device_name, ov_core_version_list_t* versions);
 
 /**
  * @brief Releases memory occupied by ov_core_version_list_t.
