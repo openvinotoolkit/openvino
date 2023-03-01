@@ -9,7 +9,6 @@
 #include "openvino/openvino.hpp"
 #include "./tensor_lite.h"
 #include "./shape_lite.h"
-#include "./helpers.h"
 
 class Session {
   private:

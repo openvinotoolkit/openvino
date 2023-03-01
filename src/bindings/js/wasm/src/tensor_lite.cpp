@@ -107,11 +107,12 @@ TensorLite::TensorLite(const ov::Tensor& tensor) {
 
 ShapeLite* TensorLite::get_shape() {
   ov::Shape originalShape = tensor.get_shape();
-  
+
   return new ShapeLite(&originalShape);
 }
 
 uintptr_t TensorLite::get_data() {
+  // FIXME: adapt data to tensor type
   return get_data_by_tensor<float>(this->tensor);
 }
 

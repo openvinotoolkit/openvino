@@ -13,7 +13,6 @@
 #endif
 
 #include "openvino/openvino.hpp"
-#include "../include/helpers.h"
 #include "../include/session.h"
 #include "../include/shape_lite.h"
 #include "../include/tensor_lite.h"
