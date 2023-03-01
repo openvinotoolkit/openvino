@@ -95,12 +95,8 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
 
     auto getDeviceConfig = [&] (const DeviceName & deviceWithID) {
         DeviceIDParser deviceParser(deviceWithID);
-        std::string deviceName;
-        if (deviceWithID.find("GPU") != std::string::npos) {
-            deviceName = deviceWithID;
-        } else {
-            deviceName = deviceParser.getDeviceName();
-        }
+        std::string deviceName =
+            deviceWithID.find("GPU") != std::string::npos ? deviceWithID : deviceParser.getDeviceName();
         std::map<std::string, std::string> tconfig = config;
 
         // set device ID if any
