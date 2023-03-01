@@ -2,19 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "fully_connected_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "fully_connected_inst.h"
 #include "fully_connected/fully_connected_kernel_selector.h"
 #include "fully_connected/fully_connected_params.h"
-
-#include "intel_gpu/runtime/error_handler.hpp"
-
-#include "intel_gpu/primitives/reorder.hpp"
-#include "intel_gpu/primitives/input_layout.hpp"
-#include <memory>
-#include <algorithm>
 
 namespace cldnn {
 namespace ocl {

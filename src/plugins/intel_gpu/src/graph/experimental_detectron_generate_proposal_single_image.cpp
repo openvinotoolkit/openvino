@@ -4,7 +4,6 @@
 
 #include "experimental_detectron_generate_proposals_single_image_inst.hpp"
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 

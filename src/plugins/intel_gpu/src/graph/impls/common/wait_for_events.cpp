@@ -6,7 +6,7 @@
 #include "data_inst.h"
 #include "prior_box_inst.h"
 #include "input_layout_inst.h"
-#include "impls/implementation_map.hpp"
+#include "implementation_map.hpp"
 #include "register.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include <vector>
@@ -19,7 +19,7 @@ class wait_for_events_impl : public primitive_impl {
 
 public:
     explicit wait_for_events_impl(const program_node& /*node*/)
-        : primitive_impl(kernel_selector::weights_reorder_params{}, "wait_for_events") { }
+        : primitive_impl("wait_for_events") { }
 
     wait_for_events_impl() : primitive_impl() {}
 

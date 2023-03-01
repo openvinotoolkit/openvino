@@ -4,7 +4,6 @@
 
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 

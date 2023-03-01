@@ -3,8 +3,9 @@
 //
 
 #include "assign_inst.h"
-#include "impls/implementation_map.hpp"
+#include "implementation_map.hpp"
 #include "register.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace cpu {

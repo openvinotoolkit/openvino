@@ -8,13 +8,13 @@
 #include "convolution_inst.h"
 #include "deconvolution_inst.h"
 #include "depth_to_space_inst.h"
-#include "kernel_selector_utils.h"
 #include <vector>
 #include <list>
 #include <memory>
 #include <string>
 #include <utility>
-#include "intel_gpu/runtime/error_handler.hpp"
+
+using namespace cldnn;
 
 void pre_replace_deconv::run(program& p) {
     bool update_processing_order = false;

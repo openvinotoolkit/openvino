@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <assign_inst.h>
+#include "assign_inst.h"
 #include "primitive_type_base.h"
 #include <sstream>
 #include <json_object.h>
-#include <data_inst.h>
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(assign)

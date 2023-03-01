@@ -3,7 +3,7 @@
 //
 
 #include "detection_output_inst.h"
-#include "impls/implementation_map.hpp"
+#include "implementation_map.hpp"
 #include "register.hpp"
 #include "cpu_impl_helpers.hpp"
 
@@ -16,18 +16,8 @@
 #include <vector>
 #include <utility>
 
-#ifdef FIX_OPENMP_RELEASE_ISSUE
-#ifdef OPENMP_FOUND
-#include <omp.h>
-#endif
-#endif
-
 namespace cldnn {
 namespace cpu {
-
-namespace {
-    using bounding_box = cldnn::cpu::bounding_box;
-}  // namespace
 
 template <typename T>
 bool comp_score_descend(const std::pair<float, T>& pair1,
@@ -296,15 +286,6 @@ public:
             std::vector<std::vector<std::pair<float, int>>>& conf_per_image = confidences[image];
             std::map<int, std::vector<int>> indices;
             int num_det = 0;
-#ifdef FIX_OPENMP_RELEASE_ISSUE
-#ifdef OPENMP_FOUND
-            int num_available_threads = omp_get_max_threads();
-            // half available threads usage shows the best perf results for both SKL (4c8t) and APL (4c4t) for this part
-            // of detection output
-            int num_threads_to_use = (omp_in_parallel() == 0) ? num_available_threads / 2 : 1;
-#pragma omp parallel for num_threads(num_threads_to_use) reduction(+ : num_det)
-#endif
-#endif
             if (nms_type == NMSType::CAFFE) {
                 for (int cls = 0; cls < static_cast<int>(args->num_classes); ++cls) {
                     if (static_cast<int>(cls) == args->background_label_id) {

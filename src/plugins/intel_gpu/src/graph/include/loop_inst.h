@@ -10,7 +10,6 @@
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
 
 #include "primitive_inst.h"
 #include <string>
@@ -221,11 +220,8 @@ public:
         } else {
             const auto& body_input_prim = body.at(current_iteration_id);
             const auto input_layout_prim = std::dynamic_pointer_cast<input_layout>(body_input_prim);
-            if (!input_layout_prim) {
-                CLDNN_ERROR_MESSAGE(this->id(), "current_iteration primitive should be cldnn::input_layout");
-            } else {
-                input_layout_prim->change_layout(body_input_layout);
-            }
+            OPENVINO_ASSERT(input_layout_prim, "[GPU] current_iteration primitive should be cldnn::input_layout in node", this->id());
+            input_layout_prim->change_layout(body_input_layout);
         }
 
         // add incremental data: 1
@@ -277,9 +273,7 @@ public:
         }
 
         // setup internal output
-        if (output_primitive_maps.empty()) {
-            CLDNN_ERROR_MESSAGE(this->id(), "output primitive map should have at least 1 mapping");
-        }
+        OPENVINO_ASSERT(!output_primitive_maps.empty(), "[GPU] Output primitive map should have at least 1 mapping in primitive ", this->id());
         std::set<primitive_id> output_names;
         output_names.insert(output_primitive_maps.front().internal_id);
 
@@ -299,8 +293,8 @@ public:
             // input primitive map because its initial value is always
             // zero and the value will be set in execute_impl()
             if (back_edge.to != get_current_iteration_id() && input_map == input_primitive_maps.end()) {
-                std::string msg = "No primitive mapping for backedge (internal_id: " + back_edge.to + ')';
-                CLDNN_ERROR_MESSAGE(this->id(), msg.c_str());
+                std::string msg = "[GPU] No primitive mapping for backedge (internal_id: " + back_edge.to + ") for primitive " + this->id();
+                OPENVINO_ASSERT(false, msg.c_str());
             }
 
             output_names.insert(back_edge.from);
@@ -536,9 +530,7 @@ public:
     void update_mapped_memory();
     void set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0) override;
     const backedge_memory_mapping& get_current_iteration_backedge_mapping() const {
-        if (!node->is_current_iteration_used()) {
-            CLDNN_ERROR_MESSAGE(node->id(), "no backedge mapping for current_iteration");
-        }
+        OPENVINO_ASSERT(node->is_current_iteration_used(), "[GPU] No backedge mapping for current_iteration for primitive ", node->id());
         return backedge_memory_mappings.at(current_iteratoin_backedge_mapping_idx);
     }
     void save(BinaryOutputBuffer& ob) const override;

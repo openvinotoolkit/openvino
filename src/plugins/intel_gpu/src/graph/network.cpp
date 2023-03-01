@@ -13,25 +13,27 @@
 #include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/half.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/serialization/map_serializer.hpp"
-#include "assign_inst.h"
-#include "read_value_inst.h"
-#include "reshape_inst.h"
 
-#include "to_string_utils.h"
 #include "primitive_inst.h"
 #include "input_layout_inst.h"
 #include "mutable_data_inst.h"
 #include "condition_inst.h"
 #include "loop_inst.h"
-#include "kernel_selector_helper.h"
+#include "assign_inst.h"
+#include "read_value_inst.h"
+#include "reshape_inst.h"
 #include "program_helpers.h"
-#include "intel_gpu/runtime/itt.hpp"
+#include "to_string_utils.h"
 #include "kernels_cache.hpp"
 #include "compilation_context.hpp"
+
+// TODO: Remove once we have an abstraction for kernels_cache
+#include "kernel_base.h"
 
 #include <algorithm>
 #include <string>

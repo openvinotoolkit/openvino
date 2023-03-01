@@ -2,15 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <dft/dft_kernel_ref.h>
-#include <dft/dft_kernel_selector.h>
-#include <dft_inst.h>
-#include <kernel_selector_helper.h>
-
-#include <impls/implementation_map.hpp>
-#include <intel_gpu/runtime/error_handler.hpp>
-
 #include "primitive_base.hpp"
+
+#include "dft_inst.h"
+#include "dft/dft_kernel_ref.h"
+#include "dft/dft_kernel_selector.h"
 
 namespace cldnn {
 namespace ocl {

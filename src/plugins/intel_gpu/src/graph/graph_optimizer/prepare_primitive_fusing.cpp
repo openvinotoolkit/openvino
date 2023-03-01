@@ -47,10 +47,11 @@
 #include <string>
 #include <utility>
 #include <deque>
-#include "intel_gpu/runtime/error_handler.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <impls/onednn/utils.hpp>
 #endif
+
+using namespace cldnn;
 
 void prepare_primitive_fusing::run(program& p) {
     fuse_reorders(p);

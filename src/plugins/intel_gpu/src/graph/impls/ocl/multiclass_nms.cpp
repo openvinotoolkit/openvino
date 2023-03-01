@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "multiclass_nms_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "multiclass_nms_inst.h"
 #include "multiclass_nms/multiclass_nms_kernel_ref.h"
 #include "multiclass_nms/multiclass_nms_kernel_selector.h"
-
 
 namespace cldnn {
 namespace ocl {

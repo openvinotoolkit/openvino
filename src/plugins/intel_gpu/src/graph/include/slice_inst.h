@@ -5,7 +5,6 @@
 #pragma once
 #include <intel_gpu/primitives/slice.hpp>
 #include "primitive_inst.h"
-#include <intel_gpu/runtime/error_handler.hpp>
 
 namespace cldnn {
 

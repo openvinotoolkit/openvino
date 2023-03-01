@@ -5,7 +5,6 @@
 #pragma once
 #include "intel_gpu/primitives/non_zero.hpp"
 #include "primitive_inst.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 
 #include <string>
 #include <memory>

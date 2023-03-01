@@ -20,8 +20,8 @@
 #include "non_max_suppression_inst.h"
 #include "region_yolo_inst.h"
 
-#include "kernel_selector_common.h"
-#include "kernel_selector_helper.h"
+// TODO: add generic interface for weights_reorder_params and get rid of this dependency
+#include "impls/ocl/kernel_selector_helper.h"
 
 #include <vector>
 #include <memory>

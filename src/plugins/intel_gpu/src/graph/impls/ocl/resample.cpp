@@ -2,16 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <set>
+#include "primitive_base.hpp"
 
 #include "resample_inst.h"
-#include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
 #include "kernel_selector/kernels/resample/resample_kernel_selector.h"
 #include "kernel_selector/kernels/resample/resample_kernel_base.h"
-#include "intel_gpu/runtime/half.hpp"
+#include <set>
 
 namespace cldnn {
 namespace ocl {

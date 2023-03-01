@@ -5,13 +5,13 @@
 #pragma once
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/runtime/memory.hpp"
-#include "kernel_selector_helper.h"
+
+// TODO: Remove OCL impl dependency here or move to OCL folder
+#include "impls/ocl/kernel_selector_helper.h"
 
 #include <vector>
 
 namespace cldnn {
-
-
 
 /// @brief Changes how data is ordered in memory. Value type is not changed & all information is preserved.
 /// @details Corresponding values are bitwise equal before/after reorder.

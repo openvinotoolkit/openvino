@@ -3,7 +3,6 @@
 //
 #include "pyramid_roi_align_inst.h"
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 

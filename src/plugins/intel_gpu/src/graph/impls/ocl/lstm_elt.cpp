@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "lstm_elt_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "lstm_elt_inst.h"
 #include "lstm/lstm_elt_kernel_selector.h"
 #include "lstm/lstm_elt_kernel_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -36,60 +34,49 @@ protected:
     }
 
 public:
-    static std::unique_ptr<primitive_impl> create(const lstm_elt_node& arg, const kernel_impl_params& impl_param) {
-        const auto& prim = arg.get_primitive();
-        auto lstm_elt_params = get_default_params<kernel_selector::lstm_elt_params>(impl_param);
-        auto lstm_elt_optional_params =
-            get_default_optional_params<kernel_selector::lstm_elt_optional_params>(arg.get_program());
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+        const auto& primitive = impl_param.typed_desc<lstm_elt>();
+        auto params = get_default_params<kernel_selector::lstm_elt_params>(impl_param);
+        auto optional_params = get_default_optional_params<kernel_selector::lstm_elt_optional_params>(impl_param.get_program());
 
-        if (arg.cell_term()) {
+        if (!primitive->cell.empty()) {
             const auto& cell_idx = 1;
             const auto& cell_layout = impl_param.input_layouts[cell_idx];
-            lstm_elt_params.SetCell(convert_data_tensor(cell_layout));
+            params.SetCell(convert_data_tensor(cell_layout));
             // TODO: make a generic function to get the direction
             if (cell_layout.spatial(1) > 1) {
-                lstm_elt_params.cell_direction = arg.direction();
+                params.cell_direction = primitive->direction;
             }
         }
 
-        if (!prim->activations.empty()) {
-            auto a_sz = prim->activations.size();
-            auto param_sz = prim->activation_params.size();
-            if (param_sz) {
-                CLDNN_ERROR_NOT_EQUAL(arg.id(),
-                                      "number of activations",
-                                      a_sz,
-                                      "number of activation parameters",
-                                      param_sz,
-                                      "activations/parameters num mismatch");
-            }
+        if (!primitive->activations.empty()) {
+            auto a_sz = primitive->activations.size();
+            auto param_sz = primitive->activation_params.size();
+            OPENVINO_ASSERT(param_sz == 0|| a_sz == param_sz, "[GPU] Unexpected activation params count in lstm_elt impl: ", param_sz);
             for (size_t i = 0; i < a_sz; i++) {
-                lstm_elt_params.activations.emplace_back(get_kernel_selector_activation_param(prim->activations[i]),
-                                                         param_sz ? prim->activation_params[i].a : 0.0f,
-                                                         param_sz ? prim->activation_params[i].b : 0.0f);
+                params.activations.emplace_back(get_kernel_selector_activation_param(primitive->activations[i]),
+                                                         param_sz ? primitive->activation_params[i].a : 0.0f,
+                                                         param_sz ? primitive->activation_params[i].b : 0.0f);
             }
         }
 
-        if (prim->clip > 0.0f) {
-            lstm_elt_params.activations.emplace_back(get_kernel_selector_activation_param(activation_func::clamp), -prim->clip, prim->clip);
+        if (primitive->clip > 0.0f) {
+            params.activations.emplace_back(get_kernel_selector_activation_param(activation_func::clamp), -primitive->clip, primitive->clip);
         }
 
-        lstm_elt_params.SetOffsetOrder(static_cast<int32_t>(arg.offset_order()));
-        lstm_elt_params.clip = arg.clip();
-        lstm_elt_params.input_forget = arg.input_forget();
-        lstm_elt_params.direction = arg.direction();
+        params.SetOffsetOrder(static_cast<int32_t>(primitive->offset_order));
+        params.clip = primitive->clip;
+        params.input_forget = primitive->input_forget;
+        params.direction = primitive->direction;
 
-        auto& kernel_selector = kernel_selector::lstm_elt_kernel_selector::Instance();
-        auto best_kernel = kernel_selector.get_best_kernel(lstm_elt_params, lstm_elt_optional_params);
-
-        return make_unique<lstm_elt_impl>(best_kernel);
+        return {params, optional_params};
     }
 };
 
 namespace detail {
 
 attach_lstm_elt_impl::attach_lstm_elt_impl() {
-    implementation_map<lstm_elt>::add(impl_types::ocl, lstm_elt_impl::create, {
+    implementation_map<lstm_elt>::add(impl_types::ocl, typed_primitive_impl_ocl<lstm_elt>::create<lstm_elt_impl>, {
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::f32, format::fyxb),

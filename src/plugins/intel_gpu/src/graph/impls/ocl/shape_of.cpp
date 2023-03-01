@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shape_of_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
+
+#include "shape_of_inst.h"
 #include "shape_of/shape_of_kernel_selector.h"
 #include "shape_of/shape_of_kernel_ref.h"
 

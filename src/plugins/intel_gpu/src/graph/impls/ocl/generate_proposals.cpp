@@ -2,14 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "generate_proposals_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "generate_proposals_inst.h"
 #include "generate_proposals/generate_proposals_kernel_selector.h"
 #include "generate_proposals/generate_proposals_kernel_ref.h"
-
-
 
 namespace cldnn {
 namespace ocl {

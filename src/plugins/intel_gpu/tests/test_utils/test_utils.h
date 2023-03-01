@@ -68,7 +68,7 @@ bool has_node_with_type(cldnn::program& prog) {
     return false;
 }
 
-inline bool has_node(cldnn::program& prog, primitive_id id) {
+inline bool has_node(cldnn::program& prog, cldnn::primitive_id id) {
     for (auto node : prog.get_processing_order()) {
         if (node->id() == id)
             return true;
@@ -409,7 +409,7 @@ public:
 
     test_params() : fmt(cldnn::format::bfyx) { }
 
-    test_params(cldnn::data_types dt, cldnn::format input_format, int32_t batch_size, int32_t feature_size, cldnn::tensor input_size, ExecutionConfig config = {}) :
+    test_params(cldnn::data_types dt, cldnn::format input_format, int32_t batch_size, int32_t feature_size, cldnn::tensor input_size, cldnn::ExecutionConfig config = {}) :
         data_type(dt),
         fmt(input_format),
         network_config(config) {
@@ -423,7 +423,7 @@ public:
 
     void * opaque_custom_param = nullptr;
 
-    ExecutionConfig network_config;
+    cldnn::ExecutionConfig network_config;
 
     std::string print();
     static std::string print_tensor(cldnn::tensor tensor);
@@ -574,42 +574,42 @@ T div_up(const T a, const U b) {
 }
 
 template <class T>
-std::vector<float> get_output_values_to_float(network& net, const primitive_id& output_id, size_t max_cnt = std::numeric_limits<size_t>::max()) {
+std::vector<float> get_output_values_to_float(cldnn::network& net, const cldnn::primitive_id& output_id, size_t max_cnt = std::numeric_limits<size_t>::max()) {
     std::vector<float> ret;
     auto ptr = net.get_output_memory(output_id);
     auto out_ids = net.get_output_ids();
     if (find(out_ids.begin(), out_ids.end(), output_id) == out_ids.end())
         IE_THROW() << "Non output node's memory may have been reused. "
                       "Make target node to output by using ov::intel_gpu::custom_outputs in ExecutionConfig.";
-    mem_lock<T, mem_lock_type::read> mem(ptr, net.get_stream());
-    if (ptr->get_layout().data_type != type_to_data_type<T>::value)
-        IE_THROW() << "target type " << data_type_traits::name(type_to_data_type<T>::value)
-                    << " mismatched with actual type " << data_type_traits::name(ptr->get_layout().data_type);
+    cldnn::mem_lock<T, cldnn::mem_lock_type::read> mem(ptr, net.get_stream());
+    if (ptr->get_layout().data_type != cldnn::type_to_data_type<T>::value)
+        IE_THROW() << "target type " << cldnn::data_type_traits::name(cldnn::type_to_data_type<T>::value)
+                    << " mismatched with actual type " << cldnn::data_type_traits::name(ptr->get_layout().data_type);
     for (size_t i = 0; i < std::min(max_cnt, ptr->get_layout().count()); i++)
         ret.push_back(mem[i]);
     return ret;
 }
 
-inline std::vector<float> get_output_values_to_float(network& net, const primitive_id& output_id, size_t max_cnt = std::numeric_limits<size_t>::max()) {
+inline std::vector<float> get_output_values_to_float(cldnn::network& net, const cldnn::primitive_id& output_id, size_t max_cnt = std::numeric_limits<size_t>::max()) {
     switch(net.get_output_layout(output_id).data_type){
-        case data_types::f16:
+        case cldnn::data_types::f16:
             return get_output_values_to_float<FLOAT16>(net, output_id, max_cnt);
-        case data_types::f32:
+        case cldnn::data_types::f32:
             return get_output_values_to_float<float>(net, output_id, max_cnt);
-        case data_types::i8:
+        case cldnn::data_types::i8:
             return get_output_values_to_float<int8_t>(net, output_id, max_cnt);
-        case data_types::u8:
+        case cldnn::data_types::u8:
             return get_output_values_to_float<uint8_t>(net, output_id, max_cnt);
-        case data_types::i32:
+        case cldnn::data_types::i32:
             return get_output_values_to_float<int32_t>(net, output_id, max_cnt);
-        case data_types::i64:
+        case cldnn::data_types::i64:
             return get_output_values_to_float<int64_t>(net, output_id, max_cnt);
         default:
             IE_THROW() << "Unknown output data_type";
     }
 }
 
-double default_tolerance(data_types dt);
+double default_tolerance(cldnn::data_types dt);
 // inline void print_bin_blob(cldnn::memory& mem, std::string name)
 // {
 //     auto&& size = mem.get_layout().get_tensor();
@@ -744,16 +744,16 @@ inline cldnn::network::ptr get_network(cldnn::engine& engine,
     cldnn::network::ptr network;
     if (is_caching_test) {
         std::cout << "cached" << std::endl;
-        membuf mem_buf;
+        cldnn::membuf mem_buf;
         {
             cldnn::network _network(engine, topology, config);
             std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
+            cldnn::BinaryOutputBuffer ob = cldnn::BinaryOutputBuffer(out_mem);
             _network.save(ob);
         }
         {
             std::istream in_mem(&mem_buf);
-            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
+            cldnn::BinaryInputBuffer ib = cldnn::BinaryInputBuffer(in_mem, engine);
             network = std::make_shared<cldnn::network>(ib, config, stream, engine);
         }
     } else {
