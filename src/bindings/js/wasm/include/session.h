@@ -11,10 +11,10 @@
 #include "./shape_lite.h"
 
 class Session {
-  private:
-    ov::CompiledModel model;
-  public:
-    ShapeLite* shape;
-    Session(std::string xml_path, std::string bin_path, ShapeLite* shape, std::string layout);
-    TensorLite run(TensorLite* tensor);
+    private:
+        ov::CompiledModel model;
+    public:
+        ShapeLite* shape;
+        Session(std::string xml_path, std::string bin_path, ShapeLite* shape, std::string layout);
+        TensorLite run(TensorLite* tensor);
 };
