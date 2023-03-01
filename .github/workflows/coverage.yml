@@ -1,8 +1,8 @@
 on:
   push:
-    branches:
-      - 'master'
-      - 'releases/*'
+    # branches:
+    #   - 'master'
+    #   - 'releases/*'
     paths-ignore:
       - '*/docs/*'
       - 'docs/*'
