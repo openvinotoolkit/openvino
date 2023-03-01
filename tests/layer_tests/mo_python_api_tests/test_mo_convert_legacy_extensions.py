@@ -11,7 +11,6 @@ import tensorflow as tf
 import unittest
 from openvino.runtime import PartialShape, Model
 from openvino.test_utils import compare_functions
-from unit_tests.utils.graph import build_graph
 
 from common.mo_convert_test_class import CommonMOConvertTest
 from common.onnx_layer_test_class import save_to_onnx
