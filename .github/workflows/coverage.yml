@@ -92,7 +92,6 @@ jobs:
         run: |
           set -e
           env
-          echo $WORK_DIR
           echo "$WORK_DIR"
           echo $(WORK_DIR)
           echo ${WORK_DIR}
