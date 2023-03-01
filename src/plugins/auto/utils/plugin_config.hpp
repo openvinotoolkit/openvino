@@ -60,7 +60,7 @@ public:
                 return true;
             else
                 throw std::logic_error("wrong val");
-        } catch (ov::Exception&) {
+        } catch (std::exception&) {
             return false;
         }
     }
