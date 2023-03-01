@@ -54,7 +54,7 @@ std::string reorder_options(const std::string& org_options) {
 }  // namespace
 
 namespace cldnn {
-
+std::atomic<size_t> kernels_cache::_kernel_idx{0};
 std::mutex kernels_cache::_mutex;
 
 std::string kernels_cache::get_cache_path() const {
@@ -70,10 +70,8 @@ std::string kernels_cache::get_cache_path() const {
 }
 
 bool kernels_cache::is_cache_enabled() const {
-    if (const char* env_p = std::getenv("OV_GPU_CACHE_MODEL")) {
-        if (env_p[0] == '1') {
-            return false;
-        }
+    if (!_config.get_property(ov::intel_gpu::allow_new_shape_infer)) {
+        return false;
     }
 
     return !_config.get_property(ov::cache_dir).empty();
@@ -191,7 +189,7 @@ static std::vector<unsigned char> getProgramBinaries(cl::Program program) {
 }
 
 // TODO: This build_batch method should be backend specific
-void kernels_cache::build_batch(const engine& build_engine, const batch_program& batch) {
+void kernels_cache::build_batch(const engine& build_engine, const batch_program& batch, std::map<const std::string, kernel::ptr>& compiled_kernels) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::build_batch");
 
     auto& cl_build_engine = dynamic_cast<const ocl::ocl_engine&>(build_engine);
@@ -288,7 +286,7 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
                     cl_context context = cl_build_engine.get_cl_context().get();
                     kernel::ptr kernel = kernels_factory::create(_engine, context, kern, entry_point);
                     const auto& kmap = std::make_pair(k_id->second, kernel);
-                    _kernels.insert(kmap);
+                    compiled_kernels.insert(kmap);
                 } else {
                     throw std::runtime_error("Could not find entry point");
                 }
@@ -393,7 +391,7 @@ void kernels_cache::build_all() {
             auto& batch = batches[idx];
             tasks.push_back([this, &_build_engine, &batch, &exception] {
                 try {
-                    build_batch(_build_engine, batch);
+                    build_batch(_build_engine, batch, _kernels);
                 } catch(...) {
                     exception = std::current_exception();
                 }
@@ -407,7 +405,7 @@ void kernels_cache::build_all() {
         }
     } else {
         for (size_t idx = 0; idx < batches.size(); idx++) {
-            build_batch(_build_engine, batches[idx]);
+            build_batch(_build_engine, batches[idx], _kernels);
         }
     }
 
@@ -438,10 +436,7 @@ std::vector<kernel_id> kernels_cache::add_kernels_source(std::vector<std::shared
     for (size_t i = 0; i < kernel_sources.size(); ++i) {
         std::lock_guard<std::mutex> lock(_mutex);
         auto kernel_string = kernel_sources[i];
-        // we need unique id in order to avoid conflict across topologies.
-        const auto kernel_num = _kernels.size() + (_kernel_idx++);
-        kernel_id id = kernel_string->entry_point + "_" + std::to_string(kernel_num);
-
+        kernel_id id = gen_kernel_id(kernel_string->entry_point);
         auto res = _kernels_code.emplace(kernel_string, id, dump_custom_program);
 
         assert(_kernels.find(id) == _kernels.end());
@@ -459,37 +454,10 @@ void kernels_cache::add_kernels(const std::vector<std::string>& kernel_ids, cons
     for (size_t i = 0; i < kernel_ids.size(); i++) {
         const auto& kmap = std::make_pair(kernel_ids[i], kernels[i]);
         _kernels.insert(kmap);
+        _kernel_idx++;
     }
 }
 
-void kernels_cache::compile() {
-    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildAll");
-
-    std::unique_ptr<ocl::ocl_engine> _build_engine = nullptr;
-    if (_engine.type() == engine_types::ocl) {
-        _build_engine = std::unique_ptr<ocl::ocl_engine>(new ocl::ocl_engine(_engine.get_device(), runtime_types::ocl));
-    }
-
-    // create batches
-    std::vector<batch_program> batches;
-    get_program_source(_kernels_code, &batches);
-
-    // build batches
-    for (size_t idx = 0; idx < batches.size(); idx++) {
-        build_batch(*_build_engine, batches[idx]);
-    }
-
-    _kernels_code.clear();
-    _pending_compilation = false;
-#if defined(__unix__) && !defined(__ANDROID__)
-    //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
-    //  (It is at least 500 MB when we perform parallel compilation)
-    //  It is observed that freeing the memory manually with malloc_trim saves significant amount of the memory.
-    //  Also, this is not happening in Windows.
-    //  So, added malloc_trim for linux build until we figure out a better solution.
-        malloc_trim(0);
-#endif
-}
 void kernels_cache::save(BinaryOutputBuffer& ob) const {
     OPENVINO_ASSERT(_engine.type() == engine_types::ocl, "[GPU] Not supported engine type");
 
@@ -572,6 +540,7 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
                     cl_context cl_context = build_engine->get_cl_context().get();
                     kernel::ptr kernel = kernels_factory::create(_engine, cl_context, cl_kernel, entry_point);
                     _kernels.insert({k_id->second, kernel});
+                    _kernel_idx++;
                 }
             }
         }
@@ -582,6 +551,43 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
         }
         IE_THROW() << err_log;
     }
+}
+
+std::map<const std::string, kernel::ptr> kernels_cache::compile(std::vector<std::shared_ptr<kernel_string>> kernel_sources,
+                                                                                        bool dump_custom_program) {
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::Compile_ThreadSafe");
+    kernels_code t_kernels_code;
+
+    // Get kernels code from kernel sources
+    for (size_t idx = 0; idx < kernel_sources.size(); ++idx) {
+        auto kernel_string = kernel_sources[idx];
+        kernel_id id = gen_kernel_id(kernel_string->entry_point);
+        t_kernels_code.emplace(kernel_string, id, dump_custom_program);
+    }
+
+    ocl::ocl_engine& _build_engine = downcast<ocl::ocl_engine>(_engine);
+
+    // Create batches
+    std::vector<batch_program> batches;
+    get_program_source(t_kernels_code, &batches);
+
+    std::map<const std::string, kernel::ptr> output_kernels;
+    // Build batches
+    for (size_t idx = 0; idx < batches.size(); ++idx) {
+        build_batch(_build_engine, batches[idx], output_kernels);
+    }
+
+    t_kernels_code.clear();
+#if defined(__unix__) && !defined(__ANDROID__)
+    //  NOTE: In linux, without malloc_trim, an amount of the memory used by compilation is not being returned to system thought they are freed.
+    //  (It is at least 500 MB when we perform parallel compilation)
+    //  It is observed that freeing the memory manually with malloc_trim saves significant amount of the memory.
+    //  Also, this is not happening in Windows.
+    //  So, added malloc_trim for linux build until we figure out a better solution.
+        malloc_trim(0);
+#endif
+
+    return output_kernels;
 }
 
 }  // namespace cldnn

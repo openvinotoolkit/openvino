@@ -10,10 +10,12 @@
 #pragma once
 
 #include "openvino/runtime/common.hpp"
-#include "threading/ie_istreams_executor.hpp"
-#include "threading/ie_itask_executor.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
+#include "openvino/runtime/threading/itask_executor.hpp"
 
 namespace ov {
+
+namespace threading {
 
 /**
  * @interface ExecutorManager
@@ -31,7 +33,7 @@ public:
      * @param id An unique identificator of device (Usually string representation of TargetDevice)
      * @return A shared pointer to existing or newly ITaskExecutor
      */
-    virtual InferenceEngine::ITaskExecutor::Ptr get_executor(const std::string& id) = 0;
+    virtual std::shared_ptr<ov::threading::ITaskExecutor> get_executor(const std::string& id) = 0;
 
     /**
      * @brief Returns idle cpu streams executor
@@ -40,8 +42,8 @@ public:
      *
      * @return pointer to streams executor config
      */
-    virtual InferenceEngine::IStreamsExecutor::Ptr get_idle_cpu_streams_executor(
-        const InferenceEngine::IStreamsExecutor::Config& config) = 0;
+    virtual std::shared_ptr<ov::threading::IStreamsExecutor> get_idle_cpu_streams_executor(
+        const ov::threading::IStreamsExecutor::Config& config) = 0;
 
     /**
      * @brief Allows to configure executor manager
@@ -73,5 +75,5 @@ public:
 };
 
 OPENVINO_API std::shared_ptr<ExecutorManager> executor_manager();
-
+}  // namespace threading
 }  // namespace ov
