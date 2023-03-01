@@ -424,8 +424,6 @@ class TestParallelRunner:
                         test_cnt_expected = line.count(':')
                     if constants.RUN in line:
                         test_name = line[line.find(constants.RUN) + len(constants.RUN) + 1:-1:]
-                    if test_name == "conformance_ConvolutionBackpropData/ReadIRTest.ReadIR/Op=ConvolutionBackpropData.1_Type=f32_IR=6114384_Device=CPU_Config=()":
-                        a = 0
                     if dir is None:
                         for test_st, mes_list in constants.TEST_STATUS.items():
                             for mes in mes_list:
