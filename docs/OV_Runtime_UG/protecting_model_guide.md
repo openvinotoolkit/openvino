@@ -16,9 +16,8 @@ This guide presents how to use OpenVINO securely with protected models.
 
 After a model is optimized by the OpenVINO Model Optimizer, it's deployed
 to target devices in the OpenVINO Intermediate Representation (OpenVINO IR) format. An optimized
-model is stored on edge device and is executed by the OpenVINO Runtime. 
-TensorFlow (check [TensorFlow Frontend Capabilities and Limitations](../resources/tensorflow_frontend.md)), ONNX
-and PaddlePaddle models can be read natively by OpenVINO Runtime as well.
+model is stored on edge device and is executed by the OpenVINO Runtime.
+TensorFlow, ONNX and PaddlePaddle models can be read natively by OpenVINO Runtime as well.
 
 Encrypting and optimizing model before deploying it to the edge device can be
 used to protect deep-learning models. The edge device should keep the stored model
