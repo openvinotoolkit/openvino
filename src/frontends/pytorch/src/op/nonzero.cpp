@@ -19,7 +19,7 @@ OutputVector translate_nonzero(NodeContext& context) {
     num_inputs_check(context, 1, 1);
     auto cond = context.get_input(0);
     auto non_zero = context.mark_node(std::make_shared<v3::NonZero>(cond));
-    auto input_order = context.mark_node(v0::Constant::create(element::i64, Shape{2}, {1, 0}));
+    auto input_order = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {1, 0}));
     return {context.mark_node(std::make_shared<v1::Transpose>(non_zero, input_order))};
 };
 

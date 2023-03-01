@@ -25,7 +25,7 @@ OutputVector translate_slice(NodeContext& context) {
     int start_idx;
     int end_idx;
     int step_idx;
-    auto axis_0 = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
+    auto axis_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     if (context.get_input_size() == 5) {
         dim = context.get_input(1);
         if (dim.get_partial_shape().rank().is_dynamic() || dim.get_partial_shape().rank().get_length() == 0) {
@@ -38,7 +38,7 @@ OutputVector translate_slice(NodeContext& context) {
         start_idx = 1;
         end_idx = 2;
         step_idx = 3;
-        dim = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
+        dim = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
     } else {
         FRONT_END_OP_CONVERSION_CHECK(false, "Slice must have either 4 or 5 inputs.");
     }
@@ -50,7 +50,7 @@ OutputVector translate_slice(NodeContext& context) {
             start = context.mark_node(std::make_shared<v0::Unsqueeze>(start, axis_0));
         }
     } else {
-        start = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
+        start = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
     }
 
     ov::Output<ov::Node> end;
@@ -60,7 +60,7 @@ OutputVector translate_slice(NodeContext& context) {
             end = context.mark_node(std::make_shared<v0::Unsqueeze>(end, axis_0));
         }
     } else {
-        end = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {INT_MAX}));
+        end = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {INT_MAX}));
     }
     ov::Output<ov::Node> step;
     if (!context.input_is_none(step_idx)) {
@@ -69,7 +69,7 @@ OutputVector translate_slice(NodeContext& context) {
             step = context.mark_node(std::make_shared<v0::Unsqueeze>(step, axis_0));
         }
     } else {
-        step = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1}));
+        step = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
     }
     return {context.mark_node(std::make_shared<v8::Slice>(context.get_input(0), start, end, step, dim))};
 };

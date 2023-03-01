@@ -30,7 +30,7 @@ OutputVector translate_roll(NodeContext& context) {
         const auto axis_0 = v0::Constant::create(element::i32, Shape{1}, {0});
         const auto flat = std::make_shared<v1::Reshape>(data, const_minus_1, false);
         const auto roll = std::make_shared<v7::Roll>(flat, shifts, axis_0);
-        const auto shape_of_data = std::make_shared<v3::ShapeOf>(data);
+        const auto shape_of_data = std::make_shared<v3::ShapeOf>(data, element::i32);
         const auto reshape = std::make_shared<v1::Reshape>(roll, shape_of_data, false);
         context.mark_nodes({const_minus_1, flat, roll, shape_of_data, reshape});
         return {reshape};

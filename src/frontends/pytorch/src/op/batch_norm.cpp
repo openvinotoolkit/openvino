@@ -23,9 +23,9 @@ namespace {
 Output<Node> broadcast_const_to_channel_dim(const NodeContext& context,
                                             const Output<Node>& input,
                                             const Output<Node>& value) {
-    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input));
-    auto zero_i = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
-    auto one_i = context.mark_node(v0::Constant::create(element::i64, Shape{}, {1}));
+    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
+    auto zero_i = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    auto one_i = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
     auto channel_dim = context.mark_node(std::make_shared<v8::Gather>(input_shape, one_i, zero_i));
     auto channel_dim_exp = context.mark_node(std::make_shared<v0::Unsqueeze>(channel_dim, zero_i));
     return context.mark_node(std::make_shared<v3::Broadcast>(value, channel_dim_exp));
