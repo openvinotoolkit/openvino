@@ -3,6 +3,7 @@
 #
 
 add_subdirectory(unit)
+add_subdirectory(helpers)
 
 if(ENABLE_FUNCTIONAL_TESTS)
     function(ov_cpu_func_tests)

@@ -47,9 +47,9 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
     manager.register_pass<ov::pass::ReshapeSequenceFusion>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ov::pass::ConvertPrecision>(precisions_array {{ ngraph::element::i64, ngraph::element::i32 }});
+    manager.register_pass<ov::pass::Validate>();
     if (!enableDynamicBatch)
         manager.register_pass<mixed_affinity::MixedAffinity>();
-    manager.register_pass<ov::pass::Validate>();
 
     manager.run_passes(nGraphFunc);
 }

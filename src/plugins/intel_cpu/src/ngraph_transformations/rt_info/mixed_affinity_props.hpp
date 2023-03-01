@@ -3,8 +3,6 @@
 //
 
 #include <ngraph/node.hpp>
-#include <ngraph/variant.hpp>
-
 #include "../mixed_affinity_utils.hpp"
 
 namespace ov {
