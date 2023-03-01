@@ -64,7 +64,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(std::shared_ptr<T
                 for (size_t i = 0; i < sh.size(); i++) {
                     new_shape[order[i]] = sh[i];
                 }
-                auto shape_const = v0::Constant::create(element::i64, {new_shape.size()}, new_shape);
+                auto shape_const = v0::Constant::create(element::i32, {new_shape.size()}, new_shape);
                 auto reshape = std::make_shared<v1::Reshape>(parameter, shape_const, false);
                 auto order_const = v0::Constant::create(element::i32, {order.size()}, order);
                 auto transpose = std::make_shared<v1::Transpose>(reshape, order_const);

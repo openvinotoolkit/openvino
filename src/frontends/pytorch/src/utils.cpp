@@ -46,13 +46,13 @@ Output<Node> make_optional_bias(const Output<Node>& base_op,
 Output<Node> reshape_channelwise(const NodeContext& context,
                                  const Output<Node>& data,
                                  const Output<Node>& shape_source) {
-    auto input_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(shape_source));
-    auto input_rank = context.mark_node(std::make_shared<opset10::ShapeOf>(input_shape));
-    auto one_const = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {1}));
-    auto two_const = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {2}));
+    auto input_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(shape_source, element::i32));
+    auto input_rank = context.mark_node(std::make_shared<opset10::ShapeOf>(input_shape, element::i32));
+    auto one_const = context.mark_node(opset10::Constant::create(element::i32, Shape{1}, {1}));
+    auto two_const = context.mark_node(opset10::Constant::create(element::i32, Shape{1}, {2}));
     auto tail_shape_rank = context.mark_node(std::make_shared<opset10::Subtract>(input_rank, two_const));
     auto tail_shape = context.mark_node(std::make_shared<opset10::Broadcast>(one_const, tail_shape_rank));
-    auto channels_dim = context.mark_node(std::make_shared<opset10::ShapeOf>(data));
+    auto channels_dim = context.mark_node(std::make_shared<opset10::ShapeOf>(data, element::i32));
     auto new_shape =
         context.mark_node(std::make_shared<opset10::Concat>(OutputVector{one_const, channels_dim, tail_shape}, 0));
 
@@ -74,19 +74,19 @@ std::tuple<Output<Node>, Output<Node>> get_shape_rank(const NodeContext& context
 Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<Node>& kernel, int64_t groups) {
     using std::make_shared;
 
-    auto axis_0 = opset10::Constant::create(element::i64, Shape{}, {0});
-    auto groups_const = opset10::Constant::create(element::i64, Shape{1}, {groups});
-    auto neg_1_const = opset10::Constant::create(element::i64, Shape{1}, {-1});
+    auto axis_0 = opset10::Constant::create(element::i32, Shape{}, {0});
+    auto groups_const = opset10::Constant::create(element::i32, Shape{1}, {groups});
+    auto neg_1_const = opset10::Constant::create(element::i32, Shape{1}, {-1});
 
-    auto kernel_shape = std::make_shared<opset10::ShapeOf>(kernel);
-    auto c_out_idx = opset10::Constant::create(element::i64, Shape{}, {0});
+    auto kernel_shape = std::make_shared<opset10::ShapeOf>(kernel, element::i32);
+    auto c_out_idx = opset10::Constant::create(element::i32, Shape{}, {0});
     auto kernel_shape_0 = make_shared<opset10::Gather>(kernel_shape, c_out_idx, axis_0);
     auto kernel_shape_0_uns = make_shared<opset10::Unsqueeze>(kernel_shape_0, axis_0);
     auto c_out_value = make_shared<opset10::Divide>(kernel_shape_0_uns, groups_const);
 
-    auto start = opset10::Constant::create(element::i64, Shape{1}, {2});
-    auto stop = opset10::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>::max()});
-    auto step = opset10::Constant::create(element::i64, Shape{1}, {1});
+    auto start = opset10::Constant::create(element::i32, Shape{1}, {2});
+    auto stop = opset10::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>::max()});
+    auto step = opset10::Constant::create(element::i32, Shape{1}, {1});
     auto remaining_shape = make_shared<opset10::Slice>(kernel_shape, start, stop, step);
 
     auto new_kernel_shape =
@@ -117,8 +117,8 @@ std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id) {
 };
 
 std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x) {
-    auto input_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(x));
-    auto axes = context.mark_node(opset10::Constant::create(element::i64, Shape({1}), {0}));
+    auto input_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(x, element::i32));
+    auto axes = context.mark_node(opset10::Constant::create(element::i32, Shape({1}), {0}));
     return context.mark_node(std::make_shared<opset10::ReduceProd>(input_shape, axes, false));
 };
 

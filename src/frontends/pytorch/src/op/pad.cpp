@@ -52,30 +52,30 @@ OutputVector translate_pad(NodeContext& context) {
         int64_t pad_r;
         auto pad_last_id = paddings.size();
         auto cur = data.get_node_shared_ptr();
-        auto step = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1}));
+        auto step = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
         auto zero_1d = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
         for (size_t i = 0; i < pad_size_half; i++) {
             ov::NodeVector tensors;
             pad_r = paddings[pad_last_id - (2 * i + 1)];
             pad_l = paddings[pad_last_id - (2 * i + 2)];
-            auto axes = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {2 + i}));
+            auto axes = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {2 + i}));
             if (pad_l > 0) {
-                auto start = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-pad_l}));
+                auto start = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-pad_l}));
                 auto end = context.mark_node(std::make_shared<v8::Gather>(shape, axes, zero_1d));
 
                 auto left = context.mark_node(std::make_shared<v8::Slice>(cur, start, end, step, axes));
                 tensors.push_back(left);
             }
             if (pad_l < 0 || pad_r < 0) {
-                auto start = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {pad_l < 0 ? -pad_l : 0}));
-                auto end = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {pad_r < 0 ? pad_r : 0}));
+                auto start = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {pad_l < 0 ? -pad_l : 0}));
+                auto end = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {pad_r < 0 ? pad_r : 0}));
                 auto middle = context.mark_node(std::make_shared<v8::Slice>(cur, start, end, step, axes));
                 tensors.push_back(middle);
             } else {
                 tensors.push_back(cur);
             }
             if (pad_r > 0) {
-                auto end = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {pad_r}));
+                auto end = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {pad_r}));
                 auto right = context.mark_node(std::make_shared<v8::Slice>(cur, zero_1d, end, step, axes));
                 tensors.push_back(right);
             }

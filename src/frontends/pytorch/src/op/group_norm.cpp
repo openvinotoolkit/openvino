@@ -30,17 +30,17 @@ OutputVector translate_group_norm(NodeContext& context) {
     auto eps = static_cast<float>(context.const_input<double>(4));
     Output<Node> input_shape;
     Output<Node> input_rank;
-    std::tie(input_shape, input_rank) = get_shape_rank(context, data, true, element::i64);
-    auto scalar_one = context.mark_node(v0::Constant::create(element::i64, {}, {1}));
+    std::tie(input_shape, input_rank) = get_shape_rank(context, data, true, element::i32);
+    auto scalar_one = context.mark_node(v0::Constant::create(element::i32, {}, {1}));
     auto shape = context.mark_node(
-        std::make_shared<v0::Constant>(element::i64, Shape({3}), std::vector<int64_t>{0, num_groups, -1}));
+        std::make_shared<v0::Constant>(element::i32, Shape({3}), std::vector<int64_t>{0, num_groups, -1}));
     auto reshaped_input = context.mark_node(std::make_shared<v1::Reshape>(data, shape, true));
-    auto reduction_axes = context.mark_node(v0::Constant::create(element::i64, Shape({1}), std::vector<int64_t>(1, 2)));
+    auto reduction_axes = context.mark_node(v0::Constant::create(element::i32, Shape({1}), std::vector<int64_t>(1, 2)));
     auto reshaped_norm = context.mark_node(
         std::make_shared<v6::MVN>(reshaped_input, reduction_axes, true, eps, MVNEpsMode::INSIDE_SQRT));
     auto norm = context.mark_node(std::make_shared<v1::Reshape>(reshaped_norm, input_shape, true));
     auto skip_last = context.mark_node(std::make_shared<v1::Subtract>(input_rank, scalar_one));
-    auto axes = context.mark_node(std::make_shared<v4::Range>(scalar_one, skip_last, scalar_one, element::i64));
+    auto axes = context.mark_node(std::make_shared<v4::Range>(scalar_one, skip_last, scalar_one, element::i32));
     if (!context.input_is_none(2)) {
         auto weights = context.get_input(2);
         weights = context.mark_node(std::make_shared<v0::Unsqueeze>(weights, axes));

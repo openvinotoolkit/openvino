@@ -64,7 +64,7 @@ OutputVector translate_full_like(NodeContext& context) {
     num_inputs_check(context, 2, 7);
     auto input = context.get_input(0);
     auto value = context.get_input(1);
-    auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(input));
+    auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
     if (context.get_input_size() == 7) {
         return {base_translate_full_with_convert(context, sizes, value, 2)};
     }
@@ -76,7 +76,7 @@ OutputVector translate_fill_(NodeContext& context) {
     num_inputs_check(context, 2, 2);
     auto input = context.get_input(0);
     auto value = context.get_input(1);
-    auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(input));
+    auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
     return {base_translate_full_with_convertlike(context, sizes, value, input)};
 };
 
@@ -112,7 +112,7 @@ OutputVector translate_zeros_like(NodeContext& context) {
     num_inputs_check(context, 1, 6);
     auto input = context.get_input(0);
     auto value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
-    auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(input));
+    auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
     if (context.get_input_size() == 6) {
         return {base_translate_full_with_convert(context, sizes, value, 1)};
     }
@@ -152,7 +152,7 @@ OutputVector translate_ones_like(NodeContext& context) {
     num_inputs_check(context, 1, 6);
     auto input = context.get_input(0);
     auto value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {1}));
-    auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(input));
+    auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
     if (context.get_input_size() == 6) {
         return {base_translate_full_with_convert(context, sizes, value, 1)};
     }
