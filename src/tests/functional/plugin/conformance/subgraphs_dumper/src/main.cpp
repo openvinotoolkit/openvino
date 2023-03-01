@@ -112,7 +112,7 @@ void cacheModels(std::unique_ptr<SubgraphsDumper::OPCache> &cache,
                     ret_code = 1;
                     continue;
                 }
-                cache->update_ops_cache(function, extract_body, model.path);
+                cache->update_ops_cache(function, model, extract_body);
                 successful_models_file << model.path << std::endl;
             } catch (std::exception &e) {
                 not_fully_cached_models_file << model.path << std::endl;
