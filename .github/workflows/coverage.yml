@@ -68,7 +68,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Print system information
-        runs: |
+        run: |
           curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
           whoami
           uname -a
@@ -89,7 +89,7 @@ jobs:
           echo SourceBranch: $(Build.SourceBranch)
 
       - name: Setup directories
-        runs: |
+        run: |
           set -e
           rm -rf $(WORK_DIR) ; mkdir $(WORK_DIR)
           rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
@@ -102,7 +102,7 @@ jobs:
 
       - name: Install lcov
         #if: ${{ success() && $(CMAKE_BUILD_SHARED_LIBS) == 'ON'}}
-        runs: sudo apt --assume-yes install lcov
+        run: sudo apt --assume-yes install lcov
 
       - name: Clone OpenVINO
         uses: actions/checkout@v3
@@ -122,14 +122,14 @@ jobs:
           path: ${OPENVINO_CONTRIB_REPO_NAME}
 
       - name: Install cmake
-        runs: |
+        run: |
           wget "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.sh"
           chmod +x ./cmake-${CMAKE_VERSION}-linux-x86_64.sh
           sudo ./cmake-${CMAKE_VERSION}-linux-x86_64.sh --prefix=/usr/local/ --skip-license
           rm -rf ./cmake-${CMAKE_VERSION}-linux-x86_64.sh
 
       - name: Install dependencies
-        runs: |      
+        run: |      
           set -e
           $(REPO_DIR)/install_build_dependencies.sh
           # Move jdk into contrib
@@ -171,7 +171,7 @@ jobs:
         working-directory: $(WORK_DIR)
 
       - name: Print system information
-        runs: |
+        run: |
           curl -H Metadata:true --noproxy "*" "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
           whoami
           uname -a
@@ -200,7 +200,7 @@ jobs:
           path: ${OPENVINO_TESTDATA_REPO_NAME}
 
       - name: CMake OpenVINO
-        runs: |
+        run: |
           cmake -GNinja \
             -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
@@ -226,13 +226,13 @@ jobs:
             -B $(BUILD_DIR)
       
       - name: List temp SDKs
-        runs: ls -alR $(REPO_DIR)/temp/
+        run: ls -alR $(REPO_DIR)/temp/
 
       - name: Clean ccache stats
-        runs: ccache --zero-stats --max-size=50G --show-config
+        run: ccache --zero-stats --max-size=50G --show-config
 
       - name: Build linux
-        runs: |  
+        run: |  
           echo "CCACHE_DIR=$(CCACHE_DIR)" >> $GITHUB_ENV
           echo "CCACHE_TEMPDIR=$(TMP_DIR)/ccache" >> $GITHUB_ENV
           echo "CCACHE_BASEDIR=$(Pipeline.Workspace)" >> $GITHUB_ENV
@@ -240,10 +240,10 @@ jobs:
           ninja -C $(BUILD_DIR)
 
       - name: Show ccache stats
-        runs: ccache --show-stats
+        run: ccache --show-stats
 
       - name: List bin files
-        runs: ls -alR $(REPO_DIR)/bin/
+        run: ls -alR $(REPO_DIR)/bin/
 
       - name:  CMake Layer Tests
         run: cmake -GNinja $(REPO_DIR)/tests/layer_tests
@@ -259,12 +259,12 @@ jobs:
         run: cmake -DCOMPONENT=tests -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -P $(BUILD_LAYER_TESTS_DIR)/cmake_install.cmake
 
       - name: Install python wheels
-        runs: |
+        run: |
           . $(PY_VENV)/bin/activate
           python3 -m pip install openvino-dev --find-links=$(INSTALL_DIR)/tools
 
       - name: Install tests
-        runs: |
+        run: |
           set -e
           cmake -DCMAKE_INSTALL_PREFIX=$(INSTALL_DIR) -DCOMPONENT=tests -P $(BUILD_DIR)/cmake_install.cmake
 
@@ -272,7 +272,7 @@ jobs:
         run: ls -alR $(INSTALL_DIR)
 
       - name: nGraph and IE Python Bindings Tests
-        runs: |
+        run: |
           . $(PY_VENV)/bin/activate
           echo "DATA_PATH=$(MODELS_PATH)" >> $GITHUB_ENV
           echo "MODELS_PATH=$(MODELS_PATH)" >> $GITHUB_ENV
@@ -286,7 +286,7 @@ jobs:
 
       - name: Python API 2.0 Tests
         #if: ${{ success() }}
-        runs: |
+        run: |
           . $(PY_VENV)/bin/activate
           echo "DATA_PATH=$(MODELS_PATH)" >> $GITHUB_ENV
           echo "MODELS_PATH=$(MODELS_PATH)" >> $GITHUB_ENV
@@ -304,7 +304,7 @@ jobs:
         continue-on-error: false
 
       - name: Model Optimizer UT
-        runs: |
+        run: |
           . $(PY_VENV)/bin/activate
           # because of static build libgna is needed for python binary
           echo "LD_LIBRARY_PATH=$(REPO_DIR)/temp/gna_03.00.00.1815.1/linux/x64:$(LD_LIBRARY_PATH)" >> $GIHUB_ENV
@@ -323,14 +323,14 @@ jobs:
         continue-on-error: false
 
       - name: Build Cpp samples - clang
-        runs: |
+        run: |
           echo "CC=clang" >> $GITHUB_ENV
           echo "CXX=clang++" >> $GITHUB_ENV
           $(SAMPLES_INSTALL_DIR)/cpp/build_samples.sh -i $(INSTALL_DIR) -b $(BUILD_DIR)/cpp_samples
         continue-on-error: false
 
       - name: Build c samples
-        runs: |
+        run: |
           echo "VERBOSE=1" >> $GITHUB_ENV
           $(SAMPLES_INSTALL_DIR)/c/build_samples.sh -i $(INSTALL_DIR) -b $(BUILD_DIR)/c_samples
         continue-on-error: false
@@ -352,7 +352,7 @@ jobs:
         continue-on-error: false
 
       - name: TensorFlow Frontend Unit Tests
-        runs: |
+        run: |
           echo "OV_FRONTEND_PATH=$(INSTALL_TEST_DIR)" >> $GITHUB_ENV
           $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_tensorflow_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-Tensorflow.xml
         continue-on-error: false
@@ -386,7 +386,7 @@ jobs:
         continueOnError: false
 
       - name: IE FuncTests
-        runs: |
+        run: |
           # because of IR reader v7
           echo "LD_LIBRARY_PATH=$(INSTALL_TEST_DIR)" >> $GITHUB_ENV
           $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieFuncTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieFuncTests.xml
@@ -397,14 +397,14 @@ jobs:
         continueOnError: false
 
       - name: IE CAPITests
-        runs: |
+        run: |
           echo "DATA_PATH=$(MODELS_PATH)" >> $GITHUB_ENV
           echo "MODELS_PATH=$(MODELS_PATH)" >> $GITHUB_ENV
           $(RUN_PREFIX) $(INSTALL_TEST_DIR)/InferenceEngineCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-InferenceEngineCAPITests.xml
         continueOnError: false
 
       - name: OV CAPITests
-        runs: |
+        run: |
           echo "DATA_PATH=$(MODELS_PATH)" >> $GITHUB_ENV
           echo "MODELS_PATH=$(MODELS_PATH) >> $GITHUB_ENV
           $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_capi_test --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_capi_test.xml
@@ -412,7 +412,7 @@ jobs:
 
       - name: Build Coverage
         #if: ${{ success() }}
-        runs: |
+        run: |
           echo "CCACHE_DIR=$(CCACHE_DIR)" >> $GITHUB_ENV
           echo "CCACHE_TEMPDIR=$(TMP_DIR)/ccache" >> $GITHUB_ENV
           echo "CCACHE_BASEDIR=$(Pipeline.Workspace)" >> $GITHUB_ENV
