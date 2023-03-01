@@ -48,7 +48,8 @@ public:
     /**
      * @brief Defines IStreamsExecutor configuration
      */
-    struct OPENVINO_RUNTIME_API Config {
+    class OPENVINO_RUNTIME_API Config {
+    public:
         /**
          * @brief Sets configuration
          * @param properties map of properties

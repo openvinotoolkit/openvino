@@ -39,7 +39,8 @@ public:
     /**
      * @brief Defines IStreamsExecutor configuration
      */
-    struct INFERENCE_ENGINE_API_CLASS(Config) : public ov::threading::IStreamsExecutor::Config {
+    class INFERENCE_ENGINE_API_CLASS(Config) : public ov::threading::IStreamsExecutor::Config {
+    public:
         /**
          * @brief Supported Configuration keys
          * @return vector of supported configuration keys
