@@ -6,14 +6,15 @@ You should install OpenVINO™ Runtime on your system first.
 
 You should also move here native addon module `Release/ov_node_addon.node` from the build directory.
 
+To run the example you need to pass a path to an image and a path to the required model.
 ```sh
 $ npm install
-$ node <example-name> <path-to-image>
+$ node <example-name> <path-to-image> <path-to-model>
 ```
 
-## Examples
+## Examples and models required for them
 
- - ppp_example.js
- - read_model_async_example.js
- - simple_inference_example.js
+ - ppp_example.js - `resnet50-v1-7.onnx`
+ - read_model_async_example.js - `v3-small_224_1.0_float.xml`
+ - simple_inference_example.js - `v3-small_224_1.0_float.xml`
 

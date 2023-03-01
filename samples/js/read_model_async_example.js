@@ -2,7 +2,7 @@ var ov = require('bindings')('ov_node_addon.node');
 
 
 const fs = require('fs');
-const imagenet_classes = fs.readFileSync('./data/imagenet_2012.txt').toString().split("\n");
+const imagenet_classes = fs.readFileSync('./imagenet_2012_labels.txt').toString().split("\n");
 const math = require('./lib/math_func.js');
 const Jimp = require('jimp');
 
@@ -23,10 +23,12 @@ async function create_tensor(img_path) {
 async function onRuntimeInitialized()
 {
     const img_path = process.argv[2];
+    const model_path = process.argv[3];
     const core = new ov.Core();
 
     /*   ---Read model asynchronously and create a promise---   */
-    const model_promise = core.read_model_async("./data/v3-small_224_1.0_float.xml");
+    
+    const model_promise = core.read_model_async(model_path);
 
     /*   ---Create a promise with tensor---   */
     const tensor_promise = create_tensor(img_path)

@@ -1,17 +1,18 @@
 var ov = require('bindings')('ov_node_addon.node');
 
 
-const math = require('.lib/math_func.js');
+const math = require('./lib/math_func.js');
 const Jimp = require('jimp');
 const fs = require('fs');
-const imagenet_classes = fs.readFileSync('./data/imagenet_2012.txt').toString().split("\n");
+const imagenet_classes = fs.readFileSync('./imagenet_2012_labels.txt').toString().split("\n");
 
 async function onRuntimeInitialized()
 {
 
     
     /*   ---Load the model---   */
-    const model = new ov.Model().read_model("./data/resnet50-v1-7.onnx")
+    const model_path = process.argv[3];
+    const model = new ov.Model().read_model(model_path)
 
     ppp = new ov.PrePostProcessor(model)
                     .set_input_tensor_shape([1, 224, 224, 3])
