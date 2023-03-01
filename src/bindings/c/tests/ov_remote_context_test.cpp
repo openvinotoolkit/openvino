@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ov_test.hpp"
-
 #include "openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp"
+#include "ov_test.hpp"
 
 class ov_remote_context_ocl : public ::testing::TestWithParam<std::string> {
 protected:
