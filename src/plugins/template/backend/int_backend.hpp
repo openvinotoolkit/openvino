@@ -11,18 +11,13 @@
 #include <vector>
 
 #include "backend.hpp"
-#include "ngraph/runtime/tensor.hpp"
+#include "openvino/core/model.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace runtime {
 namespace interpreter {
-class INTBackend;
-class INTExecutable;
-}  // namespace interpreter
-}  // namespace runtime
-}  // namespace ngraph
 
-class ngraph::runtime::interpreter::INTBackend : public Backend {
+class INTBackend : public Backend {
 public:
     INTBackend();
     INTBackend(const std::vector<std::string>& unsupported_op_name_list);
@@ -30,20 +25,18 @@ public:
     INTBackend(INTBackend&&) = delete;
     INTBackend& operator=(const INTBackend&) = delete;
 
-    std::shared_ptr<Tensor> create_tensor() override;
+    ov::Tensor create_tensor() override;
 
-    std::shared_ptr<Tensor> create_tensor(const element::Type& type, const Shape& shape, void* memory_pointer) override;
+    ov::Tensor create_tensor(const element::Type& type, const Shape& shape, void* memory_pointer) override;
 
-    std::shared_ptr<Tensor> create_tensor(const element::Type& type, const Shape& shape) override;
-    std::shared_ptr<Tensor> create_dynamic_tensor(const element::Type& type, const PartialShape& shape) override;
+    ov::Tensor create_tensor(const element::Type& type, const Shape& shape) override;
 
-    std::shared_ptr<Executable> compile(std::shared_ptr<Function> function,
-                                        bool enable_performance_data = false) override;
-
-    bool is_supported(const Node& node) const override;
-
-    bool set_config(const std::map<std::string, std::string>& config, std::string& error) override;
+    std::shared_ptr<Executable> compile(std::shared_ptr<ov::Model> model) override;
 
 private:
     std::set<std::string> m_unsupported_op_name_list;
 };
+
+}  // namespace interpreter
+}  // namespace runtime
+}  // namespace ov
