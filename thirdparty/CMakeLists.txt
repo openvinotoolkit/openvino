@@ -96,7 +96,8 @@ if(ENABLE_INTEL_GPU)
     endif()
 
     if(SUGGEST_OVERRIDE_SUPPORTED)
-        set_target_properties(${opencl_target} PROPERTIES INTERFACE_COMPILE_OPTIONS "-Wno-suggest-override")
+        set_target_properties(${opencl_target} PROPERTIES INTERFACE_COMPILE_OPTIONS
+            $<$<COMPILE_LANGUAGE:CXX>:-Wno-suggest-override>)
     endif()
 
     # used in tests
