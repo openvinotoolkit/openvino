@@ -90,6 +90,7 @@ def part5():
 #! [part5]
     core = Core()
     model = core.read_model(model_path)
+    # gpu_config and cpu_config will load during compile_model()
     compiled_model = core.compile_model(model=model)
     compiled_model = core.compile_model(model=model, device_name="AUTO")
 #! [part5]
