@@ -29,6 +29,11 @@ ov::CompiledModel compiled_model = core.compile_model("model.pdmodel", "AUTO");
 }
 {
 //! [part2_4]
+ov::CompiledModel compiled_model = core.compile_model("model.pb", "AUTO");
+//! [part2_4]
+}
+{
+//! [part2_5]
 auto create_model = []() {
     std::shared_ptr<ov::Model> model;
     // To construct a model, please follow 
@@ -37,7 +42,7 @@ auto create_model = []() {
 };
 std::shared_ptr<ov::Model> model = create_model();
 compiled_model = core.compile_model(model, "AUTO");
-//! [part2_4]
+//! [part2_5]
 }
 
 //! [part3]

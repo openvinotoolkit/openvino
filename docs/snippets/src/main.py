@@ -20,6 +20,9 @@ compiled_model = core.compile_model("model.onnx", "AUTO")
 compiled_model = core.compile_model("model.pdmodel", "AUTO")
 #! [part2_3]
 #! [part2_4]
+compiled_model = core.compile_model("model.pb", "AUTO")
+#! [part2_4]
+#! [part2_5]
 def create_model():
     # This example shows how to create ov::Function
     #
@@ -31,7 +34,7 @@ def create_model():
 
 model = create_model()
 compiled_model = core.compile_model(model, "AUTO")
-#! [part2_4]
+#! [part2_5]
 
 #! [part3]
 infer_request = compiled_model.create_infer_request()
