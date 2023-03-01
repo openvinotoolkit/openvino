@@ -2,8 +2,8 @@
 
 GPU plugin has two types of tests: functional and unit tests. This article is about the latter.
 
-- The functional test is testing a single layer, behavior, sub graph and low precision transformation on inference engine level for various layout and data types, such as FP16 and FP32.
-- The unit test is testing clDNN primitive and core type modules on GPU plugin level. Unlike the functional test, it is possible to test by explicitly specifying the format of the input, such as `bfyx` or `b_fs_yx_fsv16`.
+- The functional test is testing a single layer, behavior, subgraph and low-precision transformation on inference engine level for various layout and data types, such as FP16 and FP32.
+- The unit test is testing clDNN primitive and core-type modules on GPU plugin level. Unlike the functional test, it is possible to test by explicitly specifying the format of the input, such as `bfyx` or `b_fs_yx_fsv16`.
 
 # Structure of a unit test
 
