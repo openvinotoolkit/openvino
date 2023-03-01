@@ -101,11 +101,17 @@ Compile the model for a specific device using ``ov::Core::compile_model()``:
          :language: cpp
          :fragment: [part2_4]
 
-   .. tab:: ov::Model
+   .. tab:: TensorFlow Lite
 
       .. doxygensnippet:: docs/snippets/src/main.cpp
          :language: cpp
          :fragment: [part2_5]
+
+   .. tab:: ov::Model
+
+      .. doxygensnippet:: docs/snippets/src/main.cpp
+         :language: cpp
+         :fragment: [part2_6]
 
 .. tab:: Python
 
@@ -133,11 +139,17 @@ Compile the model for a specific device using ``ov::Core::compile_model()``:
          :language: python
          :fragment: [part2_4]
 
-   .. tab:: ov::Model
+   .. tab:: TensorFlow Lite
 
       .. doxygensnippet:: docs/snippets/src/main.py
          :language: python
          :fragment: [part2_5]
+
+   .. tab:: ov::Model
+
+      .. doxygensnippet:: docs/snippets/src/main.py
+         :language: python
+         :fragment: [part2_6]
 
 .. tab:: C
 
@@ -165,11 +177,17 @@ Compile the model for a specific device using ``ov::Core::compile_model()``:
          :language: cpp
          :fragment: [part2_4]
 
-   .. tab:: ov::Model
+   .. tab:: TensorFlow Lite
 
       .. doxygensnippet:: docs/snippets/src/main.c
          :language: cpp
          :fragment: [part2_5]
+
+   .. tab:: ov::Model
+
+      .. doxygensnippet:: docs/snippets/src/main.c
+         :language: cpp
+         :fragment: [part2_6]
 
 
 The ``ov::Model`` object represents any models inside the OpenVINO™ Runtime.
