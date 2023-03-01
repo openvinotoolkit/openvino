@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { createCanvas, loadImage } from 'canvas';
 
-import ovWrapper from '../dist/ov_wrapper.mjs';
+import ovWrapper from '../../common/ov_wrapper.mjs';
 import openvinojs from '../dist/openvino_wasm.js';
 import { getMaxElement } from '../dist/helpers.mjs';
 
@@ -38,7 +38,7 @@ async function run() {
   const imgData = await getArrayByImg(img);
   const imgTensor = new Tensor('uint8', imgData, shape);
 
-  const outputTensor = await model.run(imgTensor);
+  const outputTensor = await model.infer(imgTensor);
 
   console.log('== Output tensor:');
   console.log(outputTensor.data);

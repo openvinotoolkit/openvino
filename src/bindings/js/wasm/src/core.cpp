@@ -42,7 +42,7 @@ EMSCRIPTEN_BINDINGS(my_module) {
 
     class_<Session>("Session")
     .constructor<std::string, std::string, ShapeLite*, std::string>()
-    .function("run", &Session::run, allow_raw_pointers())
+    .function("infer", &Session::infer, allow_raw_pointers())
     ;
 
     class_<ShapeLite>("Shape")

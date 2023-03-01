@@ -64,11 +64,9 @@ Session::Session(std::string xml_path, std::string bin_path, ShapeLite* shape, s
         std::cout << "== Error in Session constructor: " << e.what() << std::endl;
         throw e;
     }
-
-    this->shape = shape;
 }
 
-TensorLite Session::run(TensorLite* tensor_lite) {
+TensorLite Session::infer(TensorLite* tensor_lite) {
     std::cout << "== Run inference: " << std::endl;
     ov::Tensor output_tensor;
 

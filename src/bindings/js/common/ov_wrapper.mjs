@@ -1,4 +1,4 @@
-import Tensor from "../../common/tensor.mjs";
+import Tensor from "./tensor.mjs";
 
 export default { initialize };
 
@@ -28,11 +28,11 @@ function loadModel(ov) {
 
     // Do not freeze UI wrapper
     return { 
-      run: (tensor) => {
-        const run = runInference(ov, session);
+      infer: (tensor) => {
+        const infer = runInference(ov, session);
         
         return new Promise(resolve => {
-          setTimeout(() => resolve(run(tensor)), 0)
+          setTimeout(() => resolve(infer(tensor)), 0)
         });
       }
     };
@@ -47,7 +47,7 @@ function runInference(ov, session) {
     try {
       console.time('== Inference time');
       originalTensor = tensor.convert(ov);
-      originalOutputTensor = session.run(originalTensor.obj);
+      originalOutputTensor = session.infer(originalTensor.obj);
       console.timeEnd('== Inference time');
     } finally {
       if (originalTensor) originalTensor.free();
