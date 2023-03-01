@@ -44,7 +44,7 @@ env:
   REPO_DIR: $(Build.Repository.LocalPath)
   OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)/../openvino_contrib
   MODELS_PATH: $(REPO_DIR)/../testdata
-  WORK_DIR: $(Pipeline.Workspace)/_w
+  WORK_DIR: ${{ github.workspace }}
   BUILD_DIR: $(WORK_DIR)/build
   BUILD_SAMPLES_DIR: $(WORK_DIR)/build_samples
   BUILD_LAYER_TESTS_DIR: $(WORK_DIR)/build_layer_tests
