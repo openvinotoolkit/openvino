@@ -449,6 +449,15 @@ def prepare_ir(argv: argparse.Namespace):
     t.send_event("mo", "conversion_method", "mo_legacy")
     graph = unified_pipeline(argv)
 
+    # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
+    # If TF model was saved to tmp .pb file, then fallback to legacy happened (for example due to usage of legacy extensions in params),
+    # then tmp .pb file needs removal.
+    if is_tf and path_to_aux_pb is not None:
+        argv.input_model = orig_argv_values["input_model"]
+        argv.model_name = orig_argv_values["model_name"]
+        if os.path.exists(path_to_aux_pb):
+            os.remove(path_to_aux_pb)
+
     return graph, ngraph_function
 
 
