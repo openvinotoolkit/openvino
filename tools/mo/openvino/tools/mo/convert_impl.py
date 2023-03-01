@@ -390,12 +390,6 @@ def prepare_ir(argv: argparse.Namespace):
     # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
     # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
     is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
-    path_to_aux_pb = None
-    orig_argv_values = {"input_model": argv.input_model, "model_name": argv.model_name}
-    if not argv.use_legacy_frontend and is_tf:
-        from openvino.tools.mo.front.tf.loader import convert_to_pb
-        path_to_aux_pb = convert_to_pb(argv)
-
     argv = arguments_post_parsing(argv)
     t = tm.Telemetry()
     graph = None
@@ -405,6 +399,11 @@ def prepare_ir(argv: argparse.Namespace):
     if moc_front_end:
         fallback_reasons = check_fallback(argv)
         if len(fallback_reasons) == 0:
+            path_to_aux_pb = None
+            orig_argv_values = {"input_model": argv.input_model, "model_name": argv.model_name}
+            if not argv.use_legacy_frontend and is_tf:
+                from openvino.tools.mo.front.tf.loader import convert_to_pb
+                path_to_aux_pb = convert_to_pb(argv)
             try:
                 t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
                 moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
@@ -448,15 +447,6 @@ def prepare_ir(argv: argparse.Namespace):
 
     t.send_event("mo", "conversion_method", "mo_legacy")
     graph = unified_pipeline(argv)
-
-    # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
-    # If TF model was saved to tmp .pb file, then fallback to legacy happened (for example due to usage of legacy extensions in params),
-    # then tmp .pb file needs removal.
-    if is_tf and path_to_aux_pb is not None:
-        argv.input_model = orig_argv_values["input_model"]
-        argv.model_name = orig_argv_values["model_name"]
-        if os.path.exists(path_to_aux_pb):
-            os.remove(path_to_aux_pb)
 
     return graph, ngraph_function
 
