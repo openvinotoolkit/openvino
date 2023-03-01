@@ -24,6 +24,7 @@
 #include "einsum_shape_inference.hpp"
 #include "embedding_segments_sum_shape_inference.hpp"
 #include "embeddingbag_offsets_shape_inference.hpp"
+#include "embeddingbag_packed_sum_shape_inference.hpp"
 #include "experimental_detectron_detection_output_shape_inference.hpp"
 #include "experimental_detectron_generate_proposals_shape_inference.hpp"
 #include "experimental_detectron_prior_grid_generator_shape_inference.hpp"
@@ -535,6 +536,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(DFT, entryIOC),
     _OV_OP_SHAPE_INFER_REG(Einsum, entryIO),
     _OV_OP_SHAPE_INFER_REG(EmbeddingBagOffsetsSum, entryIO),
+    _OV_OP_SHAPE_INFER_REG(EmbeddingBagPackedSum, entryIO),
     _OV_OP_SHAPE_INFER_REG(EmbeddingSegmentsSum, entryIOC),
     _OV_OP_SHAPE_INFER_REG(ExperimentalDetectronDetectionOutput, entryIO),
     _OV_OP_SHAPE_INFER_REG(ExperimentalDetectronGenerateProposalsSingleImage, entryIO),
