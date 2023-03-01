@@ -301,14 +301,14 @@ std::vector<shared_ptr<ov::Node>> ov::Model::get_ordered_ops() const {
         return nodes;
     }
 
+    for (auto& param : get_parameters()) {
+        nodes.push_back(param);
+    }
     for (const auto& r : get_results()) {
         nodes.emplace_back(r);
     }
     for (auto& r : get_sinks()) {
         nodes.emplace_back(r);
-    }
-    for (auto& param : get_parameters()) {
-        nodes.push_back(param);
     }
 
     auto order = m_topological_sorter(nodes);
