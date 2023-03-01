@@ -1,26 +1,27 @@
-on:
-  push:
-    # branches:
-    #   - 'master'
-    #   - 'releases/*'
-    paths-ignore:
-      - '*/docs/*'
-      - 'docs/*'
-      - '*/*.md'
-      - '*.md'
-      - '*/layer_tests_summary/*'
-      - '*/conformance/*'
-  pull_request:
-    branches:
-      - 'master'
-      - 'releases/*'
-    paths-ignore:
-      - '*/docs/*'
-      - 'docs/*'
-      - '*/*.md'
-      - '*.md'
-      - '*/layer_tests_summary/*'
-      - '*/conformance/*'
+name: Code Coverage
+on: [push, pull_request]
+# push:
+#   # branches:
+#   #   - 'master'
+#   #   - 'releases/*'
+#   paths-ignore:
+#     - '*/docs/*'
+#     - 'docs/*'
+#     - '*/*.md'
+#     - '*.md'
+#     - '*/layer_tests_summary/*'
+#     - '*/conformance/*'
+# pull_request:
+#   branches:
+#     - 'master'
+#     - 'releases/*'
+#   paths-ignore:
+#     - '*/docs/*'
+#     - 'docs/*'
+#     - '*/*.md'
+#     - '*.md'
+#     - '*/layer_tests_summary/*'
+#     - '*/conformance/*'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
