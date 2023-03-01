@@ -25,7 +25,7 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
 
     // For double blocked formats, calculate its size of inner blocks (both batch & feature) : INNER_BLOCKS_COUNT = INNER_BATCH_SIZE * F_BLOCK_COUNT
     const uint inner_block = global_id % INNER_BLOCKS_COUNT;
-    // Calculate index of feature axis inner block which is divieded by vector size
+    // Calculate index of feature axis inner block which is divided by vector size
     uint inner_f = inner_block % F_BLOCK_COUNT;
     // Calculate index of batch axis inner block
     uint inner_b = inner_block / F_BLOCK_COUNT;
@@ -33,14 +33,14 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
     const uint zyx = (uint)global_id / INNER_BLOCKS_COUNT;
 
 #if OUTPUT_DIMS == 5
-    const uint yx = zyx % XY_BLOCK;
-    const uint bfz = zyx / (uint)XY_BLOCK;
+    const uint yx = zyx % (uint)OUTPUT_SIZE_XY;
+    const uint bfz = zyx / (uint)OUTPUT_SIZE_XY;
 
     const uint x = yx % OUTPUT_SIZE_X;
     const uint y = yx / OUTPUT_SIZE_X;
 
-    const uint z = bfz % (uint)Z_BLOCK;
-    const uint bf = bfz / (uint)Z_BLOCK;
+    const uint z = bfz % (uint)OUTPUT_SIZE_Z;
+    const uint bf = bfz / (uint)OUTPUT_SIZE_Z;
 
     const uint outer_f = bf % (uint)OUT_F_BLOCK;
     const uint outer_b = bf / (uint)OUT_F_BLOCK;
@@ -53,15 +53,15 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
     const uint bf = bfy / OUTPUT_SIZE_Y;
 
     const uint outer_f = bf % (uint)OUT_F_BLOCK;
-    const uint outer_b = bf / OUT_F_BLOCK;
+    const uint outer_b = bf / (uint)OUT_F_BLOCK;
 #endif
 
     // Calculate batch and feature index for GET_INDEX_format(b, f_block, z, y, x)
     const uint b = inner_b + outer_b * INNER_BATCH_SIZE;
-    uint f_block = (inner_f + outer_f * F_BLOCK_COUNT);
+    const uint f_block = (inner_f + outer_f * F_BLOCK_COUNT);
 
     // Feature axis of input tensor is smaller than inner block size : No need to calculate this block
-    if ((f_block*VEC_SIZE) > OUTPUT_FEATURE_NUM) {
+    if ((f_block*VEC_SIZE) > OUTPUT_FEATURE_NUM || b > OUTPUT_BATCH_NUM) {
         return;
     }
 

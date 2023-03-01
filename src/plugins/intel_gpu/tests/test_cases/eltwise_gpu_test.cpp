@@ -4205,6 +4205,7 @@ struct eltwise_random_test_param_generator : std::vector<eltwise_random_test_par
 
     eltwise_random_test_param_generator& simple_params_bsv(data_types type, format::type input_format, format::type output_format) {
         push_back(eltwise_random_test_params{ type, {16, 32, 4, 4}, {16, 32, 4, 4}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {20, 16, 4, 1}, {20, 16, 4, 1}, input_format, input_format, output_format, eltwise_mode::sum, false });
         return *this;
     }
 
