@@ -90,8 +90,6 @@ def part5():
 #! [part5]
     core = Core()
     model = core.read_model(model_path)
-    core.set_property(device_name="CPU", properties={})
-    core.set_property(device_name="GPU", properties={})
     compiled_model = core.compile_model(model=model)
     compiled_model = core.compile_model(model=model, device_name="AUTO")
 #! [part5]

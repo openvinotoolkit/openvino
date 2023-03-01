@@ -90,9 +90,7 @@ def MULTI_4():
     model = core.read_model(model_path)
 
     # When compiling the model on MULTI, configure CPU and GPU 
-    # (devices, priorities, and device configurations):
-    core.set_property(device_name="GPU", properties=gpu_config)
-    core.set_property(device_name="CPU", properties=cpu_config)    
+    # (devices, priorities, and device configurations; gpu_config and cpu_config will load during compile_model() ):
     compiled_model = core.compile_model(model=model, device_name="MULTI:GPU,CPU", config={"CPU":"NUM_STREAMS 4", "GPU":"NUM_STREAMS 8"})
 
     # Optionally, query the optimal number of requests:
