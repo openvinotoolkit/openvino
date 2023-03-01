@@ -1,5 +1,4 @@
 name: Code Coverage
-
 on:
   push:
     branches:
@@ -65,7 +64,7 @@ env:
 
 
 jobs:
-  Build_Linux:
+  Code_Coverage:
     runs-on: ubuntu-20.04
     steps:
       - name: Print system information
