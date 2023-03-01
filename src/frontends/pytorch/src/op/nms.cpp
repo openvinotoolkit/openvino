@@ -20,18 +20,18 @@ using namespace ov::op;
 
 OutputVector translate_nms(NodeContext& context) {
     num_inputs_check(context, 3, 3);
-    auto const_0 = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
-    auto const_1 = context.mark_node(v0::Constant::create(element::i64, Shape{}, {1}));
-    auto const_2 = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {2}));
+    auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    auto const_1 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
+    auto const_2 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {2}));
     // the shape that is required by PyTorch operator differs from the shape required in OpenVino
-    auto boxes_shape = context.mark_node(v0::Constant::create(element::i64, Shape{3}, {1, -1, 4}));
+    auto boxes_shape = context.mark_node(v0::Constant::create(element::i32, Shape{3}, {1, -1, 4}));
 
     auto boxes = context.mark_node(std::make_shared<v1::Reshape>(context.get_input(0), boxes_shape, false));
     // Unsqueeze operator is also used to align shapes required by PyTorch and OpenVino
-    auto axis_01 = context.mark_node(v0::Constant::create(element::i64, Shape{2}, {0, 1}));
+    auto axis_01 = context.mark_node(v0::Constant::create(element::i32, Shape{2}, {0, 1}));
     auto scores = context.mark_node(std::make_shared<v0::Unsqueeze>(context.get_input(1), axis_01));
     auto max_output_per_class =
-        context.mark_node(v0::Constant::create(element::i64, Shape{1}, {std::numeric_limits<int64_t>::max()}));
+        context.mark_node(v0::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>::max()}));
     auto iou_threshold = context.get_input(2);
 
     auto nms_out =

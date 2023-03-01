@@ -231,16 +231,8 @@ public:
     /// Returns memory state @p variable_id of stateful network
     VariableState& get_variable_memory(const std::string &variable_id);
 
-    /// Return kernels_cache
-    kernels_cache& get_kernels_cache() const { return *_kernels_cache; }
-
-    /// Return implentations_cache
-    ImplementationsCache& get_implementations_cache() const { return *_impls_cache; }
-
     /// Return in_mem_kernels_cache
     KernelsCache& get_in_mem_kernels_cache() const { return *_in_mem_kernels_cache; }
-
-    ICompilationContext& get_compilation_context() const { return *_compilation_context; }
     std::mutex& get_impl_cache_mutex() const { return _in_mem_cache_mutex; }
 
     const ExecutionConfig& get_config() const { return _config; }
@@ -267,12 +259,13 @@ private:
     std::list<std::shared_ptr<primitive_inst>> _data_outputs;
     variables_states_map _variables_states;
     std::vector<std::shared_ptr<primitive_inst>> _variable_state_primitives;
+    program::primitives_info _prims_info;
+    std::map<primitive_id, primitive_id> _ext_id_mapping;
 
     std::unordered_map<primitive_id, event::ptr> _events;
     output_chains_map _output_chains;
 
     mutable std::mutex _in_mem_cache_mutex;
-    std::unique_ptr<ICompilationContext> _compilation_context;
 
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);
@@ -284,11 +277,8 @@ private:
     void add_default_output_chains();
     output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
 
-    std::unique_ptr<kernels_cache> _kernels_cache;
     // Move from cldnn::program to cldnn::network for multi-threads issue.
-    std::unique_ptr<ImplementationsCache> _impls_cache;
     std::unique_ptr<KernelsCache> _in_mem_kernels_cache;
-    const size_t _impls_cache_capacity = 10000;
     const size_t _in_mem_kernels_cache_capacity = 10000;
 };
 }  // namespace cldnn

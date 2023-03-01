@@ -20,6 +20,7 @@
 namespace InferenceEngine {
 class Blob;
 class IAsyncInferRequestWrapper;
+class IVariableStateWrapper;
 }  // namespace InferenceEngine
 
 namespace ov {
@@ -31,6 +32,7 @@ class RemoteContext;
 class VariableState;
 class ISyncInferRequest;
 class IInferRequestInternalWrapper;
+class IVariableStateInternalWrapper;
 
 /**
  * @brief Tensor API holding host memory
@@ -57,7 +59,9 @@ protected:
     friend class ov::VariableState;
     friend class ov::ISyncInferRequest;
     friend class ov::IInferRequestInternalWrapper;
+    friend class ov::IVariableStateInternalWrapper;
     friend class InferenceEngine::IAsyncInferRequestWrapper;
+    friend class InferenceEngine::IVariableStateWrapper;
 
 public:
     /// @brief Default constructor
@@ -113,6 +117,23 @@ public:
     Tensor(const element::Type type, const Shape& shape, void* host_ptr, const Strides& strides = {});
 
     /**
+     * @brief Constructs Tensor using port from node. Allocate internal host storage using default allocator
+     * @param port port from node
+     * @param allocator allocates memory for internal tensor storage
+     */
+    Tensor(const ov::Output<const ov::Node>& port, const Allocator& allocator = {});
+
+    /**
+     * @brief Constructs Tensor using port from node. Wraps allocated host memory.
+     * @note Does not perform memory allocation internally
+     * @param port port from node
+     * @param host_ptr Pointer to pre-allocated host memory
+     * @param strides Optional strides parameters in bytes. Strides are supposed to be computed automatically based
+     * on shape and element size
+     */
+    Tensor(const ov::Output<const ov::Node>& port, void* host_ptr, const Strides& strides = {});
+
+    /**
      * @brief Constructs region of interest (ROI) tensor form another tensor.
      * @note Does not perform memory allocation internally
      * @param other original tensor
@@ -140,9 +161,16 @@ public:
     Shape get_shape() const;
 
     /**
+     * @brief Copy tensor, destination tensor should have the same element type and shape
+     *
+     * @param dst destination tensor
+     */
+    void copy_to(ov::Tensor& dst) const;
+
+    /**
      * @brief Reports whether the tensor is continuous or not
      *
-     * @return true if blob is continuous
+     * @return true if tensor is continuous
      */
     bool is_continuous() const;
 
