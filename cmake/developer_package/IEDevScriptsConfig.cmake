@@ -24,7 +24,6 @@ function(set_ci_build_number)
 endfunction()
 
 include(features)
-include(message)
 
 set_ci_build_number()
 
