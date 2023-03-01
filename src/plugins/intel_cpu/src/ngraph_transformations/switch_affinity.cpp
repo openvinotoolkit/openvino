@@ -148,7 +148,9 @@ bool switchToImageAffinity(const Properties& props, const Subgraph& subgraph_bor
     setBatch(subgraph, props.opt_bs);
     for (size_t branch_idx = 0; branch_idx < props.n_splits; ++branch_idx) {
         auto cloned_nodes = shared_constants;
+        OPENVINO_SUPPRESS_DEPRECATED_START
         const auto branch = ov::clone_model(*subgraph, cloned_nodes);
+        OPENVINO_SUPPRESS_DEPRECATED_END
         change_names(branch, branch_idx);
 
         // starts processing: replace batch subgraph param with the corresponding split/shared_node output

@@ -15,8 +15,8 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:
-    bool share_constants;
     std::unordered_map<Properties, Subgraph> subgraphs;
+    bool share_constants;
 };
 }  // namespace mixed_affinity
 }  // namespace intel_cpu
