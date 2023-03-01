@@ -113,7 +113,7 @@ function(ie_add_plugin)
             if(IE_PLUGIN_PSEUDO_DEVICE)
                 set(plugin_hidden HIDDEN)
             endif()
-            ie_cpack_add_component(${install_component} 
+            ie_cpack_add_component(${install_component}
                                    DISPLAY_NAME "${IE_PLUGIN_DEVICE_NAME} runtime"
                                    DESCRIPTION "${IE_PLUGIN_DEVICE_NAME} runtime"
                                    ${plugin_hidden}
@@ -343,7 +343,7 @@ function(ie_generate_plugins_hpp)
                          "${plugins_hpp_in}"
                          "${IEDevScripts_DIR}/plugins/create_plugins_hpp.cmake"
                        COMMENT
-                         "Generate ie_plugins.hpp for static build"
+                         "Generate ie_plugins.hpp for build"
                        VERBATIM)
 
     # for some reason dependency on source files does not work

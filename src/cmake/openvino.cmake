@@ -129,7 +129,7 @@ ie_cpack_add_component(${OV_CPACK_COMP_CORE_DEV}
                        HIDDEN
                        DEPENDS ${OV_CPACK_COMP_CORE} ${core_dev_components})
 
-if(BUILD_SHARED_LIBS)
+if(GENERATE_PLUGINS_XML)
     install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
             DESTINATION ${OV_CPACK_PLUGINSDIR}
             COMPONENT ${OV_CPACK_COMP_CORE})
