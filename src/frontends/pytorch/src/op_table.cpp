@@ -321,6 +321,7 @@ const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
         {"aten::zeros", op::translate_zeros},
         {"aten::zeros_like", op::translate_zeros_like},
         {"prim::Constant", op::translate_constant},
+        {"prim::device", op::translate_constant},
         {"prim::GetAttr", op::translate_get_attr},
         {"prim::If", op::translate_if},
         {"prim::is_cuda", op::return_false_scalar},
@@ -328,6 +329,7 @@ const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
         {"prim::Loop", op::translate_loop},
         {"prim::NumToTensor", op::skip_node},  // In openvino we already store number as tensor with shape []
         {"prim::requires_grad", op::return_false_scalar},
+        {"prim::type", op::skip_node},  // Used with prim::device, pass PtFrameworkNode.
         {"torchvision::nms", op::translate_nms},
         {"torchvision::roi_align", op::translate_roi_align},
     };
