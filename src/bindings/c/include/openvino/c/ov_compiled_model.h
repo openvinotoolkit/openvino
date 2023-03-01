@@ -78,8 +78,7 @@ ov_compiled_model_input_by_name(const ov_compiled_model_t* compiled_model,
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_compiled_model_outputs_size(const ov_compiled_model_t* compiled_model,
-                               size_t* size);
+ov_compiled_model_outputs_size(const ov_compiled_model_t* compiled_model, size_t* size);
 
 /**
  * @brief Get the single const output port of ov_compiled_model_t, which only support single output model.
@@ -89,8 +88,7 @@ ov_compiled_model_outputs_size(const ov_compiled_model_t* compiled_model,
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_compiled_model_output(const ov_compiled_model_t* compiled_model,
-                         ov_output_const_port_t** output_port);
+ov_compiled_model_output(const ov_compiled_model_t* compiled_model, ov_output_const_port_t** output_port);
 
 /**
  * @brief Get a const output port of ov_compiled_model_t by port index.
@@ -126,8 +124,7 @@ ov_compiled_model_output_by_name(const ov_compiled_model_t* compiled_model,
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_compiled_model_get_runtime_model(const ov_compiled_model_t* compiled_model,
-                                    ov_model_t** model);
+ov_compiled_model_get_runtime_model(const ov_compiled_model_t* compiled_model, ov_model_t** model);
 
 /**
  * @brief Creates an inference request object used to infer the compiled model.
@@ -137,8 +134,7 @@ ov_compiled_model_get_runtime_model(const ov_compiled_model_t* compiled_model,
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_compiled_model_create_infer_request(const ov_compiled_model_t* compiled_model,
-                                       ov_infer_request_t** infer_request);
+ov_compiled_model_create_infer_request(const ov_compiled_model_t* compiled_model, ov_infer_request_t** infer_request);
 
 /**
  * @brief Sets properties for a device, acceptable keys can be found in ov_property_key_xxx.
@@ -173,8 +169,7 @@ ov_compiled_model_get_property(const ov_compiled_model_t* compiled_model,
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_compiled_model_export_model(const ov_compiled_model_t* compiled_model,
-                               const char* export_model_path);
+ov_compiled_model_export_model(const ov_compiled_model_t* compiled_model, const char* export_model_path);
 
 /**
  * @brief Release the memory allocated by ov_compiled_model_t.
