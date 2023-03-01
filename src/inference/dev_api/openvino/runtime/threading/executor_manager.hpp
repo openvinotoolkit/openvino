@@ -12,7 +12,6 @@
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "openvino/runtime/threading/itask_executor.hpp"
-#include "threading/ie_istreams_executor.hpp"
 
 namespace ov {
 

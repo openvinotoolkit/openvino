@@ -33,10 +33,10 @@
 #include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/remote_context.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/variable_state.hpp"
-#include "so_ptr.hpp"
 #include "threading/ie_executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 

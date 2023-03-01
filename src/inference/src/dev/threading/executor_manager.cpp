@@ -7,7 +7,6 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
-#include "threading/ie_cpu_streams_executor.hpp"
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
 #    if (TBB_INTERFACE_VERSION < 12000)
 #        include <tbb/task_scheduler_init.h>

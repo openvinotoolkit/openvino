@@ -4,7 +4,6 @@
 
 #include "openvino/runtime/icompiled_model.hpp"
 
-#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "icompiled_model_wrapper.hpp"
 #include "openvino/core/model.hpp"
 #include "transformations/utils/utils.hpp"
