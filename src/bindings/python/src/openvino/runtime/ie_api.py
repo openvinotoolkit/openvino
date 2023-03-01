@@ -64,7 +64,22 @@ def _(
         if tensor.shape != inputs.shape:
             tensor.shape = inputs.shape
         # When copying, type should be up/down-casted automatically.
-        tensor.data[:] = inputs[:]
+        print('before')
+        #tensor.set_my_values()
+        #print(inputs)
+        #print(type(inputs))
+        #print(tensor.data)
+        #print(dir(tensor))
+        #print(type(tensor))
+        #print(inputs[:], type(inputs[:]))
+        #tensor.data[:] = inputs[:]
+        if len(inputs) > 0 and isinstance(inputs[0], str):
+            print('String data initialization in python')
+            print(inputs[:])
+            tensor.set_values(inputs[:])
+        else:
+            tensor.data[:] = inputs[:]
+        print(tensor.data)
 
 
 @update_tensor.register(np.number)  # type: ignore
@@ -108,6 +123,8 @@ def normalize_inputs(request: InferRequestBase, inputs: dict) -> dict:
     '''
     # End of structural types preprecessing
 
+    print(inputs)
+
     # Create new temporary dictionary.
     # new_inputs will be used to transfer data to inference calls,
     # ensuring that original inputs are not overwritten with Tensors.
@@ -116,13 +133,15 @@ def normalize_inputs(request: InferRequestBase, inputs: dict) -> dict:
         if not isinstance(key, (str, int, ConstOutput)):
             raise TypeError(f"Incompatible key type for input: {key}")
         # Copy numpy arrays to already allocated Tensors.
-        if isinstance(value, (np.ndarray, np.number, int, float)):
+        if isinstance(value, (np.ndarray, np.number, int, float, str)):
+            print('Detected string input')
             update_tensor(value, request, key)
         # If value is of Tensor type, put it into temporary dictionary.
         elif isinstance(value, Tensor):
             new_inputs[key] = value
         # If value object has __array__ attribute, load it to Tensor using np.array.
         elif hasattr(value, "__array__"):
+            print('Array-like detected')
             update_tensor(np.array(value, copy=True), request, key)
         # Throw error otherwise.
         else:
@@ -194,6 +213,8 @@ class InferRequest(InferRequestBase):
         :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
         """
 
+        # Disabled decomposition of strings and passing them directly
+        '''
         if isinstance(inputs, str):
             # TODO: Check if there is really a single input with this type
             print('InferRequest.infer preprocessed str')
@@ -212,6 +233,8 @@ class InferRequest(InferRequestBase):
                     ends.append(chars.shape[0])
                 inputs = (np.array(begins, dtype=np.uint32), np.array(ends, dtype=np.uint32), chars)
                 #print(inputs)
+        '''
+
 
         # If inputs are empty, pass empty dictionary.
         if inputs is None:

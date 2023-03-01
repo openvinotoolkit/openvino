@@ -123,6 +123,12 @@ inline InferenceEngine::Precision normalizeToSupportedPrecision(InferenceEngine:
             precision = InferenceEngine::Precision::FP32;
             break;
         }
+        /*
+        case InferenceEngine::Precision::STRING: {
+            precision = InferenceEngine::Precision::STRING;
+            break;
+        }
+        */
         default: {
             precision = InferenceEngine::Precision::UNSPECIFIED;
         }

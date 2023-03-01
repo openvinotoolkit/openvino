@@ -208,6 +208,14 @@ void regclass_Tensor(py::module m) {
         "data",
         [](ov::Tensor& self) {
             auto ov_type = self.get_element_type();
+            // if(ov_type == ov::element::string) {
+            //     std::cerr << "std::string in python data\n";
+            //     std::cerr << "shape " << self.get_shape() << "\n";
+            //     // pre-init strings
+            //     for(size_t i = 0; i < ov::shape_size(self.get_shape()); ++i) {
+            //         new(self.data<std::string>() + i)std::string("a");
+            //     }
+            // }
             auto dtype = Common::ov_type_to_dtype().at(ov_type);
             if (ov_type.bitwidth() < 8) {
                 return py::array(dtype, self.get_byte_size(), self.data(), py::cast(self));
@@ -246,6 +254,39 @@ void regclass_Tensor(py::module m) {
         R"(
             Sets Tensor's shape.
         )");
+
+    cls.def(
+        "set_values",
+        [](ov::Tensor& self, std::vector<std::string>& values) {
+
+            auto ov_type = self.get_element_type();
+            if(ov_type == ov::element::string) {
+                std::cerr << "set_values: std::string in python data\n";
+                std::cerr << "shape " << self.get_shape() << "\n";
+                // pre-init strings
+                for(size_t i = 0; i < ov::shape_size(self.get_shape()); ++i) {
+                    std::cerr << "value: " << values[i];
+                    new(self.data<std::string>() + i)std::string(values[i]);
+                }
+            }
+
+            return;
+/*
+            std::cerr << "set_my_values\n";
+            std::cerr << "Size of tensor to be set: " << self.get_shape() << "\n";
+            std::string* values = self.data<std::string>();
+            std::cerr << "pointer to tensor: " << &self << "\n";
+            std::cerr << "pointer to stings: " << values << "\n";
+            // Data is not initialized most likely
+            new(values + 0)std::string("my");
+            new(values + 1)std::string("first");
+            new(values + 2)std::string("string");
+            */
+        },
+        R"(
+            Sets Tensor's values to predefined stirngs, FOR DEBUGGING PURPOSES.
+        )");
+
 
     cls.def_property("shape",
                      &ov::Tensor::get_shape,

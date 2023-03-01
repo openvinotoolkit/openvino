@@ -21,6 +21,9 @@ CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const
 CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& blockedDims,
                   const VectorDims& order, size_t offsetPadding, const VectorDims& offsetPaddingToData,
                   const VectorDims& strides) : MemoryDesc(shape, Blocked), precision(prc) {
+    if (prc == InferenceEngine::Precision::UNSPECIFIED) {
+        std::cerr << "Precision: " << prc << "\n";
+    }
     if (std::any_of(order.begin(), order.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
         IE_THROW() << "CpuBlockedMemoryDesc do not support undefined order.";
     }

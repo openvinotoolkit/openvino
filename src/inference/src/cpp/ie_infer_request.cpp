@@ -256,6 +256,7 @@ InferRequest::InferRequest(const ie::IInferRequestInternal::Ptr& impl, const std
 }
 
 void InferRequest::set_tensor(const ov::Output<const ov::Node>& port, const Tensor& tensor) {
+    std::cerr << "InferRequest::set_tensor, tensor shape = " << tensor.get_shape() << ", type = " << tensor.get_element_type() << "\n";
     OV_INFER_REQ_CALL_STATEMENT({ _impl->SetBlob(get_legacy_name_from_port(port), tensor._impl); });
 }
 
@@ -358,6 +359,12 @@ void InferRequest::set_output_tensor(const Tensor& tensor) {
 }
 
 Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
+    std::cerr << "InferRequest::get_tensor, tensor shape = " << port.get_partial_shape() << ", type = " << port.get_element_type() << "\n";
+    std::cerr << port.get_node_shared_ptr() << "\n";
+    std::cerr << port.get_node_shared_ptr()->get_rt_info().count("orig_partial_shape") << "\n";
+    std::cerr << port.get_node_shared_ptr()->get_friendly_name() << "\n";
+    // HACK!
+    static Tensor string_tensor = Tensor(element::string, Shape{0});
     std::vector<std::shared_ptr<void>> soVec;
     OV_INFER_REQ_CALL_STATEMENT({
         const auto& name = get_legacy_name_from_port(port);
@@ -369,6 +376,12 @@ Tensor InferRequest::get_tensor(const ov::Output<const ov::Node>& port) {
         auto blob = _impl->GetBlob(name);
         soVec = {_so, _impl->getPointerToSo()};
         Tensor tensor = {blob, soVec};
+        if (port.get_node_shared_ptr()->get_friendly_name() == "sentence") {
+            std::cerr << "Hacking string tensor\n";
+            *reinterpret_cast<Tensor**>(tensor.data<uint8_t>()) = &string_tensor;
+            std::cerr << &string_tensor << "\n";
+            tensor = {string_tensor._impl, soVec};
+        }
         return tensor;
     });
 }

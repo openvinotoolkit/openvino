@@ -914,10 +914,13 @@ class OPENVINO_API StringTensorUnpack : public ov::op::Op {
 public:
     OPENVINO_OP("StringTensorUnpack");
 
-    StringTensorUnpack(OutputVector inputs, const std::string& mode = "begins_ends")
-        : ov::op::Op(inputs), m_mode(mode) {
+    StringTensorUnpack(OutputVector inputs, const std::string& mode = "begins_ends",
+        const std::string* _data = nullptr, PartialShape _input_shape = PartialShape::dynamic())
+        : ov::op::Op(inputs), m_mode(mode), data(_data), input_shape(_input_shape) {
         constructor_validate_and_infer_types();
     }
+    const std::string* data = nullptr;
+    PartialShape input_shape;
 
     void validate_and_infer_types() override {
         OPENVINO_ASSERT(
@@ -926,28 +929,94 @@ public:
 
         OPENVINO_ASSERT(
             get_input_element_type(0) == element::string ||
-            get_input_element_type(0) == element::dynamic,
+            get_input_element_type(0) == element::dynamic ||
+            get_input_element_type(0) == element::u8,
             "Unsupported input element type for StringTensorUnpack");
 
         OPENVINO_ASSERT(
             get_input_partial_shape(0).rank().is_static(),
             "StringTensorUnpack supports only static input rank");
 
-        if (m_mode == "begins_ends") {
-            if(get_input_partial_shape(0).rank().get_length() == 0) {
-                set_output_type(0, element::u8, PartialShape{Dimension()});     // TODO: In case if input is constant, can compute the size exactly
+        // Obtain shape from rt_info.
+        auto& rt_info = get_input_node_shared_ptr(0)->get_rt_info();
+        auto ops = rt_info.find("original_partial_shape");
+        if(ops != rt_info.end()) {
+            input_shape = ops->second.as<PartialShape>();
+            std::cerr << "StringTensorUnpack: orig_partial_shape: " << input_shape << "\n";
+        } else {
+            std::cerr << "Impossible\n";
+            std::cerr << get_input_node_shared_ptr(0) << "\n";
+        }
+
+        if(get_input_element_type(0) == element::u8) {
+            if(all_inputs_are_constants(this)) {
+                std::cerr << "StringTensorUnpack: u8/const\n";
+                // HACK: Tensor of strings is passed by a raw pointer to a tensor
+                auto constant = std::dynamic_pointer_cast<ov::opset1::Constant>(get_input_node_shared_ptr(0));
+                size_t raw_size = constant->get_shape()[0];
+                if(raw_size == 0) {
+                    // means empty input
+                    std::cerr << "StringTensorUnpack: empty\n";
+                    data = nullptr;
+                    input_shape = PartialShape({0});
+                } else if(raw_size == sizeof(void*)) {
+                    std::cerr << "StringTensorUnpack: not empty, tensor HACK\n";
+                    auto tensor = *reinterpret_cast<const ov::Tensor* const *>(constant->get_data_ptr<uint8_t>());
+                    std::cerr << "Pointer to tensor from op: " << tensor << "\n";
+                    input_shape = tensor->get_shape();
+                    data = tensor->data<std::string>();
+                } else {
+
+                    OPENVINO_ASSERT(
+                        false,
+                        "Unexpected size for hacked Tensor<string> input. Something went wrong.");
+                }
             } else {
-                set_output_type(0, element::i32, get_input_partial_shape(0));
-                set_output_type(1, element::i32, get_input_partial_shape(0));
-                set_output_type(2, element::u8, PartialShape{Dimension()});     // TODO: In case if input is constant, can compute the size exactly
+                std::cerr << "StringTensorUnpack: u8/not constant\n";
+            }
+        } else {
+            std::cerr << "StringTensorUnpack: string\n";
+            input_shape = get_input_partial_shape(0);
+            if(all_inputs_are_constants(this)) {
+                auto constant = std::dynamic_pointer_cast<ov::opset1::Constant>(get_input_node_shared_ptr(0));
+                data = constant->get_data_ptr<std::string>();
+            } else {
+                input_shape = get_input_partial_shape(0);
+            }
+        }
+
+        if (m_mode == "begins_ends") {
+            std::cerr << "1\n";
+            if(input_shape.rank().get_length() == 0) {
+                std::cerr << "SCALAR -- not supported!\n";
+                set_output_type(0, element::u8, input_shape);     // TODO: In case if input is constant, can compute the size exactly
+            } else {
+                set_output_type(0, element::i32, input_shape);
+                set_output_type(1, element::i32, input_shape);
+                if(all_inputs_are_constants(this)) {
+                    // Go over all elements and sum all lengths
+                    auto nelements = shape_size(input_shape.get_shape());
+                    auto strings = data;
+                    size_t total_length = 0;
+                    for(size_t i = 0; i < nelements; ++i) {
+                        total_length += strings[i].length();
+                    }
+                    set_output_type(2, element::u8, PartialShape{total_length});
+                } else {
+                    set_output_type(2, element::u8, PartialShape{Dimension()});
+                }
             }
         } else {
             throw std::string("Unknown mode ") + m_mode + " for StringTensorUnpack";
         }
+        std::cerr << "End\n";
     }
 
     std::shared_ptr<ov::Node> clone_with_new_inputs(const OutputVector& inputs) const override {
-        return make_shared<StringTensorUnpack>(inputs, m_mode);
+        auto result = make_shared<StringTensorUnpack>(inputs, m_mode, data, input_shape);
+        // FIXME: Due to unpredictable cloning of parameters we need to cache this value
+        // that depend on Parameter rt_info. This is a hack.
+        return result;
     }
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override {
@@ -957,7 +1026,37 @@ public:
     }
 
     bool has_evaluate() const {
-        return false;
+        return true;
+    }
+
+    bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
+        std::cerr << "Evaluate for SringTensorUnpack\n";
+        std::cerr << "input_shape = " << input_shape << "\n";
+        std::cerr << data << "\n";
+
+        auto tensor = *reinterpret_cast<const ov::Tensor* const *>(inputs[0].data<uint8_t>());
+        std::cerr << "Pointer to tensor from op evaluate: " << tensor << "\n";
+        Shape input_shape = tensor->get_shape();
+        std::string* data = tensor->data<std::string>();
+        std::cerr << "input_shape = " << input_shape << "\n";
+        std::cerr << data << "\n";
+
+        auto nelements = shape_size(input_shape);
+        auto begins = outputs[0].data<int32_t>();
+        auto ends = outputs[1].data<int32_t>();
+        auto symbols = reinterpret_cast<char*>(outputs[2].data<uint8_t>());
+        auto elements = data;
+        auto base = symbols;
+
+        for(size_t i = 0; i < nelements; ++i)
+        {
+            begins[i] = symbols - base;
+            symbols = std::copy(elements[i].begin(), elements[i].end(), symbols);
+            ends[i] = symbols - base;
+            std::cerr << "New string concatenated: " << begins[i] << ", " << ends[i] << "\n";
+        }
+
+        return true;
     }
 
     std::string m_mode;

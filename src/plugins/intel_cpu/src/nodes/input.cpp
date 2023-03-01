@@ -370,6 +370,7 @@ Input::Input(const Shape& shape,
              const std::string& type,
              const GraphContext::CPtr context)
     : Node(type, name, context) {
+    std::cerr << __FILE__ << ":" << __LINE__ << ", precision: " << prc << "\n";
     constant = ConstantType::NoConst;
     if (getType() == Type::Input) {
         outputShapes.emplace_back(shape);
@@ -382,6 +383,7 @@ Input::Input(const Shape& shape,
 
 Input::Input(MemoryDescPtr memDesc, const std::string& name, const std::string& type, const GraphContext::CPtr context)
     : Input(memDesc->getShape(), memDesc->getPrecision(), name, type, context) {
+    std::cerr << __FILE__ << ":" << __LINE__ << ", precision: " << memDesc->getPrecision() << "\n";
     extMemDesc = memDesc;
 }
 
@@ -447,6 +449,7 @@ void Input::initSupportedPdDefault() {
 
     if (getType() == Type::Input || getType() == Type::MemoryInput) {
         auto precision = getOriginalOutputPrecisionAtPort(0);
+        std::cerr << __FILE__ << ":" << __LINE__ << ", precision: " << precision << "\n";
         if (precision == Precision::U16 || isMeanImage) {
             precision = Precision::FP32;
         }

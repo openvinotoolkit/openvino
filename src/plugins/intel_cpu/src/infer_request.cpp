@@ -140,6 +140,7 @@ void InferRequestBase::redefineMemoryForInputNodes() {
     const auto cpuInputNodes = graph->GetInputNodesMap();
 
     for (const auto &blob : _inputs) {
+        std::cerr << "blob name: " << blob.first << "\n";
         const auto inputNode = cpuInputNodes.find(blob.first);
         if (inputNode == cpuInputNodes.end())
             IE_THROW() << "CPU execution graph doesn't contain input node with name: " << blob.first;
@@ -157,6 +158,27 @@ void InferRequestBase::InferImpl() {
 
     ThrowIfCanceled();
     convertBatchedInputBlobs();
+
+    ///////// Prepare string tensors /////////////////
+
+    std::cerr << "Prepare string tensors\n";
+
+    for (const auto &blob : _inputs) {
+        std::cout << "blob in _inputs: " << blob.first << "\n";
+        //std::cout << blob.second->getShape();
+    }
+
+    for (const auto &blob : _deviceInputs) {
+        std::cout << "blob in _deviceInputs: " << blob.first << "\n";
+    }
+
+    for (auto x : _parameters) {
+        std::cout << "parameter " << x->get_friendly_name() << "\n";
+        std::cout << "shape " << x->get_output_partial_shape(0) << "\n";
+        std::cout << "type " << x->get_output_element_type(0) << "\n";
+    }
+
+    ///////////////////////////////////////////////////
 
     if (graph->hasDynamicInput()) {
         redefineMemoryForInputNodes();
@@ -396,6 +418,7 @@ void LegacyInferRequest::changeDefaultPtr() {
 
 void LegacyInferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "SetBlobLegacy");
+    std::cerr << "LegacyInferRequest::SetBlob: size = " << data->size() << "\n";
     if (name.empty()) {
         IE_THROW(NotFound) << "Failed to set blob with empty name";
     }
@@ -642,6 +665,7 @@ InferRequest::InferRequest(const std::vector<std::shared_ptr<const ov::Node>>& i
 }
 
 void InferRequest::initBlobs() {
+    std::cerr << "InferRequest::initBlobs\n";
     for (const auto& it : modelInputsMap) {
         InferRequest::GetBlob(it.first);
     }
@@ -668,6 +692,7 @@ void InferRequest::SetBatch(int new_batch) {
 
 void InferRequest::SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr &data) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "SetBlob");
+    std::cerr << "InferRequest::SetBlob, data->size = " << data->size() << "\n";
     if (name.empty()) {
         IE_THROW(NotFound) << "Failed to set blob with empty name";
     }

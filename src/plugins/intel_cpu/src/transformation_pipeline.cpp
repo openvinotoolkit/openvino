@@ -176,7 +176,6 @@ void Transformations::CpuSpecificOpSet(void) {
 
 void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecisions, const bool isLegacyApi) {
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, PreLpt);
-
     ov::pass::Manager manager;
     manager.set_per_pass_validation(false);
     manager.register_pass<ov::pass::InitNodeInfo>();

@@ -12,6 +12,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <iostream>
 
 #include "ie_common.h"
 
@@ -491,6 +492,10 @@ inline Precision::PrecisionInfo Precision::makePrecisionInfo(const char* name) {
 
     size_t nBits = precision == BIN ? 1 : (precision == U4 || precision == I4) ? 4 : 8;
     info.bitsSize = nBits * type_size_or_zero<typename PrecisionTrait<precision>::value_type>();
+    //std::cerr << "makePrecisionInfo(" << name << ").info.bitsSize = " << info.bitsSize << "\n";
+    if(name == std::string("UNSPECIFIED")) {
+        std::cerr << "UNSPECIFIED\n";
+    }
     info.isFloat = PrecisionTrait<precision>::is_float;
     info.value = precision;
     return info;

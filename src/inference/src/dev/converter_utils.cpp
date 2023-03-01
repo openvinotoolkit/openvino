@@ -115,8 +115,35 @@ void ov::legacy_convert::fill_output_info(const ov::Output<const ov::Node>& outp
 
 InferenceEngine::CNNNetwork ov::legacy_convert::convert_model(const std::shared_ptr<const ov::Model>& model,
                                                               bool is_new_api) {
+    // Apply parameter substitution here
+    // Modify model to unpack string input tensors
+
+    auto cloned = model->clone();
+
+    {
+        int model;  // to stop improper usage
+        std::cerr << "model->get_parameters().size() = " << cloned->get_parameters().size() << "\n";
+
+        for (size_t i = 0; i < cloned->get_parameters().size(); ++i) {
+            //std::cerr << model->get_parameters()[i]->get_friendly_name() << "\n";
+            //auto& tensor = model->get_parameters()[i]->output(0).get_tensor();
+            //std::cerr << "name before: " << tensor.get_any_name() << "\n";
+            //tensor.set_names({tensor.get_any_name() + "/postfix"});
+            //std::cerr << "name after: " << tensor.get_any_name() << "\n";
+            std::cerr << "name before: " << cloned->get_parameters()[i]->get_friendly_name() << "\n";
+            //model->get_parameters()[i]->set_friendly_name(model->get_parameters()[i]->get_friendly_name() + "/postfix");
+            std::cerr << "name after: " << cloned->get_parameters()[i]->get_friendly_name() << "\n";
+            cloned->get_parameters()[i]->get_rt_info()["original_partial_shape"] = cloned->get_parameters()[i]->get_partial_shape();
+            cloned->get_parameters()[i]->set_element_type(element::u8);
+            cloned->get_parameters()[i]->set_partial_shape(PartialShape{sizeof(void*)});
+        }
+    }
+
+    //////////////////////////////////////////////
+
+
     auto network = InferenceEngine::CNNNetwork(std::shared_ptr<InferenceEngine::ICNNNetwork>(
-        new InferenceEngine::details::CNNNetworkNGraphImpl(model->clone(), {}, is_new_api)));
+        new InferenceEngine::details::CNNNetworkNGraphImpl(cloned, {}, is_new_api)));
     std::shared_ptr<ov::Model> cloned_model = network.getFunction();
     for (auto&& input : cloned_model->inputs()) {
         auto param_name = input.get_node()->get_friendly_name();

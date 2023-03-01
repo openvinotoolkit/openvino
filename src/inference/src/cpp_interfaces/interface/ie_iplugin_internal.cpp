@@ -154,6 +154,7 @@ std::shared_ptr<IExecutableNetworkInternal> IInferencePlugin::LoadNetwork(
         function->get_rt_info() = orig_function->get_rt_info();
     }
     if (function && !IsNewAPI()) {
+        std::cerr << " --------------- OLD API ----------";
         if (!function->has_rt_info("version")) {
             function->set_rt_info(int64_t(10), "version");
 

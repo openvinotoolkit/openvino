@@ -367,7 +367,8 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
             Precision::U64,  Precision::I64,
             Precision::BF16, Precision::FP16,
             Precision::FP32, Precision::FP64,
-            Precision::BOOL
+            Precision::BOOL,
+            Precision::STRING
         };
 
         if (!supported_precisions.count(input_precision)) {
