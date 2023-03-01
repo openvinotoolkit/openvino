@@ -15,7 +15,7 @@ This is OpenVINO Inference Engine testing framework. OpenVINO Inference Engine t
     files.
 
     > **Example**: There is the `ie_reshaper.cpp` file within the `src/shape_infer` subfolder of the tested module. In this case,
-    a new `shape_infer` subfolder should be created within the the root of the Unit Test folder for this module. And a new
+    a new `shape_infer` subfolder should be created within the root of the Unit Test folder for this module. And a new
     `ie_reshaper_test.cpp` file should be created within this newly created subfolder. This test file should cover all
     the classes and methods from the original file.
 
@@ -31,12 +31,12 @@ This is OpenVINO Inference Engine testing framework. OpenVINO Inference Engine t
 
 * **Functional tests**
   This test type is used to verify public Inference Engine API. There are following types of functional tests:
-  * `inference_engine_tests` are plugin-independent tests. They are used to verify Inference Engine API methods which do not
+  * `inference_engine_tests` are plugin-independent tests. They are used to verify Inference Engine API methods that do not
     involve any plugin runtime. The examples are: `network_reader`, `network_serializer`, and `precision` tests.
   * `plugin_tests` are plugin-dependent tests. These tests require plugin runtime to be executed during testing. For example,
     any tests using `ExecutableNetwork`, `InferRequest` API can only be implemented within this test group.
 
-  > **Example**: Any new test on creating of a CNNNetwork object and checking its output info should be included to
+  > **Example**: Any new test on creating a CNNNetwork object and checking its output info should be included to
   the Inference Engine Functional tests suite. However, any new test containing reading of a network and loading it to a
   specified plugin is always the plugin test.
 
@@ -44,7 +44,7 @@ This is OpenVINO Inference Engine testing framework. OpenVINO Inference Engine t
   * All Functional tests are separated into different executables for the Inference Engine and each plugin.
   * Pre-converted IR files must not be used within the new Functional Tests. Tested models should be generated during
     the tests execution. The main method to generate a required model is building of the required NGraph function and
-    creating of a CNNNetwork using it. If a required layer is not covered by Ngraph, it is allowed to build IR file using
+    creating a CNNNetwork using it. If a required layer is not covered by Ngraph, it is allowed to build IR file using
     `xml_net_builder` utility (refer to the `ir_net.hpp` file). IR XML files hardcoded as strings within the test
     code should not be used.
   * All the plugin test cases are parameterized with (at least) the device name and included to the common
