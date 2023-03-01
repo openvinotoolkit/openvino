@@ -91,6 +91,9 @@ jobs:
       - name: Setup directories
         run: |
           set -e
+          echo $WORK_DIR
+          echo $(WORK_DIR)
+          echo ${WORK_DIR}
           rm -rf $WORK_DIR ; mkdir $WORK_DIR
           rm -rf $(BUILD_DIR) ; mkdir $(BUILD_DIR)
           rm -rf $(BUILD_SAMPLES_DIR) ; mkdir $(BUILD_SAMPLES_DIR)
