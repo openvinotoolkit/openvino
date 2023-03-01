@@ -80,7 +80,6 @@ jobs:
           echo gcc info ; which gcc ; gcc --version
           echo cmake info ; which cmake ; cmake --version
           lsb_release
-          env
           cat /proc/cpuinfo
           cat /proc/meminfo
           cat /etc/fstab
