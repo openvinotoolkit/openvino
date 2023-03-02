@@ -6,13 +6,19 @@
 
 #include "intel_gpu/primitives/reorder.hpp"
 #include "primitive_inst.h"
-#include "kernel_selector/kernels/reorder/reorder_kernel_base.h"
-#include "kernel_selector/tensor_type.h"
 
 #include <string>
 #include <memory>
 
 namespace cldnn {
+
+class ReorderFuseParams : public NodeFuseParams {
+public:
+    ReorderFuseParams(layout in, layout out) : NodeFuseParams(reorder::type_id()), _in(in), _out(out) {}
+
+    layout _in;
+    layout _out;
+};
 
 template <>
 struct typed_program_node<reorder> : public typed_program_node_base<reorder> {
@@ -35,10 +41,8 @@ public:
 
     void set_input_layout(layout const& lo) { input_layout = lo; }
 
-    std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const override {
-        kernel_selector::DataLayout ks_input_layout = convert_data_tensor(input_layout).GetLayout();
-        kernel_selector::DataLayout ks_output_layout = convert_data_tensor(get_output_layout()).GetLayout();
-        return std::make_shared<kernel_selector::reorder_fuse_params>(ks_input_layout, ks_output_layout);
+    std::shared_ptr<NodeFuseParams> get_fuse_params() const override {
+        return std::make_shared<ReorderFuseParams>(input_layout, get_output_layout());
     }
     std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 

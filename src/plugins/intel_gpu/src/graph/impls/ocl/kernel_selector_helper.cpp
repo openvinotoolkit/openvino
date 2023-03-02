@@ -31,9 +31,20 @@
 #include "intel_gpu/primitives/embedding_bag.hpp"
 #include "intel_gpu/primitives/extract_image_patches.hpp"
 
+#include "activation_inst.h"
+#include "depth_to_space_inst.h"
+#include "eltwise_inst.h"
+#include "quantize_inst.h"
+#include "reorder_inst.h"
+
+#include "kernel_selector/kernels/activation/activation_kernel_base.h"
+#include "kernel_selector/kernels/depth_to_space/depth_to_space_kernel_base.h"
+#include "kernel_selector/kernels/eltwise/eltwise_kernel_base.h"
+#include "kernel_selector/kernels/quantize/quantize_kernel_params.h"
+#include "kernel_selector/kernels/reorder/reorder_kernel_base.h"
+
 #include <string>
 #include <vector>
-
 
 namespace {
 using namespace cldnn;
@@ -1013,6 +1024,55 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
             throw std::runtime_error("Unknown activation function");
             break;
     }
+}
+
+std::shared_ptr<kernel_selector::fuse_params> convert_fuse_params(std::shared_ptr<NodeFuseParams> p) {
+    if (p->type() == activation::type_id()) {
+        auto casted = std::dynamic_pointer_cast<ActivationFuseParams>(p);
+        auto desc = casted->_desc;
+        kernel_selector::base_activation_params p;
+        p.function = get_kernel_selector_activation_param(desc->activation_function);
+        p.m = desc->additional_params.a;
+        p.n = desc->additional_params.b;
+
+        return std::make_shared<kernel_selector::activation_fuse_params>(p);
+    } else if (p->type() == depth_to_space::type_id()) {
+        return std::make_shared<kernel_selector::depth_to_space_fuse_params>();
+    } else if (p->type() == reorder::type_id()) {
+        auto casted = std::dynamic_pointer_cast<ReorderFuseParams>(p);
+        kernel_selector::DataLayout ks_input_layout = convert_data_tensor(casted->_in).GetLayout();
+        kernel_selector::DataLayout ks_output_layout = convert_data_tensor(casted->_out).GetLayout();
+        return std::make_shared<kernel_selector::reorder_fuse_params>(ks_input_layout, ks_output_layout);
+    } else if (p->type() == eltwise::type_id()) {
+        auto casted = std::dynamic_pointer_cast<EltwiseFuseParams>(p);
+        kernel_selector::eltwise_mode mode = convert_to_eltwise_mode(casted->_desc->mode);
+        return std::make_shared<kernel_selector::eltwise_fuse_params>(mode);
+    } else if (p->type() == quantize::type_id()) {
+        auto casted = std::dynamic_pointer_cast<QuantizeFuseParams>(p);
+        return std::make_shared<kernel_selector::quantize_fuse_params>(casted->_scale_shift_opt,
+                                                                       casted->_need_post_scale,
+                                                                       casted->_need_post_shift,
+                                                                       casted->_need_pre_shift,
+                                                                       casted->_need_clamp,
+                                                                       casted->_need_min_clamp,
+                                                                       casted->_need_max_clamp,
+                                                                       casted->_per_tensor_input_range,
+                                                                       casted->_per_tensor_input_scale,
+                                                                       casted->_per_tensor_input_shift,
+                                                                       casted->_per_tensor_output_range,
+                                                                       casted->_per_tensor_output_scale,
+                                                                       casted->_per_tensor_output_shift,
+                                                                       casted->_in_lo,
+                                                                       casted->_in_hi,
+                                                                       casted->_in_scale,
+                                                                       casted->_in_shift,
+                                                                       casted->_out_lo,
+                                                                       casted->_out_hi,
+                                                                       casted->_out_scale,
+                                                                       casted->_out_shift);
+    }
+
+    OPENVINO_ASSERT(false, "[GPU] Unhandled fused params type");
 }
 
 void convert_fused_ops_to_legacy_activations(const kernel_impl_params& param_info, std::vector<kernel_selector::base_activation_params>& activations) {
