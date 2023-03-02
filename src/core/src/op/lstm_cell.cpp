@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,9 +17,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v0::LSTMCell);
-BWDCMP_RTTI_DEFINITION(op::v4::LSTMCell);
 
 op::v0::LSTMCell::LSTMCell() : m_input_forget(false), m_weights_format(LSTMWeightsFormat::IFCO) {
     m_activations = {"sigmoid", "tanh", "tanh"};
@@ -251,8 +248,22 @@ NGRAPH_API EnumNames<ngraph::op::LSTMWeightsFormat>& EnumNames<ngraph::op::LSTMW
     return enum_names;
 }
 
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::LSTMWeightsFormat>);
-
+ov::op::util::LSTMWeightsFormat op::convert_lstm_weights_enums(op::LSTMWeightsFormat format) {
+    switch (format) {
+    case LSTMWeightsFormat::FICO:
+        return ov::op::util::LSTMWeightsFormat::FICO;
+    case LSTMWeightsFormat::ICOF:
+        return ov::op::util::LSTMWeightsFormat::ICOF;
+    case LSTMWeightsFormat::IFCO:
+        return ov::op::util::LSTMWeightsFormat::IFCO;
+    case LSTMWeightsFormat::IFOC:
+        return ov::op::util::LSTMWeightsFormat::IFOC;
+    case LSTMWeightsFormat::IOFC:
+        return ov::op::util::LSTMWeightsFormat::IOFC;
+    default:
+        OPENVINO_ASSERT(false, "Incorrect LSTM weights format");
+    }
+}
 }  // namespace ov
 
 std::ostream& ov::operator<<(std::ostream& s, const op::LSTMWeightsFormat& type) {

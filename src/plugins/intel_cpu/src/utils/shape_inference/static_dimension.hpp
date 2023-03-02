@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,6 +26,11 @@ public:
     /// \brief Construct a static dimension.
     /// \param dimension Value of the dimension.
     StaticDimension(value_type dimension);
+
+    /// \brief Construct a static dimension.
+    /// \param ldimension Value of the dimension (must be equal to udimension)
+    /// \param udimension Value of the dimension (must be equal to ldimension)
+    StaticDimension(value_type ldimension, value_type udimension);
 
     /// \brief Construct a zero dimension
     StaticDimension() = default;

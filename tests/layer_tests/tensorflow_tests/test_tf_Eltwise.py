@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -15,10 +15,6 @@ class TestEltwise(CommonTFLayerTest):
             Inputs->Eltwise       =>       Inputs->Eltwise
 
         """
-
-        #
-        #   Create Tensorflow model
-        #
 
         import tensorflow as tf
 
@@ -57,7 +53,8 @@ class TestEltwise(CommonTFLayerTest):
     test_data = []
     for operation in ['sum', 'max', 'mul']:
         test_data.extend([dict(shape=[1, 224], operation=operation),
-                          dict(shape=[1, 224, 224], operation=operation),
+                          pytest.param(dict(shape=[1, 224, 224], operation=operation),
+                                       marks=pytest.mark.precommit_tf_fe),
                           dict(shape=[1, 3, 224, 224], operation=operation)])
 
     @pytest.mark.parametrize("params", test_data)
@@ -75,6 +72,7 @@ class TestEltwise(CommonTFLayerTest):
 
     @pytest.mark.parametrize("params", test_data_5D)
     @pytest.mark.precommit
+    @pytest.mark.nightly
     def test_eltwise_5D_precommit(self, params, ie_device, precision, ir_version, temp_dir,
                                   use_new_frontend, use_old_api):
         if ie_device == 'GPU':

@@ -3,13 +3,13 @@
 Even though all [supported devices](supported_plugins/Device_Plugins.md) in OpenVINO™ offer low-level performance settings, utilizing them is not recommended outside of very few cases. 
 The preferred way to configure performance in OpenVINO Runtime is using performance hints. This is a future-proof solution fully compatible with the [automatic device selection inference mode](./auto_device_selection.md) and designed with *portability* in mind. 
 
-The hints also set the direction of the configuration in the right order. Instead of mapping the application needs to the low-level performance settings, and keeping an associated application logic to configure each possible device separately, the hints express a target scenario with a single config key and let the *device* configure itself in response.
+The hints also set the direction of the configuration in the right order. Instead of mapping the application needs to the low-level performance settings, and keeping an associated application logic to configure each possible device separately, the hints express a target scenario with a single config key and let the *device* configure itself in response.
 
 Previously, a certain level of automatic configuration was the result of the *default* values of the parameters. For example, the number of CPU streams was deduced from the number of CPU cores, when `ov::streams::AUTO` (`CPU_THROUGHPUT_AUTO` in the pre-API 2.0 terminology) was set. However, the resulting number of streams did not account for actual compute requirements of the model to be inferred.
 The hints, in contrast, respect the actual model, so the parameters for optimal throughput are calculated for each model individually (based on its compute versus memory bandwidth requirements and capabilities of the device).
 
 ## Performance Hints: Latency and Throughput
-As discussed in the [Optimization Guide](../optimization_guide/dldt_optimization_guide.md) there are a few different metrics associated with inference speed.
+As discussed in the [Optimization Guide](../optimization_guide/dldt_deployment_optimization_guide.md) there are a few different metrics associated with inference speed.
 Throughput and latency are some of the most widely used metrics that measure the overall performance of an application.
 
 Therefore, in order to ease the configuration of the device, OpenVINO offers two dedicated hints, namely `ov::hint::PerformanceMode::THROUGHPUT` and `ov::hint::PerformanceMode::LATENCY`.
@@ -131,5 +131,5 @@ The `benchmark_app`, that exists in both  [C++](../../samples/cpp/benchmark_app/
 - - benchmark_app **-hint none -nstreams 1**  -d 'device' -m 'path to your model'
  
 
-### See Also
-[Supported Devices](./supported_plugins/Supported_Devices.md)
+### Additional Resources
+* [Supported Devices](./supported_plugins/Supported_Devices.md)

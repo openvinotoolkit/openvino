@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -85,9 +85,7 @@ private:
         m_handle = HandleHolder(h);
         SYSTEM_INFO SystemInfo;
         GetSystemInfo(&SystemInfo);
-        const int64_t page_size = SystemInfo.dwAllocationGranularity;
 
-        DWORD file_mode = GENERIC_READ;
         DWORD map_mode = FILE_MAP_READ;
         DWORD access = PAGE_READONLY;
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <openvino/cc/pass/itt.hpp>
 #include <regex>
+#include <string>
 #include <unordered_set>
 #include <vector>
 
@@ -50,6 +51,8 @@
  * If MatcherPass register more than one node make sure that this nodes are registered in
  * topological order. */
 
+#ifdef ENABLE_PROFILING_ITT
+
 namespace ov {
 namespace pass {
 namespace {
@@ -60,6 +63,8 @@ PerfCounters& perf_counters_graph_rewrite() {
 }  // namespace
 }  // namespace pass
 }  // namespace ov
+
+#endif  // ENABLE_PROFILING_ITT
 
 bool ov::pass::BackwardGraphRewrite::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_MODEL_SCOPE(BackwardGraphRewrite);
@@ -175,10 +180,12 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
 
         // Recursive apply Matchers for sub-graph based nodes
         if (auto sub_graph_node = std::dynamic_pointer_cast<ngraph::op::util::MultiSubGraphOp>(node)) {
-            size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
-            for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
-                auto sub_graph = sub_graph_node->get_function(sub_graph_ind);
-                run_on_model(sub_graph);
+            if (sub_graph_node->get_transformations_allowed()) {
+                size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
+                for (size_t sub_graph_ind = 0; sub_graph_ind < sub_graphs_num; ++sub_graph_ind) {
+                    auto sub_graph = sub_graph_node->get_function(sub_graph_ind);
+                    run_on_model(sub_graph);
+                }
             }
         }
         // Temporary keep this GraphRewrite property for backward compatibility

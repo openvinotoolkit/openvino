@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -688,5 +688,5 @@ void InferenceEnginePython::CVariableState::setState(InferenceEngine::Blob::Ptr 
 }
 
 const size_t InferenceEnginePython::product(const InferenceEngine::SizeVector& dims) {
-    return std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<size_t>{});
+    return std::accumulate(dims.begin(), dims.end(), size_t(1), std::multiplies<size_t>{});
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,8 +12,6 @@
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
-
-BWDCMP_RTTI_DEFINITION(ov::op::util::DeformableConvolutionBase);
 
 ov::op::util::DeformableConvolutionBase::DeformableConvolutionBase(const OutputVector& arguments,
                                                                    const Strides& strides,
@@ -151,7 +149,7 @@ void ov::op::util::DeformableConvolutionBase::validate_and_infer_types() {
     }
 
     // adjust filter shape to reuse regular infer_convolution_forward()
-    const auto new_filters_pshape = [&](int groups) {
+    const auto new_filters_pshape = [&](int64_t groups) {
         auto new_shape(filters_pshape);
         if (new_shape.rank().is_static()) {
             new_shape[1] *= groups;

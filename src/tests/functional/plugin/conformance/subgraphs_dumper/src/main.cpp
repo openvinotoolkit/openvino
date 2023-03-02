@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,13 +25,19 @@ static std::vector<std::regex> getRegexByFrontend() {
 #endif
 #ifdef ENABLE_OV_PADDLE_FRONTEND
     result.push_back(std::regex(R"(.*\.pdmodel)"));
-    result.push_back(std::regex(R"(.*\__model__)"));
+    result.push_back(std::regex(R"(.*__model__)"));
 #endif
 #ifdef ENABLE_OV_TF_FRONTEND
     result.push_back(std::regex(R"(.*\.pb)"));
 #endif
 #ifdef ENABLE_OV_IR_FRONTEND
     result.push_back(std::regex(R"(.*\.xml)"));
+#endif
+#ifdef ENABLE_OV_TF_LITE_FRONTEND
+    result.push_back(std::regex(R"(.*\.tflite)"));
+#endif
+#ifdef ENABLE_OV_PYTORCH_FRONTEND
+    result.push_back(std::regex(R"(.*\.pt)"));
 #endif
     return result;
 }
@@ -63,8 +69,9 @@ std::vector<SubgraphsDumper::Model> findModelsInDirs(const std::vector<std::stri
     std::sort(models.begin(), models.end());
     std::reverse(models.begin(), models.end());
     if (!CommonTestUtils::directoryExists(FLAGS_output_folder)) {
-        std::string msg = "Output directory (" + FLAGS_output_folder + ") doesn't not exist!";
-        throw std::runtime_error(msg);
+        std::string msg = "Output directory (" + FLAGS_output_folder + ") doesn't not exist! The directory will be created.";
+        std::cout << msg << std::endl;
+        CommonTestUtils::createDirectoryRecursive(FLAGS_output_folder);
     }
     return models;
 }
@@ -105,7 +112,7 @@ void cacheModels(std::unique_ptr<SubgraphsDumper::OPCache> &cache,
                     ret_code = 1;
                     continue;
                 }
-                cache->update_ops_cache(function, extract_body, model.path);
+                cache->update_ops_cache(function, model, extract_body);
                 successful_models_file << model.path << std::endl;
             } catch (std::exception &e) {
                 not_fully_cached_models_file << model.path << std::endl;
@@ -138,7 +145,7 @@ int main(int argc, char *argv[]) {
     try {
         models = findModelsInDirs(dirs);
     } catch (std::runtime_error& e) {
-        std::cout << "Try 'subgraphdumper -h' for more information" << std::endl;
+        std::cout << "Try 'subgraphdumper -h' for more information. \nException: " << e.what() << std::endl;
         return 1;
     }
 

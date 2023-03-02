@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -24,7 +24,6 @@ function(set_ci_build_number)
 endfunction()
 
 include(features)
-include(message)
 
 set_ci_build_number()
 
@@ -41,7 +40,7 @@ elseif(X86)
     set(ARCH_FOLDER ia32)
 elseif(MSVC AND ARM)
     set(ARCH_FOLDER arm)
-elseif(MSVC AND AARCH64)
+elseif((MSVC OR APPLE) AND AARCH64)
     set(ARCH_FOLDER arm64)
 elseif(UNIVERSAL2)
     set(ARCH_FOLDER universal2)
@@ -176,13 +175,28 @@ ov_set_if_not_defined(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FO
 ov_set_if_not_defined(CMAKE_PDB_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 ov_set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_ROOT}/${BIN_FOLDER})
 
-if(CPACK_GENERATOR STREQUAL "DEB")
+if(CPACK_GENERATOR MATCHES "^(DEB|RPM)$")
     # to make sure that lib/<multiarch-tuple> is created on Debian
     set(CMAKE_INSTALL_PREFIX "/usr" CACHE PATH "Cmake install prefix" FORCE)
 endif()
 
+include(packaging/packaging)
+
+set(CMAKE_SKIP_INSTALL_RPATH ON)
+
 if(APPLE)
-    set(CMAKE_MACOSX_RPATH ON)
+    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
+
+    if(DEFINED OV_CPACK_LIBRARYDIR)
+        set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/${OV_CPACK_LIBRARYDIR}")
+    else()
+        message(FATAL_ERROR "Internal error: OV_CPACK_LIBRARYDIR is not defined, while it's required to initialize RPATH")
+    endif()
+
+    if(CPACK_GENERATOR STREQUAL "BREW")
+        set(CMAKE_SKIP_INSTALL_RPATH OFF)
+    endif()
+
     # WA for Xcode generator + object libraries issue:
     # https://gitlab.kitware.com/cmake/cmake/issues/20260
     # http://cmake.3232098.n2.nabble.com/XCODE-DEPEND-HELPER-make-Deletes-Targets-Before-and-While-They-re-Built-td7598277.html
@@ -192,16 +206,25 @@ endif()
 # Use solution folders
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-# cmake_dependent_option() supports full Condition Syntax
-set(CMAKE_POLICY_DEFAULT_CMP0127 NEW)
-# Enable CMAKE_<LANG>_COMPILER_ID AppleClang
+# CMake 3.0+: Enable CMAKE_<LANG>_COMPILER_ID AppleClang
 set(CMAKE_POLICY_DEFAULT_CMP0025 NEW)
+# CMake 3.0+: MACOSX_RPATH is enabled by default.
+set(CMAKE_POLICY_DEFAULT_CMP0026 NEW)
+# CMake 3.0+ (2.8.12): MacOS "@rpath" in target's install name
+set(CMAKE_POLICY_DEFAULT_CMP0042 NEW)
+# CMake 3.9+: `RPATH` settings on macOS do not affect `install_name`.
+set(CMAKE_POLICY_DEFAULT_CMP0068 NEW)
+# CMake 3.12+: find_package() uses <PackageName>_ROOT variables.
+set(CMAKE_POLICY_DEFAULT_CMP0074 NEW)
+# CMake 3.13+: option() honors normal variables.
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+# CMake 3.19+: An imported target missing its location property fails during generation.
+set(CMAKE_POLICY_DEFAULT_CMP0111 NEW)
+# CMake 3.22+ :cmake_dependent_option() supports full Condition Syntax
+set(CMAKE_POLICY_DEFAULT_CMP0127 NEW)
 
 set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "Don't warn about obsolete cmake versions in 3rdparty")
 set(CMAKE_WARN_ON_ABSOLUTE_INSTALL_DESTINATION ON CACHE BOOL "Warn about absolute paths in destination")
-set(CMAKE_SKIP_INSTALL_RPATH ON)
-
-include(packaging/packaging)
 
 # LTO
 
@@ -257,6 +280,8 @@ if(ENABLE_FUZZING)
     enable_fuzzing()
 endif()
 
+get_linux_name(LINUX_OS_NAME)
+
 # macro to mark target as conditionally compiled
 
 function(ie_mark_target_as_cc TARGET_NAME)
@@ -266,7 +291,7 @@ function(ie_mark_target_as_cc TARGET_NAME)
     endif()
     target_link_libraries(${TARGET_NAME} PRIVATE ${cc_library})
 
-    if(NOT (SELECTIVE_BUILD STREQUAL "ON"))
+    if(NOT SELECTIVE_BUILD STREQUAL "ON")
         return()
     endif()
 
@@ -276,6 +301,7 @@ function(ie_mark_target_as_cc TARGET_NAME)
 
     get_target_property(sources ${TARGET_NAME} SOURCES)
     set_source_files_properties(${sources} PROPERTIES OBJECT_DEPENDS ${GENERATED_HEADER})
+    add_dependencies(${TARGET_NAME} conditional_compilation_gen)
 endfunction()
 
 function(ov_mark_target_as_cc)
@@ -283,6 +309,7 @@ function(ov_mark_target_as_cc)
 endfunction()
 
 include(python_requirements)
+include(native_compile)
 
 # Code style utils
 

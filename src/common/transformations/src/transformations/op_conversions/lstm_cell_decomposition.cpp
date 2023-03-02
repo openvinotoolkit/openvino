@@ -1,25 +1,25 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/op_conversions/lstm_cell_decomposition.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset4.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset4.hpp>
 #include <transformations/utils/utils.hpp>
 #include <vector>
 
 #include "itt.hpp"
 
-ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
+ov::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
     MATCHER_SCOPE(LSTMCellDecomposition);
     auto any_lstm = pattern::wrap_type<opset1::LSTMCell, opset4::LSTMCell>();
 
-    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
-        auto lstm_cell = std::dynamic_pointer_cast<ngraph::op::util::RNNCellBase>(m.get_match_root());
+    matcher_pass_callback callback = [this](ngraph::pattern::Matcher& m) {
+        auto lstm_cell = std::dynamic_pointer_cast<op::util::RNNCellBase>(m.get_match_root());
         if (!lstm_cell || transformation_callback(lstm_cell)) {
             return false;
         }
@@ -38,7 +38,7 @@ ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
         auto add = std::make_shared<opset4::Add>(Ht_R, bias);
         auto XHB = std::make_shared<opset4::Add>(Xt_W, add);
 
-        auto axis_node = ngraph::opset4::Constant::create(element::u64, Shape{}, {1});
+        auto axis_node = ov::opset4::Constant::create(element::u64, Shape{}, {1});
         auto split = std::make_shared<opset4::Split>(XHB, axis_node, 4);
         Output<Node> f = split->output(0);
         Output<Node> i = split->output(1);
@@ -62,10 +62,10 @@ ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
         // it = f(Xt*(Wi^T) + Ht-1*(Ri^T) + Wbi + Rbi)
         // ct = g(Xt*(Wc^T) + Ht-1*(Rc^T) + Wbc + Rbc)
         // ot = f(Xt*(Wo^T) + Ht-1*(Ro^T) + Wbo + Rbo)
-        auto f_t = ngraph::op::util::activation(lstm_cell->get_activations()[0], f);
-        auto i_t = ngraph::op::util::activation(lstm_cell->get_activations()[0], i);
-        auto c_t = ngraph::op::util::activation(lstm_cell->get_activations()[1], c);
-        auto o_t = ngraph::op::util::activation(lstm_cell->get_activations()[0], o);
+        auto f_t = ov::op::util::activation(lstm_cell->get_activations()[0], f);
+        auto i_t = ov::op::util::activation(lstm_cell->get_activations()[0], i);
+        auto c_t = ov::op::util::activation(lstm_cell->get_activations()[1], c);
+        auto o_t = ov::op::util::activation(lstm_cell->get_activations()[0], o);
 
         // Ct = ft (.) Ct-1 + it (.) ct
         auto mul1 = std::make_shared<opset4::Multiply>(f_t, C_t);
@@ -73,7 +73,7 @@ ngraph::pass::LSTMCellDecomposition::LSTMCellDecomposition() {
         auto out_C = std::make_shared<opset4::Add>(mul1, mul2);
 
         // H = ot (.) h(Ct)
-        auto hC = ngraph::op::util::activation(lstm_cell->get_activations()[2], out_C);
+        auto hC = ov::op::util::activation(lstm_cell->get_activations()[2], out_C);
         auto out_H = std::make_shared<opset4::Multiply>(o_t, hC);
 
         out_H->set_friendly_name(lstm_cell->get_friendly_name() + ".0");

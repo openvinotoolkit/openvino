@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,7 +8,7 @@
 #include <memory>
 
 #include <ngraph/opsets/opset1.hpp>
-#include "ngraph_ops/type_relaxed.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
 
@@ -85,17 +85,17 @@ std::shared_ptr<Node> makeDequantization(
                 subtract = std::make_shared<opset1::Subtract>(subtractConst, parent);
         } else {
             if (dequantizationOperations.subtract.constantIndex == 1ul) {
-                subtract = std::make_shared<op::TypeRelaxed<ngraph::opset1::Subtract>>(
+                subtract = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Subtract>>(
                     std::vector<element::Type>{element::f32, element::f32},
                     std::vector<element::Type>{ element::f32 },
-                    ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get(),
-                    ngraph::op::TemporaryReplaceOutputType(subtractConst, element::f32).get());
+                    ov::op::TemporaryReplaceOutputType(parent, element::f32).get(),
+                    ov::op::TemporaryReplaceOutputType(subtractConst, element::f32).get());
             } else {
-                subtract = std::make_shared<op::TypeRelaxed<ngraph::opset1::Subtract>>(
+                subtract = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Subtract>>(
                     std::vector<element::Type>{element::f32, element::f32},
                     std::vector<element::Type>{ element::f32 },
-                    ngraph::op::TemporaryReplaceOutputType(subtractConst, element::f32).get(),
-                    ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get());
+                    ov::op::TemporaryReplaceOutputType(subtractConst, element::f32).get(),
+                    ov::op::TemporaryReplaceOutputType(parent, element::f32).get());
             }
 
             ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(subtract, dequantizationOperations.subtract.outPrecision);
@@ -167,16 +167,16 @@ std::shared_ptr<Node> makeMultiply(const Output<Node>& parent, const Dequantizat
 
         // TODO: use templates
         newMultiply = multiply.constantIndex == 1ul ?
-            std::make_shared<op::TypeRelaxed<ngraph::opset1::Multiply>>(
+            std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Multiply>>(
                 std::vector<element::Type>{element::f32, element::f32},
                 std::vector<element::Type>{ multiply.outPrecision },
-                ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get(),
-                ngraph::op::TemporaryReplaceOutputType(constant, element::f32).get()) :
-            std::make_shared<op::TypeRelaxed<ngraph::opset1::Multiply>>(
+                ov::op::TemporaryReplaceOutputType(parent, element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(constant, element::f32).get()) :
+            std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Multiply>>(
                 std::vector<element::Type>{element::f32, element::f32},
                 std::vector<element::Type>{ multiply.outPrecision },
-                ngraph::op::TemporaryReplaceOutputType(constant, element::f32).get(),
-                ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get());
+                ov::op::TemporaryReplaceOutputType(constant, element::f32).get(),
+                ov::op::TemporaryReplaceOutputType(parent, element::f32).get());
     }
 
     return newMultiply;
@@ -242,7 +242,7 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
     const ngraph::element::Type precision,
     const FakeQuantizeOnData& fqOnData) {
     const std::shared_ptr<ngraph::opset1::FakeQuantize> fq = makeFakeQuantize(output, precision, fqOnData);
-    return std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::FakeQuantize>>(
+    return std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::FakeQuantize>>(
         *fq,
         fqOnData.outputPrecision == element::undefined ? precision : fqOnData.outputPrecision);
 }
@@ -339,7 +339,7 @@ std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantizeTypeRelaxed(
     const ngraph::element::Type constantPrecision,
     const FakeQuantizeOnDataWithConstant& fqOnData) {
     const std::shared_ptr<ngraph::opset1::FakeQuantize> fq = makeFakeQuantize(input, constantPrecision, fqOnData);
-    return std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::FakeQuantize>>(
+    return std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::FakeQuantize>>(
         *fq,
         fqOnData.outputPrecision == ngraph::element::undefined ? constantPrecision : fqOnData.outputPrecision);
 }
@@ -380,8 +380,8 @@ std::shared_ptr<Node> makeConvolution(
     }
 
     const auto convolution = std::make_shared<ngraph::opset1::Convolution>(
-        ngraph::op::TemporaryReplaceOutputType(parent, precision).get(),
-        ngraph::op::TemporaryReplaceOutputType(weights, precision).get(),
+        ov::op::TemporaryReplaceOutputType(parent, precision).get(),
+        ov::op::TemporaryReplaceOutputType(weights, precision).get(),
         ngraph::Strides{ 1, 1 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::CoordinateDiff{ 0, 0 },

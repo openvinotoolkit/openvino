@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@ namespace v3 {
 class OPENVINO_API ScatterElementsUpdate : public Op {
 public:
     OPENVINO_OP("ScatterElementsUpdate", "opset3", op::Op, 3);
-    BWDCMP_RTTI_DECLARATION;
 
     ScatterElementsUpdate() = default;
     /// \brief Constructs a ScatterElementsUpdate node
@@ -37,6 +36,9 @@ public:
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
     bool has_evaluate() const override;
+    bool evaluate_lower(TensorVector& output_values) const override;
+    bool evaluate_upper(TensorVector& output_values) const override;
+    bool evaluate_label(TensorLabelVector& output_labels) const override;
 
 private:
     bool evaluate_scatter_element_update(const HostTensorVector& outputs, const HostTensorVector& inputs) const;

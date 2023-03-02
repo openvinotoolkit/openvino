@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
-#include "include/math_utils.h"
+#include "intel_gpu/runtime/half.hpp"
 
 struct FLOAT16 {
     struct representation {
@@ -22,19 +22,19 @@ struct FLOAT16 {
     static constexpr FLOAT16 lowest_val() { return FLOAT16((uint16_t)(0xfbff)); }
 
     operator double() const {
-        double d = (double)float16_to_float32(v);
+        double d = (double)cldnn::half_to_float(v);
         return d;
     }
     operator float() const {
-        float f = float16_to_float32(v);
+        float f = cldnn::half_to_float(v);
         return f;
     }
     operator int16_t() const { return *(int16_t *)(&v); }
     operator long long int() const { return v; }
     operator uint32_t() const { return v; }
-    FLOAT16(float f) { v = float32_to_float16(f); }
-    FLOAT16(size_t s) { v = float32_to_float16(float(s)); }
-    FLOAT16(int i) { v = float32_to_float16(float(i)); }
+    FLOAT16(float f) { v = cldnn::float_to_half(f); }
+    FLOAT16(size_t s) { v = cldnn::float_to_half(float(s)); }
+    FLOAT16(int i) { v = cldnn::float_to_half(float(i)); }
     // TODO Below should have constructor tag to avoid ambigious behaviour, ex FLOAT16(16.f) != FLOAT16((uint16_t)16)
     explicit constexpr FLOAT16(int16_t d) : v(d) {}
     explicit constexpr FLOAT16(uint16_t d) : v(d) {}

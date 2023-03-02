@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.utils.error import FrameworkError, Error
@@ -7,8 +7,8 @@ from openvino.tools.mo.utils.utils import refer_to_faq_msg
 try:
     import mxnet
 except ImportError:
-    raise Error('Module mxnet was not found. Please install appropriate version of mxnet via install_prerequisites '
-                'script.' + refer_to_faq_msg(52))
+    raise Error('Module mxnet was not found. Please install appropriate version of mxnet with requirements via \n'
+                'pip install openvino-dev[mxnet]')
 
 from openvino.tools.mo.load.loader import Loader
 from openvino.tools.mo.front.common.register_custom_ops import update_extractors_with_extensions

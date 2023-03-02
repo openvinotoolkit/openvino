@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,8 +44,6 @@ check_value(T value) {
     return value == value && value_minus_value == value_minus_value;
 }
 
-BWDCMP_RTTI_DEFINITION(op::v4::Range);
-
 op::v4::Range::Range(const Output<Node>& start,
                      const Output<Node>& stop,
                      const Output<Node>& step,
@@ -87,7 +85,7 @@ void op::v4::Range::validate_and_infer_types() {
 
     std::vector<PartialShape> result_shapes = {PartialShape::dynamic()};
     std::vector<PartialShape> input_shapes;
-    for (int i = 0; i < get_input_size(); i++)
+    for (size_t i = 0; i < get_input_size(); i++)
         input_shapes.push_back(get_input_partial_shape(i));
 
     op::v4::shape_infer(this, input_shapes, result_shapes);
@@ -236,8 +234,6 @@ bool op::v4::Range::has_evaluate() const {
     return false;
 }
 
-BWDCMP_RTTI_DEFINITION(op::v0::Range);
-
 op::v0::Range::Range(const Output<Node>& start, const Output<Node>& stop, const Output<Node>& step)
     : Op({start, stop, step}) {
     constructor_validate_and_infer_types();
@@ -360,7 +356,7 @@ void op::v0::Range::validate_and_infer_types() {
     } else {
         std::vector<PartialShape> result_shapes = {PartialShape::dynamic()};
         std::vector<PartialShape> input_shapes;
-        for (int i = 0; i < get_input_size(); i++)
+        for (size_t i = 0; i < get_input_size(); i++)
             input_shapes.push_back(get_input_partial_shape(i));
 
         op::v0::shape_infer(this, input_shapes, result_shapes);

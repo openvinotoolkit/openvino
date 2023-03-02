@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,6 @@
 #include <memory>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
-#include <ngraph/variant.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -15,7 +14,7 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
-bool ngraph::pass::InitNodeInfo::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+bool ov::pass::InitNodeInfo::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(InitNodeInfo);
 
     for (auto& node : f->get_ops()) {

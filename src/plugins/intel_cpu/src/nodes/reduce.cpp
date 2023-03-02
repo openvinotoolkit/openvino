@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -112,7 +112,7 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_reduce_kernel_f32)
 
     explicit jit_uni_reduce_kernel_f32(jit_reduce_config_params jcp)
-    : jit_uni_reduce_kernel(jcp), jit_generator() {}
+    : jit_uni_reduce_kernel(jcp), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -121,7 +121,7 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
 
     void generate() override {
         if (jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
-            exp_injector = std::make_shared<jit_uni_eltwise_injector_f32<isa>>(this, alg_kind::eltwise_exp, 0.f, 0.f, 1);
+            exp_injector = std::make_shared<jit_uni_eltwise_injector_f32<isa>>(this, alg_kind::eltwise_exp, 0.f, 0.f, 1.f);
         }
 
         if (mayiuse(avx512_core))
@@ -549,10 +549,20 @@ private:
             case memory::data_type::s32:
                 if (isa == cpu::x64::avx512_core) {
                     kxnord(k_mask, k_mask, k_mask);
-                    vgatherdps(vmm_src | k_mask, ptr[reg_src + offset + vmm_idx]);
+                    if (jcp_.src_dt == memory::data_type::f32) {
+                        vgatherdps(vmm_src | k_mask, ptr[reg_src + offset + vmm_idx]);
+                    } else {
+                        vpgatherdd(vmm_src | k_mask, ptr[reg_src + offset + vmm_idx]);
+                        uni_vcvtdq2ps(vmm_src, vmm_src);
+                    }
                 } else if (isa == cpu::x64::avx2) {
                     uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
-                    vgatherdps(vmm_src, ptr[reg_src + offset + vmm_idx], vmm_mask);
+                    if (jcp_.src_dt == memory::data_type::f32) {
+                        vgatherdps(vmm_src, ptr[reg_src + offset + vmm_idx], vmm_mask);
+                    } else {
+                        vpgatherdd(vmm_src, ptr[reg_src + offset + vmm_idx], vmm_mask);
+                        uni_vcvtdq2ps(vmm_src, vmm_src);
+                    }
                 } else {
                     pack_gathered_vector(vmm_src, vmm_idx, offset, jcp_.src_dt);
                 }
@@ -1079,7 +1089,7 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_reduce_post_kernel_f32)
 
     explicit jit_uni_reduce_post_kernel_f32(jit_reduce_config_params jcp, const dnnl_primitive_attr &attr)
-    : jit_uni_reduce_post_kernel(jcp, attr), jit_generator() {}
+    : jit_uni_reduce_post_kernel(jcp, attr), jit_generator(jit_name()) {}
 
     void create_ker() override {
         jit_generator::create_kernel();
@@ -1728,8 +1738,8 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-Reduce::Reduce(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+Reduce::Reduce(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, NgraphShapeInferFactory(op, PortMask(REDUCE_INDEXES))) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "Reduce node with name '" + getName() + "'";
@@ -1871,10 +1881,6 @@ bool Reduce::isExecutable() const {
     return !isInputTensorAtPortEmpty(REDUCE_DATA);
 }
 
-std::vector<VectorDims> Reduce::shapeInfer() const {
-    return Node::shapeInferGeneric(PortMask(REDUCE_INDEXES));
-}
-
 void Reduce::prepareParams() {
     src_dims = getParentEdgesAtPort(REDUCE_DATA)[0]->getMemory().getDesc().getShape().getDims();
     std::vector<int> reduce_axes;
@@ -1912,7 +1918,7 @@ void Reduce::prepareParams() {
         setPostOps(attr, dst_dims, true);
 
         ReduceKey key = {jcp, attr.get_post_ops()};
-        auto cache = getRuntimeCache();
+        auto cache = context->getParamsCache();
         auto result = cache->getOrCreate(key, builder);
         if (!result.first) {
             IE_THROW() << errorPrefix << " has not found jit_uni_reduce_post_kernel_f32.";
@@ -2002,7 +2008,7 @@ void Reduce::execute(dnnl::stream strm) {
 
     if (jit_mode) {
         if (is_hybrid_layout) {
-            dst_data = reinterpret_cast<uint8_t *>(prc_mem->get_data_handle());
+            dst_data = reinterpret_cast<uint8_t *>(prc_mem.get_data_handle());
         }
         reduce_type(src_data, dst_data, dst_size);
     } else {
@@ -2633,7 +2639,7 @@ inline void Reduce::create_working_memory() {
                                                      : (mayiuse(cpu::x64::avx512_core) ? memory::format_tag::nCdhw16c : memory::format_tag::nCdhw8c));
     auto prc_dims = rank == 4 ? std::vector<size_t>{OB, OC, OH, OW} : std::vector<size_t>{OB, OC, OD, OH, OW};
     auto desc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(prc_dims), DnnlExtensionUtils::IEPrecisionToDataType(output_prec), format);
-    prc_mem = std::make_shared<dnnl::memory>(desc, getEngine());
+    prc_mem = dnnl::memory(desc, getEngine());
     dst_size = desc.get_size();
 }
 
@@ -2681,8 +2687,8 @@ inline void Reduce::calc_process_dst_dims(std::vector<int> &reduce_axes, const S
         }
     }
     if (jit_mode && jit_beyond_5D) {
-        if (std::accumulate(out_dims.begin(), out_dims.end(), 1, std::multiplies<double>()) !=
-            std::accumulate(dst_dims.begin(), dst_dims.end(), 1, std::multiplies<double>()))
+        if (std::accumulate(out_dims.begin(), out_dims.end(), size_t(1), std::multiplies<size_t>()) !=
+            std::accumulate(dst_dims.begin(), dst_dims.end(), size_t(1), std::multiplies<size_t>()))
             IE_THROW() << errorPrefix << "gets incorrect number of output dimensions!";
     } else {
         for (size_t i = 0; i < std::min(out_dims.size(), dst_dims.size()); i++) {

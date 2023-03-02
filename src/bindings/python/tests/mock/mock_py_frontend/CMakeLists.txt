@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -26,6 +26,7 @@ target_compile_definitions(${TARGET_NAME} PUBLIC
     $<$<BOOL:${ENABLE_OV_PADDLE_FRONTEND}>:ENABLE_OV_PADDLE_FRONTEND>)
 
 target_link_libraries(${TARGET_NAME} PUBLIC
+    openvino::runtime
     $<$<BOOL:${ENABLE_OV_ONNX_FRONTEND}>:openvino::frontend::onnx>
     $<$<BOOL:${ENABLE_OV_TF_FRONTEND}>:openvino::frontend::tensorflow>
     $<$<BOOL:${ENABLE_OV_PADDLE_FRONTEND}>:openvino::frontend::paddle>)

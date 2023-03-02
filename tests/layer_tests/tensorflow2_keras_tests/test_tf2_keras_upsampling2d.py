@@ -44,8 +44,9 @@ class TestKerasUpSampling2D(CommonTF2LayerTest):
 
     # Tests for bilinear interpolation
     test_data_bilinear = [
-        dict(input_names=["x1"], input_shapes=[[1, 6, 2, 1]], input_type=tf.float32,
-             size=(3, 1), data_format='channels_last', interpolation='bilinear'),
+        pytest.param(dict(input_names=["x1"], input_shapes=[[1, 6, 2, 1]], input_type=tf.float32,
+                          size=(3, 1), data_format='channels_last', interpolation='bilinear'),
+                     marks=pytest.mark.precommit_tf_fe),
         dict(input_names=["x1"], input_shapes=[[1, 3, 1, 6]], input_type=tf.float32,
              size=(5, 2), data_format='channels_last', interpolation='bilinear'),
     ]

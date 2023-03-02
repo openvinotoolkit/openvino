@@ -107,7 +107,7 @@ class TestMapFN(CommonTF2LayerTest):
                           fn_output_signature=(tf.int32, tf.int32, tf.int32), back_prop=True,
                           input_names=["x1", "x2", "x3"],
                           input_shapes=[[2, 1, 3, 4], [2, 1, 3, 4], [2, 1, 3, 4]]),
-                     marks=pytest.mark.xfail(reason="61587"))
+                     marks=[pytest.mark.xfail(reason="61587"), pytest.mark.precommit_tf_fe])
     ]
 
     @pytest.mark.parametrize("params", test_multiple_inputs_outputs_int32)

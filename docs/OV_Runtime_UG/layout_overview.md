@@ -147,6 +147,26 @@ A layout can be converted to a string in the advanced syntax format. It can be u
 
 @endsphinxtabset
 
+### Get layout from Model Input/Output
+
+OpenVINO provides helpers which provide a simple interface to get layout from Model input or output.
+
+@sphinxtabset
+
+@sphinxtab{C++}
+
+@snippet docs/snippets/ov_layout.cpp ov:layout:get_from_model
+
+@endsphinxtab
+
+@sphinxtab{Python}
+
+@snippet docs/snippets/ov_layout.py ov:layout:get_from_model
+
+@endsphinxtab
+
+@endsphinxtabset
+
 ## See also
 
 * API Reference: <code>ov::Layout</code> C++ class 

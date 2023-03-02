@@ -1,21 +1,21 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/softmax_fusion.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset6.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset6.hpp>
 #include <vector>
 
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-ngraph::pass::SoftmaxFusion::SoftmaxFusion() {
+ov::pass::SoftmaxFusion::SoftmaxFusion() {
     MATCHER_SCOPE(SoftmaxFusion);
-    auto data_pattern = ngraph::pattern::any_input(pattern::has_static_rank());
+    auto data_pattern = pass::pattern::any_input(pattern::has_static_rank());
     auto reduce_max_axes_pattern = ngraph::pattern::wrap_type<opset6::Constant>();
     auto reduce_max_pattern = ngraph::pattern::wrap_type<opset6::ReduceMax>({data_pattern, reduce_max_axes_pattern});
     auto sub_pattern = ngraph::pattern::wrap_type<opset6::Subtract>({data_pattern, reduce_max_pattern});
@@ -24,7 +24,7 @@ ngraph::pass::SoftmaxFusion::SoftmaxFusion() {
     auto reduce_sum_pattern = ngraph::pattern::wrap_type<opset6::ReduceSum>({exp_pattern, reduce_sum_axes_pattern});
     auto div_pattern = ngraph::pattern::wrap_type<opset6::Divide>({exp_pattern, reduce_sum_pattern});
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         if (transformation_callback(m.get_match_root()))
             return false;
 
@@ -52,7 +52,7 @@ ngraph::pass::SoftmaxFusion::SoftmaxFusion() {
         if (reduce_max_axis != reduce_sum_axis)
             return false;
 
-        auto softmax = register_new_node<ngraph::opset6::Softmax>(pattern_map.at(data_pattern), reduce_sum_axis);
+        auto softmax = register_new_node<opset6::Softmax>(pattern_map.at(data_pattern), reduce_sum_axis);
         auto div = pattern_map.at(div_pattern).get_node_shared_ptr();
         softmax->set_friendly_name(div->get_friendly_name());
 

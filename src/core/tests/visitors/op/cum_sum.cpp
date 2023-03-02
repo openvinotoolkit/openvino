@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ TEST(attributes, cum_sum_op_default_attributes_no_axis_input) {
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto cs = make_shared<op::CumSum>(A);
 
-    NodeBuilder builder(cs);
+    NodeBuilder builder(cs, {A});
     auto g_cs = ov::as_type_ptr<opset3::CumSum>(builder.create());
 
     const auto expected_attr_count = 2;
@@ -37,7 +37,7 @@ TEST(attributes, cum_sum_op_default_attributes) {
     auto axis = make_shared<op::Parameter>(element::i32, Shape{1});
     auto cs = make_shared<op::CumSum>(A, axis);
 
-    NodeBuilder builder(cs);
+    NodeBuilder builder(cs, {A, axis});
     auto g_cs = ov::as_type_ptr<opset3::CumSum>(builder.create());
 
     const auto expected_attr_count = 2;
@@ -57,7 +57,7 @@ TEST(attributes, cum_sum_op_custom_attributes) {
     bool reverse = true;
     auto cs = make_shared<op::CumSum>(A, axis, exclusive, reverse);
 
-    NodeBuilder builder(cs);
+    NodeBuilder builder(cs, {A, axis});
     auto g_cs = ov::as_type_ptr<opset3::CumSum>(builder.create());
 
     const auto expected_attr_count = 2;

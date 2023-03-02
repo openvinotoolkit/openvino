@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,7 +56,7 @@ template <>
 inline float get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
     switch (attribute.type()) {
     case ONNX_NAMESPACE::AttributeProto_AttributeType_INT:
-        return attribute.i();
+        return static_cast<float>(attribute.i());
     case ONNX_NAMESPACE::AttributeProto_AttributeType_FLOAT:
         return attribute.f();
     default:
@@ -86,7 +86,7 @@ inline double get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
     case ONNX_NAMESPACE::AttributeProto_AttributeType_FLOAT:
         return static_cast<double>(attribute.f());
     case ONNX_NAMESPACE::AttributeProto_AttributeType_INT:
-        return attribute.i();
+        return static_cast<double>(attribute.i());
     default:
         throw error::attribute::InvalidData{attribute.type()};
     }
@@ -94,6 +94,10 @@ inline double get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
 
 template <>
 inline std::vector<double> get_value(const ONNX_NAMESPACE::AttributeProto& attribute) {
+#if defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma warning(disable : 4244)
+#endif
     switch (attribute.type()) {
     case ONNX_NAMESPACE::AttributeProto_AttributeType_INT:
         return {static_cast<double>(attribute.i())};
@@ -106,6 +110,9 @@ inline std::vector<double> get_value(const ONNX_NAMESPACE::AttributeProto& attri
     default:
         throw error::attribute::InvalidData{attribute.type()};
     }
+#if defined(_MSC_VER)
+#    pragma warning(pop)
+#endif
 }
 
 template <>
@@ -258,7 +265,7 @@ public:
     const std::string& get_string() const {
         return m_attribute_proto->s();
     }
-    Subgraph get_subgraph(const Graph* parent_graph) const;
+    Subgraph get_subgraph(Graph* parent_graph) const;
 
     std::vector<Tensor> get_tensor_array() const {
         std::vector<Tensor> ret;

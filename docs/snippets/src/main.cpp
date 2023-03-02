@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,11 @@ ov::CompiledModel compiled_model = core.compile_model("model.pdmodel", "AUTO");
 }
 {
 //! [part2_4]
+ov::CompiledModel compiled_model = core.compile_model("model.pb", "AUTO");
+//! [part2_4]
+}
+{
+//! [part2_5]
 auto create_model = []() {
     std::shared_ptr<ov::Model> model;
     // To construct a model, please follow 
@@ -37,7 +42,7 @@ auto create_model = []() {
 };
 std::shared_ptr<ov::Model> model = create_model();
 compiled_model = core.compile_model(model, "AUTO");
-//! [part2_4]
+//! [part2_5]
 }
 
 //! [part3]
@@ -67,3 +72,15 @@ const float *output_buffer = output.data<const float>();
 //! [part6]
 return 0;
 }
+/*
+//! [part7]
+project/
+   ├── CMakeLists.txt  - CMake file to build
+   ├── ...             - Additional folders like includes/
+   └── src/            - source folder
+       └── main.cpp
+build/                  - build directory
+   ... 
+
+//! [part7]
+*/

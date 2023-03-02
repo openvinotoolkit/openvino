@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 
 /**
@@ -13,7 +13,7 @@
  * Transpose
  */
 
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API MatMulConstTransposesExtraction : public MatcherPass {
@@ -23,4 +23,4 @@ public:
 };
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov

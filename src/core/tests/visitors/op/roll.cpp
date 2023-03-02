@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,8 @@ TEST(attributes, roll_op) {
     const auto C = make_shared<op::Constant>(element::i32, Shape{3});
 
     const auto roll = make_shared<opset7::Roll>(A, B, C);
-    NodeBuilder builder(roll);
+    NodeBuilder builder(roll, {A, B, C});
+    EXPECT_NO_THROW(auto g_roll = ov::as_type_ptr<opset7::Roll>(builder.create()));
 
     const auto expected_attr_count = 0;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

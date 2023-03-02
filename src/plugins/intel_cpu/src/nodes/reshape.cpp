@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,8 +34,8 @@ bool Reshape::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-Reshape::Reshape(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache) {
+Reshape::Reshape(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+        Node(op, context, NgraphShapeInferFactory(op, PortMask(1))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -68,27 +68,20 @@ bool Reshape::needShapeInfer() const {
     if (inputShapesModified()) {
         return true;
     }
-    if (lastSecondInputValues.empty())
-        return true;
-    const int32_t *sndInput = reinterpret_cast<const int32_t *>(getParentEdgesAtPort(1)[0]->getMemory().GetPtr());
+    const auto& mem = getParentEdgesAtPort(1)[0]->getMemory();
+    if (lastSecondInputValues.empty()) {
+        lastSecondInputValues.resize(mem.getStaticDims()[0], 0);
+    }
+    const int32_t *sndInput = reinterpret_cast<const int32_t *>(mem.GetPtr());
     for (size_t i = 0; i < lastSecondInputValues.size(); i++) {
-        if (lastSecondInputValues[i] != sndInput[i])
+        if (lastSecondInputValues[i] != sndInput[i]) {
+            for (size_t i = 0; i < lastSecondInputValues.size(); i++) {
+                lastSecondInputValues[i] = sndInput[i];
+            }
             return true;
+        }
     }
     return false;
-}
-
-std::vector<VectorDims> Reshape::shapeInfer() const {
-    const auto &memPtr = getParentEdgesAtPort(1)[0]->getMemory();
-
-    const int32_t *sndInput = reinterpret_cast<const int32_t *>(memPtr.GetPtr());
-    if (lastSecondInputValues.empty())
-        lastSecondInputValues.resize(memPtr.getStaticDims()[0]);
-    for (size_t i = 0; i < lastSecondInputValues.size(); i++) {
-        lastSecondInputValues[i] = sndInput[i];
-    }
-
-    return shapeInferGeneric(PortMask(1));
 }
 
 void Reshape::getSupportedDescriptors() {

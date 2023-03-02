@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,8 @@ template <typename T, typename std::enable_if<std::is_integral<T>::value, bool>:
 void sigmoid(const T* arg, T* out, size_t count) {
     T exp_value;
     for (size_t i = 0; i < count; i++) {
-        exp_value = std::exp(-static_cast<typename std::make_signed<T>::type>(arg[i]));
-        out[i] = 1 / (1 + exp_value);
+        exp_value = static_cast<T>(std::exp(-static_cast<typename std::make_signed<T>::type>(arg[i])));
+        out[i] = static_cast<T>(1 / (1 + exp_value));
     }
 }
 
@@ -24,8 +24,8 @@ template <typename T, typename std::enable_if<!std::is_integral<T>::value, bool>
 void sigmoid(const T* arg, T* out, size_t count) {
     T exp_value;
     for (size_t i = 0; i < count; i++) {
-        exp_value = std::exp(-arg[i]);
-        out[i] = 1 / (1 + exp_value);
+        exp_value = static_cast<T>(std::exp(-arg[i]));
+        out[i] = static_cast<T>(1 / (1 + exp_value));
     }
 }
 }  // namespace reference

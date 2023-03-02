@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,9 +6,9 @@
 
 #include <convolution_shape_inference.hpp>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
@@ -17,12 +17,6 @@ using namespace ngraph;
 //------------------------------------------------------------------------------
 //                        v1::GroupConvolution
 //------------------------------------------------------------------------------
-
-BWDCMP_RTTI_DEFINITION(op::v1::GroupConvolution);
-
-shared_ptr<Node> op::v1::GroupConvolution::get_default_value() const {
-    return op::v0::Constant::create(get_element_type(), get_shape(), {0});
-}
 
 op::v1::GroupConvolution::GroupConvolution(const Output<Node>& data_batch,
                                            const Output<Node>& filters,
@@ -50,21 +44,6 @@ bool ngraph::op::v1::GroupConvolution::visit_attributes(AttributeVisitor& visito
     return true;
 }
 
-static Dimension infer_group_from_input_shapes(const ov::PartialShape& data_pshape,
-                                               const ov::PartialShape& filters_pshape) {
-    Dimension group_dim = Dimension();
-    if (data_pshape.rank().is_static() && data_pshape[1].is_static() && filters_pshape.rank().is_static() &&
-        filters_pshape[2].is_static()) {
-        auto n_data_channels = data_pshape[1].get_length();
-        auto input_channels = filters_pshape[2].get_length();
-
-        NGRAPH_CHECK((n_data_channels % input_channels) == 0);
-        auto groups = n_data_channels / input_channels;
-        group_dim = Dimension(groups);
-    }
-    return group_dim;
-}
-
 void op::v1::GroupConvolution::validate_and_infer_types() {
     OV_OP_SCOPE(v1_GroupConvolution_validate_and_infer_types);
     element::Type data_batch_et = get_input_element_type(0);
@@ -88,7 +67,7 @@ void op::v1::GroupConvolution::validate_and_infer_types() {
     auto& filter_shape = get_input_partial_shape(1);
 
     m_num_spatial = calculate_num_spatial(this, data_shape, filter_shape, 2, 3);
-    update_and_validate_attributes(this);
+    update_and_validate_attributes(this, m_num_spatial);
 
     std::vector<ov::PartialShape> input_shapes = {data_shape, filter_shape};
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
@@ -116,8 +95,6 @@ shared_ptr<Node> op::v1::GroupConvolution::clone_with_new_inputs(const OutputVec
 //------------------------------------------------------------------------------
 //                        v1::GroupConvolutionBackpropData
 //------------------------------------------------------------------------------
-
-BWDCMP_RTTI_DEFINITION(op::v1::GroupConvolutionBackpropData);
 
 op::v1::GroupConvolutionBackpropData::GroupConvolutionBackpropData()
     : Op(),
@@ -200,21 +177,6 @@ bool op::v1::GroupConvolutionBackpropData::is_dynamic() const {
         return !has_and_set_equal_bounds(input_value(2));
     }
     return is_dynamic;
-}
-
-static Dimension infer_backprop_group_from_input_shapes(const ov::PartialShape& data_pshape,
-                                                        const ov::PartialShape& filters_pshape) {
-    Dimension group_dim = Dimension();
-    if (data_pshape.rank().is_static() && data_pshape[1].is_static() && filters_pshape.rank().is_static() &&
-        filters_pshape[1].is_static()) {
-        auto n_data_channels = data_pshape[1].get_length();
-        auto input_channels = filters_pshape[1].get_length();
-
-        NGRAPH_CHECK((n_data_channels % input_channels) == 0);
-        auto groups = n_data_channels / input_channels;
-        group_dim = Dimension(groups);
-    }
-    return group_dim;
 }
 
 const ov::PartialShape op::v1::GroupConvolutionBackpropData::get_convolution_output_shape() const {
@@ -301,7 +263,7 @@ void op::v1::GroupConvolutionBackpropData::validate_and_infer_types() {
     auto& output_shapes_shape = output_shape_input_present ? get_input_partial_shape(2) : PartialShape::dynamic();
 
     m_num_spatial = calculate_num_spatial(this, data_shape, filter_shape, output_shapes_shape, 2, 3);
-    update_and_validate_attributes_back_prop(this);
+    update_and_validate_attributes_back_prop(this, m_num_spatial);
 
     std::vector<ov::PartialShape> input_shapes = {data_shape, filter_shape};
     if (output_shape_input_present)

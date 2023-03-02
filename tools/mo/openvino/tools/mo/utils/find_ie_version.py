@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -16,13 +16,8 @@ python_path_key = "PYTHONPATH"
 if python_path_key not in os.environ:
     os.environ[python_path_key] = ""
 
-ov_frontend_path_key = "OV_FRONTEND_PATH"
-if ov_frontend_path_key not in os.environ:
-    os.environ[ov_frontend_path_key] = ""
-
 lib_path_orig = os.environ[lib_env_key]
 python_path_orig = os.environ[python_path_key]
-ov_frontend_path_orig = os.environ[ov_frontend_path_key]
 
 
 def setup_env(module="", libs=[]):
@@ -33,8 +28,6 @@ def setup_env(module="", libs=[]):
     """
     os.environ[python_path_key] = os.pathsep.join([module, os.environ[python_path_key]])
     os.environ[lib_env_key] = os.pathsep.join([*libs, os.environ[lib_env_key]])
-    if len(os.getenv(ov_frontend_path_key)) == 0:
-        os.environ[ov_frontend_path_key] = os.pathsep.join([*libs])
 
 
 def reset_env():
@@ -43,7 +36,6 @@ def reset_env():
     """
     os.environ[python_path_key] = python_path_orig
     os.environ[lib_env_key] = lib_path_orig
-    os.environ[ov_frontend_path_key] = ov_frontend_path_orig
 
 
 def try_to_import_ie(module="", libs=[], silent=False):

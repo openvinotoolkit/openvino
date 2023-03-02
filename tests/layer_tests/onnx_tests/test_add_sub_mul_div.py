@@ -1,13 +1,13 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 
-class TestOperations(Caffe2OnnxLayerTest):
+class TestOperations(OnnxRuntimeLayerTest):
     def create_net(self, shape1, shape2, op, precision, ir_version, opset=None):
         """
             ONNX net                                  IR net
@@ -30,12 +30,12 @@ class TestOperations(Caffe2OnnxLayerTest):
 
         min_val = 1 if op == 'Div' else -127
         if shape2:
-            const = np.random.randint(min_val, 127, shape2).astype(np.float)
+            const = np.random.randint(min_val, 127, shape2).astype(float)
         else:
-            const = np.random.randint(min_val, 127, 1).astype(np.float)
+            const = np.random.randint(min_val, 127, 1).astype(float)
             # TODO: add check when MO remove redundant layer (as Add/Sub if const = 0 or Mul/Div if const = 1)
             if const in [0, 1]:
-                const = np.array([2], dtype=np.float)
+                const = np.array([2], dtype=float)
 
         node_const_def = helper.make_node(
             'Constant',
@@ -103,12 +103,12 @@ class TestOperations(Caffe2OnnxLayerTest):
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape1)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, output_shape)
 
-        const1 = np.random.randint(-127, 127, shape1).astype(np.float)
+        const1 = np.random.randint(-127, 127, shape1).astype(float)
         min_val = 1 if op == 'Div' else -127
         if shape2:
-            const2 = np.random.randint(min_val, 127, shape2).astype(np.float)
+            const2 = np.random.randint(min_val, 127, shape2).astype(float)
         else:
-            const2 = np.random.randint(min_val, 127, 1).astype(np.float)
+            const2 = np.random.randint(min_val, 127, 1).astype(float)
 
         node_const1_def = helper.make_node(
             'Constant',

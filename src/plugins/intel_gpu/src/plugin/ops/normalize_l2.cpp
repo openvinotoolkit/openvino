@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace intel_gpu {
 
 static void CreateNormalizeL2Op(Program& p, const std::shared_ptr<ngraph::op::v0::NormalizeL2>& op) {
     validate_inputs_count(op, {2});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     // params
@@ -36,8 +36,8 @@ static void CreateNormalizeL2Op(Program& p, const std::shared_ptr<ngraph::op::v0
     // We create fake scale constant and fill it with ones to keep the same behavior as current primitive
     auto scale = std::make_shared<ngraph::op::v0::Constant>(op->get_output_element_type(0), ngraph::Shape{1}, std::vector<float>{1.0});
     cldnn::layout constLayout = cldnn::layout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), cldnn::format::bfyx, cldnn::tensor{1});
-    auto mem = p.GetEngine().allocate_memory(constLayout, false);
-    cldnn::mem_lock<int8_t> tmpPointer{mem, p.GetEngine().get_program_stream()};
+    auto mem = p.get_engine().allocate_memory(constLayout, false);
+    cldnn::mem_lock<int8_t> tmpPointer{mem, p.get_engine().get_service_stream()};
     auto buf = tmpPointer.data();
     auto bufSize = scale->get_output_tensor(0).size();
 
@@ -49,7 +49,7 @@ static void CreateNormalizeL2Op(Program& p, const std::shared_ptr<ngraph::op::v0
     p.add_primitive(*op, cldnn::data(scalesName, mem));
 
     auto normPrim = cldnn::normalize(layerName,
-                                     inputPrimitives[0],
+                                     inputs[0],
                                      scalesName,
                                      across_spatial,
                                      eps);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ TEST(attributes, matrix_nms_v8_op_custom_attributes) {
     attrs.normalized = false;
 
     auto nms = make_shared<opset8::MatrixNms>(boxes, scores, attrs);
-    NodeBuilder builder(nms);
+    NodeBuilder builder(nms, {boxes, scores});
     auto g_nms = ov::as_type_ptr<opset8::MatrixNms>(builder.create());
     const auto expected_attr_count = 11;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
@@ -75,7 +75,7 @@ TEST(attributes, matrix_nms_v8_op_default_attributes) {
     auto scores = make_shared<op::Parameter>(element::f32, Shape{1, 1, 1});
 
     auto nms = make_shared<opset8::MatrixNms>(boxes, scores, opset8::MatrixNms::Attributes());
-    NodeBuilder builder(nms);
+    NodeBuilder builder(nms, {boxes, scores});
     auto g_nms = ov::as_type_ptr<opset8::MatrixNms>(builder.create());
     const auto expected_attr_count = 11;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);

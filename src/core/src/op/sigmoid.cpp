@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(ov::op::v0::Sigmoid);
 
 shared_ptr<Node> ov::op::v0::Sigmoid::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Sigmoid_clone_with_new_inputs);

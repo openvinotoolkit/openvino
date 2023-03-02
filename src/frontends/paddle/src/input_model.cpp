@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,7 +48,7 @@ public:
     void setElementType(Place::Ptr place, const ov::element::Type&);
     void setTensorValue(Place::Ptr place, const void* value);
 
-    std::vector<std::shared_ptr<OpPlace>> get_op_places() const;
+    std::vector<std::shared_ptr<OpPlace>> get_op_places(const int32_t blck_idx) const;
     std::map<std::string, std::shared_ptr<TensorPlace>> get_var_places() const {
         return m_var_places;
     }
@@ -60,9 +60,10 @@ private:
     void loadPlaces();
     template <typename T>
     void loadConsts(const std::basic_string<T>& folder_with_weights, std::istream* weight_stream);
+    void createTempConsts();
     std::vector<std::shared_ptr<OpPlace>> determine_cut_nodes() const;
 
-    std::vector<std::shared_ptr<OpPlace>> m_op_places;
+    std::vector<std::vector<std::shared_ptr<OpPlace>>> m_op_places;
     std::map<std::string, std::shared_ptr<TensorPlace>> m_var_places;
     std::shared_ptr<ProgramDesc> m_fw_ptr;
     const InputModel& m_input_model;
@@ -81,6 +82,8 @@ void InputModel::InputModelImpl::loadPlaces() {
     const auto& blocks = m_fw_ptr->blocks();
     std::map<std::string, uint64_t> op_statistics;
 
+    m_op_places.resize(cnt_of_blocks);
+
     for (int block_idx = 0; block_idx < cnt_of_blocks; block_idx++) {
         const auto& block = blocks[block_idx];
 
@@ -90,12 +93,13 @@ void InputModel::InputModelImpl::loadPlaces() {
 
         for (const auto& op : block.ops()) {
             auto op_place = std::make_shared<OpPlace>(m_input_model, op);
+            op_place->set_decoder(std::make_shared<DecoderProto>(op_place));
 
             if (m_telemetry) {
                 op_statistics[op.type()]++;
             }
 
-            m_op_places.push_back(op_place);
+            m_op_places[block_idx].push_back(op_place);
 
             for (const auto& output : op.outputs()) {
                 for (const auto& var_name : output.arguments()) {
@@ -145,23 +149,15 @@ void InputModel::InputModelImpl::loadPlaces() {
     }
     if (m_telemetry) {
         for (const auto& op : op_statistics) {
-            m_telemetry->send_event("op_count", "paddle_" + op.first, op.second);
+            m_telemetry->send_event("op_count", "paddle_" + op.first, static_cast<int>(op.second));
         }
     }
 }
 
 namespace {
 bool read_tensor(std::istream& is, char* data, size_t len) {
-    std::vector<char> header(16);
-    is.read(&header[0], 16);
-    uint32_t dims_len = 0;
-    is.read(reinterpret_cast<char*>(&dims_len), 4);
-    std::vector<char> dims_struct(dims_len);
-    is.read(&dims_struct[0], dims_len);
     is.read(data, len);
-    if (is.gcount() != len)
-        return false;
-    return true;
+    return (size_t)is.gcount() == len;
 }
 
 template <typename T>
@@ -215,18 +211,20 @@ std::basic_string<wchar_t> get_model_path(const std::basic_string<wchar_t>& path
 #endif
 }  // namespace
 
-std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelImpl::get_op_places() const {
+std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelImpl::get_op_places(const int32_t blck_idx) const {
     if (m_graph_changed) {
         return determine_cut_nodes();
     }
-    return m_op_places;
+    if (static_cast<size_t>(blck_idx) < m_op_places.size())
+        return m_op_places[blck_idx];
+    return {};
 }
 
 std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelImpl::determine_cut_nodes() const {
     std::queue<OpPlace*> q;
     std::unordered_set<OpPlace*> visited;
     std::vector<std::shared_ptr<OpPlace>> new_op_places;
-    new_op_places.reserve(m_op_places.size());
+    new_op_places.reserve(m_op_places[0].size());
     // Marking nodes from outputs to inputs/constants
     for (const auto& output : getOutputs()) {
         if (!output->is_input()) {
@@ -273,9 +271,34 @@ void InputModel::InputModelImpl::loadConsts(const std::basic_string<T>& folder_w
             continue;
 
         FRONT_END_GENERAL_CHECK(var_desc.type().type() == ::paddle::framework::proto::VarType::LOD_TENSOR);
-        const auto& tensor = var_desc.type().lod_tensor().tensor();
-        Shape shape(tensor.dims().cbegin(), tensor.dims().cend());
-        const auto& type = TYPE_MAP[tensor.data_type()];
+        /*
+            reference:
+           https://github.com/PaddlePaddle/Paddle2ONNX/blob/c14446437041a0aa3572994d085b7a35c5b0985c/paddle2onnx/parser/parser.cc#L261
+            When deserialize the proto, the header of each weight
+            [ 4 byte ]      -- version(not need)
+            [   8 byte   ]  -- lod_level(not need)
+            [ 4 byte ]      -- version(not need)
+            [ 4 byte ]      -- TensorDesc size
+            [ x byte ... ]  -- TensorDesc
+            [ y byte ... ]  -- weight
+        */
+        {
+            const size_t header_size = 16;
+            std::vector<char> header(header_size);
+            weight_stream->read(&header[0], header_size);
+        }
+
+        int32_t size;
+        weight_stream->read(reinterpret_cast<char*>(&size), sizeof(size));
+
+        std::unique_ptr<char[]> buf(new char[size]);
+        weight_stream->read(reinterpret_cast<char*>(buf.get()), size);
+
+        std::unique_ptr<::paddle::framework::proto::VarType_TensorDesc> tensor_desc(
+            new ::paddle::framework::proto::VarType_TensorDesc());
+        tensor_desc->ParseFromArray(buf.get(), size);
+        Shape shape(tensor_desc->dims().cbegin(), tensor_desc->dims().cend());
+        const auto& type = TYPE_MAP[tensor_desc->data_type()];
         const auto& data_length = shape_size(shape) * type.size();
         std::vector<uint8_t> tensor_data(data_length);
 
@@ -327,6 +350,59 @@ InputModel::InputModelImpl::InputModelImpl(const std::basic_string<T>& path,
     } else {
         loadConsts(path, nullptr);
     }
+    createTempConsts();
+}
+
+void InputModel::InputModelImpl::createTempConsts() {
+    for (const auto& item : m_var_places) {
+        const auto& var_place = item.second;
+        const auto& var_desc = var_place->get_desc();
+        const auto& name = item.first;
+        if (var_desc.persistable())
+            continue;
+
+        // The node with tensorarray as its input may be created before the node with this tensorarray
+        // as its output. e.g. the tensorarray is both the input and output of the same node.
+        // So we have to create a fake empty node here.
+        // Problem is, we have no idea which axis should be 0.
+        // Since the models (faster/mask rcnn) are either concating tensors in tensorarray along the dynamic
+        // dimension, or concating static shape tensors. So we make the dynamic dimension to be 0. In case of static
+        // shape, we simply the the first dimension be 0.
+        if (var_desc.type().has_tensor_array()) {
+            const auto& tensor = var_desc.type().tensor_array().tensor();
+            const auto& type = TYPE_MAP[tensor.data_type()];
+
+            std::cout << "WARNING: The PaddlePaddle model has \"TENSOR_ARRAY\" variables, which is supported "
+                      << " under limited situations.\n";
+
+            PartialShape tensor_ps(std::vector<Dimension>(tensor.dims().cbegin(), tensor.dims().cend()));
+            tensor_ps.insert(tensor_ps.begin(), 1);  // unsqueeze
+            // also update the place for following initialize the graph connection
+            var_place->set_element_type(type);
+            var_place->set_partial_shape(tensor_ps);
+
+            Shape shape(tensor_ps.size(), 0);
+            for (size_t i = 0; i < tensor_ps.size(); i++) {
+                const auto& dim = tensor_ps[i];
+                if (dim.is_static()) {
+                    shape[i] = dim.get_length();
+                }
+            }
+
+            if (tensor_ps.is_static()) {
+                // this tensorarray tensor originally could be scalar, then
+                // tensor_ps size would be 1 after unsqueeze.
+                auto idx = tensor_ps.size() > 1 ? 1 : 0;
+                shape[idx] = 0;
+            }
+
+            auto node = opset7::Constant::create(type, shape, {0});
+            node->set_friendly_name(name);
+            node->output(0).get_tensor().add_names({name});
+
+            m_tensor_values[name] = node;
+        }
+    }
 }
 
 InputModel::InputModelImpl::InputModelImpl(const std::vector<std::istream*>& streams,
@@ -347,6 +423,7 @@ InputModel::InputModelImpl::InputModelImpl(const std::vector<std::istream*>& str
     loadPlaces();
     if (streams.size() > 1)
         loadConsts(std::string(), streams[1]);
+    createTempConsts();
 }
 
 std::vector<Place::Ptr> InputModel::InputModelImpl::getInputs() const {
@@ -438,8 +515,8 @@ InputModel::InputModel(const std::wstring& path, const std::shared_ptr<Telemetry
 InputModel::InputModel(const std::vector<std::istream*>& streams, const std::shared_ptr<TelemetryExtension>& telemetry)
     : _impl{std::make_shared<InputModelImpl>(streams, *this, telemetry)} {}
 
-std::vector<std::shared_ptr<OpPlace>> InputModel::get_op_places() const {
-    return _impl->get_op_places();
+std::vector<std::shared_ptr<OpPlace>> InputModel::get_op_places(const int32_t blck_idx) const {
+    return _impl->get_op_places(blck_idx);
 }
 
 std::map<std::string, std::shared_ptr<TensorPlace>> InputModel::get_var_places() const {

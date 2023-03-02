@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,17 +17,7 @@
 #include "ie_iextension.h"
 #include "ie_parameter.hpp"
 #include "ngraph/opsets/opset.hpp"
-
-namespace ExecGraphInfoSerialization {
-//
-// exec_graph_info.hpp
-//
-constexpr ngraph::NodeTypeInfo ExecutionNode::type_info;
-
-const ngraph::NodeTypeInfo& ExecutionNode::get_type_info() const {
-    return type_info;
-}
-}  // namespace ExecGraphInfoSerialization
+#include "openvino/core/except.hpp"
 
 namespace InferenceEngine {
 
@@ -45,6 +35,8 @@ namespace details {
 void Rethrow() {
     try {
         throw;
+    } catch (const ov::NotImplemented& e) {
+        IE_THROW(NotImplemented) << e.what();
     } catch (const InferenceEngine::GeneralError& e) {
         throw e;
     } catch (const InferenceEngine::NotImplemented& e) {
@@ -81,9 +73,10 @@ void Rethrow() {
 IE_SUPPRESS_DEPRECATED_START
 
 StatusCode InferenceEngineException::getStatus() const {
-    if (dynamic_cast<const GeneralError*>(this) != nullptr) {
+    if (dynamic_cast<const GeneralError*>(this) != nullptr || dynamic_cast<const ::ov::Exception*>(this) != nullptr) {
         return GENERAL_ERROR;
-    } else if (dynamic_cast<const NotImplemented*>(this) != nullptr) {
+    } else if (dynamic_cast<const NotImplemented*>(this) != nullptr ||
+               dynamic_cast<const ::ov::NotImplemented*>(this) != nullptr) {
         return NOT_IMPLEMENTED;
     } else if (dynamic_cast<const NetworkNotLoaded*>(this) != nullptr) {
         return NETWORK_NOT_LOADED;

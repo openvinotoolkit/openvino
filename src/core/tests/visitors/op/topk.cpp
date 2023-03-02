@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,10 +26,30 @@ TEST(attributes, topk_op) {
     auto sort_type = opset1::TopK::SortType::SORT_VALUES;
 
     auto topk = make_shared<opset1::TopK>(data, k, axis, mode, sort_type);
-    NodeBuilder builder(topk);
+    NodeBuilder builder(topk, {data, k});
     auto g_topk = ov::as_type_ptr<opset1::TopK>(builder.create());
 
     EXPECT_EQ(g_topk->get_axis(), topk->get_axis());
     EXPECT_EQ(g_topk->get_mode(), topk->get_mode());
     EXPECT_EQ(g_topk->get_sort_type(), topk->get_sort_type());
+    EXPECT_EQ(g_topk->get_index_element_type(), topk->get_index_element_type());
+}
+
+TEST(attributes, topk_v3_op) {
+    NodeBuilder::get_ops().register_factory<opset3::TopK>();
+    auto data = make_shared<op::Parameter>(element::i32, Shape{2, 3, 4, 5});
+    auto k = make_shared<op::Parameter>(element::i32, Shape{});
+
+    auto axis = 0;
+    auto mode = opset3::TopK::Mode::MAX;
+    auto sort_type = opset3::TopK::SortType::SORT_VALUES;
+
+    auto topk = make_shared<opset3::TopK>(data, k, axis, mode, sort_type);
+    NodeBuilder builder(topk, {data, k});
+    auto g_topk = ov::as_type_ptr<opset3::TopK>(builder.create());
+
+    EXPECT_EQ(g_topk->get_axis(), topk->get_axis());
+    EXPECT_EQ(g_topk->get_mode(), topk->get_mode());
+    EXPECT_EQ(g_topk->get_sort_type(), topk->get_sort_type());
+    EXPECT_EQ(g_topk->get_index_element_type(), topk->get_index_element_type());
 }

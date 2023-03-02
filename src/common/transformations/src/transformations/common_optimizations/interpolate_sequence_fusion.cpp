@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,8 +6,8 @@
 
 #include <algorithm>
 #include <memory>
-#include <ngraph/opsets/opset8.hpp>
 #include <numeric>
+#include <openvino/opsets/opset8.hpp>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -18,7 +18,7 @@
 #include <ngraph/rt_info.hpp>
 
 namespace {
-using namespace ngraph;
+using namespace ov;
 
 bool compatible_axes(const std::vector<int64_t>& fst_axes_vector, const std::vector<int64_t>& snd_axes_vector) {
     std::set<int64_t> fst_axes_set(fst_axes_vector.begin(), fst_axes_vector.end());
@@ -31,7 +31,7 @@ bool compatible_axes(const std::vector<int64_t>& fst_axes_vector, const std::vec
 
 bool shape_calculation_mode_can_use_constant_inputs(const std::shared_ptr<opset8::Interpolate>& interpolate) {
     const auto& attrs = interpolate->get_attrs();
-    if (attrs.shape_calculation_mode == ngraph::opset8::Interpolate::ShapeCalcMode::SIZES) {
+    if (attrs.shape_calculation_mode == opset8::Interpolate::ShapeCalcMode::SIZES) {
         return std::dynamic_pointer_cast<opset8::Constant>(interpolate->input_value(1).get_node_shared_ptr()) !=
                nullptr;
     }
@@ -196,10 +196,10 @@ ngraph::NodeVector subgraph_for_scales_calculation_mode(const std::shared_ptr<op
 }
 }  // namespace
 
-ngraph::pass::InterpolateSequenceFusion::InterpolateSequenceFusion() {
+ov::pass::InterpolateSequenceFusion::InterpolateSequenceFusion() {
     MATCHER_SCOPE(InterpolateSequenceFusion);
-    auto interpolate_pattern = ngraph::pattern::wrap_type<ngraph::opset8::Interpolate>();
-    ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
+    auto interpolate_pattern = ngraph::pattern::wrap_type<opset8::Interpolate>();
+    ov::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) {
         auto snd_interpolate = std::dynamic_pointer_cast<opset8::Interpolate>(m.get_match_root());
         if (!snd_interpolate)
             return false;
@@ -213,7 +213,7 @@ ngraph::pass::InterpolateSequenceFusion::InterpolateSequenceFusion() {
             return false;
 
         NodeVector new_subgraph;
-        if (fst_interpolate->get_attrs().shape_calculation_mode == ngraph::opset8::Interpolate::ShapeCalcMode::SIZES) {
+        if (fst_interpolate->get_attrs().shape_calculation_mode == opset8::Interpolate::ShapeCalcMode::SIZES) {
             new_subgraph = subgraph_for_sizes_calculation_mode(fst_interpolate, snd_interpolate, this);
         } else {
             new_subgraph = subgraph_for_scales_calculation_mode(fst_interpolate, snd_interpolate, this);

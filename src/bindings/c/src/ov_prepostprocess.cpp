@@ -1,7 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "openvino/c/ov_prepostprocess.h"
+
+#include <stdarg.h>
 
 #include "common.h"
 
@@ -18,6 +20,7 @@ const std::map<ov_color_format_e, ov::preprocess::ColorFormat> color_format_map 
     {ov_color_format_e::I420_THREE_PLANES, ov::preprocess::ColorFormat::I420_THREE_PLANES},
     {ov_color_format_e::RGB, ov::preprocess::ColorFormat::RGB},
     {ov_color_format_e::BGR, ov::preprocess::ColorFormat::BGR},
+    {ov_color_format_e::GRAY, ov::preprocess::ColorFormat::GRAY},
     {ov_color_format_e::RGBX, ov::preprocess::ColorFormat::RGBX},
     {ov_color_format_e::BGRX, ov::preprocess::ColorFormat::BGRX}};
 
@@ -151,6 +154,77 @@ ov_status_e ov_preprocess_preprocess_steps_resize(ov_preprocess_preprocess_steps
     return ov_status_e::OK;
 }
 
+ov_status_e ov_preprocess_preprocess_steps_scale(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+                                                 float value) {
+    if (!preprocess_input_process_steps) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        preprocess_input_process_steps->object->scale(value);
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_preprocess_preprocess_steps_mean(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+                                                float value) {
+    if (!preprocess_input_process_steps) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        preprocess_input_process_steps->object->mean(value);
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_preprocess_preprocess_steps_crop(ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+                                                int32_t* begin,
+                                                int32_t begin_size,
+                                                int32_t* end,
+                                                int32_t end_size) {
+    if (!preprocess_input_process_steps) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        std::vector<int32_t> vec_begin(begin, begin + begin_size);
+        std::vector<int32_t> vec_end(end, end + end_size);
+        preprocess_input_process_steps->object->crop(vec_begin, vec_end);
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_preprocess_preprocess_steps_convert_layout(
+    ov_preprocess_preprocess_steps_t* preprocess_input_process_steps,
+    ov_layout_t* layout) {
+    if (!preprocess_input_process_steps || !layout) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        preprocess_input_process_steps->object->convert_layout(layout->object);
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_preprocess_preprocess_steps_reverse_channels(
+    ov_preprocess_preprocess_steps_t* preprocess_input_process_steps) {
+    if (!preprocess_input_process_steps) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        preprocess_input_process_steps->object->reverse_channels();
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
 ov_status_e ov_preprocess_input_tensor_info_set_element_type(
     ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
     const ov_element_type_e element_type) {
@@ -191,18 +265,37 @@ ov_status_e ov_preprocess_input_tensor_info_set_layout(ov_preprocess_input_tenso
     return ov_status_e::OK;
 }
 
-ov_status_e ov_preprocess_input_tensor_info_set_color_format(
+ov_status_e ov_preprocess_input_tensor_info_set_color_format_with_subname(
     ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
-    const ov_color_format_e colorFormat) {
+    const ov_color_format_e colorFormat,
+    const size_t sub_names_size,
+    ...) {
     if (!preprocess_input_tensor_info) {
         return ov_status_e::INVALID_C_PARAM;
     }
     try {
-        preprocess_input_tensor_info->object->set_color_format(GET_OV_COLOR_FARMAT(colorFormat));
+        std::vector<std::string> names = {};
+        if (sub_names_size > 0) {
+            va_list args_ptr;
+            va_start(args_ptr, sub_names_size);
+            for (size_t i = 0; i < sub_names_size; i++) {
+                std::string _value = va_arg(args_ptr, char*);
+                names.emplace_back(_value);
+            }
+            va_end(args_ptr);
+        }
+
+        preprocess_input_tensor_info->object->set_color_format(GET_OV_COLOR_FARMAT(colorFormat), names);
     }
     CATCH_OV_EXCEPTIONS
 
     return ov_status_e::OK;
+}
+
+ov_status_e ov_preprocess_input_tensor_info_set_color_format(
+    ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
+    const ov_color_format_e colorFormat) {
+    return ov_preprocess_input_tensor_info_set_color_format_with_subname(preprocess_input_tensor_info, colorFormat, 0);
 }
 
 ov_status_e ov_preprocess_input_tensor_info_set_spatial_static_shape(
@@ -214,6 +307,20 @@ ov_status_e ov_preprocess_input_tensor_info_set_spatial_static_shape(
     }
     try {
         preprocess_input_tensor_info->object->set_spatial_static_shape(input_height, input_width);
+    }
+    CATCH_OV_EXCEPTIONS
+
+    return ov_status_e::OK;
+}
+
+ov_status_e ov_preprocess_input_tensor_info_set_memory_type(
+    ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
+    const char* mem_type) {
+    if (!preprocess_input_tensor_info || !mem_type) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        preprocess_input_tensor_info->object->set_memory_type(mem_type);
     }
     CATCH_OV_EXCEPTIONS
 

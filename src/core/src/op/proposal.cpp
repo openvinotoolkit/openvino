@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,8 +11,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v0::Proposal);
 
 op::v0::Proposal::Proposal(const Output<Node>& class_probs,
                            const Output<Node>& bbox_deltas,
@@ -79,8 +77,6 @@ bool op::v0::Proposal::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-BWDCMP_RTTI_DEFINITION(op::v4::Proposal);
-
 op::v4::Proposal::Proposal(const Output<Node>& class_probs,
                            const Output<Node>& class_bbox_deltas,
                            const Output<Node>& image_shape,
@@ -102,6 +98,7 @@ void op::v4::Proposal::validate_and_infer_types() {
     const auto& input0_type = get_input_element_type(0);
     set_output_type(0, input0_type, output_shapes[0]);
     set_output_type(1, input0_type, output_shapes[1]);
+    m_attrs.infer_probs = true;  // Proposal v4 requires default true of infer_probs so output_1 has valid data.
 }
 
 std::shared_ptr<Node> op::v4::Proposal::clone_with_new_inputs(const OutputVector& new_args) const {

@@ -1,20 +1,15 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 set_property(GLOBAL PROPERTY JOB_POOLS four_jobs=4)
 
 if(ENABLE_OV_ONNX_FRONTEND)
-    if(ENABLE_REQUIREMENTS_INSTALL)
-        # suppose that ONNX is found, because it's going to be installed during the build
-        set(onnx_FOUND ON)
-    else()
-        # if requirements are not installed automatically, we need to checks whether they are here
-        ov_check_pip_packages(REQUIREMENTS_FILE "${OpenVINO_SOURCE_DIR}/src/frontends/onnx/tests/requirements.txt"
-                              RESULT_VAR onnx_FOUND
-                              WARNING_MESSAGE "ONNX frontend tests will be skipped"
-                              MESSAGE_MODE WARNING)
-    endif()
+    # if requirements are not installed automatically, we need to checks whether they are here
+    ov_check_pip_packages(REQUIREMENTS_FILE "${OpenVINO_SOURCE_DIR}/src/frontends/onnx/tests/requirements.txt"
+                          RESULT_VAR onnx_FOUND
+                          WARNING_MESSAGE "ONNX frontend tests will be skipped"
+                          MESSAGE_MODE WARNING)
 endif()
 
 function(ov_model_convert SRC DST OUT)
@@ -82,66 +77,17 @@ ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/func_tests/models"
                  ft_out_files)
 
-set(rel_path "src/tests/functional/inference_engine/onnx_reader")
-ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
-                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/onnx_reader"
-                 ie_onnx_out_files)
-
-set(rel_path "src/tests/functional/inference_engine/ir_serialization")
-ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
-                 "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/ir_serialization"
-                 ie_serialize_out_files)
-
 set(rel_path "src/frontends/onnx/tests/models")
 ov_model_convert("${OpenVINO_SOURCE_DIR}/${rel_path}"
                  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_model_zoo/onnx"
                  onnx_fe_out_files)
 
 if(ENABLE_TESTS)
-    if(ENABLE_OV_ONNX_FRONTEND AND ENABLE_REQUIREMENTS_INSTALL)
-        find_host_package(PythonInterp 3 REQUIRED)
-
-        get_filename_component(PYTHON_EXEC_DIR ${PYTHON_EXECUTABLE} DIRECTORY)
-        execute_process(COMMAND "${PYTHON_EXECUTABLE}" -m pip --version
-            WORKING_DIRECTORY ${PYTHON_EXEC_DIR}
-            RESULT_VARIABLE pip3_exit_code
-            OUTPUT_VARIABLE pip3_version)
-
-        if(NOT pip3_exit_code EQUAL 0)
-            message(FATAL_ERROR "Failed to extract pip module version")
-        endif()
-
-        if(pip3_version MATCHES ".* ([0-9]+)+\.([0-9]+)([\.0-9 ]).*")
-            set(pip3_version ${CMAKE_MATCH_1}.${CMAKE_MATCH_2})
-        else()
-            message(FATAL_ERROR "Failed to parse ${pip3_version}")
-        endif()
-
-        message(STATUS "pip version is ${pip3_version}")
-        set(args --quiet)
-        if(pip3_version VERSION_GREATER 20.2.2 AND pip3_version VERSION_LESS 20.3.0)
-            list(APPEND args --use-feature=2020-resolver)
-        endif()
-
-        set(reqs "${OpenVINO_SOURCE_DIR}/src/frontends/onnx/tests/requirements.txt")
-        add_custom_target(test_pip_prerequisites ALL
-                          "${PYTHON_EXECUTABLE}" -m pip install ${args} -r ${reqs}
-                          COMMENT "Install ONNX Frontend tests requirements."
-                          VERBATIM
-                          SOURCES ${reqs})
-    endif()
-
     add_custom_target(test_model_zoo DEPENDS ${core_tests_out_files}
                                              ${ft_out_files}
-                                             ${ie_onnx_out_files}
-                                             ${ie_serialize_out_files}
                                              ${onnx_fe_out_files})
 
-    if(TARGET test_pip_prerequisites)
-        add_dependencies(test_model_zoo test_pip_prerequisites)
-    endif()
-
-    if (ENABLE_OV_PADDLE_FRONTEND AND ENABLE_OV_CORE_UNIT_TESTS)
+    if (ENABLE_OV_PADDLE_FRONTEND)
         add_dependencies(test_model_zoo paddle_test_models)
     endif()
 

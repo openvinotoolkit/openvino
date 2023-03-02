@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,15 +27,12 @@
 using namespace ngraph;
 using namespace std;
 
-class ControlDependencyOp : public ngraph::op::Op {
+class ControlDependencyOp : public ov::op::Op {
 public:
-    static constexpr NodeTypeInfo type_info{"ControlDependencyOp", static_cast<uint64_t>(0)};
-    const NodeTypeInfo& get_type_info() const override {
-        return type_info;
-    }
+    OPENVINO_OP("ControlDependencyOp");
     virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override {
         auto clone = make_shared<ControlDependencyOp>(new_args, std::set<std::shared_ptr<Node>>{});
-        return move(clone);
+        return std::move(clone);
     }
 
     ControlDependencyOp(const OutputVector& args, const std::set<std::shared_ptr<Node>>& deps) : Op(args) {
@@ -55,7 +52,6 @@ public:
         }
     }
 };
-constexpr NodeTypeInfo ControlDependencyOp::type_info;
 
 TEST(control_dependencies, cdep_ops) {
     auto A = make_shared<op::Parameter>(element::f32, Shape{});

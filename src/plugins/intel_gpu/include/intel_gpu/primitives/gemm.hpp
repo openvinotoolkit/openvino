@@ -1,19 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
 /// @brief Type of gemm that will be added to the input by border layer / primitive.
 
 /// @brief Adds gemm  input.
@@ -40,18 +34,22 @@ struct gemm : public primitive_base<gemm> {
     /// @brief Variable containing BETA parameter
 
     gemm(const primitive_id& id,
-         const std::vector<primitive_id>& inputs,
+         const std::vector<input_info>& inputs,
          const data_types data_type,
          const bool transpose_input0 = false,
          const bool transpose_input1 = false,
          const float alpha = 1.0f,
          const float beta = 0.0f,
+         const size_t input_rank = 4,
+         const size_t weight_rank = 4,
          const padding& output_padding = padding())
-        : primitive_base(id, inputs, output_padding, optional_data_type{ data_type }),
+        : primitive_base(id, inputs, {output_padding}, {optional_data_type{ data_type }}),
           transpose_input0(transpose_input0),
           transpose_input1(transpose_input1),
           alpha(alpha),
-          beta(beta) {
+          beta(beta),
+          input_rank(input_rank),
+          weight_rank(weight_rank) {
         if (inputs.size() != 2 && inputs.size() != 3) {
             throw std::invalid_argument("Invalid inputs count - gemm expects either two or three inputs");
         }
@@ -65,6 +63,33 @@ struct gemm : public primitive_base<gemm> {
     float alpha;
     /// @brief Variable containing BETA parameter
     float beta;
+    /// @brief First matrix rank
+    size_t input_rank;
+     /// @brief Second matrix rank
+    size_t weight_rank;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, transpose_input0);
+        seed = hash_combine(seed, transpose_input1);
+        seed = hash_combine(seed, alpha);
+        seed = hash_combine(seed, beta);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const gemm>(rhs);
+
+        return transpose_input0 == rhs_casted.transpose_input0 &&
+               transpose_input1 == rhs_casted.transpose_input1 &&
+               alpha == rhs_casted.alpha &&
+               beta == rhs_casted.beta &&
+               input_rank == rhs_casted.input_rank &&
+               weight_rank == rhs_casted.weight_rank;
+    }
 };
 
 }  // namespace cldnn

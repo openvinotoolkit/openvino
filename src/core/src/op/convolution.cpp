@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,20 +6,18 @@
 
 #include <convolution_shape_inference.hpp>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/util.hpp"
-#include "ngraph/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 // *** Convolution OP SET 1 ***
-BWDCMP_RTTI_DEFINITION(op::v1::Convolution);
-
 op::v1::Convolution::Convolution(const Output<Node>& data_batch,
                                  const Output<Node>& filters,
                                  const Strides& strides,
@@ -68,7 +66,7 @@ void op::v1::Convolution::validate_and_infer_types() {
     auto& filter_shape = get_input_partial_shape(1);
 
     m_num_spatial = calculate_num_spatial(this, data_shape, filter_shape, 2, 2);
-    update_and_validate_attributes(this);
+    update_and_validate_attributes(this, m_num_spatial);
 
     std::vector<ov::PartialShape> input_shapes = {data_shape, filter_shape};
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
@@ -93,15 +91,7 @@ shared_ptr<Node> op::v1::Convolution::clone_with_new_inputs(const OutputVector& 
                                         m_auto_pad);
 }
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-shared_ptr<Node> op::v1::Convolution::get_default_value() const {
-    return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
-}
-NGRAPH_SUPPRESS_DEPRECATED_END
-
 // *** ConvolutionBackpropData OP SET 1 ***
-BWDCMP_RTTI_DEFINITION(op::v1::ConvolutionBackpropData);
-
 op::v1::ConvolutionBackpropData::ConvolutionBackpropData(const Output<Node>& data,
                                                          const Output<Node>& filters,
                                                          const Output<Node>& output_shape,
@@ -245,7 +235,7 @@ void op::v1::ConvolutionBackpropData::validate_and_infer_types() {
 
     auto& output_shapes_shape = output_shape_input_present ? get_input_partial_shape(2) : PartialShape::dynamic();
     m_num_spatial = calculate_num_spatial(this, data_shape, filter_shape, output_shapes_shape, 2, 2);
-    update_and_validate_attributes_back_prop(this);
+    update_and_validate_attributes_back_prop(this, m_num_spatial);
 
     std::vector<ov::PartialShape> input_shapes = {data_shape, filter_shape};
     if (output_shape_input_present)

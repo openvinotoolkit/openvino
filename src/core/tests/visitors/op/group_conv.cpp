@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -31,7 +31,7 @@ TEST(attributes, group_conv_op) {
                                                             pads_end,
                                                             dilations,
                                                             op::PadType::VALID);
-    NodeBuilder builder(group_conv);
+    NodeBuilder builder(group_conv, {data, filters});
     auto g_group_conv = ov::as_type_ptr<opset1::GroupConvolution>(builder.create());
     EXPECT_EQ(g_group_conv->get_strides(), group_conv->get_strides());
     EXPECT_EQ(g_group_conv->get_pads_begin(), group_conv->get_pads_begin());
@@ -62,7 +62,7 @@ TEST(attributes, group_conv_backprop_data_op) {
                                                                         dilations,
                                                                         auto_pad,
                                                                         output_padding);
-    NodeBuilder builder(gcbd);
+    NodeBuilder builder(gcbd, {data, filter});
     const auto g_gcbd = ov::as_type_ptr<opset1::GroupConvolutionBackpropData>(builder.create());
 
     EXPECT_EQ(g_gcbd->get_strides(), gcbd->get_strides());

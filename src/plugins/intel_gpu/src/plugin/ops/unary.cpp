@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,7 +48,7 @@ namespace intel_gpu {
 
 void CreateUnaryEltwiseOp(Program& p, const std::shared_ptr<ngraph::Node>& op,
                           cldnn::activation_func func, cldnn::activation_additional_params params) {
-    auto inputs = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
     auto activationPrimitive = cldnn::activation(layerName, inputs[0], func, params);
     p.add_primitive(*op, activationPrimitive);
@@ -80,24 +80,33 @@ static void CreatePReluOp(Program& p, const std::shared_ptr<ngraph::op::v0::PRel
 
     if (slope_node && ngraph::shape_size(slope_shape.to_shape()) == 1) {
         float slope;
-        if (!ngraph::op::util::get_single_value(slope_node, slope))
+        if (!ov::op::util::get_single_value(slope_node, slope))
             IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         CreateUnaryEltwiseOp(p, op, cldnn::activation_func::relu_negative_slope, {slope});
     } else if (out_shape.size() >= 2) {
-        auto inputs = p.GetInputPrimitiveIDs(op);
+        auto inputs = p.GetInputInfo(op);
         std::string layerName = layer_type_name_ID(op);
         auto activationPrimitive = cldnn::activation(layerName,
                                                      inputs[0],
-                                                     inputs[1],
+                                                     inputs[1].pid,
                                                      cldnn::activation_func::relu_negative_slope);
         p.add_primitive(*op, activationPrimitive);
     }
 }
 
 static void CreateClampOp(Program& p, const std::shared_ptr<ngraph::op::v0::Clamp>& op) {
-    float min = static_cast<float>(op->get_min());
-    float max = static_cast<float>(op->get_max());
-    CreateUnaryEltwiseOp(p, op, cldnn::activation_func::clamp, {min, max});
+    double min = op->get_min();
+    double max = op->get_max();
+    if (op->get_output_element_type(0) == ov::element::i32) {
+        // Currently jitter saves all compile time constant as floats
+        // and we have a code like that: (int)(as_float(0x4f000000))
+        // So values in range (2147483583.0, 2147483647.0] are converted to  2147483648.0 due to fp32 representation error
+        // and then conversion back to int32 returns -2147483648 due to overflow
+        // So to avoid this issue we use largest representable value which doesn't cause overflow
+        // TODO: Consider improving jitter to operate with int types directly
+        max = std::min<double>(2147483583.0, max);
+    }
+    CreateUnaryEltwiseOp(p, op, cldnn::activation_func::clamp, {static_cast<float>(min), static_cast<float>(max)});
 }
 
 static void CreateExpOp(Program& p, const std::shared_ptr<ngraph::op::v0::Exp>& op) {
@@ -163,7 +172,7 @@ static void CreateHardSigmoidOp(Program& p, const std::shared_ptr<ngraph::op::v0
     if (ngraph::shape_size(alpha_node->get_output_shape(0)) == 1 &&
         ngraph::shape_size(beta_node->get_output_shape(0)) == 1)  {
         float alpha, beta;
-        if (!ngraph::op::util::get_single_value(alpha_node, alpha) || !ngraph::op::util::get_single_value(beta_node, beta)) {
+        if (!ov::op::util::get_single_value(alpha_node, alpha) || !ov::op::util::get_single_value(beta_node, beta)) {
             IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         }
         CreateUnaryEltwiseOp(p, op, cldnn::activation_func::hard_sigmoid, {alpha, beta});
@@ -189,7 +198,7 @@ static void CreateSeluOp(Program& p, const std::shared_ptr<ngraph::op::v0::Selu>
     if (ngraph::shape_size(alpha_node->get_output_shape(0)) == 1 &&
         ngraph::shape_size(lambda_node->get_output_shape(0)) == 1)  {
         float alpha, lambda;
-        if (!ngraph::op::util::get_single_value(alpha_node, alpha) || !ngraph::op::util::get_single_value(lambda_node, lambda)) {
+        if (!ov::op::util::get_single_value(alpha_node, alpha) || !ov::op::util::get_single_value(lambda_node, lambda)) {
             IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
         }
         CreateUnaryEltwiseOp(p, op, cldnn::activation_func::selu, {alpha, lambda});
@@ -229,7 +238,7 @@ static void CreateSwishOp(Program& p, const std::shared_ptr<ngraph::op::v4::Swis
         if (beta_node) {
             if (ngraph::shape_size(beta_node->get_output_shape(0)) == 1) {
                 float beta;
-                if (!ngraph::op::util::get_single_value(beta_node, beta)) {
+                if (!ov::op::util::get_single_value(beta_node, beta)) {
                     IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
                 }
                 CreateUnaryEltwiseOp(p, op, cldnn::activation_func::swish, {beta});

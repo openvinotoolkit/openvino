@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,6 @@ namespace util {
 class OPENVINO_API DeformableConvolutionBase : public Op {
 public:
     OPENVINO_OP("DeformableConvolutionBase", "util");
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a conversion operation.
     DeformableConvolutionBase() = default;

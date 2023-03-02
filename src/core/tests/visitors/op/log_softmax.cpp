@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ TEST(attributes, logsoftmax_op) {
     int64_t axis = 2;
 
     const auto logsoftmax = make_shared<opset5::LogSoftmax>(data, axis);
-    NodeBuilder builder(logsoftmax);
+    NodeBuilder builder(logsoftmax, {data});
     auto g_logsoftmax = ov::as_type_ptr<opset5::LogSoftmax>(builder.create());
 
     const auto expected_attr_count = 1;

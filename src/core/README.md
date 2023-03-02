@@ -18,21 +18,19 @@ OpenVINO Core has the next structure:
  * [builders](./builder) is obsolete component which provides helper methods for operation creations. Please don't use this API, and use public OpenVINO API instead.
  * [dev_api](./dev_api) contains developer API. In order to use this API, you need to link your component against `openvino::runtime::dev`.
  * [docs](./docs) contains developer documentation pages for the component.
- * [include](./include) contains public API. Detailed information about provided API can be found [here](#TODO).
+ * [include](./include) contains public API. Detailed information about provided API can be found [here](./docs/api_details.md).
  * [reference](./reference) is a library which provides reference implementations for all supported operations. Operations with evaluate method use these implementations inside.
  * [shape_inference](./shape_inference) library contains implementation of shape inference for OpenVINO operations.
  * [src](./src) folder contains sources of the core component.
  * [tests](./tests) contains tests for OpenVINO Core components. More information about OpenVINO Core tests can be found [here](./docs/tests.md).
 
-## Debug capabilities
-
-OpenVINO Core contains a set of different debug capabilities which allow to make developer live a little bit easier.
-Different debug capabilities supports to collect information about object statuses in the process of OpenVINO Runtime execution.
- * OpenVINO Model debug capabilities are described in the [OpenVINO Model User Guide](https://docs.openvino.ai/latest/openvino_docs_OV_UG_Model_Representation.html#model-debug-capabilities).
-
 ## Tutorials
-  TODO
+
+ * [How to add new operations](./docs/operation_enabling_flow.md).
+ * [How to add OpenVINO Extension](https://docs.openvino.ai/latest/openvino_docs_Extensibility_UG_Intro.html). This document is based on the [template_extension](./template_extension/new/).
+ * [How to debug the component](./docs/debug_capabilities.md).
 
 ## See also
  * [OpenVINO™ README](../../README.md)
+ * [OpenVINO Core Components](../README.md)
  * [Developer documentation](../../docs/dev/index.md)

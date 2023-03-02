@@ -34,8 +34,20 @@ And build OpenVINO as usual.
 In order to generate coverage reports, first of all, the tests must be run. Depending on how many tests are run, the better covegare percentage can be achieved. E.g. for `openvino` component, `InferenceEngineUnitTests`, `ieUnitTests`, `ieFuncTests` must be run as well as plugin tests.
 
 ```bash
-$ ctest -V -L IE
+$ ctest -V
 ```
+
+OpenVINO components define several common groups which allow to run tests for separate component (with ctest argiment `-L GROUP_NAME`):
+
+ - OV - core OpenVINO tests
+ - IR_FE - IR frontend tests
+ - ONNX_FE - ONNX frontend tests
+ - PADDLE_FE - Paddle frontend tests
+ - TF_FE - TensorFlow frontend tests
+ - CPU - CPU plugin tests
+ - GPU - GPU plugin tests
+ - GNA - GNA plugin tests
+
 
 After sufficient number of tests are executed, the coverage numbers can be calculated. In order to do this, run:
 
@@ -53,7 +65,6 @@ coverage/paddle_frontend/index.html
 coverage/tf_frontend/index.html
 coverage/openvino/index.html
 coverage/onnx_frontend/index.html
-coverage/legacy/index.html
 coverage/ir_frontend/index.html
 coverage/low_precision_transformations/index.html
 coverage/template_plugin/index.html

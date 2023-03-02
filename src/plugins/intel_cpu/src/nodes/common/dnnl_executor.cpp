@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,7 +40,7 @@ void DnnlExecutor::exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::st
             IE_THROW() << "DnnlExecutor has reorder for output " << outReorder.first << ", but doesn't have destination memory";
         }
     }
-    (*execPrim).execute(strm, primArgs);
+    execPrim.execute(strm, primArgs);
     for (auto &outReorder : outputReorders) {
         outReorder.second.exec(primArgs[outReorder.first], outputMem[outReorder.first], strm);
     }
@@ -50,5 +50,39 @@ bool DnnlExecutor::needReordering() const {
     return !inputReorders.empty() || !outputReorders.empty();
 }
 
-}   // namespace intel_cpu
+dnnl::primitive DnnlExecutor::getExecPrim() const {
+    return execPrim;
+}
+
+const_dnnl_primitive_desc_t DnnlExecutor::getPrimitiveDesc() const {
+    return execPrim.get_primitive_desc();
+}
+
+dnnl::memory::desc DnnlExecutor::getSrcDesc() const {
+    auto pd = getPrimitiveDesc();
+    auto md = DnnlExtensionUtils::query_md(pd, dnnl::query::src_md);
+
+    return md->getDnnlDesc();
+}
+
+dnnl::memory::desc DnnlExecutor::getWeightDesc() const {
+    auto pd = getPrimitiveDesc();
+    auto md = DnnlExtensionUtils::query_md(pd, dnnl::query::weights_md);
+
+    return md->getDnnlDesc();
+}
+
+dnnl::memory::desc DnnlExecutor::getDstDesc() const {
+    auto pd = getPrimitiveDesc();
+    auto md = DnnlExtensionUtils::query_md(pd, dnnl::query::dst_md);
+
+    return md->getDnnlDesc();
+}
+
+impl_desc_type DnnlExecutor::getImplementationType() const {
+    auto pd = getPrimitiveDesc();
+    return parse_impl_name(DnnlExtensionUtils::query_impl_info_str(pd));
+}
+
+}  // namespace intel_cpu
 }   // namespace ov

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ TEST(attributes, reshape_op) {
     bool special_zero = true;
 
     auto reshape = make_shared<opset1::Reshape>(data, pattern, special_zero);
-    NodeBuilder builder(reshape);
+    NodeBuilder builder(reshape, {data, pattern});
     auto g_reshape = ov::as_type_ptr<opset1::Reshape>(builder.create());
 
     const auto expected_attr_count = 1;

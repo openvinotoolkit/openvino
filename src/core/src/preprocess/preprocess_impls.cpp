@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -95,7 +95,7 @@ InputInfo::InputInfoImpl::InputInfoData InputInfo::InputInfoImpl::create_new_par
 
     // Create separate parameter for each plane. Shape is based on color format
     for (size_t plane = 0; plane < color_info->planes_count(); plane++) {
-        auto plane_shape = color_info->shape(plane, new_param_shape);
+        auto plane_shape = color_info->shape(plane, new_param_shape, res.m_tensor_layout);
         auto plane_param = std::make_shared<opset8::Parameter>(tensor_elem_type, plane_shape);
         if (plane < get_tensor_data()->planes_sub_names().size()) {
             std::unordered_set<std::string> plane_tensor_names;
@@ -163,7 +163,7 @@ bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
     context.model_shape() = data.m_param->get_partial_shape();
     context.target_element_type() = data.m_param->get_element_type();
 
-    // 2. Apply preprocessing
+    // Apply preprocessing
     auto nodes = data.as_nodes();
     for (const auto& action : get_preprocess()->actions()) {
         auto action_result = action.m_op(nodes, model, context);
@@ -176,11 +176,12 @@ bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
                     "preprocessing operation. Current format is '",
                     color_format_name(context.color_format()),
                     "'");
-    OPENVINO_ASSERT(is_rgb_family(context.color_format()) || context.color_format() == ColorFormat::UNDEFINED,
-                    "model shall have RGB/BGR color format. Consider add 'convert_color' preprocessing operation "
+    OPENVINO_ASSERT(is_rgb_family(context.color_format()) || context.color_format() == ColorFormat::GRAY ||
+                        context.color_format() == ColorFormat::UNDEFINED,
+                    "model shall have RGB/BGR/GRAY color format. Consider add 'convert_color' preprocessing operation "
                     "to convert current color format '",
                     color_format_name(context.color_format()),
-                    "'to RGB/BGR");
+                    "'to RGB/BGR/GRAY");
 
     // Implicit: Convert element type + layout to user's tensor implicitly
     auto implicit_steps = create_implicit_steps(context, nodes[0].get_element_type());
@@ -193,6 +194,7 @@ bool InputInfo::InputInfoImpl::build(const std::shared_ptr<Model>& model,
     if (node.get_partial_shape() != context.model_shape()) {
         need_validate = true;  // Trigger revalidation if input parameter shape is changed
     }
+
     // Check final shape
     OPENVINO_ASSERT(node.get_partial_shape().compatible(context.model_shape()),
                     "Resulting shape '",

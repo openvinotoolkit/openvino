@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@ namespace v3 {
 class OPENVINO_API Assign : public util::AssignBase {
 public:
     OPENVINO_OP("Assign", "opset3", util::AssignBase, 3);
-    BWDCMP_RTTI_DECLARATION;
     Assign() = default;
 
     /// \brief Constructs an Assign operation.
@@ -46,7 +45,6 @@ namespace v6 {
 class OPENVINO_API Assign : public util::AssignBase {
 public:
     OPENVINO_OP("Assign", "opset6", util::AssignBase, 6);
-    BWDCMP_RTTI_DECLARATION;
     Assign() = default;
 
     /// \brief Constructs an Assign operation.

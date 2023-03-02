@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,7 +23,7 @@ TEST(attributes, psroi_pooling_op) {
 
     const int64_t output_dim = 64;
     const int64_t group_size = 4;
-    const float spatial_scale = 0.0625;
+    const float spatial_scale = 0.0625f;
     int spatial_bins_x = 1;
     int spatial_bins_y = 1;
     string mode = "average";
@@ -36,7 +36,7 @@ TEST(attributes, psroi_pooling_op) {
                                                         spatial_bins_x,
                                                         spatial_bins_y,
                                                         mode);
-    NodeBuilder builder(psroi_pool);
+    NodeBuilder builder(psroi_pool, {input, coords});
     auto g_psroi_pool = ov::as_type_ptr<opset1::PSROIPooling>(builder.create());
 
     EXPECT_EQ(g_psroi_pool->get_output_dim(), psroi_pool->get_output_dim());

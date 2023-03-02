@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,9 @@
 
 #include "itt.hpp"
 
-bool ngraph::pass::MimicSetBatchSize::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
+using namespace ngraph;
+
+bool ov::pass::MimicSetBatchSize::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(MimicSetBatchSize);
     // extracting ratio of out to in 0-index dimension value from the folded function
     auto specialized_function = ngraph::clone_function(*f);

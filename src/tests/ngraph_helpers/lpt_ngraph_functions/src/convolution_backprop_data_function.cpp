@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "lpt_ngraph_functions/convolution_backprop_data_function.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph_ops/type_relaxed.hpp>
+#include <ov_ops/type_relaxed.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
 
@@ -88,6 +88,27 @@ std::shared_ptr<Node> ConvolutionBackpropDataFunction::getWeights(
     return dq;
 }
 
+std::shared_ptr<Node> ConvolutionBackpropDataFunction::getWeights(
+    const Shape& shape,
+    const element::Type& netPrecision,
+    const builder::subgraph::FakeQuantizeOnWeights& fqOnWeights,
+    const builder::subgraph::DequantizationOperations& dequantizationOnWeights,
+    const std::shared_ptr<opset1::Constant>& value) {
+    const auto weights =
+        value != nullptr
+            ? value
+            : std::make_shared<opset1::Constant>(element::i8, shape, std::vector<float>(shape_size(shape), 1));
+    const auto convert = std::make_shared<opset1::Convert>(weights, netPrecision);
+    OutputVector convertedOutput(1);
+    convert->constant_fold(convertedOutput, convert->input_values());
+    const auto convertedWeights = convertedOutput[0].get_node_shared_ptr();
+    const auto fq = makeFakeQuantizeTypeRelaxed(convertedWeights, netPrecision, fqOnWeights);
+
+    auto dequantizationStructure = dequantizationOnWeights;
+    dequantizationStructure.setPrecision(netPrecision);
+    return makeDequantization(fq, dequantizationStructure);
+}
+
 std::shared_ptr<Function> ConvolutionBackpropDataFunction::getOriginal(
     const element::Type precision,
     const element::Type netPrecision,
@@ -126,11 +147,11 @@ std::shared_ptr<Function>  ConvolutionBackpropDataFunction::getReference(
     dequantizationStructure.multiply.outPrecision = netPrecision;
     const auto activations = makeDequantization(input, dequantizationStructure);
 
-    auto convolutionBackpropData = std::make_shared<op::TypeRelaxed<opset1::ConvolutionBackpropData>>(
+    auto convolutionBackpropData = std::make_shared<ov::op::TypeRelaxed<opset1::ConvolutionBackpropData>>(
             std::vector<element::Type>{ element::f32, element::f32 },
             std::vector<element::Type>{ dequantizationAfter.empty() ? netPrecision : element::f32 },
-            ngraph::op::TemporaryReplaceOutputType(activations, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(weights, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(activations, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(weights, element::f32).get(),
             Strides{ 1, 1 },
             CoordinateDiff{ 0, 0 },
             CoordinateDiff{ 0, 0 },

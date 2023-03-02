@@ -1,22 +1,22 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/dropout_with_random_uniform_replacer.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-ngraph::pass::DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer() {
+ov::pass::DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer() {
     MATCHER_SCOPE(DropoutWithRandomUniformReplacer);
-    const auto shape_pattern = ngraph::pattern::any_input();
+    const auto shape_pattern = pass::pattern::any_input();
     const auto ru_min_const_pattern = ngraph::pattern::wrap_type<opset8::Constant>();
     const auto ru_max_const_pattern = ngraph::pattern::wrap_type<opset8::Constant>();
     const auto random_uniform_pattern =
@@ -32,7 +32,7 @@ ngraph::pass::DropoutWithRandomUniformReplacer::DropoutWithRandomUniformReplacer
 
     const auto floor_pattern = ngraph::pattern::wrap_type<opset8::Floor>({add_pattern});
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto random_uniform = pattern_map.at(random_uniform_pattern);
         const auto shape_of = pattern_map.at(shape_pattern);

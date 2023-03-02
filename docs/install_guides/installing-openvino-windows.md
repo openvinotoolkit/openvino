@@ -1,4 +1,4 @@
-# Install Intel® Distribution of OpenVINO™ toolkit for Windows 10 from Installer
+# Install OpenVINO™ Runtime on Windows from Installer
 
 Currently only the following ways are provided to install OpenVINO™:
 
@@ -9,3 +9,4 @@ Currently only the following ways are provided to install OpenVINO™:
 
 The other installation methods are temporarily unavailable.
 
+For a full selection of distribution channels, see the [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)

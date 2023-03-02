@@ -34,7 +34,7 @@ TEST_P(transpose_test, shape_infer) {
     auto& engine = get_test_engine();
 
     auto data_layout_prim = std::make_shared<input_layout>("data", p.data_layout);
-    auto permute_prim = std::make_shared<permute>("output", "data", p.permute_order_data);
+    auto permute_prim = std::make_shared<permute>("output", input_info("data"), p.permute_order_data);
 
     cldnn::program prog(engine);
 

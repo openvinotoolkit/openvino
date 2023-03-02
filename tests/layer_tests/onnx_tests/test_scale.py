@@ -1,12 +1,12 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
 
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 
-class TestScale(Caffe2OnnxLayerTest):
+class TestScale(OnnxRuntimeLayerTest):
     def create_net(self, shape, scale, ir_version):
         """
             ONNX net                     IR net
@@ -76,7 +76,7 @@ class TestScale(Caffe2OnnxLayerTest):
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, output_shape)
 
-        constant = np.random.randint(-127, 127, shape).astype(np.float)
+        constant = np.random.randint(-127, 127, shape).astype(float)
 
         node_const_def = onnx.helper.make_node(
             'Constant',

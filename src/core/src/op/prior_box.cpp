@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v0::PriorBox);
 
 op::v0::PriorBox::PriorBox(const Output<Node>& layer_shape,
                            const Output<Node>& image_shape,
@@ -104,9 +102,9 @@ int64_t op::v0::PriorBox::number_of_priors(const PriorBox::Attributes& attrs) {
 std::vector<float> op::v0::PriorBox::normalized_aspect_ratio(const std::vector<float>& aspect_ratio, bool flip) {
     std::set<float> unique_ratios;
     for (auto ratio : aspect_ratio) {
-        unique_ratios.insert(std::round(ratio * 1e6) / 1e6);
+        unique_ratios.insert(std::round(ratio * 1e6f) / 1e6f);
         if (flip)
-            unique_ratios.insert(std::round(1 / ratio * 1e6) / 1e6);
+            unique_ratios.insert(std::round(1 / ratio * 1e6f) / 1e6f);
     }
     unique_ratios.insert(1);
     return std::vector<float>(unique_ratios.begin(), unique_ratios.end());
@@ -204,9 +202,6 @@ bool op::v0::PriorBox::has_evaluate() const {
 }
 
 // ------------------------------ V8 ------------------------------
-
-BWDCMP_RTTI_DEFINITION(op::v8::PriorBox);
-
 op::v8::PriorBox::PriorBox(const Output<Node>& layer_shape,
                            const Output<Node>& image_shape,
                            const PriorBox::Attributes& attrs)
@@ -294,9 +289,9 @@ int64_t op::v8::PriorBox::number_of_priors(const PriorBox::Attributes& attrs) {
 std::vector<float> op::v8::PriorBox::normalized_aspect_ratio(const std::vector<float>& aspect_ratio, bool flip) {
     std::set<float> unique_ratios;
     for (auto ratio : aspect_ratio) {
-        unique_ratios.insert(std::round(ratio * 1e6) / 1e6);
+        unique_ratios.insert(std::round(ratio * 1e6f) / 1e6f);
         if (flip)
-            unique_ratios.insert(std::round(1 / ratio * 1e6) / 1e6);
+            unique_ratios.insert(std::round(1 / ratio * 1e6f) / 1e6f);
     }
     unique_ratios.insert(1);
     return std::vector<float>(unique_ratios.begin(), unique_ratios.end());

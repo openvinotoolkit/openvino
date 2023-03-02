@@ -1,12 +1,12 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
 
-from common.onnx_layer_test_class import Caffe2OnnxLayerTest
+from common.onnx_layer_test_class import OnnxRuntimeLayerTest
 
 
-class TestSqueeze(Caffe2OnnxLayerTest):
+class TestSqueeze(OnnxRuntimeLayerTest):
     def create_squeeze_net(self, axes, input_shape, output_shape, ir_version):
         """
             ONNX net                                  IR net
@@ -79,7 +79,7 @@ class TestSqueeze(Caffe2OnnxLayerTest):
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, concat_output_shape)
 
         const_number = np.prod(input_shape)
-        constant = np.random.randint(-127, 127, const_number).astype(np.float)
+        constant = np.random.randint(-127, 127, const_number).astype(float)
         constant = np.reshape(constant, input_shape)
 
         node_const_def = onnx.helper.make_node(

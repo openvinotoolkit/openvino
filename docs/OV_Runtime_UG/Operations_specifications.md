@@ -92,6 +92,9 @@
    If-8 <openvino_docs_ops_infrastructure_If_8>
    Interpolate-1 <openvino_docs_ops_image_Interpolate_1>
    Interpolate-4 <openvino_docs_ops_image_Interpolate_4>
+   IsFinite-10 <openvino_docs_ops_comparison_IsFinite_10>
+   IsInf-10 <openvino_docs_ops_comparison_IsInf_10>
+   IsNaN-10 <openvino_docs_ops_comparison_IsNaN_10>
    LRN-1 <openvino_docs_ops_normalization_LRN_1>
    LSTMCell-1 <openvino_docs_ops_sequence_LSTMCell_1>
    LSTMSequence-1 <openvino_docs_ops_sequence_LSTMSequence_1>
@@ -199,7 +202,9 @@
    Tile-1 <openvino_docs_ops_movement_Tile_1>
    TopK-1 <openvino_docs_ops_sort_TopK_1>
    TopK-3 <openvino_docs_ops_sort_TopK_3>
+   TopK-11 <openvino_docs_ops_sort_TopK_11>
    Transpose-1 <openvino_docs_ops_movement_Transpose_1>
+   Unique-10 <openvino_docs_ops_movement_Unique_10>
    Unsqueeze-1 <openvino_docs_ops_shape_Unsqueeze_1>
    VariadicSplit-1 <openvino_docs_ops_movement_VariadicSplit_1>
 

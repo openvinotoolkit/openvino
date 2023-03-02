@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,6 +13,7 @@
 #include "low_precision/common/ie_lpt_exception.hpp"
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
+#include "low_precision/rt_info/skip_cleanup_attribute.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -53,10 +54,10 @@ std::shared_ptr<Node> removeConvertIfPossibleForSubtract(
 
     const element::Type precisionBeforeConvert = convert->input(0).get_element_type();
     if (NetworkHelper::checkConstantValuePrecision(precisionBeforeConvert, subtract->get_input_node_shared_ptr(1))) {
-        newSubtract = std::make_shared<ngraph::op::TypeRelaxed<opset1::Subtract>>(
+        newSubtract = std::make_shared<ov::op::TypeRelaxed<opset1::Subtract>>(
             std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{},
-            ngraph::op::TemporaryReplaceOutputType(convert->input_value(0), element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(subtract->input_value(1), element::f32).get());
+            ov::op::TemporaryReplaceOutputType(convert->input_value(0), element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(subtract->input_value(1), element::f32).get());
         NetworkHelper::setOutDataPrecisionForTypeRelaxed(newSubtract, subtract->get_output_element_type(0));
         replace_node(subtract, newSubtract);
     }
@@ -85,17 +86,17 @@ bool FuseConvertTransformation::transform(TransformationContext& context, ngraph
             auto subtract = ov::as_type_ptr<opset1::Subtract>(op);
             newOp = removeConvertIfPossibleForSubtract(convert, subtract);
         } else if (ov::is_type<opset1::Multiply>(op)) {
-            newOp = std::make_shared<ngraph::op::TypeRelaxed<opset1::Multiply>>(
+            newOp = std::make_shared<ov::op::TypeRelaxed<opset1::Multiply>>(
                     std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{},
-                    ngraph::op::TemporaryReplaceOutputType(convert->input_value(0), element::f32).get(),
-                    ngraph::op::TemporaryReplaceOutputType(op->input_value(1), element::f32).get());
+                    ov::op::TemporaryReplaceOutputType(convert->input_value(0), element::f32).get(),
+                    ov::op::TemporaryReplaceOutputType(op->input_value(1), element::f32).get());
             NetworkHelper::setOutDataPrecisionForTypeRelaxed(newOp, op->get_output_element_type(0));
             replace_node(op, newOp);
         } else if (ov::is_type<opset1::Add>(op)) {
-            newOp = std::make_shared<ngraph::op::TypeRelaxed<opset1::Add>>(
+            newOp = std::make_shared<ov::op::TypeRelaxed<opset1::Add>>(
                     std::vector<ngraph::element::Type>{ element::f32, element::f32 }, std::vector<ngraph::element::Type>{},
-                    ngraph::op::TemporaryReplaceOutputType(convert->input_value(0), element::f32).get(),
-                    ngraph::op::TemporaryReplaceOutputType(op->input_value(1), element::f32).get());
+                    ov::op::TemporaryReplaceOutputType(convert->input_value(0), element::f32).get(),
+                    ov::op::TemporaryReplaceOutputType(op->input_value(1), element::f32).get());
             NetworkHelper::setOutDataPrecisionForTypeRelaxed(newOp, op->get_output_element_type(0));
             replace_node(op, newOp);
         }
@@ -113,6 +114,10 @@ bool FuseConvertTransformation::transform(TransformationContext& context, ngraph
 }
 
 bool FuseConvertTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
+    if (!getAttribute<SkipCleanupAttribute>(op).empty()) {
+        return false;
+    }
+
     const auto convert = ov::as_type_ptr<opset1::Convert>(op->get_input_node_shared_ptr(0));
     // issue #40395
     if (convert == nullptr) {

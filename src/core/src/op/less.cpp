@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -51,9 +51,6 @@ bool evaluate_less(const HostTensorPtr& arg0,
 }  // namespace lessop
 
 // ----------------------------- v1 --------------------------------------------
-
-BWDCMP_RTTI_DEFINITION(op::v1::Less);
-
 op::v1::Less::Less(const Output<Node>& arg0, const Output<Node>& arg1, const AutoBroadcastSpec& auto_broadcast)
     : BinaryElementwiseComparison(arg0, arg1, auto_broadcast) {
     constructor_validate_and_infer_types();

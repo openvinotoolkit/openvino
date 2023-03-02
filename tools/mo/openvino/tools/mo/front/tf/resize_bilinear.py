@@ -1,8 +1,9 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.ops.TFResize import TFResize
 from openvino.tools.mo.front.extractor import FrontExtractorOp
+from openvino.tools.mo.front.tf.extractors.utils import tf_dtype_extractor
 
 
 class ResizeBilinearFrontExtractor(FrontExtractorOp):
@@ -22,7 +23,8 @@ class ResizeBilinearFrontExtractor(FrontExtractorOp):
         attrs = {
             'align_corners': align_corners,
             'half_pixel_centers': half_pixel_centers,
-            'mode': 'linear'
+            'mode': 'linear',
+            'data_type': tf_dtype_extractor(node.pb.attr["T"].type),
         }
         TFResize.update_node_stat(node, attrs)
         return cls.enabled

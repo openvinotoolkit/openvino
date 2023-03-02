@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -51,10 +51,6 @@ if (WIN32)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc") # no asynchronous structured exception handling
     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LARGEADDRESSAWARE")
 
-    if (TREAT_WARNING_AS_ERROR)
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /WX") # treating warnings as errors
-    endif ()
-
     if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Qdiag-disable:177")
     endif()
@@ -64,11 +60,6 @@ if (WIN32)
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4275 /wd4267 /wd4819")
     endif()
 else()
-    # treating warnings as errors
-    if(TREAT_WARNING_AS_ERROR)
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
-    endif()
-
     if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable:177")
     endif()
@@ -78,19 +69,14 @@ if(APPLE)
     set(CMAKE_MACOSX_RPATH ON)
 endif()
 
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64.*|aarch64.*|AARCH64.*)")
-  set(AARCH64 ON)
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64.*|aarch64.*|AARCH64.*|ARM64.*)")
+    set(AARCH64 ON)
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm.*|ARM.*)")
-  set(ARM ON)
-endif()
-if(ARM AND NOT CMAKE_CROSSCOMPILING)
-    add_compile_options(-march=armv7-a)
+    set(ARM ON)
 endif()
 
-if(NOT COMMAND find_host_package)
-    macro(find_host_package)
-        find_package(${ARGN})
-    endmacro()
+if(ARM AND NOT (CMAKE_CROSSCOMPILING OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC"))
+    add_compile_options(-march=armv7-a+fp)
 endif()
 
 set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
@@ -108,78 +94,50 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
 endif()
 ####################################
 
-if(NOT TARGET gflags)
-    if(NOT APPLE)
-        # on Apple only dynamic libraries are available
-        # also, we can easily mix arm64 and x86_64 binaries when cross-compile for Intel CPU
-        find_package(gflags QUIET COMPONENTS nothreads_static)
-    endif()
-
-    if(gflags_FOUND)
-        message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR}")
-    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
-        add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
-    endif()
-endif()
-
-if(NOT ANDROID)
-    find_package(PkgConfig QUIET)
-endif()
-
-if(NOT TARGET zlib::zlib)
-    if(PkgConfig_FOUND)
-        pkg_search_module(zlib QUIET
-                          IMPORTED_TARGET GLOBAL
-                          zlib)
-        if(zlib_FOUND)
-            add_library(zlib::zlib ALIAS PkgConfig::zlib)
-        endif()
-    endif()
-
-    if(zlib_FOUND)
-        message(STATUS "${PKG_CONFIG_EXECUTABLE}: zlib (${zlib_VERSION}) is found at ${zlib_PREFIX}")
-    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib")
-        add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
-    endif()
-endif()
-
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy")
-    add_subdirectory(thirdparty/cnpy EXCLUDE_FROM_ALL)
-endif()
-
-if(NOT TARGET nlohmann_json::nlohmann_json)
-    find_package(nlohmann_json QUIET)
-    if(nlohmann_json_FOUND)
-        message(STATUS "nlohmann_json (${nlohmann_json_VERSION}) is found at ${nlohmann_json_DIR}")
-    elseif(PkgConfig_FOUND)
-        pkg_search_module(nlohmann_json QUIET
-                          IMPORTED_TARGET GLOBAL
-                          nlohmann_json)
-        if(nlohmann_json_FOUND)
-            add_library(nlohmann_json::nlohmann_json ALIAS PkgConfig::nlohmann_json)
-        endif()
-    endif()
-
-    if(NOT nlohmann_json_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/nlohmann_json")
-        # suppress shadowing names warning
-        set(JSON_SystemInclude ON CACHE BOOL "" FORCE)
-        add_subdirectory(thirdparty/nlohmann_json EXCLUDE_FROM_ALL)
-    endif()
-endif()
-
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
-    add_subdirectory(common/utils)
+    # gflags is used only in C++ samples
+    set(gflags_required ON)
 endif()
 
-# format reader must be added after find_package(OpenVINO) to get
-# exactly the same OpenCV_DIR path which was used for the OpenVINO build
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/format_reader")
-    add_subdirectory(common/format_reader)
-elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/opencv_c_wrapper")
-    add_subdirectory(common/opencv_c_wrapper)
+if(TARGET gflags)
+    set(GFLAGS_TARGET gflags)
+elseif(gflags_required)
+    if(EXISTS /etc/debian_version)
+        set(gflags_component nothreads_static)
+    else()
+        set(gflags_component shared)
+    endif()
+    find_package(gflags QUIET OPTIONAL_COMPONENTS ${gflags_component})
+    if(gflags_FOUND)
+        if(TARGET ${GFLAGS_TARGET})
+            # nothing
+        elseif(TARGET gflags_nothreads-static)
+            # Debian 9: gflag_component is ignored
+            set(GFLAGS_TARGET gflags_nothreads-static)
+        elseif(TARGET gflags-shared)
+            # gflags shared case for CentOS / RHEL / Fedora
+            set(GFLAGS_TARGET gflags-shared)
+        else()
+            message(FATAL_ERROR "Internal error: failed to find imported target 'gflags' using '${gflags_component}' component")
+        endif()
+
+        message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR} using '${gflags_component}' component")
+    endif()
+
+    if(NOT gflags_FOUND)
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
+            add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
+            set(GFLAGS_TARGET gflags_nothreads_static)
+        else()
+            message(FATAL_ERROR "Failed to find 'gflags' library using '${gflags_component}' component")
+        endif()
+    endif()
 endif()
 
-# samples build can be switched off during whole IE build
+# include common utils
+add_subdirectory(common)
+
+# samples build can be switched off during whole OpenVINO build
 if (DEFINED OpenVINO_SOURCE_DIR AND NOT ENABLE_SAMPLES)
     return()
 endif()
@@ -258,9 +216,6 @@ macro(ie_add_sample)
     target_include_directories(${IE_SAMPLE_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../common")
 
     target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${ov_link_libraries} Threads::Threads ${IE_SAMPLE_DEPENDENCIES})
-    if(NOT c_sample)
-        target_link_libraries(${IE_SAMPLE_NAME} PRIVATE gflags)
-    endif()
 
     install(TARGETS ${IE_SAMPLE_NAME}
             RUNTIME DESTINATION samples_bin/
@@ -284,8 +239,11 @@ endmacro()
 
 # collect all samples subdirectories
 file(GLOB samples_dirs RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *)
+
 # skip building of unnecessary subdirectories
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty")
-    list(REMOVE_ITEM samples_dirs common thirdparty)
+    list(REMOVE_ITEM samples_dirs thirdparty)
 endif()
+list(REMOVE_ITEM samples_dirs common)
+
 add_samples_to_build(${samples_dirs})

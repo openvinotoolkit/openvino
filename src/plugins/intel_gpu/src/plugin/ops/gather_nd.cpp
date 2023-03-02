@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,7 @@ namespace intel_gpu {
 
 static void CreateGatherNDOp(Program& p, const std::shared_ptr<ngraph::op::v5::GatherND>& op) {
     validate_inputs_count(op, {2});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto input_rank = op->get_input_partial_shape(0).size();
@@ -24,8 +24,8 @@ static void CreateGatherNDOp(Program& p, const std::shared_ptr<ngraph::op::v5::G
     auto batch_dims = op->get_batch_dims();
 
     auto primitive = cldnn::gather_nd(layerName,
-                                      inputPrimitives[0],
-                                      inputPrimitives[1],
+                                      inputs[0],
+                                      inputs[1],
                                       input_rank,
                                       indices_rank,
                                       batch_dims,
@@ -38,7 +38,7 @@ REGISTER_FACTORY_IMPL(v5, GatherND);
 
 static void CreateGatherNDOp(Program& p, const std::shared_ptr<ngraph::op::v8::GatherND>& op) {
     validate_inputs_count(op, { 2 });
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto input_rank = op->get_input_partial_shape(0).size();
@@ -47,8 +47,8 @@ static void CreateGatherNDOp(Program& p, const std::shared_ptr<ngraph::op::v8::G
     auto batch_dims = op->get_batch_dims();
 
     auto primitive = cldnn::gather_nd(layerName,
-                                      inputPrimitives[0],
-                                      inputPrimitives[1],
+                                      inputs[0],
+                                      inputs[1],
                                       input_rank,
                                       indices_rank,
                                       batch_dims,

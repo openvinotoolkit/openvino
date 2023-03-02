@@ -32,8 +32,8 @@ def skip_if_frontend_is_disabled(frontend):
     if frontend not in imported_frontends:
         return pytest.mark.skip(
             reason=f"Cannot import frontend {frontend}.  Check paths in:"
-                   f" LD_LIBRARY_PATH={os.environ['LD_LIBRARY_PATH']}"
-                   f", PYTHONPATH={os.environ['PYTHONPATH']}")
+                   f" LD_LIBRARY_PATH={os.environ.get('LD_LIBRARY_PATH','')}"
+                   f", PYTHONPATH={os.environ.get('PYTHONPATH','')}")
 
     return pytest.mark.skipif(frontend not in fem.get_available_front_ends(), reason=f"Frontend {frontend} is disabled")
 

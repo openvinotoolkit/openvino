@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,11 +14,12 @@
 using namespace SubgraphsDumper;
 
 void OPCache::update_ops_cache(const std::shared_ptr<ov::Node> &op,
-                               const std::string &source_model) {
+                               const Model& source_model) {
     const std::shared_ptr<ov::Node> cachedOp = [&] {
         for (auto &&it : m_ops_cache) {
             if (manager.match_any(it.first, op, it.second)) {
-                it.second.found_in_models[source_model] += 1;
+                it.second.found_in_models[source_model.name].unique_op_cnt += 1;
+                it.second.found_in_models[source_model.name].model_paths.insert({{source_model.path, source_model.op_cnt}});
                 return it.first;
             }
         }
@@ -28,7 +29,7 @@ void OPCache::update_ops_cache(const std::shared_ptr<ov::Node> &op,
     auto saveOpToCash = [&] {
         try {
             const auto& clone_fn = SubgraphsDumper::ClonersMap::cloners.at(op->get_type_info());
-            LayerTestsUtils::OPInfo meta(source_model);
+            LayerTestsUtils::OPInfo meta(source_model.name, source_model.path, source_model.op_cnt);
             const std::shared_ptr<ov::Node> op_clone = clone_fn(op, meta);
             if (!op_clone) {
                 return;
@@ -48,10 +49,11 @@ void OPCache::update_ops_cache(const std::shared_ptr<ov::Node> &op,
     } else {
         for (int i = 0; i < op->get_input_size(); i++) {
             auto shape = op->get_input_shape(i);
-            unsigned long shapeSize = ov::shape_size(shape) * op->get_element_type().size();
+            unsigned long shapeSize = ov::shape_size(shape) * op->get_output_element_type(0).size();
 
             auto cachedOpShape = cachedOp->get_input_shape(i);
-            unsigned long cachedOpShapeSize = ov::shape_size(cachedOpShape) * cachedOp->get_element_type().size();
+            unsigned long cachedOpShapeSize =
+                ov::shape_size(cachedOpShape) * cachedOp->get_output_element_type(0).size();
 
             if (shapeSize < cachedOpShapeSize) {
                 m_ops_cache.erase(cachedOp);
@@ -61,7 +63,7 @@ void OPCache::update_ops_cache(const std::shared_ptr<ov::Node> &op,
     }
 }
 
-void OPCache::update_ops_cache(const std::shared_ptr<ov::Model> &func, const bool extract_body, const std::string &source_model) {
+void OPCache::update_ops_cache(const std::shared_ptr<ov::Model> &func, const Model& source_model, const bool extract_body) {
     size_t cached_ops_count = m_ops_cache.size();
     for (const auto &op : func->get_ordered_ops()) {
         if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
@@ -80,16 +82,16 @@ void OPCache::update_ops_cache(const std::shared_ptr<ov::Model> &func, const boo
                 std::vector<std::shared_ptr<ov::Model>> bodies;
                 for (size_t i = 0; i < if_op->get_internal_subgraphs_size(); i++) {
                     auto if_body = if_op->get_function(i);
-                    update_ops_cache(if_body, extract_body, source_model);
+                    update_ops_cache(if_body, source_model, extract_body);
                 }
             } else if (std::dynamic_pointer_cast<ov::op::v5::Loop>(op)) {
                 auto loop = std::dynamic_pointer_cast<ov::op::v5::Loop>(op);
                 auto loop_body = loop->get_function();
-                update_ops_cache(loop_body, extract_body, source_model);
+                update_ops_cache(loop_body, source_model, extract_body);
             } else if (std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op)) {
                 auto ti = std::dynamic_pointer_cast<ov::op::v0::TensorIterator>(op);
                 auto ti_body = ti->get_body();
-                update_ops_cache(ti_body, extract_body, source_model);
+                update_ops_cache(ti_body, source_model, extract_body);
             }
         }
         update_ops_cache(op, source_model);
@@ -121,16 +123,29 @@ void OPCache::serialize_meta_info(const LayerTestsUtils::OPInfo &info, const std
     pugi::xml_document doc;
     pugi::xml_node root = doc.append_child("meta_info");
     pugi::xml_node models = root.append_child("models");
-    models.append_child("initial_model").append_attribute("name").set_value(info.source_model.c_str());
+    double k = 0;
     for (const auto &model : info.found_in_models) {
         pugi::xml_node model_node = models.append_child("model");
         model_node.append_attribute("name").set_value(model.first.c_str());
-        model_node.append_attribute("count").set_value(model.second);
+        double model_k = model.second.unique_op_cnt;
+        model_node.append_attribute("count").set_value(static_cast<unsigned long long>(model.second.unique_op_cnt));
+        size_t tmp = 0;
+        for (const auto& model_path : model.second.model_paths) {
+            if (model_path.second) {
+                model_node.append_child("path").append_attribute("model").set_value(model_path.first.c_str());
+                tmp += model_path.second;
+            }
+        }
+        model_k /= tmp;
+        model_k /= model.second.model_paths.size();
+        k += model_k;
     }
+    k *=  info.found_in_models.size();
+    root.append_child("graph_priority").append_attribute("value").set_value(k);
     auto ports_info = root.append_child("ports_info");
     for (const auto &port : info.ports_info) {
         auto port_node = ports_info.append_child("port");
-        port_node.append_attribute("id").set_value(port.first);
+        port_node.append_attribute("id").set_value(static_cast<unsigned long long>(port.first));
         if (port.second.min == std::numeric_limits<double>::min()) {
             port_node.append_attribute("max").set_value("undefined");
             port_node.append_attribute("min").set_value("undefined");
@@ -151,7 +166,7 @@ float OPCache::get_size_of_cached_ops() {
                     op.first->get_input_node_shared_ptr(i));
             if (constant != nullptr) {
                 size += static_cast<float>(ov::shape_size(constant->get_shape()) *
-                                           constant->get_element_type().size()) / (1024 * 1024);
+                                           constant->get_output_element_type(0).size()) / (1024 * 1024);
             }
         }
     }
@@ -162,38 +177,51 @@ OPCache::SerializationStatus
 OPCache::serialize_function(const std::pair<std::shared_ptr<ov::Node>, LayerTestsUtils::OPInfo> &op,
                             const std::string &serialization_dir) {
     try {
-        if (op.first->get_friendly_name() == "Relu_8793_cached") {
-            std::cout << std::endl;
-        }
         std::cout << "Serializing function wrapping op " << op.first << std::endl;
-        std::cout << "Taken from model: " << op.second.source_model << std::endl;
+        std::cout << "Taken from model: " << op.second.found_in_models.begin()->first << std::endl;
 
         ov::ParameterVector params;
+        bool is_dynamic = false;
         for (size_t i = 0; i < op.first->get_input_size(); ++i) {
             if (ov::op::util::is_parameter(op.first->get_input_node_ptr(i))) {
                 auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(
                         op.first->get_input_node_shared_ptr(i));
+                if (param->get_partial_shape().is_dynamic()) {
+                    is_dynamic = true;
+                }
                 params.push_back(param);
             }
         }
         ov::ResultVector results;
         for (auto &out : op.first->outputs()) {
+            if (out.get_partial_shape().is_dynamic()) {
+                is_dynamic = true;
+            }
             results.push_back(std::make_shared<ov::op::v0::Result>(out));
         }
         auto function = std::make_shared<ov::Model>(results, params);
 
         // TODO: How to define element type for multi-output ops
+        std::string op_folder_name = op.first->get_type_info().name;
+        std::string opset_version = op.first->get_type_info().get_version();
+        std::string opset_name = "opset";
+        auto pos = opset_version.find(opset_name);
+        if (pos != std::string::npos) {
+            op_folder_name += "-" + opset_version.substr(pos + opset_name.size());
+        }
         auto op_el_type = op.first->get_output_element_type(0).get_type_name();
         auto current_op_folder = serialization_dir + CommonTestUtils::FileSeparator +
-                                 op.first->get_type_info().name + CommonTestUtils::FileSeparator + op_el_type;
-        std::cout << current_op_folder << std::endl;
+                                 (is_dynamic ? "dynamic" : "static") + CommonTestUtils::FileSeparator +
+                                 op_folder_name + CommonTestUtils::FileSeparator + op_el_type;
+        auto op_name = op.first->get_name();
+        op_name = op_name.substr(op_name.find("_") + 1);
+
+        std::cout << op_name << " will be serialized to " << current_op_folder << std::endl;
         if (!CommonTestUtils::directoryExists(current_op_folder)) {
             CommonTestUtils::createDirectoryRecursive(current_op_folder);
         }
-        auto op_name = op.first->get_name();
         std::replace(op_name.begin(), op_name.end(), '/', '_');
         std::replace(op_name.begin(), op_name.end(), '\\', '_');
-        // TODO: Possible names collision
         auto xml_path = current_op_folder + CommonTestUtils::FileSeparator + op_name + ".xml";
         auto bin_path = current_op_folder + CommonTestUtils::FileSeparator + op_name + ".bin";
         auto meta_info = current_op_folder + CommonTestUtils::FileSeparator + op_name + ".meta";

@@ -16,12 +16,12 @@ the commands below:
 1. Build tests:
 ``` bash
 mkdir build && cd build
-cmake .. && make time_tests
+cmake .. && cmake --build . --target time_tests -j8
 ```
 
 2. Install tests:
 ``` bash
-сmake install <build_dir> --prefix <install_path>
+сmake --install <build_dir> --prefix <install_path>
 ```
 
 3. Run test:
@@ -36,4 +36,3 @@ pytest ./test_runner/test_timetest.py --exe ../../bin/intel64/Release/timetest_i
 # For parse_stat testing:
 pytest ./scripts/run_timetest.py
 ```
-

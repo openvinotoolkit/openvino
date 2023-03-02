@@ -1,15 +1,15 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/concat_reduce_fusion.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <vector>
 
 #include "itt.hpp"
@@ -20,9 +20,9 @@ namespace {
 enum class ReduceType { NONE, MAX, MIN };
 
 ReduceType get_reduce_type(const std::shared_ptr<ov::Node>& reduce_node) {
-    if (ov::is_type<ngraph::opset8::ReduceMax>(reduce_node)) {
+    if (ov::is_type<ov::opset8::ReduceMax>(reduce_node)) {
         return ReduceType::MAX;
-    } else if (ov::is_type<ngraph::opset8::ReduceMin>(reduce_node)) {
+    } else if (ov::is_type<ov::opset8::ReduceMin>(reduce_node)) {
         return ReduceType::MIN;
     } else {
         return ReduceType::NONE;
@@ -30,7 +30,7 @@ ReduceType get_reduce_type(const std::shared_ptr<ov::Node>& reduce_node) {
 }
 }  // namespace
 
-ngraph::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
+ov::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
     MATCHER_SCOPE(PullSqueezeThroughEltwise);
     auto eltwise_pattern = pattern::wrap_type<op::util::BinaryElementwiseArithmetic>();
 
@@ -55,8 +55,7 @@ ngraph::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
         ngraph::OutputVector eltwise_inputs;
         for (size_t input_index = 0; input_index < eltwise_inputs_size; ++input_index) {
             const auto eltwise_input = eltwise->input_value(input_index);
-            const auto new_input_node =
-                ngraph::op::util::clone_try_fold(squeeze, {eltwise_input, squeeze->input_value(1)});
+            const auto new_input_node = ov::op::util::clone_try_fold(squeeze, {eltwise_input, squeeze->input_value(1)});
 
             if (!is_type<opset8::Constant>(new_input_node))
                 register_new_node(as_type_ptr<opset8::Squeeze>(new_input_node));
@@ -65,7 +64,7 @@ ngraph::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
             eltwise_inputs.push_back(new_input_node);
         }
 
-        const auto new_eltwise = ngraph::op::util::clone_try_fold(eltwise, eltwise_inputs);
+        const auto new_eltwise = ov::op::util::clone_try_fold(eltwise, eltwise_inputs);
         new_eltwise->set_friendly_name(squeeze->get_friendly_name());
         ngraph::copy_runtime_info({eltwise, squeeze}, new_eltwise);
         ngraph::replace_node(squeeze, new_eltwise);
@@ -76,7 +75,7 @@ ngraph::pass::PullSqueezeThroughEltwise::PullSqueezeThroughEltwise() {
     this->register_matcher(m, callback);
 }
 
-ngraph::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
+ov::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
     MATCHER_SCOPE(ReplaceConcatReduceByMinOrMax);
 
     auto concat_pattern = ngraph::pattern::wrap_type<opset8::Concat>({pattern::any_input(), pattern::any_input()});
@@ -84,7 +83,7 @@ ngraph::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
     auto reduce_pattern =
         ngraph::pattern::wrap_type<opset8::ReduceMin, opset8::ReduceMax>({concat_pattern, reduce_axes_pattern});
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
 
         auto concat = as_type_ptr<opset8::Concat>(pattern_map.at(concat_pattern).get_node_shared_ptr());
@@ -115,8 +114,8 @@ ngraph::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
 
         if (!reduce->get_keep_dims()) {
             const auto squeeze_axis_node =
-                ngraph::opset8::Constant::create(ngraph::element::i64, {}, {*reduction_axes.begin()});
-            result_node = register_new_node<ngraph::opset8::Squeeze>(result_node, squeeze_axis_node);
+                ov::opset8::Constant::create(ngraph::element::i64, {}, {*reduction_axes.begin()});
+            result_node = register_new_node<ov::opset8::Squeeze>(result_node, squeeze_axis_node);
             copy_runtime_info({concat, reduce}, result_node);
         }
 
@@ -129,8 +128,8 @@ ngraph::pass::ReplaceConcatReduceByMinOrMax::ReplaceConcatReduceByMinOrMax() {
     register_matcher(m, callback);
 }
 
-ngraph::pass::ConcatReduceFusion::ConcatReduceFusion() {
-    add_matcher<ReplaceConcatReduceByMinOrMax>();
-    add_matcher<PullSqueezeThroughEltwise>();
-    add_matcher<EliminateSqueeze>();
+ov::pass::ConcatReduceFusion::ConcatReduceFusion() {
+    ADD_MATCHER_FOR_THIS(ReplaceConcatReduceByMinOrMax)
+    ADD_MATCHER_FOR_THIS(PullSqueezeThroughEltwise)
+    ADD_MATCHER_FOR_THIS(EliminateSqueeze)
 }

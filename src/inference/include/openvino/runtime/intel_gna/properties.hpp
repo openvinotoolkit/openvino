@@ -119,6 +119,7 @@ enum class HWGeneration {
     UNDEFINED = 0,  //!< GNA HW generation is undefined
     GNA_2_0 = 1,    //!< GNA HW generation 2.0
     GNA_3_0 = 2,    //!< GNA HW generation 3.0
+    GNA_3_5 = 3,    //!< GNA HW generation 3.5
 };
 
 /** @cond INTERNAL */
@@ -130,6 +131,8 @@ inline std::ostream& operator<<(std::ostream& os, const HWGeneration& hw_generat
         return os << "GNA_2_0";
     case HWGeneration::GNA_3_0:
         return os << "GNA_3_0";
+    case HWGeneration::GNA_3_5:
+        return os << "GNA_3_5";
     default:
         throw ov::Exception{"Unsupported HW generation!"};
     }
@@ -144,6 +147,8 @@ inline std::istream& operator>>(std::istream& is, HWGeneration& hw_generation) {
         hw_generation = HWGeneration::GNA_2_0;
     } else if (str == "GNA_3_0") {
         hw_generation = HWGeneration::GNA_3_0;
+    } else if (str == "GNA_3_5") {
+        hw_generation = HWGeneration::GNA_3_5;
     } else {
         throw ov::Exception{"Unsupported HW generation: " + str};
     }
@@ -159,7 +164,7 @@ inline std::istream& operator>>(std::istream& is, HWGeneration& hw_generation) {
 static constexpr Property<ExecutionMode> execution_mode{"GNA_DEVICE_MODE"};
 
 /**
- * @brief The option to override the GNA HW execution target. May be one of GNA_2_0, GNA_3_0.
+ * @brief The option to override the GNA HW execution target. May be one of GNA_2_0, GNA_3_0, GNA_3_5.
  * By default (in case of no value set) the behavior depends on GNA HW availability:
  * If GNA HW is present, use the option corresponding to this HW.
  * If HW is not present, use the option corresponding to the latest fully supported GNA HW generation.
@@ -170,7 +175,7 @@ static constexpr Property<ExecutionMode> execution_mode{"GNA_DEVICE_MODE"};
 static constexpr Property<HWGeneration> execution_target{"GNA_HW_EXECUTION_TARGET"};
 
 /**
- * @brief The option to override the GNA HW compile target. May be one of GNA_2_0, GNA_3_0.
+ * @brief The option to override the GNA HW compile target. May be one of GNA_2_0, GNA_3_0, GNA_3_5.
  * By default the same as execution_target.
  * @ingroup ov_runtime_gna_prop_cpp_api
  */

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v3::Broadcast);
 
 op::v3::Broadcast::Broadcast(const Output<Node>& arg,
                              const Output<Node>& target_shape,
@@ -42,7 +40,7 @@ std::pair<bool, AxisSet> get_broadcast_axes_bidirectional(const ov::Shape& arg_s
     const auto start_axis = static_cast<int64_t>(result_shape.size()) - static_cast<int64_t>(arg_shape.size());
     NGRAPH_CHECK(start_axis >= 0);
     for (size_t i = 0; i < result_shape.size(); i++) {
-        if (i < start_axis || result_shape[i] != arg_shape[i - start_axis]) {
+        if (i < static_cast<size_t>(start_axis) || result_shape[i] != arg_shape[i - start_axis]) {
             broadcast_axes.insert(i);
         }
     }
@@ -225,8 +223,6 @@ BroadcastModeSpec to_broadcast_mode(const AutoBroadcastSpec& bs) {
     return broadcast_mode;
 }
 }  // namespace
-
-BWDCMP_RTTI_DEFINITION(op::v1::Broadcast);
 
 op::v1::Broadcast::Broadcast(const Output<Node>& arg,
                              const Output<Node>& target_shape,

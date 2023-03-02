@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,9 +11,6 @@
 
 #include "ngraph/log.hpp"
 #include "ngraph/type/element_type_traits.hpp"
-
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::element::Type>);
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::element::TypeVector>);
 
 namespace {
 struct TypeInfo {
@@ -391,8 +388,6 @@ NGRAPH_API EnumNames<element::Type_t>& EnumNames<element::Type_t>::get() {
                                                          {"u64", element::Type_t::u64}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<element::Type_t>);
 
 const std::string& AttributeAdapter<element::Type>::get() {
     return as_string(static_cast<element::Type_t>(m_ref));

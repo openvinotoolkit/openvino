@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -240,14 +240,14 @@ struct lstm_dynamic_input_layer_test : public ::testing::Test
         }
 
         topology.add(lstm_dynamic_input("dynamic_lstm_input",
-            "input",
+            input_info("input"),
             "dyn_len",
             "weights",
             bias_id));
 
-        build_options opts;
-        opts.set_option(build_option::optimize_data(true));
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        network network(engine, topology, config);
 
 #if MEASURE_PERF == true
         using clock = std::chrono::high_resolution_clock;
@@ -287,7 +287,7 @@ struct lstm_dynamic_input_layer_test : public ::testing::Test
                 {
                     for (auto x = 0; x < out_layout.spatial(0); x++)
                     {
-                        EXPECT_NEAR(output_ref[b][len][dir][x], (float)out_ptr[i++], 1e-3f)
+                        ASSERT_NEAR(output_ref[b][len][dir][x], (float)out_ptr[i++], 1e-3f)
                             << "b:" << b << ", "
                             << "len:" << len << ", "
                             << "dir:" << dir << ", "
@@ -397,7 +397,7 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
         }
 
         topology.add(lstm_dynamic("dynamic_lstm",
-            "input",
+            input_info("input"),
             "dyn_len",
             "weights",
             "recurrent",
@@ -407,9 +407,9 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
             initial_hidden_id,
             initial_cell_id));
 
-        build_options opts;
-        opts.set_option(build_option::optimize_data(true));
-        network network(engine, topology, opts);
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        network network(engine, topology, config);
         network.set_input_data("input", input_mem);
         network.set_input_data("dyn_len", dynamic_length_mem);
 
@@ -453,7 +453,7 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
                         //check hidden
                         if (len < dynamic_lengths[b])
                         {
-                            EXPECT_NEAR((float)ref_output_hidden[b][len][dir][x], (float)out_ptr[i++], epsilon)
+                            ASSERT_NEAR((float)ref_output_hidden[b][len][dir][x], (float)out_ptr[i++], epsilon)
                                 << "check hidden, "
                                 << "b:" << b << ", "
                                 << "len:" << len << ", "
@@ -463,7 +463,7 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
                         }
                         else
                         {
-                            EXPECT_NEAR(0.0f, (float)out_ptr[i++], epsilon)
+                            ASSERT_NEAR(0.0f, (float)out_ptr[i++], epsilon)
                                 << "check hidden, "
                                 << "b:" << b << ", "
                                 << "len:" << len << ", "
@@ -476,7 +476,7 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
                         if(has_last_hidden_state && len == dynamic_lengths[b] - 1)
                         {
                             auto ratio = (float)ref_output_hidden[b][len][dir][x] / (float)last_hidden_ptr[i_lh++];
-                            EXPECT_TRUE(std::abs(1.0f - ratio) < 0.01f)
+                            ASSERT_TRUE(std::abs(1.0f - ratio) < 0.01f)
                             << "check has_last_hidden_state with ratio: " << ratio << ", "
                                 << "b:" << b << ", "
                                 << "len:" << len << ", "
@@ -487,7 +487,7 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
                         }
                         else if (has_last_hidden_state && len == 0 && dynamic_lengths[b] == 0)
                         {
-                            EXPECT_NEAR(0.0f, (float)last_hidden_ptr[i_lh++], epsilon)
+                            ASSERT_NEAR(0.0f, (float)last_hidden_ptr[i_lh++], epsilon)
                                 << "check has_last_hidden_state, "
                                 << "b:" << b << ", "
                                 << "len:" << len << ", "
@@ -500,7 +500,7 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
                         if(has_last_cell_state && len == dynamic_lengths[b] - 1)
                         {
                             auto ratio = (float)ref_output_cell[b][len][dir][x] / (float)last_cell_ptr[i_lc++];
-                            EXPECT_TRUE(std::abs(1.0f - ratio) < 0.01f)
+                            ASSERT_TRUE(std::abs(1.0f - ratio) < 0.01f)
                                 << "check has_last_cell_state with ratio: " << ratio << ", "
                                 << "b:" << b << ", "
                                 << "len:" << len << ", "
@@ -510,7 +510,7 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
                         }
                         else if (has_last_cell_state && len == 0 && dynamic_lengths[b] == 0)
                         {
-                            EXPECT_NEAR(0.0f, (float)last_cell_ptr[i_lc++], epsilon)
+                            ASSERT_NEAR(0.0f, (float)last_cell_ptr[i_lc++], epsilon)
                                 << "check has_last_cell_state, "
                                 << "b:" << b << ", "
                                 << "len:" << len << ", "
@@ -884,7 +884,7 @@ TEST(lstm_dynamic_negative, wrong_weights_size) {
     topology.add(data("weights", weights_mem));
     topology.add(data("recurrent", recurrent_mem));
     topology.add(lstm_dynamic("dynamic_lstm",
-        "input",
+        input_info("input"),
         "dyn_len",
         "weights",
         "recurrent"));
@@ -909,7 +909,7 @@ TEST(lstm_dynamic_negative, wrong_recurrent_size_0) {
     topology.add(data("weights", weights_mem));
     topology.add(data("recurrent", recurrent_mem));
     topology.add(lstm_dynamic("dynamic_lstm",
-        "input",
+        input_info("input"),
         "dyn_len",
         "weights",
         "recurrent"));
@@ -934,7 +934,7 @@ TEST(lstm_dynamic_negative, wrong_recurrent_size_1) {
     topology.add(data("weights", weights_mem));
     topology.add(data("recurrent", recurrent_mem));
     topology.add(lstm_dynamic("dynamic_lstm",
-        "input",
+        input_info("input"),
         "dyn_len",
         "weights",
         "recurrent"));
@@ -959,7 +959,7 @@ TEST(lstm_dynamic_negative, wrong_dynamic_length_size_0) {
     topology.add(data("weights", weights_mem));
     topology.add(data("recurrent", recurrent_mem));
     topology.add(lstm_dynamic("dynamic_lstm",
-        "input",
+        input_info("input"),
         "dyn_len",
         "weights",
         "recurrent"));
@@ -984,7 +984,7 @@ TEST(lstm_dynamic_negative, wrong_dynamic_length_size_1) {
     topology.add(data("weights", weights_mem));
     topology.add(data("recurrent", recurrent_mem));
     topology.add(lstm_dynamic("dynamic_lstm",
-        "input",
+        input_info("input"),
         "dyn_len",
         "weights",
         "recurrent"));

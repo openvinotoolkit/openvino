@@ -3,8 +3,6 @@
 Compile tool is a C++ application that enables you to compile a model for inference on a specific device and export the compiled representation to a binary file.
 With this tool, you can compile a model using supported OpenVINO Runtime devices on a machine that does not have the physical device connected, and then transfer a generated file to any machine with the target inference device available. To learn which device supports the import / export functionality, see the [feature support matrix](../../docs/OV_Runtime_UG/supported_plugins/Device_Plugins.md).
 
-The tool compiles networks for the following target devices using a corresponding OpenVINO Runtime plugin: Intel® Neural Compute Stick 2 (MYRIAD plugin).
-
 The tool is delivered as an executable file that can be run on both Linux and Windows. It is located in the `<INSTALLROOT>/tools/compile_tool` directory.
 
 ## Workflow of the Compile tool
@@ -56,18 +54,6 @@ compile_tool [OPTIONS]
                                              Overwrites layout from il and ol options for specified layers.
     -ov_api_1_0                              Optional. Compile model to legacy format for usage in Inference Engine API,
                                              by default compiles to OV 2.0 API
-
- MYRIAD-specific options:
-    -VPU_NUMBER_OF_SHAVES        <value>     Optional. Specifies number of shaves.
-                                             Should be set with "VPU_NUMBER_OF_CMX_SLICES".
-                                             Overwrites value from config.
-
-    -VPU_NUMBER_OF_CMX_SLICES    <value>     Optional. Specifies number of CMX slices.
-                                             Should be set with "VPU_NUMBER_OF_SHAVES".
-                                             Overwrites value from config.
-    -VPU_TILING_CMX_LIMIT_KB     <value>     Optional. Specifies CMX limit for data tiling.
-                                             Value should be equal or greater than -1.
-                                             Overwrites value from config.
 ```
 
 Running the application with the empty list of options yields an error message.
@@ -75,7 +61,7 @@ Running the application with the empty list of options yields an error message.
 For example, to compile a blob for inference on an Intel® Neural Compute Stick 2 from a trained network, run the command below:
 
 ```sh
-./compile_tool -m <path_to_model>/model_name.xml -d MYRIAD
+./compile_tool -m <path_to_model>/model_name.xml -d CPU
 ```
 
 ### Import a Compiled Blob File to Your Application
@@ -86,5 +72,5 @@ To import a blob with the network from a generated file into your application, u
 ```cpp
 ov::Core ie;
 std::ifstream file{"model_name.blob"};
-ov::CompiledModel compiled_model = ie.import_model(file, "MYRIAD");
+ov::CompiledModel compiled_model = ie.import_model(file, "CPU");
 ```

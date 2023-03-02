@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,8 +24,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v1::BatchToSpace);
 
 ngraph::op::v1::BatchToSpace::BatchToSpace(const ngraph::Output<ngraph::Node>& data,
                                            const ngraph::Output<ngraph::Node>& block_shape,
@@ -62,13 +60,8 @@ void op::v1::BatchToSpace::validate_and_infer_types() {
                           "block_shape and crops inputs must have integer element type. Got: ",
                           inputs_integer_et);
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    const std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
-                                                        get_input_partial_shape(1),
-                                                        get_input_partial_shape(2),
-                                                        get_input_partial_shape(3)};
-    shape_infer(this, input_shapes, output_shapes);
-    set_output_type(0, data_et, output_shapes[0]);
+    const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
+    set_output_type(0, data_et, output_shape);
 }
 
 std::shared_ptr<ngraph::Node> ngraph::op::v1::BatchToSpace::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -123,7 +116,7 @@ bool batch_to_space_evaluate(const HostTensorVector& outputs, const HostTensorVe
                  "Invalid element values of crops_begin/crops_end input/s");
 
     const std::size_t block_prod =
-        std::accumulate(block_values, block_values + block_values_size, 1UL, std::multiplies<std::size_t>());
+        std::accumulate(block_values, block_values + block_values_size, int64_t(1), std::multiplies<int64_t>());
     NGRAPH_CHECK(data_shape[0] % block_prod == 0,
                  "Invalid batch axis of data input with respect to block_shape values");
 

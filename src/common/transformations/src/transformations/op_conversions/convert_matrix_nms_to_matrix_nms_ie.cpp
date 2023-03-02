@@ -1,26 +1,27 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset5.hpp>
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset5.hpp>
+#include <openvino/opsets/opset8.hpp>
 #include <vector>
 
 #include "itt.hpp"
-#include "ngraph_ops/nms_static_shape_ie.hpp"
+#include "ov_ops/nms_static_shape_ie.hpp"
+#include "transformations/utils/utils.hpp"
 
-ngraph::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE(bool force_i32_output_type) {
+ov::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE(bool force_i32_output_type) {
     MATCHER_SCOPE(ConvertMatrixNmsToMatrixNmsIE);
-    auto nms = ngraph::pattern::wrap_type<ngraph::opset8::MatrixNms>();
+    auto nms = ngraph::pattern::wrap_type<ov::opset8::MatrixNms>();
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
-        auto nms = std::dynamic_pointer_cast<ngraph::opset8::MatrixNms>(m.get_match_root());
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        auto nms = std::dynamic_pointer_cast<ov::opset8::MatrixNms>(m.get_match_root());
         if (!nms || transformation_callback(nms)) {
             return false;
         }
@@ -35,9 +36,9 @@ ngraph::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE(bool 
         NodeVector new_ops;
         auto attrs = nms->get_attrs();
         attrs.output_type = force_i32_output_type ? element::i32 : attrs.output_type;
-        auto nms_new = std::make_shared<op::internal::NmsStaticShapeIE<ngraph::opset8::MatrixNms>>(new_args.at(0),
-                                                                                                   new_args.at(1),
-                                                                                                   attrs);
+        auto nms_new = std::make_shared<op::internal::NmsStaticShapeIE<ov::opset8::MatrixNms>>(new_args.at(0),
+                                                                                               new_args.at(1),
+                                                                                               attrs);
         new_ops.emplace_back(nms_new);
 
         Output<Node> output_0 = nms_new->output(0);
@@ -46,13 +47,13 @@ ngraph::pass::ConvertMatrixNmsToMatrixNmsIE::ConvertMatrixNmsToMatrixNmsIE(bool 
 
         if (nms->output(1).get_element_type() != output_1.get_element_type()) {
             output_1 = std::make_shared<opset1::Convert>(output_1, nms->output(1).get_element_type());
-            output_1.get_node_shared_ptr()->set_friendly_name(nms->get_friendly_name() + "/convert.1");
+            output_1.get_node_shared_ptr()->set_friendly_name(op::util::create_ie_output_name(nms->output(1)));
             new_ops.emplace_back(output_1.get_node_shared_ptr());
         }
 
         if (nms->output(2).get_element_type() != output_2.get_element_type()) {
             output_2 = std::make_shared<opset1::Convert>(output_2, nms->output(2).get_element_type());
-            output_2.get_node_shared_ptr()->set_friendly_name(nms->get_friendly_name() + "/convert.2");
+            output_2.get_node_shared_ptr()->set_friendly_name(op::util::create_ie_output_name(nms->output(2)));
             new_ops.emplace_back(output_2.get_node_shared_ptr());
         }
 

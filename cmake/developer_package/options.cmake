@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -46,7 +46,7 @@ function (print_enabled_features)
         message(FATAL_ERROR "CI_BUILD_NUMBER is not set yet")
     endif()
 
-    message(STATUS "Inference Engine enabled features: ")
+    message(STATUS "OpenVINO Runtime enabled features: ")
     message(STATUS "")
     message(STATUS "    CI_BUILD_NUMBER: ${CI_BUILD_NUMBER}")
     foreach(_var ${IE_OPTIONS})

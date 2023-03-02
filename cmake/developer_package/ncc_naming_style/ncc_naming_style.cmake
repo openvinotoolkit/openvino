@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -56,7 +56,13 @@ endif()
 # Since we were able to find_package(Clang) in a separate process
 # let's try to find in current process
 if(ENABLE_NCC_STYLE)
-    if(APPLE)
+    if(WIN32)
+        set(CLANG_LIB_NAME libclang.dll)
+        find_host_program(CLANG NAMES ${CLANG_LIB_NAME} PATHS ENV PATH)
+        if(CLANG)
+            set(libclang_location ${CLANG})
+        endif()
+    elseif(APPLE)
         find_host_library(libclang_location NAMES clang
                           PATHS /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib
                           DOC "Path to clang library")
@@ -77,12 +83,13 @@ if(ENABLE_NCC_STYLE)
 endif()
 
 # check python requirements_dev.txt
+if(ENABLE_NCC_STYLE)
+    set(ncc_script_py "${ncc_style_dir}/ncc/ncc.py")
 
-set(ncc_script_py "${ncc_style_dir}/ncc/ncc.py")
-
-if(NOT EXISTS ${ncc_script_py})
-    message(WARNING "ncc.py is not downloaded via submodule")
-    set(ENABLE_NCC_STYLE OFF)
+    if(NOT EXISTS ${ncc_script_py})
+        message(WARNING "ncc.py is not downloaded via submodule")
+        set(ENABLE_NCC_STYLE OFF)
+    endif()
 endif()
 
 if(ENABLE_NCC_STYLE)
@@ -106,11 +113,13 @@ endif()
 #
 # ov_ncc_naming_style(FOR_TARGET target_name
 #                     SOURCE_DIRECTORY dir
+#                     [STYLE_FILE style_file.style]
 #                     [ADDITIONAL_INCLUDE_DIRECTORIES dir1 dir2 ..]
 #                     [DEFINITIONS def1 def2 ..])
 #
 # FOR_TARGET - name of the target
 # SOURCE_DIRECTORY - directory to check sources from
+# STYLE_FILE - path to the specific style file
 # ADDITIONAL_INCLUDE_DIRECTORIES - additional include directories used in checked headers
 # DEFINITIONS - additional definitions passed to preprocessor stage
 #
@@ -120,13 +129,17 @@ function(ov_ncc_naming_style)
     endif()
 
     cmake_parse_arguments(NCC_STYLE "FAIL"
-        "FOR_TARGET;SOURCE_DIRECTORY" "ADDITIONAL_INCLUDE_DIRECTORIES;DEFINITIONS" ${ARGN})
+        "FOR_TARGET;SOURCE_DIRECTORY;STYLE_FILE" "ADDITIONAL_INCLUDE_DIRECTORIES;DEFINITIONS" ${ARGN})
 
     foreach(var FOR_TARGET SOURCE_DIRECTORY)
         if(NOT DEFINED NCC_STYLE_${var})
             message(FATAL_ERROR "${var} is not defined in ov_ncc_naming_style function")
         endif()
     endforeach()
+
+    if(NOT DEFINED NCC_STYLE_STYLE_FILE)
+        set(NCC_STYLE_STYLE_FILE ${ncc_style_dir}/openvino.style)
+    endif()
 
     file(GLOB_RECURSE sources
          RELATIVE "${NCC_STYLE_SOURCE_DIRECTORY}"
@@ -152,7 +165,7 @@ function(ov_ncc_naming_style)
                 -D "OUTPUT_FILE=${output_file}"
                 -D "DEFINITIONS=${NCC_STYLE_DEFINITIONS}"
                 -D "CLANG_LIB_PATH=${libclang_location}"
-                -D "STYLE_FILE=${ncc_style_dir}/openvino.style"
+                -D "STYLE_FILE=${NCC_STYLE_STYLE_FILE}"
                 -D "ADDITIONAL_INCLUDE_DIRECTORIES=${NCC_STYLE_ADDITIONAL_INCLUDE_DIRECTORIES}"
                 -D "EXPECTED_FAIL=${NCC_STYLE_FAIL}"
                 -P "${ncc_style_dir}/ncc_run.cmake"

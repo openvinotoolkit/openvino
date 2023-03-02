@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -20,7 +20,7 @@ from openvino.runtime import Type
     ("uint16", np.uint16, Type.u16),
     ("uint32", np.uint32, Type.u32),
     ("uint64", np.uint64, Type.u64),
-    ("bool", np.bool_, Type.boolean),
+    ("bool", bool, Type.boolean),
 ])
 def test_dtype_ovtype_conversion(dtype_string, dtype, ovtype):
     assert ovtype.to_dtype() == dtype

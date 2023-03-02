@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ TEST(attributes, detectron_prior_grid_generator) {
 
     auto proposals = std::make_shared<ExperimentalGenerator>(priors, feature_map, im_data, attrs);
 
-    NodeBuilder builder(proposals);
+    NodeBuilder builder(proposals, {priors, feature_map, im_data});
 
     auto g_proposals = ov::as_type_ptr<ExperimentalGenerator>(builder.create());
 

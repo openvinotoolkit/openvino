@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@
  * @brief Defines Inference Engine Extension API method
  */
 #if defined(_WIN32)
-#    ifdef IMPLEMENT_INFERENCE_EXTENSION_API
+#    if defined(IMPLEMENT_INFERENCE_EXTENSION_API)
 #        define INFERENCE_EXTENSION_API(type) extern "C" __declspec(dllexport) type
 #    else
 #        define INFERENCE_EXTENSION_API(type) extern "C" type

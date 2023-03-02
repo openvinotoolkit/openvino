@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -15,10 +15,6 @@ class TestSpaceToBatch(CommonTFLayerTest):
             Input->SpaceToBatch        =>      Input->SpaceToBatch
 
         """
-
-        #
-        #   Create Tensorflow model
-        #
 
         import tensorflow as tf
 
@@ -49,8 +45,8 @@ class TestSpaceToBatch(CommonTFLayerTest):
              out_shape=[4, 1, 1, 3]),
         dict(in_shape=[1, 2, 2, 1], block_shape_value=[2, 2], pads_value=[[0, 0], [0, 0]],
              out_shape=[4, 1, 1, 3]),
-        dict(in_shape=[1, 2, 2, 3], block_shape_value=[2, 2], pads_value=[[0, 0], [0, 0]],
-             out_shape=[4, 1, 1, 3]),
+        pytest.param(dict(in_shape=[1, 2, 2, 3], block_shape_value=[2, 2], pads_value=[[0, 0], [0, 0]],
+                          out_shape=[4, 1, 1, 3]), marks=pytest.mark.precommit_tf_fe),
         dict(in_shape=[1, 2, 9, 1], block_shape_value=[4, 3], pads_value=[[1, 1], [2, 4]],
              out_shape=[12, 1, 1, 3]),
         # todo: enable these tests after supporting the general case on CPU

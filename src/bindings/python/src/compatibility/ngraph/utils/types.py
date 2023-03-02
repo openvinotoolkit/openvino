@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Functions related to converting between Python and numpy types and ngraph types."""
 
 import logging
-from typing import List, Union
+from typing import List, Union, Optional
 
 import numpy as np
 
@@ -63,9 +63,7 @@ def get_element_type(data_type: NumericType) -> NgraphType:
         log.warning("Converting float type of undefined bitwidth to 32-bit ngraph float.")
         return NgraphType.f32
 
-    ng_type = next(
-        (ng_type for (ng_type, np_type) in ngraph_to_numpy_types_map if np_type == data_type), None
-    )
+    ng_type = next((ng_type for (ng_type, np_type) in ngraph_to_numpy_types_map if np_type == data_type), None)
     if ng_type:
         return ng_type
 
@@ -121,7 +119,7 @@ def get_shape(data: NumericData) -> TensorShape:
     return []
 
 
-def make_constant_node(value: NumericData, dtype: NumericType = None) -> Constant:
+def make_constant_node(value: NumericData, dtype: Optional[NumericType] = None) -> Constant:
     """Return an ngraph Constant node with the specified value."""
     ndarray = get_ndarray(value)
     if dtype:

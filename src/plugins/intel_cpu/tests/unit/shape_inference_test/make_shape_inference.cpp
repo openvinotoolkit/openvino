@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <gtest/gtest.h>
@@ -11,7 +11,7 @@
 #include "ngraph_functions/builders.hpp"
 #include <thread>
 #include <atomic>
-#include <ngraph_ops/type_relaxed.hpp>
+#include <ov_ops/type_relaxed.hpp>
 
 using namespace ov;
 using namespace ov::intel_cpu;
@@ -23,7 +23,7 @@ TEST(StaticShapeInferenceTest, MakeShapeInference) {
     auto inp1 = std::make_shared<op::v0::Parameter>(element::i8, PartialShape{-1, -1, -1, -1});
     auto inp2 = std::make_shared<op::v0::Parameter>(element::i8, PartialShape{-1, -1, -1, -1});
 
-    auto matMulRelaxed = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset3::MatMul>>(
+    auto matMulRelaxed = std::make_shared<ov::op::TypeRelaxed<ngraph::opset3::MatMul>>(
             *as_type_ptr<ngraph::opset3::MatMul>(ngraph::builder::makeMatMul(inp1_f32, inp2_f32, false, false)),
             element::f32);
 

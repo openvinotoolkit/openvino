@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -45,7 +45,6 @@ macro(ov_find_package_tbb)
             # don't set NO_CMAKE_PATH to allow -DTBB_DIR=XXX
             # don't set NO_CMAKE_ENVIRONMENT_PATH to allow env TBB_DIR=XXX
             set(_find_package_no_args NO_PACKAGE_ROOT_PATH
-                                      NO_CMAKE_ENVIRONMENT_PATH
                                       NO_SYSTEM_ENVIRONMENT_PATH
                                       NO_CMAKE_PACKAGE_REGISTRY
                                       NO_CMAKE_SYSTEM_PATH
@@ -98,8 +97,8 @@ macro(ov_find_package_tbb)
                         else()
                             _ov_pkg_config_tbb_unset()
 
-                            if(CPACK_GENERATOR STREQUAL "DEB")
-                                # debian cpack generator requires system TBB
+                            if(CPACK_GENERATOR STREQUAL "^(DEB|RPM|CONDA-FORGE|BREW)$")
+                                # package managers require system TBB
                                 set(message_type FATAL_ERROR)
                             else()
                                 set(message_type WARNING)
@@ -112,7 +111,7 @@ macro(ov_find_package_tbb)
 
             if(NOT TBB_FOUND)
                 # system TBB failed to be found
-                set(ENABLE_SYSTEM_TBB OFF)
+                set(ENABLE_SYSTEM_TBB OFF CACHE BOOL "" FORCE)
 
                 # TBB on system is not found, download prebuilt one
                 # if TBBROOT env variable is not defined
@@ -137,11 +136,28 @@ macro(ov_find_package_tbb)
 
         # WA for oneTBB: it does not define TBB_IMPORTED_TARGETS
         if(TBB_FOUND AND NOT TBB_IMPORTED_TARGETS)
-            foreach(target TBB::tbb TBB::tbbmalloc)
+            foreach(target TBB::tbb TBB::tbbmalloc TBB::tbbbind_2_5)
                 if(TARGET ${target})
                     list(APPEND TBB_IMPORTED_TARGETS ${target})
                 endif()
             endforeach()
+
+            if(WIN32 AND TARGET TBB::tbbbind_2_5)
+                # Add HWLOC::hwloc_2_5 target to check via Apivalidator
+                get_target_property(TBB_location TBB::tbb IMPORTED_LOCATION_RELEASE)
+                get_filename_component(TBB_dir "${TBB_location}" DIRECTORY)
+                set(hwloc_dll_name "${CMAKE_SHARED_LIBRARY_PREFIX}hwloc${CMAKE_SHARED_LIBRARY_SUFFIX}")
+                find_file(HWLOC_DLL NAMES ${hwloc_dll_name} PATHS "${TBB_dir}" DOC "Path to hwloc.dll")
+                
+                if(NOT HWLOC_DLL)
+                    message(FATAL_ERROR "Failed to find ${hwloc_dll_name} in ${TBB_dir}")
+                endif()
+
+                add_library(HWLOC::hwloc_2_5 SHARED IMPORTED)
+                set_property(TARGET HWLOC::hwloc_2_5 APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
+                set_target_properties(HWLOC::hwloc_2_5 PROPERTIES
+                    IMPORTED_LOCATION_RELEASE "${HWLOC_DLL}")
+            endif()
         endif()
 
         if(NOT TBB_FOUND)
@@ -225,10 +241,12 @@ function(set_ie_threading_interface_for TARGET_NAME)
     endfunction()
 
     set(IE_THREAD_DEFINE "IE_THREAD_SEQ")
+    set(OV_THREAD_DEFINE "OV_THREAD_SEQ")
 
     if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
         if (TBB_FOUND)
             set(IE_THREAD_DEFINE "IE_THREAD_TBB")
+            set(OV_THREAD_DEFINE "OV_THREAD_TBB")
             ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} TBB::tbb)
             target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} TBB_PREVIEW_WAITING_FOR_WORKERS=1)
         else ()
@@ -274,6 +292,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
             set(THREADING "SEQ" PARENT_SCOPE)
         else ()
             set(IE_THREAD_DEFINE "IE_THREAD_OMP")
+            set(OV_THREAD_DEFINE "OV_THREAD_OMP")
 
             if (WIN32)
                 target_compile_options(${TARGET_NAME} ${LINK_TYPE} ${OpenMP_CXX_FLAGS} /openmp)
@@ -301,7 +320,8 @@ function(set_ie_threading_interface_for TARGET_NAME)
         endif ()
     endif ()
 
-    target_compile_definitions(${TARGET_NAME} ${LINK_TYPE} -DIE_THREAD=${IE_THREAD_DEFINE})
+    target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} -DIE_THREAD=${IE_THREAD_DEFINE})
+    target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} -DOV_THREAD=${OV_THREAD_DEFINE})
 
     if (NOT THREADING STREQUAL "SEQ")
         find_package(Threads REQUIRED)
