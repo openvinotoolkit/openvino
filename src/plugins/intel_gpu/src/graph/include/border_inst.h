@@ -22,7 +22,7 @@ public:
         support_padding_all(true);
     }
     program_node& input() const { return get_dependency(0); }
-    std::vector<size_t> get_shape_infer_dependencies() const override { return {1, 2}; }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {1, 2, 3}; }
 };
 
 using border_node = typed_program_node<border>;

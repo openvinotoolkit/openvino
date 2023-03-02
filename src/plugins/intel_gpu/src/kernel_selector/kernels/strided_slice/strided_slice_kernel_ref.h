@@ -9,11 +9,6 @@
 
 namespace kernel_selector {
 
-enum class StridedSliceArgType {
-    Input,
-    Constant
-};
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // strided_slice_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -26,28 +21,28 @@ struct strided_slice_params : public base_params {
     std::vector<uint8_t> ellipsis_mask;
     std::vector<uint8_t> new_axis_mask;
     std::vector<uint8_t> shrink_axis_mask;
-    StridedSliceArgType begin_type;
-    StridedSliceArgType end_type;
-    StridedSliceArgType stride_type;
+    base_params::ArgType begin_type;
+    base_params::ArgType end_type;
+    base_params::ArgType stride_type;
     size_t begin_dims;
     size_t end_dims;
     size_t stride_dims;
 
     uint32_t GetIndexBegin() const {
         uint32_t input_idx = 0;
-        if (begin_type == StridedSliceArgType::Input) input_idx++;
+        if (begin_type == base_params::ArgType::Input) input_idx++;
         return input_idx;
     }
 
     uint32_t GetIndexEnd() const {
         uint32_t input_idx = GetIndexBegin();
-        if (end_type == StridedSliceArgType::Input) input_idx++;
+        if (end_type == base_params::ArgType::Input) input_idx++;
         return input_idx;
     }
 
     uint32_t GetIndexStride() const {
         uint32_t input_idx = GetIndexEnd();
-        if (stride_type == StridedSliceArgType::Input) input_idx++;
+        if (stride_type == base_params::ArgType::Input) input_idx++;
         return input_idx;
     }
 };
