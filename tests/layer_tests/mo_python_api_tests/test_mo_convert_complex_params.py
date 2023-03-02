@@ -2,12 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
+import os
 import pytest
+from openvino.runtime import Model, Layout, PartialShape, Shape, layout_helpers, Type, Dimension
 from openvino.tools.mo.convert import InputCutInfo, LayoutMap
 
 from common.mo_convert_test_class import CommonMOConvertTest
 from common.tf_layer_test_class import save_to_pb
-from openvino.runtime import Model, Layout, PartialShape, Shape, layout_helpers, Type, Dimension
+
 
 class TestComplexParams(CommonMOConvertTest):
     def create_tf_model(self, tmp_dir):
@@ -56,6 +58,24 @@ class TestComplexParams(CommonMOConvertTest):
             relu = tf.nn.relu(inp, name='Relu')
 
             output = tf.nn.sigmoid(relu, name='Sigmoid')
+
+            tf.compat.v1.global_variables_initializer()
+            tf_net = sess.graph_def
+
+        # save model to .pb and return path to the model
+        return save_to_pb(tf_net, tmp_dir)
+
+    def create_tf_model_no_sigmoid(self, tmp_dir):
+        #
+        #   Create Tensorflow model without Sigmoid nodes
+        #
+
+        import tensorflow as tf
+
+        tf.compat.v1.reset_default_graph()
+
+        with tf.compat.v1.Session() as sess:
+            inp = tf.compat.v1.placeholder(tf.float32, [1, 3, 2, 2], 'Input')
 
             tf.compat.v1.global_variables_initializer()
             tf_net = sess.graph_def
@@ -204,3 +224,25 @@ class TestComplexParams(CommonMOConvertTest):
         test_params.update({'input_model': tf_net_path})
         ref_params.update({'input_model': tf_net_path})
         self._test(temp_dir, test_params, ref_params)
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_mo_convert_clearing_transformation_registry(self, ie_device, precision, ir_version,
+                                                         temp_dir, use_new_frontend, use_old_api):
+        tf_net_path = self.create_tf_model_single_input_output(temp_dir)
+        from openvino.tools.mo import convert_model
+
+        config_path = os.path.join(os.path.dirname(__file__), "test_transform_config/test_config.json")
+        test_config_based_transform = os.path.join(os.path.dirname(__file__), "test_legacy_exts/test_config_transform/")
+
+        # apply config based transformation on model
+        _ = convert_model(input_model=tf_net_path, transformations_config=config_path,
+                          extensions=test_config_based_transform)
+
+        # convert another model which would fail if custom transform from config_path applied
+        tf_net_path = self.create_tf_model_no_sigmoid(temp_dir)
+        _ = convert_model(input_model=tf_net_path, extensions=test_config_based_transform)
+
+        # check that CustomReplacementRegistry.registry is cleared
+        from openvino.tools.mo.front.common.custom_replacement_registry import CustomReplacementRegistry
+        assert len(CustomReplacementRegistry.registry) == 0
