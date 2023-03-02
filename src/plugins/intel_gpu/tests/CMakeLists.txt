@@ -77,8 +77,10 @@ elseif((NOT ANDROID) AND (UNIX))
   target_link_libraries(${TARGET_NAME} PRIVATE pthread)
 endif()
 
-ie_sse42_optimization_flags(sse4_2_flags)
-set_source_files_properties(${SOURCES_ALL} PROPERTIES COMPILE_FLAGS "${sse4_2_flags}")
+if(ENABLE_SSE42)
+  ie_sse42_optimization_flags(sse4_2_flags)
+  set_source_files_properties(${SOURCES_ALL} PROPERTIES COMPILE_FLAGS "${sse4_2_flags}")
+endif()
 
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION tests

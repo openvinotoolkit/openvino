@@ -1,12 +1,20 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include <immintrin.h>
+
 #include <stdint.h>
+
+#ifdef HAVE_SSE
+#include <immintrin.h>
+#else
+#include "openvino/core/type/float16.hpp"
+#endif // HAVE_SSE
 
 #include "intel_gpu/runtime/half.hpp"
 
 namespace cldnn {
+
+#ifdef HAVE_SSE
 
 float half_to_float(uint16_t value) {
     static const uint32_t FLOAT16_EXP_SHIFT = (23 - 10);
@@ -70,6 +78,7 @@ float half_to_float(uint16_t value) {
     float outf32 = *reinterpret_cast<float*>(&out32);
     return outf32;
 }
+
 uint16_t float_to_half(float value) {
 #define TO_M128i(a) (*reinterpret_cast<__m128i*>(&(a)))
 #define TO_M128(a) (*const_cast<__m128*>(reinterpret_cast<const __m128*>(&(a))))
@@ -140,4 +149,17 @@ uint16_t float_to_half(float value) {
     iPackedResult = _mm_or_si128(iPackedResult, iSignInWords);
     return (uint16_t)_mm_extract_epi16(iPackedResult, 0);
 }
+
+#else
+
+float half_to_float(uint16_t value) {
+    return ov::float16(value);
+}
+
+uint16_t float_to_half(float value) {
+    return ov::float16(value);
+}
+
+#endif // HAVE_SSE
+
 }  // namespace cldnn
