@@ -7,21 +7,18 @@
    :hidden:
 
    ovtf_integration
-   ote_documentation
    ovsa_get_started
    openvino_inference_engine_tools_compile_tool_README
    openvino_docs_tuning_utilities
    workbench_docs_Workbench_DG_Introduction
 
 
-OpenVINO™ is not just one tool. It is an expansive ecosystem of utilities, providing a comprehensive workflow for deep 
-learning solution development. Learn more about each of them to reach the full potential of OpenVINO™ Toolkit.
+OpenVINO™ is not just one tool. It is an expansive ecosystem of utilities, providing a comprehensive workflow for deep learning solution development. Learn more about each of them to reach the full potential of OpenVINO™ Toolkit.
 
 Neural Network Compression Framework (NNCF)
 ###########################################
 
-A suite of advanced algorithms for Neural Network inference optimization with minimal accuracy drop. NNCF applies quantization, 
-filter pruning, binarization and sparsity algorithms to PyTorch and TensorFlow models during training.
+A suite of advanced algorithms for Neural Network inference optimization with minimal accuracy drop. NNCF applies quantization, filter pruning, binarization and sparsity algorithms to PyTorch and TensorFlow models during training.
 
 More resources:
 
@@ -43,8 +40,7 @@ More resources:
 OpenVINO™ integration with TensorFlow (OVTF)
 ############################################
 
-A solution empowering TensorFlow developers with OpenVINO's optimization capabilities. With just two lines of code 
-in your application, you can offload inference to OpenVINO, while keeping the TensorFlow API.
+A solution empowering TensorFlow developers with OpenVINO's optimization capabilities. With just two lines of code in your application, you can offload inference to OpenVINO, while keeping the TensorFlow API.
 
 More resources:
 
@@ -65,10 +61,7 @@ More resources:
 DL Workbench
 ############
 
-A web-based tool for deploying deep learning models. Built on the core of OpenVINO and equipped with a graphics user interface, 
-DL Workbench is a great way to explore the possibilities of the OpenVINO workflow, import, analyze, optimize, and build your 
-pre-trained models. You can do all that by visiting `Intel® DevCloud for the Edge <https://software.intel.com/content/www/us/en/develop/tools/devcloud.html>`__ 
-and launching DL Workbench on-line.
+A web-based tool for deploying deep learning models. Built on the core of OpenVINO and equipped with a graphics user interface, DL Workbench is a great way to explore the possibilities of the OpenVINO workflow, import, analyze, optimize, and build your pre-trained models. You can do all that by visiting `Intel® DevCloud for the Edge <https://software.intel.com/content/www/us/en/develop/tools/devcloud.html>`__ and launching DL Workbench online.
 
 More resources:
 
@@ -76,7 +69,7 @@ More resources:
 * `Docker Hub <https://hub.docker.com/r/openvino/workbench>`__  
 * `PyPI <https://pypi.org/project/openvino-workbench/>`__  
 
-OpenVINO™ Training Extensions (OTE)
+OpenVINO™ Training Extensions (OTX)
 ###################################
 
 A convenient environment to train Deep Learning models and convert them using the OpenVINO™ toolkit for optimized inference.
@@ -93,7 +86,7 @@ An online, interactive video and image annotation tool for computer vision purpo
 More resources:
 
 * `Documentation on GitHub <https://opencv.github.io/cvat/docs/>`__  
-* `Web application <https://app.cvat.ai/>`__  
+* `Web application <https://cvat.org/>`__  
 * `Docker Hub <https://hub.docker.com/r/openvino/cvat_server>`__  
 * `GitHub <https://github.com/openvinotoolkit/cvat>`__  
 
