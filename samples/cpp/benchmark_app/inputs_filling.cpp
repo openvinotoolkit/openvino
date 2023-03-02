@@ -172,11 +172,11 @@ ov::Tensor create_tensor_im_info(const std::pair<size_t, size_t>& image_size,
         for (size_t i = 0; i < iminfoSize; i++) {
             size_t index = b * iminfoSize + i;
             if (0 == i)
-                data[index] = static_cast<T>(image_size.first);
+                data[index] = static_cast<char>(image_size.first);
             else if (1 == i)
-                data[index] = static_cast<T>(image_size.second);
+                data[index] = static_cast<char>(image_size.second);
             else
-                data[index] = 1;
+                data[index] = static_cast<char>(1);
         }
     }
 
