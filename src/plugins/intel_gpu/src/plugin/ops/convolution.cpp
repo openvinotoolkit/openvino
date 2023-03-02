@@ -221,7 +221,7 @@ static void CreateGroupConvolutionBackpropDataOp(Program& p, const std::shared_p
         }
     }
 
-    uint32_t groups = op->get_input_shape(1)[0];
+    uint32_t groups = static_cast<uint32_t>(op->get_input_shape(1)[0]);
 
     auto weightsName = inputs[1];
     auto weights_node = op->get_input_node_shared_ptr(1);
