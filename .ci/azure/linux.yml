@@ -151,13 +151,11 @@ jobs:
 
   - checkout: self
     clean: 'true'
-    fetchDepth: '1'
     submodules: 'true'
     path: openvino
 
   - checkout: openvino_contrib
     clean: 'true'
-    fetchDepth: '1'
     submodules: 'true'
     path: openvino_contrib
 
@@ -219,7 +217,6 @@ jobs:
     # Should be after 'Install dependencies' because Git lfs is not installed
   - checkout: testdata
     clean: 'true'
-    fetchDepth: '1'
     lfs: 'true'
     path: testdata
 
