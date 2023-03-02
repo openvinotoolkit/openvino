@@ -4,7 +4,7 @@
 
 #include "openvino/runtime/remote_tensor.hpp"
 
-#include "openvino/runtime/itensor.hpp"
+#include "dev/itensor.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace ov {
