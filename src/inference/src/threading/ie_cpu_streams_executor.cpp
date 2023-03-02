@@ -194,7 +194,7 @@ struct CPUStreamsExecutor::Impl {
             }
 #elif IE_THREAD == IE_THREAD_SEQ
             if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
-                PinCurrentThreadToSocket(_numaNodeId);
+                InferenceEngine::PinCurrentThreadToSocket(_numaNodeId);
             } else if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
                 CpuSet processMask;
                 int ncpus = 0;
@@ -368,7 +368,7 @@ int CPUStreamsExecutor::GetNumaNodeId() {
     return stream->_numaNodeId;
 }
 
-CPUStreamsExecutor::CPUStreamsExecutor(const IStreamsExecutor::Config& config) : _impl{new Impl{config}} {}
+CPUStreamsExecutor::CPUStreamsExecutor(const Config& config) : _impl{new Impl{config}} {}
 
 CPUStreamsExecutor::~CPUStreamsExecutor() {
     {

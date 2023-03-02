@@ -7,6 +7,7 @@
 #include <unordered_map>
 
 #include "cpp_interfaces/plugin_itt.hpp"
+#include "ie_blob.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/layout.hpp"
 #include "openvino/core/parallel.hpp"
