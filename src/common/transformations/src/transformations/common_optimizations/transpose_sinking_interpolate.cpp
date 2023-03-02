@@ -119,6 +119,8 @@ ov::pass::TransposeSinkingInterpolateBackward::TransposeSinkingInterpolateBackwa
             std::make_shared<Constant>(element::i32, Shape{reversed_transpose_order.size()}, reversed_transpose_order);
         const auto& indices = main_node->input_value(3);
         auto new_axis = std::make_shared<Gather>(data, indices, axis);
+        main_node->input(3).replace_source_output(new_axis);
+
         const auto& interpolate = std::dynamic_pointer_cast<Interpolate>(main_node);
         if (interpolate) {
             op::v4::Interpolate::InterpolateAttrs attrs = interpolate->get_attrs();
