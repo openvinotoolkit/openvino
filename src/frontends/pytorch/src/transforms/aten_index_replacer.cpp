@@ -41,20 +41,20 @@ std::shared_ptr<Node> flatten(const Output<Node>& value, size_t axis) {
     // [d_{axis}, ..., d_n]
     Output<Node> output_shape;
     if (axis == 0) {
-        output_shape = v0::Constant::create(element::i64, Shape{2}, {1, -1});
+        output_shape = v0::Constant::create(element::i32, Shape{2}, {1, -1});
     } else if (axis == 1) {
-        output_shape = v0::Constant::create(element::i64, Shape{2}, {0, -1});
+        output_shape = v0::Constant::create(element::i32, Shape{2}, {0, -1});
     } else {
-        const auto value_shape = std::make_shared<v3::ShapeOf>(value);
-        const auto value_rank = std::make_shared<v3::ShapeOf>(value_shape);
-        const auto axis_node = v0::Constant::create(element::i64, Shape{}, {axis});
-        auto start = v0::Constant::create(element::i64, Shape{}, {0});
-        auto step = v0::Constant::create(element::i64, Shape{}, {1});
+        const auto value_shape = std::make_shared<v3::ShapeOf>(value, element::i32);
+        const auto value_rank = std::make_shared<v3::ShapeOf>(value_shape, element::i32);
+        const auto axis_node = v0::Constant::create(element::i32, Shape{}, {axis});
+        auto start = v0::Constant::create(element::i32, Shape{}, {0});
+        auto step = v0::Constant::create(element::i32, Shape{}, {1});
         const auto first_part_dims = std::make_shared<v8::Slice>(value_shape, start, axis_node, step);
-        auto zero = v0::Constant::create(element::i64, {}, {0});
+        auto zero = v0::Constant::create(element::i32, {}, {0});
         auto first_part_dims_length = std::make_shared<ov::op::v1::ReduceProd>(first_part_dims, zero, true);
 
-        auto remaining_part_length = v0::Constant::create(element::i64, {1}, {-1});
+        auto remaining_part_length = v0::Constant::create(element::i32, {1}, {-1});
 
         output_shape = std::make_shared<v0::Concat>(OutputVector{first_part_dims_length, remaining_part_length}, 0);
     }
@@ -112,7 +112,7 @@ AtenIndexToSelect::AtenIndexToSelect() {
                 if (id_dtype == element::boolean || id_dtype == element::u8) {
                     auto idx = std::make_shared<ov::op::v0::Convert>(ids[i], element::u8);
                     auto nonzero = std::make_shared<ov::op::v3::NonZero>(idx);
-                    auto input_order = v0::Constant::create(element::i64, Shape{2}, {1, 0});
+                    auto input_order = v0::Constant::create(element::i32, Shape{2}, {1, 0});
                     auto masked_id = std::make_shared<v1::Transpose>(nonzero, input_order);
                     masked_indicies.push_back(masked_id);
                     is_masked_bool.push_back(true);
@@ -132,14 +132,14 @@ AtenIndexToSelect::AtenIndexToSelect() {
             // perform gather for single element case
             if (advanced_ids.size() == 1) {
                 auto index = masked_indicies[advanced_ids[0]];
-                index = std::make_shared<v0::Convert>(index, element::i64);
+                index = std::make_shared<v0::Convert>(index, element::i32);
                 if (is_masked_bool[advanced_ids[0]]) {
                     auto gather = std::make_shared<v8::GatherND>(input_node, index);
                     copy_runtime_info({index_op, input_node, indicies}, gather);
                     replace_node(index_op, gather);
                     return true;
                 }
-                auto dim = v0::Constant::create(element::i64, Shape{}, {advanced_ids[0]});
+                auto dim = v0::Constant::create(element::i32, Shape{}, {advanced_ids[0]});
                 auto gather = std::make_shared<v8::Gather>(input_node, index, dim);
                 copy_runtime_info({index_op, input_node, indicies}, gather);
                 replace_node(index_op, gather);
@@ -150,8 +150,8 @@ AtenIndexToSelect::AtenIndexToSelect() {
             if (rank.is_dynamic()) {
                 FRONT_END_CHECK_IMPLEMENTED(false, "indexing for tensor with dynamic rank is not implemented ");
             }
-            auto input_shape = std::make_shared<v3::ShapeOf>(input_node);
-            auto zero = v0::Constant::create(element::i64, Shape{}, {0});
+            auto input_shape = std::make_shared<v3::ShapeOf>(input_node, element::i32);
+            auto zero = v0::Constant::create(element::i32, Shape{}, {0});
             auto input_dims = std::make_shared<v1::Split>(input_shape, zero, rank.get_length());
             std::vector<size_t> non_used_dims;
             for (auto i = 0; i < rank.get_length(); i++) {
@@ -162,7 +162,7 @@ AtenIndexToSelect::AtenIndexToSelect() {
             std::vector<size_t> permutation_dims;
             permutation_dims.insert(permutation_dims.end(), advanced_ids.begin(), advanced_ids.end());
             permutation_dims.insert(permutation_dims.end(), non_used_dims.begin(), non_used_dims.end());
-            auto transpose_dims = v0::Constant::create(element::i64, Shape{permutation_dims.size()}, permutation_dims);
+            auto transpose_dims = v0::Constant::create(element::i32, Shape{permutation_dims.size()}, permutation_dims);
             auto transposed_input = std::make_shared<v1::Transpose>(input_node, transpose_dims);
             auto flatten_input = flatten(transposed_input, adv_idx_count);
             auto cum_adv_index = masked_indicies[advanced_ids[adv_idx_count - 1]];
@@ -177,14 +177,14 @@ AtenIndexToSelect::AtenIndexToSelect() {
             OutputVector concat_dims;
             // check if all advanced indices are consecutive.
             std::vector<size_t> consequence_dims;
-            auto cum_adv_index_shape_tensor = std::make_shared<v3::ShapeOf>(cum_adv_index);
+            auto cum_adv_index_shape_tensor = std::make_shared<v3::ShapeOf>(cum_adv_index, element::i32);
             for (size_t i = advanced_ids[0]; i <= advanced_ids[advanced_ids.size() - 1]; i++) {
                 consequence_dims.push_back(i);
             }
             // unfold regular index axes
             if (advanced_ids == consequence_dims) {
                 OutputVector folded_adv_idx_shape_vector;
-                auto minus_one = v0::Constant::create(element::i64, Shape{1}, {-1});
+                auto minus_one = v0::Constant::create(element::i32, Shape{1}, {-1});
                 folded_adv_idx_shape_vector.push_back(minus_one);
                 for (auto i : non_used_dims) {
                     folded_adv_idx_shape_vector.push_back(input_dims->output(i));
@@ -201,7 +201,7 @@ AtenIndexToSelect::AtenIndexToSelect() {
                 }
                 // Transpose folded advanced indexed axis to its original location.
                 auto permute_indicies =
-                    v0::Constant::create(element::i64, Shape{adv_idx_permute.size()}, adv_idx_permute);
+                    v0::Constant::create(element::i32, Shape{adv_idx_permute.size()}, adv_idx_permute);
                 gather = std::make_shared<v1::Transpose>(gather, permute_indicies);
                 // unfold advanced index axes
                 for (size_t i = 0; i <= advanced_ids[0]; i++) {
@@ -242,17 +242,17 @@ AtenIndexToSelect::AtenIndexToSelect() {
             auto index_dtype = indicies->get_output_element_type(0);
             if (index_dtype == element::boolean || index_dtype == element::u8) {
                 auto nonzero = std::make_shared<v3::NonZero>(indicies);
-                auto input_order = v0::Constant::create(element::i64, Shape{2}, {1, 0});
+                auto input_order = v0::Constant::create(element::i32, Shape{2}, {1, 0});
                 auto masked_id = std::make_shared<v1::Transpose>(nonzero, input_order);
                 auto gather = std::make_shared<v8::GatherND>(input_node, masked_id);
                 copy_runtime_info({index_op, input_node, indicies}, gather);
                 replace_node(index_op, gather);
                 return true;
             }
-            if (index_dtype != element::i32 && index_dtype != element::i64) {
-                indicies = std::make_shared<ov::op::v0::Convert>(indicies, element::i64);
+            if (index_dtype != element::i32 && index_dtype != element::i32) {
+                indicies = std::make_shared<ov::op::v0::Convert>(indicies, element::i32);
             }
-            auto dim = v0::Constant::create(element::i64, Shape{}, {0});
+            auto dim = v0::Constant::create(element::i32, Shape{}, {0});
             auto gather = std::make_shared<v8::Gather>(input_node, indicies, dim);
             copy_runtime_info({index_op, input_node, indicies}, gather);
             replace_node(index_op, gather);

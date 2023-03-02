@@ -128,18 +128,18 @@ std::vector<int64_t> NodeContext::const_input<std::vector<int64_t>>(size_t index
 }
 
 template <>
-ngraph::Strides NodeContext::const_input<ngraph::Strides>(size_t index) const {
-    return get_constant_at_input(*this, index)->cast_vector<ngraph::Strides::value_type>();
+Strides NodeContext::const_input<Strides>(size_t index) const {
+    return get_constant_at_input(*this, index)->cast_vector<Strides::value_type>();
 }
 
 template <>
-ngraph::CoordinateDiff NodeContext::const_input<ngraph::CoordinateDiff>(size_t index) const {
-    return get_constant_at_input(*this, index)->cast_vector<ngraph::CoordinateDiff::value_type>();
+CoordinateDiff NodeContext::const_input<CoordinateDiff>(size_t index) const {
+    return get_constant_at_input(*this, index)->cast_vector<CoordinateDiff::value_type>();
 }
 
 template <>
-ngraph::Shape NodeContext::const_input<ngraph::Shape>(size_t index) const {
-    return get_constant_at_input(*this, index)->cast_vector<ngraph::Shape::value_type>();
+Shape NodeContext::const_input<Shape>(size_t index) const {
+    return get_constant_at_input(*this, index)->cast_vector<Shape::value_type>();
 }
 
 template <>
