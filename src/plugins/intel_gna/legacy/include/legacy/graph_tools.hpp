@@ -608,10 +608,19 @@ inline CNNNetwork CNNNetCopy(const CNNNetwork& input, const Copier& cp) {
         },
         true);
 
-    // transfer input info
+    // !!!!! transfer input info
     InputsDataMap inputsInfo = input.getInputsInfo();
     std::set<DataPtr> insDatas;
     for (auto&& info : inputsInfo) {
+        auto secondLayer = getInputTo(info.second->getInputData());
+        if (secondLayer.size() == 0) {
+            // auto secondLayerNew = oldToNewLayers[secondLayer.second.get()];
+            InputInfo::Ptr infoNew = std::make_shared<InputInfo>();
+            infoNew->setInputData(info.second->getInputData());
+            net->setInputInfo(infoNew);
+            continue;
+        }
+
         for (auto secondLayer : getInputTo(info.second->getInputData())) {
             auto secondLayerNew = oldToNewLayers[secondLayer.second.get()];
             InputInfo::Ptr infoNew = std::make_shared<InputInfo>();

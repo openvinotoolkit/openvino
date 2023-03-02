@@ -763,7 +763,9 @@ bool ScaleFactorCalculator::ScaleFactorPerLayerCNN(InferenceEngine::CNNLayer* cn
     }
 
     if (!CNNNetHasPrevLayer(cnnLayer)) {
-        quant->_dst_quant = quant->_src_quant;
+        if (quant) {
+            quant->_dst_quant = quant->_src_quant;
+        }
         return true;
     }
 
