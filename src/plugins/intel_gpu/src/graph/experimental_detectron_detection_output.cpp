@@ -5,7 +5,6 @@
 #include <string>
 
 #include "experimental_detectron_detection_output_inst.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include "primitive_type_base.h"
 

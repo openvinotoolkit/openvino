@@ -2,17 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "non_zero_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "non_zero_inst.h"
 #include "non_zero/count_nonzero_kernel_ref.h"
 #include "non_zero/count_nonzero_kernel_selector.h"
 #include "non_zero/gather_nonzero_kernel_ref.h"
 #include "non_zero/gather_nonzero_kernel_selector.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
