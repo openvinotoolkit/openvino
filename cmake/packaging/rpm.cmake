@@ -40,6 +40,8 @@ macro(ov_cpack_settings)
            NOT item STREQUAL "gna" AND
            # myriad is EOL in 2023.0
            NOT item STREQUAL "myriad" AND
+           # don't install Intel OpenMP during rpm
+           NOT item STREQUAL "omp" AND
            # even for case of system TBB we have installation rules for wheels packages
            # so, need to skip this explicitly
            NOT item MATCHES "^tbb(_dev)?$" AND
