@@ -5,4 +5,4 @@ numpy>=1.16.6,<1.25.0
 defusedxml>=0.7.1
 requests>=2.25.1
 fastjsonschema>=2.15.1,<2.17
-protobuf>=3.18.1,<4.0.0
+protobuf>=3.18.1,<5.0.0
