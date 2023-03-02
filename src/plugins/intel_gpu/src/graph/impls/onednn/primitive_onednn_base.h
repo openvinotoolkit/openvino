@@ -8,7 +8,6 @@
 
 #include "primitive_inst.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "to_string_utils.h"
 #include "register.hpp"
