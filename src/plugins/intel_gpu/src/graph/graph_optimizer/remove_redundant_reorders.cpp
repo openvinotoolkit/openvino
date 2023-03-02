@@ -640,4 +640,17 @@ void remove_redundant_reorders::run(program& p) {
             throw std::runtime_error("Onednn doesnot support padded input or output");
         }
     }
+
+    // Recalculate processing order if it is not correct
+    bool is_correct = true;
+    for (auto node : p.get_processing_order()) {
+        if (!p.get_processing_order().is_correct(node)) {
+            is_correct = false;
+            break;
+        }
+    }
+
+    if (!is_correct) {
+        p.get_processing_order().calc_processing_order(p);
+    }
 }
