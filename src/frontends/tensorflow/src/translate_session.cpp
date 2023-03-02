@@ -200,13 +200,11 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
         // generate OV node output vector for the current operation node
         ov::OutputVector ov_outputs;
-        bool is_converted = false;
         auto operation_type = operation_decoder->get_op_type();
         if (m_translator_map->count(operation_type)) {
             auto translator = m_translator_map->at(operation_decoder->get_op_type());
             NodeContext node_context(operation_decoder, ov_inputs, this);
             ov_outputs = translator(node_context);
-            is_converted = true;
         } else if (auto body_ov_model = get_body_ov_model(operation_type)) {
             inject_body_model(body_ov_model, operation_type, ov_inputs, ov_outputs);
 
@@ -214,7 +212,6 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             for (size_t idx = 0; idx < ov_outputs.size(); ++idx) {
                 ov_outputs[idx].get_tensor().set_names({operation_name + ":" + std::to_string(idx)});
             }
-            is_converted = true;
         } else {
             // continue translation by replacing with FrameworkNode
             // for example, it helps auto-pruning to be triggered on later nodes

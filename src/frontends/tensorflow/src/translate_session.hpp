@@ -35,9 +35,8 @@ private:
     const ov::frontend::InputModel::Ptr m_input_model;
     const std::shared_ptr<TranslatorDictionaryType> m_translator_map;
     const std::string m_model_name;
-
-    std::shared_ptr<CachedBodyModelsType> m_cached_body_models;
     std::shared_ptr<ov::Model> m_ov_model;
+    std::shared_ptr<CachedBodyModelsType> m_cached_body_models;
 
     void update_cached_body_models(const std::string& operation_type,
                                    const std::shared_ptr<const ov::Model>& cached_body_model) {
