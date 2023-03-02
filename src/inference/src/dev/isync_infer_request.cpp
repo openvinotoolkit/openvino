@@ -247,7 +247,7 @@ void ov::ISyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
                     " tensor size is not equal to the model ",
                     tensor_type,
                     " type: got ",
-                    tensor.get_size(),
+                    tensor.get_shape(),
                     " expecting ",
                     port.get_shape(),
                     ".");
