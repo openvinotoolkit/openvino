@@ -2,14 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gather_tree_inst.h"
-
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "gather_tree_inst.h"
 #include "gather_tree/gather_tree_kernel_selector.h"
 #include "gather_tree/gather_tree_kernel_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace ocl {

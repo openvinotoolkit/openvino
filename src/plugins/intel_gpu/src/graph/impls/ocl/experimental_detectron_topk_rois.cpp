@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <experimental_detectron_topk_rois_inst.h>
-#include "intel_gpu/runtime/error_handler.hpp"
-#include <impls/implementation_map.hpp>
-#include <ed_topkroi/topk_rois_ref.h>
-#include <ed_topkroi/topk_rois_kernel_selector.h>
 #include "primitive_base.hpp"
-#include <vector>
+
+#include "experimental_detectron_topk_rois_inst.h"
+#include "ed_topkroi/topk_rois_ref.h"
+#include "ed_topkroi/topk_rois_kernel_selector.h"
 
 namespace cldnn {
 namespace ocl {
