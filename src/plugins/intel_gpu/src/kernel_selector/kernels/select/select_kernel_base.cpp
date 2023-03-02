@@ -95,22 +95,16 @@ JitConstants SelectKernelBase::GetJitConstants(const select_params& params) cons
 
 SelectKernelBase::DispatchData SelectKernelBase::SetDefault(const select_params& params) const {
     DispatchData dispatchData;
-
     const auto& out = params.outputs[0];
+    const auto& in = params.inputs[0];
 
-    std::vector<size_t> gws;
-    for (const auto& o : out.GetDims()) {
-        gws.push_back(o.v);
-    }
+    dispatchData.gws = { out.X().v, out.Y().v, out.Feature().v * out.Batch().v };
 
-    for (size_t i = gws.size(); i < 4; i++) {
-        gws.push_back(1U);
-    }
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X },
+                                                                     { Tensor::DataChannelName::Y },
+                                                                     { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
 
-    dispatchData.gws[0] = gws[0];
-    dispatchData.gws[1] = gws[1];
-    dispatchData.gws[2] = gws[2] * gws[3];
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in.GetLayout(), out.GetLayout(), dims_by_gws);
 
     return dispatchData;
 }
