@@ -310,8 +310,10 @@ void StridedSlice::prepareParams() {
             dstMemory.push_back(getChildEdgeAt(i)->getMemoryPtr());
         }
     }
-
-    execPtr = std::make_shared<StridedSliceCommonExecutor>(attrs, srcMemory, dstMemory, errorPrefix);
+    if (srcMemory[DATA_ID]->GetShape().hasZeroDims() || dstMemory[0]->GetShape().hasZeroDims())
+        skipExecution = true;
+    else
+        execPtr = std::make_shared<StridedSliceCommonExecutor>(attrs, srcMemory, dstMemory, errorPrefix);
 }
 
 bool StridedSlice::needShapeInfer() const {
@@ -319,6 +321,8 @@ bool StridedSlice::needShapeInfer() const {
 }
 
 void StridedSlice::execute(dnnl::stream strm) {
+    if (skipExecution)
+        return;
     if (!execPtr)
         IE_THROW() << errorPrefix << "doesn't have compiled executor!";
 
