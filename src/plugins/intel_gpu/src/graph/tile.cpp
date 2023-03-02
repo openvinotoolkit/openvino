@@ -8,7 +8,6 @@
 #include "primitive_type_base.h"
 #include "memory_accessor.hpp"
 #include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/format.hpp"
 #include "json_object.h"
 #include <string>
