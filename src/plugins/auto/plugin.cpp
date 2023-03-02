@@ -821,81 +821,76 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
     std::string allDevices;
     auto deviceList = GetCore()->GetAvailableDevices();
     auto deviceListConfig = config.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
-    if (deviceListConfig->second.empty()) {
-        for (auto&& device : deviceList) {
-            // filter out the supported devices
-            if (!_pluginConfig.isSupportedDevice(device))
-                continue;
-            allDevices += device + ",";
-        }
-        // remove the last ',' if exist
-        if (allDevices.back() == ',')
-            allDevices.pop_back();
-    } else {
+    for (auto&& device : deviceList) {
+        // filter out the supported devices
+        if (!_pluginConfig.isSupportedDevice(device))
+            continue;
+        allDevices += device + ",";
+    }
+    std::vector<std::string> devicesMerged;
+    if (deviceListConfig != config.end() && !deviceListConfig->second.empty()) {
         auto priorities = deviceListConfig->second;
         // parsing the string and splitting the comma-separated tokens
-        std::vector<std::string> deviceVec = _pluginConfig.ParsePrioritiesDevices(priorities);
-        std::vector<std::string> devicesToBeDeleted;
-        auto updateDeviceVec = [&](const std::string& delPattern = "") {
-            auto iter = deviceVec.begin();
-            while (iter != deviceVec.end()) {
-                if (delPattern.empty()) {
-                    if ((*iter).find("-") == 0) {
-                        devicesToBeDeleted.push_back((*iter).erase(0, 1));
-                        iter = deviceVec.erase(iter);
-                    } else {
-                        iter++;
-                    }
-                } else {
-                    if ((*iter).find(delPattern) != std::string::npos)
-                        iter = deviceVec.erase(iter);
-                    else
-                        iter++;
-                }
-            }
+        std::vector<std::string> devicesToBeMerged = _pluginConfig.ParsePrioritiesDevices(priorities);
+        std::vector<std::string> devicesToBeDeleted(devicesToBeMerged.size());
+        const auto& iterDel = std::copy_if(devicesToBeMerged.begin(),
+                                           devicesToBeMerged.end(),
+                                           devicesToBeDeleted.begin(),
+                                           [](const std::string& item) {
+                                               return item.front() == '-';
+                                           });
+        devicesToBeDeleted.resize(std::distance(devicesToBeDeleted.begin(), iterDel));
+        const auto& iterMerge =
+            std::remove_if(devicesToBeMerged.begin(), devicesToBeMerged.end(), [](const std::string& item) {
+                return item.front() == '-';
+            });
+        devicesToBeMerged.resize(std::distance(devicesToBeMerged.begin(), iterMerge));
+        for (auto&& device : devicesToBeDeleted)
+            LOG_INFO_TAG("remove %s from device candidate list", device.c_str());
+        auto isAnyDev = [](std::string& device, const std::vector<std::string>& devices) {
+            auto iter = std::find_if(devices.begin(), devices.end(), [device](const std::string& devItem) {
+                return devItem.find(device) != std::string::npos;
+            });
+            return iter != devices.end();
         };
-        updateDeviceVec();
-        if (devicesToBeDeleted.size() == 0) {
-            allDevices = deviceListConfig->second;
-        } else {
-            auto deviceNeedToMerge = [&](const std::string& devicename) {
-                for (auto&& iter : devicesToBeDeleted) {
-                    if (iter.find(devicename) != std::string::npos)
-                        return true;
-                }
-                return false;
-            };
-            auto mergeDeviceList = [&]() {
-                std::vector<std::string> mergedList;
-                auto prevSize = mergedList.size();
-                for (auto&& iter : deviceVec) {
-                    for (auto&& viter : deviceList) {
-                        if (viter.find(iter) != std::string::npos && deviceNeedToMerge(iter))
-                            mergedList.push_back(std::move(viter));
-                    }
-                    // if virtual devices or mock devices
-                    if (mergedList.size() == prevSize)
-                        mergedList.push_back(std::move(iter));
-                    prevSize = mergedList.size();
-                }
-                return mergedList;
-            };
-
-            deviceVec = deviceVec.size() == 0 ? deviceList : mergeDeviceList();
-            for (auto& iter : devicesToBeDeleted) {
-                LOG_INFO_TAG("remove %s from device candidate list", iter.c_str());
-                updateDeviceVec(iter);
+        if (devicesToBeMerged.empty()) {
+            for (auto&& device : deviceList) {
+                if (isAnyDev(device, devicesToBeDeleted))
+                    continue;
+                if (!_pluginConfig.isSupportedDevice(device))
+                    continue;
+                devicesMerged.push_back(device);
             }
-            for (auto&& device : deviceVec) {
-                allDevices += device;
-                allDevices += ((device == deviceVec[deviceVec.size()-1]) ? "" : ",");
+        } else {
+            for (auto&& device : devicesToBeMerged) {
+                if (!isAnyDev(device, deviceList)) {
+                    // Add user specified device into candidate list
+                    devicesMerged.push_back(device);
+                } else {
+                    // Update device name if supported device with id existd
+                    for (auto&& item : deviceList) {
+                        if (isAnyDev(item, devicesToBeDeleted))
+                            continue;
+                        if (item.find(device) != std::string::npos) {
+                            devicesMerged.push_back(item);
+                        }
+                    }
+                }
             }
         }
     }
-
+    if (devicesMerged.size()) {
+        allDevices.clear();
+        std::for_each(devicesMerged.begin(), devicesMerged.end(), [&allDevices](const std::string& device) {
+            allDevices += device + ",";
+        });
+    }
     if (allDevices.empty()) {
         IE_THROW() << "Please, check environment due to no supported devices can be used";
     }
+    // remove the last ',' if exist
+    if (allDevices.back() == ',')
+        allDevices.pop_back();
 
     return allDevices;
 }

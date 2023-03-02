@@ -162,8 +162,6 @@ struct PluginConfig {
                     IE_THROW() << "Unsupported config value: " << kvp.second
                             << " for key: " << kvp.first;
             } else if (kvp.first == ov::device::priorities.name()) {
-                if (!kvp.second.empty())
-                    ParsePrioritiesDevices(kvp.second);
                 _devicePriority = kvp.second;
             } else if (std::find(perf_hints_configs.begin(), perf_hints_configs.end(), kvp.first) != perf_hints_configs.end()) {
                 _perfHintsConfig.SetConfig(kvp.first, kvp.second);
@@ -213,7 +211,7 @@ struct PluginConfig {
         if ((realEndPos = realDevName.find('(')) != std::string::npos) {
             realDevName = realDevName.substr(0, realEndPos);
         }
-        if (_availableDevices.end() == std::find(_availableDevices.begin(), _availableDevices.end(), realDevName)) {
+        if (_deviceBlacklist.end() != std::find(_deviceBlacklist.begin(), _deviceBlacklist.end(), realDevName)) {
             return false;
         }
         return true;
@@ -224,17 +222,13 @@ struct PluginConfig {
         std::string::size_type endpos = 0;
         while ((endpos = priorities.find(separator, pos)) != std::string::npos) {
             auto subStr = priorities.substr(pos, endpos - pos);
-            if (!isSupportedDevice(subStr)) {
-                IE_THROW() << "Unavailable device name: " << subStr;
-            }
-            devices.push_back(subStr);
+            if (!subStr.empty())
+                devices.push_back(subStr);
             pos = endpos + 1;
         }
         auto subStr = priorities.substr(pos, priorities.length() - pos);
-        if (!isSupportedDevice(subStr)) {
-            IE_THROW() << "Unavailable device name: " << subStr;
-        }
-        devices.push_back(subStr);
+        if (!subStr.empty())
+            devices.push_back(subStr);
         return devices;
     }
     void adjustKeyMapValues() {
@@ -304,5 +298,6 @@ struct PluginConfig {
     std::map<std::string, std::string> _keyConfigMap;
     const std::set<std::string> _availableDevices =
         {"AUTO", "CPU", "GPU", "TEMPLATE", "MYRIAD", "VPUX", "MULTI", "HETERO", "mock"};
+    const std::set<std::string> _deviceBlacklist = {"GNA", "VPUX"};
 };
 } // namespace MultiDevicePlugin

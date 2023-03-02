@@ -23,6 +23,7 @@ using ::testing::Property;
 using ::testing::Eq;
 using ::testing::AnyNumber;
 using ::testing::ReturnRef;
+using ::testing::NiceMock;
 using ::testing::AtLeast;
 using ::testing::InvokeWithoutArgs;
 using Config = std::map<std::string, std::string>;
@@ -40,8 +41,8 @@ using ConfigParams = std::tuple<
         >;
 class GetDeviceListTest : public ::testing::TestWithParam<ConfigParams> {
 public:
-    std::shared_ptr<MockICore>                      core;
-    std::shared_ptr<MockMultiDeviceInferencePlugin> plugin;
+    std::shared_ptr<NiceMock<MockICore>> core;
+    std::shared_ptr<NiceMock<MockMultiDeviceInferencePlugin>> plugin;
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
@@ -61,15 +62,13 @@ public:
 
     void SetUp() override {
        // prepare mockicore and cnnNetwork for loading
-       core  = std::shared_ptr<MockICore>(new MockICore());
-       auto* origin_plugin = new MockMultiDeviceInferencePlugin();
-       plugin  = std::shared_ptr<MockMultiDeviceInferencePlugin>(origin_plugin);
+       core = std::shared_ptr<NiceMock<MockICore>>(new NiceMock<MockICore>());
+       auto* origin_plugin = new NiceMock<MockMultiDeviceInferencePlugin>();
+       plugin = std::shared_ptr<NiceMock<MockMultiDeviceInferencePlugin>>(origin_plugin);
        // replace core with mock Icore
        plugin->SetCore(core);
 
-
        ON_CALL(*core, GetAvailableDevices()).WillByDefault(Return(availableDevs));
-
        ON_CALL(*plugin, GetDeviceList).WillByDefault([this](
                    const std::map<std::string, std::string>& config) {
                return plugin->MultiDeviceInferencePlugin::GetDeviceList(config);
@@ -95,20 +94,21 @@ TEST_P(GetDeviceListTest, GetDeviceListTestWithExcludeList) {
 // ConfigParams {devicePriority, expect metaDevices, ifThrowException}
 
 const std::vector<ConfigParams> testConfigs = {
-    //
-    ConfigParams {"CPU,GPU,VPUX",
-        "CPU,GPU,VPUX"},
-    ConfigParams {"VPUX,GPU,CPU,-GPU.0",
-        "VPUX,GPU.1,CPU"},
-    ConfigParams {"-GPU.0,GPU,CPU",
-        "GPU.1,CPU"},
-    ConfigParams {"-GPU.0,GPU",
-        "GPU.1"},
-    ConfigParams {"-GPU.0", "CPU,GPU.1,VPUX"},
-    ConfigParams {"-GPU.0,-GPU.1", "CPU,VPUX"},
-    ConfigParams {"-GPU.0,-CPU", "GPU.1,VPUX"}
-};
-
+    ConfigParams{" ", " "},
+    ConfigParams{"", "CPU,GPU.0,GPU.1"},
+    ConfigParams{"CPU, ", "CPU, "},
+    ConfigParams{" ,CPU", " ,CPU"},
+    ConfigParams{"CPU,", "CPU"},
+    ConfigParams{"CPU,,GPU", "CPU,GPU.0,GPU.1"},
+    ConfigParams{"CPU, ,GPU", "CPU, ,GPU.0,GPU.1"},
+    ConfigParams{"CPU,GPU,VPUX,INVALID_DEVICE", "CPU,GPU.0,GPU.1,VPUX,INVALID_DEVICE"},
+    ConfigParams{"VPUX,GPU,CPU,-GPU.0", "VPUX,GPU.1,CPU"},
+    ConfigParams{"-GPU.0,GPU,CPU", "GPU.1,CPU"},
+    ConfigParams{"-GPU.0,GPU", "GPU.1"},
+    ConfigParams{"-GPU.0", "CPU,GPU.1"},
+    ConfigParams{"-GPU.0,-GPU.1", "CPU"},
+    ConfigParams{"-GPU.0,-GPU.1,INVALID_DEVICE", "INVALID_DEVICE"},
+    ConfigParams{"-GPU.0,-CPU", "GPU.1"}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, GetDeviceListTest,
                 ::testing::ValuesIn(testConfigs),
