@@ -855,9 +855,7 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
         };
         if (devicesToBeMerged.empty()) {
             for (auto&& device : deviceList) {
-                if (isAnyDev(device, devicesToBeDeleted))
-                    continue;
-                if (!_pluginConfig.isSupportedDevice(device))
+                if (isAnyDev(device, devicesToBeDeleted) || !_pluginConfig.isSupportedDevice(device))
                     continue;
                 devicesMerged.push_back(device);
             }
@@ -869,11 +867,9 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
                 } else {
                     // Update device name if supported device with id existd
                     for (auto&& item : deviceList) {
-                        if (isAnyDev(item, devicesToBeDeleted))
+                        if (isAnyDev(item, devicesToBeDeleted) || item.find(device) == std::string::npos)
                             continue;
-                        if (item.find(device) != std::string::npos) {
-                            devicesMerged.push_back(item);
-                        }
+                        devicesMerged.push_back(item);
                     }
                 }
             }
