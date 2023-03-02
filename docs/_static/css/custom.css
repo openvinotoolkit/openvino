@@ -1,38 +1,46 @@
-/* misc */
+/* Misc */
 /* =================================================== */
 .switcher-set {
     margin-bottom:1rem;
 }
+
 main img {
     cursor: pointer;
 }
+
 .doxyrest-title-code-block {
     margin-bottom: 0;
 } 
+
 main  .searchForm {
     margin-bottom: 2rem;
     margin-top: 2rem;
 }
+
 pre {
     white-space: pre-wrap;
     word-wrap: break-word;
 }
 
-/* navigation panels override */
+
+/* Navigation panels override */
 /* =================================================== */
-/* hide home item in the top bar */
+/* Hide home item in the top bar */
 ul#navbar-main-elements li:first-of-type { 
     display: none;
 }
+
 /* items on hover */
 #bd-docs-nav div ul a:hover {
     text-decoration: underline;
 }
+
 ul#navbar-main-elements > li:hover { 
     text-decoration: underline;
 }
 
-/* first-level items in the side menu */
+
+/* First-level items in the side menu */
 #bd-docs-nav > div > ul > li {
     padding-bottom: 15px;
 }
@@ -40,69 +48,82 @@ ul#navbar-main-elements > li:hover {
     color: #000000;
     font-weight: bold;
 }
-/* second level items                 */
+
+
+/* Second level items                 */
 #bd-docs-nav > div > ul > li > ul {
     padding-left: 0.3rem;
 }
-/* overwrite menu chevron directions for open and closed states  */
+
+
+/* Overwrite menu chevron directions for open and closed states  */
 .toctree-checkbox~label i {
     transform: rotate(270deg);
 }
+
 .toctree-checkbox:checked~label i {
     transform: rotate(0deg);
 }
 
 
-
-
-/* footer links */
+/* Footer links */
 /* =================================================== */
 footer div.container div.footer-item p a {
     float: left;
     margin-right: 30px;
 }
+
 footer div.container div.footer-item p a:nth-child(1) {
     margin-right: 50px;
 }
+
 footer div.container div.footer-item p:nth-child(2) {
     clear: both;
 }
 
-/* doc version dropdown formatting override */
+
+/* Doc version dropdown formatting override */
 /* =================================================== */
 [aria-labelledby="version-selector"]  {
     min-width: 125px!important;
     overflow-x: hidden!important;
 }
+
 .sst-dropdown #version-selector {
     min-width: 125px!important;
 }
+
 [aria-labelledby="version-selector"]  .dropdown-item { 
     padding: 0.25rem 0.5rem!important;
 }
+
 
 /* Content in two columns */
 /* =================================================== */
 .row-two-col-content {
     display: flex;
 }
+
 .column-two-col-content {
     flex: 50%;
     padding-right: 10px!important;
 }
 
-/* code reference text formatting override */
+
+/* Code reference text formatting override */
 /* =================================================== */
 code {
     color: black !important;
     font-weight: bold;
 }
 
+
 /* Table Sort Button */
 /* =================================================== */
 .sort-header {
     cursor: pointer;
 }
+
 .sort-btn {
     content: "";
     background-image:url('media/arrow-small-opposite-v.svg');
@@ -115,23 +136,29 @@ code {
     position:relative;
     top:0.5rem;
 }
+
 .sort-btn.sort-active.ascending,
 .sort-btn.sort-active {
     background-size: 100% 70%;
 }
+
 .sort-btn.sort-active.ascending {
     background-image: url('media/union-down.svg');
 }
+
 .sort-btn.sort-active {
     background-image: url('media/union-up.svg');
 }
+
 div.highlight {
     margin-bottom: 1.15rem;
 }
+
 .highlight .err {
     border:none;
     color:inherit;
 }
+
 .opt-notice-wrapper {
     position: fixed;
     bottom:0;
@@ -141,6 +168,7 @@ div.highlight {
     padding: 1rem;
     z-index: 1000;
 }
+
 .opt-notice {
     margin-bottom: 0;
     position: absolute;
@@ -150,6 +178,7 @@ div.highlight {
     width:100%;
     color: #fff;
 }
+
 
 /* Transition banner */
 /* =================================================== */
@@ -190,11 +219,13 @@ div.highlight {
     text-shadow: 0 1px 0 #fff;
     opacity: .5;
 }
+
 .hidden-banner {
     display: none!important;
 }
 
-/* responsiveness */
+
+/* Responsiveness */
 /* =================================================== */
 @media (max-width: 720px) {
     .transition-banner {
@@ -217,19 +248,29 @@ div.highlight {
 /* =================================================== */
 .configure-graphs-header {
     padding-left: 16px;
+    display: flex;
+    justify-content: space-between;
 }
+
 .configure-graphs-header h3 {
     float: left;
 }
+
+.configure-graphs-content {
+    overflow: auto;
+}
+
 .header-inactive {
     color: lightgray;
 }
+
 .configure-graphs-btn {
     padding: 4px 20px;
     background-color: #0054AE;
     border-color: #0054AE;
     color: #fefefe;
 }
+
 .graph-chart-title-header {
     font-size: 1.4rem;
     line-height: 2rem;
@@ -237,6 +278,7 @@ div.highlight {
     padding: 12px 0;
     margin: 0;
 }
+
 .empty-chart-container {
   height: 80px;
   line-height: 80px;
@@ -245,41 +287,50 @@ div.highlight {
   background-color: #f3f3f3;
   border-radius: 5px;
 }
+
 .graph-chart-title {
     vertical-align: middle;
     padding: 12px 0;
 }
+
 .chart-column-header-container {
     padding-top: 8px;
     display: flex;
     flex-direction: row;
     width: 100%;
 }
+
 .chart-column-title {
     min-width: 20%;
     flex-grow: 0 1;
 }
+
 .chart-column-title .icon {
     margin-top: 6px;
     margin-right: 8px;
     flex-grow: 0;
     float: left;
 }
+
 .chart-column-title .chart-header {
     flex-grow: 1;
     float: left;
 }
+
 .chart-column-title .title {
     font-size: 1rem;
     font-weight: 400;
 }
+
 .chart-column-title .subtitle {
     font-size: .8rem;
     color: gray;
 }
+
 .chart-labels-container {
     width: 18%;
 }
+
 .chart-labels-container .title {
     text-align: right;
     text-overflow: ellipsis;
@@ -290,17 +341,18 @@ div.highlight {
     line-height: 3.42rem;
     color: gray;
 }
+
 .chevron-right-btn {
     content: url('media/chevron-right.svg');
     vertical-align: middle;
     padding-left: 8px;
 }
+
 .chevron-down-btn {
     content: url('media/chevron-down.svg');
     vertical-align: middle;
     padding-left: 8px;
 }
-
 
 .chart {
     height: 500px;
@@ -320,7 +372,7 @@ div.highlight {
 
 .build-benchmark-section .title {
     flex-grow: 1;
-  }
+}
 
 .build-benchmark-section h3 {
     margin-top: 1rem;
@@ -357,63 +409,21 @@ div.highlight {
 .efficiency-icon {
     content: url('media/icon-efficiency.svg');
 }
+
 .latency-icon {
     content: url('media/icon-latency.svg');
 }
+
 .throughput-icon {
     content: url('media/icon-throughput.svg');
 }
+
 .value-icon {
     content: url('media/icon-value.svg');
 }
 
+
 /* Modal */
-
-/* The Close Button */
-.modal-close {
-    color: #aaaaaa;
-    float: right;
-    font-size: 28px;
-    line-height: 24px;
-    padding-right: 4px;
-}
-
-.modal-close:hover,
-.modal-close:focus {
-    color: #000;
-    text-decoration: none;
-    cursor: pointer;
-}
-
-.clear-all-btn {
-    float: right;
-    cursor: pointer;
-    line-height: 4rem;
-}
-
-.clear-all-btn-content {
-    border: 1.5px solid black;
-    padding: 6px 10px;
-}
-
-.edit-settings-btn {
-    float: right;
-    color: #0054AE;
-    font-size: 1.05rem;
-    cursor: pointer;
-    line-height: 4rem;
-    display: none;
-}
-
-.edit-settings-text {
-    vertical-align: middle;
-}
-
-.edit-settings-icon {
-    vertical-align: middle;
-    content: url('media/edit-settings.svg');
-}
-
 .modal {
     display: block;
     position: fixed;
@@ -426,10 +436,6 @@ div.highlight {
     background-color: rgba(0, 0, 0, 0.4);
 }
 
-.modal .models-column-one label {
-    word-break: break-word;
-}
-
 .modal-content {
     overflow: auto;
     background-color: #fefefe;
@@ -437,7 +443,8 @@ div.highlight {
     padding: 36px;
     border: 1px solid #888;
     width: 95%;
-    max-height: 90%;
+    max-width: 1140px;
+    max-height: 85%;
 }
 
 .modal-content h2 {
@@ -454,21 +461,32 @@ div.highlight {
     padding-bottom: 1px;
 }
 
-.modal-header-grid-container {
-    display: grid;
-    padding: 12px 64px 2px 16px;
-    grid-template-columns: 40% 20% 20% 10% 10%;
-    column-gap: 16px;
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    border: 0;
+    padding: 0;
+}
+
+.modal-configure-graphs,
+.modal-display-graphs {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
 .modal-content-grid-container {
     display: grid;
-    padding-left: 24px;
-    padding-right: 64px;
-    padding-top: 8px;
-    grid-template-columns: 20% 20% 20% 20% 10% 10%;
-    column-gap: 12px;
-    font-size: .78rem;
+    padding: 0.75rem 4rem 0.125rem 1rem;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: auto;
+    gap: 2rem 1rem;
+}
+
+.modal-content-grid {
+    display: grid;
+    padding-top: .5rem;
+    grid-template-columns: 1fr;
 }
 
 .modal-content-grid-container .column {
@@ -488,27 +506,9 @@ div.highlight {
     margin-left: -14px;
 }
 
-.modal-header-grid-item h5 {
+.modal-content-grid-item h5 {
     font-weight: 530;
     margin: 0;
-}
-
-.modal-grid-item h5 {
-    margin: 0;
-}
-
-.modal-build-graphs-btn {
-    margin-bottom: 10px;
-    margin-right: 3px;
-    padding: 4px 16px;
-    float: right;
-    border-color: #0054AE;
-    background-color: #0054AE;
-    color: #fff;
-}
-.modal-build-graphs-btn:disabled {
-    border-color: #8C8C8C;
-    background-color: lightgray;
 }
 
 .modal-footer {
@@ -521,7 +521,25 @@ div.highlight {
     left: 0;
 }
 
+.modal-footer-content {
+    display: flex;
+    justify-content: space-between;
+}
+
+.modal-disclaimer-box {
+    padding-right: 0.5rem;
+}
+
+.modal-disclaimer-box p {
+    color: #00000098;
+    font-size: 0.8rem;
+    margin-bottom: 0rem;
+}
+
 .benchmark-graph-results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     padding-left: 16px;
 }
 
@@ -539,16 +557,118 @@ div.highlight {
     width: 20%;
 }
 
+@media screen and (max-width:768px) {
+    .modal-content-grid-container {
+        grid-template-columns: repeat(2, 1fr);
+        grid-template-rows: auto;
+        padding-right: 1rem;
+    }
+}
+
+@media screen and (max-width: 530px) {
+    .buttons-nav {
+        margin-top: 0.125rem;
+        margin-bottom: 0.125rem;
+        flex-direction: column;
+        gap: .5rem;
+    }
+
+    .clear-all-btn {
+        padding: 0;
+    }
+
+    .modal-content-grid-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+        padding-right: 1rem;
+    }
+
+}
+
+@media screen and (min-width: 530px) {
+    .modal-content-grid--cols-2 {
+        display: grid;
+        padding-top: .5rem;
+        grid-template-columns: 1fr 1fr;
+        column-gap: 1rem;
+    }
+
+    .span-element-big {
+        grid-column: 1 / span 2;
+}
+}
+
+
+/* Modal buttons */
+.modal-close {
+    color: #aaaaaa;
+    float: right;
+    font-size: 28px;
+    line-height: 24px;
+    padding-right: 4px;
+}
+
+.modal-close:hover,
+.modal-close:focus {
+    color: #000;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.buttons-nav {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+}
+
+.build-graphs-btn {
+    border-color: #0054AE;
+    background-color: #0054AE;
+    color: #fff;
+}
+
+.build-graphs-btn:disabled {
+    border-color: #8C8C8C;
+    background-color: lightgray;
+}
+
+.clear-all-btn {
+    cursor: pointer;
+}
+
+.clear-all-btn-content {
+    border: 1.5px solid black;
+    padding: 6px 10px;
+}
+
+.edit-settings-btn {
+    color: #0054AE;
+    font-size: 1.05rem;
+    cursor: pointer;
+    line-height: 4rem;
+}
+
+.edit-settings-text {
+    vertical-align: middle;
+}
+
+.edit-settings-icon {
+    vertical-align: middle;
+    content: url('media/edit-settings.svg');
+}
+
 .close-btn {
     padding: 4px 16px;
     border-color: #0054AE;
     background-color: #0054AE;
     color: #fefefe;
     float: right;
+    align-self: flex-start;
 }
 
 
-/* content formatting for the benchmark pages */
+/* Content formatting for the benchmark pages */
 .picker-options {
     margin: 15px 0;
 }
@@ -639,7 +759,7 @@ div.highlight {
 /* Create a custom checkbox */
 .checkmark {
   position: absolute;
-  top: 2px;
+  top: 5px;
   left: 0;
   height: 15px;
   width: 15px;
@@ -658,6 +778,11 @@ div.highlight {
 /* When the checkbox is checked, add a blue background */
 .checkmark-container input:checked ~ .checkmark {
   background-color: #0054AE;
+}
+
+.checkmark-container input:disabled ~ .checkmark {
+    background: #d3d3d3;
+    border: 2px solid #8C8C8C;
 }
 
 /* Create the checkmark/indicator (hidden when not checked) */
