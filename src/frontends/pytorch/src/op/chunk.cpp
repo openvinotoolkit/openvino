@@ -13,8 +13,8 @@ OutputVector translate_chunk(NodeContext& context) {
     const auto input_tensor = context.get_input(0);
     int64_t dim, chunks;
 
-    dim = context.const_input<bool>(1);
-    chunks = context.const_input<int64_t>(2);
+    chunks = context.const_input<int64_t>(1);
+    dim = context.const_input<int64_t>(2);
 
     auto zero_constant = context.mark_node(opset10::Constant::create(element::i32, Shape{1}, {0}));
     auto dim_constant = context.mark_node(opset10::Constant::create(element::i32, Shape{1}, {dim}));
@@ -24,9 +24,9 @@ OutputVector translate_chunk(NodeContext& context) {
     auto dimension = context.mark_node(std::make_shared<opset10::Gather>(shape, dim_constant, zero_constant));
     auto input_size = context.mark_node(std::make_shared<opset10::Squeeze>(dimension));
 
-    auto chunk_size_div = context.mark_node(std::make_shared<opset10::Divide>(input_size, chunks, true));
+    auto chunk_size_div = context.mark_node(std::make_shared<opset10::Divide>(input_size, chunks_constant, true));
     auto chunk_size = context.mark_node(std::make_shared<opset10::Floor>(chunk_size_div));
-    auto last_chunk_size = context.mark_node(std::make_shared<opset10::Mod>(input_size, chunks));
+    auto last_chunk_size = context.mark_node(std::make_shared<opset10::Mod>(input_size, chunks_constant));
     auto nonzero_last_chunk = context.mark_node(std::make_shared<opset10::Greater>(last_chunk_size, zero_constant));
 
     auto computed_chunk_size = context.mark_node(std::make_shared<opset10::Add>(chunk_size, nonzero_last_chunk));
@@ -46,7 +46,7 @@ OutputVector translate_chunk(NodeContext& context) {
                                                                          dim_constant));
 
     auto concatenated_chunks =
-        context.mark_node(std::make_shared<opset10::Concat>(OutputVector{slice_chunks, last_chunk}, dim_constant));
+        context.mark_node(std::make_shared<opset10::Concat>(OutputVector{slice_chunks, last_chunk}, dim));
 
     return {concatenated_chunks};
 };
