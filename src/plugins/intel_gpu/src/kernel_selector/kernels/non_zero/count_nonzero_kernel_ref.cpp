@@ -40,7 +40,7 @@ CommonDispatchData CountNonzeroKernelRef::SetDefault(const count_nonzero_params&
     auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
-    int rank = input.Dimentions();
+    int rank = static_cast<int>(input.Dimentions());
     if (rank == 4) {
         dispatchData.gws = {input.X().v, input.Y().v, input.Feature().v * input.Batch().v};
         dims_by_gws = {{Tensor::DataChannelName::X},
