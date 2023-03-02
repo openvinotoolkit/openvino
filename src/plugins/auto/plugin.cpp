@@ -966,7 +966,9 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork
     });
 
     // If CPU is in candidate list, load dynamic network to CPU first
-    if ((model->is_dynamic() || isStateful()) && cpuiter != metaDevices.end()) {
+    // For MULTI do not only load stateful network to CPU
+    // For AUTO CTPUT only load stateful network to CPU
+    if ((model->is_dynamic() || (isStateful() && _LogTag != "MULTI")) && cpuiter != metaDevices.end()) {
         filterDevice.push_back(*cpuiter);
         return filterDevice;
     }

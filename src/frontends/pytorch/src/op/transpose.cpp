@@ -39,7 +39,7 @@ OutputVector translate_transpose(NodeContext& context) {
     auto step = v0::Constant::create(element::i32, {}, {1});
     auto range = std::make_shared<v4::Range>(start, rank, step, element::i32);
 
-    auto axis_0 = v0::Constant::create(element::i64, Shape{}, {0});
+    auto axis_0 = v0::Constant::create(element::i32, Shape{}, {0});
     auto dim0_node_ = std::make_shared<v0::Unsqueeze>(dim0_node, axis_0);
     auto dim1_node_ = std::make_shared<v0::Unsqueeze>(dim1_node, axis_0);
     auto indices = std::make_shared<v0::Concat>(OutputVector{dim0_node_, dim1_node_}, 0);
