@@ -42,7 +42,7 @@ ListConstructReplacer::ListConstructReplacer() {
     auto adapool_op = pattern::wrap_type<v8::AdaptiveAvgPool>({pattern::any_input(), list_construct});
     // replace list construct for aten::expand(tensor, prim::ListConstruct(shapes)) decomposition
     //  shape_of + broadcast + equal + select
-    auto shape_of_op = pattern::wrap_type<v3::ShapeOf>({list_construct, pattern::any_input()});
+    auto shape_of_op = pattern::wrap_type<v3::ShapeOf>({list_construct});
     auto equal_op = pattern::wrap_type<v1::Equal>({list_construct, pattern::any_input()});
     auto select_op = pattern::wrap_type<v1::Select>({pattern::any_input(), pattern::any_input(), list_construct});
     // replace list construct for aten::repeat(tensor,  prim::ListConstruct(shapes)))
@@ -67,7 +67,7 @@ ListConstructReplacer::ListConstructReplacer() {
         if (auto list_unpack_node = cast_fw_node(list_construct_node, "prim::ListConstruct")) {
             // Concatenation is possible because all elements in list should be scalar intigers.
             OutputVector inputs;
-            auto axis_0 = v0::Constant::create(element::i64, Shape{}, {0});
+            auto axis_0 = v0::Constant::create(element::i32, Shape{}, {0});
             for (auto& input : list_construct_node->inputs()) {
                 auto rank = input.get_partial_shape().rank();
                 FRONT_END_OP_CONVERSION_CHECK(rank.is_dynamic() || rank.get_length() == 0, "Rank must be 0");
