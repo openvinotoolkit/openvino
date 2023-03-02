@@ -26,9 +26,8 @@ int32_t js_to_cpp<int32_t>(const Napi::CallbackInfo& info,
         throw std::invalid_argument(std::string("Cannot convert argument" + std::to_string(idx)));
     if (!elem.IsNumber()) {
         throw std::invalid_argument(std::string("Passed argument must be a number."));
-    } else {
-        return elem.ToNumber().Int32Value();
     }
+    return elem.ToNumber().Int32Value();
 }
 
 template <>
@@ -40,9 +39,8 @@ std::string js_to_cpp<std::string>(const Napi::CallbackInfo& info,
         throw std::invalid_argument(std::string("Cannot convert argument") + std::to_string(idx));
     if (!elem.IsString()) {
         throw std::invalid_argument(std::string("Passed argument must be a string."));
-    } else {
-        return elem.ToString();
     }
+    return elem.ToString();
 }
 
 template <>
@@ -90,7 +88,7 @@ ov::element::Type_t js_to_cpp<ov::element::Type_t>(const Napi::CallbackInfo& inf
     if (!acceptableType(elem, acceptable_types))
         throw std::invalid_argument(std::string("Cannot convert Napi::Value to ov::element::Type_t"));
     const auto key = elem.ToString();
-    if (!elem.IsString() || (element_type_map.find(key) == element_type_map.end()))
+    if (element_type_map.find(key) == element_type_map.end())
         throw std::invalid_argument(std::string("Cannot create ov element Type"));
 
     return element_type_map.at(key);

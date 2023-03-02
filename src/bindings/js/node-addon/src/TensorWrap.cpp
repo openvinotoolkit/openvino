@@ -3,10 +3,10 @@
 #include <iostream>
 
 TensorWrap::TensorWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<TensorWrap>(info) {
-    if (info.Length() != 3 && info.Length() != 0)
+    if (info.Length() != 3 && info.Length() != 0)  // default contructor takes 0 args
         reportError(info.Env(), "Invalid number of arguments for Tensor constructor.");
     else if (info.Length() == 3) {
-        if (!info[2].IsTypedArray() || (info[2].As<Napi::TypedArray>().TypedArrayType() != 7)) {
+        if (!info[2].IsTypedArray() || (info[2].As<Napi::TypedArray>().TypedArrayType() != napi_float32_array)) {
             reportError(info.Env(), "Third argument of a tensor must be of type Float32Array.");
             return;
         }
