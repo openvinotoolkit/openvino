@@ -9,6 +9,8 @@
 
 #include "itt.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
+#include "openvino/op/util/logical_reduction_keep_dims.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "transformations/common_optimizations/transpose_sinking_utils.hpp"
