@@ -75,11 +75,11 @@ inline void fillData(const ov::intel_cpu::Memory& inputMemory, const InferenceEn
     auto inputReorderData = inputMemory.GetData();
     switch (prec) {
     case InferenceEngine::Precision::FP32:
-        for (dnnl::impl::dim_t i = 0; i < elemNum; ++i)
+        for (int64_t i = 0; i < elemNum; ++i)
             *(static_cast<float*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<float>(i);
         break;
     case InferenceEngine::Precision::I8:
-        for (dnnl::impl::dim_t i = 0; i < elemNum; ++i)
+        for (int64_t i = 0; i < elemNum; ++i)
             *(static_cast<int8_t*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<int8_t>(i);
         break;
     default:

@@ -323,7 +323,7 @@ void MatrixNms::execute(dnnl::stream strm) {
 
         for (size_t i = 1; i < numPerClass.size(); i++) {
             auto offset_class = m_classOffset[i];
-            for (auto j = 0; j < numPerClass[i]; j++) {
+            for (int64_t j = 0; j < numPerClass[i]; j++) {
                 batchFilteredBox[start_offset + j] = batchFilteredBox[offset_class + j];
             }
             start_offset += numPerClass[i];
@@ -344,7 +344,7 @@ void MatrixNms::execute(dnnl::stream strm) {
     auto startOffset = m_numPerBatch[0];
     for (size_t i = 1; i < m_numPerBatch.size(); i++) {
         auto offset_batch = i * m_realNumClasses * m_realNumBoxes;
-        for (auto j = 0; j < m_numPerBatch[i]; j++) {
+        for (int64_t j = 0; j < m_numPerBatch[i]; j++) {
             m_filteredBoxes[startOffset + j] = m_filteredBoxes[offset_batch + j];
         }
         startOffset += m_numPerBatch[i];
@@ -385,7 +385,7 @@ void MatrixNms::execute(dnnl::stream strm) {
     int64_t originalOffset = 0;
     for (size_t i = 0; i < m_numBatches; i++) {
         auto real_boxes = m_numPerBatch[i];
-        for (auto j = 0; j < real_boxes; j++) {
+        for (int64_t j = 0; j < real_boxes; j++) {
             auto originalIndex = originalOffset + j;
             selectedIndices[j + outputOffset] = static_cast<int>(m_filteredBoxes[originalIndex].index);
             auto selectedBase = selectedOutputs + (outputOffset + j) * 6;
