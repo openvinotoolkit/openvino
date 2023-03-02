@@ -828,9 +828,6 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
                 continue;
             allDevices += device + ",";
         }
-        // remove the last ',' if exist
-        if (allDevices.back() == ',')
-            allDevices.pop_back();
     } else {
         auto priorities = deviceListConfig->second;
         // parsing the string and splitting the comma-separated tokens
@@ -887,11 +884,16 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
                 updateDeviceVec(iter);
             }
             for (auto&& device : deviceVec) {
-                allDevices += device;
-                allDevices += ((device == deviceVec[deviceVec.size()-1]) ? "" : ",");
+                if (!_pluginConfig.isSupportedDevice(device))
+                    continue;
+                allDevices += device + ",";
             }
         }
     }
+
+    // remove the last ',' if exist
+    if (allDevices.back() == ',')
+        allDevices.pop_back();
 
     if (allDevices.empty()) {
         IE_THROW() << "Please, check environment due to no supported devices can be used";
