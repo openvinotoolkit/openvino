@@ -8,6 +8,7 @@
 
 using namespace std;
 using namespace ngraph;
+using namespace testing;
 
 TEST(type_prop, ebos_default_ctor) {
     auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2, 6});
@@ -22,6 +23,25 @@ TEST(type_prop, ebos_default_ctor) {
 
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 2, 6}));
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
+}
+
+TEST(type_prop, ebos_labeled_interval_dims) {
+    auto emb_shape = PartialShape{{5, 10}, {2, 4}, {1, 3}};
+    set_shape_labels(emb_shape, 10);
+    auto off_shape = PartialShape{{6, 8}};
+    set_shape_labels(off_shape, 20);
+
+    auto emb_table = make_shared<op::Parameter>(element::f32, emb_shape);
+    auto indices = make_shared<op::Parameter>(element::i64, PartialShape{{3, 4}});
+    auto offsets = make_shared<op::Parameter>(element::i64, off_shape);
+    auto per_sample_weights = make_shared<op::Parameter>(element::f32, PartialShape{{3, 4}});
+    auto default_index = make_shared<op::Parameter>(element::i64, Shape{});
+
+    auto op =
+        make_shared<op::v3::EmbeddingBagOffsetsSum>(emb_table, indices, offsets, default_index, per_sample_weights);
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{{6, 8}, {2, 4}, {1, 3}}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 11, 12));
 }
 
 TEST(type_prop, ebos) {
