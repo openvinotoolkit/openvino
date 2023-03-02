@@ -4,10 +4,10 @@
 
 The goal of this chapter is to explain how to use Frontend extension classes to facilitate mapping of custom operations from framework model representation to OpenVINO representation. Refer to :doc:`Introduction to OpenVINO Extension <openvino_docs_Extensibility_UG_Intro>` to understand entire flow.
 
-This API is applicable for new frontends only, which exist for ONNX, PaddlePaddle and TensorFlow. If a different model format is used, follow legacy :doc:`Model Optimizer Extensions guide <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>`.
+This API is applicable for new frontends only, which exist for ONNX, PaddlePaddle and TensorFlow. If a different model format is used, follow legacy :doc:`Model Optimizer Extensions <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` guide.
 
 .. note:: 
-   This documentation is written based on the `Template extension <https://github.com/openvinotoolkit/openvino/tree/master/src/core/template_extension/new>`__, which demonstrates extension development details based on minimalistic `Identity` operation that is a placeholder for your real custom operation. You can review the complete code, which is fully compliable, to see how it works.
+   This documentation is written based on the `Template extension <https://github.com/openvinotoolkit/openvino/tree/master/src/core/template_extension/new>`__, which demonstrates extension development details based on minimalistic ``Identity`` operation that is a placeholder for your real custom operation. You can review the complete code, which is fully compliable, to see how it works.
 
 Single Operation Mapping with OpExtension
 ######################################### 
@@ -27,24 +27,23 @@ This section covers the case when a single operation in framework representation
 .. note::
    ``OpExtension`` class is currently available for ONNX and TensorFlow frontends. PaddlePaddle frontend has named inputs and outputs for operation (not indexed) therefore OpExtension mapping is not applicable for this case.
 
-The next example maps ONNX operation with type `“Identity”” <https://github.com/onnx/onnx/blob/main/docs/Operators.md#Identity`__ to OpenVINO template extension ``Identity`` class.
+The next example maps ONNX operation with type `“Identity” <https://github.com/onnx/onnx/blob/main/docs/Operators.md#Identity`__ to OpenVINO template extension ``Identity`` class.
 
-@endsphinxdirective
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_Identity_header]
 
-@snippet ov_extensions.cpp frontend_extension_Identity_header
-@snippet ov_extensions.cpp frontend_extension_Identity
-
-@sphinxdirective
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_Identity]
 
 The mapping doesn’t involve any attributes, as operation Identity doesn’t have them.
 
 Extension objects, like just constructed ``extension`` can be used to add to the OpenVINO runtime just before the loading a model that contains custom operations:
 
-@endsphinxdirective
-
-@snippet ov_extensions.cpp frontend_extension_read_model
-
-@sphinxdirective
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_read_model]
 
 Or extensions can be constructed in a separately compiled shared library. Separately compiled library can be used in Model Optimizer or ``benchmark_app``. Read about how to build and load such library in chapter “Create library with extensions” in :doc:`Introduction to OpenVINO Extension <openvino_docs_Extensibility_UG_Intro>`.
 
@@ -62,13 +61,13 @@ Here is an example for a custom framework operation “MyRelu”. Suppose it is 
  
     .. doxygensnippet:: docs/snippets/ov_extensions.cpp
         :language: cpp
-        :fragment: frontend_extension_MyRelu
+        :fragment: [frontend_extension_MyRelu]
 
 .. tab:: Python
  
     .. doxygensnippet:: docs/snippets/ov_extensions.py
         :language: python
-        :fragment: py_frontend_extension_MyRelu
+        :fragment: [py_frontend_extension_MyRelu]
 
 
 In the resulting converted OpenVINO model, “MyRelu” operation will be replaced by the standard operation ``Relu`` from the latest available OpenVINO operation set. Notice that when standard operation is used, it can be specified using just a type string (“Relu”) instead of using a ``ov::opset8::Relu`` class name as a template parameter for ``OpExtension``. This method is available for operations from the standard operation set only. For a user custom OpenVINO operation the corresponding class should be always specified as a template parameter as it was demonstrated with ``TemplateExtension::Identity``.
@@ -80,21 +79,29 @@ As described above, ``OpExtension`` is useful when attributes can be mapped one 
 
 Imagine you have CustomOperation class implementation that has two attributes with names ``attr1`` and ``attr2``:
 
-@snippet ov_extensions.cpp frontend_extension_CustomOperation
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_CustomOperation]
 
 And original model in framework representation also has operation with name “CustomOperatoin” with the same ``attr1`` and ``attr2`` attributes. Then with the following code:
 
-@snippet ov_extensions.cpp frontend_extension_CustomOperation_as_is
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_CustomOperation_as_is]
 
 both ``attr1`` and ``attr2`` are copied from framework representation to OpenVINO representation automatically. If for some reason names of attributes are different but values still can be copied “as-is” you can pass attribute names mapping in ``OpExtension`` constructor:
 
-@snippet ov_extensions.cpp frontend_extension_CustomOperation_rename
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_CustomOperation_rename]
 
 Where ``fw_attr1`` and ``fw_attr2`` are names for corresponding attributes in framework operation representation.
 
 If copying of an attribute is not what you need, ``OpExtension`` also can set attribute to predefined constant value. For the same ``CustomOperation``, imagine you want to set ``attr2`` to value 5 instead of copying from ``fw_attr2``, to achieve that do the following:
 
-@snippet ov_extensions.cpp frontend_extension_CustomOperation_rename_set
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_CustomOperation_rename_set]
 
 So the conclusion is that each attribute of target OpenVINO operation should be initialized either by
 
@@ -113,7 +120,7 @@ Previous sections cover the case when a single operation is mapped to a single o
 
 In case if one-to-one mapping is not possible, *decomposition to multiple operations* should be considered. It is achieved by using more verbose and less automated ``ConversionExtension`` class. It enables writing arbitrary code to replace a single framework operation by multiple connected OpenVINO operations constructing dependency graph of any complexity.
 
-``ConversionExtension`` maps a single operation to a function which builds a graph using OpenVINO operation classes. Follow chapter :doc:`Build a Model in OpenVINO Runtime <ov_ug_build_model>` to learn how to use OpenVINO operation classes to build a fragment of model for replacement.
+``ConversionExtension`` maps a single operation to a function which builds a graph using OpenVINO operation classes. Follow chapter :ref:`Build a Model in OpenVINO Runtime <openvino_docs_OV_UG_Model_Representation#ov_ug_build_model>` :ref:`Build a Model in OpenVINO Runtime <ov_ug_build_model>` to learn how to use OpenVINO operation classes to build a fragment of model for replacement.
 
 The next example illustrates using ``ConversionExtension`` for conversion of “ThresholdedRelu” from ONNX according to the formula: ``ThresholdedRelu(x, alpha) -> Multiply(x, Convert(Greater(x, alpha), type=float))``.
 
@@ -125,13 +132,13 @@ The next example illustrates using ``ConversionExtension`` for conversion of “
  
     .. doxygensnippet:: docs/snippets/ov_extensions.cpp
         :language: cpp
-        :fragment: frontend_extension_ThresholdedReLU_header
+        :fragment: [frontend_extension_ThresholdedReLU_header]
 
 .. tab:: Python
  
     .. doxygensnippet:: docs/snippets/ov_extensions.py
         :language: python
-        :fragment: py_frontend_extension_ThresholdedReLU_header
+        :fragment: [py_frontend_extension_ThresholdedReLU_header]
 
 
 
@@ -139,13 +146,13 @@ The next example illustrates using ``ConversionExtension`` for conversion of “
  
     .. doxygensnippet:: docs/snippets/ov_extensions.cpp
         :language: cpp
-        :fragment: frontend_extension_ThresholdedReLU
+        :fragment: [frontend_extension_ThresholdedReLU]
 
 .. tab:: Python
  
     .. doxygensnippet:: docs/snippets/ov_extensions.py
         :language: python
-        :fragment: py_frontend_extension_ThresholdedReLU
+        :fragment: [py_frontend_extension_ThresholdedReLU]
 
 
 To access original framework operation attribute value and connect to inputs, ``node`` object of type ``NodeContext`` is used. It has two main methods:
