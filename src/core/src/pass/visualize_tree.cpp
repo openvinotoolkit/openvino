@@ -18,7 +18,6 @@
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/pass/pass.hpp"
 #include "ngraph/util.hpp"
-#include "ngraph/variant.hpp"
 
 using namespace ngraph;
 using namespace std;

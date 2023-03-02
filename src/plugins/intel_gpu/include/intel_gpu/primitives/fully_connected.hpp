@@ -82,6 +82,16 @@ struct fully_connected : public primitive_base<fully_connected> {
         return seed;
     }
 
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const fully_connected>(rhs);
+
+        return input_size == rhs_casted.input_size &&
+               bias.empty() == rhs_casted.bias.empty();
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
