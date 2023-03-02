@@ -2,17 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "convert_color_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "convert_color_inst.h"
 #include "convert_color/convert_color_kernel_selector.h"
 #include "convert_color/convert_color_kernel_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "data_inst.h"
-#include <vector>
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
