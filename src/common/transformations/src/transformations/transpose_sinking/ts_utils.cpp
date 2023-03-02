@@ -323,6 +323,7 @@ bool CanPropagateForwardThrough(Node* node) {
     CHECK_TRANSPOSE_SINKING_SUPPORTED(Reshape, node)
     CHECK_TRANSPOSE_SINKING_SUPPORTED(Unsqueeze, node)
     CHECK_TRANSPOSE_SINKING_SUPPORTED(Transpose, node)
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(FakeQuantize, node);
 
     return false;
 }

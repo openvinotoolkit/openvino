@@ -8,6 +8,7 @@
 
 #include "itt.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
@@ -19,6 +20,7 @@ using namespace ov::pass::pattern;
 using namespace ov::op::util;
 using namespace ov::pass::transpose_sinking;
 using namespace ov::pass::transpose_sinking::utils;
+using namespace ov::pass::pattern::op;
 
 namespace {
 
@@ -50,20 +52,31 @@ NodePair SwapNodes(const NodePtr& first_node, const NodePtr& second_node) {
     return std::make_pair(new_first_node, new_second_node);
 }
 
+NodePtr GetPatternNode(const PatternValueMap& pattern_to_output, const NodeVector& nodes) {
+    for (const auto& node : nodes) {
+        auto it = pattern_to_output.find(node);
+        if (it == pattern_to_output.end())
+            continue;
+        return it->second.get_node_shared_ptr();
+    }
+    return {};
+}
+
 }  // namespace
 
 TSUnaryForward::TSUnaryForward() {
     MATCHER_SCOPE(TSUnaryForward);
 
     auto transpose_label = wrap_type<Transpose>({any_input(), any_input()});
-    auto unary_label =
-        wrap_type<UnaryElementwiseArithmetic, Clamp, Elu, SoftPlus, LogicalNot, Convert, IsInf, IsNaN, IsFinite>(
-            {transpose_label});
+    auto fq_label = wrap_type<FakeQuantize>({transpose_label, any_input(), any_input(), any_input(), any_input()});
+    auto unary_op_label =
+        wrap_type<UnaryElementwiseArithmetic, Clamp, Elu, SoftPlus, LogicalNot, Convert, IsInf, IsNaN, IsFinite>({transpose_label});
+    auto unary_label = std::make_shared<Or>(OutputVector{fq_label, unary_op_label});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
-        auto unary = pattern_to_output.at(unary_label).get_node_shared_ptr();
+        auto unary = GetPatternNode(pattern_to_output, NodeVector{unary_op_label, fq_label});
         if (transformation_callback(unary)) {
             return false;
         }
@@ -77,7 +90,7 @@ TSUnaryForward::TSUnaryForward() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(unary_label, "ov::pass::TSUnaryForward");
+    auto m = std::make_shared<Matcher>(unary_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
 
@@ -94,10 +107,12 @@ TSUnaryBackward::TSUnaryBackward() {
         return HasSameOutputTransposeNodes(output);
     };
 
-    auto unary_label =
-        wrap_type<UnaryElementwiseArithmetic, Clamp, Elu, SoftPlus, LogicalNot, Convert, IsInf, IsNaN, IsFinite>(
-            {any_input()},
-            unary_restrictions);
+    auto fq_label =
+        wrap_type<FakeQuantize>({any_input(), any_input(), any_input(), any_input(), any_input()}, unary_restrictions);
+    auto unary_op_label =
+        wrap_type<UnaryElementwiseArithmetic, Clamp, Elu, SoftPlus, LogicalNot, Convert, IsInf, IsNaN, IsFinite>({any_input()},
+                                                                                         unary_restrictions);
+    auto unary_label = std::make_shared<pattern::op::Or>(OutputVector{fq_label, unary_op_label});
 
     auto transpose_const_label = wrap_type<Constant>();
 
@@ -107,12 +122,14 @@ TSUnaryBackward::TSUnaryBackward() {
         const auto& pattern_to_output = m.get_pattern_value_map();
         auto transpose_const = as_type_ptr<Constant>(pattern_to_output.at(transpose_const_label).get_node_shared_ptr());
         auto transpose = pattern_to_output.at(transpose_label).get_node_shared_ptr();
-        auto unary = pattern_to_output.at(unary_label).get_node_shared_ptr();
+        auto unary = GetPatternNode(pattern_to_output, NodeVector{unary_op_label, fq_label});
         if (transformation_callback(unary)) {
             return false;
         }
 
-        for (auto& new_node : sink_backward::InsertTransposeBeforeNode(unary, transpose_const)) {
+        for (auto& new_node : sink_backward::InsertTransposeBeforeNode(unary,
+                                                                       transpose_const,
+                                                                       /* input_indexes */ {0})) {
             register_new_node(new_node);
         }
         unary->validate_and_infer_types();
@@ -122,6 +139,6 @@ TSUnaryBackward::TSUnaryBackward() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(transpose_label, "ov::pass::TSUnaryBackward");
+    auto m = std::make_shared<Matcher>(transpose_label, matcher_name);
     register_matcher(m, matcher_pass_callback);
 }
