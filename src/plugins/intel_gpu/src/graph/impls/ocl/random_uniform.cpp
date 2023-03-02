@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <random_uniform_inst.h>
-#include <random_uniform/random_uniform_kernel_ref.h>
-#include "intel_gpu/runtime/error_handler.hpp"
-#include <impls/implementation_map.hpp>
-#include <random_uniform/random_uniform_kernel_selector.h>
 #include "primitive_base.hpp"
-#include <vector>
+
+#include "random_uniform_inst.h"
+#include "random_uniform/random_uniform_kernel_ref.h"
+#include "random_uniform/random_uniform_kernel_selector.h"
 
 namespace cldnn {
 namespace ocl {
