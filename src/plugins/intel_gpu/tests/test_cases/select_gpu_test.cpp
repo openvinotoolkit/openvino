@@ -1264,22 +1264,6 @@ TEST(select_gpu_f32, select_basic_error_input_types) {
     EXPECT_ANY_THROW(network(engine, topology));
 }
 
-TEST(select_gpu_f32, select_basic_error_input_formats) {
-    auto& engine = get_test_engine();
-
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
-
-    topology topology;
-    topology.add(input_layout("input", input->get_layout()));
-    topology.add(input_layout("input2", input2->get_layout()));
-    topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
-
-    EXPECT_ANY_THROW(network(engine, topology));
-}
-
 TEST(select_gpu_f32, select_basic_byxf) {
     auto& engine = get_test_engine();
 
@@ -2310,6 +2294,64 @@ TEST(select_gpu_fp32, select_numpy_broadcast_mask_u8_1x1x3) {
 
     for (int i = 0; i < 27; i++)
     {
+        ASSERT_EQ(answers[i], output_ptr[i]);
+    }
+}
+
+TEST(select_gpu_f32, select_different_formats) {
+    auto& engine = get_test_engine();
+
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 1, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::byxf, { 2, 1, 2, 2 } });
+    auto mask   = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 2, 2 } });
+
+    topology topology;
+    topology.add(input_layout("input1", input1->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    topology.add(input_layout("mask", mask->get_layout()));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input1"), input_info("input2")));
+
+    set_values(input1, {
+        1.f, 2.f,
+        3.f, 4.f,
+
+        5.f, 6.f,
+        7.f, 8.f
+    });
+
+    set_values(input2, {
+        9.f,  10.f,
+        11.f, 12.f,
+
+        13.f, 14.f,
+        15.f, 16.f
+    });
+
+    set_values(mask, {
+        0.f, 0.f,
+        1.f, 1.f
+    });
+
+    network network(engine, topology);
+
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+    network.set_input_data("mask", mask);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("select").get_memory();
+
+    std::vector<float> answers {
+        9.f,  10.f,
+        3.f,  4.f,
+
+        13.f, 14.f,
+        7.f,  8.f
+    };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < answers.size(); ++i) {
         ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
