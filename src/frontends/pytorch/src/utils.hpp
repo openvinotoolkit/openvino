@@ -49,6 +49,12 @@ OutputVector make_framework_node(NodeContext& context);
 
 std::shared_ptr<op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node, const std::string& type);
 
+std::shared_ptr<Node> sort_elements(const NodeContext& context,
+                                    const Output<Node>& input_tensor,
+                                    bool stable,
+                                    int64_t dim,
+                                    bool descending);
+
 // TODO: Elimitate the need of this function by implementing more accurate custom data type handling
 Any simplified_type_interpret(Any type);
 

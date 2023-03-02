@@ -281,6 +281,26 @@ std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> 
     return fw_node;
 }
 
+std::shared_ptr<Node> sort_elements(const NodeContext& context,
+                                    const Output<Node>& input_tensor,
+                                    bool stable,
+                                    int64_t dim,
+                                    bool descending) {
+    auto mode = descending ? ov::op::TopKMode::MAX : ov::op::TopKMode::MIN;
+    auto zero_axis = context.mark_node(opset10::Constant::create(element::i32, Shape{1}, {0}));
+    auto dim_axis = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {dim}));
+    auto shape = context.mark_node(std::make_shared<opset10::ShapeOf>(input_tensor));
+    auto k_values_node = context.mark_node(std::make_shared<opset10::Gather>(shape, dim_axis, zero_axis));
+    auto k_values = context.mark_node(std::make_shared<opset10::Squeeze>(k_values_node));
+    auto topk = context.mark_node(std::make_shared<opset10::TopK>(input_tensor,
+                                                                  k_values,
+                                                                  dim,
+                                                                  mode,
+                                                                  ov::op::TopKSortType::SORT_VALUES,
+                                                                  element::i64));
+    return topk;
+}
+
 Any simplified_type_interpret(Any type) {
     // Interpret Tensor[type] as just type
     // After applying of this interpretation we cannot distinguish true scalars (not tensors) and tensors with elements

@@ -2,24 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
 namespace pytorch {
 namespace op {
 
-#define mark(...) context.mark_node(__VA_ARGS__)
-#define shared    std::make_shared
-
-using namespace opset10;
-using namespace ov::op;
-
 OutputVector translate_sort(NodeContext& context) {
     const auto input_tensor = context.get_input(0);
-    bool stable;
+    bool stable, descending;
     int64_t dim;
-    bool descending;
 
     if (context.get_input_size() == 4) {
         stable = context.const_input<bool>(1);
@@ -30,17 +23,9 @@ OutputVector translate_sort(NodeContext& context) {
         dim = context.const_input<int64_t>(1);
         descending = context.const_input<bool>(2);
     }
-    auto mode = descending ? TopKMode::MAX : TopKMode::MIN;
 
-    auto zero_axis = mark(Constant::create(element::i32, Shape{1}, {0}));
-    auto dim_axis = mark(Constant::create(element::i64, Shape{1}, {dim}));
-    auto shape = mark(shared<ShapeOf>(input_tensor));
-    auto k_values_node = mark(shared<Gather>(shape, dim_axis, zero_axis));
-    auto k_values = mark(shared<Squeeze>(k_values_node));
-
-    auto topk = mark(shared<TopK>(input_tensor, k_values, dim, mode, ov::op::TopKSortType::SORT_VALUES));
-    auto indices = mark(shared<Convert>(topk->output(1), element::i64));
-    return {topk->output(0), indices};
+    auto sort = sort_elements(context, input_tensor, stable, dim, descending);
+    return sort->outputs();
 };
 
 }  // namespace op

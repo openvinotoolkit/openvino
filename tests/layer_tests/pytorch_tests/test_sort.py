@@ -37,10 +37,33 @@ class TestSortConstants(PytorchLayerTest):
         return aten_sort(dim, descending, stable), ref_net, "aten::sort"
 
     @pytest.mark.parametrize("input_tensor", [
-        np.array([1, 2, 4, 6, 5]),
+        np.array([1] * 10),
         np.array([0, 1] * 9),
-        np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]]),
-        np.array([[[1, 2, 3], [4, 5, 6], [7, 8, 9]], [[5, 2, 4], [4, 9, 0], [7, 7, 9]], [[5, 2, 4], [4, 9, 0], [7, 7, 9]]])
+        np.array([1, 2, 4, 6, 5]),
+        np.array([6, 5, 4, 2, 3]),
+        np.array([1, 1, 1, 2, 1, 3, 1, 4, 2, 5, 1, 2, 4, 4, 0]),
+        np.array([[1, 1, 1], [1, 2, 1], [1, 2, 3],
+                  [1, 1, 1], [1, 2, 1], [1, 2, 3],
+                  [1, 2, 3], [1, 1, 1], [1, 2, 1]]),
+        np.array([[9, 8, 8], [8, 7, 7], [7, 5, 6],
+                  [8, 8, 9], [7, 7, 8], [6, 5, 7],
+                  [8, 9, 8], [7, 8, 7], [5, 6, 7]]),
+        np.array([[[1, 2, 3], [4, 5, 6], [7, 8, 9]], 
+                  [[5, 2, 4], [4, 9, 0], [7, 7, 9]], 
+                  [[5, 2, 4], [4, 9, 0], [7, 7, 9]]]),
+        np.array([[[3, 2, 2], [1, 2, 1], [3, 2, 2]], 
+                  [[1, 2, 1], [4, 3, 4], [3, 2, 2]], 
+                  [[3, 2, 2], [1, 2, 1], [7, 9, 9]]]),
+        np.array([[[2, 1, 3], [3, 2, 1], [1, 2, 3]], 
+                  [[2, 0, 2], [1, 2, 1], [3, 2, 8]], 
+                  [[3, 2, 2], [3, 2, 1], [1, 2, 3]],
+                  [[2, 1, 3], [3, 2, 1], [1, 2, 3]], 
+                  [[2, 0, 2], [1, 2, 1], [3, 2, 8]], 
+                  [[3, 2, 2], [3, 2, 1], [1, 2, 3]],
+                  [[2, 1, 3], [3, 2, 1], [1, 2, 3]], 
+                  [[2, 0, 2], [1, 2, 1], [3, 2, 8]], 
+                  [[3, 2, 2], [3, 2, 1], [1, 2, 3]]])
+
     ])
     @pytest.mark.parametrize("dim", [
         0,
@@ -52,7 +75,13 @@ class TestSortConstants(PytorchLayerTest):
     ])
     @pytest.mark.parametrize("stable", [
         False,
-        None
+        None,
+        pytest.param(
+            True,
+            marks = pytest.mark.xfail(
+                reason="Failed due to aten::sort not yet supporting stable == True argument"
+            ),
+        ),
     ])
     def test_sort(self, input_tensor, dim, descending, stable, ie_device, precision, ir_version):
         self.input_tensor = input_tensor 
