@@ -69,7 +69,7 @@ More resources:
 * `Docker Hub <https://hub.docker.com/r/openvino/workbench>`__  
 * `PyPI <https://pypi.org/project/openvino-workbench/>`__  
 
-OpenVINO™ Training Extensions (OTX)
+OpenVINO™ Training Extensions 
 ###################################
 
 A convenient environment to train Deep Learning models and convert them using the OpenVINO™ toolkit for optimized inference.
