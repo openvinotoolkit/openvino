@@ -277,7 +277,12 @@ void ReadIRTest::SetUp() {
         GTEST_SKIP() << "The graph is constant. The case is not applicable for Operation conformance scenario";
     }
 #ifdef ENABLE_CONFORMANCE_PGQL
-    this->GetPGLink()->SetCustomField("targetDevice", this->targetDevice);
+    // Updating data in runtime
+    auto pgLink = this->GetPGLink();
+    if (pgLink) {
+        pgLink->SetCustomField("targetDevice", this->targetDevice);
+        pgLink->SetCustomField("caseType", hasDynamic ? "dynamic" : "static");
+    }
 #endif
     std::cout << "[ CONFORMANCE ] Influence coefficient: " << rel_influence_coef << std::endl;
     init_input_shapes(inputShapes);

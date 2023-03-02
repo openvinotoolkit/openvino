@@ -28,6 +28,8 @@ void RegisterTestCustomQueries(void) {
     testName = "ReadIR";
     extTestQueries[testName + "_BEFORE"] = "ReadIRTest_ReadIR($__test_id, '$opName', '$opSet', '$Type', "
                                            "'$targetDevice', '$hashXml', '$pathXml', '$config')";
+    extTestQueries[testName + "_AFTER"] = "ReadIRTest_ReadIR($__test_id, '$opName', '$opSet', '$Type', "
+                                           "'$targetDevice', '$caseType')";
     extTestNames[testName] = "$opName";
 }
 #endif
