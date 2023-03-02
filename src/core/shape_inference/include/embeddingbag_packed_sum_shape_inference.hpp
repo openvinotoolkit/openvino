@@ -7,6 +7,7 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/embeddingbag_packed_base.hpp"
 #include "utils.hpp"
+
 namespace ov {
 namespace op {
 namespace util {
@@ -21,22 +22,20 @@ std::vector<TShape> shape_infer(const ov::op::util::EmbeddingBagPackedBase* op,
     static constexpr int INDICES = 1;
     static constexpr int PER_SAMPLE_WEIGHTS = 2;
 
-    NODE_VALIDATION_CHECK(op, input_shapes[INDICES].rank().compatible(2), "INDICES must be 2D");
+    auto indices_shape = input_shapes[INDICES];
+    NODE_VALIDATION_CHECK(op, indices_shape.rank().compatible(2), "INDICES must be 2D.");
 
     if (input_size == 3) {
         NODE_VALIDATION_CHECK(op,
                               input_shapes[PER_SAMPLE_WEIGHTS].rank().compatible(2),
-                              "PER_SAMPLE_WEIGHTS must be 2D");
+                              "PER_SAMPLE_WEIGHTS must be 2D.");
 
         NODE_VALIDATION_CHECK(op,
-                              input_shapes[INDICES].compatible(input_shapes[PER_SAMPLE_WEIGHTS]),
-                              "INDICES and PER_SAMPLE_WEIGHTS shape must be same");
+                              TShape::merge_into(indices_shape, input_shapes[PER_SAMPLE_WEIGHTS]),
+                              "INDICES and PER_SAMPLE_WEIGHTS shape must be same.");
     }
-
-    const auto& emb_table_shape = input_shapes[EMB_TABLE];
-    const auto& indices_shape = input_shapes[INDICES];
-
     TShape output_shape;
+    const auto& emb_table_shape = input_shapes[EMB_TABLE];
     if (emb_table_shape.rank().is_static()) {
         output_shape = emb_table_shape;
         output_shape[0] = indices_shape.rank().is_static() ? indices_shape[0] : Dimension::dynamic();

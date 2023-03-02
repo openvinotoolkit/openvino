@@ -41,19 +41,19 @@ TEST(type_prop, ebps_labeled_interval_dims_2in) {
 TEST(type_prop, ebps_labeled_interval_dims_3in) {
     auto emb_shape = PartialShape{{5, 10}, {2, 4}, {1, 3}};
     set_shape_labels(emb_shape, 10);
-    auto ind_shape = PartialShape{{6, 8}, 4};
+    auto ind_shape = PartialShape{{2, 6}, 4};
     set_shape_labels(ind_shape, 20);
-    auto sample_shape = PartialShape{{6, 8}, 4};
+    auto sample_shape = PartialShape{{4, 8}, 4};
     set_shape_labels(sample_shape, 30);
 
     auto emb_table = make_shared<op::Parameter>(element::f32, emb_shape);
     auto indices = make_shared<op::Parameter>(element::i64, ind_shape);
     auto per_sample_weights = make_shared<op::Parameter>(element::f32, sample_shape);
 
-    auto op = make_shared<op::v3::EmbeddingBagPackedSum>(emb_table, indices);
+    auto op = make_shared<op::v3::EmbeddingBagPackedSum>(emb_table, indices, per_sample_weights);
     EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{{6, 8}, {2, 4}, {1, 3}}));
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(20, 11, 12));
+    EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{{4, 6}, {2, 4}, {1, 3}}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(30, 11, 12));
 }
 
 TEST(type_prop, ebps) {
