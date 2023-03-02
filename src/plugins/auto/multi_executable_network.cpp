@@ -145,7 +145,7 @@ IE::Parameter MultiExecutableNetwork::GetMetric(const std::string& name) const {
                 exeDevices.push_back(n.deviceName);
             }
         }
-        return decltype(ov::available_devices)::value_type {exeDevices};
+        return decltype(ov::execution_devices)::value_type {exeDevices};
     } else {
         IE_THROW() << "Unsupported ExecutableNetwork metric key: " << name;
     }
