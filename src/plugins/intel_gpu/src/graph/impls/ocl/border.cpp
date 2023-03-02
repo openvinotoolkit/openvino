@@ -31,18 +31,57 @@ struct border_impl : typed_primitive_impl_ocl<border> {
 
         size_t rank = impl_param.get_input_layout(0).get_rank();
         format pads_format = format::adjust_to_rank(format::bfyx, rank);
-        std::vector<tensor::value_type> pads_begin(primitive->pads_begin.begin(), primitive->pads_begin.end());
-        std::vector<tensor::value_type> pads_end(primitive->pads_end.begin(), primitive->pads_end.end());
 
-        if (pads_begin.size() < rank) {
-            size_t zeros_to_add = rank - pads_begin.size();
-            pads_begin.insert(pads_begin.end(), zeros_to_add, 0);
-            pads_end.insert(pads_end.end(), zeros_to_add, 0);
+        std::vector<int32_t> begin(primitive->pads_begin.begin(), primitive->pads_begin.end());
+        std::vector<int32_t> end(primitive->pads_end.begin(), primitive->pads_end.end());
+
+        size_t input_offset = 1;
+        if (!(primitive->non_constant_input_mask & border::PAD_NON_CONST_INPUT::BEGIN) && !params.has_dynamic_tensors()) {
+            params.begin_type = kernel_selector::base_params::ArgType::Constant;
+
+            std::vector<int64_t> begin_vec;
+            begin_vec.assign(primitive->pads_begin.begin(), primitive->pads_begin.end());
+            if (begin_vec.size() < rank) {
+                size_t zeros_to_add = rank - begin_vec.size();
+                begin_vec.insert(begin_vec.end(), zeros_to_add, 0);
+            }
+            std::vector<tensor::value_type> pads_begin(begin_vec.begin(), begin_vec.end());
+            params.lt_sizes = convert_dim_vector(tensor(pads_format, pads_begin, 0));
+        } else {
+            params.begin_type = kernel_selector::base_params::ArgType::Input;
+
+            auto begin_layout = impl_param.get_input_layout(input_offset);
+            params.inputs.push_back(convert_data_tensor(begin_layout));
+            input_offset += 1;
         }
 
-        params.lt_sizes = convert_dim_vector(tensor(pads_format, pads_begin, 0));
-        params.rb_sizes = convert_dim_vector(tensor(pads_format, pads_end, 0));
-        params.border_value = primitive->pad_value;
+        if (!(primitive->non_constant_input_mask & border::PAD_NON_CONST_INPUT::END) && !params.has_dynamic_tensors()) {
+            params.end_type = kernel_selector::base_params::ArgType::Constant;
+
+            std::vector<int64_t> end_vec;
+            end_vec.assign(primitive->pads_end.begin(), primitive->pads_end.end());
+            if (end_vec.size() < rank) {
+                size_t zeros_to_add = rank - end_vec.size();
+                end_vec.insert(end_vec.end(), zeros_to_add, 0);
+            }
+            std::vector<tensor::value_type> pads_end(end_vec.begin(), end_vec.end());
+            params.rb_sizes = convert_dim_vector(tensor(pads_format, pads_end, 0));
+        } else {
+            params.end_type = kernel_selector::base_params::ArgType::Input;
+
+            auto end_layout = impl_param.get_input_layout(input_offset);
+            params.inputs.push_back(convert_data_tensor(end_layout));
+            input_offset += 1;
+        }
+
+        if (!(primitive->non_constant_input_mask & border::PAD_NON_CONST_INPUT::VALUE)) {
+            params.pad_value_type = kernel_selector::base_params::ArgType::Constant;
+            params.border_value = primitive->pad_value;
+        } else {
+            params.pad_value_type = kernel_selector::base_params::ArgType::Input;
+            auto pad_value_layout = impl_param.get_input_layout(input_offset);
+            params.inputs.push_back(convert_data_tensor(pad_value_layout));
+        }
 
         switch (primitive->pad_mode) {
             case ov::op::PadMode::CONSTANT:

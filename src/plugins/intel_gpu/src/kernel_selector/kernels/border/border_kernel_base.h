@@ -17,6 +17,10 @@ struct border_params : public base_params {
     BorderType b_type;
     float border_value;
 
+    ArgType begin_type;
+    ArgType end_type;
+    ArgType pad_value_type;
+
     border_params() : base_params(KernelType::BORDER), b_type(BorderType::CONSTANT), border_value(0.0f) {}
 
     ParamsKey GetParamsKey() const override {
