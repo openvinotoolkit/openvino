@@ -11,10 +11,13 @@
 #include <stdexcept>
 #include <string>
 #include <type_traits>
-#include <immintrin.h>
-#include <xmmintrin.h>
 #include <vector>
 #include <utility>
+
+#ifdef HAVE_SSE
+#include <immintrin.h>
+#include <xmmintrin.h>
+#endif // HAVE_SSE
 
 namespace cldnn {
 namespace cpu {
@@ -554,9 +557,12 @@ public:
             if (stride == 1 && std::is_same<dtype, float>::value) {
                 float const* confidence_ptr_float = (float const*)(&(*confidence_data));
                 confidence_ptr_float += idx;
+#ifdef HAVE_SSE
                 __m128 threshold = _mm_load_ps1(&confidence_threshold);
+#endif // HAVE_SSE
                 for (int prior = 0; prior < num_of_priors; ++prior) {
                     int cls = 0;
+#ifdef HAVE_SSE
                     for (; cls + 3 < num_classes; cls += 4) {
                         __m128 scores = _mm_loadu_ps(confidence_ptr_float);
                         confidence_ptr_float += 4;
@@ -584,6 +590,7 @@ public:
                             label_to_scores[cls + 3].emplace_back(s, prior);
                         }
                     }
+#endif // HAVE_SSE
                     for (; cls < num_classes; ++cls) {
                         float score = *confidence_ptr_float;
                         if (score > confidence_threshold) {
@@ -646,12 +653,15 @@ public:
             if (stride == 1 && std::is_same<dtype, float>::value) {
                 float const* confidence_ptr_float = (float const*)(&(*confidence_data));
                 confidence_ptr_float += idx;
+#ifdef HAVE_SSE
                 __m128 threshold = _mm_load_ps1(&confidence_threshold);
+#endif // HAVE_SSE
                 for (int prior = 0; prior < num_of_priors; ++prior) {
                     int idx_start = (background_label_id == 0 ? 1 : 0);
                     int cls = idx_start;
                     float max_score = 0;
                     int max_cls = 0;
+#ifdef HAVE_SSE
                     for (; cls + 3 < num_classes; cls += 4) {
                         if ((background_label_id == 0) && (cls == idx_start)) {
                             confidence_ptr_float += 1;
@@ -695,6 +705,7 @@ public:
                             }
                         }
                     }
+#endif // HAVE_SSE
                     for (; cls < num_classes; ++cls) {
                         float score = *confidence_ptr_float;
                         if (score > confidence_threshold) {
