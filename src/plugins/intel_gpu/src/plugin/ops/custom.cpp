@@ -200,9 +200,9 @@ void CreateCustomOp(Program& p, const std::shared_ptr<ngraph::Node>& op, CustomL
         auto inputDims = op->get_input_shape(iidx);
 
         xDim = static_cast<int>(inputDims[inputDims.size() - 1]);
-        yDim = dims.size() > 1 ? inputDims[inputDims.size() - 2] : 0;
-        featureDim = dims.size() > 2 ? inputDims[inputDims.size() - 3] : 0;
-        batchDim = dims.size() > 3 ? inputDims[inputDims.size() - 4]: 0;
+        yDim = dims.size() > 1 ? static_cast<int>(inputDims[inputDims.size() - 2]) : 0;
+        featureDim = dims.size() > 2 ? static_cast<int>(inputDims[inputDims.size() - 3]) : 0;
+        batchDim = dims.size() > 3 ? static_cast<int>(inputDims[inputDims.size() - 4]) : 0;
     }
     const std::map<char, int> vars = {
         { 'b', batchDim }  , { 'B', batchDim },
