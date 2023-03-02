@@ -201,6 +201,7 @@ struct format {
         lstm_weights_dio,                             ///< dynamic_lstm, direction,
                                                       ///< than IO (I - input size, O - 4 * hidden_size)
         os_is_osv32_isv32_swizzled_by_4,              ///< format for weights for 1x1 IMAD convolution
+        os_iyx_osv8,
         os_iyx_osv32__ai32,
         iy_xs_os_xsv2_osv8__ao32,
         iy_xs_os_xsv2_osv16__ao32,
