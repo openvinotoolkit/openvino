@@ -9,9 +9,6 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-#define mark(...) context.mark_node(__VA_ARGS__)
-#define shared    std::make_shared
-
 using namespace opset10;
 using namespace ov::op;
 
@@ -23,24 +20,24 @@ OutputVector translate_argsort(NodeContext& context) {
 
     if (context.get_input_size() == 4) {
         stable = context.const_input<bool>(1);
-        FRONT_END_OP_CONVERSION_CHECK(stable == false, "Stable sorting in aten::argsort is not yet supported.");
         dim = context.const_input<int64_t>(2);
         descending = context.const_input<bool>(3);
+        FRONT_END_OP_CONVERSION_CHECK(stable == false, "Stable sorting in aten::argsort is not yet supported.");
     } else {
         dim = context.const_input<int64_t>(1);
         descending = context.const_input<bool>(2);
     }
     auto mode = descending ? TopKMode::MAX : TopKMode::MIN;
 
-    auto zero_axis = mark(Constant::create(element::i32, Shape{1}, {0}));
-    auto dim_axis = mark(Constant::create(element::i64, Shape{1}, {dim}));
-    auto shape = mark(shared<ShapeOf>(input_tensor));
-    auto k_values_node = mark(shared<Gather>(shape, dim_axis, zero_axis));
-    auto k_values = mark(shared<Squeeze>(k_values_node));
-    auto topk = mark(shared<TopK>(input_tensor, k_values, dim, mode, TopKSortType::NONE));
-    auto indices = mark(shared<Convert>(topk->output(1), element::i64));
+    auto zero_axis = context.mark_node(Constant::create(element::i32, Shape{1}, {0}));
+    auto dim_axis = context.mark_node(Constant::create(element::i64, Shape{1}, {dim}));
+    auto shape = context.mark_node(std::make_shared<ShapeOf>(input_tensor));
+    auto k_values_node = context.mark_node(std::make_shared<Gather>(shape, dim_axis, zero_axis));
+    auto k_values = context.mark_node(std::make_shared<Squeeze>(k_values_node));
+    auto topk = context.mark_node(
+        std::make_shared<TopK>(input_tensor, k_values, dim, mode, TopKSortType::SORT_VALUES, element::i64));
 
-    return {indices};
+    return {topk->output(1)};
 };
 
 }  // namespace op

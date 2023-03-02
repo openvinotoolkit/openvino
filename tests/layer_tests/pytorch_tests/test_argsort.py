@@ -52,25 +52,16 @@ class TestArgSort(PytorchLayerTest):
     ])
     @pytest.mark.parametrize("stable", [
         False,
-        None
+        None,
+        pytest.param(
+            True,
+            marks = pytest.mark.xfail(
+                reason="Failed due to ArgSort not yet supporting stable == True argument"
+            ),
+        ),
     ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
     def test_argsort(self, input_tensor, dim, descending, stable, ie_device, precision, ir_version):
-        self.input_tensor = input_tensor
-        self._test(*self.create_model(dim, descending, stable), ie_device, precision, ir_version)
-
-    @pytest.mark.parametrize("input_tensor", [
-        np.random.rand(1, 4)
-    ])
-    @pytest.mark.parametrize("dim", [
-        0
-    ])
-    @pytest.mark.parametrize("descending", [
-        False
-    ])
-    @pytest.mark.parametrize("stable", [
-        True
-    ])
-    @pytest.mark.xfail
-    def test_argsort_stable_throws(self, input_tensor, dim, descending, stable, ie_device, precision, ir_version):
         self.input_tensor = input_tensor
         self._test(*self.create_model(dim, descending, stable), ie_device, precision, ir_version)
