@@ -1,9 +1,8 @@
-# Prerelease Information {#prerelease_information}
+# Pre-release Information {#prerelease_information}
 
 @sphinxdirective
 
-OpenVINO follows a four-month release cycle, which means three major releases a year, 
-the last one being an LTS version. To ensure you do not have to wait long to test its new features, 
+To ensure you do not have to wait long to test OpenVINO's upcomming features, 
 OpenVINO developers continue to roll out prerelease versions. In this page you can find
 a general changelog and the schedule for all versions for the current year.
 
@@ -25,6 +24,8 @@ a general changelog and the schedule for all versions for the current year.
 
    * Enabled PaddlePaddle Framework 2.4
    * Preview of TensorFlow Lite Front End – Load models directly via “read_model” into OpenVINO Runtime and export OpenVINO IR format using Model Optimizer or “convert_model”
+   * Model Optimizer now uses the TensorFlow Frontend as the default path for conversion to IR. Known limitations compared to the legacy approach are: TF1 Loop, Complex types, models requiring config files and old python extensions. The solution detects unsupported functionalities and provides fallback. To force using the legacy Frontend "--use_legacy_fronted" can be specified.
+   * Model Optimizer now supports out-of-the-box conversion of TF2 Object Detection models. At this point, same performance experience is guaranteed only on CPU devices. Feel free to start enjoying TF2 Object Detection models without config files!
    * Introduced new option ov::auto::enable_startup_fallback / ENABLE_STARTUP_FALLBACK to control whether to use CPU to accelerate first inference latency for accelerator HW devices like GPU.
    * New FrontEndManager register_front_end(name, lib_path) interface added, to remove “OV_FRONTEND_PATH” env var (a way to load non-default frontends).
 
