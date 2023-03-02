@@ -15,7 +15,7 @@ namespace intel_gna {
 namespace pass {
 
 // Check if the previous node is convolution, groupconvolution or matmul followed by add
-static bool IsFusable(Output<Node>& parent) {
+static bool IsFusable(const Output<Node>& parent) {
     if (nullptr == std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(parent.get_node()->shared_from_this()) ||
         nullptr == std::dynamic_pointer_cast<ngraph::opset1::Convolution>(parent.get_node()->shared_from_this()) ||
         nullptr == std::dynamic_pointer_cast<ngraph::opset1::MatMul>(parent.get_node()->shared_from_this()))
@@ -78,7 +78,7 @@ static bool Decompose(std::shared_ptr<ov::Node> math_node) {
     }
 
     // getting the parent(previous) node
-    Output<Node>& parent = math_node->input_value(0);
+    const Output<Node>& parent = math_node->input_value(0);
     if (nullptr != std::dynamic_pointer_cast<ngraph::opset1::Multiply>(math_node) && IsFusable(parent))
         return false;
 
