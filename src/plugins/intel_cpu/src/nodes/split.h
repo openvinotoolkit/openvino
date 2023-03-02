@@ -30,6 +30,7 @@ public:
     bool isExecutable() const override;
 
     bool needPrepareParams() const override;
+    bool needShapeInfer() const override;
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
 
@@ -63,6 +64,8 @@ private:
     std::vector<std::pair<size_t, MemoryCPtr>> dstMemPtrs;
 
     size_t INPUTS_NUM = 2;
+    bool constSplitLengths = true;
+    std::vector<int> splitLengths;
 };
 
 }   // namespace node
