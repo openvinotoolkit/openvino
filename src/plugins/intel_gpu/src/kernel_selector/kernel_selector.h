@@ -1,11 +1,10 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include "kernel_selector_common.h"
-#include "kernel_runner_interface.h"
 #include "auto_tuner.h"
 #include <vector>
 #include <memory>
@@ -32,13 +31,17 @@ protected:
     }
     virtual KernelsData GetBestKernels(const Params& params, const optional_params& options) const = 0;
 
-    virtual KernelsData GetNaiveBestKernel(const Params& params,
-                                           const optional_params& options,
-                                           KernelType kType) const;
+    KernelsData GetNaiveBestKernel(const KernelList& all_impls,
+                                   const Params& params,
+                                   const optional_params& options) const;
 
-    virtual KernelsData GetAutoTuneBestKernel(const Params& params,
-                                              const optional_params& options,
-                                              KernelType kType) const;
+    KernelsData GetNaiveBestKernel(const Params& params,
+                                   const optional_params& options,
+                                   KernelType kType) const;
+
+    KernelsData GetAutoTuneBestKernel(const Params& params,
+                                      const optional_params& options,
+                                      KernelType kType) const;
 
     KernelList GetAllImplementations(const Params& params, const optional_params& options, KernelType kType) const;
 

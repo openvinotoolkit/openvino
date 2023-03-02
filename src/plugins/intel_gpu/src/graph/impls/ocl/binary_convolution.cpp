@@ -1,18 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/primitives/quantize.hpp"
-#include "binary_convolution_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
-#include "kernel_runner.h"
+
+#include "binary_convolution_inst.h"
 #include "kernel_selector/kernels/binary_convolution/binary_convolution_kernel_selector.h"
 #include "kernel_selector/kernels/binary_convolution/binary_convolution_params.h"
-#include <algorithm>
-#include <memory>
 
 namespace cldnn {
 namespace ocl {
@@ -74,14 +68,6 @@ public:
         uint32_t dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
         uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
         params.dilation = {dilation_x, dilation_y, dilation_z};
-
-        const auto& tuning_config = impl_param.get_program().get_options().get<build_option_type::tuning_config>();
-
-        if (tuning_config->config.mode == tuning_mode::tuning_tune_and_cache ||
-            tuning_config->config.mode == tuning_mode::tuning_retune_and_cache) {
-            optional_params.tuningParams.runner =
-                std::make_shared<gpu::kernel_runner>(impl_param.get_program().get_engine(), impl_param.get_program().get_id(), true);
-        }
 
         return {params, optional_params};
     }

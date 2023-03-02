@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@
 #include "frontend/shared/include/utils.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset1.hpp"
-#include "transformations/serialize.hpp"
+#include "openvino/pass/serialize.hpp"
 
 TEST(Paddle_Reader_Tests, ImportBasicModelToCore) {
     auto model = std::string(TEST_PADDLE_MODELS_DIRNAME) + "relu/relu.pdmodel";

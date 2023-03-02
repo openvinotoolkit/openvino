@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -116,7 +116,6 @@ TYPED_TEST_P(LogicalOperatorTypeProp, inputs_have_inconsistent_shapes) {
 
 TYPED_TEST_P(LogicalOperatorTypeProp, shape_broadcast) {
     using namespace ngraph;
-    using OP_Type = typename TypeParam::op_type;
     const auto exp_dtype = TypeParam::element_type;
 
     const auto a = std::make_shared<op::Parameter>(element::boolean, Shape{1, 1, 6});
@@ -132,12 +131,11 @@ TYPED_TEST_P(LogicalOperatorTypeProp, shape_broadcast) {
 TYPED_TEST_P(LogicalOperatorTypeProp, partial_shape_no_broadcast) {
     using namespace ngraph;
     using namespace testing;
-    using OP_Type = typename TypeParam::op_type;
 
     auto shape_a = PartialShape{1, {2, 4}, {2, 5}, 4, -1};
     auto shape_b = PartialShape{1, 3, {1, 6}, 4, {-1, 5}};
-    set_shape_labels(shape_a, std::vector<size_t>{ov::no_label, 11, 12, ov::no_label, 14});
-    set_shape_labels(shape_b, std::vector<size_t>{20, 21, ov::no_label, ov::no_label, ov::no_label});
+    set_shape_labels(shape_a, ov::TensorLabel{ov::no_label, 11, 12, ov::no_label, 14});
+    set_shape_labels(shape_b, ov::TensorLabel{20, 21, ov::no_label, ov::no_label, ov::no_label});
     const auto exp_shape = PartialShape{1, 3, {2, 5}, 4, {-1, 5}};
 
     const auto a = std::make_shared<op::Parameter>(element::boolean, shape_a);
@@ -153,12 +151,11 @@ TYPED_TEST_P(LogicalOperatorTypeProp, partial_shape_no_broadcast) {
 TYPED_TEST_P(LogicalOperatorTypeProp, partial_shape_numpy_broadcast) {
     using namespace ngraph;
     using namespace testing;
-    using OP_Type = typename TypeParam::op_type;
 
     auto shape_a = PartialShape{1, {2, 4}, {2, 5}, 4, -1};
     auto shape_b = PartialShape{1, 3, {1, 6}, 4};
-    set_shape_labels(shape_a, std::vector<size_t>{ov::no_label, 11, 12, 13, 14});
-    set_shape_labels(shape_b, std::vector<size_t>{20, 21, ov::no_label, 23});
+    set_shape_labels(shape_a, ov::TensorLabel{ov::no_label, 11, 12, 13, 14});
+    set_shape_labels(shape_b, ov::TensorLabel{20, 21, ov::no_label, 23});
     const auto exp_shape = PartialShape{1, {2, 4}, 3, 4, 4};
 
     const auto a = std::make_shared<op::Parameter>(element::boolean, shape_a);

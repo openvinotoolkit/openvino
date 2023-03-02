@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,6 +41,8 @@ public:
             params->bias_layout = optional_layout(bias().get_output_layout());
         return params;
     }
+
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 
 private:
     bool transposed;

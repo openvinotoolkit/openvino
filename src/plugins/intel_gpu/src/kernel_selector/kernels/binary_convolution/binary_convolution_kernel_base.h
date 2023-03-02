@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,6 +54,7 @@ protected:
     virtual std::string GetKernelName(const binary_convolution_params&) const { return kernelName; }
     virtual bool NeedPaddedInput() const { return false; }
     bool Validate(const Params& p, const optional_params& o) const override;
+    using WeightBiasKernelBase::GetJitConstants;
     virtual JitConstants GetJitConstants(const binary_convolution_params& params, const DispatchData& dispatchData) const;
     virtual JitConstants GetFusedPrimitivesJitConstants(const binary_convolution_params& params,
                                                         const DispatchData& dispatchData) const;

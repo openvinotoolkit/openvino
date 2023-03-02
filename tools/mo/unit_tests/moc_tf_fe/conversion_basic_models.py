@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -43,14 +43,8 @@ def base_args_config():
     args.scale_values = None
     args.output_dir = os.getcwd()
     args.freeze_placeholder_with_value = None
-    args.tensorflow_use_custom_operations_config = None
     args.transformations_config = None
-    args.disable_fusing = None
-    args.finegrain_fusing = None
-    args.disable_resnet_optimization = None
-    args.enable_concat_optimization = None
     args.static_shape = None
-    args.disable_weights_compression = None
     args.reverse_input_channels = None
     args.data_type = None
     args.layout = None
@@ -73,7 +67,8 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
         FrontEnd.add_extension = Mock()
 
     def basic(self, input_model, argv_input, inputs, dtype, expected, freeze_placeholder_with_value=None,
-              input_shape=None, only_conversion=False, input_model_is_text=True):
+              input_shape=None, only_conversion=False, input_model_is_text=True, use_new_frontend=True,
+              use_legacy_frontend=False):
         path = os.path.dirname(__file__)
         input_model = os.path.join(path, "test_models", input_model)
         args = base_args_config()
@@ -82,6 +77,8 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
         args.freeze_placeholder_with_value = freeze_placeholder_with_value
         args.input_shape = input_shape
         args.input_model_is_text = input_model_is_text
+        args.use_new_frontend = use_new_frontend
+        args.use_legacy_frontend = use_legacy_frontend
 
         try:
             _, model = prepare_ir(args)
@@ -294,3 +291,59 @@ class TestMoFreezePlaceholderTFFE(unittest.TestCase):
         self.basic("mul_with_unknown_rank_y.pbtxt", inputs, inputs_data, dtype, expected,
                    freeze_placeholder_with_value,
                    input_shape, only_conversion, True)
+
+    def test_conversion_failure_fallback_default(self):
+        self.basic("ctc_model_based.pbtxt", None, None, None, None,
+                   None, None, True, True, False, False)
+
+    def test_conversion_failure_fallback_use_new_frontend(self):
+        with self.assertRaisesRegex(Exception, "Internal error: No translator found for Enter node"):
+            self.basic("ctc_model_based.pbtxt", None, None, None, None,
+                       None, None, True, True, True, False)
+
+    @unittest.skip("88349: Fix auto-pruning in legacy FE")
+    def test_conversion_model_oneshot_iterator_use_legacy_frontend(self):
+        self.basic("model_oneshot_iterator.pbtxt", None, None, None, None,
+                   None, None, True, True, False, True)
+
+    def test_conversion_model_oneshot_iterator_default(self):
+        self.basic("model_oneshot_iterator.pbtxt", None, None, None, None,
+                   None, None, True, True, False, False)
+
+    @generate(
+        *[
+            (
+                    "in2{f32}->[0.0 0.0 0.0 0.0]",
+                    {"in1": np.array([[1.0, 2.0], [3.0, 4.0]])},
+                    np.array([[1.0, 2.0], [3.0, 4.0]]),
+                    np.float32,
+            ),
+            (
+                    "in2->[1.0 15.0 15.5 1.0]",
+                    {"in1": np.array([[2.0, 4.0], [12.0, 8.0]])},
+                    np.array([[3.0, 19.0], [27.5, 9.0]]),
+                    np.float32,
+            ),
+        ],
+    )
+    def test_conversion_model_with_non_standard_extension(self, input_freezing_value, inputs, expected,
+                                                          dtype):
+        self.basic("model_fp32.frozen", input_freezing_value, inputs, dtype, expected, only_conversion=False,
+                   input_model_is_text=False, use_new_frontend=True,
+                   use_legacy_frontend=False)
+
+    def test_conversion_fake_model(self):
+        with self.assertRaisesRegex(Exception,
+                                    "Internal error or inconsistent input model: the frontend supports "
+                                    "only frozen binary protobuf format."):
+            self.basic("fake.pb", None, None, None, None,
+                       only_conversion=True, input_model_is_text=False, use_new_frontend=True,
+                       use_legacy_frontend=False)
+
+    def test_conversion_dir_model(self):
+        with self.assertRaisesRegex(Exception,
+                                    "Internal error or inconsistent input model: the frontend supports "
+                                    "only frozen binary protobuf format."):
+            self.basic(".", None, None, None, None,
+                       only_conversion=True, input_model_is_text=False, use_new_frontend=True,
+                       use_legacy_frontend=False)

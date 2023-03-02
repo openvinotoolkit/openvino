@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1663,8 +1663,9 @@ void GraphOptimizer::FuseEltwiseAndSimple(Graph &graph) {
                     int outNum = parentNode->getParentEdges().size();
                     if (remEdge) {
                         inNum = remEdge->getInputNum();
-                        // Need to keep order for MulAdd
-                        if (childNode->getAlgorithm() == Algorithm::EltwiseMulAdd) {
+                        // Need to keep order for these algorithms
+                        if (childNode->getAlgorithm() == Algorithm::EltwiseMulAdd ||
+                            childNode->getAlgorithm() == Algorithm::EltwiseSelect) {
                             outNum = initialParentInNum + remEdge->getOutputNum() - 1;
                         }
                         graph.RemoveEdge(remEdge);

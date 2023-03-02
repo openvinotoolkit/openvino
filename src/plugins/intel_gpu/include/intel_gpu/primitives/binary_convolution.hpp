@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,6 +64,31 @@ struct binary_convolution : public primitive_base<binary_convolution> {
     float pad_value;
     /// @brief List of primitive ids containing weights data.
     const primitive_id_arr weights;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_range(seed, pad.begin(), pad.end());
+        seed = hash_range(seed, stride.begin(), stride.end());
+        seed = hash_range(seed, dilation.begin(), dilation.end());
+        seed = hash_combine(seed, groups);
+        seed = hash_combine(seed, pad_value);
+        seed = hash_combine(seed, weights.size());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const binary_convolution>(rhs);
+
+        return pad == rhs_casted.pad &&
+               stride == rhs_casted.stride &&
+               dilation == rhs_casted.dilation &&
+               groups == rhs_casted.groups &&
+               pad_value == rhs_casted.pad_value &&
+               weights.size() == rhs_casted.weights.size();
+    }
 
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;

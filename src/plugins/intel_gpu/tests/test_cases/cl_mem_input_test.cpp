@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -127,24 +127,7 @@ void start_cl_mem_check_2_inputs(bool is_caching_test) {
     topology.add(input2);
     topology.add(reorder("reorder", input_info("input"), input_info("input2"), output_layout));
 
-    cldnn::network::ptr network;
-
-    if (is_caching_test) {
-        membuf mem_buf;
-        {
-            cldnn::network _network(*engine, topology);
-            std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-            _network.save(ob);
-        }
-        {
-            std::istream in_mem(&mem_buf);
-            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, *engine);
-            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), *engine);
-        }
-    } else {
-        network = std::make_shared<cldnn::network>(*engine, topology);
-    }
+    cldnn::network::ptr network = get_network(*engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input_memory);
     network->set_input_data("input2", input_memory2);
@@ -291,7 +274,7 @@ TEST(cl_mem_check, check_write_access_type) {
     }
 
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
-    auto stream = engine->create_stream();
+    auto stream = engine->create_stream({});
 
     size_t values_count = 100;
     size_t values_bytes_count = values_count * sizeof(float);
@@ -328,7 +311,7 @@ TEST(cl_mem_check, check_read_access_type) {
     }
 
     auto engine = engine::create(engine_types::ocl, runtime_types::ocl, device);
-    auto stream = engine->create_stream();
+    auto stream = engine->create_stream({});
 
     size_t values_count = 100;
     size_t values_bytes_count = values_count * sizeof(float);

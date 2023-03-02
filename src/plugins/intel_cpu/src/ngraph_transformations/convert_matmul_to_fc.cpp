@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -73,26 +73,15 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
                 std::swap(*(shape_b_aligned.end() - 1), *(shape_b_aligned.end() - 2));
             }
 
+            // check on per-batch MatMul which can't be converted to FC
             for (size_t i = 0; i < max_size - 2; ++i) {
-                auto a_dim = shape_a_aligned[i], b_dim = shape_b_aligned[i];
-                if (a_dim.is_dynamic()) {
-                    if (b_dim == 1) {
-                        shape_a_aligned[i] = shape_b_aligned[i] = a_dim;
-                    } else {
-                        return std::make_tuple(false, ngraph::PartialShape{shape_a_aligned}, ngraph::PartialShape{shape_b_aligned});
-                    }
-                    continue;
+                if (shape_b_aligned[i] == 1) {
+                    shape_b_aligned[i] = shape_a_aligned[i];
+                } else {
+                    return std::make_tuple(false, std::move(shape_a_aligned), std::move(shape_b_aligned));
                 }
-                // both dimensions are static
-                if (a_dim != b_dim && a_dim.get_length() > 1 && b_dim.get_length() > 1) {
-                    std::ostringstream stream;
-                    stream << "Shapes can't be aligned: " << shape_a_aligned << " " << shape_b_aligned;
-                    throw ngraph::ngraph_error(stream.str());
-                }
-                size_t max_value = std::max(a_dim.get_length(), b_dim.get_length());
-                shape_a_aligned[i] = shape_b_aligned[i] = max_value;
             }
-            return std::make_tuple(true, shape_a_aligned, shape_b_aligned);
+            return std::make_tuple(true, std::move(shape_a_aligned), std::move(shape_b_aligned));
         };
 
         /*
@@ -111,7 +100,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             std::swap(*(transpose_order.end() - 1), *(transpose_order.end() - 2));
 
             auto transpose_const = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ transpose_order.size() }, transpose_order);
-            auto transpose = ngraph::op::util::make_try_fold<ngraph::opset1::Transpose>(node, transpose_const);
+            auto transpose = ov::op::util::make_try_fold<ngraph::opset1::Transpose>(node, transpose_const);
             if (!ngraph::is_type<ngraph::opset1::Constant>(transpose)) {
                 new_ops.push_back(transpose_const);
                 MatcherPass::register_new_node(transpose);
@@ -146,7 +135,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             NGRAPH_CHECK(K.is_static());
             std::vector<int64_t> reshape_shape_values = { -1ll, static_cast<int64_t>(K.get_length()) };
             auto reshape_shape = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 2 }, reshape_shape_values);
-            fc_input_b = ngraph::op::util::make_try_fold<ngraph::opset1::Reshape>(fc_input_b, reshape_shape, false);
+            fc_input_b = ov::op::util::make_try_fold<ngraph::opset1::Reshape>(fc_input_b, reshape_shape, false);
             if (!std::dynamic_pointer_cast<ngraph::opset1::Constant>(fc_input_b.get_node_shared_ptr())) {
                 new_ops.push_back(reshape_shape);
             }

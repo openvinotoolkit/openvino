@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -263,12 +263,16 @@ std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
 // input Model is cloned and returned
 // NodeMap input may contain default node mapping i.e. pre-cloned nodes
 // NodeMap output (by reference) fully maps input and cloned Model ops
+OPENVINO_DEPRECATED(
+    "This method is deprecated and will be removed in 2024.0 release. Please use ov::Model::clone() instead.")
 OPENVINO_API
 std::shared_ptr<ov::Model> clone_model(const ov::Model& model,
                                        std::unordered_map<Node*, std::shared_ptr<Node>>& node_map);
 
 /// \brief input model is cloned and returned
 /// \ingroup ov_model_cpp_api
+OPENVINO_DEPRECATED(
+    "This method is deprecated and will be removed in 2024.0 release. Please use ov::Model::clone() instead.")
 OPENVINO_API
 std::shared_ptr<ov::Model> clone_model(const ov::Model& model);
 

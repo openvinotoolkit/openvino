@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -113,7 +113,7 @@ class Benchmark:
               (self.duration_seconds and exec_time < self.duration_seconds) or \
               (iteration % self.nireq):
             idle_id = infer_queue.get_idle_request_id()
-            if idle_id in in_fly:       # Is this check neccessary?
+            if idle_id in in_fly:
                 times.append(infer_queue[idle_id].latency)
             else:
                 in_fly.add(idle_id)

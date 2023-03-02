@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -152,14 +152,20 @@ void ov::op::v8::If::validate_and_infer_types() {
             auto else_node_result =
                 m_bodies[ELSE_BODY_INDEX]->get_results().at(else_desc->m_body_value_index)->input_value(0);
 
+            element::Type merged_type;
             NODE_VALIDATION_CHECK(this,
-                                  then_node_result.get_element_type() == else_node_result.get_element_type(),
-                                  "type of then_body output is not equal type of else_body output");
+                                  element::Type::merge(merged_type,
+                                                       then_node_result.get_element_type(),
+                                                       else_node_result.get_element_type()),
+                                  "type of then_body output ",
+                                  then_node_result.get_element_type(),
+                                  " is not equal type of else_body output",
+                                  else_node_result.get_element_type());
 
             // shape inference for output and associated with it body outputs
             auto partial_shape =
                 resolve_shape(then_node_result.get_partial_shape(), else_node_result.get_partial_shape());
-            set_output_type(output_index, then_node_result.get_element_type(), partial_shape);
+            set_output_type(output_index, merged_type, partial_shape);
         }
     }
 }
@@ -173,8 +179,8 @@ std::shared_ptr<ov::Node> ov::op::v8::If::clone_with_new_inputs(const OutputVect
 
     op->set_arguments(new_args);
     op->set_output_size(m_output_descriptions[0].size());
-    op->set_then_body(clone_model(*get_then_body()));
-    op->set_else_body(clone_model(*get_else_body()));
+    op->set_then_body(get_then_body()->clone());
+    op->set_else_body(get_else_body()->clone());
 
     for (auto body_index = 0; body_index < 2; ++body_index) {
         for (const auto& m_input_descr : m_input_descriptions[body_index]) {

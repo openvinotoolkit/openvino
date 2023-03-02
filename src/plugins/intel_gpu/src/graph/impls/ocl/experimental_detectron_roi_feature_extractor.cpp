@@ -1,12 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/primitives/experimental_detectron_roi_feature_extractor.hpp"
-#include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "ed_rfe/roi_feature_extractor_kernel_selector.h"
 #include "ed_rfe/roi_feature_extractor_kernel_ref.h"
 

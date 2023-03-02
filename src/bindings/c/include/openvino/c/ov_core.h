@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include "openvino/c/ov_model.h"
 #include "openvino/c/ov_node.h"
 #include "openvino/c/ov_property.h"
+#include "openvino/c/ov_remote_context.h"
 #include "openvino/c/ov_tensor.h"
 
 /**
@@ -60,8 +61,8 @@ typedef struct {
  * @brief Represent all available devices.
  */
 typedef struct {
-    char** devices;             //!< devices' name
-    size_t size;                //!< devices' number
+    char** devices;  //!< devices' name
+    size_t size;     //!< devices' number
 } ov_available_devices_t;
 
 /**
@@ -141,10 +142,7 @@ ov_core_free(ov_core_t* core);
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_core_read_model(const ov_core_t* core,
-                   const char* model_path,
-                   const char* bin_path,
-                   ov_model_t** model);
+ov_core_read_model(const ov_core_t* core, const char* model_path, const char* bin_path, ov_model_t** model);
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 /**
@@ -281,10 +279,7 @@ ov_core_set_property(const ov_core_t* core, const char* device_name, ...);
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_core_get_property(const ov_core_t* core,
-                     const char* device_name,
-                     const char* property_key,
-                     char** property_value);
+ov_core_get_property(const ov_core_t* core, const char* device_name, const char* property_key, char** property_value);
 
 /**
  * @brief Returns devices available for inference.
@@ -334,14 +329,59 @@ ov_core_import_model(const ov_core_t* core,
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_core_get_versions_by_device_name(const ov_core_t* core,
-                                    const char* device_name,
-                                    ov_core_version_list_t* versions);
+ov_core_get_versions_by_device_name(const ov_core_t* core, const char* device_name, ov_core_version_list_t* versions);
 
 /**
  * @brief Releases memory occupied by ov_core_version_list_t.
  * @ingroup ov_core_c_api
- * @param vers A pointer to the ie_core_versions to free memory.
+ * @param versions A pointer to the ie_core_versions to free memory.
  */
-OPENVINO_C_API(void)
-ov_core_versions_free(ov_core_version_list_t* versions);
+OPENVINO_C_API(void) ov_core_versions_free(ov_core_version_list_t* versions);
+
+/**
+ * @brief Creates a new remote shared context object on the specified accelerator device
+ * using specified plugin-specific low-level device API parameters (device handle, pointer, context, etc.).
+ * @ingroup ov_core_c_api
+ * @param core A pointer to the ov_core_t instance.
+ * @param device_name Device name to identify a plugin.
+ * @param context_args_size How many property args will be for this remote context creation.
+ * @param context A pointer to the newly created remote context.
+ * @param variadic parmameters Actual context property parameter for remote context
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_core_create_context(const ov_core_t* core,
+                       const char* device_name,
+                       const size_t context_args_size,
+                       ov_remote_context_t** context,
+                       ...);
+
+/**
+ * @brief Creates a compiled model from a source model within a specified remote context.
+ * @ingroup ov_core_c_api
+ * @param core A pointer to the ov_core_t instance.
+ * @param model Model object acquired from ov_core_read_model.
+ * @param context A pointer to the newly created remote context.
+ * @param property_args_size How many args will be for this compiled model.
+ * @param compiled_model A pointer to the newly created compiled_model.
+ * @param variadic parmameters Actual property parameter for remote context
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_core_compile_model_with_context(const ov_core_t* core,
+                                   const ov_model_t* model,
+                                   const ov_remote_context_t* context,
+                                   const size_t property_args_size,
+                                   ov_compiled_model_t** compiled_model,
+                                   ...);
+
+/**
+ * @brief Gets a pointer to default (plugin-supplied) shared context object for the specified accelerator device.
+ * @ingroup ov_core_c_api
+ * @param core A pointer to the ov_core_t instance.
+ * @param device_name Name of a device to get a default shared context from.
+ * @param context A pointer to the referenced remote context.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_core_get_default_context(const ov_core_t* core, const char* device_name, ov_remote_context_t** context);

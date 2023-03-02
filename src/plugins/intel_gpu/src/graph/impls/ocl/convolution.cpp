@@ -1,18 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "convolution_inst.h"
-#include "eltwise_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
-#include "kernel_runner.h"
+
+#include "convolution_inst.h"
 #include "convolution/convolution_kernel_selector.h"
 #include "convolution/convolution_params.h"
-#include <algorithm>
-#include <memory>
 
 namespace cldnn {
 namespace ocl {
@@ -165,14 +159,6 @@ public:
             conv_optional_params.allowInputReordering = true;
 
         auto& kernel_selector = kernel_selector::convolution_kernel_selector::Instance();
-
-        const auto& tuning_config = arg.get_program().get_options().get<build_option_type::tuning_config>();
-
-        if (tuning_config->config.mode == tuning_mode::tuning_tune_and_cache ||
-            tuning_config->config.mode == tuning_mode::tuning_retune_and_cache) {
-            conv_optional_params.tuningParams.runner =
-                std::make_shared<gpu::kernel_runner>(arg.get_program().get_engine(), arg.get_program().get_id(), true, true);
-        }
 
         auto best_kernel = kernel_selector.get_best_kernel(conv_params, conv_optional_params);
 

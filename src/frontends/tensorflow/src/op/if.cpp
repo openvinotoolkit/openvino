@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_op_table.hpp"
 #include "input_model.hpp"
-#include "op_table.hpp"
 #include "openvino/opsets/opset10.hpp"
 
 using namespace std;

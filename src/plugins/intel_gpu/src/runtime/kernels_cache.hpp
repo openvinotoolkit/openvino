@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/kernel.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
 
 #include <map>
 #include <mutex>
@@ -21,6 +22,7 @@
 #include "ocl/ocl_engine.hpp"
 
 namespace cldnn {
+
 class kernels_cache {
 public:
     using source_code = std::vector<std::string>;
@@ -76,22 +78,33 @@ public:
 private:
     static std::mutex _mutex;
     engine& _engine;
+    InferenceEngine::CPUStreamsExecutor::Ptr _task_executor;
+    ExecutionConfig _config;
     uint32_t _prog_id = 0;
     kernels_code _kernels_code;
-    size_t _kernel_idx = 0;
+    static std::atomic<size_t> _kernel_idx;
     std::atomic<bool> _pending_compilation{false};
     std::map<const std::string, kernel::ptr> _kernels;
     std::vector<std::string> batch_header_str;
 
     void get_program_source(const kernels_code& kernels_source_code, std::vector<batch_program>*) const;
-    void build_batch(const engine& build_engine, const batch_program& batch);
+    void build_batch(const engine& build_engine, const batch_program& batch, std::map<const std::string, kernel::ptr>& compiled_kernels);
 
     std::string get_cache_path() const;
     bool is_cache_enabled() const;
     size_t get_max_kernels_per_batch() const;
 
+    inline std::string gen_kernel_id(std::string entry_point) {
+        // we need unique id in order to avoid conflict across topologies.
+        return entry_point + "_" + std::to_string((_kernel_idx++));
+    }
+
 public:
-    explicit kernels_cache(engine& engine, uint32_t prog_id, const std::vector<std::string>& batch_header_str = {});
+    explicit kernels_cache(engine& engine,
+                           const ExecutionConfig& config,
+                           uint32_t prog_id,
+                           InferenceEngine::CPUStreamsExecutor::Ptr task_executor = nullptr,
+                           const std::vector<std::string>& batch_header_str = {});
     kernel_id set_kernel_source(const std::shared_ptr<kernel_string>& kernel_string,
                                 bool dump_custom_program);
     kernel::ptr get_kernel(kernel_id id) const;
@@ -109,9 +122,9 @@ public:
     }
     std::vector<kernel_id> add_kernels_source(std::vector<std::shared_ptr<kernel_string>> kernel_sources, bool dump_custom_program = false);
     void add_kernels(const std::vector<std::string>& kernel_ids, const std::vector<kernel::ptr>& kernels);
-    void compile();
     void save(BinaryOutputBuffer& ob) const;
     void load(BinaryInputBuffer& ib);
+    std::map<const std::string, kernel::ptr> compile(std::vector<std::shared_ptr<kernel_string>> kernel_sources, bool dump_custom_program = false);
 };
 
 }  // namespace cldnn

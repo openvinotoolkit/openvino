@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,7 +46,6 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/function.hpp>
-#include <ngraph/variant.hpp>
 #include <ngraph/ops.hpp>
 #include <transformations/utils/utils.hpp>
 #include <low_precision/low_precision.hpp>
@@ -140,7 +139,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
         return -1;
     };
 
-    for (const auto op : subgraph->get_ordered_ops()) {
+    for (const auto& op : subgraph->get_ordered_ops()) {
         const NodePtr node {Node::factory().create(op, context)};
 
         graphNodes.push_back(node);
@@ -151,7 +150,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
 
         if (op->get_type_info() == ngraph::op::v0::Result::get_type_info_static()) {
             const auto prev = op->input_value(0);
-            const std::string inputID = ngraph::op::util::get_ie_output_name(prev);
+            const std::string inputID = ov::op::util::get_ie_output_name(prev);
 
             outputNodesMap[inputID] = node;
         }
@@ -265,7 +264,7 @@ void Graph::Replicate(const CNNNetwork &network) {
 
         if (op->get_type_info() == ngraph::op::v0::Result::get_type_info_static()) {
             const auto &input = op->input_value(0);
-            const auto name = ngraph::op::util::get_ie_output_name(input);
+            const auto name = ov::op::util::get_ie_output_name(input);
 
             if (outputsInfo.count(name) != 0) {
                 outputNodesMap[name] = node;
@@ -880,7 +879,7 @@ void Graph::CreatePrimitives() {
         node->createPrimitive();
 #ifdef CPU_DEBUG_CAPS
         if (node->prim) {
-            auto pd_c = (*node->prim).get_primitive_desc();
+            auto pd_c = node->prim.get_primitive_desc();
             auto* pd = reinterpret_cast<const dnnl_primitive_desc*>(pd_c);
             DEBUG_LOG("verbose##", node->getName(), "##", pd->info(), "\n");
         }

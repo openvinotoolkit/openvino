@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -102,5 +102,30 @@ struct strided_slice : public primitive_base<strided_slice> {
     std::vector<int64_t> ellipsis_mask;
     /// @brief Size of output tensor
     ov::Shape out_size;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_range(seed, begin_mask.begin(), begin_mask.end());
+        seed = hash_range(seed, end_mask.begin(), end_mask.end());
+        seed = hash_range(seed, new_axis_mask.begin(), new_axis_mask.end());
+        seed = hash_range(seed, shrink_axis_mask.begin(), shrink_axis_mask.end());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const strided_slice>(rhs);
+
+        return begin == rhs_casted.begin &&
+               end == rhs_casted.end &&
+               strides == rhs_casted.strides &&
+               begin_mask == rhs_casted.begin_mask &&
+               end_mask == rhs_casted.end_mask &&
+               new_axis_mask == rhs_casted.new_axis_mask &&
+               shrink_axis_mask == rhs_casted.shrink_axis_mask &&
+               ellipsis_mask == rhs_casted.ellipsis_mask;
+    }
 };
 }  // namespace cldnn

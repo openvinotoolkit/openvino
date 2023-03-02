@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "loop_inst.h"
@@ -8,6 +8,7 @@
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/mutable_data.hpp"
 #include "intel_gpu/graph/serialization/loop_serializer.hpp"
+#include "intel_gpu/runtime/error_handler.hpp"
 #include <string>
 #include <exception>
 #include <algorithm>

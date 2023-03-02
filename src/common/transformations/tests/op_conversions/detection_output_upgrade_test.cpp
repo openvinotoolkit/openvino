@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,7 +91,7 @@ TEST(TransformationTests, DetectionOutput1ToDetectionOutput8) {
                                                    ngraph::ParameterVector{box_logits, class_preds, proposals});
 
             ngraph::pass::Manager manager;
-            manager.register_pass<ngraph::pass::ConvertDetectionOutput1ToDetectionOutput8>();
+            manager.register_pass<ov::pass::ConvertDetectionOutput1ToDetectionOutput8>();
             manager.run_passes(f);
         }
 
@@ -162,7 +162,7 @@ TEST(TransformationTests, DetectionOutput1ToDetectionOutput8FiveArguments) {
                 ngraph::ParameterVector{box_logits, class_preds, proposals, ad_class_preds, ad_box_preds});
 
             ngraph::pass::Manager manager;
-            manager.register_pass<ngraph::pass::ConvertDetectionOutput1ToDetectionOutput8>();
+            manager.register_pass<ov::pass::ConvertDetectionOutput1ToDetectionOutput8>();
             manager.run_passes(f);
         }
 

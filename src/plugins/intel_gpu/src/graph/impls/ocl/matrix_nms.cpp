@@ -1,14 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "data_inst.h"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+#include "primitive_base.hpp"
+
+#include "matrix_nms_inst.h"
 #include "matrix_nms/matrix_nms_kernel_ref.h"
 #include "matrix_nms/matrix_nms_kernel_selector.h"
-#include "matrix_nms_inst.h"
-#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {

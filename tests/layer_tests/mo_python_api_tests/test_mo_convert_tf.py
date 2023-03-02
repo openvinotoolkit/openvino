@@ -1,12 +1,12 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
-import openvino.runtime as ov
 import pytest
-from openvino.runtime import PartialShape, Model, Dimension
-
 from common.mo_convert_test_class import CommonMOConvertTest
+
+import openvino.runtime as ov
+from openvino.runtime import PartialShape, Model, Dimension
 
 
 def create_tf_graph_def(tmp_dir):
@@ -91,7 +91,6 @@ def create_tf_session(tmp_dir):
     import tensorflow as tf
     from tensorflow.python.eager.context import graph_mode
 
-
     with graph_mode():
         tf.compat.v1.reset_default_graph()
         sess = tf.compat.v1.Session()
@@ -128,7 +127,7 @@ def create_tf_module(tmp_dir):
 
     shape = PartialShape([1, 2, 3])
     param1 = ov.opset8.parameter(shape, dtype=np.float32)
-    param2 = ov.opset8.parameter(shape,  dtype=np.float32)
+    param2 = ov.opset8.parameter(shape, dtype=np.float32)
     add = ov.opset8.add(param1, param2)
     relu = ov.opset8.relu(add)
     sigm = ov.opset8.sigmoid(relu)
@@ -153,7 +152,7 @@ def create_tf_module_layout_list(tmp_dir):
 
     shape = PartialShape([1, 2, 3])
     param1 = ov.opset8.parameter(shape, dtype=np.float32)
-    param2 = ov.opset8.parameter(shape,  dtype=np.float32)
+    param2 = ov.opset8.parameter(shape, dtype=np.float32)
     add = ov.opset8.add(param1, param2)
     relu = ov.opset8.relu(add)
     sigm = ov.opset8.sigmoid(relu)
@@ -179,7 +178,7 @@ def create_tf_module_dynamic(tmp_dir):
 
     shape = PartialShape([-1, 3, 4])
     param1 = ov.opset8.parameter(shape, dtype=np.float32)
-    param2 = ov.opset8.parameter(shape,  dtype=np.float32)
+    param2 = ov.opset8.parameter(shape, dtype=np.float32)
     add = ov.opset8.add(param1, param2)
     relu = ov.opset8.relu(add)
     sigm = ov.opset8.sigmoid(relu)
@@ -190,6 +189,7 @@ def create_tf_module_dynamic(tmp_dir):
     net = Net()
     return net, model_ref, {'input_shape': [PartialShape([-1, Dimension(3, -1), Dimension(4)]),
                                             PartialShape([-1, Dimension(3), Dimension(4, -1)])]}
+
 
 def create_keras_layer(tmp_dir):
     import tensorflow as tf
@@ -213,6 +213,7 @@ def create_keras_layer(tmp_dir):
 
     net = LayerModel()
     return net, model_ref, {'input_shape': [PartialShape([1, 2, 3]), PartialShape([1, 2, 3])]}
+
 
 def create_keras_layer_dynamic(tmp_dir):
     import tensorflow as tf
@@ -335,7 +336,6 @@ class TestMoConvertTF(CommonMOConvertTest):
         create_tf_module_dynamic,
         create_tf_module_layout_list,
 
-
         # TF1
         create_tf_graph_def,
         create_tf1_wrap_function,
@@ -346,11 +346,24 @@ class TestMoConvertTF(CommonMOConvertTest):
     @pytest.mark.nightly
     @pytest.mark.precommit_tf_fe
     @pytest.mark.precommit
-    def test_mo_import_from_memory(self, create_model, ie_device, precision, ir_version,
-                                   temp_dir, use_new_frontend, use_old_api):
+    def test_mo_import_from_memory_legacy_fe(self, create_model, ie_device, precision, ir_version,
+                                             temp_dir):
         fw_model, graph_ref, mo_params = create_model(temp_dir)
 
-        test_params = {'input_model': fw_model}
+        test_params = {'input_model': fw_model, 'use_legacy_frontend': True}
+        if mo_params is not None:
+            test_params.update(mo_params)
+        self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
+
+    @pytest.mark.parametrize("create_model", test_data)
+    @pytest.mark.nightly
+    @pytest.mark.precommit_tf_fe
+    @pytest.mark.precommit
+    def test_mo_import_from_memory_tf_fe(self, create_model, ie_device, precision, ir_version,
+                                         temp_dir):
+        fw_model, graph_ref, mo_params = create_model(temp_dir)
+
+        test_params = {'input_model': fw_model, 'use_new_frontend': True}
         if mo_params is not None:
             test_params.update(mo_params)
         self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)

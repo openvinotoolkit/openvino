@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -21,7 +21,7 @@ function(ie_add_onednn)
         set(DNNL_ENABLE_ITT_TASKS OFF CACHE BOOL "" FORCE)
     endif()
     set(DNNL_ENABLE_CONCURRENT_EXEC ON CACHE BOOL "" FORCE)
-    set(DNNL_ENABLE_PRIMITIVE_CACHE OFF CACHE BOOL "" FORCE) ## TODO: try it later
+    set(DNNL_ENABLE_PRIMITIVE_CACHE ON CACHE BOOL "" FORCE) # Enable primitive cache for global sharing
     set(DNNL_ENABLE_MAX_CPU_ISA ON CACHE BOOL "" FORCE)
     set(DNNL_LIBRARY_TYPE "STATIC" CACHE STRING "" FORCE)
     set(DNNL_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -56,9 +56,9 @@ function(ie_add_onednn)
     if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
         ie_add_compiler_flags(-Wno-undef)
         ie_add_compiler_flags(-Wno-missing-declarations)
-        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12 AND CMAKE_COMPILER_IS_GNUCXX)
-            ie_add_compiler_flags(-Wno-error=array-bounds)
-            ie_add_compiler_flags(-Wno-error=stringop-overflow=)
+        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)
+            ie_add_compiler_flags(-Wno-array-bounds)
+            ie_add_compiler_flags(-Wno-stringop-overflow)
         endif()
     elseif(UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable=10121")

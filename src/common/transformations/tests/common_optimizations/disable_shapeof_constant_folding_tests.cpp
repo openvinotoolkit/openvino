@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,8 +26,8 @@ TEST_F(TransformationTestsF, DisableShapeOfConstantFolding) {
         auto reshape = std::make_shared<opset6::Reshape>(data, abs, false);
         function = std::make_shared<Function>(NodeVector{reshape}, ParameterVector{data});
 
-        manager.register_pass<pass::DisableShapeOfConstantFolding>();
-        manager.register_pass<pass::ConstantFolding>();
+        manager.register_pass<ov::pass::DisableShapeOfConstantFolding>();
+        manager.register_pass<ov::pass::ConstantFolding>();
     }
 
     {
@@ -49,8 +49,8 @@ TEST_F(TransformationTestsF, ShapeOfShapeOfConstantFolding) {
         auto mul = std::make_shared<opset6::Multiply>(reshape, rank);
         function = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
 
-        manager.register_pass<pass::DisableShapeOfConstantFolding>();
-        manager.register_pass<pass::ConstantFolding>();
+        manager.register_pass<ov::pass::DisableShapeOfConstantFolding>();
+        manager.register_pass<ov::pass::ConstantFolding>();
     }
 
     {

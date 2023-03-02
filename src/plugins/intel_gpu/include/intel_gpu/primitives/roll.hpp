@@ -26,6 +26,21 @@ struct roll : primitive_base<roll> {
 
     /// @brief Tensor which specifies the number of places by which the elements are shifted.
     tensor shift;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, shift.hash());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const roll>(rhs);
+
+        return shift == rhs_casted.shift;
+    }
 };
 
 }  // namespace cldnn

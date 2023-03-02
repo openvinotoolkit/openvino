@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -213,7 +213,7 @@ TEST(type_prop, scatter_update_v3_dynamic_data_shape) {
 
 TEST(type_prop, scatter_update_v3_interval_label_data_shape) {
     auto labeled_dim = Dimension(1, 9);
-    size_t label = 222;
+    ov::label_t label = 222;
     ov::DimensionTracker::set_label(labeled_dim, label);
     PartialShape data_shape = PartialShape{-1, {2, 8}, labeled_dim, 4};
     Shape indices_shape{2, 1};
@@ -234,7 +234,7 @@ TEST(type_prop, scatter_update_v3_interval_label_data_shape) {
 
 TEST(type_prop, scatter_update_v3_value_label_propagation) {
     auto labeled_dim = Dimension(5, 7);
-    size_t label = 2345664;
+    ov::label_t label = 2345664;
     ov::DimensionTracker::set_label(labeled_dim, label);
     PartialShape data_shape = PartialShape{labeled_dim};
 
