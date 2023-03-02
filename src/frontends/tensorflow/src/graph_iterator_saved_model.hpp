@@ -17,41 +17,41 @@ namespace tensorflow {
 struct VIBlock;
 
 template <typename T>
-std::basic_string<T> getSMName() {}
+std::basic_string<T> get_saved_model_name() {}
 template <typename T>
-std::basic_string<T> getVIName() {}
+std::basic_string<T> get_variables_index_name() {}
 
 template <>
-std::basic_string<char> getSMName<char>();
+std::basic_string<char> get_saved_model_name<char>();
 template <>
-std::basic_string<char> getVIName<char>();
+std::basic_string<char> get_variables_index_name<char>();
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 template <>
-std::basic_string<wchar_t> getSMName<wchar_t>();
+std::basic_string<wchar_t> get_saved_model_name<wchar_t>();
 template <>
-std::basic_string<wchar_t> getVIName<wchar_t>();
+std::basic_string<wchar_t> get_variables_index_name<wchar_t>();
 #endif
 
 // Stores information about variables index
-class SMVariablesIndex {
-    int32_t totalShards;
-    std::map<std::string, std::vector<char>> varIndex;
-    std::map<int32_t, std::shared_ptr<std::ifstream>> dataFiles;
-    std::map<std::string, std::string> varMap;
+class SavedModelVariablesIndex {
+    int32_t m_total_shards;
+    std::map<std::string, std::vector<char>> m_variables_index;
+    std::map<int32_t, std::shared_ptr<std::ifstream>> m_data_files;
+    std::map<std::string, std::string> m_variables_map;
 
 public:
     /// \brief Reads variables from opened variable index file. Can cause an asserts in case of issues.
     /// \param vi_stream Opened stream file, file pointer doesn't matter, it will be rewind internally.
     /// \param path A path to file with variables data
     /// \returns Returns true in case of everything loads successfully, false otherwise
-    bool readVariables(std::ifstream& vi_stream, const std::string& path);
+    bool read_variables(std::ifstream& vi_stream, const std::string& path);
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     /// \brief Reads variables from opened variable index file. Can cause an asserts in case of issues.
     /// \param vi_stream Opened stream file, file pointer doesn't matter, it will be rewind internally.
     /// \param path A path to file with variables data
     /// \returns Returns true in case of everything loads successfully, false otherwise
-    bool readVariables(std::ifstream& vi_stream, const std::wstring& path);
+    bool read_variables(std::ifstream& vi_stream, const std::wstring& path);
 #endif
 
     /// \brief Returns data and size of data of stored variable
@@ -59,9 +59,9 @@ public:
     /// \param data Pointer on a pointer where data pointer will be returned
     /// \param size Pointer on a variable which will stores data size
     /// \returns Returns true in case variable was found, false otherwise (data and size will be untouched)
-    bool getVariable(const std::string& name, char** data, size_t* size) {
-        auto varItem = varIndex.find(name);
-        if (varItem == varIndex.end()) {
+    bool get_variable(const std::string& name, char** data, size_t* size) {
+        auto varItem = m_variables_index.find(name);
+        if (varItem == m_variables_index.end()) {
             return false;
         }
         *data = varItem->second.data();
@@ -74,77 +74,81 @@ public:
     /// \param data Pointer on a pointer where data pointer will be returned
     /// \param size Pointer on a variable which will stores data size
     /// \returns Returns true in case variable was found, false otherwise (data and size will be untouched)
-    bool getMappedVariable(const std::string& name, char** data, size_t* size) {
-        auto mapItem = varMap.find(name);
-        if (mapItem == varMap.end()) {
+    bool get_mapped_variable(const std::string& name, char** data, size_t* size) {
+        auto mapItem = m_variables_map.find(name);
+        if (mapItem == m_variables_map.end()) {
             return false;
         }
-        return getVariable(mapItem->second, data, size);
+        return get_variable(mapItem->second, data, size);
     }
 
-    std::shared_ptr<std::ifstream> getDataFile(const int32_t shard_id) {
-        auto result = dataFiles.find(shard_id);
-        return result != dataFiles.end() ? result->second : nullptr;
+    std::shared_ptr<std::ifstream> get_data_file(const int32_t shard_id) {
+        auto result = m_data_files.find(shard_id);
+        return result != m_data_files.end() ? result->second : nullptr;
     }
 
-    bool mapVariable(const std::string var_name, const std::string map_name, bool rewrite = false) {
-        if (varMap.find(var_name) != varMap.end() && rewrite == false) {
+    bool map_variable(const std::string var_name, const std::string map_name, bool rewrite = false) {
+        if (m_variables_map.find(var_name) != m_variables_map.end() && rewrite == false) {
             return false;
         }
 
-        varMap[var_name] = map_name;
+        m_variables_map[var_name] = map_name;
         return true;
     }
 
 private:
     // Internal implementation of saved model reading
-    void readVIBlock(std::ifstream& fs,
-                     const VIBlock* index,
-                     std::vector<char>& data,
-                     uint32_t* offset,
-                     uint32_t* offset_end);
-    void readVIPair(char** ptr, const char* ptr_end, std::string& key, char** value, uint32_t* val_length);
-    void readVarIndex(std::ifstream& fs, std::map<std::string, std::vector<char>>& varIndex);
-    void readBundleHeader();
-    void readCMOGraph();
+    void read_variables_index_block(std::ifstream& fs,
+                                    const VIBlock* index,
+                                    std::vector<char>& data,
+                                    uint32_t* offset,
+                                    uint32_t* offset_end);
+    void read_variables_index_pair(char** ptr,
+                                   const char* ptr_end,
+                                   std::string& key,
+                                   char** value,
+                                   uint32_t* val_length);
+    void read_variables_index(std::ifstream& fs, std::map<std::string, std::vector<char>>& varIndex);
+    void read_bundle_header();
+    void read_checkpointable_object_graph();
 };
 
 // Loads graph from Tensorflow Saved Model file (saved_model.pb)
 class GraphIteratorSavedModel : public GraphIteratorProto {
     std::shared_ptr<::tensorflow::SavedModel> m_saved_model;
-    std::shared_ptr<SMVariablesIndex> m_variables_index;
+    std::shared_ptr<SavedModelVariablesIndex> m_variables_index;
 
 public:
     template <typename T>
     GraphIteratorSavedModel(const std::basic_string<T>& path)
         : m_saved_model(std::make_shared<::tensorflow::SavedModel>()) {
-        this->readSavedModel(path);
+        this->read_saved_model(path);
     }
 
-    static bool isSavedModel(const std::string& path);
+    static bool is_supported(const std::string& path);
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-    static bool isSavedModel(const std::wstring& path);
+    static bool is_supported(const std::wstring& path);
 #endif
 
-    std::shared_ptr<SMVariablesIndex> getVariablesIndex() {
+    std::shared_ptr<SavedModelVariablesIndex> get_variables_index() {
         return m_variables_index;
     }
 
 private:
-    bool isValidSignature(const ::tensorflow::SignatureDef& signature);
+    bool is_valid_signature(const ::tensorflow::SignatureDef& signature);
 
     template <typename T>
-    bool readSavedModel(const std::basic_string<T>& path) {
-        std::ifstream sm_stream{path + getSMName<T>(), std::ifstream::in | std::ifstream::binary};
+    bool read_saved_model(const std::basic_string<T>& path) {
+        std::ifstream sm_stream{path + get_saved_model_name<T>(), std::ifstream::in | std::ifstream::binary};
         FRONT_END_GENERAL_CHECK(sm_stream && sm_stream.is_open(), "Model file does not exist");
 
-        std::basic_string<T> varIndexPath = path + getVIName<T>();
+        std::basic_string<T> varIndexPath = path + get_variables_index_name<T>();
         if (ov::util::file_exists(varIndexPath)) {
-            m_variables_index = std::make_shared<SMVariablesIndex>();
+            m_variables_index = std::make_shared<SavedModelVariablesIndex>();
             std::ifstream vi_stream{varIndexPath, std::ifstream::in | std::ifstream::binary};
             FRONT_END_GENERAL_CHECK(vi_stream && vi_stream.is_open(),
                                     "Saved Model's variable index file does not exist");
-            FRONT_END_GENERAL_CHECK(m_variables_index->readVariables(vi_stream, path),
+            FRONT_END_GENERAL_CHECK(m_variables_index->read_variables(vi_stream, path),
                                     "Saved Model's variable index file cannot be parsed");
         }
 
@@ -159,7 +163,7 @@ private:
         for (auto& sit : meta_graph.signature_def()) {
             const std::string& key = sit.first;
             const ::tensorflow::SignatureDef& val = sit.second;
-            if (isValidSignature(val)) {
+            if (is_valid_signature(val)) {
                 validSignatures.push_back(key);
             } else {
                 OPENVINO_ASSERT(false, "Saved Model contains invalid signatures");

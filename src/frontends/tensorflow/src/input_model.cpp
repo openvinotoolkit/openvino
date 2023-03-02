@@ -79,7 +79,7 @@ public:
     std::shared_ptr<InputModel> get_body_input_model(const std::string& body_model_name) const;
     std::vector<std::string> get_input_names() const;
     std::vector<std::string> get_output_names() const;
-    std::shared_ptr<SMVariablesIndex> get_variables_index() const;
+    std::shared_ptr<SavedModelVariablesIndex> get_variables_index() const;
 
 private:
     void load_places();
@@ -448,11 +448,11 @@ void InputModel::InputModelTFImpl::set_tensor_value(ov::frontend::Place::Ptr pla
 
 InputModel::InputModel(const GraphIterator::Ptr& graph_iterator,
                        const std::shared_ptr<TelemetryExtension>& telemetry,
-                       const std::shared_ptr<SMVariablesIndex>& variables_index)
+                       const std::shared_ptr<SavedModelVariablesIndex>& variables_index)
     : _impl{std::make_shared<InputModelTFImpl>(graph_iterator, *this, telemetry)},
       m_variables_index(variables_index) {}
 
-std::shared_ptr<SMVariablesIndex> InputModel::get_variables_index(void) {
+std::shared_ptr<SavedModelVariablesIndex> InputModel::get_variables_index(void) {
     return m_variables_index;
 }
 

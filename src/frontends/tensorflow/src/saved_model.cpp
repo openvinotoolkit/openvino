@@ -79,11 +79,11 @@ struct VIFooter {
     }
 };
 
-void SMVariablesIndex::readVIBlock(std::ifstream& fs,
-                                   const VIBlock* index,
-                                   std::vector<char>& data,
-                                   uint32_t* offset,
-                                   uint32_t* offset_end) {
+void SavedModelVariablesIndex::read_variables_index_block(std::ifstream& fs,
+                                                          const VIBlock* index,
+                                                          std::vector<char>& data,
+                                                          uint32_t* offset,
+                                                          uint32_t* offset_end) {
     data.clear();
     data.resize(index->m_size + 5 /*kBlockTrailerSize*/);
     fs.seekg(index->m_offset, std::ios::beg);
@@ -96,11 +96,11 @@ void SMVariablesIndex::readVIBlock(std::ifstream& fs,
     *offset = smReadFixed<uint32_t>(data.data() + *offset_end);
 }
 
-void SMVariablesIndex::readVIPair(char** ptr,
-                                  const char* ptr_end,
-                                  std::string& key,
-                                  char** value,
-                                  uint32_t* val_length) {
+void SavedModelVariablesIndex::read_variables_index_pair(char** ptr,
+                                                         const char* ptr_end,
+                                                         std::string& key,
+                                                         char** value,
+                                                         uint32_t* val_length) {
     uint32_t shared, nonShared;
     shared = smUnpack<uint32_t>(ptr, ptr_end);
     nonShared = smUnpack<uint32_t>(ptr, ptr_end);
@@ -119,7 +119,8 @@ void SMVariablesIndex::readVIPair(char** ptr,
     *ptr = *value + *val_length;
 }
 
-void SMVariablesIndex::readVarIndex(std::ifstream& fs, std::map<std::string, std::vector<char>>& varIndex) {
+void SavedModelVariablesIndex::read_variables_index(std::ifstream& fs,
+                                                    std::map<std::string, std::vector<char>>& varIndex) {
     VIFooter footer;
 
     footer.Read(fs);
@@ -129,13 +130,13 @@ void SMVariablesIndex::readVarIndex(std::ifstream& fs, std::map<std::string, std
 
     uint32_t offset = 0, offset_end = 0;
 
-    readVIBlock(fs, &footer.m_index, blockData, &offset, &offset_end);
+    read_variables_index_block(fs, &footer.m_index, blockData, &offset, &offset_end);
     char *ptr = blockData.data() + offset, *ptr_end = blockData.data() + offset_end, *value = nullptr;
     std::string key = "";
     uint32_t valLength;
 
     while (ptr < ptr_end) {
-        readVIPair(&ptr, ptr_end, key, &value, &valLength);
+        read_variables_index_pair(&ptr, ptr_end, key, &value, &valLength);
 
         VIBlock valBlock;
         valBlock.read(&value, value + valLength);
@@ -144,21 +145,21 @@ void SMVariablesIndex::readVarIndex(std::ifstream& fs, std::map<std::string, std
     }
 
     for (auto& block : secondLevel) {
-        readVIBlock(fs, &block, blockData, &offset, &offset_end);
+        read_variables_index_block(fs, &block, blockData, &offset, &offset_end);
 
         key = "";
         ptr = blockData.data() + offset;
         ptr_end = blockData.data() + offset_end;
         while (ptr < ptr_end) {
-            readVIPair(&ptr, ptr_end, key, &value, &valLength);
+            read_variables_index_pair(&ptr, ptr_end, key, &value, &valLength);
             varIndex[key] = std::vector<char>(value, value + valLength);
         }
     }
 }
 
-void SMVariablesIndex::readBundleHeader() {
-    auto item = varIndex.find("");
-    FRONT_END_GENERAL_CHECK(item != varIndex.end(), "Bundle Header isn't found in index");
+void SavedModelVariablesIndex::read_bundle_header() {
+    auto item = m_variables_index.find("");
+    FRONT_END_GENERAL_CHECK(item != m_variables_index.end(), "Bundle Header isn't found in index");
 
     ::tensorflow::BundleHeaderProto bundleHeader;
     FRONT_END_GENERAL_CHECK(bundleHeader.ParseFromString(item->second.data()),
@@ -167,14 +168,14 @@ void SMVariablesIndex::readBundleHeader() {
     FRONT_END_GENERAL_CHECK(bundleHeader.version().min_consumer() == 0, "Bundle Header: Unsupported consumer version");
     FRONT_END_GENERAL_CHECK(bundleHeader.endianness() == 0, "Bundle Header: BIG endian isn't supported");
 
-    totalShards = bundleHeader.num_shards();
+    m_total_shards = bundleHeader.num_shards();
 }
 
-void SMVariablesIndex::readCMOGraph() {
-    varMap.clear();
+void SavedModelVariablesIndex::read_checkpointable_object_graph() {
+    m_variables_map.clear();
 
-    auto item = varIndex.find("_CHECKPOINTABLE_OBJECT_GRAPH");
-    FRONT_END_GENERAL_CHECK(item != varIndex.end(), "Checkpointable Object Graph isn't found in index");
+    auto item = m_variables_index.find("_CHECKPOINTABLE_OBJECT_GRAPH");
+    FRONT_END_GENERAL_CHECK(item != m_variables_index.end(), "Checkpointable Object Graph isn't found in index");
 
     ::tensorflow::BundleEntryProto entry;
     FRONT_END_GENERAL_CHECK(entry.ParseFromArray(item->second.data(), static_cast<int>(item->second.size())),
@@ -182,8 +183,8 @@ void SMVariablesIndex::readCMOGraph() {
 
     FRONT_END_GENERAL_CHECK(entry.slices().empty(), "CMO: Slices are not supported");
 
-    auto shard = dataFiles.find(entry.shard_id());
-    FRONT_END_GENERAL_CHECK(shard != dataFiles.end(), "CMO: data files isn't found");
+    auto shard = m_data_files.find(entry.shard_id());
+    FRONT_END_GENERAL_CHECK(shard != m_data_files.end(), "CMO: data files isn't found");
 
     std::vector<char> data(entry.size());
     ::tensorflow::TrackableObjectGraph tog;
@@ -203,12 +204,12 @@ void SMVariablesIndex::readCMOGraph() {
 
     for (const auto& node : tog.nodes()) {
         for (const auto& attr : node.attributes()) {
-            varMap[attr.full_name()] = attr.checkpoint_key();
+            m_variables_map[attr.full_name()] = attr.checkpoint_key();
         }
     }
 }
 
-bool GraphIteratorSavedModel::isValidSignature(const ::tensorflow::SignatureDef& signature) {
+bool GraphIteratorSavedModel::is_valid_signature(const ::tensorflow::SignatureDef& signature) {
     for (const auto& it : signature.inputs()) {
         if (it.second.name().empty()
             //			|| !isRefType(it.second.dtype())
@@ -224,71 +225,71 @@ bool GraphIteratorSavedModel::isValidSignature(const ::tensorflow::SignatureDef&
     return true;
 }
 
-bool SMVariablesIndex::readVariables(std::ifstream& vi_stream, const std::string& path) {
-    varIndex.clear();
-    readVarIndex(vi_stream, varIndex);
-    readBundleHeader();
+bool SavedModelVariablesIndex::read_variables(std::ifstream& vi_stream, const std::string& path) {
+    m_variables_index.clear();
+    read_variables_index(vi_stream, m_variables_index);
+    read_bundle_header();
 
     std::vector<char> suffix(20);
-    for (int32_t shard = 0; shard < totalShards; ++shard) {
-        std::snprintf(suffix.data(), suffix.size(), "data-%05d-of-%05d", shard, totalShards);
+    for (int32_t shard = 0; shard < m_total_shards; ++shard) {
+        std::snprintf(suffix.data(), suffix.size(), "data-%05d-of-%05d", shard, m_total_shards);
         std::string fullPath = ov::util::path_join({path, "variables", std::string("variables.") + suffix.data()});
-        dataFiles[shard] =
+        m_data_files[shard] =
             std::shared_ptr<std::ifstream>(new std::ifstream(fullPath, std::ifstream::in | std::ifstream::binary));
-        FRONT_END_GENERAL_CHECK(dataFiles[shard]->is_open(), "Saved Model's variable index file does not exist");
+        FRONT_END_GENERAL_CHECK(m_data_files[shard]->is_open(), "Saved Model's variable index file does not exist");
     }
 
-    readCMOGraph();
+    read_checkpointable_object_graph();
     return true;
 }
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-bool SMVariablesIndex::readVariables(std::ifstream& vi_stream, const std::wstring& path) {
-    varIndex.clear();
-    readVarIndex(vi_stream, varIndex);
-    readBundleHeader();
+bool SavedModelVariablesIndex::read_variables(std::ifstream& vi_stream, const std::wstring& path) {
+    m_variables_index.clear();
+    read_variables_index(vi_stream, m_variables_index);
+    read_bundle_header();
 
     std::vector<wchar_t> suffix(20);
-    for (int32_t shard = 0; shard < totalShards; ++shard) {
-        swprintf_s(suffix.data(), suffix.size(), L"data-%05d-of-%05d", shard, totalShards);
+    for (int32_t shard = 0; shard < m_total_shards; ++shard) {
+        swprintf_s(suffix.data(), suffix.size(), L"data-%05d-of-%05d", shard, m_total_shards);
         std::wstring fullPath =
             ov::util::path_join_w({path, L"variables", std::wstring(L"variables.") + suffix.data()});
-        dataFiles[shard] =
+        m_data_files[shard] =
             std::shared_ptr<std::ifstream>(new std::ifstream(fullPath, std::ifstream::in | std::ifstream::binary));
-        FRONT_END_GENERAL_CHECK(dataFiles[shard]->is_open(), "Saved Model's variable index file does not exist");
+        FRONT_END_GENERAL_CHECK(m_data_files[shard]->is_open(), "Saved Model's variable index file does not exist");
     }
 
-    readCMOGraph();
+    read_checkpointable_object_graph();
     return true;
 }
 #endif
 
-bool GraphIteratorSavedModel::isSavedModel(const std::string& path) {
+bool GraphIteratorSavedModel::is_supported(const std::string& path) {
     return ov::util::directory_exists(path) && ov::util::file_exists(ov::util::path_join({path, "saved_model.pb"}));
 }
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-bool GraphIteratorSavedModel::isSavedModel(const std::wstring& path) {
+bool GraphIteratorSavedModel::is_supported(const std::wstring& path) {
     return ov::util::directory_exists(path) && ov::util::file_exists(ov::util::path_join_w({path, L"saved_model.pb"}));
 }
 #endif
 
 template <>
-std::basic_string<char> getSMName<char>() {
+std::basic_string<char> get_saved_model_name<char>() {
     return "/saved_model.pb";
 }
 template <>
-std::basic_string<char> getVIName<char>() {
+std::basic_string<char> get_variables_index_name<char>() {
     return "/variables/variables.index";
 }
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 template <>
-std::basic_string<wchar_t> getSMName<wchar_t>() {
+std::basic_string<wchar_t> get_saved_model_name<wchar_t>() {
     return L"/saved_model.pb";
 }
 template <>
-std::basic_string<wchar_t> getVIName<wchar_t>() {
+std::basic_string<wchar_t> get_variables_index_name<wchar_t>() {
     return L"/variables/variables.index";
 }
 #endif

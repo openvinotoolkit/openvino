@@ -20,7 +20,7 @@ namespace op {
 
 // Reading variable from shard file
 template <typename T>
-static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<SMVariablesIndex> var_index,
+static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<SavedModelVariablesIndex> var_index,
                                                const ::tensorflow::BundleEntryProto& entry,
                                                const NodeContext& node) {
     auto ov_type = node.get_attribute<element::Type>("dtype");
@@ -34,7 +34,7 @@ static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<SMVariablesIndex>
     TENSORFLOW_OP_VALIDATION(node,
                              size == (entry.size() / sizeof(T)),
                              "[TensorFlow Frontend] Internal error: Available data size isn't equal to calculated.");
-    auto fs = var_index->getDataFile(entry.shard_id());
+    auto fs = var_index->get_data_file(entry.shard_id());
     if (!fs.get()) {
         TENSORFLOW_OP_VALIDATION(node, var_index, "[TensorFlow Frontend] Internal error: Cannot get shard file.");
     }
@@ -59,7 +59,7 @@ OutputVector translate_varhandle_op(const NodeContext& node) {
         char* entry_data = nullptr;
         size_t entry_size = 0;
         auto var_name = node.get_name();
-        bool result = var_index->getMappedVariable(var_name, &entry_data, &entry_size);
+        bool result = var_index->get_mapped_variable(var_name, &entry_data, &entry_size);
 
         if (!result) {
             // For debug purposes
