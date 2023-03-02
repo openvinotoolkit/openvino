@@ -207,6 +207,8 @@ private:
         try {
             const auto extension_ptr = std::make_shared<InferenceEngine::Extension>(path);
             AddExtensionUnsafe(extension_ptr);
+        } catch (const ov::Exception&) {
+            // in case of shared library is not opened
         } catch (const InferenceEngine::GeneralError&) {
             // in case of shared library is not opened
         }
@@ -454,6 +456,6 @@ public:
     }
 
     Any get_property(const std::string& device_name, const std::string& name, const AnyMap& arguments) const override;
-};
+};  // namespace ov
 
 }  // namespace ov

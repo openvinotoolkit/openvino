@@ -192,7 +192,12 @@ InferenceEngine::RemoteContext::Ptr ov::CoreImpl::CreateContext(const std::strin
  */
 void ov::CoreImpl::AddExtension(const InferenceEngine::IExtensionPtr& extension) {
     std::lock_guard<std::mutex> lock(get_mutex());
-    AddExtensionUnsafe(extension);
+    try {
+        AddExtensionUnsafe(extension);
+    } catch (const ov::Exception& ex) {
+        // wrap to legacy exception
+        throw InferenceEngine::Exception(ex.what());
+    }
 }
 
 bool ov::CoreImpl::DeviceSupportsImportExport(const std::string& deviceName) const {

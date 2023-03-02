@@ -233,6 +233,8 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                 InferenceEngine::IExtensionPtr ext;
                 desc.extensionCreateFunc(ext);
                 AddExtensionUnsafe(ext);
+            } catch (const ov::Exception&) {
+                // the same extension can be registered multiple times - ignore it!
             } catch (const InferenceEngine::GeneralError&) {
                 // the same extension can be registered multiple times - ignore it!
             }
