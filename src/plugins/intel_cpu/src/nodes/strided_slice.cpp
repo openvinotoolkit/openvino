@@ -281,7 +281,7 @@ void StridedSlice::initSupportedPrimitiveDescriptors() {
 }
 
 bool StridedSlice::isExecutable() const {
-    return !isInputTensorAtPortEmpty(0);
+    return !isInputTensorAtPortEmpty(0) && !isOutputTensorAtPortEmpty(0);
 }
 
 void StridedSlice::createPrimitive() {
@@ -310,7 +310,6 @@ void StridedSlice::prepareParams() {
             dstMemory.push_back(getChildEdgeAt(i)->getMemoryPtr());
         }
     }
-
     execPtr = std::make_shared<StridedSliceCommonExecutor>(attrs, srcMemory, dstMemory, errorPrefix);
 }
 
