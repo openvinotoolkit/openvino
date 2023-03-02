@@ -16,16 +16,27 @@
     "ie_core": {
       "group": ["ie"],
       "files": [
+        "runtime/lib/intel64/Release/libopenvino.2022.3.0.dylib",
+        "runtime/lib/intel64/Release/libopenvino.2230.dylib",
         "runtime/lib/intel64/Release/libopenvino.dylib",
         "runtime/lib/intel64/Release/libopenvino_gapi_preproc.so",
+        "runtime/lib/intel64/Release/libopenvino_c.2022.3.0.dylib",
+        "runtime/lib/intel64/Release/libopenvino_c.2230.dylib",
         "runtime/lib/intel64/Release/libopenvino_c.dylib",
         "runtime/lib/intel64/Release/libopenvino_hetero_plugin.so",
         "runtime/lib/intel64/Release/libopenvino_auto_plugin.so",
         "runtime/lib/intel64/Release/libopenvino_auto_batch_plugin.so",
-        "runtime/lib/intel64/Release/libopenvino_ir_frontend.dylib",
+        "runtime/lib/intel64/Release/libopenvino_ir_frontend.2022.3.0.dylib",
+        "runtime/lib/intel64/Release/libopenvino_ir_frontend.2230.dylib",
+        "runtime/lib/intel64/Release/libopenvino_onnx_frontend.2022.3.0.dylib",
+        "runtime/lib/intel64/Release/libopenvino_onnx_frontend.2230.dylib",
         "runtime/lib/intel64/Release/libopenvino_onnx_frontend.dylib",
+        "runtime/lib/intel64/Release/libopenvino_paddle_frontend.2022.3.0.dylib",
+        "runtime/lib/intel64/Release/libopenvino_paddle_frontend.2230.dylib",
         "runtime/lib/intel64/Release/libopenvino_paddle_frontend.dylib",
-        "runtime/lib/intel64/Release/libopenvino_tensorflow_fe.dylib",
+        "runtime/lib/intel64/Release/libopenvino_tensorflow_frontend.2022.3.0.dylib",
+        "runtime/lib/intel64/Release/libopenvino_tensorflow_frontend.2230.dylib",
+        "runtime/lib/intel64/Release/libopenvino_tensorflow_frontend.dylib",
         "runtime/lib/intel64/Release/plugins.xml",
         "runtime/3rdparty/tbb"
       ]
@@ -38,18 +49,8 @@
         "runtime/lib/intel64/Release/libopenvino_intel_cpu_plugin.so"
       ]
     },
-    "vpu": {
-      "ui_name": "Inference Engine Runtime for Intel(R) Movidius(tm) VPU",
-      "group": ["ie"],
-      "dependencies" : ["ie_core"],
-      "files": [
-        "runtime/lib/intel64/Release/libopenvino_intel_myriad_plugin.so",
-        "runtime/lib/intel64/Release/usb-ma2x8x.mvcmd",
-        "runtime/lib/intel64/Release/pcie-ma2x8x.mvcmd"
-      ]
-    },
     "python3.7": {
-      "ui_name": "OpenVINO Python API for Python3.7",
+      "ui_name": "OpenVINO Python API for Python 3.7",
       "group": ["python"],
       "dependencies" : ["ie_core"],
       "files": [
@@ -57,7 +58,7 @@
       ]
     },
     "python3.8": {
-      "ui_name": "OpenVINO Python API for Python3.8",
+      "ui_name": "OpenVINO Python API for Python 3.8",
       "group": ["python"],
       "dependencies" : ["ie_core"],
       "files": [
@@ -65,11 +66,19 @@
       ]
     },
     "python3.9": {
-      "ui_name": "OpenVINO Python API for Python3.9",
+      "ui_name": "OpenVINO Python API for Python 3.9",
       "group": ["python"],
       "dependencies" : ["ie_core"],
       "files": [
         "python/python3.9"
+      ]
+    },
+    "python3.10": {
+      "ui_name": "OpenVINO Python API for Python 3.10",
+      "group": ["python"],
+      "dependencies" : ["ie_core"],
+      "files": [
+        "python/python3.10"
       ]
     }
   }

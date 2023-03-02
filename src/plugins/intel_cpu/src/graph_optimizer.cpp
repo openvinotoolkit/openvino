@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1663,8 +1663,9 @@ void GraphOptimizer::FuseEltwiseAndSimple(Graph &graph) {
                     int outNum = parentNode->getParentEdges().size();
                     if (remEdge) {
                         inNum = remEdge->getInputNum();
-                        // Need to keep order for MulAdd
-                        if (childNode->getAlgorithm() == Algorithm::EltwiseMulAdd) {
+                        // Need to keep order for these algorithms
+                        if (childNode->getAlgorithm() == Algorithm::EltwiseMulAdd ||
+                            childNode->getAlgorithm() == Algorithm::EltwiseSelect) {
                             outNum = initialParentInNum + remEdge->getOutputNum() - 1;
                         }
                         graph.RemoveEdge(remEdge);
@@ -2084,13 +2085,14 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         auto parentParentConstNode = parentNode->getParentEdgesAtPort(1)[0]->getParent();
         auto childChildNode = childNode->getChildEdgeAt(0)->getChild();
 
-        auto &remEdge = parentParentConstNode->getChildEdgeAt(0);
+        auto remEdge = parentNode->getParentEdgesAtPort(1)[0];
         remEdge->drop();
         auto& edges = graph.GetEdges();
         for (auto it = edges.begin(); it != edges.end(); it++) {
             if ((*it) == remEdge) {
                 edges.erase(it);
-                parentParentConstNode->remove();
+                if (parentParentConstNode->getChildEdges().empty())
+                    parentParentConstNode->remove();
                 break;
             }
         }
@@ -2205,10 +2207,10 @@ void GraphOptimizer::reshapeRnnSeq(Graph &graph) {
                                                             parentNode->getOutputShapeAtPort(0).toPartialShape()), secondInput);
             unsqueeze->set_friendly_name(parentNode->getName() + "_abc_a1bc_" + std::to_string(j));
 
-            const auto cpuUnsqueeze = std::make_shared<Reshape>(unsqueeze, graph.getEngine(), graph.weightsCache);
+            const auto cpuUnsqueeze = std::make_shared<Reshape>(unsqueeze, graph.getGraphContext());
             graph.InsertNode(parentNode, childNode, cpuUnsqueeze, edge->getInputNum(), edge->getOutputNum(), false);
 
-            const auto cpuConstant = std::make_shared<node::Input>(secondInput, graph.getEngine(), graph.weightsCache);
+            const auto cpuConstant = std::make_shared<node::Input>(secondInput, graph.getGraphContext());
             EdgePtr newEdge(new Edge(cpuConstant, cpuUnsqueeze, 0, 1));
             cpuUnsqueeze->addEdge(newEdge);
             auto &graphEdges = graph.GetEdges();

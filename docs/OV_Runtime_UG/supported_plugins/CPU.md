@@ -11,7 +11,7 @@ For an in-depth description of CPU plugin, see:
 
 ## Device Name
 The `CPU` device name is used for the CPU plugin. Even though there can be more than one physical socket on a platform, only one device of this kind is listed by OpenVINO.
-On multi-socket platforms, load balancing and memory usage distribution between NUMA nodes are handled automatically.   
+On multi-socket platforms, load balancing and memory usage distribution between NUMA nodes are handled automatically.
 In order to use CPU for inference, the device name should be passed to the `ov::Core::compile_model()` method:
 
 @sphinxtabset
@@ -38,7 +38,7 @@ CPU plugin supports the following data types as inference precision of internal 
   - u8
   - i8
   - u1
-  
+
 [Hello Query Device C++ Sample](../../../samples/cpp/hello_query_device/README.md) can be used to print out supported data types for all detected devices.
 
 ### Quantized Data Types Specifics
@@ -60,7 +60,7 @@ For more details about the `bfloat16` format, see the [BFLOAT16 – Hardware Num
 Using the `bf16` precision provides the following performance benefits:
 
 - Faster multiplication of two `bfloat16` numbers because of shorter mantissa of the `bfloat16` data.
-- Reduced memory consumption since `bfloat16` data half the size of 32-bit float. 
+- Reduced memory consumption since `bfloat16` data half the size of 32-bit float.
 
 To check if the CPU device can support the `bfloat16` data type, use the [query device properties interface](./config_properties.md) to query `ov::device::capabilities` property, which should contain `BF16` in the list of CPU capabilities:
 
@@ -76,11 +76,11 @@ To check if the CPU device can support the `bfloat16` data type, use the [query 
 
 @endsphinxtabset
 
-If the model has been converted to `bf16`, the `ov::hint::inference_precision` is set to `ov::element::bf16` and can be checked via the `ov::CompiledModel::get_property` call. The code below demonstrates how to get the element type:
+If the model has been converted to `bf16`, the `ov::inference_precision` is set to `ov::element::bf16` and can be checked via the `ov::CompiledModel::get_property` call. The code below demonstrates how to get the element type:
 
 @snippet snippets/cpu/Bfloat16Inference1.cpp part1
 
-To infer the model in `f32` precision instead of `bf16` on targets with native `bf16` support, set the `ov::hint::inference_precision` to `ov::element::f32`.
+To infer the model in `f32` precision instead of `bf16` on targets with native `bf16` support, set the `ov::inference_precision` to `ov::element::f32`.
 
 @sphinxtabset
 
@@ -95,12 +95,12 @@ To infer the model in `f32` precision instead of `bf16` on targets with native `
 @endsphinxtabset
 
 The `Bfloat16` software simulation mode is available on CPUs with Intel® AVX-512 instruction set that do not support the native `avx512_bf16` instruction. This mode is used for development purposes and it does not guarantee good performance.
-To enable the simulation, the `ov::hint::inference_precision` has to be explicitly set to `ov::element::bf16`.
+To enable the simulation, the `ov::inference_precision` has to be explicitly set to `ov::element::bf16`.
 
-> **NOTE**: If ov::hint::inference_precision is set to ov::element::bf16 on a CPU without native bfloat16 support or bfloat16 simulation mode, an exception is thrown.
+> **NOTE**: If ov::inference_precision is set to ov::element::bf16 on a CPU without native bfloat16 support or bfloat16 simulation mode, an exception is thrown.
 
 > **NOTE**: Due to the reduced mantissa size of the `bfloat16` data type, the resulting `bf16` inference accuracy may differ from the `f32` inference, especially for models that were not trained using the `bfloat16` data type. If the `bf16` inference accuracy is not acceptable, it is recommended to switch to the `f32` precision.
-  
+
 ## Supported Features
 
 ### Multi-device Execution
@@ -135,27 +135,6 @@ For more details, see the [optimization guide](@ref openvino_docs_deployment_opt
 CPU provides full functional support for models with dynamic shapes in terms of the opset coverage.
 
 > **NOTE**: The CPU plugin does not support tensors with dynamically changing rank. In case of an attempt to infer a model with such tensors, an exception will be thrown.
-
-Dynamic shapes support introduces additional overhead on memory management and may limit internal runtime optimizations.
-The more degrees of freedom are used, the more difficult it is to achieve the best performance.
-The most flexible configuration, and the most convenient approach, is the fully undefined shape, which means that no constraints to the shape dimensions are applied.
-However, reducing the level of uncertainty results in performance gains.
-You can reduce memory consumption through memory reuse, achieving better cache locality and increasing inference performance. To do so, set dynamic shapes explicitly, with defined upper bounds.
-
-@sphinxtabset
-
-@sphinxtab{C++}
-@snippet docs/snippets/cpu/dynamic_shape.cpp defined_upper_bound
-@endsphinxtab
-
-@sphinxtab{Python}
-@snippet docs/snippets/cpu/dynamic_shape.py defined_upper_bound
-@endsphinxtab
-
-@endsphinxtabset
-
-> **NOTE**: Using fully undefined shapes may result in significantly higher memory consumption compared to inferring the same model with static shapes.
-> If memory consumption is unacceptable but dynamic shapes are still required, the model can be reshaped using shapes with defined upper bounds to reduce memory footprint.
 
 Some runtime optimizations work better if the model shapes are known in advance.
 Therefore, if the input data shape is not changed between inference calls, it is recommended to use a model with static shapes or reshape the existing model with the static input shape to get the best performance.
@@ -225,7 +204,7 @@ The plugin supports the following properties:
 All parameters must be set before calling `ov::Core::compile_model()` in order to take effect or passed as additional argument to `ov::Core::compile_model()`
 
 - `ov::enable_profiling`
-- `ov::hint::inference_precision`
+- `ov::inference_precision`
 - `ov::hint::performance_mode`
 - `ov::hint::num_request`
 - `ov::num_streams`
@@ -233,6 +212,7 @@ All parameters must be set before calling `ov::Core::compile_model()` in order t
 - `ov::inference_num_threads`
 - `ov::cache_dir`
 - `ov::intel_cpu::denormals_optimization`
+- `ov::intel_cpu::sparse_weights_decompression_rate`
 
 
 ### Read-only properties
@@ -296,7 +276,48 @@ To enable denormals optimization in the application, the `denormals_optimization
 
 @endsphinxdirective
 
+### Sparse weights decompression
+`Sparse weights` are weights where most of the elements are zero. The ratio of the number of zero elements to the number of all elements is called `sparse rate`. Thus, we assume that `sparse weights` are weights with a high sparse rate. In case of `sparse weights`, we can store only non-zero values in memory using special storage structures, which allows us to use memory more efficiently. In turn, this can give us better performance in the high memory bound workloads (e.g., throughput scenario).
+
+`Sparse weights decompression feature` allows to pack weights for Matrix Multiplication operations directly in the CPU plugin at the model compilation stage and store non-zero values in a special packed format. Then, during the execution of the model, the weights are unpacked and used in the computational kernel. Since the weights are loaded from DDR/L3 cache in the packed format this significantly decreases memory consumption and as a consequence improve inference performance.
+
+To use this feature, the user is provided with property `sparse_weights_decompression_rate`, which can take values from the interval \[0.5, 1\] (values from \[0, 0.5\] are not supported in current implementation, see limitations below). `sparse_weights_decompression_rate` defines sparse rate threashold: only operations with higher sparse rate will be executed using `sparse weights decompression feature`. The default value is `1`, which means the option is disabled.
+
+> **NOTE**: `Sparse weights decompression feature` is disabled by default since overall speed-up highly depends on particular workload and for some cases the feature may introduce performance degradations.
+
+Code examples how to use `sparse_weights_decompression_rate`:
+
+@sphinxdirective
+
+.. tab:: C++
+
+      .. doxygensnippet:: docs/snippets/cpu/ov_sparse_weights_decompression.cpp
+         :language: cpp
+         :fragment: [ov:intel_cpu:sparse_weights_decompression:part0]
+
+.. tab:: Python
+
+      .. doxygensnippet:: docs/snippets/cpu/ov_sparse_weights_decompression.py
+         :language: python
+         :fragment: [ov:intel_cpu:sparse_weights_decompression:part0]
+
+@endsphinxdirective
+
+> **NOTE**: The `sparse_weights_decompression_rate` property must be set before calling `compile_model()`.
+
+Information about the layers in which the `sparse weights decompression feature` was applied can be obtained from perf counters log. The "exec type" field will contain the implementation type with the "sparse" particle ("brgemm_avx512_amx_sparse_I8" in the example below):
+
+    MatMul_1800                    EXECUTED       layerType: FullyConnected     execType: brgemm_avx512_amx_sparse_I8 realTime (ms): 0.050000  cpuTime (ms): 0.050000
+
+#### Limitations
+Currently, the `sparse weights decompression feature` is supported with the following limitations:
+1. Model should be quantized to int8 precision.
+2. Feature is only supported for Matrix Multiplication operations.
+3. HW target must have Intel AMX extension support (e.g., Intel® 4th Generation Xeon® processors (code name Sapphire Rapids)).
+4. The number of input and output channels of the weights must be a multiple of 64.
+5. Current feature implementation supports only sparse rate higher than 0.5.
+
 ## Additional Resources
 * [Supported Devices](Supported_Devices.md)
-* [Optimization guide](@ref openvino_docs_optimization_guide_dldt_optimization_guide)
+* [Optimization guide](@ref openvino_docs_deployment_optimization_guide_dldt_optimization_guide)
 * [СPU plugin developers documentation](https://github.com/openvinotoolkit/openvino/wiki/CPUPluginDevelopersDocs)

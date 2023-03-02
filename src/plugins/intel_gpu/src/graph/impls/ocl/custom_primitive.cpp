@@ -1,14 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "primitive_base.hpp"
+
 #include "custom_gpu_primitive_inst.h"
-#include "intel_gpu/runtime/engine.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
 #include "jitter.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "register.hpp"
 
 #include <map>
 #include <sstream>
@@ -45,7 +42,7 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     , _kernels({})
     , _kernel_id(other._kernel_id) {
         for (const auto& kernel : other._kernels) {
-            _kernels.emplace_back(std::move(kernel->clone()));
+            _kernels.emplace_back(kernel->clone());
         }
     }
 
@@ -57,14 +54,14 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     }
 
     void init_kernels(const kernels_cache& kernels_cache) override {
-        _kernels.emplace_back(std::move(kernels_cache.get_kernel(_kernel_id)));
+        _kernels.emplace_back(kernels_cache.get_kernel(_kernel_id));
     }
 
     void set_arguments_impl(custom_gpu_primitive_inst& instance) override {
         auto& stream = instance.get_network().get_stream();
         kernel_arguments_data args;
         for (auto& dep : instance.dependencies()) {
-            args.inputs.push_back(dep->output_memory_ptr());
+            args.inputs.push_back(dep.first->output_memory_ptr());
         }
         args.outputs = { instance.output_memory_ptr() };
         stream.set_arguments(*_kernels.front(), cl_kernel.get()->params, args);
@@ -75,14 +72,18 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         auto& stream = instance.get_network().get_stream();
         kernel_arguments_data args;
         for (auto& dep : instance.dependencies()) {
-            args.inputs.push_back(dep->output_memory_ptr());
+            args.inputs.push_back(dep.first->output_memory_ptr());
         }
         args.outputs = { instance.output_memory_ptr() };
-        return stream.enqueue_kernel(*_kernels.front(), cl_kernel.get()->params, args, events, instance.node->is_output());
+        return stream.enqueue_kernel(*_kernels.front(), cl_kernel.get()->params, args, events, instance.is_output());
     }
 
-    std::vector<std::string> get_kernel_ids() override {
+    std::vector<std::string> get_kernel_ids() const override {
         return {_kernel_id};
+    }
+
+    std::vector<kernel::ptr> get_kernels() const override {
+        return _kernels;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -138,9 +139,7 @@ static void add_layout_to_jit(kernel_selector::jit_constants& mem_consts, const 
         {data_types::f32, "float"},
     };
 
-    if (dataTypeToIndex.find(l.data_type) == dataTypeToIndex.end()) {
-        CLDNN_ERROR_MESSAGE("add layout to jit", "Unhandled data type in layout");
-    }
+    OPENVINO_ASSERT(dataTypeToIndex.find(l.data_type) != dataTypeToIndex.end(), "[GPU] Add layout to jit error: unhandled data type in layout");
 
     mem_consts.AddConstant(kernel_selector::MakeJitConstant(name + "_TYPE", dataTypeToIndex.at(l.data_type)));
 
@@ -258,4 +257,4 @@ attach_custom_gpu_primitive_impl::attach_custom_gpu_primitive_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::custom_gpu_primitive_impl, cldnn::object_type::CUSTOM_GPU_PRIMITIVE_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::custom_gpu_primitive_impl)

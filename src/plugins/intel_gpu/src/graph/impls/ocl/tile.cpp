@@ -1,16 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "tile_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "tile_inst.h"
 #include "tile/tile_kernel_selector.h"
 #include "tile/tile_kernel_ref.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -76,4 +72,4 @@ attach_tile_impl::attach_tile_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::tile_impl, cldnn::object_type::TILE_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::tile_impl)

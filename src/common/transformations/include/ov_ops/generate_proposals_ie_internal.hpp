@@ -20,7 +20,6 @@ class TRANSFORMATIONS_API GenerateProposalsIEInternal : public op::v9::GenerateP
 
 public:
     OPENVINO_OP("GenerateProposalsIEInternal", "ie_internal_opset");
-    BWDCMP_RTTI_DECLARATION;
 
     GenerateProposalsIEInternal() = default;
 
@@ -39,11 +38,3 @@ public:
 }  // namespace internal
 }  // namespace op
 }  // namespace ov
-
-namespace ngraph {
-namespace op {
-namespace internal {
-using ov::op::internal::GenerateProposalsIEInternal;
-}  // namespace internal
-}  // namespace op
-}  // namespace ngraph

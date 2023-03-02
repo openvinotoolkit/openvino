@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace node {
 
 class Tile : public Node, public TileBroadcastCommon {
 public:
-    Tile(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Tile(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
@@ -28,7 +28,6 @@ protected:
     bool needPrepareParams() const override;
     void prepareParams() override;
     bool needShapeInfer() const override;
-    std::vector<VectorDims> shapeInfer() const override;
 
 private:
     void plainExecute(dnnl::stream strm);

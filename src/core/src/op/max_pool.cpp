@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,9 +14,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v1::MaxPool);
-BWDCMP_RTTI_DEFINITION(op::v8::MaxPool);
 
 op::v1::MaxPool::MaxPool(const Output<Node>& arg,
                          const Strides& strides,
@@ -60,10 +57,6 @@ shared_ptr<Node> op::v1::MaxPool::clone_with_new_inputs(const OutputVector& new_
                                     m_kernel,
                                     m_rounding_type,
                                     m_auto_pad);
-}
-
-shared_ptr<Node> op::v1::MaxPool::get_default_value() const {
-    return op::v0::Constant::create(get_element_type(), get_shape(), {0});
 }
 
 namespace maxpool {

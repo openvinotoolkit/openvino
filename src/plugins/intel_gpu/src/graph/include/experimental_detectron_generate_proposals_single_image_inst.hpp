@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 #pragma once
 #include "intel_gpu/primitives/experimental_detectron_generate_proposals_single_image.hpp"
 #include "primitive_inst.h"

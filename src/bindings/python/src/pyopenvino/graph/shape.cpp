@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,6 +23,7 @@ void regclass_graph_Shape(py::module m) {
     shape.def(py::init<const std::initializer_list<size_t>&>(), py::arg("axis_lengths"));
     shape.def(py::init<const std::vector<size_t>&>(), py::arg("axis_lengths"));
     shape.def(py::init<const ov::Shape&>(), py::arg("axis_lengths"));
+    shape.def(py::init<const std::string&>(), py::arg("shape"));
     shape.def(
         "__eq__",
         [](const ov::Shape& a, const ov::Shape& b) {
@@ -58,4 +59,6 @@ void regclass_graph_Shape(py::module m) {
     shape.def("__repr__", [](const ov::Shape& self) -> std::string {
         return "<Shape: " + py::cast(self).attr("__str__")().cast<std::string>() + ">";
     });
+
+    shape.def("to_string", &ov::Shape::to_string);
 }

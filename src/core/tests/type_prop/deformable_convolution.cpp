@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -418,8 +418,8 @@ TEST(type_prop, deformable_convolution_invalid_input_ranks) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              "Ranks of inputs do not match. Got: data batch "
-                             "shape {1,4,5,5,5}, offsets shape {1,4,4,4}, filters "
-                             "shape {4,4,3,3}");
+                             "shape [1,4,5,5,5], offsets shape [1,4,4,4], filters "
+                             "shape [4,4,3,3]");
     } catch (...) {
         FAIL() << "Rank validation check of data batch input failed for unexpected reason";
     }
@@ -445,8 +445,8 @@ TEST(type_prop, deformable_convolution_invalid_input_ranks) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              "Ranks of inputs do not match. Got: data batch shape "
-                             "{1,4,5,5}, offsets shape {1,4,4,4,4}, filters shape "
-                             "{4,4,3,3}");
+                             "[1,4,5,5], offsets shape [1,4,4,4,4], filters shape "
+                             "[4,4,3,3]");
     } catch (...) {
         FAIL() << "Rank validation check of offsets input failed for unexpected reason";
     }
@@ -472,8 +472,8 @@ TEST(type_prop, deformable_convolution_invalid_input_ranks) {
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              "Ranks of inputs do not match. Got: data batch shape "
-                             "{1,4,5,5}, offsets shape {1,4,4,4}, filters shape "
-                             "{4,4,3,3,3}");
+                             "[1,4,5,5], offsets shape [1,4,4,4], filters shape "
+                             "[4,4,3,3,3]");
     } catch (...) {
         FAIL() << "Rank validation check of filter input failed for unexpected reason";
     }

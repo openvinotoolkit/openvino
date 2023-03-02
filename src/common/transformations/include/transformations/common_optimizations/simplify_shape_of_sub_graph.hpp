@@ -1,13 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <memory>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset3.hpp>
-#include <ngraph/util.hpp>
 #include <openvino/pass/graph_rewrite.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>
@@ -34,7 +31,7 @@ class TRANSFORMATIONS_API SimplifySecondInputOfReshape;
 class ov::pass::SharedShapeOf : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("SharedShapeOf", "0");
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
 /**
@@ -56,7 +53,7 @@ public:
 class ov::pass::SimplifyShapeOfSubGraph : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("SimplifyShapeOfSubGraph", "0");
-    bool run_on_model(const std::shared_ptr<ngraph::Function>& m) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
 /**
@@ -91,14 +88,3 @@ public:
     OPENVINO_RTTI("SimplifySecondInputOfReshape", "0");
     SimplifySecondInputOfReshape();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::GatherNopElimination;
-using ov::pass::GroupedGatherElimination;
-using ov::pass::SharedShapeOf;
-using ov::pass::SimplifyGatherShapeOf;
-using ov::pass::SimplifySecondInputOfReshape;
-using ov::pass::SimplifyShapeOfSubGraph;
-}  // namespace pass
-}  // namespace ngraph

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,10 +37,17 @@ inline static size_t GetItemClassCount(const DataTensor& input, SoftmaxDim dim) 
 
 ParamsKey SoftmaxKerneItemsClassOptimized::GetSupportedKey() const { return GetDefaultSupportedKey(); }
 
-SoftmaxKerneItemsClassOptimized::Parent::DispatchData SoftmaxKerneItemsClassOptimized::SetDefault(
-    const softmax_params& params,
-    const optional_params& optParams) const {
-    auto dispatchData = Parent::SetDefault(params, optParams);
+DeviceFeaturesKey SoftmaxKerneItemsClassOptimized::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    DeviceFeaturesKey k;
+    k.requires_subgroups();
+    k.requires_subgroup_reduce();
+    k.requires_reqd_subgroup_size();
+
+    return k;
+}
+
+SoftmaxKerneItemsClassOptimized::Parent::DispatchData SoftmaxKerneItemsClassOptimized::SetDefault(const softmax_params& params) const {
+    auto dispatchData = Parent::SetDefault(params);
 
     auto& input = params.inputs[0];
 
@@ -71,7 +78,7 @@ JitConstants SoftmaxKerneItemsClassOptimized::GetJitConstants(const softmax_para
     auto jit = SoftmaxItemsClassKernelBase::GetJitConstants(params, dispatchData);
 
     jit.AddConstant(MakeJitConstant("WORKITEMS_PER_CLASSES", workitems_per_classes));
-    jit.AddConstant(MakeJitConstant("HAS_DRIVER_PROBLEMS", params.engineInfo.bIMADSupport));
+    jit.AddConstant(MakeJitConstant("HAS_DRIVER_PROBLEMS", params.engineInfo.supports_imad));
 
     return jit;
 }

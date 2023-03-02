@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,8 +52,9 @@ public:
         size_t leftovers;
         size_t dataSetsCount;
         size_t dataSetSize;
+        size_t maxSlmSize;
 
-        DispatchData() : itemsNum(0), leftovers(0), dataSetsCount(0), dataSetSize(0) {}
+        DispatchData() : itemsNum(0), leftovers(0), dataSetsCount(0), dataSetSize(0), maxSlmSize(0) {}
     };
 
 protected:

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,10 +34,10 @@ ngraph::snippets::pass::LoadMoveBroadcastToBroadcastLoad::LoadMoveBroadcastToBro
                 return false;
             }
 
-            auto inshape = root->input(0).get_shape();
-            auto outshape = root->output(0).get_shape();
+            auto inshape = root->input(0).get_partial_shape();
+            auto outshape = root->output(0).get_partial_shape();
 
-            auto broadcastload = std::make_shared<snippets::op::BroadcastLoad>(param, outshape);
+            auto broadcastload = std::make_shared<snippets::op::BroadcastLoad>(param, outshape, ov::as_type_ptr<snippets::op::Load>(input)->get_offset());
             ngraph::copy_runtime_info(root, broadcastload);
             ngraph::replace_node(root, broadcastload);
 

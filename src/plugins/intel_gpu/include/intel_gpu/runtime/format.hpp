@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -222,6 +222,7 @@ struct format {
         gyxio,                                        ///< format used for weights for 2D convolution
         goizyx,                                       ///< format used for weights for 3D convolution
         giozyx,                                       ///< format used for weights for 3D deconvolution
+        g_os_iyx_osv8,                                ///< format used for weights for 2D convolution
         g_os_iyx_osv16,                               ///< format used for weights for 2D convolution
         g_os_iyx_osv32,                               ///< format used for weights for 2D convolution
         gs_oiyx_gsv16,                                ///< format used for weights for 2D convolution
@@ -330,6 +331,8 @@ struct format {
     static format get_default_format(size_t rank, bool is_weights = false, bool is_grouped = false);
 
     static format adjust_to_rank(format fmt, size_t new_rank);
+
+    static const std::vector<std::pair<size_t, int>> per_axis_block_size(format fmt);
 
     /// @brief Checks if @p format is of grouped type
     static bool is_grouped(type fmt) { return group_num(fmt) != 0; }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/lru_cache.hpp"
-#include "build_options.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
 
 #include <list>
 #include <string>
@@ -16,10 +16,6 @@
 #include <map>
 #include <utility>
 #include <set>
-
-namespace kernel_selector {
-class TuningCache;
-}  // namespace kernel_selector
 
 namespace cldnn {
 
@@ -30,6 +26,7 @@ class pass_manager;
 class base_pass;
 class program_wrapper;
 class kernels_cache;
+class ICompilationContext;
 
 
 struct program {
@@ -126,19 +123,22 @@ public:
 
     program(engine& engine_ref,
             topology const& topology,
-            build_options const& options,
+            const ExecutionConfig& config,
             bool is_internal = false,
             bool no_optimizations = false,
             bool is_body_program = false);
-    /* constructor used to build a program from subset of nodes of other program (used in propagate_constants) */
+
     program(engine& engine_ref,
             std::set<std::shared_ptr<program_node>> const& nodes,
-            build_options const& options,
+            const ExecutionConfig& config,
+            std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
             bool is_internal);
+
     explicit program(engine& engine);
     ~program();
     engine& get_engine() const { return _engine; }
-    const build_options& get_options() const { return options; }
+    const ExecutionConfig& get_config() const { return _config; }
+    InferenceEngine::CPUStreamsExecutor::Ptr get_task_executor() const { return _task_executor; }
     std::list<program_node*>& get_inputs() {
         return inputs;
     }  // ToDo: redesign trim to ouptut pass to make it const as_well as get_engine and get options
@@ -146,7 +146,6 @@ public:
         return outputs;
     }  // ToDo: redesign reorder-inputs pass to make it const as_well as get_engine and get options
     bool is_loop_body() const { return is_body_program; }
-    bool is_debug_build() const { return options.get<build_option_type::debug>()->enabled(); }
     const nodes_ordering& get_processing_order() const;
     nodes_ordering& get_processing_order();
     uint32_t get_prog_id() { return prog_id; }
@@ -230,13 +229,14 @@ public:
 
     static ptr build_program(engine& engine,
                              const topology& topology,
-                             const build_options& options,
+                             const ExecutionConfig& config,
                              bool is_internal = false,
                              bool no_optimizations = false,
                              bool is_body_program = false);
     static ptr build_program(engine& engine,
                              const std::set<std::shared_ptr<program_node>>& nodes,
-                             const build_options& options,
+                             const ExecutionConfig& config,
+                             std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
                              bool is_internal);
     static void init_primitives();
     void compile();
@@ -245,15 +245,17 @@ public:
     kernel::ptr get_kernel(kernel_id id);
     kernels_cache& get_kernels_cache() const;
 
-    void load_tuning_cache();
-    std::shared_ptr<kernel_selector::TuningCache> get_tuning_cache() const { return tuning_cache; }
-
     // returns {-1, -1} if it failed to estimate by allocating given batch size
     std::pair<int64_t/*const alloc*/, int64_t/*general alloc*/> get_estimated_device_mem_usage();
 
     void remove_kernel(kernel_id id);
     bool is_local_block_io_supported() const;
     void query_local_block_io_supported();
+    void calc_nodes_hash();
+
+    ImplementationsCache& get_implementations_cache() const { return *_impls_cache; }
+    ICompilationContext& get_compilation_context() const { return *_compilation_context; }
+    void cancel_compilation_context();
 
 private:
     uint32_t prog_id = 0;
@@ -261,14 +263,17 @@ private:
     stream::ptr _stream;
     // TODO: Consider moving it to engine
     std::unique_ptr<kernels_cache> _kernels_cache;
-    build_options options;
+    ExecutionConfig _config;
+    std::shared_ptr<InferenceEngine::CPUStreamsExecutor> _task_executor = nullptr;
     std::list<program_node*> inputs;
     std::vector<program_node*> outputs;
     nodes_ordering processing_order;
     std::unique_ptr<pass_manager> pm;
-    std::shared_ptr<kernel_selector::TuningCache> tuning_cache;
     bool is_body_program;
     int8_t is_subgroup_local_block_io_supported;
+    std::unique_ptr<ImplementationsCache> _impls_cache;
+    const size_t _impls_cache_capacity = 10000;
+    std::unique_ptr<ICompilationContext> _compilation_context;
 
     std::map<primitive_id, std::shared_ptr<program_node>> nodes_map;
     std::list<primitive_id> optimized_out;
@@ -308,6 +313,9 @@ private:
     void cleanup();
     void transfer_memory_to_device();
 
+    InferenceEngine::CPUStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags = "") const;
+    std::shared_ptr<InferenceEngine::CPUStreamsExecutor> make_task_executor(const ExecutionConfig& config) const;
+
     /*
     ** Analysis functions
     */
@@ -345,6 +353,8 @@ private:
     // old_node - node which will be replaced
     // new_node - node which will replace the old one
     void replace(program_node& old_node, program_node& new_node);
+
+    void init_program();
 };
 
 }  // namespace cldnn

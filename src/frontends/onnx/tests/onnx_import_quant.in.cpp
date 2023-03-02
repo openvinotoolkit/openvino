@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -106,6 +106,21 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_axis_negative) {
     //                                                                           round mode
     test_case.add_expected_output<std::uint8_t>({3, 4},
                                                 std::vector<std::uint8_t>{0, 2, 3, 255, 0, 1, 2, 255, 0, 0, 1, 250});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_scalar_ignore_axis) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/quantize_linear_scalar_ignore_axis.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input(std::vector<float>{-256.0f, -250.0f, 0.0f, 254.0f});  // x
+    test_case.add_input(std::vector<float>{2.0f});                            // scale
+    test_case.add_input(std::vector<uint8_t>{128});                           // zero_point
+
+    test_case.add_expected_output<uint8_t>({4}, std::vector<uint8_t>{0, 3, 128, 255});
     test_case.run();
 }
 
@@ -291,6 +306,21 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_uint8_ne
     test_case.add_expected_output<float>(
         {3, 4},
         std::vector<float>{0.0f, 1.0f, 2.0f, 3.0f, 0.0f, 2.0f, 4.0f, 6.0f, 0.0f, 40.0f, 80.0f, 120.0f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_ignore_axis) {
+    auto function =
+        onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
+                                                            SERIALIZED_ZOO,
+                                                            "onnx/dequantize_linear_scalar_ignore_axis.onnx"));
+
+    auto test_case = test::TestCase(function, s_device);
+    test_case.add_input(std::vector<uint8_t>{0, 3, 128, 255});  // x
+    test_case.add_input(std::vector<float>{2.0f});              // scale
+    test_case.add_input(std::vector<uint8_t>{128});             // zero_point
+
+    test_case.add_expected_output<float>({4}, std::vector<float>{-256.0f, -250.0f, 0.0f, 254.0f});
     test_case.run();
 }
 

@@ -1,14 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "reorg_yolo_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "reorg_yolo_inst.h"
 #include "reorg_yolo/reorg_yolo_kernel_selector.h"
 #include "reorg_yolo/reorg_yolo_kernel_ref.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -57,4 +55,4 @@ attach_reorg_yolo_impl::attach_reorg_yolo_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reorg_yolo_impl, cldnn::object_type::REORG_YOLO_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reorg_yolo_impl)

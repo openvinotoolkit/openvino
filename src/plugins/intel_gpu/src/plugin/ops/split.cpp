@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ static void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>&
         return layer_type_name_ID(op) + ((op->get_output_size() == 1)? "" : ".out" + std::to_string(idx));
     };
 
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputs = p.GetInputInfo(op);
     if (p.use_new_shape_infer() || op->is_dynamic()) {
         cldnn::crop_ngraph_op_mode op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
         size_t num_splits = 1;
@@ -28,7 +28,7 @@ static void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>&
         }
 
         for (size_t i = 0; i < op->get_output_size(); i++) {
-            auto cropPrim = cldnn::crop(get_layer_name(i), inputPrimitives, cldnn::tensor(1), cldnn::tensor(0), op_mode, i, num_splits);
+            auto cropPrim = cldnn::crop(get_layer_name(i), inputs, cldnn::tensor(1), cldnn::tensor(0), op_mode, i, num_splits);
             p.add_primitive(*op, cropPrim);
         }
     } else {
@@ -39,19 +39,19 @@ static void CreateCommonSplitOp(Program& p, const std::shared_ptr<ngraph::Node>&
             NGRAPH_SUPPRESS_DEPRECATED_START
             if (outPartialShape.size() != start_offset.size()) {
                 IE_THROW() << "Invalid dimesions in split layer: " << op->get_friendly_name()
-                                << " output: " <<  op->get_output_tensor_name(i);
+                                << " output: " <<  ov::descriptor::get_ov_tensor_legacy_name(op->get_output_tensor(i));
             }
             for (size_t idx = 0; idx < input_pshape.size(); idx++) {
                 if ((outPartialShape[idx].get_length() + static_cast<ov::Dimension::value_type>(start_offset[idx])) > input_pshape[idx].get_length()) {
                     IE_THROW() << "Invalid dimesions in split layer: " << op->get_friendly_name()
-                                    << " output: " <<  op->get_output_tensor_name(idx);
+                                    << " output: " <<  ov::descriptor::get_ov_tensor_legacy_name(op->get_output_tensor(idx));
                 }
             }
             NGRAPH_SUPPRESS_DEPRECATED_END
 
             auto offsetTensor = tensor_from_dims(start_offset, 0);
             auto outTensor = tensor_from_dims(op->get_output_shape(i), 1);
-            auto cropPrim = cldnn::crop(get_layer_name(i), inputPrimitives[0], outTensor, offsetTensor);
+            auto cropPrim = cldnn::crop(get_layer_name(i), inputs[0], outTensor, offsetTensor);
             p.add_primitive(*op, cropPrim);
 
             for (size_t idx = 0; idx < input_pshape.size(); idx++) {

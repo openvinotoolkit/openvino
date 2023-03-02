@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@
 
 ov::pass::SoftPlusToMishFusion::SoftPlusToMishFusion() {
     MATCHER_SCOPE(SoftPlusToMishFusion);
-    auto input = ngraph::pattern::any_input();
+    auto input = pass::pattern::any_input();
     auto softplus = ngraph::pattern::wrap_type<opset4::SoftPlus>({input}, pattern::consumers_count(1));
     auto tanh = ngraph::pattern::wrap_type<opset4::Tanh>({softplus}, pattern::consumers_count(1));
     auto mul = std::make_shared<opset4::Multiply>(input, tanh);

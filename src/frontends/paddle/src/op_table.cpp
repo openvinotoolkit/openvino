@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "op_table.hpp"
@@ -14,6 +14,7 @@ OP_CONVERTER(assign_value);
 OP_CONVERTER(batch_norm);
 OP_CONVERTER(bicubic_interp_v2);
 OP_CONVERTER(bilinear_interp_v2);
+OP_CONVERTER(box_coder);
 OP_CONVERTER(cast);
 OP_CONVERTER(ceil);
 OP_CONVERTER(clip);
@@ -23,6 +24,7 @@ OP_CONVERTER(conv2d);
 OP_CONVERTER(conv2d_transpose);
 OP_CONVERTER(cumsum);
 OP_CONVERTER(deformable_conv);
+OP_CONVERTER(dequantize_linear);
 OP_CONVERTER(dropout);
 OP_CONVERTER(elementwise_add);
 OP_CONVERTER(elementwise_div);
@@ -72,6 +74,7 @@ OP_CONVERTER(pad3d);
 OP_CONVERTER(pow);
 OP_CONVERTER(pool2d);
 OP_CONVERTER(prior_box);
+OP_CONVERTER(quantize_linear);
 OP_CONVERTER(range);
 OP_CONVERTER(reduce_max);
 OP_CONVERTER(reduce_mean);
@@ -81,6 +84,7 @@ OP_CONVERTER(reduce_sum);
 OP_CONVERTER(relu);
 OP_CONVERTER(relu6);
 OP_CONVERTER(reshape2);
+OP_CONVERTER(reverse);
 OP_CONVERTER(rnn);
 OP_CONVERTER(roi_align);
 OP_CONVERTER(scale);
@@ -120,6 +124,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"bilinear_interp_v2", op::bilinear_interp_v2},
             {"bilinear_interp", op::bilinear_interp_v2},
             {"bmm", op::matmul},
+            {"box_coder", op::box_coder},
             {"cast", op::cast},
             {"ceil", op::ceil},
             {"clip", op::clip},
@@ -132,6 +137,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"deformable_conv_v1", op::deformable_conv},
             {"depthwise_conv2d", op::conv2d},
             {"depthwise_conv2d_transpose", op::conv2d_transpose},
+            {"dequantize_linear", op::dequantize_linear},
             {"dropout", op::dropout},
             {"elementwise_add", op::elementwise_add},
             {"elementwise_div", op::elementwise_div},
@@ -184,6 +190,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"pow", op::pow},
             {"pool2d", op::pool2d},
             {"prior_box", op::prior_box},
+            {"quantize_linear", op::quantize_linear},
             {"range", op::range},
             {"reduce_max", op::reduce_max},
             {"reduce_mean", op::reduce_mean},
@@ -193,6 +200,7 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"relu", op::relu},
             {"relu6", op::relu6},
             {"reshape2", op::reshape2},
+            {"reverse", op::reverse},
             {"rnn", op::rnn},
             {"roi_align", op::roi_align},
             {"scale", op::scale},

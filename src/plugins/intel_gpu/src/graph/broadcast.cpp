@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,13 +13,10 @@
 #include <set>
 
 namespace cldnn {
-primitive_type_id broadcast::type_id() {
-    static primitive_type_base<broadcast> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(broadcast)
 
 layout broadcast_inst::calc_output_layout(broadcast_node const& node, kernel_impl_params const& impl_param) {
-    assert(static_cast<bool>(impl_param.desc->output_data_type) == false &&
+    assert(static_cast<bool>(impl_param.desc->output_data_types[0]) == false &&
            "Output data type forcing is not supported for broadcast_node!");
     auto input_layout = impl_param.get_input_layout();
     auto desc = impl_param.typed_desc<broadcast>();
@@ -85,10 +82,13 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
                                                      static_cast<void*>(target_shape.data()));
         const_data.emplace(1, target_shape_tensor);
         ov::op::v3::shape_infer(&op, input_shapes, output_shapes, const_data);
-    } else {
-        // Pattern shape is set as second input. Even though the input is scalar, the shape should be propagaterd as dynamic
-        auto output_rank = input_shapes[0].size();
-        output_shapes[0] = ShapeType::dynamic(std::max(output_rank, static_cast<size_t>(1)));
+    } else if (impl_param.input_layouts.size() >= 2) {
+        auto input1 = impl_param.get_input_layout(1);
+        int output_rank = input1.get<ShapeType>().size();
+        if (input1.is_static()) {
+            output_rank = input1.get_dim(0);    // target shape rank is set as second input.
+        }
+        output_shapes[0] = ShapeType::dynamic(std::max(output_rank, static_cast<int>(1)));
     }
 
     format output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());
@@ -97,6 +97,88 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
 }
 
 template std::vector<layout> broadcast_inst::calc_output_layouts<ov::PartialShape>(broadcast_node const& node, const kernel_impl_params& impl_param);
+
+std::vector<size_t> broadcast_inst::extend_input_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t input_idx) {
+    ov::PartialShape ps;
+
+    auto orig_input_layout = orig_impl_param.get_input_layout();
+    auto updated_param = orig_impl_param;
+    const auto& primitive = updated_param.typed_desc<broadcast>();
+
+    // Extend input dimensions with ones
+    auto i_layout = updated_param.input_layouts[0];
+    auto o_layout = updated_param.output_layouts[0];
+
+    auto input_shape = i_layout.get_shape();
+    auto output_shape = o_layout.get_shape();
+
+    if (primitive->axes_mapping.empty()) {
+        auto broadcastable = [&](layout a, layout b) {
+            auto dims_a = a.get_dims();
+            auto dims_b = b.get_dims();
+            size_t min_size = (dims_a.size() < dims_b.size()) ? dims_a.size(): dims_b.size();
+
+            for (size_t i = 0; i < min_size; i++) {
+                if (!(dims_a[i] == 1 || dims_b[i] == 1 || dims_a[i] == dims_b[i])) {
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        auto input_rank = input_shape.size();
+        auto output_rank = output_shape.size();
+
+        if (!broadcastable(i_layout, o_layout)) {
+            input_shape.insert(input_shape.begin(), output_rank - input_rank, 1ul);
+        }
+    } else {
+        // If axis_mapping is specified, then ones are inserted according to it.
+        ov::Shape tmp_shape;
+        int prev_axis = -1;
+        int next_axis = -1;
+        size_t currentRank = 0;
+        int axe_idx = 0;
+        for (auto& axis : primitive->axes_mapping) {
+            prev_axis = next_axis;
+            next_axis = static_cast<int>(axis);
+
+            int ones_count = std::max(next_axis - prev_axis - 1, 0);
+            tmp_shape.insert(tmp_shape.begin() + currentRank, ones_count, 1ul);
+            tmp_shape.push_back(input_shape[axe_idx]); // Consider the Broadcast kernel 'broadcast' input to output shape
+
+            currentRank += ones_count + 1;
+            axe_idx += 1;
+        }
+
+        // insert 1 to match with output shape
+        if (o_layout.get_rank() > tmp_shape.size()) {
+            tmp_shape.insert(tmp_shape.end(), o_layout.get_rank() - tmp_shape.size(), 1ul);
+        }
+        input_shape = tmp_shape;
+    }
+
+    ps = ov::PartialShape(input_shape);
+
+
+    if (ps.size() < 4) {
+        ps.insert(ps.end(), 4 - ps.size(), ov::Dimension(1));
+    }
+
+    layout l(ps, data_types::i32, format::get_default_format(ps.size()));
+    return l.transform(format::bfwzyx).to_shape();
+}
+
+std::vector<size_t> broadcast_inst::extend_output_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t output_idx) {
+    ov::PartialShape ps = orig_impl_param.get_output_layout(output_idx).get_partial_shape();
+
+    if (ps.size() < 4) {
+        ps.insert(ps.end(), 4 - ps.size(), ov::Dimension(1));
+    }
+
+    layout l(ps, data_types::i32, format::get_default_format(ps.size()));
+    return l.transform(format::bfwzyx).to_shape();
+}
 
 std::string broadcast_inst::to_string(broadcast_node const& node) {
     auto desc = node.get_primitive();

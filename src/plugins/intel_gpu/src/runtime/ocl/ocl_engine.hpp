@@ -20,7 +20,7 @@ namespace ocl {
 
 class ocl_engine : public engine {
 public:
-    ocl_engine(const device::ptr dev, runtime_types runtime_type, const engine_configuration& conf, const InferenceEngine::ITaskExecutor::Ptr task_executor);
+    ocl_engine(const device::ptr dev, runtime_types runtime_type);
     engine_types type() const override { return engine_types::ocl; };
     runtime_types runtime_type() const override { return runtime_types::ocl; };
 
@@ -32,6 +32,7 @@ public:
     void* get_user_context() const override;
 
     allocation_type get_default_allocation_type() const override { return allocation_type::cl_mem; }
+    allocation_type detect_usm_allocation_type(const void* memory) const override;
 
     const cl::Context& get_cl_context() const;
     const cl::Device& get_cl_device() const;
@@ -39,27 +40,26 @@ public:
 
     bool extension_supported(std::string extension) const;
 
-    stream_ptr create_stream() const override;
-    stream_ptr create_stream(void *handle) const override;
-    stream& get_program_stream() const override;
+    stream_ptr create_stream(const ExecutionConfig& config) const override;
+    stream_ptr create_stream(const ExecutionConfig& config, void *handle) const override;
+    stream& get_service_stream() const override;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+    void create_onednn_engine(const ExecutionConfig& config) override;
     // Returns onednn engine object which shares device and context with current engine
-    // If onednn engine has not been created yet, it creates on-demand.
     dnnl::engine& get_onednn_engine() const override;
 #endif
 
-    static std::shared_ptr<cldnn::engine> create(const device::ptr device, runtime_types runtime_type,
-                const engine_configuration& configuration, const InferenceEngine::ITaskExecutor::Ptr task_executor);
+    static std::shared_ptr<cldnn::engine> create(const device::ptr device, runtime_types runtime_type);
 
 private:
     std::string _extensions;
-    std::unique_ptr<stream> _program_stream;
+    std::unique_ptr<stream> _service_stream;
     std::unique_ptr<cl::UsmHelper> _usm_helper;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    mutable std::mutex onednn_mutex;
-    mutable std::shared_ptr<dnnl::engine> _onednn_engine;
+    std::mutex onednn_mutex;
+    std::shared_ptr<dnnl::engine> _onednn_engine;
 #endif
 };
 

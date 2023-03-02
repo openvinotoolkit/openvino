@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,16 +16,16 @@
 
 ov::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
     MATCHER_SCOPE(AddFakeQuantizeFusion);
-    auto input_pattern = ngraph::pattern::any_input();
+    auto input_pattern = pass::pattern::any_input();
     auto const_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
     auto add_pattern =
         ngraph::pattern::wrap_type<opset5::Add>({input_pattern, const_pattern}, pattern::consumers_count(1));
     auto fq_pattern = ngraph::pattern::wrap_type<opset5::FakeQuantize>({add_pattern,
-                                                                        ngraph::pattern::any_input(),
-                                                                        ngraph::pattern::any_input(),
-                                                                        ngraph::pattern::any_input(),
-                                                                        ngraph::pattern::any_input()});
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+                                                                        pass::pattern::any_input(),
+                                                                        pass::pattern::any_input(),
+                                                                        pass::pattern::any_input(),
+                                                                        pass::pattern::any_input()});
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto& pattern_value_map = m.get_pattern_value_map();
         const auto& input = pattern_value_map.at(input_pattern);
         const auto& type = input.get_element_type();
@@ -42,7 +42,7 @@ ov::pass::AddFakeQuantizeFusion::AddFakeQuantizeFusion() {
             return false;
 
         auto const_shape = add_const->get_shape();
-        if (ngraph::op::util::check_for_broadcast(input.get_partial_shape(), const_shape)) {
+        if (ov::op::util::check_for_broadcast(input.get_partial_shape(), const_shape)) {
             // We can't eliminate Add if Constant input broadcasts another input shape because
             // when we reconnect input from Add to FQ won't broadcast given input, so it will result
             // in shape collision.

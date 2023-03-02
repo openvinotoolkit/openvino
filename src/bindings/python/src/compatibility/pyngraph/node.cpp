@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,7 +13,6 @@
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/subtract.hpp"
-#include "ngraph/variant.hpp"
 #include "pyngraph/node.hpp"
 #include "pyngraph/rt_map.hpp"
 #include "pyngraph/variant.hpp"

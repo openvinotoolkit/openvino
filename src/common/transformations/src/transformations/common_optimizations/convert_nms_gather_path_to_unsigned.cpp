@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "transformations/common_optimizations/convert_nms_gather_path_to_unsigned.hpp"
@@ -103,7 +103,7 @@ public:
 }  // namespace ov
 
 ov::pass::ConvertNmsGatherPathToUnsigned::ConvertNmsGatherPathToUnsigned() {
-    add_matcher<InitNMSPath>();
-    add_matcher<PropagateNMSPath>();
-    add_matcher<UpdateConvertGather>();
+    ADD_MATCHER_FOR_THIS(InitNMSPath)
+    ADD_MATCHER_FOR_THIS(PropagateNMSPath)
+    ADD_MATCHER_FOR_THIS(UpdateConvertGather)
 }

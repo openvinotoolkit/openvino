@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -11,7 +11,7 @@ addIeTargetTest(
             openvino_intel_gna_plugin
         LINK_LIBRARIES
             funcSharedTests
-        ADD_CPPLINT
+        ADD_CLANG_FORMAT
         LABELS
             GNA
 )

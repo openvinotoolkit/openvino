@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -90,8 +90,9 @@ macro(ov_cpack_settings)
         # 2022 release series
         # - 2022.1.0 is the last public release with debian packages from Intel install team
         # - 2022.1.1, 2022.2 do not have debian packages enabled, distributed only as archives
-        # - 2022.3 is the first release where RPM updated packages are introduced
-        2022.1.0)
+        # - 2022.3 is the first release where Debian updated packages are introduced, others 2022.3.X are LTS
+        2022.3.0 2022.3.1 2022.3.2 2022.3.3 2022.3.4 2022.3.5
+        )
 
     #
     # core: base dependency for each component
@@ -106,7 +107,7 @@ macro(ov_cpack_settings)
     ov_debian_add_lintian_suppression("${OV_CPACK_COMP_CORE}"
         # package-name-doesnt-match-sonames libopenvino202230 libopenvino-c20223
         "package-name-doesnt-match-sonames")
-    set(${OV_CPACK_COMP_CORE}_copyright "core")
+    set(${OV_CPACK_COMP_CORE}_copyright "generic")
 
     #
     # Plugins
@@ -119,7 +120,7 @@ macro(ov_cpack_settings)
         set(CPACK_DEBIAN_HETERO_PACKAGE_NAME "libopenvino-hetero-plugin-${cpack_name_ver}")
         set(CPACK_DEBIAN_HETERO_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
         _ov_add_plugin(hetero ON)
-        set(hetero_copyright "hetero")
+        set(hetero_copyright "generic")
     endif()
 
     # auto batch
@@ -157,7 +158,7 @@ macro(ov_cpack_settings)
     if(ENABLE_INTEL_CPU OR DEFINED openvino_arm_cpu_plugin_SOURCE_DIR)
         if(ENABLE_INTEL_CPU)
             set(CPACK_COMPONENT_CPU_DESCRIPTION "Intel® CPU plugin")
-            set(cpu_copyright "intel_cpu")
+            set(cpu_copyright "generic")
         else()
             set(CPACK_COMPONENT_CPU_DESCRIPTION "ARM CPU")
             set(cpu_copyright "arm_cpu")
@@ -177,17 +178,7 @@ macro(ov_cpack_settings)
         # auto batch exhances GPU
         # set(CPACK_DEBIAN_BATCH_PACKAGE_ENHANCES "${CPACK_DEBIAN_GPU_PACKAGE_NAME} = (${cpack_full_ver})")
         _ov_add_plugin(gpu OFF)
-        set(gpu_copyright "gpu")
-    endif()
-
-    # intel-myriad
-    if(ENABLE_INTEL_MYRIAD)
-        set(CPACK_COMPONENT_MYRIAD_DESCRIPTION "Intel® Movidius™ VPU plugin")
-        set(CPACK_COMPONENT_MYRIAD_DEPENDS "${OV_CPACK_COMP_CORE}")
-        set(CPACK_DEBIAN_MYRIAD_PACKAGE_NAME "libopenvino-intel-vpu-plugin-${cpack_name_ver}")
-        set(CPACK_DEBIAN_MYRIAD_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm}")
-        _ov_add_plugin(myriad OFF)
-        set(myriad_copyright "myriad")
+        set(gpu_copyright "generic")
     endif()
 
     # intel-gna
@@ -202,7 +193,7 @@ macro(ov_cpack_settings)
             # package name matches libopenvino_intel_gna_plugin.so
             # but lintian looks at libgna.so.2 since it's a versioned library
             "package-name-doesnt-match-sonames")
-        set(gna_copyright "gna")
+        set(gna_copyright "generic")
 
         _ov_add_plugin(gna OFF)
     endif()
@@ -229,7 +220,7 @@ macro(ov_cpack_settings)
             # IR FE should not linked directly by end users
             "package-must-activate-ldconfig-trigger")
         list(APPEND frontends ir)
-        set(ir_copyright "ir")
+        set(ir_copyright "generic")
     endif()
 
     if(ENABLE_OV_ONNX_FRONTEND)
@@ -242,7 +233,7 @@ macro(ov_cpack_settings)
             # we have different package name strategy; it suggests libopenvino-onnx-frontend202230
             "package-name-doesnt-match-sonames")
         list(APPEND frontends onnx)
-        set(onnx_copyright "onnx")
+        set(onnx_copyright "generic")
     endif()
 
     if(ENABLE_OV_TF_FRONTEND)
@@ -255,7 +246,7 @@ macro(ov_cpack_settings)
             # we have different package name strategy; it suggests libopenvino-tensorflow-frontend202230
             "package-name-doesnt-match-sonames")
         list(APPEND frontends tensorflow)
-        set(tensorflow_copyright "tensorflow")
+        set(tensorflow_copyright "generic")
     endif()
 
     if(ENABLE_OV_PADDLE_FRONTEND)
@@ -268,7 +259,33 @@ macro(ov_cpack_settings)
             # we have different package name strategy; it suggests libopenvino-paddle-frontend202230
             "package-name-doesnt-match-sonames")
         list(APPEND frontends paddle)
-        set(paddle_copyright "paddle")
+        set(paddle_copyright "generic")
+    endif()
+
+    if(ENABLE_OV_PYTORCH_FRONTEND)
+        set(CPACK_COMPONENT_PYTORCH_DESCRIPTION "OpenVINO PyTorch Frontend")
+        set(CPACK_COMPONENT_PYTORCH_DEPENDS "${OV_CPACK_COMP_CORE}")
+        set(CPACK_DEBIAN_PYTORCH_PACKAGE_NAME "libopenvino-pytorch-frontend-${cpack_name_ver}")
+        # since we PYTORCH FE is linkable target, we need to call ldconfig (i.e. `def_triggers`)
+        set(CPACK_DEBIAN_PYTORCH_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
+        ov_debian_add_lintian_suppression(pytorch
+            # we have different package name strategy; it suggests libopenvino-pytorch-frontend202230
+            "package-name-doesnt-match-sonames")
+        list(APPEND frontends pytorch)
+        set(pytorch_copyright "generic")
+    endif()
+
+    if(ENABLE_OV_TF_LITE_FRONTEND)
+        set(CPACK_COMPONENT_TENSORFLOW_LITE_DESCRIPTION "OpenVINO TensorFlow Lite Frontend")
+        set(CPACK_COMPONENT_TENSORFLOW_LITE_DEPENDS "${OV_CPACK_COMP_CORE}")
+        set(CPACK_DEBIAN_TENSORFLOW_LITE_PACKAGE_NAME "libopenvino-tensorflow-lite-frontend-${cpack_name_ver}")
+        # since we TF Lite FE is linkable target, we need to call ldconfig (i.e. `def_triggers`)
+        set(CPACK_DEBIAN_TENSORFLOW_LITE_PACKAGE_CONTROL_EXTRA "${def_postinst};${def_postrm};${def_triggers}")
+        ov_debian_add_lintian_suppression(tensorflow_lite
+            # we have different package name strategy; it suggests libopenvino-tensorflow-lite-frontend202230
+            "package-name-doesnt-match-sonames")
+        list(APPEND frontends tensorflow_lite)
+        set(tensorflow_lite_copyright "generic")
     endif()
 
     #
@@ -279,7 +296,7 @@ macro(ov_cpack_settings)
     set(CPACK_COMPONENT_CORE_DEV_DEPENDS "${OV_CPACK_COMP_CORE};${frontends}")
     set(CPACK_DEBIAN_CORE_DEV_PACKAGE_NAME "libopenvino-dev-${cpack_name_ver}")
     ov_debian_generate_conflicts("${OV_CPACK_COMP_CORE_DEV}" ${conflicting_versions})
-    set(${OV_CPACK_COMP_CORE_DEV}_copyright "${OV_CPACK_COMP_CORE_DEV}")
+    set(${OV_CPACK_COMP_CORE_DEV}_copyright "generic")
 
     #
     # Python bindings
@@ -309,26 +326,33 @@ macro(ov_cpack_settings)
             "non-standard-dir-perm"
             # all python files
             "non-standard-file-perm")
-        set(${python_component}_copyright "python")
+        set(${python_component}_copyright "generic")
     endif()
 
     #
     # Samples
     #
 
-    set(samples_build_deps "cmake, g++, gcc, libc6-dev, make")
+    set(samples_build_deps "cmake, g++, gcc, libc6-dev, make, pkg-config")
     set(samples_build_deps_suggest "libopencv-core-dev, libopencv-imgproc-dev, libopencv-imgcodecs-dev")
+    set(samples_opencl_suggest "ocl-icd-opencl-dev, opencl-headers")
+    # Ubuntu 18.04, Debian 9 cases have nlohmann-json-dev
+    # newer systems have nlohmann-json3-dev
+    # according to https://www.debian.org/doc/debian-policy/ch-relationships.html#syntax-of-relationship-fields
+    # we can use | (pipe) to provide alternative package names
+    set(json_library "nlohmann-json3-dev | nlohmann-json-dev")
 
     # c_samples / cpp_samples
     set(CPACK_COMPONENT_SAMPLES_DESCRIPTION "Intel(R) Distribution of OpenVINO(TM) Toolkit C / C++ Samples")
     set(CPACK_COMPONENT_SAMPLES_DEPENDS "${OV_CPACK_COMP_CORE_DEV}")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_NAME "openvino-samples-${cpack_name_ver}")
-    set(CPACK_DEBIAN_SAMPLES_PACKAGE_SUGGESTS "${samples_build_deps_suggest}, ${all_plugins_suggest}")
-    set(CPACK_DEBIAN_SAMPLES_PACKAGE_DEPENDS "libgflags-dev, nlohmann-json3-dev, zlib1g-dev")
+    set(CPACK_DEBIAN_SAMPLES_PACKAGE_SUGGESTS "${samples_build_deps_suggest}, ${samples_opencl_suggest}, ${all_plugins_suggest}")
+    set(CPACK_DEBIAN_SAMPLES_PACKAGE_DEPENDS "libgflags-dev, zlib1g-dev, ${json_library}")
     # can be skipped with --no-install-recommends
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_RECOMMENDS "${samples_build_deps}")
     set(CPACK_DEBIAN_SAMPLES_PACKAGE_ARCHITECTURE "all")
-    set(samples_copyright "samples")
+    ov_debian_generate_conflicts(${OV_CPACK_COMP_CPP_SAMPLES} ${conflicting_versions})
+    set(samples_copyright "generic")
 
     # python_samples
     if(ENABLE_PYTHON)
@@ -369,9 +393,6 @@ macro(ov_cpack_settings)
     set(CPACK_DEBIAN_OPENVINO_PACKAGE_NAME "openvino-${cpack_name_ver}")
     set(CPACK_DEBIAN_OPENVINO_PACKAGE_ARCHITECTURE "all")
     ov_debian_generate_conflicts(openvino ${conflicting_versions})
-    ov_debian_add_lintian_suppression(openvino
-        # reproduced only on ubu18
-        "description-starts-with-package-name")
     set(openvino_copyright "generic")
 
     list(APPEND CPACK_COMPONENTS_ALL "libraries;libraries_dev;openvino")

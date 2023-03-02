@@ -6,14 +6,9 @@
 #include "primitive_type_base.h"
 #include <sstream>
 #include <json_object.h>
-#include <data_inst.h>
 
 namespace cldnn {
-
-primitive_type_id read_value::type_id() {
-    static primitive_type_base<read_value> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(read_value)
 
 read_value_inst::typed_primitive_inst(network& network, const read_value_node& node) :
     parent(network, node, false),
@@ -37,4 +32,17 @@ std::string read_value_inst::to_string(const read_value_node& node) {
     return primitive_description.str();
 }
 
+void read_value_inst::save(cldnn::BinaryOutputBuffer& ob) const {
+    parent::save(ob);
+
+    ob << variable_id();
+}
+
+void read_value_inst::load(cldnn::BinaryInputBuffer& ib) {
+    parent::load(ib);
+
+    std::string variable_id;
+    ib >> variable_id;
+    set_variable_id(variable_id);
+}
 } // namespace cldnn

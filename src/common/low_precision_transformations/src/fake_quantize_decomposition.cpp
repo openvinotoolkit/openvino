@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -208,7 +208,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
         }
 
         //TODO: pass min levels as a parameter?
-        if (levels < 2ul) {
+        if (levels <= 2ul) {
             return std::make_tuple(nullptr, nullptr);
         }
 

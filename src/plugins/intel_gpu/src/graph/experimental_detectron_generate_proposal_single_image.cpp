@@ -4,15 +4,11 @@
 
 #include "experimental_detectron_generate_proposals_single_image_inst.hpp"
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
 namespace cldnn {
-primitive_type_id experimental_detectron_generate_proposals_single_image::type_id() {
-    static primitive_type_base<experimental_detectron_generate_proposals_single_image> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(experimental_detectron_generate_proposals_single_image)
 
 layout experimental_detectron_generate_proposals_single_image_inst::calc_output_layout(
         const experimental_detectron_generate_proposals_single_image_node& node, kernel_impl_params const& impl_param) {

@@ -1,21 +1,29 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
 import os
 import csv
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
+from defusedxml import defuse_stdlib
 
 from jinja2 import Environment, FileSystemLoader
 
-from utils import utils
+from utils.conformance_utils import get_logger
+from utils import stat_update_utils
+
+# defuse_stdlib provide patched version of xml.etree.ElementTree which allows to use objects from xml.etree.ElementTree
+# in a safe manner without including unsafe xml.etree.ElementTree
+ET_defused = defuse_stdlib()[ET]
+Element = ET_defused.Element
+SubElement = ET_defused.SubElement
 
 NOT_RUN = "NOT RUN"
 NA = "N/A"
 
-STATUS_CSV_ORDER = ["implemented", "passed", "failed", "skipped", "crashed", "hanged", "passrate"]
+STATUS_CSV_ORDER = ["implemented", "passed", "failed", "skipped", "crashed", "hanged", "passrate", "relative_passrate"]
 
-logger = utils.get_logger('Summarize')
+logger = get_logger('conformance_summary')
 
 
 def parse_arguments():
@@ -50,10 +58,10 @@ def parse_arguments():
 def merge_xmls(xml_paths: list):
     logger.info("Merging XML files is started")
 
-    summary = ET.Element("report")
+    summary = Element("report")
     timestamp = None
-    summary_results = ET.SubElement(summary, "results")
-    ops_list = ET.SubElement(summary, "ops_list")
+    summary_results = SubElement(summary, "results")
+    ops_list = SubElement(summary, "ops_list")
     for xml_path in xml_paths:
         try:
             xml_root = ET.parse(xml_path).getroot()
@@ -67,7 +75,7 @@ def merge_xmls(xml_paths: list):
 
         for op in xml_root.find("ops_list"):
             if ops_list.find(op.tag) is None:
-                ET.SubElement(ops_list, op.tag)
+                SubElement(ops_list, op.tag)
 
         for device in xml_root.find("results"):
             device_results = summary_results.find(device.tag)
@@ -97,19 +105,23 @@ def merge_xmls(xml_paths: list):
                                 device_results.find(current_op_res.tag).set(attr_name, str(xml_value))
                     else:
                         device_results.append(op_result)
-    utils.update_passrates(summary_results)
+    stat_update_utils.update_passrates(summary_results)
     summary.set("timestamp", timestamp)
     logger.info("Merging XML files is competed")
     return summary
 
 
-def collect_statistic(root: ET.Element, is_conformance_mode: bool):
+def collect_statistic(root: Element, is_conformance_mode: bool):
     logger.info("Statistic collecting is started")
     trusted_ops = dict()
     pass_rate_avg = dict()
+    pass_rate_avg_rel = dict()
     general_pass_rate = dict()
+    general_pass_rate_rel = dict()
     general_test_count = dict()
+    general_test_count_rel = dict()
     general_passed_tests = dict()
+    general_passed_tests_rel = dict()
     op_res = dict()
 
     results = dict()
@@ -118,8 +130,11 @@ def collect_statistic(root: ET.Element, is_conformance_mode: bool):
         results[device.tag] = {op.tag: op.attrib for op in device}
 
         pass_rate_avg[device.tag] = 0
+        pass_rate_avg_rel[device.tag] = 0
         general_test_count[device.tag] = 0
+        general_test_count_rel[device.tag] = 0
         general_passed_tests[device.tag] = 0
+        general_passed_tests_rel[device.tag] = 0
         trusted_ops[device.tag] = 0
         covered_ops[device.tag] = 0
         for op in results[device.tag]:
@@ -131,25 +146,34 @@ def collect_statistic(root: ET.Element, is_conformance_mode: bool):
             if op_test_cnt == 0:
                 continue
             covered_ops[device.tag] += 1
-            pass_rate = round(float(results[device.tag][op]["passrate"]), 1)
+            pass_rate = float("%.2f"%float(results[device.tag][op]["passrate"]))
+            relative_pass_rate = float("%.2f"%float(results[device.tag][op]["relative_passrate"]))
             results[device.tag][op]["passrate"] = pass_rate
+            results[device.tag][op]["relative_passrate"] = relative_pass_rate
 
-            pass_rate_avg[device.tag] += pass_rate
             if pass_rate == 100.:
                 trusted_ops[device.tag] += 1
             device_general_test_count = op_test_cnt
             general_test_count[device.tag] += device_general_test_count
+            general_test_count_rel[device.tag] += float(results[device.tag][op]["relative_all"])
             general_passed_tests[device.tag] += int(results[device.tag][op]["passed"])
+            general_passed_tests_rel[device.tag] += float(results[device.tag][op]["relative_passed"])
+            pass_rate_avg[device.tag] += float(results[device.tag][op]["passrate"])
+            pass_rate_avg_rel[device.tag] += float(results[device.tag][op]["relative_passrate"])
 
             if op in op_res.keys():
                 op_res[op].update({device.tag: device_general_test_count})
             else:
                 op_res.update({op: {device.tag: device_general_test_count}})
         pass_rate_avg[device.tag] = 0 if covered_ops[device.tag] == 0 else pass_rate_avg[device.tag] / covered_ops[device.tag]
-        pass_rate_avg[device.tag] = round(float(pass_rate_avg[device.tag]), 1)
+        pass_rate_avg[device.tag] = float("%.2f"%float(pass_rate_avg[device.tag]))
+        pass_rate_avg_rel[device.tag] = 0 if covered_ops[device.tag] == 0 else pass_rate_avg_rel[device.tag] / covered_ops[device.tag]
+        pass_rate_avg_rel[device.tag] = float("%.2f"%float(pass_rate_avg_rel[device.tag]))
         general_pass_rate[device.tag] = 0 if general_test_count[device.tag] == 0 else (general_passed_tests[device.tag] * 100 / general_test_count[device.tag])
-        general_pass_rate[device.tag] = round(float(general_pass_rate[device.tag]), 1)
-        trusted_ops[device.tag] = round(float(trusted_ops[device.tag] * 100) / covered_ops[device.tag], 1) if device.tag in covered_ops and covered_ops[device.tag] != 0 else 0
+        general_pass_rate[device.tag] = float("%.2f"%float(general_pass_rate[device.tag]))
+        general_pass_rate_rel[device.tag] = 0 if general_test_count_rel[device.tag] == 0 else (general_passed_tests_rel[device.tag] * 100 / general_test_count_rel[device.tag])
+        general_pass_rate_rel[device.tag] = float("%.2f"%float(general_pass_rate_rel[device.tag]))
+        trusted_ops[device.tag] = float("%.2f"%(float("%.2f"%(float(trusted_ops[device.tag]) * 100)) / covered_ops[device.tag])) if device.tag in covered_ops and covered_ops[device.tag] != 0 else 0
 
     logger.info("Test number comparison between devices is started")
     for op in op_res:
@@ -169,7 +193,7 @@ def collect_statistic(root: ET.Element, is_conformance_mode: bool):
 
     devices = results.keys()
     logger.info("Statistic collecting is completed")
-    return devices, results, general_pass_rate, pass_rate_avg, general_test_count, trusted_ops, covered_ops
+    return devices, results, general_pass_rate, general_pass_rate_rel, pass_rate_avg, pass_rate_avg_rel, general_test_count, trusted_ops, covered_ops
 
 
 def format_string(input_str: str):
@@ -218,12 +242,12 @@ def serialize_to_csv(report_filename: str, output_dir: os.path, op_list: list, d
     logger.info(f'Final CSV report is saved to {csv_filename}')
 
 
-def create_summary(summary_root: ET.Element, output_folder: os.path, expected_devices:list, report_tag: str, report_version: str,
+def create_summary(summary_root: Element, output_folder: os.path, expected_devices:list, report_tag: str, report_version: str,
                    is_conformance_mode: bool,  is_serialize_to_csv: bool, output_filename='report'):
     if is_conformance_mode:
-        utils.update_conformance_test_counters(summary_root, logger)
-        utils.update_passrates(summary_root.find("results"))
-    device_list, results, general_pass_rate, pass_rate_avg, general_test_count, trusted_ops, covered_ops = \
+        stat_update_utils.update_conformance_test_counters(summary_root)
+        stat_update_utils.update_passrates(summary_root.find("results"))
+    device_list, results, general_pass_rate, general_pass_rate_rel, pass_rate_avg, pass_rate_avg_rel, general_test_count, trusted_ops, covered_ops = \
         collect_statistic(summary_root, is_conformance_mode)
 
     op_list = list()
@@ -250,12 +274,14 @@ def create_summary(summary_root: ET.Element, output_folder: os.path, expected_de
 
     device_list = sorted(device_list)
 
-    file_loader = FileSystemLoader('template')
+    script_dir, script_name = os.path.split(os.path.abspath(__file__))
+    file_loader = FileSystemLoader(os.path.join(script_dir, 'template'))
     env = Environment(loader=file_loader)
     template = env.get_template('report_template.html')
 
     res_summary = template.render(ordered_ops=op_list, devices=device_list, results=results, timestamp=timestamp,
-                                  general_pass_rate=general_pass_rate, pass_rate_avg=pass_rate_avg,
+                                  general_pass_rate=general_pass_rate, general_pass_rate_rel=general_pass_rate_rel,
+                                  pass_rate_avg=pass_rate_avg, pass_rate_avg_rel=pass_rate_avg_rel,
                                   trusted_ops=trusted_ops, covered_ops=covered_ops,
                                   general_test_count=general_test_count, report_tag=report_tag, report_version=report_version)
 
@@ -270,4 +296,11 @@ def create_summary(summary_root: ET.Element, output_folder: os.path, expected_de
 if __name__ == "__main__":
     args = parse_arguments()
     summary_root = merge_xmls(args.xml)
-    create_summary(summary_root, args.out,  [] if args.expected_devices is None else args.expected_devices, args.report_tag, args.report_version, args.conformance_mode, args.csv, args.output_filename)
+    create_summary(summary_root, args.out,
+                   [] if args.expected_devices is None else args.expected_devices,
+                   args.report_tag,
+                   args.report_version,
+                   args.conformance_mode,
+                   args.csv,
+                   args.output_filename)
+    

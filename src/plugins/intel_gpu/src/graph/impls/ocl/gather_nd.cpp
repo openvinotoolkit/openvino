@@ -1,15 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "gather_nd_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "gather_nd_inst.h"
 #include "gather/gather_nd_kernel_selector.h"
 #include "gather/gather_nd_kernel_ref.h"
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -60,4 +57,4 @@ attach_gather_nd_impl::attach_gather_nd_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_nd_impl, cldnn::object_type::GATHER_ND_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::gather_nd_impl)

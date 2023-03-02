@@ -10,17 +10,13 @@
 #include "primitive_type_base.h"
 
 namespace cldnn {
-
-primitive_type_id eye::type_id() {
-    static primitive_type_base<eye> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(eye)
 
 eye_inst::typed_primitive_inst(network& network, eye_node const& node) : parent(network, node) {}
 
 layout eye_inst::calc_output_layout(eye_node const& node, const kernel_impl_params&) {
     auto primitive = node.get_primitive();
-    return {*(primitive->output_data_type), node.input().get_output_layout().format, primitive->output_shape};
+    return {*(primitive->output_data_types[0]), node.input().get_output_layout().format, primitive->output_shape};
 }
 
 std::string eye_inst::to_string(eye_node const& node) {

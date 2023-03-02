@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -91,9 +91,10 @@ endif()
 
 if(ENABLE_SYSTEM_PUGIXML)
     set(_ov_pugixml_pkgconfig_interface "@pugixml_FOUND@")
+    set(_ov_pugixml_cmake_interface "@PugiXML_FOUND@")
     if(_ov_pugixml_pkgconfig_interface)
         find_dependency(PkgConfig)
-    else()
+    elseif(_ov_pugixml_cmake_interface)
         find_dependency(PugiXML)
     endif()
     if(PugiXML_FOUND)
@@ -127,6 +128,17 @@ if(ENABLE_SYSTEM_PUGIXML)
             endif()
         endif()
     endif()
+
+    # debian 9 case: no cmake, no pkg-config files
+    if(NOT TARGET IE::pugixml)
+        find_library(PUGIXML_LIBRARY NAMES pugixml DOC "Path to pugixml library")
+        if(PUGIXML_LIBRARY)
+            add_library(IE::pugixml INTERFACE IMPORTED GLOBAL)
+            set_target_properties(IE::pugixml PROPERTIES INTERFACE_LINK_LIBRARIES "${PUGIXML_LIBRARY}")
+        else()
+            message(FATAL_ERROR "Failed to find system pugixml in OpenVINO Developer Package")
+        endif()
+    endif()
 endif()
 
 # inherit OpenCV from main IE project if enabled
@@ -139,13 +151,8 @@ endif()
 # Extra Compile Flags
 #
 
-if(CMAKE_COMPILER_IS_GNUCXX)
-    ie_add_compiler_flags(-Wno-error=unused-variable)
-    ie_add_compiler_flags(-Wno-error=unused-but-set-variable)
-    if(SUGGEST_OVERRIDE_SUPPORTED)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
-    endif()
-endif()
+# don't fail on strict compilation options in 3rd party modules
+ov_dev_package_no_errors()
 
 # Don't threat deprecated API warnings as errors in 3rd party apps
-ie_deprecated_no_errors()
+ov_deprecated_no_errors()

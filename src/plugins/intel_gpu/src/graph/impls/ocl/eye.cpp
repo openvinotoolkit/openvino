@@ -2,18 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <data_inst.h>
-#include <eye/eye_kernel_ref.h>
-#include <eye/eye_kernel_selector.h>
-#include <eye_inst.h>
-
-#include <algorithm>
-#include <cstddef>
-#include <impls/implementation_map.hpp>
-#include <intel_gpu/runtime/error_handler.hpp>
-#include <vector>
-
 #include "primitive_base.hpp"
+
+#include "eye_inst.h"
+#include "eye/eye_kernel_ref.h"
+#include "eye/eye_kernel_selector.h"
 
 namespace cldnn {
 namespace ocl {
@@ -74,4 +67,4 @@ attach_eye_impl::attach_eye_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::eye_impl, cldnn::object_type::EYE_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::eye_impl)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,6 @@ namespace v1 {
 class OPENVINO_API Subtract : public util::BinaryElementwiseArithmetic {
 public:
     OPENVINO_OP("Subtract", "opset1", util::BinaryElementwiseArithmetic, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     Subtract() : util::BinaryElementwiseArithmetic(AutoBroadcastType::NUMPY) {}
 

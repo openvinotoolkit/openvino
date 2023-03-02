@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,7 +22,6 @@ namespace internal {
 class TRANSFORMATIONS_API AUGRUCell : public ov::op::util::RNNCellBase {
 public:
     OPENVINO_OP("AUGRUCell", "ie_internal_opset", ov::op::util::RNNCellBase);
-    BWDCMP_RTTI_DECLARATION;
 
     AUGRUCell();
     AUGRUCell(const Output<Node>& X,

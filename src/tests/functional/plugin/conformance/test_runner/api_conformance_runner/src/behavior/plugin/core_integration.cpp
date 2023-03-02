@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -78,11 +78,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         ie_plugin, IEClassQueryNetworkTest,
-        ::testing::Values(ov::test::conformance::targetDevice));
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 // IE Class Load network
 
 INSTANTIATE_TEST_SUITE_P(
         ie_plugin, IEClassLoadNetworkTest,
-        ::testing::Values(targetDevice));
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 } // namespace

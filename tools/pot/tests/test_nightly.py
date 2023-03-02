@@ -5,7 +5,7 @@ import os
 
 import pytest
 from addict import Dict
-from openpyxl import Workbook, load_workbook
+import numpy as np
 
 from openvino.tools.pot.app.run import optimize
 from openvino.tools.pot.utils.logger import init_logger
@@ -61,7 +61,7 @@ TEST_MODELS_ACC_AWARE = [
 def run_algo(config, model_name, model_framework, metrics, expected_result, tmp_path):
     result = optimize(config)
     metrics.update(result)
-    write_results_to_xlsx(model_name, model_framework, result, expected_result, tmp_path)
+    write_results_to_csv(model_name, model_framework, result, expected_result, tmp_path)
 
 
 @pytest.mark.parametrize('model_params', TEST_MODELS_DEFAULT,
@@ -80,6 +80,9 @@ def test_default_quantization(model_params, tmp_path, models, algorithm, preset)
             }}]})
 
     model_name, model_framework, model_precision, expected_accuracy_dict = model_params
+    if model_framework == 'mxnet':
+        pytest.skip('Skipped due to conflict with numpy version in mxnet #99501.')
+
     run_quantization(models=models,
                      model_name=model_name,
                      model_framework=model_framework,
@@ -135,19 +138,7 @@ def run_quantization(models, model_name, model_framework, algorithm_config,
     assert metrics == pytest.approx(expected_accuracy, abs=tolerance)
 
 
-def write_results_to_xlsx(model_name, model_framework, metrics, expected_result, tmp_path):
-    def adjust_columns_width():
-        for column_cells in worksheet.columns:
-            length = max(len(str(cell.value) or '') + 1 for cell in column_cells)
-            worksheet.column_dimensions[column_cells[0].column_letter].width = length
-
-    save_path = (tmp_path.parent / 'results.xlsx').as_posix()
-    if os.path.exists(save_path):
-        workbook = load_workbook(save_path)
-    else:
-        workbook = Workbook()
-    worksheet = workbook.active
-
+def write_results_to_csv(model_name, model_framework, metrics, expected_result, tmp_path):
     results = [model_name, model_framework]
     expected = ['', '']
     drop = ['', '']
@@ -155,9 +146,8 @@ def write_results_to_xlsx(model_name, model_framework, metrics, expected_result,
         results.extend([name, round(metrics[name], 5)])
         expected.extend(['expected', round(expected_result[name], 5)])
         drop.extend(['drop', round(expected_result[name] - metrics[name], 5)])
-    worksheet.append(results)
-    worksheet.append(expected)
-    worksheet.append(drop)
+    workbook = np.array([results, expected, drop])
 
-    adjust_columns_width()
-    workbook.save(save_path)
+    save_path = (tmp_path.parent / 'results.csv').as_posix()
+    with open(save_path, 'a') as saved_file:
+        np.savetxt(saved_file, workbook, delimiter=",", fmt='%s')

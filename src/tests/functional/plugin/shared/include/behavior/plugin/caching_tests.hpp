@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,6 +20,8 @@
 
 using ngraphFunctionGenerator = std::function<std::shared_ptr<ngraph::Function>(ngraph::element::Type, std::size_t)>;
 using nGraphFunctionWithName = std::tuple<ngraphFunctionGenerator, std::string>;
+using ngraphFunctionIS = std::function<std::shared_ptr<ngraph::Function>(std::vector<size_t> inputShape,
+                                                                         ngraph::element::Type_t type)>;
 
 using loadNetworkCacheParams = std::tuple<
         nGraphFunctionWithName, // ngraph function with friendly name
@@ -45,7 +47,13 @@ public:
 
     bool importExportSupported(InferenceEngine::Core& ie) const;
 
+    // Wrapper of most part of available builder functions
+    static ngraphFunctionGenerator inputShapeWrapper(ngraphFunctionIS fun, std::vector<size_t> inputShape);
     // Default functions and precisions that can be used as test parameters
+    static std::vector<nGraphFunctionWithName> getAnyTypeOnlyFunctions();
+    static std::vector<nGraphFunctionWithName> getNumericTypeOnlyFunctions();
+    static std::vector<nGraphFunctionWithName> getNumericAnyTypeFunctions();
+    static std::vector<nGraphFunctionWithName> getFloatingPointOnlyFunctions();
     static std::vector<nGraphFunctionWithName> getStandardFunctions();
 };
 

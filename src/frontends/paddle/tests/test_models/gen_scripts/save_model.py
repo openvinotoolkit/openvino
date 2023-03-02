@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -112,6 +112,7 @@ def exportModel(name, dyn_func, input_data:list, target_dir:str, dyn_shapes:list
     else:       
         np.save(os.path.join(model_dir, "output{}".format(0)), result.numpy())
     
+    paddle.fluid.core.clear_executor_cache()
     return result
 
 

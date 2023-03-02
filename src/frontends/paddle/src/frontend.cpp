@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,6 +15,7 @@
 #include "default_opset.hpp"
 #include "framework.pb.h"
 #include "input_model.hpp"
+#include "internal/pass/transform_fakequantize.hpp"
 #include "internal/pass/transform_if.hpp"
 #include "internal/pass/transform_tensorarray.hpp"
 #include "internal/pass/transform_while.hpp"
@@ -60,7 +61,7 @@ NamedOutputs make_ng_node(const std::map<paddle::TensorName, Output<Node>>& node
     NamedOutputs outputs;
     // In case the conversion function throws exception
     try {
-        outputs = creator_it->second(paddle::NodeContext(DecoderProto(op_place), named_inputs));
+        outputs = creator_it->second(paddle::NodeContext(op_place->get_decoder(), named_inputs));
     } catch (std::exception& ex) {
         FRONT_END_OP_CONVERSION_CHECK(false, "Fail to convert " + op_desc.type() + " Exception " + ex.what());
     }
@@ -90,7 +91,10 @@ NamedOutputs make_framework_node(const std::map<paddle::TensorName, Output<Node>
         }
     }
 
-    auto node = std::make_shared<FrameworkNode>(DecoderProto(op_place), inputs_vector, inputs_names);
+    auto decoder_proto = std::dynamic_pointer_cast<DecoderProto>(op_place->get_decoder());
+    if (!decoder_proto)
+        FRONT_END_THROW("Failed to cast to DecoderProto.");
+    auto node = std::make_shared<FrameworkNode>(decoder_proto, inputs_vector, inputs_names);
 
     return node->return_named_outputs();
 }
@@ -192,7 +196,7 @@ void try_update_sublock_info(const std::shared_ptr<OpPlace>& op_place, SubblockI
             inp_tensors.push_back(inp_tensor);
         }
 
-        auto tmp_node = paddle::NodeContext(DecoderProto(op_place), paddle::NamedInputs());
+        auto tmp_node = paddle::NodeContext(op_place->get_decoder(), paddle::NamedInputs());
         auto block_idx = tmp_node.get_attribute<int32_t>("sub_block");
 
         subblock_info[block_idx] = std::make_tuple(op_desc.type(), inp_tensors, outp_tensors);
@@ -214,7 +218,7 @@ void try_update_sublock_info(const std::shared_ptr<OpPlace>& op_place, SubblockI
         }
         FRONT_END_GENERAL_CHECK(inp_tensors.size() > 0, "Port has no tensors connected.");
 
-        auto tmp_node = paddle::NodeContext(DecoderProto(op_place), paddle::NamedInputs());
+        auto tmp_node = paddle::NodeContext(op_place->get_decoder(), paddle::NamedInputs());
         auto block_idx = tmp_node.get_attribute<int32_t>("sub_block");
 
         subblock_info[block_idx] = std::make_tuple(op_desc.type(), inp_tensors, outp_tensors);
@@ -272,7 +276,7 @@ std::map<int32_t, std::shared_ptr<ov::Model>> FrontEnd::convert_each_node_recurs
                     // TODO: figure a way to safely handle unused outputs
                     if (named_outputs.count(port.parameter())) {
                         const auto& ng_outputs = named_outputs.at(port.parameter());
-                        FRONT_END_OP_CONVERSION_CHECK(ng_outputs.size() == port.arguments_size(),
+                        FRONT_END_OP_CONVERSION_CHECK(ng_outputs.size() == (size_t)port.arguments_size(),
                                                       "The number of output tensors must be equal to "
                                                       "the number of outputs of the OV node.");
                         for (size_t idx = 0; idx < ng_outputs.size(); ++idx) {
@@ -325,6 +329,18 @@ void FrontEnd::try_remove_internal_ops(const std::vector<std::shared_ptr<Model>>
         manager.register_pass<ov::frontend::paddle::pass::TransformTensorArray>(models);
         manager.register_pass<ov::frontend::paddle::pass::TransformIf>(models);
         manager.register_pass<ov::frontend::paddle::pass::TransformWhile>(models);
+        manager.run_passes(model);
+    }
+    if (models.size() > 0) {
+        // revalidate as child models are transformed after parent models.
+        models[0]->validate_nodes_and_infer_types();
+    }
+}
+
+void FrontEnd::fuse_fakequantize_ops(const std::vector<std::shared_ptr<Model>>& models) const {
+    for (auto& model : models) {
+        ov::pass::Manager manager;
+        manager.register_pass<ov::frontend::paddle::pass::TransformFakeQuantize>();
         manager.run_passes(model);
     }
     if (models.size() > 0) {
@@ -427,6 +443,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const
             return paddle::make_ng_node(nodes_dict, op_place, m_op_translators);
         });
 
+    fuse_fakequantize_ops(f);
     try_remove_internal_ops(f);
     return f[0];
 }
@@ -441,6 +458,7 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
         result->validate_and_infer_types();
     }
 
+    fuse_fakequantize_ops({partiallyConverted});
     try_remove_internal_ops({partiallyConverted});
 }
 
@@ -472,6 +490,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& mo
             return named_outputs;
         });
 
+    fuse_fakequantize_ops(f);
     try_remove_internal_ops(f);
 
     return f[0];

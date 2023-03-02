@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -45,10 +45,6 @@ set (CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 set (CMAKE_PDB_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${IE_MAIN_SAMPLES_DIR}/${BIN_FOLDER})
 
-if(TREAT_WARNING_AS_ERROR AND NOT DEFINED CMAKE_COMPILE_WARNING_AS_ERROR)
-    set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
-endif()
-
 if (WIN32)
     set_property (DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS _CRT_SECURE_NO_WARNINGS)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_SCL_SECURE_NO_WARNINGS")
@@ -73,13 +69,14 @@ if(APPLE)
     set(CMAKE_MACOSX_RPATH ON)
 endif()
 
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64.*|aarch64.*|AARCH64.*)")
-  set(AARCH64 ON)
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64.*|aarch64.*|AARCH64.*|ARM64.*)")
+    set(AARCH64 ON)
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm.*|ARM.*)")
-  set(ARM ON)
+    set(ARM ON)
 endif()
-if(ARM AND NOT CMAKE_CROSSCOMPILING)
-    add_compile_options(-march=armv7-a)
+
+if(ARM AND NOT (CMAKE_CROSSCOMPILING OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC"))
+    add_compile_options(-march=armv7-a+fp)
 endif()
 
 set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
@@ -97,48 +94,50 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
 endif()
 ####################################
 
-if(NOT TARGET gflags)
-    if(APPLE OR DEFINED ENV{CONDA_PREFIX} OR DEFINED ENV{HOMEBREW_PREFIX})
-        # conda-forge and brew contains only shared version of gflags
-        find_package(gflags QUIET COMPONENTS nothreads_shared)
-    else()
-        find_package(gflags QUIET COMPONENTS nothreads_static)
-    endif()
-
-    if(gflags_FOUND)
-        if(NOT TARGET ${GFLAGS_TARGET})
-            if(TARGET gflags_nothreads-static)
-                # arm cross-compilation
-                set(GFLAGS_TARGET gflags_nothreads-static)
-            elseif(TARGET gflags_nothreads-shared)
-                # centos/rhel8
-                set(GFLAGS_TARGET gflags_nothreads-shared)    
-            else()
-                message(FATAL_ERROR "Failed to set GFLAGS_TARGET target")
-            endif()
-        endif()
-        message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR}")
-    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
-        add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
-        set(GFLAGS_TARGET gflags_nothreads_static)
-    endif()
-else()
-    set(GFLAGS_TARGET gflags)
-endif()
-
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
-    add_subdirectory(common/utils)
+    # gflags is used only in C++ samples
+    set(gflags_required ON)
 endif()
 
-# format reader must be added after find_package(OpenVINO) to get
-# exactly the same OpenCV_DIR path which was used for the OpenVINO build
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/format_reader")
-    add_subdirectory(common/format_reader)
-elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/opencv_c_wrapper")
-    add_subdirectory(common/opencv_c_wrapper)
+if(TARGET gflags)
+    set(GFLAGS_TARGET gflags)
+elseif(gflags_required)
+    if(EXISTS /etc/debian_version)
+        set(gflags_component nothreads_static)
+    else()
+        set(gflags_component shared)
+    endif()
+    find_package(gflags QUIET OPTIONAL_COMPONENTS ${gflags_component})
+    if(gflags_FOUND)
+        if(TARGET ${GFLAGS_TARGET})
+            # nothing
+        elseif(TARGET gflags_nothreads-static)
+            # Debian 9: gflag_component is ignored
+            set(GFLAGS_TARGET gflags_nothreads-static)
+        elseif(TARGET gflags-shared)
+            # gflags shared case for CentOS / RHEL / Fedora
+            set(GFLAGS_TARGET gflags-shared)
+        else()
+            message(FATAL_ERROR "Internal error: failed to find imported target 'gflags' using '${gflags_component}' component")
+        endif()
+
+        message(STATUS "gflags (${gflags_VERSION}) is found at ${gflags_DIR} using '${gflags_component}' component")
+    endif()
+
+    if(NOT gflags_FOUND)
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags")
+            add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
+            set(GFLAGS_TARGET gflags_nothreads_static)
+        else()
+            message(FATAL_ERROR "Failed to find 'gflags' library using '${gflags_component}' component")
+        endif()
+    endif()
 endif()
 
-# samples build can be switched off during whole IE build
+# include common utils
+add_subdirectory(common)
+
+# samples build can be switched off during whole OpenVINO build
 if (DEFINED OpenVINO_SOURCE_DIR AND NOT ENABLE_SAMPLES)
     return()
 endif()
@@ -217,9 +216,6 @@ macro(ie_add_sample)
     target_include_directories(${IE_SAMPLE_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../common")
 
     target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${ov_link_libraries} Threads::Threads ${IE_SAMPLE_DEPENDENCIES})
-    if(NOT c_sample)
-        target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${GFLAGS_TARGET})
-    endif()
 
     install(TARGETS ${IE_SAMPLE_NAME}
             RUNTIME DESTINATION samples_bin/
@@ -243,8 +239,11 @@ endmacro()
 
 # collect all samples subdirectories
 file(GLOB samples_dirs RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *)
+
 # skip building of unnecessary subdirectories
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty")
-    list(REMOVE_ITEM samples_dirs common thirdparty)
+    list(REMOVE_ITEM samples_dirs thirdparty)
 endif()
+list(REMOVE_ITEM samples_dirs common)
+
 add_samples_to_build(${samples_dirs})

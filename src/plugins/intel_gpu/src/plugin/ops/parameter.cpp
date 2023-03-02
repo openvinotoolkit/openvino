@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -108,8 +108,8 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         if (bufIter != p.blobMemCache.end()) {
             meanBlobID = bufIter->second;
         } else {
-            auto mem = p.GetEngine().allocate_memory(meanBlobLayout, false);
-            cldnn::mem_lock<int8_t> tmpPointer{ mem, p.GetEngine().get_program_stream() };
+            auto mem = p.get_engine().allocate_memory(meanBlobLayout, false);
+            cldnn::mem_lock<int8_t> tmpPointer{ mem, p.get_engine().get_service_stream() };
             auto buf = tmpPointer.data();
             auto bufSize = meanBlobLayout.bytes_count();
 
@@ -142,39 +142,62 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
         return convert_color_found;
     };
 
+    std::function<bool(const std::shared_ptr<ov::Node>&)> has_surface_input =
+        [](const std::shared_ptr<ov::Node> &node) -> bool {
+        bool surface_input_found = false;
+        if (node->output(0).get_rt_info().count(ov::preprocess::TensorInfoMemoryType::get_type_info_static())) {
+            std::string mem_type = node->output(0).get_rt_info().at(ov::preprocess::TensorInfoMemoryType::get_type_info_static())
+                                                                .as<ov::preprocess::TensorInfoMemoryType>().value;
+            if (mem_type.find(GPU_CONFIG_KEY(SURFACE)) != std::string::npos) {
+                surface_input_found = true;
+            }
+        }
+        return surface_input_found;
+    };
+
     size_t search_depth = 3;
     bool is_convert_color_input = recursive_search_convert_color(op, search_depth);
+    bool is_surface_input = has_surface_input(op);
 
-    if (is_convert_color_input) {
+    if (is_surface_input) {
+        size_t batch = input_pshape[0].get_length();
+        networkInputLayout.format = cldnn::format::nv12;
+        networkInputLayout.set_partial_shape({ 1, input_pshape[3], input_pshape[1], input_pshape[2] });
+
+        std::string suffix = "";
+        std::vector<cldnn::input_info> surfaces_inputs;
+        for (size_t i = 0; i < batch; ++i) {
+            if (batch > 1)
+                suffix = "_" + std::to_string(i);
+            std::string batched_name = inputName + suffix;
+            p.inputLayouts.insert({ inputInfo->name() + suffix, networkInputLayout });
+            p.add_primitive(*op, cldnn::input_layout(batched_name, networkInputLayout));
+
+            auto reorder_layout = networkInputLayout;
+            reorder_layout.format = cldnn::format::bfyx;
+
+            auto preprocessPrimID = "reorder:" + inputName + Program::m_preProcessTag + suffix;
+            auto reorder = cldnn::reorder(preprocessPrimID,
+                                          cldnn::input_info(batched_name),
+                                          reorder_layout);
+            reorder.input_mem_type = cldnn::reorder::memory_type::surface;
+            p.add_primitive(*op, reorder);
+            surfaces_inputs.push_back(cldnn::input_info(preprocessPrimID));
+        }
+
+        if (batch > 1 && !is_convert_color_input)
+            p.add_primitive(*op, cldnn::concatenation(inputName, surfaces_inputs, 0));
+        else
+            p.primitive_ids[inputName] = "reorder:" + inputName + Program::m_preProcessTag;
+    } else if (is_convert_color_input) {
         networkInputLayout.format = cldnn::format::byxf;
 
-        if (op->output(0).get_rt_info().count(ov::preprocess::TensorInfoMemoryType::get_type_info_static())) {
-            std::string mem_type = op->output(0).get_rt_info().at(ov::preprocess::TensorInfoMemoryType::get_type_info_static())
-                                                              .as<ov::preprocess::TensorInfoMemoryType>().value;
-            if (mem_type.find(GPU_CONFIG_KEY(SURFACE)) != std::string::npos) {
-                networkInputLayout.format = cldnn::format::nv12;
-            }
-        }
+        networkInputLayout.set_partial_shape({ input_pshape[0], input_pshape[3], input_pshape[1], input_pshape[2] });
 
-        if (networkInputLayout.format == cldnn::format::nv12 && networkInputLayout.get_tensor().batch[0] > 1) {
-            networkInputLayout.set_partial_shape({ 1, input_pshape[3], input_pshape[1], input_pshape[2] });
-
-            std::vector<cldnn::primitive_id> inputs;
-            for (int64_t i = 0; i < input_pshape[0].get_length(); ++i) {
-                std::string batched_name = inputName + "_" + std::to_string(i);
-                p.inputLayouts.insert({ inputInfo->name() + "_" + std::to_string(i), networkInputLayout });
-                inputs.emplace_back(batched_name);
-                p.add_primitive(*op, cldnn::input_layout(batched_name, networkInputLayout));
-            }
-            p.primitive_ids[inputName] = inputName;
-        } else {
-            networkInputLayout.set_partial_shape({ input_pshape[0], input_pshape[3], input_pshape[1], input_pshape[2] });
-
-            p.inputLayouts.insert({ inputInfo->name(), networkInputLayout });
-            p.add_primitive(*op, cldnn::input_layout(inputName, networkInputLayout));
-        }
+        p.inputLayouts.insert({ inputInfo->name(), networkInputLayout });
+        p.add_primitive(*op, cldnn::input_layout(inputName, networkInputLayout));
     } else {
-        if (ColorFormat::NV12 == preProcess.getColorFormat() && p.GetConfig().nv12_two_inputs) {
+        if (ColorFormat::NV12 == preProcess.getColorFormat() && p.get_config().get_property(ov::intel_gpu::nv12_two_inputs)) {
             // for NV12, create two input layouts with reorder instead of one,
             // and then would expect compound blob in inferRequest
             if (InferenceEngine::Layout::NCHW != l &&
@@ -185,7 +208,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
             int height = input_pshape[2].get_length();
             int width = input_pshape[3].get_length();
             size_t batch = input_pshape[0].get_length();
-            std::vector<cldnn::primitive_id> reorders;
+            std::vector<cldnn::input_info> reorders;
 
             for (size_t i = 0; i < batch; i++) {
                 auto preprocessPrimID = "reorder:" + inputName + std::to_string(i) + Program::m_preProcessTag;
@@ -207,8 +230,8 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                 case NONE:
                 case MEAN_VALUE: {
                     p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
-                                                        y_name,
-                                                        uv_name,
+                                                        cldnn::input_info(y_name),
+                                                        cldnn::input_info(uv_name),
                                                         networkInputLayout,
                                                         meanValues,
                                                         cldnn::reorder_mean_mode::subtract), {inputName});
@@ -216,8 +239,8 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                 }
                 case MEAN_IMAGE: {
                     p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
-                                                        y_name,
-                                                        uv_name,
+                                                        cldnn::input_info(y_name),
+                                                        cldnn::input_info(uv_name),
                                                         networkInputLayout,
                                                         meanBlobID,
                                                         cldnn::reorder_mean_mode::subtract), {inputName});
@@ -227,7 +250,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
                     break;
                 }
 
-                reorders.push_back(preprocessPrimID);
+                reorders.push_back(cldnn::input_info(preprocessPrimID));
             }
 
             if (input_pshape[0].get_length() > 1) {
@@ -246,7 +269,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
             case NONE:
             case MEAN_VALUE: {
                 p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
-                                                    inputName,
+                                                    cldnn::input_info(inputName),
                                                     networkInputLayout,
                                                     meanValues,
                                                     cldnn::reorder_mean_mode::subtract), {inputName});
@@ -254,7 +277,7 @@ static void CreateParameterOp(Program& p, const std::shared_ptr<ngraph::op::v0::
             }
             case MEAN_IMAGE: {
                 p.add_primitive(*op, cldnn::reorder(preprocessPrimID,
-                                                    inputName,
+                                                    cldnn::input_info(inputName),
                                                     networkInputLayout,
                                                     meanBlobID,
                                                     cldnn::reorder_mean_mode::subtract), {inputName});

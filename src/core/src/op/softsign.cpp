@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "ngraph/runtime/reference/softsign.hpp"
@@ -9,6 +9,7 @@
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/op/softsign.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "shape_util.hpp"
 
 namespace {
 template <ov::element::Type_t ET>
@@ -34,8 +35,6 @@ bool evaluate_softsign(const ov::Tensor& arg, const ov::Tensor& out) {
     return rc;
 }
 }  // namespace
-
-BWDCMP_RTTI_DEFINITION(ov::op::v9::SoftSign);
 
 ov::op::v9::SoftSign::SoftSign(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
@@ -92,6 +91,7 @@ bool ov::op::v9::SoftSign::evaluate(ov::TensorVector& outputs,
 
     const auto& in = inputs[0];
     auto& out = outputs[0];
+
     out.set_shape(in.get_shape());
     return evaluate_softsign(in, out);
 }

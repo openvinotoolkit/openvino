@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,14 +15,14 @@
 
 ov::pass::ReluFakeQuantizeFusion::ReluFakeQuantizeFusion() {
     MATCHER_SCOPE(ReluFakeQuantizeFusion);
-    auto data_pattern = ngraph::pattern::any_input();
+    auto data_pattern = pass::pattern::any_input();
     auto relu_pattern = ngraph::pattern::wrap_type<opset5::Relu>({data_pattern}, pattern::consumers_count(1));
     auto input_low_pattern = ngraph::pattern::wrap_type<opset5::Constant>();
     auto fq_pattern = ngraph::pattern::wrap_type<opset5::FakeQuantize>({relu_pattern,
                                                                         input_low_pattern,
-                                                                        ngraph::pattern::any_input(),
-                                                                        ngraph::pattern::any_input(),
-                                                                        ngraph::pattern::any_input()});
+                                                                        pass::pattern::any_input(),
+                                                                        pass::pattern::any_input(),
+                                                                        pass::pattern::any_input()});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto pattern_map = m.get_pattern_value_map();

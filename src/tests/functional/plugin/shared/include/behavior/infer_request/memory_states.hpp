@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,5 +28,8 @@ protected:
 public:
     void SetUp() override;
     static std::string getTestCaseName(const testing::TestParamInfo<memoryStateParams> &obj);
+    static InferenceEngine::CNNNetwork getNetwork();
 };
+
+using InferRequestQueryStateExceptionTest = InferRequestVariableStateTest;
 } // namespace BehaviorTestsDefinitions

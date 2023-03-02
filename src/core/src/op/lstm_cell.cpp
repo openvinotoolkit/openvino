@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,9 +17,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v0::LSTMCell);
-BWDCMP_RTTI_DEFINITION(op::v4::LSTMCell);
 
 op::v0::LSTMCell::LSTMCell() : m_input_forget(false), m_weights_format(LSTMWeightsFormat::IFCO) {
     m_activations = {"sigmoid", "tanh", "tanh"};
@@ -250,8 +247,6 @@ NGRAPH_API EnumNames<ngraph::op::LSTMWeightsFormat>& EnumNames<ngraph::op::LSTMW
                                                                        {"iofc", ngraph::op::LSTMWeightsFormat::IOFC}});
     return enum_names;
 }
-
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::LSTMWeightsFormat>);
 
 ov::op::util::LSTMWeightsFormat op::convert_lstm_weights_enums(op::LSTMWeightsFormat format) {
     switch (format) {

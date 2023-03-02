@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,20 +6,18 @@
 
 #include <convolution_shape_inference.hpp>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/util.hpp"
-#include "ngraph/validation_util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 // *** Convolution OP SET 1 ***
-BWDCMP_RTTI_DEFINITION(op::v1::Convolution);
-
 op::v1::Convolution::Convolution(const Output<Node>& data_batch,
                                  const Output<Node>& filters,
                                  const Strides& strides,
@@ -93,15 +91,7 @@ shared_ptr<Node> op::v1::Convolution::clone_with_new_inputs(const OutputVector& 
                                         m_auto_pad);
 }
 
-NGRAPH_SUPPRESS_DEPRECATED_START
-shared_ptr<Node> op::v1::Convolution::get_default_value() const {
-    return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
-}
-NGRAPH_SUPPRESS_DEPRECATED_END
-
 // *** ConvolutionBackpropData OP SET 1 ***
-BWDCMP_RTTI_DEFINITION(op::v1::ConvolutionBackpropData);
-
 op::v1::ConvolutionBackpropData::ConvolutionBackpropData(const Output<Node>& data,
                                                          const Output<Node>& filters,
                                                          const Output<Node>& output_shape,

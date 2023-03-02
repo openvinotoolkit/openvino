@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@ class TRANSFORMATIONS_API EliminateConcat;
 class TRANSFORMATIONS_API EliminateConvert;
 class TRANSFORMATIONS_API EliminateConvertNonZero;
 class TRANSFORMATIONS_API EliminateEltwise;
+class TRANSFORMATIONS_API EliminateScatterUpdate;
 class TRANSFORMATIONS_API EliminatePad;
 class TRANSFORMATIONS_API EliminateSplit;
 class TRANSFORMATIONS_API EliminateSplitConcat;
@@ -104,6 +105,16 @@ public:
     EliminateEltwise();
 };
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief EliminateScatterUpdate eliminates scatter ops that do nothing (updates/indices are empty)
+ */
+class ov::pass::EliminateScatterUpdate : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("EliminateScatterUpdate", "0");
+    EliminateScatterUpdate();
+};
+
 class ov::pass::NopElimination : public GraphRewrite {
 public:
     OPENVINO_RTTI("NopElimination", "0");
@@ -119,18 +130,3 @@ public:
     OPENVINO_RTTI("EliminateSplitConcat", "0");
     EliminateSplitConcat();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::EliminateConcat;
-using ov::pass::EliminateConvert;
-using ov::pass::EliminateConvertNonZero;
-using ov::pass::EliminateEltwise;
-using ov::pass::EliminatePad;
-using ov::pass::EliminateSplit;
-using ov::pass::EliminateSplitConcat;
-using ov::pass::EliminateSqueeze;
-using ov::pass::EliminateTranspose;
-using ov::pass::NopElimination;
-}  // namespace pass
-}  // namespace ngraph

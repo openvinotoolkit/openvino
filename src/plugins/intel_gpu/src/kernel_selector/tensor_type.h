@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -184,6 +184,7 @@ enum WeightsLayout {
     goizyx,
     giozyx,
     gyxio,
+    g_os_iyx_osv8,
     g_os_iyx_osv16,
     g_os_iyx_osv32,
     gs_oiyx_gsv16,
@@ -615,6 +616,7 @@ struct DataTensor : public TensorBaseT<Datatype, DataLayout> {
     DataTensor TransformIgnorePadding(DataLayout l) const;
     DataTensor FlattenFeatureAndSpatials() const;
     DataTensor FlattenEverything() const;
+    void SwapXY();
 
     static inline Dim Extract(DataLayout l, DataChannelName channel, const NDims& d) {
         return TensorBaseT::Extract(dataChannelArray, l, channel, d);
@@ -656,6 +658,8 @@ struct WeightsTensor : TensorBaseT<WeightsType, WeightsLayout> {
     Dim IFM() const { return Extract(layout, WeightsChannelName::IFM, dims); }
     Dim OFM() const { return Extract(layout, WeightsChannelName::OFM, dims); }
     Dim G() const { return Extract(layout, WeightsChannelName::G, dims); }
+
+    void SwapXY();
 
     static inline Dim Extract(WeightsLayout l, WeightsChannelName channel, const NDims& d) {
         return TensorBaseT::Extract(weightsChannelArray, l, channel, d);

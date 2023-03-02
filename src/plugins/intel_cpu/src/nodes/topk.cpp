@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -1821,8 +1821,8 @@ bool TopK::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, s
     return true;
 }
 
-TopK::TopK(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache) {
+TopK::TopK(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, NgraphShapeInferFactory(op, PortMask(TOPK_K))) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "TopK layer with name '" + getName() + "'";
@@ -1928,10 +1928,6 @@ void TopK::initSupportedPrimitiveDescriptors() {
 bool TopK::needShapeInfer() const {
     const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
     return inputShapesModified() || src_k != top_k;
-}
-
-std::vector<VectorDims> TopK::shapeInfer() const {
-    return Node::shapeInferGeneric(PortMask(1));
 }
 
 bool TopK::needPrepareParams() const {

@@ -46,7 +46,7 @@ Some of the OpenVINO Development Tools also support both OpenVINO IR v10 and v11
 - Accuracy checker uses API 2.0 for model accuracy measurement by default. It also supports switching to the old API by using the `--use_new_api False` command-line parameter. Both launchers accept OpenVINO IR v10 and v11, but in some cases configuration files should be updated. For more details, see the [Accuracy Checker documentation](https://github.com/openvinotoolkit/open_model_zoo/blob/master/tools/accuracy_checker/openvino/tools/accuracy_checker/launcher/openvino_launcher_readme.md).
 - [Compile tool](../../../tools/compile_tool/README.md) compiles the model to be used in API 2.0 by default. To use the resulting compiled blob under the Inference Engine API, the additional `ov_api_1_0` option should be passed.
 
-However, Post-Training Optimization Tool and Deep Learning Workbench of OpenVINO 2022.1 do not support OpenVINO IR v10. They require the latest version of Model Optimizer to generate OpenVINO IR v11 files.
+However, Post-Training Optimization Tool of OpenVINO 2022.1 does not support OpenVINO IR v10. They require the latest version of Model Optimizer to generate OpenVINO IR v11 files.
 
 > **NOTE**: To quantize your OpenVINO IR v10 models to run with OpenVINO 2022.1, download and use Post-Training Optimization Tool of OpenVINO 2021.4.
 
@@ -65,7 +65,7 @@ To understand the differences between Inference Engine API and API 2.0, see the 
   - Inference Engine API does not support compiling of models with dynamic input shapes.
 - **New behavior** implemented in 2022.1 assumes full model alignment with the framework:
   - Model Optimizer preserves input element types and order of dimensions (layouts), and stores tensor names from the original models.
-  - OpenVINO Runtime 2022.1 reads models in any format (OpenVINO IR v10, OpenVINO IR v11, ONNX, PaddlePaddle, etc.).
+  - OpenVINO Runtime 2022.1 reads models in any format (OpenVINO IR v10, OpenVINO IR v11, TensorFlow (check [TensorFlow Frontend Capabilities and Limitations](../../resources/tensorflow_frontend.md)), ONNX, PaddlePaddle, etc.).
   - API 2.0 uses tensor names for addressing, which is the standard approach among the compatible model frameworks.
   - API 2.0 can also address input and output tensors by the index. Some model formats like ONNX are sensitive to the input and output order, which is preserved by OpenVINO 2022.1.
 

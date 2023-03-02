@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -234,7 +234,6 @@ public:
     AttributeAdapter(float& value) : IndirectScalarValueAccessor<float, double>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<float>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a double as a double
@@ -244,7 +243,6 @@ public:
     AttributeAdapter(double& value) : DirectValueAccessor<double>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<double>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a string as a string
@@ -254,7 +252,6 @@ public:
     AttributeAdapter(std::string& value) : DirectValueAccessor<std::string>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::string>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a bool as a bool
@@ -264,7 +261,6 @@ public:
     AttributeAdapter(bool& value) : DirectValueAccessor<bool>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<bool>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access an int8_t and an int64_t
@@ -274,7 +270,6 @@ public:
     AttributeAdapter(int8_t& value) : IndirectScalarValueAccessor<int8_t, int64_t>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<int8_t>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access an int16_t as an int64_t
@@ -284,7 +279,6 @@ public:
     AttributeAdapter(int16_t& value) : IndirectScalarValueAccessor<int16_t, int64_t>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<int16_t>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access an int32_t as an int64_t
@@ -294,7 +288,6 @@ public:
     AttributeAdapter(int32_t& value) : IndirectScalarValueAccessor<int32_t, int64_t>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<int32_t>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access an int64_t as an int64_t
@@ -304,7 +297,6 @@ public:
     AttributeAdapter(int64_t& value) : DirectValueAccessor<int64_t>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<int64_t>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a uint8_t as an int64_t
@@ -314,7 +306,6 @@ public:
     AttributeAdapter(uint8_t& value) : IndirectScalarValueAccessor<uint8_t, int64_t>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<uint8_t>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a uint16_t as an int64_t
@@ -324,7 +315,6 @@ public:
     AttributeAdapter(uint16_t& value) : IndirectScalarValueAccessor<uint16_t, int64_t>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<uint16_t>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a uint32_t as an int64_t
@@ -334,7 +324,6 @@ public:
     AttributeAdapter(uint32_t& value) : IndirectScalarValueAccessor<uint32_t, int64_t>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<uint32_t>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a uint64_t as an int64_t
@@ -344,10 +333,9 @@ public:
     AttributeAdapter(uint64_t& value) : IndirectScalarValueAccessor<uint64_t, int64_t>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<uint64_t>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
 // size_t is one of the uint types on _WIN32
 template <>
 class OPENVINO_API AttributeAdapter<size_t> : public IndirectScalarValueAccessor<size_t, int64_t> {
@@ -355,7 +343,6 @@ public:
     AttributeAdapter(size_t& value) : IndirectScalarValueAccessor<size_t, int64_t>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<size_t>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>
@@ -366,7 +353,6 @@ public:
         : IndirectVectorValueAccessor<std::vector<size_t>, std::vector<int64_t>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<size_t>");
-    BWDCMP_RTTI_DECLARATION;
 };
 #endif
 
@@ -380,7 +366,6 @@ public:
     AttributeAdapter(std::vector<int8_t>& value) : DirectValueAccessor<std::vector<int8_t>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<int8_t>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a vector<int16_t>
@@ -390,7 +375,6 @@ public:
     AttributeAdapter(std::vector<int16_t>& value) : DirectValueAccessor<std::vector<int16_t>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<int16_t>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a vector<int32_t>
@@ -400,7 +384,6 @@ public:
     AttributeAdapter(std::vector<int32_t>& value) : DirectValueAccessor<std::vector<int32_t>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<int32_t>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a vector<int64_t>
@@ -410,7 +393,6 @@ public:
     AttributeAdapter(std::vector<int64_t>& value) : DirectValueAccessor<std::vector<int64_t>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<int64_t>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a vector<uint8_t>
@@ -420,7 +402,6 @@ public:
     AttributeAdapter(std::vector<uint8_t>& value) : DirectValueAccessor<std::vector<uint8_t>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<uint8_t>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a vector<uint16_t>
@@ -430,7 +411,6 @@ public:
     AttributeAdapter(std::vector<uint16_t>& value) : DirectValueAccessor<std::vector<uint16_t>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<uint16_t>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a vector<uint32_t>
@@ -440,7 +420,6 @@ public:
     AttributeAdapter(std::vector<uint32_t>& value) : DirectValueAccessor<std::vector<uint32_t>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<uint32_t>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a vector<uint64_t>
@@ -450,7 +429,6 @@ public:
     AttributeAdapter(std::vector<uint64_t>& value) : DirectValueAccessor<std::vector<uint64_t>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<uint64_t>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a vector<float>
@@ -460,7 +438,6 @@ public:
     AttributeAdapter(std::vector<float>& value) : DirectValueAccessor<std::vector<float>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<float>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a vector<double>
@@ -470,7 +447,6 @@ public:
     AttributeAdapter(std::vector<double>& value) : DirectValueAccessor<std::vector<double>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<double>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 /// \brief Access a vector<string>
@@ -480,7 +456,6 @@ public:
     AttributeAdapter(std::vector<std::string>& value) : DirectValueAccessor<std::vector<std::string>>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<std::vector<std::string>");
-    BWDCMP_RTTI_DECLARATION;
 };
 
 template <>

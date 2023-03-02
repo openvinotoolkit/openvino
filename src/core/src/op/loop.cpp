@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v5::Loop);
 
 op::v5::Loop::Loop(const Output<Node>& trip_count, const Output<Node>& execution_condition) : SubGraphOp() {
     set_argument(0, trip_count);
@@ -164,6 +162,8 @@ void op::v5::Loop::validate_and_infer_types() {
         if (auto slice_input_description = ov::as_type_ptr<SliceInputDescription>(input_description)) {
             auto body_parameter = m_bodies[0]->get_parameters().at(slice_input_description->m_body_parameter_index);
             const auto& input_partial_shape = inputs().at(index).get_source_output().get_partial_shape();
+            const auto& input_type = inputs().at(index).get_source_output().get_element_type();
+            body_parameter->set_element_type(input_type);
             if (input_partial_shape.rank().is_dynamic()) {
                 body_parameter->set_partial_shape(ov::PartialShape::dynamic());
             } else {
@@ -178,19 +178,21 @@ void op::v5::Loop::validate_and_infer_types() {
 
             auto body_parameter = m_bodies[0]->get_parameters().at(merged_input_description->m_body_parameter_index);
 
-            auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = input(index).get_partial_shape();
+            auto input_type = input(index).get_element_type();
 
             body_parameter->set_partial_shape(input_partial_shape);
+            body_parameter->set_element_type(input_type);
             back_edges[merged_input_description->m_body_value_index] = merged_input_description->m_body_parameter_index;
         } else if (auto invariant_input_description =
                        ov::as_type_ptr<v0::TensorIterator::InvariantInputDescription>(input_description)) {
             auto body_parameter = m_bodies[0]->get_parameters().at(invariant_input_description->m_body_parameter_index);
 
-            auto body_param_partial_shape = body_parameter->get_partial_shape();
             auto input_partial_shape = input(index).get_partial_shape();
+            auto input_type = input(index).get_element_type();
 
             body_parameter->set_partial_shape(input_partial_shape);
+            body_parameter->set_element_type(input_type);
         }
     }
 
@@ -377,5 +379,3 @@ void op::v5::Loop::clone_to(op::v5::Loop& dst, const OutputVector& new_args) con
 op::v5::Loop::Loop(const op::v5::Loop& other) : SubGraphOp() {
     other.clone_to(*this, other.input_values());
 }
-
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ov::op::v5::Loop::SpecialBodyPorts>);

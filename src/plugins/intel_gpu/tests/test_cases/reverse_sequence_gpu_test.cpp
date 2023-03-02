@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "test_utils.h"
 
@@ -14,7 +12,8 @@
 using namespace cldnn;
 using namespace ::tests;
 
-TEST(reverese_sequence_gpu_test, fp32_d2_2_ba1_sa0) {
+template <typename T>
+void test_fp32_d2_2_ba1_sa0(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } });
@@ -34,29 +33,34 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_ba1_sa0) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("seq_lengths", seq_lengths->get_layout()));
     topology.add(
-            reverse_sequence("reverse_sequence", "input", "seq_lengths", seq_axis, batch_axis)
+            reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
-    network network(engine, topology);
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
-    network.set_input_data("input", input);
-    network.set_input_data("seq_lengths", seq_lengths);
+    network->set_input_data("input", input);
+    network->set_input_data("seq_lengths", seq_lengths);
 
-    auto outputs = network.execute();
+    auto outputs = network->execute();
 
     auto output = outputs.at("reverse_sequence").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
-    std::vector<float> expected_results = {
+    std::vector<T> expected_results = {
             0.0f, 3.0f, 2.0f, 1.0f
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
-TEST(reverese_sequence_gpu_test, fp32_d3_3_3_ba0_sa1) {
+TEST(reverese_sequence_gpu_test, fp32_d2_2_ba1_sa0) {
+    test_fp32_d2_2_ba1_sa0<float>(false);
+}
+
+template <typename T>
+void test_fp32_d3_3_3_ba0_sa1(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 3, 3, 1, 3 } });
@@ -78,28 +82,32 @@ TEST(reverese_sequence_gpu_test, fp32_d3_3_3_ba0_sa1) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("seq_lengths", seq_lengths->get_layout()));
     topology.add(
-            reverse_sequence("reverse_sequence", "input", "seq_lengths", seq_axis, batch_axis)
+            reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
-    network network(engine, topology);
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
-    network.set_input_data("input", input);
-    network.set_input_data("seq_lengths", seq_lengths);
+    network->set_input_data("input", input);
+    network->set_input_data("seq_lengths", seq_lengths);
 
-    auto outputs = network.execute();
+    auto outputs = network->execute();
 
     auto output = outputs.at("reverse_sequence").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
-    std::vector<float> expected_results = {
+    std::vector<T> expected_results = {
             3.0f, 4.0f, 5.0f, 0.0f, 1.0f, 2.0f, 6.0f, 7.0f, 8.0f,
             12.0f, 13.0f, 14.0f, 9.0f, 10.0f, 11.0f, 15.0f, 16.0f, 17.0f,
             21.0f, 22.0f, 23.0f, 18.0f, 19.0f, 20.0f, 24.0f, 25.0f, 26.0f
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
+}
+
+TEST(reverese_sequence_gpu_test, fp32_d3_3_3_ba0_sa1) {
+    test_fp32_d3_3_3_ba0_sa1<float>(false);
 }
 
 TEST(reverese_sequence_gpu_test, fp32_d3_3_3_ba2_sa0) {
@@ -124,7 +132,7 @@ TEST(reverese_sequence_gpu_test, fp32_d3_3_3_ba2_sa0) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("seq_lengths", seq_lengths->get_layout()));
     topology.add(
-            reverse_sequence("reverse_sequence", "input", "seq_lengths", seq_axis, batch_axis)
+            reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
     network network(engine, topology);
@@ -144,7 +152,7 @@ TEST(reverese_sequence_gpu_test, fp32_d3_3_3_ba2_sa0) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -170,7 +178,7 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba0_sa3) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("seq_lengths", seq_lengths->get_layout()));
     topology.add(
-            reverse_sequence("reverse_sequence", "input", "seq_lengths", seq_axis, batch_axis)
+            reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
     network network(engine, topology);
@@ -191,7 +199,7 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba0_sa3) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -217,7 +225,7 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba0_sa2) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("seq_lengths", seq_lengths->get_layout()));
     topology.add(
-            reverse_sequence("reverse_sequence", "input", "seq_lengths", seq_axis, batch_axis)
+            reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
     network network(engine, topology);
@@ -238,7 +246,7 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba0_sa2) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -264,7 +272,7 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba2_sa0) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("seq_lengths", seq_lengths->get_layout()));
     topology.add(
-            reverse_sequence("reverse_sequence", "input", "seq_lengths", seq_axis, batch_axis)
+            reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
     network network(engine, topology);
@@ -285,7 +293,7 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba2_sa0) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -309,7 +317,7 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_ba1_sa0) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("seq_lengths", seq_lengths->get_layout()));
     topology.add(
-            reverse_sequence("reverse_sequence", "input", "seq_lengths", seq_axis, batch_axis)
+            reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
     network network(engine, topology);
@@ -327,7 +335,7 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_ba1_sa0) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -351,7 +359,7 @@ TEST(reverese_sequence_gpu_test, fp16x2_d2_2_ba1_sa0) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("seq_lengths", seq_lengths->get_layout()));
     topology.add(
-        reverse_sequence("reverse_sequence", "input", "seq_lengths", seq_axis, batch_axis)
+        reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
     network network(engine, topology);
@@ -369,7 +377,7 @@ TEST(reverese_sequence_gpu_test, fp16x2_d2_2_ba1_sa0) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -395,7 +403,7 @@ TEST(reverese_sequence_gpu_test, fp16_d3_3_3_ba0_sa1) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("seq_lengths", seq_lengths->get_layout()));
     topology.add(
-            reverse_sequence("reverse_sequence", "input", "seq_lengths", seq_axis, batch_axis)
+            reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
     network network(engine, topology);
@@ -415,7 +423,7 @@ TEST(reverese_sequence_gpu_test, fp16_d3_3_3_ba0_sa1) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -441,7 +449,7 @@ TEST(reverese_sequence_gpu_test, fp16_d3_3_3_ba2_sa0) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("seq_lengths", seq_lengths->get_layout()));
     topology.add(
-            reverse_sequence("reverse_sequence", "input", "seq_lengths", seq_axis, batch_axis)
+            reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
     network network(engine, topology);
@@ -461,7 +469,7 @@ TEST(reverese_sequence_gpu_test, fp16_d3_3_3_ba2_sa0) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -487,7 +495,7 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba0_sa3) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("seq_lengths", seq_lengths->get_layout()));
     topology.add(
-            reverse_sequence("reverse_sequence", "input", "seq_lengths", seq_axis, batch_axis)
+            reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
     network network(engine, topology);
@@ -508,7 +516,7 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba0_sa3) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -534,7 +542,7 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba0_sa2) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("seq_lengths", seq_lengths->get_layout()));
     topology.add(
-            reverse_sequence("reverse_sequence", "input", "seq_lengths", seq_axis, batch_axis)
+            reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
     network network(engine, topology);
@@ -555,7 +563,7 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba0_sa2) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -581,7 +589,7 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba2_sa0) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(input_layout("seq_lengths", seq_lengths->get_layout()));
     topology.add(
-            reverse_sequence("reverse_sequence", "input", "seq_lengths", seq_axis, batch_axis)
+            reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
     network network(engine, topology);
@@ -602,6 +610,15 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba2_sa0) {
     };
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
+}
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST(reverese_sequence_gpu_test, fp32_d2_2_ba1_sa0_cached) {
+    test_fp32_d2_2_ba1_sa0<float>(true);
+}
+#endif
+TEST(reverese_sequence_gpu_test, fp32_d3_3_3_ba0_sa1_cached) {
+    test_fp32_d3_3_3_ba0_sa1<float>(true);
 }

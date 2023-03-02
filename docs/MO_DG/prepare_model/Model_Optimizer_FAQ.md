@@ -321,7 +321,7 @@ However, if your model contains more than one input, Model Optimizer is able to 
 
 #### Q49. What does the message "Data type is unsupported" mean? <a name="question-49"></a>
 
-**A** : Model Optimizer cannot convert the model to the specified data type. Currently, FP16 and FP32 are supported. Make sure you specify the data type with the `--data_type` flag. The available values are: FP16, FP32, half, float.
+**A** : Model Optimizer cannot read the value with the specified data type. Currently, the following types are supported: bool, float16, float32, double, int8, int16, int32, int64, uint8, uint16, uint32, uint64, str.
 
 #### Q50. What does the message "No node with name ..." mean? <a name="question-50"></a>
 
@@ -440,11 +440,11 @@ Keep in mind that there is no space between and inside the brackets for input sh
 
 #### Q75. What does the message "... elements of ... were clipped to infinity while converting a blob for node [...] to ..." mean? <a name="question-75"></a>
 
-**A** : This message may appear when the `--data_type=FP16` command-line option is used. This option implies conversion of all the blobs in the node to FP16. If a value in a blob is out of the range of valid FP16 values, the value is converted to positive or negative infinity. It may lead to incorrect results of inference or may not be a problem, depending on the model. The number of such elements and the total number of elements in the blob is printed out together with the name of the node, where this blob is used.
+**A** : This message may appear when the `--compress_to_fp16` (or deprecated `--data_type`) command-line option is used. This option implies compression of all the model weights, biases, and other constant values to FP16. If a value of a constant is out of the range of valid FP16 values, the value is converted to positive or negative infinity. It may lead to incorrect results of inference or may not be a problem, depending on the model. The number of such elements and the total number of elements in the constant value is printed out together with the name of the node, where this value is used.
 
 #### Q76. What does the message "... elements of ... were clipped to zero while converting a blob for node [...] to ..." mean? <a name="question-76"></a>
 
-**A** : This message may appear when the `--data_type=FP16` command-line option is used. This option implies conversion of all blobs in the mode to FP16. If a value in the blob is so close to zero that it cannot be represented as a valid FP16 value, it is converted to a true zero FP16 value. Depending on the model, it may lead to incorrect results of inference or may not be a problem. The number of such elements and the total number of elements in the blob are printed out together with a name of the node, where this blob is used.
+**A** : This message may appear when the `--compress_to_fp16` (or deprecated `--data_type`) command-line option is used. This option implies conversion of all blobs in the mode to FP16. If a value in the blob is so close to zero that it cannot be represented as a valid FP16 value, it is converted to a true zero FP16 value. Depending on the model, it may lead to incorrect results of inference or may not be a problem. The number of such elements and the total number of elements in the blob are printed out together with a name of the node, where this blob is used.
 
 #### Q77. What does the message "The amount of nodes matched pattern ... is not equal to 1" mean? <a name="question-77"></a>
 

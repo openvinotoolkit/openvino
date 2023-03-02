@@ -1,13 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "extract_image_patches_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
 
+#include "extract_image_patches_inst.h"
 #include "extract_image_patches/extract_image_patches_kernel_selector.h"
 #include "extract_image_patches/extract_image_patches_kernel_ref.h"
 
@@ -57,4 +54,4 @@ attach_extract_image_patches_impl::attach_extract_image_patches_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::extract_image_patches_impl, cldnn::object_type::EXTRACT_IMAGE_PATCHES_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::extract_image_patches_impl)

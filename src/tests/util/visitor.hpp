@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,6 +11,7 @@
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/factory.hpp"
+#include "ngraph/op/util/framework_node.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 
@@ -120,6 +121,9 @@ public:
     virtual operator std::shared_ptr<Variable>&() {
         NGRAPH_CHECK(false, "Invalid type access");
     }
+    virtual operator ov::op::util::FrameworkNodeAttrs&() {
+        NGRAPH_CHECK(false, "Invalid type access");
+    }
     uint64_t get_index() {
         return m_index;
     }
@@ -224,6 +228,8 @@ public:
             a->set(m_values.get<ov::Dimension>(name));
         } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<Variable>>>(&adapter)) {
             a->set(m_values.get<std::shared_ptr<Variable>>(name));
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
+            a->set(m_values.get<ov::op::util::FrameworkNodeAttrs>(name));
         } else {
             NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be unmarshalled");
         }
@@ -309,6 +315,8 @@ public:
         } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ov::Dimension>>(&adapter)) {
             m_values.insert(name, a->get());
         } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<std::shared_ptr<Variable>>>(&adapter)) {
+            m_values.insert(name, a->get());
+        } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
             m_values.insert(name, a->get());
         } else {
             NGRAPH_CHECK(false, "Attribute \"", name, "\" cannot be marshalled");

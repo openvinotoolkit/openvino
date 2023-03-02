@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -61,7 +61,7 @@ protected:
 public:
     void SetUp() override {
         target_device = GetParam();
-        heteroDeviceName = CommonTestUtils::DEVICE_HETERO + std::string(":") + GetParam() + std::string(",") + CommonTestUtils::DEVICE_CPU;
+        heteroDeviceName = CommonTestUtils::DEVICE_HETERO + std::string(":") + GetParam();
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
         ov::test::behavior::APIBaseTest::SetUp();
         IEClassNetworkTest::SetUp();
@@ -304,17 +304,11 @@ TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMet
     }
     ASSERT_LE(0, heteroConfigValues.size());
 
-    // check that all device config values are present in hetero case
+    // check that all device config values are unavailable in hetero case
     for (auto &&deviceConf : deviceConfigValues) {
         auto it = std::find(heteroConfigValues.begin(), heteroConfigValues.end(), deviceConf);
-        ASSERT_TRUE(it != heteroConfigValues.end());
-
-        InferenceEngine::Parameter heteroConfigValue = heteroExeNetwork.GetConfig(deviceConf);
-        InferenceEngine::Parameter deviceConfigValue = deviceExeNetwork.GetConfig(deviceConf);
-
-        // HETERO returns EXCLUSIVE_ASYNC_REQUESTS as a boolean value
-        if (CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS) != deviceConf) {
-            ASSERT_EQ(deviceConfigValue, heteroConfigValue);
+        if (it == heteroConfigValues.end()) {
+            ASSERT_THROW(InferenceEngine::Parameter heteroConfigValue = heteroExeNetwork.GetConfig(deviceConf), InferenceEngine::Exception);
         }
     }
 }
@@ -345,14 +339,8 @@ TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricN
     // check that all device metric values are present in hetero case
     for (auto &&deviceMetricName : deviceMetricValues) {
         auto it = std::find(heteroMetricValues.begin(), heteroMetricValues.end(), deviceMetricName);
-        ASSERT_TRUE(it != heteroMetricValues.end());
-
-        InferenceEngine::Parameter heteroMetricValue = heteroExeNetwork.GetMetric(deviceMetricName);
-        InferenceEngine::Parameter deviceMetricValue = deviceExeNetwork.GetMetric(deviceMetricName);
-
-        if (std::find(heteroSpecificMetrics.begin(), heteroSpecificMetrics.end(), deviceMetricName) ==
-            heteroSpecificMetrics.end()) {
-            ASSERT_TRUE(heteroMetricValue == deviceMetricValue);
+        if (it == heteroMetricValues.end()) {
+            ASSERT_THROW(InferenceEngine::Parameter heteroMetricValue = heteroExeNetwork.GetMetric(deviceMetricName), InferenceEngine::Exception);
         }
     }
 }
@@ -379,7 +367,7 @@ TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK, GetMetricNoT
 
     ASSERT_NO_THROW(p = exeNetwork.GetConfig("TARGET_FALLBACK"));
     std::string targets = p;
-    auto expectedTargets = target_device + "," + CommonTestUtils::DEVICE_CPU;
+    auto expectedTargets = target_device;
 
     std::cout << "Exe network fallback targets: " << targets << std::endl;
     ASSERT_EQ(expectedTargets, targets);

@@ -2,19 +2,21 @@
 
 This sample demonstrates how to execute an inference of image classification networks like AlexNet with images in NV12 color format using Synchronous Inference Request API.
 
-Hello NV12 Input Classification C Sample demonstrates how to use the NV12 automatic input pre-processing API of the Inference Engine in your applications:
+Hello NV12 Input Classification C Sample demonstrates how to use the NV12 automatic input pre-processing API in your applications:
 
-| Feature    | API  | Description |
-|:---     |:--- |:---
-| Blob Operations| [ie_blob_make_memory_nv12] | Create a NV12 blob
-| Input in N12 color format |[ie_network_set_color_format]| Change the color format of the input data
+| Feature | API | Description |
+| :--- | :--- | :--- |
+| Node Operations | `ov_port_get_any_name` | Get a layer name |
+| Infer Request Operations | `ov_infer_request_set_tensor`, `ov_infer_request_get_output_tensor_by_index` | Operate with tensors |
+| Preprocessing | `ov_preprocess_input_tensor_info_set_color_format`, `ov_preprocess_preprocess_steps_convert_element_type`, `ov_preprocess_preprocess_steps_convert_color` | Change the color format of the input data |
+
 Basic Inference Engine API is covered by [Hello Classification C sample](../hello_classification/README.md).
 
 | Options  | Values |
 |:---                              |:---
 | Validated Models                 | [alexnet](@ref omz_models_model_alexnet)
 | Model Format                     | Inference Engine Intermediate Representation (\*.xml + \*.bin), ONNX (\*.onnx)
-| Validated images                 | An uncompressed image in the NV12 color format - \*.yuv
+| Validated images                 | An uncompressed image in the NV12 color format - \*.yuv
 | Supported devices                | [All](../../../docs/OV_Runtime_UG/supported_plugins/Supported_Devices.md) |
 | Other language realization       | [C++](../../../samples/cpp/hello_nv12_input_classification/README.md) |
 
@@ -109,6 +111,4 @@ This sample is an API example, for any performance measurements please use the d
 - [Using OpenVINO™ Samples](../../../docs/OV_Runtime_UG/Samples_Overview.md)
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-
-[ie_network_set_color_format]:https://docs.openvino.ai/latest/ie_c_api/group__Network.html#ga85f3251f1f7b08507c297e73baa58969
-[ie_blob_make_memory_nv12]:https://docs.openvino.ai/latest/ie_c_api/group__Blob.html#ga0a2d97b0d40a53c01ead771f82ae7f4a
+- [C API Reference](https://docs.openvino.ai/latest/api/api_reference.html)

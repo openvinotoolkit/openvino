@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -87,53 +87,56 @@ static const std::map<format::type, format_traits> format_traits_map {
         FMT_TRAITS(image_2d_weights_c4_fyx_b,                    1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy?", {}),
         FMT_TRAITS(image_2d_weights_c1_b_fyx,                    1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy?", {}),
         FMT_TRAITS(lstm_weights_dio,                             1, 1, 2, 0, {0, 1, 3, 2},    "oixy",   "oixy?", {}),
-        FMT_TRAITS(os_is_yx_isa8_osv8_isv4,                      1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy?", {}),
-        FMT_TRAITS(os_is_yx_isa8_osv16_isv4,                     1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy?", {}),
+        FMT_TRAITS(os_is_yx_isa8_osv8_isv4,                      1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy?", {{1, 8}, {0, 8}, {1, 4}}),
+        FMT_TRAITS(os_is_yx_isa8_osv16_isv4,                     1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy?", {{1, 8}, {0, 16}, {1, 4}}),
         FMT_TRAITS(os_is_yx_isa8_osv8_isv4_swizzled_by_4,        1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy?", {}),
-        FMT_TRAITS(os_is_yx_osa4_isa8_osv8_isv2,                 1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy?", {{0, 32}, {1, 16}}),
-        FMT_TRAITS(os_is_yx_osa4_isa8_osv8_isv4,                 1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 32}, {1, 32}}),
-        FMT_TRAITS(os_is_zyx_osa4_isa8_osv8_isv2,                1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{0, 32}, {1, 16}}),
-        FMT_TRAITS(os_is_zyx_osa4_isa8_osv8_isv4,                1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{0, 32}, {1, 32}}),
-        FMT_TRAITS(os_is_yx_osa2_isa8_osv16_isv2,                1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 32}, {1, 16}}),
-        FMT_TRAITS(os_is_yx_osa2_isa8_osv16_isv4,                1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 32}, {1, 32}}),
-        FMT_TRAITS(os_is_yx_osa2_isa8_osv8_isv2,                 1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 16}, {1, 16}}),
-        FMT_TRAITS(os_is_zyx_osa2_isa8_osv8_isv2,                1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{0, 16}, {1, 16}}),
+        FMT_TRAITS(os_is_yx_osa4_isa8_osv8_isv2,                 1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy?", {{0, 4}, {1, 8}, {0, 8}, {1, 2}}),
+        FMT_TRAITS(os_is_yx_osa4_isa8_osv8_isv4,                 1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 4}, {1, 8}, {0, 8}, {1, 4}}),
+        FMT_TRAITS(os_is_zyx_osa4_isa8_osv8_isv2,                1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{0, 4}, {1, 8}, {0, 8}, {1, 2}}),
+        FMT_TRAITS(os_is_zyx_osa4_isa8_osv8_isv4,                1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{0, 4}, {1, 8}, {0, 8}, {1, 4}}),
+        FMT_TRAITS(os_is_yx_osa2_isa8_osv16_isv2,                1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 2}, {1, 8}, {0, 16}, {1, 2}}),
+        FMT_TRAITS(os_is_yx_osa2_isa8_osv16_isv4,                1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 2}, {1, 8}, {0, 16}, {1, 4}}),
+        FMT_TRAITS(os_is_yx_osa2_isa8_osv8_isv2,                 1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 2}, {1, 8}, {0, 8}, {1, 2}}),
+        FMT_TRAITS(os_is_zyx_osa2_isa8_osv8_isv2,                1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{0, 2}, {1, 8}, {0, 8}, {1, 2}}),
         FMT_TRAITS(os_is_zyx_isa8_osv8_isv4,                     1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{1, 8}, {0, 8}, {1, 4}}),
         FMT_TRAITS(os_is_zyx_isa8_osv16_isv4,                    1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{1, 8}, {0, 16}, {1, 4}}),
         FMT_TRAITS(os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4,   1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy?", {{0, 32}, {1, 32}}),
         FMT_TRAITS(os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4,  1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{0, 32}, {1, 32}}),
-        FMT_TRAITS(is_os_yx_osa4_isa8_osv8_isv4,                 1, 1, 2, 0, {1, 0, 2, 3},    "ioyx",   "ioxy",  {{0, 32}, {1, 32}}),
-        FMT_TRAITS(is_os_yx_isa2_osa8_isv8_osv2,                 1, 1, 2, 0, {1, 0, 2, 3},    "ioyx",   "ioxy?", {{1, 16}, {0, 16}}),
-        FMT_TRAITS(is_os_yx_isa4_osa8_isv8_osv4,                 1, 1, 2, 0, {1, 0, 2, 3},    "ioyx",   "ioxy?", {{1, 32}, {0, 32}}),
+        FMT_TRAITS(is_os_yx_osa4_isa8_osv8_isv4,                 1, 1, 2, 0, {1, 0, 2, 3},    "ioyx",   "ioxy",  {{0, 4}, {1, 8}, {0, 8}, {1, 4}}),
+        FMT_TRAITS(is_os_yx_isa2_osa8_isv8_osv2,                 1, 1, 2, 0, {1, 0, 2, 3},    "ioyx",   "ioxy?", {{1, 2}, {0, 8}, {1, 8}, {0, 2}}),
+        FMT_TRAITS(is_os_yx_isa4_osa8_isv8_osv4,                 1, 1, 2, 0, {1, 0, 2, 3},    "ioyx",   "ioxy?", {{1, 4}, {0, 8}, {1, 8}, {0, 4}}),
         FMT_TRAITS(is_o_yx_isv32,                                1, 1, 2, 0, {1, 0, 2, 3},    "oyxi",   "oixy?", {{1, 32}}),
         FMT_TRAITS(is_o32_yx_isv32_swizzled_by_4,                1, 1, 2, 0, {0, 1, 2, 3},    "oyxi",   "oixy?", {}),
         FMT_TRAITS(os_is_y_x8_osv8_isv4,                         1, 1, 2, 0, {0, 1, 2, 3},    "oyxi",   "oixy?", {}),
         FMT_TRAITS(os_is_y_x8_osv8_isv4_swizzled_by_4,           1, 1, 2, 0, {0, 1, 2, 3},    "oyxi",   "oixy?", {}),
         FMT_TRAITS(os_is_yx_osv16_isv4,                          1, 1, 2, 0, {0, 1, 2, 3},    "oixy",   "oixy?", {{0, 16}, {1, 4}}),
-        FMT_TRAITS(os_is_yx_osv8_isv4,                           1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{1, 4}, {0, 8}}),
-        FMT_TRAITS(os_is_zyx_osv8_isv4,                          1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{1, 4}, {0, 8}}),
-        FMT_TRAITS(os_is_yx_osv8_isv2,                           1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{1, 2}, {0, 8}}),
-        FMT_TRAITS(os_is_zyx_osv8_isv2,                          1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{1, 2}, {0, 8}}),
+        FMT_TRAITS(os_is_yx_osv8_isv4,                           1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 8}, {1, 4}}),
+        FMT_TRAITS(os_is_zyx_osv8_isv4,                          1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{0, 8}, {1, 4}}),
+        FMT_TRAITS(os_is_yx_osv8_isv2,                           1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 8}, {1, 2}}),
+        FMT_TRAITS(os_is_zyx_osv8_isv2,                          1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{0, 8}, {1, 2}}),
         FMT_TRAITS(os_is_zyx_osv16_isv16,                        1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{0, 16}, {1, 16}}),
         FMT_TRAITS(os_is_yx_osv32_isv4_swizzled_by_2,            1, 1, 2, 0, {0, 1, 2, 3},    "oixy",   "oixy?", {{0, 32}, {1, 4}}),
         FMT_TRAITS(os_is_yx_osv32_isv4,                          1, 1, 2, 0, {0, 1, 2, 3},    "oixy",   "oixy?", {{0, 32}, {1, 4}}),
         FMT_TRAITS(os_is_zyx_osv32_isv4,                         1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{0, 32}, {1, 4}}),
         FMT_TRAITS(os_is_yx_osv32_isv32p,                        1, 1, 1, 0, {0, 1, 2, 3},    "oixy",   "oixy?", {}),
-        FMT_TRAITS(os_is_zyx_isv16_osv16,                        1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{0, 16}, {1, 16}}),
+        FMT_TRAITS(os_is_zyx_isv16_osv16,                        1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{1, 16}, {0, 16}}),
         FMT_TRAITS(is_os_zyx_isv16_osv16,                        1, 1, 3, 0, {1, 0, 2, 3, 4}, "iozyx",  "oixyz", {{1, 16}, {0, 16}}),
-        FMT_TRAITS(is_os_yx_isv16_osv16,                         1, 1, 2, 0, {1, 0, 2, 3, 4}, "ioyx",   "oixy",  {{1, 16}, {0, 16}}),
-        FMT_TRAITS(is_os_yx_isv16_osv8,                          1, 1, 2, 0, {1, 0, 2, 3, 4}, "ioyx",   "oixy",  {{1, 16}, {0, 8}}),
+        FMT_TRAITS(is_os_yx_isv16_osv16,                         1, 1, 2, 0, {1, 0, 2, 3},    "ioyx",   "oixy",  {{1, 16}, {0, 16}}),
+        FMT_TRAITS(is_os_yx_isv16_osv8,                          1, 1, 2, 0, {1, 0, 2, 3},    "ioyx",   "oixy",  {{1, 16}, {0, 8}}),
         FMT_TRAITS(is_os_zyx_isa8_osv8_isv2,                     1, 1, 3, 0, {1, 0, 2, 3, 4}, "iozyx",  "ioxyz", {{1, 8}, {0, 8}, {1, 2}}),
         FMT_TRAITS(is_os_zyx_isa8_osv8_isv4,                     1, 1, 3, 0, {1, 0, 2, 3, 4}, "iozyx",  "ioxyz", {{1, 8}, {0, 8}, {1, 4}}),
+        FMT_TRAITS(os_is_zyx_isa8_osv8_isv4,                     1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{1, 8}, {0, 8}, {1, 4}}),
         FMT_TRAITS(os_is_zyx_isa8_osv8_isv2,                     1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{1, 8}, {0, 8}, {1, 2}}),
+        FMT_TRAITS(os_is_zyx_isa8_osv16_isv4,                    1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{1, 8}, {0, 16}, {1, 4}}),
         FMT_TRAITS(is_os_yx_isa8_osv8_isv2,                      1, 1, 2, 0, {1, 0, 2, 3},    "ioyx",   "ioxy?", {{1, 8}, {0, 8}, {1, 2}}),
         FMT_TRAITS(is_os_yx_isa8_osv8_isv4,                      1, 1, 2, 0, {1, 0, 2, 3},    "ioyx",   "ioxy?", {{1, 8}, {0, 8}, {1, 4}}),
+        FMT_TRAITS(os_is_yx_isa8_osv8_isv4,                      1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy?", {{1, 8}, {0, 8}, {1, 4}}),
         FMT_TRAITS(os_is_yx_isa8_osv8_isv2,                      1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy?", {{1, 8}, {0, 8}, {1, 2}}),
         FMT_TRAITS(os_is_osv32_isv32_swizzled_by_4,              1, 1, 0, 0, {0, 1, 2, 3},    "oixy",   "oixy?", {{0, 32}, {1, 32}}),
         FMT_TRAITS(os_is_zyx_isv8_osv16_isv2,                    1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{1, 8}, {0, 16}, {1, 2}}),
         FMT_TRAITS(os_zyxi_osv16,                                1, 1, 3, 0, {0, 2, 3, 4, 1}, "ozyxi",  "oixyz", {{0, 16}}),
         FMT_TRAITS(os_is_yx_isv8_osv16_isv2,                     1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{1, 8}, {0, 16}, {1, 2}}),
-        FMT_TRAITS(os_is_yx_osv16_isv16,                         1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{1, 16}, {0, 16}}),
+        FMT_TRAITS(os_is_yx_osv16_isv16,                         1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 16}, {1, 16}}),
         FMT_TRAITS(os_is_zyx_osv32_isv16,                        1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{0, 32}, {1, 16}}),
         FMT_TRAITS(os_is_zyx_osv64_isv16,                        1, 1, 3, 0, {0, 1, 2, 3, 4}, "oizyx",  "oixyz", {{0, 64}, {1, 16}}),
         FMT_TRAITS(os_iyx_osv32__ai32,                           1, 1, 2, 0, {0, 1, 2, 3},    "oiyx",   "oixy",  {{0, 32}}),
@@ -156,6 +159,7 @@ static const std::map<format::type, format_traits> format_traits_map {
         FMT_TRAITS(gioyx,                                        1, 1, 2, 1, {0, 2, 1, 3, 4},    "gioyx",  "oixy??g", {}),
         FMT_TRAITS(goizyx,                                       1, 1, 3, 1, {0, 1, 2, 3, 4, 5}, "goizyx", "oixyz?g", {}),
         FMT_TRAITS(giozyx,                                       1, 1, 3, 1, {0, 2, 1, 3, 4, 5}, "giozyx", "oixyz?g", {}),
+        FMT_TRAITS(g_os_iyx_osv8,                                1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy??g", {{0, 8}}),
         FMT_TRAITS(g_os_iyx_osv16,                               1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy??g", {{0, 16}}),
         FMT_TRAITS(g_os_iyx_osv32,                               1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy??g", {{0, 32}}),
         FMT_TRAITS(gs_oiyx_gsv16,                                1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy??g", {{6, 16}}),
@@ -184,15 +188,15 @@ static const std::map<format::type, format_traits> format_traits_map {
         FMT_TRAITS(g_os_zyx_is_osv32_isv32,                      1, 1, 3, 1, {0, 1, 2, 3, 4, 5}, "gozyxi", "oixyz?g", {{0, 32}, {1, 32}}),
         FMT_TRAITS(g_os_is_yx_isa8_osv8_isv2,                    1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy??g", {{1, 8}, {0, 8}, {1, 2}}),
         FMT_TRAITS(g_os_is_yx_isa8_osv8_isv4,                    1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy??g", {{1, 8}, {0, 8}, {1, 4}}),
-        FMT_TRAITS(g_os_is_yx_osa2_isa8_osv8_isv2,               1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy??g", {{0, 16}, {1, 16}}),
-        FMT_TRAITS(g_os_is_yx_osa4_isa8_osv8_isv4,               1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy??g", {{0, 32}, {1, 32}}),
-        FMT_TRAITS(g_os_is_zyx_osa4_isa8_osv8_isv4,              1, 1, 3, 1, {0, 1, 2, 3, 4, 5}, "goizyx", "oixyz?g", {{0, 32}, {1, 32}}),
         FMT_TRAITS(g_os_is_zyx_isa8_osv8_isv2,                   1, 1, 3, 1, {0, 1, 2, 3, 4, 5}, "goizyx", "oixyz?g", {{1, 8}, {0, 8}, {1, 2}}),
         FMT_TRAITS(g_os_is_zyx_isa8_osv8_isv4,                   1, 1, 3, 1, {0, 1, 2, 3, 4, 5}, "goizyx", "oixyz?g", {{1, 8}, {0, 8}, {1, 4}}),
-        FMT_TRAITS(g_os_is_yx_osa4_isa8_osv8_isv2,               1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy??g", {{0, 32}, {1, 16}}),
-        FMT_TRAITS(g_os_is_zyx_osa4_isa8_osv8_isv2,              1, 1, 3, 1, {0, 1, 2, 3, 4, 5}, "goizyx", "oixyz?g", {{0, 32}, {1, 16}}),
-        FMT_TRAITS(g_os_is_yx_osa2_isa8_osv16_isv4,              1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy??g", {{0, 32}, {1, 32}}),
-        FMT_TRAITS(g_os_is_yx_osa2_isa8_osv16_isv2,              1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy??g", {{0, 32}, {1, 16}}),
+        FMT_TRAITS(g_os_is_yx_osa2_isa8_osv8_isv2,               1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy??g", {{0, 2}, {1, 8}, {0, 8}, {1, 2}}),
+        FMT_TRAITS(g_os_is_yx_osa4_isa8_osv8_isv4,               1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy??g", {{0, 4}, {1, 8}, {0, 8}, {1, 4}}),
+        FMT_TRAITS(g_os_is_zyx_osa4_isa8_osv8_isv4,              1, 1, 3, 1, {0, 1, 2, 3, 4, 5}, "goizyx", "oixyz?g", {{0, 4}, {1, 8}, {0, 8}, {1, 4}}),
+        FMT_TRAITS(g_os_is_yx_osa4_isa8_osv8_isv2,               1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy??g", {{0, 4}, {1, 8}, {0, 8}, {1, 2}}),
+        FMT_TRAITS(g_os_is_zyx_osa4_isa8_osv8_isv2,              1, 1, 3, 1, {0, 1, 2, 3, 4, 5}, "goizyx", "oixyz?g", {{0, 4}, {1, 8}, {0, 8}, {1, 2}}),
+        FMT_TRAITS(g_os_is_yx_osa2_isa8_osv16_isv4,              1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy??g", {{0, 2}, {1, 8}, {0, 16}, {1, 4}}),
+        FMT_TRAITS(g_os_is_yx_osa2_isa8_osv16_isv2,              1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy??g", {{0, 2}, {1, 8}, {0, 16}, {1, 2}}),
         FMT_TRAITS(gs_oi_yxs_gsv4_yxsv4,                         1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy??g", {{6, 4}}),
         FMT_TRAITS(gs_oi_yxs_gsv16_yxsv4,                        1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy??g", {{6, 16}}),
         FMT_TRAITS(gs_oi_yxs_gsv32_yxsv4,                        1, 1, 2, 1, {0, 1, 2, 3, 4},    "goiyx",  "oixy??g", {{6, 32}}),
@@ -306,4 +310,18 @@ format format::adjust_to_rank(format fmt, size_t new_rank) {
     OPENVINO_ASSERT(false, "Can't adjust format ", fmt.to_string(), " to the new rank (", new_rank, ")");
 }
 
+// First : block_idx, Second : block_size
+const std::vector<std::pair<size_t, int>> format::per_axis_block_size(format fmt) {
+    std::vector<std::pair<size_t, int>> sizes_for_dims;
+    for (const auto& block : fmt.block_sizes()) {
+        auto it = std::find_if(sizes_for_dims.begin(), sizes_for_dims.end(),
+                [&block](const std::pair<size_t, int>& ele) { return ele.first == block.first; });
+        if (it != sizes_for_dims.end())
+            it->second *= block.second;  // the axis is double blocked
+        else
+            sizes_for_dims.push_back({block.first, block.second});
+    }
+
+    return sizes_for_dims;
+}
 }  // namespace cldnn

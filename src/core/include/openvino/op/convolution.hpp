@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@ namespace v1 {
 class OPENVINO_API Convolution : public Op {
 public:
     OPENVINO_OP("Convolution", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a batched convolution operation.
     Convolution() = default;
@@ -92,10 +91,6 @@ public:
     void set_auto_pad(const PadType& auto_pad) {
         m_auto_pad = auto_pad;
     }
-    /// \return The default value for Convolution.
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    std::shared_ptr<Node> get_default_value() const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
 
 protected:
     Strides m_strides;
@@ -135,7 +130,6 @@ private:
 class OPENVINO_API ConvolutionBackpropData : public Op {
 public:
     OPENVINO_OP("ConvolutionBackpropData", "opset1", op::Op, 1);
-    BWDCMP_RTTI_DECLARATION;
 
     /// \brief Constructs a batched-convolution data batch-backprop operation.
     ConvolutionBackpropData() = default;

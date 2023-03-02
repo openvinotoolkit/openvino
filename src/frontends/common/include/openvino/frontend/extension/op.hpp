@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,72 @@ inline const ov::OpSet& get_opset_by_name(const std::string& opset_name) {
     } else {
         FRONT_END_GENERAL_CHECK(false, "Unsupported opset name: ", opset_name);
     }
+}
+
+/// \brief The helper function to create an instance of ov::Node class initialized by provided type name.
+/// Expected formats:
+/// - opsetN::OpName
+/// - opsetN.OpName
+/// - OpName
+/// \param ov_type_name Type name of created ov::Node.
+inline std::shared_ptr<ov::Node> create_ov_node_by_name(const std::string& ov_type_name) {
+    auto split = [](const std::string& s, const std::string& delimiter) {
+        size_t pos_start = 0, pos_end, delim_len = delimiter.length();
+        std::string token;
+        std::vector<std::string> res;
+
+        while ((pos_end = s.find(delimiter, pos_start)) != std::string::npos) {
+            token = s.substr(pos_start, pos_end - pos_start);
+            pos_start = pos_end + delim_len;
+            res.push_back(token);
+        }
+
+        res.push_back(s.substr(pos_start));
+        return res;
+    };
+
+    std::string opset_name;
+    std::string op_name;
+    auto cnt_colons = std::count(ov_type_name.begin(), ov_type_name.end(), ':');
+    auto cnt_dots = std::count(ov_type_name.begin(), ov_type_name.end(), '.');
+    if (cnt_colons == 2 && cnt_dots == 0) {
+        auto divided = split(ov_type_name, "::");
+        if (divided.size() != 2) {
+            FRONT_END_GENERAL_CHECK(false,
+                                    "Invalid OpenVINO operation format, one of the next is expected:"
+                                    "opsetN::OpName or opsetN.OpName or OpName. Provided operation format: ",
+                                    ov_type_name);
+        }
+        opset_name = divided[0];
+        op_name = divided[1];
+    } else if (cnt_colons == 0 && cnt_dots == 1) {
+        auto divided = split(ov_type_name, ".");
+        if (divided.size() != 2) {
+            FRONT_END_GENERAL_CHECK(false,
+                                    "Invalid OpenVINO operation format, one of the next is expected:"
+                                    "opsetN::OpName or opsetN.OpName or OpName. Provided operation format: ",
+                                    ov_type_name);
+        }
+        opset_name = divided[0];
+        op_name = divided[1];
+    } else if (cnt_colons == 0 && cnt_dots == 0) {
+        opset_name = "latest";
+        op_name = ov_type_name;
+    } else {
+        FRONT_END_GENERAL_CHECK(false,
+                                "Invalid OpenVINO operation format, one of the next is expected: \n"
+                                "opsetN::OpName or opsetN.OpName or OpName. Provided operation format: ",
+                                ov_type_name);
+    }
+
+    const auto& opset = get_opset_by_name(opset_name);
+    if (!opset.contains_type(op_name)) {
+        FRONT_END_GENERAL_CHECK(false,
+                                "OpenVINO opset doesn't contain operation with "
+                                "name ",
+                                op_name);
+    }
+    return std::shared_ptr<ngraph::Node>(opset.create(op_name));
 }
 
 // One-to-one operation mapping for OVOpType != void which means OV type is specified by OVOpType
@@ -139,72 +205,8 @@ OpExtensionBase<BaseConversionType, void>::OpExtensionBase(const std::string& ov
                                                            const std::map<std::string, ov::Any>& attr_values_map)
     : BaseConversionType(fw_type_name,
                          OpConversionFunction(
-                             [=]() -> std::shared_ptr<ov::Node> {
-                                 auto split = [](const std::string& s, const std::string& delimiter) {
-                                     size_t pos_start = 0, pos_end, delim_len = delimiter.length();
-                                     std::string token;
-                                     std::vector<std::string> res;
-
-                                     while ((pos_end = s.find(delimiter, pos_start)) != std::string::npos) {
-                                         token = s.substr(pos_start, pos_end - pos_start);
-                                         pos_start = pos_end + delim_len;
-                                         res.push_back(token);
-                                     }
-
-                                     res.push_back(s.substr(pos_start));
-                                     return res;
-                                 };
-
-                                 // Expected formats:
-                                 // opsetN::OpName
-                                 // opsetN.OpName
-                                 // OpName
-                                 std::string opset_name;
-                                 std::string op_name;
-                                 auto cnt_colons = std::count(ov_type_name.begin(), ov_type_name.end(), ':');
-                                 auto cnt_dots = std::count(ov_type_name.begin(), ov_type_name.end(), '.');
-                                 if (cnt_colons == 2 && cnt_dots == 0) {
-                                     auto divided = split(ov_type_name, "::");
-                                     if (divided.size() != 2) {
-                                         FRONT_END_GENERAL_CHECK(
-                                             false,
-                                             "Invalid OpenVINO operation format, one of the next is expected:"
-                                             "opsetN::OpName or opsetN.OpName or OpName. Provided operation format: ",
-                                             ov_type_name);
-                                     }
-                                     opset_name = divided[0];
-                                     op_name = divided[1];
-                                 } else if (cnt_colons == 0 && cnt_dots == 1) {
-                                     auto divided = split(ov_type_name, ".");
-                                     if (divided.size() != 2) {
-                                         FRONT_END_GENERAL_CHECK(
-                                             false,
-                                             "Invalid OpenVINO operation format, one of the next is expected:"
-                                             "opsetN::OpName or opsetN.OpName or OpName. Provided operation format: ",
-                                             ov_type_name);
-                                     }
-                                     opset_name = divided[0];
-                                     op_name = divided[1];
-                                 } else if (cnt_colons == 0 && cnt_dots == 0) {
-                                     opset_name = "latest";
-                                     op_name = ov_type_name;
-                                 } else {
-                                     FRONT_END_GENERAL_CHECK(
-                                         false,
-                                         "Invalid OpenVINO operation format, one of the next is expected: \n"
-                                         "opsetN::OpName or opsetN.OpName or OpName. Provided operation format: ",
-                                         ov_type_name);
-                                 }
-
-                                 const auto& opset = get_opset_by_name(opset_name);
-                                 if (!opset.contains_type(op_name)) {
-                                     FRONT_END_GENERAL_CHECK(false,
-                                                             "OpenVINO opset doesn't contain operation with "
-                                                             "name ",
-                                                             op_name);
-                                 }
-
-                                 return std::shared_ptr<ngraph::Node>(opset.create(op_name));
+                             [ov_type_name]() {
+                                 return create_ov_node_by_name(ov_type_name);
                              },
                              attr_names_map,
                              attr_values_map)) {}

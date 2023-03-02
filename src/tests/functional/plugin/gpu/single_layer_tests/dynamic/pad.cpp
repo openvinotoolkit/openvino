@@ -91,6 +91,50 @@ const std::vector<ngraph::helpers::PadMode> padMode = {
         ngraph::helpers::PadMode::SYMMETRIC
 };
 
+/* *======================* Dynamic Shapes Tests 2D *======================* */
+
+const std::vector<InputShape> inputShapesDynamic2D = {
+        {{-1, -1},              // dynamic
+         {{5, 36}, {3, 16}}},   // target
+
+        {{-1, 32},              // dynamic
+         {{5, 32}}},            // target
+
+        {{{1, 5}, {16, 32}},    // dynamic
+         {{3, 16}, {5, 24}}},   // target
+};
+
+const std::vector<std::vector<int64_t>> padsBegin2D_Smoke = {{0, 1}, {0, 2}};
+const std::vector<std::vector<int64_t>> padsEnd2D_Smoke   = {{0, 2}, {0, 0}};
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_GPUPadDynamic2DConst,
+        PadLayerGPUTest,
+        ::testing::Combine(
+                ::testing::ValuesIn(inputShapesDynamic2D),
+                ::testing::ValuesIn(inputPrecisions),
+                ::testing::ValuesIn(padsBegin2D_Smoke),
+                ::testing::ValuesIn(padsEnd2D_Smoke),
+                ::testing::ValuesIn(argPadValue),
+                ::testing::Values(ngraph::helpers::PadMode::CONSTANT)),
+        PadLayerGPUTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_GPUPadDynamic2D,
+        PadLayerGPUTest,
+        ::testing::Combine(
+                ::testing::ValuesIn(inputShapesDynamic2D),
+                ::testing::ValuesIn(inputPrecisions),
+                ::testing::ValuesIn(padsBegin2D_Smoke),
+                ::testing::ValuesIn(padsEnd2D_Smoke),
+                ::testing::Values(0),
+                ::testing::ValuesIn(padMode)),
+        PadLayerGPUTest::getTestCaseName
+);
+
+/* *======================* *=====================* *======================* */
+
 /* *======================* Dynamic Shapes Tests 4D *======================* */
 
 const std::vector<InputShape> inputShapesDynamic4D = {

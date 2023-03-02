@@ -2,15 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <prior_box/prior_box_kernel_ref.h>
-#include <prior_box/prior_box_kernel_selector.h>
-#include <prior_box_inst.h>
-
-#include <impls/implementation_map.hpp>
-#include <vector>
-
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "primitive_base.hpp"
+
+#include "prior_box_inst.h"
+#include "prior_box/prior_box_kernel_ref.h"
+#include "prior_box/prior_box_kernel_selector.h"
 
 namespace cldnn {
 namespace ocl {
@@ -99,4 +95,4 @@ attach_prior_box_impl::attach_prior_box_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::prior_box_impl, cldnn::object_type::PRIOR_BOX_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::prior_box_impl)

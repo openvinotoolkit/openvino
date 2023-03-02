@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <ngraph/validation_util.hpp>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/except.hpp"
@@ -18,8 +19,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v1::Pad);
 
 op::v1::Pad::Pad(const Output<Node>& arg,
                  const Output<Node>& pads_begin,
@@ -68,16 +67,24 @@ bool ngraph::op::v1::Pad::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v1::Pad::validate_and_infer_types() {
     OV_OP_SCOPE(v1_Pad_validate_and_infer_types);
-    element::Type result_et;
+    element::Type result_et = element::dynamic;
 
     const auto& arg_element_type = get_input_element_type(0);
     const auto& pads_begin_element_type = get_input_element_type(1);
     const auto& pads_end_element_type = get_input_element_type(2);
 
+    NODE_VALIDATION_CHECK(this,
+                          element::Type::merge(result_et, result_et, arg_element_type),
+                          "Cannot merge element types (input arg element type: ",
+                          arg_element_type,
+                          ", with: ",
+                          result_et,
+                          ").");
+
     if (m_pad_mode == PadMode::CONSTANT && get_input_size() == 4) {
         const auto& arg_pad_element_type = get_input_element_type(3);
         NODE_VALIDATION_CHECK(this,
-                              element::Type::merge(result_et, arg_element_type, arg_pad_element_type),
+                              element::Type::merge(result_et, result_et, arg_pad_element_type),
                               "Argument element types do not match (input arg element type: ",
                               arg_element_type,
                               ", arg_pad element type: ",
@@ -97,12 +104,8 @@ void op::v1::Pad::validate_and_infer_types() {
                           pads_end_element_type,
                           ").");
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
-    std::vector<ov::PartialShape> input_shapes;
-    for (size_t i = 0; i < get_input_size(); i++)
-        input_shapes.push_back(get_input_partial_shape(i));
-    shape_infer(this, input_shapes, output_shapes);
-    set_output_type(0, get_input_element_type(0), output_shapes[0]);
+    const auto output_shapes = shape_infer(this, get_node_input_partial_shapes(*this));
+    set_output_type(0, result_et, output_shapes[0]);
 }
 
 shared_ptr<Node> op::v1::Pad::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -166,4 +169,19 @@ bool op::v1::Pad::evaluate(const HostTensorVector& outputs, const HostTensorVect
 bool op::v1::Pad::has_evaluate() const {
     OV_OP_SCOPE(v1_Pad_has_evaluate);
     return true;
+}
+
+bool op::v1::Pad::evaluate_lower(ov::TensorVector& output_values) const {
+    OV_OP_SCOPE(v1_Pad_evaluate_lower);
+    return ov::have_node_inputs_bounds_set(this, 1, 2) && ov::default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v1::Pad::evaluate_upper(ov::TensorVector& output_values) const {
+    OV_OP_SCOPE(v1_Pad_evaluate_upper);
+    return ov::have_node_inputs_bounds_set(this, 1, 2) && ov::default_upper_bound_evaluator(this, output_values);
+}
+
+bool op::v1::Pad::evaluate_label(ov::TensorLabelVector& output_labels) const {
+    OV_OP_SCOPE(v1_Pad_evaluate_label);
+    return ov::default_label_evaluator(this, output_labels);
 }

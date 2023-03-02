@@ -82,3 +82,23 @@ TEST(ONNXConversionExtensionTest, custom_op_with_custom_domain) {
     }
     FAIL() << "Expected operation not found in the converted model";
 }
+
+TEST(ONNXConversionExtensionTest, custom_op_with_incorrect_numer_of_outputs_exception) {
+    const auto ext =
+        std::make_shared<onnx::ConversionExtension>("CustomAdd",
+                                                    "custom.op",
+                                                    [](const ov::frontend::NodeContext& node) -> ov::OutputVector {
+                                                        // the default constructor called, the op with 0 output created
+                                                        auto op = std::make_shared<ov::op::v1::Add>();
+                                                        return {op};
+                                                    });
+
+    auto fe = std::make_shared<ov::frontend::onnx::FrontEnd>();
+    fe->add_extension(ext);
+
+    const auto input_model = fe->load(CommonTestUtils::getModelFromTestModelZoo(
+        ov::util::path_join({TEST_ONNX_MODELS_DIRNAME, "missing_op_domain.onnx"})));
+
+    std::shared_ptr<ov::Model> model;
+    ASSERT_THROW(fe->convert(input_model), ov::Exception);
+}

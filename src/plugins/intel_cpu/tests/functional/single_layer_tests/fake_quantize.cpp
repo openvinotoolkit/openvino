@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -149,7 +149,6 @@ private:
 };
 
 TEST_P(FakeQuantizeLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
 
     CheckPluginRelatedResults(compiledModel, layerName);
@@ -332,6 +331,14 @@ std::vector<inputShapes> decomposeShapes = {
     inputShapes{
         InputShape{{4, 5, 6, 7}, {{4, 5, 6, 7}}},
         {{1, 1, 6, 1}, {1, 5, 6, 7}, {1, 1, 6, 1}, {1, 1, 6, 1}}
+    },
+    inputShapes{
+        InputShape{{4, 5, 6, 6}, {{4, 5, 6, 6}}},
+        {{1, 1, 6, 6}, {1, 1, 6, 6}, {1, 5, 6, 1}, {1, 5, 1, 6}}
+    },
+    inputShapes{
+        InputShape{{4, 5, 6, 6}, {{4, 5, 6, 6}}},
+        {{1, 5, 6, 1}, {1, 5, 6, 1}, {1, 5, 6, 1}, {1, 5, 1, 6}}
     },
     inputShapes{
         InputShape{{3, 4, 5, 6, 7}, {{3, 4, 5, 6, 7}}},

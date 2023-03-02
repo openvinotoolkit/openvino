@@ -40,7 +40,7 @@ TEST_P(eltwise_si_test, shape_infer) {
 
     auto input1_prim = std::make_shared<input_layout>("input1", p.input1_layout);
     auto input2_prim = std::make_shared<input_layout>("input2", p.input2_layout);
-    auto eltwise_prim = std::make_shared<eltwise>("output", "input1", "input2", p.stride, p.mode, p.auto_broadcast_spec);
+    auto eltwise_prim = std::make_shared<eltwise>("output", input_info("input1"), input_info("input2"), p.stride, p.mode, p.auto_broadcast_spec);
 
     cldnn::program prog(engine);
 
@@ -64,7 +64,7 @@ TEST_P(eltwise_si_test, shape_infer_const_data) {
 
     auto input1_prim = std::make_shared<input_layout>("input1", p.input1_layout);
     auto const_data_prim = std::make_shared<data>("const_data", const_data);
-    auto eltwise_prim = std::make_shared<eltwise>("output", "input1", "const_data", p.stride, p.mode, p.auto_broadcast_spec);
+    auto eltwise_prim = std::make_shared<eltwise>("output", input_info("input1"), input_info("const_data"), p.stride, p.mode, p.auto_broadcast_spec);
 
     cldnn::program prog(engine);
 
@@ -83,31 +83,31 @@ INSTANTIATE_TEST_SUITE_P(smoke, eltwise_si_test,
     testing::ValuesIn(std::vector<eltwise_test_params>{
     {{{2, 1, 5}, data_types::f32, format::bfyx},                {{2, 1, 5}, data_types::f32, format::bfyx},                 eltwise_mode::sum,      {AutoBroadcastType::NONE},      {{2, 1, 5}, data_types::f32, format::bfyx},                     {}},
     {{{2, 1, 5}, data_types::f32, format::bfyx},                {{1, 4, 1}, data_types::f32, format::bfyx},                 eltwise_mode::sum,      {AutoBroadcastType::NUMPY},     {{2, 4, 5}, data_types::f32, format::bfyx},                     {}},
-    {{{1, 1, 5}, data_types::f32, format::bfyx},                {{5, 2, 1, 3}, data_types::f32, format::bfyx},              eltwise_mode::sum,      {AutoBroadcastType::NUMPY},     {{5, 2, 5, 3}, data_types::f32, format::bfyx},                  {}},
+    {{{1, 5, 1}, data_types::f32, format::bfyx},                {{5, 2, 1, 3}, data_types::f32, format::bfyx},              eltwise_mode::sum,      {AutoBroadcastType::NUMPY},     {{5, 2, 5, 3}, data_types::f32, format::bfyx},                  {}},
     {{{2, 3, 4, 5}, data_types::f32, format::bfyx},             {{4, 5}, data_types::f32, format::bfyx},                    eltwise_mode::sum,      {AutoBroadcastType::PDPD, -1},  {{2, 3, 4, 5}, data_types::f32, format::bfyx},                  {}},
-    {{{2, 3, 4, 5}, data_types::f32, format::bfyx},             {{1, 3}, data_types::f32, format::bfyx},                    eltwise_mode::sum,      {AutoBroadcastType::PDPD},      {{2, 3, 4, 5}, data_types::f32, format::bfyx},                  {}},
+    {{{2, 3, 4, 5}, data_types::f32, format::bfyx},             {{2, 3}, data_types::f32, format::bfyx},                    eltwise_mode::sum,      {AutoBroadcastType::PDPD},   {{2, 3, 4, 5}, data_types::f32, format::bfyx},                  {}},
     {{{2, 3, 4, 5}, data_types::f32, format::bfyx},             {{3}, data_types::f32, format::bfyx},                       eltwise_mode::sum,      {AutoBroadcastType::PDPD, 1},   {{2, 3, 4, 5}, data_types::f32, format::bfyx},                  {}},
-    {{{2, 3, 4, 5}, data_types::f32, format::bfyx},             {{3}, data_types::f32, format::bfyx},                       eltwise_mode::sum,      {AutoBroadcastType::NUMPY},     {{3, 3, 4, 5}, data_types::f32, format::bfyx},                  {}},
+    {{{2, 3, 4, 5}, data_types::f32, format::bfyx},             {{5}, data_types::f32, format::bfyx},                       eltwise_mode::sum,      {AutoBroadcastType::NUMPY},     {{2, 3, 4, 5}, data_types::f32, format::bfyx},                  {}},
     // test for dynamic shape
-    {{{1, 1, 5}, data_types::f32, format::bfyx},                {{5, 2, 1, 3}, data_types::f32, format::bfyx},              eltwise_mode::sum,      {AutoBroadcastType::NUMPY},     {{5, 2, 5, 3}, data_types::f32, format::bfyx},                  {}},
-    {{PartialShape::dynamic(3), data_types::f32, format::bfyx}, {{2, 3, 4, 5}, data_types::f32, format::bfyx},              eltwise_mode::sum,      {AutoBroadcastType::PDPD},      {PartialShape::dynamic(4), data_types::f32, format::bfyx},      {}},
+    {{{1, 5, 1}, data_types::f32, format::bfyx},                {{5, 2, 1, 3}, data_types::f32, format::bfyx},              eltwise_mode::sum,      {AutoBroadcastType::NUMPY},     {{5, 2, 5, 3}, data_types::f32, format::bfyx},                  {}},
     {{{2, -1, 5}, data_types::f32, format::bfyx},               {{1, 4, 1}, data_types::f32, format::bfyx},                 eltwise_mode::sum,      {AutoBroadcastType::NUMPY},     {{2, 4, 5}, data_types::f32, format::bfyx},                     {}},
     {{PartialShape::dynamic(3), data_types::f32, format::bfyx}, {{1, 4, 1}, data_types::f32, format::bfyx},                 eltwise_mode::sum,      {AutoBroadcastType::NUMPY},     {{-1, 4, -1}, data_types::f32, format::bfyx},                   {}},
     {{PartialShape::dynamic(3), data_types::f32, format::bfyx}, {{2, 1, 5}, data_types::f32, format::bfyx},                 eltwise_mode::sum,      {AutoBroadcastType::NUMPY},     {{2, -1, 5}, data_types::f32, format::bfyx},                    {}},
     {{PartialShape::dynamic(3), data_types::f32, format::bfyx}, {{1, 4, 1}, data_types::f32, format::bfyx},                 eltwise_mode::sum,      {AutoBroadcastType::PDPD},      {PartialShape::dynamic(3), data_types::f32, format::bfyx},      {}},
-    {{{-1, -1, 1024, 512}, data_types::f32, format::bfyx},      {{1,   1, 512,  1}, data_types::f32, format::bfyx},         eltwise_mode::sum,      {AutoBroadcastType::NUMPY},     {ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},  {}},
+    {{{-1, -1, 1024, 512}, data_types::f32, format::bfyx},      {{1,   1, 512}, data_types::f32, format::bfyx},             eltwise_mode::sum,      {AutoBroadcastType::NUMPY},     {{-1,-1,1024,512}, data_types::f32, format::bfyx},              {}},
+    {{{-1, -1, 768}, data_types::f32, format::bfyx},            {{768}, data_types::f32, format::bfyx},                     eltwise_mode::sum,      {AutoBroadcastType::NUMPY},     {{-1,-1,768}, data_types::f32, format::bfyx},                   {}},
     // test for output data type of logic and comparison operations
-    {{{2, 3, 4, 5}, data_types::f32, format::bfyx},             {{3}, data_types::f32, format::bfyx},                       eltwise_mode::eq,       {AutoBroadcastType::NUMPY},     {{3, 3, 4, 5}, data_types::i8, format::bfyx},                   {}},
-    {{{2, 3, 4, 5}, data_types::f16, format::bfyx},             {{3}, data_types::f16, format::bfyx},                       eltwise_mode::ne,       {AutoBroadcastType::NUMPY},     {{3, 3, 4, 5}, data_types::i8, format::bfyx},                   {}},
-    {{{2, 3, 4, 5}, data_types::f16, format::bfyx},             {{3}, data_types::f16, format::bfyx},                       eltwise_mode::lt,       {AutoBroadcastType::NUMPY},     {{3, 3, 4, 5}, data_types::i8, format::bfyx},                   {}},
-    {{{2, 3, 4, 5}, data_types::i32, format::bfyx},             {{3}, data_types::i32, format::bfyx},                       eltwise_mode::le,       {AutoBroadcastType::NUMPY},     {{3, 3, 4, 5}, data_types::i8, format::bfyx},                   {}},
-    {{{2, 3, 4, 5}, data_types::i64, format::bfyx},             {{3}, data_types::i64, format::bfyx},                       eltwise_mode::gt,       {AutoBroadcastType::NUMPY},     {{3, 3, 4, 5}, data_types::i8, format::bfyx},                   {}},
+    {{{2, 3, 4, 5}, data_types::f32, format::bfyx},             {{5}, data_types::f32, format::bfyx},                       eltwise_mode::eq,       {AutoBroadcastType::NUMPY},     {{2, 3, 4, 5}, data_types::i8, format::bfyx},                   {}},
+    {{{2, 3, 4, 5}, data_types::f16, format::bfyx},             {{5}, data_types::f16, format::bfyx},                       eltwise_mode::ne,       {AutoBroadcastType::NUMPY},     {{2, 3, 4, 5}, data_types::i8, format::bfyx},                   {}},
+    {{{2, 3, 4, 5}, data_types::f16, format::bfyx},             {{5}, data_types::f16, format::bfyx},                       eltwise_mode::lt,       {AutoBroadcastType::NUMPY},     {{2, 3, 4, 5}, data_types::i8, format::bfyx},                   {}},
+    {{{2, 3, 4, 5}, data_types::i32, format::bfyx},             {{5}, data_types::i32, format::bfyx},                       eltwise_mode::le,       {AutoBroadcastType::NUMPY},     {{2, 3, 4, 5}, data_types::i8, format::bfyx},                   {}},
+    {{{2, 3, 4, 5}, data_types::i64, format::bfyx},             {{5}, data_types::i64, format::bfyx},                       eltwise_mode::gt,       {AutoBroadcastType::NUMPY},     {{2, 3, 4, 5}, data_types::i8, format::bfyx},                   {}},
     {{{2, 3, 4, 5}, data_types::u8,  format::bfyx},             {{3}, data_types::u8,  format::bfyx},                       eltwise_mode::ge,       {AutoBroadcastType::PDPD, 1},   {{2, 3, 4, 5}, data_types::i8, format::bfyx},                   {}},
     {{{2, 3, 4, 5}, data_types::i8,  format::bfyx},             {{3}, data_types::i8,  format::bfyx},                       eltwise_mode::logic_and,{AutoBroadcastType::PDPD, 1},   {{2, 3, 4, 5}, data_types::i8, format::bfyx},                   {}},
     {{{2, 3, 4, 5}, data_types::f32, format::bfyx},             {{3}, data_types::f32, format::bfyx},                       eltwise_mode::logic_or, {AutoBroadcastType::PDPD, 1},   {{2, 3, 4, 5}, data_types::i8, format::bfyx},                   {}},
     {{{2, 3, 4, 5}, data_types::f32, format::bfyx},             {{3}, data_types::f32, format::bfyx},                       eltwise_mode::logic_xor,{AutoBroadcastType::PDPD, 1},   {{2, 3, 4, 5}, data_types::i8, format::bfyx},                   {}},
     // test stride
-    {{{5, 2, 1, 20}, data_types::f32, format::bfyx},            {{1, 1, 40}, data_types::f32, format::bfyx},                eltwise_mode::sum,      {AutoBroadcastType::NUMPY},     {{5, 2, 1, 5}, data_types::f32, format::bfyx},                  {{1,3,4,2}}},
+    {{{5, 2, 1, 20}, data_types::f32, format::bfyx},            {{1, 40, 1}, data_types::f32, format::bfyx},                eltwise_mode::sum,      {AutoBroadcastType::NUMPY},     {{5, 2, 1, 5}, data_types::f32, format::bfyx},                  {{1,3,4,2}}},
     {{{2, 3, 40,50}, data_types::f32, format::bfyx},            {{40, 50}, data_types::f32, format::bfyx},                  eltwise_mode::sum,      {AutoBroadcastType::PDPD, -1},  {{2, 3, 5, 10}, data_types::f32, format::bfyx},                 {{1,1,5,8}}},
     {{PartialShape::dynamic(4), data_types::f32, format::bfyx}, {{2, 1, 5}, data_types::f32, format::bfyx},                 eltwise_mode::sum,      {AutoBroadcastType::NUMPY},     {PartialShape::dynamic(4), data_types::f32, format::bfyx},      {{1,1,5,8}}},
     {{PartialShape::dynamic(4), data_types::f32, format::bfyx}, {{2, 1, 5}, data_types::f32, format::bfyx},                 eltwise_mode::sum,      {AutoBroadcastType::PDPD, 1},   {PartialShape::dynamic(4), data_types::f32, format::bfyx},      {{1,1,3,8}}},

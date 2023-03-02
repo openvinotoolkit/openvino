@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -171,6 +171,13 @@ OutputVector dequantize_linear(const Node& node) {
     const auto& scale = inputs[1];
     const auto zero_point = op::detail::get_zero_point(inputs);
 
+    // per-tensor quantization, axis attribute ignored
+    if (scale.get_partial_shape().rank().is_static() && scale.get_partial_shape().rank().get_length() == 0) {
+        if (!zero_point || (zero_point->get_output_partial_shape(0).rank().is_static() &&
+                            zero_point->get_output_partial_shape(0).rank().get_length() == 0)) {
+            return set_1::dequantize_linear(node);
+        }
+    }
     // these reshapes make sure that dequantization happens over the specified axis
     return detail::dequantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), node);
 }

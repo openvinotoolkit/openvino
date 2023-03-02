@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,7 +50,6 @@
 #include "nodes/concat.h"
 #include "nodes/softmax.h"
 #include "nodes/space_to_batch.h"
-#include "nodes/select.h"
 #include "nodes/topk.h"
 #include "nodes/broadcast.h"
 #include "nodes/matrix_nms.h"
@@ -91,6 +90,7 @@
 #include "nodes/eye.h"
 #include "nodes/interaction.h"
 #include "nodes/mha.h"
+#include "nodes/unique.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -136,7 +136,6 @@ Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(DeformableConvolution, Type::DeformableConvolution);
     INTEL_CPU_NODE(ReorgYolo, Type::ReorgYolo);
     INTEL_CPU_NODE(EmbeddingSegmentsSum, Type::EmbeddingSegmentsSum);
-    INTEL_CPU_NODE(Select, Type::Select);
     INTEL_CPU_NODE(ShapeOf, Type::ShapeOf);
     INTEL_CPU_NODE(ExperimentalDetectronGenerateProposalsSingleImage, Type::ExperimentalDetectronGenerateProposalsSingleImage);
     INTEL_CPU_NODE(GenerateProposals, Type::GenerateProposals);
@@ -194,6 +193,7 @@ Node::NodesFactory::NodesFactory()
     INTEL_CPU_NODE(Eye, Type::Eye);
     INTEL_CPU_NODE(Interaction, Type::Interaction);
     INTEL_CPU_NODE(MHA, Type::MHA);
+    INTEL_CPU_NODE(Unique, Type::Unique);
 }
 
 #undef INTEL_CPU_NODE

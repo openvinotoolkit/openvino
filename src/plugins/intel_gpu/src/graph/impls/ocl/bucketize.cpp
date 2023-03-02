@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "primitive_base.hpp"
+
+#include "bucketize_inst.hpp"
 #include "bucketize/bucketize_kernel_ref.hpp"
 #include "bucketize/bucketize_kernel_selector.hpp"
-#include "bucketize_inst.hpp"
-#include "impls/implementation_map.hpp"
-#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -70,4 +70,4 @@ attach_bucketize_impl::attach_bucketize_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::bucketize_impl, cldnn::object_type::BUCKETIZE_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::bucketize_impl)

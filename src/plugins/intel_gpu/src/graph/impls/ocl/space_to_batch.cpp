@@ -1,18 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "space_to_batch_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "space_to_batch_inst.h"
 #include "space_to_batch/space_to_batch_kernel_selector.h"
 #include "space_to_batch/space_to_batch_kernel_ref.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "data_inst.h"
-#include <vector>
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -68,4 +62,4 @@ attach_space_to_batch_impl::attach_space_to_batch_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::space_to_batch_impl, cldnn::object_type::SPACE_TO_BATCH_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::space_to_batch_impl)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <numeric>
 
+#include "bound_evaluate.hpp"
 #include "compare.hpp"
 #include "itt.hpp"
 #include "ngraph/runtime/reference/slice.hpp"
@@ -14,8 +15,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v1::VariadicSplit);
 
 op::v1::VariadicSplit::VariadicSplit(const Output<Node>& data,
                                      const Output<Node>& axis,
@@ -120,7 +119,7 @@ bool op::v1::VariadicSplit::has_evaluate() const {
     return get_input_element_type(1).is_integral_number() && get_input_element_type(2).is_integral_number();
 }
 
-bool op::v1::VariadicSplit::have_axis_and_splits_bound_set() const {
+bool op::v1::VariadicSplit::has_axis_and_splits_bound_set() const {
     for (size_t i = 1; i < get_input_size(); ++i) {
         if (!get_input_tensor(i).has_and_set_bound()) {
             return false;
@@ -129,18 +128,18 @@ bool op::v1::VariadicSplit::have_axis_and_splits_bound_set() const {
     return true;
 }
 
-bool op::v1::VariadicSplit::evaluate_lower(const HostTensorVector& output_values) const {
+bool op::v1::VariadicSplit::evaluate_lower(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v1_Split_evaluate_lower);
 
-    return has_evaluate() && have_axis_and_splits_bound_set() && default_lower_bound_evaluator(this, output_values);
+    return has_axis_and_splits_bound_set() && default_lower_bound_evaluator(this, output_values);
 }
 
-bool op::v1::VariadicSplit::evaluate_upper(const HostTensorVector& output_values) const {
+bool op::v1::VariadicSplit::evaluate_upper(ov::TensorVector& output_values) const {
     OV_OP_SCOPE(v1_Split_evaluate_upper);
 
-    return has_evaluate() && have_axis_and_splits_bound_set() && default_upper_bound_evaluator(this, output_values);
+    return has_axis_and_splits_bound_set() && default_upper_bound_evaluator(this, output_values);
 }
 
 bool op::v1::VariadicSplit::evaluate_label(TensorLabelVector& output_labels) const {
-    return have_axis_and_splits_bound_set() && default_label_evaluator(this, output_labels);
+    return has_axis_and_splits_bound_set() && default_label_evaluator(this, output_labels);
 }

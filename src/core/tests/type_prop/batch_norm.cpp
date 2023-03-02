@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -238,7 +238,7 @@ TYPED_TEST_P(BatchNormTest, batch_norm_inference_invalid_data_batch_input_rank) 
         auto bn = makeBatchNormOp<TypeParam>(params);
         FAIL() << "Data batch input with invalid rank 1 not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Input argument must have rank of at least 2 (input argument shape: {?})");
+        EXPECT_HAS_SUBSTRING(error.what(), "Input argument must have rank of at least 2 (input argument shape: [?])");
     } catch (...) {
         FAIL() << "Data batch input rank check failed for unexpected reason";
     }
@@ -305,7 +305,7 @@ TYPED_TEST_P(BatchNormTest, batch_norm_inference_invalid_channel_inputs_rank) {
         auto bn = makeBatchNormOp<TypeParam>(params);
         FAIL() << "Invalid rank of gamma/beta/mean/variance inputs not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Shape for gamma/beta/mean/variance ({?,?}) does not have rank 1");
+        EXPECT_HAS_SUBSTRING(error.what(), "Shape for gamma/beta/mean/variance ([?,?]) does not have rank 1");
     } catch (...) {
         FAIL() << "gamma/beta/mean/variance inputs rank check failed for unexpected reason";
     }
@@ -329,7 +329,7 @@ TYPED_TEST_P(BatchNormTest, batch_norm_inference_incompatible_data_batch_and_cha
     } catch (const NodeValidationFailure& error) {
         EXPECT_HAS_SUBSTRING(error.what(),
                              "Input channel dimension (4) does not match "
-                             "shape for gamma/beta/mean/variance ({3})");
+                             "shape for gamma/beta/mean/variance ([3])");
     } catch (...) {
         FAIL() << "Data batch and gamma/beta/mean/variance channel count check failed for "
                   "unexpected reason";

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,6 @@ namespace op {
 class ConvertSaturation : public ov::op::v0::Convert {
 public:
     OPENVINO_OP("ConvertSaturation", "SnippetsOpset", ov::op::v0::Convert);
-    BWDCMP_RTTI_DECLARATION;
 
     ConvertSaturation(const Output<Node>& x, const ov::element::Type& destination_type);
     ConvertSaturation() = default;

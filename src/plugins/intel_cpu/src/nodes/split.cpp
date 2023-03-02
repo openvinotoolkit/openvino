@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -46,8 +46,8 @@ bool Split::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, 
     return true;
 }
 
-Split::Split(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache) {
+Split::Split(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+        Node(op, context, NgraphShapeInferFactory(op, PortMask(1, 2))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -242,10 +242,6 @@ bool Split::needPrepareParams() const {
         return false;
     }
     return Node::inputShapesModified();
-}
-
-std::vector<VectorDims> Split::shapeInfer() const {
-    return Node::shapeInferGeneric(PortMask(1, 2));
 }
 
 void Split::prepareParams() {

@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -311,9 +311,13 @@ JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& param
                                                      bool useVload8) const {
     JitConstants jit = {};
     std::string vload_decls;
+
     for (size_t op_num = 0; op_num < params.operations.size(); op_num++) {
         const std::string op_num_str = toCodeString(op_num);
         const auto &ew = params.operations[op_num];
+        bool is_dynamic_crop_kernel = params.is_shape_agnostic && params.operations[op_num].mode == EltwiseMode::ASSIGN;
+        if (is_dynamic_crop_kernel)
+            jit.AddConstant(MakeJitConstant("IS_DYNAMIC_CROP", 1));
         for (size_t input_idx = 0; input_idx < ew.inputs.size(); input_idx++) {
             const auto &input = ew.inputs[input_idx];
             const std::string name = "INPUT_" + op_num_str + "_" + toCodeString(input_idx);
@@ -330,7 +334,7 @@ JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& param
                         jit.AddConstant(MakeJitConstant(name,
                                                         "input" + toCodeString(input.index) +
                                                         "[GET_INDEX(INPUT, " + toCodeString(input.index) +
-                                                        "," + idx_order + ")]"));
+                                                        "," + idx_order + ") " + (is_dynamic_crop_kernel ? "+ runtime_offset]" : "]")));
                     break;
                 case EltwiseInputMode::OUTPUT_BUFFER:
                     jit.AddConstant(MakeJitConstant(name, "output[GET_INDEX(OUTPUT,,OUTPUT_IDX_ORDER)]"));
@@ -688,19 +692,36 @@ KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params, const 
     auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const eltwise_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+    };
+
     DispatchData dispatchData = SetDefault(newParams);
 
     auto& kernel = kd.kernels[0];
 
-    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
+    kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, EXE_MODE_DEFAULT);
 
     kernel.params.workGroups.global = dispatchData.gws;
     kernel.params.workGroups.local = dispatchData.lws;
+    bool is_dynamic = newParams.has_dynamic_tensors();
     kernel.params.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
                                    false,
                                    false,
-                                   GetFusedPrimitiveInputsCount(params));
-
+                                   GetFusedPrimitiveInputsCount(params),
+                                   1,
+                                   is_dynamic);
+    if (params.is_shape_agnostic && newParams.operations[0].mode == EltwiseMode::ASSIGN) {
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
+        kernel_selector::ScalarDescriptor s;
+        s.t = kernel_selector::ScalarDescriptor::Types::UINT32;
+        s.v.u32 = 0;
+        kernel.params.scalars.push_back(s);
+    }
     return {kd};
 }
 }  // namespace kernel_selector

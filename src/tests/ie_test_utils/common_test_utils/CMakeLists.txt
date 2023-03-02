@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -18,6 +18,7 @@ function(add_common_utils ADD_TARGET_NAME)
                 PUBLIC
                     gtest
                     gtest_main
+                    gmock
                     ngraphFunctions
                     openvino::runtime
                     openvino::runtime::dev
@@ -28,8 +29,6 @@ function(add_common_utils ADD_TARGET_NAME)
     # USE_STATIC_IE is passed
     if(ARGN)
         target_link_libraries(${ADD_TARGET_NAME} PRIVATE inference_engine_s)
-    else()
-        target_link_libraries(${ADD_TARGET_NAME} PRIVATE inference_engine_legacy)
     endif()
 
     ie_faster_build(${ADD_TARGET_NAME}
@@ -57,7 +56,6 @@ function(add_common_utils ADD_TARGET_NAME)
         PUBLIC
             $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>
         PRIVATE
-            $<TARGET_PROPERTY:inference_engine_legacy,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
     target_include_directories(${ADD_TARGET_NAME} SYSTEM PUBLIC ${IE_TESTS_ROOT}/ie_test_utils)
 

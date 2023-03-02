@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ static cldnn::depth_to_space_mode GetDepthMode(ngraph::op::v0::DepthToSpace::Dep
 
 static void CreateDepthToSpaceOp(Program& p, const std::shared_ptr<ngraph::op::v0::DepthToSpace>& op) {
     validate_inputs_count(op, {1});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    auto inputPrimitives = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     size_t blockSize = op->get_block_size();

@@ -1,19 +1,15 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "gather_nd_inst.h"
 
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
 namespace cldnn {
-primitive_type_id gather_nd::type_id() {
-    static primitive_type_base<gather_nd> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(gather_nd)
 
 layout gather_nd_inst::calc_output_layout(gather_nd_node const& node, kernel_impl_params const& impl_param) {
     auto op = impl_param.typed_desc<gather_nd>();
@@ -73,7 +69,7 @@ layout gather_nd_inst::calc_output_layout(gather_nd_node const& node, kernel_imp
     }
 
     auto output_sizes_tensor = tensor(tensor(final_output_sizes).sizes(output_format));
-    auto padding = op->output_padding;
+    auto padding = op->output_paddings[0];
 
     if (impl_param.has_fused_primitives()) {
         input_layout_origin.data_type = impl_param.get_fused_output_layout().data_type;

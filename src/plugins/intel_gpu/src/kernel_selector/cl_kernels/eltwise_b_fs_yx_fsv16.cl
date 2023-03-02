@@ -1,15 +1,16 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 #define FEATURE_SLICE_SIZE 16
-#define unroll_for  __attribute__((opencl_unroll_hint())) for
 
 #define OUTPUT_TYPE_BLOCK               MAKE_VECTOR_TYPE(OUTPUT_TYPE, BLOCK_SIZE)
 #define TO_TYPE(type, val)              CAT(convert_, type)(val)
+#define TO_TYPE_SAT(type, val)          CAT(CAT(convert_, type), _sat)(val)
 
 #if BLOCK_SIZE != 1
     #define READ_FUNC(ptr, offset) CAT(DT_INPUT_BLOCK_READ, BLOCK_SIZE)(ptr, offset)
@@ -25,7 +26,7 @@
     #define GET_INDEX(prefix, num, idx_order) CAT(CAT(prefix, num), _GET_INDEX)(idx_order)
 #endif
 
-__attribute__((intel_reqd_sub_group_size(FEATURE_SLICE_SIZE)))
+REQD_SUB_GROUP_SIZE(FEATURE_SLICE_SIZE)
 KERNEL(eltwise_b_fs_yx_fsv16)(INPUTS_DECLS
                               __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
@@ -80,7 +81,12 @@ KERNEL(eltwise_b_fs_yx_fsv16)(INPUTS_DECLS
     OUTPUT_TYPE_BLOCK out = TO_TYPE(MAKE_VECTOR_TYPE(OUTPUT_TYPE, BLOCK_SIZE), FUSED_OPS_RESULT);
 #else
 #if BLOCK_SIZE != 1
+#if OUTPUT_IS_FP
     OUTPUT_TYPE_BLOCK out = ACTIVATION_TYPED(TO_TYPE(MAKE_VECTOR_TYPE(OUTPUT_TYPE, BLOCK_SIZE), res), ACTIVATION_PARAMS_TYPED);
+#else
+    OUTPUT_TYPE_BLOCK out = ACTIVATION_TYPED(TO_TYPE_SAT(MAKE_VECTOR_TYPE(OUTPUT_TYPE, BLOCK_SIZE), res), ACTIVATION_PARAMS_TYPED);
+#endif
+
 #else
     OUTPUT_TYPE out = ACTIVATION_TYPED(TO_OUTPUT_TYPE(res), ACTIVATION_PARAMS_TYPED);
 #endif
@@ -107,7 +113,6 @@ KERNEL(eltwise_b_fs_yx_fsv16)(INPUTS_DECLS
 }
 
 #undef FEATURE_SLICE_SIZE
-#undef unroll_for
 #undef OUTPUT_TYPE_BLOCK
 #undef TO_TYPE
 #undef READ_FUNC

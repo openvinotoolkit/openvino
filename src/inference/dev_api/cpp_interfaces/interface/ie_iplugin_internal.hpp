@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,19 +19,17 @@
 #include "ie_iextension.h"
 #include "ie_input_info.hpp"
 #include "ie_parameter.hpp"
+#include "openvino/runtime/iplugin.hpp"
 #include "openvino/util/pp.hpp"
 #include "so_ptr.hpp"
 
-namespace ov {
-class Function;
-class ICore;
-}  // namespace ov
 namespace InferenceEngine {
 
 class ExecutorManager;
 class IExecutableNetworkInternal;
 class RemoteContext;
 class IExtension;
+class ICore;
 
 /**
  * @brief      Copies preprocess info
@@ -199,8 +197,8 @@ public:
      * @param config A string-string map of config parameters relevant only for this load operation
      * @return Created Executable Network object
      */
-    virtual std::shared_ptr<IExecutableNetworkInternal> LoadNetwork(const std::string& modelPath,
-                                                                    const std::map<std::string, std::string>& config);
+    virtual ov::SoPtr<IExecutableNetworkInternal> LoadNetwork(const std::string& modelPath,
+                                                              const std::map<std::string, std::string>& config);
 
     /**
      * @brief Registers extension within plugin
@@ -287,13 +285,13 @@ public:
      * @brief Sets pointer to ICore interface
      * @param core Pointer to Core interface
      */
-    virtual void SetCore(std::weak_ptr<ov::ICore> core);
+    virtual void SetCore(std::weak_ptr<InferenceEngine::ICore> core);
 
     /**
      * @brief Gets reference to ICore interface
      * @return Reference to ICore interface
      */
-    virtual std::shared_ptr<ov::ICore> GetCore() const noexcept;
+    virtual std::shared_ptr<InferenceEngine::ICore> GetCore() const noexcept;
 
     /**
      * @brief Provides an information about used API
@@ -374,7 +372,7 @@ protected:
 
     std::string _pluginName;                            //!< A device name that plugins enables
     std::map<std::string, std::string> _config;         //!< A map config keys -> values
-    std::weak_ptr<ov::ICore> _core;                     //!< A pointer to ICore interface
+    std::weak_ptr<InferenceEngine::ICore> _core;        //!< A pointer to ICore interface
     std::shared_ptr<ExecutorManager> _executorManager;  //!< A tasks execution manager
     bool _isNewAPI;                                     //!< A flag which shows used API
 };
@@ -382,7 +380,7 @@ protected:
 /**
  * @private
  */
-using CreatePluginEngineFunc = void(std::shared_ptr<IInferencePlugin>&);
+using CreatePluginEngineFunc = void(std::shared_ptr<::ov::IPlugin>&);
 
 /**
  * @private
@@ -403,6 +401,9 @@ using CreateExtensionFunc = void(std::shared_ptr<IExtension>&);
  */
 constexpr static const auto create_plugin_function = OV_PP_TOSTRING(IE_CREATE_PLUGIN);
 
+INFERENCE_ENGINE_API_CPP(std::shared_ptr<::ov::IPlugin>)
+convert_plugin(const std::shared_ptr<InferenceEngine::IInferencePlugin>& from);
+
 }  // namespace InferenceEngine
 
 /**
@@ -410,20 +411,22 @@ constexpr static const auto create_plugin_function = OV_PP_TOSTRING(IE_CREATE_PL
  * @brief Defines the exported `IE_CREATE_PLUGIN` function which is used to create a plugin instance
  * @ingroup ie_dev_api_plugin_api
  */
-#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                                          \
-    INFERENCE_PLUGIN_API(void)                                                                              \
-    IE_CREATE_PLUGIN(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) noexcept(false);       \
-    void IE_CREATE_PLUGIN(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) noexcept(false) { \
-        try {                                                                                               \
-            plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                                           \
-        } catch (const InferenceEngine::Exception&) {                                                       \
-            throw;                                                                                          \
-        } catch (const std::exception& ex) {                                                                \
-            IE_THROW() << ex.what();                                                                        \
-        } catch (...) {                                                                                     \
-            IE_THROW(Unexpected);                                                                           \
-        }                                                                                                   \
-        plugin->SetVersion(version);                                                                        \
+#define IE_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version, ...)                    \
+    INFERENCE_PLUGIN_API(void)                                                        \
+    IE_CREATE_PLUGIN(::std::shared_ptr<::ov::IPlugin>& plugin) noexcept(false);       \
+    void IE_CREATE_PLUGIN(::std::shared_ptr<::ov::IPlugin>& plugin) noexcept(false) { \
+        std::shared_ptr<::InferenceEngine::IInferencePlugin> ie_plugin;               \
+        try {                                                                         \
+            ie_plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                  \
+        } catch (const InferenceEngine::Exception&) {                                 \
+            throw;                                                                    \
+        } catch (const std::exception& ex) {                                          \
+            IE_THROW() << ex.what();                                                  \
+        } catch (...) {                                                               \
+            IE_THROW(Unexpected);                                                     \
+        }                                                                             \
+        ie_plugin->SetVersion(version);                                               \
+        plugin = convert_plugin(ie_plugin);                                           \
     }
 
 /**
@@ -431,7 +434,7 @@ constexpr static const auto create_plugin_function = OV_PP_TOSTRING(IE_CREATE_PL
  */
 #define IE_DEFINE_PLUGIN_CREATE_FUNCTION_DECLARATION(_IE_CREATE_PLUGIN_FUNC) \
     INFERENCE_PLUGIN_API(void)                                               \
-    _IE_CREATE_PLUGIN_FUNC(::std::shared_ptr<::InferenceEngine::IInferencePlugin>& plugin) noexcept(false)
+    _IE_CREATE_PLUGIN_FUNC(::std::shared_ptr<::ov::IPlugin>& plugin) noexcept(false)
 
 /**
  * @private

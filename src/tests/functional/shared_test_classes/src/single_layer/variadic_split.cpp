@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,7 @@
 namespace LayerTestsDefinitions {
 
     std::string VariadicSplitLayerTest::getTestCaseName(const testing::TestParamInfo<VariadicSplitParams>& obj) {
-        size_t axis;
+        int64_t axis;
         std::vector<size_t> numSplits;
         InferenceEngine::Precision netPrecision;
         InferenceEngine::Precision inPrc, outPrc;
@@ -30,7 +30,7 @@ namespace LayerTestsDefinitions {
     }
 
     void VariadicSplitLayerTest::SetUp() {
-        size_t axis;
+        int64_t axis;
         std::vector<size_t> inputShape, numSplits;
         InferenceEngine::Precision netPrecision;
         std::tie(numSplits, axis, netPrecision, inPrc, outPrc, inLayout, outLayout, inputShape, targetDevice) = this->GetParam();

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -196,14 +196,14 @@ public:
         if (size() < mask->size())
             resize(mask->size());
         for (size_t i = 0; i < size(); i++) {
-            if (i == axis) {
+            if (static_cast<int64_t>(i) == axis) {
                 std::set<uint64_t> dst_set;
                 const auto& src_set = mask->at(i);
                 auto it = src_set.lower_bound(split_start);
                 while (it != src_set.end() && *it < split_end)
                     dst_set.insert(*it++ - split_start);
                 at(i) = dst_set;
-            } else if (!mask->at(i).empty()) {
+            } else {
                 at(i) = mask->at(i);
             }
         }

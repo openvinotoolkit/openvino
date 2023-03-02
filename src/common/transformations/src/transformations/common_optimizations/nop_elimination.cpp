@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 #include <transformations/common_optimizations/nop_elimination.hpp>
 #include <transformations/utils/utils.hpp>
 
+#include "compare.hpp"
 #include "itt.hpp"
 
 using namespace std;
@@ -272,25 +273,25 @@ static bool eliminate_unsqueeze(const shared_ptr<Node>& node) {
 
 #define ECHO(NAME) #NAME
 #define STR(NAME)  ECHO(NAME)
-#define SIMPLE_MATCHER_PASS_DEFINITION(NAME, OP, FUNC)                                  \
+#define SIMPLE_MATCHER_PASS_DEFINITION(NAME, FUNC, ...)                                 \
     class NAME : public ov::pass::MatcherPass {                                         \
     public:                                                                             \
         OPENVINO_RTTI(STR(NAME), "0");                                                  \
         NAME() {                                                                        \
             MATCHER_SCOPE(NAME);                                                        \
-            auto match_node = ngraph::pattern::wrap_type<OP>();                         \
-            ngraph::matcher_pass_callback callback = [=](ngraph::pattern::Matcher& m) { \
+            auto match_node = ov::pass::pattern::wrap_type<__VA_ARGS__>();              \
+            ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {   \
                 return FUNC(m.get_match_root());                                        \
             };                                                                          \
-            auto m = make_shared<ngraph::pattern::Matcher>(match_node, matcher_name);   \
+            auto m = make_shared<ov::pass::pattern::Matcher>(match_node, matcher_name); \
             register_matcher(m, callback);                                              \
         }                                                                               \
     };
 
-SIMPLE_MATCHER_PASS_DEFINITION(EliminateReshape, opset3::Reshape, eliminate_reshape_v1);
-SIMPLE_MATCHER_PASS_DEFINITION(EliminateUnsqueeze, opset3::Unsqueeze, eliminate_unsqueeze);
-SIMPLE_MATCHER_PASS_DEFINITION(EliminateBroadcast, op::v1::Broadcast, eliminate_nop);
-SIMPLE_MATCHER_PASS_DEFINITION(EliminateGather, opset3::Gather, simplify_gather);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateReshape, eliminate_reshape_v1, opset3::Reshape);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateUnsqueeze, eliminate_unsqueeze, opset3::Unsqueeze);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateBroadcast, eliminate_nop, op::v1::Broadcast, op::v3::Broadcast);
+SIMPLE_MATCHER_PASS_DEFINITION(EliminateGather, simplify_gather, opset3::Gather);
 
 pass::EliminatePad::EliminatePad() {
     MATCHER_SCOPE(EliminatePad);
@@ -718,22 +719,49 @@ pass::EliminateEltwise::EliminateEltwise() {
     this->register_matcher(m, callback);
 }
 
-ngraph::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
+pass::EliminateScatterUpdate::EliminateScatterUpdate() {
+    MATCHER_SCOPE(EliminateScatterUpdate);
+    auto scatter_pattern =
+        pattern::wrap_type<opset8::ScatterUpdate, opset8::ScatterNDUpdate, opset8::ScatterElementsUpdate>();
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        auto scatter = m.get_match_root();
+        const auto& indices_pshape = scatter->get_input_partial_shape(1);
+        const auto& updates_pshape = scatter->get_input_partial_shape(2);
+
+        auto has_zero = [](const ov::PartialShape& shape) -> bool {
+            return std::any_of(shape.cbegin(), shape.cend(), ov::cmp::Equal<ov::Dimension>(0));
+        };
+        if (has_zero(indices_pshape) || has_zero(updates_pshape)) {
+            return replace_output_update_name(scatter->output(0), scatter->input_value(0));
+        } else {
+            return false;
+        }
+    };
+
+    auto m = make_shared<pattern::Matcher>(scatter_pattern, matcher_name);
+    this->register_matcher(m, callback);
+}
+
+ov::pass::NopElimination::NopElimination(bool use_shape_for_elimination) {
     // shape-agnostic transformations
-    add_matcher<EliminatePad>();
-    add_matcher<EliminateConvert>();
-    add_matcher<EliminateConvertNonZero>();
-    add_matcher<EliminateConcat>();
-    add_matcher<EliminateSplit>();
-    add_matcher<EliminateTranspose>();
-    add_matcher<EliminateEltwise>();
-    add_matcher<ov::pass::EliminateSplitConcat>();
+    ADD_MATCHER_FOR_THIS(EliminatePad)
+    ADD_MATCHER_FOR_THIS(EliminateConvert)
+    ADD_MATCHER_FOR_THIS(EliminateConvertNonZero)
+    ADD_MATCHER_FOR_THIS(EliminateConcat)
+    ADD_MATCHER_FOR_THIS(EliminateSplit)
+    ADD_MATCHER_FOR_THIS(EliminateTranspose)
+    ADD_MATCHER_FOR_THIS(EliminateEltwise)
+    using namespace ov::pass;
+    ADD_MATCHER_FOR_THIS(EliminateSplitConcat)
+
     // shape-dependent transformations
     if (use_shape_for_elimination) {
-        add_matcher<EliminateReshape>();
-        add_matcher<EliminateSqueeze>();
-        add_matcher<EliminateUnsqueeze>();
-        add_matcher<EliminateBroadcast>();
-        add_matcher<EliminateGather>();
+        ADD_MATCHER_FOR_THIS(EliminateScatterUpdate)
+        ADD_MATCHER_FOR_THIS(EliminateReshape)
+        ADD_MATCHER_FOR_THIS(EliminateSqueeze)
+        ADD_MATCHER_FOR_THIS(EliminateUnsqueeze)
+        ADD_MATCHER_FOR_THIS(EliminateBroadcast)
+        ADD_MATCHER_FOR_THIS(EliminateGather)
     }
 }

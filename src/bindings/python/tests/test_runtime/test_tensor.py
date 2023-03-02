@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -146,13 +146,6 @@ def test_init_with_numpy_copy_memory(ov_type, numpy_dtype):
     assert np.array_equal(ov_tensor.data, arr)
     assert ov_tensor.size == arr.size
     assert ov_tensor.byte_size == arr.nbytes
-
-
-def test_init_with_numpy_fail():
-    arr = np.asfortranarray(generate_image())
-    with pytest.raises(RuntimeError) as e:
-        _ = Tensor(array=arr, shared_memory=True)
-    assert "Tensor with shared memory must be C contiguous" in str(e.value)
 
 
 def test_init_with_roi_tensor():

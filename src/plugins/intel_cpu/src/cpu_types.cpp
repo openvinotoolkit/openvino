@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "cpu_types.h"
@@ -26,6 +26,9 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "AdaptiveMaxPool", Type::AdaptivePooling},
         { "AdaptiveAvgPool", Type::AdaptivePooling},
         { "Add", Type::Eltwise },
+        { "IsFinite", Type::Eltwise },
+        { "IsInf", Type::Eltwise },
+        { "IsNaN", Type::Eltwise },
         { "Subtract", Type::Eltwise },
         { "Multiply", Type::Eltwise },
         { "Divide", Type::Eltwise },
@@ -65,6 +68,7 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "Erf", Type::Eltwise },
         { "SoftPlus", Type::Eltwise },
         { "SoftSign", Type::Eltwise },
+        { "Select", Type::Eltwise},
         { "Reshape", Type::Reshape },
         { "Squeeze", Type::Reshape },
         { "Unsqueeze", Type::Reshape },
@@ -140,7 +144,6 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "GridSample", Type::GridSample},
         { "OneHot", Type::OneHot},
         { "RegionYolo", Type::RegionYolo},
-        { "Select", Type::Select},
         { "ShuffleChannels", Type::ShuffleChannels},
         { "DFT", Type::DFT},
         { "IDFT", Type::DFT},
@@ -202,6 +205,7 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "PriorBoxClustered", Type::PriorBoxClustered},
         {"Interaction", Type::Interaction},
         { "MHA", Type::MHA},
+        { "Unique", Type::Unique}
 };
 
 Type TypeFromName(const std::string& type) {
@@ -331,8 +335,6 @@ std::string NameFromType(const Type type) {
             return "OneHot";
         case Type::RegionYolo:
             return "RegionYolo";
-        case Type::Select:
-            return "Select";
         case Type::Roll:
             return "Roll";
         case Type::ShuffleChannels:
@@ -399,6 +401,8 @@ std::string NameFromType(const Type type) {
             return "Subgraph";
         case Type::MHA:
             return "MHA";
+        case Type::Unique:
+            return "Unique";
         default:
             return "Unknown";
     }
@@ -416,6 +420,9 @@ std::string algToString(const Algorithm alg) {
     CASE(DeconvolutionCommon);
     CASE(DeconvolutionGrouped);
     CASE(EltwiseAdd);
+    CASE(EltwiseIsFinite);
+    CASE(EltwiseIsInf);
+    CASE(EltwiseIsNaN);
     CASE(EltwiseMultiply);
     CASE(EltwiseSubtract);
     CASE(EltwiseDivide);
@@ -441,6 +448,7 @@ std::string algToString(const Algorithm alg) {
     CASE(EltwiseGelu);
     CASE(EltwiseElu);
     CASE(EltwiseTanh);
+    CASE(EltwiseSelect);
     CASE(EltwiseSigmoid);
     CASE(EltwiseAbs);
     CASE(EltwiseSqrt);

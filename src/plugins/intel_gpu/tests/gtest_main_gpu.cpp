@@ -35,16 +35,16 @@
 #include "test_utils/test_utils.h"
 #include "gflags/gflags.h"
 
-DEFINE_int32(device_id, -1, "GPU Device ID (a number starts from 0)");
+DEFINE_int32(device_suffix, -1, "GPU Device ID (a number starts from 0)");
 
 GTEST_API_ int main(int argc, char** argv) {
     printf("Running main() from %s\n", __FILE__);
 
     //gflags
-    GFLAGS_NAMESPACE::AllowCommandLineReparsing();
-    gflags::ParseCommandLineFlags(&argc, &argv, true);
-    if (FLAGS_device_id != -1 && cldnn::device_query::device_id == -1)
-        cldnn::device_query::device_id = FLAGS_device_id;
+    gflags::AllowCommandLineReparsing();
+    gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
+    if (FLAGS_device_suffix != -1 && cldnn::device_query::device_id == -1)
+        cldnn::device_query::device_id = FLAGS_device_suffix;
     //restore cmdline arg for gtest
     auto varg=gflags::GetArgvs();
     int new_argc=varg.size();
@@ -54,5 +54,7 @@ GTEST_API_ int main(int argc, char** argv) {
 
     //gtest
     testing::InitGoogleTest(&new_argc, new_argv);
-    return RUN_ALL_TESTS();
+    auto retcode = RUN_ALL_TESTS();
+    delete[] new_argv;
+    return retcode;
 }

@@ -1,16 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cum_sum_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "cum_sum_inst.h"
 #include "cum_sum/cum_sum_kernel_selector.h"
 #include "cum_sum/cum_sum_kernel_ref.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 
-using namespace cldnn;
 namespace cldnn {
 namespace ocl {
 
@@ -60,9 +57,9 @@ struct cum_sum_impl : typed_primitive_impl_ocl<cum_sum> {
     }
 
 public:
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<cum_sum>();
-        auto params = get_default_params<kernel_selector::cum_sum_params>(impl_param);
+        auto params = get_default_params<kernel_selector::cum_sum_params>(impl_param, is_shape_agnostic);
         auto optional_params = get_default_optional_params<kernel_selector::cum_sum_optional_params>(impl_param.get_program());
 
         size_t rank = impl_param.get_output_layout().get_rank();
@@ -71,12 +68,18 @@ public:
         params.reverse = primitive->reverse;
         return {params, optional_params};
     }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto kernel_params = get_kernel_params(impl_param, true);
+        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        update_kernels_list_to_skip();
+    }
 };
 
 namespace detail {
 
 attach_cum_sum_impl::attach_cum_sum_impl() {
-    implementation_map<cum_sum>::add(impl_types::ocl, typed_primitive_impl_ocl<cum_sum>::create<cum_sum_impl>, {
+    implementation_map<cum_sum>::add(impl_types::ocl, shape_types::any, typed_primitive_impl_ocl<cum_sum>::create<cum_sum_impl>, {
         std::make_tuple(data_types::i32, format::bfyx),
         std::make_tuple(data_types::i32, format::bfzyx),
         std::make_tuple(data_types::i32, format::bfwzyx),
@@ -96,4 +99,4 @@ attach_cum_sum_impl::attach_cum_sum_impl() {
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::cum_sum_impl, cldnn::object_type::CUM_SUM_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::cum_sum_impl)

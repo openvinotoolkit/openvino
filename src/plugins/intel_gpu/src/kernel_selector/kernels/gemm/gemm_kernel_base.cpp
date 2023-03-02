@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,9 +26,11 @@ GemmKernelBase::DispatchData GemmKernelBase::SetDefault(const gemm_params& param
 
     DispatchData dispatchData;
 
-    auto total_batches = output.LogicalSize() / (output.X().v * output.Y().v);
-    dispatchData.gws = { output.X().v, output.Y().v, total_batches };
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    if (!output.is_dynamic()) {
+        auto total_batches = output.LogicalSize() / (output.X().v * output.Y().v);
+        dispatchData.gws = { output.X().v, output.Y().v, total_batches };
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    }
 
     return dispatchData;
 }
@@ -43,7 +45,13 @@ KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
 
     auto dispatchData = SetDefault(prim_params);
     KernelData k_data = KernelData::Default<gemm_params>(params);
-
+    k_data.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+    const auto& prim_params = static_cast<const gemm_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+    };
     auto cldnn_jit = GetJitConstants(prim_params);
     auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
@@ -55,11 +63,13 @@ KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
                      kernelName,
                      jit,
                      entry_point,
-                     DEFAULT,
+                     EXE_MODE_DEFAULT,
                      false,
                      false,
                      (uint32_t)prim_params.inputs.size(),
-                     GetFusedPrimitiveInputsCount(params));
+                     GetFusedPrimitiveInputsCount(params),
+                     1,
+                     prim_params.outputs[0].is_dynamic());
 
     return {k_data};
 }
@@ -81,6 +91,13 @@ bool GemmKernelBase::Validate(const Params& p, const optional_params&) const {
     }
 
     return true;
+}
+
+DeviceFeaturesKey GemmKernelBase::get_required_device_features_key(const Params& params, const optional_params& options) const {
+    auto k = get_common_subgroups_device_features_key(params, options);
+    k.requires_subgroup_shuffle();
+
+    return k;
 }
 
 Datatype GemmKernelBase::GetActivationType(const gemm_params& params) const {

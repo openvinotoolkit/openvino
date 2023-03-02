@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,11 +8,13 @@
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <numeric>
+#include <openvino/core/validation_util.hpp>
 #include <openvino/opsets/opset6.hpp>
 #include <openvino/opsets/opset7.hpp>
 #include <vector>
 
 #include "itt.hpp"
+#include "transformations/common_optimizations/transpose_sinking_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
@@ -160,9 +162,9 @@ ov::pass::TransposeReduction::TransposeReduction() {
         if (!transpose_order || !reduction_axes)
             return false;
 
-        const auto& non_negative_axes = ngraph::normalize_axes(reduction->get_friendly_name(),
-                                                               reduction_axes->cast_vector<int64_t>(),
-                                                               reduction->get_input_partial_shape(0).rank());
+        const auto& non_negative_axes = normalize_axes(reduction->get_friendly_name(),
+                                                       reduction_axes->cast_vector<int64_t>(),
+                                                       reduction->get_input_partial_shape(0).rank());
         reduction_axes = opset6::Constant::create(ngraph::element::i64, {non_negative_axes.size()}, non_negative_axes);
 
         ngraph::NodeVector new_ops;
@@ -293,15 +295,21 @@ ov::pass::TransposeFuse::TransposeFuse() {
                 is_ordered = false;
         }
 
+        auto transpose_order_type = transpose1_order->get_element_type();
+        if (transpose_order_type != transpose2_order->get_element_type())
+            transpose_order_type = element::i64;
+
         if (is_ordered) {
             return ngraph::replace_output_update_name(transpose2->output(0), input);
         } else {
-            auto new_order = opset7::Constant::create(element::i64, {order2.size()}, order2);
+            auto new_order = opset7::Constant::create(transpose_order_type, {order2.size()}, order2);
             auto new_transpose = register_new_node<opset7::Transpose>(input, new_order);
 
             new_transpose->set_friendly_name(m.get_match_root()->get_friendly_name());
             ngraph::copy_runtime_info({transpose1, transpose2}, new_transpose);
             ngraph::replace_node(m.get_match_root(), new_transpose);
+
+            transpose_sinking::UpdateForwardSinkingAbility(new_transpose);
         }
 
         return true;

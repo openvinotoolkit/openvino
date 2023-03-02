@@ -1,23 +1,19 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "ngraph/op/select.hpp"
 
 #include <memory>
-#include <ngraph/validation_util.hpp>
-#include <select_shape_inference.hpp>
 
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/op/convert.hpp"
-#include "ngraph/op/not.hpp"
 #include "ngraph/runtime/reference/select.hpp"
+#include "ngraph/validation_util.hpp"
+#include "select_shape_inference.hpp"
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v1::Select);
 
 op::v1::Select::Select(const Output<Node>& arg0,
                        const Output<Node>& arg1,
@@ -43,10 +39,9 @@ void op::v1::Select::validate_and_infer_types() {
                           element::Type::merge(result_et, get_input_element_type(1), get_input_element_type(2)),
                           "Argument 1 and 2 element types must match.");
 
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    const std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
-                                                        get_input_partial_shape(1),
-                                                        get_input_partial_shape(2)};
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    auto output_shapes = std::vector<ov::PartialShape>(1);
+
     shape_infer(this, input_shapes, output_shapes);
     set_output_type(0, result_et, output_shapes[0]);
 }

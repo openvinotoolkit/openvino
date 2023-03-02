@@ -1,14 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "softmax_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "softmax_inst.h"
 #include "softmax/softmax_kernel_selector.h"
 #include "softmax/softmax_kernel_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -57,6 +55,12 @@ struct softmax_impl : typed_primitive_impl_ocl<softmax> {
 
         return {params, optional_params};
     }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        auto kernel_params = get_kernel_params(impl_param);
+        (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        update_kernels_list_to_skip();
+    }
 };
 
 namespace detail {
@@ -70,11 +74,18 @@ attach_softmax_impl::attach_softmax_impl() {
             format::bfzyx
     };
 
-    implementation_map<softmax>::add(impl_types::ocl, typed_primitive_impl_ocl<softmax>::create<softmax_impl>, types, formats);
+    implementation_map<softmax>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<softmax>::create<softmax_impl>, types, formats);
+
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx,
+    };
+
+    implementation_map<softmax>::add(impl_types::ocl, shape_types::dynamic_shape, typed_primitive_impl_ocl<softmax>::create<softmax_impl>, types, dyn_formats);
 }
 
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
 
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::softmax_impl, cldnn::object_type::SOFTMAX_IMPL)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::softmax_impl)

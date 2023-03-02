@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -16,20 +16,12 @@ if(NOT DEFINED OpenVINO_SOURCE_DIR)
     set(OpenVINO_BINARY_DIR "${OpenVINODeveloperPackage_DIR}")
 endif()
 
-if(DEFINED ENV{CI_BUILD_DEV_TAG} AND NOT "$ENV{CI_BUILD_DEV_TAG}" STREQUAL "")
-    set(WHEEL_VERSION "${OpenVINO_VERSION}.$ENV{CI_BUILD_DEV_TAG}" CACHE STRING "Version of this release" FORCE)
-    set(wheel_pre_release ON)
-else()
-    set(WHEEL_VERSION ${OpenVINO_VERSION} CACHE STRING "Version of this release" FORCE)
-endif()
-set(WHEEL_BUILD "${OpenVINO_VERSION_BUILD}" CACHE STRING "Build number of this release" FORCE)
-
 #
 # Check python requirements
 #
 
 set(ov_python_req "${OpenVINOPython_SOURCE_DIR}/requirements.txt")
-set(ie_python_req "cython>=0.29.22")
+set(ie_python_req "${OpenVINOPython_SOURCE_DIR}/src/compatibility/openvino/requirements-dev.txt")
 
 function(ov_check_python_build_conditions)
     # user explicitly specified ENABLE_PYTHON=ON
@@ -49,7 +41,7 @@ function(ov_check_python_build_conditions)
             if(EXISTS ${pybind11_tools_dir})
                 list(APPEND CMAKE_MODULE_PATH ${pybind11_tools_dir})
             else()
-                find_package(pybind11 QUIET)
+                find_package(pybind11 2.8.0 QUIET)
                 list(APPEND CMAKE_MODULE_PATH "${pybind11_DIR}")
             endif()
             # use libraries with the same version as python itself
@@ -74,16 +66,16 @@ function(ov_check_python_build_conditions)
     # check pyopenvino requirements to OV 2.0 API
     ov_check_pip_packages(REQUIREMENTS_FILE ${ov_python_req}
                           RESULT_VAR ov_python_req_FOUND
-                          WARNING_MESSAGE "install python3 -m install -r ${ov_python_req} for OV API 2.0 requirements"
+                          WARNING_MESSAGE "install python3 -m pip install -r ${ov_python_req} for OV API 2.0 requirements"
                           MESSAGE_MODE TRACE)
     # ov_python_req are not mandatory for build
     set(ov_python_req_FOUND ON)
 
     # check for Cython requirement for build IE API 1.0
-    ov_check_pip_package(REQUIREMENT ${ie_python_req}
-                         RESULT_VAR ie_python_req_FOUND
-                         WARNING_MESSAGE "install python3 -m install ${ie_python_req} for IE API 1.0 requirements"
-                         MESSAGE_MODE TRACE)
+    ov_check_pip_packages(REQUIREMENTS_FILE ${ie_python_req}
+                          RESULT_VAR ie_python_req_FOUND
+                          WARNING_MESSAGE "install python3 -m pip install -r ${ie_python_req} for IE API 1.0 requirements"
+                          MESSAGE_MODE TRACE)
 
     # cython can be installed as a debian package, so pip requirements can be unsatisfied
     # so, let's check to find cython anyway
@@ -95,7 +87,7 @@ function(ov_check_python_build_conditions)
         if(CYTHON_VERSION VERSION_GREATER_EQUAL 0.29)
             set(ie_python_req_FOUND ON)
         else()
-            message(${message_mode} "Python module '${ie_python_req}' is missed, IE Python API 1.0 will not be built (ENABLE_PYTHON is OFF)")
+            message(${message_mode} "Python requirements '${ie_python_req}' are missed, IE Python API 1.0 will not be built (ENABLE_PYTHON is OFF)")
         endif()
     endif()
 
@@ -148,6 +140,11 @@ if(LINUX)
     endif()
 endif()
 
+if(CMAKE_VERSION VERSION_LESS 3.15)
+    message(${message_mode} "Cmake version 3.15 and higher is required to build 'openvino' wheel. Provided version ${CMAKE_VERSION}")
+    set(ENABLE_WHEEL_DEFAULT OFF)
+endif()
+
 # this option should not be a part of OpenVINODeveloperPackage
 # since wheels can be built only together with main OV build
 ie_dependent_option(ENABLE_WHEEL "Build wheel packages for PyPI" ${ENABLE_WHEEL_DEFAULT} "ENABLE_PYTHON" OFF)
@@ -164,7 +161,7 @@ endif()
 # Build the code
 #
 
-find_package(pybind11 QUIET)
+find_package(pybind11 2.8.0 QUIET)
 
 if(NOT pybind11_FOUND)
     add_subdirectory(thirdparty/pybind11 EXCLUDE_FROM_ALL)

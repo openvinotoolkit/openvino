@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,7 +20,12 @@ void OVInferRequestIOTensorTest::SetUp() {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     OVInferRequestTests::SetUp();
-    req = execNet.create_infer_request();
+    try {
+        req = execNet.create_infer_request();
+    } catch (const std::exception& ex) {
+        FAIL() << "Can't Create Infer Requiest in SetUp \nException [" << ex.what() << "]"
+               << std::endl;
+    }
     input = execNet.input();
     output = execNet.output();
 }
@@ -32,11 +37,6 @@ void OVInferRequestIOTensorTest::TearDown() {
     OVInferRequestTests::TearDown();
 }
 
-TEST_P(OVInferRequestIOTensorTest, Cancreate_infer_request) {
-    ov::InferRequest req;
-    OV_ASSERT_NO_THROW(req = execNet.create_infer_request());
-}
-
 TEST_P(OVInferRequestIOTensorTest, failToSetNullptrForInput) {
     ASSERT_THROW(req.set_tensor(input, {}), ov::Exception);
 }
@@ -46,7 +46,7 @@ TEST_P(OVInferRequestIOTensorTest, failToSetNullptrForOutput) {
     ASSERT_THROW(req.set_tensor(output, {}), ov::Exception);
 }
 
-TEST_P(OVInferRequestIOTensorTest, getAfterSetInputDoNotChangeInput) {
+TEST_P(OVInferRequestIOTensorTest, canSetAndGetInput) {
     auto tensor = utils::create_and_fill_tensor(input.get_element_type(), input.get_shape());
     OV_ASSERT_NO_THROW(req.set_tensor(input, tensor));
     ov::Tensor actual_tensor;
@@ -59,7 +59,7 @@ TEST_P(OVInferRequestIOTensorTest, getAfterSetInputDoNotChangeInput) {
     ASSERT_EQ(input.get_shape(), actual_tensor.get_shape());
 }
 
-TEST_P(OVInferRequestIOTensorTest, getAfterSetInputDoNotChangeOutput) {
+TEST_P(OVInferRequestIOTensorTest, canSetAndGetOutput) {
     auto tensor = utils::create_and_fill_tensor(output.get_element_type(), output.get_shape());
     req.set_tensor(output, tensor);
     auto actual_tensor = req.get_tensor(output);
@@ -133,22 +133,6 @@ TEST_P(OVInferRequestIOTensorTest, secondCallGetOutputAfterInferSync) {
     ASSERT_EQ(tensor1.data(), tensor2.data());
 }
 
-TEST_P(OVInferRequestIOTensorTest, canSetInputTensorForInferRequest) {
-    auto input_tensor = utils::create_and_fill_tensor(input.get_element_type(), input.get_shape());
-    OV_ASSERT_NO_THROW(req.set_tensor(input, input_tensor));
-    ov::Tensor actual_tensor;
-    OV_ASSERT_NO_THROW(actual_tensor = req.get_tensor(input));
-    ASSERT_EQ(input_tensor.data(), actual_tensor.data());
-}
-
-TEST_P(OVInferRequestIOTensorTest, canSetOutputBlobForInferRequest) {
-    auto output_tensor = utils::create_and_fill_tensor(output.get_element_type(), output.get_shape());
-    OV_ASSERT_NO_THROW(req.set_tensor(output, output_tensor));
-    ov::Tensor actual_tensor;
-    OV_ASSERT_NO_THROW(actual_tensor = req.get_tensor(output));
-    ASSERT_EQ(output_tensor.data(), actual_tensor.data());
-}
-
 TEST_P(OVInferRequestIOTensorTest, canInferWithSetInOutBlobs) {
     auto input_tensor = utils::create_and_fill_tensor(input.get_element_type(), input.get_shape());
     OV_ASSERT_NO_THROW(req.set_tensor(input, input_tensor));
@@ -160,6 +144,26 @@ TEST_P(OVInferRequestIOTensorTest, canInferWithSetInOutBlobs) {
 TEST_P(OVInferRequestIOTensorTest, canInferWithGetIn) {
     ov::Tensor input_tensor;
     OV_ASSERT_NO_THROW(input_tensor = req.get_tensor(input));
+    OV_ASSERT_NO_THROW(req.infer());
+    OV_ASSERT_NO_THROW(req.start_async());
+    OV_ASSERT_NO_THROW(req.wait());
+    OV_ASSERT_NO_THROW(req.get_tensor(output));
+}
+
+TEST_P(OVInferRequestIOTensorTest, canInferAfterIOBlobReallocation) {
+    ov::Tensor input_tensor, output_tensor;
+    auto in_shape = input.get_shape();
+    auto out_shape = output.get_shape();
+
+    // imitates blob reallocation
+    OV_ASSERT_NO_THROW(input_tensor = req.get_tensor(input));
+    OV_ASSERT_NO_THROW(input_tensor.set_shape({5, 5, 5, 5}));
+    OV_ASSERT_NO_THROW(input_tensor.set_shape(in_shape));
+
+    OV_ASSERT_NO_THROW(output_tensor = req.get_tensor(output));
+    OV_ASSERT_NO_THROW(output_tensor.set_shape({20, 20}));
+    OV_ASSERT_NO_THROW(output_tensor.set_shape(out_shape));
+
     OV_ASSERT_NO_THROW(req.infer());
     OV_ASSERT_NO_THROW(req.start_async());
     OV_ASSERT_NO_THROW(req.wait());

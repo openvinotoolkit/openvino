@@ -1,14 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "data_inst.h"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+#include "primitive_base.hpp"
+
+#include "matrix_nms_inst.h"
 #include "matrix_nms/matrix_nms_kernel_ref.h"
 #include "matrix_nms/matrix_nms_kernel_selector.h"
-#include "matrix_nms_inst.h"
-#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -43,12 +41,14 @@ struct matrix_nms_impl : typed_primitive_impl_ocl<matrix_nms> {
     using kernel_selector_t = kernel_selector::matrix_nms_kernel_selector;
     using kernel_params_t = std::pair<kernel_selector::matrix_nms_params, kernel_selector::matrix_nms_optional_params>;
 
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::unique_ptr<primitive_impl> clone() const override {
         return make_unique<matrix_nms_impl>(*this);
     }
 
 protected:
-    kernel_arguments_data get_arguments(const matrix_nms_inst& instance, int32_t) const override {
+    kernel_arguments_data get_arguments(const matrix_nms_inst& instance) const override {
         kernel_arguments_data args;
         args.inputs = {instance.input_boxes_mem(),
                        instance.input_scores_mem(),
@@ -106,3 +106,5 @@ attach_matrix_nms_impl::attach_matrix_nms_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::matrix_nms_impl)

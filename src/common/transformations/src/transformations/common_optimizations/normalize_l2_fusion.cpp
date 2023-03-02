@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@
 
 ov::pass::NormalizeL2Fusion::NormalizeL2Fusion() {
     MATCHER_SCOPE(NormalizeL2Fusion);
-    auto input = ngraph::pattern::any_input();
+    auto input = pass::pattern::any_input();
 
     auto exp = ngraph::pattern::wrap_type<opset8::Constant>();
     auto pow = std::make_shared<opset8::Power>(input, exp);

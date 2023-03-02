@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -76,7 +76,7 @@ class TestScale(OnnxRuntimeLayerTest):
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, output_shape)
 
-        constant = np.random.randint(-127, 127, shape).astype(np.float)
+        constant = np.random.randint(-127, 127, shape).astype(float)
 
         node_const_def = onnx.helper.make_node(
             'Constant',
