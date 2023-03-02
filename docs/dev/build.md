@@ -85,6 +85,51 @@ For the OpenVINO build next tools are required:
     
 </p>
 </details>
+<details><summary>Mac (ARM)</summary>
+<p>
+
+- [brew] package manager to install additional dependencies. Use [install brew](https://brew.sh) guide to achieve this.
+
+- The step to install python and python libraries is different depending on host architecture:
+  - **arm64** Python 3.7 or higher for the OpenVINO Runtime Python API, Development tools (Model Optimizer, POT and others):
+  ```sh
+  % # let's have a look what python versions are available in brew
+  % brew search python
+  % # select preferred version of python based on available ones, e.g. 3.11
+  % brew install python@3.11
+  ```
+  - **x86_64** Select universal2 installer from [Python releases] download page and install `python-3.X.Y-macos11.pkg` image. This allows to have universal python libraries and build x86_64 OpenVINO Python API and Development tools.
+
+- [CMake] 3.13 or higher:
+  ```sh
+  % brew install cmake
+  ```
+- Clang compiler, git and other command line tools from Xcode 10.1 or higher:
+  ```sh
+  % xcode-select --install
+  % brew install git-lfs
+  ```
+- (arm64 only) `scons` to build ARM compute library:
+  ```sh
+  % python3 -m pip install scons
+  ```
+- (arm64 only) TBB library for threading:
+  ```sh
+  % brew install tbb
+  ```
+- Additional `pip` dependencies to build OpenVINO Runtime Python API, Development tools (Model Optimizer, POT and others):
+  ```sh
+  % # update pip and setuptools to newer versions
+  % python3 -m pip install -U pip setuptools
+  % python3 -m pip install cython
+  ```
+  In order to build OpenVINO Python API and Development tools as wheel packages, additionally install requirements (after OpenVINO repo clone):
+  ```sh
+  % python3 -m pip install -r <openvino source tree>/src/bindings/python/wheel/requirements-dev.txt
+  ```
+    
+</p>
+</details>
 <details><summary>Android</summary>
 <p>
 
