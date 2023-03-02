@@ -281,7 +281,7 @@ void StridedSlice::initSupportedPrimitiveDescriptors() {
 }
 
 bool StridedSlice::isExecutable() const {
-    return !isInputTensorAtPortEmpty(0);
+    return !isInputTensorAtPortEmpty(0) && !isOutputTensorAtPortEmpty(0);
 }
 
 void StridedSlice::createPrimitive() {
@@ -310,10 +310,7 @@ void StridedSlice::prepareParams() {
             dstMemory.push_back(getChildEdgeAt(i)->getMemoryPtr());
         }
     }
-    if (srcMemory[DATA_ID]->GetShape().hasZeroDims() || dstMemory[0]->GetShape().hasZeroDims())
-        skipExecution = true;
-    else
-        execPtr = std::make_shared<StridedSliceCommonExecutor>(attrs, srcMemory, dstMemory, errorPrefix);
+    execPtr = std::make_shared<StridedSliceCommonExecutor>(attrs, srcMemory, dstMemory, errorPrefix);
 }
 
 bool StridedSlice::needShapeInfer() const {
@@ -321,8 +318,6 @@ bool StridedSlice::needShapeInfer() const {
 }
 
 void StridedSlice::execute(dnnl::stream strm) {
-    if (skipExecution)
-        return;
     if (!execPtr)
         IE_THROW() << errorPrefix << "doesn't have compiled executor!";
 
