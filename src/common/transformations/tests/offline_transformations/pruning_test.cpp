@@ -287,7 +287,6 @@ TEST_F(TransformationTestsF, PropagateMasksBasic) {
     compare_masks(*getMask(conv2->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -371,7 +370,6 @@ TEST_F(TransformationTestsF, PropagateMasksDynamicConvolution) {
     compare_masks(*getMask(conv2->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -599,7 +597,6 @@ TEST_F(TransformationTestsF, PropagateMaskPassThrough) {
     compare_masks(*getMask(max_pool->output(0)), Mask({{}, {1, 2, 3}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -768,7 +765,6 @@ TEST_F(TransformationTestsF, PropagateMasksHardDependencies) {
     // compare_masks(*getMask(conv2),    Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -915,7 +911,6 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolution) {
     compare_masks(*getMask(conv2->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -1084,7 +1079,6 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolutionWithShapeOf)
     compare_masks(*getMask(weights_2->output(0)), Mask({{}, {0, 1, 2, 3}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -1222,7 +1216,6 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerTensor) {
     compare_masks(*getMask(conv2->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -1427,7 +1420,6 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerChannel) {
     compare_masks(*getMask(fq->input(4).get_source_output()), Mask({{}, {0, 1, 2, 3, 4}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -1559,7 +1551,6 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagation) {
                   Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -1707,7 +1698,6 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagationUp) {
                   Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -1878,7 +1868,6 @@ TEST_F(TransformationTestsF, PruneConvIsClosingAndInGroup) {
     compare_masks(*getMask(end_conv->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -2070,7 +2059,6 @@ TEST_F(TransformationTestsF, PruneReducelayerUp) {
     compare_masks(*getMask(conv_1->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -2174,7 +2162,6 @@ TEST_F(TransformationTestsF, PruneReduceLayerDown) {
     compare_masks(*getMask(end_conv->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -2354,7 +2341,6 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUp) {
     compare_masks(*getMask(conv_1->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -2467,7 +2453,6 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationReshapeUpWithShapeOf) {
     compare_masks(*getMask(conv_1->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -2579,7 +2564,6 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUpShapeSubGraph) {
     compare_masks(*getMask(conv_1->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -2678,7 +2662,6 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeExtend) {
     compare_masks(*getMask(conv_1->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -2784,7 +2767,6 @@ TEST_F(DISABLED_TransformationTestsF, MaskPropagationReshapeDownMul) {
     compare_masks(*getMask(last_conv->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -2889,7 +2871,6 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeDownAdd) {
     compare_masks(*getMask(last_conv->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -3054,7 +3035,6 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUnsqueezeUp) {
     compare_masks(*getMask(mul_left->output(0)), Mask({{}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -3119,7 +3099,6 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUnsqueezeDown) {
     compare_masks(*getMask(mul_left->output(0)), Mask({{}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -3292,7 +3271,6 @@ TEST_F(TransformationTestsF, PruneSEBlock) {
     compare_masks(*getMask(end_conv->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -3395,7 +3373,6 @@ TEST_F(TransformationTestsF, PropagateMasksLinear) {
     compare_masks(*getMask(last_linear->output(0)), Mask{{}, {}});
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -3658,7 +3635,6 @@ TEST_F(TransformationTestsF, MaskPropagationLinearOuterDims) {
     compare_masks(*getMask(last_mul->output(0)), Mask({{}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -3808,7 +3784,6 @@ TEST_F(TransformationTestsF, PruneMasksMatMulColsStopRowsUp) {
     compare_masks(*getMask(last_linear->output(0)), Mask{{}, {}, {}});
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -3898,7 +3873,6 @@ TEST_F(TransformationTestsF, PruneMasksMatMulRowsStopColsUp) {
     compare_masks(*getMask(last_linear->output(0)), Mask{{}, {}, {}});
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -4003,7 +3977,6 @@ TEST_F(TransformationTestsF, PropagateFlattenUp) {
     compare_masks(*getMask(linear->output(0)), Mask{{}, {}});
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -4076,7 +4049,6 @@ TEST_F(TransformationTestsF, PropagateFlattenDown) {
     compare_masks(*getMask(linear->output(0)), {{}, {}});
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -4126,7 +4098,6 @@ TEST_F(TransformationTestsF, PropagateMasksTranspose) {
     compare_masks(*getMask(last_mul->output(0)), Mask{{}, {}});
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -4200,7 +4171,6 @@ TEST_F(TransformationTestsF, PropagateMasksTransposeComplex) {
     compare_masks(*getMask(last_mul->output(0)), Mask{{}, {}, {}, {}, {}});
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -4402,7 +4372,6 @@ TEST_F(DISABLED_TransformationTestsF, PropagateMasksBroadcastedEltwiseWithInputs
     compare_masks(*getMask(last_mul->output(0)), Mask({{}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -4583,7 +4552,6 @@ TEST_F(TransformationTestsF, PropagateMasksBroadcastedEltwise) {
     compare_masks(*getMask(last_mul->output(0)), Mask({{}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -4773,7 +4741,6 @@ TEST_F(TransformationTestsF, MaskPropagationComplexReshape) {
             std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationComplexReshapeWithMasks.svg",
             modifier);
     }
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -4966,7 +4933,6 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationReshapedPassThroughP) {
     manager.register_pass<ngraph::pass::VisualizeTree>(
         std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReverseFlattenWithMasks" + postfix + ".svg",
         modifier);
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -5032,7 +4998,6 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationBroadcastedSameRankEltwiseS
     compare_masks(*getMask(mul_last->output(0)), Mask{{}, {}, {}});
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -5194,7 +5159,6 @@ TEST_F(TransformationTestsF, MaskPropagationMatMulWithSeveralOutputs) {
     compare_masks(*getMask(right_matmul), Mask{{}, {}});
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
