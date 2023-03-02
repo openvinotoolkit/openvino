@@ -17,6 +17,7 @@
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "ie_parameter.hpp"
 #include "ie_remote_context.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/icore.hpp"
 #include "openvino/runtime/properties.hpp"
 
@@ -212,19 +213,26 @@ public:
 /**
  * @private
  */
-class INFERENCE_ENGINE_API_CLASS(DeviceIDParser) {
-    std::string deviceName;
-    std::string deviceID;
-
+class DeviceIDParser : protected ov::DeviceIDParser {
 public:
-    explicit DeviceIDParser(const std::string& deviceNameWithID);
+    explicit DeviceIDParser(const std::string& deviceNameWithID) : ov::DeviceIDParser(deviceNameWithID) {}
 
-    std::string getDeviceID() const;
-    std::string getDeviceName() const;
+    std::string getDeviceID() const {
+        return get_device_id();
+    }
+    std::string getDeviceName() const {
+        return get_device_name();
+    }
 
-    static std::vector<std::string> getHeteroDevices(std::string fallbackDevice);
-    static std::vector<std::string> getMultiDevices(std::string devicesList);
-    static std::string getBatchDevice(std::string devicesList);
+    static std::vector<std::string> getHeteroDevices(std::string fallbackDevice) {
+        return get_hetero_devices(fallbackDevice);
+    }
+    static std::vector<std::string> getMultiDevices(std::string devicesList) {
+        return get_multi_devices(devicesList);
+    }
+    static std::string getBatchDevice(std::string devicesList) {
+        return get_batch_device(devicesList);
+    }
 };
 
 }  // namespace InferenceEngine

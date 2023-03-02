@@ -248,9 +248,7 @@ public:
 
         for (const auto& plugin : static_registry) {
             const auto& deviceName = plugin.first;
-            if (deviceName.find('.') != std::string::npos) {
-                IE_THROW() << "Device name must not contain dot '.' symbol";
-            }
+            OPENVINO_ASSERT(deviceName.find('.') == std::string::npos, "Device name must not contain dot '.' symbol");
             const auto& value = plugin.second;
             ov::AnyMap config = any_copy(value.m_default_config);
             PluginDescriptor desc{value.m_create_plugin_func, config, value.m_create_extension_func};

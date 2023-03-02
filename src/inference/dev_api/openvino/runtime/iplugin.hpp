@@ -20,6 +20,7 @@
 #include "openvino/runtime/icore.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
+#include "openvino/util/pp.hpp"
 
 namespace InferenceEngine {
 
@@ -205,7 +206,11 @@ private:
     bool m_is_new_api;                                                   //!< A flag which shows used API
 };
 
-}  // namespace ov
+/**
+ * @private
+ */
+using CreatePluginFunc = void(std::shared_ptr<::ov::IPlugin>&);
+
 /**
  * @def OV_CREATE_PLUGIN
  * @brief Defines a name of a function creating plugin instance
@@ -214,6 +219,13 @@ private:
 #ifndef OV_CREATE_PLUGIN
 #    define OV_CREATE_PLUGIN CreatePluginEngine
 #endif
+
+/**
+ * @private
+ */
+constexpr static const auto create_plugin_function = OV_PP_TOSTRING(OV_CREATE_PLUGIN);
+
+}  // namespace ov
 
 /**
  * @def OV_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version)

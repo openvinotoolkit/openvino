@@ -2,29 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ie_icore.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 
-namespace InferenceEngine {
+#include <set>
 
-DeviceIDParser::DeviceIDParser(const std::string& deviceNameWithID) {
-    deviceName = deviceNameWithID;
+ov::DeviceIDParser::DeviceIDParser(const std::string& device_name_with_id) {
+    m_device_name = device_name_with_id;
 
-    auto pos = deviceName.find('.');
+    auto pos = m_device_name.find('.');
     if (pos != std::string::npos) {
-        deviceName = deviceNameWithID.substr(0, pos);
-        deviceID = deviceNameWithID.substr(pos + 1, deviceNameWithID.size());
+        m_device_name = device_name_with_id.substr(0, pos);
+        m_device_id = device_name_with_id.substr(pos + 1, device_name_with_id.size());
     }
 }
 
-std::string DeviceIDParser::getDeviceID() const {
-    return deviceID;
+std::string ov::DeviceIDParser::get_device_id() const {
+    return m_device_id;
 }
 
-std::string DeviceIDParser::getDeviceName() const {
-    return deviceName;
+std::string ov::DeviceIDParser::get_device_name() const {
+    return m_device_name;
 }
 
-std::vector<std::string> DeviceIDParser::getHeteroDevices(std::string fallbackDevice) {
+std::vector<std::string> ov::DeviceIDParser::get_hetero_devices(std::string fallbackDevice) {
     std::vector<std::string> deviceNames;
 
     std::string cdevice;
@@ -42,7 +42,7 @@ std::vector<std::string> DeviceIDParser::getHeteroDevices(std::string fallbackDe
     return deviceNames;
 }
 
-std::vector<std::string> DeviceIDParser::getMultiDevices(std::string devicesList) {
+std::vector<std::string> ov::DeviceIDParser::get_multi_devices(std::string devicesList) {
     std::set<std::string> deviceNames;
     auto trim_request_info = [](const std::string& device_with_requests) {
         auto opening_bracket = device_with_requests.find_first_of('(');
@@ -59,7 +59,7 @@ std::vector<std::string> DeviceIDParser::getMultiDevices(std::string devicesList
             deviceNames.insert("BATCH");
             auto p = d.find_first_of(":");
             if (p != std::string::npos)
-                deviceNames.insert(DeviceIDParser::getBatchDevice(d.substr(p + 1)));
+                deviceNames.insert(ov::DeviceIDParser::get_batch_device(d.substr(p + 1)));
         } else {
             deviceNames.insert(trim_request_info(d));
         }
@@ -71,7 +71,7 @@ std::vector<std::string> DeviceIDParser::getMultiDevices(std::string devicesList
             deviceNames.insert("BATCH");
             auto p = devicesList.find_first_of(":");
             if (p != std::string::npos)
-                deviceNames.insert(DeviceIDParser::getBatchDevice(devicesList.substr(p + 1)));
+                deviceNames.insert(ov::DeviceIDParser::get_batch_device(devicesList.substr(p + 1)));
         } else {
             deviceNames.insert(trim_request_info(devicesList));
         }
@@ -79,11 +79,10 @@ std::vector<std::string> DeviceIDParser::getMultiDevices(std::string devicesList
     return std::vector<std::string>(deviceNames.begin(), deviceNames.end());
 }
 
-std::string DeviceIDParser::getBatchDevice(std::string device) {
+std::string ov::DeviceIDParser::get_batch_device(std::string device) {
     auto trim_request_info = [](const std::string& device_with_requests) {
         auto opening_bracket = device_with_requests.find_first_of('(');
         return device_with_requests.substr(0, opening_bracket);
     };
     return trim_request_info(device);
 }
-}  // namespace InferenceEngine

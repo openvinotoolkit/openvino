@@ -66,9 +66,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::LoadNetwork
             compile_model(ov::legacy_convert::convert_model(network, isNewAPI()), ctx, any_copy(config));
         return {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
     }
-    if (context == nullptr) {
-        IE_THROW() << "Remote context is null";
-    }
+    OPENVINO_ASSERT(context != nullptr, "Remote context is null");
     // have to deduce the device name/config from the context first
     auto parsed = parseDeviceNameIntoConfig(context->getDeviceName(), config);
 
@@ -147,39 +145,24 @@ ov::Any ov::CoreImpl::GetMetric(const std::string& deviceName,
                                 const std::string& name,
                                 const ov::AnyMap& options) const {
     // HETERO case
-    {
-        if (deviceName.find("HETERO:") == 0) {
-            IE_THROW()
-                << "You can get specific metrics with the GetMetric only for the HETERO itself (without devices). "
-                   "To get individual devices's metrics call GetMetric for each device separately";
-        }
-    }
+    OPENVINO_ASSERT(deviceName.find("HETERO:") != 0,
+                    "You can get specific metrics with the GetMetric only for the HETERO itself (without devices). "
+                    "To get individual devices's metrics call GetMetric for each device separately");
 
     // MULTI case
-    {
-        if (deviceName.find("MULTI:") == 0) {
-            IE_THROW()
-                << "You can get specific metrics with the GetMetric only for the MULTI itself (without devices). "
-                   "To get individual devices's metrics call GetMetric for each device separately";
-        }
-    }
+    OPENVINO_ASSERT(deviceName.find("MULTI:") != 0,
+                    "You can get specific metrics with the GetMetric only for the MULTI itself (without devices). "
+                    "To get individual devices's metrics call GetMetric for each device separately");
 
     // AUTO case
-    {
-        if (deviceName.find("AUTO:") == 0) {
-            IE_THROW() << "You can get specific metrics with the GetMetric only for the AUTO itself (without devices). "
-                          "To get individual devices's metrics call GetMetric for each device separately";
-        }
-    }
+    OPENVINO_ASSERT(deviceName.find("AUTO:") != 0,
+                    "You can get specific metrics with the GetMetric only for the AUTO itself (without devices). "
+                    "To get individual devices's metrics call GetMetric for each device separately");
 
     // BATCH case
-    {
-        if (deviceName.find("BATCH:") == 0) {
-            IE_THROW()
-                << "You can get specific metrics with the GetMetric only for the BATCH itself (without devices). "
-                   "To get individual devices's metrics call GetMetric for each device separately";
-        }
-    }
+    OPENVINO_ASSERT(deviceName.find("BATCH:") != 0,
+                    "You can get specific metrics with the GetMetric only for the BATCH itself (without devices). "
+                    "To get individual devices's metrics call GetMetric for each device separately");
 
     auto parsed = parseDeviceNameIntoConfig(deviceName);
     for (auto o : options) {
