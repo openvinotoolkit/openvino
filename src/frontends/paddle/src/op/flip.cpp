@@ -12,29 +12,31 @@ namespace op {
 NamedOutputs flip(const NodeContext& node) {
     const auto data_node = node.get_input("X");
     const auto axes = node.get_attribute<std::vector<int32_t>>("axis");
-    const auto input_shape = data_node.get_partial_shape().get_shape();
+    auto input_shape = data_node.get_partial_shape();
+    PADDLE_OP_CHECK(node, (input_shape.rank().is_static()), "flip not support dynamic rank!");
     const auto dims = static_cast<int32_t>(data_node.get_partial_shape().rank().get_length());
     const auto dtype = data_node.get_element_type();
-    // for zero-dim input
-    PADDLE_OP_CHECK(node, (dims > 0), "Input dims must be greater than 0");
-
+    bool is_1dim = false;
+    int32_t axis, shape_len, batch_index;
     Output<Node> temp = data_node;
-    std::vector<Output<Node>> temp_split_out;
-    int32_t axis;
+    const auto uns_axes = default_opset::Constant::create(ov::element::i64, {1}, {1});
+    if (dims == 1) {
+        temp = std::make_shared<default_opset::Unsqueeze>(temp, uns_axes);
+        input_shape = temp.get_partial_shape();
+        is_1dim = true;
+    }
     for (size_t idx = 0; idx < axes.size(); idx++) {
         axis = axes[idx];
-        if (axis < 0)
-            axis += dims;
-        // Do nothing when dims of selected axis are 1.
-        if (input_shape[axis] != 1) {
-            const auto split_axes = default_opset::Constant::create(element::i64, Shape{}, {axis});
-            auto split = std::make_shared<default_opset::Split>(temp, split_axes, input_shape[axis]);
-            temp_split_out = split->outputs();
-            // reverse the vector<Node> then concat
-            std::reverse(temp_split_out.begin(), temp_split_out.end());
-            temp = std::make_shared<default_opset::Concat>(temp_split_out, axis);
-        }
+        axis += axis < 0 ? dims : 0;
+        shape_len = input_shape[axis].get_length();
+        batch_index = axis == 0 ? 1 : 0;
+        auto batch_len = input_shape[batch_index].get_length();
+        const auto seq_length =
+            default_opset::Constant::create(element::i64, {static_cast<uint32_t>(batch_len)}, {shape_len});
+        temp = std::make_shared<default_opset::ReverseSequence>(temp, seq_length, batch_index, axis);
     }
+    if (is_1dim)
+        return node.default_single_output_mapping({std::make_shared<default_opset::Squeeze>(temp, uns_axes)}, {"Out"});
     // for output, convert Output<Node> to shared_ptr<Node>
     return node.default_single_output_mapping({std::make_shared<default_opset::Convert>(temp, dtype)}, {"Out"});
 }
