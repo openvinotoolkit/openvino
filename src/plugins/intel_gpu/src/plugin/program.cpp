@@ -185,7 +185,7 @@ Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, co
     }
 
     int m_bv_sz = GetMaxBatchSizeForSingleProgram();
-    m_max_batch = m_config.get_property(ov::intel_gpu::max_dynamic_batch);
+    m_max_batch = static_cast<int>(m_config.get_property(ov::intel_gpu::max_dynamic_batch));
 
     if (dyn_shape_batch_found || m_max_batch > 1) {
         // compile log2 networks to serve dynamic batch requests
@@ -306,7 +306,7 @@ int Program::GetMaxBatchSizeForSingleProgram() {
     auto max_dynamic_batch = m_config.get_property(ov::intel_gpu::max_dynamic_batch);
     if (max_dynamic_batch > 1) {
         // calculate number of networks necessary based on binary log
-        unsigned int tmp = max_dynamic_batch;
+        unsigned int tmp = static_cast<unsigned int>(max_dynamic_batch);
         unsigned int mask = 1U << 31;
         unsigned int ldigit = 31;
 
