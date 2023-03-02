@@ -21,7 +21,7 @@ Napi::Object CompiledModelWrap::Init(Napi::Env env, Napi::Object exports) {
     return exports;
 }
 
-void CompiledModelWrap::set_compiled_model(ov::CompiledModel& compiled_model) {
+void CompiledModelWrap::set_compiled_model(const ov::CompiledModel& compiled_model) {
     _compiled_model = compiled_model;
 }
 

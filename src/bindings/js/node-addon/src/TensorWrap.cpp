@@ -53,7 +53,7 @@ ov::Tensor TensorWrap::get_tensor() {
     return this->_tensor;
 }
 
-void TensorWrap::set_tensor(ov::Tensor& tensor) {
+void TensorWrap::set_tensor(const ov::Tensor& tensor) {
     _tensor = tensor;
 }
 
@@ -72,7 +72,7 @@ Napi::Value TensorWrap::get_tensor_data(const Napi::CallbackInfo& info) {
     return arr;
 }
 
-Napi::Value TensorWrap::get_shape(const Napi::CallbackInfo& info) {
+Napi::Value TensorWrap::get_shape(const Napi::CallbackInfo& info){
     auto arr = Napi::Array::New(info.Env(), 4);
     auto shape = _tensor.get_shape();
     for (size_t i = 0; i < 4; i++)
@@ -81,6 +81,6 @@ Napi::Value TensorWrap::get_shape(const Napi::CallbackInfo& info) {
     return arr;
 }
 
-Napi::Value TensorWrap::get_element_type(const Napi::CallbackInfo& info) {
+Napi::Value TensorWrap::get_element_type(const Napi::CallbackInfo& info){
     return cpp_to_js<ov::element::Type_t, Napi::String>(info, _tensor.get_element_type());
 }

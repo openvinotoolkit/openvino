@@ -30,7 +30,7 @@ public:
     /// It exports JavaScript CompiledModel class.
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
 
-    void set_compiled_model(ov::CompiledModel& compiled_model);
+    void set_compiled_model(const ov::CompiledModel& compiled_model);
     /**
      * @brief Creates JavaScript CompiledModel object and wraps inside of it ov::CompiledModel object.
      * @param env The environment in which to construct a JavaScript object.

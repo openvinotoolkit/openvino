@@ -23,7 +23,7 @@ Napi::Object InferRequestWrap::Init(Napi::Env env, Napi::Object exports) {
     return exports;
 }
 
-void InferRequestWrap::set_infer_request(ov::InferRequest& infer_request) {
+void InferRequestWrap::set_infer_request(const ov::InferRequest& infer_request) {
     _infer_request = infer_request;
 }
 
@@ -39,7 +39,6 @@ Napi::Value InferRequestWrap::set_input_tensor(const Napi::CallbackInfo& info) {
     auto* tensorWrap = Napi::ObjectWrap<TensorWrap>::Unwrap(info[0].ToObject());
     ov::Tensor t = tensorWrap->get_tensor();
 
-    // ov::Tensor t = TensorWrap::get_tensor(info);
     _infer_request.set_input_tensor(t);
     return Napi::Value();
 }

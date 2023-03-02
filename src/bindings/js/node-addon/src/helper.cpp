@@ -111,7 +111,7 @@ ov::Shape js_to_cpp<ov::Shape>(const Napi::CallbackInfo& info,
 }
 
 template <>
-Napi::String cpp_to_js<ov::element::Type_t, Napi::String>(const Napi::CallbackInfo& info, ov::element::Type_t type) {
+Napi::String cpp_to_js<ov::element::Type_t, Napi::String>(const Napi::CallbackInfo& info, const ov::element::Type_t type) {
     auto str = Napi::String::New(info.Env(), "");
     for (auto& it : element_type_map)
         if (it.second == type) {

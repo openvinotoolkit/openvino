@@ -41,7 +41,7 @@ public:
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
 
     ov::Tensor get_tensor();
-    void set_tensor(ov::Tensor& tensor);
+    void set_tensor(const ov::Tensor& tensor);
     /**
      * @brief Creates JavaScript Tensor object and wraps inside of it ov::Tensor object.
      * @param env The environment in which to construct a JavaScript object.

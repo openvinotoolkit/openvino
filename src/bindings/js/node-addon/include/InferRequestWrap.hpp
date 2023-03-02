@@ -30,7 +30,7 @@ public:
     /// It exports JavaScript InferRequest class.
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
 
-    void set_infer_request(ov::InferRequest& infer_request);
+    void set_infer_request(const ov::InferRequest& infer_request);
     /**
      * @brief Creates JavaScript InferRequest object and wraps inside of it ov::InferRequest object.
      * @param env The environment in which to construct a JavaScript object.

@@ -88,7 +88,7 @@ TargetType cpp_to_js(const Napi::CallbackInfo& info, SourceType);
 
 /// @brief  A template specialization for TargetType ov::element::Type_t and SourceType ov::element::Type_t
 template <>
-Napi::String cpp_to_js<ov::element::Type_t, Napi::String>(const Napi::CallbackInfo& info, ov::element::Type_t type);
+Napi::String cpp_to_js<ov::element::Type_t, Napi::String>(const Napi::CallbackInfo& info, const ov::element::Type_t type);
 
 const std::map<std::string, ov::element::Type_t> element_type_map = {{"f32", ov::element::Type_t::f32},
                                                                      {"f64", ov::element::Type_t::f64},
