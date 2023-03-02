@@ -8,9 +8,9 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "transformations/common_optimizations/transpose_sinking_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -19,13 +19,11 @@ using namespace opset10;
 
 ov::pass::TransposeFuse::TransposeFuse() {
     MATCHER_SCOPE(TransposeFuse);
-    auto transpose_label =
-            pattern::wrap_type<Transpose>({pattern::any_input(), pattern::wrap_type<Constant>()});
+    auto transpose_label = pattern::wrap_type<Transpose>({pattern::any_input(), pattern::wrap_type<Constant>()});
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
         auto transpose_1 = pattern_to_output.at(transpose_label);
-        auto order_const_1 =
-                std::dynamic_pointer_cast<Constant>(transpose_1->input_value(1).get_node_shared_ptr());
+        auto order_const_1 = std::dynamic_pointer_cast<Constant>(transpose_1->input_value(1).get_node_shared_ptr());
         auto consumers = transpose_1->get_output_target_inputs(0);
 
         std::vector<int64_t> saved_order_values;

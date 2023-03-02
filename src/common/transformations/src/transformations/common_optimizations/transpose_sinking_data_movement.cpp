@@ -23,7 +23,8 @@ ov::pass::TransposeSinkingDataMovementForward::TransposeSinkingDataMovementForwa
     MATCHER_SCOPE(TransposeSinkingDataMovementForward);
     auto const_label = wrap_type<Constant>();
     auto transpose_label = wrap_type<Transpose>({any_input(), const_label});
-    auto main_node_label = wrap_type<Pad, BatchToSpace, SpaceToBatch>({transpose_label, any_input(), any_input(), any_input()});
+    auto main_node_label =
+        wrap_type<Pad, BatchToSpace, SpaceToBatch>({transpose_label, any_input(), any_input(), any_input()});
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_node = m.get_pattern_map();
@@ -57,7 +58,7 @@ ov::pass::TransposeSinkingDataMovementForward::TransposeSinkingDataMovementForwa
         const auto& stb = std::dynamic_pointer_cast<SpaceToBatch>(main_node);
         if (bts || stb) {
             main_node->input(3).replace_source_output(
-                    ChangeValuesOrder(main_node->input_value(3), reversed_transpose_order, axis));
+                ChangeValuesOrder(main_node->input_value(3), reversed_transpose_order, axis));
         }
 
         main_node->validate_and_infer_types();
@@ -114,7 +115,7 @@ ov::pass::TransposeSinkingDataMovementBackward::TransposeSinkingDataMovementBack
         const auto& stb = std::dynamic_pointer_cast<SpaceToBatch>(main_node);
         if (bts || stb) {
             main_node->input(3).replace_source_output(
-                    ChangeValuesOrder(main_node->input_value(3), transpose_axis_order, axis));
+                ChangeValuesOrder(main_node->input_value(3), transpose_axis_order, axis));
         }
         main_node->validate_and_infer_types();
         return true;
