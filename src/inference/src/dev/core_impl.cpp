@@ -27,6 +27,7 @@
 #include "openvino/core/version.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/util/common_util.hpp"
@@ -1165,7 +1166,7 @@ std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& model,
                                                     bool frontendMode) const {
     InferenceEngine::Blob::Ptr blob;
     if (weights) {
-        blob = weights._impl;
+        blob = tensor_to_blob(weights._impl);
     }
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::read_model from memory");
     return ReadNetwork(model, blob, frontendMode).getFunction();

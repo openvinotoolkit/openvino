@@ -22,6 +22,7 @@ add_subdirectory(reference)
 add_subdirectory(shape_inference)
 
 set(MIXED_SRC
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/itensor.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/allocator.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/ov_tensor.cpp")
 

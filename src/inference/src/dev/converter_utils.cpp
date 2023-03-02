@@ -30,6 +30,7 @@
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/remote_context.hpp"
@@ -210,7 +211,7 @@ public:
     }
 
     InferenceEngine::Blob::CPtr GetState() const override {
-        return m_state->get_state()._impl;
+        return tensor_to_blob(m_state->get_state()._impl);
     }
 };
 
@@ -520,14 +521,14 @@ public:
     }
 
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override {
-        return m_request->get_tensor(find_port(name))._impl;
+        return tensor_to_blob(m_request->get_tensor(find_port(name))._impl);
     }
 
     InferenceEngine::BatchedBlob::Ptr GetBlobs(const std::string& name) override {
         auto tensors = m_request->get_tensors(find_port(name));
         std::vector<InferenceEngine::Blob::Ptr> blobs;
         for (const auto& tensor : tensors) {
-            blobs.emplace_back(tensor._impl);
+            blobs.emplace_back(tensor_to_blob(tensor._impl));
         }
         return std::make_shared<InferenceEngine::BatchedBlob>(blobs);
     }
@@ -602,7 +603,7 @@ public:
     }
 
     void set_state(const ov::Tensor& state) override {
-        m_state->SetState(state._impl);
+        m_state->SetState(ov::tensor_to_blob(state._impl));
     }
 
     const ov::Tensor& get_state() const override {
@@ -708,7 +709,7 @@ public:
         return tensor;
     }
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override {
-        m_request->SetBlob(get_legacy_name_from_port(port), tensor._impl);
+        m_request->SetBlob(get_legacy_name_from_port(port), ov::tensor_to_blob(tensor._impl));
     }
 
     std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& port) const override {
@@ -724,7 +725,7 @@ public:
     void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors) override {
         std::vector<InferenceEngine::Blob::Ptr> blobs;
         for (const auto& tensor : tensors) {
-            blobs.emplace_back(tensor._impl);
+            blobs.emplace_back(ov::tensor_to_blob(tensor._impl));
         }
         m_request->SetBlobs(get_legacy_name_from_port(port), blobs);
     }
