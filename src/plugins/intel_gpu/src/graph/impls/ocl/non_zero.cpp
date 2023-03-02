@@ -2,17 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "non_zero_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "non_zero_inst.h"
 #include "non_zero/count_nonzero_kernel_ref.h"
 #include "non_zero/count_nonzero_kernel_selector.h"
 #include "non_zero/gather_nonzero_kernel_ref.h"
 #include "non_zero/gather_nonzero_kernel_selector.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -29,15 +25,16 @@ struct count_nonzero_impl : typed_primitive_impl_ocl<count_nonzero> {
         return make_unique<count_nonzero_impl>(*this);
     }
 
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
-        auto params = get_default_params<kernel_selector::count_nonzero_params>(impl_param);
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
+        auto params = get_default_params<kernel_selector::count_nonzero_params>(impl_param, is_shape_agnostic);
         auto optional_params = get_default_optional_params<kernel_selector::count_nonzero_optional_params>(impl_param.get_program());
         return {params, optional_params};
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param);
+        auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        update_kernels_list_to_skip();
     }
 };
 
@@ -53,8 +50,8 @@ struct gather_nonzero_impl : typed_primitive_impl_ocl<gather_nonzero> {
         return make_unique<gather_nonzero_impl>(*this);
     }
 
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
-        auto params = get_default_params<kernel_selector::gather_nonzero_params>(impl_param);
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
+        auto params = get_default_params<kernel_selector::gather_nonzero_params>(impl_param, is_shape_agnostic);
         auto optional_params = get_default_optional_params<kernel_selector::gather_nonzero_optional_params>(impl_param.get_program());
 
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
@@ -63,8 +60,9 @@ struct gather_nonzero_impl : typed_primitive_impl_ocl<gather_nonzero> {
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param);
+        auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        update_kernels_list_to_skip();
     }
 };
 

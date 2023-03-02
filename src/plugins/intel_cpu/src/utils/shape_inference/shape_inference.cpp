@@ -19,6 +19,7 @@
 #include "ctc_greedy_decoder_seq_len_shape_inference.hpp"
 #include "ctc_greedy_decoder_shape_inference.hpp"
 #include "ctc_loss_shape_inference.hpp"
+#include "deformable_psroi_pooling_shape_inference.hpp"
 #include "depth_to_space_shape_inference.hpp"
 #include "detection_output_shape_inference.hpp"
 #include "einsum_shape_inference.hpp"
@@ -77,14 +78,6 @@
 
 namespace ov {
 namespace intel_cpu {
-
-void shape_inference(ov::Node* op,
-                     const std::vector<StaticShape>& input_shapes,
-                     std::vector<StaticShape>& output_shapes,
-                     const std::map<size_t, HostTensorPtr>& constant_data) {
-    auto shapeInfer = make_shape_inference(op->shared_from_this());
-    output_shapes = shapeInfer->infer(input_shapes, constant_data);
-}
 
 class entryBase : public IShapeInferCommon {
 public:
@@ -538,6 +531,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(CTCGreedyDecoderSeqLen, entryIO),
     _OV_OP_SHAPE_INFER_REG(CTCLoss, entryIO),
     _OV_OP_SHAPE_INFER_REG(DeformableConvolution, entryFallbackWithPadding),
+    _OV_OP_SHAPE_INFER_REG(DeformablePSROIPooling, entryIO),
     _OV_OP_SHAPE_INFER_REG(DepthToSpace, entryIO),
     _OV_OP_SHAPE_INFER_REG(DetectionOutput, entryIO),
     _OV_OP_SHAPE_INFER_REG(DFT, entryIOC),
@@ -578,7 +572,6 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(Roll, entryIOC),
     _OV_OP_SHAPE_INFER_REG(ScatterElementsUpdate, entryIOC),
     _OV_OP_SHAPE_INFER_REG(ScatterNDUpdate, entryIO),
-    _OV_OP_SHAPE_INFER_REG(Select, entryIO),
     _OV_OP_SHAPE_INFER_REG(Select, entryIO),
     _OV_OP_SHAPE_INFER_REG(ShapeOf, entryIO),
     _OV_OP_SHAPE_INFER_REG(ShuffleChannels, entryIO),

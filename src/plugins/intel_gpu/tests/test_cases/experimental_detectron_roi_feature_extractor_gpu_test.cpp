@@ -53,24 +53,7 @@ void test_experimental_detectron_roi_feature_extractor_gpu_fp32_one_level(bool i
     topology.add(activation(activation_abs_id, feature_extractor_id,  activation_func::abs));
     topology.add(mutable_data(second_output_r_id, {feature_extractor_id}, second_output));
 
-    cldnn::network::ptr network;
-
-    if (is_caching_test) {
-        membuf mem_buf;
-        {
-            cldnn::network _network(engine, topology);
-            std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-            _network.save(ob);
-        }
-        {
-            std::istream in_mem(&mem_buf);
-            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-        }
-    } else {
-        network = std::make_shared<cldnn::network>(engine, topology);
-    }
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data(input_rois_id, roi_input);
     network->set_input_data(input_level_1_id, level_1);

@@ -44,5 +44,14 @@ struct softmax : public primitive_base<softmax> {
         seed = hash_combine(seed, dimension);
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const softmax>(rhs);
+
+        return dimension == rhs_casted.dimension;
+    }
 };
 }  // namespace cldnn

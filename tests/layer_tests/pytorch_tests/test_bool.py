@@ -9,7 +9,7 @@ from pytorch_layer_test_class import PytorchLayerTest
 class TestBool(PytorchLayerTest):
     def _prepare_input(self):
         import numpy as np
-        return (np.random.randn(1).astype(np.int32),)
+        return (np.random.randint(0, 10, 1).astype(np.int32),)
 
     def create_model(self, input_type):
         import torch
@@ -32,5 +32,5 @@ class TestBool(PytorchLayerTest):
     @pytest.mark.parametrize("input_type", ["tensor", "scalar"])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_ceil(self, ie_device, precision, ir_version, input_type):
+    def test_bool(self, ie_device, precision, ir_version, input_type):
         self._test(*self.create_model(input_type), ie_device, precision, ir_version)

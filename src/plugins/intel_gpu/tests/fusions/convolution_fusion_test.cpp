@@ -1717,14 +1717,14 @@ TEST_P(conv_swap_xy_with_eltwise_diff_sizes, basic) {
 // in_shape; out_shape; eltw_shape; kernel; stride; pad; dilation; groups; data_type; input_format; weights_type; weights_format; default_type; default_format;
 #define CASE_CONV_ELTW_FP16_SWAP_XY_1 { 1, 16, 1, 5 }, { 1, 32, 1, 7 }, { 1, 32, 1, 1 }, { 1, 1, 1, 3 }, { 1, 1 }, { 2, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::os_iyx_osv16, data_types::f16, format::bfyx
 #define CASE_CONV_ELTW_FP16_SWAP_XY_2 { 1, 16, 1, 5 }, { 1, 32, 1, 7 }, { 1, 32, 1, 7 }, { 1, 1, 1, 3 }, { 1, 1 }, { 2, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::os_iyx_osv16, data_types::f16, format::bfyx
-#define CASE_CONV_ELTW_FP32_SWAP_XY_1 { 3, 16, 1, 5 }, { 3, 32, 1, 7 }, { 1, 32, 1, 1 }, { 1, 1, 1, 3 }, { 1, 1 }, { 2, 0 }, { 1, 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
-#define CASE_CONV_ELTW_FP32_SWAP_XY_2 { 3, 16, 1, 5 }, { 3, 32, 1, 7 }, { 3, 32, 1, 7 }, { 1, 1, 1, 3 }, { 1, 1 }, { 2, 0 }, { 1, 1 }, 1, data_types::f32, format::bfyx, data_types::f32, format::os_iyx_osv16, data_types::f32, format::bfyx
+#define CASE_CONV_ELTW_FP16_SWAP_XY_3 { 3, 16, 1, 5 }, { 3, 32, 1, 7 }, { 1, 32, 1, 1 }, { 1, 1, 1, 3 }, { 1, 1 }, { 2, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::os_iyx_osv16, data_types::f16, format::bfyx
+#define CASE_CONV_ELTW_FP16_SWAP_XY_4 { 3, 16, 1, 5 }, { 3, 32, 1, 7 }, { 3, 32, 1, 7 }, { 1, 1, 1, 3 }, { 1, 1 }, { 2, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::os_iyx_osv16, data_types::f16, format::bfyx
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_swap_xy_with_eltwise_diff_sizes, ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP16_SWAP_XY_1, 3, 3, 4 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP16_SWAP_XY_2, 3, 3, 4 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_SWAP_XY_1, 3, 3, 4 },
-    conv_eltw_test_params{ CASE_CONV_ELTW_FP32_SWAP_XY_2, 3, 3, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP16_SWAP_XY_1, 3, 2, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP16_SWAP_XY_2, 3, 2, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP16_SWAP_XY_3, 3, 2, 4 },
+    conv_eltw_test_params{ CASE_CONV_ELTW_FP16_SWAP_XY_4, 3, 2, 4 },
 }));
 
 class conv_scale_activation_eltwise_fp32_quantize_i8 : public ConvEltwTest {};
@@ -4171,7 +4171,7 @@ INSTANTIATE_TEST_SUITE_P(implicit_crop_concat_conv_fusings_gpu, implicit_crop_co
 
 class PermuteOptimizingTestOnednn : public BaseFusingTest<convolution_test_params> {
 public:
-    void execute(convolution_test_params& p) {
+    void execute(convolution_test_params& p, bool is_permute_optimized = true) {
         if (!engine.get_device_info().supports_immad)
             return;
 
@@ -4205,7 +4205,11 @@ public:
         });
 
         ASSERT_TRUE(permute_prim != pi_fused.end());
-        ASSERT_TRUE(permute_prim->kernel_id == "undef");
+        if (is_permute_optimized) {
+            ASSERT_TRUE(permute_prim->kernel_id == "undef");
+        } else {
+            ASSERT_FALSE(permute_prim->kernel_id == "undef");
+        }
     }
 
     layout get_input_layout(convolution_test_params& p) {
@@ -4256,6 +4260,45 @@ TEST_P(conv_after_permute_optimizing, basic) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_after_permute_optimizing, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_FP16_PERMUTE_1, 3, 2, 4 },
+}));
+
+#define CASE_CONV_INT8_PERMUTE_1 { 1, 4, 3, 5 }, { 1, 30, 2, 3 }, { 1, 1, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+
+class conv_after_permute_not_optimizing : public PermuteOptimizingTestOnednn {};
+TEST_P(conv_after_permute_not_optimizing, basic) {
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    auto p = GetParam();
+
+    auto weights_layout = cldnn::layout { p.weights_type, p.weights_format,
+                                        cldnn::tensor(batch(p.out_shape.feature[0]), feature(p.in_shape.spatial[0]),
+                                        spatial(p.kernel.spatial[0], p.kernel.spatial[1], p.kernel.spatial[2])) };
+
+    auto bias_layout = cldnn::layout{ p.default_type, format::bfyx, tensor{1, p.out_shape.feature[0], 1, 1} };
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(weights_layout)),
+        data("bias", get_mem(bias_layout)),
+        data("in_lo1", get_mem(get_single_element_layout(p), 0)),
+        data("in_hi1", get_mem(get_single_element_layout(p), 100)),
+        data("out_lo1", get_mem(get_single_element_layout(p), 0)),
+        data("out_hi1", get_mem(get_single_element_layout(p), 100)),
+        permute("permute", input_info("input"), {0, 3, 1, 2}),
+        quantize("quantize1", input_info("permute"), input_info("in_lo1"), input_info("in_hi1"),
+                 input_info("out_lo1"), input_info("out_hi1"), 256, data_types::i8),
+        convolution("conv_prim", input_info("quantize1"), { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+        activation("activation", input_info("conv_prim"), activation_func::abs),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p, false);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_after_permute_not_optimizing, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_INT8_PERMUTE_1, 3, 3, 5 },
 }));
 
 class conv_before_permute_optimizing : public PermuteOptimizingTestOnednn {};

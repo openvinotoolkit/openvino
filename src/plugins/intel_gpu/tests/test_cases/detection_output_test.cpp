@@ -147,25 +147,7 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k));
 
-        ExecutionConfig config;
-        cldnn::network::ptr network;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topology, config);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
-            }
-        } else {
-            network = std::make_shared<cldnn::network>(engine, topology, config);
-        }
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input_location", input_location);
         network->set_input_data("input_confidence", input_confidence);
@@ -200,25 +182,7 @@ public:
         topology.add(detection_output("detection_output_1", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k));
         topology.add(detection_output("detection_output_2", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k));
 
-        ExecutionConfig config;
-        cldnn::network::ptr network;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topology, config);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
-            }
-        } else {
-            network = std::make_shared<cldnn::network>(engine, topology, config);
-        }
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input_location", input_location);
         network->set_input_data("input_confidence", input_confidence);
@@ -260,25 +224,7 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
-        ExecutionConfig config;
-        cldnn::network::ptr network;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topology, config);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
-            }
-        } else {
-            network = std::make_shared<cldnn::network>(engine, topology, config);
-        }
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input_location", input_location);
         network->set_input_data("input_confidence", input_confidence);
@@ -326,25 +272,7 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
-        ExecutionConfig config;
-        cldnn::network::ptr network;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topology, config);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
-            }
-        } else {
-            network = std::make_shared<cldnn::network>(engine, topology, config);
-        }
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input_location", input_location);
         network->set_input_data("input_confidence", input_confidence);
@@ -386,25 +314,7 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
-        ExecutionConfig config;
-        cldnn::network::ptr network;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topology, config);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
-            }
-        } else {
-            network = std::make_shared<cldnn::network>(engine, topology, config);
-        }
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input_location", input_location);
         network->set_input_data("input_confidence", input_confidence);
@@ -457,25 +367,7 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
-        ExecutionConfig config;
-        cldnn::network::ptr network;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topology, config);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
-            }
-        } else {
-            network = std::make_shared<cldnn::network>(engine, topology, config);
-        }
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input_location", input_location);
         network->set_input_data("input_confidence", input_confidence);
@@ -538,25 +430,7 @@ public:
             prior_coordinates_offset, prior_is_normalized, input_width, input_height, decrease_label_id
         ));
 
-        ExecutionConfig config;
-        cldnn::network::ptr network;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topology, config);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
-            }
-        } else {
-            network = std::make_shared<cldnn::network>(engine, topology, config);
-        }
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input_location", input_location);
         network->set_input_data("input_confidence", input_confidence);
@@ -606,25 +480,7 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
-        ExecutionConfig config;
-        cldnn::network::ptr network;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topology, config);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
-            }
-        } else {
-            network = std::make_shared<cldnn::network>(engine, topology, config);
-        }
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input_location", input_location);
         network->set_input_data("input_confidence", input_confidence);
@@ -685,25 +541,7 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
-        ExecutionConfig config;
-        cldnn::network::ptr network;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topology, config);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
-            }
-        } else {
-            network = std::make_shared<cldnn::network>(engine, topology, config);
-        }
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input_location", input_location);
         network->set_input_data("input_confidence", input_confidence);
@@ -751,25 +589,7 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold));
 
-        ExecutionConfig config;
-        cldnn::network::ptr network;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topology, config);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
-            }
-        } else {
-            network = std::make_shared<cldnn::network>(engine, topology, config);
-        }
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input_location", input_location);
         network->set_input_data("input_confidence", input_confidence);
@@ -820,25 +640,7 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location"), input_info("input_confidence"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
-        ExecutionConfig config;
-        cldnn::network::ptr network;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topology, config);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
-            }
-        } else {
-            network = std::make_shared<cldnn::network>(engine, topology, config);
-        }
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input_location", input_location);
         network->set_input_data("input_confidence", input_confidence);
@@ -884,25 +686,7 @@ public:
 
         topology.add(detection_output("detection_output", input_info("input_location_padded"), input_info("input_confidence_padded"), input_info("input_prior_box"), this->num_classes, keep_top_k, share_location, background_label_id, this->nms_threshold, top_k));
 
-        ExecutionConfig config;
-        cldnn::network::ptr network;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topology, config);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
-            }
-        } else {
-            network = std::make_shared<cldnn::network>(engine, topology, config);
-        }
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input_location", input_location);
         network->set_input_data("input_confidence", input_confidence);
@@ -965,25 +749,7 @@ public:
             prior_is_normalized, this->img_size, this->img_size
         ));
 
-        ExecutionConfig config;
-        cldnn::network::ptr network;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topology, config);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
-            }
-        } else {
-            network = std::make_shared<cldnn::network>(engine, topology, config);
-        }
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input_location", input_location);
         network->set_input_data("input_confidence", input_confidence);
