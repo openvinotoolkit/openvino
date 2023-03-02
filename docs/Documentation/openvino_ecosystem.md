@@ -6,11 +6,11 @@
    :maxdepth: 1
    :hidden:
 
+   ote_documentation
    ovtf_integration
    ovsa_get_started
    openvino_inference_engine_tools_compile_tool_README
    openvino_docs_tuning_utilities
-   ote_documentation
 
 @endsphinxdirective
 
