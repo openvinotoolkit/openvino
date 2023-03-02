@@ -791,6 +791,14 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (!should_fuse)
                 return;
 
+            if (_lo.get_optimization_attributes().use_onednn_impls
+                && input.is_type<reorder>() && input.get_users().size() == 1
+                && input.get_input_layouts()[0].format == input.get_output_layout().format
+                && input.get_input_layouts()[0].data_type != input.get_output_layout().data_type
+                && activation_node.get_primitive()->activation_function == activation_func::swish) {
+                return;
+            }
+
             p.fuse_nodes(input, activation_node, &fusing_history);
         };
 
