@@ -126,18 +126,19 @@ OPENVINO_C_API(void)
 ov_core_free(ov_core_t* core);
 
 /**
- * @brief Reads models from IR/ONNX/PDPD formats.
+ * @brief Reads models from IR / ONNX / PDPD / TF / TFLite formats.
  * @ingroup ov_core_c_api
  * @param core A pointer to the ie_core_t instance.
  * @param model_path Path to a model.
  * @param bin_path Path to a data file.
  * For IR format (*.bin):
- *  * if path is empty, will try to read a bin file with the same name as xml and
+ *  * if `bin_path` is empty, will try to read a bin file with the same name as xml and
  *  * if the bin file with the same name is not found, will load IR without weights.
- * For ONNX format (*.onnx):
- *  * the bin_path parameter is not used.
- * For PDPD format (*.pdmodel)
- *  * the bin_path parameter is not used.
+ * For the following file formats the `bin_path` parameter is not used:
+ *  * ONNX format (*.onnx)
+ *  * PDPD (*.pdmodel)
+ *  * TF (*.pb)
+ *  * TFLite (*.tflite)
  * @param model A pointer to the newly created model.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -146,18 +147,19 @@ ov_core_read_model(const ov_core_t* core, const char* model_path, const char* bi
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 /**
- * @brief Reads models from IR/ONNX/PDPD formats, path is unicode.
+ * @brief Reads models from IR / ONNX / PDPD / TF / TFLite formats, path is unicode.
  * @ingroup ov_core_c_api
  * @param core A pointer to the ie_core_t instance.
  * @param model_path Path to a model.
  * @param bin_path Path to a data file.
  * For IR format (*.bin):
- *  * if path is empty, will try to read a bin file with the same name as xml and
+ *  * if `bin_path` is empty, will try to read a bin file with the same name as xml and
  *  * if the bin file with the same name is not found, will load IR without weights.
- * For ONNX format (*.onnx):
- *  * the bin_path parameter is not used.
- * For PDPD format (*.pdmodel)
- *  * the bin_path parameter is not used.
+ * For the following file formats the `bin_path` parameter is not used:
+ *  * ONNX format (*.onnx)
+ *  * PDPD (*.pdmodel)
+ *  * TF (*.pb)
+ *  * TFLite (*.tflite)
  * @param model A pointer to the newly created model.
  * @return Status code of the operation: OK(0) for success.
  */
@@ -169,13 +171,13 @@ ov_core_read_model_unicode(const ov_core_t* core,
 #endif
 
 /**
- * @brief Reads models from IR/ONNX/PDPD formats.
+ * @brief Reads models from IR / ONNX / PDPD / TF / TFLite formats.
  * @ingroup ov_core_c_api
  * @param core A pointer to the ie_core_t instance.
- * @param model_str String with a model in IR/ONNX/PDPD format.
+ * @param model_str String with a model in IR / ONNX / PDPD / TF / TFLite format.
  * @param weights Shared pointer to a constant tensor with weights.
  * @param model A pointer to the newly created model.
- * Reading ONNX/PDPD models does not support loading weights from the @p weights tensors.
+ * Reading ONNX / PDPD / TF / TFLite models does not support loading weights from the @p weights tensors.
  * @note Created model object shares the weights with the @p weights object.
  * Thus, do not create @p weights on temporary data that can be freed later, since the model
  * constant data will point to an invalid memory.
