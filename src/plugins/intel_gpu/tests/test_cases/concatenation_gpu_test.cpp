@@ -543,10 +543,6 @@ public:
         const std::vector<size_t> in_features = testing::get<1>(GetParam());
         const size_t input_y = testing::get<2>(GetParam());
         const size_t input_x = testing::get<3>(GetParam());
-        size_t output_f = 0;
-        for (auto& f : in_features)
-            output_f += f;
-
         topology topology;
 
         std::vector<VVVVF<Type>> in_data;
@@ -633,10 +629,6 @@ public:
         const size_t in_feature = testing::get<1>(GetParam());
         const size_t input_y = testing::get<2>(GetParam());
         const std::vector<size_t> input_x = testing::get<3>(GetParam());
-        size_t output_x = 0;
-        for (auto& x : input_x)
-            output_x += x;
-
         topology topology;
 
         std::vector<VVVVF<Type>> in_data;
