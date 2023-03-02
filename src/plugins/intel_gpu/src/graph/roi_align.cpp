@@ -46,6 +46,8 @@ std::string roi_align_inst::to_string(roi_align_node const& node) {
 }  // namespace cldnn
 
 namespace ov {
+using cldnn::roi_align;
+
 template <> EnumNames<roi_align::PoolingMode>& EnumNames<roi_align::PoolingMode>::get() {
   static auto enum_names =
       EnumNames<roi_align::PoolingMode>("PoolingMode", {{"max", roi_align::PoolingMode::max},

@@ -30,6 +30,13 @@ jobs:
           submodules: recursive
           lfs: true
 
+      - name: Install OpenCL
+        uses: awalsh128/cache-apt-pkgs-action@v1.2.4
+        if: runner.os == 'Linux'
+        with:
+          packages: ocl-icd-opencl-dev opencl-headers
+          version: 3.0
+
       - name: CMake configure
         run: cmake -DCMAKE_BUILD_TYPE=Release -B build
 
