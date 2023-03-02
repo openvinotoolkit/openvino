@@ -292,14 +292,15 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingPadForwardSingleConsumerTestSuite,
                                             ::testing::Values(element::f32)),
                          TransposeSinkingPadTestFixture::get_test_name);
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingPadBackwardSingleConsumerTestSuite,
-                         TransposeSinkingPadTestFixture,
-                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingDataMovementBackward)),
-                                            ::testing::ValuesIn(pad_operations_numbers),
-                                            ::testing::Values(backward::single_consumer::CreateFunction),
-                                            ::testing::Values(backward::single_consumer::CreateReferenceFunction),
-                                            ::testing::Values(element::f32)),
-                         TransposeSinkingPadTestFixture::get_test_name);
+INSTANTIATE_TEST_SUITE_P(
+    TransposeSinkingPadBackwardSingleConsumerTestSuite,
+    TransposeSinkingPadTestFixture,
+    ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingDataMovementBackward)),
+                       ::testing::ValuesIn(pad_operations_numbers),
+                       ::testing::Values(backward::single_consumer::CreateFunction),
+                       ::testing::Values(backward::single_consumer::CreateReferenceFunction),
+                       ::testing::Values(element::f32)),
+    TransposeSinkingPadTestFixture::get_test_name);
 
 INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingPadBackwardSingleConsumerMultiTransposesTestSuite,

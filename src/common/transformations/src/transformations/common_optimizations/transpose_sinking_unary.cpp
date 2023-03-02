@@ -55,7 +55,9 @@ ov::pass::TransposeSinkingUnaryForward::TransposeSinkingUnaryForward() {
     MATCHER_SCOPE(TransposeSinkingUnaryForward);
 
     auto transpose_label = wrap_type<Transpose>({any_input(), any_input()});
-    auto unary_label = wrap_type<UnaryElementwiseArithmetic, Clamp, Elu, SoftPlus, LogicalNot, Convert, IsInf, IsNaN, IsFinite>({transpose_label});
+    auto unary_label =
+        wrap_type<UnaryElementwiseArithmetic, Clamp, Elu, SoftPlus, LogicalNot, Convert, IsInf, IsNaN, IsFinite>(
+            {transpose_label});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -90,7 +92,8 @@ ov::pass::TransposeSinkingUnaryBackward::TransposeSinkingUnaryBackward() {
 
     auto unary_label =
         wrap_type<UnaryElementwiseArithmetic, Clamp, Elu, SoftPlus, LogicalNot, Convert, IsInf, IsNaN, IsFinite>(
-                {any_input()}, unary_restrictions);
+            {any_input()},
+            unary_restrictions);
 
     auto transpose_const_label = wrap_type<Constant>();
 

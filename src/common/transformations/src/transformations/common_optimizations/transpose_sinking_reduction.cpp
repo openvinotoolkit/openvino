@@ -8,9 +8,9 @@
 #include <vector>
 
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "transformations/common_optimizations/transpose_sinking_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -77,19 +77,16 @@ bool get_keep_dims(const std::shared_ptr<Node>& reduction) {
         keep_dims = arithmetic_reduce->get_keep_dims();
     return keep_dims;
 }
-}
+}  // namespace
 
 ov::pass::TransposeSinkingReductionForward::TransposeSinkingReductionForward() {
     MATCHER_SCOPE(TransposeSinkingReductionForward);
 
-    auto transpose_label =
-            pattern::wrap_type<Transpose>({pattern::any_input(), pattern::wrap_type<Constant>()},
-                                                  pattern::consumers_count(1));
-    auto reduce_or_squeeze_label =
-            pattern::wrap_type<op::util::ArithmeticReductionKeepDims,
-                    op::util::LogicalReductionKeepDims,
-                    Squeeze,
-                    Unsqueeze>({transpose_label, pattern::wrap_type<Constant>()});
+    auto transpose_label = pattern::wrap_type<Transpose>({pattern::any_input(), pattern::wrap_type<Constant>()},
+                                                         pattern::consumers_count(1));
+    auto reduce_or_squeeze_label = pattern::
+        wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims, Squeeze, Unsqueeze>(
+            {transpose_label, pattern::wrap_type<Constant>()});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -104,9 +101,9 @@ ov::pass::TransposeSinkingReductionForward::TransposeSinkingReductionForward() {
             return false;
         auto unsqueeze = std::dynamic_pointer_cast<Unsqueeze>(reduction);
         auto rank =
-                unsqueeze ? reduction->get_output_partial_shape(0).rank() : reduction->get_input_partial_shape(0).rank();
+            unsqueeze ? reduction->get_output_partial_shape(0).rank() : reduction->get_input_partial_shape(0).rank();
         auto non_negative_axes =
-                normalize_axes(reduction->get_friendly_name(), reduction_axes->cast_vector<int64_t>(), rank);
+            normalize_axes(reduction->get_friendly_name(), reduction_axes->cast_vector<int64_t>(), rank);
 
         auto transpose_order_values = transpose_order->cast_vector<size_t>();
         std::vector<size_t> new_values;
@@ -136,14 +133,13 @@ ov::pass::TransposeSinkingReductionForward::TransposeSinkingReductionForward() {
             }
         }
         auto new_transpose_order = std::make_shared<Constant>(transpose_order->get_element_type(),
-                                                                      Shape{transpose_order_values.size()},
-                                                                      transpose_order_values);
+                                                              Shape{transpose_order_values.size()},
+                                                              transpose_order_values);
 
         std::shared_ptr<Node> new_reduction;
         if (!unsqueeze) {
-            auto new_const = std::make_shared<Constant>(reduction_axes->get_element_type(),
-                                                                reduction_axes->get_shape(),
-                                                                new_values);
+            auto new_const =
+                std::make_shared<Constant>(reduction_axes->get_element_type(), reduction_axes->get_shape(), new_values);
             new_reduction = reduction->clone_with_new_inputs({transpose->input_value(0), new_const});
         } else {
             new_reduction = reduction->clone_with_new_inputs({transpose->input_value(0), reduction->input_value(1)});
@@ -165,14 +161,11 @@ ov::pass::TransposeSinkingReductionForward::TransposeSinkingReductionForward() {
 ov::pass::TransposeSinkingReductionBackward::TransposeSinkingReductionBackward() {
     MATCHER_SCOPE(TransposeSinkingReductionBackward);
 
-    auto reduce_or_squeeze_label =
-            pattern::wrap_type<op::util::ArithmeticReductionKeepDims,
-                    op::util::LogicalReductionKeepDims,
-                    Squeeze,
-                    Unsqueeze>({pattern::any_input(), pattern::wrap_type<Constant>()},
-                               transpose_sinking::HasSameOutputTransposeNodes);
-    auto transpose_label =
-            pattern::wrap_type<Transpose>({reduce_or_squeeze_label, pattern::wrap_type<Constant>()});
+    auto reduce_or_squeeze_label = pattern::
+        wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims, Squeeze, Unsqueeze>(
+            {pattern::any_input(), pattern::wrap_type<Constant>()},
+            transpose_sinking::HasSameOutputTransposeNodes);
+    auto transpose_label = pattern::wrap_type<Transpose>({reduce_or_squeeze_label, pattern::wrap_type<Constant>()});
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
@@ -186,9 +179,9 @@ ov::pass::TransposeSinkingReductionBackward::TransposeSinkingReductionBackward()
 
         auto unsqueeze = std::dynamic_pointer_cast<Unsqueeze>(reduction);
         auto rank =
-                unsqueeze ? reduction->get_output_partial_shape(0).rank() : reduction->get_input_partial_shape(0).rank();
+            unsqueeze ? reduction->get_output_partial_shape(0).rank() : reduction->get_input_partial_shape(0).rank();
         auto non_negative_axes =
-                normalize_axes(reduction->get_friendly_name(), reduction_axes->cast_vector<int64_t>(), rank);
+            normalize_axes(reduction->get_friendly_name(), reduction_axes->cast_vector<int64_t>(), rank);
 
         auto transpose_order_values = transpose_order->cast_vector<size_t>();
         auto old_transpose_order_values = transpose_order_values;
@@ -249,9 +242,8 @@ ov::pass::TransposeSinkingReductionBackward::TransposeSinkingReductionBackward()
             copy_runtime_info({transpose, reduction}, {new_transpose, new_reduction});
             register_new_node(new_transpose);
         } else {
-            auto new_const = std::make_shared<Constant>(reduction_axes->get_element_type(),
-                                                        reduction_axes->get_shape(),
-                                                        new_values);
+            auto new_const =
+                std::make_shared<Constant>(reduction_axes->get_element_type(), reduction_axes->get_shape(), new_values);
             auto new_transpose = transpose->clone_with_new_inputs({reduction->input_value(0), new_transpose_order});
             auto new_reduction = reduction->clone_with_new_inputs({new_transpose, new_const});
             replace_node(transpose, new_reduction);

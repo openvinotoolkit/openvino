@@ -44,12 +44,11 @@ ov::pass::TransposeSinkingInterpolateForward::TransposeSinkingInterpolateForward
         main_node->input(0).replace_source_output(transpose_parent);
 
         const auto transpose_axis_order = transpose_const->get_axis_vector_val();
-        const auto reversed_transpose_order = ReverseTransposeOrder(transpose_axis_order);
         auto axis = std::make_shared<Constant>(element::i32, Shape{}, std::vector<int32_t>{0});
 
         const auto& interpolate = std::dynamic_pointer_cast<Interpolate>(main_node);
 
-        auto data = std::make_shared<Constant>(element::i32, Shape{reversed_transpose_order.size()}, reversed_transpose_order);
+        auto data = std::make_shared<Constant>(element::i32, Shape{transpose_axis_order.size()}, transpose_axis_order);
         const auto& indices = main_node->input_value(3);
         auto new_axis = std::make_shared<Gather>(data, indices, axis);
 
@@ -57,20 +56,19 @@ ov::pass::TransposeSinkingInterpolateForward::TransposeSinkingInterpolateForward
         if (interpolate) {
             op::v4::Interpolate::InterpolateAttrs attrs = interpolate->get_attrs();
             if (!attrs.pads_begin.empty() || !attrs.pads_end.empty()) {
-                const auto &order_size = reversed_transpose_order.size();
+                const auto& order_size = transpose_axis_order.size();
                 attrs.pads_begin.resize(order_size);
                 attrs.pads_end.resize(order_size);
                 std::vector<size_t> new_pads_begin(order_size), new_pads_end(order_size);
                 for (size_t i = 0; i < order_size; ++i) {
-                    new_pads_begin[i] = attrs.pads_begin[reversed_transpose_order[i]];
-                    new_pads_end[i] = attrs.pads_end[reversed_transpose_order[i]];
+                    new_pads_begin[i] = attrs.pads_begin[transpose_axis_order[i]];
+                    new_pads_end[i] = attrs.pads_end[transpose_axis_order[i]];
                 }
                 std::swap(attrs.pads_begin, new_pads_begin);
                 std::swap(attrs.pads_end, new_pads_end);
                 interpolate->set_attrs(attrs);
             }
         }
-
 
         main_node->validate_and_infer_types();
         TransposeInputsInfo transpose_input_info = {transpose, transpose_const, 0};
@@ -95,9 +93,9 @@ ov::pass::TransposeSinkingInterpolateBackward::TransposeSinkingInterpolateBackwa
     auto transpose_const_label = wrap_type<Constant>();
 
     auto transpose_label =
-            wrap_type<Transpose>({main_node_label, transpose_const_label}, [](const Output<Node>& output) -> bool {
-                return has_static_rank()(output) && is_sinking_node(output);
-            });
+        wrap_type<Transpose>({main_node_label, transpose_const_label}, [](const Output<Node>& output) -> bool {
+            return has_static_rank()(output) && is_sinking_node(output);
+        });
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -107,7 +105,7 @@ ov::pass::TransposeSinkingInterpolateBackward::TransposeSinkingInterpolateBackwa
 
         for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node,
                                                                        transpose_const,
-                /* input_indexes= */ {0})) {
+                                                                       /* input_indexes= */ {0})) {
             register_new_node(new_node);
         }
 
@@ -115,21 +113,23 @@ ov::pass::TransposeSinkingInterpolateBackward::TransposeSinkingInterpolateBackwa
         RemoveSingleOutputConsumers(main_node);
 
         const auto transpose_axis_order = transpose_const->get_axis_vector_val();
+        const auto reversed_transpose_order = ReverseTransposeOrder(transpose_axis_order);
         auto axis = std::make_shared<Constant>(element::i32, Shape{}, std::vector<int32_t>{0});
-        auto data = std::make_shared<Constant>(element::i32, Shape{transpose_axis_order.size()}, transpose_axis_order);
+        auto data =
+            std::make_shared<Constant>(element::i32, Shape{reversed_transpose_order.size()}, reversed_transpose_order);
         const auto& indices = main_node->input_value(3);
         auto new_axis = std::make_shared<Gather>(data, indices, axis);
         const auto& interpolate = std::dynamic_pointer_cast<Interpolate>(main_node);
         if (interpolate) {
             op::v4::Interpolate::InterpolateAttrs attrs = interpolate->get_attrs();
             if (!attrs.pads_begin.empty() || !attrs.pads_end.empty()) {
-                const auto &order_size = transpose_axis_order.size();
+                const auto& order_size = reversed_transpose_order.size();
                 attrs.pads_begin.resize(order_size);
                 attrs.pads_end.resize(order_size);
                 std::vector<size_t> new_pads_begin(order_size), new_pads_end(order_size);
                 for (size_t i = 0; i < order_size; ++i) {
-                    new_pads_begin[i] = attrs.pads_begin[transpose_axis_order[i]];
-                    new_pads_end[i] = attrs.pads_end[transpose_axis_order[i]];
+                    new_pads_begin[i] = attrs.pads_begin[reversed_transpose_order[i]];
+                    new_pads_end[i] = attrs.pads_end[reversed_transpose_order[i]];
                 }
                 std::swap(attrs.pads_begin, new_pads_begin);
                 std::swap(attrs.pads_end, new_pads_end);
