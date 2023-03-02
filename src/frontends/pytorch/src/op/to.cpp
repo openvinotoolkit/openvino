@@ -24,22 +24,44 @@ OutputVector translate_to(NodeContext& context) {
         // -> (Tensor(a))
         dtype_idx = 1;
         memory_format_idx = 4;
+        auto node = context.get_input_from_visible_context(dtype_idx).get_node_shared_ptr();
+        auto fw_node = std::dynamic_pointer_cast<PtFrameworkNode>(node);
+        if (fw_node && fw_node->get_op_type() == "prim::device") {
+            // Cast only to device without changing dtype. Return input node unchanged.
+            return {context.get_input(0)};
+        }
+        if (fw_node && fw_node->get_op_type() == "prim::Constant") {
+            // Device param can be set using constant.
+            if (!context.get_input_type(dtype_idx).is<type::Tensor>()) {
+                // Cast only to device without changing dtype. Return input node unchanged.
+                return {context.get_input(0)};
+            }
+        }
+
     } else if (context.get_input_size() == 6) {
         // aten::to.device(Tensor(a) self, Device device, int dtype, bool non_blocking=False, bool copy=False, int?
         // memory_format=None) -> (Tensor(a)).
         // Input with index 1 is device we skip that input.
         dtype_idx = 2;
         memory_format_idx = 5;
+        if (context.input_is_none(dtype_idx)) {
+            // Cast only to device without changing dtype. Return input node unchanged.
+            return {context.get_input(0)};
+        }
     } else if (context.get_input_size() == 8) {
         // aten::to(Tensor(a) self, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool?
         // pin_memory=None,
         // bool non_blocking=False, bool copy=False, MemoryFormat? memory_format=None)
         dtype_idx = 1;
         memory_format_idx = 7;
-
+        if (context.input_is_none(dtype_idx)) {
+            // Cast only to device without changing dtype. Return input node unchanged.
+            return {context.get_input(0)};
+        }
     } else {
         FRONT_END_OP_CONVERSION_CHECK(false, "Unknown aten::to format");
     }
+
     // We ignore both non_blocking and copy inputs since non_blocking argument is used
     // in Pytorch during training to overlap data transfer from CPU to GPU which does
     // not have a use case in OV. To copy or not to copy inputs should not be set
