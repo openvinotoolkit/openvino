@@ -56,7 +56,7 @@ class TestArgSort(PytorchLayerTest):
         pytest.param(
             True,
             marks = pytest.mark.xfail(
-                reason="Failed due to ArgSort not yet supporting stable == True argument"
+                reason="Failed due to aten::argsort not yet supporting stable == True argument"
             ),
         ),
     ])
