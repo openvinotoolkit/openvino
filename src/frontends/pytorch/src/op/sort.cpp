@@ -14,11 +14,11 @@ OutputVector translate_sort(NodeContext& context) {
     bool stable, descending;
     int64_t dim;
 
-    if (context.get_input_size() == 4) {
+    if (context.get_input_size() == 5) {
         stable = context.const_input<bool>(1);
-        FRONT_END_OP_CONVERSION_CHECK(stable == false, "Stable sorting in aten::sort is not yet supported.");
         dim = context.const_input<int64_t>(2);
         descending = context.const_input<bool>(3);
+        FRONT_END_OP_CONVERSION_CHECK(stable == false, "Stable sorting in aten::sort is not yet supported.");
     } else {
         dim = context.const_input<int64_t>(1);
         descending = context.const_input<bool>(2);
