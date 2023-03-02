@@ -21,15 +21,9 @@ static void CreateProposalOp(Program& p, const std::shared_ptr<ngraph::op::v0::P
     auto attrs = op->get_attrs();
     float nms_thresh = attrs.nms_thresh;
     int min_size = static_cast<int>(attrs.min_size);
-<<<<<<< HEAD
     int feature_stride = static_cast<int>(attrs.feat_stride);
     int pre_nms_topn = static_cast<int>(attrs.pre_nms_topn);
     int post_nms_topn = static_cast<int>(attrs.post_nms_topn);
-=======
-    int feature_stride = attrs.feat_stride;
-    int pre_nms_topn = attrs.pre_nms_topn;
-    int post_nms_topn = attrs.post_nms_topn;
->>>>>>> aa547abe61 (fixed part of warnings)
     const std::vector<float> ratio = attrs.ratio;
     const std::vector<float> scale = attrs.scale;
     float box_coordinate_scale = attrs.box_coordinate_scale;
