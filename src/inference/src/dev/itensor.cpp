@@ -253,7 +253,7 @@ public:
     }
 
     const Shape& get_shape() const override {
-        m_shape = blob->getTensorDesc().getDims();
+        m_shape = blob->getTensorDesc().getBlockingDesc().getBlockDims();
         return m_shape;
     }
 
