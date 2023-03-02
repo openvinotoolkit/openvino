@@ -297,7 +297,7 @@ struct PluginConfig {
     std::map<std::string, std::string> _passThroughConfig;
     std::map<std::string, std::string> _keyConfigMap;
     const std::set<std::string> _availableDevices =
-        {"AUTO", "CPU", "GPU", "TEMPLATE", "MYRIAD", "VPUX", "MULTI", "HETERO", "mock"};
+        {"AUTO", "CPU", "GPU", "TEMPLATE", "NVIDIA", "VPUX", "MULTI", "HETERO", "mock"};
     const std::set<std::string> _deviceBlacklist = {"GNA", "VPUX"};
 };
 } // namespace MultiDevicePlugin
