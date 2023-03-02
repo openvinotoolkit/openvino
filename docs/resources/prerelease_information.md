@@ -1,4 +1,4 @@
-# Prerelease Information {#prerelease_information}
+# Pre-release Information {#prerelease_information}
 
 @sphinxdirective
 
