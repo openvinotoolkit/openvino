@@ -9,6 +9,7 @@
 #include <intel_gpu/primitives/shape_of.hpp>
 #include <intel_gpu/primitives/reduce.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
 
 using namespace cldnn;
 using namespace ::tests;

@@ -5,11 +5,21 @@
 #pragma once
 
 #include "intel_gpu/primitives/primitive.hpp"
-#include "intel_gpu/primitives/activation.hpp"
-#include "kernel_selector_params.h"
 #include "meta_utils.h"
 
 namespace cldnn {
+
+class NodeFuseParams {
+public:
+    explicit NodeFuseParams(primitive_type_id type) : _type(type) {}
+    virtual ~NodeFuseParams() = default;
+    virtual primitive_type_id type() const { return _type; }
+    virtual size_t ops_count() const { return 0; }
+
+private:
+    const primitive_type_id _type;
+};
+
 struct fused_primitive_desc {
     explicit fused_primitive_desc(std::shared_ptr<const primitive> prim) : desc(prim) {}
 
@@ -36,7 +46,7 @@ struct fused_primitive_desc {
     layout input_layout = layout(data_types::f32, format::bfyx, tensor());
     layout output_layout = layout(data_types::f32, format::bfyx, tensor());
 
-    std::shared_ptr<kernel_selector::fuse_params> f_param;
+    std::shared_ptr<NodeFuseParams> f_param;
 
     std::vector<std::pair<primitive_id, size_t>> deps;
     std::map<primitive_id, size_t> fused_deps;
