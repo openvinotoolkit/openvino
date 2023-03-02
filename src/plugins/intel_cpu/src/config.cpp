@@ -198,6 +198,8 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             else
                 IE_THROW() << "Wrong value for property key " << PluginConfigInternalParams::KEY_SNIPPETS_MODE
                             << ". Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
+        } else if (key == PluginConfigInternalParams::KEY_FORCE_MIXED_AFFINITY) {
+            forceMixedAffinity = true;
         } else {
             IE_THROW(NotFound) << "Unsupported property " << key << " by CPU plugin";
         }

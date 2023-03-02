@@ -41,6 +41,7 @@ struct Config {
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
     bool enableDynamicBatch = false;
+    bool forceMixedAffinity = false;
     SnippetsMode snippetsMode = SnippetsMode::Enable;
     std::string dumpToDot = "";
     int batchLimit = 0;

@@ -171,7 +171,7 @@ void Transformations::UpToCpuSpecificOpSet() {
 void Transformations::CpuSpecificOpSet(void) {
     CPU_DEBUG_CAP_TRANSFORMATION_SCOPE(this, Specific);
 
-    ConvertToCPUSpecificOpset(model, enableDynamicBatch);
+    ConvertToCPUSpecificOpset(model, enableMixedAffinity);
 }
 
 void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecisions, const bool isLegacyApi) {

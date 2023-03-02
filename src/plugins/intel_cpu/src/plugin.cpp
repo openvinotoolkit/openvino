@@ -151,6 +151,24 @@ static bool streamsSet(const std::map<std::string, std::string>& config) {
            config.count(ov::num_streams.name());
 }
 
+std::string Engine::getPerfHintName(std::map<std::string, std::string> &config) const {
+    const bool streamsExplicitlySetForModel = streamsSet(config);
+    // checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
+    if (streamsExplicitlySetForModel || streamsExplicitlySetForEngine)
+        return std::string();
+
+    const auto& perf_hint = config.find(CONFIG_KEY(PERFORMANCE_HINT));
+    // the perf_hint may have just arrived to the LoadNetwork, or was set with the plugin's SetConfig
+    if (perf_hint == config.end() && engConfig.perfHintsConfig.ovPerfHint.empty())
+        return std::string();
+    /* performance hints set for network has higher pririty than engine ones.
+     * This applies for all the configuration parameters */
+    const auto perf_hint_name = (perf_hint != config.end())
+                                    ? PerfHintsConfig::CheckPerformanceHintValue(perf_hint->second)
+                                    : engConfig.perfHintsConfig.ovPerfHint;
+    return perf_hint_name;
+}
+
 void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, const std::shared_ptr<ngraph::Function>& ngraphFunc) const {
     auto getNumStreamsLatency = [&]() {
         return std::pair<std::string, std::string>(CONFIG_VALUE(CPU_THROUGHPUT_NUMA), ov::util::to_string(ov::streams::NUMA));
@@ -219,25 +237,6 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
         return std::pair<std::string, Engine::StreamCfg>(std::to_string(streams_info.num_streams), streams_info);
     };
 
-    auto getPerfHintName = [&]() {
-        const bool streamsExplicitlySetForModel = streamsSet(config);
-        // checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via SetConfig)
-        if (streamsExplicitlySetForModel ||
-            streamsExplicitlySetForEngine)
-            return std::string();
-
-        const auto& perf_hint = config.find(CONFIG_KEY(PERFORMANCE_HINT));
-        // the perf_hint may have just arrived to the LoadNetwork, or was set with the plugin's SetConfig
-        if (perf_hint == config.end() && engConfig.perfHintsConfig.ovPerfHint.empty())
-            return std::string();
-        /* performance hints set for network has higher pririty than engine ones.
-        * This applies for all the configuration parameters */
-        const auto perf_hint_name = (perf_hint != config.end()) ?
-            PerfHintsConfig::CheckPerformanceHintValue(perf_hint->second) :
-            engConfig.perfHintsConfig.ovPerfHint;
-        return perf_hint_name;
-    };
-
     // We compute both hints values because the optimal number of streams are computed based on ov::Model
     // while we export model in cpu internal opset so we need to save precomputed optimal # streams for both hint modes
     const auto latency_hints = getNumStreamsLatency();
@@ -251,7 +250,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
     hints_props.insert({tput_name, std::to_string(tput_hints.second.num_streams)});
     ngraphFunc->set_rt_info(hints_props, "intel_cpu_hints_config");
 
-    const auto perf_hint_name = getPerfHintName();
+    const auto perf_hint_name = getPerfHintName(config);
     if (perf_hint_name == CONFIG_VALUE(LATENCY)) {
         config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = latency_hints.first;
         config[ov::num_streams.name()] = latency_hints.second;
@@ -409,11 +408,16 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
             IE_THROW() << "Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
     }
 
+    const auto enableMixedAffinity =
+        (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
+         getPerfHintName(config) == CONFIG_VALUE(THROUGHPUT) && !enableDynamicBatch) ||
+        config.count(InferenceEngine::PluginConfigInternalParams::KEY_FORCE_MIXED_AFFINITY) || engConfig.forceMixedAffinity;
+
     auto nGraphFunc = clonedNetwork.getFunction();
 
     DEBUG_LOG(PrintableModel(*nGraphFunc, "org_"));
 
-    Transformations transformations(nGraphFunc, enableLPT, enableBF16, isLegacyAPI(), enableDynamicBatch, snippetsMode, engConfig);
+    Transformations transformations(nGraphFunc, enableLPT, enableBF16, isLegacyAPI(), enableMixedAffinity, snippetsMode, engConfig);
     transformations.UpToCpuSpecificOpSet();
 
     // need to check that all outputs have static shapes

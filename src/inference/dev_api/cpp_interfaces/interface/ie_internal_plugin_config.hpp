@@ -121,6 +121,11 @@ DECLARE_CONFIG_VALUE(ENABLE);
 DECLARE_CONFIG_VALUE(IGNORE_CALLBACK);
 DECLARE_CONFIG_VALUE(DISABLE);
 
+/**
+ * @brief forces MixedAffinity passes execution
+ */
+DECLARE_CONFIG_KEY(FORCE_MIXED_AFFINITY);
+
 }  // namespace PluginConfigInternalParams
 
 }  // namespace InferenceEngine

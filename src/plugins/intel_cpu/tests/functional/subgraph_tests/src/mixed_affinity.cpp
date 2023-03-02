@@ -13,6 +13,8 @@
 #include <common_test_utils/ov_tensor_utils.hpp>
 #include <mixed_affinity_functions.hpp>
 
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+
 namespace ov {
 namespace test {
 namespace mixed_affinity {
@@ -56,6 +58,10 @@ protected:
         targetDevice = CommonTestUtils::DEVICE_CPU;
         init_input_shapes(input_shapes);
         function = builder.first(inputDynamicShapes)->getOriginal();
+
+        if (!configuration.count(InferenceEngine::PluginConfigInternalParams::KEY_FORCE_MIXED_AFFINITY)) {
+            configuration.insert({InferenceEngine::PluginConfigInternalParams::KEY_FORCE_MIXED_AFFINITY, ""});
+        }
     }
 };
 

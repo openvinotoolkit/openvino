@@ -44,6 +44,8 @@ private:
 
     InferenceEngine::Parameter GetConfigLegacy(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const;
 
+    std::string getPerfHintName(std::map<std::string, std::string> &config) const;
+
     void ApplyPerformanceHints(std::map<std::string, std::string> &config, const std::shared_ptr<ngraph::Function>& ngraphFunc) const;
 
     struct StreamCfg {
