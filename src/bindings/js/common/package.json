@@ -1,7 +1,7 @@
 {
   "name": "openvinojs",
   "version": "1.0.0",
-  "description": "OpenVINO utils for using from JavaScript environment",
+  "description": "OpenVINO™ utils for using from JavaScript environment",
   "main": "./openvinojs.mjs",
   "author": "vishniakov-nikolai",
   "license": "Apache-2.0",
