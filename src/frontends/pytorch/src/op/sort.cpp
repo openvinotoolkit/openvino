@@ -14,7 +14,7 @@ OutputVector translate_sort(NodeContext& context) {
     bool stable, descending;
     int64_t dim;
 
-    if (context.get_input_size() == 5) {
+    if (context.get_input_size() == 4) {
         stable = context.const_input<bool>(1);
         dim = context.const_input<int64_t>(2);
         descending = context.const_input<bool>(3);
