@@ -52,5 +52,7 @@ void select_preferred_formats::run(program& p) {
             GPU_DEBUG_INFO << "WARNING(select_preferred_formats): " << exception.what() << std::endl;
         }
     }
+#else
+    (void)_lo;
 #endif  // ENABLE_ONEDNN_FOR_GPU
 }
