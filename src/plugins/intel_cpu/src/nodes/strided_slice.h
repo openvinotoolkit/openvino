@@ -127,7 +127,6 @@ private:
     bool isConstantInput[AXES_ID + 1] = {false};
     bool shapeHasDataDependency = false;
     bool hasConstAttrInputs = true;
-    bool skipExecution = false;
 
     std::vector<MemoryCPtr> srcMemory;
     std::vector<MemoryCPtr> dstMemory;
