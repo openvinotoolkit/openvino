@@ -7,7 +7,7 @@
 #include <openvino/opsets/opset10.hpp>
 #include <openvino/pass/constant_folding.hpp>
 #include <openvino/pass/manager.hpp>
-#include <transformations/common_optimizations/transpose_sinking_pad.hpp>
+#include <transformations/common_optimizations/transpose_sinking_data_movement.hpp>
 #include <transformations/common_optimizations/transpose_sinking_utils.hpp>
 #include <transformations/init_node_info.hpp>
 
@@ -285,7 +285,7 @@ std::vector<size_t> pad_operations_numbers = {1, 10};
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingPadForwardSingleConsumerTestSuite,
                          TransposeSinkingPadTestFixture,
-                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingPadForward)),
+                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingDataMovementForward)),
                                             ::testing::ValuesIn(pad_operations_numbers),
                                             ::testing::Values(forward::single_consumer::CreateFunction),
                                             ::testing::Values(forward::single_consumer::CreateReferenceFunction),
@@ -294,7 +294,7 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingPadForwardSingleConsumerTestSuite,
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingPadBackwardSingleConsumerTestSuite,
                          TransposeSinkingPadTestFixture,
-                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingPadBackward)),
+                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingDataMovementBackward)),
                                             ::testing::ValuesIn(pad_operations_numbers),
                                             ::testing::Values(backward::single_consumer::CreateFunction),
                                             ::testing::Values(backward::single_consumer::CreateReferenceFunction),
@@ -304,7 +304,7 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingPadBackwardSingleConsumerTestSuite,
 INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingPadBackwardSingleConsumerMultiTransposesTestSuite,
     TransposeSinkingPadTestFixture,
-    ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingPadBackward)),
+    ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingDataMovementBackward)),
                        ::testing::ValuesIn(pad_operations_numbers),
                        ::testing::Values(backward::output_transpose_mult_transposes::CreateFunction),
                        ::testing::Values(backward::output_transpose_mult_transposes::CreateReferenceFunction),

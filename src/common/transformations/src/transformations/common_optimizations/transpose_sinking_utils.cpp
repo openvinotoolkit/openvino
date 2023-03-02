@@ -6,7 +6,7 @@
 
 #include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
@@ -16,23 +16,17 @@
 namespace transpose_sinking {
 
 using namespace ov;
-using namespace ov::opset9;
+using namespace ov::opset10;
 
 using NodePtr = std::shared_ptr<Node>;
 
 Output<Node> ChangeValuesOrder(const Output<Node>& input,
                                const AxisVector& transpose_axis_order,
                                const std::shared_ptr<Constant>& axis) {
-    auto rank = transpose_axis_order.size();
-    auto split_pad = std::make_shared<Split>(input, axis, rank);
-    auto split_outputs = split_pad->outputs();
-    OutputVector new_order(split_outputs.size());
-    for (size_t i = 0; i < rank; ++i) {
-        new_order[i] = split_outputs[transpose_axis_order[i]];
-    }
-    auto concat_pad = std::make_shared<Concat>(new_order, 0);
-    copy_runtime_info(input.get_node_shared_ptr(), {split_pad, concat_pad});
-    return concat_pad;
+    auto indices = std::make_shared<Constant>(element::i32, Shape{transpose_axis_order.size()}, transpose_axis_order);
+    auto gather = std::make_shared<Gather>(input, indices, axis);
+    copy_runtime_info(input.get_node_shared_ptr(), gather);
+    return gather;
 }
 
 TransposeInputsInfo GetFirstTransposeInput(const NodePtr& node) {

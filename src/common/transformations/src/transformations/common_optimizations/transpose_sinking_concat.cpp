@@ -1,23 +1,19 @@
-#include "transformations/common_optimizations/transpose_sinking_concat.hpp"
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 
-#include <openvino/opsets/opset9.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-#include <transformations/utils/utils.hpp>
-#include <utility>
+#include "transformations/common_optimizations/transpose_sinking_concat.hpp"
 
 #include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/opsets/opset9.hpp"
-#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/common_util.hpp"
-#include "openvino/util/log.hpp"
 #include "transformations/common_optimizations/transpose_sinking_utils.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 
 using namespace ov::pass::pattern;
 using namespace ov;
-using namespace ov::opset9;
+using namespace ov::opset10;
 using namespace transpose_sinking;
 
 ov::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
@@ -89,9 +85,9 @@ ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
             register_new_node(new_node);
         }
         const auto transpose_axis_order = transpose_const->get_axis_vector_val();
-        const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
-        const int64_t transposed_concat_axis = reversed_traspose_axis_order[concat_axis];
-        concat_node->set_axis(transposed_concat_axis);
+        const auto reversed_transpose_axis_order = ReverseTransposeOrder(transpose_axis_order);
+        const auto transposed_concat_axis = reversed_transpose_axis_order[concat_axis];
+        concat_node->set_axis(static_cast<int64_t>(transposed_concat_axis));
         concat_node->set_concatenation_axis(-1);
         concat_node->validate_and_infer_types();
         // remove output transposes
