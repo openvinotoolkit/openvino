@@ -1,7 +1,5 @@
 #!/bin/bash
 
-ln -svf ../../../../../bin/ia32/Release/openvino_wasm.js ./dist
-ln -svf ../../../../../bin/ia32/Release/openvino_wasm.wasm ./dist
-
-ln -svf ../dist ./browser
+ln -svf ../make_inference.mjs ./browser
 ln -svf ../assets ./browser
+ln -svf ../node_modules ./browser

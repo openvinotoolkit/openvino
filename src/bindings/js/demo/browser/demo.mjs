@@ -1,44 +1,40 @@
-import ovWrapper from './dist/ov_wrapper.mjs';
-import { getMaxElement, getArrayByImgPath, getFileDataAsArray } from './dist/helpers.mjs';
-
-import { default as imagenetClassesMap } from '../assets/imagenet_classes_map.mjs';
-
-const MODEL_PATH = '../assets/models/';
-const MODEL_NAME = 'v3-small_224_1.0_float';
-const IMAGE_PATH = '../assets/images/coco.jpg';
+import makeInference from './make_inference.mjs';
 
 const statusElement = document.getElementById('status');
 
-run();
+const events = {
+  onLibInitializing: setStatus('OpenVINO initializing...'),
+  onModelLoaging: setStatus('OpenVINO successfully initialized. Model loading...'),
+  onInferenceRunning: setStatus('Inference is in the progress, please wait...'),
+  onFinish: setStatus('Open browser\'s console to see result'),
+};
 
-async function run() {
-  console.log('= Start');
+const inferenceParametersMobilenetV3 = { 
+  modelPath: getModelPaths('v3-small_224_1.0_float'),
+  imgPath: './assets/images/coco224x224.jpg',
+  shape: [1, 224, 224, 3],
+  layout: 'NHWC',
+};
 
-  const ov = await ovWrapper.initialize(Module);
+const inferenceParametersFaceDetection = { 
+  modelPath: getModelPaths('face-detection-0200/face-detection-0200'),
+  imgPath: './assets/images/peopleAndCake256x256.jpg',
+  shape: [1, 3, 256, 256],
+  layout: 'NCHW',
+};
 
-  console.log(`== OpenVINO v${ov.getVersionString()}`);
-  console.log(`== Description string: ${ov.getDescriptionString()}`);
+makeInference(Module, 'browser', inferenceParametersMobilenetV3, events);
 
-  statusElement.innerText = 'OpenVINO successfully initialized. Model loading...';
-  const xmlData = await getFileDataAsArray(`${MODEL_PATH}${MODEL_NAME}.xml`);  
-  const binData = await getFileDataAsArray(`${MODEL_PATH}${MODEL_NAME}.bin`);  
-
-  const model = await ov.loadModel(xmlData, binData, '[1, 224, 224, 3]', 'NHWC');
-
-  const imgData = await getArrayByImgPath(IMAGE_PATH);
-  const imgTensor = new Uint8Array(imgData);
-
-  statusElement.innerText = 'Inference is in the progress, please wait...';
-  const outputTensor = await model.run(imgTensor);
-
-  statusElement.innerText = 'Open browser\'s console to see result';
-  console.log('== Output tensor:');
-  console.log(outputTensor);
-
-  const max = getMaxElement(outputTensor);
-  console.log(`== Max index: ${max.index}, value: ${max.value}`);
-  console.log(`== Result class: ${imagenetClassesMap[max.index]}`);
-
-  console.log('= End');
+function setStatus(txt) {
+  return () => statusElement.innerText = txt;
 }
 
+function getModelPaths(name) {
+  const MODEL_PATH = './assets/models/';
+  const pathAndName = `${MODEL_PATH}${name}`;
+
+  return {
+    xml: `${pathAndName}.xml`,
+    bin: `${pathAndName}.bin`,
+  };
+}

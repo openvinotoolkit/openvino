@@ -13,8 +13,6 @@ std::shared_ptr<ov::Model> loadModel(std::string xml_path, std::string bin_path)
     ov::Core core;
 
     try {
-        std::cout << xml_path << std::endl;
-
         return core.read_model(xml_path, bin_path);
     } 
     catch(const std::exception& e) {
@@ -67,7 +65,7 @@ Session::Session(std::string xml_path, std::string bin_path, ShapeLite* shape, s
 }
 
 TensorLite Session::infer(TensorLite* tensor_lite) {
-    std::cout << "== Run inference: " << std::endl;
+    std::cout << "== Run inference" << std::endl;
     ov::Tensor output_tensor;
 
     try {
