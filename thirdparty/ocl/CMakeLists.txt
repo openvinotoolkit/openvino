@@ -45,7 +45,6 @@ endif()
 #
 
 add_subdirectory(icd_loader EXCLUDE_FROM_ALL)
-add_library(OpenCL::OpenCL ALIAS OpenCL)
 
 # use CL/opencl.hpp
 target_compile_definitions(OpenCL INTERFACE OV_GPU_USE_OPENCL_HPP)
