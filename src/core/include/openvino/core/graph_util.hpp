@@ -227,9 +227,9 @@ std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
     std::unordered_map<Node*, uint8_t /*is_visited*/> nodes_visited;
     std::vector<std::shared_ptr<Node>> result;
 
-    for (auto node = root_nodes.rbegin(); node != root_nodes.rend(); ++node ) {
+    for (auto node = root_nodes.rbegin(); node != root_nodes.rend(); ++node) {
         nodes_to_do.push(node->get());
-    } 
+    }
 
     while (nodes_to_do.size() > 0) {
         Node* node = nodes_to_do.top();
