@@ -70,7 +70,7 @@ INSTALL_REQUIRES = [
     "scipy>=1.8; python_version >= '3.8'",
     "jstyleson>=0.0.2",
     "addict>=2.4.0",
-    "networkx<=2.8.8",
+    "networkx<=3.0",
     "tqdm>=4.54.1",
     "texttable>=1.6.3",
     "openvino-telemetry>=2022.1.0"
