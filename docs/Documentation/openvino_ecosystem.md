@@ -86,7 +86,7 @@ An online, interactive video and image annotation tool for computer vision purpo
 More resources:
 
 * `Documentation on GitHub <https://opencv.github.io/cvat/docs/>`__  
-* `Web application <https://cvat.org/>`__  
+* `Web application <https://www.cvat.ai/>`__  
 * `Docker Hub <https://hub.docker.com/r/openvino/cvat_server>`__  
 * `GitHub <https://github.com/openvinotoolkit/cvat>`__  
 
