@@ -209,7 +209,7 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
             if (axes[i] < 0 || axes[i] > 3) {
                 IE_THROW() << "Invalid crop axis: " << std::to_string(axes[i]) << " in op " + op->get_friendly_name();
             }
-            offset_tensor[axes[i]] = offset[i];
+            offset_tensor[axes[i]] = static_cast<uint32_t>(offset[i]);
         }
 
         ngraph::Shape crop_shape(reshape_pattern);
