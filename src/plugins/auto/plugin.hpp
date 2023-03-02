@@ -61,7 +61,7 @@ protected:
     std::map<std::string, std::string> GetSupportedConfig(const std::map<std::string, std::string>& config,
                                                           const MultiDevicePlugin::DeviceName & deviceName) const;
 
-    ov::AnyMap preprocess_config(const std::map<std::string, std::string>& orig_config) const;
+    ov::AnyMap PreProcessConfig(const std::map<std::string, std::string>& orig_config) const;
 
 private:
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetworkImpl(const std::string& modelPath,

@@ -64,7 +64,7 @@ namespace {
                 return 1;
         }
     }
-    std::map<std::string, std::string> convert_to_string_map(ov::AnyMap& properties) {
+    std::map<std::string, std::string> ConvertToStringMap(ov::AnyMap& properties) {
         std::map<std::string, std::string> configs;
         for (auto& property : properties) {
             configs[property.first] = property.second.as<std::string>();
@@ -76,11 +76,11 @@ namespace {
 std::mutex MultiDeviceInferencePlugin::_mtx;
 std::map<unsigned int, std::list<std::string>> MultiDeviceInferencePlugin::_priorityMap;
 
-ov::AnyMap MultiDeviceInferencePlugin::preprocess_config(const std::map<std::string, std::string>& orig_config) const {
+ov::AnyMap MultiDeviceInferencePlugin::PreProcessConfig(const std::map<std::string, std::string>& orig_config) const {
     ov::AnyMap properties = ov::AnyMap(orig_config.begin(), orig_config.end());
     for (auto& property : properties) {
         // for model_priority, the values need to be converted
-        if (property.first == ov::hint::model_priority.name() && !IsNewAPI()) {
+        if (property.first == ov::hint::model_priority.name()) {
             ov::Any converted_val{nullptr};
             auto legacy_val = property.second.as<std::string>();
             if (legacy_val == InferenceEngine::PluginConfigParams::MODEL_PRIORITY_HIGH) {
@@ -285,7 +285,7 @@ InferenceEngine::Parameter MultiDeviceInferencePlugin::GetConfig(const std::stri
 
 void MultiDeviceInferencePlugin::SetConfig(const std::map<std::string, std::string> & config) {
     // with setConfig, only multi/auto supported internal configs can be accepted
-    _pluginConfig.set_property(preprocess_config(config));
+    _pluginConfig.set_property(PreProcessConfig(config));
 }
 
 static const Version version = {{2, 1}, CI_BUILD_NUMBER, "MultiDevicePlugin"};
@@ -370,11 +370,11 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         }
     }
     // updateFromMap will check config valid
-    loadConfig.set_user_property(preprocess_config(config), workModeAuto? true : false);
+    loadConfig.set_user_property(PreProcessConfig(config), workModeAuto? true : false);
     loadConfig.apply_user_properties();
     auto fullProperty = loadConfig.get_full_properties();
     // this can be updated when plugin switch to 2.0 API
-    std::map<std::string, std::string> fullConfig = convert_to_string_map(fullProperty);
+    std::map<std::string, std::string> fullConfig = ConvertToStringMap(fullProperty);
     // Remove the performance hint as this is set by plugin logic, not from user
     if (!isHintSet)
         fullConfig.erase(ov::hint::performance_mode.name());
@@ -669,11 +669,11 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
 
     auto queryconfig = _pluginConfig;
     // updateFromMap will check config valid
-    queryconfig.set_user_property(preprocess_config(config), (GetName() == "AUTO")? true : false);
+    queryconfig.set_user_property(PreProcessConfig(config), (GetName() == "AUTO")? true : false);
     queryconfig.apply_user_properties();
     auto fullproperty = queryconfig.get_full_properties();
     // this can be updated when plugin switch to 2.0 API
-    std::map<std::string, std::string> fullConfig =  convert_to_string_map(fullproperty);;
+    std::map<std::string, std::string> fullConfig =  ConvertToStringMap(fullproperty);;
     auto priorities = fullConfig.find(ov::device::priorities.name());
     if (!priorities->second.empty()) {
         auto metaDevices = ParseMetaDevices(priorities->second, fullConfig);
