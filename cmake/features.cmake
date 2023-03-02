@@ -41,8 +41,6 @@ In case SELECTIVE_BUILD is enabled, the SELECTIVE_BUILD_STAT variable should con
 Usage: -DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=/path/*.csv" OFF
                ALLOWED_VALUES ON OFF COLLECT)
 
-ie_option(ENABLE_ERROR_HIGHLIGHT "Highlight errors and warnings during compile time" ON)
-
 ie_option (ENABLE_DOCS "Build docs using Doxygen" OFF)
 
 find_package(PkgConfig QUIET)

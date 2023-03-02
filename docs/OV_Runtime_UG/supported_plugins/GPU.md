@@ -222,11 +222,11 @@ The GPU plugin has the following additional preprocessing options:
 @sphinxtabset
 
 @sphinxtab{C++}
-@snippet docs/snippets/gpu/preprocessing.cpp init_preproc
+@snippet docs/snippets/gpu/preprocessing_nv12_two_planes.cpp init_preproc
 @endsphinxtab
 
 @sphinxtab{Python}
-@snippet docs/snippets/gpu/preprocessing.py init_preproc
+@snippet docs/snippets/gpu/preprocessing_nv12_two_planes.py init_preproc
 @endsphinxtab
 
 @endsphinxtabset

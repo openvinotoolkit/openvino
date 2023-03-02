@@ -156,7 +156,7 @@ private:
         }
     };
 
-    std::shared_ptr<ov::ExecutorManager> m_executor_manager;
+    std::shared_ptr<ov::threading::ExecutorManager> m_executor_manager;
     mutable std::unordered_set<std::string> opsetNames;
     // TODO: make extensions to be optional with conditional compilation
     mutable std::vector<InferenceEngine::IExtensionPtr> extensions;

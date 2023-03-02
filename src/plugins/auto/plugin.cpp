@@ -828,9 +828,6 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
                 continue;
             allDevices += device + ",";
         }
-        // remove the last ',' if exist
-        if (allDevices.back() == ',')
-            allDevices.pop_back();
     } else {
         auto priorities = deviceListConfig->second;
         // parsing the string and splitting the comma-separated tokens
@@ -887,11 +884,16 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
                 updateDeviceVec(iter);
             }
             for (auto&& device : deviceVec) {
-                allDevices += device;
-                allDevices += ((device == deviceVec[deviceVec.size()-1]) ? "" : ",");
+                if (!_pluginConfig.isSupportedDevice(device))
+                    continue;
+                allDevices += device + ",";
             }
         }
     }
+
+    // remove the last ',' if exist
+    if (allDevices.back() == ',')
+        allDevices.pop_back();
 
     if (allDevices.empty()) {
         IE_THROW() << "Please, check environment due to no supported devices can be used";
@@ -961,7 +963,9 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork
     });
 
     // If CPU is in candidate list, load dynamic network to CPU first
-    if ((model->is_dynamic() || isStateful()) && cpuiter != metaDevices.end()) {
+    // For MULTI do not only load stateful network to CPU
+    // For AUTO CTPUT only load stateful network to CPU
+    if ((model->is_dynamic() || (isStateful() && _LogTag != "MULTI")) && cpuiter != metaDevices.end()) {
         filterDevice.push_back(*cpuiter);
         return filterDevice;
     }
