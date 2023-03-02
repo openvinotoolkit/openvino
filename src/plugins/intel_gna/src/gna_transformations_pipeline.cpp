@@ -166,7 +166,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model) {
     pass_config->disable<ov::pass::AddFakeQuantizeFusion>();
     // TransposeReduction can be enabled when Transpose-Conv-Transpose patterns will be handled in ngraph
     // transformations
-    pass_config->disable<ov::pass::TransposeReduction>();
+    pass_config->disable<ov::pass::TransposeSinkingReductionForward>();
     // Operations Max and Min aren't supported
     pass_config->disable<ov::pass::ConcatReduceFusion>();
 
