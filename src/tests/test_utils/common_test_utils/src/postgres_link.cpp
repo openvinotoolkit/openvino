@@ -778,13 +778,14 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
     uint64_t testId = 0;
     uint64_t testRunId = 0;
     uint64_t testExtId = 0;
-    std::map<std::string, std::string> testCustomFields;
     std::stringstream joinedQuery;
 
     /* Test name parsing */
-    std::map<std::string, std::string> testDictionary;
+    std::map<std::string, std::string>
+        testDictionary;  // Contains key=value pairs which should be used while constructing queries and names
     std::string testName;
-    bool isTestNameParsed = false;
+    bool isTestNameParsed = false;  // Signals test name was successfully parsed to the testDictionary pairs
+    bool isFieldsUpdated = false;   // Signals testDictionary was updated between OnTestStart and OnTestEnd
 
     // Unused event handlers, kept here for possible use in the future
     /*
@@ -912,7 +913,7 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                       t_id)
     GET_PG_IDENTIFIER(UpdateTestExtId(std::string query),
                       "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE; "
-                          << "CALL PREPARE_" << query << "; COMMIT;"
+                          << "CALL VERIFY_" << query << "; COMMIT;"
                           << "SELECT UPDATE_" << query,
                       testExtId,
                       t_id)
@@ -1031,9 +1032,12 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
                 testDictionary["__suite_name_id"] = std::to_string(this->testSuiteNameId);
                 testDictionary["__session_id"] = std::to_string(this->testId);
                 testDictionary["__run_id"] = std::to_string(this->testId);
+                isFieldsUpdated = false;
                 if (compileString(extQuery->second, testDictionary, query)) {
                     if (!RequestTestExtId(query)) {
                         std::cerr << PG_WRN << "Failed extended query: " << query << std::endl;
+                    } else {
+                        testDictionary["__test_ext_id"] = std::to_string(this->testExtId);
                     }
                 } else {
                     std::cerr << PG_WRN << "Preparing extended query is failed: " << test_info.name() << std::endl;
@@ -1077,13 +1081,12 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 
         auto grpName = testDictionary.end();
 
-        if (isTestNameParsed == true && (grpName = testDictionary.find("__groupName__")) != testDictionary.end()) {
+        if (isTestNameParsed == true && isFieldsUpdated == true &&
+            (grpName = testDictionary.find("__groupName__")) != testDictionary.end()) {
             // Looks query with GroupName + "_BEFORE", "ReadIR_BEFORE" as example
             auto extQuery = ExtTestQueries.find(grpName->second + "_AFTER");
             if (extQuery != ExtTestQueries.end()) {
                 std::string query;
-                // Other variables stored in the OnTestStart
-                testDictionary["__test_ext_id"] = std::to_string(this->testExtId);
                 if (compileString(extQuery->second, testDictionary, query)) {
                     if (!UpdateTestExtId(query)) {
                         std::cerr << PG_WRN << "Failed extended update query: " << query << std::endl;
@@ -1207,33 +1210,32 @@ class PostgreSQLEventListener : public ::testing::EmptyTestEventListener {
 
 public:
     bool SetCustomField(const std::string fieldName, const std::string fieldValue, const bool rewrite) {
-        auto field = this->testCustomFields.find(fieldName);
-        if (rewrite || field != this->testCustomFields.end()) {
-            this->testCustomFields[fieldName] = fieldValue;
+        auto field = this->testDictionary.find(fieldName);
+        if (rewrite || field == this->testDictionary.end()) {
+            isFieldsUpdated |= (field == this->testDictionary.end()) ||
+                               (field->second != fieldValue);  // Signals only in case value not equal with existing
+            this->testDictionary[fieldName] = fieldValue;
             return true;
         }
         return false;
     }
 
     std::string GetCustomField(const std::string fieldName, const std::string defaultValue) const {
-        auto field = this->testCustomFields.find(fieldName);
-        if (field != this->testCustomFields.end()) {
+        auto field = this->testDictionary.find(fieldName);
+        if (field != this->testDictionary.end()) {
             return field->second;
         }
         return defaultValue;
     }
 
     bool RemoveCustomField(const std::string fieldName) {
-        auto field = this->testCustomFields.find(fieldName);
-        if (field != this->testCustomFields.end()) {
-            this->testCustomFields.erase(field);
+        auto field = this->testDictionary.find(fieldName);
+        if (field != this->testDictionary.end()) {
+            this->testDictionary.erase(field);
+            isFieldsUpdated = true;
             return true;
         }
         return false;
-    }
-
-    void ClearCustomFields(void) {
-        this->testCustomFields.clear();
     }
 };
 
@@ -1269,8 +1271,7 @@ public:
 /// \brief This class is for internal usage, don't need to move it to the header. It holds an internal state of
 ///        PostgreSQLLink instance. Introduced to simplify header.
 class PostgreSQLCustomData {
-public:
-    std::map<std::string, std::string> customFields;
+    // Reserved place for storing temporary data
 };
 
 PostgreSQLLink::PostgreSQLLink() : parentObject(nullptr), customData(new PostgreSQLCustomData()) {
@@ -1309,13 +1310,7 @@ std::map<std::string, std::string>* PostgreSQLLink::getExtTestNames(void) {
 
 bool PostgreSQLLink::SetCustomField(const std::string fieldName, const std::string fieldValue, const bool rewrite) {
     if (pgEventListener) {
-        if (!pgEventListener->SetCustomField(fieldName, fieldValue, rewrite))
-            return false;
-    }
-    auto field = this->customData->customFields.find(fieldName);
-    if (rewrite || field != this->customData->customFields.end()) {
-        this->customData->customFields[fieldName] = fieldValue;
-        return true;
+        return pgEventListener->SetCustomField(fieldName, fieldValue, rewrite);
     }
     return false;
 }
@@ -1324,21 +1319,12 @@ std::string PostgreSQLLink::GetCustomField(const std::string fieldName, const st
     if (pgEventListener) {
         return pgEventListener->GetCustomField(fieldName, defaultValue);
     }
-    auto field = this->customData->customFields.find(fieldName);
-    if (field != this->customData->customFields.end()) {
-        return field->second;
-    }
     return defaultValue;
 }
 
 bool PostgreSQLLink::RemoveCustomField(const std::string fieldName) {
     if (pgEventListener) {
         pgEventListener->RemoveCustomField(fieldName);
-    }
-    auto field = this->customData->customFields.find(fieldName);
-    if (field != this->customData->customFields.end()) {
-        this->customData->customFields.erase(field);
-        return true;
     }
     return false;
 }
