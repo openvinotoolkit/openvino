@@ -25,7 +25,7 @@ export default class Session {
     return this._ov.getDescriptionString();
   }
 
-  static async init(openvinojs, env) {
+  static async init(openvinojs, env = 'browser') {
     const SessionFactory = (await import(env == 'browser' ? './session-browser.mjs' : './session-nodejs.mjs')).default;
 
     return new SessionFactory(await openvinojs());

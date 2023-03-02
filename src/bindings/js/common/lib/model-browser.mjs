@@ -2,8 +2,10 @@ import Model from "./model.mjs";
 import Tensor from "./tensor.mjs";
 
 export default class ModelBrowser extends Model {
-  async infer(imgPath, shape) {
-    const imgData = await getArrayByImgPath(imgPath);
+  async infer(imgPathOrImgDataArray, shape) {
+    const imgData = typeof imgPathOrImgDataArray === 'string' 
+      ? await getArrayByImgPath(imgPathOrImgDataArray)
+      : imgPathOrImgDataArray;
     const imgTensor = new Tensor('uint8', imgData, shape);
 
     return await super.infer(imgTensor);

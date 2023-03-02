@@ -1,5 +1,5 @@
-import ovWrapper from './dist/ov_wrapper.mjs';
-import { getMaxElement, createCanvas, getFileDataAsArray } from './dist/helpers.mjs';
+import { Session, Shape } from './node_modules/openvinojs/openvinojs.mjs';
+
 import { default as imagenetClassesMap } from './assets/imagenet_classes_map.mjs';
 
 const selectBtn = document.getElementById('select-btn');
@@ -19,13 +19,12 @@ const WAITING_INPUT_STATUS_TXT = 'OpenVINO initialized. Model loaded. Select ima
 run();
 
 async function run() {
-  const ov = await ovWrapper.initialize(Module);
+  const session = await Session.init(Module);
 
   statusElement.innerText = 'OpenVINO successfully initialized. Model loading...';
 
-  const xmlData = await getFileDataAsArray(`${MODEL_PATH}${MODEL_NAME}.xml`);  
-  const binData = await getFileDataAsArray(`${MODEL_PATH}${MODEL_NAME}.bin`); 
-  const model = await ov.loadModel(xmlData, binData, `[1, ${WIDTH}, ${HEIGHT}, 3]`, 'NHWC');
+  const shape = new Shape(1, WIDTH, HEIGHT, 3);
+  const model = await session.loadModel(`${MODEL_PATH}${MODEL_NAME}.xml`, `${MODEL_PATH}${MODEL_NAME}.bin`, shape, 'NHWC');
 
   statusElement.innerText = WAITING_INPUT_STATUS_TXT;
   panelElement.classList.remove('hide');
@@ -54,14 +53,14 @@ async function run() {
       statusElement.innerText = 'Inference is in the progress, please wait...';
       const imgTensor = getImgTensor(ctx);
       const startTime = performance.now();
-      const outputTensor = await model.run(imgTensor);
+      const outputTensor = await model.infer(imgTensor, shape);
       const endTime = performance.now();
       statusElement.innerText = WAITING_INPUT_STATUS_TXT;
 
       console.log('== Output tensor:');
       console.log(outputTensor);
 
-      const max = getMaxElement(outputTensor);
+      const max = getMaxElement(outputTensor.data);
       console.log(`== Max index: ${max.index}, value: ${max.value}`);
       const humanReadableClass = imagenetClassesMap[max.index];
       console.log(`== Result class: ${humanReadableClass}`);
@@ -102,4 +101,30 @@ function getInfoElement(time, className, index, value) {
   e.innerText = `Inference time: ${Number(time).toFixed(3)}ms\nClass: ${className}\nIndex: ${index}\nValue: ${value}`;
 
   return e;
+}
+
+function getMaxElement(arr) {
+  if (!arr.length) return { value: -Infinity, index: -1 };
+
+  let max = arr[0];
+  let maxIndex = 0;
+
+  for (let i = 1; i < arr.length; ++i) {
+    if (arr[i] > max) {
+      maxIndex = i;
+      max = arr[i];
+    }
+  }
+
+  return { value: max, index: maxIndex };
+}
+
+
+function createCanvas(width, height) {
+  const canvasElement = document.createElement('canvas');
+
+  canvasElement.width = width;
+  canvasElement.height = height;
+
+  return canvasElement;
 }
