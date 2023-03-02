@@ -37,17 +37,25 @@ KERNEL (softmax_gpu_continuous_bfyx)(
     const uint items_num = data_set_size>>power;
     const uint leftovers = data_set_size-(items_num<<power);
 #endif
+    const uint my_chunk_size = items_num + 1;
 
     const uint data_set_offset = data_set_idx * data_set_size;
     const uint my_data_offset = data_set_offset + in_data_set_idx;
 
 #if IS_DYNAMIC
-    const uint data_set_with_chunk_size = data_set_size + workers_per_data_set;
-    const uint data_set_with_chunk_offset = data_set_idx * data_set_with_chunk_size;
-    const uint my_chunk_offset = data_set_with_chunk_offset + in_data_set_idx * (items_num + 1);
-    __global INPUT0_TYPE* my_chunk = tmp_buffer + my_chunk_offset;
+    INPUT0_TYPE* my_chunk;
+    bool use_stack_for_chunk = my_chunk_size <= STACK_SIZE;
+    INPUT0_TYPE my_chunk_stack[STACK_SIZE];
+    if (use_stack_for_chunk) {
+        my_chunk = my_chunk_stack;
+    } else {
+        const uint data_set_with_chunk_size = data_set_size + workers_per_data_set;
+        const uint data_set_with_chunk_offset = data_set_idx * data_set_with_chunk_size;
+        const uint my_chunk_offset = data_set_with_chunk_offset + in_data_set_idx * my_chunk_size;
+        my_chunk = tmp_buffer + my_chunk_offset;
+    }
 #else
-    INPUT0_TYPE my_chunk[items_num + 1];
+    INPUT0_TYPE my_chunk[my_chunk_size];
 #endif
     INPUT0_TYPE my_maximum = -UNIT_VAL_MAX;
     INPUT0_TYPE my_sum = UNIT_VAL_ZERO;

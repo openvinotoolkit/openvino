@@ -115,6 +115,7 @@ JitConstants SoftmaxKernel_bf::GetJitConstants(const softmax_params& params, Dis
         const std::string lws_0 = "get_local_size(0)";
         const std::string data_set_count = "(FLATTEN_BF?" + toVectorMulString({f, b}) + ":" + b + ")";
         const std::string data_set_size = "(FLATTEN_BF?" + y + ":" + toVectorMulString({x, y, z, f}) + ")";
+        constexpr size_t stack_size = 100;
         jit.AddConstants({
             MakeJitConstant("SOFTMAX_DIM_Y_BFYX", softmax_dim_y_bfyx),
             MakeJitConstant("FLATTEN_BF", flatten_bf),
@@ -122,6 +123,7 @@ JitConstants SoftmaxKernel_bf::GetJitConstants(const softmax_params& params, Dis
             MakeJitConstant("SLM_SIZE", dispatchData.maxSlmSize),
             MakeJitConstant("DATA_SETS_COUNT", data_set_count),
             MakeJitConstant("DATA_SET_SIZE", data_set_size),
+            MakeJitConstant("STACK_SIZE", stack_size),
         });
     } else {
         jit.AddConstants({
