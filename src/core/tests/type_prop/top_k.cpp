@@ -29,7 +29,7 @@ protected:
     element::Type exp_default_idx_type{element::i32};
 };
 
-template<typename T>
+template <typename T>
 using topk_type_prop_with_evaluate = topk_type_prop<T>;
 
 TYPED_TEST_SUITE_P(topk_type_prop);
