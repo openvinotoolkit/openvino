@@ -8,6 +8,8 @@
 #include <memory>
 #include <stdexcept>
 
+using namespace cldnn;
+
 /*
 This pass checks if if primitive's input format matches implementation's input format
 If not than required reorder is added to the network.
