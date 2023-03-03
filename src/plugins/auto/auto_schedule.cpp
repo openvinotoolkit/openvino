@@ -322,15 +322,15 @@ void AutoSchedule::TryToLoadNetWork(AutoLoadContext& context, const std::string&
             // limit the threads num for compiling
             int maxNumThreads = 0;
             try {
-                maxNumThreads = _autoSContext->_core->GetConfig(device, GPU_CONFIG_KEY(MAX_NUM_THREADS)).as<int>();
+                maxNumThreads = _autoSContext->_core->GetConfig(device, ov::compilation_num_threads.name()).as<int>();
             } catch (const IE::Exception&) {
                 LOG_DEBUG_TAG("cannot get MAX_NUM_THREADS from GPU");
             }
             if (maxNumThreads == static_cast<int>(std::thread::hardware_concurrency())) {
                 int threadNum = maxNumThreads / 2;
-                deviceConfig[GPU_CONFIG_KEY(MAX_NUM_THREADS)] = std::to_string(threadNum).c_str();
+                deviceConfig[ov::compilation_num_threads.name()] = std::to_string(threadNum).c_str();
                 LOG_DEBUG_TAG("gpu streams number for compiling: %s",
-                          deviceConfig[GPU_CONFIG_KEY(MAX_NUM_THREADS)].c_str());
+                          deviceConfig[ov::compilation_num_threads.name()].c_str());
             } else {
                 // user set the compiling threads num
                 // use the user's val anyway

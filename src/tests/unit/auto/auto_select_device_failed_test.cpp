@@ -161,7 +161,7 @@ public:
        ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
            .WillByDefault(Return(supportConfigs));
        EXPECT_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).Times(AnyNumber());
-       ON_CALL(*core, GetConfig(_, StrEq(GPU_CONFIG_KEY(MAX_NUM_THREADS))))
+       ON_CALL(*core, GetConfig(_, StrEq(ov::compilation_num_threads.name())))
            .WillByDefault(Return(12));
     }
 };
