@@ -49,5 +49,64 @@ static constexpr Property<bool> denormals_optimization{"CPU_DENORMALS_OPTIMIZATI
 
 static constexpr Property<float> sparse_weights_decompression_rate{"SPARSE_WEIGHTS_DECOMPRESSION_RATE"};
 
+/**
+ * @brief Enum to define possible processor type hints for CPU inference
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+enum class ProcessorType {
+    UNDEFINED = -1,  //!<  Undefined value, default setting may vary by platform and performance hints
+    ALL = 1,  //!<  All processors can be used. If hyper threading is enabled, both processors of oneperformance-core
+              //!<  will be used.
+    PHY_CORE_ONLY = 2,    //!<  Only one processor can be used per CPU core even with hyper threading enabled.
+    P_CORE_ONLY = 3,      //!<  Only processors of performance-cores can be used. If hyper threading is enabled, both
+                          //!<  processors of one performance-core will be used.
+    E_CORE_ONLY = 4,      //!<  Only processors of efficient-cores can be used.
+    PHY_P_CORE_ONLY = 5,  //!<  Only one processor can be used per performance-core even with hyper threading enabled.
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const ProcessorType& cpu_processor_type) {
+    switch (cpu_processor_type) {
+    case ProcessorType::UNDEFINED:
+        return os << "UNDEFINED";
+    case ProcessorType::ALL:
+        return os << "ALL";
+    case ProcessorType::PHY_CORE_ONLY:
+        return os << "PHY_CORE_ONLY";
+    case ProcessorType::P_CORE_ONLY:
+        return os << "P_CORE_ONLY";
+    case ProcessorType::E_CORE_ONLY:
+        return os << "E_CORE_ONLY";
+    case ProcessorType::PHY_P_CORE_ONLY:
+        return os << "PHY_P_CORE_ONLY";
+    default:
+        throw ov::Exception{"Unsupported processor type!"};
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, ProcessorType& cpu_processor_type) {
+    std::string str;
+    is >> str;
+    if (str == "UNDEFINED") {
+        cpu_processor_type = ProcessorType::UNDEFINED;
+    } else if (str == "ALL") {
+        cpu_processor_type = ProcessorType::ALL;
+    } else if (str == "PHY_CORE_ONLY") {
+        cpu_processor_type = ProcessorType::PHY_CORE_ONLY;
+    } else if (str == "P_CORE_ONLY") {
+        cpu_processor_type = ProcessorType::P_CORE_ONLY;
+    } else if (str == "E_CORE_ONLY") {
+        cpu_processor_type = ProcessorType::E_CORE_ONLY;
+    } else if (str == "PHY_P_CORE_ONLY") {
+        cpu_processor_type = ProcessorType::PHY_P_CORE_ONLY;
+    } else {
+        throw ov::Exception{"Unsupported processor type: " + str};
+    }
+    return is;
+}
+/** @endcond */
+
+static constexpr Property<ProcessorType> processor_type{"PROCESSOR_TYPE"};
+
 }  // namespace intel_cpu
 }  // namespace ov

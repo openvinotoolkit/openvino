@@ -4,16 +4,17 @@
 
 #pragma once
 
-#include <threading/ie_istreams_executor.hpp>
-#include <ie_performance_hints.hpp>
 #include <ie/ie_common.h>
-#include <openvino/util/common_util.hpp>
-#include "utils/debug_caps_config.h"
 
 #include <bitset>
-#include <string>
+#include <ie_performance_hints.hpp>
 #include <map>
 #include <mutex>
+#include <openvino/util/common_util.hpp>
+#include <string>
+#include <threading/ie_istreams_executor.hpp>
+
+#include "utils/debug_caps_config.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -38,6 +39,21 @@ struct Config {
         Disable,
     };
 
+    /**
+     * @brief Enum to define possible processor type hints for CPU inference
+     * @ingroup ov_runtime_cpp_prop_api
+     */
+    enum class ProcessorType {
+        UNDEFINED = -1,  //!<  Undefined value, default setting may vary by platform and performance hints
+        ALL = 1,  //!<  All processors can be used. If hyper threading is enabled, both processors of oneperformance-core
+                //!<  will be used.
+        PHY_CORE_ONLY = 2,    //!<  Only one processor can be used per CPU core even with hyper threading enabled.
+        P_CORE_ONLY = 3,      //!<  Only processors of performance-cores can be used. If hyper threading is enabled, both
+                            //!<  processors of one performance-core will be used.
+        E_CORE_ONLY = 4,      //!<  Only processors of efficient-cores can be used.
+        PHY_P_CORE_ONLY = 5,  //!<  Only one processor can be used per performance-core even with hyper threading enabled.
+    };
+
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
     bool enableDynamicBatch = false;
@@ -48,6 +64,7 @@ struct Config {
     size_t rtCacheCapacity = 5000ul;
     InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
     InferenceEngine::PerfHintsConfig  perfHintsConfig;
+    ProcessorType cpu_processor_type;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
     bool enforceBF16 = true;

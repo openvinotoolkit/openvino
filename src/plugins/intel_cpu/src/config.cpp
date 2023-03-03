@@ -103,6 +103,20 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             } else {
                 fcSparseWeiDecompressionRate = val_f;
             }
+        // } else if (key == CPUConfigParams::KEY_CPU_PROCESSOR_TYPE) {
+        //     if (val.compare("UNDEFINED")) {
+        //         cpu_processor_type = ProcessorType::UNDEFINED;
+        //     } else if (val.compare("ALL")) {
+        //         cpu_processor_type = ProcessorType::ALL;
+        //     } else if (val.compare("PHY_CORE_ONLY")) {
+        //         cpu_processor_type = ProcessorType::PHY_CORE_ONLY;
+        //     } else if (val.compare("P_CORE_ONLY")) {
+        //         cpu_processor_type = ProcessorType::P_CORE_ONLY;
+        //     } else if (val.compare("E_CORE_ONLY")) {
+        //         cpu_processor_type = ProcessorType::E_CORE_ONLY;
+        //     } else if (val.compare("PHY_P_CORE_ONLY")) {
+        //         cpu_processor_type = ProcessorType::PHY_P_CORE_ONLY;
+        //     }
         } else if (key == PluginConfigParams::KEY_PERF_COUNT) {
             if (val == PluginConfigParams::YES) collectPerfCounters = true;
             else if (val == PluginConfigParams::NO) collectPerfCounters = false;
