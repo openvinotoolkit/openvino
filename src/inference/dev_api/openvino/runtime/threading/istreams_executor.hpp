@@ -3,8 +3,8 @@
 //
 
 /**
- * @file ie_istreams_executor.hpp
- * @brief A header file for Inference Engine Streams-based Executor Interface
+ * @file openvino/runtime/threading/istreams_executor.hpp
+ * @brief A header file for OpenVINO Streams-based Executor Interface
  */
 
 #pragma once
@@ -85,7 +85,7 @@ public:
 
         std::string _name;          //!< Used by `ITT` to name executor threads
         int _streams = 1;           //!< Number of streams.
-        int _threadsPerStream = 0;  //!< Number of threads per stream that executes `ie_parallel` calls
+        int _threadsPerStream = 0;  //!< Number of threads per stream that executes `ov_parallel` calls
         ThreadBindingType _threadBindingType = ThreadBindingType::NONE;  //!< Thread binding to hardware resource type.
                                                                          //!< No binding by default
         int _threadBindingStep = 1;                                      //!< In case of @ref CORES binding offset type

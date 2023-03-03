@@ -11,10 +11,10 @@
 #include <string>
 #include <vector>
 
-#include "ie_common.h"
-#include "ie_system_conf.h"
+#include "dev/threading/parallel_custom_arena.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "streams_executor.hpp"
-#include "threading/ie_parallel_custom_arena.hpp"
 
 namespace ov {
 
