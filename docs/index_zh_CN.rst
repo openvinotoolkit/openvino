@@ -2,8 +2,6 @@ OpenVINO™ Documentation
 =======================
 
 .. toctree::
-   :maxdepth: 2
-   :hidden:
 
    home_zh_CN
    Install <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html> 

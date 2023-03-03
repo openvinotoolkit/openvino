@@ -7,9 +7,9 @@
    :maxdepth: 1
    :hidden:
 
-   openvino_intro_zh_CN/openvino_docs_OV_UG_Working_with_devices_zh_CN
-   openvino_intro_zh_CN/openvino_docs_OV_UG_DynamicShapes_zh_CN
-   openvino_intro_zh_CN/openvino_docs_OV_UG_Performance_Hints_zh_CN
+   Runtime_User_Guide_zh_CN/Device_Plugins_zh_CN
+   Runtime_User_Guide_zh_CN/DynamicShapes_zh_CN
+   Runtime_User_Guide_zh_CN/Performance_Hints_zh_CN
 
 
 OpenVINO™ 运行时是一组包含 C 和 Python 绑定的 C++ 库，提供通用 API，以在您选择的平台上提供推理解决方案。
