@@ -152,7 +152,6 @@ class TestParallelRunner:
         self._cache_path = os.path.join(cache_path)
         head, _ = os.path.split(self._cache_path)
         if not os.path.exists(head):
-            pass
             os.mkdir(head)
         self._is_save_cache = True
         self._disabled_tests = list()
@@ -194,7 +193,6 @@ class TestParallelRunner:
         command_to_get_test_list = self._command + f' --gtest_list_tests >> {test_list_file_name}'
         logger.info(f"Get test list using command: {command_to_get_test_list}")
         run(command_to_get_test_list, check=True, shell=True)
-        pass
 
         test_list = list()
         with open(test_list_file_name) as test_list_file:
