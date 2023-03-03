@@ -26,7 +26,7 @@ The default architecture of OpenVINO Runtime assumes that the following componen
 
 With the static OpenVINO Runtime, all these modules should be linked into a final user application and **the list of modules/configuration must be known for the CMake configuration stage**. To minimize the total binary size, you can explicitly turn `OFF` unnecessary components. Use [[CMake Options for Custom Compilation|CMakeOptionsForCustomCompilation ]] as a reference for OpenVINO CMake configuration.
 
-For example, to enable only IR v11 reading and CPU inference capabilities without G-API preprocessing, use:
+For example, to enable only IR v11 reading and CPU inference capabilities, use:
 ```sh
 cmake -DENABLE_INTEL_GPU=OFF \
       -DENABLE_INTEL_GNA=OFF \
