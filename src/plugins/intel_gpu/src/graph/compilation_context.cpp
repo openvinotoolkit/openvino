@@ -47,7 +47,12 @@ private:
 class CompilationContext : public ICompilationContext {
 public:
     CompilationContext(cldnn::engine& engine, const ExecutionConfig& config, size_t program_id) {
-        _kernels_cache = cldnn::make_unique<kernels_cache>(engine, config, program_id, nullptr, kernel_selector::KernelBase::get_db().get_batch_header_str());
+        _kernels_cache =
+            cldnn::make_unique<kernels_cache>(engine,
+                                              config,
+                                              static_cast<uint32_t>(program_id),
+                                              nullptr,
+                                              kernel_selector::KernelBase::get_db().get_batch_header_str());
         _worker = std::thread([this](){
             while (!_stop_compilation) {
                 CompilationContext::Task task;
@@ -85,7 +90,7 @@ private:
 };
 
 std::unique_ptr<ICompilationContext> ICompilationContext::create(cldnn::engine& engine, const ExecutionConfig& config, size_t program_id) {
-    return cldnn::make_unique<CompilationContext>(engine, config, program_id);
+    return cldnn::make_unique<CompilationContext>(engine, config, static_cast<uint32_t>(program_id));
 }
 
 }  // namespace cldnn
