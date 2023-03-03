@@ -81,17 +81,27 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void prepareParams() override;
     void execute(dnnl::stream strm) override;
+    void executeDynamicImpl(dnnl::stream strm) override;
     bool created() const override;
+    void createPrimitive() override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 
 private:
+    bool axesChanged() const;
+    bool signalSizesChanged() const;
+
+    bool needShapeInfer() const override;
+    bool needPrepareParams() const override;
+
     std::string errorMsgPrefix;
     bool inverse;
     std::vector<int> axes;
     std::vector<int> signalSizes;
     std::vector<std::vector<float>> twiddles;
     std::shared_ptr<RDFTExecutor> executor;
+    bool isAxesConstant = false;
+    bool isSignalSizesConstant = false;
 };
 
 }   // namespace node

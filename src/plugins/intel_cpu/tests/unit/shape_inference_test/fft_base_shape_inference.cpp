@@ -138,3 +138,114 @@ TEST(StaticShapeInferenceTest, IDFTSignalMissingConstDataTest) {
     EXPECT_THROW(shape_inference(IDFT.get(), static_input_shapes, static_output_shapes, constant_data),
                  NodeValidationFailure);
 }
+
+TEST(StaticShapeInferenceTest, RDFT) {
+    auto input_shape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto axes = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    auto RDFT = std::make_shared<ov::op::v9::RDFT>(input_shape, axes);
+    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
+    int32_t axes_val[] = {2, 3};
+    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axes_val);
+
+    std::vector<StaticShape> static_input_shapes = {StaticShape{1, 120, 64, 64}, StaticShape{2}},
+                             static_output_shapes = {StaticShape{}};
+
+    shape_inference(RDFT.get(), static_input_shapes, static_output_shapes, constant_data);
+    ASSERT_EQ(static_output_shapes[0], StaticShape({1, 120, 64, 33, 2}));
+}
+
+TEST(StaticShapeInferenceTest, RDFTWithSignalSizes) {
+    auto input_shape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto axes = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    auto signal = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    auto RDFT = std::make_shared<ov::op::v9::RDFT>(input_shape, axes, signal);
+    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
+    int32_t axes_val[] = {2, 3};
+    int32_t signal_val[] = {40, 30};
+    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axes_val);
+    constant_data[2] =
+        std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, signal_val);
+
+    std::vector<StaticShape> static_input_shapes = {StaticShape{1, 120, 64, 64}, StaticShape{2}, StaticShape{2}},
+                             static_output_shapes = {StaticShape{}};
+
+    shape_inference(RDFT.get(), static_input_shapes, static_output_shapes, constant_data);
+    ASSERT_EQ(static_output_shapes[0], StaticShape({1, 120, 40, 16, 2}));
+}
+
+TEST(StaticShapeInferenceTest, RDFTWithConstAxesAndSignalSizes) {
+    auto input_shape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto axes = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{2, 3});
+    auto signal = std::make_shared<ov::op::v0::Constant>(element::i32, Shape{2}, std::vector<int32_t>{64, 64});
+    auto RDFT = std::make_shared<ov::op::v9::RDFT>(input_shape, axes, signal);
+
+    std::vector<StaticShape> static_input_shapes = {StaticShape{1, 120, 64, 64}, StaticShape{2}, StaticShape{2}},
+                             static_output_shapes = {StaticShape{}};
+
+    shape_inference(RDFT.get(), static_input_shapes, static_output_shapes);
+    ASSERT_EQ(static_output_shapes[0], StaticShape({1, 120, 64, 33, 2}));
+}
+
+TEST(StaticShapeInferenceTest, RDFTMissingSignalTensor) {
+    auto input_shape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    auto axes = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    auto signal = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    auto RDFT = std::make_shared<ov::op::v9::RDFT>(input_shape, axes, signal);
+    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
+    int32_t axes_val[] = {2, 3};
+    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axes_val);
+
+    std::vector<StaticShape> static_input_shapes = {StaticShape{1, 120, 64, 64}, StaticShape{2}, StaticShape{2}},
+                             static_output_shapes = {StaticShape{}};
+    EXPECT_THROW(shape_inference(RDFT.get(), static_input_shapes, static_output_shapes, constant_data),
+                 NodeValidationFailure);
+}
+
+TEST(StaticShapeInferenceTest, IRDFT) {
+    auto input_shape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1, -1});
+    auto axes = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    auto IRDFT = std::make_shared<ov::op::v9::IRDFT>(input_shape, axes);
+    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
+    int32_t axes_val[] = {2, 3};
+    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axes_val);
+
+    std::vector<StaticShape> static_input_shapes = {StaticShape{1, 120, 64, 33, 2}, StaticShape{2}},
+                             static_output_shapes = {StaticShape{}};
+
+    shape_inference(IRDFT.get(), static_input_shapes, static_output_shapes, constant_data);
+    ASSERT_EQ(static_output_shapes[0], StaticShape({1, 120, 64, 64}));
+}
+
+TEST(StaticShapeInferenceTest, IRDFTWithSignalSizes) {
+    auto input_shape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1, -1});
+    auto axes = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    auto signal = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    auto IRDFT = std::make_shared<ov::op::v9::IRDFT>(input_shape, axes, signal);
+    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
+    int32_t axes_val[] = {2, 3};
+    int32_t signal_val[] = {64, 64};
+    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axes_val);
+    constant_data[2] =
+        std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, signal_val);
+
+    std::vector<StaticShape> static_input_shapes = {StaticShape{1, 120, 64, 33, 2}, StaticShape{2}, StaticShape{2}},
+                             static_output_shapes = {StaticShape{}};
+
+    shape_inference(IRDFT.get(), static_input_shapes, static_output_shapes, constant_data);
+    ASSERT_EQ(static_output_shapes[0], StaticShape({1, 120, 64, 64}));
+}
+
+TEST(StaticShapeInferenceTest, IRDFTMissingSignalSizesTensor) {
+    auto input_shape = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1, -1});
+    auto axes = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    auto signal = std::make_shared<ov::op::v0::Parameter>(element::i32, PartialShape::dynamic());
+    auto IRDFT = std::make_shared<ov::op::v9::IRDFT>(input_shape, axes, signal);
+    std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>> constant_data;
+    int32_t axes_val[] = {2, 3};
+    constant_data[1] = std::make_shared<ngraph::runtime::HostTensor>(ngraph::element::Type_t::i32, Shape{2}, axes_val);
+
+    std::vector<StaticShape> static_input_shapes = {StaticShape{1, 120, 64, 33, 2}, StaticShape{2}, StaticShape{2}},
+                             static_output_shapes = {StaticShape{}};
+    EXPECT_THROW(shape_inference(IRDFT.get(), static_input_shapes, static_output_shapes, constant_data),
+                 NodeValidationFailure);
+}
