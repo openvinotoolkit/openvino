@@ -8,7 +8,6 @@
 #include <functional>
 #include <list>
 #include <memory>
-#include <stack>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -222,17 +221,17 @@ void replace_nodes(const std::shared_ptr<Model>& f,
 /// Topological sort of nodes needed to compute root_nodes
 template <typename T>
 std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
-    std::stack<Node*, std::vector<Node*>> nodes_to_do;
+    std::deque<Node*> nodes_to_do;
     std::unordered_set<Node*> nodes_done;
     std::unordered_map<Node*, uint8_t /*is_visited*/> nodes_visited;
     std::vector<std::shared_ptr<Node>> result;
 
-    for (auto node = root_nodes.rbegin(); node != root_nodes.rend(); ++node) {
-        nodes_to_do.push(node->get());
+    for (auto& node : root_nodes) {
+        nodes_to_do.push_back(node.get());
     }
 
     while (nodes_to_do.size() > 0) {
-        Node* node = nodes_to_do.top();
+        Node* node = nodes_to_do.front();
         if (nodes_done.count(node) == 0) {
             bool can_add = true;
             if (++nodes_visited[node] > 2)
@@ -247,23 +246,23 @@ std::vector<std::shared_ptr<Node>> topological_sort(T root_nodes) {
                 Node* dep = node->get_input_node_ptr(arg_count - i - 1);
                 if (nodes_done.count(dep) == 0) {
                     can_add = false;
-                    nodes_to_do.push(dep);
+                    nodes_to_do.push_front(dep);
                 }
             }
             for (auto& depptr : node->get_control_dependencies()) {
                 Node* dep = depptr.get();
                 if (nodes_done.count(dep) == 0) {
                     can_add = false;
-                    nodes_to_do.push(dep);
+                    nodes_to_do.push_front(dep);
                 }
             }
             if (can_add) {
                 result.push_back(node->shared_from_this());
-                nodes_to_do.pop();
+                nodes_to_do.pop_front();
                 nodes_done.insert(node);
             }
         } else {
-            nodes_to_do.pop();
+            nodes_to_do.pop_front();
         }
     }
     return result;
