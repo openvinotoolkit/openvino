@@ -88,7 +88,7 @@ For the OpenVINO build next tools are required:
 <details><summary>Mac (ARM)</summary>
 <p>
 
-- [brew] package manager to install additional dependencies. Use [install brew](https://brew.sh) guide to achieve this.
+- [brew](https://brew.sh) package manager to install additional dependencies. Use [install brew](https://brew.sh) guide to achieve this.
 
 - Installation step for python and python libraries varies depending on the host architecture:
   - **arm64** Python 3.7 or higher for the OpenVINO Runtime Python API, Development tools (Model Optimizer, POT and others):
