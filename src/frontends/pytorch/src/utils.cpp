@@ -281,12 +281,6 @@ std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> 
     return fw_node;
 }
 
-std::shared_ptr<Node> sort_elements(const NodeContext& context,
-                                    const Output<Node>& input_tensor,
-                                    bool stable,
-                                    int64_t dim,
-                                    bool descending) {}
-
 Any simplified_type_interpret(Any type) {
     // Interpret Tensor[type] as just type
     // After applying of this interpretation we cannot distinguish true scalars (not tensors) and tensors with elements
