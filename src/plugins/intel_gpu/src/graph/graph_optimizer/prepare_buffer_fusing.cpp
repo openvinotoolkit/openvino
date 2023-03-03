@@ -199,9 +199,11 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
             return false;
 
         // Check siblings whether they are oneDNN impl.
-        for (auto& sib : input.first->get_users()) {
-            if (sib->get_preferred_impl_type() == impl_types::onednn) {
-                return false;
+        if (node.get_output_layout().batch() > 1) {
+            for (auto& sib : input.first->get_users()) {
+                if (sib->get_preferred_impl_type() == impl_types::onednn) {
+                    return false;
+                }
             }
         }
 
