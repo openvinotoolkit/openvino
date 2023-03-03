@@ -1533,6 +1533,8 @@ inline uint get_os_i_yxs_osv_yxsv4_index(uint o, uint i, uint y, uint x, uint i_
         ((o) / (sub_group_size))*CAT(prefix, _OFM_PITCH)                 \
     )
 
+#define GET_FILTER_OS_IYX_OSV16(prefix, o, i, y, x, sub_group_size) GET_FILTER_G_OS_IYX_OSV16(prefix, 0, o, i, y, x, sub_group_size)
+
 #define GET_FILTER_GS_OIYX_GSV16(prefix, g, o, i, y, x, sub_group_size)  \
     CAT(prefix, _OFFSET) +                                               \
     ((g) % (sub_group_size)) +                                           \
