@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -15,8 +15,8 @@ endif()
 if(NOT TARGET zlib::zlib)
     if(PkgConfig_FOUND)
         pkg_search_module(zlib QUIET
-                        IMPORTED_TARGET GLOBAL
-                        zlib)
+                          IMPORTED_TARGET GLOBAL
+                          zlib)
         if(zlib_FOUND)
             add_library(zlib::zlib ALIAS PkgConfig::zlib)
         endif()

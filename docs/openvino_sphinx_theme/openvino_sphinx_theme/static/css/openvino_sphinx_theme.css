@@ -202,14 +202,10 @@ blockquote p {
     padding: 0 .8rem;
 }
 
-@media (max-width: 1300px) {
+@media (max-width: 1072px) {
     #navbar-collapsible {
         max-width: 100%;
         display: none !important;
-    }
-
-    .navbar-brand {
-        padding-left:1rem;
     }
 
     #navbar-collapsible.show {
@@ -395,6 +391,22 @@ html .tab-set > label:hover {
 
 .sst-dropdown .dropdown-toggle::after {
     content:none;
+}
+
+/*TOC Section - On this page - Override */
+
+@media (min-width: 1072px) {
+    .d-xl-block {
+        display: block!important;
+    }
+    .col-xl-2 {
+        flex: 0 0 16.66667%!important;
+        max-width: 16.66667%!important;
+    }
+    .col-xl-7 {
+        flex: 0 0 58.33333%!important;
+        max-width: 58.33333%!important;
+    }
 }
 
 /* Download button */

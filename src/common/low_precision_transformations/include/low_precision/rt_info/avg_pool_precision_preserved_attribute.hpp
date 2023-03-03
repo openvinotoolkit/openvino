@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ class LP_TRANSFORMATIONS_API AvgPoolPrecisionPreservedAttribute : public Precisi
 public:
     OPENVINO_RTTI("LowPrecision::AvgPoolPrecisionPreserved", "", ov::RuntimeAttribute, 0);
     using PrecisionPreservedAttribute::PrecisionPreservedAttribute;
-    void merge(std::vector<ov::Any>& attributes);
+    void merge_attributes(std::vector<ov::Any>& attributes);
     bool is_skipped() const;
     std::string to_string() const override;
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,7 @@ void shape_infer(const Squeeze* op,
 
     NODE_VALIDATION_CHECK(op, output_shapes.size() == 1);
     const auto number_of_inputs = input_shapes.size();
+    OPENVINO_ASSERT(!input_shapes.empty());
 
     const auto& arg_shape = input_shapes[0];
     auto& output_shape = output_shapes[0];
