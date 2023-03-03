@@ -286,7 +286,7 @@ TEST(check_hash_value, quantize_basic) {
     const auto prog_node_hash = prog_node.get_hash();
     const auto prim_inst_hash = prim_inst->get_impl_key();
 
-    ASSERT_EQ(primitive_hash, 1569171484239412698UL);
+    ASSERT_EQ(primitive_hash, 4135863035456568493UL);
     ASSERT_EQ(prog_node_hash, 4135863035456568493UL);
     ASSERT_EQ(prim_inst_hash, 13898649554943348250UL);
 }

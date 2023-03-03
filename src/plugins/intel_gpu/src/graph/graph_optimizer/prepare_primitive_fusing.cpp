@@ -404,9 +404,9 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             conv_with_bias_prim->activations_zero_points = desc->activations_zero_points;
             conv_with_bias_prim->weights_zero_points = desc->weights_zero_points;
             conv_with_bias_prim->compensation = desc->compensation;
-            auto& new_conv_node = p.get_or_create(conv_with_bias_prim);
             // Copy transposed flag to new prim as convolution node might be produced by deconv -> conv replacement before this pass
-            new_conv_node.as<convolution>().set_transposed(conv.get_transposed());
+            conv_with_bias_prim->transposed = conv.get_transposed();
+            auto& new_conv_node = p.get_or_create(conv_with_bias_prim);
 
             fuse_bias_f(conv, new_conv_node, bias_node, eltw_node);
         } else if (replace_candidate.is_type<deconvolution>()) {

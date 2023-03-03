@@ -28,12 +28,65 @@ struct quantize : public primitive_base<quantize> {
         : primitive_base(id, {input, input_low, input_high, output_low, output_high}, {output_padding}, {optional_data_type{output_data_type}})
         , levels(levels) {}
 
+    quantize(const primitive_id& id,
+             const std::vector<input_info>& inputs,
+             const int levels,
+             const data_types output_data_type,
+             const padding& output_padding = padding())
+        : primitive_base(id, inputs, {output_padding}, {optional_data_type{output_data_type}})
+        , levels(levels) {}
+
     /// @brief levels The number of quantization levels.
     int levels;
+
+    bool scale_shift_opt = false;
+    bool need_post_scale = false;
+    bool need_post_shift = false;
+    bool need_pre_shift = false;
+    bool need_clamp = false;
+    bool need_min_clamp = false;
+    bool need_max_clamp = false;
+
+    bool per_tensor_input_range = false;
+    bool per_tensor_input_scale = false;
+    bool per_tensor_input_shift = false;
+    bool per_tensor_output_range = false;
+    bool per_tensor_output_scale = false;
+    bool per_tensor_output_shift = false;
+
+    float in_lo = 0.0f;
+    float in_hi = 0.0f;
+    float in_scale = 0.0f;
+    float in_shift = 0.0f;
+    float out_lo = 0.0f;
+    float out_hi = 0.0f;
+    float out_scale = 0.0f;
+    float out_shift = 0.0f;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = cldnn::hash_combine(seed, levels);
+        seed = cldnn::hash_combine(seed, scale_shift_opt);
+        seed = cldnn::hash_combine(seed, need_post_scale);
+        seed = cldnn::hash_combine(seed, need_post_shift);
+        seed = cldnn::hash_combine(seed, need_pre_shift);
+        seed = cldnn::hash_combine(seed, need_clamp);
+        seed = cldnn::hash_combine(seed, need_min_clamp);
+        seed = cldnn::hash_combine(seed, need_max_clamp);
+        seed = cldnn::hash_combine(seed, per_tensor_input_range);
+        seed = cldnn::hash_combine(seed, per_tensor_input_scale);
+        seed = cldnn::hash_combine(seed, per_tensor_input_shift);
+        seed = cldnn::hash_combine(seed, per_tensor_output_range);
+        seed = cldnn::hash_combine(seed, per_tensor_output_scale);
+        seed = cldnn::hash_combine(seed, per_tensor_output_shift);
+        seed = cldnn::hash_combine(seed, in_lo);
+        seed = cldnn::hash_combine(seed, in_hi);
+        seed = cldnn::hash_combine(seed, in_scale);
+        seed = cldnn::hash_combine(seed, in_shift);
+        seed = cldnn::hash_combine(seed, out_lo);
+        seed = cldnn::hash_combine(seed, out_hi);
+        seed = cldnn::hash_combine(seed, out_scale);
+        seed = cldnn::hash_combine(seed, out_shift);
         return seed;
     }
 
@@ -43,7 +96,28 @@ struct quantize : public primitive_base<quantize> {
 
         auto rhs_casted = downcast<const quantize>(rhs);
 
-        return levels == rhs_casted.levels;
+        return levels == rhs_casted.levels &&
+               scale_shift_opt == rhs_casted.scale_shift_opt &&
+               need_post_scale == rhs_casted.need_post_scale &&
+               need_post_shift == rhs_casted.need_post_shift &&
+               need_pre_shift == rhs_casted.need_pre_shift &&
+               need_clamp == rhs_casted.need_clamp &&
+               need_min_clamp == rhs_casted.need_min_clamp &&
+               need_max_clamp == rhs_casted.need_max_clamp &&
+               per_tensor_input_range == rhs_casted.per_tensor_input_range &&
+               per_tensor_input_scale == rhs_casted.per_tensor_input_scale &&
+               per_tensor_input_shift == rhs_casted.per_tensor_input_shift &&
+               per_tensor_output_range == rhs_casted.per_tensor_output_range &&
+               per_tensor_output_scale == rhs_casted.per_tensor_output_scale &&
+               per_tensor_output_shift == rhs_casted.per_tensor_output_shift &&
+               in_lo == rhs_casted.in_lo &&
+               in_hi == rhs_casted.in_hi &&
+               in_scale == rhs_casted.in_scale &&
+               in_shift == rhs_casted.in_shift &&
+               out_lo == rhs_casted.out_lo &&
+               out_hi == rhs_casted.out_hi &&
+               out_scale == rhs_casted.out_scale &&
+               out_shift == rhs_casted.out_shift;
     }
 };
 }  // namespace cldnn
