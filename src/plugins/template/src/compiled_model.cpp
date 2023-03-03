@@ -9,78 +9,17 @@
 #include "async_infer_request.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "plugin.hpp"
 #include "template/config.hpp"
 #include "template_itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace TemplatePlugin;
-
-namespace {
-
-InferenceEngine::SizeVector get_dims(const ov::Output<ov::Node>& port) {
-    InferenceEngine::SizeVector dims = {};
-    const auto& p_shape = port.get_partial_shape();
-    if (p_shape.is_static())
-        dims = p_shape.get_shape();
-    return dims;
-}
-
-}  // namespace
-
-namespace ov {
-namespace legacy_convert {
-
-void fill_input_info(const ov::Output<ov::Node>& input, InferenceEngine::InputInfo::Ptr& input_info) {
-    if (!input_info) {
-        // Create input info
-        auto param_name = input.get_node()->get_friendly_name();
-        auto dims = get_dims(input);
-        InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(input.get_element_type()),
-                                         dims,
-                                         InferenceEngine::TensorDesc::getLayoutByDims(dims));
-        auto data = std::make_shared<InferenceEngine::Data>(param_name, desc);
-        input_info = std::make_shared<InferenceEngine::InputInfo>();
-        input_info->setInputData(data);
-    }
-    auto& rt_info = input.get_rt_info();
-    auto it = rt_info.find("ie_legacy_preproc");
-    if (it != rt_info.end()) {
-        input_info->getPreProcess() = it->second.as<InferenceEngine::PreProcessInfo>();
-    }
-    it = rt_info.find("ie_legacy_td");
-    if (it != rt_info.end()) {
-        auto td = it->second.as<InferenceEngine::TensorDesc>();
-        input_info->getInputData()->reshape(td.getDims(), td.getLayout());
-        input_info->setPrecision(td.getPrecision());
-    }
-}
-void fill_output_info(const ov::Output<ov::Node>& output, InferenceEngine::DataPtr& output_info) {
-    if (!output_info) {
-        // Create input info
-        const auto& res_name = ov::op::util::create_ie_output_name(output);
-        auto dims = get_dims(output);
-        InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(output.get_element_type()),
-                                         dims,
-                                         InferenceEngine::TensorDesc::getLayoutByDims(dims));
-        output_info = std::make_shared<InferenceEngine::Data>(res_name, desc);
-    }
-    auto& rt_info = output.get_rt_info();
-    auto it = rt_info.find("ie_legacy_td");
-    if (it != rt_info.end()) {
-        auto td = it->second.as<InferenceEngine::TensorDesc>();
-        output_info->reshape(td.getDims(), td.getLayout());
-        output_info->setPrecision(td.getPrecision());
-    }
-}
-}  // namespace legacy_convert
-}  // namespace ov
-
 // ! [executable_network:ctor_cnnnetwork]
-TemplatePlugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
-                                             const std::shared_ptr<const ov::IPlugin>& plugin,
-                                             const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
-                                             const Configuration& cfg)
+ov::template_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
+                                                  const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                  const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
+                                                  const Configuration& cfg)
     : ov::ICompiledModel(model, plugin, task_executor),  // Disable default threads creation
       _cfg(cfg),
       m_model(model) {
@@ -89,8 +28,9 @@ TemplatePlugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& m
     // In this case, _waitExecutor should also be created per device.
     try {
         compile_model(m_model);
-    } catch (const InferenceEngine::Exception&) {
-        throw;
+    } catch (const InferenceEngine::Exception& e) {
+        // Some transformations can throw legacy exception
+        throw ov::Exception(e.what());
     } catch (const std::exception& e) {
         OPENVINO_ASSERT(false, "Standard exception from compilation library: ", e.what());
     } catch (...) {
@@ -103,7 +43,7 @@ TemplatePlugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& m
 // forward declaration
 void transform_model(const std::shared_ptr<ov::Model>& model);
 
-void TemplatePlugin::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& model) {
+void ov::template_plugin::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& model) {
     // apply plugins transformations
     transform_model(model);
     // Perform any other steps like allocation and filling backend specific memory handles and so on
@@ -111,44 +51,44 @@ void TemplatePlugin::CompiledModel::compile_model(const std::shared_ptr<ov::Mode
 // ! [executable_network:map_graph]
 
 // ! [executable_network:create_infer_request]
-std::shared_ptr<ov::IAsyncInferRequest> TemplatePlugin::CompiledModel::create_infer_request() const {
+std::shared_ptr<ov::IAsyncInferRequest> ov::template_plugin::CompiledModel::create_infer_request() const {
     auto internal_request = create_sync_infer_request();
-    auto async_infer_request =
-        std::make_shared<AsyncInferRequest>(std::static_pointer_cast<TemplatePlugin::InferRequest>(internal_request),
-                                            get_task_executor(),
-                                            get_template_plugin()->_waitExecutor,
-                                            get_callback_executor());
+    auto async_infer_request = std::make_shared<AsyncInferRequest>(
+        std::static_pointer_cast<ov::template_plugin::InferRequest>(internal_request),
+        get_task_executor(),
+        get_template_plugin()->_waitExecutor,
+        get_callback_executor());
 
     return async_infer_request;
 }
 
-std::shared_ptr<ov::ISyncInferRequest> TemplatePlugin::CompiledModel::create_sync_infer_request() const {
+std::shared_ptr<ov::ISyncInferRequest> ov::template_plugin::CompiledModel::create_sync_infer_request() const {
     return std::make_shared<InferRequest>(
-        std::static_pointer_cast<const TemplatePlugin::CompiledModel>(shared_from_this()));
+        std::static_pointer_cast<const ov::template_plugin::CompiledModel>(shared_from_this()));
 }
 // ! [executable_network:create_infer_request]
 
-void TemplatePlugin::CompiledModel::set_property(const ov::AnyMap& properties) {
+void ov::template_plugin::CompiledModel::set_property(const ov::AnyMap& properties) {
     OPENVINO_NOT_IMPLEMENTED;
 }
-ov::RemoteContext TemplatePlugin::CompiledModel::get_context() const {
+ov::RemoteContext ov::template_plugin::CompiledModel::get_context() const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<const ov::Model> TemplatePlugin::CompiledModel::get_runtime_model() const {
+std::shared_ptr<const ov::Model> ov::template_plugin::CompiledModel::get_runtime_model() const {
     return m_model;
 }
 
-std::shared_ptr<const Plugin> TemplatePlugin::CompiledModel::get_template_plugin() const {
+std::shared_ptr<const ov::template_plugin::Plugin> ov::template_plugin::CompiledModel::get_template_plugin() const {
     auto plugin = get_plugin();
     OPENVINO_ASSERT(plugin);
-    auto template_plugin = std::static_pointer_cast<const TemplatePlugin::Plugin>(plugin);
+    auto template_plugin = std::static_pointer_cast<const ov::template_plugin::Plugin>(plugin);
     OPENVINO_ASSERT(template_plugin);
     return template_plugin;
 }
 
 // ! [executable_network:get_config]
-InferenceEngine::Parameter TemplatePlugin::CompiledModel::get_property(const std::string& name) const {
+ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name) const {
     const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
         properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
     };
@@ -179,7 +119,9 @@ InferenceEngine::Parameter TemplatePlugin::CompiledModel::get_property(const std
         return to_string_vector(metrics);
     } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         auto configs = default_rw_properties();
-        auto streamExecutorConfigKeys = InferenceEngine::IStreamsExecutor::Config{}.SupportedKeys();
+        auto streamExecutorConfigKeys = ov::threading::IStreamsExecutor::Config{}
+                                            .get_property(ov::supported_properties.name())
+                                            .as<std::vector<std::string>>();
         for (auto&& configKey : streamExecutorConfigKeys) {
             configs.emplace_back(configKey);
         }
@@ -208,7 +150,7 @@ InferenceEngine::Parameter TemplatePlugin::CompiledModel::get_property(const std
 // ! [executable_network:get_config]
 
 // ! [executable_network:export]
-void TemplatePlugin::CompiledModel::export_model(std::ostream& modelStream) const {
+void ov::template_plugin::CompiledModel::export_model(std::ostream& modelStream) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "ExecutableNetwork::Export");
 
     std::stringstream xmlFile, binFile;

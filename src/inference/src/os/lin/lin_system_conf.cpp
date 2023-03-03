@@ -13,10 +13,10 @@
 #include <string>
 #include <vector>
 
-#include "ie_common.h"
-#include "ie_system_conf.h"
+#include "dev/threading/parallel_custom_arena.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "streams_executor.hpp"
-#include "threading/ie_parallel_custom_arena.hpp"
 
 namespace ov {
 
@@ -242,7 +242,7 @@ void parse_processor_info_linux(const int _processors,
     }
 };
 
-#if !((IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO))
+#if !((OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO))
 std::vector<int> get_available_numa_nodes() {
     std::vector<int> nodes((0 == cpu._sockets) ? 1 : cpu._sockets);
     std::iota(std::begin(nodes), std::end(nodes), 0);
@@ -252,7 +252,7 @@ std::vector<int> get_available_numa_nodes() {
 int get_number_of_cpu_cores(bool bigCoresOnly) {
     unsigned numberOfProcessors = cpu._processors;
     unsigned totalNumberOfCpuCores = cpu._cores;
-    IE_ASSERT(totalNumberOfCpuCores != 0);
+    OPENVINO_ASSERT(totalNumberOfCpuCores != 0);
     cpu_set_t usedCoreSet, currentCoreSet, currentCpuSet;
     CPU_ZERO(&currentCpuSet);
     CPU_ZERO(&usedCoreSet);
@@ -270,7 +270,7 @@ int get_number_of_cpu_cores(bool bigCoresOnly) {
         }
     }
     int phys_cores = CPU_COUNT(&currentCoreSet);
-#if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
     auto core_types = custom::info::core_types();
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
         phys_cores = custom::info::default_concurrency(

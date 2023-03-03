@@ -217,7 +217,12 @@ void KernelBaseOpenCL::FillCLKernelData(clKernelData& kernel,
     kernel.code.kernelString = GetKernelString(kernelMapName, jit, entryPoint, engine_info, exeMode);
     kernel.params.workGroups.global = dispatchData.gws;
     kernel.params.workGroups.local = dispatchData.lws;
-    kernel.params.arguments = GetArgsDesc(number_of_inputs, weights, bias, number_of_inputs_for_fused_prims, number_of_outputs, is_dynamic);
+    kernel.params.arguments = GetArgsDesc(number_of_inputs,
+                                          weights,
+                                          bias,
+                                          number_of_inputs_for_fused_prims,
+                                          number_of_outputs,
+                                          is_dynamic);
 }
 
 bool KernelBaseOpenCL::layout_is_one_of(const MultiDataTensor& tensors, const std::vector<DataLayout>& allowed_layouts) const {
