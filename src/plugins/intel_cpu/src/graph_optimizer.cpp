@@ -230,11 +230,15 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph &graph) {
             continue;
         }
 
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseConvolutionMatMulDeconvAndBias_ParentNode);
+
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
         if (!isSuitableChildNode(parentNode, childNode)) {
             parent++;
             continue;
         }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseConvolutionMatMulDeconvAndBias_ChildNode);
 
         auto childs = childNode->childEdges;
         auto parents = childNode->parentEdges;
@@ -331,11 +335,15 @@ void GraphOptimizer::FuseDeconvolutionAndSimpleOperation(Graph &graph) {
             continue;
         }
 
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseDeconvolutionAndSimpleOperation_ParentNode);
+
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
         if (!parentNode->canFuse(childNode)) {
             parent++;
             continue;
         }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseDeconvolutionAndSimpleOperation_ChildNode);
 
         childNode->fuseInto(parentNode);
 
@@ -409,11 +417,15 @@ void GraphOptimizer::FuseMultiplyAndAdd(Graph &graph) {
             continue;
         }
 
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseMultiplyAndAdd_ParentNode);
+
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
         if (!isSuitableChildNode(parentNode, childNode)) {
             parent++;
             continue;
         }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseMultiplyAndAdd_ChildNode);
 
         auto childs = childNode->childEdges;
         auto parents = childNode->parentEdges;
@@ -500,11 +512,15 @@ void GraphOptimizer::MergeConvertAndScaleShift(Graph& graph) {
             continue;
         }
 
+        CPU_GRAPH_OPTIMIZER_SCOPE(MergeConvertAndScaleShift_ParentNode);
+
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
         if (!isSuitableChildNode(childNode)) {
             parent++;
             continue;
         }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(MergeConvertAndScaleShift_ChildNode);
 
         auto parents = parentNode->parentEdges;
         for (size_t i = 0; i < parents.size(); i++) {
@@ -701,6 +717,8 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
         auto conv = graphNodes[i];
         if (!isSuitableConvNode(conv)) continue;
 
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseConvolutionAndZeroPoints_ConvNode);
+
         auto dataEltwise = conv->getParentEdgesAtPort(0)[0]->getParent();
         auto weightsEltwise = conv->getParentEdgesAtPort(1)[0]->getParent();
         if (initializeInputZeroPoints(conv, dataEltwise, weightsEltwise)) {
@@ -741,6 +759,8 @@ void GraphOptimizer::FuseFullyConnectedAndSimpleOperation(Graph &graph) {
             parent++;
             continue;
         }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseFullyConnectedAndSimpleOperation_ParentNode);
 
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
         if (!parentNode->canFuse(childNode)) {
@@ -785,6 +805,8 @@ void GraphOptimizer::FuseMatMulAndSimpleOperation(Graph &graph) {
             parent++;
             continue;
         }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseMatMulAndSimpleOperation_ParentNode);
 
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
         if (!parentNode->canFuse(childNode)) {
@@ -932,8 +954,12 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph &graph) {
         auto parentConvNode = graphNodes[i];
         if (!isSuitableParentConvolution(parentConvNode)) continue;
 
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseConvolutionAndDWConvolution_ParentConv);
+
         auto childConvNode = parentConvNode->getChildEdgeAt(0)->getChild();
         if (!isSuitableChildConvolution(parentConvNode, childConvNode)) continue;
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseConvolutionAndDWConvolution_ChildConv);
 
         if (!isFusingWorthwhile(parentConvNode, childConvNode)) continue;
 
@@ -964,6 +990,8 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperationThroughMaxPool(Graph &grap
             parent++;
             continue;
         }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseConvolutionAndSimpleOperationThroughMaxPool_ParentNode);
 
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
         if (childNode->getAlgorithm() != Algorithm::PoolingMax || childNode->getChildEdges().size() != 1) {
@@ -1023,6 +1051,9 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperation(Graph &graph) {
             parent++;
             continue;
         }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseConvolutionAndSimpleOperation_ParentNode);
+
         const auto parentNodeType = parentNode->getType();
 
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
@@ -1074,8 +1105,12 @@ void GraphOptimizer::FusePoolingAndFakeQuantize(Graph &graph) {
         auto parent = graphNodes[i];
         if (!isSuitableParentNode(parent)) continue;
 
+        CPU_GRAPH_OPTIMIZER_SCOPE(FusePoolingAndFakeQuantize_ParentNode);
+
         auto child = parent->getChildEdgeAt(0)->getChild();
         if (!isSuitableChildNode(child)) continue;
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(FusePoolingAndFakeQuantize_ChildNode);
 
         child->fuseInto(parent);
 
@@ -1401,6 +1436,8 @@ void GraphOptimizer::FuseMVNAndSimpleOperation(Graph &graph) {
             continue;
         }
 
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseMVNAndSimpleOperation_ParentNode);
+
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
         if (!parentNode->canFuse(childNode)) {
             parent++;
@@ -1456,11 +1493,15 @@ void GraphOptimizer::FuseInterpolateAndSimpleOperation(Graph &graph) {
             continue;
         }
 
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseInterpolateAndSimpleOperation_ParentNode);
+
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
         if (!isSuitableChildNode(parentNode, childNode)) {
             parent++;
             continue;
         }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseInterpolateAndSimpleOperation_ChildNode);
 
         childNode->fuseInto(parentNode);
 
@@ -1493,6 +1534,8 @@ void GraphOptimizer::FuseNormalizeL2AndSimpleOperation(Graph &graph) {
             parent++;
             continue;
         }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseNormalizeL2AndSimpleOperation_ParentNode);
 
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
         if (!parentNode->canFuse(childNode)) {
@@ -1531,6 +1574,8 @@ void GraphOptimizer::FuseReduceAndSimpleOperation(Graph &graph) {
             parent++;
             continue;
         }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseReduceAndSimpleOperation_ParentNode);
 
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
         if (!parentNode->canFuse(childNode)) {
@@ -1594,6 +1639,8 @@ void GraphOptimizer::FuseEltwiseAndSimple(Graph &graph) {
             continue;
         }
 
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseEltwiseAndSimple_ParentNode);
+
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
 
         if ((parentNode->isDynamicNode() && !childNode->isDynamicNode()) || (!parentNode->isDynamicNode() && childNode->isDynamicNode())) {
@@ -1605,6 +1652,8 @@ void GraphOptimizer::FuseEltwiseAndSimple(Graph &graph) {
             parent++;
             continue;
         }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseEltwiseAndSimple_ChildNode);
 
         childNode->fuseInto(parentNode);
 
@@ -1799,8 +1848,12 @@ void GraphOptimizer::FuseClampAndFakeQuantize(Graph &graph) {
         auto parent = graphNodes[i];
         if (!isSuitableClampNode(parent)) continue;
 
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseClampAndFakeQuantize_ClalmpNode);
+
         auto child = parent->getChildEdgeAt(0)->getChild();
         if (!isSuitableFakeQuantizeNode(child)) continue;
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseClampAndFakeQuantize_QuantizeNode);
 
         if (fuseClampAndFakeQuantizeNodes(parent, child)) {
             graph.DropNode(parent);
@@ -1957,8 +2010,12 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph &graph) {
         auto parent = graphNodes[i];
         if (!isSuitableScaleShiftNode(parent)) continue;
 
+        CPU_GRAPH_OPTIMIZER_SCOPE(FusePerformedAsScaleShiftAndFakeQuantize_ShiftNode);
+
         auto child = parent->getChildEdgeAt(0)->getChild();
         if (!isSuitableFakeQuantizeNode(child)) continue;
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(FusePerformedAsScaleShiftAndFakeQuantize_QuantizeNode);
 
         if (fuseScaleShiftAndFakeQuantizeNodes(parent, child)) {
             auto parentEdges = parent->parentEdges;
@@ -2163,10 +2220,15 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph &graph) {
         if (!isSuitableParentNode(parentNode)) {
             continue;
         }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(MergeTransposeAndReorder_ParentNode);
+
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
         if (!isSuitableChildNode(childNode)) {
             continue;
         }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(MergeTransposeAndReorder_ChildNode);
 
         if (checkAscendingSummaryOrder(parentNode, childNode)) {
             mergeTransposeAndReorder(parentNode, childNode);
@@ -2189,6 +2251,8 @@ void GraphOptimizer::reshapeRnnSeq(Graph &graph) {
         if (!isSuitableParentNode(parentNode)) {
             continue;
         }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(reshapeRnnSeq_ParentNode);
 
         auto childrenEdges = parentNode->getChildEdgesAtPort(0);
         auto minDims = parentNode->getOutputShapeAtPort(0).getMinDims();
