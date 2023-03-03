@@ -226,9 +226,9 @@ Supported configurations:
 - To switch off/on the CPU and GPU plugins, use the `cmake` options `-DENABLE_INTEL_CPU=ON/OFF` and `-DENABLE_INTEL_GPU=ON/OFF` respectively.
 
 - To build the OpenVINO Runtime Python API:
-  1. First, install all additional packages (e.g., cython and opencv) listed in the `<openvino>\src\bindings\python\src\compatibility\openvino\requirements-dev.txt` file:
+  1. First, install all additional packages (e.g., cython and opencv) listed in the file:
       ```sh
-      pip install -r requirements-dev.txt
+      pip install -r <openvino>\src\bindings\python\src\compatibility\openvino\requirements-dev.txt
       ```
   2. Second, enable the `-DENABLE_PYTHON=ON` in the CMake (Step #4) option above. To specify an exact Python version, use the following options:
      ```sh
