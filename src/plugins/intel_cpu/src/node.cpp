@@ -540,7 +540,10 @@ void Node::execute(dnnl::stream strm) {
 void Node::updateShapes() {
     IE_ASSERT(isDynamicNode()) << "Node::updateShapes() is called to a static shape node of type: " << getTypeStr() << " with name: " << getName();
     if (needShapeInfer()) {
-        redefineOutputMemory(shapeInfer());
+        auto result = shapeInfer();
+        if (ShapeInferStatus::success == result.status) {
+            redefineOutputMemory(result.dims);
+        }
     }
 }
 
@@ -1503,14 +1506,19 @@ std::vector<VectorDims> Node::shapeInferGeneric(const std::vector<Shape>& shapes
             }
         }
 
-        return shapeInference->infer(input_shapes, input_values);
+        auto result = shapeInference->infer(input_shapes, input_values);
+        if (ShapeInferStatus::success != result.status) {
+            IE_THROW(Unexpected) << "Shape inference unexpectedly skipped";
+        }
+
+        return std::move(result.dims);
     }
     catch (const std::runtime_error& exp) {
         IE_THROW() << "Shape inference of " << getTypeStr()  << " node with name " << getName() << " failed: " << exp.what();
     }
 }
 
-std::vector<VectorDims> Node::shapeInfer() const {
+IShapeInfer::Result Node::shapeInfer() const {
     try {
         std::vector<std::reference_wrapper<const VectorDims>> input_shapes;
         auto input_value_port_mask = shapeInference->get_port_mask();

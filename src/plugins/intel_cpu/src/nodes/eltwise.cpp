@@ -108,7 +108,7 @@ struct EltwiseEmitter<jit_is_inf_emitter> {
  */
 class EltwiseShapeInfer : public ShapeInferEmptyPads {
 public:
-    std::vector<VectorDims> infer(
+    Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         size_t max_rank = 0;
@@ -141,7 +141,7 @@ public:
                 }
             }
         }
-        return { output_shape };
+        return { { std::move(output_shape) }, ShapeInferStatus::success };
     }
     port_mask_t get_port_mask() const override {
         return EMPTY_PORT_MASK;
