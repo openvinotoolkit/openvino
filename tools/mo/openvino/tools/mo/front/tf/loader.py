@@ -332,7 +332,9 @@ def convert_to_pb(argv: argparse.Namespace):
             isinstance(argv.input_model, str):
         return None
 
-    user_output_node_names_list = argv.output.split(',') if argv.output else None
+    user_output_node_names_list = argv.output if argv.output else None
+    if user_output_node_names_list is not None and not isinstance(user_output_node_names_list, list):
+        user_output_node_names_list = user_output_node_names_list.split(',')
     graph_def, _, _, _ = load_tf_graph_def(
         graph_file_name=argv.input_model,
         is_binary=not argv.input_model_is_text,

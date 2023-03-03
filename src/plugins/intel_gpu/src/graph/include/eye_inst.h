@@ -4,7 +4,6 @@
 
 #pragma once
 #include <intel_gpu/primitives/eye.hpp>
-#include <intel_gpu/runtime/error_handler.hpp>
 
 #include "primitive_inst.h"
 

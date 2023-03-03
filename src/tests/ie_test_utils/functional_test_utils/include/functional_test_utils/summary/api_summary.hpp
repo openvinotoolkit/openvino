@@ -48,7 +48,7 @@ public:
     static ApiSummary &getInstance();
     inline void getStatisticFromReport(const std::string& filePath);
     std::map<ov_entity, std::map<std::string, PassRate>> getApiStats() { return apiStats; }
-    void updateStat(ov_entity, const std::string& device, PassRate::Statuses);
+    void updateStat(ov_entity, const std::string& device, PassRate::Statuses, double rel_influence_coef = 1);
     void saveReport() override;
 };
 

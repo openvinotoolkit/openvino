@@ -17,11 +17,10 @@ namespace intel_cpu {
 class InternalDynShapeInfer final : public ShapeInferEmptyPads {
 public:
     InternalDynShapeInfer() = default;
-    std::vector<VectorDims> infer(
-        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        IE_THROW(Unexpected) << "InternalDynShapeInfer infer method unexpected call";
-        return {};
+    Result
+    infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+          const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        return {{}, ShapeInferStatus::skip};
     }
 
     port_mask_t get_port_mask() const override {
