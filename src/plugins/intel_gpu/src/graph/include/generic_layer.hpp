@@ -5,13 +5,13 @@
 #pragma once
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/runtime/memory.hpp"
-#include "kernel_selector_helper.h"
+
+// TODO: Remove OCL impl dependency here or move to OCL folder
+#include "impls/ocl/kernel_selector_helper.h"
 
 #include <vector>
 
 namespace cldnn {
-
-
 
 /// @brief Changes how data is ordered in memory. Value type is not changed & all information is preserved.
 /// @details Corresponding values are bitwise equal before/after reorder.
@@ -35,6 +35,12 @@ struct generic_layer : public primitive_base<generic_layer> {
     /// @brief Requested memory layout.
     layout output_layout;
     const kernel_selector::generic_kernel_params generic_params;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, id);
+        return seed;
+    }
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override { return {}; }

@@ -25,8 +25,7 @@ class IParser {
 public:
     using Ptr = std::shared_ptr<IParser>;
     virtual ~IParser() = default;
-    virtual CNNNetwork parse(
-        const pugi::xml_node& root, const Blob::CPtr& weights) = 0;
+    virtual CNNNetwork parse(const pugi::xml_node& root, const Blob::CPtr& weights) = 0;
 };
 
 class IRParser {
@@ -43,8 +42,7 @@ private:
 class CNNParser : public IParser {
 public:
     CNNParser() = default;
-    CNNNetwork parse(
-        const pugi::xml_node& root, const Blob::CPtr& weights) override;
+    CNNNetwork parse(const pugi::xml_node& root, const Blob::CPtr& weights) override;
 };
 
 }  // namespace InferenceEngine

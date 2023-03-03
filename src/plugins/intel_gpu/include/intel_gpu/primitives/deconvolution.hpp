@@ -375,6 +375,38 @@ struct deconvolution : public primitive_base<deconvolution> {
     /// @brief List of primitive ids containing bias data.
     const primitive_id_arr bias;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_range(seed, pad.begin(), pad.end());
+        seed = hash_range(seed, stride.begin(), stride.end());
+        seed = hash_combine(seed, groups);
+        seed = hash_combine(seed, grouped_weights_shape);
+        seed = hash_combine(seed, weights.size());
+        seed = hash_combine(seed, bias.size());
+        seed = hash_combine(seed, output_shape_id.empty());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const deconvolution>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(pad) &&
+               cmp_fields(stride) &&
+               cmp_fields(dilations) &&
+               cmp_fields(groups) &&
+               cmp_fields(pads_begin) &&
+               cmp_fields(pads_end) &&
+               cmp_fields(out_padding) &&
+               cmp_fields(grouped_weights_shape) &&
+               cmp_fields(weights.size()) &&
+               cmp_fields(bias.size()) &&
+               cmp_fields(output_shape_id.empty());
+        #undef cmp_fields
+    }
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {

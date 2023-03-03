@@ -2,33 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
+#include <ie_core.hpp>
 #include <memory>
+#include <string>
 #include <tuple>
 #include <vector>
-#include <string>
-
-#include <ie_core.hpp>
 
 #include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "shared_test_classes/base/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
-#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "functional_test_utils/plugin_cache.hpp"
 #include "ngraph_functions/builders.hpp"
-
 #include "ngraph_functions/pass/convert_prc.hpp"
+#include "ngraph_functions/utils/ngraph_helpers.hpp"
+#include "shared_test_classes/base/layer_test_utils.hpp"
 
-typedef std::tuple<
-    InferenceEngine::Precision,         // Network Precision
-    std::string,                        // Target Device
-    std::map<std::string, std::string>  // Configuration
-> fqWithMultipleOutConnectionsParams;
+typedef std::tuple<InferenceEngine::Precision,         // Network Precision
+                   std::string,                        // Target Device
+                   std::map<std::string, std::string>  // Configuration
+                   >
+    fqWithMultipleOutConnectionsParams;
 
 namespace LayerTestsDefinitions {
 
 class FQWithMultipleOutConnections : public testing::WithParamInterface<fqWithMultipleOutConnectionsParams>,
-    public LayerTestsUtils::LayerTestsCommon {
+                                     public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<fqWithMultipleOutConnectionsParams> obj) {
         InferenceEngine::Precision netPrecision;
@@ -56,19 +53,25 @@ protected:
         const ngraph::Shape shape = {1, 128};
         auto params = ngraph::builder::makeParams(ngPrc, {shape});
 
-        auto pattern1 = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{3},
-            ngraph::Shape{1, 2, 64});
+        auto pattern1 = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
+                                                                   ngraph::Shape{3},
+                                                                   ngraph::Shape{1, 2, 64});
         auto reshape1 = std::make_shared<ngraph::opset8::Reshape>(params[0], pattern1, false);
 
         auto relu1 = std::make_shared<ngraph::opset8::Relu>(reshape1);
 
-        auto lowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, { -10.0f });
-        auto highNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, { 10.0f });
-        auto fq = std::make_shared<ngraph::opset8::FakeQuantize>(relu1, lowNode, highNode, lowNode, highNode,
-            std::numeric_limits<uint16_t>::max());
+        auto lowNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {-10.0f});
+        auto highNode = ngraph::builder::makeConstant<float>(ngPrc, {1}, {10.0f});
+        auto fq = std::make_shared<ngraph::opset8::FakeQuantize>(relu1,
+                                                                 lowNode,
+                                                                 highNode,
+                                                                 lowNode,
+                                                                 highNode,
+                                                                 std::numeric_limits<uint16_t>::max());
 
-        auto pattern2 = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{shape.size()},
-            shape);
+        auto pattern2 = std::make_shared<ngraph::opset8::Constant>(ngraph::element::Type_t::i64,
+                                                                   ngraph::Shape{shape.size()},
+                                                                   shape);
         auto reshape2 = std::make_shared<ngraph::opset8::Reshape>(fq, pattern2, false);
 
         auto relu2 = std::make_shared<ngraph::opset8::Relu>(fq);
@@ -84,24 +87,20 @@ TEST_P(FQWithMultipleOutConnections, CompareWithRefImpl) {
     Run();
 };
 
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::FP16
-};
+const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
+                                                               InferenceEngine::Precision::FP16};
 
-const std::vector<std::map<std::string, std::string>> configs = {
-    {
-        {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-    },
-    {
-        {"GNA_DEVICE_MODE", "GNA_SW_FP32"},
-    }
-};
+const std::vector<std::map<std::string, std::string>> configs = {{
+                                                                     {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
+                                                                 },
+                                                                 {
+                                                                     {"GNA_DEVICE_MODE", "GNA_SW_FP32"},
+                                                                 }};
 
-INSTANTIATE_TEST_SUITE_P(smoke_fq_fusion, FQWithMultipleOutConnections,
-    ::testing::Combine(
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(CommonTestUtils::DEVICE_GNA),
-        ::testing::ValuesIn(configs)),
-    FQWithMultipleOutConnections::getTestCaseName);
-} // namespace LayerTestsDefinitions
+INSTANTIATE_TEST_SUITE_P(smoke_fq_fusion,
+                         FQWithMultipleOutConnections,
+                         ::testing::Combine(::testing::ValuesIn(netPrecisions),
+                                            ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                            ::testing::ValuesIn(configs)),
+                         FQWithMultipleOutConnections::getTestCaseName);
+}  // namespace LayerTestsDefinitions

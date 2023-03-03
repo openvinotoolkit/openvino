@@ -6,7 +6,6 @@
 
 #include "gtest/gtest.h"
 
-using namespace std;
 using namespace ngraph;
 
 TEST(aligned_buffer, alignment) {
@@ -18,7 +17,7 @@ TEST(aligned_buffer, alignment) {
 TEST(aligned_buffer, move) {
     {
         runtime::AlignedBuffer buffer1(100, 64);
-        runtime::AlignedBuffer buffer2(move(buffer1));
+        runtime::AlignedBuffer buffer2(std::move(buffer1));
         EXPECT_EQ(buffer1.size(), 0);
         EXPECT_EQ(buffer1.get_ptr(), nullptr);
         EXPECT_EQ(buffer2.size(), 100);
@@ -27,7 +26,7 @@ TEST(aligned_buffer, move) {
     {
         runtime::AlignedBuffer buffer1(100, 64);
         runtime::AlignedBuffer buffer2;
-        buffer2 = move(buffer1);
+        buffer2 = std::move(buffer1);
         EXPECT_EQ(buffer1.size(), 0);
         EXPECT_EQ(buffer1.get_ptr(), nullptr);
         EXPECT_EQ(buffer2.size(), 100);

@@ -151,7 +151,7 @@ test::Mat to_test(cv::Mat& mat) { return {mat.rows, mat.cols, mat.type(), mat.da
 std::vector<test::Mat> to_test(std::vector<cv::Mat>& mats)
 {
     std::vector<test::Mat> test_mats(mats.size());
-    for (int i = 0; i < mats.size(); i++) {
+    for (size_t i = 0; i < mats.size(); i++) {
         test_mats[i] = to_test(mats[i]);
     }
     return test_mats;
@@ -1218,9 +1218,9 @@ TEST_P(PreprocTest, Performance)
     int in_ocv_chan = -1, out_ocv_chan = -1;
     std::tie(in_ocv_chan, out_ocv_chan) = ocv_channels;
 #if defined(__arm__) || defined(__aarch64__)
-    double tolerance = Precision::U8 ? 4 : 0.015;
+    double tolerance = in_prec == Precision::U8 || in_prec == Precision::U16 || out_prec == Precision::U8 ? 4 : 0.015;
 #else
-    double tolerance = Precision::U8 ? 1 : 0.015;
+    double tolerance = in_prec == Precision::U8 || in_prec == Precision::U16 || out_prec == Precision::U8 ? 1 : 0.015;
 #endif
 
     auto precision_to_depth = [](Precision::ePrecision prec) -> int{

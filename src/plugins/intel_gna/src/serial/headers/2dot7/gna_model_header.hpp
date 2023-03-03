@@ -6,10 +6,11 @@
 
 #include <cstdint>
 #include <map>
+
 #include "backend/dnn_types.hpp"
+#include "gna_data_types.hpp"
 #include "serial/headers/2dot4/gna_model_header.hpp"
 #include "serial/headers/2dot6/gna_model_header.hpp"
-#include "gna_data_types.hpp"
 
 #pragma pack(push, 1)
 

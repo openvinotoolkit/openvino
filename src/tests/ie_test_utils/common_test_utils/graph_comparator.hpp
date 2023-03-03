@@ -28,7 +28,8 @@ public:
         ATTRIBUTES = 1 << 5,
         TENSOR_NAMES = 1 << 6,
         ACCURACY = 1 << 7,
-        SUBGRAPH_DESCRIPTORS = 1 << 8
+        SUBGRAPH_DESCRIPTORS = 1 << 8,
+        CONSUMERS_COUNT = 1 << 9
     };
 
     struct Result {

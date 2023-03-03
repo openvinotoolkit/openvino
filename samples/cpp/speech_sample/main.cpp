@@ -126,7 +126,7 @@ int main(int argc, char* argv[]) {
                     in.model().set_layout(ov::Layout(custom_layouts.at(item_name)));
                 }
             }
-            for (int i = 0; i < model->outputs().size(); i++) {
+            for (size_t i = 0; i < model->outputs().size(); i++) {
                 proc.output(i).tensor().set_element_type(ov::element::f32);
             }
             model = proc.build();

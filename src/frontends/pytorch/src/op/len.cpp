@@ -3,7 +3,10 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -11,15 +14,18 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_len(NodeContext& context) {
-    auto const_0 = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {0}));
-    auto const_1 = context.mark_node(opset10::Constant::create(element::i64, Shape{1}, {1}));
-    auto input = context.get_input(0);
-    auto input_shape = context.mark_node(std::make_shared<opset10::ShapeOf>(input, element::i64));
+using namespace ov::op;
 
-    auto slice = context.mark_node(std::make_shared<opset10::Slice>(input_shape, const_0, const_1, const_1));
-    auto squeeze = std::make_shared<opset10::Squeeze>(slice, const_0);
-    return {context.mark_node(squeeze)};
+OutputVector translate_len(NodeContext& context) {
+    num_inputs_check(context, 1, 1);
+    auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
+    auto const_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
+    auto input = context.get_input(0);
+    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
+
+    auto slice = context.mark_node(std::make_shared<v8::Slice>(input_shape, const_0, const_1, const_1));
+    // Slice will return empty tensor for empty lists, we use the fact that ReduceSum(empty tensor) = 0
+    return {context.mark_node(std::make_shared<v1::ReduceSum>(slice, const_0, false))};
 };
 
 }  // namespace op

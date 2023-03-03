@@ -92,10 +92,6 @@ static inline bool isFloatCompatible(Precision prc) {
     return Precision::FP32 == prc || Precision::BF16 == prc;
 }
 
-static inline bool isFloatCompatible(memory::data_type type) {
-    return memory::data_type::f32 == type || memory::data_type::bf16 == type;
-}
-
 // normalize_variance = false : src->mean
 // normalize_variance = true : src+mean->variance:sqr(x-mean)
 template <cpu_isa_t isa>

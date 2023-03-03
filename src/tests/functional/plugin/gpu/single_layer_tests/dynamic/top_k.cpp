@@ -19,16 +19,16 @@ using namespace ov::test;
 namespace GPULayerTestsDefinitions {
 
 typedef std::tuple<
-        int64_t,                           // keepK
-        int64_t,                           // axis
-        ngraph::opset4::TopK::Mode,        // mode
-        ngraph::opset4::TopK::SortType,    // sort
-        ElementType,                       // Net precision
-        ElementType,                       // Input precision
-        ElementType,                       // Output precision
-        InputShape,                        // inputShape
-        TargetDevice,                      // Device name
-        std::map<std::string, std::string> // Additional network configuration
+        int64_t,                            // keepK
+        int64_t,                            // axis
+        ngraph::opset4::TopK::Mode,         // mode
+        ngraph::opset4::TopK::SortType,     // sort
+        ElementType,                        // Net precision
+        ElementType,                        // Input precision
+        ElementType,                        // Output precision
+        InputShape,                         // inputShape
+        TargetDevice,                       // Device name
+        ngraph::helpers::InputLayerType     // Input type
 > TopKLayerTestParamsSet;
 
 class TopKLayerGPUTest : public testing::WithParamInterface<TopKLayerTestParamsSet>,
@@ -43,8 +43,8 @@ public:
         ElementType netPrecision, inPrc, outPrc;
         InputShape inputShape;
         TargetDevice targetDevice;
-        std::map<std::string, std::string> additionalConfig;
-        std::tie(keepK, axis, mode, sort, netPrecision, inPrc, outPrc, inputShape, targetDevice, additionalConfig) = basicParamsSet;
+        ngraph::helpers::InputLayerType inputType;
+        std::tie(keepK, axis, mode, sort, netPrecision, inPrc, outPrc, inputShape, targetDevice, inputType) = basicParamsSet;
 
         std::ostringstream result;
         result << "k=" << keepK << "_";
@@ -58,11 +58,8 @@ public:
         for (const auto& shape : inputShape.second) {
             result << CommonTestUtils::vec2str(shape) << "_";
         }
-        result << "config=(";
-        for (const auto configEntry : additionalConfig) {
-            result << configEntry.first << ", " << configEntry.second << ":";
-        }
         result << ")_";
+        result << "inputType=" << inputType;
         result << "TargetDevice=" << targetDevice;
 
         return result.str();
@@ -77,16 +74,29 @@ protected:
         ngraph::opset4::TopK::SortType sort;
         ElementType inPrc, outPrc;
         InputShape inputShape;
-        std::map<std::string, std::string> additionalConfig;
-        std::tie(keepK, axis, mode, sort, netPrecision, inPrc, outPrc, inputShape, targetDevice, additionalConfig) = basicParamsSet;
+        std::tie(keepK, axis, mode, sort, netPrecision, inPrc, outPrc, inputShape, targetDevice, inputType) = basicParamsSet;
 
-        init_input_shapes({inputShape});
+        if (inputType == ngraph::helpers::InputLayerType::CONSTANT) {
+            init_input_shapes({inputShape});
+        } else {
+            inputDynamicShapes = {inputShape.first, {}};
+            for (size_t i = 0; i < inputShape.second.size(); ++i) {
+                targetStaticShapes.push_back({inputShape.second[i], {}});
+            }
+        }
 
         auto params = ngraph::builder::makeDynamicParams(netPrecision, {inputDynamicShapes[0]});
 
         std::shared_ptr<ngraph::opset4::TopK> topk;
-        auto k = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, &keepK);
-        topk = std::dynamic_pointer_cast<ngraph::opset4::TopK>(std::make_shared<ngraph::opset4::TopK>(params[0], k, axis, mode, sort));
+        if (inputType == ngraph::helpers::InputLayerType::CONSTANT) {
+            auto k = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{}, &keepK);
+            topk = std::dynamic_pointer_cast<ngraph::opset4::TopK>(std::make_shared<ngraph::opset4::TopK>(params[0], k, axis, mode, sort));
+        } else {
+            auto k = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::Type_t::i64, inputDynamicShapes[1]);
+            params.push_back(k);
+            topk = std::dynamic_pointer_cast<ngraph::opset4::TopK>(
+                    std::make_shared<ngraph::opset4::TopK>(params[0], k, axis, mode, sort));
+        }
 
         ngraph::ResultVector results;
         for (size_t i = 0; i < topk->get_output_size(); i++) {
@@ -104,60 +114,41 @@ protected:
         tensor = ov::test::utils::create_and_fill_tensor(funcInputs[0].get_element_type(), shape);
         size_t size = tensor.get_size();
 
-        if (netPrecision == ElementType::f32 || netPrecision == ElementType::i32) {
+        if (netPrecision == ElementType::f32) {
             std::vector<int> data(size);
 
-            // For int32, deliberately set big numbers which are not accurately representable in fp32
-            int start = netPrecision == ElementType::i32 ? pow(2, 30) + 1 : - static_cast<int>(size / 2);
+            int start = - static_cast<int>(size / 2);
             std::iota(data.begin(), data.end(), start);
             std::mt19937 gen(0);
             std::shuffle(data.begin(), data.end(), gen);
 
-            if (netPrecision == ElementType::f32) {
-                auto *rawBlobDataPtr = static_cast<float *>(tensor.data());
-                for (size_t i = 0; i < size; ++i) {
-                    rawBlobDataPtr[i] = static_cast<float>(data[i]);
-                }
-            } else {
-                auto *rawBlobDataPtr = static_cast<int32_t *>(tensor.data());
-                for (size_t i = 0; i < size; ++i) {
-                    rawBlobDataPtr[i] = static_cast<int32_t>(data[i]);
-                }
-            }
-        } else if (netPrecision == ElementType::bf16) {
-            size_t O = 1, A = 1, I = 1;
-            A = shape[axis];
-            for (size_t i = 0; i < axis; i++)
-                O *= shape[i];
-            for (size_t i = axis + 1; i < shape.size(); i++)
-                I *= shape[i];
-            if (O * A * I != size)
-                FAIL() << "Incorrect blob shape " << shape;
-
-            auto *rawBlobDataPtr = static_cast<ngraph::bfloat16 *>(tensor.data());
-            for (size_t o = 0; o < O; o++) {
-                for (size_t i = 0; i < I; i++) {
-                    std::vector<int> data(A);
-                    int start = - static_cast<int>(A / 2);
-                    std::iota(data.begin(), data.end(), start);
-                    const size_t seed = (o + 1) * (i + 1);
-                    std::mt19937 gen(seed);
-                    std::shuffle(data.begin(), data.end(), gen);
-                    for (size_t a = 0; a < A; a++) {
-                        rawBlobDataPtr[o * A * I + a * I + i] = static_cast<ngraph::bfloat16>(data[a]);
-                    }
-                }
+            auto *rawBlobDataPtr = static_cast<float *>(tensor.data());
+            for (size_t i = 0; i < size; ++i) {
+                rawBlobDataPtr[i] = static_cast<float>(data[i]);
             }
         } else {
             FAIL() << "generate_inputs for " << netPrecision << " precision isn't supported";
         }
         inputs.insert({funcInputs[0].get_node_shared_ptr(), tensor});
+
+        if (inputType == ngraph::helpers::InputLayerType::PARAMETER) {
+            const auto& kPrecision = funcInputs[1].get_element_type();
+            const auto& kShape = targetInputStaticShapes[1];
+
+            const size_t startFrom = 1;
+            const size_t range = targetInputStaticShapes[0][axis];
+            const size_t seed = inferRequestNum++;
+            const auto kTensor = ov::test::utils::create_and_fill_tensor(kPrecision, kShape, range, startFrom, 1, seed);
+
+            inputs.insert({funcInputs[1].get_node_shared_ptr(), kTensor});
+        }
     }
 
 private:
     int64_t axis;
+    size_t inferRequestNum = 0;
     ElementType netPrecision;
-    bool staticShape;
+    ngraph::helpers::InputLayerType inputType;
 };
 
 TEST_P(TopKLayerGPUTest, CompareWithRefs) {
@@ -168,14 +159,12 @@ TEST_P(TopKLayerGPUTest, CompareWithRefs) {
 
 namespace {
 
-std::map<std::string, std::string> emptyAdditionalConfig;
-
 const std::vector<ElementType> netPrecisions = {
     ElementType::f32,
 };
 
-const std::vector<int64_t> axes = {0, 1, 2, 3};
-const std::vector<int64_t> k = {1, 5, 7, 18, 21};
+const std::vector<int64_t> axes = {0, 3};
+const std::vector<int64_t> k = {3, 5, 7};
 
 const std::vector<ngraph::opset4::TopK::Mode> modes = {
     ngraph::opset4::TopK::Mode::MIN,
@@ -189,12 +178,12 @@ const std::vector<ngraph::opset4::TopK::SortType> sortTypes = {
 
 std::vector<ov::test::InputShape> inputShapesDynamic = {
     {
-        {{21, {20, 25}, 21, {20, 25}}, {{21, 21, 21, 21}, {21, 22, 21, 23}}},
-        {ov::PartialShape::dynamic(4), {{21, 21, 21, 21}, {21, 22, 21, 23}}}
+        {ov::PartialShape::dynamic(4), {{7, 7, 7, 7}, {7, 8, 7, 9}}},
+        {{-1, -1, -1, -1}, {{8, 9, 10, 11}, {11, 7, 8, 9}}}
     }
 };
 
-INSTANTIATE_TEST_CASE_P(smoke_TopK_dynamic, TopKLayerGPUTest,
+INSTANTIATE_TEST_CASE_P(smoke_TopK_constant_dynamic, TopKLayerGPUTest,
     ::testing::Combine(
         ::testing::ValuesIn(k),
         ::testing::ValuesIn(axes),
@@ -205,7 +194,21 @@ INSTANTIATE_TEST_CASE_P(smoke_TopK_dynamic, TopKLayerGPUTest,
         ::testing::Values(ElementType::undefined),
         ::testing::ValuesIn(inputShapesDynamic),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::Values(emptyAdditionalConfig)),
+        ::testing::Values(ngraph::helpers::InputLayerType::CONSTANT)),
+    TopKLayerGPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_TopK_parameter_dynamic, TopKLayerGPUTest,
+    ::testing::Combine(
+        ::testing::Values(1),
+        ::testing::ValuesIn(axes),
+        ::testing::ValuesIn(modes),
+        ::testing::ValuesIn(sortTypes),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(ElementType::undefined),
+        ::testing::Values(ElementType::undefined),
+        ::testing::ValuesIn(inputShapesDynamic),
+        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+        ::testing::Values(ngraph::helpers::InputLayerType::PARAMETER)),
     TopKLayerGPUTest::getTestCaseName);
 
 } // namespace
