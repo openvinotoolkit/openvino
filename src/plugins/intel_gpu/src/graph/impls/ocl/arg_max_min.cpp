@@ -139,7 +139,10 @@ attach_arg_max_min_impl::attach_arg_max_min_impl() {
                                          types,
                                          formats);
 
-    auto dyn_formats = {format::bfyx};
+    auto dyn_formats = {
+        format::bfyx,
+        format::bfzyx
+    };
 
     implementation_map<arg_max_min>::add(impl_types::ocl,
                                          shape_types::dynamic_shape,
