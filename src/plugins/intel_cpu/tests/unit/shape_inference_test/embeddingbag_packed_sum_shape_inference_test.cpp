@@ -42,7 +42,18 @@ TEST_F(EmbeddingBagPackedSumV3StaticShapeInferenceTest, default_ctor) {
 }
 
 
-TEST_F(EmbeddingBagPackedSumV3StaticShapeInferenceTest, basic) {
+TEST_F(EmbeddingBagPackedSumV3StaticShapeInferenceTest, basic_2in) {
+    auto emb_table = std::make_shared<Parameter>(element::f32, ov::PartialShape::dynamic());
+    auto indices = std::make_shared<Parameter>(element::i64, ov::PartialShape::dynamic());
+
+    auto op = make_op(emb_table, indices);
+
+    input_shapes = {StaticShape{5, 2, 6}, StaticShape{3, 4}};
+    shape_inference(op.get(), input_shapes, output_shapes);
+    EXPECT_EQ(output_shapes[0], (StaticShape{3, 2, 6}));
+}
+
+TEST_F(EmbeddingBagPackedSumV3StaticShapeInferenceTest, basic_3in) {
     auto emb_table = std::make_shared<Parameter>(element::f32, ov::PartialShape::dynamic());
     auto indices = std::make_shared<Parameter>(element::i64, ov::PartialShape::dynamic());
     auto per_sample_weights = std::make_shared<Parameter>(element::f32, ov::PartialShape::dynamic());
