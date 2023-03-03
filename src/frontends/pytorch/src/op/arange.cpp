@@ -52,8 +52,8 @@ OutputVector translate_arange(NodeContext& context) {
         out_tensor = end;
         if (!context.input_is_none(2)) {
             dtype = convert_dtype(context.const_input<int64_t>(2));
-            dtype_applied = true;
         }
+        dtype_applied = true;
     } else if (num_inputs == 7) {
         // aten::arange(Scalar start, Scalar end, Scalar step, ScalarType dtype, Layout, Device, bool pin_memory)
         start = context.get_input(0);
@@ -62,8 +62,8 @@ OutputVector translate_arange(NodeContext& context) {
         out_tensor = end;
         if (!context.input_is_none(3)) {
             dtype = convert_dtype(context.const_input<int64_t>(3));
-            dtype_applied = true;
         }
+        dtype_applied = true;
     } else {
         FRONT_END_OP_CONVERSION_CHECK(false, "Not expected number of inputs for ", context.get_op_type());
     }
