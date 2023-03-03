@@ -62,8 +62,8 @@ std::vector<TShape> shape_infer(
     const auto& emb_table_shape = input_shapes[EMB_TABLE];
     if (emb_table_shape.rank().is_static()) {
         result_shape = emb_table_shape;
-        std::vector<int64_t> segments_value;
-        if (get_data_as_int64<TShape>(NUM_SEGMENTS, op, segments_value, constant_data)) {
+        TShape segments_value;
+        if (get_data_as_shape<TShape>(NUM_SEGMENTS, op, segments_value, constant_data)) {
             result_shape[0] = segments_value[0];
         } else {
             result_shape[0] = Dimension::dynamic();
