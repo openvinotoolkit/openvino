@@ -67,33 +67,13 @@ KernelsPriority SoftmaxKernel_bf::GetKernelsPriority(const Params& /*params*/, c
 KernelsData SoftmaxKernel_bf::GetKernelsData(const Params& params, const optional_params& optionalParams) const {
     KernelsData kds = GetCommonKernelsData(params, optionalParams);
     if (!kds.empty()) {
-        const softmax_params& orgParams = static_cast<const softmax_params&>(params);
-        bool is_dynamic = orgParams.outputs[0].is_dynamic();
-
         kds[0].update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
             const auto& prim_params = static_cast<const softmax_params&>(params);
             auto dispatchData = SetDefault(prim_params);
             OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
             kd.kernels[0].params.workGroups.global = dispatchData.gws;
             kd.kernels[0].params.workGroups.local = dispatchData.lws;
-            const size_t extra_chunk_size = dispatchData.gws[0] * dispatchData.gws[1] * BytesPerElement(prim_params.inputs[0].GetDType());
-            kd.internalBufferSizes.clear();
-            kd.internalBufferSizes.push_back(prim_params.inputs[0].PhysicalSizeInBytes() + extra_chunk_size);
-            kd.internalBufferDataType = prim_params.inputs[0].GetDType();
         };
-
-        if (is_dynamic) {
-            auto& args = kds[0].kernels[0].params.arguments;
-            args.clear();
-            args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
-            args.push_back({ArgumentDescriptor::Types::INPUT, 0});
-            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-            args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
-
-            kds[0].internalBufferSizes.clear();
-            kds[0].internalBufferSizes.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
-            kds[0].internalBufferDataType = orgParams.inputs[0].GetDType();
-        }
     }
 
     return kds;
@@ -115,7 +95,9 @@ JitConstants SoftmaxKernel_bf::GetJitConstants(const softmax_params& params, Dis
         const std::string lws_0 = "get_local_size(0)";
         const std::string data_set_count = "(FLATTEN_BF?" + toVectorMulString({f, b}) + ":" + b + ")";
         const std::string data_set_size = "(FLATTEN_BF?" + y + ":" + toVectorMulString({x, y, z, f}) + ")";
-        constexpr size_t stack_size = 100;
+        // It can be expected that the maximum possible itemsNum will not exceed 32
+        // Therefore, in dynamic shape, stack_size including additional buffer is set to 33
+        constexpr size_t stack_size = 33; // The size of stack for my_chunk
         jit.AddConstants({
             MakeJitConstant("SOFTMAX_DIM_Y_BFYX", softmax_dim_y_bfyx),
             MakeJitConstant("FLATTEN_BF", flatten_bf),
@@ -133,6 +115,7 @@ JitConstants SoftmaxKernel_bf::GetJitConstants(const softmax_params& params, Dis
             MakeJitConstant("DATA_SETS_COUNT", dispatchData.dataSetsCount),
             MakeJitConstant("DATA_SET_SIZE", dispatchData.dataSetSize),
             MakeJitConstant("LEFTOVERS", dispatchData.leftovers),
+            MakeJitConstant("STACK_SIZE", dispatchData.itemsNum + 1),
         });
     }
     auto activation_dt = GetActivationType(params);
