@@ -30,7 +30,6 @@ jobs:
 
 #  - checkout: self
 #    clean: 'true'
-#    fetchDepth: '1'
 #    submodules: 'true'
 #    path: openvino
 
@@ -42,7 +41,6 @@ jobs:
     # Should be after 'Install dependencies' because Git lfs is not installed
 #  - checkout: testdata
 #    clean: 'true'
-#    fetchDepth: '1'
 #    submodules: 'true'
 #    lfs: 'true'
 #    path: testdata

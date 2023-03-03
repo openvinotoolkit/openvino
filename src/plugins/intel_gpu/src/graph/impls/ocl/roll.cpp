@@ -1,11 +1,12 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "impls/implementation_map.hpp"
+
 #include "primitive_base.hpp"
+
+#include "roll_inst.hpp"
 #include "roll/roll_kernel_ref.hpp"
 #include "roll/roll_kernel_selector.hpp"
-#include "roll_inst.hpp"
 
 namespace cldnn {
 namespace ocl {
