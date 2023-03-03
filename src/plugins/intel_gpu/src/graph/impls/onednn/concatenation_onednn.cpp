@@ -6,7 +6,7 @@
 #include "eltwise_inst.h"
 #include "quantize_inst.h"
 #include "primitive_onednn_base.h"
-#include "impls/implementation_map.hpp"
+#include "implementation_map.hpp"
 
 #include "kernel_selector_common.h"
 

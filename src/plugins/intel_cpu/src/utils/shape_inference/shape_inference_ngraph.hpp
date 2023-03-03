@@ -20,7 +20,7 @@ public:
     NgraphShapeInfer(std::shared_ptr<IShapeInferCommon> shape_infer, IShapeInfer::port_mask_t port_mask) :
         m_shape_infer(shape_infer), m_port_mask(port_mask) {}
 
-    std::vector<VectorDims> infer(
+    Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
 

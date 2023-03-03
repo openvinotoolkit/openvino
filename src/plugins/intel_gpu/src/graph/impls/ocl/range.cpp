@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <range_inst.h>
 #include "primitive_base.hpp"
-#include <impls/implementation_map.hpp>
-#include <kernel_selector_helper.h>
-#include <range/range_kernel_selector.h>
-#include <range/range_kernel_ref.h>
-#include <intel_gpu/runtime/error_handler.hpp>
+
+#include "range_inst.h"
+#include "range/range_kernel_selector.h"
+#include "range/range_kernel_ref.h"
 
 namespace cldnn {
 namespace ocl {
