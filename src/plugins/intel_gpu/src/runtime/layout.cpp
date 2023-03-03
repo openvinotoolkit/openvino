@@ -334,7 +334,11 @@ tensor layout::get_tensor() const {
         shape = size.to_shape();
     }
 
+<<<<<<< HEAD
     std::vector<tensor::value_type> dims;
+=======
+    std::vector<tensor::value_type> dims(shape.size());
+>>>>>>> e99a9575bc (6th part of fixed warnings)
     for (auto dim : shape) {
         dims.push_back(static_cast<tensor::value_type>(dim));
     }
@@ -517,7 +521,11 @@ ov::PartialShape layout::transform(cldnn::format new_fmt) const {
 
     cldnn::tensor::value_type default_size = -1;
     auto shape = size.to_shape();
+<<<<<<< HEAD
     std::vector<tensor::value_type> dims;
+=======
+    std::vector<tensor::value_type> dims(shape.size());
+>>>>>>> e99a9575bc (6th part of fixed warnings)
     for (auto dim : shape) {
         dims.push_back(static_cast<tensor::value_type>(dim));
     }
