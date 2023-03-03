@@ -104,6 +104,10 @@ function(ie_add_plugin)
             add_cpplint_target(${IE_PLUGIN_NAME}_cpplint FOR_TARGETS ${IE_PLUGIN_NAME} CUSTOM_FILTERS ${custom_filter})
         endif()
 
+        # plugins does not have to be CXX ABI free, because nobody links with plugins,
+        # but let's add this mark to see how it goes
+        ov_abi_free_target(${IE_PLUGIN_NAME})
+
         add_dependencies(ov_plugins ${IE_PLUGIN_NAME})
 
         # install rules
