@@ -36,6 +36,10 @@ struct quantize : public primitive_base<quantize> {
         : primitive_base(id, inputs, {output_padding}, {optional_data_type{output_data_type}})
         , levels(levels) {}
 
+    quantize() : primitive_base("", {}), levels(0) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     /// @brief levels The number of quantization levels.
     int levels;
 
@@ -118,6 +122,56 @@ struct quantize : public primitive_base<quantize> {
                out_hi == rhs_casted.out_hi &&
                out_scale == rhs_casted.out_scale &&
                out_shift == rhs_casted.out_shift;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        ob << levels;
+        ob << scale_shift_opt;
+        ob << need_post_scale;
+        ob << need_post_shift;
+        ob << need_pre_shift;
+        ob << need_clamp;
+        ob << need_min_clamp;
+        ob << need_max_clamp;
+        ob << per_tensor_input_range;
+        ob << per_tensor_input_scale;
+        ob << per_tensor_input_shift;
+        ob << per_tensor_output_range;
+        ob << per_tensor_output_scale;
+        ob << per_tensor_output_shift;
+        ob << in_lo;
+        ob << in_hi;
+        ob << in_scale;
+        ob << in_shift;
+        ob << out_lo;
+        ob << out_hi;
+        ob << out_scale;
+        ob << out_shift;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        ib >> levels;
+        ib >> scale_shift_opt;
+        ib >> need_post_scale;
+        ib >> need_post_shift;
+        ib >> need_pre_shift;
+        ib >> need_clamp;
+        ib >> need_min_clamp;
+        ib >> need_max_clamp;
+        ib >> per_tensor_input_range;
+        ib >> per_tensor_input_scale;
+        ib >> per_tensor_input_shift;
+        ib >> per_tensor_output_range;
+        ib >> per_tensor_output_scale;
+        ib >> per_tensor_output_shift;
+        ib >> in_lo;
+        ib >> in_hi;
+        ib >> in_scale;
+        ib >> in_shift;
+        ib >> out_lo;
+        ib >> out_hi;
+        ib >> out_scale;
+        ib >> out_shift;
     }
 };
 }  // namespace cldnn
