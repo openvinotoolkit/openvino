@@ -380,8 +380,17 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         fullConfig.erase(ov::hint::performance_mode.name());
     if (!loadConfig.is_set_by_user(ov::cache_dir))
         fullConfig.erase(ov::cache_dir.name());
+    if (!loadConfig.is_set_by_user(ov::hint::execution_mode))
+        fullConfig.erase(ov::hint::execution_mode.name());
     // collect the settings that are applicable to the devices we are loading the network to
     std::unordered_map<std::string, ov::Any> multiNetworkConfig;
+    std::vector<DeviceInformation> metaDevices;
+    auto priorities = loadConfig.get_property(ov::device::priorities);
+    if (priorities.find("AUTO") != std::string::npos || priorities.find("MULTI") != std::string::npos) {
+        IE_THROW() << "The device candidate list should not include the meta plugin for " << GetName() << " device";
+    }
+    // If the user sets the property, insert the property into the deviceConfig
+    auto insertPropToConfig = [&](std::string property,
                                   std::string& deviceName,
                                   std::map<std::string, std::string>& deviceConfig) {
         if (deviceConfig.find(property) == deviceConfig.end()) {
@@ -407,6 +416,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         std::map<std::string, std::string> filterConfig;
         auto strDevices = GetDeviceList(fullConfig);
         // fill in the context for auto
+        if (loadConfig.get_property(ov::enable_profiling)) {
             filterConfig.insert({ov::enable_profiling.name(), PluginConfigParams::YES});
             autoSContext->_needPerfCounters = true;
         }
