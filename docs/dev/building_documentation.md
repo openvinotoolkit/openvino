@@ -56,3 +56,4 @@ Once the dependencies are found, the project must generated using CMake. The tar
 
  * [OpenVINO README](../../README.md)
  * [OpenVINO Developer Documentation](index.md)
+ * [OpenVINO How to Build](build.md)

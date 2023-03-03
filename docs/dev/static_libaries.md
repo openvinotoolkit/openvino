@@ -3,18 +3,27 @@
 ## Contents
 
 - [Introduction](#introduction)
+- [System requirements](#system-requirements)
 - [Configure OpenVINO runtime in CMake stage](#configure-openvino-runtime-in-cmake-stage)
 - [Build static OpenVINO libraries](#build-static-openvino-libraries)
 - [Link static OpenVINO runtime](#link-static-openvino-runtime)
 - [Static OpenVINO libraries + Conditional compilation for particular models](#static-openvino-libraries--conditional-compilation-for-particular-models)
 - [Building with static MSVC Runtime](#building-with-static-msvc-runtime)
 - [Limitations](#limitations)
-- [Additional Resources](#additional-resources)
+- [See also](#see-also)
 
 ## Introduction
 
 Building static OpenVINO Runtime libraries allows to additionally reduce the size of a binary when it is used together with conditional compilation.
 It is possible because not all interface symbols of OpenVINO Runtime libraries are exported to end users during a static build and can be removed by linker. See [Static OpenVINO libraries + Conditional compilation for particular models](#static-openvino-libraries--conditional-compilation-for-particular-models)
+
+## System requirements
+
+* CMake version 3.17 or higher must be used to build static OpenVINO libraries.
+* Supported OSes:
+    * Windows x64
+    * Linux x64
+    * All other OSes may work, but have not been explicitly tested
 
 ## Configure OpenVINO Runtime in the CMake stage
 
@@ -124,11 +133,6 @@ cmake -DCMAKE_TOOLCHAIN_FILE=<openvino source dir>/cmake/toolchains/mt.runtime.w
 
 ## Limitations
 
-* CMake version 3.17 or higher must be used to build static OpenVINO libraries.
-* Supported OSes:
-    * Windows x64
-    * Linux x64
-    * All other OSes may work, but have not been explicitly tested
 * The enabled and tested capabilities of OpenVINO Runtime in a static build:
     * OpenVINO common runtime - work with `ov::Model`, perform model loading on particular device
     * CPU and GNA inference plugins (**GPU and MYRIAD are not enabled**)
@@ -144,9 +148,10 @@ cmake -DCMAKE_TOOLCHAIN_FILE=<openvino source dir>/cmake/toolchains/mt.runtime.w
 
 * `ov::Op::type_info` static member is deprecated and not available in static build. Don't use `type_info` during implementation of your own custom operations, use `ov::Op::get_type_info_static()` instead. 
 
-## Additional Resources
+## See also
 
  * [OpenVINO README](../../README.md)
  * [OpenVINO Developer Documentation](index.md)
+ * [OpenVINO How to Build](build.md)
 
  

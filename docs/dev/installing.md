@@ -257,4 +257,10 @@ target_link_libraries(ov_c_app PRIVATE openvino::runtime::c)
 </p>
 </details>
 
-## Additional Resources
+## See also
+
+ * [OpenVINO README](../../README.md)
+ * [OpenVINO Developer Documentation](index.md)
+ * [OpenVINO How to Build](build.md)
+
+ 

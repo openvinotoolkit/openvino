@@ -21,6 +21,9 @@ This charpter describe how to prepare your machine for OpenVINO development.
 ### Software requirements 
 
 For the OpenVINO build next tools are required:
+
+> **NOTE**: For the details on how to build static OpenVINO, refer to [Building static OpenVINO libraries](static_libaries.md)
+
 <details><summary>Windows</summary>
 <p>
     
@@ -166,7 +169,7 @@ chmod +x scripts/submodule_update_with_gitee.sh
 
 <p>
 </details>
-<details><summary>(Extra for WoA) To build on Windows on ARM with ARM plugin</summary>
+<details><summary>(Optional) To build OpenVINO extra modules</summary>
 <p>
 
     ```sh
@@ -222,8 +225,6 @@ Supported configurations:
 - Required versions of TBB and OpenCV packages are downloaded automatically by the CMake-based script. If you want to use the automatically-downloaded packages but you have already installed TBB or OpenCV packages configured in your environment, you may need to clean the `TBBROOT` and `OpenCV_DIR` environment variables before running the `cmake` command; otherwise they won'tnbe downloaded and the build may fail if incompatible versions were installed.
 
 - If the CMake-based build script can not find and download the OpenCV package that is supported on your platform, or if you want to use a custom build of the OpenCV library, refer to the [Use Custom OpenCV Builds](./cmake_options_for_custom_comiplation.md#Building-with-custom-OpenCV) section for details.
-
-- To switch off/on the CPU and GPU plugins, use the `cmake` options `-DENABLE_INTEL_CPU=ON/OFF` and `-DENABLE_INTEL_GPU=ON/OFF` respectively.
 
 - To build the OpenVINO Runtime Python API:
   1. First, install all additional packages (e.g., cython and opencv) listed in the file:
@@ -348,29 +349,29 @@ The software was validated on:
 
 1. Create a build folder:
 ```sh
-%  mkdir build && cd build
+mkdir build && cd build
 ```
 2. (CMake configure) OpenVINO project uses a CMake-based build system. In the created `build` directory, run `cmake` to fetch project dependencies and create build rules:
 ```sh
-% cmake -DCMAKE_BUILD_TYPE=Release ..
+cmake -DCMAKE_BUILD_TYPE=Release ..
 ```
 > **NOTE**: By default OpenVINO CMake scripts try to introspect the system and enable all possible functionality based on that. You can look at the CMake output and see warnings, which show that some functionality is turned off and the corresponding reason, guiding what to do to install additionally to enable unavailable functionality. Additionally, you can change CMake options to enable / disable some functionality, add / remove compilation flags, provide custom version of dependencies like TBB, PugiXML, OpenCV, Protobuf. For more information, see [CMake Options for Custom Compilation](./cmake_options_for_custom_comiplation.md).
 3. (CMake build) Build OpenVINO project:
 ```sh
-% cmake --build . --config Release --parallel $(sysctl -n hw.ncpu)
+cmake --build . --config Release --parallel $(sysctl -n hw.ncpu)
 ```
 All built binaries are located in `<openvino_source_dir>/bin/intel64/Release/` and wheel packages are located in `<openvino_build_dir>/wheels`.
 
 4. (Optional install) Once you have built OpenVINO, you can install artifacts to a preferred location:
 ```sh
-% cmake -DCMAKE_INSTALL_PREFIX=<installation location> -P cmake_install.cmake
+cmake -DCMAKE_INSTALL_PREFIX=<installation location> -P cmake_install.cmake
 ```
 
 ### Cross-compilation 
 
 Since OSX version 11.x and Xcode version 12.2, the Apple development tools allows to compile arm64 code on x86 hosts and vice-versa. Based on this, OpenVINO can be compiled even on Apple Silicon machines, then such artifacts can be run on both Intel CPU hosts and Apple Silicon hosts (using [Rosetta]). To do this, add `-DCMAKE_OSX_ARCHITECTURES=x86_64 -DENABLE_INTEL_MYRIAD=OFF` in the cmake configuration step when compiling OpenVINO following the steps above. **Don't enable any system library usage explicitly** via CMake options, because they have `arm64` architecture, e.g.:
 ```sh
-% file /opt/homebrew/Cellar/tbb/2021.5.0_2/lib/libtbb.12.5.dylib
+file /opt/homebrew/Cellar/tbb/2021.5.0_2/lib/libtbb.12.5.dylib
 /opt/homebrew/Cellar/tbb/2021.5.0_2/lib/libtbb.12.5.dylib: Mach-O 64-bit dynamically linked shared library arm64
 ```
 
@@ -404,33 +405,26 @@ There are two options how to use OpenVINO on Apple Silicon:
 The software was validated on:
 - macOS 11.x, 12.x, arm64
 
-1. (Get sources) Clone submodules:
+> **NOTE**: Before you proceed, make sure that openvino and openvino_contrib repositories were cloned.
+
+1. Create a build folder:
 ```sh
-% git clone https://github.com/openvinotoolkit/openvino.git
-% git clone https://github.com/openvinotoolkit/openvino_contrib.git
-% cd openvino_contrib
-% git submodule update --init
-% cd ../openvino
-% git submodule update --init
+mkdir build && cd build
 ```
-2. Create a build folder:
+2. (CMake configure) OpenVINO project uses a CMake-based build system. In the created `build` directory, run `cmake` to fetch project dependencies and create build rules:
 ```sh
-%  mkdir build && cd build
-```
-3. (CMake configure) OpenVINO project uses a CMake-based build system. In the created `build` directory, run `cmake` to fetch project dependencies and create build rules:
-```sh
-% cmake -DCMAKE_BUILD_TYPE=Release -DOPENVINO_EXTRA_MODULES=../openvino_contrib/modules/arm_plugin ..
+cmake -DCMAKE_BUILD_TYPE=Release -DOPENVINO_EXTRA_MODULES=../openvino_contrib/modules/arm_plugin ..
 ```
 > **NOTE**: By default OpenVINO CMake scripts try to introspect the system and enable all possible functionality based on that. You can look at the CMake output and see warnings, which show that some functionality is turned off and the corresponding reason, guiding what to do to install additionally to enable unavailable functionality. Additionally, you can change CMake options to enable / disable some functionality, add / remove compilation flags, provide custom version of dependencies like TBB, PugiXML, OpenCV, Protobuf. For more information, see [CMake Options for Custom Compilation](./cmake_options_for_custom_comiplation.md).
-4. (CMake build) Build OpenVINO project:
+3. (CMake build) Build OpenVINO project:
 ```sh
-% cmake --build . --config Release --parallel $(sysctl -n hw.ncpu)
+cmake --build . --config Release --parallel $(sysctl -n hw.ncpu)
 ```
 All built binaries are located in `<openvino_source_dir>/bin/<arm64 | intel64>/Release/` and wheel packages are located in `<openvino_build_dir>/wheels`. 
 
-5. (Optional install) Once you have built OpenVINO, you can install artifacts to a preferred location:
+4. (Optional install) Once you have built OpenVINO, you can install artifacts to a preferred location:
 ```sh
-% cmake -DCMAKE_INSTALL_PREFIX=<installation location> -P cmake_install.cmake
+cmake -DCMAKE_INSTALL_PREFIX=<installation location> -P cmake_install.cmake
 ```
 
 ### Building x86_64 binaries
@@ -438,12 +432,12 @@ All built binaries are located in `<openvino_source_dir>/bin/<arm64 | intel64>/R
 Since OSX version 11.x and Xcode version 12.2, the Apple development tools allow to compile arm64 code on x86 hosts and vice-versa. Based on this, OpenVINO can be compiled as x86_64 binary, then run on Apple Silicon hosts using [Rosetta]. To do this, you must first install Rosetta:
 
 ```sh
-% softwareupdate --install-rosetta
+softwareupdate --install-rosetta
 ```
 
 Then try to compile OpenVINO using the steps above, but adding `-DCMAKE_OSX_ARCHITECTURES=x86_64` on cmake configure stage. But, **don't enable any system library usage explicitly** via CMake options, because they have `arm64` architecture, e.g.:
 ```sh
-% file /opt/homebrew/Cellar/tbb/2021.5.0_2/lib/libtbb.12.5.dylib
+file /opt/homebrew/Cellar/tbb/2021.5.0_2/lib/libtbb.12.5.dylib
 /opt/homebrew/Cellar/tbb/2021.5.0_2/lib/libtbb.12.5.dylib: Mach-O 64-bit dynamically linked shared library arm64
 ```
 
@@ -471,18 +465,12 @@ The same goes for other external dependencies like `libusb`. If you want to enab
   mv android-ndk-r20 android-ndk
   ```
 
-2. Clone submodules
+2. Create a build folder:
   ```sh
-  cd openvino
-  git submodule update --init --recursive
+  mkdir build
   ```
 
-3. Create a build folder:
-  ```sh
-    mkdir build
-  ```
-
-4. Change working directory to `build` and run `cmake` to create makefiles. Then run `make`.
+3. Change working directory to `build` and run `cmake` to create makefiles. Then run `make`.
   ```sh
   cd build
 
@@ -503,7 +491,7 @@ The same goes for other external dependencies like `libusb`. If you want to enab
   * `ANDROID_PLATFORM` - Android API version
   * `ANDROID_STL` specifies that shared C++ runtime is used. Copy `~/Downloads/android-ndk/sources/cxx-stl/llvm-libc++/libs/x86_64/libc++_shared.so` from Android NDK along with built binaries
 
-5. To reduce the binaries size, use `strip` tool from NDK:
+4. To reduce the binaries size, use `strip` tool from NDK:
 
 ```bash
 ~/Downloads/android-ndk/toolchains/llvm/prebuilt/linux-x86_64/x86_64-linux-android/bin/strip openvino/bin/intel64/Release/lib/*.so
@@ -578,23 +566,17 @@ To cross-compile ARM CPU plugins using pre-configured `Dockerfile` you can use t
 <details><summary>WebAssembly</summary>
 <p>
 
-1. (Get sources) Clone submodules:
-```sh
-$ git clone https://github.com/openvinotoolkit/openvino.git
-$ cd openvino
-$ git submodule update --init
-```
-2. Run docker image and mount a volume with OpenVINO source code:
+1. Run docker image and mount a volume with OpenVINO source code:
 ```sh
 $ docker pull emscripten/emsdk
 $ docker run -it --rm -v `pwd`:/openvino emscripten/emsdk
 ```
-3. (CMake configure) Run cmake configure step using helper emscripten command:
+2. (CMake configure) Run cmake configure step using helper emscripten command:
 ```sh
 $ mkdir build && cd build
 $ emcmake cmake -DCMAKE_BUILD_TYPE=Release /openvino
 ```
-4. (CMake build) Build OpenVINO project:
+3. (CMake build) Build OpenVINO project:
 ```sh
 $ emmake make -j$(nproc)
 ```
@@ -614,7 +596,11 @@ For details on how to build Intel® Distribution of OpenVINO™ toolkit in a Doc
 </p>
 </details>
 
-## Run application
+## See also
+
+ * [OpenVINO README](../../README.md)
+ * [OpenVINO Developer Documentation](index.md)
+ * [OpenVINO Get Started](./get_started.md)
 
 [CMake]:https://cmake.org/download/
 [Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 19.41.14441]:https://github.com/intel/compute-runtime/releases/tag/19.41.14441
