@@ -13,6 +13,12 @@ jobs:
         os: ['ubuntu-20.04']
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Install ninja
+        run: |
+          wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
+          unzip ninja-linux.zip
+          sudo cp -v ninja /usr/local/bin/
+
       - name: Clone OpenVINO
         uses: actions/checkout@v3
         with:
@@ -23,12 +29,6 @@ jobs:
         run: |
           sudo apt --assume-yes update
           sudo apt --assume-yes install lcov
-
-      - name: Install ninja
-        run: |
-          wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
-          unzip ninja-linux.zip
-          sudo cp -v ninja /usr/local/bin/
 
       - name: CMake configure
         run: |
