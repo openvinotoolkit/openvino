@@ -30,6 +30,7 @@
 #include "ie_network_reader.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
+#include "ie_plugins.hpp"
 #include "ie_remote_context.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/ngraph.hpp"
@@ -45,8 +46,6 @@
 #include "openvino/util/shared_object.hpp"
 #include "so_extension.hpp"
 #include "xml_parse_utils.h"
-
-#include "ie_plugins.hpp"
 
 using namespace InferenceEngine::PluginConfigParams;
 using namespace InferenceEngine;
