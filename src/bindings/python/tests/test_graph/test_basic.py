@@ -30,7 +30,7 @@ def test_graph_function_api():
     assert parameter_a.partial_shape == PartialShape([2, 2])
     parameter_a.layout = ov.Layout("NC")
     assert parameter_a.layout == ov.Layout("NC")
-    function = Model(model, [parameter_a, parameter_b, parameter_c], "TestFunction")
+    function = Model(model, [parameter_a, parameter_b, parameter_c], "TestModel")
 
     function.get_parameters()[1].set_partial_shape(PartialShape([3, 4, 5]))
 
@@ -56,7 +56,7 @@ def test_graph_function_api():
     assert results[0].get_output_partial_shape(0) == PartialShape([2, 2])
     results[0].layout = ov.Layout("NC")
     assert results[0].layout.to_string() == ov.Layout("NC")
-    assert function.get_friendly_name() == "TestFunction"
+    assert function.get_friendly_name() == "TestModel"
 
 
 @pytest.mark.parametrize(
@@ -521,7 +521,7 @@ def test_sink_function_ctor():
     add = ops.add(rv, input_data, name="MemoryAdd")
     node = ops.assign(add, "var_id_667")
     res = ops.result(add, "res")
-    function = Model(results=[res], sinks=[node], parameters=[input_data], name="TestFunction")
+    function = Model(results=[res], sinks=[node], parameters=[input_data], name="TestModel")
 
     ordered_ops = function.get_ordered_ops()
     op_types = [op.get_type_name() for op in ordered_ops]
@@ -534,7 +534,7 @@ def test_sink_function_ctor():
     assert (function.get_parameters()[0].get_partial_shape()) == PartialShape([2, 2])
     assert len(function.get_parameters()) == 1
     assert len(function.get_results()) == 1
-    assert function.get_friendly_name() == "TestFunction"
+    assert function.get_friendly_name() == "TestModel"
 
 
 def test_node_version():
