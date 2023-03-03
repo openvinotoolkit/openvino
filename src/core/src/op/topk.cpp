@@ -17,7 +17,6 @@
 #include "ngraph/runtime/reference/topk.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/validation_util.hpp"
-#include "openvino/core/dimension.hpp"
 
 using namespace std;
 using namespace ngraph;
