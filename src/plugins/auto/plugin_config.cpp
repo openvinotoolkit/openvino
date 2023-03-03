@@ -5,6 +5,7 @@
 
 namespace MultiDevicePlugin {
 const std::set<std::string> PluginConfig::_availableDevices = {"AUTO", "CPU", "GPU", "TEMPLATE", "NVIDIA", "VPUX", "MULTI", "HETERO", "mock"};
+const std::set<std::string> PluginConfig::_deviceBlacklist = {"VPUX", "GNA"};
 
 PluginConfig::PluginConfig() {
     set_default();
