@@ -429,8 +429,7 @@ void Unique::slicedTensorExec() {
                 }
                 for (int k = 0; k < uniqueLen; k++) {
                     if (mPos == moveTo[mPos]) {
-                        auto tmp = ++mPos;
-                        mPos = moveTo[tmp];
+                        mPos = moveTo[mPos + 1];
                         continue;
                     }
 
