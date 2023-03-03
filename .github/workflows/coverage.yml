@@ -13,12 +13,6 @@ jobs:
         os: ['ubuntu-20.04']
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Install ninja
-        run: |
-          wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
-          unzip ninja-linux.zip
-          sudo cp -v ninja /usr/local/bin/
-
       - name: Clone OpenVINO
         uses: actions/checkout@v3
         with:
@@ -31,16 +25,7 @@ jobs:
           sudo apt --assume-yes install lcov
 
       - name: CMake configure
-        run: |
-          cmake -GNinja \
-                -DENABLE_INTEL_MYRIAD_COMMON=OFF \
-                -DCMAKE_BUILD_TYPE=Release \
-                -DENABLE_FASTER_BUILD=ON \
-                -DENABLE_OV_ONNX_FRONTEND=ON \ 
-                -DENABLE_TESTS=ON \
-                -DENABLE_COVERAGE=ON \
-                -DENABLE_INTEL_GPU=OFF \
-                -B build
+        run: cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -DCMAKE_BUILD_TYPE=Release -DENABLE_FASTER_BUILD=ON -DENABLE_OV_ONNX_FRONTEND=ON -DENABLE_TESTS=ON -DENABLE_COVERAGE=ON -DENABLE_INTEL_GPU=OFF -B build
 
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v1
