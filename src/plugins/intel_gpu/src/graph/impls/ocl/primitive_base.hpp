@@ -274,7 +274,7 @@ protected:
         for (size_t i = 0; i < _kernel_data.kernels.size(); ++i) {
             auto gws = _kernel_data.kernels[0].params.workGroups.global;
             _kernel_data.kernels[0].skip_execution =
-                (std::accumulate(gws.begin(), gws.end(), 1, std::multiplies<size_t>()) == 0);
+                (std::accumulate(gws.begin(), gws.end(), size_t(1), std::multiplies<size_t>()) == 0);
         }
     }
 
