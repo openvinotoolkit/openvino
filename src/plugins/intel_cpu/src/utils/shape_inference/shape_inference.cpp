@@ -42,12 +42,14 @@
 #include "gru_cell_shape_inference.hpp"
 #include "gru_sequence_shape_inference.hpp"
 #include "interpolate_shape_inference.hpp"
+#include "irdft_shape_inference.hpp"
 #include "lstm_cell_shape_inference.hpp"
 #include "matmul_shape_inference.hpp"
 #include "one_hot_shape_inference.hpp"
 #include "pad_shape_inference.hpp"
 #include "proposal_shape_inference.hpp"
 #include "range_shape_inference.hpp"
+#include "rdft_shape_inference.hpp"
 #include "read_value_shape_inference.hpp"
 #include "reduce_shape_inference.hpp"
 #include "region_yolo_shape_inference.hpp"
@@ -539,6 +541,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(GRUSequence, entryIO),
     _OV_OP_SHAPE_INFER_REG(IDFT, entryIOC),
     _OV_OP_SHAPE_INFER_REG(Interpolate, entryInterpolate),
+    _OV_OP_SHAPE_INFER_REG(IRDFT, entryIOC),
     _OV_OP_SHAPE_INFER_REG(LSTMCell, entryIO),
     _OV_OP_SHAPE_INFER_REG(MatMul, entryIO),
     _OV_OP_SHAPE_INFER_REG(MaxPool, entryFallbackWithPadding),
@@ -548,6 +551,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(Pad, entryIOC),
     _OV_OP_SHAPE_INFER_REG(Proposal, entryIO),
     _OV_OP_SHAPE_INFER_REG(Range, entryIOC),
+    _OV_OP_SHAPE_INFER_REG(RDFT, entryIOC),
     _OV_OP_SHAPE_INFER_REG(ReadValue, entryIO),
     _OV_OP_SHAPE_INFER_REG(RegionYolo, entryIO),
     _OV_OP_SHAPE_INFER_REG(ReorgYolo, entryIO),
