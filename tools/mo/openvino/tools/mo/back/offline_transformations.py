@@ -52,6 +52,7 @@ def apply_fused_names_cleanup(func: object):
     from openvino._offline_transformations import apply_fused_names_cleanup  # pylint: disable=import-error,no-name-in-module
     apply_fused_names_cleanup(func)
 
+
 def apply_offline_transformations(func: Model, argv: argparse.Namespace):
     from openvino.tools.mo.back.preprocessing import apply_preprocessing  # pylint: disable=no-name-in-module,import-error
 
@@ -70,3 +71,4 @@ def apply_offline_transformations(func: Model, argv: argparse.Namespace):
     apply_fused_names_cleanup(func)
 
     return func
+
