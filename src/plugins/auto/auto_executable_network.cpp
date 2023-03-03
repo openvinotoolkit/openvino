@@ -157,7 +157,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
             if (ExeDevicesString == "CPU_HELP")
                 ExeDevicesString = "(CPU)";
             exeDevices.push_back(ExeDevicesString);
-            execution_devices = decltype(ov::available_devices)::value_type {exeDevices};
+            execution_devices = decltype(ov::execution_devices)::value_type {exeDevices};
         };
         if (_autoSContext->_performanceHint == IE::PluginConfigParams::CUMULATIVE_THROUGHPUT) {
             try {
