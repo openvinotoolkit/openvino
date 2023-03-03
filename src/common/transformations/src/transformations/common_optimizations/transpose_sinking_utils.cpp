@@ -1,16 +1,15 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "transformations/common_optimizations/transpose_sinking_utils.hpp"
 
-#include <openvino/pass/pattern/op/or.hpp>
 #include <transformations/utils/utils.hpp>
-#include <utility>
 
 #include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset10.hpp"
-#include "openvino/pass/pattern/op/label.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
-#include "openvino/util/log.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 
 namespace transpose_sinking {
