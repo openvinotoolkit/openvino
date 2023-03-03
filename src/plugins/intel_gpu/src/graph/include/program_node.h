@@ -9,8 +9,8 @@
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "intel_gpu/graph/program.hpp"
 
-#include "kernel_selector_helper.h"
 #include "fused_primitive_desc.h"
+#include "kernel_impl_params.hpp"
 #include "meta_utils.h"
 
 #include <set>
@@ -71,7 +71,7 @@ struct program_node {
 public:
     virtual const primitive_id& id() const { return desc->id; }
     virtual primitive_type_id type() const { return desc->type; }
-    virtual std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const { return nullptr; }
+    virtual std::shared_ptr<NodeFuseParams> get_fuse_params() const { return nullptr; }
     virtual bool generates_dynamic_output() const { return false; }
 
     virtual std::vector<size_t> get_shape_infer_dependencies() const {

@@ -10,9 +10,9 @@
 #pragma once
 
 #include <memory>
-#include <openvino/runtime/common.hpp>
 #include <string>
 
+#include "openvino/runtime/common.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 
 namespace ov {

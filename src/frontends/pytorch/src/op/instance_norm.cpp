@@ -49,14 +49,14 @@ OutputVector translate_instance_norm_train(const NodeContext& context,
                                            const Output<Node>& input,
                                            const Output<Node>& reduction_axes,
                                            float eps) {
-    auto zero = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
-    auto one = context.mark_node(v0::Constant::create(element::i64, Shape{}, {1}));
-    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input));
+    auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    auto one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
+    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
     auto batch_dim = context.mark_node(std::make_shared<v8::Gather>(input_shape, zero, zero));
     auto channel_dim = context.mark_node(std::make_shared<v8::Gather>(input_shape, one, zero));
     auto batch_dim_1d = context.mark_node(std::make_shared<v0::Unsqueeze>(batch_dim, zero));
     auto batch_norm_channels_1d = context.mark_node(std::make_shared<v1::Multiply>(batch_dim_1d, channel_dim));
-    auto one_1d = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1}));
+    auto one_1d = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
     auto tail_shape = context.mark_node(std::make_shared<v8::Gather>(input_shape, reduction_axes, zero));
     auto reshape_shape =
         context.mark_node(std::make_shared<v0::Concat>(OutputVector{one_1d, batch_norm_channels_1d, tail_shape}, 0));
@@ -93,10 +93,10 @@ OutputVector translate_instance_norm(NodeContext& context) {
     auto input = context.get_input(0);
     auto eps = context.const_input<float>(7);
     Output<Node> rank;
-    std::tie(std::ignore, rank) = get_shape_rank(context, input, true, element::i64);
-    auto one = context.mark_node(v0::Constant::create(element::i64, Shape{}, {1}));
-    auto two = context.mark_node(v0::Constant::create(element::i64, Shape{}, {2}));
-    auto reduction_axes = context.mark_node(std::make_shared<v4::Range>(two, rank, one, element::i64));
+    std::tie(std::ignore, rank) = get_shape_rank(context, input, true, element::i32);
+    auto one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
+    auto two = context.mark_node(v0::Constant::create(element::i32, Shape{}, {2}));
+    auto reduction_axes = context.mark_node(std::make_shared<v4::Range>(two, rank, one, element::i32));
     if (context.input_is_none(3) && context.input_is_none(4)) {
         return translate_instance_norm_inference(context, input, reduction_axes, eps);
     }
