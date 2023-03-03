@@ -171,12 +171,12 @@ class Conformance:
         conformance.run()
         conformance.postprocess_logs()
 
-        final_report_name = f'report_{self._type}'
+        final_report_name = f'report_{self._type.lower()}'
         # API Conformance contains both report type
         merge_xml([parallel_report_dir], report_dir, final_report_name, self._type)
         if self._type == constants.API_CONFORMANCE:
-            final_op_report_name = f'report_{constants.OP_CONFORMANCE}'
-            merge_xml([parallel_report_dir], report_dir, final_op_report_name, constants.OP_CONFORMANCE)
+            final_op_report_name = f'report_{constants.OP_CONFORMANCE.lower()}'
+            merge_xml([parallel_report_dir], report_dir, final_op_report_name, constants.OP_CONFORMANCE.lower())
         logger.info(f"Conformance is successful. XML reportwas saved to {report_dir}")
         return (os.path.join(report_dir, final_report_name + ".xml"), report_dir)
 
