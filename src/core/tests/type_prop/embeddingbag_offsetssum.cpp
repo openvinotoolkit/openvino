@@ -266,6 +266,24 @@ TEST(type_prop, ebos_fail_indices_1d) {
     }
 }
 
+TEST(type_prop, ebos_fail_emb_table_0d) {
+    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{});
+    auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
+    auto offsets = make_shared<op::Parameter>(element::i64, Shape{3});
+    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{4});
+    auto default_index = make_shared<op::Parameter>(element::i64, Shape{});
+
+    try {
+        auto ebos =
+            make_shared<op::v3::EmbeddingBagOffsetsSum>(emb_table, indices, offsets, default_index, per_sample_weights);
+        FAIL() << "Invalid mismatch of shapes not detected";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("EMB_TABLE can't be a scalar."));
+    } catch (...) {
+        FAIL() << "Shapes check failed for unexpected reason";
+    }
+}
+
 TEST(type_prop, ebos_fail_offsets_1d) {
     auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
     auto indices = make_shared<op::Parameter>(element::i64, Shape{4});

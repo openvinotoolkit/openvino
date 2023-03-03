@@ -162,6 +162,21 @@ TEST(type_prop, ebps_fail_indices_1d) {
     }
 }
 
+TEST(type_prop, ebps_fail_emb_table_0d) {
+    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{});
+    auto indices = make_shared<op::Parameter>(element::i64, Shape{3, 4});
+    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{3, 4});
+
+    try {
+        auto ebps = make_shared<op::v3::EmbeddingBagPackedSum>(emb_table, indices, per_sample_weights);
+        FAIL() << "Invalid mismatch of shapes not detected";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("EMB_TABLE can't be a scalar."));
+    } catch (...) {
+        FAIL() << "Shapes check failed for unexpected reason";
+    }
+}
+
 TEST(type_prop, ebps_fail_per_sample_weights_1d) {
     auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
     auto indices = make_shared<op::Parameter>(element::i64, Shape{3, 4});

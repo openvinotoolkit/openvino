@@ -37,6 +37,7 @@ std::vector<TShape> shape_infer(const ov::op::util::EmbeddingBagPackedBase* op,
     TShape output_shape;
     const auto& emb_table_shape = input_shapes[EMB_TABLE];
     if (emb_table_shape.rank().is_static()) {
+        NODE_VALIDATION_CHECK(op, emb_table_shape.size() > 0, "EMB_TABLE can't be a scalar.");
         output_shape = emb_table_shape;
         output_shape[0] = indices_shape.rank().is_static() ? indices_shape[0] : Dimension::dynamic();
     } else {

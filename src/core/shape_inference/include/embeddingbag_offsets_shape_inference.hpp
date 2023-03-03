@@ -25,21 +25,21 @@ std::vector<TShape> shape_infer(const ov::op::util::EmbeddingBagOffsetsBase* op,
     static constexpr int DEFAULT_INDEX = 3;
     static constexpr int PER_SAMPLE_WEIGHTS = 4;
 
-    NODE_VALIDATION_CHECK(op, input_shapes[INDICES].rank().compatible(1), "INDICES must be 1D");
-    NODE_VALIDATION_CHECK(op, input_shapes[OFFSETS].rank().compatible(1), "OFFSETS must be 1D");
+    NODE_VALIDATION_CHECK(op, input_shapes[INDICES].rank().compatible(1), "INDICES must be 1D.");
+    NODE_VALIDATION_CHECK(op, input_shapes[OFFSETS].rank().compatible(1), "OFFSETS must be 1D.");
 
     if (input_size >= 4) {
-        NODE_VALIDATION_CHECK(op, input_shapes[DEFAULT_INDEX].rank().compatible(0), "DEFAULT_INDEX must be a scalar");
+        NODE_VALIDATION_CHECK(op, input_shapes[DEFAULT_INDEX].rank().compatible(0), "DEFAULT_INDEX must be a scalar.");
     }
 
     if (input_size == 5) {
         NODE_VALIDATION_CHECK(op,
                               input_shapes[PER_SAMPLE_WEIGHTS].rank().compatible(1),
-                              "PER_SAMPLE_WEIGHTS must be 1D");
+                              "PER_SAMPLE_WEIGHTS must be 1D.");
 
         NODE_VALIDATION_CHECK(op,
                               input_shapes[INDICES].compatible(input_shapes[PER_SAMPLE_WEIGHTS]),
-                              "INDICES and PER_SAMPLE_WEIGHTS shape must be same");
+                              "INDICES and PER_SAMPLE_WEIGHTS shape must be same.");
     }
 
     const auto& emb_table_shape = input_shapes[EMB_TABLE];
@@ -47,6 +47,7 @@ std::vector<TShape> shape_infer(const ov::op::util::EmbeddingBagOffsetsBase* op,
 
     TShape output_shape;
     if (emb_table_shape.rank().is_static()) {
+        NODE_VALIDATION_CHECK(op, emb_table_shape.size() > 0, "EMB_TABLE can't be a scalar.");
         output_shape = emb_table_shape;
         output_shape[0] = offsets_shape.rank().is_static() ? offsets_shape[0] : Dimension::dynamic();
     } else {
