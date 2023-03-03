@@ -30,7 +30,7 @@ namespace {
 class OneHotShapeInfer : public ShapeInferEmptyPads {
 public:
     explicit OneHotShapeInfer(int64_t axis) : m_axis(axis) {}
-    std::vector<VectorDims> infer(
+    Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         auto depth = reinterpret_cast<int32_t *>(data_dependency.at(1)->GetPtr())[0];
@@ -38,7 +38,7 @@ public:
         auto result = input_shapes.front().get();
         result.insert(result.begin() + m_axis, depth);
 
-        return { result };
+        return {{std::move(result)}, ShapeInferStatus::success};
     }
 
     port_mask_t get_port_mask() const override {

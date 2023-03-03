@@ -6,7 +6,8 @@
 
 using namespace ov::intel_cpu;
 
-std::vector<VectorDims> NgraphShapeInfer::infer(
+IShapeInfer::Result
+NgraphShapeInfer::infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     const auto& iranks = m_shape_infer->get_input_ranks();
@@ -39,13 +40,13 @@ std::vector<VectorDims> NgraphShapeInfer::infer(
         }
     }
     // call shape inference API
-    std::vector<StaticShape> output_shapes = m_shape_infer->infer(input_static_shapes, input_values);
+    auto shape_infer_result = m_shape_infer->infer(input_static_shapes, input_values);
 
     std::vector<VectorDims> result;
-    result.reserve(output_shapes.size());
-    for (const auto& shape : output_shapes) {
+    result.reserve(shape_infer_result.shapes.size());
+    for (const auto& shape : shape_infer_result.shapes) {
         result.emplace_back(shape.to_shape());
     }
 
-    return result;
+    return {std::move(result), shape_infer_result.status};
 }

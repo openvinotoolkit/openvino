@@ -314,16 +314,21 @@ public:
             native_order = RNN::testNativeOrder(op);
         }
 
-    std::vector<VectorDims> infer(
+    Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        auto originOutputShapes = NgraphShapeInfer::infer(input_shapes, data_dependency);
+        auto result = NgraphShapeInfer::infer(input_shapes, data_dependency);
+        if (ShapeInferStatus::success != result.status) {
+            IE_THROW(Unexpected) << "Unexpected shape inference result status";
+        }
+
+        auto& originOutputShapes = result.dims;
 
         // Graph optimizer makes the same optimization. So this is required to make shapes compatible.
         if (is_sequence && !native_order && originOutputShapes[0].size() == 4lu && originOutputShapes[0][1] == 1lu) {
             originOutputShapes[0].erase(originOutputShapes[0].begin() + 1);
         }
-        return originOutputShapes;
+        return {std::move(originOutputShapes), result.status};
     }
 
 private:

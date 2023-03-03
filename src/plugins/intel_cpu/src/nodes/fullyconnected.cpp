@@ -86,7 +86,7 @@ bool FCKey::operator==(const FCKey &rhs) const {
 class FCShapeInfer : public ShapeInferEmptyPads {
 public:
     FCShapeInfer(size_t outPut_rank) : out_rank(outPut_rank) {}
-    std::vector<VectorDims> infer(
+    Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         const VectorDims& activationShape = input_shapes[0].get();
@@ -108,7 +108,7 @@ public:
             outputShape[i + startIdx] = activationShape[i];
         }
 
-        return {outputShape};
+        return {{std::move(outputShape)}, ShapeInferStatus::success};
     }
 
     port_mask_t get_port_mask() const override {

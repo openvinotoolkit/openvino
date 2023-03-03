@@ -974,14 +974,15 @@ public:
 class ColorConvertShapeInfer : public ShapeInferEmptyPads {
 public:
     ColorConvertShapeInfer(bool singlePlain) : m_singlePlain(singlePlain) {}
-    std::vector<VectorDims> infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+    Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                           const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         const auto& dims = input_shapes.front().get();
         if (dims.size() != 4)
             IE_THROW() <<"NV12Converter node has incorrect input dimensions";
-        return m_singlePlain
+        return { m_singlePlain
                     ? std::vector<VectorDims>{ { dims[Converter::N_DIM], dims[Converter::H_DIM] * 2 / 3, dims[Converter::W_DIM], 3 } }
-                    : std::vector<VectorDims>{ { dims[Converter::N_DIM], dims[Converter::H_DIM], dims[Converter::W_DIM], 3 } };
+                    : std::vector<VectorDims>{ { dims[Converter::N_DIM], dims[Converter::H_DIM], dims[Converter::W_DIM], 3 } },
+                    ShapeInferStatus::success };
     }
 
     port_mask_t get_port_mask() const override {
