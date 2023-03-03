@@ -17,7 +17,7 @@ namespace ocl {
 
 namespace {
 kernel_selector::concat_axis convert_axis(int64_t axis, size_t rank) {
-    unsigned cldnn_axis = axis >= 0 ? axis : axis + static_cast<int64_t>(rank);
+    auto cldnn_axis = axis >= 0 ? axis : axis + static_cast<int64_t>(rank);
     if (cldnn_axis >= rank)
         IE_THROW() << "Concatenation axis exceeds number of dimensions";
 
