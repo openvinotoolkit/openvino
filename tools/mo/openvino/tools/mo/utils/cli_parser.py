@@ -812,6 +812,19 @@ class CanonicalizePathCheckExistenceAction(argparse.Action):
         setattr(namespace, self.dest, ','.join(list_of_paths))
 
 
+class CanonicalizeExtensionsPathCheckExistenceAction(argparse.Action):
+    """
+    Expand user home directory paths and convert relative-paths to absolute and check specified file or directory
+    existence.
+    """
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        list_of_paths = canonicalize_and_check_paths(values, param_name=option_string,
+                                                     try_mo_root=False, check_existance=True)
+        # Extensions paths are needed to be stored as list
+        setattr(namespace, self.dest, list_of_paths)
+
+
 class CanonicalizePathCheckExistenceIfNeededAction(CanonicalizePathCheckExistenceAction):
 
     def __call__(self, parser, namespace, values, option_string=None):
@@ -1036,7 +1049,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               help=mo_convert_params_common['extensions'].description.format(
                                   mo_convert_params_common['extensions'].possible_types_command_line),
                               default=[import_extensions.default_path()],
-                              action=CanonicalizePathCheckExistenceAction,
+                              action=CanonicalizeExtensionsPathCheckExistenceAction,
                               type=readable_dirs_or_files_or_empty)
     common_group.add_argument("--batch", "-b",
                               type=check_positive,
