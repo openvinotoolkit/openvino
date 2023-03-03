@@ -23,8 +23,24 @@ jobs:
         run: |
           sudo apt --assume-yes update
           sudo apt --assume-yes install lcov
+
+      - name: Install ninja
+        run: |
+          wget https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-linux.zip
+          unzip ninja-linux.zip
+          sudo cp -v ninja /usr/local/bin/
+
       - name: CMake configure
-        run: cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -DCMAKE_BUILD_TYPE=Release -DENABLE_FASTER_BUILD=ON -DENABLE_OV_ONNX_FRONTEND=ON -DENABLE_TESTS=ON -DENABLE_COVERAGE=ON -DENABLE_INTEL_GPU=OFF -B build
+        run: |
+          cmake -GNinja \
+                -DENABLE_INTEL_MYRIAD_COMMON=OFF \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DENABLE_FASTER_BUILD=ON \
+                -DENABLE_OV_ONNX_FRONTEND=ON \ 
+                -DENABLE_TESTS=ON \
+                -DENABLE_COVERAGE=ON \
+                -DENABLE_INTEL_GPU=OFF \
+                -B build
 
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v1
@@ -37,7 +53,7 @@ jobs:
         run:  ls -laR .
 
       - name: Run tests
-        run: ctest -V
+        run: ctest -V -L OV
 
       - name: Build coverage
         run:  cmake --build build --target ov_coverage
