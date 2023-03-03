@@ -78,7 +78,11 @@ Each OpenVINO™ Release introduces new operations and adds them to new operatio
 For a complete list of operation sets supported in OpenVINO™ toolkit, see the [Available Operations Sets](../ops/opset.md).
 To add the support for custom operations, see [OpenVINO Extensibility Mechanism](../Extensibility_UG/Intro.md).
 
-## Building a Model in OpenVINO™ Runtime {#ov_ug_build_model}
+## Building a Model in OpenVINO™ Runtime {#ov_ug_build_model} 
+
+@sphinxdirective 
+`.. _ov_ug_build_model:`
+@endsphinxdirective
 
 You can create a model from source. This section illustrates how to construct a model composed of operations from an available operation set.
 
