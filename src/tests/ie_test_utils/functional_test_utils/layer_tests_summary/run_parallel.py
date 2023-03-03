@@ -5,7 +5,7 @@ from utils.conformance_utils import get_logger, progressbar
 from utils import constants
 from utils import file_utils
 from argparse import ArgumentParser
-from subprocess import Popen, STDOUT, TimeoutExpired
+from subprocess import Popen, STDOUT, TimeoutExpired, run
 from hashlib import sha256
 from pathlib import Path
 from shutil import rmtree
@@ -193,7 +193,8 @@ class TestParallelRunner:
         test_list_file_name = os.path.join(self._working_dir, "test_list.lst")
         command_to_get_test_list = self._command + f' --gtest_list_tests >> {test_list_file_name}'
         logger.info(f"Get test list using command: {command_to_get_test_list}")
-        Popen(command_to_get_test_list, shell=True).communicate()
+        run(command_to_get_test_list, check=True, shell=True)
+        pass
 
         test_list = list()
         with open(test_list_file_name) as test_list_file:
