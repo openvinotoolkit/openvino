@@ -1091,7 +1091,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v11::TopK> &no
                                                    k,
                                                    -2,
                                                    ov::op::v11::TopK::Mode::MIN,
-                                                   ov::op::v11::TopK::SortType::SORT_INDICES,
+                                                   ov::op::v11::TopK::SortType::SORT_VALUES,
                                                    ov::element::i64,
                                                    true);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(Node->output(0)),
