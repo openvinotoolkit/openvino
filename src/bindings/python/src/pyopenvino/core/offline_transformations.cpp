@@ -39,6 +39,7 @@ void regmodule_offline_transformations(py::module m) {
             if (smart_reshape)
                 manager.register_pass<ov::pass::SmartReshape>();
             manager.register_pass<ov::pass::MOCTransformations>(cf);
+            manager.register_pass<ov::pass::FlushFP32SubnormalsToZero>();
             manager.run_passes(model);
         },
         py::arg("model"),
@@ -139,15 +140,6 @@ void regmodule_offline_transformations(py::module m) {
         [](std::shared_ptr<ov::Model> model) {
             ov::pass::Manager manager;
             manager.register_pass<ov::pass::FusedNamesCleanup>();
-            manager.run_passes(model);
-        },
-        py::arg("model"));
-
-    m_offline_transformations.def(
-        "apply_flush_fp32_subnormals_to_zero",
-        [](std::shared_ptr<ov::Model> model) {
-            ov::pass::Manager manager;
-            manager.register_pass<ov::pass::FlushFP32SubnormalsToZero>();
             manager.run_passes(model);
         },
         py::arg("model"));

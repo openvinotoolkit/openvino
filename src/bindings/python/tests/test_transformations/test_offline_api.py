@@ -12,7 +12,6 @@ from openvino._offline_transformations import (
     apply_low_latency_transformation,
     apply_pruning_transformation,
     apply_make_stateful_transformation,
-    apply_flush_fp32_subnormals_to_zero,
     compress_model_transformation,
     convert_sequence_to_tensor_iterator_transformation,
     apply_fused_names_cleanup,
@@ -343,23 +342,17 @@ def test_convert_gru_to_tensor_iterator():
 
 
 def test_flush_fp32_subnormals_to_zero():
-    parameter = ov.opset10.parameter([1, 4, 12, 12], name="X")
-    subnormal_val = -2.0e-45
+    parameter = ov.opset10.parameter([1, 8], name="X")
+    subnorm_val = -2.0e-45
 
-    weights = ov.opset10.constant(np.array([[[[0.0], [1.0], [2.0]],
-                                             [[3.0], [4.0], [5.0]],
-                                             [[subnormal_val], [subnormal_val], [subnormal_val]],
-                                             [[subnormal_val], [subnormal_val], [subnormal_val]]]]),
+    weights = ov.opset10.constant(np.array([0.0, 1.0, 2.0, 3.0, subnorm_val, subnorm_val, subnorm_val, subnorm_val]),
                                   dtype=np.float32)
+    add_node = ov.opset10.add(parameter, weights)
 
-    conv = ov.opset10.convolution(parameter,
-                                  weights,
-                                  strides=[1, 1], pads_begin=[0, 0], pads_end=[0, 0], dilations=[1, 1])
-
-    result = ov.opset10.result(conv)
+    result = ov.opset10.result(add_node)
     model = Model([result], [parameter])
 
-    apply_flush_fp32_subnormals_to_zero(model)
+    apply_moc_transformations(model, cf=False, smart_reshape=True)  # apply_flush_fp32_subnormals_to_zero is called inside
 
-    assert np.all(weights.data[0, 2:3] != subnormal_val)
-    assert np.all(weights.data[0, 2:3] == 0.0)
+    assert np.all(weights.data[4:8] != subnorm_val)
+    assert np.all(weights.data[4:8] == 0.0)
