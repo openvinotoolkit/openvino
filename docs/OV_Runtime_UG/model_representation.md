@@ -32,6 +32,7 @@ OpenVINO™ Runtime enables you to use different approaches to work with model i
 
         @endsphinxtabset
 
+
 @sphinxdirective 
 
 For details on how to build a model in OpenVINO™ Runtime, see the :ref:`Build a Model in OpenVINO Runtime <ov_ug_build_model>`  section.
