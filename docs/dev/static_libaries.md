@@ -152,6 +152,6 @@ cmake -DCMAKE_TOOLCHAIN_FILE=<openvino source dir>/cmake/toolchains/mt.runtime.w
 
  * [OpenVINO README](../../README.md)
  * [OpenVINO Developer Documentation](index.md)
- * [OpenVINO How to Build](build.md)
+ * [How to Build OpenVINO](build.md)
 
  
