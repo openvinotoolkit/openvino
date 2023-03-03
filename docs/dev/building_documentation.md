@@ -52,7 +52,7 @@ cmake -DLATEX_COMPILER="C:/Program Files/MiKTeX/miktex/bin/x64/latex.exe" \
 
 Once the dependencies are found, the project must generated using CMake. The target `openvino_docs` must be built to generate doxygen documentation, the generated files can be found at `<binary dir>/docs/html/index.html`
 
-## Additional Resources
+## See also
 
  * [OpenVINO README](../../README.md)
  * [OpenVINO Developer Documentation](index.md)
