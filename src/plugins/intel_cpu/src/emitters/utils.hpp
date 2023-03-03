@@ -12,7 +12,10 @@ namespace intel_cpu {
 // Usage
 // 1. Include this headfile where JIT kennels of CPU plugin are implemented for Register printing
 // 2. Invoke RegPrinter::print method. Here are some examples. Note that user friendly register name
-//    will be printed, if it has been set. While original Xbyak register name will always be printed.
+//    will be printed, if it has been set. Current implementation doesn't buffer the name. So if you
+//    choose to set a name for the register, do not use local variable to pass the name, just pass a
+//    direct string to the interface like examples. While Original Xbyak register name will always be
+//    printed.
 //    Example 1:
 //    Invocation: RegPrinter::print<float>(*this, vmm_val, "vmm_val");
 //    Console:    vmm_val | ymm0: {30, 20, 25, 29, 24, 31, 27, 23}
@@ -69,10 +72,9 @@ private:
     template <typename PRC_T, typename REG_T>
     static void print_reg(jit_generator &h, REG_T reg, const char *name);
     template <typename PRC_T, size_t vlen>
-    static void print_vmm_prc(const char *name, PRC_T *ptr);
+    static void print_vmm_prc(const char *name, const char *ori_name, PRC_T *ptr);
     template <typename T>
-    static void print_reg_integer(const char *name, T val);
-    static void print_reg_fp32(const char *name, int val);
+    static void print_reg_prc(const char *name, const char *ori_name, T *val);
     static void preamble(jit_generator &h);
     static void postamble(jit_generator &h);
     template <typename T>
@@ -81,8 +83,8 @@ private:
     static void restore_vmm(jit_generator &h);
     static void save_reg(jit_generator &h);
     static void restore_reg(jit_generator &h);
-    template <typename REG_T>
-    static const char * get_name(REG_T reg, const char *name);
+    static void align_rsp(jit_generator &h);
+    static void restore_rsp(jit_generator &h);
     static constexpr size_t reg_len = 8;
     static constexpr size_t reg_cnt = 16;
 };
