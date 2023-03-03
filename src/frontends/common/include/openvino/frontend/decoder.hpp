@@ -33,6 +33,8 @@ struct List {
 
 struct Str {};
 
+struct PyNone {};
+
 struct Optional;
 struct Dict;
 struct NamedTuple;

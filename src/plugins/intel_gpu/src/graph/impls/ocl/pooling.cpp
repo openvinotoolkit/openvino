@@ -2,15 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pooling_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
+
+#include "pooling_inst.h"
 #include "pooling/pooling_kernel_selector.h"
 #include "pooling/pooling_kernel_base.h"
 #include "ngraph/validation_util.hpp"
-#include <algorithm>
 
 namespace cldnn {
 namespace ocl {
@@ -168,7 +165,7 @@ public:
 namespace detail {
 
 attach_pooling_impl::attach_pooling_impl() {
-    std::set<implementation_map<resample>::key_type> keys;
+    std::set<implementation_map<pooling>::key_type> keys;
 
     auto types = { data_types::f16, data_types::f32, data_types::i8, data_types::u8 };
     auto formats = { format::bfyx,

@@ -24,7 +24,6 @@ function(set_ci_build_number)
 endfunction()
 
 include(features)
-include(message)
 
 set_ci_build_number()
 
@@ -292,7 +291,7 @@ function(ie_mark_target_as_cc TARGET_NAME)
     endif()
     target_link_libraries(${TARGET_NAME} PRIVATE ${cc_library})
 
-    if(NOT (SELECTIVE_BUILD STREQUAL "ON"))
+    if(NOT SELECTIVE_BUILD STREQUAL "ON")
         return()
     endif()
 
@@ -310,6 +309,7 @@ function(ov_mark_target_as_cc)
 endfunction()
 
 include(python_requirements)
+include(native_compile)
 
 # Code style utils
 

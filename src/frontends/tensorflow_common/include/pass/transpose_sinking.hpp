@@ -14,9 +14,7 @@ namespace pass {
 class TransposeSinking : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("ov::frontend::tensorflow::pass::TransposeSinking");
-    TransposeSinking() {
-        set_property(ov::pass::PassProperty::REQUIRE_STATIC_SHAPE, true);
-    }
+    TransposeSinking() = default;
     bool run_on_model(const std::shared_ptr<ov::Model>& function) override;
 };
 

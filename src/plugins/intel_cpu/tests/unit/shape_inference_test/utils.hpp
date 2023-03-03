@@ -13,6 +13,21 @@
 
 #pragma once
 
+namespace ov {
+namespace intel_cpu {
+template <class TIface = IShapeInferCommon, class TTensorPtr = HostTensorPtr>
+void shape_inference(ov::Node* op,
+                     const std::vector<StaticShape>& input_shapes,
+                     std::vector<StaticShape>& output_shapes,
+                     const std::map<size_t, TTensorPtr>& constant_data = {}) {
+    const auto shape_infer = make_shape_inference<TIface>(op->shared_from_this());
+    auto result = shape_infer->infer(input_shapes, constant_data);
+    OPENVINO_ASSERT(ShapeInferStatus::success == result.status, "shape inference result has unexpected status");
+    output_shapes = std::move(result.shapes);
+}
+}  // namespace intel_cpu
+}  // namespace ov
+
 struct TestTensor {
     std::shared_ptr<ngraph::runtime::HostTensor> tensor;
     ov::intel_cpu::StaticShape static_shape;
@@ -49,7 +64,7 @@ struct TestTensor {
 //      2                           tensor of scalar with value 2
 //      Shape{2,2}                  tensor of shape [2,2] and value unknown
 //      {Shape{2,2}, {1,2,3,4}}     tensor of shape [2,2] and values (1,2,3,4)
-static void check_static_shape(ov::Node* op,
+inline void check_static_shape(ov::Node* op,
                                std::initializer_list<TestTensor> inputs,
                                std::initializer_list<ov::intel_cpu::StaticShape> expect_shapes) {
     std::vector<ov::intel_cpu::StaticShape> output_shapes;
@@ -76,7 +91,7 @@ static void check_static_shape(ov::Node* op,
     }
 }
 
-static void check_output_shape(ov::Node* op, std::initializer_list<ov::PartialShape> expect_shapes) {
+inline void check_output_shape(ov::Node* op, std::initializer_list<ov::PartialShape> expect_shapes) {
     int id = 0;
     EXPECT_EQ(op->outputs().size(), expect_shapes.size());
     for (auto& shape : expect_shapes) {
@@ -90,6 +105,8 @@ using ShapeVector = std::vector<ov::intel_cpu::StaticShape>;
 template <class TOp>
 class OpStaticShapeInferenceTest : public testing::Test {
 protected:
+    using op_type = TOp;
+
     ShapeVector input_shapes, output_shapes;
     ov::intel_cpu::StaticShape exp_shape;
     std::shared_ptr<TOp> op;

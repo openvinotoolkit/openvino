@@ -128,5 +128,23 @@ struct broadcast : public primitive_base<broadcast> {
     /// @brief Array of axes positions from output shape (0-based, from left to right)
     ///        along which broadcast should happen.
     std::vector<uint16_t> broadcast_axes;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_range(seed, broadcast_axes.begin(), broadcast_axes.end());
+        seed = hash_range(seed, axes_mapping.begin(), axes_mapping.end());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const broadcast>(rhs);
+
+        return axes_mapping == rhs_casted.axes_mapping &&
+               broadcast_mode == rhs_casted.broadcast_mode &&
+               broadcast_sizes == rhs_casted.broadcast_sizes;
+    }
 };
 }  // namespace cldnn

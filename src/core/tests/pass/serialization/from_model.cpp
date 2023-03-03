@@ -115,7 +115,7 @@ std::vector<SerializationFromModelParams> get_models() {
     std::vector<size_t> shifts = {0, 1, 2, 4, 8, 16, 20};
     for (const auto& shift : shifts) {
         for (size_t offset = 0; offset < 2; offset++) {
-            auto s = (1llu << shift) + offset;
+            size_t s = (1llu << shift) + offset;
             auto builder = [s]() {
                 using namespace ov;
                 auto shape = Shape{s};

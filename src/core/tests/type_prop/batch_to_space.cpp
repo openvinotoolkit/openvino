@@ -10,7 +10,7 @@
 
 using namespace std;
 using namespace ngraph;
-#define DIV_ROUND_UP(n, d) (((n) + (d)-1) / (d))
+using namespace testing;
 
 namespace {
 constexpr size_t data_input_idx = 0;
@@ -339,7 +339,7 @@ TEST(type_prop, batch_to_space_output_shape_5D) {
     ASSERT_EQ(batch_to_space->get_shape(), (Shape{960 / (6 * 5 * 16), 6 * 6 - 2 - 2, 13 * 5 - 1, 128, 16 * 16}));
 }
 
-TEST(type_prop, batch_to_space_output_dynamicshape_5D_when_batch_is_static) {
+TEST(type_prop, batch_to_space_output_dynamic_shape_5D_when_batch_is_static) {
     auto data = make_shared<op::Parameter>(element::f32, PartialShape{960, {2, 20}, {12, 14}, {100, 150}, {10, 20}});
     auto block_shape = make_shared<op::Constant>(element::i32, Shape{5}, vector<int64_t>{1, 6, 5, 1, 16});
     auto crops_begin = make_shared<op::Constant>(element::i32, Shape{5}, vector<int64_t>{0, 2, 0, 0, 0});
@@ -354,20 +354,37 @@ TEST(type_prop, batch_to_space_output_dynamicshape_5D_when_batch_is_static) {
                             {10 * 16, 20 * 16}}));
 }
 
-TEST(type_prop, batch_to_space_output_dynamicshape_5D_when_batch_is_dynamic) {
-    auto data =
-        make_shared<op::Parameter>(element::f32, PartialShape{{959, 962}, {2, 34}, {9, 21}, {100, 162}, {1, 1999}});
+TEST(type_prop, batch_to_space_output_dynamic_shape_5D_when_batch_is_dynamic) {
+    auto data_shape = PartialShape{{959, 962}, {2, 34}, {9, 21}, {100, 162}, {1, 1999}};
+    set_shape_labels(data_shape, 10);
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
     auto block_shape = make_shared<op::Constant>(element::i32, Shape{5}, vector<int64_t>{1, 6, 5, 1, 16});
     auto crops_begin = make_shared<op::Constant>(element::i32, Shape{5}, vector<int64_t>{0, 2, 0, 0, 0});
     auto crops_end = make_shared<op::Constant>(element::i32, Shape{5}, vector<int64_t>{0, 2, 1, 0, 0});
     auto batch_to_space = make_shared<op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
 
-    ASSERT_EQ(batch_to_space->get_output_partial_shape(0),
-              (PartialShape{{DIV_ROUND_UP(959, (6 * 5 * 16)), 962 / (6 * 5 * 16)},
+    EXPECT_EQ(batch_to_space->get_output_partial_shape(0),
+              (PartialShape{{ceil_div(959, (6 * 5 * 16)), 962 / (6 * 5 * 16)},
                             {2 * 6 - 2 - 2, 34 * 6 - 2 - 2},
                             {9 * 5 - 1, 21 * 5 - 1},
                             {100, 162},
                             {1 * 16, 1999 * 16}}));
+    EXPECT_THAT(get_shape_labels(batch_to_space->get_output_partial_shape(0)),
+                ElementsAre(ov::no_label, ov::no_label, ov::no_label, 13, ov::no_label));
+}
+
+TEST(type_prop, batch_to_space_input_interval_shape_block_one) {
+    auto data_shape = PartialShape{{959, 962}, {2, 34}, {9, 21}};
+    set_shape_labels(data_shape, 10);
+    auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    auto block_shape = make_shared<op::Constant>(element::i32, Shape{3}, vector<int64_t>{1, 1, 1});
+    auto crops_begin = make_shared<op::Constant>(element::i32, Shape{3}, vector<int64_t>{0, 0, 0});
+    auto crops_end = make_shared<op::Constant>(element::i32, Shape{3}, vector<int64_t>{0, 0, 1});
+    auto batch_to_space = make_shared<op::v1::BatchToSpace>(data, block_shape, crops_begin, crops_end);
+
+    EXPECT_EQ(batch_to_space->get_output_partial_shape(0),
+              PartialShape({{959, 962}, {2, 34}, {9 * 1 - 1, 21 * 1 - 1}}));
+    EXPECT_THAT(get_shape_labels(batch_to_space->get_output_partial_shape(0)), ElementsAre(10, 11, ov::no_label));
 }
 
 TEST(type_prop, batch_to_space_and_space_to_batch) {
@@ -406,4 +423,21 @@ TEST(type_prop, batch_to_space_dynamic_shape_dynamic_rank) {
 
     ASSERT_EQ(batch_to_space->get_element_type(), element::f32);
     ASSERT_EQ(batch_to_space->get_output_partial_shape(0), PartialShape::dynamic());
+}
+
+TEST(type_prop, batch_to_space_default_ctor) {
+    auto data = make_shared<op::Parameter>(element::i16, Shape{100, 7, 13, 3});
+    auto block_shape = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{1, 10, 5, 1});
+    auto crops_begin = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 1, 0});
+    auto crops_end = make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{0, 3, 0, 0});
+
+    auto batch_to_space = make_shared<op::v1::BatchToSpace>();
+
+    batch_to_space->set_arguments(OutputVector{data, block_shape, crops_begin, crops_end});
+    batch_to_space->validate_and_infer_types();
+
+    EXPECT_EQ(batch_to_space->get_input_size(), 4);
+    EXPECT_EQ(batch_to_space->get_output_size(), 1);
+    EXPECT_EQ(batch_to_space->get_element_type(), element::i16);
+    EXPECT_EQ(batch_to_space->get_shape(), (Shape{100 / (10 * 5), 7 * 10 - 3 - 3, 13 * 5 - 1, 3}));
 }

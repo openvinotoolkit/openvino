@@ -2,17 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gna/gna_config.hpp>
 #include "gna_plugin_config.hpp"
-#include <gtest/gtest.h>
+
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
+#include <gna/gna_config.hpp>
 #include <map>
 
 using namespace InferenceEngine;
 using namespace ov::intel_gna;
+using namespace ov::intel_gna::common;
 
 IE_SUPPRESS_DEPRECATED_START
-const std::map<std::string, std::string>  supportedConfigKeysWithDefaults = {
+const std::map<std::string, std::string> supportedConfigKeysWithDefaults = {
     {CONFIG_KEY(CACHE_DIR), ""},
     {GNA_CONFIG_KEY(SCALE_FACTOR), "1.000000"},
     {GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_0"), "1.000000"},
@@ -30,9 +33,8 @@ const std::map<std::string, std::string>  supportedConfigKeysWithDefaults = {
     {GNA_CONFIG_KEY(LIB_N_THREADS), "1"},
     {CONFIG_KEY(SINGLE_THREAD), CONFIG_VALUE(YES)},
     {CONFIG_KEY(LOG_LEVEL), PluginConfigParams::LOG_NONE},
-    {CONFIG_KEY(PERFORMANCE_HINT), ""},
-    {CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS), "1"}
-};
+    {CONFIG_KEY(PERFORMANCE_HINT), "UNDEFINED"},
+    {CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS), "1"}};
 IE_SUPPRESS_DEPRECATED_END
 
 class GNAPluginConfigTest : public ::testing::Test {
@@ -43,8 +45,7 @@ protected:
         EXPECT_EQ(config.GetParameter(key).as<std::string>(), val);
     }
     void ExpectThrow(const std::string& key, const std::string& val) {
-        EXPECT_THROW(config.UpdateFromMap({{key, val}}),
-                     Exception);
+        EXPECT_THROW(config.UpdateFromMap({{key, val}}), Exception);
     }
     void SetAndCheckFlag(const std::string& key, bool& val, bool reverse = false) {
         const bool yes = reverse ? false : true;
@@ -96,11 +97,6 @@ TEST_F(GNAPluginConfigTest, GnaConfigScaleFactorTest) {
     ExpectThrow(GNA_CONFIG_KEY(SCALE_FACTOR), std::string("0"));
 }
 
-TEST_F(GNAPluginConfigTest, GnaConfigFirmwareModelImageTest) {
-    SetAndCompare(GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE), "abc");
-    EXPECT_EQ(config.dumpXNNPath, "abc");
-}
-
 TEST_F(GNAPluginConfigTest, GnaConfigDeviceModeTest) {
     SetAndCompare(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_HW);
     EXPECT_EQ(config.pluginGna2AccMode, Gna2AccelerationModeHardware);
@@ -128,13 +124,11 @@ TEST_F(GNAPluginConfigTest, GnaConfigDeviceModeTest) {
 }
 
 TEST_F(GNAPluginConfigTest, GnaConfigCompactMode) {
-    SetAndCheckFlag(GNA_CONFIG_KEY(COMPACT_MODE),
-                    config.gnaFlags.compact_mode);
+    SetAndCheckFlag(GNA_CONFIG_KEY(COMPACT_MODE), config.gnaFlags.compact_mode);
 }
 
 TEST_F(GNAPluginConfigTest, GnaConfigExclusiveAsyncRequestTest) {
-    SetAndCheckFlag(CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
-                    config.gnaFlags.exclusive_async_requests);
+    SetAndCheckFlag(CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), config.gnaFlags.exclusive_async_requests);
 }
 
 TEST_F(GNAPluginConfigTest, GnaConfigPrecisionTest) {
@@ -148,8 +142,7 @@ TEST_F(GNAPluginConfigTest, GnaConfigPrecisionTest) {
 
 TEST_F(GNAPluginConfigTest, GnaConfigPwlUniformDesignTest) {
     IE_SUPPRESS_DEPRECATED_START
-    SetAndCheckFlag(GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN),
-                    config.gnaFlags.uniformPwlDesign);
+    SetAndCheckFlag(GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN), config.gnaFlags.uniformPwlDesign);
     IE_SUPPRESS_DEPRECATED_END
 }
 
@@ -167,8 +160,7 @@ TEST_F(GNAPluginConfigTest, GnaConfigPwlMaxErrorPercentTest) {
 }
 
 TEST_F(GNAPluginConfigTest, GnaConfigPerfCountTest) {
-    SetAndCheckFlag(CONFIG_KEY(PERF_COUNT),
-                    config.gnaFlags.performance_counting);
+    SetAndCheckFlag(CONFIG_KEY(PERF_COUNT), config.gnaFlags.performance_counting);
 }
 
 IE_SUPPRESS_DEPRECATED_START
@@ -185,23 +177,21 @@ TEST_F(GNAPluginConfigTest, GnaConfigLibNThreadsTest) {
 }
 
 TEST_F(GNAPluginConfigTest, GnaConfigSingleThreadTest) {
-    SetAndCheckFlag(CONFIG_KEY(SINGLE_THREAD),
-                    config.gnaFlags.gna_openmp_multithreading,
-                    true);
+    SetAndCheckFlag(CONFIG_KEY(SINGLE_THREAD), config.gnaFlags.gna_openmp_multithreading, true);
 }
 
 IE_SUPPRESS_DEPRECATED_END
 
 TEST_F(GNAPluginConfigTest, GnaConfigGnaExecTargetTest) {
     SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_2_0");
-    EXPECT_EQ(config.gnaExecTarget, "GNA_TARGET_2_0");
+    EXPECT_EQ(config.target->get_user_set_execution_target(), DeviceVersion::GNA2_0);
     SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_0");
-    EXPECT_EQ(config.gnaExecTarget, "GNA_TARGET_3_0");
+    EXPECT_EQ(config.target->get_user_set_execution_target(), DeviceVersion::GNA3_0);
 
     ExpectThrow(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_7");
 
     SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_5");
-    EXPECT_EQ(config.gnaExecTarget, "GNA_TARGET_3_5");
+    EXPECT_EQ(config.target->get_user_set_execution_target(), DeviceVersion::GNA3_5);
 
     ExpectThrow(GNA_CONFIG_KEY(EXEC_TARGET), "0");
     ExpectThrow(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_1_5");
@@ -210,14 +200,14 @@ TEST_F(GNAPluginConfigTest, GnaConfigGnaExecTargetTest) {
 
 TEST_F(GNAPluginConfigTest, GnaConfigGnaCompileTargetTest) {
     SetAndCompare(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_2_0");
-    EXPECT_EQ(config.gnaCompileTarget, "GNA_TARGET_2_0");
+    EXPECT_EQ(config.target->get_user_set_compile_target(), DeviceVersion::GNA2_0);
     SetAndCompare(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_3_0");
-    EXPECT_EQ(config.gnaCompileTarget, "GNA_TARGET_3_0");
+    EXPECT_EQ(config.target->get_user_set_compile_target(), DeviceVersion::GNA3_0);
 
     ExpectThrow(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_3_7");
 
     SetAndCompare(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_3_5");
-    EXPECT_EQ(config.gnaCompileTarget, "GNA_TARGET_3_5");
+    EXPECT_EQ(config.target->get_user_set_compile_target(), DeviceVersion::GNA3_5);
 
     ExpectThrow(GNA_CONFIG_KEY(COMPILE_TARGET), "0");
     ExpectThrow(GNA_CONFIG_KEY(COMPILE_TARGET), "GNA_TARGET_1_5");

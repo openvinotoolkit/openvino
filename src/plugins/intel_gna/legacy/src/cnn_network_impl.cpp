@@ -2,35 +2,34 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cmath>
-#include <cassert>
-#include <map>
-#include <memory>
-#include <set>
-#include <string>
-#include <vector>
-#include <unordered_set>
-
-#include "debug.h"
-#include "exec_graph_info.hpp"
-#include <ngraph/graph_util.hpp>
-#include <ngraph/pass/manager.hpp>
 #include <ie_common.h>
 
-#include "cnn_network_ngraph_impl.hpp"
-#include <transformations/init_node_info.hpp>
+#include <cassert>
+#include <cmath>
+#include <legacy/cnn_network_impl.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <map>
+#include <memory>
+#include <ngraph/graph_util.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <set>
+#include <string>
 #include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/init_node_info.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
-#include <legacy/transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <unordered_set>
+#include <vector>
 
+#include "cnn_network_ngraph_impl.hpp"
+#include "debug.h"
+#include "exec_graph_info.hpp"
 #include "legacy/convert_function_to_cnn_network.hpp"
-#include "legacy/graph_tools.hpp"
 #include "legacy/details/ie_cnn_network_tools.h"
-#include <legacy/cnn_network_impl.hpp>
+#include "legacy/graph_tools.hpp"
 
 #ifdef ENABLE_V7_SERIALIZE
-# include "network_serializer_v7.hpp"
+#    include "network_serializer_v7.hpp"
 #endif
 
 using namespace std;
@@ -87,13 +86,13 @@ std::map<CNNLayer*, bool> getConstLayersMap(const CNNNetwork& network) {
     return result;
 }
 
-} // namespace
+}  // namespace
 
 CNNNetworkImpl::CNNNetworkImpl() {}
 
-CNNNetworkImpl::CNNNetworkImpl(const CNNNetwork & cnnnetwork) {
+CNNNetworkImpl::CNNNetworkImpl(const CNNNetwork& cnnnetwork) {
     IE_SUPPRESS_DEPRECATED_START
-    auto & icnnnetwork = static_cast<const ICNNNetwork &>(cnnnetwork);
+    auto& icnnnetwork = static_cast<const ICNNNetwork&>(cnnnetwork);
     IE_SUPPRESS_DEPRECATED_END
     auto ngraphImplPtr = dynamic_cast<const details::CNNNetworkNGraphImpl*>(&icnnnetwork);
     IE_ASSERT(ngraphImplPtr != nullptr);
@@ -116,8 +115,11 @@ CNNNetworkImpl::~CNNNetworkImpl() {
     // Added additional check on cycles.
     bool res = false;
     try {
-        res = CNNNetForestDFS(CNNNetGetAllInputLayers(this), [&](CNNLayerPtr layer) {}, false);
-    } catch (const std::exception & ex) {
+        res = CNNNetForestDFS(
+            CNNNetGetAllInputLayers(this),
+            [&](CNNLayerPtr layer) {},
+            false);
+    } catch (const std::exception& ex) {
         std::cout << ex.what() << std::endl;
         // Exception means that network was invalid. Reset all data.
     }
@@ -125,9 +127,11 @@ CNNNetworkImpl::~CNNNetworkImpl() {
     // workaround due to memory leaks
     if (!res) {
         for (const auto& data : _data) {
-            if (!data.second) continue;
+            if (!data.second)
+                continue;
             for (auto& input : getInputTo(data.second)) {
-                if (!input.second) continue;
+                if (!input.second)
+                    continue;
                 input.second.reset();
             }
         }
@@ -143,7 +147,8 @@ void CNNNetworkImpl::getInputsInfo(InputsDataMap& inputs) const noexcept {
 }
 
 void CNNNetworkImpl::addLayer(const CNNLayerPtr& layer) noexcept {
-    if (!layer) return;
+    if (!layer)
+        return;
     _layers[layer->name] = layer;
 }
 
@@ -241,8 +246,8 @@ void CNNNetworkImpl::validate(int version) {
                     auto iter = inputTo.find(layerName);
                     auto dataName = data->getName();
                     if (iter == inputTo.end()) {
-                        IE_THROW() << "Data " << data->getName() << " which inserted into the layer "
-                                           << layerName << " does not point at this layer";
+                        IE_THROW() << "Data " << data->getName() << " which inserted into the layer " << layerName
+                                   << " does not point at this layer";
                     }
                     if (!getCreatorLayer(data).lock()) {
                         IE_THROW() << "Data " << dataName << " has no creator layer";
@@ -267,7 +272,7 @@ void CNNNetworkImpl::validate(int version) {
                         });
                     if (it == insertedDatas.end()) {
                         IE_THROW() << "Layer " << layerInData->name << " which takes data " << dataName
-                                           << " does not point at this data";
+                                   << " does not point at this data";
                     }
                 }
                 auto dataNameSetPair = dataNames.insert(dataName);
@@ -287,7 +292,7 @@ void CNNNetworkImpl::validate(int version) {
         CNNLayerPtr layer = getCreatorLayer(i.second->getInputData()).lock();
         if (layer && !equal(layer->type, inputType)) {
             IE_THROW() << "Input layer " << layer->name << " should have Input type but actually its type is "
-                               << layer->type;
+                       << layer->type;
         }
     }
 
@@ -307,7 +312,8 @@ StatusCode CNNNetworkImpl::getLayerByName(const char* layerName, CNNLayerPtr& ou
 StatusCode CNNNetworkImpl::addOutput(const std::string& layerName, size_t outputIndex, ResponseDesc* resp) noexcept {
     CNNLayerPtr outLayer;
     auto rc = getLayerByName(layerName.c_str(), outLayer, resp);
-    if (rc != OK) return rc;
+    if (rc != OK)
+        return rc;
 
     if (outputIndex >= outLayer->outData.size())
         return DescriptionBuffer(OUT_OF_BOUNDS, resp)
@@ -350,7 +356,8 @@ void CNNNetworkImpl::removeOutput(const string& dataName) {
 }
 
 size_t CNNNetworkImpl::getBatchSize() const {
-    if (!_inputData.size()) return 0;
+    if (!_inputData.size())
+        return 0;
     // currently CNNNetworkImpl::setBatchSize set the same values
     // for the latest dim as a batch, we can take the first input
     // and return batch size for it
@@ -376,10 +383,10 @@ StatusCode CNNNetworkImpl::reshape(const std::map<std::string, std::vector<size_
                 auto newDims = it->second;
                 auto currentDims = data->getTensorDesc().getDims();
                 if (newDims != currentDims) {
-                    return DescriptionBuffer(NOT_IMPLEMENTED, responseDesc) <<
-                        "You have called setBatchSize + reshape for CNNNetwork object. Please, either: \n"
-                        "- [SUGGESTED] Regenerate IR with current version of Model Optimizer\n"
-                        "- [WORKAROUND] Call only reshape method where proper batch is already set\n";
+                    return DescriptionBuffer(NOT_IMPLEMENTED, responseDesc)
+                           << "You have called setBatchSize + reshape for CNNNetwork object. Please, either: \n"
+                              "- [SUGGESTED] Regenerate IR with current version of Model Optimizer\n"
+                              "- [WORKAROUND] Call only reshape method where proper batch is already set\n";
                 }
             }
         }
@@ -393,8 +400,9 @@ StatusCode CNNNetworkImpl::serialize(const std::string& xmlPath, const std::stri
     try {
 #ifdef ENABLE_V7_SERIALIZE
         IE_SUPPRESS_DEPRECATED_START
-        Serialization::Serialize(xmlPath, binPath, CNNNetwork(
-            std::const_pointer_cast<ICNNNetwork>(shared_from_this())));
+        Serialization::Serialize(xmlPath,
+                                 binPath,
+                                 CNNNetwork(std::const_pointer_cast<ICNNNetwork>(shared_from_this())));
         IE_SUPPRESS_DEPRECATED_END
         return OK;
 #endif
@@ -409,23 +417,22 @@ StatusCode CNNNetworkImpl::serialize(const std::string& xmlPath, const std::stri
     return DescriptionBuffer(NOT_IMPLEMENTED, resp) << "The CNNNetworkImpl::serialize is not implemented";
 }
 
-
-StatusCode CNNNetworkImpl::serialize(std::ostream& xmlBuf, std::ostream& binBuf, ResponseDesc* resp) const
-    noexcept {
+StatusCode CNNNetworkImpl::serialize(std::ostream& xmlBuf, std::ostream& binBuf, ResponseDesc* resp) const noexcept {
     return DescriptionBuffer(NOT_IMPLEMENTED, resp) << "The CNNNetworkImpl::serialize is not implemented";
 }
 
-StatusCode CNNNetworkImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binBlob, ResponseDesc* resp) const
-    noexcept {
+StatusCode CNNNetworkImpl::serialize(std::ostream& xmlBuf, Blob::Ptr& binBlob, ResponseDesc* resp) const noexcept {
     return DescriptionBuffer(NOT_IMPLEMENTED, resp) << "The CNNNetworkImpl::serialize is not implemented";
 }
 
 StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept {
     try {
         auto originalBatchSize = getBatchSize();
-        if (originalBatchSize == size) return OK;
+        if (originalBatchSize == size)
+            return OK;
         if (_inputData.empty())
-            return DescriptionBuffer(GENERAL_ERROR, responseDesc) << "Cannot set batch! Topology doesn't contain inputs!";
+            return DescriptionBuffer(GENERAL_ERROR, responseDesc)
+                   << "Cannot set batch! Topology doesn't contain inputs!";
 
         SizeVector dims = _inputData.cbegin()->second->getTensorDesc().getDims();
 

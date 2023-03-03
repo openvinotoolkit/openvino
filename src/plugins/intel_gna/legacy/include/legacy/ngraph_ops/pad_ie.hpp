@@ -4,10 +4,10 @@
 
 #pragma once
 
+#include <ie_api.h>
+
 #include <memory>
 #include <vector>
-
-#include <ie_api.h>
 
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
@@ -22,20 +22,35 @@ public:
 
     explicit PadIE(const std::shared_ptr<op::v1::Pad>& pad);
 
-    PadIE(const Output<ngraph::Node>& input, PadMode pad_mode, CoordinateDiff pads_begin, CoordinateDiff pads_end, Shape output_shape, float pad_value);
+    PadIE(const Output<ngraph::Node>& input,
+          PadMode pad_mode,
+          CoordinateDiff pads_begin,
+          CoordinateDiff pads_end,
+          Shape output_shape,
+          float pad_value);
 
     OPENVINO_SUPPRESS_DEPRECATED_START
-    size_t get_version() const override { return 1; }
+    size_t get_version() const override {
+        return 1;
+    }
     OPENVINO_SUPPRESS_DEPRECATED_END
 
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    PadMode get_pad_mode() { return m_pad_mode; }
-    CoordinateDiff get_pads_begin() { return m_pads_begin; }
-    CoordinateDiff get_pads_end() { return m_pads_end; }
-    float get_pad_value() { return m_pad_value; }
+    PadMode get_pad_mode() {
+        return m_pad_mode;
+    }
+    CoordinateDiff get_pads_begin() {
+        return m_pads_begin;
+    }
+    CoordinateDiff get_pads_end() {
+        return m_pads_end;
+    }
+    float get_pad_value() {
+        return m_pad_value;
+    }
 
 private:
     PadMode m_pad_mode;

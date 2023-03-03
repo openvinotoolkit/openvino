@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <memory>
-
 #include <ie_api.h>
 
+#include <memory>
 #include <ngraph/op/proposal.hpp>
+
 #include "ngraph/op/op.hpp"
 
 namespace ngraph {
@@ -31,10 +31,11 @@ public:
 
     void validate_and_infer_types() override;
 
-    std::shared_ptr<Node>
-    clone_with_new_inputs(const OutputVector& new_args) const override;
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool visit_attributes(AttributeVisitor& visitor) override;
-    const ProposalAttrs& get_attrs() const { return m_attrs; }
+    const ProposalAttrs& get_attrs() const {
+        return m_attrs;
+    }
 
 private:
     ProposalAttrs m_attrs;

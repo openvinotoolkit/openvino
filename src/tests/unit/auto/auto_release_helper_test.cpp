@@ -118,7 +118,7 @@ public:
        IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, supportConfigs, {});
        ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
            .WillByDefault(Return(supportConfigs));
-       ON_CALL(*core, GetConfig(_, StrEq(GPU_CONFIG_KEY(MAX_NUM_THREADS))))
+       ON_CALL(*core, GetConfig(_, StrEq(ov::compilation_num_threads.name())))
            .WillByDefault(Return(12));
     }
 };
@@ -162,6 +162,11 @@ TEST_P(AutoReleaseHelperTest, releaseResource) {
     metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, -1}, {CommonTestUtils::DEVICE_GPU, {}, -1}};
     DeviceInformation devInfo;
     ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
+    ON_CALL(*plugin, GetValidDevice)
+        .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
+            std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
+            return devices;
+        });
     ON_CALL(*plugin, SelectDevice(Property(&std::vector<DeviceInformation>::size, Eq(2)), _, _))
             .WillByDefault(Return(metaDevices[1]));
     ON_CALL(*plugin, SelectDevice(Property(&std::vector<DeviceInformation>::size, Eq(1)), _, _))

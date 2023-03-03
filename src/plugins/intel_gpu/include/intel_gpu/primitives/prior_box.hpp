@@ -172,6 +172,69 @@ struct prior_box : public primitive_base<prior_box> {
 
     bool is_clustered() const { return clustered; }
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, img_size.spatial[0]);
+        seed = hash_combine(seed, img_size.spatial[1]);
+
+        seed = hash_range(seed, min_sizes.begin(), min_sizes.end());
+        seed = hash_range(seed, max_sizes.begin(), max_sizes.end());
+        seed = hash_range(seed, aspect_ratios.begin(), aspect_ratios.end());
+
+        seed = hash_combine(seed, flip);
+        seed = hash_combine(seed, clip);
+
+        seed = hash_range(seed, variance.begin(), variance.end());
+        seed = hash_combine(seed, step_width);
+        seed = hash_combine(seed, step_height);
+        seed = hash_combine(seed, offset);
+        seed = hash_combine(seed, scale_all_sizes);
+
+        seed = hash_range(seed, fixed_ratio.begin(), fixed_ratio.end());
+        seed = hash_range(seed, fixed_size.begin(), fixed_size.end());
+        seed = hash_range(seed, density.begin(), density.end());
+
+        seed = hash_combine(seed, support_opset8);
+        seed = hash_combine(seed, step);
+        seed = hash_combine(seed, min_max_aspect_ratios_order);
+
+        seed = hash_range(seed, widths.begin(), widths.end());
+        seed = hash_range(seed, heights.begin(), heights.end());
+
+        seed = hash_combine(seed, clustered);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const prior_box>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(img_size) &&
+               cmp_fields(min_sizes) &&
+               cmp_fields(max_sizes) &&
+               cmp_fields(aspect_ratios) &&
+               cmp_fields(flip) &&
+               cmp_fields(clip) &&
+               cmp_fields(variance) &&
+               cmp_fields(step_width) &&
+               cmp_fields(step_height) &&
+               cmp_fields(offset) &&
+               cmp_fields(scale_all_sizes) &&
+               cmp_fields(fixed_ratio) &&
+               cmp_fields(fixed_size) &&
+               cmp_fields(density) &&
+               cmp_fields(support_opset8) &&
+               cmp_fields(step) &&
+               cmp_fields(min_max_aspect_ratios_order) &&
+               cmp_fields(widths) &&
+               cmp_fields(heights) &&
+               cmp_fields(clustered);
+        #undef cmp_fields
+    }
+
 private:
     bool clustered;
 

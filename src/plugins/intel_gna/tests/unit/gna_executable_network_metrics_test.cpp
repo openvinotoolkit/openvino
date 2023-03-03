@@ -3,18 +3,16 @@
 //
 
 #include <gtest/gtest.h>
+#include <ie_system_conf.h>
 
 #include "any_copy.hpp"
-#include <ie_system_conf.h>
-#include "ngraph_functions/builders.hpp"
-
 #include "gna_executable_network.hpp"
 #include "gna_plugin.hpp"
 #include "memory/gna_memory.hpp"
+#include "ngraph_functions/builders.hpp"
 
 using namespace ov::intel_gna;
 using namespace InferenceEngine;
-
 
 class GNAPluginForNetworkMetricsTest : public GNAPlugin {
 public:
@@ -52,7 +50,6 @@ protected:
     const ngraph::element::Type net_precision = ngraph::element::f32;
     const ngraph::Shape shape = {1, 10};
 };
-
 
 TEST_F(GnaExecutableNetworkMetricsTest, TestNetworkName) {
     Run(ov::model_name.name(), "MatMul");

@@ -32,7 +32,7 @@ class TestExp(PytorchLayerTest):
                 super(aten_arange_end_dtype, self).__init__()
                 self.dtype = dtype
 
-            def forward(self, x: int):
+            def forward(self, x):
                 return torch.arange(x, dtype=self.dtype)
 
         class aten_arange_start_end_dtype(torch.nn.Module):
@@ -40,7 +40,7 @@ class TestExp(PytorchLayerTest):
                 super(aten_arange_start_end_dtype, self).__init__()
                 self.dtype = dtype
 
-            def forward(self, x: float, y: float):
+            def forward(self, x, y):
                 return torch.arange(start=x, end=y, dtype=self.dtype)
 
         class aten_arange_start_end_step_dtype(torch.nn.Module):
@@ -48,7 +48,7 @@ class TestExp(PytorchLayerTest):
                 super(aten_arange_start_end_step_dtype, self).__init__()
                 self.dtype = dtype
 
-            def forward(self, x: float, y: float, z: float):
+            def forward(self, x, y, z):
                 return torch.arange(start=x, end=y, step=z, dtype=self.dtype)
 
         class aten_arange_end_out(torch.nn.Module):
@@ -56,7 +56,7 @@ class TestExp(PytorchLayerTest):
                 super(aten_arange_end_out, self).__init__()
                 self.dtype = dtype
 
-            def forward(self, x: int):
+            def forward(self, x):
                 return torch.arange(x, out=torch.zeros(1, dtype=self.dtype))
 
         class aten_arange_start_end_out(torch.nn.Module):
@@ -64,7 +64,7 @@ class TestExp(PytorchLayerTest):
                 super(aten_arange_start_end_out, self).__init__()
                 self.out = out
 
-            def forward(self, x: float, y: float):
+            def forward(self, x, y):
                 return torch.arange(start=x, end=y, out=self.out)
 
         class aten_arange_start_end_step_out(torch.nn.Module):
@@ -72,7 +72,7 @@ class TestExp(PytorchLayerTest):
                 super(aten_arange_start_end_step_out, self).__init__()
                 self.out = out
 
-            def forward(self, x: float, y: float, z: float):
+            def forward(self, x, y, z):
                 return torch.arange(start=x, end=y, step=z, out=self.out)
 
         model_classes = {
