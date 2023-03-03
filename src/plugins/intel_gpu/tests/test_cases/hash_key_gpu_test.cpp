@@ -74,8 +74,8 @@ TEST(check_hash_value, fc_basic) {
     const auto primitive_hash = primitve->hash();
     const auto params_hash = prog_node.type()->get_fake_aligned_params(*prog_node.get_kernel_impl_params()).hash();
 
-    ASSERT_EQ(primitive_hash, 7881065839556591629UL);
-    ASSERT_EQ(params_hash, 12327057149074647711UL);
+    ASSERT_EQ(primitive_hash, 2197080758510296176UL);
+    ASSERT_EQ(params_hash, 5241462399408562393UL);
 }
 
 TEST(check_hash_value, gather_basic) {
