@@ -1583,7 +1583,7 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_constant_dynamic) {
     topology topology;
     topology.add(input_layout("input", input_layout_dynamic));
     topology.add(border("border",
-                        input_info("input"),
+                        {input_info("input")}, 0,
                         ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_y, blt_size_x},
                         ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_y, brb_size_x},
                         ov::op::PadMode::CONSTANT,
@@ -1620,12 +1620,9 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_constant_dynamic) {
                     if (b < blt_size_b || b >= out_size_b - brb_size_b ||
                         f < blt_size_f || f >= out_size_f - brb_size_f ||
                         y < blt_size_y || y >= out_size_y - brb_size_y ||
-                        x < blt_size_x || x >= out_size_x - brb_size_x)
-                    {
+                        x < blt_size_x || x >= out_size_x - brb_size_x) {
                         ASSERT_EQ(output_ptr[output_off], 0.0f);
-                    }
-                    else
-                    {
+                    } else {
                         auto input_off  = (((b - blt_size_b) * in_size_f + f - blt_size_f) * in_size_y + y - blt_size_y) * in_size_x + x - blt_size_x; // BFYX
                         ASSERT_EQ(output_ptr[output_off], input_data[input_off]);
                     }
