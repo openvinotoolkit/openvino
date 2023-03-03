@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -36,8 +36,8 @@ class TestConv(OnnxRuntimeLayerTest):
         _pads = np.array(pads).reshape([2, -1])
         kernel_extent = np.array(dilations) * (np.array(weights_shape[2:]) - 1) + 1
         spatial_val_wo_stride = shape[2:] + np.add(_pads[0, :], _pads[1, :]) - kernel_extent
-        output_shape[2:] = (spatial_val_wo_stride.astype(np.float) / strides + 1).astype(np.int64)
-        output_shape = output_shape.astype(np.int).tolist()
+        output_shape[2:] = (spatial_val_wo_stride.astype(float) / strides + 1).astype(np.int64)
+        output_shape = output_shape.astype(int).tolist()
         input = helper.make_tensor_value_info('input', TensorProto.FLOAT, shape)
         output = helper.make_tensor_value_info('output', TensorProto.FLOAT, output_shape)
 

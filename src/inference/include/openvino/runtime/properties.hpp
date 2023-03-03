@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -302,7 +302,7 @@ enum class PerformanceMode {
 inline std::ostream& operator<<(std::ostream& os, const PerformanceMode& performance_mode) {
     switch (performance_mode) {
     case PerformanceMode::UNDEFINED:
-        return os << "";
+        return os << "UNDEFINED";
     case PerformanceMode::LATENCY:
         return os << "LATENCY";
     case PerformanceMode::THROUGHPUT:
@@ -323,7 +323,7 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
         performance_mode = PerformanceMode::THROUGHPUT;
     } else if (str == "CUMULATIVE_THROUGHPUT") {
         performance_mode = PerformanceMode::CUMULATIVE_THROUGHPUT;
-    } else if (str == "") {
+    } else if (str == "UNDEFINED") {
         performance_mode = PerformanceMode::UNDEFINED;
     } else {
         throw ov::Exception{"Unsupported performance mode: " + str};
@@ -372,6 +372,11 @@ static constexpr Property<bool> enable_profiling{"PERF_COUNT"};
  * @brief Namespace with log level property and its possible values
  */
 namespace log {
+
+#ifdef DEBUG
+#    define _OV_WAS_DEBUG DEBUG
+#    undef DEBUG
+#endif
 
 /**
  * @brief Enum to define possible log levels
@@ -433,6 +438,11 @@ inline std::istream& operator>>(std::istream& is, Level& level) {
  * @ingroup ov_runtime_cpp_prop_api
  */
 static constexpr Property<Level> level{"LOG_LEVEL"};
+
+#ifdef _OV_WAS_DEBUG
+#    define DEBUG _OV_WAS_DEBUG
+#    undef _OV_WAS_DEBUG
+#endif
 }  // namespace log
 
 /**

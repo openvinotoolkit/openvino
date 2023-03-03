@@ -10,10 +10,11 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
 
 
 @sphinxdirective
+
 .. tab:: System Requirements
 
-   | Full requirement listing is available in:
-   | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
+  | Full requirement listing is available in:
+  | `System Requirements Page <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html>`_
 
 .. tab:: Processor Notes
 
@@ -25,8 +26,38 @@ See the [Release Notes](https://www.intel.com/content/www/us/en/developer/articl
 .. tab:: Software
 
   * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
-  * GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
   * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/>`_
+  * GCC:
+
+  .. tab:: Ubuntu 18.04
+
+    * GCC 7.5.0
+
+  .. tab:: Ubuntu 20.04
+
+    * GCC 9.3.0
+
+  .. tab:: RHEL 8
+
+    * GCC 8.4.1
+
+  .. tab:: CENTOS 7
+
+    * GCC 8.3.1
+    Use folloving instructions to install it:
+    Install GCC 8.3.1 via devtoolset-8
+
+    .. code-block:: sh
+
+      sudo yum update -y && sudo yum install -y centos-release-scl epel-release
+      sudo yum install -y devtoolset-8 git patchelf
+
+    Enable devtoolset-8 and check current gcc version
+
+    .. code-block:: sh
+
+      source /opt/rh/devtoolset-8/enable
+      gcc -v
 
 @endsphinxdirective
 
@@ -204,3 +235,7 @@ To uninstall the toolkit, follow the steps on the [Uninstalling page](uninstalli
 .. _Intel® IoT Developer Kit: https://github.com/intel-iot-devkit
 
 @endsphinxdirective
+
+## Additional Resources
+
+- [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)

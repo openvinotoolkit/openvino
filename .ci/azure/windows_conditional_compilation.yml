@@ -30,6 +30,7 @@ resources:
     type: github
     endpoint: openvinotoolkit
     name: openvinotoolkit/testdata
+    ref: releases/2022/3
 
 jobs:
 - job: WinCC
@@ -102,7 +103,6 @@ jobs:
         -DSELECTIVE_BUILD=COLLECT ^
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
-        -DENABLE_CLDNN=OFF ^
         -DENABLE_INTEL_GPU=OFF ^
         -DENABLE_MULTI=OFF ^
         -DENABLE_AUTO=OFF ^
@@ -145,7 +145,6 @@ jobs:
         -DSELECTIVE_BUILD_STAT=$(BUILD_DIR)\*.csv ^
         -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
         -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" ^
-        -DENABLE_CLDNN=OFF ^
         -DENABLE_INTEL_GPU=OFF ^
         -DENABLE_MULTI=OFF ^
         -DENABLE_AUTO=OFF ^

@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,5 +27,5 @@ ngraph::snippets::pass::ConvertConstantsToScalars::ConvertConstantsToScalars() {
 
         return true;
     };
-    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(constants), callback);
+    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(constants, matcher_name), callback);
 }

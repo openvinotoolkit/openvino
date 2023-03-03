@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -436,10 +436,10 @@ static UNUSED void addRectangles(unsigned char* data,
             thickness = 1;
         }
 
-        if (static_cast<std::size_t>(x + w) >= width) {
+        if ((static_cast<std::size_t>(x) + w) >= width) {
             w = static_cast<int>(width - x - 1);
         }
-        if (static_cast<std::size_t>(y + h) >= height) {
+        if ((static_cast<std::size_t>(y) + h) >= height) {
             h = static_cast<int>(height - y - 1);
         }
 
@@ -607,10 +607,10 @@ static UNUSED void printPerformanceCounts(const std::map<std::string, ov::Profil
     }
     stream << std::setw(20) << std::left << "Total time: " + std::to_string(totalTime.count()) << " microseconds"
            << std::endl;
-    std::cout << std::endl;
-    std::cout << "Full device name: " << deviceName << std::endl;
-    std::cout << std::endl;
-    std::cout.flags(fmt);
+    stream << std::endl;
+    stream << "Full device name: " << deviceName << std::endl;
+    stream << std::endl;
+    stream.flags(fmt);
 }
 
 /**
@@ -1038,12 +1038,12 @@ static UNUSED void printPerformanceCounts(std::vector<ov::ProfilingInfo> perform
             totalTime += it.real_time;
         }
     }
-    stream << std::setw(25) << std::left << "Total time: " + std::to_string(totalTime.count() / 1000.0)
-           << " milliseconds" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Full device name: " << deviceName << std::endl;
-    std::cout << std::endl;
-    std::cout.flags(fmt);
+    stream << std::setw(25) << std::left << "Total time: " << std::fixed << std::setprecision(3)
+           << totalTime.count() / 1000.0 << " milliseconds" << std::endl;
+    stream << std::endl;
+    stream << "Full device name: " << deviceName << std::endl;
+    stream << std::endl;
+    stream.flags(fmt);
 }
 
 static UNUSED void printPerformanceCounts(ov::InferRequest request,
@@ -1183,10 +1183,10 @@ static UNUSED void printPerformanceCountsNoSort(std::vector<ov::ProfilingInfo> p
     }
     stream << std::setw(25) << std::left << "Total time: " + std::to_string(totalTime.count() / 1000.0)
            << " milliseconds" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Full device name: " << deviceName << std::endl;
-    std::cout << std::endl;
-    std::cout.flags(fmt);
+    stream << std::endl;
+    stream << "Full device name: " << deviceName << std::endl;
+    stream << std::endl;
+    stream.flags(fmt);
 }
 
 static UNUSED bool sort_pc_descend(const ov::ProfilingInfo& profiling1, const ov::ProfilingInfo& profiling2) {
@@ -1256,10 +1256,10 @@ static UNUSED void printPerformanceCountsDescendSort(std::vector<ov::ProfilingIn
     }
     stream << std::setw(25) << std::left << "Total time: " + std::to_string(totalTime.count() / 1000.0)
            << " milliseconds" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Full device name: " << deviceName << std::endl;
-    std::cout << std::endl;
-    std::cout.flags(fmt);
+    stream << std::endl;
+    stream << "Full device name: " << deviceName << std::endl;
+    stream << std::endl;
+    stream.flags(fmt);
 }
 
 static UNUSED void printPerformanceCountsSimpleSort(std::vector<ov::ProfilingInfo> performanceData,
@@ -1317,10 +1317,10 @@ static UNUSED void printPerformanceCountsSimpleSort(std::vector<ov::ProfilingInf
     }
     stream << std::setw(25) << std::left << "Total time: " + std::to_string(totalTime.count() / 1000.0)
            << " milliseconds" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Full device name: " << deviceName << std::endl;
-    std::cout << std::endl;
-    std::cout.flags(fmt);
+    stream << std::endl;
+    stream << "Full device name: " << deviceName << std::endl;
+    stream << std::endl;
+    stream.flags(fmt);
 }
 
 static UNUSED void printPerformanceCountsSort(std::vector<ov::ProfilingInfo> performanceData,
