@@ -34,9 +34,8 @@ OutputVector translate_pythonop(NodeContext& context) {
 
     OutputVector outputs{};
     for (auto result : body->get_results()) {
-        auto output = result->get_input_source_output(0).get_node_shared_ptr();
-        context.mark_node(output);
-        outputs.push_back(output);
+        auto output = result->get_input_source_output(0);
+        outputs.push_back(context.mark_output(output));
     }
     return outputs;
 };
