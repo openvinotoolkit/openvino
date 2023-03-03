@@ -385,7 +385,7 @@ bool program::analyze_output_size_handling_need() {
 
             tensor size(1);
             for (size_t i = 0; i < prim->size.size(); i++) {
-                size.spatial[i] = prim->size[prim->size.size() - i - 1];
+                size.spatial[i] = static_cast<tensor::value_type>(prim->size[prim->size.size() - i - 1]);
             }
             // TODO: Check compatibility of output size calculation (with caffe).
             auto primInputSize = prim_node.input().get_output_layout().get_tensor();
