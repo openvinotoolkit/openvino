@@ -168,11 +168,11 @@ JitConstants ArgMaxMinKernelAxis::GetJitConstants(const arg_max_min_params& para
 
     if (params.has_dynamic_tensors()) {
         const std::string gws_0 = "get_global_size(0)";
-        const std::string operation_num_comp = "(GLW_0!=1)";
+        const std::string operation_num_comp = "(GWS_0!=1)";
         const std::string operation_num = getOperationNumberString(params);
         jit.AddConstant(MakeJitConstant("GWS_0", gws_0));
         jit.AddConstant(MakeJitConstant("OPERATION_NUM_COMP", operation_num_comp));
-        jit.AddConstant(MakeJitConstant("OPERATION_NUM", getOperationNumberString(params)));
+        jit.AddConstant(MakeJitConstant("OPERATION_NUM", operation_num));
     } else {
         const size_t operation_num = getOperationNumber(params);
         jit.AddConstant(MakeJitConstant("OPERATION_NUM_COMP", operation_num > 1));
