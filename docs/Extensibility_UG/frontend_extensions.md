@@ -27,7 +27,7 @@ This section covers the case when a single operation in framework representation
 .. note::
    ``OpExtension`` class is currently available for ONNX and TensorFlow frontends. PaddlePaddle frontend has named inputs and outputs for operation (not indexed) therefore OpExtension mapping is not applicable for this case.
 
-The next example maps ONNX operation with type `“Identity” <https://github.com/onnx/onnx/blob/main/docs/Operators.md#Identity`__ to OpenVINO template extension ``Identity`` class.
+The next example maps ONNX operation with type `*Identity* <https://github.com/onnx/onnx/blob/main/docs/Operators.md#Identity`__ to OpenVINO template extension ``Identity`` class.
 
 .. doxygensnippet:: docs/snippets/ov_extensions.cpp
    :language: cpp
@@ -127,34 +127,35 @@ The next example illustrates using ``ConversionExtension`` for conversion of “
 .. note:: 
    ``ThresholdedRelu`` is one of the standard ONNX operators which is supported by ONNX frontend natively out-of-the-box. Here we are re-implementing it to illustrate how you can add a similar support for your custom operation instead of ``ThresholdedRelu``.
 
+.. tab-set::
 
-.. tab:: C++
+    .. tab:: C++
  
-    .. doxygensnippet:: docs/snippets/ov_extensions.cpp
-        :language: cpp
-        :fragment: [frontend_extension_ThresholdedReLU_header]
+        .. doxygensnippet:: docs/snippets/ov_extensions.cpp
+            :language: cpp
+            :fragment: [frontend_extension_ThresholdedReLU_header]
 
-.. tab:: Python
+    .. tab:: Python
  
-    .. doxygensnippet:: docs/snippets/ov_extensions.py
-        :language: python
-        :fragment: [py_frontend_extension_ThresholdedReLU_header]
+        .. doxygensnippet:: docs/snippets/ov_extensions.py
+            :language: python
+            :fragment: [py_frontend_extension_ThresholdedReLU_header]
 
 
 
+.. tab-set::
 
-
-.. tab:: C++
+    .. tab:: C++
  
-    .. doxygensnippet:: docs/snippets/ov_extensions.cpp
-        :language: cpp
-        :fragment: [frontend_extension_ThresholdedReLU]
+        .. doxygensnippet:: docs/snippets/ov_extensions.cpp
+            :language: cpp
+            :fragment: [frontend_extension_ThresholdedReLU]
 
-.. tab:: Python
+    .. tab:: Python
  
-    .. doxygensnippet:: docs/snippets/ov_extensions.py
-        :language: python
-        :fragment: [py_frontend_extension_ThresholdedReLU]
+        .. doxygensnippet:: docs/snippets/ov_extensions.py
+            :language: python
+            :fragment: [py_frontend_extension_ThresholdedReLU]
 
 
 To access original framework operation attribute value and connect to inputs, ``node`` object of type ``NodeContext`` is used. It has two main methods:
