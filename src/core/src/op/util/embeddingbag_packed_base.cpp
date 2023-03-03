@@ -4,7 +4,7 @@
 
 #include "ngraph/op/util/embeddingbag_packed_base.hpp"
 
-#include "embeddingbag_packed_sum_shape_inference.hpp"
+#include "embeddingbag_packed_shape_inference.hpp"
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "openvino/core/validation_util.hpp"

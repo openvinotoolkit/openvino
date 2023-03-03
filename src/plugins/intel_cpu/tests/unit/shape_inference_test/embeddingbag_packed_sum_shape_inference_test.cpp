@@ -4,7 +4,7 @@
 #include <array>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "embeddingbag_packed_sum_shape_inference.hpp"
+#include "embeddingbag_packed_shape_inference.hpp"
 #include "gmock/gmock.h"
 #include "openvino/opsets/opset10.hpp"
 #include "utils.hpp"

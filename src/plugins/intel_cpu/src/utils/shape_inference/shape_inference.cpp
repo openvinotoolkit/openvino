@@ -25,7 +25,7 @@
 #include "einsum_shape_inference.hpp"
 #include "embedding_segments_sum_shape_inference.hpp"
 #include "embeddingbag_offsets_shape_inference.hpp"
-#include "embeddingbag_packed_sum_shape_inference.hpp"
+#include "embeddingbag_packed_shape_inference.hpp"
 #include "experimental_detectron_detection_output_shape_inference.hpp"
 #include "experimental_detectron_generate_proposals_shape_inference.hpp"
 #include "experimental_detectron_prior_grid_generator_shape_inference.hpp"
