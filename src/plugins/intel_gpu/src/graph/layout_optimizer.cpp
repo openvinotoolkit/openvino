@@ -1531,25 +1531,6 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         if (node.is_type<fully_connected>()) {
             if (!is_node_for_onednn(node.as<fully_connected>()))
                 impl_candidate = impl_types::ocl;
-        } else if (node.is_type<gemm>()) {
-            for (auto& fo : node.get_fused_primitives()) {
-                if (fo.is_type<eltwise>() &&
-                    one_of(fo.typed_desc<eltwise>()->mode, eltwise_mode::sum, eltwise_mode::sub, eltwise_mode::prod)) {
-                    auto& data_node = node.get_dependency(fo.dep_start_idx);
-                    auto data_node_shape = data_node.get_output_layout().get_shape();
-                    auto gemm_out_shape = node.get_output_layout().get_shape();
-
-                    if (gemm_out_shape.size() >= 4 && data_node_shape.size() >= 4) {
-                        auto onednn_gemm_batch_dim = gemm_out_shape[0] * gemm_out_shape[1];
-                        auto onednn_data_node_batch_dim = data_node_shape[0] * data_node_shape[1];
-
-                        // Fallback to impl_types::ocl for non-constant node to avoid broadcasting in runtime
-                        if (onednn_gemm_batch_dim != onednn_data_node_batch_dim && !data_node.is_constant()) {
-                            impl_candidate = impl_types::ocl;
-                        }
-                    }
-                }
-            }
         }
 
         preferred_impl = impl_candidate;

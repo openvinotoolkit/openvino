@@ -979,9 +979,6 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
                 if (fused_prim.is_type<eltwise>() &&
                     one_of(fused_prim.typed_desc<eltwise>()->mode, eltwise_mode::sum, eltwise_mode::sub, eltwise_mode::prod)) {
                     auto& data = node->get_dependency(fused_prim.dep_start_idx);
-                    if (!data.is_constant() || data.get_users().size() != 1) {
-                        continue;
-                    }
 
                     auto gemm_layout = node->get_output_layout();
                     auto gemm_dims = onednn::convert_gemm_tensor(gemm_layout.get_tensor(),
@@ -998,7 +995,8 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
 
                     auto broadcast_size = data_layout.get_shape();
                     broadcast_size[0] = gemm_dims[0] / broadcast_size[1];
-                    const auto prim_id = "broadcast:" + data.id() + "_broadcasted";
+                    static size_t idx = 0;
+                    const auto prim_id = "broadcast:" + data.id() + "_broadcasted" + std::to_string(idx++);
                     auto broadcast_prim = std::make_shared<cldnn::broadcast>(prim_id, cldnn::input_info(data.id()), broadcast_size, ov::AxisSet{});
 
                     auto& broadcast_node = p.get_or_create(broadcast_prim);
