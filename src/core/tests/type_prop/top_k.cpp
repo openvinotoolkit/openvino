@@ -71,7 +71,7 @@ TYPED_TEST_P(topk_type_prop, default_ctor_no_arguments) {
     const auto constant_map =
         std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i64, Shape{}, &k)}};
 
-    const auto outputs = op::v1::shape_infer(op.get(), PartialShapes{data_shape, {}}, constant_map);
+    const auto outputs = shape_infer(op.get(), PartialShapes{data_shape, {}}, constant_map);
 
     EXPECT_EQ(op->get_provided_axis(), exp_axis);
     EXPECT_EQ(op->get_axis(), exp_axis);
@@ -397,4 +397,32 @@ TEST_F(TypePropTopKV3Test, k_is_u32) {
 
     EXPECT_THAT(op->outputs(),
                 Each(Property("PartialShape", &Output<Node>::get_partial_shape, PartialShape({1, {-1, 2}}))));
+}
+
+TEST(type_prop, topk_v11_stable_sort_by_indices) {
+    const auto data = std::make_shared<Parameter>(element::f32, Shape{2, 3, 4});
+    const auto k = Constant::create(element::u32, Shape{}, {1});
+    OV_EXPECT_THROW(const auto op = std::make_shared<ov::op::v11::TopK>(data,
+                                                                        k,
+                                                                        1,
+                                                                        op::TopKMode::MAX,
+                                                                        op::TopKSortType::SORT_INDICES,
+                                                                        element::i32,
+                                                                        true),
+                    NodeValidationFailure,
+                    HasSubstr("Stable sort can only be used when TopK's sorting mode is set to 'VALUE'"));
+}
+
+TEST(type_prop, topk_v11_stable_sort_by_none) {
+    const auto data = std::make_shared<Parameter>(element::f32, Shape{2, 3, 4});
+    const auto k = Constant::create(element::u32, Shape{}, {1});
+    OV_EXPECT_THROW(const auto op = std::make_shared<ov::op::v11::TopK>(data,
+                                                                        k,
+                                                                        2,
+                                                                        op::TopKMode::MIN,
+                                                                        op::TopKSortType::NONE,
+                                                                        element::i64,
+                                                                        true),
+                    NodeValidationFailure,
+                    HasSubstr("Stable sort can only be used when TopK's sorting mode is set to 'VALUE'"));
 }
