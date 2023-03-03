@@ -149,10 +149,22 @@ OPENVINO_RUNTIME_API void set_cpu_used(std::vector<int> cpu_ids, int used);
 /**
  * @brief      Returns number of CPU cores on Linux/Windows
  * @ingroup    ie_dev_api_system_conf
- * @param[in]  plugin_task plugin task.
  * @return     Number of CPU cores with core_type.
  */
-OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_num_available_cpu_cores(const int plugin_task = -1);
+OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_num_available_cpu_cores();
+
+/**
+ * @brief      Update proc_type_table
+ * @ingroup    ie_dev_api_system_conf
+ */
+OPENVINO_RUNTIME_API void update_proc_type_table();
+
+/**
+ * @brief      Get cpu_used_flag in current task
+ * @ingroup    ie_dev_api_system_conf
+ * @return     task id
+ */
+OPENVINO_RUNTIME_API int get_task_flag();
 
 /**
  * @brief      Returns corresponding logical cores

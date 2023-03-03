@@ -449,7 +449,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::set_executor_config(std::stri
     if (cpu_map_available()) {
         if (name.find("CPU") == std::string::npos) {
             if (name.find("GPU") != std::string::npos) {
-                streamExecutorConfig._plugin_task = GPU_PRE_USED;
+                streamExecutorConfig._plugin_task = get_task_flag();
             }
         }
         const auto proc_type_table = get_num_available_cpu_cores();
@@ -474,6 +474,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::set_executor_config(std::stri
                 std::vector<int> logic_cores = get_logic_cores(cpu_ids);
                 set_cpu_used(logic_cores, streamExecutorConfig._plugin_task);
             }
+            update_proc_type_table();
         }
     }
     OPENVINO_DEBUG << "[ " << name << " SetExecutorConfig ] streams: " << num_streams

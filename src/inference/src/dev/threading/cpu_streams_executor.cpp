@@ -272,6 +272,7 @@ struct CPUStreamsExecutor::Impl {
             }
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
             set_cpu_used(_cpu_ids, NOT_USED);
+            update_proc_type_table();
             if (nullptr != _observer) {
                 _observer->observe(false);
             }

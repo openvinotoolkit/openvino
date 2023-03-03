@@ -166,6 +166,19 @@ using ov::set_cpu_used;
 using ov::get_num_available_cpu_cores;
 
 /**
+ * @brief      Update proc_type_table
+ * @ingroup    ie_dev_api_system_conf
+ */
+using ov::update_proc_type_table;
+
+/**
+ * @brief      Get cpu_used_flag in current task
+ * @ingroup    ie_dev_api_system_conf
+ * @return     Task status
+ */
+using ov::get_task_flag;
+
+/**
  * @brief      Returns corresponding logical cores
  * @ingroup    ie_dev_api_system_conf
  * @param[in]  cpu_ids physical cores

@@ -275,6 +275,7 @@ struct CPUStreamsExecutor::Impl {
             }
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
             set_cpu_used(_cpu_ids, ov::NOT_USED);
+            update_proc_type_table();
             if (nullptr != _observer) {
                 _observer->observe(false);
             }
