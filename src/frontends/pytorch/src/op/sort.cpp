@@ -3,13 +3,14 @@
 //
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/opsets/opset10.hpp"
-
+#include "utils.hpp"
 namespace ov {
 namespace frontend {
 namespace pytorch {
 namespace op {
 
 OutputVector translate_sort(NodeContext& context) {
+    num_inputs_check(context, 3, 4);
     const auto input_tensor = context.get_input(0);
     bool stable, descending;
     int64_t dim;
