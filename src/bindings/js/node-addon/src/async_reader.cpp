@@ -1,4 +1,4 @@
-#include "ReaderWorker.hpp"
+#include "async_reader.hpp"
 
 ReaderWorker::ReaderWorker(Napi::Env env)
     : Napi::AsyncWorker(env),

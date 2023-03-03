@@ -14,8 +14,8 @@
 #include <openvino/core/model.hpp>
 #include <openvino/runtime/core.hpp>
 
-#include "CompiledModelWrap.hpp"
-#include "TensorWrap.hpp"
+#include "compiled_model.hpp"
+#include "tensor.hpp"
 #include "errors.hpp"
 
 class ModelWrap : public Napi::ObjectWrap<ModelWrap> {

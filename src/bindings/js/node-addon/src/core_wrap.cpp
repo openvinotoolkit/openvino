@@ -1,7 +1,7 @@
-#include "CoreWrap.hpp"
+#include "core_wrap.hpp"
 
-#include "CompiledModelWrap.hpp"
-#include "ModelWrap.hpp"
+#include "compiled_model.hpp"
+#include "model_wrap.hpp"
 
 CoreWrap::CoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<CoreWrap>(info), env(info.Env()) {}
 

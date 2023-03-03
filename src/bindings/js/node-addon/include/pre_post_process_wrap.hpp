@@ -14,7 +14,7 @@
 #include <openvino/core/preprocess/pre_post_process.hpp>
 #include <openvino/openvino.hpp>
 
-#include "ModelWrap.hpp"
+#include "model_wrap.hpp"
 #include "element_type.hpp"
 #include "errors.hpp"
 #include "helper.hpp"

@@ -13,7 +13,7 @@
 
 #include <openvino/runtime/core.hpp>
 
-#include "ReaderWorker.hpp"
+#include "async_reader.hpp"
 #include "errors.hpp"
 
 class CoreWrap : public Napi::ObjectWrap<CoreWrap> {

@@ -1,6 +1,6 @@
-#include "CompiledModelWrap.hpp"
+#include "compiled_model.hpp"
 
-#include "InferRequestWrap.hpp"
+#include "infer_request.hpp"
 
 CompiledModelWrap::CompiledModelWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<CompiledModelWrap>(info) {}
 

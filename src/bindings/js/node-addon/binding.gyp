@@ -7,15 +7,15 @@
       "cflags_cc": ["-std=c++17"],
 
       "sources": [  
-        "src/ReaderWorker.cpp",
-        "src/PrePostProcessorWrap.cpp",
+        "src/async_reader.cpp",
+        "src/pre_post_process_wrap.cpp",
         "src/errors.cpp",
         "src/helper.cpp",
-        "src/TensorWrap.cpp",
-        "src/InferRequestWrap.cpp",
-        "src/CompiledModelWrap.cpp",
-        "src/CoreWrap.cpp", 
-        "src/ModelWrap.cpp",
+        "src/tensor.cpp",
+        "src/infer_request.cpp",
+        "src/compiled_model.cpp",
+        "src/core_wrap.cpp", 
+        "src/model_wrap.cpp",
         "src/addon.cpp",
         "src/element_type.cpp"
       ],

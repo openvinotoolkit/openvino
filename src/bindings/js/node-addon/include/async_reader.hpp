@@ -13,7 +13,7 @@
 
 #include <openvino/runtime/core.hpp>
 
-#include "ModelWrap.hpp"
+#include "model_wrap.hpp"
 
 class ReaderWorker : public Napi::AsyncWorker {
 public:

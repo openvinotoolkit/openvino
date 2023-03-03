@@ -1,12 +1,12 @@
 #include <napi.h>
 
 
-#include "CompiledModelWrap.hpp"
-#include "CoreWrap.hpp"
-#include "InferRequestWrap.hpp"
-#include "ModelWrap.hpp"
-#include "PrePostProcessorWrap.hpp"
-#include "TensorWrap.hpp"
+#include "compiled_model.hpp"
+#include "core_wrap.hpp"
+#include "infer_request.hpp"
+#include "model_wrap.hpp"
+#include "pre_post_process_wrap.hpp"
+#include "tensor.hpp"
 #include "element_type.hpp"
 
 /// @brief Initialize native add-on

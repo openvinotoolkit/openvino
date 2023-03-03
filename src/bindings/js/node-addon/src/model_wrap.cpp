@@ -1,4 +1,4 @@
-#include "ModelWrap.hpp"
+#include "model_wrap.hpp"
 
 ModelWrap::ModelWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<ModelWrap>(info) {}
 
@@ -54,8 +54,8 @@ std::shared_ptr<ov::Model> ModelWrap::get_model() {
 
 Napi::Value ModelWrap::read_model(const Napi::CallbackInfo& info) {
     if (info.Length() == 1 && info[0].IsString()) {
-        std::string model_onnx = info[0].ToString();
-        std::shared_ptr<ov::Model> model = _core.read_model(model_onnx);
+        std::string model_path = info[0].ToString();
+        std::shared_ptr<ov::Model> model = _core.read_model(model_path);
         return ModelWrap::Wrap(info.Env(), model);
     } else if (info.Length() != 2) {
         reportError(info.Env(), "Invalid number of arguments -> " + std::to_string(info.Length()));

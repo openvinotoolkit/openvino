@@ -1,6 +1,6 @@
-#include "InferRequestWrap.hpp"
+#include "infer_request.hpp"
 
-#include "TensorWrap.hpp"
+#include "tensor.hpp"
 
 InferRequestWrap::InferRequestWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<InferRequestWrap>(info) {}
 

@@ -1,4 +1,4 @@
-#include "TensorWrap.hpp"
+#include "tensor.hpp"
 
 #include <iostream>
 
