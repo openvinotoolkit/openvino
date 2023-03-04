@@ -47,7 +47,8 @@ endif()
 add_subdirectory(icd_loader EXCLUDE_FROM_ALL)
 
 # use CL/opencl.hpp
-target_compile_definitions(OpenCL INTERFACE OV_GPU_USE_OPENCL_HPP)
+target_compile_definitions(OpenCL INTERFACE OV_GPU_USE_OPENCL_HPP
+                                            OV_GPU_OPENCL_HPP_HAS_UUID)
 target_include_directories(OpenCL INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/cl_headers>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/clhpp_headers/include>)
