@@ -16,7 +16,7 @@
 
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
-#include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
 #include "utils/debug_capabilities.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
 
@@ -103,20 +103,22 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             } else {
                 fcSparseWeiDecompressionRate = val_f;
             }
-        // } else if (key == CPUConfigParams::KEY_CPU_PROCESSOR_TYPE) {
-        //     if (val.compare("UNDEFINED")) {
-        //         cpu_processor_type = ProcessorType::UNDEFINED;
-        //     } else if (val.compare("ALL")) {
-        //         cpu_processor_type = ProcessorType::ALL;
-        //     } else if (val.compare("PHY_CORE_ONLY")) {
-        //         cpu_processor_type = ProcessorType::PHY_CORE_ONLY;
-        //     } else if (val.compare("P_CORE_ONLY")) {
-        //         cpu_processor_type = ProcessorType::P_CORE_ONLY;
-        //     } else if (val.compare("E_CORE_ONLY")) {
-        //         cpu_processor_type = ProcessorType::E_CORE_ONLY;
-        //     } else if (val.compare("PHY_P_CORE_ONLY")) {
-        //         cpu_processor_type = ProcessorType::PHY_P_CORE_ONLY;
-        //     }
+        } else if (key == CPUConfigParams::KEY_CPU_PROCESSOR_TYPE) {
+            if (val.compare("UNDEFINED")) {
+                cpu_processor_type = ProcessorType::UNDEFINED;
+            } else if (val.compare("ALL")) {
+                cpu_processor_type = ProcessorType::ALL;
+            } else if (val.compare("PHY_CORE_ONLY")) {
+                cpu_processor_type = ProcessorType::PHY_CORE_ONLY;
+            } else if (val.compare("P_CORE_ONLY")) {
+                cpu_processor_type = ProcessorType::P_CORE_ONLY;
+            } else if (val.compare("E_CORE_ONLY")) {
+                cpu_processor_type = ProcessorType::E_CORE_ONLY;
+            } else if (val.compare("PHY_P_CORE_ONLY")) {
+                cpu_processor_type = ProcessorType::PHY_P_CORE_ONLY;
+            } else {
+                IE_THROW() << "Unsupported processor type: " << val << ".";
+            }
         } else if (key == PluginConfigParams::KEY_PERF_COUNT) {
             if (val == PluginConfigParams::YES) collectPerfCounters = true;
             else if (val == PluginConfigParams::NO) collectPerfCounters = false;
@@ -243,6 +245,26 @@ void Config::updateProperties() {
         break;
     case IStreamsExecutor::ThreadBindingType::HYBRID_AWARE:
         _config.insert({ PluginConfigParams::KEY_CPU_BIND_THREAD, PluginConfigParams::HYBRID_AWARE });
+        break;
+    }
+    switch (cpu_processor_type) {
+    case ProcessorType::UNDEFINED:
+        _config.insert({CPUConfigParams::KEY_CPU_PROCESSOR_TYPE, "UNDEFINED"});
+        break;
+    case ProcessorType::ALL:
+        _config.insert({CPUConfigParams::KEY_CPU_PROCESSOR_TYPE, "ALL"});
+        break;
+    case ProcessorType::PHY_CORE_ONLY:
+        _config.insert({CPUConfigParams::KEY_CPU_PROCESSOR_TYPE, "PHY_CORE_ONLY"});
+        break;
+    case ProcessorType::P_CORE_ONLY:
+        _config.insert({CPUConfigParams::KEY_CPU_PROCESSOR_TYPE, "P_CORE_ONLY"});
+        break;
+    case ProcessorType::E_CORE_ONLY:
+        _config.insert({CPUConfigParams::KEY_CPU_PROCESSOR_TYPE, "E_CORE_ONLY"});
+        break;
+    case ProcessorType::PHY_P_CORE_ONLY:
+        _config.insert({CPUConfigParams::KEY_CPU_PROCESSOR_TYPE, "PHY_P_CORE_ONLY"});
         break;
     }
     if (collectPerfCounters == true)

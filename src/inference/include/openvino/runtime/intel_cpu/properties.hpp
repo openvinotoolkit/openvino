@@ -12,6 +12,7 @@
 #pragma once
 
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/system_conf.hpp"
 
 namespace ov {
 
@@ -50,19 +51,10 @@ static constexpr Property<bool> denormals_optimization{"CPU_DENORMALS_OPTIMIZATI
 static constexpr Property<float> sparse_weights_decompression_rate{"SPARSE_WEIGHTS_DECOMPRESSION_RATE"};
 
 /**
- * @brief Enum to define possible processor type hints for CPU inference
- * @ingroup ov_runtime_cpp_prop_api
+ * @enum       ProcessorType
+ * @brief      This enum contains defination of processor type used for CPU inference.
  */
-enum class ProcessorType {
-    UNDEFINED = -1,  //!<  Undefined value, default setting may vary by platform and performance hints
-    ALL = 1,  //!<  All processors can be used. If hyper threading is enabled, both processors of oneperformance-core
-              //!<  will be used.
-    PHY_CORE_ONLY = 2,    //!<  Only one processor can be used per CPU core even with hyper threading enabled.
-    P_CORE_ONLY = 3,      //!<  Only processors of performance-cores can be used. If hyper threading is enabled, both
-                          //!<  processors of one performance-core will be used.
-    E_CORE_ONLY = 4,      //!<  Only processors of efficient-cores can be used.
-    PHY_P_CORE_ONLY = 5,  //!<  Only one processor can be used per performance-core even with hyper threading enabled.
-};
+using ov::ProcessorType;
 
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const ProcessorType& cpu_processor_type) {
