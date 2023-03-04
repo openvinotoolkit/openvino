@@ -95,6 +95,7 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
                     pad_value = zero_f;
                 }
             }
+            pad_value = std::make_shared<ov::op::v1::ConvertLike>(pad_value, input_node);
         }
         FRONT_END_OP_CONVERSION_CHECK(PAD_MODES.find(mode) != PAD_MODES.end(),
                                       "Unsupported mode: ",

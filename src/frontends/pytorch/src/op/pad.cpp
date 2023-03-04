@@ -9,6 +9,7 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/subtract.hpp"
@@ -91,8 +92,11 @@ OutputVector translate_pad(NodeContext& context) {
         {"replicate", PadMode::EDGE},
     };
     Output<Node> pad_value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
-    if (mode == "constant" && !context.input_is_none(3)) {
-        pad_value = context.get_input(3);
+    if (mode == "constant") {
+        if (!context.input_is_none(3)) {
+            pad_value = context.get_input(3);
+        }
+        pad_value = context.mark_node(std::make_shared<v1::ConvertLike>(pad_value, data));
     }
     auto ov_mode = pt_to_ov_pad.find(mode);
     FRONT_END_OP_CONVERSION_CHECK(ov_mode != pt_to_ov_pad.end(),
