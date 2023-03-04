@@ -7,11 +7,14 @@ import paddle
 import sys
 
 
-def flip(name: str, x, axis):
+def flip(name: str, x, axis, is_dynamic=False):
     paddle.enable_static()
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
-        data = paddle.static.data(name='x', shape=x.shape, dtype=x.dtype)
+        if is_dynamic:
+            data = paddle.static.data(name='x', shape=(-1, ) * len(x.shape), dtype=x.dtype)
+        else:
+            data = paddle.static.data(name='x', shape=x.shape, dtype=x.dtype)
         out = paddle.flip(data, axis=axis)
 
         cpu = paddle.static.cpu_places(1)
@@ -37,6 +40,7 @@ def main():
 
     data_type = 'float32'
     axis = [-1, -3]
+    # axis = [3, 1]
     x = np.random.randn(3, 2, 1, 5).astype(data_type)
     flip("flip_2", x, axis)
 
@@ -55,6 +59,15 @@ def main():
     x = np.random.randn(1).astype(data_type)
     flip("flip_5", x, axis)
 
+    data_type = 'int64'
+    axis = 3
+    x = np.random.randint(-5, 5, (1, 1, 4, 1)).astype(data_type)
+    flip("flip_dynamic_1", x, axis, True)
+
+    data_type = 'float32'
+    axis = [-1, -2]
+    x = np.random.randn(1, 4, 1).astype(data_type)
+    flip("flip_dynamic_2", x, axis, True)
 
 if __name__ == "__main__":
     main()
