@@ -55,16 +55,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_cpuCompileModelBehaviorTests,
                                             ::testing::ValuesIn(cpu_compileModel_properties)),
                          OVSetPropComplieModleGetPropTests::getTestCaseName);
 
+const std::vector<ov::AnyMap> cpu_setcore_coreproperties = {{ov::cache_dir("./cache_dir")}};
+const std::vector<ov::AnyMap> cpu_compileModel_coreproperties = {{ov::cache_dir("./cache_dir_cpu")}};
+INSTANTIATE_TEST_SUITE_P(smoke_cpuCompileModelBehaviorCorePropertiesTests,
+                         OVSetCorePropComplieModleGetCorePropTests,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_CPU),
+                                            ::testing::ValuesIn(cpu_setcore_coreproperties),
+                                            ::testing::ValuesIn(cpu_compileModel_coreproperties)),
+                         OVSetCorePropComplieModleGetCorePropTests::getTestCaseName);
+
 const std::vector<ov::AnyMap> multi_setcore_properties = {
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
      ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
      ov::hint::num_requests(2),
-     ov::hint::allow_auto_batching(false),
      ov::enable_profiling(false)},
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
      ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
      ov::hint::num_requests(8),
-     ov::hint::allow_auto_batching(true),
      ov::enable_profiling(true)}};
 const std::vector<ov::AnyMap> multi_compileModel_properties = {
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
@@ -84,6 +91,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_MultiCompileModelBehaviorTests,
                                             ::testing::ValuesIn(multi_setcore_properties),
                                             ::testing::ValuesIn(multi_compileModel_properties)),
                          OVSetPropComplieModleGetPropTests::getTestCaseName);
+
+const std::vector<ov::AnyMap> multi_setcore_coreproperties = {{ov::cache_dir("./cache_dir")},
+                                                              {ov::hint::allow_auto_batching(true)},
+                                                              {ov::auto_batch_timeout("1200")}};
+const std::vector<ov::AnyMap> multi_compileModel_coreproperties = {{ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+                                                                    ov::cache_dir("./cache_dir_multi"),
+                                                                    ov::hint::allow_auto_batching(false),
+                                                                    ov::auto_batch_timeout("1600")},
+                                                                   {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+                                                                    ov::cache_dir("./cache_dir_multi"),
+                                                                    ov::hint::allow_auto_batching(true),
+                                                                    ov::auto_batch_timeout("1680")}};
+INSTANTIATE_TEST_SUITE_P(smoke_MultiCompileModelBehaviorCorePropertiesTests,
+                         OVSetCorePropComplieModleGetCorePropTests,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                                            ::testing::ValuesIn(multi_setcore_coreproperties),
+                                            ::testing::ValuesIn(multi_compileModel_coreproperties)),
+                         OVSetCorePropComplieModleGetCorePropTests::getTestCaseName);
 
 const std::vector<ov::AnyMap> auto_setcore_properties = {
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
@@ -106,7 +131,6 @@ const std::vector<ov::AnyMap> auto_compileModel_properties = {
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
      ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
      ov::hint::num_requests(8),
-     ov::hint::allow_auto_batching(true),
      ov::enable_profiling(true)},
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
      ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT),
@@ -116,7 +140,6 @@ const std::vector<ov::AnyMap> auto_compileModel_properties = {
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
      ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
      ov::hint::num_requests(2),
-     ov::hint::allow_auto_batching(true),
      ov::enable_profiling(false)}};
 INSTANTIATE_TEST_SUITE_P(smoke_AutoCompileModelBehaviorTests,
                          OVSetPropComplieModleGetPropTests,
@@ -125,10 +148,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoCompileModelBehaviorTests,
                                             ::testing::ValuesIn(auto_compileModel_properties)),
                          OVSetPropComplieModleGetPropTests::getTestCaseName);
 
+const std::vector<ov::AnyMap> auto_setcore_coreproperties = {{ov::cache_dir("./cache_dir")},
+                                                             {ov::hint::allow_auto_batching(true)},
+                                                             {ov::auto_batch_timeout("1300")}};
+const std::vector<ov::AnyMap> auto_compileModel_coreproperties = {
+    {ov::cache_dir("./cache_dir_auto"), ov::hint::allow_auto_batching(false), ov::auto_batch_timeout("1700")}};
+INSTANTIATE_TEST_SUITE_P(smoke_AutoCompileModelBehaviorCorePropertiesTests,
+                         OVSetCorePropComplieModleGetCorePropTests,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                            ::testing::ValuesIn(auto_setcore_coreproperties),
+                                            ::testing::ValuesIn(auto_compileModel_coreproperties)),
+                         OVSetCorePropComplieModleGetCorePropTests::getTestCaseName);
+
 const std::vector<ov::AnyMap> default_properties = {
         {ov::enable_profiling(false)},
         {ov::log::level("LOG_NONE")},
         {ov::hint::model_priority(ov::hint::Priority::MEDIUM)},
+        {ov::hint::allow_auto_batching(true)},
+        {ov::auto_batch_timeout("1000")},
         {ov::intel_auto::device_bind_buffer(false)},
         {ov::intel_auto::enable_startup_fallback(true)},
         {ov::device::priorities("")}

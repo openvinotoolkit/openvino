@@ -738,36 +738,6 @@ TEST_P(IEClassGetMetricTest_RANGE_FOR_STREAMS, GetMetricAndPrintNoThrow) {
     ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(RANGE_FOR_STREAMS));
 }
 
-TEST_P(IEClassGetMetricTest_CORE_PROPERTY_KEYS, GetMetricAndPrintNoThrow) {
-    InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
-
-    ASSERT_NO_THROW(p = ie.GetMetric(target_device, ov::core_property_keys.name()));
-    std::set<std::string> t = p;
-
-    std::cout << "Supported core properties: " << std::endl;
-    for (auto&& str : t) {
-        std::cout << str << std::endl;
-    }
-
-    ASSERT_EQ(t.size(), 3);
-}
-
-TEST_P(IEClassGetMetricTest_CORE_PROPERTY_KEYS, GetMetricWithEmptyDevice) {
-    InferenceEngine::Core ie = BehaviorTestsUtils::createIECoreWithTemplate();
-    InferenceEngine::Parameter p;
-
-    ASSERT_NO_THROW(p = ie.GetMetric({}, ov::core_property_keys.name()));
-    std::set<std::string> t = p;
-
-    std::cout << "Supported core properties: " << std::endl;
-    for (auto&& str : t) {
-        std::cout << str << std::endl;
-    }
-
-    ASSERT_EQ(t.size(), 3);
-}
-
 TEST_P(IEClassGetMetricTest_ThrowUnsupported, GetMetricThrow) {
     InferenceEngine::Core  ie = BehaviorTestsUtils::createIECoreWithTemplate();
     InferenceEngine::Parameter p;

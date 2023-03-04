@@ -195,6 +195,27 @@ TEST_P(OVSetPropComplieModleGetPropTests, SetPropertyComplieModelGetProperty) {
     }
 }
 
+TEST_P(OVSetCorePropComplieModleGetCorePropTests, SetCorePropertyComplieModelGetCoreProperty) {
+    OV_ASSERT_NO_THROW(core->set_property(target_device, properties));
+
+    for (const auto& property_item : properties) {
+        Any property;
+        OV_ASSERT_NO_THROW(property = core->get_property(target_device, property_item.first));
+        ASSERT_EQ(property_item.second.as<std::string>(), property.as<std::string>());
+    }
+
+    ov::CompiledModel exeNetWork;
+    OV_ASSERT_NO_THROW(exeNetWork = core->compile_model(model, target_device, compileModelProperties));
+
+    // the value of get property should be the same as core properties for compiledModel
+    for (const auto& property_item : properties) {
+        Any property;
+        OV_ASSERT_NO_THROW(property = core->get_property(target_device, property_item.first));
+        Any expected = compileModelProperties[property_item.first];
+        ASSERT_EQ(expected.as<std::string>(), property.as<std::string>());
+    }
+}
+
 TEST_P(OVSetPropComplieModleWihtIncorrectPropTests, CanNotCompileModelWithIncorrectProperties) {
     ASSERT_THROW(core->compile_model(model, target_device, properties), ov::Exception);
 }

@@ -377,6 +377,10 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     }
 
     auto config = orig_config;
+    auto cache_dir = GetCore()->GetConfig(GetName(), ov::cache_dir.name());
+    if (cache_dir != ov::Any("")) {
+        config[ov::cache_dir.name()] = cache_dir.as<std::string>();
+    }
 
     CNNNetwork clonedNetwork = InferenceEngine::details::cloneNetwork(network);
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
@@ -434,9 +438,8 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     // update the props after the perf mode translated to configs
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
-    auto core_config = GetCore() ? GetCore()->GetMetric({}, ov::core_property_keys.name()).as<std::set<std::string>>()
-                                 : std::set<std::string>();
-    conf.readProperties(config, core_config);
+
+    conf.readProperties(config);
     if (conf.enableDynamicBatch) {
         conf.batchLimit = static_cast<int>(network.getBatchSize());
     }
@@ -648,9 +651,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
 
     // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
-    auto core_config = GetCore() ? GetCore()->GetMetric({}, ov::core_property_keys.name()).as<std::set<std::string>>()
-                                 : std::set<std::string>();
-    conf.readProperties(config, core_config);
+    conf.readProperties(config);
 
     if (conf.enableDynamicBatch) {
         conf.batchLimit = static_cast<int>(network.getBatchSize());
@@ -716,9 +717,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(std::istr
     deserializer >> cnnnetwork;
 
     Config conf = engConfig;
-    auto core_config = GetCore() ? GetCore()->GetMetric({}, ov::core_property_keys.name()).as<std::set<std::string>>()
-                                 : std::set<std::string>();
-    conf.readProperties(config, core_config);
+    conf.readProperties(config);
 
     // import config props from caching model
     auto function = cnnnetwork.getFunction();

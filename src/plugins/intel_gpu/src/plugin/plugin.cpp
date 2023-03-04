@@ -69,7 +69,7 @@ void Plugin::register_primitives() {
     #undef REGISTER_FACTORY
 }
 
-ov::AnyMap Plugin::preprocess_config(const std::map<std::string, std::string>& orig_config, const bool ignore) const {
+ov::AnyMap Plugin::preprocess_config(const std::map<std::string, std::string>& orig_config) const {
     // We can skip this conversion for new API once all meta plugins don't try to use legacy configs/metrics for new API internally
     auto config = LegacyAPIHelper::convert_legacy_properties(orig_config, IsNewAPI());
 
@@ -82,22 +82,6 @@ ov::AnyMap Plugin::preprocess_config(const std::map<std::string, std::string>& o
         config[ov::hint::performance_mode.name()] = ov::util::from_string(hint_it->second, ov::hint::performance_mode);
     }
 
-    // Core property handling: keep the core properties that this plugin used and remove unused core property
-    auto core_config = GetCore() ? GetCore()->GetMetric({}, ov::core_property_keys.name()).as<std::set<std::string>>()
-                                 : std::set<std::string>();
-    for (auto& it : core_config) {
-        auto item = config.find(it);
-        if (item == config.end())
-            continue;
-
-        if (!ignore) {
-            IE_THROW() << " Unsupported core property: " << it.c_str();
-        } else {
-            if (item->first != ov::cache_dir.name()) {
-                config.erase(item);
-            }
-        }
-    }
     return config;
 }
 
@@ -200,14 +184,20 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     InferenceEngine::InputsDataMap _networkInputs = network.getInputsInfo();
     check_inputs(_networkInputs);
 
-    std::string device_id = get_device_id(orig_config);
+    auto _config = orig_config;
+    auto cache_dir = GetCore()->GetConfig(GetName(), ov::cache_dir.name());
+    if (cache_dir != ov::Any("")) {
+        _config[ov::cache_dir.name()] = cache_dir.as<std::string>();
+    }
+
+    std::string device_id = get_device_id(_config);
 
     auto context = get_default_context(device_id);
 
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] LoadExeNetworkImpl: Couldn't find config for GPU with id ", device_id);
 
     ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_user_property(preprocess_config(orig_config));
+    config.set_user_property(preprocess_config(_config));
     config.apply_user_properties(context->get_impl()->get_engine().get_device_info());
 
     auto transformedNetwork = clone_and_transform_model(network, config);
@@ -233,8 +223,14 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
 
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] LoadExeNetworkImpl: Couldn't find config for GPU with id ", device_id);
 
+    auto _config = orig_config;
+    auto cache_dir = GetCore()->GetConfig(GetName(), ov::cache_dir.name());
+    if (cache_dir != ov::Any("")) {
+        _config[ov::cache_dir.name()] = cache_dir.as<std::string>();
+    }
+
     ExecutionConfig config = m_configs_map.at(device_id);
-    config.set_user_property(preprocess_config(orig_config));
+    config.set_user_property(preprocess_config(_config));
     config.apply_user_properties(context_impl->get_engine().get_device_info());
 
     auto transformedNetwork = clone_and_transform_model(network, config);
@@ -282,7 +278,7 @@ InferenceEngine::RemoteContext::Ptr Plugin::GetDefaultContext(const AnyMap& para
 
 void Plugin::SetConfig(const std::map<std::string, std::string> &config) {
     auto update_config = [this](ExecutionConfig& config, const std::map<std::string, std::string>& user_config) {
-        config.set_user_property(preprocess_config(user_config, false));
+        config.set_user_property(preprocess_config(user_config));
         // Check that custom layers config can be loaded
         if (user_config.find(ov::intel_gpu::config_file.name()) != user_config.end()) {
             CustomLayerMap custom_layers;
@@ -406,12 +402,6 @@ Parameter Plugin::GetConfig(const std::string& name, const std::map<std::string,
     auto actual_name = name;
     if (LegacyAPIHelper::is_legacy_property({name, nullptr}, IsNewAPI())) {
         actual_name = LegacyAPIHelper::convert_legacy_property({name, nullptr}).first;
-    }
-
-    auto core_config = GetCore() ? GetCore()->GetMetric({}, ov::core_property_keys.name()).as<std::set<std::string>>()
-                                 : std::set<std::string>();
-    if (core_config.find(name) != core_config.end()) {
-        IE_THROW() << " Unsupported to get core property: " << name.c_str();
     }
 
     auto val = c.get_property(actual_name);

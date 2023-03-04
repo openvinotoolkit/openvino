@@ -46,8 +46,7 @@ static const caseless_unordered_map<std::string, std::pair<Gna2AccelerationMode,
 };
 OPENVINO_SUPPRESS_DEPRECATED_END
 
-void Config::UpdateFromMap(const std::map<std::string, std::string>& config,
-                           const std::set<std::string>& core_config_keys) {
+void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
     for (auto&& item : config) {
         auto key = item.first;
         auto value = item.second;
@@ -257,10 +256,8 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config,
             OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key == CONFIG_KEY(LOG_LEVEL) || key == ov::log::level) {
             gnaFlags.log_level = ov::util::from_string(value, ov::log::level);
-        } else if (core_config_keys.count(key)) {
-            if (key == ov::cache_dir) {
-                cacheDir = value;
-            }
+        } else if (key == ov::cache_dir) {
+            cacheDir = value;
         } else {
             IE_THROW(NotFound) << "[GNAPlugin] in function " << __PRETTY_FUNCTION__ << ": "
                                << "Incorrect GNA Plugin config. Key " << item.first << " not supported";

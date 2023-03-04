@@ -185,15 +185,14 @@ ov::Any ov::CoreImpl::GetMetric(const std::string& deviceName,
     for (auto o : options) {
         parsed._config.insert(o);
     }
-
-    if (name == ov::core_property_keys.name()) {
-        return coreConfig.get_core_config(ov::core_property_keys.name());
-    }
     return get_plugin(parsed._deviceName).get_property(name, parsed._config);
 }
 
 ov::Any ov::CoreImpl::GetConfig(const std::string& deviceName, const std::string& name) const {
     auto parsed = parseDeviceNameIntoConfig(deviceName);
+    if (property_manager.is_core_property(name)) {
+        return property_manager.get_property(name, parsed._deviceName);
+    }
     return get_plugin(parsed._deviceName).get_property(name, parsed._config);
 }
 

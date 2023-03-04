@@ -115,9 +115,14 @@ public:
        IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, supportConfigs, {});
        ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
            .WillByDefault(RETURN_MOCK_VALUE(supportConfigs));
-       std::set<std::string> coreConfigs = {"CACHE_DIR", "AUTO_BATCH_TIMEOUT", "ALLOW_AUTO_BATCHING"};
-       ON_CALL(*core, GetMetric(_, StrEq("CORE_PROPERTY_KEYS"), _)).WillByDefault(Return(coreConfigs));
+       ON_CALL(*core, GetConfig(_, StrEq(ov::cache_dir.name()))).WillByDefault(Return(""));
+       ON_CALL(*core, GetConfig(_, StrEq(ov::auto_batch_timeout.name()))).WillByDefault(Return("1200"));
+       ON_CALL(*core, GetConfig(_, StrEq(ov::hint::allow_auto_batching.name()))).WillByDefault(Return("YES"));
+       EXPECT_CALL(*core, GetConfig(_, StrEq(ov::cache_dir.name()))).Times(AnyNumber());
+       EXPECT_CALL(*core, GetConfig(_, StrEq(ov::auto_batch_timeout.name()))).Times(AnyNumber());
+       EXPECT_CALL(*core, GetConfig(_, StrEq(ov::hint::allow_auto_batching.name()))).Times(AnyNumber());
        EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AnyNumber());
+
        // test auto plugin
        plugin->SetName("AUTO");
     }
@@ -276,6 +281,10 @@ TEST_P(ExecNetworkGetMetricOptimalNumInferReq, OPTIMAL_NUMBER_OF_INFER_REQUESTS)
         metaDevices.push_back({CommonTestUtils::DEVICE_CPU, {}, cpuCustomerNum, ""});
         metaDevices.push_back({actualDeviceName, {}, actualCustomerNum, ""});
         ON_CALL(*core, GetConfig(_, StrEq(ov::compilation_num_threads.name()))).WillByDefault(Return(8));
+        EXPECT_CALL(*core, GetConfig(_, StrEq(ov::compilation_num_threads.name()))).Times(AnyNumber());
+        ON_CALL(*core.get(), GetConfig(_, StrEq(CONFIG_KEY(PERFORMANCE_HINT))))
+            .WillByDefault(Return(CONFIG_VALUE(LATENCY)));
+        EXPECT_CALL(*core.get(), GetConfig(_, StrEq(CONFIG_KEY(PERFORMANCE_HINT)))).Times(AnyNumber());
     }
     ON_CALL(*plugin, SelectDevice(_, _, _)).WillByDefault(Return(metaDevices[1]));
     ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
@@ -423,7 +432,12 @@ TEST_P(ExecNetworkGetMetricOtherTest, modelPriority_perfHint_exclusiveAsyncReq_t
     EXPECT_CALL(*plugin, ParseMetaDevices(_, _)).Times(1);
     EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(1);
 
+    ON_CALL(*core.get(), GetConfig(_, StrEq(CONFIG_KEY(PERFORMANCE_HINT))))
+        .WillByDefault(Return(performanceHint));
+    EXPECT_CALL(*core.get(), GetConfig(_, StrEq(CONFIG_KEY(PERFORMANCE_HINT)))).Times(AnyNumber());
+
     ON_CALL(*core, GetConfig(_, StrEq(ov::compilation_num_threads.name()))).WillByDefault(Return(8));
+    EXPECT_CALL(*core, GetConfig(_, StrEq(ov::compilation_num_threads.name()))).Times(AnyNumber());
     ON_CALL(*core,
             LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                         ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),

@@ -94,11 +94,14 @@ public:
        ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
            .WillByDefault(Return(supportConfigs));
        EXPECT_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).Times(AnyNumber());
-       ON_CALL(*core, GetConfig(_, StrEq(ov::compilation_num_threads.name())))
-           .WillByDefault(Return(12));
-       std::set<std::string> coreConfigs = {"CACHE_DIR", "AUTO_BATCH_TIMEOUT", "ALLOW_AUTO_BATCHING"};
-       ON_CALL(*core, GetMetric(_, StrEq("CORE_PROPERTY_KEYS"), _)).WillByDefault(Return(coreConfigs));
-       EXPECT_CALL(*core, GetMetric(_, StrEq("CORE_PROPERTY_KEYS"), _)).Times(AnyNumber());
+       ON_CALL(*core, GetConfig(_, StrEq(ov::compilation_num_threads.name()))).WillByDefault(Return(12));
+       EXPECT_CALL(*core, GetConfig(_, StrEq(ov::compilation_num_threads.name()))).Times(AnyNumber());
+       ON_CALL(*core, GetConfig(_, StrEq(ov::cache_dir.name()))).WillByDefault(Return(""));
+       ON_CALL(*core, GetConfig(_, StrEq(ov::auto_batch_timeout.name()))).WillByDefault(Return("1000"));
+       ON_CALL(*core, GetConfig(_, StrEq(ov::hint::allow_auto_batching.name()))).WillByDefault(Return("YES"));
+       EXPECT_CALL(*core, GetConfig(_, StrEq(ov::cache_dir.name()))).Times(AnyNumber());
+       EXPECT_CALL(*core, GetConfig(_, StrEq(ov::auto_batch_timeout.name()))).Times(AnyNumber());
+       EXPECT_CALL(*core, GetConfig(_, StrEq(ov::hint::allow_auto_batching.name()))).Times(AnyNumber());
     }
 };
 

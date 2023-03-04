@@ -1099,7 +1099,7 @@ TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_overwrite_device_dir) {
             m_post_mock_net_callbacks.emplace_back([&](MockExecutableNetwork& net) {
                 EXPECT_CALL(net, Export(_)).Times(1);
             });
-            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}});
+            ie.SetConfig({{CONFIG_KEY(CACHE_DIR), m_cacheDir}}, "mock");
             m_testFunction(ie);
             std::string newCacheDir = m_cacheDir + "2";
             m_post_mock_net_callbacks.pop_back();

@@ -116,6 +116,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_gpuCompileModelBehaviorTests,
                                             ::testing::ValuesIn(gpu_compileModel_properties)),
                          OVSetPropComplieModleGetPropTests::getTestCaseName);
 
+const std::vector<ov::AnyMap> gpu_setcore_coreproperties = {{ov::cache_dir("./cache_dir")}};
+const std::vector<ov::AnyMap> gpu_compileModel_coreproperties = {{ov::cache_dir("./cache_dir_gpu")}};
+INSTANTIATE_TEST_SUITE_P(smoke_gpuCompileModelBehaviorCorePropertiesTests,
+                         OVSetCorePropComplieModleGetCorePropTests,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_GPU),
+                                            ::testing::ValuesIn(gpu_setcore_coreproperties),
+                                            ::testing::ValuesIn(gpu_compileModel_coreproperties)),
+                         OVSetCorePropComplieModleGetCorePropTests::getTestCaseName);
+
 const std::vector<ov::AnyMap> multi_setcore_properties = {
     {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
      ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
@@ -131,12 +140,10 @@ const std::vector<ov::AnyMap> multi_compileModel_properties = {
     {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
      ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
      ov::hint::num_requests(10),
-     ov::hint::allow_auto_batching(true),
      ov::enable_profiling(true)},
     {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
      ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
      ov::hint::num_requests(2),
-     ov::hint::allow_auto_batching(false),
      ov::enable_profiling(false)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_MultiCompileModelBehaviorTests,
@@ -146,21 +153,36 @@ INSTANTIATE_TEST_SUITE_P(smoke_MultiCompileModelBehaviorTests,
                                             ::testing::ValuesIn(multi_compileModel_properties)),
                          OVSetPropComplieModleGetPropTests::getTestCaseName);
 
+const std::vector<ov::AnyMap> multi_setcore_coreproperties = {{ov::cache_dir("./cache_dir")},
+                                                              {ov::hint::allow_auto_batching(true)},
+                                                              {ov::auto_batch_timeout("1500")}};
+const std::vector<ov::AnyMap> multi_compileModel_coreproperties = {{ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+                                                                    ov::cache_dir("./cache_dir_multi_gpu"),
+                                                                    ov::hint::allow_auto_batching(false),
+                                                                    ov::auto_batch_timeout("1900")},
+                                                                   {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+                                                                    ov::cache_dir("./cache_dir_multi_gpu_2"),
+                                                                    ov::hint::allow_auto_batching(true),
+                                                                    ov::auto_batch_timeout("1980")}};
+INSTANTIATE_TEST_SUITE_P(smoke_MultiCompileModelCorePropertiesBehaviorTests,
+                         OVSetCorePropComplieModleGetCorePropTests,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                                            ::testing::ValuesIn(multi_setcore_coreproperties),
+                                            ::testing::ValuesIn(multi_compileModel_coreproperties)),
+                         OVSetCorePropComplieModleGetCorePropTests::getTestCaseName);
+
 const std::vector<ov::AnyMap> auto_setcore_properties = {
     {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
      ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
      ov::hint::num_requests(2),
-     ov::hint::allow_auto_batching(false),
      ov::enable_profiling(false)},
     {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
      ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
      ov::hint::num_requests(8),
-     ov::hint::allow_auto_batching(true),
      ov::enable_profiling(true)},
     {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
      ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT),
      ov::hint::num_requests(10),
-     ov::hint::allow_auto_batching(false),
      ov::enable_profiling(true)},
 };
 const std::vector<ov::AnyMap> auto_compileModel_properties = {
@@ -185,6 +207,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoCompileModelBehaviorTests,
                                             ::testing::ValuesIn(auto_setcore_properties),
                                             ::testing::ValuesIn(auto_compileModel_properties)),
                          OVSetPropComplieModleGetPropTests::getTestCaseName);
+
+const std::vector<ov::AnyMap> auto_setcore_coreproperties = {{ov::cache_dir("./cache_dir")},
+                                                             {ov::hint::allow_auto_batching(true)},
+                                                             {ov::auto_batch_timeout("1100")}};
+const std::vector<ov::AnyMap> auto_compileModel_coreproperties = {
+    {ov::cache_dir("./cache_dir_auto"), ov::hint::allow_auto_batching(false), ov::auto_batch_timeout("2100")}};
+INSTANTIATE_TEST_SUITE_P(smoke_AutoCompileModelBehaviorCorePropertiesTests,
+                         OVSetCorePropComplieModleGetCorePropTests,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_AUTO),
+                                            ::testing::ValuesIn(auto_setcore_coreproperties),
+                                            ::testing::ValuesIn(auto_compileModel_coreproperties)),
+                         OVSetCorePropComplieModleGetCorePropTests::getTestCaseName);
 
 const std::vector<std::pair<ov::AnyMap, std::string>> autoExeDeviceConfigs = {
             std::make_pair(ov::AnyMap{{ov::device::priorities("GPU.0")}}, "GPU.0"),

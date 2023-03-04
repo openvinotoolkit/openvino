@@ -29,6 +29,7 @@ using namespace InferenceEngine;
 
 std::vector<std::string> supported_configKeys = {CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)};
 std::vector<std::string> internal_supported_configKeys = {CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG),
+                                                          CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG),
                                                           CONFIG_KEY(AUTO_BATCH_TIMEOUT),
                                                           CONFIG_KEY(CACHE_DIR)};
 template <Precision::ePrecision precision>
@@ -700,14 +701,12 @@ DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(const std::string& d
         if (!deviceIDLocal.empty()) {
             tconfig[PluginConfigParams::KEY_DEVICE_ID] = deviceIDLocal;
         }
-        // ov::cache_dir is core property but not in the plugin supported_properties,
-        // so need pass to core->loadnetwork
         auto deviceConfig = GetCore()->GetSupportedConfig(deviceName, tconfig);
-        if (tconfig.find(CONFIG_KEY(CACHE_DIR)) != tconfig.end() &&
-            deviceConfig.find(CONFIG_KEY(CACHE_DIR)) == deviceConfig.end()) {
-            auto tmpiter = tconfig.find(CONFIG_KEY(CACHE_DIR));
-            if (tmpiter != tconfig.end())
-                deviceConfig.insert({tmpiter->first, tmpiter->second});
+
+        // ov::cache_dir is core property so need pass to core->loadnetwork
+        auto cache_dir = GetCore()->GetConfig(GetName(), ov::cache_dir.name());
+        if (cache_dir != ov::Any("")) {
+            deviceConfig[ov::cache_dir.name()] = cache_dir.as<std::string>();
         }
         return deviceConfig;
     };
@@ -716,15 +715,14 @@ DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(const std::string& d
     metaDevice.config = getDeviceConfig(metaDevice.deviceName);
 
     auto cfg = config;
-    auto core_config = GetCore()->GetMetric({}, ov::core_property_keys.name()).as<std::set<std::string>>();
     // check that no irrelevant config-keys left
     for (auto k : config) {
         const auto& name = k.first;
-        auto found_in_supported_cfg = std::find(supported_configKeys.begin(), supported_configKeys.end(), k.first);
+        auto found_in_supported_cfg =
+            std::find(internal_supported_configKeys.begin(), internal_supported_configKeys.end(), k.first);
         auto found_in_device_cfg = metaDevice.config.find(k.first);
-        auto found_in_core_cfg = core_config.find(k.first);
-        if (found_in_device_cfg == metaDevice.config.end() && found_in_supported_cfg == supported_configKeys.end() &&
-            found_in_core_cfg == core_config.end()) {
+        if (found_in_device_cfg == metaDevice.config.end() &&
+            found_in_supported_cfg == internal_supported_configKeys.end()) {
             IE_THROW() << "Unsupported config key: " << name;
         }
     }
@@ -828,7 +826,17 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     if (core == nullptr) {
         IE_THROW() << "Please, work with Auto-Batching device via InferencEngine::Core object";
     }
-    auto fullConfig = mergeConfigs(_config, config);
+
+    // Add core properties
+    auto config_temp = config;
+    auto cache_dir = GetCore()->GetConfig(GetName(), ov::cache_dir.name());
+    if (cache_dir != ov::Any("")) {
+        config_temp[ov::cache_dir.name()] = cache_dir.as<std::string>();
+    }
+    config_temp[ov::auto_batch_timeout.name()] =
+        GetCore()->GetConfig(GetName(), ov::auto_batch_timeout.name()).as<std::string>();
+
+    auto fullConfig = mergeConfigs(_config, config_temp);
     auto device_batch = fullConfig.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
     if (device_batch == fullConfig.end()) {
         IE_THROW() << "KEY_AUTO_BATCH key is not set for BATCH device";
@@ -919,8 +927,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
         auto optBatchSize = core->GetMetric(deviceName, METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
         auto res = core->GetConfig(deviceName, CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS)).as<std::string>();
         requests = PerfHintsConfig::CheckPerformanceHintRequestValue(res);
-        const auto& reqs = config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
-        if (reqs != config.end())
+        const auto& reqs = config_temp.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
+        if (reqs != config_temp.end())
             requests = static_cast<unsigned int>(PerfHintsConfig::CheckPerformanceHintRequestValue(reqs->second));
         if (requests)
             optBatchSize = std::max(1u, std::min(requests, optBatchSize));

@@ -801,34 +801,6 @@ TEST_P(OVClassGetMetricTest_RANGE_FOR_STREAMS, GetMetricAndPrintNoThrow) {
     OV_ASSERT_PROPERTY_SUPPORTED(ov::range_for_streams);
 }
 
-TEST_P(OVClassGetMetricTest_CORE_PROPERTY_KEYS, GetMetricAndPrintNoThrow) {
-    ov::Core ie = createCoreWithTemplate();
-    std::set<std::string> t;
-
-    OV_ASSERT_NO_THROW(t = ie.get_property(target_device, ov::core_property_keys));
-
-    std::cout << "Supported core properties: " << std::endl;
-    for (auto&& str : t) {
-        std::cout << str.c_str() << std::endl;
-    }
-
-    ASSERT_EQ(t.size(), 3);
-}
-
-TEST_P(OVClassGetMetricTest_CORE_PROPERTY_KEYS, GetMetricWithEmptyDevice) {
-    ov::Core ie = createCoreWithTemplate();
-    std::set<std::string> t;
-
-    OV_ASSERT_NO_THROW(t = ie.get_property({}, ov::core_property_keys));
-
-    std::cout << "Supported core properties: " << std::endl;
-    for (auto&& str : t) {
-        std::cout << str.c_str() << std::endl;
-    }
-
-    ASSERT_EQ(t.size(), 3);
-}
-
 TEST_P(OVClassGetMetricTest_ThrowUnsupported, GetMetricThrow) {
     ov::Core ie = createCoreWithTemplate();
 

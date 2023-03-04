@@ -22,6 +22,7 @@
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
+#include "property_manager.hpp"
 
 #ifdef OPENVINO_STATIC_LIBRARY
 #    include "ie_plugins.hpp"
@@ -88,59 +89,6 @@ private:
     std::mutex& get_mutex(const std::string& dev_name = "") const;
     void add_mutex(const std::string& dev_name);
 
-    class CoreConfig final {
-    public:
-        struct CoreConfigCache {
-            ov::AnyMap _properties;
-            std::shared_ptr<ov::ICacheManager> _cacheManager;
-        };
-
-        CoreConfig();
-
-        // Set core config with input config map, it will update core config data.
-        void set_core_config(ov::AnyMap& config, const std::string& plugin_name = {});
-
-        ov::Any get_core_config(const std::string& config_name, const std::string& device_name = {}) const;
-
-        // Return whether this config belongs to core config
-        bool is_core_config(const std::string& config_name) const;
-
-        // Check whether this core config is supported by plugin.
-        bool core_config_supported(const ov::Plugin& plugin, const std::string& config_name) const;
-
-        // Clean up core config for input config.
-        // If 'update' is true, this core config will be update into config cache.
-        void remove_core_config(const ov::Plugin& plugin, ov::AnyMap& config, const bool update = false) const;
-
-        // Update input config with the help of core_plugins_properties:
-        //  1. Remove the core config that this plugin doesn't support
-        //  2. Don't overwritten this config if they have been in input config
-        //  3. Add default core config into input config if it doesn't have.
-        void update_input_config(const ov::Plugin& plugin, ov::AnyMap& config) const;
-
-        std::set<std::string> query_core_config_keys() const;
-
-        // Creating thread-safe copy of config including shared_ptr to ICacheManager
-        // Passing empty or not-existing name will return global cache config
-        CoreConfigCache get_cache_config_for_device(const ov::Plugin& plugin,
-                                                    const std::string& config_name,
-                                                    ov::AnyMap& parsedConfig) const;
-
-    private:
-        static void fill_config(CoreConfigCache& config, const std::string& key, const std::string& value);
-
-        mutable std::mutex _CoreConfigCacheMutex;
-        mutable std::map<std::string, CoreConfigCache> _core_properties_cache_per_device;
-
-        // Core global properties, which will not be set to any plugins.
-        // It will be updated if core.set_property() without device name is called.
-        mutable CoreConfigCache _core_global_properties;
-
-        // Core plugins properties, which will be set to all plugins.
-        // It will be updated if core.set_property() is called.
-        mutable CoreConfigCache _core_plugin_properties;
-    };
-
     struct CacheContent {
         explicit CacheContent(const std::shared_ptr<ov::ICacheManager>& cache_manager,
                               const std::string model_path = {})
@@ -152,7 +100,7 @@ private:
     };
 
     // Core settings (cache config, etc)
-    CoreConfig coreConfig;
+    mutable PropertyManager property_manager;
 
     Any get_property_for_core(const std::string& name) const;
 
@@ -257,8 +205,8 @@ public:
     /**
      * @brief Get the reference to CoreConfig.
      */
-    CoreConfig& get_core_config_obj() {
-        return coreConfig;
+    PropertyManager& get_property_manager() {
+        return property_manager;
     }
 
 #ifdef OPENVINO_STATIC_LIBRARY

@@ -11,7 +11,6 @@
 #include <string>
 #include <map>
 #include <vector>
-#include <set>
 
 namespace MultiDevicePlugin {
 using namespace InferenceEngine;
@@ -90,7 +89,6 @@ struct PluginConfig {
 
     void UpdateFromMap(const std::map<std::string, std::string>& config,
                        const std::string& pluginName,
-                       const std::set<std::string>& core_config = {},
                        bool supportHWProprety = false) {
         const auto perf_hints_configs = PerfHintsConfig::SupportedKeys();
         for (auto&& kvp : config) {
@@ -100,41 +98,59 @@ struct PluginConfig {
                 } else if (kvp.second == PluginConfigParams::NO) {
                     _useProfiling = false;
                 } else {
-                    IE_THROW() << "Unsupported config value: " << kvp.second
-                            << " for key: " << kvp.first;
+                    IE_THROW() << "Unsupported config value: " << kvp.second << " for key: " << kvp.first;
                 }
             } else if (kvp.first == PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS) {
-                if (kvp.second == PluginConfigParams::YES) _exclusiveAsyncRequests = true;
-                else if (kvp.second == PluginConfigParams::NO) _exclusiveAsyncRequests = false;
+                if (kvp.second == PluginConfigParams::YES)
+                    _exclusiveAsyncRequests = true;
+                else if (kvp.second == PluginConfigParams::NO)
+                    _exclusiveAsyncRequests = false;
                 else
-                    IE_THROW() << "Unsupported config value: " << kvp.second
-                            << " for key: " << kvp.first;
+                    IE_THROW() << "Unsupported config value: " << kvp.second << " for key: " << kvp.first;
             } else if (kvp.first == ov::log::level.name()) {
                 _logLevel = kvp.second;
                 auto success = setLogLevel(_logLevel);
                 if (!success) {
-                    IE_THROW() << "Unsupported config value: " << kvp.second
-                                << " for key: " << kvp.first;
+                    IE_THROW() << "Unsupported config value: " << kvp.second << " for key: " << kvp.first;
                 }
             } else if (kvp.first == ov::hint::model_priority) {
-                if (kvp.second == "LOW" ||
-                    kvp.second == CONFIG_VALUE(MODEL_PRIORITY_LOW)) {
+                if (kvp.second == "LOW" || kvp.second == CONFIG_VALUE(MODEL_PRIORITY_LOW)) {
                     _modelPriority = 2;
-                } else if (kvp.second == "MEDIUM" ||
-                    kvp.second == CONFIG_VALUE(MODEL_PRIORITY_MED)) {
+                } else if (kvp.second == "MEDIUM" || kvp.second == CONFIG_VALUE(MODEL_PRIORITY_MED)) {
                     _modelPriority = 1;
-                } else if (kvp.second == "HIGH" ||
-                    kvp.second == CONFIG_VALUE(MODEL_PRIORITY_HIGH)) {
+                } else if (kvp.second == "HIGH" || kvp.second == CONFIG_VALUE(MODEL_PRIORITY_HIGH)) {
                     _modelPriority = 0;
                 } else {
                     IE_THROW() << "Unsupported config value: " << kvp.second << " for key: " << kvp.first;
                 }
+            } else if (kvp.first == ov::hint::allow_auto_batching) {
+                if (kvp.second == PluginConfigParams::NO) {
+                    _disableAutoBatching = true;
+                    // temp flag, to be removed when unify this key to ie core
+                    _isBatchConfigSet = true;
+                } else if (kvp.second == PluginConfigParams::YES) {
+                    _disableAutoBatching = false;
+                    _isBatchConfigSet = true;
+                } else {
+                    IE_THROW() << "Unsupported config value: " << kvp.second << " for key: " << kvp.first;
+                }
+            } else if (kvp.first == ov::auto_batch_timeout) {
+                try {
+                    auto batchTimeout = std::stoi(kvp.second);
+                    if (batchTimeout < 0) {
+                        IE_THROW() << "Unsupported config value: " << kvp.second << " for key: " << kvp.first;
+                    }
+                    _batchTimeout = kvp.second;
+                } catch (const std::exception&) {
+                    IE_THROW() << "Unsupported config value: " << kvp.second << " for key: " << kvp.first;
+                }
             } else if (kvp.first == ov::intel_auto::device_bind_buffer.name()) {
-                if (kvp.second == PluginConfigParams::YES) _deviceBindBuffer = true;
-                else if (kvp.second == PluginConfigParams::NO) _deviceBindBuffer = false;
+                if (kvp.second == PluginConfigParams::YES)
+                    _deviceBindBuffer = true;
+                else if (kvp.second == PluginConfigParams::NO)
+                    _deviceBindBuffer = false;
                 else
-                    IE_THROW() << "Unsupported config value: " << kvp.second
-                            << " for key: " << kvp.first;
+                    IE_THROW() << "Unsupported config value: " << kvp.second << " for key: " << kvp.first;
             } else if (kvp.first == ov::device::priorities.name()) {
                 if (!kvp.second.empty())
                     ParsePrioritiesDevices(kvp.second);
@@ -153,38 +169,16 @@ struct PluginConfig {
                 _passThroughConfig.emplace(kvp.first, kvp.second);
             } else if (kvp.first.find("AUTO_") == 0) {
                 _passThroughConfig.emplace(kvp.first, kvp.second);
-            } else if (core_config.find(kvp.first) != core_config.end()) {
-                if (kvp.first == ov::cache_dir) {
-                    _cacheDir = kvp.second;
-                    _isSetCacheDir = true;
-                } else if (kvp.first == ov::hint::allow_auto_batching) {
-                    if (kvp.second == PluginConfigParams::NO) {
-                        _disableAutoBatching = true;
-                        // temp flag, to be removed when unify this key to ie core
-                        _isBatchConfigSet = true;
-                    } else if (kvp.second == PluginConfigParams::YES) {
-                        _disableAutoBatching = false;
-                        _isBatchConfigSet = true;
-                    } else {
-                        IE_THROW() << "Unsupported config value: " << kvp.second << " for key: " << kvp.first;
-                    }
-                } else if (kvp.first == ov::auto_batch_timeout) {
-                    try {
-                        auto batchTimeout = std::stoi(kvp.second);
-                        if (batchTimeout < 0) {
-                            IE_THROW() << "Unsupported config value: " << kvp.second << " for key: " << kvp.first;
-                        }
-                        _batchTimeout = kvp.second;
-                    } catch (const IE::Exception&) {
-                        IE_THROW() << "Unsupported config value: " << kvp.second << " for key: " << kvp.first;
-                    }
-                }
+            } else if (kvp.first == ov::cache_dir.name()) {
+                _cacheDir = kvp.second;
+                _isSetCacheDir = true;
             } else if (kvp.first == ov::intel_auto::enable_startup_fallback.name()) {
-                if (kvp.second == PluginConfigParams::YES) _enableStartupFallback = true;
-                else if (kvp.second == PluginConfigParams::NO) _enableStartupFallback = false;
+                if (kvp.second == PluginConfigParams::YES)
+                    _enableStartupFallback = true;
+                else if (kvp.second == PluginConfigParams::NO)
+                    _enableStartupFallback = false;
                 else
-                    IE_THROW() << "Unsupported config value: " << kvp.second
-                            << " for key: " << kvp.first;
+                    IE_THROW() << "Unsupported config value: " << kvp.second << " for key: " << kvp.first;
             } else {
                 if (pluginName.find("AUTO") != std::string::npos || !supportHWProprety)
                     // AUTO and MULTI just only accept its own properites and secondary property when calling

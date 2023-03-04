@@ -31,6 +31,7 @@ using ::testing::Return;
 using ::testing::ReturnRef;
 using ::testing::StrEq;
 using ::testing::Throw;
+using ::testing::AnyNumber;
 using Config = std::map<std::string, std::string>;
 
 // define a matcher to check if perf hint expects
@@ -294,13 +295,15 @@ public:
 
         std::vector<std::string> configKeys = {"SUPPORTED_CONFIG_KEYS", "NUM_STREAMS"};
         ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).WillByDefault(Return(configKeys));
-
-        std::set<std::string> coreConfigs = {ov::cache_dir.name(),
-                                             ov::hint::allow_auto_batching.name(),
-                                             ov::auto_batch_timeout.name()};
-        ON_CALL(*core, GetMetric(_, StrEq("CORE_PROPERTY_KEYS"), _)).WillByDefault(Return(coreConfigs));
-        ON_CALL(*core, GetConfig(_, StrEq(GPU_CONFIG_KEY(MAX_NUM_THREADS)))).WillByDefault(Return(12));
         ON_CALL(*core, GetConfig(_, StrEq(ov::compilation_num_threads.name()))).WillByDefault(Return(12));
+        EXPECT_CALL(*core, GetConfig(_, StrEq(ov::compilation_num_threads.name()))).Times(AnyNumber());
+
+        ON_CALL(*core, GetConfig(_, StrEq(ov::cache_dir.name()))).WillByDefault(Return(""));
+        ON_CALL(*core, GetConfig(_, StrEq(ov::auto_batch_timeout.name()))).WillByDefault(Return("1000"));
+        ON_CALL(*core, GetConfig(_, StrEq(ov::hint::allow_auto_batching.name()))).WillByDefault(Return("YES"));
+        EXPECT_CALL(*core, GetConfig(_, StrEq(ov::cache_dir.name()))).Times(1);
+        EXPECT_CALL(*core, GetConfig(_, StrEq(ov::auto_batch_timeout.name()))).Times(1);
+        EXPECT_CALL(*core, GetConfig(_, StrEq(ov::hint::allow_auto_batching.name()))).Times(1);
 
         ON_CALL(*plugin, ParseMetaDevices)
             .WillByDefault(

@@ -18,6 +18,7 @@ using ::testing::MatcherCast;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::StrEq;
+using ::testing::AnyNumber;
 
 using namespace MockMultiDevice;
 using Config = std::map<std::string, std::string>;
@@ -118,8 +119,12 @@ public:
         std::vector<std::string> configKeys = {"SUPPORTED_CONFIG_KEYS", "NUM_STREAMS"};
         ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).WillByDefault(Return(configKeys));
 
-        std::set<std::string> coreConfigs = {"CACHE_DIR", "AUTO_BATCH_TIMEOUT", "ALLOW_AUTO_BATCHING"};
-        ON_CALL(*core, GetMetric(_, StrEq("CORE_PROPERTY_KEYS"), _)).WillByDefault(Return(coreConfigs));
+        ON_CALL(*core, GetConfig(_, StrEq(ov::cache_dir.name()))).WillByDefault(Return("./"));
+        ON_CALL(*core, GetConfig(_, StrEq(ov::auto_batch_timeout.name()))).WillByDefault(Return("1000"));
+        ON_CALL(*core, GetConfig(_, StrEq(ov::hint::allow_auto_batching.name()))).WillByDefault(Return("YES"));
+        EXPECT_CALL(*core, GetConfig(_, StrEq(ov::cache_dir.name()))).Times(AnyNumber());
+        EXPECT_CALL(*core, GetConfig(_, StrEq(ov::auto_batch_timeout.name()))).Times(AnyNumber());
+        EXPECT_CALL(*core, GetConfig(_, StrEq(ov::hint::allow_auto_batching.name()))).Times(AnyNumber());
 
         ON_CALL(*plugin, ParseMetaDevices)
             .WillByDefault(

@@ -59,6 +59,7 @@ public:
     AnyMap compileModelProperties;
 };
 
+using OVSetCorePropComplieModleGetCorePropTests = OVSetPropComplieModleGetPropTests;
 using OVSetPropComplieModleWihtIncorrectPropTests = OVSetPropComplieModleGetPropTests;
 
 class OVPropertiesTestsWithComplieModelProps : public testing::WithParamInterface<PropertiesParams>,

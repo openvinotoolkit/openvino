@@ -312,7 +312,6 @@ namespace {
              {InferenceEngine::PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS,
               InferenceEngine::PluginConfigParams::YES},
              {InferenceEngine::PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS, "2"},
-             {InferenceEngine::PluginConfigParams::KEY_ALLOW_AUTO_BATCHING, InferenceEngine::PluginConfigParams::NO},
              {InferenceEngine::PluginConfigParams::KEY_PERF_COUNT, InferenceEngine::PluginConfigParams::NO}}};
     };
 

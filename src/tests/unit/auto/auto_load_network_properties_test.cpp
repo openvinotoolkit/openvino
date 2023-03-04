@@ -29,6 +29,7 @@ using ::testing::Return;
 using ::testing::ReturnRef;
 using ::testing::StrEq;
 using ::testing::Throw;
+using ::testing::AnyNumber;
 using Config = std::map<std::string, std::string>;
 
 // define a matcher if all the elements of subMap are contained in the map.
@@ -165,8 +166,12 @@ public:
         ON_CALL(*gpuMockIExeNet.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))
             .WillByDefault(Return("0"));
 
-        std::set<std::string> coreConfigs = {"CACHE_DIR", "AUTO_BATCH_TIMEOUT", "ALLOW_AUTO_BATCHING"};
-        ON_CALL(*core, GetMetric(_, StrEq("CORE_PROPERTY_KEYS"), _)).WillByDefault(Return(coreConfigs));
+        ON_CALL(*core, GetConfig(_, StrEq(ov::cache_dir.name()))).WillByDefault(Return(""));
+        ON_CALL(*core, GetConfig(_, StrEq(ov::auto_batch_timeout.name()))).WillByDefault(Return("1000"));
+        ON_CALL(*core, GetConfig(_, StrEq(ov::hint::allow_auto_batching.name()))).WillByDefault(Return("YES"));
+        EXPECT_CALL(*core, GetConfig(_, StrEq(ov::cache_dir.name()))).Times(AnyNumber());
+        EXPECT_CALL(*core, GetConfig(_, StrEq(ov::auto_batch_timeout.name()))).Times(AnyNumber());
+        EXPECT_CALL(*core, GetConfig(_, StrEq(ov::hint::allow_auto_batching.name()))).Times(AnyNumber());
 
         std::vector<std::string> availableDevs = {"CPU", "GPU"};
         ON_CALL(*core, GetAvailableDevices()).WillByDefault(Return(availableDevs));
@@ -178,7 +183,7 @@ public:
         ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).WillByDefault(Return(configKeys));
 
         ON_CALL(*core, GetConfig(_, StrEq(ov::compilation_num_threads.name()))).WillByDefault(Return(12));
-
+        EXPECT_CALL(*core, GetConfig(_, StrEq(ov::compilation_num_threads.name()))).Times(AnyNumber());
         ON_CALL(*plugin, ParseMetaDevices)
             .WillByDefault(
                 [this](const std::string& priorityDevices, const std::map<std::string, std::string>& config) {
