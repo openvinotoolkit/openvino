@@ -577,8 +577,11 @@ VectorDims Deconvolution::shapeInferInternal(const VectorDims &inDims, std::vect
         }
     }
 
-    auto outputShapes = shapeInference->infer(inputShapesRefs, inputValues);
-    return outputShapes.back();
+    auto result = shapeInference->infer(inputShapesRefs, inputValues);
+    if (ShapeInferStatus::success != result.status) {
+        IE_THROW(Unexpected) << "Unexpected shape inference result status in node of type " << getTypeStr() << " with name " << getName();
+    }
+    return std::move(result.dims.back());
 }
 
 void Deconvolution::setDynamicBatchLim(int lim) {

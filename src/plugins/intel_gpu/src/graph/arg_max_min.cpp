@@ -4,7 +4,6 @@
 
 #include "arg_max_min_inst.h"
 #include "primitive_type_base.h"
-#include "sliding_window_utils_legacy.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>

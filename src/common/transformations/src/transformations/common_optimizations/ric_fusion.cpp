@@ -825,18 +825,25 @@ public:
 
 bool ov::pass::ReverseInputChannelsFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(ReverseInputChannelsFusion);
-    Manager m;
-    m.set_per_pass_validation(false);
 
     NodeVector nodes_to_fuse;
     // First we need to initialize and propagate RIC attributes through entire graph
-    auto ric_prop = m.register_pass<GraphRewrite>();
     {
         using namespace init;
-        ADD_MATCHER(ric_prop, SplitConcat, nodes_to_fuse)
-        ADD_MATCHER(ric_prop, Gather, nodes_to_fuse)
+        Manager m;
+        m.set_per_pass_validation(false);
+        auto ric_init = m.register_pass<GraphRewrite>();
+        ADD_MATCHER(ric_init, SplitConcat, nodes_to_fuse)
+        ADD_MATCHER(ric_init, Gather, nodes_to_fuse)
+        if (!m.run_passes(model)) {
+            return false;
+        }
     }
 
+    Manager m;
+    m.set_per_pass_validation(false);
+
+    auto ric_prop = m.register_pass<GraphRewrite>();
     {
         using namespace prop;
         ADD_MATCHER(ric_prop, Convolution)

@@ -31,14 +31,19 @@ struct PassRate {
     unsigned long hanged = 0;
     bool isImplemented = false;
 
+    double rel_passed = 0;
+    double rel_all = 0;
+
     PassRate() = default;
 
-    PassRate(unsigned long p, unsigned long f, unsigned long s, unsigned long c, unsigned long h) {
+    PassRate(unsigned long p, unsigned long f, unsigned long s, unsigned long c, unsigned long h, double rel_p = 0, double rel_a = 0) {
         passed = p;
         failed = f;
         skipped = s;
         crashed = c;
         hanged = h;
+        rel_passed = rel_p;
+        rel_all = rel_a;
         if (!isImplemented && passed > 0) {
             isImplemented = true;
         }
@@ -53,6 +58,14 @@ struct PassRate {
             return 0.f;
         } else {
             return passed * 100.f / (passed + failed + skipped + crashed + hanged);
+        }
+    }
+
+    double getRelPassrate() const {
+        if (rel_all == 0) {
+            return 100.f;
+        } else {
+            return rel_passed * 100.f / rel_all;
         }
     }
 };

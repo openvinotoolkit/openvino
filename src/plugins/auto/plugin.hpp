@@ -14,7 +14,7 @@
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 #include "utils/log_util.hpp"
 #include "common.hpp"
-#include "utils/config.hpp"
+#include "utils/plugin_config.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -61,20 +61,22 @@ protected:
     std::map<std::string, std::string> GetSupportedConfig(const std::map<std::string, std::string>& config,
                                                           const MultiDevicePlugin::DeviceName & deviceName) const;
 
+    ov::AnyMap PreProcessConfig(const std::map<std::string, std::string>& orig_config) const;
+
 private:
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetworkImpl(const std::string& modelPath,
                                                                        InferenceEngine::CNNNetwork network,
                                                                        const std::map<std::string, std::string>& config,
                                                                        const std::string &networkPrecision = METRIC_VALUE(FP32));
-    PluginConfig _pluginConfig;
     std::vector<DeviceInformation> FilterDevice(const std::vector<DeviceInformation>& metaDevices,
                                                 const std::map<std::string, std::string>& config);
     std::vector<DeviceInformation> FilterDeviceByNetwork(const std::vector<DeviceInformation>& metaDevices,
-                                                InferenceEngine::CNNNetwork network);
+                                                         InferenceEngine::CNNNetwork network);
     std::string GetLogTag() const noexcept;
     static std::mutex _mtx;
     static std::map<unsigned int, std::list<std::string>> _priorityMap;
     std::string _LogTag;
+    PluginConfig _pluginConfig;
 };
 
 }  // namespace MultiDevicePlugin

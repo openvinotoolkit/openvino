@@ -16,8 +16,7 @@ using namespace ::tests;
 template<typename T>
 static std::vector<T> generate_rnd_real_input(
     const std::vector<size_t> sizes,
-    const T min = static_cast<T>(0), const T max = static_cast<T>(1), const unsigned rnd_bits = 9)
-{
+    const T min = static_cast<T>(0), const T max = static_cast<T>(1), const unsigned rnd_bits = 9) {
     static std::default_random_engine rnd_gen(random_seed);
     tests::distributions::uniform_quantized_real_distribution<T> rnd_dist(min, max, rnd_bits);
 
@@ -79,31 +78,14 @@ public:
         target_topology.add(input_layout("input", input->get_layout()));
         target_topology.add(reorder("border_input", input_info("input"), fmt, T_dt),
                             border("border",
-                                   input_info("border_input"),
-                                   ov::CoordinateDiff(cd_lt.begin(),cd_lt.end()),
-                                   ov::CoordinateDiff(cd_rb.begin(),cd_rb.end()),
+                                   {input_info("border_input")},
+                                   0,
+                                   ov::CoordinateDiff(cd_lt.begin(), cd_lt.end()),
+                                   ov::CoordinateDiff(cd_rb.begin(), cd_rb.end()),
                                    pad_mode,
                                    pad_value),
                             reorder("output", input_info("border"), cldnn::format::bfyx, T_dt));
-        std::shared_ptr<cldnn::network> target_network;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, target_topology);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                target_network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-            }
-        } else {
-            target_network = std::make_shared<cldnn::network>(engine, target_topology);
-        }
-
+        cldnn::network::ptr target_network = get_network(engine, target_topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
         target_network->set_input_data("input", input);
         auto target_output = target_network->execute().at("output").get_memory();
         cldnn::mem_lock<T> target_output_ptr(target_output, get_test_stream());
@@ -111,9 +93,10 @@ public:
         topology base_topology;
         base_topology.add(input_layout("input", input->get_layout()));
         base_topology.add(border("border",
-                                 input_info("input"),
-                                 ov::CoordinateDiff(cd_lt.begin(),cd_lt.end()),
-                                 ov::CoordinateDiff(cd_rb.begin(),cd_rb.end()),
+                                 {input_info("input")},
+                                 0,
+                                 ov::CoordinateDiff(cd_lt.begin(), cd_lt.end()),
+                                 ov::CoordinateDiff(cd_rb.begin(), cd_rb.end()),
                                  pad_mode,
                                  pad_value));
 
@@ -242,9 +225,10 @@ TEST(border_gpu, bsv16fsv16_without_reorder) {
     topology target_topology;
     target_topology.add(input_layout("input", input_b16f16->get_layout()));
     target_topology.add(border("border",
-                               input_info("input"),
-                               ov::CoordinateDiff(cd_lt.begin(),cd_lt.end()),
-                               ov::CoordinateDiff(cd_rb.begin(),cd_rb.end()),
+                               {input_info("input")},
+                               0,
+                               ov::CoordinateDiff(cd_lt.begin(), cd_lt.end()),
+                               ov::CoordinateDiff(cd_rb.begin(), cd_rb.end()),
                                pad_mode,
                                pad_value));
     cldnn::network target_network(engine, target_topology);
@@ -255,9 +239,10 @@ TEST(border_gpu, bsv16fsv16_without_reorder) {
     topology base_topology;
     base_topology.add(input_layout("input", input->get_layout()));
     base_topology.add(border("border",
-                             input_info("input"),
-                             ov::CoordinateDiff(cd_lt.begin(),cd_lt.end()),
-                             ov::CoordinateDiff(cd_rb.begin(),cd_rb.end()),
+                             {input_info("input")},
+                             0,
+                             ov::CoordinateDiff(cd_lt.begin(), cd_lt.end()),
+                             ov::CoordinateDiff(cd_rb.begin(), cd_rb.end()),
                              pad_mode,
                              pad_value));
     cldnn::network base_network(engine, base_topology);
@@ -296,9 +281,10 @@ TEST(border_gpu, zyx_bsv16fsv16) {
     target_topology.add(input_layout("input", input->get_layout()));
     target_topology.add(reorder("border_input", input_info("input"), format::bs_fs_zyx_bsv16_fsv16, T_dt),
                         border("border",
-                               input_info("border_input"),
-                               ov::CoordinateDiff(cd_lt.begin(),cd_lt.end()),
-                               ov::CoordinateDiff(cd_rb.begin(),cd_rb.end()),
+                               {input_info("border_input")},
+                               0,
+                               ov::CoordinateDiff(cd_lt.begin(), cd_lt.end()),
+                               ov::CoordinateDiff(cd_rb.begin(), cd_rb.end()),
                                pad_mode,
                                pad_value),
                         reorder("output", input_info("border"), cldnn::format::bfzyx, T_dt));
@@ -310,9 +296,10 @@ TEST(border_gpu, zyx_bsv16fsv16) {
     topology base_topology;
     base_topology.add(input_layout("input", input->get_layout()));
     base_topology.add(border("border",
-                             input_info("input"),
-                             ov::CoordinateDiff(cd_lt.begin(),cd_lt.end()),
-                             ov::CoordinateDiff(cd_rb.begin(),cd_rb.end()),
+                             {input_info("input")},
+                             0,
+                             ov::CoordinateDiff(cd_lt.begin(), cd_lt.end()),
+                             ov::CoordinateDiff(cd_rb.begin(), cd_rb.end()),
                              pad_mode,
                              pad_value));
     cldnn::network base_network(engine, base_topology);
@@ -353,7 +340,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_constant) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
-                        input_info("input"),
+                        {input_info("input")}, 0,
                         ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_y, blt_size_x},
                         ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_y, brb_size_x},
                         ov::op::PadMode::CONSTANT,
@@ -428,7 +415,8 @@ TEST(border_gpu, basic_fsv16_0x0x1x2_0x0x3x4_border_constant) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reorder("border_input", input_info("input"), cldnn::format::b_fs_yx_fsv16, cldnn::data_types::f32),
                  border("border",
-                        input_info("border_input"),
+                        {input_info("border_input")},
+                        0,
                         ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_y, blt_size_x},
                         ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_y, brb_size_x},
                         ov::op::PadMode::CONSTANT,
@@ -474,7 +462,6 @@ TEST(border_gpu, basic_fsv16_0x0x1x2_0x0x3x4_border_constant) {
 }
 
 TEST(border_gpu, basic_bfzyx_0x0x1x01_0x0x0x0x3_border_constant) {
-
     constexpr auto in_size_b = 1;
     constexpr auto in_size_f = 1;
     constexpr auto in_size_y = 2;
@@ -500,12 +487,12 @@ TEST(border_gpu, basic_bfzyx_0x0x1x01_0x0x0x0x3_border_constant) {
     constexpr auto out_size_z = in_size_z + blt_size_z + brb_size_z;
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ in_size_b, in_size_f, in_size_x, in_size_y, in_size_z } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { in_size_b, in_size_f, in_size_x, in_size_y, in_size_z } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
-                        input_info("input"),
+                        {input_info("input")}, 0,
                         ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_z, blt_size_y, blt_size_x},
                         ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_z, brb_size_y, brb_size_x},
                         ov::op::PadMode::CONSTANT,
@@ -577,7 +564,6 @@ TEST(border_gpu, basic_bfzyx_0x0x1x01_0x0x0x0x3_border_constant) {
 }
 
 TEST(border_gpu, basic_bfwzyx_0x0x0x1x0x1_0x0x0x1x0x1_border_constant) {
-
     constexpr auto in_size_b = 1;
     constexpr auto in_size_f = 1;
     constexpr auto in_size_y = 2;
@@ -607,12 +593,13 @@ TEST(border_gpu, basic_bfwzyx_0x0x0x1x0x1_0x0x0x1x0x1_border_constant) {
     constexpr auto out_size_w = in_size_w + blt_size_w + brb_size_w;
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfwzyx, tensor{ batch(in_size_b), feature(in_size_f), spatial(in_size_x, in_size_y, in_size_z, in_size_w) } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfwzyx,
+                                          tensor{ batch(in_size_b), feature(in_size_f), spatial(in_size_x, in_size_y, in_size_z, in_size_w) } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
-                        input_info("input"),
+                        {input_info("input")}, 0,
                         ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_w, blt_size_z, blt_size_y, blt_size_x},
                         ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_w, brb_size_z, brb_size_y, brb_size_x},
                         ov::op::PadMode::CONSTANT,
@@ -714,7 +701,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_constant_non_constant) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
-                        input_info("input"),
+                        {input_info("input")}, 0,
                         ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_y, blt_size_x},
                         ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_y, brb_size_x},
                         ov::op::PadMode::CONSTANT,
@@ -788,7 +775,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_mirror) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
-                        input_info("input"),
+                        {input_info("input")}, 0,
                         ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_y, blt_size_x},
                         ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_y, brb_size_x},
                         ov::op::PadMode::SYMMETRIC));
@@ -832,7 +819,6 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_mirror) {
 }
 
 TEST(border_gpu, basic_bfzyx_0x0x0x0x1_0x0x0x0x1_border_mirror) {
-
     constexpr auto in_size_b = 1;
     constexpr auto in_size_f = 1;
     constexpr auto in_size_y = 2;
@@ -858,12 +844,12 @@ TEST(border_gpu, basic_bfzyx_0x0x0x0x1_0x0x0x0x1_border_mirror) {
     constexpr auto out_size_z = in_size_z + blt_size_z + brb_size_z;
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx,{ in_size_b, in_size_f, in_size_x, in_size_y, in_size_z } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { in_size_b, in_size_f, in_size_x, in_size_y, in_size_z } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
-                        input_info("input"),
+                        {input_info("input")}, 0,
                         ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_z, blt_size_y, blt_size_x},
                         ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_z, brb_size_y, brb_size_x},
                         ov::op::PadMode::SYMMETRIC));
@@ -905,7 +891,6 @@ TEST(border_gpu, basic_bfzyx_0x0x0x0x1_0x0x0x0x1_border_mirror) {
 }
 
 TEST(border_gpu, basic_bfzyxw_0x0x0x0x1_0x0x0x0x1_border_mirror) {
-
     constexpr auto in_size_b = 1;
     constexpr auto in_size_f = 1;
     constexpr auto in_size_y = 2;
@@ -935,13 +920,14 @@ TEST(border_gpu, basic_bfzyxw_0x0x0x0x1_0x0x0x0x1_border_mirror) {
     constexpr auto out_size_w = in_size_w + blt_size_w + brb_size_w;
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfwzyx, tensor{ batch(in_size_b), feature(in_size_f), spatial(in_size_x, in_size_y, in_size_z, in_size_w) } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfwzyx,
+                                          tensor{ batch(in_size_b), feature(in_size_f), spatial(in_size_x, in_size_y, in_size_z, in_size_w) } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(
         border("output",
-               input_info("input"),
+               {input_info("input")}, 0,
                ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_w, blt_size_z, blt_size_y, blt_size_x},
                ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_w, brb_size_z, brb_size_y, brb_size_x},
                ov::op::PadMode::SYMMETRIC));
@@ -1015,7 +1001,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_mirror_101) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
-                        input_info("input"),
+                        {input_info("input")}, 0,
                         ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_y, blt_size_x},
                         ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_y, brb_size_x},
                         ov::op::PadMode::REFLECT));
@@ -1091,7 +1077,7 @@ TEST(border_gpu, basic_bfzyx_0x0x0x0x1_0x0x0x0x1_border_mirror_101) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
-                        input_info("input"),
+                        {input_info("input")}, 0,
                         ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_z, blt_size_y, blt_size_x},
                         ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_z, brb_size_y, brb_size_x},
                         ov::op::PadMode::REFLECT));
@@ -1169,13 +1155,14 @@ TEST(border_gpu, basic_bfwzyx_0x0x0x0x1x1_0x0x0x0x1x1_border_mirror_101) {
     constexpr auto out_size_w = in_size_w + blt_size_w + brb_size_w;
 
     auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f32, format::bfwzyx, tensor{ batch(in_size_b), feature(in_size_f), spatial(in_size_x, in_size_y, in_size_z, in_size_w) } });
+    auto input = engine.allocate_memory({ data_types::f32, format::bfwzyx,
+                                          tensor{ batch(in_size_b), feature(in_size_f), spatial(in_size_x, in_size_y, in_size_z, in_size_w) } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(
         border("output",
-               input_info("input"),
+               {input_info("input")}, 0,
                ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_w, blt_size_z, blt_size_y, blt_size_x},
                ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_w, brb_size_z, brb_size_y, brb_size_x},
                ov::op::PadMode::REFLECT));
@@ -1264,7 +1251,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_edge) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
-                        input_info("input"),
+                        {input_info("input")}, 0,
                         ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_y, blt_size_x},
                         ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_y, brb_size_x},
                         ov::op::PadMode::EDGE));
@@ -1336,7 +1323,7 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_constant) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
-                        input_info("input"),
+                        {input_info("input")}, 0,
                         ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_y, blt_size_x},
                         ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_y, brb_size_x},
                         ov::op::PadMode::CONSTANT,
@@ -1363,12 +1350,9 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_constant) {
                     if (b < blt_size_b || b >= out_size_b - brb_size_b ||
                         f < blt_size_f || f >= out_size_f - brb_size_f ||
                         y < blt_size_y || y >= out_size_y - brb_size_y ||
-                        x < blt_size_x || x >= out_size_x - brb_size_x)
-                    {
+                        x < blt_size_x || x >= out_size_x - brb_size_x) {
                         ASSERT_EQ(output_ptr[output_off], 0.0f);
-                    }
-                    else
-                    {
+                    } else {
                         auto input_off  = (((b - blt_size_b) * in_size_f + f - blt_size_f) * in_size_y + y - blt_size_y) * in_size_x + x - blt_size_x; // BFYX
                         ASSERT_EQ(output_ptr[output_off], input_data[input_off]);
                     }
@@ -1405,7 +1389,7 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_mirror) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
-                        input_info("input"),
+                        {input_info("input")}, 0,
                         ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_y, blt_size_x},
                         ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_y, brb_size_x},
                         ov::op::PadMode::SYMMETRIC));
@@ -1469,7 +1453,7 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_mirror_101) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
-                        input_info("input"),
+                        {input_info("input")}, 0,
                         ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_y, blt_size_x},
                         ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_y, brb_size_x},
                         ov::op::PadMode::REFLECT));
@@ -1532,7 +1516,7 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_edge) {
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(border("output",
-                        input_info("input"),
+                        {input_info("input")}, 0,
                         ov::CoordinateDiff{blt_size_b, blt_size_f, blt_size_y, blt_size_x},
                         ov::CoordinateDiff{brb_size_b, brb_size_f, brb_size_y, brb_size_x},
                         ov::op::PadMode::EDGE));
