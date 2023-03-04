@@ -213,7 +213,9 @@ clEnqueueMemFillINTEL_fn)(
 
 #endif // cl_khr_device_uuid
 
-#ifndef OV_GPU_USE_OPENCL_HPP
+// some versions of CL/opencl.hpp don't define C++ wrapper for CL_DEVICE_UUID_KHR
+// we are checking it in cmake and defined macro OV_GPU_OPENCL_HPP_HAS_UUID if it is defined
+#ifndef OV_GPU_OPENCL_HPP_HAS_UUID
 
 // for C++ wrappers
 using uuid_array = std::array<cl_uchar, CL_UUID_SIZE_KHR>;
@@ -224,7 +226,7 @@ CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_UUID_KHR, uuid_array)
 }  // namespace detail
 }  // namespace cl
 
-#endif // OV_GPU_USE_OPENCL_HPP
+#endif // OV_GPU_OPENCL_HPP_HAS_UUID
 
 /***************************************************************
 * cl_intel_device_attribute_query

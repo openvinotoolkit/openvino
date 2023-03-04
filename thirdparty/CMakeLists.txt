@@ -69,6 +69,13 @@ if(ENABLE_INTEL_GPU)
         if(OpenCL_HPP)
             set_target_properties(OpenCL::OpenCL PROPERTIES
                 INTERFACE_COMPILE_DEFINITIONS OV_GPU_USE_OPENCL_HPP)
+
+            # check whether CL/opencl.hpp contains C++ wrapper for property CL_DEVICE_UUID_KHR
+            file(STRINGS "${OpenCL_HPP}" CL_DEVICE_UUID_KHR_CPP REGEX ".*CL_DEVICE_UUID_KHR.*")
+            if(CL_DEVICE_UUID_KHR_CPP)
+                set_target_properties(OpenCL::OpenCL PROPERTIES
+                    INTERFACE_COMPILE_DEFINITIONS OV_GPU_OPENCL_HPP_HAS_UUID)
+            endif()
         endif()
 
         # set variables for onednn_gpu
