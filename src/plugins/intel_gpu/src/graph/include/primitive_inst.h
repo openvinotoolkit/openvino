@@ -5,11 +5,9 @@
 #pragma once
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/graph/network.hpp"
-#include "kernel_selector_helper.h"
 #include "meta_utils.h"
 #include "program_node.h"
 #include "primitive_type.h"
@@ -21,6 +19,9 @@
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "runtime/kernels_cache.hpp"
+
+// TODO: add generic interface for weights_reorder_params and get rid of this dependency
+#include "impls/ocl/kernel_selector_helper.h"
 
 #include <memory>
 #include <vector>
@@ -43,6 +44,8 @@ struct primitive_impl {
     primitive_impl() = default;
     explicit primitive_impl(const kernel_selector::weights_reorder_params& params, std::string kernel_name = "", bool is_dynamic = false)
         : _weights_reorder_params(params), _kernel_name(kernel_name), _is_dynamic(is_dynamic) {}
+    explicit primitive_impl(std::string kernel_name, bool is_dynamic = false) :
+        primitive_impl(kernel_selector::weights_reorder_params{}, kernel_name, is_dynamic) {}
     virtual ~primitive_impl() = default;
 
     virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
@@ -63,7 +66,6 @@ struct primitive_impl {
     }
     virtual std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() { return {}; }
     virtual void reset_kernels_source() {}
-    virtual void set_kernels(std::vector<kernel::ptr>) {}
     virtual std::vector<kernel::ptr> get_kernels() const { return {}; }
     virtual void set_kernel_ids(std::vector<kernel_id> kernel_ids) {}
     virtual void save(cldnn::BinaryOutputBuffer& ob) const {}
@@ -79,6 +81,8 @@ struct primitive_impl {
         OPENVINO_ASSERT(_is_dynamic, "[GPU] update_dispatch_data is called for static shape implementation ", _kernel_name);
         OPENVINO_ASSERT(false, "[GPU] update_dispatch_data is not implemented for dynamic implemenation ", _kernel_name);
     }
+
+    virtual void set_kernels(std::map<const std::string, kernel::ptr>& kernels) {}
 
 protected:
     std::string _kernel_name;

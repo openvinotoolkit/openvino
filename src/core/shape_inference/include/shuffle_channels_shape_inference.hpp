@@ -6,13 +6,15 @@
 
 #include <openvino/op/shuffle_channels.hpp>
 
+#include "openvino/core/validation_util.hpp"
+
 namespace ov {
 namespace op {
 namespace v0 {
 
-template <class T>
-void shape_infer(const ShuffleChannels* op, const std::vector<T>& input_shapes, std::vector<T>& output_shapes) {
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 1 && output_shapes.size() == 1);
+template <class TShape>
+std::vector<TShape> shape_infer(const ShuffleChannels* op, const std::vector<TShape>& input_shapes) {
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 1);
 
     const auto& group = op->get_group();
     NODE_VALIDATION_CHECK(op, group >= 1, "The 'group' parameter must be greater or equal to 1.");
@@ -20,25 +22,31 @@ void shape_infer(const ShuffleChannels* op, const std::vector<T>& input_shapes, 
     const auto& input_shape = input_shapes[0];
     const auto input_shape_rank = input_shape.rank();
 
+    auto output_shapes = std::vector<TShape>(1, input_shape);
+
     if (input_shape_rank.is_static()) {
-        const int64_t input_rank_value = static_cast<int64_t>(input_shape.size());
-        NODE_VALIDATION_CHECK(op, input_rank_value >= 1, "The input tensor's shape is expected to be at least 1D.");
-
-        const auto& axis = op->get_axis();
+        NODE_VALIDATION_CHECK(op, input_shape.size() >= 1, "The input tensor's shape is expected to be at least 1D.");
+        const auto axis_zb = static_cast<size_t>(normalize_axis(op, op->get_axis(), input_shape_rank));
+        const auto& channel_dim = input_shape[axis_zb];
         NODE_VALIDATION_CHECK(op,
-                              axis < input_rank_value && axis >= (0 - input_rank_value),
-                              "The 'axis' parameter for ShuffleChannels has to point to one of the "
-                              "input tensor's shape dimensions.");
-        size_t axis_zb = static_cast<size_t>(axis >= 0 ? axis : (axis + input_rank_value));
+                              channel_dim.is_dynamic() || (channel_dim.get_length() % group) == 0,
+                              "The channel dimension size has to be a multiple of the groups parameter value.");
 
-        if (input_shape[axis_zb].is_static()) {
-            const auto channel_dim_size = input_shape[axis_zb].get_length();
-            NODE_VALIDATION_CHECK(op,
-                                  channel_dim_size % group == 0,
-                                  "The channel dimension size has to be a multiple of the groups parameter value.");
+        if (std::is_same<TShape, PartialShape>::value) {
+            // overwrite channel dimension to loose label
+            using TDim = typename TShape::value_type;
+            output_shapes.front()[axis_zb] = TDim{channel_dim.get_min_length(), channel_dim.get_max_length()};
         }
     }
-    output_shapes[0] = input_shape;
+
+    return output_shapes;
+}
+
+template <class TShape>
+void shape_infer(const ShuffleChannels* op,
+                 const std::vector<TShape>& input_shapes,
+                 std::vector<TShape>& output_shapes) {
+    output_shapes = shape_infer(op, input_shapes);
 }
 
 }  // namespace v0

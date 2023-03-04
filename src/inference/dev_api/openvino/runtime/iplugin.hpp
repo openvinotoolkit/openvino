@@ -188,7 +188,7 @@ public:
      * @brief Gets reference to tasks execution manager
      * @return Reference to ExecutorManager interface
      */
-    const std::shared_ptr<ov::ExecutorManager>& get_executor_manager() const;
+    const std::shared_ptr<ov::threading::ExecutorManager>& get_executor_manager() const;
 
     ~IPlugin() = default;
 
@@ -198,18 +198,18 @@ protected:
 private:
     friend ::InferenceEngine::IPluginWrapper;
 
-    std::string m_plugin_name;                                //!< A device name that plugins enables
-    std::weak_ptr<ov::ICore> m_core;                          //!< A pointer to ICore interface
-    std::shared_ptr<ov::ExecutorManager> m_executor_manager;  //!< A tasks execution manager
-    ov::Version m_version;                                    //!< Member contains plugin version
-    bool m_is_new_api;                                        //!< A flag which shows used API
+    std::string m_plugin_name;                                           //!< A device name that plugins enables
+    std::weak_ptr<ov::ICore> m_core;                                     //!< A pointer to ICore interface
+    std::shared_ptr<ov::threading::ExecutorManager> m_executor_manager;  //!< A tasks execution manager
+    ov::Version m_version;                                               //!< Member contains plugin version
+    bool m_is_new_api;                                                   //!< A flag which shows used API
 };
 
 }  // namespace ov
 /**
  * @def OV_CREATE_PLUGIN
  * @brief Defines a name of a function creating plugin instance
- * @ingroup ie_dev_api_plugin_api
+ * @ingroup ov_dev_api_plugin_api
  */
 #ifndef OV_CREATE_PLUGIN
 #    define OV_CREATE_PLUGIN CreatePluginEngine
