@@ -38,7 +38,8 @@ ov::Output<ov::Node> create_same_type_const_scalar(const ov::Output<ov::Node>& s
     if (same_type_output.get_element_type().is_static()) {
         return std::make_shared<ov::opset10::Constant>(same_type_output.get_element_type(), ov::Shape{}, value);
     } else {
-        ov::Output<ov::Node> const_res = make_shared<ov::opset10::Constant>(ov::element::from<T>(), ov::Shape{}, value);
+        ov::Output<ov::Node> const_res =
+            std::make_shared<ov::opset10::Constant>(ov::element::from<T>(), ov::Shape{}, value);
         const_res = std::make_shared<ov::opset10::ConvertLike>(same_type_output, const_res);
         return const_res;
     }
