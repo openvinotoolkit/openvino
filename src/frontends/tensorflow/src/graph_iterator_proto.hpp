@@ -88,29 +88,40 @@ public:
         }
     }
 
-    /// Set iterator to the start position
+    /// \brief Check if the input file is supported
+    template <typename T>
+    static bool is_supported(const std::basic_string<T>& path) {
+        std::ifstream pb_stream(path, std::ios::in | std::ifstream::binary);
+        auto graph_def = std::make_shared<::tensorflow::GraphDef>();
+        return pb_stream && pb_stream.is_open() && graph_def->ParsePartialFromIstream(&pb_stream);
+    }
+
+    /// \brief Set iterator to the start position
     void reset() override {
         node_index = 0;
     }
 
+    /// \brief Return a number of nodes in the graph
     size_t size() const override {
         return m_decoders.size();
     }
 
-    /// Moves to the next node in the graph
+    /// \brief Move to the next node in the graph
     void next() override {
         node_index++;
     }
 
+    /// \brief Check if the graph is fully traversed
     bool is_end() const override {
         return node_index >= m_decoders.size();
     }
 
-    /// Return NodeContext for the current node that iterator points to
+    /// \brief Return NodeContext for the current node that iterator points to
     std::shared_ptr<DecoderBase> get_decoder() const override {
         return m_decoders[node_index];
     }
 
+    /// \brief Get GraphIterator for library funnction by name
     std::shared_ptr<GraphIterator> get_body_graph_iterator(const std::string& func_name) const override {
         if (m_library_map.count(func_name)) {
             auto func_ind = m_library_map.at(func_name);
@@ -127,10 +138,12 @@ public:
         return nullptr;
     }
 
+    /// \brief Get input names in the original order. Used for the library functions
     std::vector<std::string> get_input_names() const override {
         return m_input_names;
     }
 
+    /// \brief Get output names in the original order. Used for the library functions
     std::vector<std::string> get_output_names() const override {
         return m_output_names;
     }

@@ -4,9 +4,8 @@
 
 #include "icompiled_model_wrapper.hpp"
 
-#include <ie_plugin_config.hpp>
-
 #include "dev/converter_utils.hpp"
+#include "ie_plugin_config.hpp"
 
 InferenceEngine::ICompiledModelWrapper::ICompiledModelWrapper(
     const std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>& model)
