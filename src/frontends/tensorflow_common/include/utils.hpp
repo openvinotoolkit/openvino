@@ -36,10 +36,10 @@ bool is_conditional_edge(const std::string& input_tensor_name);
 template <typename T>
 ov::Output<ov::Node> create_same_type_const_scalar(const ov::Output<ov::Node>& same_type_output, T value) {
     if (same_type_output.get_element_type().is_static()) {
-        return make_shared<ov::opset10::Constant>(same_type_output.get_element_type(), ov::Shape{}, value);
+        return std::make_shared<ov::opset10::Constant>(same_type_output.get_element_type(), ov::Shape{}, value);
     } else {
-        Output<Node> const_res = make_shared<ov::opset10::Constant>(element::from<T>(), ov::Shape{}, value);
-        const_res = make_shared<ov::opset10::ConvertLike>(same_type_output, const_res);
+        ov::Output<ov::Node> const_res = make_shared<ov::opset10::Constant>(ov::element::from<T>(), ov::Shape{}, value);
+        const_res = std::make_shared<ov::opset10::ConvertLike>(same_type_output, const_res);
         return const_res;
     }
 }
