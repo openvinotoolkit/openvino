@@ -167,7 +167,7 @@ public:
     }
 };
 
-TEST_P(AutoCTPUTCallMulti, CTPUTSingleDevLogicTest) {
+TEST_P(AutoCTPUTCallMulti, CTPUTDevicesLogicTest) {
     std::vector<std::string> targetDevices;
     std::string targetDev;
     bool AutoCallMulti;
