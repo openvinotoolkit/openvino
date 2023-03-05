@@ -7,6 +7,7 @@
 #include "openvino/frontend/input_model.hpp"
 #include "openvino/frontend/pytorch/frontend.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "input_model.hpp"
 
 namespace ov {
 namespace frontend {
@@ -29,7 +30,8 @@ public:
     /// main body conversion.
     /// \return fully converted OV Model
     std::shared_ptr<Model> convert_pytorch_model(std::shared_ptr<TorchDecoder> pytorch_model,
-                                                 const TensorMap& external_tensor_map = {});
+                                                 const TensorMap& external_tensor_map = {},
+                                                 const std::unordered_map<size_t, PlaceDesc>& external_descriptors = {});
 
     void encode_tensor_name(Output<Node> tensor_desc, size_t tensor_idx, std::string debug_name = "");
     size_t decode_tensor_name(const Output<Node>& tensor_desc);
