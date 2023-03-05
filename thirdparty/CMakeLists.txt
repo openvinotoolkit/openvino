@@ -94,6 +94,7 @@ if(ENABLE_INTEL_GPU)
 
         set(OpenCL_INCLUDE_DIR "${OpenCL_INCLUDE_DIR}" PARENT_SCOPE)
         set(OpenCL_LIBRARY "${OpenCL_LIBRARY}" PARENT_SCOPE)
+        set(opencl_root_hints "${opencl_root_hints}" PARENT_SCOPE)
     endif()
 
     # cmake cannot set properties for imported targets

@@ -63,6 +63,15 @@ function(ov_native_compile_external_project)
         set(ARG_NATIVE_SOURCE_SUBDIR SOURCE_SUBDIR ${ARG_NATIVE_SOURCE_SUBDIR})
     endif()
 
+    if(OV_GENERATOR_MULTI_CONFIG)
+        if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
+            list(APPEND ARG_CMAKE_ARGS "-DCMAKE_CONFIGURATION_TYPES=${CMAKE_DEFAULT_BUILD_TYPE}")
+            list(APPEND ARG_CMAKE_ARGS "-DCMAKE_DEFAULT_BUILD_TYPE=${CMAKE_DEFAULT_BUILD_TYPE}")
+        endif()
+    else()
+        list(APPEND ARG_CMAKE_ARGS "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
+    endif()
+
     ExternalProject_Add(${ARG_TARGET_NAME}
         # Directory Options
         SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}"
@@ -81,7 +90,6 @@ function(ov_native_compile_external_project)
             "-DCMAKE_C_FLAGS=${compile_flags}"
             "-DCMAKE_POLICY_DEFAULT_CMP0069=NEW"
             "-DCMAKE_INSTALL_PREFIX=${ARG_NATIVE_INSTALL_DIR}"
-            "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
             ${ARG_CMAKE_ARGS}
         CMAKE_GENERATOR "${CMAKE_GENERATOR}"
         ${ARG_NATIVE_SOURCE_SUBDIR}
