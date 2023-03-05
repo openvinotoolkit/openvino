@@ -55,7 +55,7 @@ class TestRsub(PytorchLayerTest):
         self._test(*self.create_model(second_type="int"), ie_device, precision, ir_version)
 
 
-class TestRSubTypes(PytorchLayerTest):
+class TestRsubTypes(PytorchLayerTest):
 
     def _prepare_input(self):
         return (torch.randn(self.lhs_shape).to(self.lhs_type).numpy(),
@@ -93,7 +93,7 @@ class TestRSubTypes(PytorchLayerTest):
     @pytest.mark.parametrize(("lhs_shape"), [[2, 3], [3], [2, 3, 4]])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_sub_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type):
+    def test_rsub_types(self, ie_device, precision, ir_version, lhs_type, lhs_shape, rhs_type):
         self.lhs_type = lhs_type
         self.lhs_shape = lhs_shape
         self.rhs_type = rhs_type
