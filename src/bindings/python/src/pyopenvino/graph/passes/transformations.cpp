@@ -98,15 +98,41 @@ void regclass_transformations(py::module m) {
     py::class_<ov::pass::MakeStateful, std::shared_ptr<ov::pass::MakeStateful>, ov::pass::ModelPass, ov::pass::PassBase>
         make_stateful(m, "MakeStateful");
     make_stateful.doc() = "openvino.runtime.passes.MakeStateful transformation";
-    // TODO: update docstrings for c-tors below
-    make_stateful.def(py::init<const ov::pass::MakeStateful::ParamResPairs&>(), py::arg("pairs_to_replace"));
-    make_stateful.def(py::init<const std::map<std::string, std::string>&>());
+    make_stateful.def(
+        py::init<const ov::pass::MakeStateful::ParamResPairs&>(),
+        py::arg("pairs_to_replace"),
+        R"( The transformation replaces the provided pairs Parameter and Result with openvino Memory operations ReadValue and Assign.
+                    
+                      :param pairs_to_replace:
+                      :type pairs_to_replace: List[Tuple[op.Parameter, op.Result]
+    )");
+    make_stateful.def(py::init<const std::map<std::string, std::string>&>(),
+                      py::arg("pairs_to_replace"),
+                      R"(
+        The transformation replaces the provided pairs Parameter and Result with openvino Memory operations ReadValue and Assign.
+        
+        :param pairs_to_replace: a dictionary of names of the provided Parameter and Result operations.
+        :type pairs_to_replace: Dict[str, str]
+    )");
 
     py::class_<ov::pass::LowLatency2, std::shared_ptr<ov::pass::LowLatency2>, ov::pass::ModelPass, ov::pass::PassBase>
         low_latency(m, "LowLatency2");
     low_latency.doc() = "openvino.runtime.passes.LowLatency2 transformation";
-    // TODO: update docstrings for c-tor below
-    low_latency.def(py::init<bool>(), py::arg("use_const_initializer") = true);
+
+    low_latency.def(py::init<bool>(),
+                    py::arg("use_const_initializer") = true,
+                    R"(
+                    Create LowLatency2 pass which is used for changing the structure of the model,
+                    which contains TensorIterator/Loop operations.
+                    The transformation finds all TensorIterator/Loop layers in the network, 
+                    processes all back edges that describe a connection between Result and Parameter of the TensorIterator/Loop bodies, 
+                    and inserts ReadValue and Assign layers at the input and output corresponding to this back edge.
+
+                    :param use_const_initializer: Changes the type of the initializing subgraph for ReadValue operations.
+                                                  If "true", then the transformation inserts Constant before ReadValue operation.
+                                                  If "false, then the transformation leaves existed initializing subgraph for ReadValue operation.
+                    :type use_const_initializer: bool
+    )");
 
     py::class_<ov::pass::ConvertFP32ToFP16,
                std::shared_ptr<ov::pass::ConvertFP32ToFP16>,
