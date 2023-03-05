@@ -145,7 +145,9 @@ jobs:
     displayName: 'List csv files'
 
   - script: |
-      call "$(MSVS_VARS_PATH)" && cmake -G"Visual Studio 16 2019" ^
+      call "$(MSVS_VARS_PATH)" && cmake ^
+        -G"Visual Studio 16 2019" ^
+        -T v143 ^
         -DVERBOSE_BUILD=ON ^
         -DENABLE_CPPLINT=OFF ^
         -DENABLE_GAPI_PREPROCESSING=OFF ^
