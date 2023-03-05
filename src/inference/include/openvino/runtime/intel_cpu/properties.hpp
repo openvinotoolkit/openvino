@@ -56,49 +56,8 @@ static constexpr Property<float> sparse_weights_decompression_rate{"SPARSE_WEIGH
  */
 using ov::ProcessorType;
 
-/** @cond INTERNAL */
-inline std::ostream& operator<<(std::ostream& os, const ProcessorType& cpu_processor_type) {
-    switch (cpu_processor_type) {
-    case ProcessorType::UNDEFINED:
-        return os << "UNDEFINED";
-    case ProcessorType::ALL:
-        return os << "ALL";
-    case ProcessorType::PHY_CORE_ONLY:
-        return os << "PHY_CORE_ONLY";
-    case ProcessorType::P_CORE_ONLY:
-        return os << "P_CORE_ONLY";
-    case ProcessorType::E_CORE_ONLY:
-        return os << "E_CORE_ONLY";
-    case ProcessorType::PHY_P_CORE_ONLY:
-        return os << "PHY_P_CORE_ONLY";
-    default:
-        throw ov::Exception{"Unsupported processor type!"};
-    }
-}
-
-inline std::istream& operator>>(std::istream& is, ProcessorType& cpu_processor_type) {
-    std::string str;
-    is >> str;
-    if (str == "UNDEFINED") {
-        cpu_processor_type = ProcessorType::UNDEFINED;
-    } else if (str == "ALL") {
-        cpu_processor_type = ProcessorType::ALL;
-    } else if (str == "PHY_CORE_ONLY") {
-        cpu_processor_type = ProcessorType::PHY_CORE_ONLY;
-    } else if (str == "P_CORE_ONLY") {
-        cpu_processor_type = ProcessorType::P_CORE_ONLY;
-    } else if (str == "E_CORE_ONLY") {
-        cpu_processor_type = ProcessorType::E_CORE_ONLY;
-    } else if (str == "PHY_P_CORE_ONLY") {
-        cpu_processor_type = ProcessorType::PHY_P_CORE_ONLY;
-    } else {
-        throw ov::Exception{"Unsupported processor type: " + str};
-    }
-    return is;
-}
-/** @endcond */
-
-static constexpr Property<ProcessorType> processor_type{"PROCESSOR_TYPE"};
+static constexpr Property<ProcessorType> processor_type{"CPU_PROCESSOR_TYPE"};
 
 }  // namespace intel_cpu
+
 }  // namespace ov
