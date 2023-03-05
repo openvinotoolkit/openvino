@@ -4,8 +4,8 @@
 
 #include "input_model.hpp"
 
-#include "utils.hpp"
 #include "place.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {

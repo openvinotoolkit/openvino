@@ -26,12 +26,8 @@ public:
     bool is_equal(const Ptr& another) const override {
         return this == another.get();
     }
-
     std::vector<std::string> get_names() const override {
         return m_names;
-    }
-    void set_names(const std::vector<std::string>& names) {
-        m_names = names;
     }
     size_t get_tensor_index() const {
         return m_tensor_index;
