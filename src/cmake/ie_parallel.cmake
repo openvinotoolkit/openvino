@@ -262,6 +262,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
         endif ()
 
         if (NOT OpenVINO_SOURCE_DIR)
+            # TODO: dead code since ie_parallel.cmake is not used outside of OpenVINO build
             if (WIN32)
                 set(lib_rel_path ${IE_LIB_REL_DIR})
                 set(lib_dbg_path ${IE_LIB_DBG_DIR})
@@ -307,6 +308,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
                 if (WIN32)
                     ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} "$<$<CONFIG:DEBUG>:${OMP_LIBRARIES_DEBUG}>;$<$<NOT:$<CONFIG:DEBUG>>:${OMP_LIBRARIES_RELEASE}>")
                 else()
+                    # TODO: handle multi-config generators case
                     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
                         ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${OMP_LIBRARIES_DEBUG})
                     else()

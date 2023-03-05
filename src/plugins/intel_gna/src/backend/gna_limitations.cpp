@@ -19,12 +19,8 @@
 #include "log/log.hpp"
 #include "ops/util/util.hpp"
 
-namespace ov {
-namespace intel_gna {
-using namespace common;
-namespace limitations {
-namespace {
-std::ostream& operator<<(std::ostream& os, const std::set<ov::element::Type>& t) {
+namespace std {
+inline std::ostream& operator<<(std::ostream& os, const std::set<ov::element::Type>& t) {
     for (auto it = t.begin(); it != t.end(); ++it) {
         if (it != t.begin()) {
             os << ", " << *it;
@@ -34,7 +30,11 @@ std::ostream& operator<<(std::ostream& os, const std::set<ov::element::Type>& t)
     }
     return os;
 }
-}  // namespace
+}  // namespace std
+
+namespace ov {
+namespace intel_gna {
+namespace limitations {
 
 const std::set<ov::element::Type> SupportedElementTypes::supported_parameter_types = {ov::element::u8,
                                                                                       ov::element::i16,
@@ -629,11 +629,11 @@ bool Validator_35::ShouldUseOnlyConv2DGnaIface() const {
 
 std::unique_ptr<AbstractValidator> AbstractValidator::Create(const common::DeviceVersion& target) {
     switch (target) {
-    case DeviceVersion::GNA3_0:
-    case DeviceVersion::GNAEmbedded3_1:
+    case common::DeviceVersion::GNA3_0:
+    case common::DeviceVersion::GNAEmbedded3_1:
         return tools::make_unique<Validator_30>();
-    case DeviceVersion::GNA3_5:
-    case DeviceVersion::GNAEmbedded3_5:
+    case common::DeviceVersion::GNA3_5:
+    case common::DeviceVersion::GNAEmbedded3_5:
         return tools::make_unique<Validator_35>();
     default:
         return nullptr;
@@ -658,7 +658,7 @@ bool AbstractValidator::ValidationSuccesful(const bool throwOnError,
     return error.empty();
 }
 
-bool UseOnly16BitConvolutionWeights(const DeviceVersion& compile_target) {
+bool UseOnly16BitConvolutionWeights(const common::DeviceVersion& compile_target) {
     return (compile_target == common::DeviceVersion::GNA2_0 || compile_target == common::DeviceVersion::GNA3_0) ||
            compile_target == common::DeviceVersion::GNAEmbedded3_1;
 }
