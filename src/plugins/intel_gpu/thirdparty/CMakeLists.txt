@@ -43,6 +43,15 @@ if(ENABLE_ONEDNN_FOR_GPU)
             list(APPEND cmake_extra_args "-D${cmake_var}=${${cmake_var}}")
         endforeach()
 
+        if(OV_GENERATOR_MULTI_CONFIG)
+            if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
+                list(APPEND cmake_extra_args "-DCMAKE_CONFIGURATION_TYPES=${CMAKE_DEFAULT_BUILD_TYPE}")
+                list(APPEND cmake_extra_args "-DCMAKE_DEFAULT_BUILD_TYPE=${CMAKE_DEFAULT_BUILD_TYPE}")
+            endif()
+        else()
+            list(APPEND cmake_extra_args "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
+        endif()
+
         ExternalProject_Add(onednn_gpu_build
             SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu"
             BINARY_DIR "${ONEDNN_BUILD_DIR}"
@@ -73,7 +82,6 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DDNNL_LIBRARY_NAME=onednn_gpu"
                 "-DCMAKE_INSTALL_PREFIX=${ONEDNN_INSTALL_DIR}"
                 "-DCMAKE_INSTALL_LIBDIR=lib/$<CONFIG>"
-                "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
                 "-DDNNL_ENABLE_CONCURRENT_EXEC=ON"
                 "-DDNNL_ENABLE_PRIMITIVE_CACHE=ON"
                 "-DDNNL_ENABLE_WORKLOAD=INFERENCE"

@@ -3,16 +3,10 @@
 #
 
 function(get_lib_name TARGET_NAME LIBRARY_NAME)
-    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-        set(BUILD_SUFFIX ${IE_DEBUG_POSTFIX})
-    else()
-        set(BUILD_SUFFIX ${IE_RELEASE_POSTFIX})
-    endif()
-
     if(WIN32)
-        set(LIB_SUFFIX "${BUILD_SUFFIX}${CMAKE_LINK_LIBRARY_SUFFIX}")
+        set(LIB_SUFFIX "${IE_BUILD_POSTFIX}${CMAKE_LINK_LIBRARY_SUFFIX}")
     else()
-        set(LIB_SUFFIX "${BUILD_SUFFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
+        set(LIB_SUFFIX "${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}")
     endif()
 
     set("${LIBRARY_NAME}" "${CMAKE_SHARED_MODULE_PREFIX}${TARGET_NAME}${LIB_SUFFIX}" PARENT_SCOPE)
@@ -20,7 +14,7 @@ endfunction()
 
 function(get_lib_path OUTPUT_DIR FINAL_OUTPUT_DIR)
     if(OV_GENERATOR_MULTI_CONFIG)
-        set(OUTPUT_DIR "${OUTPUT_DIR}/${CMAKE_BUILD_TYPE}")
+        set(OUTPUT_DIR "${OUTPUT_DIR}/$<CONFIG>")
     endif()
 
     set("${FINAL_OUTPUT_DIR}" "${OUTPUT_DIR}" PARENT_SCOPE)
@@ -55,11 +49,12 @@ target_include_directories(OpenCL INTERFACE
 
 # The following variables are needed to make find_package(OpenCL) work
 
-get_lib_path("${OUTPUT_ROOT}/${BIN_FOLDER}" OPENCL_LIB_DIR)
+get_lib_path("${CMAKE_RUNTIME_OUTPUT_DIRECTORY}" OPENCL_LIB_DIR)
 get_lib_name("OpenCL" OPENCL_LIB_NAME)
 
 set(OpenCL_INCLUDE_DIR "${OPENCL_ICD_LOADER_HEADERS_DIR}" PARENT_SCOPE)
 set(OpenCL_LIBRARY "${OPENCL_LIB_DIR}/${OPENCL_LIB_NAME}" PARENT_SCOPE)
+set(opencl_root_hints "${OpenCL_INCLUDE_DIR}" PARENT_SCOPE)
 
 # installation
 
