@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "openvino/frontend/place.hpp"
 #include "openvino/frontend/input_model.hpp"
+#include "openvino/frontend/place.hpp"
 
 namespace ov {
 namespace frontend {

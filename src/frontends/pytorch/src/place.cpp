@@ -6,6 +6,7 @@
 
 #include "input_model.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/pytorch/decoder.hpp"
 #include "openvino/util/log.hpp"
 
 namespace ov {

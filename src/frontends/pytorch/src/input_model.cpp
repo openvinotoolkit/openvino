@@ -5,6 +5,7 @@
 #include "input_model.hpp"
 
 #include "utils.hpp"
+#include "place.hpp"
 
 namespace ov {
 namespace frontend {
