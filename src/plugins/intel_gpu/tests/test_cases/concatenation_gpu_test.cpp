@@ -543,10 +543,6 @@ public:
         const std::vector<size_t> in_features = testing::get<1>(GetParam());
         const size_t input_y = testing::get<2>(GetParam());
         const size_t input_x = testing::get<3>(GetParam());
-        size_t output_f = 0;
-        for (auto& f : in_features)
-            output_f += f;
-
         topology topology;
 
         std::vector<VVVVF<Type>> in_data;
@@ -633,10 +629,6 @@ public:
         const size_t in_feature = testing::get<1>(GetParam());
         const size_t input_y = testing::get<2>(GetParam());
         const std::vector<size_t> input_x = testing::get<3>(GetParam());
-        size_t output_x = 0;
-        for (auto& x : input_x)
-            output_x += x;
-
         topology topology;
 
         std::vector<VVVVF<Type>> in_data;
@@ -981,24 +973,7 @@ public:
         topology.add(pooling("pool_final", input_info("conv"), pooling_mode::max, {1, 1}, {1, 1}));
         topology.add(reorder("reorder", input_info("pool_final"), layout(data_type, format::bfyx, {(int32_t)batch_num, (int32_t)output_f, (int32_t)input_y, (int32_t)input_x})));
 
-        std::shared_ptr<cldnn::network> concat_network;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topology, config);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                concat_network = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
-            }
-        } else {
-            concat_network = std::make_shared<cldnn::network>(engine, topology, config);
-        }
+        cldnn::network::ptr concat_network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
         for (size_t i = 0; i < in_features.size(); i++) {
             concat_network->set_input_data(input_ids[i], in_memory[i]);

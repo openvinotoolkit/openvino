@@ -34,10 +34,20 @@ def parse_arguments():
 
     return parser.parse_args()
 
+def update_rel_values(xml_node: SubElement):
+    if not "relative_all" in xml_node.attrib:
+        test_cnt = int(xml_node.attrib.get("passed")) + int(xml_node.attrib.get("failed")) + int(xml_node.attrib.get("skipped")) + \
+        int(xml_node.attrib.get("crashed")) + int(xml_node.attrib.get("hanged"))
+        xml_node.set("relative_all", str(test_cnt))
+    if not "relative_passed" in xml_node.attrib:
+        xml_node.set("relative_passed", xml_node.attrib.get("passed"))
+
 
 def update_result_node(xml_node: SubElement, aggregated_res: SubElement):
+    update_rel_values(aggregated_res)
+    update_rel_values(xml_node)
     for attr_name in xml_node.attrib:
-        if attr_name == "passrate":
+        if attr_name == "passrate" or attr_name == "relative_passrate":
             continue
         if attr_name == "implemented":
             xml_value = xml_node.attrib.get(attr_name) == "true"
@@ -45,10 +55,8 @@ def update_result_node(xml_node: SubElement, aggregated_res: SubElement):
             str_value = "true" if xml_value or aggregated_value else "false"
             aggregated_res.set(attr_name, str_value)
             continue
-        xml_value = int(xml_node.attrib.get(attr_name))
-        aggregated_value = int(aggregated_res.attrib.get(attr_name))
-        # if attr_name == "crashed" and xml_value > 0:
-            # print("f")
+        xml_value = float(xml_node.attrib.get(attr_name)) if "relative_" in attr_name else int(xml_node.attrib.get(attr_name))
+        aggregated_value = float(aggregated_res.attrib.get(attr_name)) if "relative_" in attr_name else int(aggregated_res.attrib.get(attr_name))
         aggregated_res.set(attr_name, str(xml_value + aggregated_value))
 
 
@@ -74,6 +82,7 @@ def aggregate_test_results(aggregated_results: SubElement, xml_reports: list, re
             for xml_results_entry in xml_device_entry:
                 aggregated_results_entry = aggregated_device_results.find(xml_results_entry.tag)
                 if aggregated_results_entry is None:
+                    update_rel_values(xml_results_entry)
                     aggregated_device_results.append(xml_results_entry)
                     continue
                 if report_type == "OP":
