@@ -196,8 +196,8 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             desc.defaultConfig = property_manager.exclude_property(desc.defaultConfig);
             allowNotImplemented([&]() {
                 // Add device specific value to support device_name.device_id cases
-                std::vector<std::string> supportedConfigKeys =
-                    plugin.get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {});
+                auto supportedConfigKeys =
+                    plugin.get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {}).as<std::vector<std::string>>();
                 auto config_iter = std::find(supportedConfigKeys.begin(),
                                              supportedConfigKeys.end(),
                                              CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID));
@@ -702,7 +702,6 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
     {
         std::lock_guard<std::mutex> lock(get_mutex());
         created_plugins.reserve(plugins.size());
-
         property_manager.merge_property(config, clearDeviceName);
         auto base_desc = pluginRegistry.find(clearDeviceName);
         if (pluginRegistry.find(deviceName) == pluginRegistry.end() && base_desc != pluginRegistry.end()) {
@@ -739,8 +738,8 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
             auto configCopy = property_manager.exclude_property(config);
 
             // Add device specific value to support device_name.device_id cases
-            std::vector<std::string> supportedConfigKeys =
-                plugin.second.get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {});
+            auto supportedConfigKeys =
+                plugin.second.get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {}).as<std::vector<std::string>>();
             auto config_iter = std::find(supportedConfigKeys.begin(),
                                          supportedConfigKeys.end(),
                                          CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID));
