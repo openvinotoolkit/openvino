@@ -42,29 +42,6 @@ private:
         }
     }
 
-    void print() {
-        std::cout << "default_plugin_properties: " << std::endl;
-        for (auto& item : default_plugin_properties) {
-            std::cout << "    " << item.first << " : " << item.second.as<std::string>() << std::endl;
-        }
-        std::cout << "plugin_properties: " << std::endl;
-        for (auto& item : plugin_properties) {
-            std::cout << "    " << item.first << " :" << std::endl;
-            for (auto& it : item.second) {
-                std::cout << "        " << it.first << " : " << it.second.as<std::string>() << std::endl;
-            }
-        }
-        std::cout << "default_global_properties: " << std::endl;
-        for (auto& item : default_global_properties) {
-            std::cout << "    " << item.first << " : " << item.second.as<std::string>() << std::endl;
-        }
-        std::cout << "internal_properties: " << std::endl;
-        for (auto& item : internal_properties) {
-            std::cout << "    " << item.first << " : " << item.second.as<std::string>() << std::endl;
-        }
-        std::cout << std::endl;
-    }
-
 private:
     mutable std::mutex mutex;
     // Default property can be used for all plugins, but its priority is low
@@ -109,12 +86,6 @@ void PropertyManagerImpl::merge_property(const ov::AnyMap& properties, const std
         merge(properties, default_plugin_properties, default_plugin_properties, internal_properties);
         merge(properties, default_global_properties, default_global_properties, internal_properties);
     }
-    std::cout << "----------merge_property--------------" << std::endl;
-    std::cout << "input properties for " << plugin_name << std::endl;
-    for (auto& item : properties) {
-        std::cout << "    " << item.first << " : " << item.second.as<std::string>() << std::endl;
-    }
-    print();
 }
 
 ov::AnyMap PropertyManagerImpl::exclude_property(const ov::AnyMap& property) {
@@ -137,9 +108,6 @@ ov::AnyMap PropertyManagerImpl::exclude_property(const ov::AnyMap& property) {
 
 ov::Any PropertyManagerImpl::get_property(const std::string& name, const std::string& plugin_name) {
     std::lock_guard<std::mutex> lock(mutex);
-    std::cout << "----------get_property--------------" << std::endl;
-    std::cout << "    plugin_name: " << plugin_name << ", property_name: " << name << std::endl;
-    print();
 
     if (name == ov::force_tbb_terminate.name()) {
         const auto flag = ov::threading::executor_manager()->get_property(name).as<bool>();

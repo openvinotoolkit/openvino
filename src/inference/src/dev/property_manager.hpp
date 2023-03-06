@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief OpenVINO Runtime Config Manager
+ * @brief OpenVINO Runtime Property Manager
  * @file openvino/runtime/property_manager.hpp
  */
 
