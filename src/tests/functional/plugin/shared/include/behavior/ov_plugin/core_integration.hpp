@@ -454,10 +454,10 @@ TEST(OVClassBasicTest, SetTBBForceTerminatePropertyCoreNoThrow) {
 
     bool value = true;
     OV_ASSERT_NO_THROW(ie.set_property(ov::force_tbb_terminate(false)));
-    OV_ASSERT_NO_THROW(value = ie.get_property(ov::force_tbb_terminate.name()));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::force_tbb_terminate.name()).as<bool>());
     EXPECT_EQ(value, false);
     OV_ASSERT_NO_THROW(ie.set_property(ov::force_tbb_terminate(true)));
-    OV_ASSERT_NO_THROW(value = ie.get_property(ov::force_tbb_terminate.name()));
+    OV_ASSERT_NO_THROW(value = ie.get_property(ov::force_tbb_terminate.name()).as<bool>());
     EXPECT_EQ(value, true);
 }
 
@@ -473,12 +473,12 @@ TEST(OVClassBasicTest, SetAllowAutoBatchingPropertyCoreNoThrows) {
 
     bool value1 = true;
     OV_ASSERT_NO_THROW(ie.set_property(ov::hint::allow_auto_batching(false)));
-    OV_ASSERT_NO_THROW(value1 = ie.get_property(ov::hint::allow_auto_batching.name()));
+    OV_ASSERT_NO_THROW(value1 = ie.get_property(ov::hint::allow_auto_batching.name()).as<bool>());
     ASSERT_FALSE(value1);
 
     bool value2 = false;
     OV_ASSERT_NO_THROW(ie.set_property(ov::hint::allow_auto_batching(true)));
-    OV_ASSERT_NO_THROW(value2 = ie.get_property(ov::hint::allow_auto_batching.name()));
+    OV_ASSERT_NO_THROW(value2 = ie.get_property(ov::hint::allow_auto_batching.name()).as<bool>());
     ASSERT_TRUE(value2);
 }
 
