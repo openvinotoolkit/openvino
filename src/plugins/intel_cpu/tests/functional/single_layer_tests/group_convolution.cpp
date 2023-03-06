@@ -7,8 +7,6 @@
 #include "test_utils/cpu_test_utils.hpp"
 #include "test_utils/convolution_params.hpp"
 #include "test_utils/fusing_test_utils.hpp"
-#include <gtest/gtest-spi.h>
-#include <mutex>
 
 using namespace InferenceEngine;
 using namespace CPUTestUtils;
@@ -211,15 +209,7 @@ TEST_P(ExpectFailedGroupConvolutionLayerCPUTest, CompareWithRefs) {
     if (isBias) {
         checkBiasFusing(compiledModel);
     }
-    static std::mutex gtest_mutex;
-    static ExpectFailedGroupConvolutionLayerCPUTest* curInstance = nullptr;
-    static ov::CompiledModel curCopyCompiledModel;
-    const std::lock_guard<std::mutex> lock(gtest_mutex);
-    curInstance = this;
-    curCopyCompiledModel = compiledModel;
-    EXPECT_FATAL_FAILURE(
-        curInstance->CheckPluginRelatedResults(curCopyCompiledModel, "Convolution"),
-        "primType is unexpected");
+    ExpectPluginRelatedResultsFailed(compiledModel, "Convolution");
 }
 
 TEST_P(GroupConvolutionLayerCPUTest, CompareWithRefs) {

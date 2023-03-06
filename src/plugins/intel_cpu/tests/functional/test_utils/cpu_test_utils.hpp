@@ -139,6 +139,7 @@ public:
     void CheckPluginRelatedResults(const ov::CompiledModel &execNet, const std::set<std::string>& nodeType) const;
     void CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, const std::string& nodeType) const;
     void CheckPluginRelatedResults(const ov::CompiledModel &execNet, const std::string& nodeType) const;
+    void ExpectPluginRelatedResultsFailed(const ov::CompiledModel &execNet, const std::string& nodeType);
 
     static const char* any_type;
 

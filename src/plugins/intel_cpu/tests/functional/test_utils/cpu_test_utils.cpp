@@ -6,6 +6,8 @@
 #include "ie_ngraph_utils.hpp"
 #include "utils/rt_info/memory_formats_attribute.hpp"
 #include <cstdint>
+#include <gtest/gtest-spi.h>
+#include <mutex>
 
 namespace CPUTestUtils {
 const char* CPUTestsBase::any_type = "any_type";
@@ -138,6 +140,20 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
 
 void CPUTestsBase::CheckPluginRelatedResults(const ov::CompiledModel &execNet, const std::string& nodeType) const {
     CheckPluginRelatedResults(execNet, std::set<std::string>{nodeType});
+}
+
+void CPUTestsBase::ExpectPluginRelatedResultsFailed(const ov::CompiledModel &execNet, const std::string& nodeType) {
+    static std::mutex gtest_mutex;
+    static CPUTestsBase* curTest = nullptr;
+    static ov::CompiledModel curCompiledModel;
+    static std::string curNodeType;
+    const std::lock_guard<std::mutex> lock(gtest_mutex);
+    curTest = this;
+    curCompiledModel = execNet;
+    curNodeType = nodeType;
+    EXPECT_FATAL_FAILURE(
+        curTest->CheckPluginRelatedResults(curCompiledModel, curNodeType),
+        "primType is unexpected");
 }
 
 void CPUTestsBase::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov::Model>& function, const std::set<std::string>& nodeType) const {
