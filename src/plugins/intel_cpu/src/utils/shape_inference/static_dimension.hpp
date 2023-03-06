@@ -42,8 +42,12 @@ public:
     bool operator==(const StaticDimension& dimension) const;
     bool operator!=(const StaticDimension& dimension) const;
 
-    static bool is_static() { return true; }
-    static bool is_dynamic() { return false; }
+    static constexpr bool is_static() {
+        return true;
+    }
+    static constexpr bool is_dynamic() {
+        return false;
+    }
 
     value_type get_length() const;
     value_type get_min_length() const;
@@ -51,7 +55,7 @@ public:
 
     Interval& get_interval() const {
         static Interval dummy{};
-        OPENVINO_UNREACHABLE("[shape infer] Shoudn't call get_interval() in StaticDimension.");
+        OPENVINO_UNREACHABLE("[shape infer] Shouldn't call get_interval() in StaticDimension.");
         return dummy;
     }
 
