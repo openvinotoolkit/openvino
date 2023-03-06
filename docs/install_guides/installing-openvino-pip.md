@@ -25,18 +25,18 @@ To create a virtual environment, use the following command:
 .. tab-set::
 
     .. tab-item:: Linux and macOS
-        :sync: linmac
+       :sync: linmac
 
-        .. code-block:: sh
+       .. code-block:: sh
 
-           python3 -m venv openvino_env
+          python3 -m venv openvino_env
 
     .. tab-item:: Windows
-        :sync: win
+       :sync: win
 
-        .. code-block:: sh
+       .. code-block:: sh
 
-           python -m venv openvino_env
+          python -m venv openvino_env
 
 
 Step 2. Activate Virtual Environment
@@ -46,18 +46,18 @@ Step 2. Activate Virtual Environment
 .. tab-set::
 
     .. tab-item:: Linux and macOS
-        :sync: linmac
+       :sync: linmac
 
-        .. code-block:: sh
+       .. code-block:: sh
 
-           source openvino_env/bin/activate
+          source openvino_env/bin/activate
 
     .. tab-item:: Windows
-        :sync: win
+       :sync: win
 
-        .. code-block:: sh
+       .. code-block:: sh
 
-           openvino_env\Scripts\activate
+          openvino_env\Scripts\activate
 
 
 .. important::
