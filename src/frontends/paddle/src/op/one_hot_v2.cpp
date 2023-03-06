@@ -12,12 +12,12 @@ namespace op {
 NamedOutputs one_hot_v2(const NodeContext& node) {
     auto data = node.get_input("X");
     Output<Node> depth;
-    if (node.has_attribute("depth")) {
-        auto depth_value = node.get_attribute<int>("depth");
-        depth = default_opset::Constant::create(element::i32, Shape{}, {depth_value});
-    } else {
+    if (node.has_input("depth_tensor")) {
         auto depth_value = node.get_input("depth_tensor");
         depth = std::make_shared<default_opset::Squeeze>(depth_value);
+    } else {
+        auto depth_value = node.get_attribute<int>("depth");
+        depth = default_opset::Constant::create(element::i32, Shape{}, {depth_value});
     }
     auto on_value = default_opset::Constant::create(element::f32, Shape{}, {1});
     auto off_value = default_opset::Constant::create(element::f32, Shape{}, {0});
