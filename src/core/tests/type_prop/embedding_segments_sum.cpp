@@ -394,6 +394,29 @@ TEST(type_prop, ess_fail_per_sample_weights_1d) {
     }
 }
 
+TEST(type_prop, ess_fail_emb_table_0d) {
+    auto emb_table = make_shared<op::Parameter>(element::f32, Shape{});
+    auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
+    auto segment_ids = make_shared<op::Parameter>(element::i64, Shape{4});
+    auto num_segments = make_shared<op::Parameter>(element::i64, Shape{});
+    auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{4});
+    auto default_index = make_shared<op::Parameter>(element::i64, Shape{});
+
+    try {
+        auto ess = make_shared<op::v3::EmbeddingSegmentsSum>(emb_table,
+                                                             indices,
+                                                             segment_ids,
+                                                             num_segments,
+                                                             default_index,
+                                                             per_sample_weights);
+        FAIL() << "Invalid mismatch of shapes not detected";
+    } catch (const NodeValidationFailure& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("EMB_TABLE can't be a scalar"));
+    } catch (...) {
+        FAIL() << "Shapes check failed for unexpected reason";
+    }
+}
+
 TEST(type_prop, ess_4_args_api) {
     auto emb_table = make_shared<op::Parameter>(element::f32, Shape{5, 2});
     auto indices = make_shared<op::Parameter>(element::i64, Shape{4});
