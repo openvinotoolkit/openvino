@@ -37,33 +37,6 @@ enum class PropertyMutability {
     RW,  //!< Read/Write property key may change readability in runtime
 };
 
-/**
- * @brief This class is used to return property name and its mutability attribute
- */
-struct PropertyName : public std::string {
-    using std::string::string;
-
-    /**
-     * @brief Constructs property name object
-     * @param str property name
-     * @param mutability property mutability
-     */
-    PropertyName(const std::string& str, PropertyMutability mutability = PropertyMutability::RW)
-        : std::string{str},
-          _mutability{mutability} {}
-
-    /**
-     * @brief check property mutability
-     * @return true if property is mutable
-     */
-    bool is_mutable() const {
-        return _mutability == PropertyMutability::RW;
-    }
-
-private:
-    PropertyMutability _mutability = PropertyMutability::RW;
-};
-
 /** @cond INTERNAL */
 namespace util {
 struct PropertyTag {};
@@ -193,6 +166,37 @@ public:
 };
 
 /**
+ * @brief This class is used to return property name and its mutability attribute
+ */
+struct PropertyName : public std::string {
+    using std::string::string;
+
+    /**
+     * @brief Constructs property name object
+     * @param str property name
+     * @param mutability property mutability
+     */
+    PropertyName(const std::string& str, PropertyMutability mutability = PropertyMutability::RW)
+        : std::string{str},
+          _mutability{mutability} {}
+
+    template <class T, typename std::enable_if<std::is_base_of<ov::util::PropertyTag, T>::value, bool>::type = true>
+    PropertyName(const T& property) : std::string{property.name()},
+                                      _mutability{property.mutability} {}
+
+    /**
+     * @brief check property mutability
+     * @return true if property is mutable
+     */
+    bool is_mutable() const {
+        return _mutability == PropertyMutability::RW;
+    }
+
+private:
+    PropertyMutability _mutability = PropertyMutability::RW;
+};
+
+/**
  * @brief This class is used to bind read-only property name with value type
  * @tparam T type of value used to pass or get property
  */
@@ -308,7 +312,7 @@ enum class PerformanceMode {
 inline std::ostream& operator<<(std::ostream& os, const PerformanceMode& performance_mode) {
     switch (performance_mode) {
     case PerformanceMode::UNDEFINED:
-        return os << "";
+        return os << "UNDEFINED";
     case PerformanceMode::LATENCY:
         return os << "LATENCY";
     case PerformanceMode::THROUGHPUT:
@@ -329,7 +333,7 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
         performance_mode = PerformanceMode::THROUGHPUT;
     } else if (str == "CUMULATIVE_THROUGHPUT") {
         performance_mode = PerformanceMode::CUMULATIVE_THROUGHPUT;
-    } else if (str == "") {
+    } else if (str == "UNDEFINED") {
         performance_mode = PerformanceMode::UNDEFINED;
     } else {
         throw ov::Exception{"Unsupported performance mode: " + str};

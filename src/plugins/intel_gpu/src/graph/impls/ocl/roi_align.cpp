@@ -3,12 +3,10 @@
 //
 
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
+
+#include "roi_align_inst.h"
 #include "roi_align/roi_align_kernel_ref.h"
 #include "roi_align/roi_align_kernel_selector.h"
-#include "roi_align_inst.h"
 
 namespace cldnn {
 namespace ocl {
@@ -61,7 +59,6 @@ protected:
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<roi_align>();
-        const auto& input_layout = impl_param.get_input_layout(0);
         const auto& rois_layout = impl_param.get_input_layout(1);
         const auto& batches_layout = impl_param.get_input_layout(2);
 

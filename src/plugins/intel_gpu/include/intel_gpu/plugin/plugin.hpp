@@ -18,7 +18,7 @@ namespace intel_gpu {
 class Plugin : public InferenceEngine::IInferencePlugin {
     struct impl;
     std::shared_ptr<impl> _impl;
-    bool isModelCachingEnabled = false;
+    bool isModelCachingEnabled = true;
 
     std::string default_device_id = "0";
     // key: device_id, value: cldnn device

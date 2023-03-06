@@ -2,17 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "reduce_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "reduce_inst.h"
 #include "reduce/reduce_kernel_selector.h"
 #include "reduce/reduce_kernel_ref.h"
-#include "reduce/reduce_kernel_b_fs_yx_fsv16.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "data_inst.h"
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -78,9 +72,9 @@ struct reduce_impl : typed_primitive_impl_ocl<reduce> {
         return make_unique<reduce_impl>(*this);
     }
 
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<reduce>();
-        auto params = get_default_params<kernel_selector::reduce_params>(impl_param);
+        auto params = get_default_params<kernel_selector::reduce_params>(impl_param, is_shape_agnostic);
         auto optional_params = get_default_optional_params<kernel_selector::reduce_optional_params>(impl_param.get_program());
 
         params.reduceAxes = convert_axes(primitive->axes, impl_param.input_layouts[0].get_rank());
@@ -91,8 +85,9 @@ struct reduce_impl : typed_primitive_impl_ocl<reduce> {
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param);
+        auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        update_kernels_list_to_skip();
     }
 };
 

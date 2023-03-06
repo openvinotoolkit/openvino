@@ -122,19 +122,16 @@ jobs:
 
   - checkout: self
     clean: 'true'
-    fetchDepth: '1'
     submodules: 'true'
     path: openvino
 
   - checkout: openvino_contrib
     clean: 'true'
-    fetchDepth: '1'
     submodules: 'true'
     path: openvino_contrib
 
   - checkout: testdata
     clean: 'true'
-    fetchDepth: '1'
     lfs: 'true'
     path: testdata
 
@@ -263,9 +260,6 @@ jobs:
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_conditional_compilation_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ConditionalCompilation.xml
     displayName: 'Conditional Compilation Tests'
 
-  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\paddle_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-PaddleTests.xml
-    displayName: 'Paddle Tests'
-
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-IRFrontend.xml
     displayName: 'IR Frontend Tests'
 
@@ -307,7 +301,6 @@ jobs:
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
-    enabled: 'false'
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_template_func_tests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'

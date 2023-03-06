@@ -5,14 +5,14 @@
 #pragma once
 
 #include "openvino/frontend/pytorch/decoder.hpp"
-#include "openvino/frontend/pytorch/frontend.hpp"
+#include "translate_session.hpp"
 
 namespace ov {
 namespace frontend {
 namespace pytorch {
 
 class InputModel : public ov::frontend::InputModel {
-    friend class FrontEnd;
+    friend class ::ov::frontend::pytorch::TranslateSession;
     std::shared_ptr<TorchDecoder> m_model;
 
 public:

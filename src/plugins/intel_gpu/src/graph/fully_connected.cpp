@@ -3,7 +3,6 @@
 //
 #include "fully_connected_inst.h"
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 #include <algorithm>
@@ -39,8 +38,9 @@ bool is_batch_after_spatial(const std::string order) {
 }
 
 format::type get_preferred_format(fully_connected_node const& node, const kernel_impl_params& impl_param) {
-    if (node.get_preferred_impl_type() == impl_types::onednn)
-        return format::bfyx;
+    if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
+        return node.get_preferred_output_fmt();
+    }
 
     auto input_layout = impl_param.get_input_layout();
 
@@ -166,7 +166,7 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
 
 
 kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
-    // fc_tiled_opt kernel is optimized for row shape aligned by 16.
+    // fc_tiled_opt kernel is optimized for row shape aligned by 8.
     // Thus, use fake aligned shape at kernel execution for better performance.
     auto orig_input_layout = orig_impl_param.get_input_layout();
     auto orig_output_layout = orig_impl_param.get_output_layout();
@@ -176,10 +176,10 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
         auto updated_param = orig_impl_param;
         auto input_shape = orig_input_layout.get_partial_shape().to_shape();
         auto input_row_idx = input_shape.size() - 2;
-        input_shape[input_row_idx] = align_to(input_shape[input_row_idx], 16);
+        input_shape[input_row_idx] = align_to(input_shape[input_row_idx], 8);
         auto output_shape = orig_output_layout.get_partial_shape().to_shape();
         auto output_row_idx = output_shape.size() - 2;
-        output_shape[output_row_idx] = align_to(output_shape[output_row_idx], 16);
+        output_shape[output_row_idx] = align_to(output_shape[output_row_idx], 8);
 
         updated_param.input_layouts[0] = layout(ov::PartialShape(input_shape),
                                                 orig_input_layout.data_type,

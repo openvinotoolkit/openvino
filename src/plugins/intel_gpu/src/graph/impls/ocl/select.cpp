@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "select_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
+
+#include "select_inst.h"
 #include "select/select_kernel_selector.h"
 #include "select/select_kernel_base.h"
 
@@ -25,9 +23,8 @@ struct select_impl : typed_primitive_impl_ocl<select> {
         return make_unique<select_impl>(*this);
     }
 
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
-        const auto& primitive = impl_param.typed_desc<select>();
-        auto params = get_default_params<kernel_selector::select_params>(impl_param);
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
+        auto params = get_default_params<kernel_selector::select_params>(impl_param, is_shape_agnostic);
         auto optional_params = get_default_optional_params<kernel_selector::select_optional_params>(impl_param.get_program());
 
         std::vector<layout> input_layouts = impl_param.input_layouts;
@@ -70,8 +67,9 @@ struct select_impl : typed_primitive_impl_ocl<select> {
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param);
+        auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        update_kernels_list_to_skip();
     }
 };
 

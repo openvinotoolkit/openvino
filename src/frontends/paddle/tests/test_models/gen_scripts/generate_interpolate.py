@@ -19,8 +19,8 @@ def run_and_save_model(input_x, name, feed, fetch_list, main_prog, start_prog):
         program=main_prog)
 
     with paddle.static.program_guard(main_prog, start_prog):
-        saveModel(name, exe, feedkeys=['x'], fetchlist=fetch_list, inputs=[input_x],
-                  outputs=[outs[0]], target_dir=sys.argv[1])
+        saveModel(name, exe, feedkeys=[feed], fetchlist=fetch_list, inputs=[input_x],
+                  outputs=[outs[0]], target_dir=sys.argv[1], use_static_api=True)
 
     return outs
 
@@ -435,7 +435,7 @@ if __name__ == "__main__":
     resize_downsample_bicubic()
     resize_upsample_bicubic()
     bicubic_upsample_tensor_size()
-    bicubic_upsample_scales()    
+    bicubic_upsample_scales()
     # linear
     resize_downsample_linear()
     resize_upsample_linear()

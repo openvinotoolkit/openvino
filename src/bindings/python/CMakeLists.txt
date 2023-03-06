@@ -21,7 +21,7 @@ endif()
 #
 
 set(ov_python_req "${OpenVINOPython_SOURCE_DIR}/requirements.txt")
-set(ie_python_req "cython>=0.29.32")
+set(ie_python_req "${OpenVINOPython_SOURCE_DIR}/src/compatibility/openvino/requirements-dev.txt")
 
 function(ov_check_python_build_conditions)
     # user explicitly specified ENABLE_PYTHON=ON
@@ -72,10 +72,10 @@ function(ov_check_python_build_conditions)
     set(ov_python_req_FOUND ON)
 
     # check for Cython requirement for build IE API 1.0
-    ov_check_pip_package(REQUIREMENT ${ie_python_req}
-                         RESULT_VAR ie_python_req_FOUND
-                         WARNING_MESSAGE "install python3 -m install ${ie_python_req} for IE API 1.0 requirements"
-                         MESSAGE_MODE TRACE)
+    ov_check_pip_packages(REQUIREMENTS_FILE ${ie_python_req}
+                          RESULT_VAR ie_python_req_FOUND
+                          WARNING_MESSAGE "install python3 -m pip install -r ${ie_python_req} for IE API 1.0 requirements"
+                          MESSAGE_MODE TRACE)
 
     # cython can be installed as a debian package, so pip requirements can be unsatisfied
     # so, let's check to find cython anyway
@@ -87,11 +87,11 @@ function(ov_check_python_build_conditions)
         if(CYTHON_VERSION VERSION_GREATER_EQUAL 0.29)
             set(ie_python_req_FOUND ON)
         else()
-            message(${message_mode} "Python module '${ie_python_req}' is missed, IE Python API 1.0 will not be built (ENABLE_PYTHON is OFF)")
+            message(${message_mode} "Python requirements '${ie_python_req}' are missed, IE Python API 1.0 will not be built (ENABLE_PYTHON is OFF)")
         endif()
     endif()
 
-    if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_DEBUG_POSTFIX)
+    if(NOT OV_GENERATOR_MULTI_CONFIG AND CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_DEBUG_POSTFIX)
         set(python_debug ON)
         message(${message_mode} "Building python bindings in debug configuration is not supported on your platform (ENABLE_PYTHON is OFF)")
     else()
@@ -141,7 +141,7 @@ if(LINUX)
 endif()
 
 if(CMAKE_VERSION VERSION_LESS 3.15)
-    message(${message_mode} "Cmake version 3.15 and higher is required. Provided version ${CMAKE_VERSION}")
+    message(${message_mode} "Cmake version 3.15 and higher is required to build 'openvino' wheel. Provided version ${CMAKE_VERSION}")
     set(ENABLE_WHEEL_DEFAULT OFF)
 endif()
 

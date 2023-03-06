@@ -241,6 +241,8 @@ protected:
     explicit TensorBaseTJitConstant(const std::string& name) : JitConstant(name) {}
 
 public:
+    using JitConstant::GetDefinitions;
+
     JitDefinitions GetDefinitions(const Tensor::TensorBaseT<DType, Layout>& t) const {
         JitDefinitions definitions{
             {_name + "_OFFSET", toCodeString(t.GetFirstElementOffset())},
@@ -311,18 +313,6 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
         auto f_padded = toCodeString(_tensor.Feature(), idx_offset + 1, true);
         auto b_padded = toCodeString(_tensor.Batch(), idx_offset + 0, true);
 
-        auto multiply = [](std::vector<std::string> dims) -> std::string {
-            std::string res = "(";
-            for (size_t i = 0; i < dims.size(); i++) {
-                auto& d = dims[i];
-                res += d;
-                if (i != dims.size() - 1)
-                    res += "*";
-            }
-            res += ")";
-            return res;
-        };
-
         definitions = {
             {_name + "_SIZE_X", x},
             {_name + "_SIZE_Y", y},
@@ -349,10 +339,10 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
             _tensor.GetLayout() == DataLayout::bfwzyx) {
             definitions.push_back({_name + "_X_PITCH", "1"});
             definitions.push_back({_name + "_Y_PITCH", x_padded});
-            definitions.push_back({_name + "_Z_PITCH", multiply({x_padded, y_padded})});
-            definitions.push_back({_name + "_W_PITCH", multiply({x_padded, y_padded, z_padded})});
-            definitions.push_back({_name + "_FEATURE_PITCH", multiply({x_padded, y_padded, z_padded, w_padded})});
-            definitions.push_back({_name + "_BATCH_PITCH", multiply({x_padded, y_padded, z_padded, w_padded, f_padded})});
+            definitions.push_back({_name + "_Z_PITCH", toVectorMulString({x_padded, y_padded})});
+            definitions.push_back({_name + "_W_PITCH", toVectorMulString({x_padded, y_padded, z_padded})});
+            definitions.push_back({_name + "_FEATURE_PITCH", toVectorMulString({x_padded, y_padded, z_padded, w_padded})});
+            definitions.push_back({_name + "_BATCH_PITCH", toVectorMulString({x_padded, y_padded, z_padded, w_padded, f_padded})});
         } else {
             OPENVINO_ASSERT(false, "[GPU] Jitter couldn't generate dynamic pitches for given layout");
         }
@@ -561,14 +551,9 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
 
     std::string offset = toCodeString(_tensor.GetFirstElementOffset());
     if (_tensor.LogicalSize() == 1 && !_tensor.is_dynamic()) {
-        // if tensor contains single element we can always return 0 for safe function
-        if (_tensor.PitchesDifferFromLogicalDims()) {
-            definitions.push_back({ safe_index_func_name, offset });
-            definitions.push_back({ index_func_name, offset });
-        } else {
-            definitions.push_back({ safe_index_func_name, "0" });
-            definitions.push_back({ index_func_name, "0" });
-        }
+        // if tensor contains single element we can always return first element offset for safe function
+        definitions.push_back({ safe_index_func_name, offset });
+        definitions.push_back({ index_func_name, offset });
     } else if (_tensor.LogicalSize() == _tensor.Feature().v && !_tensor.is_dynamic()) {
         // We support broadcast only if corresponding dimension is equal to 1.
         // Otherwise, dimensions should be equal and using "f" should be safe.

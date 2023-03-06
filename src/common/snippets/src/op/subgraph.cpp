@@ -93,7 +93,7 @@ snippets::op::Subgraph::Subgraph(const NodeVector& args, std::shared_ptr<ov::Mod
 
 std::shared_ptr<Node> snippets::op::Subgraph::clone_with_new_inputs(const OutputVector& inputs) const {
     INTERNAL_OP_SCOPE(Subgraph);
-    return make_shared<Subgraph>(inputs, ov::clone_model(body()));
+    return make_shared<Subgraph>(inputs, body().clone());
 }
 
 std::vector<PartialShape> snippets::op::Subgraph::reshape_body(const std::vector<PartialShape>& input_shapes) {

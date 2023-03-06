@@ -6,13 +6,14 @@
 
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/layout.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include "meta_utils.h"
 #include "primitive_type.h"
 #include "program_node.h"
 #include "primitive_inst.h"
 #include "intel_gpu/graph/network.hpp"
-#include "impls/implementation_map.hpp"
+#include "implementation_map.hpp"
 
 #include <memory>
 #include <string>
@@ -41,11 +42,21 @@ struct primitive_type_base : primitive_type {
     }
 
     std::unique_ptr<primitive_impl> choose_impl(const cldnn::program_node& node, const kernel_impl_params& runtime_params) const override {
-        OPENVINO_ASSERT(node.type() == this, "[GPU] primitive_type_base::choose_impl: primitive type mismatch");
-        auto factory = implementation_map<PType>::get(runtime_params, node.get_preferred_impl_type(), get_shape_type(runtime_params));
-        auto impl = factory(node, runtime_params);
-        impl->set_dynamic(get_shape_type(runtime_params) == shape_types::dynamic_shape);
-        return impl;
+        try {
+            OPENVINO_ASSERT(node.type() == this, "[GPU] primitive_type_base::choose_impl: primitive type mismatch");
+            auto factory = implementation_map<PType>::get(runtime_params, node.get_preferred_impl_type(), get_shape_type(runtime_params));
+            auto impl = factory(node, runtime_params);
+            impl->set_dynamic(get_shape_type(runtime_params) == shape_types::dynamic_shape);
+            return impl;
+        } catch (std::exception& e) {
+            std::stringstream ss;
+            const auto& p = node.get_primitive();
+            ov::write_all_to_stream(ss, "[GPU] Can't choose implementation for ", node.id(), " node (type=", p->type_string(), ")\n",
+                                        "[GPU] Original name: ", p->origin_op_name, "\n"
+                                        "[GPU] Original type: ", p->origin_op_type_name, "\n"
+                                        "[GPU] Reason: ", e.what());
+            throw ov::Exception(ss.str());
+        }
     }
 
     bool does_an_implementation_exist(const cldnn::program_node& node) const override {
@@ -84,7 +95,17 @@ struct primitive_type_base : primitive_type {
     std::vector<cldnn::layout> calc_output_layouts(const cldnn::program_node& node, const kernel_impl_params& impl_param) const override {
         OPENVINO_ASSERT(node.type() == this, "primitive_type_base::calc_output_layouts: primitive type mismatch");
 
-        return typed_primitive_inst<PType>::template calc_output_layouts<ov::PartialShape>(node, impl_param);
+        for (auto& t : impl_param.input_layouts) {
+            GPU_DEBUG_TRACE_DETAIL << impl_param.desc->id << " input tensor: " << t.to_short_string() << std::endl;
+        }
+
+        auto res = typed_primitive_inst<PType>::template calc_output_layouts<ov::PartialShape>(node, impl_param);
+
+        for (auto& t : res) {
+            GPU_DEBUG_TRACE_DETAIL << impl_param.desc->id << " output tensor: " << t.to_short_string() << std::endl;
+        }
+
+        return res;
     }
     kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param) const override {
         return typed_primitive_inst<PType>::get_fake_aligned_params(orig_impl_param);

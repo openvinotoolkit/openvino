@@ -107,9 +107,9 @@ FindPermutationsAroundConvolutionInNHWCModel(InferenceEngine::CNNLayerPtr layer)
     if (LayerInfo(next).isPermute()) {
         const auto layout = next->outData[0]->getLayout();
         const auto order = next->GetParamAsInts("order");
-        if (layout != InferenceEngine::Layout::NCHW && layout != InferenceEngine::Layout::CHW ||
-            order != permute::GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC) &&
-                order != std::vector<int32_t>{0, 2, 1} /* NCW to NWC */) {
+        if ((layout != InferenceEngine::Layout::NCHW && layout != InferenceEngine::Layout::CHW) ||
+            (order != permute::GetPermuteOrder(InferenceEngine::Layout::NCHW, InferenceEngine::Layout::NHWC) &&
+             order != std::vector<int32_t>{0, 2, 1} /* NCW to NWC */)) {
             return std::make_pair(nullptr, nullptr);
         }
     } else if (LayerInfo(next).isReshape()) {
@@ -157,9 +157,9 @@ FindPermutationsAroundConvolutionInNHWCModel(InferenceEngine::CNNLayerPtr layer)
     if (LayerInfo(prev).isPermute()) {
         const auto layout = prev->outData[0]->getLayout();
         const auto order = prev->GetParamAsInts("order");
-        if (layout != InferenceEngine::Layout::NCHW && layout != InferenceEngine::Layout::CHW ||
-            order != permute::GetPermuteOrder(InferenceEngine::Layout::NHWC, InferenceEngine::Layout::NCHW) &&
-                order != std::vector<int32_t>{0, 2, 1} /* NWC to NCW */) {
+        if ((layout != InferenceEngine::Layout::NCHW && layout != InferenceEngine::Layout::CHW) ||
+            (order != permute::GetPermuteOrder(InferenceEngine::Layout::NHWC, InferenceEngine::Layout::NCHW) &&
+             order != std::vector<int32_t>{0, 2, 1} /* NWC to NCW */)) {
             return std::make_pair(nullptr, nullptr);
         }
     } else if (LayerInfo(prev).isReshape()) {
@@ -190,7 +190,7 @@ FindPermutationsAroundConvolutionInNHWCModel(InferenceEngine::CNNLayerPtr layer)
                                                : InferenceEngine::GetDataDimByName(parent->outData[0],
                                                                                    InferenceEngine::DataDimName::H);
             size_t width = InferenceEngine::GetDimFromBack(out_dims, 3);
-            if (in_dims_size < 3 || channels != 1 && (height != 1 || width != 1)) {
+            if (in_dims_size < 3 || (channels != 1 && (height != 1 || width != 1))) {
                 return std::make_pair(nullptr, nullptr);
             }
         }
@@ -443,6 +443,17 @@ inline std::vector<TranspositionInfo> FindTranspositionInfoFromNextLayers(Infere
     };
 
     return findTranspositionInfoRecursive(layer);
+}
+
+/**
+ * @brief Return true if the layer has max one non-1 dimension
+ * (because we can treat it as a single dimension layer, then)
+ */
+inline bool IsOneDimLayer(InferenceEngine::CNNLayerPtr layer) {
+    auto dims = layer->insData[0].lock()->getDims();
+    return std::count_if(std::begin(dims), std::end(dims), [](size_t dim) {
+               return dim > 1;
+           }) <= 1;
 }
 
 }  // namespace intel_gna

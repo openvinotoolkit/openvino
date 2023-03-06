@@ -24,6 +24,7 @@
 #include "emitters/cpu_generator.hpp"
 #include "utils/cpu_utils.hpp"
 #include "snippets_transformations/fuse_load_store_and_convert.hpp"
+#include "snippets_transformations/mul_add_to_fma.hpp"
 #include "ngraph_transformations/convert_to_swish_cpu.hpp"
 
 using namespace InferenceEngine;
@@ -36,9 +37,38 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+/* This class implementation is a temporal WA
+   TODO: revise the implementation to remove the node reference*/    
+class SnippetShapeInfer : public ShapeInferEmptyPads {
+public:
+    SnippetShapeInfer(Snippet* node) : m_node(node) {}
+    Result infer(
+        const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+        const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        return {m_node->shapeInfer(), ShapeInferStatus::success};
+    }
+
+    port_mask_t get_port_mask() const override {
+        return EMPTY_PORT_MASK;
+    }
+
+private:
+    Snippet* m_node;
+};
+
+class SnippetShapeInferFactory : public ShapeInferFactory {
+public:
+    SnippetShapeInferFactory(Snippet* node) : m_node(node) {}
+    ShapeInferPtr makeShapeInfer() const override {
+        return std::make_shared<SnippetShapeInfer>(m_node);
+    }
+
+private:
+    Snippet* m_node;
+};
 
 Snippet::Snippet(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
-        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+        : Node(op, context, SnippetShapeInferFactory(this)) {
     host_isa = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ?
         dnnl::impl::cpu::x64::avx512_core : dnnl::impl::cpu::x64::avx2;
     original_snippet = ov::as_type_ptr<ngraph::snippets::op::Subgraph>(op);
@@ -57,9 +87,9 @@ void Snippet::copy_snippet() {
     // Ticket[79554]: TypeRelaxed ops aren't thread safe so we use mutex to avoid collision in throughput mode
     if (original_snippet->has_type_relaxed_ops()) {
         std::lock_guard<std::mutex> lock(*context->getSharedMutex());
-        new_body = ov::clone_model(*original_snippet->body_ptr());
+        new_body = original_snippet->body_ptr()->clone();
     } else {
-        new_body = ov::clone_model(*original_snippet->body_ptr());
+        new_body = original_snippet->body_ptr()->clone();
     }
     snippet = std::make_shared<ngraph::snippets::op::Subgraph>(subgraph_node_inputs, new_body);
     ngraph::copy_runtime_info(original_snippet, snippet);
@@ -348,7 +378,7 @@ void Snippet::createPrimitive() {
     buffer_scratchpad.resize(buffer_scratchpad_size * parallel_get_max_threads(), 0);
 }
 
-std::vector<VectorDims> Snippet::shapeInfer() const {
+std::vector<VectorDims> Snippet::shapeInfer() {
     // todo: it's very strange that we don't have broadcast_merge_into for cpu shapes
     auto broadcast_merge = [](VectorDims& dst, const VectorDims& src){
         // Ranks are both static.
@@ -503,6 +533,7 @@ void Snippet::generate(const jit_snippets_compile_args* jcp) {
     optManager.register_pass<ov::intel_cpu::pass::FuseLoadConvert>();
     optManager.register_pass<ov::intel_cpu::pass::FuseStoreConvert>();
     optManager.register_pass<ConvertToSwishCPU>();
+    optManager.register_pass<ov::intel_cpu::pass::MulAddToFMA>();
 
     // LoadConvert uses Load emitter that support conversion from any type to only f32
     optManager.get_pass_config()->set_callback<ov::intel_cpu::pass::FuseLoadConvert>(

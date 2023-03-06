@@ -4,16 +4,17 @@
 
 #pragma once
 
-#include <ie_parameter.hpp>
 #include <map>
-#include <openvino/runtime/properties.hpp>
 #include <string>
-#include <threading/ie_istreams_executor.hpp>
 
-namespace TemplatePlugin {
+#include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
+
+namespace ov {
+namespace template_plugin {
 
 // ! [configuration:header]
-using ConfigMap = std::map<std::string, std::string>;
+using ConfigMap = std::map<std::string, ov::Any>;
 
 struct Configuration {
     Configuration();
@@ -26,15 +27,16 @@ struct Configuration {
                            const Configuration& defaultCfg = {},
                            const bool throwOnUnsupported = true);
 
-    InferenceEngine::Parameter Get(const std::string& name) const;
+    ov::Any Get(const std::string& name) const;
 
     // Plugin configuration parameters
 
     int deviceId = 0;
     bool perfCount = true;
-    InferenceEngine::IStreamsExecutor::Config _streamsExecutorConfig;
+    ov::threading::IStreamsExecutor::Config _streamsExecutorConfig;
     ov::hint::PerformanceMode performance_mode = ov::hint::PerformanceMode::UNDEFINED;
 };
 // ! [configuration:header]
 
-}  //  namespace TemplatePlugin
+}  // namespace template_plugin
+}  // namespace ov

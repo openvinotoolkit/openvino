@@ -41,10 +41,11 @@ protected:
         gna_config.gnaPrecision = InferenceEngine::Precision::I16;
         gna_config.gnaFlags.input_low_precision = false;
 
-        return ModelQuantizer(gna_config, false)
+        auto transformer = ov::intel_gna::TransformationsPipeline(gna_config);
+
+        return ModelQuantizer(transformer)
             .quantize(
             model,
-            [](InferenceEngine::CNNNetwork&, bool run_before_copy, bool inputs_int8_precision) {},
             inputs);
     }
 
