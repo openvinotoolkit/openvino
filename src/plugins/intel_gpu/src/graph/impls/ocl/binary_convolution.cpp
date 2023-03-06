@@ -2,16 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/primitives/quantize.hpp"
-#include "binary_convolution_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
+
+#include "binary_convolution_inst.h"
 #include "kernel_selector/kernels/binary_convolution/binary_convolution_kernel_selector.h"
 #include "kernel_selector/kernels/binary_convolution/binary_convolution_params.h"
-#include <algorithm>
-#include <memory>
 
 namespace cldnn {
 namespace ocl {

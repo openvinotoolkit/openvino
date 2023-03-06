@@ -128,28 +128,28 @@ JitConstants NonMaxSuppressionKernelRef::GetJitConstants(const non_max_suppressi
 
     jit.AddConstant(MakeJitConstant("OUTPUT_NUM", params.outputs[0].Batch().v));
 
-    if (params.num_select_per_class_type == NmsArgType::Input) {
+    if (params.num_select_per_class_type == base_params::ArgType::Input) {
         jit.AddConstant(MakeJitConstant("NUM_SELECT_PER_CLASS_TYPE", GetInputTypeStr(params.GetIndexNumSelectPerClass())));
         jit.AddConstant(MakeJitConstant("NUM_SELECT_PER_CLASS_VAL", "convert_int(num_select_per_class[0])"));
     } else {
         jit.AddConstant(MakeJitConstant("NUM_SELECT_PER_CLASS_VAL", params.num_select_per_class));
     }
 
-    if (params.iou_threshold_type == NmsArgType::Input) {
+    if (params.iou_threshold_type == base_params::ArgType::Input) {
         jit.AddConstant(MakeJitConstant("IOU_THRESHOLD_TYPE", GetInputTypeStr(params.GetIndexIouThreshold())));
         jit.AddConstant(MakeJitConstant("IOU_THRESHOLD_VAL", "convert_float(iou_threshold[0])"));
     } else {
         jit.AddConstant(MakeJitConstant("IOU_THRESHOLD_VAL", params.iou_threshold));
     }
 
-    if (params.score_threshold_type == NmsArgType::Input) {
+    if (params.score_threshold_type == base_params::ArgType::Input) {
         jit.AddConstant(MakeJitConstant("SCORE_THRESHOLD_TYPE", GetInputTypeStr(params.GetIndexScoreThreshold())));
         jit.AddConstant(MakeJitConstant("SCORE_THRESHOLD_VAL", "convert_float(score_threshold[0])"));
     } else {
         jit.AddConstant(MakeJitConstant("SCORE_THRESHOLD_VAL", params.score_threshold));
     }
 
-    if (params.soft_nms_sigma_type == NmsArgType::Input) {
+    if (params.soft_nms_sigma_type == base_params::ArgType::Input) {
         jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_TYPE", GetInputTypeStr(params.GetIndexSoftNmsSigma())));
         jit.AddConstant(MakeJitConstant("SOFT_NMS_SIGMA_VAL", "convert_float(soft_nms_sigma[0])"));
     } else {
@@ -205,7 +205,7 @@ void NonMaxSuppressionKernelRef::SetKernelArguments(const non_max_suppression_pa
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, 1 });
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 0 });
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2 });
-        if (params.score_threshold_type == NmsArgType::Input)
+        if (params.score_threshold_type == base_params::ArgType::Input)
             kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexScoreThreshold() });
         break;
 
@@ -220,13 +220,13 @@ void NonMaxSuppressionKernelRef::SetKernelArguments(const non_max_suppression_pa
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 1 });
         kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INTERNAL_BUFFER, 2 });
 
-        if (params.num_select_per_class_type == NmsArgType::Input)
+        if (params.num_select_per_class_type == base_params::ArgType::Input)
             kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexNumSelectPerClass() });
-        if (params.iou_threshold_type == NmsArgType::Input)
+        if (params.iou_threshold_type == base_params::ArgType::Input)
             kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexIouThreshold() });
-        if (params.score_threshold_type == NmsArgType::Input)
+        if (params.score_threshold_type == base_params::ArgType::Input)
             kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexScoreThreshold() });
-        if (params.soft_nms_sigma_type == NmsArgType::Input)
+        if (params.soft_nms_sigma_type == base_params::ArgType::Input)
             kernel.params.arguments.push_back({ ArgumentDescriptor::Types::INPUT, params.GetIndexSoftNmsSigma() });
         break;
 
