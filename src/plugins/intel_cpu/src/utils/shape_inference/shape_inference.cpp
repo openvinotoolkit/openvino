@@ -19,6 +19,7 @@
 #include "ctc_greedy_decoder_seq_len_shape_inference.hpp"
 #include "ctc_greedy_decoder_shape_inference.hpp"
 #include "ctc_loss_shape_inference.hpp"
+#include "deformable_psroi_pooling_shape_inference.hpp"
 #include "depth_to_space_shape_inference.hpp"
 #include "detection_output_shape_inference.hpp"
 #include "einsum_shape_inference.hpp"
@@ -41,12 +42,14 @@
 #include "gru_cell_shape_inference.hpp"
 #include "gru_sequence_shape_inference.hpp"
 #include "interpolate_shape_inference.hpp"
+#include "irdft_shape_inference.hpp"
 #include "lstm_cell_shape_inference.hpp"
 #include "matmul_shape_inference.hpp"
 #include "one_hot_shape_inference.hpp"
 #include "pad_shape_inference.hpp"
 #include "proposal_shape_inference.hpp"
 #include "range_shape_inference.hpp"
+#include "rdft_shape_inference.hpp"
 #include "read_value_shape_inference.hpp"
 #include "reduce_shape_inference.hpp"
 #include "region_yolo_shape_inference.hpp"
@@ -115,12 +118,12 @@ class entryIO : public entryBase {
 public:
     using entryBase::entryBase;
 
-    std::vector<StaticShape> infer(const std::vector<StaticShape>& input_shapes,
-                                   const std::map<size_t, HostTensorPtr>& constant_data) override {
+    IShapeInferCommon::Result
+    infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
         auto op = static_cast<OP*>(node.get());
         std::vector<StaticShape> output_shapes(op->get_output_size());
         shape_infer(op, input_shapes, output_shapes);
-        return output_shapes;
+        return {std::move(output_shapes), ShapeInferStatus::success};
     }
 };
 
@@ -129,12 +132,12 @@ class entryIOC : public entryBase {
 public:
     using entryBase::entryBase;
 
-    std::vector<StaticShape> infer(const std::vector<StaticShape>& input_shapes,
-                                   const std::map<size_t, HostTensorPtr>& constant_data) override {
+    IShapeInferCommon::Result
+    infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
         auto op = static_cast<OP*>(node.get());
         std::vector<StaticShape> output_shapes(op->get_output_size());
         shape_infer(op, input_shapes, output_shapes, constant_data);
-        return output_shapes;
+        return {std::move(output_shapes), ShapeInferStatus::success};
     }
 };
 
@@ -142,12 +145,12 @@ class entryCopy : public entryBase {
 public:
     using entryBase::entryBase;
 
-    std::vector<StaticShape> infer(const std::vector<StaticShape>& input_shapes,
-                                   const std::map<size_t, HostTensorPtr>& constant_data) override {
+    IShapeInferCommon::Result
+    infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
         auto op = node.get();
         std::vector<StaticShape> output_shapes(op->get_output_size());
         copy_shape_infer(op, input_shapes, output_shapes);
-        return output_shapes;
+        return {std::move(output_shapes), ShapeInferStatus::success};
     }
 };
 
@@ -155,12 +158,12 @@ class entryFirstPassthrough : public entryBase {
 public:
     using entryBase::entryBase;
 
-    std::vector<StaticShape> infer(const std::vector<StaticShape>& input_shapes,
-                                   const std::map<size_t, HostTensorPtr>& constant_data) override {
+    IShapeInferCommon::Result
+    infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
         auto op = node.get();
         std::vector<StaticShape> output_shapes(op->get_output_size());
         first_input_passthrough_infer(op, input_shapes, output_shapes);
-        return output_shapes;
+        return {std::move(output_shapes), ShapeInferStatus::success};
     }
 };
 
@@ -168,12 +171,12 @@ class entryEltwise : public entryBase {
 public:
     using entryBase::entryBase;
 
-    std::vector<StaticShape> infer(const std::vector<StaticShape>& input_shapes,
-                                   const std::map<size_t, HostTensorPtr>& constant_data) override {
+    IShapeInferCommon::Result
+    infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
         auto op = node.get();
         std::vector<StaticShape> output_shapes(op->get_output_size());
         eltwise_shape_infer(op, input_shapes, output_shapes);
-        return output_shapes;
+        return {std::move(output_shapes), ShapeInferStatus::success};
     }
 };
 
@@ -198,8 +201,8 @@ public:
 
     virtual void post_validate_and_infer_types(const std::shared_ptr<ov::Node>& local_op) {}
 
-    std::vector<StaticShape> infer(const std::vector<StaticShape>& input_shapes,
-                                   const std::map<size_t, HostTensorPtr>& constant_data) override {
+    IShapeInferCommon::Result
+    infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
         auto op = node.get();
         std::vector<StaticShape> output_shapes;
 
@@ -235,19 +238,7 @@ public:
             const auto& partial_shape = local_op->get_output_partial_shape(i);
 
             if (partial_shape.is_dynamic()) {
-                std::ostringstream errorMessage;
-                errorMessage << "Can't compute static output shape on " << i << " port for " << op->get_type_name()
-                             << " node with name: " << op->get_name();
-                errorMessage << ". Input shapes = ( ";
-                for (size_t in = 0; in < op->get_input_size(); in++) {
-                    errorMessage << in << " port = " << op->get_input_partial_shape(in) << ", ";
-                }
-                errorMessage << "). Output shapes = ( ";
-                for (size_t out = 0; out < op->get_output_size(); out++) {
-                    errorMessage << out << " port = " << op->get_output_partial_shape(out) << ", ";
-                }
-                errorMessage << ")";
-                OPENVINO_ASSERT(false, errorMessage.str());
+                return {{}, ShapeInferStatus::skip};
             }
 
             output_shapes[i] = StaticShape(partial_shape.to_shape());
@@ -255,7 +246,7 @@ public:
 
         post_validate_and_infer_types(local_op);
 
-        return output_shapes;
+        return {std::move(output_shapes), ShapeInferStatus::success};
     }
 };
 
@@ -298,15 +289,14 @@ class entryInterpolate : public entryBase {
 public:
     using entryBase::entryBase;
 
-    std::vector<StaticShape> infer(
-        const std::vector<StaticShape>& input_shapes,
-        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) override {
+    IShapeInferCommon::Result
+    infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
         std::vector<size_t> pads_begin, pads_end;
         auto op = static_cast<OP*>(node.get());
         std::vector<StaticShape> output_shapes(op->get_output_size());
         correct_pads_attr(op, pads_begin, pads_end, input_shapes);
         shape_infer(op, pads_begin, pads_end, input_shapes, output_shapes, constant_data);
-        return output_shapes;
+        return {std::move(output_shapes), ShapeInferStatus::success};
     }
 };
 
@@ -320,16 +310,15 @@ public:
     const ov::CoordinateDiff& get_pads_end() override {
         return pads_end;
     }
-    std::vector<StaticShape> infer(
-        const std::vector<StaticShape>& input_shapes,
-        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) override {
+    IShapeInferCommon::Result
+    infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
         auto op = static_cast<OP*>(node.get());
         std::vector<StaticShape> output_shapes(op->get_output_size());
         bool status = resolve_auto_pad_for_shape(op, pads_begin, pads_end, input_shapes, 2, is_grouped ? 3 : 2);
         OPENVINO_ASSERT(status,
                         "Convolution shape inference doesn't have enough information to calculate static shapes");
         shape_infer(op, pads_begin, pads_end, input_shapes, output_shapes);
-        return output_shapes;
+        return {std::move(output_shapes), ShapeInferStatus::success};
     }
 
 protected:
@@ -347,9 +336,8 @@ public:
     const ov::CoordinateDiff& get_pads_end() override {
         return pads_end;
     }
-    std::vector<StaticShape> infer(
-        const std::vector<StaticShape>& input_shapes,
-        const std::map<size_t, std::shared_ptr<ngraph::runtime::HostTensor>>& constant_data) override {
+    IShapeInferCommon::Result
+    infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
         StaticShape output_shape_input;
         auto op = static_cast<OP*>(node.get());
         std::vector<StaticShape> output_shapes(op->get_output_size());
@@ -366,7 +354,7 @@ public:
             status,
             "ConvolutionBackpropData shape inference doesn't have enough information to calculate static shapes");
         shape_infer(op, pads_begin, pads_end, output_shape_input, input_shapes, output_shapes);
-        return output_shapes;
+        return {std::move(output_shapes), ShapeInferStatus::success};
     }
 
 protected:
@@ -388,8 +376,8 @@ public:
         }
     }
 
-    std::vector<StaticShape> infer(const std::vector<StaticShape>& input_shapes,
-                                   const std::map<size_t, HostTensorPtr>& constant_data) override {
+    IShapeInferCommon::Result
+    infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
         // For backward compatibility, create ov tensors and run shape inference.
         TensorVector tensors;
         tensors.reserve(constant_data.size());
@@ -402,10 +390,10 @@ public:
         return infer(input_shapes, const_tensor_map);
     }
 
-    std::vector<StaticShape> infer(
-        const std::vector<StaticShape>& input_shapes,
-        const std::map<size_t, std::reference_wrapper<const Tensor>>& constant_data) override {
-        return shape_infer(static_cast<TOp*>(m_node.get()), input_shapes, constant_data);
+    IShapeInferCommon::Result
+    infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, std::reference_wrapper<const Tensor>>& constant_data) override {
+        auto result = shape_infer(static_cast<TOp*>(m_node.get()), input_shapes, constant_data);
+        return {std::move(result), ShapeInferStatus::success};
     }
 
     const ov::CoordinateDiff& get_pads_begin() override {
@@ -530,6 +518,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(CTCGreedyDecoderSeqLen, entryIO),
     _OV_OP_SHAPE_INFER_REG(CTCLoss, entryIO),
     _OV_OP_SHAPE_INFER_REG(DeformableConvolution, entryFallbackWithPadding),
+    _OV_OP_SHAPE_INFER_REG(DeformablePSROIPooling, entryIO),
     _OV_OP_SHAPE_INFER_REG(DepthToSpace, entryIO),
     _OV_OP_SHAPE_INFER_REG(DetectionOutput, entryIO),
     _OV_OP_SHAPE_INFER_REG(DFT, entryIOC),
@@ -552,6 +541,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(GRUSequence, entryIO),
     _OV_OP_SHAPE_INFER_REG(IDFT, entryIOC),
     _OV_OP_SHAPE_INFER_REG(Interpolate, entryInterpolate),
+    _OV_OP_SHAPE_INFER_REG(IRDFT, entryIOC),
     _OV_OP_SHAPE_INFER_REG(LSTMCell, entryIO),
     _OV_OP_SHAPE_INFER_REG(MatMul, entryIO),
     _OV_OP_SHAPE_INFER_REG(MaxPool, entryFallbackWithPadding),
@@ -561,6 +551,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(Pad, entryIOC),
     _OV_OP_SHAPE_INFER_REG(Proposal, entryIO),
     _OV_OP_SHAPE_INFER_REG(Range, entryIOC),
+    _OV_OP_SHAPE_INFER_REG(RDFT, entryIOC),
     _OV_OP_SHAPE_INFER_REG(ReadValue, entryIO),
     _OV_OP_SHAPE_INFER_REG(RegionYolo, entryIO),
     _OV_OP_SHAPE_INFER_REG(ReorgYolo, entryIO),
@@ -670,6 +661,5 @@ std::shared_ptr<IStaticShapeInfer> make_shape_inference<IStaticShapeInfer>(std::
         return {};
     }
 }
-
 }  // namespace intel_cpu
 }  // namespace ov
