@@ -5,8 +5,6 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-#define out(a) std::cout << a << std::endl;
-
 namespace ov {
 namespace frontend {
 namespace paddle {
