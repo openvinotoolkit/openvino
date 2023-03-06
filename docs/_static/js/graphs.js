@@ -1,3 +1,33 @@
+// general output config
+const chartDisclaimers = {
+    Value: 'Value: Performance/(No_of_sockets * Price_of_CPU_dGPU), where prices are in USD as of December 2022.',
+    Efficiency: 'Efficiency: Performance/(No_of_sockets * TDP_of_CPU_dGPU), where total power dissipation (TDP) is in Watt as of December 2022.'
+}
+
+const defaultSelections = {
+    platforms: {name: 'platform',
+        data: [
+            'Intel® Core™  i9-12900K CPU-only',
+            'Intel® Core™  i5-10500TE CPU-only',
+            'Intel® Core™  i5-8500 CPU-only',
+            'Intel® Core™  i7-8700T CPU-only',
+            'Intel® Core™  i9-10900TE CPU-only',
+            'Intel® Core™  i7-1165G7 CPU-only'
+        ]
+    },
+    platformFilters: {name: 'coretype', data: ['CPU']},
+    models: {name: 'networkmodel',
+        data: [
+            'bert-large-uncased-whole-word-masking-squad-0001 ',
+            'mobilenet-ssd ',
+            'resnet-50',
+            'yolo_v3_tiny'
+        ]
+    },
+    parameters: {name: 'kpi', data: ['Throughput']},
+    pracision: {name: 'precision', data: ['INT8', 'FP32']}
+}
+
 class Filter {
 
     // param: GraphData[], networkModels[]
@@ -284,9 +314,9 @@ class Graph {
             case 'int8':
                 return { data: null, color: '#00C7FD', label: 'FPS (INT8)' };
             case 'fp16':
-                return { data: null, color: '#0068B5', label: 'FPS (FP16)' };
+                return { data: null, color: '#009fca', label: 'FPS (FP16)' };
             case 'fp32':
-                return { data: null, color: '#00C7FD', label: 'FPS (FP32)' };
+                return { data: null, color: '#007797', label: 'FPS (FP32)' };
             default:
                 return {};
         }
@@ -315,19 +345,12 @@ $(document).ready(function () {
     function clickBuildGraphs(graph, networkModels, ietype, platforms, kpis, precisions) {
         renderData(graph, networkModels, ietype, platforms, kpis, precisions);
 
-        $('.edit-settings-btn').show();
-        $('.clear-all-btn').hide();
         $('.modal-footer').show();
-        $('.configure-graphs-header h3').addClass('header-inactive');
-        $('.benchmark-graph-results-header h3').removeClass('header-inactive');
-
+        $('#modal-display-graphs').show();
         $('.edit-settings-btn').on('click', (event) => {
-            $('.configure-graphs-content').show();
-            $('.edit-settings-btn').hide();
-            $('.clear-all-btn').show();
+            $('#modal-configure-graphs').show();
+            $('#modal-display-graphs').hide();
             $('.modal-footer').hide();
-            $('.configure-graphs-header h3').removeClass('header-inactive');
-            $('.benchmark-graph-results-header h3').addClass('header-inactive');
             $('.chart-placeholder').empty();
         });
 
@@ -367,7 +390,7 @@ $(document).ready(function () {
     }
 
     function getSelectedNetworkModels() {
-        return $('.models-column-one input:checked, .models-column-two input:checked').map(function () {
+        return $('.models-column-one input:checked, .models-column-two input:checked').not('[data-networkmodel="Select All"]').map(function () {
             return $(this).data('networkmodel');
         }).get();
     }
@@ -392,7 +415,7 @@ $(document).ready(function () {
         }).get();
     }
     function getSelectedPrecisions() {
-        return $('.precisions-column .selected').map(function () {
+        return $('.precisions-column input:checked').map(function () {
             return $(this).data('precision');
         }).get();
     }
@@ -404,16 +427,16 @@ $(document).ready(function () {
         && getSelectedKpis().length > 0) {
             if (getSelectedKpis().includes('Throughput')) {
                 if (getSelectedPrecisions().length > 0) {
-                    $('#modal-build-graphs-btn').prop('disabled', false);
+                    $('#build-graphs-btn').prop('disabled', false);
                     return;
                 }
-                $('#modal-build-graphs-btn').prop('disabled', true);
+                $('#build-graphs-btn').prop('disabled', true);
                 return;
             }
-            $('#modal-build-graphs-btn').prop('disabled', false);
+            $('#build-graphs-btn').prop('disabled', false);
             return;
         }
-        $('#modal-build-graphs-btn').prop('disabled', true);
+        $('#build-graphs-btn').prop('disabled', true);
     }
 
     function renderModal(result) {
@@ -436,12 +459,15 @@ $(document).ready(function () {
             modalContent.addClass('modal-content');
             modal.append(modalContent);
 
-            // hide edit settings button
-            $('.edit-settings-btn').hide();
-
             const models = networkModels.map((networkModel) => createCheckMark(networkModel, 'networkmodel'));
-            modal.find('.models-column-one').append(models.slice(0, models.length / 2));
+            const selectAllModelsButton = createCheckMark('Select All', 'networkmodel')
+            modal.find('.models-column-one').append(selectAllModelsButton).append(models.slice(0, models.length / 2));
             modal.find('.models-column-two').append(models.slice(models.length / 2));
+
+            const precisions = Modal.getPrecisionsLabels().map((precision) => createCheckMark(precision, 'precision'));
+            modal.find('.precisions-column').append(precisions);
+            selectAllCheckboxes(precisions);
+            disableAllCheckboxes(precisions);
 
             const types = ieTypes.map((ieType) => {
                 var labelText = Modal.getIeTypeLabel(ieType);
@@ -456,6 +482,8 @@ $(document).ready(function () {
                     return item;
                 }
             });
+            modal.find('#modal-display-graphs').hide();
+
             modal.find('.ietype-column').append(types);
             modal.find('.ietype-column input').first().prop('checked', true);
 
@@ -464,43 +492,63 @@ $(document).ready(function () {
 
             $('body').prepend(modal);
 
-            var fPlatforms = filterClientPlatforms(graph.data, getSelectedNetworkModels(), getSelectedIeType(), Modal.getCoreTypes(getSelectedCoreTypes()));
-            renderClientPlatforms(modal, Graph.getPlatformNames(fPlatforms));
+            renderClientPlatforms(graph.data, modal, true);
+            preselectDefaultSettings(graph.data, modal);
 
-            $('.clear-all-btn').on('click', () => {
-                $('.modal-content-grid-container input:checkbox').each((index, object) => $(object).prop('checked', false));
-                $('.precisions-column').empty();
-                modal.find('.ietype-column input').first().prop('checked', true);
-                validateSelections();
-            });
-
-            $('#modal-build-graphs-btn').on('click', () => {
-                $('.configure-graphs-content').hide();
+            $('.clear-all-btn').on('click', clearAll);
+            $('#build-graphs-btn').on('click', () => {
+                $('#modal-configure-graphs').hide();
                 clickBuildGraphs(graph, getSelectedNetworkModels(), getSelectedIeType(), getSelectedClientPlatforms(), getSelectedKpis(), Modal.getPrecisions(getSelectedPrecisions()));
             });
-
             $('.modal-close').on('click', hideModal);
             $('.close-btn').on('click', hideModal);
-            modal.find('.ietype-column input').on('click', function (event) {
-                if (getSelectedIeType() === 'core') {
-                    showCoreSelectorTypes(Modal.getCoreTypesLabels(), graph.data, modal);
-                }
-                else {
-                    hideCoreSelectorTypes();
-                }
-                var fPlatforms = filterClientPlatforms(graph.data, getSelectedNetworkModels(), getSelectedIeType(), Modal.getCoreTypes(getSelectedCoreTypes()));
-                renderClientPlatforms(modal, Graph.getPlatformNames(fPlatforms));
+            modal.find('.models-column-one input[data-networkmodel="Select All"]').on('click', function() {
+                if ($(this).prop('checked'))
+                    selectAllCheckboxes(models);
+                else deSelectAllCheckboxes(models);
             });
-            modal.find('.kpi-column input').on('click', function (event) {
-                if (getSelectedKpis().includes('Throughput')) {
-                    showPrecisionSelectorTypes(Modal.getPrecisionsLabels());
-                }
-                else {
-                    hidePrecisionSelectorTypes();
-                }
-            });
+            modal.find('.ietype-column input').on('click', () => renderClientPlatforms(graph.data, modal, true));
+            modal.find('.kpi-column input').on('click', validateThroughputSelection);
             modal.find('input').on('click', validateSelections);
         });
+    }
+    
+    function validateThroughputSelection() {
+        const precisions = $('.precisions-column').find('input')
+        if (getSelectedKpis().includes('Throughput')) {
+            precisions.prop('disabled', false);
+        }
+        else {
+            precisions.prop('disabled', true);
+        }
+    }
+
+    function clearAll() {
+        $('.modal-content-grid-container input:checkbox').each((index, object) => $(object).prop('checked', false));
+        // Uncomment if you want the Clear All button to reset the Platform Type column as well
+        // modal.find('.ietype-column input').first().prop('checked', true);
+        validateThroughputSelection();
+        validateSelections();
+    }
+
+    function preselectDefaultSettings(data, modal) {
+        if (defaultSelections.platformFilters) {
+            const filters = modal.find('.selectable-box-container').children('.selectable-box');
+            filters.removeClass('selected');
+            defaultSelections.platformFilters.data.forEach(selection => {
+                filters.filter(`[data-${defaultSelections.platformFilters.name}="${selection}"]`).addClass('selected');
+            });
+            renderClientPlatforms(data, modal);
+        }
+        clearAll();
+        for (setting in defaultSelections) {
+            let name = defaultSelections[setting].name;
+            defaultSelections[setting].data.forEach(selection => {
+                $(`input[data-${name}="${selection}"]`).prop('checked', true);
+            });
+        }
+        validateThroughputSelection();
+        validateSelections();
     }
 
     function showCoreSelectorTypes(coreTypes, graphDataArr,  modal) {
@@ -524,43 +572,13 @@ $(document).ready(function () {
                 $(this).addClass('selected');
             }
             var fPlatforms = filterClientPlatforms(graphDataArr, getSelectedNetworkModels(), getSelectedIeType(), Modal.getCoreTypes(getSelectedCoreTypes()));
-            renderClientPlatforms(modal, Graph.getPlatformNames(fPlatforms));
+            renderClientPlatformsItems(modal, Graph.getPlatformNames(fPlatforms), true);
             validateSelections();
         });
     }
 
     function hideCoreSelectorTypes() {
         $('.client-platform-column').find('.selectable-box-container').hide();
-    }
-
-    function showPrecisionSelectorTypes(precisions) {
-
-        if ($('.precisions-column').find('.selectable-box-container').length) {
-            $('.precisions-column').find('.selectable-box-container').show();
-            return;
-        }
-        var container = $('<div>');
-        container.addClass('selectable-box-container');
-        precisions.forEach((prec) => {
-            var box = $('<div>' + prec + '</div>');
-            box.attr('data-precision', prec);
-            box.addClass('selectable-box');
-            container.append(box);
-
-        });
-        $('.precisions-column').prepend(container);
-        $('.precisions-column .selectable-box').on('click', function () {
-            if ($(this).hasClass('selected')) {
-                $(this).removeClass('selected');
-            } else {
-                $(this).addClass('selected');
-            }
-            validateSelections();
-        });
-    }
-
-    function hidePrecisionSelectorTypes() {
-        $('.precisions-column').find('.selectable-box-container').hide();
     }
 
     function filterClientPlatforms(data, networkModels, ietype, coreTypes) {
@@ -575,10 +593,22 @@ $(document).ready(function () {
         return Array.from(optionMap.values());
     }
 
-    function renderClientPlatforms(modal, platformNames) {
+    function renderClientPlatforms(data, modal, preselectEveryItem) {
+        if (getSelectedIeType() === 'core') {
+            showCoreSelectorTypes(Modal.getCoreTypesLabels(), data, modal);
+        }
+        else {
+            hideCoreSelectorTypes();
+        }
+        var fPlatforms = filterClientPlatforms(data, getSelectedNetworkModels(), getSelectedIeType(), Modal.getCoreTypes(getSelectedCoreTypes()));
+        renderClientPlatformsItems(modal, Graph.getPlatformNames(fPlatforms), preselectEveryItem);
+    }
+
+    function renderClientPlatformsItems(modal, platformNames, preselectEveryItem) {
         $('.client-platform-column .checkmark-container').remove();
         const clientPlatforms = platformNames.map((platform) => createCheckMark(platform, 'platform'));
-        selectAllCheckboxes(clientPlatforms);
+        if (preselectEveryItem)
+            selectAllCheckboxes(clientPlatforms);
         modal.find('.client-platform-column').append(clientPlatforms);
         modal.find('.client-platform-column input').on('click', validateSelections);
     }
@@ -597,7 +627,25 @@ $(document).ready(function () {
     // receives a jquery list of items and selects all input checkboxes
     function selectAllCheckboxes(items) {
         items.forEach((item) => {
-            item.find(':input').attr('checked', true);
+            item.find(':input').prop('checked', true);
+        });
+    }
+
+    function enableAllCheckboxes(items) {
+        items.forEach((item) => {
+            item.find(':input').prop('disabled', false);
+        })
+    }
+
+    function disableAllCheckboxes(items) {
+        items.forEach((item) => {
+            item.find(':input').prop('disabled', true);
+        })
+    }
+
+    function deSelectAllCheckboxes(items) {
+        items.forEach((item) => {
+            item.find(':input').prop('checked', false);
         });
     }
 
@@ -659,8 +707,8 @@ $(document).ready(function () {
     function renderData(graph, networkModels, ietype, platforms, kpis, precisions) {
 
         $('.chart-placeholder').empty();
+        $('.modal-disclaimer-box').empty();
         networkModels.forEach((networkModel) => {
-            // graph title
             var chartName = networkModel;
             var chartSlug = chartName.replace(')', '').replace(' (', '-');
             var chartContainer = $('<div>');
@@ -686,8 +734,12 @@ $(document).ready(function () {
             } else {
               createEmptyChartContainer(chartContainer);
             }
-
         })
+       
+        for (let kpi of kpis) {
+            if (chartDisclaimers[kpi])
+                $('.modal-disclaimer-box').append($('<p>').text(chartDisclaimers[kpi]))
+        }
     };
 
     function createEmptyChartContainer(chartContainer) {
