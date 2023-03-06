@@ -197,7 +197,7 @@ std::vector<tensor::value_type> layout::get_dims() const {
     if (is_dynamic())
         throw std::runtime_error("[GPU] get_dims() is called for dynamic shape");
     auto shape = size.to_shape();
-    std::vector<tensor::value_type> res(shape.size());
+    std::vector<tensor::value_type> res;
     for (auto dim : shape) {
         res.push_back(static_cast<tensor::value_type>(dim));
     }
@@ -334,7 +334,7 @@ tensor layout::get_tensor() const {
         shape = size.to_shape();
     }
 
-    std::vector<tensor::value_type> dims(shape.size());
+    std::vector<tensor::value_type> dims;
     for (auto dim : shape) {
         dims.push_back(static_cast<tensor::value_type>(dim));
     }
@@ -517,7 +517,7 @@ ov::PartialShape layout::transform(cldnn::format new_fmt) const {
 
     cldnn::tensor::value_type default_size = -1;
     auto shape = size.to_shape();
-    std::vector<tensor::value_type> dims(shape.size());
+    std::vector<tensor::value_type> dims;
     for (auto dim : shape) {
         dims.push_back(static_cast<tensor::value_type>(dim));
     }
