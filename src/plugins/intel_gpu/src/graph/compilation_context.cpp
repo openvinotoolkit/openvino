@@ -12,33 +12,9 @@
 namespace cldnn {
 class CompilationContext : public ICompilationContext {
 public:
-<<<<<<< HEAD
     CompilationContext(InferenceEngine::CPUStreamsExecutor::Config task_executor_config) : _task_executor_config(task_executor_config) {
         _task_executor_config._streams = 4;
         _task_executor = std::make_shared<InferenceEngine::CPUStreamsExecutor>(_task_executor_config);
-=======
-    CompilationContext(cldnn::engine& engine, const ExecutionConfig& config, size_t program_id) {
-        _kernels_cache =
-            cldnn::make_unique<kernels_cache>(engine,
-                                              config,
-                                              static_cast<uint32_t>(program_id),
-                                              nullptr,
-                                              kernel_selector::KernelBase::get_db().get_batch_header_str());
-        _worker = std::thread([this](){
-            while (!_stop_compilation) {
-                CompilationContext::Task task;
-                size_t task_key;
-                bool success = _queue.pop_front_task(task_key, task);
-                if (success) {
-                    task(*_kernels_cache);
-                    _queue.erase_task_key(task_key);
-                } else {
-                    std::chrono::milliseconds ms{1};
-                    std::this_thread::sleep_for(ms);
-                }
-            }
-        });
->>>>>>> 5c64774442 (4th part of fixed warnings)
     }
 
     void push_task(size_t key, Task&& task) override {
