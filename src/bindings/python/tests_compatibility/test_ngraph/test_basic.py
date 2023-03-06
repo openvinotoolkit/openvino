@@ -4,8 +4,6 @@
 import numpy as np
 import pytest
 
-from _pyngraph import VariantInt, VariantString
-
 import ngraph as ng
 from ngraph.impl import Function, PartialShape, Shape, Type
 from ngraph.impl.op import Parameter
@@ -362,20 +360,6 @@ def test_node_target_inputs_soruce_output():
     assert in_model1.get_node().name == parameter_b.name
     assert np.equal([in_model0.get_shape()], [model.get_output_shape(0)]).all()
     assert np.equal([in_model1.get_shape()], [model.get_output_shape(0)]).all()
-
-
-def test_variants():
-    variant_int = VariantInt(32)
-    variant_str = VariantString("test_text")
-
-    assert variant_int.get() == 32
-    assert variant_str.get() == "test_text"
-
-    variant_int.set(777)
-    variant_str.set("another_text")
-
-    assert variant_int.get() == 777
-    assert variant_str.get() == "another_text"
 
 
 def test_runtime_info():

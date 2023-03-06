@@ -34,6 +34,3 @@ void regclass_pyngraph_Variant(py::module m) {
         return ret.str();
     });
 }
-
-template void regclass_pyngraph_VariantWrapper<std::string>(py::module m, std::string typestring);
-template void regclass_pyngraph_VariantWrapper<int64_t>(py::module m, std::string typestring);

@@ -394,8 +394,8 @@ const Parameter Config::GetSupportedProperties(bool compiled) {
         {ov::cache_dir.name(), ov::PropertyMutability::RW},
     };
 
-    const std::vector<ov::PropertyName> impacting_model_compilation_properties =
-        GetImpactingModelCompilationProperties(compiled);
+    const auto impacting_model_compilation_properties =
+        GetImpactingModelCompilationProperties(compiled).as<std::vector<ov::PropertyName>>();
 
     supported_properties.insert(supported_properties.end(),
                                 impacting_model_compilation_properties.begin(),

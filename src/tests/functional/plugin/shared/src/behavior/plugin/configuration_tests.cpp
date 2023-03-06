@@ -174,7 +174,7 @@ TEST_P(IncorrectConfigAPITests, SetConfigWithNoExistingKey) {
 TEST_P(DefaultValuesConfigTests, CanSetDefaultValueBackToPlugin) {
     InferenceEngine::Parameter metric;
     ASSERT_NO_THROW(metric = ie->GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
-    std::vector<std::string> keys = metric;
+    auto keys = metric.as<std::vector<std::string>>();
 
     for (auto& key : keys) {
         InferenceEngine::Parameter configValue;

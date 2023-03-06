@@ -33,7 +33,7 @@ public:
         auto function = getFunction();
         CNNNetwork cnnNetwork(function);
         GNAExecutableNetwork gnaNetwork = GNAExecutableNetwork(cnnNetwork, plugin);
-        std::string result = gnaNetwork.GetMetric(metricName);
+        auto result = gnaNetwork.GetMetric(metricName).as<std::string>();
         ASSERT_EQ(result, expectedResult);
     }
 

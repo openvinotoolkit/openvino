@@ -135,11 +135,11 @@ TEST_F(IEClassGetConfigTestTEMPLATE, smoke_GetConfigNoThrow) {
     std::string deviceName = CommonTestUtils::DEVICE_TEMPLATE;
 
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
-    std::vector<std::string> configValues = p;
+    auto configValues = p.as<std::vector<std::string>>();
 
     for (auto &&confKey : configValues) {
         if (CONFIG_KEY(DEVICE_ID) == confKey) {
-            std::string defaultDeviceID = ie.GetConfig(deviceName, CONFIG_KEY(DEVICE_ID));
+            auto defaultDeviceID = ie.GetConfig(deviceName, CONFIG_KEY(DEVICE_ID)).as<std::string>();
             std::cout << CONFIG_KEY(DEVICE_ID) << " : " << defaultDeviceID << std::endl;
         } else if (CONFIG_KEY(PERF_COUNT) == confKey) {
             auto defaultPerfCount = ie.GetConfig(deviceName, CONFIG_KEY(PERF_COUNT)).as<bool>();

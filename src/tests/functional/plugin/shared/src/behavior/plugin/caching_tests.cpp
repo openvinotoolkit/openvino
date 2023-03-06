@@ -137,7 +137,7 @@ std::vector<nGraphFunctionWithName> LoadNetworkCacheTestBase::getStandardFunctio
 }
 
 bool LoadNetworkCacheTestBase::importExportSupported(InferenceEngine::Core& ie) const {
-    std::vector<std::string> supportedMetricKeys = ie.GetMetric(targetDevice, METRIC_KEY(SUPPORTED_METRICS));
+    auto supportedMetricKeys = ie.GetMetric(targetDevice, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
     auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(),
                         METRIC_KEY(IMPORT_EXPORT_SUPPORT));
     auto supported = (it != supportedMetricKeys.end()) &&

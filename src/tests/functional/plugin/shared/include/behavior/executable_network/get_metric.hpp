@@ -26,8 +26,8 @@ namespace BehaviorTestsDefinitions {
 
 #define ASSERT_EXEC_METRIC_SUPPORTED_IE(metricName)                  \
 {                                                                    \
-    std::vector<std::string> metrics =                               \
-        exeNetwork.GetMetric(METRIC_KEY(SUPPORTED_METRICS));         \
+    auto metrics =                               \
+        exeNetwork.GetMetric(METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();         \
     auto it = std::find(metrics.begin(), metrics.end(), metricName); \
     ASSERT_NE(metrics.end(), it);                                    \
 }
@@ -138,7 +138,7 @@ TEST_P(IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMetricNoT
     InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
     ASSERT_NO_THROW(p = exeNetwork.GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
-    std::vector<std::string> configValues = p;
+    auto configValues = p.as<std::vector<std::string>>();
 
     std::cout << "Supported config keys: " << std::endl;
     for (auto &&conf : configValues) {
@@ -156,7 +156,7 @@ TEST_P(IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricNoThrow
     InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
     ASSERT_NO_THROW(p = exeNetwork.GetMetric(METRIC_KEY(SUPPORTED_METRICS)));
-    std::vector<std::string> metricValues = p;
+    auto metricValues = p.as<std::vector<std::string>>();
 
     std::cout << "Supported metric keys: " << std::endl;
     for (auto &&conf : metricValues) {
@@ -174,7 +174,7 @@ TEST_P(IEClassExecutableNetworkGetMetricTest_NETWORK_NAME, GetMetricNoThrow) {
     InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
     ASSERT_NO_THROW(p = exeNetwork.GetMetric(EXEC_NETWORK_METRIC_KEY(NETWORK_NAME)));
-    std::string networkname = p;
+    auto networkname = p.as<std::string>();
 
     std::cout << "Exe network name: " << std::endl << networkname << std::endl;
     ASSERT_EQ(simpleCnnNetwork.getName(), networkname);
@@ -188,7 +188,7 @@ TEST_P(IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS, G
     InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
     ASSERT_NO_THROW(p = exeNetwork.GetMetric(EXEC_NETWORK_METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)));
-    unsigned int value = p;
+    auto value = p.as<unsigned int>();
 
     std::cout << "Optimal number of Inference Requests: " << value << std::endl;
     ASSERT_GE(value, 1u);
@@ -211,7 +211,7 @@ TEST_P(IEClassExecutableNetworkGetConfigTest, GetConfigNoThrow) {
     InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
     ASSERT_NO_THROW(p = exeNetwork.GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
-    std::vector<std::string> configValues = p;
+    auto configValues = p.as<std::vector<std::string>>();
 
     for (auto &&confKey : configValues) {
         InferenceEngine::Parameter defaultValue;
@@ -263,12 +263,12 @@ TEST_P(IEClassExecutableNetworkGetConfigTest, GetConfigNoEmptyNoThrow) {
     InferenceEngine::Parameter p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
-    std::vector<std::string> devConfigValues = p;
+    auto devConfigValues = p.as<std::vector<std::string>>();
 
     InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
     ASSERT_NO_THROW(p = exeNetwork.GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
-    std::vector<std::string> execConfigValues = p;
+    auto execConfigValues = p.as<std::vector<std::string>>();
 
     /*
     for (auto && configKey : devConfigValues) {
@@ -295,7 +295,7 @@ TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS, GetMet
 
     ASSERT_NO_THROW(pHetero = heteroExeNetwork.GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     ASSERT_NO_THROW(pDevice = deviceExeNetwork.GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
-    std::vector<std::string> heteroConfigValues = pHetero, deviceConfigValues = pDevice;
+    auto heteroConfigValues = pHetero.as<std::vector<std::string>>(), deviceConfigValues = pDevice.as<std::vector<std::string>>();
 
     std::cout << "Supported config keys: " << std::endl;
     for (auto &&conf : heteroConfigValues) {
@@ -322,7 +322,7 @@ TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricN
 
     ASSERT_NO_THROW(pHetero = heteroExeNetwork.GetMetric(METRIC_KEY(SUPPORTED_METRICS)));
     ASSERT_NO_THROW(pDevice = deviceExeNetwork.GetMetric(METRIC_KEY(SUPPORTED_METRICS)));
-    std::vector<std::string> heteroMetricValues = pHetero, deviceMetricValues = pDevice;
+    auto heteroMetricValues = pHetero.as<std::vector<std::string>>(), deviceMetricValues = pDevice.as<std::vector<std::string>>();
 
     std::cout << "Supported metric keys: " << std::endl;
     for (auto &&conf : heteroMetricValues) {
@@ -352,7 +352,7 @@ TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_NETWORK_NAME, GetMetricNoThro
     InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(actualCnnNetwork, heteroDeviceName);
 
     ASSERT_NO_THROW(p = exeNetwork.GetMetric(EXEC_NETWORK_METRIC_KEY(NETWORK_NAME)));
-    std::string networkname = p;
+    auto networkname = p.as<std::string>();
 
     std::cout << "Exe network name: " << std::endl << networkname << std::endl;
 }
@@ -366,7 +366,7 @@ TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_TARGET_FALLBACK, GetMetricNoT
     InferenceEngine::ExecutableNetwork exeNetwork = ie.LoadNetwork(actualCnnNetwork, heteroDeviceName);
 
     ASSERT_NO_THROW(p = exeNetwork.GetConfig("TARGET_FALLBACK"));
-    std::string targets = p;
+    auto targets = p.as<std::string>();
     auto expectedTargets = target_device;
 
     std::cout << "Exe network fallback targets: " << targets << std::endl;

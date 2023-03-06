@@ -314,7 +314,7 @@ public:
     }
 
     void SetCore(std::weak_ptr<InferenceEngine::ICore> core) override {
-        return m_plugin->set_core(std::dynamic_pointer_cast<ov::ICore>(core));
+        return m_plugin->set_core(std::dynamic_pointer_cast<ov::ICore>(core.lock()));
     }
 
     std::shared_ptr<InferenceEngine::ICore> GetCore() const noexcept override {
