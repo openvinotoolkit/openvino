@@ -9,6 +9,7 @@
 #include <openvino/pass/manager.hpp>
 #include <transformations/common_optimizations/transpose_sinking_data_movement.hpp>
 #include <transformations/common_optimizations/transpose_sinking_utils.hpp>
+#include "transpose_sinking_test_utils.hpp"
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
@@ -23,37 +24,6 @@ namespace {
 
 using NodePtr = shared_ptr<Node>;
 using ModelPtr = shared_ptr<Model>;
-
-class IPassFactory {
-public:
-    IPassFactory(const string& type_name) : type_name_(type_name) {}
-
-    virtual ~IPassFactory() = default;
-
-    virtual void registerPass(pass::Manager& pass_manager) const = 0;
-
-    const string& getTypeName() const {
-        return type_name_;
-    }
-
-private:
-    const string type_name_;
-};
-
-using PassFactoryPtr = shared_ptr<IPassFactory>;
-
-template <typename PassT>
-class PassFactory : public IPassFactory {
-public:
-    PassFactory(const string& type_name) : IPassFactory(type_name) {}
-
-    void registerPass(pass::Manager& pass_manager) const override {
-        pass_manager.register_pass<PassT>();
-        pass_manager.register_pass<ov::pass::ConstantFolding>();
-    }
-};
-
-#define CREATE_PASS_FACTORY(pass_name) make_shared<PassFactory<pass::pass_name>>(#pass_name)
 
 vector<int64_t> TransposePadValues(const vector<int64_t>& pads, const vector<size_t>& order) {
     vector<int64_t> new_pads(pads.size());

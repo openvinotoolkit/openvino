@@ -4,51 +4,22 @@
 
 #include <functional>
 #include <openvino/frontend/manager.hpp>
-#include <openvino/opsets/opset9.hpp>
+#include <openvino/opsets/opset10.hpp>
 #include <openvino/pass/manager.hpp>
 #include <transformations/common_optimizations/transpose_sinking_concat.hpp>
+#include <transformations/common_optimizations/transpose_sinking_utils.hpp>
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "transpose_sinking_test_utils.hpp"
 #include "gtest/gtest.h"
 
 using namespace ov;
-using namespace ov::opset9;
+using namespace ov::opset10;
 
 namespace {
-
 using NodePtr = std::shared_ptr<ov::Node>;
 using ModelPtr = std::shared_ptr<Model>;
-
-class IPassFactory {
-public:
-    IPassFactory(const std::string& type_name) : type_name_(type_name) {}
-    virtual ~IPassFactory() = default;
-    virtual void registerPass(ov::pass::Manager& pass_manager) const = 0;
-    const std::string& getTypeName() const {
-        return type_name_;
-    }
-
-private:
-    const std::string type_name_;
-};
-
-using PassFactoryPtr = std::shared_ptr<IPassFactory>;
-
-template <typename PassT>
-class PassFactory : public IPassFactory {
-public:
-    PassFactory(const std::string& type_name) : IPassFactory(type_name) {}
-    void registerPass(ov::pass::Manager& pass_manager) const override {
-        pass_manager.register_pass<PassT>();
-    }
-};
-
-#define CREATE_PASS_FACTORY(pass_name) std::make_shared<PassFactory<ov::pass::pass_name>>(#pass_name)
-
-}  // namespace
-
-namespace {
 
 std::vector<size_t> concat_operations_numbers = {1, 10};
 
