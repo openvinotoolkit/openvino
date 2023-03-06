@@ -98,18 +98,26 @@ KernelsData SoftmaxKernel_fb::GetKernelsData(const Params& params, const optiona
 JitConstants SoftmaxKernel_fb::GetJitConstants(const softmax_params& params, DispatchData dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
 
-    jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
+    jit.AddConstants({
+        MakeJitConstant("ITEMS_NUM", dispatchData.itemsNum),
+        MakeJitConstant("LWS", dispatchData.lws[0]),
+        MakeJitConstant("GWS", dispatchData.gws[0]),
+        MakeJitConstant("DATA_SETS_COUNT", dispatchData.dataSetsCount),
+        MakeJitConstant("DATA_SET_SIZE", dispatchData.dataSetSize),
+        MakeJitConstant("LEFTOVERS", dispatchData.leftovers),
+    });
+    auto activation_dt = GetActivationType(params);
+    jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
 
     if (!params.fused_ops.empty()) {
-        auto input_dt = GetActivationType(params);
         FusedOpsConfiguration conf_main = {"_MAIN",
                                            {"global_id", "LWS * i", "0", "0"},
                                            "dequantized",
-                                           input_dt};
+                                           activation_dt};
         FusedOpsConfiguration conf_leftovers = {"_LEFTOVERS",
                                                 {"global_id", "LWS * ITEMS_NUM", "0", "0"},
                                                 "dequantized",
-                                                input_dt};
+                                                activation_dt};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_main, conf_leftovers}));
     }
 
