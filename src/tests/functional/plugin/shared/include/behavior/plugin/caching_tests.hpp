@@ -61,6 +61,9 @@ using compileKernelsCacheParams = std::tuple<
         std::string,            // device name
         std::pair<std::map<std::string, std::string>, std::string>   // device and cache configuration
 >;
+
+DISABLE_WARNING_MSVC_BEGIN(4250)  // Visual Studio warns us about inheritance via dominance but it's done intentionally
+                                  // so turn it off
 class LoadNetworkCompiledKernelsCacheTest : virtual public LayerTestsUtils::LayerTestsCommon,
                                             virtual public BehaviorTestsUtils::IEPluginTestBase,
                                             public testing::WithParamInterface<compileKernelsCacheParams> {
@@ -92,4 +95,7 @@ protected:
         cache_path = "LoadNetwork" + test_name + "_cache";
     }
 };
+
+DISABLE_WARNING_MSVC_END(4250)
+
 } // namespace LayerTestsDefinitions
