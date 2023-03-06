@@ -129,29 +129,32 @@ The next example illustrates using ``ConversionExtension`` for conversion of “
 
 .. tab-set::
 
-    .. tab:: C++
+    .. tab-item:: C++
+       :sync: cpp
  
         .. doxygensnippet:: docs/snippets/ov_extensions.cpp
             :language: cpp
             :fragment: [frontend_extension_ThresholdedReLU_header]
 
-    .. tab:: Python
- 
+    .. tab-item:: Python
+       :sync: python
+
         .. doxygensnippet:: docs/snippets/ov_extensions.py
             :language: python
             :fragment: [py_frontend_extension_ThresholdedReLU_header]
 
 
-
 .. tab-set::
 
-    .. tab:: C++
+    .. tab-item:: C++
+       :sync: cpp
  
         .. doxygensnippet:: docs/snippets/ov_extensions.cpp
             :language: cpp
             :fragment: [frontend_extension_ThresholdedReLU]
 
-    .. tab:: Python
+    .. tab-item:: Python
+       :sync: python
  
         .. doxygensnippet:: docs/snippets/ov_extensions.py
             :language: python
