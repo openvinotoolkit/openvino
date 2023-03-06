@@ -53,5 +53,6 @@ const NGRAPH_API OpSet& get_opset7();
 const NGRAPH_API OpSet& get_opset8();
 const NGRAPH_API OpSet& get_opset9();
 const NGRAPH_API OpSet& get_opset10();
+const NGRAPH_API OpSet& get_opset11();
 const NGRAPH_API std::map<std::string, std::function<const ngraph::OpSet&()>>& get_available_opsets();
 }  // namespace ngraph

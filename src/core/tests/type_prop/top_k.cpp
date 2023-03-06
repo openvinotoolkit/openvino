@@ -4,14 +4,13 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "dimension_tracker.hpp"
-#include "openvino/opsets/opset10.hpp"
+#include "openvino/opsets/opset11.hpp"
 #include "topk_shape_inference.hpp"
 #include "util/type_prop.hpp"
 
 using namespace ov;
-using namespace ov::opset10;
+using namespace ov::opset11;
 using namespace testing;
-// Since v3::TopK is backward compatible with v1::TopK all of these tests should pass
 template <typename T>
 class topk_type_prop : public TypePropOpTest<T> {
 protected:
@@ -29,7 +28,12 @@ protected:
 
     element::Type exp_default_idx_type{element::i32};
 };
+
+template <typename T>
+using topk_type_prop_with_evaluate = topk_type_prop<T>;
+
 TYPED_TEST_SUITE_P(topk_type_prop);
+TYPED_TEST_SUITE_P(topk_type_prop_with_evaluate);
 
 TYPED_TEST_P(topk_type_prop, default_ctor) {
     constexpr int64_t exp_axis = -2;
@@ -72,7 +76,7 @@ TYPED_TEST_P(topk_type_prop, default_ctor_no_arguments) {
     const auto constant_map =
         std::map<size_t, HostTensorPtr>{{1, std::make_shared<HostTensor>(element::i64, Shape{}, &k)}};
 
-    const auto outputs = op::v1::shape_infer(op.get(), PartialShapes{data_shape, {}}, constant_map);
+    const auto outputs = shape_infer(op.get(), PartialShapes{data_shape, {}}, constant_map);
 
     EXPECT_EQ(op->get_provided_axis(), exp_axis);
     EXPECT_EQ(op->get_axis(), exp_axis);
@@ -142,7 +146,7 @@ TYPED_TEST_P(topk_type_prop, k_is_negative) {
 
     OV_EXPECT_THROW(const auto op = this->make_op(data, k, 0, "max", "value"),
                     NodeValidationFailure,
-                    HasSubstr("The value of 'K' must be more or equal zero."));
+                    HasSubstr("The value of 'K' must be greater or equal to zero."));
 }
 
 TYPED_TEST_P(topk_type_prop, k_for_dynamic_dimension) {
@@ -208,7 +212,7 @@ TYPED_TEST_P(topk_type_prop, data_and_k_shapes_are_dynamic) {
                 Each(Property("Partial Shape", &Output<Node>::get_partial_shape, PartialShape::dynamic())));
 }
 
-TYPED_TEST_P(topk_type_prop, propagate_label_and_not_interval_value_max) {
+TYPED_TEST_P(topk_type_prop_with_evaluate, propagate_label_and_not_interval_value_max) {
     auto p_shape = PartialShape{5, 6, 4, 3, 8};
     set_shape_labels(p_shape, 1);
 
@@ -225,7 +229,7 @@ TYPED_TEST_P(topk_type_prop, propagate_label_and_not_interval_value_max) {
     EXPECT_THAT(bc_shapes, Each(ResultOf(get_shape_labels, Each(ov::no_label))));
 }
 
-TYPED_TEST_P(topk_type_prop, propagate_label_and_not_interval_value_min) {
+TYPED_TEST_P(topk_type_prop_with_evaluate, propagate_label_and_not_interval_value_min) {
     auto p_shape = PartialShape{5, 6, 3, 4, 8};
     set_shape_labels(p_shape, 1);
 
@@ -367,15 +371,21 @@ REGISTER_TYPED_TEST_SUITE_P(topk_type_prop,
                             k_is_unknown_for_interval_dimension,
                             k_is_unknown_for_interval_with_no_upper_bound_dimension,
                             data_and_k_shapes_are_dynamic,
-                            propagate_label_and_not_interval_value_max,
-                            propagate_label_and_not_interval_value_min,
                             preserve_partial_values_and_labels_k_is_interval,
                             preserve_partial_values_and_labels_k_is_interval_with_no_upper_bound,
                             negative_axis_dynamic_rank,
                             incorrect_index_element_type);
 
-typedef Types<op::v1::TopK, op::v3::TopK> TopKTypes;
+REGISTER_TYPED_TEST_SUITE_P(topk_type_prop_with_evaluate,
+                            propagate_label_and_not_interval_value_max,
+                            propagate_label_and_not_interval_value_min);
+
+// TODO: merge the two instantiations into one when v11::TopK gets the evaluate() method
+typedef Types<op::v1::TopK, op::v3::TopK, op::v11::TopK> TopKTypes;
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, topk_type_prop, TopKTypes);
+
+typedef Types<op::v1::TopK, op::v3::TopK> TopKTypesWithEvaluate;
+INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, topk_type_prop_with_evaluate, TopKTypesWithEvaluate);
 
 class TypePropTopKV1Test : public TypePropOpTest<op::v1::TopK> {};
 
@@ -398,4 +408,32 @@ TEST_F(TypePropTopKV3Test, k_is_u32) {
 
     EXPECT_THAT(op->outputs(),
                 Each(Property("PartialShape", &Output<Node>::get_partial_shape, PartialShape({1, {-1, 2}}))));
+}
+
+TEST(type_prop, topk_v11_stable_sort_by_indices) {
+    const auto data = std::make_shared<Parameter>(element::f32, Shape{2, 3, 4});
+    const auto k = Constant::create(element::u32, Shape{}, {1});
+    OV_EXPECT_THROW(const auto op = std::make_shared<ov::op::v11::TopK>(data,
+                                                                        k,
+                                                                        1,
+                                                                        op::TopKMode::MAX,
+                                                                        op::TopKSortType::SORT_INDICES,
+                                                                        element::i32,
+                                                                        true),
+                    NodeValidationFailure,
+                    HasSubstr("Stable sort can only be used when TopK's sorting mode is set to 'VALUE'"));
+}
+
+TEST(type_prop, topk_v11_stable_sort_by_none) {
+    const auto data = std::make_shared<Parameter>(element::f32, Shape{2, 3, 4});
+    const auto k = Constant::create(element::u32, Shape{}, {1});
+    OV_EXPECT_THROW(const auto op = std::make_shared<ov::op::v11::TopK>(data,
+                                                                        k,
+                                                                        2,
+                                                                        op::TopKMode::MIN,
+                                                                        op::TopKSortType::NONE,
+                                                                        element::i64,
+                                                                        true),
+                    NodeValidationFailure,
+                    HasSubstr("Stable sort can only be used when TopK's sorting mode is set to 'VALUE'"));
 }

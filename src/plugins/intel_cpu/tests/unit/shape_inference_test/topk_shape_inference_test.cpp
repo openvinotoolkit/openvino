@@ -51,7 +51,7 @@ TEST_F(TopKV1AssertStaticShapeInferenceTest, k_is_negative) {
 
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes, const_map),
                     ov::AssertFailure,
-                    HasSubstr("The value of 'K' must be more or equal zero. (got " + std::to_string(k) + ")"));
+                    HasSubstr("The value of 'K' must be greater or equal to zero. (got " + std::to_string(k) + ")"));
 }
 
 using TopKV1Test = TopKTest<op::v1::TopK>;
@@ -114,7 +114,7 @@ TEST_F(TopKV3AssertStaticShapeInferenceTest, k_is_negative) {
 
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes, const_map),
                     ov::AssertFailure,
-                    HasSubstr("The value of 'K' must be more or equal zero. (got " + std::to_string(k) + ")"));
+                    HasSubstr("The value of 'K' must be greater or equal to zero. (got " + std::to_string(k) + ")"));
 }
 
 using TopKV3Test = TopKTest<op::v3::TopK>;
