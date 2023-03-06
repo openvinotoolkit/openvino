@@ -312,30 +312,30 @@ const std::vector<std::vector<ptrdiff_t>> padBegins1d = { {0}, {1} };
 const std::vector<std::vector<ptrdiff_t>> padEnds1d = { {0} };
 const std::vector<SizeVector> dilations1d = { {1}, {2} };
 std::vector<InputShape> inputShapes1d = {
-        {{}, {{ 2, 64, 7 }}},
-        {{}, {{ 1, 67, 7 }}},
+        {{}, {{ 2, 64, 17 }}},
+        {{}, {{ 1, 67, 17 }}},
         {
             //dynamic shape
             { -1, 64, {1, 200} },
             { //target static shapes
-                { 2, 64, 7 },
-                { 1, 64, 9 }
+                { 2, 64, 17 },
+                { 1, 64, 19 }
             }
         },
         {
             //dynamic shape
             { -1, 67, {1, 200} },
             { //target static shapes
-                { 2, 67, 7 },
-                { 1, 67, 9 }
+                { 2, 67, 17 },
+                { 1, 67, 19 }
             }
         },
         {
             //dynamic shape
             { {1, 200}, 64, -1 },
             { //target static shapes
-                { 2, 64, 7 },
-                { 1, 64, 5 }
+                { 2, 64, 17 },
+                { 1, 64, 15 }
             }
         }
 };

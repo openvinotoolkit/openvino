@@ -201,8 +201,6 @@ protected:
 };
 
 TEST_P(GroupConvolutionLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     // Skip tests for brgconv dw convolution where dilates is not 1
     if (priority[0] == "brgconv_avx512_dw") {
         bool has_unsupport_dilate = false;
