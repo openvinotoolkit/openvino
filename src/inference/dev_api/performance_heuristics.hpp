@@ -120,10 +120,8 @@ static MemBandwidthPressure MemBandwidthPressureTolerance(
                     compute_deconvs++;
                     continue;
                 }
-                dataSizeInput =
-                    static_cast<int>(std::accumulate(shapeInput.begin(), shapeInput.end(), size_t(1), std::multiplies<size_t>()));
-                dataSizeOutput =
-                    static_cast<int>(std::accumulate(shapeOutput.begin(), shapeOutput.end(), size_t(1), std::multiplies<size_t>()));
+                dataSizeInput = static_cast<int>(std::accumulate(shapeInput.begin(), shapeInput.end(), size_t(1), std::multiplies<size_t>()));
+                dataSizeOutput = static_cast<int>(std::accumulate(shapeOutput.begin(), shapeOutput.end(), size_t(1), std::multiplies<size_t>()));
                 const auto factor = memLimitedFactor(dataSizeInput + dataSizeOutput, data_type_size);
                 mem_limited_deconvs += factor < memThresholdAssumeLimited;
                 worst_case = std::min(factor, worst_case);
