@@ -103,7 +103,8 @@ struct arg_max_min : public primitive_base<arg_max_min> {
                values_first == rhs_casted.values_first;
     }
 
-    uint32_t get_output_nums() const { return (input_size() == 3 ? 2 : output_size()); }
+    uint32_t get_output_nums() const { return (input_size() == 3 ? 2 : static_cast<uint32_t>(output_size()));
+    }
     bool has_second_output() const { return get_output_nums() == 2; }
     bool use_multiple_outputs() const { return input_size() != 3; }
 
