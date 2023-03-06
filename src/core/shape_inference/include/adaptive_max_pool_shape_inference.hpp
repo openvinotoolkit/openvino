@@ -6,7 +6,7 @@
 
 #include <openvino/op/adaptive_max_pool.hpp>
 
-#include "adaptive_pool_shape_inference.hpp"
+#include "pooling_shape_inference_util.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -17,7 +17,7 @@ template <class TShape>
 std::vector<TShape> shape_infer(const AdaptiveMaxPool* op,
                                 const std::vector<TShape>& input_shapes,
                                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
-    return {2, adaptive_pool::out_shape_infer(op, input_shapes, constant_data)};
+    return {2, pooling::out_shape_infer(op, input_shapes, constant_data)};
 }
 
 template <class TShape>

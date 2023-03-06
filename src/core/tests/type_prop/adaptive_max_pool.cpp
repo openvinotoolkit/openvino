@@ -156,10 +156,12 @@ TEST_F(AdaptiveMaxPoolV8Test, preserve_partial_values_and_labels_on_output_shape
     const auto op = make_op(data, spatial_dim_shape);
 
     EXPECT_THAT(op->outputs(),
-                Each(Property("PartialShape", &Output<Node>::get_partial_shape, PartialShape({{1,2}, {2,4}, {2,6}, -1, {12,13}}))));
-    EXPECT_THAT(op->outputs(),
-                Each(Property(&Output<Node>::get_partial_shape,
-                              ResultOf(get_shape_labels, ElementsAre(10, 11, 20,21,22)))));
+                Each(Property("PartialShape",
+                              &Output<Node>::get_partial_shape,
+                              PartialShape({{1, 2}, {2, 4}, {2, 6}, -1, {12, 13}}))));
+    EXPECT_THAT(
+        op->outputs(),
+        Each(Property(&Output<Node>::get_partial_shape, ResultOf(get_shape_labels, ElementsAre(10, 11, 20, 21, 22)))));
 }
 
 TEST_F(AdaptiveMaxPoolV8Test, unsupported_input_shape) {
