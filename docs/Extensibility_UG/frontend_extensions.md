@@ -27,7 +27,7 @@ This section covers the case when a single operation in framework representation
 .. note::
    ``OpExtension`` class is currently available for ONNX and TensorFlow frontends. PaddlePaddle frontend has named inputs and outputs for operation (not indexed) therefore OpExtension mapping is not applicable for this case.
 
-The next example maps ONNX operation with type `*Identity* <https://github.com/onnx/onnx/blob/main/docs/Operators.md#Identity`__ to OpenVINO template extension ``Identity`` class.
+The next example maps ONNX operation with type `Identity <https://github.com/onnx/onnx/blob/main/docs/Operators.md#Identity`__ to OpenVINO template extension ``Identity`` class.
 
 .. doxygensnippet:: docs/snippets/ov_extensions.cpp
    :language: cpp
