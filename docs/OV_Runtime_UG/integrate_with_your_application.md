@@ -27,21 +27,21 @@ Include next files to work with OpenVINO™ Runtime:
 .. tab-set::
 
     .. tab-item:: C++
-        :sync: cpp
+       :sync: cpp
 
        .. doxygensnippet:: docs/snippets/src/main.cpp
           :language: cpp
           :fragment: [include]
 
     .. tab-item:: Python
-        :sync: py
+       :sync: py
 
        .. doxygensnippet:: docs/snippets/src/main.py
           :language: python
           :fragment: [import]
 
     .. tab-item:: C
-        :sync: c
+       :sync: c
 
        .. doxygensnippet:: docs/snippets/src/main.c
           :language: cpp
@@ -53,21 +53,21 @@ Use the following code to create OpenVINO™ Core to manage available devices an
 .. tab-set::
 
     .. tab-item:: C++
-        :sync: cpp
+       :sync: cpp
 
        .. doxygensnippet:: docs/snippets/src/main.cpp
           :language: cpp
           :fragment: [part1]
 
     .. tab-item:: Python
-        :sync: py
+       :sync: py
 
        .. doxygensnippet:: docs/snippets/src/main.py
           :language: python
           :fragment: [part1]
 
     .. tab-item:: C
-        :sync: c
+       :sync: c
 
        .. doxygensnippet:: docs/snippets/src/main.c
           :language: cpp
@@ -84,141 +84,141 @@ Compile the model for a specific device using ``ov::Core::compile_model()``:
 .. tab-set::
 
     .. tab-item:: C++
-        :sync: cpp
+       :sync: cpp
 
        .. tab-set::
 
           .. tab-item:: IR
-              :sync: ir
+             :sync: ir
 
              .. doxygensnippet:: docs/snippets/src/main.cpp
                 :language: cpp
                 :fragment: [part2_1]
 
           .. tab-item:: ONNX
-              :sync: onnx
+             :sync: onnx
 
              .. doxygensnippet:: docs/snippets/src/main.cpp
                 :language: cpp
                 :fragment: [part2_2]
 
           .. tab-item:: PaddlePaddle
-              :sync: pdpd
+             :sync: pdpd
 
              .. doxygensnippet:: docs/snippets/src/main.cpp
                 :language: cpp
                 :fragment: [part2_3]
 
           .. tab-item:: TensorFlow
-              :sync: tf
+             :sync: tf
 
              .. doxygensnippet:: docs/snippets/src/main.cpp
                 :language: cpp
                 :fragment: [part2_4]
 
           .. tab-item:: TensorFlow Lite
-              :sync: tflite
+             :sync: tflite
 
              .. doxygensnippet:: docs/snippets/src/main.cpp
                 :language: cpp
                 :fragment: [part2_5]
 
           .. tab-item:: ov::Model
-              :sync: ovmodel
+             :sync: ovmodel
 
              .. doxygensnippet:: docs/snippets/src/main.cpp
                 :language: cpp
                 :fragment: [part2_6]
 
     .. tab-item:: Python
-        :sync: py
+       :sync: py
 
        .. tab-set::
 
           .. tab-item:: IR
-              :sync: ir
+             :sync: ir
 
              .. doxygensnippet:: docs/snippets/src/main.py
                 :language: python
                 :fragment: [part2_1]
 
           .. tab-item:: ONNX
-              :sync: onnx
+             :sync: onnx
 
              .. doxygensnippet:: docs/snippets/src/main.py
                 :language: python
                 :fragment: [part2_2]
 
           .. tab-item:: PaddlePaddle
-              :sync: pdpd
+             :sync: pdpd
 
              .. doxygensnippet:: docs/snippets/src/main.py
                 :language: python
                 :fragment: [part2_3]
 
           .. tab-item:: TensorFlow
-              :sync: tf
+             :sync: tf
 
              .. doxygensnippet:: docs/snippets/src/main.py
                 :language: python
                 :fragment: [part2_4]
 
           .. tab-item:: TensorFlow Lite
-              :sync: tflite
+             :sync: tflite
 
              .. doxygensnippet:: docs/snippets/src/main.py
                 :language: python
                 :fragment: [part2_5]
 
           .. tab-item:: ov::Model
-              :sync: ovmodel
+             :sync: ovmodel
 
              .. doxygensnippet:: docs/snippets/src/main.py
                 :language: python
                 :fragment: [part2_6]
 
     .. tab-item:: C
-        :sync: c
+       :sync: c
 
        .. tab-set::
 
           .. tab-item:: IR
-              :sync: ir
+             :sync: ir
 
              .. doxygensnippet:: docs/snippets/src/main.c
                 :language: cpp
                 :fragment: [part2_1]
 
           .. tab-item:: ONNX
-              :sync: onnx
+             :sync: onnx
 
              .. doxygensnippet:: docs/snippets/src/main.c
                 :language: cpp
                 :fragment: [part2_2]
 
           .. tab-item:: PaddlePaddle
-              :sync: pdpd
+             :sync: pdpd
 
              .. doxygensnippet:: docs/snippets/src/main.c
                 :language: cpp
                 :fragment: [part2_3]
 
           .. tab-item:: TensorFlow
-              :sync: tf
+             :sync: tf
 
              .. doxygensnippet:: docs/snippets/src/main.c
                 :language: cpp
                 :fragment: [part2_4]
 
           .. tab-item:: TensorFlow Lite
-              :sync: tflite
+             :sync: tflite
 
              .. doxygensnippet:: docs/snippets/src/main.c
                 :language: cpp
                 :fragment: [part2_5]
 
           .. tab-item:: ov::Model
-              :sync: ovmodel
+             :sync: ovmodel
 
              .. doxygensnippet:: docs/snippets/src/main.c
                 :language: cpp
@@ -242,21 +242,21 @@ Create an infer request using the following code (see
 .. tab-set::
 
     .. tab-item:: C++
-        :sync: cpp
+       :sync: cpp
 
        .. doxygensnippet:: docs/snippets/src/main.cpp
           :language: cpp
           :fragment: [part3]
 
     .. tab-item:: Python
-        :sync: py
+       :sync: py
 
        .. doxygensnippet:: docs/snippets/src/main.py
           :language: python
           :fragment: [part3]
 
     .. tab-item:: C
-        :sync: c
+       :sync: c
 
        .. doxygensnippet:: docs/snippets/src/main.c
           :language: cpp
@@ -271,21 +271,21 @@ You can use external memory to create ``ov::Tensor`` and use the ``ov::InferRequ
 .. tab-set::
 
     .. tab-item:: C++
-        :sync: cpp
+       :sync: cpp
 
        .. doxygensnippet:: docs/snippets/src/main.cpp
           :language: cpp
           :fragment: [part4]
 
     .. tab-item:: Python
-        :sync: py
+       :sync: py
 
        .. doxygensnippet:: docs/snippets/src/main.py
           :language: python
           :fragment: [part4]
 
     .. tab-item:: C
-        :sync: c
+       :sync: c
 
        .. doxygensnippet:: docs/snippets/src/main.c
           :language: cpp
@@ -300,21 +300,21 @@ OpenVINO™ Runtime supports inference in either synchronous or asynchronous mod
 .. tab-set::
 
     .. tab-item:: C++
-        :sync: cpp
+       :sync: cpp
 
        .. doxygensnippet:: docs/snippets/src/main.cpp
           :language: cpp
           :fragment: [part5]
 
     .. tab-item:: Python
-        :sync: py
+       :sync: py
 
        .. doxygensnippet:: docs/snippets/src/main.py
           :language: python
           :fragment: [part5]
 
     .. tab-item:: C
-        :sync: c
+       :sync: c
 
        .. doxygensnippet:: docs/snippets/src/main.c
           :language: cpp
@@ -332,21 +332,21 @@ Go over the output tensors and process the inference results.
 .. tab-set::
 
     .. tab-item:: C++
-        :sync: cpp
+       :sync: cpp
 
        .. doxygensnippet:: docs/snippets/src/main.cpp
           :language: cpp
           :fragment: [part6]
 
     .. tab-item:: Python
-        :sync: py
+       :sync: py
 
        .. doxygensnippet:: docs/snippets/src/main.py
           :language: python
           :fragment: [part6]
 
     .. tab-item:: C
-        :sync: c
+       :sync: c
 
        .. doxygensnippet:: docs/snippets/src/main.c
           :language: cpp
@@ -361,7 +361,7 @@ To avoid memory leak, applications developed with C API need to release the allo
 .. tab-set::
 
     .. tab-item:: C
-        :sync: c
+       :sync: c
 
        .. doxygensnippet:: docs/snippets/src/main.c
           :language: cpp
@@ -379,14 +379,14 @@ Create Structure for project:
 .. tab-set::
 
     .. tab-item:: C++
-        :sync: cpp
+       :sync: cpp
 
        .. doxygensnippet:: docs/snippets/src/main.cpp
           :language: cpp
           :fragment: [part7]
 
     .. tab-item:: C
-        :sync: c
+       :sync: c
 
        .. doxygensnippet:: docs/snippets/src/main.c
           :language: cpp
@@ -401,14 +401,14 @@ For details on additional CMake build options, refer to the `CMake page <https:/
 .. tab-set::
 
     .. tab-item:: C++
-        :sync: cpp
+       :sync: cpp
 
        .. doxygensnippet:: docs/snippets/CMakeLists.txt
           :language: cpp
           :fragment: [cmake:integration_example_cpp]
 
     .. tab-item:: C
-        :sync: c
+       :sync: c
 
        .. doxygensnippet:: docs/snippets/CMakeLists.txt
           :language: cpp
