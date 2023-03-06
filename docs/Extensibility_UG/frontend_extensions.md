@@ -61,16 +61,16 @@ Here is an example for a custom framework operation “MyRelu”. Suppose it is 
    .. tab-item:: C++
       :sync: cpp
 
-       .. doxygensnippet:: docs/snippets/ov_extensions.cpp
-           :language: cpp
-           :fragment: [frontend_extension_MyRelu]
+      .. doxygensnippet:: docs/snippets/ov_extensions.cpp
+         :language: cpp
+         :fragment: [frontend_extension_MyRelu]
 
    .. tab-item:: Python
       :sync: python
    
-       .. doxygensnippet:: docs/snippets/ov_extensions.py
-           :language: python
-           :fragment: [py_frontend_extension_MyRelu]
+      .. doxygensnippet:: docs/snippets/ov_extensions.py
+         :language: python
+         :fragment: [py_frontend_extension_MyRelu]
 
 
 In the resulting converted OpenVINO model, “MyRelu” operation will be replaced by the standard operation ``Relu`` from the latest available OpenVINO operation set. Notice that when standard operation is used, it can be specified using just a type string (“Relu”) instead of using a ``ov::opset8::Relu`` class name as a template parameter for ``OpExtension``. This method is available for operations from the standard operation set only. For a user custom OpenVINO operation the corresponding class should be always specified as a template parameter as it was demonstrated with ``TemplateExtension::Identity``.
