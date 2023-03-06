@@ -125,3 +125,6 @@ KERNEL (softmax_gpu_continuous_bfyx)(
         output[data_set_offset + workers_per_data_set * items_num + in_data_set_idx] = ACTIVATION(my_chunk[items_num] / my_sum, ACTIVATION_PARAMS);
 #endif
 }
+#ifdef CALC_POWER
+#undef CALC_POWER
+#endif
