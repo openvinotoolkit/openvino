@@ -361,14 +361,15 @@ class Core(CoreBase):
         """Creates a compiled model.
 
         Creates a compiled model from a source Model object or
-        reads model and creates a compiled model from IR / ONNX / PDPD file.
+        reads model and creates a compiled model from IR / ONNX / PDPD / TF and TFLite file.
         This can be more efficient than using read_model + compile_model(model_in_memory_object) flow,
         especially for cases when caching is enabled and cached model is available.
         If device_name is not specified, the default OpenVINO device will be selected by AUTO plugin.
         Users can create as many compiled models as they need, and use them simultaneously
         (up to the limitation of the hardware resources).
 
-        :param model: Model acquired from read_model function or a path to a model in IR / ONNX / PDPD format.
+        :param model: Model acquired from read_model function or a path to a model in IR / ONNX / PDPD /
+                      TF and TFLite format.
         :type model: Union[openvino.runtime.Model, str, pathlib.Path]
         :param device_name: Optional. Name of the device to load the model to. If not specified,
                             the default OpenVINO device will be selected by AUTO plugin.
