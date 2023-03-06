@@ -87,7 +87,10 @@ void AutoSchedule::GenerateWorkers(const std::string& device,
                             workerRequestPtr->_reload = true;
                             auto capturedTask = std::move(workerRequestPtr->_testExec->_task);
                             workerRequestPtr->_testExec->count++;
-                            selectOtherDevice(workerRequestPtr->_deviceName);
+                            try {
+                                selectOtherDevice(workerRequestPtr->_deviceName);
+                            } catch (const IE::Exception&) {
+                            }
                             if (_loadContext[FALLBACKDEVICE].isAlready) {
                                 workerRequestPtr->_startTimes.pop_back();
                             }
@@ -142,9 +145,11 @@ void AutoSchedule::selectOtherDevice(std::string currentDeviceName) {
                                                 _autoSContext->_modelPriority);
     _executor->run(_loadContext[FALLBACKDEVICE].task);
     _cond.wait(lck);
-    _loadContext[ACTUALDEVICE].isEnabled = false;
-    _loadContext[ACTUALDEVICE].isLoadSuccess = false;
-    _loadContext[ACTUALDEVICE].isAlready = false;
+    if (_loadContext[FALLBACKDEVICE].isAlready) {
+        _loadContext[ACTUALDEVICE].isEnabled = false;
+        _loadContext[ACTUALDEVICE].isLoadSuccess = false;
+        _loadContext[ACTUALDEVICE].isAlready = false;
+    }
     LOG_INFO_TAG("Select fallback device:%s", _loadContext[FALLBACKDEVICE].deviceInfo.deviceName.c_str());
 }
 
@@ -253,9 +258,6 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                         _autoSContext->_config.insert(contextPtr->deviceInfo.config.begin(), contextPtr->deviceInfo.config.end());
                     }
                     contextPtr->isAlready = true;
-                    if (!contextPtr->usefeature) {
-                        _cond.notify_all();
-                    }
                     auto& deviceName = contextPtr->deviceInfo.deviceName;
                     LOG_INFO_TAG("device:%s loading Network finished", deviceName.c_str());
                     if (!isCumulative) {
@@ -283,6 +285,9 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                 std::call_once(_firstLoadOC, [this]() {
                     _firstLoadPromise.set_value();
                 });
+                if (!contextPtr->usefeature) {
+                    _cond.notify_all();
+                }
             };
         }
     }
