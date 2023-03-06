@@ -5,9 +5,13 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "infer_request.hpp"
+#include <ngraph/ops.hpp>
+#include <ngraph/node.hpp>
+#include <transformations/utils/utils.hpp>
 #include <ie_input_info.hpp>
 #include <cpp_interfaces/interface/ie_iinfer_request_internal.hpp>
 #include <blob_factory.hpp>
+#include <debug.h>
 
 namespace MultiDevicePlugin {
 
@@ -20,6 +24,12 @@ MultiDeviceInferRequest::MultiDeviceInferRequest(const std::vector<std::shared_p
                                                  InferenceEngine::RemoteContext::Ptr ctx)
         : IInferRequestInternal(inputs, outputs),
           _sharedRequest(request_to_share_blobs_with)  {
+    for (const std::shared_ptr<const ov::Node>& in : inputs) {
+        modelInputsMap[ov::op::util::get_ie_output_name(ngraph::Output<const ngraph::Node>(in))] = in;
+    }
+    for (const std::shared_ptr<const ov::Node>& out : outputs) {
+        modelOutputsMap[ov::op::util::get_ie_output_name(out->input_value(0))] = out;
+    }
     CreateInferRequest(request_to_share_blobs_with, ctx);
 }
 
@@ -58,6 +68,16 @@ void MultiDeviceInferRequest::CreateInferRequest(const InferenceEngine::SoIInfer
         auto p = it.second->getPrecision();
         auto dims = it.second->getTensorDesc().getDims();
 
+        if (InferenceEngine::details::product(dims) == 0 && !modelOutputsMap.empty()) {
+            // replace the dims with one from dynamic shape
+            const auto outputNodeItr = modelOutputsMap.find(it.first);
+            if (outputNodeItr != modelOutputsMap.end()) {
+                const auto shape = outputNodeItr->second->get_input_partial_shape(0);
+                // update dims
+                dims = shape.get_max_shape();
+            }
+        }
+
         TensorDesc desc = TensorDesc(p, dims, l);
         if (ctx) {
             _outputs[it.first] = ctx->CreateHostBlob(desc);
@@ -79,8 +99,6 @@ void MultiDeviceInferRequest::SetBlobsToAnotherRequest(const SoIInferRequestInte
         auto &name = it.first;
         // this request is already in BUSY state, so using the internal functions safely
         auto blob = GetBlob(name);
-        if (blob->size() == 0)
-            continue;
         if (req->GetBlob(name) != blob)
             req->SetBlob(name, blob);
     }
@@ -103,15 +121,10 @@ void MultiDeviceInferRequest::SetBlob(const std::string& name, const Blob::Ptr& 
 IE_SUPPRESS_DEPRECATED_END
 
 InferenceEngine::Blob::Ptr MultiDeviceInferRequest::GetBlob(const std::string& name) {
-    if (_sharedRequest) {
+    if (_sharedRequest)
         return _sharedRequest->GetBlob(name);
-    } else {
-        if (_scheduledRequest)
-            // when with dynamic outputs, safe to get output from hardware request in the callback function
-            return _scheduledRequest->GetBlob(name);
-        else
-            return IInferRequestInternal::GetBlob(name);
-    }
+    else
+        return IInferRequestInternal::GetBlob(name);
 }
 
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> MultiDeviceInferRequest::GetPerformanceCounts() const {

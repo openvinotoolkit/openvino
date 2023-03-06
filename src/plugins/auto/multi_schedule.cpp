@@ -58,9 +58,6 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInf
             // if the request is coming with device-specific remote blobs make sure it is scheduled to the specific device only:
             Stage {
                 /*TaskExecutor*/ std::make_shared<IE::ImmediateExecutor>(), /*task*/ [this, &syncInferRequest]() {
-                    auto multiSyncInferRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>(syncInferRequest);
-                    // clean up scheduledRequest
-                    multiSyncInferRequest->_scheduledRequest = {};
                     // by default, no preferred device:
                     _thisPreferredDeviceName = "";
                     auto execNetwork = _multiSContext->_executableNetwork.lock();
@@ -107,9 +104,12 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInf
                     if (nullptr != (*workerInferRequest)->_exceptionPtr) {
                         std::rethrow_exception((*workerInferRequest)->_exceptionPtr);
                     }
-                    auto multiSyncInferRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>
-                        (syncInferRequest);
-                    multiSyncInferRequest->_scheduledRequest = (*workerInferRequest)->_inferRequest;
+                    if (_multiSContext->_needPerfCounters) {
+                        auto multiSyncInferRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>
+                            (syncInferRequest);
+                        multiSyncInferRequest->_scheduledRequest =
+                            (*workerInferRequest)->_inferRequest;
+                    }
                     INFO_RUN([workerInferRequest]() {
                     (*workerInferRequest)->_endTimes.push_back(std::chrono::steady_clock::now());
                     });

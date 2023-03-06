@@ -996,7 +996,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork
             if (model->output(i).get_partial_shape().is_dynamic()) {
             // any output is dynamic
                 LOG_INFO_TAG("dynamic output model");
-                return true;
+                return IsNewAPI() ? true : false;
             }
         }
         return false;
@@ -1010,7 +1010,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork
     // If CPU is in candidate list, load dynamic network to CPU first
     // For MULTI do not only load stateful network to CPU
     // For AUTO CTPUT only load stateful network to CPU
-    if ((model->is_dynamic() || (isStateful() && _LogTag != "MULTI")) && cpuiter != metaDevices.end()) {
+    if (((model->is_dynamic() && !isOutputDynamic()) || (isStateful() && _LogTag != "MULTI")) && cpuiter != metaDevices.end()) {
         filterDevice.push_back(*cpuiter);
         return filterDevice;
     }
