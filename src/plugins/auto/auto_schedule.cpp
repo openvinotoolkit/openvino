@@ -118,15 +118,15 @@ void AutoSchedule::GenerateWorkers(const std::string& device,
 
 void AutoSchedule::selectOtherDevice(std::string currentDeviceName) {
     std::unique_lock<std::mutex> lck(_mutex);
-    _loadContext[FALLBACKDEVICE].isLoadSuccess = false;
-    if (_autoSContext->_modelPath.empty())
-        _loadContext[FALLBACKDEVICE].networkPrecision = GetNetworkPrecision(_autoSContext->_network);
-    _loadContext[FALLBACKDEVICE].metaDevices = _autoSContext->_devicePriorities;
-    if (currentDeviceName == "CPU_HELP") {
-        currentDeviceName = "CPU";
-    }
     {
         std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
+        _loadContext[FALLBACKDEVICE].isLoadSuccess = false;
+        if (_autoSContext->_modelPath.empty())
+            _loadContext[FALLBACKDEVICE].networkPrecision = GetNetworkPrecision(_autoSContext->_network);
+        _loadContext[FALLBACKDEVICE].metaDevices = _autoSContext->_devicePriorities;
+        if (currentDeviceName == "CPU_HELP") {
+            currentDeviceName = "CPU";
+        }
         const auto CurrentDeviceIter = std::find_if(_autoSContext->_devicePriorities.begin(), _autoSContext->_devicePriorities.end(),
                                             [=](const DeviceInformation& d) -> bool {
                                             return d.deviceName.find(currentDeviceName) != std::string::npos;});

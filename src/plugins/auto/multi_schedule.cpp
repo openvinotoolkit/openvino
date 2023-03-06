@@ -165,19 +165,8 @@ void MultiSchedule::GenerateWorkers(const std::string& device,
                 IdleGuard<NotBusyWorkerRequests> idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
                 workerRequestPtr->_exceptionPtr = exceptionPtr;
                 {
-                    if (workerRequestPtr->_exceptionPtr != nullptr) {
-                        if (workerRequestPtr->_reload) {
-                            auto capturedTask = std::move(workerRequestPtr->_testExec->_task);
-                            workerRequestPtr->_testExec->count++;
-                            capturedTask();
-                        } else {
-                            auto capturedTask = std::move(workerRequestPtr->_task);
-                            capturedTask();
-                        }
-                    } else {
-                        auto capturedTask = std::move(workerRequestPtr->_task);
-                        capturedTask();
-                    }
+                    auto capturedTask = std::move(workerRequestPtr->_task);
+                    capturedTask();
                 }
                 // try to return the request to the idle list (fails if the overall object destruction has began)
                 if (idleGuard.Release()->try_push(workerRequestPtr)) {
