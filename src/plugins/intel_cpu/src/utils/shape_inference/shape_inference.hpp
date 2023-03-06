@@ -8,6 +8,7 @@
 #include <openvino/core/core.hpp>
 #include <openvino/core/node.hpp>
 
+#include "shape_inference_status.hpp"
 #include "static_shape.hpp"
 #include "tensor_data_accessor.hpp"
 
@@ -16,8 +17,14 @@ namespace intel_cpu {
 
 class IShapeInferCommon {
 public:
-    virtual std::vector<StaticShape> infer(const std::vector<StaticShape>& input_shapes,
-                                           const std::map<size_t, HostTensorPtr>& constant_data) = 0;
+    struct Result {
+        std::vector<StaticShape> shapes;
+        ShapeInferStatus status;
+    };
+
+public:
+    virtual Result infer(const std::vector<StaticShape>& input_shapes,
+                         const std::map<size_t, HostTensorPtr>& constant_data) = 0;
 
     // infer may generate padding as by-product, these APIs is designed to retrieve them back
     virtual const ov::CoordinateDiff& get_pads_begin() = 0;
@@ -30,8 +37,7 @@ class IStaticShapeInfer : public IShapeInferCommon {
 public:
     using port_mask_t = uint32_t;  //!< Operator's port mask to indicate input data dependency
 
-    virtual std::vector<StaticShape> infer(const std::vector<StaticShape>& input_shapes,
-                                           const ov::ITensorAccessor& tensor_accessor) = 0;
+    virtual Result infer(const std::vector<StaticShape>& input_shapes, const ov::ITensorAccessor& tensor_accessor) = 0;
 
     /**
      * @brief Some shape inference implementation may require input data stored inside the input tensors. To define
