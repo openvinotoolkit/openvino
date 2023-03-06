@@ -414,7 +414,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& model,
                                                          const std::string& device_name,
                                                          const ov::AnyMap& config) const {
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
-    auto exec = get_plugin(parsed._deviceName).import_model(model, config);
+    ov::AnyMap _config = property_manager.exclude_property(config);
+    auto exec = get_plugin(parsed._deviceName).import_model(model, _config);
 
     return {exec._ptr, exec._so};
 }
@@ -424,7 +425,8 @@ ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Mo
                                               const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::query_model");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
-    auto ret = get_plugin(parsed._deviceName).query_model(model, parsed._config);
+    ov::AnyMap _config = property_manager.exclude_property(parsed._config);
+    auto ret = get_plugin(parsed._deviceName).query_model(model, _config);
     return ret;
 }
 
