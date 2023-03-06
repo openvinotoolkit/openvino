@@ -16,6 +16,7 @@ function(add_common_utils ADD_TARGET_NAME)
                 tests
             LINK_LIBRARIES
                 PUBLIC
+                    funcTestUtils
                     gtest
                     gtest_main
                     gmock
