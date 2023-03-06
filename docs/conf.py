@@ -38,6 +38,7 @@ extensions = [
     'sphinx_inline_tabs',
     'sphinx_copybutton',
     'sphinx_panels',
+    'sphinx_design',
     'doxyrest',
     'cpplexer',
     'sphinx.ext.autodoc',
@@ -78,10 +79,12 @@ html_theme = "openvino_sphinx_theme"
 html_theme_path = ['_themes']
 
 html_theme_options = {
-    "navigation_depth": 5,
+    "navigation_depth": 8,
+    "show_nav_level": 2,
     "use_edit_page_button": True,
     "github_url": "https://github.com/openvinotoolkit/openvino",
     "footer_items": ["footer_info"],
+    "show_prev_next": False,
 }
 
 html_context = {
@@ -179,4 +182,5 @@ def setup(app):
     app.add_js_file('js/custom.js')
     app.add_js_file('js/graphs.js')
     app.add_js_file('js/graphs_ov_tf.js')
+    app.add_js_file('js/open_sidebar.js')
     

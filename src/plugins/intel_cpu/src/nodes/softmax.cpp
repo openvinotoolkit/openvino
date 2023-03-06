@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,6 +25,7 @@ struct SoftmaxKey {
     DnnlMemoryDescCPtr inp0;
     impl_desc_type implType;
     size_t axis;
+    dnnl::primitive_attr attr;
 
     size_t hash() const;
     bool operator==(const SoftmaxKey& rhs) const;
@@ -36,7 +37,7 @@ size_t SoftmaxKey::hash() const {
 
     size_t seed = 0;
 
-    seed = hash_combine(seed, get_md_hash(inp0->getDnnlDesc().data));
+    seed = hash_combine(seed, get_md_hash(*inp0->getDnnlDesc().get()));
     seed = hash_combine(seed, implType);
     seed = hash_combine(seed, axis);
     return seed;
@@ -66,8 +67,8 @@ bool SoftMax::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-SoftMax::SoftMax(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache, PassThroughShapeInferFactory()) {
+SoftMax::SoftMax(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+        Node(op, context, PassThroughShapeInferFactory()) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -130,13 +131,19 @@ void SoftMax::initOptimalPrimitiveDescriptor() {
 }
 
 void SoftMax::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
-                                         const std::vector<MemoryDescPtr> &outputDesc) {
+                               const std::vector<MemoryDescPtr> &outputDesc) {
     auto inpDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
     DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
     auto in_candidate = definedInpMemDesc->getDnnlDesc();
 
-    DnnlDesriptor desc(std::shared_ptr<softmax_forward::desc>(
-            new softmax_forward::desc(prop_kind::forward_scoring, in_candidate, axis)));
+    auto desc = std::make_shared<softmax_forward::primitive_desc>(
+        getEngine(),
+        prop_kind::forward_inference,
+        algorithm::softmax_accurate,
+        in_candidate,
+        in_candidate,
+        axis);
+
     descs.push_back(desc);
 }
 
@@ -147,15 +154,24 @@ void SoftMax::prepareParams() {
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
-    SoftmaxKey key = {inpDesc, selected_pd->getImplementationType(), axis};
+    dnnl::primitive_attr attr;
+    attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
+
+    SoftmaxKey key = {inpDesc, selected_pd->getImplementationType(), axis, attr};
     auto engine = getEngine();
-    auto builder = [&engine](const SoftmaxKey& key) -> std::shared_ptr<dnnl::primitive> {
+
+    auto builder = [&engine](const SoftmaxKey& key) -> dnnl::primitive {
         softmax_forward::primitive_desc prim_desc;
-        DnnlDesriptor desc(std::shared_ptr<softmax_forward::desc>(
-            new softmax_forward::desc(prop_kind::forward_scoring, key.inp0->getDnnlDesc(), key.axis)));
-        dnnl::primitive_attr attr;
-        attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
-        primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, attr);
+        auto desc = std::make_shared<softmax_forward::primitive_desc>(
+            engine,
+            prop_kind::forward_inference,
+            algorithm::softmax_accurate,
+            key.inp0->getDnnlDesc(),
+            key.inp0->getDnnlDesc(),
+            key.axis,
+            key.attr);
+
+        primitive_desc_iterator itpd = *desc;
 
         while (itpd) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
@@ -169,12 +185,12 @@ void SoftMax::prepareParams() {
                 break;
             }
             if (!itpd.next_impl())
-                return nullptr;
+                return softmax_forward();
         }
-        return std::make_shared<softmax_forward>(prim_desc);
+        return softmax_forward(prim_desc);
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
     if (!result.first) {
@@ -183,7 +199,7 @@ void SoftMax::prepareParams() {
 
     prim = result.first;
 
-    auto pd = (*prim).get_primitive_desc();
+    auto pd = prim.get_primitive_desc();
     auto scratchpadMem = getScratchPadMem(pd);
 
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();

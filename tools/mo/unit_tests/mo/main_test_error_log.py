@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -11,7 +11,10 @@ def mocked_parse_args(*argv):
     # Mock parse_args method which generates warning
     import logging as log
     log.error("warning", extra={'is_warning': True})
-    argv = argparse.Namespace()
+    argv = argparse.Namespace(use_legacy_frontend=False,
+                              use_new_frontend=False,
+                              framework=None,
+                              input_model="abc.pbtxt")
     return argv
 
 

@@ -274,13 +274,21 @@
             }
         },
         {
+            "type": "Concat",
+            "attributes": {
+                "unified_scales": "all"
+            },
+            "quantization": {
+                "activations": "q8_tn"
+            }
+        },
+        {
             "type": "MVN",
             "quantization": {
                 "activations": "q8_tn"
             }
         },
         {"type": "Reshape"},
-        {"type": "Concat"},
         {"type": "Flatten"},
         {"type": "Squeeze"},
         {"type": "Unsqueeze"},

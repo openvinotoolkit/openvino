@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <vector>
-#include "single_layer_tests/is_inf.hpp"
+#include "shared_test_classes/single_layer/is_inf.hpp"
 
 using namespace ov::test;
 using namespace ov::test::subgraph;

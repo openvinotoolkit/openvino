@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
 #include "include/batch_headers/fetch_data.cl"
 #include "include/mmad.cl"
 
@@ -26,7 +27,7 @@
     #define ACTIVATION_TYPE_VEC float8
     #define TO_ACTIVATION_TYPE_VEC(x) convert_float8(x)
     #define MMAD MMAD_8x8
-    #define BLOCK_WRITE(ptr, val) intel_sub_group_block_write8((__global uint*)(ptr), as_uint8(val));
+    #define BLOCK_WRITE(ptr, val) _sub_group_block_write8((__global uint*)(ptr), as_uint8(val));
 #elif OUTPUT_X_BLOCK_SIZE == 4
     #define PACKED_TYPE_VEC MAKE_VECTOR_TYPE(PACKED_IN_TYPE, 4)
     #define ACCUMULATOR_TYPE_VEC int4
@@ -34,31 +35,31 @@
     #define ACTIVATION_TYPE_VEC float4
     #define TO_ACTIVATION_TYPE_VEC(x) convert_float4(x)
     #define MMAD MMAD_4x8
-    #define BLOCK_WRITE(ptr, val) intel_sub_group_block_write4((__global uint*)(ptr), as_uint4(val));
+    #define BLOCK_WRITE(ptr, val) _sub_group_block_write4((__global uint*)(ptr), as_uint4(val));
 #else
 #error "convolution_gpu_mmad_b_fs_yx_fsv32: Unsupported block size"
 #endif
 
 __attribute__((reqd_work_group_size(8, OW_GROUP, 1)))
-__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
+REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 KERNEL(convolution_mmad_b_fs_yx_fsv32)(
     __global INPUT0_TYPE* input,
     __global PACKED_OUT_TYPE* output,
-    __global FILTER_TYPE* weights,
+    __global FILTER_TYPE* weights
 #if BIAS_TERM
-    __global BIAS_TYPE* biases,
+    , __global BIAS_TYPE* biases
 #endif
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
-    const __global WEIGHTS_ZERO_POINTS_TYPE *weights_zp,
+    , const __global WEIGHTS_ZERO_POINTS_TYPE *weights_zp
 #endif
 #if ASYMMETRIC_DATA_QUANTIZATION
-    const __global ACTIVATIONS_ZERO_POINTS_TYPE *activations_zp,
-    const __global COMPENSATION_TYPE *compensation,
+    , const __global ACTIVATIONS_ZERO_POINTS_TYPE *activations_zp
+    , const __global COMPENSATION_TYPE *compensation
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx)
+)
 {
     const uint b = get_global_id(2);
     const uint fg = get_group_id(0);
@@ -83,9 +84,7 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
     ACCUMULATOR_TYPE_VEC acc_assym_weights = 0;
 #endif
 
-    const uint in_split_offset = split_idx * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
-
-    const uint input_offset = b*INPUT0_BATCH_PITCH + INPUT0_OFFSET*ISV_SIZE + in_split_offset;
+    const uint input_offset = b*INPUT0_BATCH_PITCH + INPUT0_OFFSET*ISV_SIZE;
 
     uint filter_idx = fg * FILTER_SIZE_X * FILTER_SIZE_Y * FILTER_SIZE_Z * ISV_SIZE * OSV_SIZE * IFM_BLOCKS;
 
@@ -145,7 +144,7 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
                         }
                         else
                         {
-                            line_cache[xb] = AS_TYPE(PACKED_IN_TYPE, intel_sub_group_block_read((const __global uint*)(input + in_addr +
+                            line_cache[xb] = AS_TYPE(PACKED_IN_TYPE, _sub_group_block_read((const __global uint*)(input + in_addr +
                                                                           icb * input_fs_pitch +
                                                                           kd * DILATION_SIZE_Z * input_z_pitch +
                                                                           kh * DILATION_SIZE_Y * input_y_pitch +
@@ -166,10 +165,10 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
                                      + kh * ISV_SIZE * OSV_SIZE * FILTER_SIZE_X
                                      + kw * ISV_SIZE * OSV_SIZE;
 
-                    int8 weights_data0 = as_int8(intel_sub_group_block_read8((const __global uint*)(weights + f_off + 0*8*ISV_SIZE)));
-                    int8 weights_data1 = as_int8(intel_sub_group_block_read8((const __global uint*)(weights + f_off + 1*8*ISV_SIZE)));
-                    int8 weights_data2 = as_int8(intel_sub_group_block_read8((const __global uint*)(weights + f_off + 2*8*ISV_SIZE)));
-                    int8 weights_data3 = as_int8(intel_sub_group_block_read8((const __global uint*)(weights + f_off + 3*8*ISV_SIZE)));
+                    int8 weights_data0 = as_int8(_sub_group_block_read8((const __global uint*)(weights + f_off + 0*8*ISV_SIZE)));
+                    int8 weights_data1 = as_int8(_sub_group_block_read8((const __global uint*)(weights + f_off + 1*8*ISV_SIZE)));
+                    int8 weights_data2 = as_int8(_sub_group_block_read8((const __global uint*)(weights + f_off + 2*8*ISV_SIZE)));
+                    int8 weights_data3 = as_int8(_sub_group_block_read8((const __global uint*)(weights + f_off + 3*8*ISV_SIZE)));
 
                     acc[0] = MMAD(src, weights_data0, acc[0]); // 8 elements in 4*lid+0 out channel
                     acc[1] = MMAD(src, weights_data1, acc[1]); // 8 elements in 4*lid+1 out channel
@@ -236,13 +235,12 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
 #endif
     }
 
-    const uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * OUTPUT_FEATURE_NUM;
     for (int i = 0; i < OUTPUT_X_BLOCK_SIZE; i++) {
         for (int ofm = 0; ofm < 4; ofm++) {
 #if OUTPUT_DIMS == 5
-            const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + ofm + 4*lid, z, y, x+i) + out_split_offset;
+            const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + ofm + 4*lid, z, y, x+i);
 #elif OUTPUT_DIMS <= 4
-            const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + ofm + 4*lid, y, x+i) + out_split_offset;
+            const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + ofm + 4*lid, y, x+i);
 #endif
             bool full_x = OUTPUT_SIZE_X % OUTPUT_X_BLOCK_SIZE == 0 || x + i < OUTPUT_SIZE_X;
             bool full_f = OUTPUT_FEATURE_NUM % OSV_SIZE == 0 || fg * OSV_SIZE + 4 * lid + ofm < OUTPUT_FEATURE_NUM;
@@ -302,14 +300,13 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
         dst[i] = AS_PACKED_OUT_TYPE(pack);
     }
 
-    const uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * OUTPUT_FEATURE_NUM;
     const bool full_x = OUTPUT_SIZE_X % OUTPUT_X_BLOCK_SIZE == 0 || x + OUTPUT_X_BLOCK_SIZE <= OUTPUT_SIZE_X;
     const bool full_f = OUTPUT_FEATURE_NUM % OSV_SIZE == 0 || (fg + 1) * OSV_SIZE <= OUTPUT_FEATURE_NUM;
     if (full_x && full_f) {
 #if OUTPUT_DIMS == 5
-        const uint dst_index = (OUTPUT_GET_INDEX(b, fg*OSV_SIZE, z, y, x) + out_split_offset) / 4;
+        const uint dst_index = (OUTPUT_GET_INDEX(b, fg*OSV_SIZE, z, y, x)) / 4;
 #elif OUTPUT_DIMS <= 4
-        const uint dst_index = (OUTPUT_GET_INDEX(b, fg*OSV_SIZE, y, x) + out_split_offset) / 4;
+        const uint dst_index = (OUTPUT_GET_INDEX(b, fg*OSV_SIZE, y, x)) / 4;
 #endif
         BLOCK_WRITE(output + dst_index, dst);
     } else {
@@ -319,9 +316,9 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
             const bool full_sgl_f = OUTPUT_FEATURE_NUM % OSV_SIZE == 0 || fg * OSV_SIZE + 4 * lid < OUTPUT_FEATURE_NUM;
             if (full_it_x && full_sgl_f) {
 #   if OUTPUT_DIMS == 5
-                const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + 4*lid, z, y, x+i) + out_split_offset;
+                const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + 4*lid, z, y, x+i);
 #   elif OUTPUT_DIMS <= 4
-                const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + 4*lid, y, x+i) + out_split_offset;
+                const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + 4*lid, y, x+i);
 #   endif
                 output[dst_index/4] = dst[i];
             }
@@ -333,9 +330,9 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
                 const bool full_sgl_f = OUTPUT_FEATURE_NUM % OSV_SIZE == 0 || fg * OSV_SIZE + 4 * lid + ofm < OUTPUT_FEATURE_NUM;
                 if (full_it_x && full_sgl_f) {
 #   if OUTPUT_DIMS == 5
-                    const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + 4*lid + ofm, z, y, x+i) + out_split_offset;
+                    const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + 4*lid + ofm, z, y, x+i);
 #   elif OUTPUT_DIMS <= 4
-                    const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + 4*lid + ofm, y, x+i) + out_split_offset;
+                    const uint dst_index = OUTPUT_GET_INDEX(b, fg*OSV_SIZE + 4*lid + ofm, y, x+i);
 #   endif
                     ((__global uchar*)output)[dst_index] = as_uchar4(dst[i])[ofm];
                 }

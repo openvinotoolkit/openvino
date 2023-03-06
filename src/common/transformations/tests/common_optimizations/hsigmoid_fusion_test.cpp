@@ -1,15 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <gtest/gtest.h>
 
-#include <string>
 #include <memory>
-
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <string>
 #include <transformations/common_optimizations/hsigmoid_fusion.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
@@ -20,7 +19,8 @@ using namespace testing;
 
 TEST_F(TransformationTestsF, HSigmoidFusionWithReluDivF16) {
     {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto input =
+            std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.0});
         auto add = std::make_shared<ngraph::opset7::Add>(input, add_constant);
         auto relu = std::make_shared<ngraph::opset7::Relu>(add);
@@ -31,11 +31,12 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithReluDivF16) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSigmoidFusion>();
+        manager.register_pass<ov::pass::HSigmoidFusion>();
     }
 
     {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto input =
+            std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto hsigmoid = std::make_shared<ngraph::opset7::HSigmoid>(input);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{hsigmoid}, ngraph::ParameterVector{input});
@@ -55,7 +56,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithReluDivF32) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSigmoidFusion>();
+        manager.register_pass<ov::pass::HSigmoidFusion>();
     }
 
     {
@@ -68,7 +69,8 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithReluDivF32) {
 
 TEST_F(TransformationTestsF, HSigmoidFusionWithReluMul) {
     {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto input =
+            std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.0});
         auto add = std::make_shared<ngraph::opset7::Add>(input, add_constant);
         auto relu = std::make_shared<ngraph::opset7::Relu>(add);
@@ -79,11 +81,12 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithReluMul) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_second}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSigmoidFusion>();
+        manager.register_pass<ov::pass::HSigmoidFusion>();
     }
 
     {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto input =
+            std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto hsigmoid = std::make_shared<ngraph::opset7::HSigmoid>(input);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{hsigmoid}, ngraph::ParameterVector{input});
@@ -92,7 +95,8 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithReluMul) {
 
 TEST_F(TransformationTestsF, HSigmoidFusionWithoutRelu) {
     {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto input =
+            std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.0});
         auto add = std::make_shared<ngraph::opset7::Add>(input, add_constant);
         auto max_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {0.0});
@@ -104,11 +108,12 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithoutRelu) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSigmoidFusion>();
+        manager.register_pass<ov::pass::HSigmoidFusion>();
     }
 
     {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto input =
+            std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto hsigmoid = std::make_shared<ngraph::opset7::HSigmoid>(input);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{hsigmoid}, ngraph::ParameterVector{input});
@@ -117,7 +122,8 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithoutRelu) {
 
 TEST_F(TransformationTestsF, HSigmoidFusionWithClampMul) {
     {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto input =
+            std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.0});
         auto add = std::make_shared<ngraph::opset7::Add>(input, add_constant);
         auto clamp = std::make_shared<ngraph::op::v0::Clamp>(add, 0.0f, 6.0f);
@@ -126,11 +132,12 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithClampMul) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_first}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSigmoidFusion>();
+        manager.register_pass<ov::pass::HSigmoidFusion>();
     }
 
     {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto input =
+            std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto hsigmoid = std::make_shared<ngraph::opset7::HSigmoid>(input);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{hsigmoid}, ngraph::ParameterVector{input});
@@ -139,7 +146,8 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithClampMul) {
 
 TEST_F(TransformationTestsF, HSigmoidFusionWithClampDiv) {
     {
-        auto input = std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto input =
+            std::make_shared<ngraph::opset6::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ngraph::opset6::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.0});
         auto add = std::make_shared<ngraph::opset6::Add>(input, add_constant);
         auto clamp = std::make_shared<ngraph::opset6::Clamp>(add, 0.0f, 6.0f);
@@ -148,11 +156,12 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithClampDiv) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSigmoidFusion>();
+        manager.register_pass<ov::pass::HSigmoidFusion>();
     }
 
     {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto input =
+            std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto hsigmoid = std::make_shared<ngraph::opset7::HSigmoid>(input);
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{hsigmoid}, ngraph::ParameterVector{input});
@@ -161,7 +170,8 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithClampDiv) {
 
 TEST_F(TransformationTestsF, HSigmoidFusionWithReluMulWrongConstValue) {
     {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto input =
+            std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.0});
         auto add = std::make_shared<ngraph::opset7::Add>(input, add_constant);
         auto relu = std::make_shared<ngraph::opset7::Relu>(add);
@@ -172,11 +182,12 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithReluMulWrongConstValue) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_second}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSigmoidFusion>();
+        manager.register_pass<ov::pass::HSigmoidFusion>();
     }
 
     {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto input =
+            std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.0});
         auto add = std::make_shared<ngraph::opset7::Add>(input, add_constant);
         auto relu = std::make_shared<ngraph::opset7::Relu>(add);
@@ -185,7 +196,8 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithReluMulWrongConstValue) {
         auto mul_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {0.167});
         auto mul_second = std::make_shared<ngraph::opset7::Multiply>(min, mul_constant);
 
-        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_second}, ngraph::ParameterVector{input});
+        function_ref =
+            std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_second}, ngraph::ParameterVector{input});
     }
 }
 
@@ -202,7 +214,7 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithReluDivWrongConstValue) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSigmoidFusion>();
+        manager.register_pass<ov::pass::HSigmoidFusion>();
     }
 
     {
@@ -221,7 +233,8 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithReluDivWrongConstValue) {
 
 TEST_F(TransformationTestsF, HSigmoidFusionWithoutReluWrongConstValue) {
     {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto input =
+            std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.11});
         auto add = std::make_shared<ngraph::opset7::Add>(input, add_constant);
         auto max_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {0.22});
@@ -233,11 +246,12 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithoutReluWrongConstValue) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{div}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSigmoidFusion>();
+        manager.register_pass<ov::pass::HSigmoidFusion>();
     }
 
     {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto input =
+            std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.11});
         auto add = std::make_shared<ngraph::opset7::Add>(input, add_constant);
         auto max_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {0.22});
@@ -253,7 +267,8 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithoutReluWrongConstValue) {
 
 TEST_F(TransformationTestsF, HSigmoidFusionWithClampWrongConstValue) {
     {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto input =
+            std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.11});
         auto add = std::make_shared<ngraph::opset7::Add>(input, add_constant);
         auto clamp = std::make_shared<ngraph::op::v0::Clamp>(add, 0.11f, 6.02f);
@@ -262,17 +277,19 @@ TEST_F(TransformationTestsF, HSigmoidFusionWithClampWrongConstValue) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_first}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::HSigmoidFusion>();
+        manager.register_pass<ov::pass::HSigmoidFusion>();
     }
 
     {
-        auto input = std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
+        auto input =
+            std::make_shared<ngraph::opset7::Parameter>(ngraph::element::f16, ngraph::PartialShape::dynamic(1));
         auto add_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {3.11});
         auto add = std::make_shared<ngraph::opset7::Add>(input, add_constant);
         auto clamp = std::make_shared<ngraph::op::v0::Clamp>(add, 0.11f, 6.02f);
         auto mul_constant = ngraph::opset7::Constant::create(ngraph::element::f16, ngraph::Shape{}, {0.98 / 6.15});
         auto mul_first = std::make_shared<ngraph::opset7::Multiply>(clamp, mul_constant);
 
-        function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_first}, ngraph::ParameterVector{input});
+        function_ref =
+            std::make_shared<ngraph::Function>(ngraph::NodeVector{mul_first}, ngraph::ParameterVector{input});
     }
 }

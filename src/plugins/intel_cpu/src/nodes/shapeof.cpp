@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,11 +21,11 @@ namespace {
 class ShapeOfShapeInfer : public ShapeInferEmptyPads {
 public:
     ShapeOfShapeInfer() = default;
-    std::vector<VectorDims> infer(
+    Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         IE_ASSERT(!input_shapes.empty());
-        return {VectorDims{input_shapes.front().get().size()}};
+        return {{VectorDims{input_shapes.front().get().size()}}, ShapeInferStatus::success};
     }
 
     port_mask_t get_port_mask() const override {
@@ -55,8 +55,8 @@ bool ShapeOf::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
-ShapeOf::ShapeOf(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-                                     WeightsSharing::Ptr &cache) : Node(op, eng, cache, ShapeOfShapeInferFactory()) {
+ShapeOf::ShapeOf(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, ShapeOfShapeInferFactory()) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "ShapeOf layer with name '" + getName() + "' ";

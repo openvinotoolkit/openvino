@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "test_utils.h"
 
@@ -13,7 +11,8 @@
 using namespace cldnn;
 using namespace ::tests;
 
-TEST(lrn_fp32_gpu, basic) {
+template <typename T>
+void test_fp32_basic(bool is_caching_test) {
     //  input : 1x16x1x1
     //  Output : 1x16x1x1
     auto& engine = get_test_engine();
@@ -24,11 +23,9 @@ TEST(lrn_fp32_gpu, basic) {
     const size_t x = 1;
 
     auto input = engine.allocate_memory({ data_types::f32, format::b_fs_yx_fsv16, { b, f, x, y } });
-    std::vector<float> inputVals(b * f * y * x);
-    std::generate(inputVals.begin(), inputVals.end(), []() {
-        static float n = 0;
-        return n++;
-    });
+    std::vector<T> inputVals(b * f * y * x);
+    T n = 0;
+    std::generate(inputVals.begin(), inputVals.end(), [n]() mutable { return n++; });
 
     set_values(input, inputVals);
 
@@ -40,11 +37,11 @@ TEST(lrn_fp32_gpu, basic) {
     float beta = 1.f;
     topology.add(lrn("lrn", input_info("input"), size, k, alpha, beta, cldnn::lrn_norm_region_across_channel));
 
-    network network(engine, topology);
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
-    network.set_input_data("input", input);
+    network->set_input_data("input", input);
 
-    auto outputs = network.execute();
+    auto outputs = network->execute();
 
     auto output = outputs.at("lrn").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -58,11 +55,16 @@ TEST(lrn_fp32_gpu, basic) {
 
     ASSERT_EQ(output_ptr.size(), expected_results.size());
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i])) << i;
     }
 }
 
-TEST(lrn_fp32_gpu, basic2) {
+TEST(lrn_fp32_gpu, basic) {
+    test_fp32_basic<float>(false);
+}
+
+template <typename T>
+void test_fp32_basic2(bool is_caching_test) {
     //  input : 1x16x1x1
     //  Output : 1x16x1x1
     auto& engine = get_test_engine();
@@ -73,11 +75,9 @@ TEST(lrn_fp32_gpu, basic2) {
     const size_t x = 1;
 
     auto input = engine.allocate_memory({ data_types::f32, format::b_fs_yx_fsv16, { b, f, x, y } });
-    std::vector<float> inputVals(b * f * y * x);
-    std::generate(inputVals.begin(), inputVals.end(), []() {
-        static float n = 0;
-        return n++;
-    });
+    std::vector<T> inputVals(b * f * y * x);
+    T n = 0;
+    std::generate(inputVals.begin(), inputVals.end(), [n]() mutable { return n++; });
 
     set_values(input, inputVals);
 
@@ -89,11 +89,11 @@ TEST(lrn_fp32_gpu, basic2) {
     float beta = 1.f;
     topology.add(lrn("lrn", input_info("input"), size, k, alpha, beta, cldnn::lrn_norm_region_across_channel));
 
-    network network(engine, topology);
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
-    network.set_input_data("input", input);
+    network->set_input_data("input", input);
 
-    auto outputs = network.execute();
+    auto outputs = network->execute();
 
     auto output = outputs.at("lrn").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -107,11 +107,16 @@ TEST(lrn_fp32_gpu, basic2) {
 
     ASSERT_EQ(output_ptr.size(), expected_results.size());
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i])) << i;
     }
 }
 
-TEST(lrn_fp16_gpu, basic1) {
+TEST(lrn_fp32_gpu, basic2) {
+    test_fp32_basic2<float>(false);
+}
+
+template <typename T>
+void test_fp16_basic1(bool is_caching_test) {
     //  input : 1x16x1x1
     //  Output : 1x16x1x1
     auto& engine = get_test_engine();
@@ -122,11 +127,9 @@ TEST(lrn_fp16_gpu, basic1) {
     const size_t x = 1;
 
     auto input = engine.allocate_memory({ data_types::f16, format::b_fs_yx_fsv16, { b, f, x, y } });
-    std::vector<half_t> inputVals(b * f * y * x);
-    std::generate(inputVals.begin(), inputVals.end(), []() {
-        static float n = 0;
-        return half_t(n++);
-    });
+    std::vector<T> inputVals(b * f * y * x);
+    float n = 0;
+    std::generate(inputVals.begin(), inputVals.end(), [n]() mutable { return T(n++); });
 
     set_values(input, inputVals);
 
@@ -138,11 +141,11 @@ TEST(lrn_fp16_gpu, basic1) {
     float beta = 1.f;
     topology.add(lrn("lrn", input_info("input"), size, k, alpha, beta, cldnn::lrn_norm_region_across_channel));
 
-    network network(engine, topology);
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
-    network.set_input_data("input", input);
+    network->set_input_data("input", input);
 
-    auto outputs = network.execute();
+    auto outputs = network->execute();
 
     auto output = outputs.at("lrn").get_memory();
     cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
@@ -156,11 +159,16 @@ TEST(lrn_fp16_gpu, basic1) {
 
     ASSERT_EQ(output_ptr.size(), expected_results.size());
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], half_to_float(output_ptr[i]))) << i;
     }
 }
 
-TEST(lrn_fp32_gpu, basic3) {
+TEST(lrn_fp16_gpu, basic1) {
+    test_fp16_basic1<half_t>(false);
+}
+
+template <typename T>
+void test_fp32_basic3(bool is_caching_test) {
     //  input : 2x16x4x4
     //  Output : 2x16x4x4
     auto& engine = get_test_engine();
@@ -171,11 +179,9 @@ TEST(lrn_fp32_gpu, basic3) {
     const size_t x = 4;
 
     auto input = engine.allocate_memory({ data_types::f32, format::b_fs_yx_fsv16, { b, f, x, y } });
-    std::vector<float> inputVals(b * f * y * x);
-    std::generate(inputVals.begin(), inputVals.end(), []() {
-        static float n = 0;
-        return n++;
-    });
+    std::vector<T> inputVals(b * f * y * x);
+    T n = 0;
+    std::generate(inputVals.begin(), inputVals.end(), [n]() mutable { return n++; });
 
     set_values(input, inputVals);
 
@@ -187,11 +193,11 @@ TEST(lrn_fp32_gpu, basic3) {
     float beta = 0.75f;
     topology.add(lrn("lrn", input_info("input"), size, k, alpha, beta, cldnn::lrn_norm_region_across_channel));
 
-    network network(engine, topology);
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
-    network.set_input_data("input", input);
+    network->set_input_data("input", input);
 
-    auto outputs = network.execute();
+    auto outputs = network->execute();
 
     auto output = outputs.at("lrn").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -248,6 +254,27 @@ TEST(lrn_fp32_gpu, basic3) {
 
     ASSERT_EQ(output_ptr.size(), expected_results.size());
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_TRUE(are_equal(expected_results[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(expected_results[i], output_ptr[i])) << i;
     }
+}
+
+TEST(lrn_fp32_gpu, basic3) {
+    test_fp32_basic3<float>(false);
+}
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST(lrn_fp32_gpu, basic_cached) {
+    test_fp32_basic<float>(true);
+}
+
+TEST(lrn_fp32_gpu, basic2_cached) {
+    test_fp32_basic2<float>(true);
+}
+
+TEST(lrn_fp16_gpu, basic1_cached) {
+    test_fp16_basic1<half_t>(true);
+}
+#endif
+TEST(lrn_fp32_gpu, basic3_cached) {
+    test_fp32_basic3<float>(true);
 }

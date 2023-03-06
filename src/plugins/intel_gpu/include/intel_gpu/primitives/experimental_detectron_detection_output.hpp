@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <utility>
 #include <vector>
@@ -10,12 +9,6 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief experimental detectron detection output
 struct experimental_detectron_detection_output : public primitive_base<experimental_detectron_detection_output> {
@@ -78,6 +71,41 @@ struct experimental_detectron_detection_output : public primitive_base<experimen
     float max_delta_log_wh;
     std::vector<float> deltas_weights;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, score_threshold);
+        seed = hash_combine(seed, nms_threshold);
+        seed = hash_combine(seed, num_classes);
+        seed = hash_combine(seed, post_nms_count);
+        seed = hash_combine(seed, max_detections_per_image);
+        seed = hash_combine(seed, class_agnostic_box_regression);
+        seed = hash_combine(seed, max_delta_log_wh);
+        seed = hash_range(seed, deltas_weights.begin(), deltas_weights.end());
+        seed = hash_combine(seed, output_classes.empty());
+        seed = hash_combine(seed, output_scores.empty());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const experimental_detectron_detection_output>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(score_threshold) &&
+               cmp_fields(nms_threshold) &&
+               cmp_fields(num_classes) &&
+               cmp_fields(post_nms_count) &&
+               cmp_fields(max_detections_per_image) &&
+               cmp_fields(class_agnostic_box_regression) &&
+               cmp_fields(max_delta_log_wh) &&
+               cmp_fields(deltas_weights) &&
+               cmp_fields(output_classes.empty()) &&
+               cmp_fields(output_scores.empty());
+        #undef cmp_fields
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
@@ -90,7 +118,4 @@ protected:
         return ret;
     }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

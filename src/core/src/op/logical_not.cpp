@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,7 +64,7 @@ bool evaluate_not(const HostTensorPtr& arg0, const HostTensorPtr& out, const siz
 bool op::v1::LogicalNot::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_LogicalNot_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
-    return notop::evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
+    return notop::evaluate_not(inputs[0], outputs[0], inputs[0]->get_element_count());
 }
 
 bool op::v1::LogicalNot::has_evaluate() const {

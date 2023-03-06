@@ -1,15 +1,16 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <utility>
 #include <type_traits>
-#include "intel_gpu/runtime/engine.hpp"
+#include "openvino/core/except.hpp"
 #include "serializer.hpp"
 
 namespace cldnn {
+
+class engine;
 
 template <typename BufferType>
 class Buffer {

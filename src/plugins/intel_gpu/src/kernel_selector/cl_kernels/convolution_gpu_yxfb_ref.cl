@@ -1,18 +1,17 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
 
 KERNEL(convolution_gpu_yxfb_ref)(
     const __global UNIT_TYPE* input,
     __global UNIT_TYPE* output,
-    const __global UNIT_TYPE* filter,
+    const __global UNIT_TYPE* filter
 #if BIAS_TERM
-    const __global UNIT_TYPE* bias,
+    , const __global UNIT_TYPE* bias
 #endif
-    uint split_idx)
+)
 {
     UNIT_TYPE result = UNIT_VAL_ZERO;
 
@@ -24,7 +23,7 @@ KERNEL(convolution_gpu_yxfb_ref)(
     const int x = (int)out_x * STRIDE_SIZE_X - PADDING_SIZE_X;
     const int y = (int)out_y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
 
-#if GROUPED || DEPTHWISE_SEPARABLE_OPT
+#if GROUPED
     const uint g = ofm_offset / FILTER_OFM_NUM;
     const uint in_split_offset = g * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
     const uint of = ofm_offset % FILTER_OFM_NUM;
@@ -34,7 +33,7 @@ KERNEL(convolution_gpu_yxfb_ref)(
     const uint of = ofm_offset;
 #endif
     const uint input_offset = INPUT0_OFFSET + batch_offset*INPUT0_BATCH_PITCH + in_split_offset;
-#if GROUPED || DEPTHWISE_SEPARABLE_OPT
+#if GROUPED
     const uint filter_offset = (ofm_offset / FILTER_OFM_NUM) * FILTER_GROUPS_PITCH;
 #else
     const uint filter_offset = 0;

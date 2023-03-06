@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -13,7 +13,7 @@ else()
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/ittapi ${CMAKE_BINARY_DIR}/_deps/ittapi EXCLUDE_FROM_ALL)
 
     target_compile_definitions(ittnotify INTERFACE ENABLE_PROFILING_ITT)
-    if(CMAKE_COMPILER_IS_GNUCXX)
+    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
         target_compile_options(ittnotify PRIVATE -Wno-undef)
     endif()
 

@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "pass_manager.h"
 #include "impls/ocl/primitive_base.hpp"
 #include "fully_connected/fully_connected_params.h"
 #include <memory>
 #include <stdexcept>
+
+using namespace cldnn;
 
 /*
 This pass checks if if primitive's input format matches implementation's input format

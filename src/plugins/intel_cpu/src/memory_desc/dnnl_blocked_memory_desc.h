@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include "blocked_memory_desc.h"
 #include <cpu_memory.h>
 #include <dnnl_extension_utils.h>
+#include <common/memory_desc_wrapper.hpp>
 
 namespace ov {
 namespace intel_cpu {
@@ -40,7 +41,7 @@ public:
     }
 
     size_t getOffsetPadding() const override {
-        return DnnlExtensionUtils::convertToDim(desc.data.offset0);
+        return DnnlExtensionUtils::convertToDim(desc.get()->offset0);
     }
 
     const VectorDims& getStrides() const override {
@@ -64,12 +65,13 @@ public:
     using DnnlMemoryDesc::setPrecision;
     using DnnlMemoryDesc::getPrecision;
 
+    explicit DnnlBlockedMemoryDesc(const dnnl::memory::desc& mdesc);
+
 private:
     DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& blockedDims,
                           const VectorDims& order, size_t offsetPadding = 0, const VectorDims& offsetPaddingToData = {},
                           const VectorDims& strides = {});
 
-    explicit DnnlBlockedMemoryDesc(const dnnl::memory::desc& mdesc);
 
     // Creates DnnlBlockedMemoryDesc using the shape parameter as a true shape but all other params (layout, blocks, etc.) are used from the mdesc, but
     // the mdesc own shape is ignored. The main purpose of this constructor is making dynamic descriptor from some dummy mdesc, which stores info about

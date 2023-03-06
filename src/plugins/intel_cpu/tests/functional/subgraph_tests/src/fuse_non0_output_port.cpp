@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -58,8 +58,6 @@ class FuseNon0OuputPort : public SubgraphBaseTest {
 };
 
 TEST_F(FuseNon0OuputPort, smoke_FuseNon0OuputPort) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
 }
 

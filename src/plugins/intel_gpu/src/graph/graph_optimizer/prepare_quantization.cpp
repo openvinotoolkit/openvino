@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "pooling_inst.h"
 #include "quantize_inst.h"
@@ -20,6 +18,8 @@
 #include <string>
 #include <memory>
 #include <vector>
+
+using namespace cldnn;
 
 template<typename T>
 bool check_binarization(memory::ptr mem_input_low, memory::ptr mem_input_high, program& p) {
@@ -595,11 +595,6 @@ void prepare_quantization::prepare_asymmetric_quantization(program &p, convoluti
         return;
 
     auto old_conv_prim = convolution_node.get_primitive();
-
-    // Split is not supported
-    if (old_conv_prim->weights.size() > 1)
-        return;
-
 
     primitive_id input = old_conv_prim->input[0].pid;
     std::vector<primitive_id> a_zero_points = {};

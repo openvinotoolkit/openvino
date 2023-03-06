@@ -84,7 +84,7 @@ static std::function<bool(ngraph::Output<ngraph::Node>)> constant_value(const fl
             return false;
         }
         float value;
-        if (!ngraph::op::util::get_single_value(node, value)) {
+        if (!ov::op::util::get_single_value(node, value)) {
             return false;
         }
         return value == target_value;

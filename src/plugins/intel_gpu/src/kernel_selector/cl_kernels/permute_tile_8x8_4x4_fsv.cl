@@ -1,12 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/data_types.cl"
 
-#define unroll_for __attribute__((opencl_unroll_hint)) for
-#define CEIL_DIV(A, B) (((A) + (B) - 1) / (B))
 #define INPUT0_GET_TILED_INDEX(ORDER) INPUT0_GET_INDEX(ORDER)
 #define OUTPUT_GET_TILED_INDEX(ORDER) OUTPUT_GET_INDEX(ORDER)
 #define YZ_REMAINDER_LESS_THAN_TILE_SIZE ((YZ_REMAINDER_CONDITION) && (YZ_REMAINDER_SIZE < ( TILE_SIZE /2)))
@@ -208,8 +205,6 @@ KERNEL (permute_tile_8x8_4x4_fsv)(
 #endif // REORDERED_OUTPUT)TILED_ORDER
 }
 
-#undef unroll_for
-#undef CEIL_DIV(A, B)
 #undef INPUT0_GET_TILED_INDEX(ORDER)
 #undef OUTPUT_GET_TILED_INDEX(ORDER)
 #undef YZ_REMAINDER_LESS_THAN_TILE_SIZE

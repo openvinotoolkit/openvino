@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,7 +54,7 @@ TEST(batch_to_space_fp16_gpu, i8111_bs1222_cb0000_ce0000) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -104,7 +104,7 @@ TEST(batch_to_space_fp16_gpu, i4321_bs1212_cb0000_ce0000) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -151,7 +151,7 @@ TEST(batch_to_space_fp16_gpu, i4321_bs1212_cb0010_ce0101) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -198,7 +198,7 @@ TEST(batch_to_space_fp16_gpu, i62121_bs12311_cb02000_ce00110) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -249,7 +249,7 @@ TEST(batch_to_space_fp16_gpu, i1212112_bs112321_cb02000_ce00110) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -300,7 +300,7 @@ TEST(batch_to_space_fp16_gpu, i21611_bs1112_cb0000_ce0000_b_fs_yx_fsv16) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -350,7 +350,7 @@ TEST(batch_to_space_fp16_gpu, i2812_bs1112_cb0000_ce0000_b_fs_yx_fsv16) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], half_to_float(output_ptr[i]));
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i]));
     }
 }
 
@@ -393,7 +393,7 @@ TEST(batch_to_space_fp32_gpu, i8111_bs1222_cb0000_ce0000) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -443,7 +443,7 @@ TEST(batch_to_space_fp32_gpu, i4321_bs1212_cb0000_ce0000) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -490,7 +490,7 @@ TEST(batch_to_space_fp32_gpu, i4321_bs1212_cb0010_ce0101) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -537,7 +537,7 @@ TEST(batch_to_space_fp32_gpu, i62121_bs12311_cb02000_ce00110) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -588,7 +588,7 @@ TEST(batch_to_space_fp32_gpu, i1212112_bs112321_cb02000_ce00110) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -640,7 +640,7 @@ TEST(batch_to_space_fp32_gpu, i21621_bs1112_cb0201_ce0810_b_fs_yx_fsv16) {
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 
@@ -677,24 +677,7 @@ void test_batch_to_space_fp32_gpu_i41021_bs1221_cb0201_ce0810_b_fs_yx_fsv16(bool
                                                                            tensor(format::bfyx, {1,8,3,1}, 1)));
     topology.add(reorder("bts_to_bfyx", input_info("batch_to_space"), format::bfyx, data_types::f32));
 
-    cldnn::network::ptr network;
-
-    if (is_caching_test) {
-        membuf mem_buf;
-        {
-            cldnn::network _network(engine, topology);
-            std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-            _network.save(ob);
-        }
-        {
-            std::istream in_mem(&mem_buf);
-            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-        }
-    } else {
-        network = std::make_shared<cldnn::network>(engine, topology);
-    }
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("Input", input);
 
@@ -713,7 +696,7 @@ void test_batch_to_space_fp32_gpu_i41021_bs1221_cb0201_ce0810_b_fs_yx_fsv16(bool
     ASSERT_EQ(output_ptr.size(), expected_results.size());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
 

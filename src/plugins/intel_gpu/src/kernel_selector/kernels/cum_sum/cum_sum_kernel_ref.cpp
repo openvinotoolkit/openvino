@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,8 +35,30 @@ ParamsKey CumSumKernelRef::GetSupportedKey() const {
 
 JitConstants CumSumKernelRef::GetJitConstants(const cum_sum_params& params, DispatchData dispatchData) const {
     auto jits = CumSumKernelBase::GetJitConstants(params, dispatchData);
+    auto axis_idx = GetCumSumAxisIndex(params);
 
-    jits.AddConstant(MakeJitConstant("AXIS_LAYOUT_INDEX", GetCumSumAxisIndex(params)));
+    jits.AddConstant(MakeJitConstant("AXIS_LAYOUT_INDEX", axis_idx));
+
+    if (params.reverse) {
+        const auto& output = params.outputs[0];
+        if (output.is_dynamic()) {
+            const int rank = static_cast<int>(output.LogicalDims().size());
+            auto idx = rank - axis_idx - 1;
+            int shape_info_idx = idx;
+            if (idx >= 2) {
+                shape_info_idx += (6 - rank);
+            }
+
+            size_t num_of_dynamic_inputs = 0;
+            for (auto& input : params.inputs) {
+                if (input.is_dynamic()) {
+                    num_of_dynamic_inputs += 1;
+                }
+            }
+
+            jits.AddConstant(MakeJitConstant("STOP_IND", toShapeInfoString(0, shape_info_idx, true, num_of_dynamic_inputs)));
+        }
+    }
 
     return jits;
 }

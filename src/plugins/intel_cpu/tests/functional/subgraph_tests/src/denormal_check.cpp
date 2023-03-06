@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -77,7 +77,6 @@ void SetUp() override {
 };
 
 TEST_F(DenormalNullifyCheck, smoke_CPU_Denormal_Check) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     using indexInterval = std::pair<size_t, size_t>;
     size_t elemsCount = pConstStorage->size();
     const indexInterval intervals[] = {

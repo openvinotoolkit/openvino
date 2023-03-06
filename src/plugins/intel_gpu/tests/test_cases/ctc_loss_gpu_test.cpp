@@ -104,39 +104,22 @@ public:
         topology.add(ctc_loss("ctc_loss", inputs_ids, p.preprocess_collapse_repeated, p.ctc_merge_repeated, p.unique));
         topology.add(reorder("reordered_ctc_loss", input_info("ctc_loss"), plane_format, float_data_type));
 
-        cldnn::network::ptr network;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topology);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-            }
-        } else {
-            network = std::make_shared<cldnn::network>(engine, topology);
-        }
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
         for (auto& input : inputs) {
             network->set_input_data(std::get<0>(input), std::get<1>(input));
         }
         const auto outputs = network->execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, "reordered_ctc_loss");
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "reordered_ctc_loss");
 
         auto output = outputs.at("reordered_ctc_loss").get_memory();
         cldnn::mem_lock<TF> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), p.expected_values.size());
         for (size_t i = 0; i < output_ptr.size(); ++i) {
-            EXPECT_NEAR(p.expected_values[i], output_ptr[i], 0.1);
+            ASSERT_NEAR(p.expected_values[i], output_ptr[i], 0.1);
         }
     }
 

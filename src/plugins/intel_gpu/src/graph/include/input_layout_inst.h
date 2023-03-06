@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "primitive_inst.h"
@@ -11,7 +10,6 @@
 #include <memory>
 
 namespace cldnn {
-struct memory;
 
 template <>
 struct typed_program_node<input_layout> : public typed_program_node_base<input_layout> {

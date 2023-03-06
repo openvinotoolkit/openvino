@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerCase1) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
+        manager.register_pass<ov::pass::DropoutWithRandomUniformReplacer>();
     }
 
     {
@@ -66,7 +66,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerCase2) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
+        manager.register_pass<ov::pass::DropoutWithRandomUniformReplacer>();
     }
 
     {
@@ -100,7 +100,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerWithConvert) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
+        manager.register_pass<ov::pass::DropoutWithRandomUniformReplacer>();
     }
 
     {
@@ -116,7 +116,6 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerWithConvert) {
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
     }
 }
-
 
 TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerAddConstNegative) {
     {
@@ -135,7 +134,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerAddConstNegative) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
+        manager.register_pass<ov::pass::DropoutWithRandomUniformReplacer>();
     }
 
     {
@@ -156,7 +155,6 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerAddConstNegative) {
     }
 }
 
-
 TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerNonFloatRUNegative) {
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
@@ -174,7 +172,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerNonFloatRUNegative)
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
+        manager.register_pass<ov::pass::DropoutWithRandomUniformReplacer>();
     }
 
     {
@@ -212,7 +210,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerInvalidMinNegative)
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
+        manager.register_pass<ov::pass::DropoutWithRandomUniformReplacer>();
     }
 
     {
@@ -250,7 +248,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerInvalidMaxNegative)
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
+        manager.register_pass<ov::pass::DropoutWithRandomUniformReplacer>();
     }
 
     {
@@ -271,7 +269,6 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerInvalidMaxNegative)
     }
 }
 
-
 TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerInvalidAddConstRankNegative) {
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::i32, ngraph::Shape{3});
@@ -289,7 +286,7 @@ TEST_F(TransformationTestsF, DropoutWithRandomUniformReplacerInvalidAddConstRank
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{floor}, ngraph::ParameterVector{input});
 
-        manager.register_pass<ngraph::pass::DropoutWithRandomUniformReplacer>();
+        manager.register_pass<ov::pass::DropoutWithRandomUniformReplacer>();
     }
 
     {

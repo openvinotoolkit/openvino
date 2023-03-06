@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -231,7 +231,7 @@ class LogicalNot(Activation):
 
     @staticmethod
     def type_infer(node: Node):
-        node.out_port(0).set_data_type(np.bool)
+        node.out_port(0).set_data_type(bool)
 
 
 class Log(Activation):

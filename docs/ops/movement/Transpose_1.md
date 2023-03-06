@@ -53,7 +53,7 @@
 </layer>
 ```
 
-*Example 2: input_order = empty 1D tensor of Shape[0]
+*Example 2: input_order = empty 1D tensor of Shape[0]*
 
 ```xml
 <layer ... type="Transpose">

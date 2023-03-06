@@ -1,9 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <mutex>
 
 #include "ov_test.hpp"
+
+namespace {
 
 inline void get_tensor_info(ov_model_t* model, bool input, char** name, ov_shape_t* shape, ov_element_type_e* type) {
     ov_output_const_port* port = nullptr;
@@ -398,3 +400,5 @@ TEST_P(ov_infer_request, get_profiling_info) {
 
     ov_profiling_info_list_free(&profiling_infos);
 }
+
+}  // namespace

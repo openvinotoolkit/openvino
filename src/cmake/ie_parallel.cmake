@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -141,6 +141,23 @@ macro(ov_find_package_tbb)
                     list(APPEND TBB_IMPORTED_TARGETS ${target})
                 endif()
             endforeach()
+
+            if(WIN32 AND TARGET TBB::tbbbind_2_5)
+                # Add HWLOC::hwloc_2_5 target to check via Apivalidator
+                get_target_property(TBB_location TBB::tbb IMPORTED_LOCATION_RELEASE)
+                get_filename_component(TBB_dir "${TBB_location}" DIRECTORY)
+                set(hwloc_dll_name "${CMAKE_SHARED_LIBRARY_PREFIX}hwloc${CMAKE_SHARED_LIBRARY_SUFFIX}")
+                find_file(HWLOC_DLL NAMES ${hwloc_dll_name} PATHS "${TBB_dir}" DOC "Path to hwloc.dll")
+                
+                if(NOT HWLOC_DLL)
+                    message(FATAL_ERROR "Failed to find ${hwloc_dll_name} in ${TBB_dir}")
+                endif()
+
+                add_library(HWLOC::hwloc_2_5 SHARED IMPORTED)
+                set_property(TARGET HWLOC::hwloc_2_5 APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
+                set_target_properties(HWLOC::hwloc_2_5 PROPERTIES
+                    IMPORTED_LOCATION_RELEASE "${HWLOC_DLL}")
+            endif()
         endif()
 
         if(NOT TBB_FOUND)
@@ -224,10 +241,12 @@ function(set_ie_threading_interface_for TARGET_NAME)
     endfunction()
 
     set(IE_THREAD_DEFINE "IE_THREAD_SEQ")
+    set(OV_THREAD_DEFINE "OV_THREAD_SEQ")
 
     if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
         if (TBB_FOUND)
             set(IE_THREAD_DEFINE "IE_THREAD_TBB")
+            set(OV_THREAD_DEFINE "OV_THREAD_TBB")
             ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} TBB::tbb)
             target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} TBB_PREVIEW_WAITING_FOR_WORKERS=1)
         else ()
@@ -273,6 +292,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
             set(THREADING "SEQ" PARENT_SCOPE)
         else ()
             set(IE_THREAD_DEFINE "IE_THREAD_OMP")
+            set(OV_THREAD_DEFINE "OV_THREAD_OMP")
 
             if (WIN32)
                 target_compile_options(${TARGET_NAME} ${LINK_TYPE} ${OpenMP_CXX_FLAGS} /openmp)
@@ -300,7 +320,8 @@ function(set_ie_threading_interface_for TARGET_NAME)
         endif ()
     endif ()
 
-    target_compile_definitions(${TARGET_NAME} ${LINK_TYPE} -DIE_THREAD=${IE_THREAD_DEFINE})
+    target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} -DIE_THREAD=${IE_THREAD_DEFINE})
+    target_compile_definitions(${TARGET_NAME} ${COMPILE_DEF_TYPE} -DOV_THREAD=${OV_THREAD_DEFINE})
 
     if (NOT THREADING STREQUAL "SEQ")
         find_package(Threads REQUIRED)

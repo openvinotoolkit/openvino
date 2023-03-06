@@ -11,7 +11,6 @@ frontends/          // OpenVINO frontends
 inference/          // Provides API for model inference
 plugins/            // OpenVINO plugins
 tests/              // A backed of tests binaries for core and plugins
-tests_deprecated/   // Deprecated tests
 ```
 
 ## OpenVINO Runtime library

@@ -34,7 +34,7 @@ struct experimental_detectron_topk_rois_gpu_test : public testing::Test {
         cldnn::mem_lock<input_type> out_ptr(mem, get_test_stream());
         ASSERT_EQ(expected_output.size(), out_ptr.size());
         for (size_t i = 0; i < expected_output.size(); ++i) {
-            EXPECT_NEAR(static_cast<input_type>(expected_output[i]), out_ptr[i], 0.0001) << "at i = " << i;
+            ASSERT_NEAR(static_cast<input_type>(expected_output[i]), out_ptr[i], 0.0001) << "at i = " << i;
         }
     }
 };
@@ -159,22 +159,7 @@ TEST(experimental_detectron_topk_rois_gpu_test, export_import) {
                                                   rois_num));
     topology.add(reorder("plane_output", input_info(experimental_detectron_topk_rois_id), format::bfyx, test_data_type));
 
-    cldnn::network::ptr network;
-
-    {
-        membuf mem_buf;
-        {
-            cldnn::network _network(engine, topology);
-            std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-            _network.save(ob);
-        }
-        {
-            std::istream in_mem(&mem_buf);
-            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-        }
-    }
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), true);
 
     network->set_input_data(input_rois_id, roi_input);
     network->set_input_data(input_indices_id, roi_indices);
@@ -187,6 +172,6 @@ TEST(experimental_detectron_topk_rois_gpu_test, export_import) {
     cldnn::mem_lock<float> out_ptr(out_mem, get_test_stream());
     ASSERT_EQ(expected_output.size(), out_ptr.size());
     for (size_t i = 0; i < expected_output.size(); ++i) {
-        EXPECT_NEAR(static_cast<float>(expected_output[i]), out_ptr[i], 0.0001) << "at i = " << i;
+        ASSERT_NEAR(static_cast<float>(expected_output[i]), out_ptr[i], 0.0001) << "at i = " << i;
     }
 }

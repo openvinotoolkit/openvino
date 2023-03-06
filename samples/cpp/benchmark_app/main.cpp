@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -176,9 +176,9 @@ void setDeviceProperty(ov::Core& core,
         return;
 
     if (device_config.find(device) == device_config.end() ||  // device properties not existed
-        config.first.empty() &&                               // not setting default value to property
-            (!FLAGS_load_config.empty() &&
-             is_dev_set_property[device])) {  // device properties loaded from file and overwrite is not happened
+        (config.first.empty() &&                              // not setting default value to property
+         (!FLAGS_load_config.empty() &&
+          is_dev_set_property[device]))) {  // device properties loaded from file and overwrite is not happened
         is_dev_set_property[device] = false;
         device_config.erase(device);
         device_config.insert(ov::device::properties(device, device_property));
@@ -198,6 +198,35 @@ void warn_if_no_batch(const benchmark_app::InputsInfo& first_inputs) {
         slog::warn
             << "No batch dimension was found, asssuming batch to be 1. Beware: this might affect FPS calculation."
             << slog::endl;
+    }
+}
+
+void fuse_mean_scale(ov::preprocess::PrePostProcessor& preproc, const benchmark_app::InputsInfo& app_inputs_info) {
+    // TODO: remove warning after 23.3 release
+    bool warned = false;
+    constexpr char warn_msg[] = "Mean/scale values are fused into the model. This slows down performance compared to "
+                                "--imean and --iscale which existed before";
+    for (const std::pair<std::string, benchmark_app::InputInfo> input_info : app_inputs_info) {
+        if (!input_info.second.mean.empty()) {
+            if (!warned) {
+                slog::warn << warn_msg << slog::endl;
+                warned = true;
+            }
+            preproc.input(input_info.first)
+                .preprocess()
+                .convert_element_type(ov::element::f32)
+                .mean(input_info.second.mean);
+        }
+        if (!input_info.second.scale.empty()) {
+            if (!warned) {
+                slog::warn << warn_msg << slog::endl;
+                warned = true;
+            }
+            preproc.input(input_info.first)
+                .preprocess()
+                .convert_element_type(ov::element::f32)
+                .scale(input_info.second.scale);
+        }
     }
 }
 }  // namespace
@@ -350,7 +379,7 @@ int main(int argc, char* argv[]) {
             auto ov_perf_hint = get_performance_hint(device, core);
             device_config.emplace(ov::hint::performance_mode(ov_perf_hint));
             if (FLAGS_nireq != 0)
-                device_config.emplace(ov::hint::num_requests(FLAGS_nireq));
+                device_config.emplace(ov::hint::num_requests(unsigned(FLAGS_nireq)));
 
             // Set performance counter
             if (isFlagSetInCommandLine("pc")) {
@@ -408,7 +437,7 @@ int main(int argc, char* argv[]) {
                             std::stringstream strm(it_device_nstreams->second);
                             std::map<std::string, std::string> devices_property;
                             ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
-                            for (auto it : devices_property) {
+                            for (const auto& it : devices_property) {
                                 if (device_config.find(it.first) == device_config.end() ||
                                     (is_load_config && is_dev_set_property[it.first])) {
                                     // Create ov::device::properties with ov::num_stream and
@@ -441,26 +470,24 @@ int main(int argc, char* argv[]) {
                                   "but it still may be non-optimal for some cases, for more "
                                   "information look at README."
                                << slog::endl;
-                    if (device.find("MYRIAD") == std::string::npos) {  // MYRIAD sets the default number of
-                                                                       // streams implicitly (without _AUTO)
-                        if (supported(key)) {
-                            device_config[key] = std::string(getDeviceTypeFromName(device) + "_THROUGHPUT_AUTO");
-                        } else if (supported(ov::num_streams.name())) {
-                            // Use API 2.0 key for streams
-                            key = ov::num_streams.name();
-                            device_config[key] = ov::streams::AUTO;
-                        } else if (device == "MULTI" || device == "AUTO") {
-                            // Set nstreams to default value auto if no nstreams specified from cmd line.
-                            for (auto& hwdevice : hardware_devices) {
-                                std::string key = std::string(getDeviceTypeFromName(hwdevice) + "_THROUGHPUT_STREAMS");
-                                auto value = std::string(getDeviceTypeFromName(hwdevice) + "_THROUGHPUT_AUTO");
-                                setDeviceProperty(core,
-                                                  hwdevice,
-                                                  device_config,
-                                                  ov::num_streams(ov::streams::AUTO),
-                                                  is_dev_set_property,
-                                                  std::make_pair(key, value));
-                            }
+
+                    if (supported(key)) {
+                        device_config[key] = std::string(getDeviceTypeFromName(device) + "_THROUGHPUT_AUTO");
+                    } else if (supported(ov::num_streams.name())) {
+                        // Use API 2.0 key for streams
+                        key = ov::num_streams.name();
+                        device_config[key] = ov::streams::AUTO;
+                    } else if (device == "MULTI" || device == "AUTO") {
+                        // Set nstreams to default value auto if no nstreams specified from cmd line.
+                        for (auto& hwdevice : hardware_devices) {
+                            std::string key = std::string(getDeviceTypeFromName(hwdevice) + "_THROUGHPUT_STREAMS");
+                            auto value = std::string(getDeviceTypeFromName(hwdevice) + "_THROUGHPUT_AUTO");
+                            setDeviceProperty(core,
+                                              hwdevice,
+                                              device_config,
+                                              ov::num_streams(ov::streams::AUTO),
+                                              is_dev_set_property,
+                                              std::make_pair(key, value));
                         }
                     }
                 }
@@ -473,20 +500,20 @@ int main(int argc, char* argv[]) {
                 auto it_device_infer_precision = device_infer_precision.find(device);
                 if (it_device_infer_precision != device_infer_precision.end()) {
                     // set to user defined value
-                    if (supported(ov::hint::inference_precision.name())) {
-                        device_config.emplace(ov::hint::inference_precision(it_device_infer_precision->second));
+                    if (supported(ov::inference_precision.name())) {
+                        device_config.emplace(ov::inference_precision(it_device_infer_precision->second));
                     } else if (device == "MULTI" || device == "AUTO") {
                         // check if the element contains the hardware device property
                         auto value_vec = split(it_device_infer_precision->second, ' ');
                         if (value_vec.size() == 1) {
-                            auto key = ov::hint::inference_precision.name();
+                            auto key = ov::inference_precision.name();
                             device_config[key] = it_device_infer_precision->second;
                         } else {
                             // set device inference_precison properties in the AUTO/MULTI plugin
                             std::stringstream strm(it_device_infer_precision->second);
                             std::map<std::string, std::string> devices_property;
                             ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
-                            for (auto it : devices_property) {
+                            for (const auto& it : devices_property) {
                                 if (device_config.find(it.first) == device_config.end() ||
                                     (is_load_config && is_dev_set_property[it.first])) {
                                     // Create ov::device::properties with ov::inference_precision and
@@ -496,16 +523,16 @@ int main(int argc, char* argv[]) {
                                     is_dev_set_property[it.first] = false;
                                     device_config.erase(it.first);
                                     device_config.insert(
-                                        ov::device::properties(it.first, ov::hint::inference_precision(it.second)));
+                                        ov::device::properties(it.first, ov::inference_precision(it.second)));
                                 } else {
                                     auto& property = device_config[it.first].as<ov::AnyMap>();
-                                    property.emplace(ov::hint::inference_precision(it.second));
+                                    property.emplace(ov::inference_precision(it.second));
                                 }
                             }
                         }
                     } else {
                         throw std::logic_error("Device " + device + " doesn't support config key '" +
-                                               ov::hint::inference_precision.name() + "'! " +
+                                               ov::inference_precision.name() + "'! " +
                                                "Please specify -infer_precision for correct devices in format  "
                                                "<dev1>:<infer_precision1>,<dev2>:<infer_precision2>" +
                                                " or via configuration file.");
@@ -524,7 +551,7 @@ int main(int argc, char* argv[]) {
 
             auto set_nthreads_pin = [&](const std::string& str) {
                 auto property_name = str == "nthreads" ? ov::inference_num_threads.name() : ov::affinity.name();
-                auto property = str == "nthreads" ? ov::inference_num_threads(FLAGS_nthreads)
+                auto property = str == "nthreads" ? ov::inference_num_threads(int(FLAGS_nthreads))
                                                   : ov::affinity(fix_pin_option(FLAGS_pin));
                 if (supported(property_name) || device_name == "AUTO") {
                     // create nthreads/pin primary property for HW device or AUTO if -d is AUTO directly.
@@ -549,9 +576,6 @@ int main(int argc, char* argv[]) {
                 // for CPU and GPU execution, more throughput-oriented execution via streams
                 setThroughputStreams();
                 set_infer_precision();
-            } else if (device.find("MYRIAD") != std::string::npos) {
-                device_config.emplace(ov::log::level(ov::log::Level::WARNING));
-                setThroughputStreams();
             } else if (device.find("GNA") != std::string::npos) {
                 set_infer_precision();
             } else if (device.find("AUTO") != std::string::npos) {
@@ -582,11 +606,14 @@ int main(int argc, char* argv[]) {
                 device_nstreams.erase(device);
             }
         }
-
-        for (auto&& item : config) {
-            core.set_property(item.first, item.second);
-        }
-
+        auto result = std::find_if(config.begin(), config.end(), [&](const std::pair<std::string, ov::AnyMap>& item) {
+            if (device_name.find(item.first) == 0)
+                return true;
+            return false;
+        });
+        ov::AnyMap device_config = {};
+        if (result != config.end())
+            device_config = result->second;
         size_t batchSize = FLAGS_b;
         ov::element::Type type = ov::element::undefined;
         std::string topology_name = "";
@@ -600,12 +627,17 @@ int main(int argc, char* argv[]) {
 
         // If set batch size, disable the auto batching
         if (FLAGS_b > 0) {
+            slog::warn << "Batch size is set. Auto batching will be disabled" << slog::endl;
             core.set_property(ov::hint::allow_auto_batching(false));
         }
 
         bool isDynamicNetwork = false;
 
         if (FLAGS_load_from_file && !isNetworkCompiled) {
+            if (!FLAGS_mean_values.empty() || !FLAGS_scale_values.empty()) {
+                throw std::runtime_error("--mean_values and --scale_values aren't supported with --load_from_file. "
+                                         "The values can be set via model_optimizer while generating xml");
+            }
             next_step();
             slog::info << "Skipping the step for loading model from file" << slog::endl;
             next_step();
@@ -613,7 +645,7 @@ int main(int argc, char* argv[]) {
             next_step();
             slog::info << "Skipping the step for loading model from file" << slog::endl;
             auto startTime = Time::now();
-            compiledModel = core.compile_model(FLAGS_m, device_name);
+            compiledModel = core.compile_model(FLAGS_m, device_name, device_config);
             auto duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Compile model took " << double_to_string(duration_ms) << " ms" << slog::endl;
             slog::info << "Original model I/O parameters:" << slog::endl;
@@ -630,8 +662,8 @@ int main(int argc, char* argv[]) {
                                               batchSize,
                                               FLAGS_data_shape,
                                               inputFiles,
-                                              FLAGS_iscale,
-                                              FLAGS_imean,
+                                              FLAGS_scale_values,
+                                              FLAGS_mean_values,
                                               compiledModel.inputs());
             if (batchSize == 0) {
                 batchSize = 1;
@@ -657,7 +689,7 @@ int main(int argc, char* argv[]) {
 
             const auto& inputInfo = std::const_pointer_cast<const ov::Model>(model)->inputs();
             if (inputInfo.empty()) {
-                throw std::logic_error("no inputs info is provided");
+                throw std::logic_error("No inputs info is provided");
             }
 
             // ----------------- 5. Resizing network to match image sizes and given
@@ -677,8 +709,8 @@ int main(int argc, char* argv[]) {
                                               FLAGS_b,
                                               FLAGS_data_shape,
                                               inputFiles,
-                                              FLAGS_iscale,
-                                              FLAGS_imean,
+                                              FLAGS_scale_values,
+                                              FLAGS_mean_values,
                                               inputInfo,
                                               reshape);
             if (reshape) {
@@ -713,7 +745,7 @@ int main(int argc, char* argv[]) {
             const auto output_precision = FLAGS_op.empty() ? ov::element::undefined : getPrecision2(FLAGS_op);
 
             const auto& inputs = model->inputs();
-            for (int i = 0; i < inputs.size(); i++) {
+            for (size_t i = 0; i < inputs.size(); i++) {
                 const auto& item = inputs[i];
                 auto iop_precision = ov::element::undefined;
                 auto type_to_set = ov::element::undefined;
@@ -751,8 +783,10 @@ int main(int argc, char* argv[]) {
                 }
             }
 
+            fuse_mean_scale(preproc, app_inputs_info.at(0));
+
             const auto& outs = model->outputs();
-            for (int i = 0; i < outs.size(); i++) {
+            for (size_t i = 0; i < outs.size(); i++) {
                 const auto& item = outs[i];
                 auto iop_precision = ov::element::undefined;
                 try {
@@ -790,7 +824,7 @@ int main(int argc, char* argv[]) {
             // --------------------------------------------------------
             next_step();
             startTime = Time::now();
-            compiledModel = core.compile_model(model, device_name);
+            compiledModel = core.compile_model(model, device_name, device_config);
             duration_ms = get_duration_ms_till_now(startTime);
             slog::info << "Compile model took " << double_to_string(duration_ms) << " ms" << slog::endl;
             if (statistics)
@@ -798,6 +832,10 @@ int main(int argc, char* argv[]) {
                     StatisticsReport::Category::EXECUTION_RESULTS,
                     {StatisticsVariant("compile model time (ms)", "load_model_time", duration_ms)});
         } else {
+            if (!FLAGS_mean_values.empty() || !FLAGS_scale_values.empty()) {
+                throw std::runtime_error("--mean_values and --scale_values aren't supported for compiled model. "
+                                         "The values can be set via model_optimizer while generating xml");
+            }
             next_step();
             slog::info << "Skipping the step for compiled model" << slog::endl;
             next_step();
@@ -832,8 +870,8 @@ int main(int argc, char* argv[]) {
                                               FLAGS_b,
                                               FLAGS_data_shape,
                                               inputFiles,
-                                              FLAGS_iscale,
-                                              FLAGS_imean,
+                                              FLAGS_scale_values,
+                                              FLAGS_mean_values,
                                               compiledModel.inputs());
             if (batchSize == 0) {
                 batchSize = 1;
@@ -881,7 +919,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Number of requests
-        uint32_t nireq = FLAGS_nireq;
+        uint64_t nireq = FLAGS_nireq;
         if (nireq == 0) {
             if (FLAGS_api == "sync") {
                 nireq = 1;
@@ -898,7 +936,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Iteration limit
-        uint32_t niter = FLAGS_niter;
+        uint64_t niter = FLAGS_niter;
         size_t shape_groups_num = app_inputs_info.size();
         if ((niter > 0) && (FLAGS_api == "async")) {
             if (shape_groups_num > nireq) {
@@ -918,7 +956,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Time limit
-        uint32_t duration_seconds = 0;
+        uint64_t duration_seconds = 0;
         if (FLAGS_t != 0) {
             // time limit
             duration_seconds = FLAGS_t;
@@ -1180,7 +1218,7 @@ int main(int argc, char* argv[]) {
         std::vector<LatencyMetrics> groupLatencies = {};
         if (FLAGS_pcseq && app_inputs_info.size() > 1) {
             const auto& lat_groups = inferRequestsQueue.get_latency_groups();
-            for (int i = 0; i < lat_groups.size(); i++) {
+            for (size_t i = 0; i < lat_groups.size(); i++) {
                 const auto& lats = lat_groups[i];
 
                 std::string data_shapes_string = "";

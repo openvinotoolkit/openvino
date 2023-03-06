@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@ public:
     virtual ~ConvolutionKernel_b_fs_yx_fsv_16_32_imad_dw() {}
 
     ParamsKey GetSupportedKey() const override;
+    DeviceFeaturesKey get_required_device_features_key(const Params& params, const optional_params& /*options*/) const override;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     KernelsData GetKernelsDataForAutoTune(const Params & params, const optional_params & options) const override;
     KernelsData GetTunedKernelsDataByIndex(const Params & params, const optional_params & options, int autoTuneIndex = -1) const override;

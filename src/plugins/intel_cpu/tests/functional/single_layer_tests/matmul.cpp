@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -86,7 +86,7 @@ public:
         result << "outPRC=" << outType << "_";
         result << "trgDev=" << targetDevice;
         result << "config=(";
-        for (const auto configEntry : additionalConfig) {
+        for (const auto& configEntry : additionalConfig) {
             result << configEntry.first << ", " << configEntry.second << ":";
         }
         result << ")";
@@ -172,7 +172,6 @@ protected:
 };
 
 TEST_P(MatMulLayerCPUTest, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // due to disabled BF16 fakequant fusing: src/plugins/intel_cpu/src/graph_optimizer.cpp#L755, skip this case
     if (inType == ElementType::bf16) {
         if (cpuNodeType == "FullyConnected") {

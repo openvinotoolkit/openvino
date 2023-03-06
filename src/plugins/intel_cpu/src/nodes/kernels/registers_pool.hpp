@@ -30,6 +30,7 @@ using namespace dnnl::impl::cpu;
 class RegistersPool {
 public:
     using Ptr = std::shared_ptr<RegistersPool>;
+    using WeakPtr = std::weak_ptr<RegistersPool>;
     static constexpr int anyIdx = -1;
 
     /**
@@ -65,12 +66,12 @@ public:
             return lhs.operator Xbyak::RegExp() + rhs;
         }
         void release() {
-            if (regPool) {
-                regPool->returnToPool(reg);
+            if (auto pool = regPool.lock()) {
+                pool->returnToPool(reg);
                 regPool.reset();
             }
         }
-        bool isInitialized() const { return static_cast<bool>(regPool); }
+        bool isInitialized() const { return !regPool.expired(); }
 
     private:
         void ensureValid() const {
@@ -91,7 +92,7 @@ public:
 
     private:
         TReg reg;
-        RegistersPool::Ptr regPool;
+        RegistersPool::WeakPtr regPool;
     };
 
     virtual ~RegistersPool() {
@@ -124,7 +125,7 @@ protected:
     public:
         PhysicalSet(int size) : isFreeIndexVector(size, true) {}
 
-        void setAsUsed(int regIdx) {
+        void setAsUsed(size_t regIdx) {
             if (regIdx >= isFreeIndexVector.size() || regIdx < 0) {
                 IE_THROW() << "regIdx is out of bounds in RegistersPool::PhysicalSet::setAsUsed()";
             }
@@ -134,7 +135,7 @@ protected:
             isFreeIndexVector[regIdx] = false;
         }
 
-        void setAsUnused(int regIdx) {
+        void setAsUnused(size_t regIdx) {
             if (regIdx >= isFreeIndexVector.size() || regIdx < 0) {
                 IE_THROW() << "regIdx is out of bounds in RegistersPool::PhysicalSet::setAsUsed()";
             }
@@ -144,7 +145,7 @@ protected:
             isFreeIndexVector[regIdx] = true;
         }
 
-        int getUnused(int requestedIdx) {
+        size_t getUnused(size_t requestedIdx) {
             if (requestedIdx == anyIdx) {
                 return getFirstFreeIndex();
             } else {
@@ -173,8 +174,8 @@ protected:
         }
 
     private:
-        int getFirstFreeIndex() {
-            for (int c = 0; c < isFreeIndexVector.size(); ++c) {
+        size_t getFirstFreeIndex() {
+            for (size_t c = 0; c < isFreeIndexVector.size(); ++c) {
                 if (isFreeIndexVector[c]) {
                     return c;
                 }
@@ -329,19 +330,19 @@ RegistersPool::Ptr RegistersPool::create(x64::cpu_isa_t isa, std::initializer_li
         ISA_SWITCH_CASE(x64::avx512_core_vnni)
         ISA_SWITCH_CASE(x64::avx512_core_bf16)
         ISA_SWITCH_CASE(x64::avx512_core_fp16)
-        case x64::avx_vnni: return std::make_shared<IsaRegistersPool<x64::avx>>(regsToExclude);
         case x64::avx512_core_bf16_ymm: return std::make_shared<IsaRegistersPool<x64::avx512_core>>(regsToExclude);
-        case x64::avx512_core_bf16_amx_int8: return std::make_shared<IsaRegistersPool<x64::avx512_core>>(regsToExclude);
-        case x64::avx512_core_bf16_amx_bf16: return std::make_shared<IsaRegistersPool<x64::avx512_core>>(regsToExclude);
         case x64::avx512_core_amx: return std::make_shared<IsaRegistersPool<x64::avx512_core>>(regsToExclude);
         case x64::avx512_vpopcnt: return std::make_shared<IsaRegistersPool<x64::avx512_core>>(regsToExclude);
-        case x64::isa_any:
+        case x64::isa_undef:
         case x64::amx_tile:
         case x64::amx_int8:
         case x64::amx_bf16:
+        case x64::avx2_vnni_2:
+        case x64::amx_fp16:
+        case x64::avx512_core_amx_fp16:
         case x64::isa_all:
             IE_THROW() << "Invalid isa argument in RegistersPool::create()";
-    }
+        }
     IE_THROW() << "Invalid isa argument in RegistersPool::create()";
 #undef ISA_SWITCH_CASE
 }

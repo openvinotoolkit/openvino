@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "test_utils.h"
 
@@ -215,24 +213,7 @@ public:
         const primitive_id reorder_result_id = result_id + "_reordered";
         topology.add(reorder(reorder_result_id, input_info(result_id), plain_layout, data_type));
 
-        cldnn::network::ptr network;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topology);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-            }
-        } else {
-            network = std::make_shared<cldnn::network>(engine, topology);
-        }
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data(step_id, step_input);
         network->set_input_data(parent_id, parent_input);
@@ -247,7 +228,7 @@ public:
         ASSERT_EQ(params.final_id_tensor.count(), out_ptr.size());
 
         for (size_t i = 0; i < params.final_id.size(); ++i) {
-            EXPECT_NEAR(params.final_id[i], out_ptr[i], 0.005) << "at i = " << i;
+            ASSERT_NEAR(params.final_id[i], out_ptr[i], 0.005) << "at i = " << i;
         }
     }
 };

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,7 @@ struct reg_traits_by_size<1> {
     using type = Xbyak::Reg8;
     constexpr static size_t size = 1;           // in bytes
     constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa
-                        = dnnl::impl::cpu::x64::cpu_isa_t::isa_any;
+                        = dnnl::impl::cpu::x64::cpu_isa_t::isa_undef;
 };
 
 template<>
@@ -42,7 +42,7 @@ struct reg_traits_by_size<2> {
     using type = Xbyak::Reg16;
     constexpr static size_t size = 2;           // in bytes
     constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa
-                        = dnnl::impl::cpu::x64::cpu_isa_t::isa_any;
+                        = dnnl::impl::cpu::x64::cpu_isa_t::isa_undef;
 };
 
 template<>
@@ -50,7 +50,7 @@ struct reg_traits_by_size<4> {
     using type = Xbyak::Reg32;
     constexpr static size_t size = 4;           // in bytes
     constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa
-                        = dnnl::impl::cpu::x64::cpu_isa_t::isa_any;
+                        = dnnl::impl::cpu::x64::cpu_isa_t::isa_undef;
 };
 
 template<>
@@ -58,7 +58,7 @@ struct reg_traits_by_size<8> {
     using type = Xbyak::Reg64;
     constexpr static size_t size = 8;           // in bytes
     constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa
-                        = dnnl::impl::cpu::x64::cpu_isa_t::isa_any;
+                        = dnnl::impl::cpu::x64::cpu_isa_t::isa_undef;
 };
 
 template<>
@@ -103,7 +103,7 @@ struct reg_traits<float> {
     using type = Xbyak::Fpu;
     constexpr static size_t size = 10;          // in bytes
     constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa
-                        = dnnl::impl::cpu::x64::cpu_isa_t::isa_any;
+                        = dnnl::impl::cpu::x64::cpu_isa_t::isa_undef;
 };
 template<>
 struct reg_traits<double> : public reg_traits<float> {};
@@ -326,7 +326,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res += rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator += (arithmetic_type rhs) const {
         base::_kernel.add(base::reg(), rhs);
@@ -336,7 +336,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res += rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator -= (reg_type & rhs) const {
         base::_kernel.sub(base::reg(), rhs);
@@ -346,7 +346,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res -= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator -= (arithmetic_type rhs) const {
         base::_kernel.sub(base::reg(), rhs);
@@ -356,7 +356,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res -= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator *= (reg_type & rhs) const {
         base::_kernel.imul(base::reg(), rhs);
@@ -366,7 +366,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res *= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator *= (arithmetic_type rhs) const {
         base::_kernel.imul(base::reg(), base::reg(), static_cast<int>(rhs));
@@ -376,7 +376,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res *= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator &= (reg_type & rhs) const {
         base::_kernel.and_(base::reg(), rhs);
@@ -386,7 +386,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res &= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator &= (T rhs) const {
         base::_kernel.and_(base::reg(), rhs);
@@ -396,7 +396,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res &= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator |= (reg_type & rhs) const {
         base::_kernel.or_(base::reg(), rhs);
@@ -406,7 +406,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res |= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator |= (T rhs) const {
         base::_kernel.or_(base::reg(), rhs);
@@ -416,7 +416,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res |= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator >>= (size_t rhs) const {
         base::_kernel.shr(base::reg(), rhs);
@@ -426,7 +426,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res >>= rhs;
-        return std::move(res);
+        return res;
     }
     const variable & operator <<= (size_t rhs) const {
         base::_kernel.shl(base::reg(), rhs);
@@ -436,7 +436,7 @@ public:
         variable res(base::_kernel);
         res = base::reg();
         res <<= rhs;
-        return std::move(res);
+        return res;
     }
 
     boolean_expression<T> operator == (const variable & rhs) const {
@@ -852,7 +852,7 @@ jit_kernel::variable<T> jit_kernel::var(const T & val) {
     const auto & reg = reserve<reg_type>();
     variable<T> res(*this, internal::make_shared(reg, *this));
     res = val;
-    return std::move(res);
+    return res;
 }
 
 template<typename T>
@@ -884,7 +884,7 @@ shared_reg<Reg> make_shared(Reg & reg, jit_kernel & kernel) {
             kernel.free(*preg);
         } catch(...) {}
     });
-    return std::move(ptr);
+    return ptr;
 }
 
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

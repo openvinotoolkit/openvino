@@ -1,18 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs elementwise select operation on two input primitives with selector primitive (mask)
 /// @notes
@@ -47,8 +40,14 @@ struct select : public primitive_base<select> {
 
     /// @brief Define auto broadcast rule specification.
     ov::op::AutoBroadcastSpec broadcast_spec;
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const select>(rhs);
+
+        return broadcast_spec == rhs_casted.broadcast_spec;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

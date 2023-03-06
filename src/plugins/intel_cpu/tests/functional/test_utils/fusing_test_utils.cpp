@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ CpuTestWithFusing::modifyGraph(const ngraph::element::Type &ngPrc, ngraph::Param
     return retNode;
 }
 
-void CpuTestWithFusing::CheckFusingResults(const std::shared_ptr<const ov::Model>& function, const std::string& nodeType) const {
+void CpuTestWithFusing::CheckFusingResults(const std::shared_ptr<const ov::Model>& function, const std::set<std::string>& nodeType) const {
     ASSERT_NE(nullptr, function);
     bool isNodeFound = false;
     for (const auto & op : function->get_ops()) {
@@ -49,22 +49,29 @@ void CpuTestWithFusing::CheckFusingResults(const std::shared_ptr<const ov::Model
         };
 
         auto layerType = getExecValue("layerType", rtInfo);
-        if (layerType == nodeType) {
+        if (nodeType.count(layerType)) {
             isNodeFound = true;
             auto originalLayersNames = getExecValue("originalLayersNames", rtInfo);
             std::string opFriendlyName = op->get_friendly_name();
-            auto pos = originalLayersNames.find(opFriendlyName);
-            ASSERT_TRUE(pos != std::string::npos) << "Operation name " << op->get_friendly_name() << " has not been found in originalLayersNames!";
+            ASSERT_TRUE(originalLayersNames.find(opFriendlyName) != std::string::npos)
+                << "Operation name " << opFriendlyName << " has not been found in originalLayersNames!";
+
+            size_t pos = 0;
             for (const auto& fusedOp : fusedOps) {
                 pos = originalLayersNames.find(fusedOp, checkFusingPosition ? pos : 0);
                 ASSERT_TRUE(pos != std::string::npos) << "Fused op " << fusedOp << " has not been found!";
             }
         }
     }
-    ASSERT_TRUE(isNodeFound) << "Node type name: \"" << nodeType << "\" has not been found.";
+    std::stringstream error_message;
+    error_message << "Node with types \"";
+    for (const auto& elem : nodeType)
+        error_message << elem << ", ";
+    error_message << "\" wasn't found";
+    ASSERT_TRUE(isNodeFound) << error_message.str();
 }
 
-void CpuTestWithFusing::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov::Model>& function, const std::string& nodeType) const {
+void CpuTestWithFusing::CheckPluginRelatedResultsImpl(const std::shared_ptr<const ov::Model>& function, const std::set<std::string>& nodeType) const {
     CPUTestsBase::CheckPluginRelatedResultsImpl(function, nodeType);
     CheckFusingResults(function, nodeType);
 }

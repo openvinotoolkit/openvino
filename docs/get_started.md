@@ -5,22 +5,12 @@
 .. toctree::
    :maxdepth: 1
    :hidden:
-   :caption: Install & Config
    
    Installing OpenVINO <openvino_docs_install_guides_overview>
    Additional Configurations <openvino_docs_install_guides_configurations_header>
    Uninstalling <openvino_docs_install_guides_uninstalling_openvino>
    Troubleshooting <openvino_docs_get_started_guide_troubleshooting>
    
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-   :caption: Get Started Guides
-   
-   Interactive Tutorials (Python) <tutorials>
-   Samples <openvino_docs_OV_UG_Samples_Overview>
-
-
 @endsphinxdirective
  
 @sphinxdirective
@@ -44,7 +34,7 @@
 Try out OpenVINO's capabilities with this quick start example that estimates depth in a scene using an OpenVINO monodepth model. <a href="https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F201-vision-monodepth%2F201-vision-monodepth.ipynb">Run the example in a Jupyter Notebook inside your web browser</a> to quickly see how to load a model, prepare an image, inference the image, and display the result.
 
    
-## <a name="install-openvino"></a>2. Install OpenVINO
+## <a name="install-openvino-gsg"></a>2. Install OpenVINO
    
 See the [installation overview page](./install_guides/installing-openvino-overview.md) for options to install OpenVINO and set up a development environment on your device.
    
@@ -98,5 +88,5 @@ Pipeline and model configuration features in OpenVINO Runtime allow you to easil
    
 ### <a name="additional-resources"></a>Additional Resources
 * [OpenVINO Success Stories](https://www.intel.com/content/www/us/en/internet-of-things/ai-in-production/success-stories.html) - See how Intel partners have successfully used OpenVINO in production applications to solve real-world problems.
-* OpenVINO Supported Models (coming soon!) - Check which models OpenVINO supports on your hardware
-* [Performance Benchmarks](./benchmarks/performance_benchmarks.md) - View results from benchmarking models with OpenVINO on Intel hardware
+* [OpenVINO Supported Models](./resources/supported_models.md) - Check which models OpenVINO supports on your hardware.
+* [Performance Benchmarks](./benchmarks/performance_benchmarks.md) - View results from benchmarking models with OpenVINO on Intel hardware.

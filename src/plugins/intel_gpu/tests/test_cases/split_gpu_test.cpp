@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,6 +7,7 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/split.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
 
 #include <sstream>
 #include <iomanip>
@@ -35,14 +36,15 @@ void check_feature_map(T* output_ptr, std::vector<T> &input_vec, size_t batch_nu
             for (size_t x = 0; x < x_size; ++x) { //X
                 auto linear_id = x + x_size * (y + y_size * (feature_id + feature_num * b));
                 auto output_linear_id = x + x_size * (y + y_size * b);
-                EXPECT_EQ(output_ptr[output_linear_id], input_vec[linear_id] * factor);
+                ASSERT_EQ(output_ptr[output_linear_id], input_vec[linear_id] * factor);
             }
         }
     }
 }
 
 template<typename T>
-void split_test(int batch_num, int feature_num, int x_size, int y_size, std::vector<cldnn::tensor> split_offsets)
+void split_test(int batch_num, int feature_num, int x_size, int y_size, std::vector<cldnn::tensor> split_offsets,
+                bool is_caching_test)
 {
     auto& engine = get_test_engine();
     cldnn::tensor reference_input_size = { batch_num, feature_num, x_size, y_size };
@@ -72,13 +74,13 @@ void split_test(int batch_num, int feature_num, int x_size, int y_size, std::vec
     std::vector<T> input_vec = generate_random_input<T>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
 
-    network network(engine, topology);
-    network.set_input_data("input", input);
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    network->set_input_data("input", input);
 
-    auto outputs = network.execute();
+    auto outputs = network->execute();
 
     // The number of splits should match the expected number of splits
-    EXPECT_EQ(outputs.size(), size_t(split_offsets.size()));
+    ASSERT_EQ(outputs.size(), size_t(split_offsets.size()));
 
     std::vector<cldnn::tensor> expected_sizes;
     for (size_t splitNum = 0; splitNum < split_offsets.size(); splitNum++)  // Calculate the expected sizes
@@ -111,7 +113,7 @@ void split_test(int batch_num, int feature_num, int x_size, int y_size, std::vec
         primitive_id split_id = "split:" + create_split_id(splitNum);
         cldnn::memory::ptr output = outputs.at(split_id).get_memory();
         auto prim = output->get_layout();
-        EXPECT_EQ(prim.get_tensor(), expected_sizes[splitNum]);
+        ASSERT_EQ(prim.get_tensor(), expected_sizes[splitNum]);
         cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
         // Output tensor size
@@ -147,7 +149,7 @@ void split_test(int batch_num, int feature_num, int x_size, int y_size, std::vec
                     for (auto x = 0; x < output_x; x++) {  // X
                         auto linear_id = input_x_itr + x_size * (input_y_itr + y_size * (input_feature_itr + feature_num * input_batch_itr)); // index in input
                         auto output_linear_id = x + output_x * (y + output_y * (f + output_feature * b)); // index in output
-                        EXPECT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
+                        ASSERT_EQ(output_ptr[output_linear_id], input_vec[linear_id]);
                         input_x_itr++;  // update the input x iterator
                     }
                     input_y_itr++;  // update the input y iterator
@@ -177,7 +179,7 @@ TEST(split_gpu_f32, split_1d_uneven_2_splits) {
                                                 {0, 1, 0, 0}
                                                };
 
-    split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets);
+    split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets, false);
 }
 
 TEST(split_gpu_i64, split_1d_uneven_2_splits) {
@@ -198,7 +200,7 @@ TEST(split_gpu_i64, split_1d_uneven_2_splits) {
                                                 {0, 1, 0, 0}
                                                };
 
-    split_test<int64_t>(batch_num, feature_num, x_size, y_size, split_offsets);
+    split_test<int64_t>(batch_num, feature_num, x_size, y_size, split_offsets, false);
 }
 
 TEST(split_gpu_f32, basic_split_concat_optimization) {
@@ -223,9 +225,9 @@ TEST(split_gpu_f32, basic_split_concat_optimization) {
     topology.add(concatenation("concat", inputs, 1));
     topology.add(reorder("output", input_info("concat"), format::bfyx, data_types::f32));
 
-    build_options opts;
-    opts.set_option(build_option::optimize_data(true));
-    network network(engine, topology, opts);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
 
     network.set_input_data("input", input);
 
@@ -237,7 +239,7 @@ TEST(split_gpu_f32, basic_split_concat_optimization) {
 
     for (int i = 0; i < 25*256; ++i)
     {
-        EXPECT_EQ(output_ptr[i], input_ptr[i]);
+        ASSERT_EQ(output_ptr[i], input_ptr[i]);
     }
 }
 
@@ -263,9 +265,9 @@ TEST(split_gpu_i64, basic_split_concat_optimization) {
     topology.add(concatenation("concat", inputs, 1));
     topology.add(reorder("output", input_info("concat"), format::bfyx, data_types::i64));
 
-    build_options opts;
-    opts.set_option(build_option::optimize_data(true));
-    network network(engine, topology, opts);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
 
     network.set_input_data("input", input);
 
@@ -277,7 +279,7 @@ TEST(split_gpu_i64, basic_split_concat_optimization) {
 
     for (int i = 0; i < 25*256; ++i)
     {
-        EXPECT_EQ(output_ptr[i], input_ptr[i]);
+        ASSERT_EQ(output_ptr[i], input_ptr[i]);
     }
 }
 
@@ -302,7 +304,7 @@ TEST(split_gpu_f32, split_1d_uneven_3_splits) {
                                                 {0, 4, 0, 0},
                                                };
 
-    split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets);
+    split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets, false);
 }
 
 TEST(split_gpu_i64, split_1d_uneven_3_splits) {
@@ -326,7 +328,7 @@ TEST(split_gpu_i64, split_1d_uneven_3_splits) {
                                                 {0, 4, 0, 0},
                                                };
 
-    split_test<int64_t>(batch_num, feature_num, x_size, y_size, split_offsets);
+    split_test<int64_t>(batch_num, feature_num, x_size, y_size, split_offsets, false);
 }
 
 TEST(split_gpu_f32, split_2d_uneven_2_splits) {
@@ -347,7 +349,7 @@ TEST(split_gpu_f32, split_2d_uneven_2_splits) {
                                                 {0, 1, 4, 0}
                                                };
 
-    split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets);
+    split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets, false);
 }
 
 TEST(split_gpu_i64, split_2d_uneven_2_splits) {
@@ -368,7 +370,7 @@ TEST(split_gpu_i64, split_2d_uneven_2_splits) {
                                                 {0, 1, 4, 0}
                                                };
 
-    split_test<int64_t>(batch_num, feature_num, x_size, y_size, split_offsets);
+    split_test<int64_t>(batch_num, feature_num, x_size, y_size, split_offsets, false);
 }
 
 TEST(split_gpu_f32, split_2d_uneven_3_split3) {
@@ -392,7 +394,7 @@ TEST(split_gpu_f32, split_2d_uneven_3_split3) {
                                                 {0, 4, 7, 0},
                                                };
 
-    split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets);
+    split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets, false);
 }
 
 TEST(split_gpu_i64, split_2d_uneven_3_split3) {
@@ -416,7 +418,7 @@ TEST(split_gpu_i64, split_2d_uneven_3_split3) {
                                                 {0, 4, 7, 0},
                                                };
 
-    split_test<int64_t>(batch_num, feature_num, x_size, y_size, split_offsets);
+    split_test<int64_t>(batch_num, feature_num, x_size, y_size, split_offsets, false);
 }
 
 TEST(split_gpu_f32, split_3d_uneven_2_splits) {
@@ -437,7 +439,7 @@ TEST(split_gpu_f32, split_3d_uneven_2_splits) {
                                                 {0, 1, 4, 1}
                                                };
 
-    split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets);
+    split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets, false);
 }
 
 TEST(split_gpu_i64, split_3d_uneven_2_splits) {
@@ -458,7 +460,7 @@ TEST(split_gpu_i64, split_3d_uneven_2_splits) {
                                                 {0, 1, 4, 1}
                                                };
 
-    split_test<int64_t>(batch_num, feature_num, x_size, y_size, split_offsets);
+    split_test<int64_t>(batch_num, feature_num, x_size, y_size, split_offsets, false);
 }
 
 TEST(split_gpu_f32, split_3d_uneven_3_splits) {
@@ -482,7 +484,7 @@ TEST(split_gpu_f32, split_3d_uneven_3_splits) {
                                                 {0, 7, 8, 2}
                                                };
 
-    split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets);
+    split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets, false);
 }
 
 TEST(split_gpu_i64, split_3d_uneven_3_splits) {
@@ -506,7 +508,7 @@ TEST(split_gpu_i64, split_3d_uneven_3_splits) {
                                                 {0, 7, 8, 2}
                                                };
 
-    split_test<int64_t>(batch_num, feature_num, x_size, y_size, split_offsets);
+    split_test<int64_t>(batch_num, feature_num, x_size, y_size, split_offsets, false);
 }
 
 TEST(split_gpu_f32, basic_in2x3x2x2_split_feature_bfyx) {
@@ -544,7 +546,7 @@ TEST(split_gpu_f32, basic_in2x3x2x2_split_feature_bfyx) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(3));
+    ASSERT_EQ(outputs.size(), size_t(3));
 
     for (unsigned int i = 0; i < 3; i++)
     {
@@ -590,7 +592,7 @@ TEST(split_gpu_i64, basic_in2x3x2x2_split_feature_bfyx) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(3));
+    ASSERT_EQ(outputs.size(), size_t(3));
 
     for (unsigned int i = 0; i < 3; i++)
     {
@@ -656,7 +658,7 @@ TEST(split_gpu_f32, basic_in2x3x2x2_split_scale_feature_bfyx) {
 
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(3));
+    ASSERT_EQ(outputs.size(), size_t(3));
 
     for (unsigned int i = 0; i < 3; i++)
     {
@@ -665,4 +667,167 @@ TEST(split_gpu_f32, basic_in2x3x2x2_split_scale_feature_bfyx) {
         cldnn::mem_lock<float> output_ptr(output, get_test_stream());
         check_feature_map<float>(output_ptr.data(), input_vec, batch_num, feature_num, y_size, x_size, i, i + 1);
     }
+}
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST(split_gpu_f32, split_1d_uneven_2_splits_cached) {
+    auto batch_num = 2;
+    auto feature_num = 4;
+    auto x_size = 3;
+    auto y_size = 3;
+    std::vector<cldnn::tensor> split_offsets = {
+                                                {0, 0, 0, 0},
+                                                {0, 1, 0, 0}
+                                               };
+
+    split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets, true);
+}
+
+TEST(split_gpu_i64, split_1d_uneven_2_splits_cached) {
+    auto batch_num = 2;
+    auto feature_num = 4;
+    auto x_size = 3;
+    auto y_size = 3;
+    std::vector<cldnn::tensor> split_offsets = {
+                                                {0, 0, 0, 0},
+                                                {0, 1, 0, 0}
+                                               };
+
+    split_test<int64_t>(batch_num, feature_num, x_size, y_size, split_offsets, true);
+}
+
+TEST(split_gpu_f32, split_1d_uneven_3_splits_cached) {
+    auto batch_num = 2;
+    auto feature_num = 8;
+    auto x_size = 3;
+    auto y_size = 3;
+    std::vector<cldnn::tensor> split_offsets = {
+                                                {0, 0, 0, 0},
+                                                {0, 1, 0, 0},
+                                                {0, 4, 0, 0},
+                                               };
+
+    split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets, true);
+}
+
+TEST(split_gpu_i64, split_1d_uneven_3_splits_cached) {
+    auto batch_num = 2;
+    auto feature_num = 8;
+    auto x_size = 3;
+    auto y_size = 3;
+    std::vector<cldnn::tensor> split_offsets = {
+                                                {0, 0, 0, 0},
+                                                {0, 1, 0, 0},
+                                                {0, 4, 0, 0},
+                                               };
+
+    split_test<int64_t>(batch_num, feature_num, x_size, y_size, split_offsets, true);
+}
+
+TEST(split_gpu_f32, split_2d_uneven_2_splits_cached) {
+    auto batch_num = 2;
+    auto feature_num = 8;
+    auto x_size = 10;
+    auto y_size = 3;
+    std::vector<cldnn::tensor> split_offsets = {
+                                                {0, 0, 0, 0},
+                                                {0, 1, 4, 0}
+                                               };
+
+    split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets, true);
+}
+
+TEST(split_gpu_i64, split_2d_uneven_2_splits_cached) {
+    auto batch_num = 2;
+    auto feature_num = 8;
+    auto x_size = 10;
+    auto y_size = 3;
+    std::vector<cldnn::tensor> split_offsets = {
+                                                {0, 0, 0, 0},
+                                                {0, 1, 4, 0}
+                                               };
+
+    split_test<int64_t>(batch_num, feature_num, x_size, y_size, split_offsets, true);
+}
+
+TEST(split_gpu_f32, split_2d_uneven_3_split3_cached) {
+    auto batch_num = 2;
+    auto feature_num = 8;
+    auto x_size = 10;
+    auto y_size = 3;
+    std::vector<cldnn::tensor> split_offsets = {
+                                                {0, 0, 0, 0},
+                                                {0, 1, 4, 0},
+                                                {0, 4, 7, 0},
+                                               };
+
+    split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets, true);
+}
+
+TEST(split_gpu_i64, split_2d_uneven_3_split3_cached) {
+    auto batch_num = 2;
+    auto feature_num = 8;
+    auto x_size = 10;
+    auto y_size = 3;
+    std::vector<cldnn::tensor> split_offsets = {
+                                                {0, 0, 0, 0},
+                                                {0, 1, 4, 0},
+                                                {0, 4, 7, 0},
+                                               };
+
+    split_test<int64_t>(batch_num, feature_num, x_size, y_size, split_offsets, true);
+}
+
+TEST(split_gpu_f32, split_3d_uneven_2_splits_cached) {
+    auto batch_num = 2;
+    auto feature_num = 8;
+    auto x_size = 10;
+    auto y_size = 3;
+    std::vector<cldnn::tensor> split_offsets = {
+                                                {0, 0, 0, 0},
+                                                {0, 1, 4, 1}
+                                               };
+
+    split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets, true);
+}
+
+TEST(split_gpu_i64, split_3d_uneven_2_splits_cached) {
+    auto batch_num = 2;
+    auto feature_num = 8;
+    auto x_size = 10;
+    auto y_size = 3;
+    std::vector<cldnn::tensor> split_offsets = {
+                                                {0, 0, 0, 0},
+                                                {0, 1, 4, 1}
+                                               };
+
+    split_test<int64_t>(batch_num, feature_num, x_size, y_size, split_offsets, true);
+}
+
+TEST(split_gpu_f32, split_3d_uneven_3_splits_cached) {
+    auto batch_num = 2;
+    auto feature_num = 8;
+    auto x_size = 10;
+    auto y_size = 3;
+    std::vector<cldnn::tensor> split_offsets = {
+                                                {0, 0, 0, 0},
+                                                {0, 1, 4, 1},
+                                                {0, 7, 8, 2}
+                                               };
+
+    split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets, true);
+}
+#endif
+TEST(split_gpu_i64, split_3d_uneven_3_splits_cached) {
+    auto batch_num = 2;
+    auto feature_num = 8;
+    auto x_size = 10;
+    auto y_size = 3;
+    std::vector<cldnn::tensor> split_offsets = {
+                                                {0, 0, 0, 0},
+                                                {0, 1, 4, 1},
+                                                {0, 7, 8, 2}
+                                               };
+
+    split_test<int64_t>(batch_num, feature_num, x_size, y_size, split_offsets, true);
 }

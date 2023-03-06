@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -32,7 +32,7 @@ public:
                         bool isINT8);
 
     void appendBinary(const dnnl::algorithm alg, const std::vector<float>& data);
-    void appendEltwise(float scale, const dnnl::algorithm alg, float alpha, float beta);
+    void appendEltwise(const dnnl::algorithm alg, float alpha, float beta);
     void appendRoundHTE();
     bool appendScale(const std::vector<float>& scale, bool allowBinary = true);
     bool appendShift(const std::vector<float>& shift, bool allowBinary = true);

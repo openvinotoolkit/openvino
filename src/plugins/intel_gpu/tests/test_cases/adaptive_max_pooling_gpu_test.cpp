@@ -162,25 +162,7 @@ public:
             result_id = reorder_result_id;
         }
 
-        cldnn::network::ptr network;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topology);
-                
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-            }
-        } else {
-            network = std::make_shared<cldnn::network>(engine, topology);
-        }
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data(input_data_id, input_mem);
 
@@ -192,7 +174,7 @@ public:
         ASSERT_EQ(params.outputTensor.count(), out_ptr.size());
         ASSERT_EQ(params.outputTensor.count(), expected.size());
         for (size_t i = 0; i < expected.size(); ++i) {
-            EXPECT_NEAR(expected[i], out_ptr[i], getError<T>())
+            ASSERT_NEAR(expected[i], out_ptr[i], getError<T>())
                 << "i = " << i << ", format=" << fmt_to_str(target_layout);
         }
 
@@ -221,7 +203,7 @@ public:
         ASSERT_EQ(params.outputTensor.count(), indices_ptr.size());
         ASSERT_EQ(params.outputTensor.count(), expected_indices.size());
         for (size_t i = 0; i < expected_indices.size(); ++i) {
-            EXPECT_EQ(index_offset * expected_indices[i], indices_ptr[i]) 
+            ASSERT_EQ(index_offset * expected_indices[i], indices_ptr[i])
                 << "i = " << i << ", format=" << fmt_to_str(target_layout);
         }
     }

@@ -59,24 +59,7 @@ struct bucketize_test : testing::TestWithParam<bucketize_test_params<I, B, O>> {
         topology.add(
             reorder("plane_bucketize_left_bound", input_info("bucketize_left_bound"), format::bfyx, type_to_data_type<O>::value));
 
-        cldnn::network::ptr network;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topology);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-            }
-        } else {
-            network = std::make_shared<cldnn::network>(engine, topology);
-        }
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
         network->set_input_data("buckets", buckets);
@@ -87,7 +70,7 @@ struct bucketize_test : testing::TestWithParam<bucketize_test_params<I, B, O>> {
             cldnn::mem_lock<O> output_ptr(output, get_test_stream());
             ASSERT_EQ(output_ptr.size(), p.output_values_right_bound.size());
             for (size_t i = 0; i < output_ptr.size(); ++i) {
-                EXPECT_EQ(p.output_values_right_bound[i], output_ptr[i]);
+                ASSERT_EQ(p.output_values_right_bound[i], output_ptr[i]);
             }
         }
 
@@ -96,7 +79,7 @@ struct bucketize_test : testing::TestWithParam<bucketize_test_params<I, B, O>> {
             cldnn::mem_lock<O> output_ptr(output, get_test_stream());
             ASSERT_EQ(output_ptr.size(), p.output_values_left_bound.size());
             for (size_t i = 0; i < output_ptr.size(); ++i) {
-                EXPECT_EQ(p.output_values_left_bound[i], output_ptr[i]);
+                ASSERT_EQ(p.output_values_left_bound[i], output_ptr[i]);
             }
         }
     }

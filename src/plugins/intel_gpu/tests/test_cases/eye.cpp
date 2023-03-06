@@ -85,29 +85,12 @@ public:
             tp.add(reorder("output", input_info("eye"), oupput_fmt, type_to_data_type<OutputType>::value));
         }
 
-        cldnn::network::ptr network; 
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine_, tp);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine_);
-                network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine_);
-            }
-        } else {
-            network = std::make_shared<cldnn::network>(engine_, tp);
-        }
+        cldnn::network::ptr network = get_network(engine_, tp, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
         auto outputs = network->execute();
 
-        EXPECT_EQ(outputs.size(), size_t(1));
-        EXPECT_EQ(outputs.begin()->first, ouput_op_name);
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, ouput_op_name);
 
         auto output = outputs.at(ouput_op_name).get_memory();
 
@@ -115,7 +98,7 @@ public:
 
         ASSERT_EQ(output_ptr.size(), expected_values.size());
         for (size_t i = 0; i < output_ptr.size(); ++i)
-            EXPECT_TRUE(are_equal(expected_values[i], output_ptr[i], 2e-3));
+            ASSERT_TRUE(are_equal(expected_values[i], output_ptr[i], 2e-3));
     }
 
 protected:

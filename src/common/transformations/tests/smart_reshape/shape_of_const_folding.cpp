@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#include "transformations/smart_reshape/shape_of_const_folding.hpp"
 
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/opsets/opset10.hpp"
-#include "transformations/smart_reshape/shape_of_const_folding.hpp"
-
 
 using namespace ov;
 

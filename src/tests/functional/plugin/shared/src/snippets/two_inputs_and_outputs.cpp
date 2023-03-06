@@ -11,14 +11,14 @@ namespace test {
 namespace snippets {
 
 std::string TwoInputsAndOutputs::getTestCaseName(testing::TestParamInfo<ov::test::snippets::TwoInputsAndOutputsParams> obj) {
-    std::vector<ov::Shape> inputShapes;
+    std::vector<ov::PartialShape> inputShapes;
     std::string targetDevice;
     size_t num_nodes, num_subgraphs;
     std::tie(inputShapes, num_nodes, num_subgraphs, targetDevice) = obj.param;
 
     std::ostringstream result;
     for (auto i = 0; i < inputShapes.size(); i++)
-        result << "IS[" << i << "]=" << CommonTestUtils::vec2str(inputShapes[i]) << "_";
+        result << "IS[" << i << "]=" << CommonTestUtils::vec2str(inputShapes[i].get_shape()) << "_";
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
     result << "targetDevice=" << targetDevice;
@@ -26,9 +26,9 @@ std::string TwoInputsAndOutputs::getTestCaseName(testing::TestParamInfo<ov::test
 }
 
 void TwoInputsAndOutputs::SetUp() {
-    std::vector<ov::Shape> inputShape;
+    std::vector<ov::PartialShape> inputShape;
     std::tie(inputShape, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
-    init_input_shapes(static_shapes_to_test_representation(inputShape));
+    init_input_shapes(static_partial_shapes_to_test_representation(inputShape));
     auto f = ov::test::snippets::TwoInputsAndOutputsFunction(inputShape);
     function = f.getOriginal();
 }

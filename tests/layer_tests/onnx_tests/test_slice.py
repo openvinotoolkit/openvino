@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -152,7 +152,7 @@ class TestSlice(OnnxRuntimeLayerTest):
         from onnx import TensorProto
 
         # calculate output shape
-        constant = np.random.randint(-127, 127, shape).astype(np.float)
+        constant = np.random.randint(-127, 127, shape).astype(float)
 
         slice_idx = [None] * len(shape)
         for i, axis in enumerate(axes):

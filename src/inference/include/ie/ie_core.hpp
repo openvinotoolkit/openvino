@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,7 @@ public:
      * 1. (default) Use XML configuration file in case of dynamic libraries build;
      * 2. Use strictly defined configuration in case of static libraries build.
      *
-     * @param xml_config_file Path to the .xml file with plugins to load from. If the XML configuration file is not
+     * @param xmlConfigFile Path to the .xml file with plugins to load from. If the XML configuration file is not
      * specified, default OpenVINO Runtime plugins are loaded from:
      * 1. (dynamic build) default `plugins.xml` file located in the same folder as OpenVINO runtime shared library;
      * 2. (static build) statically defined configuration. In this case path to the .xml file is ignored.
@@ -285,7 +285,7 @@ public:
     /**
      * @brief Returns devices available for neural networks inference
      *
-     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, MYRIAD }
+     * @return A vector of devices. The devices are returned as { CPU, GPU.0, GPU.1, GNA }
      * If there more than one device of specific type, they are enumerated with .# suffix.
      */
     std::vector<std::string> GetAvailableDevices() const;
@@ -293,13 +293,12 @@ public:
     /**
      * @brief Register new device and plugin which implement this device inside Inference Engine.
      *
-     * @param pluginName A name of plugin. Depending on platform pluginName is wrapped with shared library suffix and
-     * prefix to identify library full name
+     * @param plugin Path (absolute or relative) or name of a plugin. Depending on platform, `plugin` is wrapped with
+     * shared library suffix and prefix to identify library full name
      *
-     * @param deviceName A device name to register plugin for. If device name is not specified, then it's taken from
-     * plugin itself.
+     * @param deviceName A device name to register plugin for
      */
-    void RegisterPlugin(const std::string& pluginName, const std::string& deviceName);
+    void RegisterPlugin(const std::string& plugin, const std::string& deviceName);
 
     /**
      * @brief Unloads previously loaded plugin with a specified name from Inference Engine

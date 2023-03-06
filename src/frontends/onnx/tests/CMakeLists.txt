@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -9,6 +9,8 @@ ov_try_use_gold_linker()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ie_add_compiler_flags(/wd4244)
     ie_add_compiler_flags(/wd4267)
+    ie_add_compiler_flags(/wd4305)
+    ie_add_compiler_flags(/wd4756)
 endif()
 
 message(STATUS "ONNX frontend test enabled")
@@ -16,13 +18,10 @@ message(STATUS "ONNX frontend test enabled")
 add_compile_definitions(
     TEST_MODEL_ZOO="${TEST_MODEL_ZOO}"
     ONNX_MODELS_DIR="${TEST_MODEL_ZOO}/onnx"
+    ONNX_TEST_MODELS="${TEST_MODEL_ZOO}/onnx/"
     TEST_ONNX_MODELS_DIRNAME="${TEST_MODEL_ZOO}/onnx/"
     MANIFEST="${CMAKE_CURRENT_SOURCE_DIR}/unit_test.manifest"
     SERIALIZED_ZOO="${TEST_MODEL_ZOO}")
-
-if(LINUX)
-    set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
-endif()
 
 list(APPEND ONNX_TESTS_DEPENDENCIES openvino_template_extension)
 
@@ -73,6 +72,7 @@ set(MULTI_TEST_SRC
     onnx_import_dyn_shapes.in.cpp
     onnx_import_external_data.in.cpp
     onnx_import_org_openvino.in.cpp
+    onnx_import_org_pytorch.in.cpp
     onnx_import_reshape.in.cpp
     onnx_import_rnn.in.cpp
     onnx_import_quant.in.cpp
@@ -83,6 +83,7 @@ set(SRC
     library_extension.cpp
     load_from.cpp
     onnx_editor.cpp
+    onnx_editor_topological_sort.cpp
     onnx_import_exceptions.cpp
     onnx_import_library.cpp
     onnx_importer_test.cpp
@@ -90,7 +91,11 @@ set(SRC
     onnx_test_util.cpp
     onnx_transformations.cpp
     op_extension.cpp
-    telemetry.cpp)
+    telemetry.cpp
+    lib_close.cpp
+    model_support_tests.cpp
+    onnx_reader_external_data.cpp
+    skip_tests_config.cpp)
 
 foreach(src IN LISTS SRC MULTI_TEST_SRC)
     if(IS_ABSOLUTE "${src}")
@@ -134,7 +139,7 @@ if(ONNX_TESTS_DEPENDENCIES)
 endif()
 
 target_link_libraries(ov_onnx_frontend_tests PRIVATE engines_test_util gtest_main_manifest openvino::runtime::dev
-    openvino_onnx_frontend onnx_common)
+    openvino_onnx_frontend onnx_common funcTestUtils)
 
 # It's needed by onnx_import_library.cpp and onnx_import_exceptions.cpp tests to include onnx_pb.h.
 # Not linking statically to libprotobuf (linked into libonnx) avoids false-failing onnx_editor tests.
@@ -152,12 +157,6 @@ endif()
 
 target_include_directories(ov_onnx_frontend_tests PRIVATE
     $<TARGET_PROPERTY:openvino_onnx_frontend,INCLUDE_DIRECTORIES>)
-
-if(OV_COMPILER_IS_APPLECLANG)
-    target_link_options(ov_onnx_frontend_tests PRIVATE -Wl,-dead_strip)
-elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-    target_link_options(ov_onnx_frontend_tests PRIVATE -Wl,--exclude-libs,ALL)
-endif()
 
 install(TARGETS ov_onnx_frontend_tests
         RUNTIME DESTINATION tests

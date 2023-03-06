@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "include/batch_headers/data_types.cl"
 #include "include/batch_headers/fetch_data.cl"
+#include "include/batch_headers/sub_group_block_read.cl"
+#include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/sub_group_shuffle.cl"
 #include "include/sub_group.cl"
 
 #if FP16_UNIT_USED
-    #define ALIGNED_BLOCK_READ8(ptr, byte_offset) as_half8(intel_sub_group_block_read_us8((const __global ushort*)(ptr) + (byte_offset)))
-
     #define MULTIPLY_BLOCKS_16x8_8x16(_result, _blockA, _blockB) \
     { \
         const half16 acol0 = TRANSPOSE_BLOCK_16_FP16_HALF_TYPE( _blockA.s0 ); \
@@ -29,9 +29,6 @@
         _result = fma( _blockB.s7, acol7, _result ); \
     }
 #else
-    // Block read - currently block is 4 bytes aligned.
-    #define ALIGNED_BLOCK_READ8(ptr, byte_offset) as_float8(intel_sub_group_block_read8((const __global uint*)(ptr) + (byte_offset)))
-
     #define MULTIPLY_BLOCKS_16x8_8x16(_result, _blockA, _blockB) \
     { \
         const float16 acol0 = TRANSPOSE_BLOCK_16( _blockA.s0 ); \
@@ -53,24 +50,29 @@
     }
 #endif
 
-__attribute__((intel_reqd_sub_group_size(16)))
+#ifndef ACCUMULATOR_TYPE
+#define ACCUMULATOR_TYPE INPUT0_TYPE
+#endif
+
+REQD_SUB_GROUP_SIZE(16)
 KERNEL(convolution_bfyx_1x1)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output,
-    __global FILTER_TYPE* weights,
+    __global FILTER_TYPE* weights
 #if BIAS_TERM
-    __global BIAS_TYPE* biases,
+    , __global BIAS_TYPE* biases
 #endif
-    uint split_idx)
+)
 {
-    const uint xy = (uint)get_group_id(0) * 16 + get_sub_group_local_id();
+    const uint group_xy = (uint)get_group_id(0) * 16;
+    const uint xy = group_xy + get_sub_group_local_id();
     const uint x = xy % OUTPUT_SIZE_X;
     const uint y = xy / OUTPUT_SIZE_X;
     const uint f = (uint)get_group_id(1) * 16 + get_sub_group_local_id();//get_global_id(1);
     const uint b = (uint)get_global_id(2);
     const uint group_f = (uint)get_group_id(1) * 16;
 
-    MAKE_VECTOR_TYPE(UNIT_TYPE, 16) blockC00 = UNIT_VAL_ZERO;
+    MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 16) blockC00 = INPUT0_VAL_ZERO;
 
 #if BIAS_TERM
     #if   BIAS_PER_OUTPUT
@@ -80,30 +82,25 @@ KERNEL(convolution_bfyx_1x1)(
     #endif
     for(uint i = 0; i < 16; i++)
     {
-        blockC00[i] = intel_sub_group_shuffle(biases[bias_index], i);
+        blockC00[i] = _sub_group_shuffle(biases[bias_index], i);
     }
 #endif
 
-#if DEPTHWISE_SEPARABLE_OPT
-    const uint in_split_offset = (f / FILTER_OFM_NUM) * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
-#else
-    const uint in_split_offset = split_idx * INPUT0_FEATURE_PITCH * FILTER_IFM_NUM;
-#endif
     const uint filter_offset = group_f * ((FILTER_OFM_PITCH + 8 - 1) / 8) * 8;//f*FILTER_OFM_PITCH;
     const uint xy_block_num = (INPUT0_FEATURE_PITCH + 16 - 1) / 16;
     const uint f_block_num = (INPUT0_FEATURE_NUM + 8 - 1) / 8;
-    const uint input_offset = in_split_offset + xy * 8 + b * xy_block_num * f_block_num * 128;//b*INPUT0_BATCH_PITCH + INPUT0_OFFSET + in_split_offset;
+    const uint input_offset = group_xy * 8 + b * xy_block_num * f_block_num * 128;//b*INPUT0_BATCH_PITCH + INPUT0_OFFSET;
 
     for (uint k = 0; k < (FILTER_IFM_NUM + 8 - 1) / 8; ++k)
     {
-        MAKE_VECTOR_TYPE(UNIT_TYPE, 8) blockA00;
-        MAKE_VECTOR_TYPE(UNIT_TYPE, 8) blockB00;
+        MAKE_VECTOR_TYPE(INPUT0_TYPE, 8) blockA00;
+        MAKE_VECTOR_TYPE(FILTER_TYPE, 8) blockB00;
 
         uint input_idx = input_offset + k * 8 * xy_block_num * 16;
         uint filter_idx = filter_offset + k * 8 * 16;
 
-        blockA00 = ALIGNED_BLOCK_READ8(input, input_idx);
-        blockB00 = ALIGNED_BLOCK_READ8(weights, filter_idx);
+        blockA00 = DT_INPUT_BLOCK_READ8(input, input_idx);
+        blockB00 = DT_FILTER_BLOCK_READ8(weights, filter_idx);
 
         MULTIPLY_BLOCKS_16x8_8x16(blockC00, blockB00, blockA00);
     }
@@ -111,11 +108,9 @@ KERNEL(convolution_bfyx_1x1)(
     if(xy >= INPUT0_SIZE_X * INPUT0_SIZE_Y)
         return;
 
-    const uint out_split_offset = split_idx * OUTPUT_FEATURE_PITCH * OUTPUT_FEATURE_NUM;
-
     for(uint i = 0; i < 16; i++)
     {
-        const uint dst_index = GET_DATA_INDEX(OUTPUT, b, group_f+i, y, x) + out_split_offset;
+        const uint dst_index = GET_DATA_INDEX(OUTPUT, b, group_f+i, y, x);
     #if LEFTOVERS
         if(group_f+i < OUTPUT_FEATURE_NUM)
     #endif
@@ -128,3 +123,4 @@ KERNEL(convolution_bfyx_1x1)(
 #undef CONCAT_TOKEN
 #undef CONCAT_TOKEN_HANDLER1
 #undef MULTIPLY_BLOCKS_16x16
+#undef ACCUMULATOR_TYPE

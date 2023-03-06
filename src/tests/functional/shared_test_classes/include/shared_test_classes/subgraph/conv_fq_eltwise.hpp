@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,8 @@ namespace SubgraphTestsDefinitions {
 
 typedef std::tuple<
         size_t,                           // levels
-        std::vector<float>                // input generator data: low, high, resolution
+        std::vector<float>,               // input generator data: low, high, resolution
+        float                             // convolution weights' FQ min and max value
 > FqSpecificParams;
 
 typedef std::tuple<

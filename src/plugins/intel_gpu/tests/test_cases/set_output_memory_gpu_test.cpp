@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <cstddef>
 
@@ -26,7 +24,8 @@ static std::vector<T> generateVector(size_t sz) {
     return vec;
 }
 
-TEST(set_output_memory_gpu, basic) {
+template <typename T>
+void test_basic(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     const int b = 3;
@@ -47,21 +46,25 @@ TEST(set_output_memory_gpu, basic) {
         reorder("reorder", input_info("Input"), input_data->get_layout())
     );
 
-    network network(engine, topology);
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
-    network.set_input_data("Input", input_data);
-    network.set_output_memory("reorder", output_mem);
+    network->set_input_data("Input", input_data);
+    network->set_output_memory("reorder", output_mem);
 
-    auto outputs = network.execute();
+    auto outputs = network->execute();
 
     auto output = outputs.at("reorder").get_memory();
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mem, *output));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *output));
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < inputVals.size(); ++i) {
-        EXPECT_TRUE(are_equal(inputVals[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(inputVals[i], output_ptr[i])) << i;
     }
+}
+
+TEST(set_output_memory_gpu, basic) {
+    test_basic<float>(false);
 }
 
 TEST(set_output_memory_gpu, basic_const) {
@@ -101,17 +104,17 @@ TEST(set_output_memory_gpu, basic_const) {
 
     auto output_dyn = outputs.at("reorder_dyn").get_memory();
     auto output_const = outputs.at("reorder_const").get_memory();
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mem, *output_dyn));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *output_dyn));
 
     cldnn::mem_lock<float> output_dyn_ptr(output_dyn, get_test_stream());
     cldnn::mem_lock<float> output_const_ptr(output_const, get_test_stream());
 
     for (size_t i = 0; i < inputVals.size(); ++i) {
-        EXPECT_TRUE(are_equal(inputVals[i], output_dyn_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(inputVals[i], output_dyn_ptr[i])) << i;
     }
 
     for (size_t i = 0; i < inputVals.size(); ++i) {
-        EXPECT_TRUE(are_equal(inputVals[i], output_const_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(inputVals[i], output_const_ptr[i])) << i;
     }
 }
 
@@ -150,18 +153,18 @@ TEST(set_output_memory_gpu, basic_mutable) {
 
     auto output_dyn = outputs.at("reorder_dyn").get_memory();
     auto output_mutable = outputs.at("reorder_mutable").get_memory();
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mem, *output_dyn));
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mutable_mem, *output_mutable));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *output_dyn));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mutable_mem, *output_mutable));
 
     cldnn::mem_lock<float> output_dyn_ptr(output_dyn, get_test_stream());
     cldnn::mem_lock<float> output_mutable_mem_ptr(output_mutable_mem, get_test_stream());
 
     for (size_t i = 0; i < inputVals.size(); ++i) {
-        EXPECT_TRUE(are_equal(inputVals[i], output_dyn_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(inputVals[i], output_dyn_ptr[i])) << i;
     }
 
     for (size_t i = 0; i < inputVals.size(); ++i) {
-        EXPECT_TRUE(are_equal(inputVals[i], output_mutable_mem_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(inputVals[i], output_mutable_mem_ptr[i])) << i;
     }
 }
 
@@ -200,13 +203,13 @@ TEST(set_output_memory_gpu, top_k1) {
     auto outputs = network.execute();
 
     auto output = outputs.at("reorder").get_memory();
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mem, *output));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *output));
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> output_mem_ptr(output_mem, get_test_stream());
 
     for (size_t i = 0; i < output_ptr.size(); ++i) {
-        EXPECT_TRUE(are_equal(output_mem_ptr[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(output_mem_ptr[i], output_ptr[i])) << i;
     }
 }
 
@@ -246,13 +249,13 @@ TEST(set_output_memory_gpu, top_k2) {
     auto outputs = network.execute();
 
     auto output = outputs.at("reorder").get_memory();
-    EXPECT_TRUE(engine.is_the_same_buffer(*second_output_mem, *output));
+    ASSERT_TRUE(engine.is_the_same_buffer(*second_output_mem, *output));
 
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
     cldnn::mem_lock<float> output_mem_ptr(second_output_mem, get_test_stream());
 
     for (size_t i = 0; i < output_ptr.size(); ++i) {
-        EXPECT_TRUE(are_equal(output_mem_ptr[i], output_ptr[i])) << i;
+        ASSERT_TRUE(are_equal(output_mem_ptr[i], output_ptr[i])) << i;
     }
 }
 
@@ -319,9 +322,9 @@ TEST(set_output_memory_gpu, basic_opt) {
     primitive_id outputID = "reorder3";
     topology.add(reorder(outputID, input_info("concat"), ol));
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -330,16 +333,16 @@ TEST(set_output_memory_gpu, basic_opt) {
     auto outputs = network.execute();
     auto output = outputs.at(outputID).get_memory();
     //  check for correct output memory setting
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mem, *output));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *output));
     //  check for memory set propagation
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mem, *network.get_output_memory("concat")));
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mem, *network.get_output_memory("clamp1")));
-    EXPECT_TRUE(engine.is_the_same_buffer(*output_mem, *network.get_output_memory("clamp2")));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *network.get_output_memory("concat")));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *network.get_output_memory("clamp1")));
+    ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *network.get_output_memory("clamp2")));
 
     //  check for correct result
     cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
     for (size_t i = 0; i < output_ptr.size(); ++i) {
-        EXPECT_TRUE(are_equal(output_ptr[i], output_vec[i])) << i;
+        ASSERT_TRUE(are_equal(output_ptr[i], output_vec[i])) << i;
     }
 }
 
@@ -371,7 +374,7 @@ TEST(set_output_memory_gpu, mutable_output_data) {
             /*b1f3*/4.f,  0.5f,  8.f,   8.2f
     };
     set_values(input, input_vec);
-    auto prog = program::build_program(engine, topology, build_options());
+    auto prog = program::build_program(engine, topology, ExecutionConfig{});
     network network(prog, 0);
     network.set_input_data("Add_1396", input);
 
@@ -379,4 +382,8 @@ TEST(set_output_memory_gpu, mutable_output_data) {
     network.execute();
     network.execute();
     network.set_output_memory("pred/sink_port_0", final_output);
+}
+
+TEST(set_output_memory_gpu, basic_cached) {
+    test_basic<float>(true);
 }

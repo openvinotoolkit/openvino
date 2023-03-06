@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -201,6 +201,7 @@ struct format {
         lstm_weights_dio,                             ///< dynamic_lstm, direction,
                                                       ///< than IO (I - input size, O - 4 * hidden_size)
         os_is_osv32_isv32_swizzled_by_4,              ///< format for weights for 1x1 IMAD convolution
+        os_iyx_osv8,
         os_iyx_osv32__ai32,
         iy_xs_os_xsv2_osv8__ao32,
         iy_xs_os_xsv2_osv16__ao32,
@@ -331,6 +332,8 @@ struct format {
     static format get_default_format(size_t rank, bool is_weights = false, bool is_grouped = false);
 
     static format adjust_to_rank(format fmt, size_t new_rank);
+
+    static const std::vector<std::pair<size_t, int>> per_axis_block_size(format fmt);
 
     /// @brief Checks if @p format is of grouped type
     static bool is_grouped(type fmt) { return group_num(fmt) != 0; }

@@ -1,16 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pooling_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
+
+#include "pooling_inst.h"
 #include "pooling/pooling_kernel_selector.h"
 #include "pooling/pooling_kernel_base.h"
 #include "ngraph/validation_util.hpp"
-#include <algorithm>
 
 namespace cldnn {
 namespace ocl {
@@ -58,8 +55,8 @@ struct pooling_impl : typed_primitive_impl_ocl<pooling> {
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<pooling>& instance, int32_t split) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, split);
+    kernel_arguments_data get_arguments(const typed_primitive_inst<pooling>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
         return args;
     }
 
@@ -168,7 +165,7 @@ public:
 namespace detail {
 
 attach_pooling_impl::attach_pooling_impl() {
-    std::set<implementation_map<resample>::key_type> keys;
+    std::set<implementation_map<pooling>::key_type> keys;
 
     auto types = { data_types::f16, data_types::f32, data_types::i8, data_types::u8 };
     auto formats = { format::bfyx,

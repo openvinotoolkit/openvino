@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -90,10 +90,6 @@ bool MVNKey::operator==(const MVNKey& rhs) const {
 // some utility functions
 static inline bool isFloatCompatible(Precision prc) {
     return Precision::FP32 == prc || Precision::BF16 == prc;
-}
-
-static inline bool isFloatCompatible(memory::data_type type) {
-    return memory::data_type::f32 == type || memory::data_type::bf16 == type;
 }
 
 // normalize_variance = false : src->mean
@@ -1134,8 +1130,8 @@ bool MVN::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
     return true;
 }
 
-MVN::MVN(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-        : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+MVN::MVN(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+        : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -1353,7 +1349,7 @@ void MVN::prepareParams() {
         return executor;
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
     execPtr = result.first;
 }

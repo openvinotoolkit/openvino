@@ -1,34 +1,32 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cpp/ie_cnn_network.h>
 #include <gtest/gtest.h>
 
-#include <cpp/ie_cnn_network.h>
-#include <string>
-#include <sstream>
-#include <fstream>
 #include <algorithm>
-#include <vector>
-#include <memory>
+#include <fstream>
+#include <ie_core.hpp>
 #include <map>
-
+#include <memory>
 #include <ngraph/function.hpp>
-#include <ngraph/op/interpolate.hpp>
+#include <ngraph/graph_util.hpp>
 #include <ngraph/op/constant.hpp>
-#include <ngraph/op/parameter.hpp>
+#include <ngraph/op/interpolate.hpp>
 #include <ngraph/op/op.hpp>
+#include <ngraph/op/parameter.hpp>
 #include <ngraph/op/relu.hpp>
 #include <ngraph/op/result.hpp>
 #include <ngraph/opsets/opset.hpp>
-#include <ngraph/graph_util.hpp>
+#include <sstream>
+#include <string>
+#include <vector>
 
-#include <ie_core.hpp>
-
-#include "common_test_utils/test_common.hpp"
+#include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
-#include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/test_common.hpp"
 #include "ie_common.h"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/shape.hpp"
@@ -156,13 +154,15 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLUWithoutCloneFunction) {
     ASSERT_EQ(cnnNetwork.getInputsInfo()["data"]->getInputData()->getDims(), (SizeVector{1, 3, 25, 25}));
 }
 
-class CustomTestOp: public ngraph::op::Op {
+class CustomTestOp : public ngraph::op::Op {
 public:
     OPENVINO_OP("CustomTestLayer", "test_extension");
 
     CustomTestOp() = default;
-    CustomTestOp(const ngraph::Output<ngraph::Node>& arg, bool test1, int64_t test2):
-        Op({arg}), test1(test1), test2(test2) {
+    CustomTestOp(const ngraph::Output<ngraph::Node>& arg, bool test1, int64_t test2)
+        : Op({arg}),
+          test1(test1),
+          test2(test2) {
         constructor_validate_and_infer_types();
     }
 
@@ -171,7 +171,7 @@ public:
         if (input_pshape.is_static()) {
             auto input_shape = input_pshape.to_shape();
             ngraph::Shape output_shape(input_shape);
-            for (int i = 0; i < input_shape.size(); ++i) {
+            for (size_t i = 0; i < input_shape.size(); ++i) {
                 output_shape[i] = input_shape[i] * test2 + (test1 ? 0 : 1);
             }
             set_output_type(0, get_input_element_type(0), ngraph::PartialShape(output_shape));
@@ -352,15 +352,15 @@ TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension2) {
     SizeVector outDims = output["activation"]->getTensorDesc().getDims();
     ASSERT_EQ(outDims, refAfterReshape);
 }
-#endif //defined(ENABLE_OV_IR_FRONTEND)
+#endif  // defined(ENABLE_OV_IR_FRONTEND)
 
 class BadExtension : public InferenceEngine::IExtension {
 public:
     BadExtension() {}
 
-    void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {};
+    void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override{};
 
-    void Unload() noexcept override {};
+    void Unload() noexcept override{};
 
     std::map<std::string, ngraph::OpSet> getOpSets() override {
         static std::map<std::string, ngraph::OpSet> opsets;
@@ -395,8 +395,8 @@ TEST_F(NGraphReshapeTests, TestInterpParameters) {
     auto interp = std::make_shared<ngraph::op::v0::Interpolate>(inp, out_shape, attrs);
 
     auto output = std::make_shared<ngraph::op::Result>(interp);
-    auto ngraph_function = std::make_shared<ngraph::Function>(ngraph::ResultVector{output},
-                           ngraph::ParameterVector{inp});
+    auto ngraph_function =
+        std::make_shared<ngraph::Function>(ngraph::ResultVector{output}, ngraph::ParameterVector{inp});
 
     CNNNetwork cnn(ngraph_function);
     std::map<std::string, InferenceEngine::SizeVector> inShape;

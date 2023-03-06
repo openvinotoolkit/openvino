@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,7 +30,7 @@ namespace {
 class OneHotShapeInfer : public ShapeInferEmptyPads {
 public:
     explicit OneHotShapeInfer(int64_t axis) : m_axis(axis) {}
-    std::vector<VectorDims> infer(
+    Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         auto depth = reinterpret_cast<int32_t *>(data_dependency.at(1)->GetPtr())[0];
@@ -38,7 +38,7 @@ public:
         auto result = input_shapes.front().get();
         result.insert(result.begin() + m_axis, depth);
 
-        return { result };
+        return {{std::move(result)}, ShapeInferStatus::success};
     }
 
     port_mask_t get_port_mask() const override {
@@ -94,8 +94,8 @@ bool OneHot::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
-OneHot::OneHot(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache, OneHotShapeInferFactory(op)) {
+OneHot::OneHot(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, OneHotShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

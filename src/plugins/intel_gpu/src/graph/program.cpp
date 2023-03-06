@@ -1,17 +1,15 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/graph/program.hpp"
 
-#include "kernel_selector_helper.h"
-#include "device_cache_reader.h"
+#include <ie_system_conf.h>
+
 #include "auto_tuner.h"
 #include "layout_optimizer.h"
 #include "pass_manager.h"
@@ -19,6 +17,7 @@
 #include "program_dump_graph.h"
 #include "sliding_window_utils.hpp"
 #include "program_helpers.h"
+#include "compilation_context.hpp"
 
 #include "matrix_nms_inst.h"
 #include "roi_pooling_inst.h"
@@ -66,8 +65,11 @@
 #include "loop_inst.h"
 #include "reverse_inst.h"
 #include "to_string_utils.h"
-#include "runtime/cldnn_itt.hpp"
+
+// TODO: Remove once we have interface for kernels cache
 #include "runtime/kernels_cache.hpp"
+
+// TODO: implement self-registration for impls
 #include "impls/ocl/register.hpp"
 #include "impls/cpu/register.hpp"
 #include "impls/common/register.hpp"
@@ -96,29 +98,26 @@
 #include <sys/resource.h>
 #endif
 
+using namespace cldnn;
 using namespace ov::intel_gpu;
 
 program::program(engine& engine_ref,
                  topology const& topology,
-                 build_options const& options,
+                 const ExecutionConfig& config,
                  bool is_internal,
                  bool no_optimizations,
                  bool is_body_program)
     : _engine(engine_ref),
-      _stream(_engine.create_stream()),
-      options(options),
+      _stream(_engine.create_stream(config)),
+      _config(config),
       processing_order(),
-      tuning_cache(nullptr),
       is_body_program(is_body_program),
       is_subgroup_local_block_io_supported(-1) {
+    _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
-    set_options();
-    query_local_block_io_supported();
-
-    pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
+    GPU_DEBUG_INFO << "Program config\n" << config.to_string();
+    init_program();
     prepare_nodes(topology);
-    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
-                                                                      kernel_selector::KernelBase::get_db().get_batch_header_str()));
     program_node::reset_unique_id();
 
     if (no_optimizations) {
@@ -126,38 +125,60 @@ program::program(engine& engine_ref,
     } else {
         build_program(is_internal);
     }
+    calc_nodes_hash();
 }
 
 program::program(engine& engine_ref,
                  std::set<std::shared_ptr<program_node>> const& nodes,
-                 build_options const& options,
+                 const ExecutionConfig& config,
+                 std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
                  bool is_internal)
     : _engine(engine_ref),
-      _stream(_engine.create_stream()),
-      options(options),
+      _stream(_engine.create_stream(config)),
+      _config(config),
+      _task_executor(task_executor),
       processing_order(),
-      tuning_cache(nullptr),
       is_subgroup_local_block_io_supported(-1) {
+    _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
-    set_options();
-    query_local_block_io_supported();
-
-    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
-                                                                      kernel_selector::KernelBase::get_db().get_batch_header_str()));
-    pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
+    init_program();
     prepare_nodes(nodes);
     build_program(is_internal);
+    calc_nodes_hash();
 }
 
 program::program(engine& engine)
     : _engine(engine),
-      _stream(_engine.create_stream()),
-      options(build_options()),
+      _stream(_engine.create_stream({})),
+      _config(),
       processing_order(),
-      tuning_cache(nullptr),
-      is_subgroup_local_block_io_supported(-1) { }
+      is_subgroup_local_block_io_supported(-1) {
+        _config.apply_user_properties(_engine.get_device_info());
+      }
+
 program::~program() {
     query_local_block_io_supported();
+}
+
+void program::init_program() {
+    set_options();
+    query_local_block_io_supported();
+
+    pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
+
+    _task_executor = make_task_executor(_config);
+    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
+                                                                      kernel_selector::KernelBase::get_db().get_batch_header_str()));
+
+    _compilation_context = ICompilationContext::create(make_task_executor_config(_config,
+                                                            "Task executor config for CompilationContext in GPU plugin"));
+
+    _impls_cache = cldnn::make_unique<ImplementationsCache>(_impls_cache_capacity);
+    // Remove items of compilation context's internal queue when some impl is popped in kernels_cache
+    // compilation context's queue check duplication of inserted task
+    _impls_cache->set_remove_item_callback([this](std::pair<size_t, std::shared_ptr<cldnn::primitive_impl>>& item) {
+        get_compilation_context().remove_keys({item.first});
+    });
 }
 
 void program::init_primitives() {
@@ -173,23 +194,59 @@ void program::init_primitives() {
     }
 }
 
+static void adjust_num_cores(InferenceEngine::CPUStreamsExecutor::Config& config) {
+    if (InferenceEngine::getAvailableCoresTypes().size() == 1) {
+        return;
+    }
+
+    const auto total_num_cores = InferenceEngine::getNumberOfLogicalCPUCores();
+    const auto total_num_big_cores = InferenceEngine::getNumberOfLogicalCPUCores(true);
+    const auto total_num_little_cores = total_num_cores - total_num_big_cores;
+    auto core_type = config._threadPreferredCoreType;
+
+    int num_cores = total_num_cores;
+    if (core_type == InferenceEngine::IStreamsExecutor::Config::BIG) {
+        num_cores = total_num_big_cores;
+    } else if (core_type == InferenceEngine::IStreamsExecutor::Config::LITTLE) {
+        num_cores = total_num_little_cores;
+    }
+
+    config._streams = std::min(config._streams, num_cores);
+}
+
+InferenceEngine::CPUStreamsExecutor::Config program::make_task_executor_config(const ExecutionConfig& config, std::string tags) const {
+    InferenceEngine::CPUStreamsExecutor::Config task_executor_config(tags, 1);
+    task_executor_config._streams = config.get_property(ov::compilation_num_threads);
+    auto priority = config.get_property(ov::intel_gpu::hint::host_task_priority);
+    switch (priority) {
+        case ov::hint::Priority::LOW: task_executor_config._threadPreferredCoreType = InferenceEngine::IStreamsExecutor::Config::LITTLE; break;
+        case ov::hint::Priority::MEDIUM: task_executor_config._threadPreferredCoreType = InferenceEngine::IStreamsExecutor::Config::ANY; break;
+        case ov::hint::Priority::HIGH: task_executor_config._threadPreferredCoreType = InferenceEngine::IStreamsExecutor::Config::BIG; break;
+        default: OPENVINO_ASSERT(false, "[GPU] Can't create task executor: invalid host task priority value: ", priority);
+    }
+
+    adjust_num_cores(task_executor_config);
+
+    return task_executor_config;
+}
+
+std::shared_ptr<InferenceEngine::CPUStreamsExecutor> program::make_task_executor(const ExecutionConfig& config) const {
+    InferenceEngine::CPUStreamsExecutor::Config task_executor_config = make_task_executor_config(config, "CPU Tasks executor for GPU plugin");
+    return std::make_shared<InferenceEngine::CPUStreamsExecutor>(task_executor_config);
+}
+
 void program::compile() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("compile");
     _kernels_cache->build_all();
 }
 
 void program::init_kernels() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("init_kernels");
     for (auto& n : get_processing_order()) {
-        if (n->get_selected_impl())
+        if (n->get_selected_impl()) {
             n->get_selected_impl()->init_kernels(*_kernels_cache);
-    }
-}
-
-void program::load_tuning_cache() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::LoadTuningCache");
-    try {
-        tuning_cache = kernel_selector::CreateTuningCacheFromFile(get_engine().configuration().tuning_cache_path);
-    } catch (...) {
-        tuning_cache = std::make_shared<kernel_selector::TuningCache>();
+            n->get_selected_impl()->reset_kernels_source();
+        }
     }
 }
 
@@ -207,18 +264,19 @@ kernels_cache& program::get_kernels_cache() const {
 
 program::ptr program::build_program(engine& engine,
                                     const topology& topology,
-                                    const build_options& options,
+                                    const ExecutionConfig& config,
                                     bool is_internal,
                                     bool no_optimizations,
                                     bool is_body_program) {
-    return std::make_shared<program>(engine, topology, options, is_internal, no_optimizations, is_body_program);
+    return std::make_shared<program>(engine, topology, config, is_internal, no_optimizations, is_body_program);
 }
 
 program::ptr program::build_program(engine& engine,
                                     const std::set<std::shared_ptr<program_node>>& nodes,
-                                    const build_options& options,
+                                    const ExecutionConfig& config,
+                                    std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
                                     bool is_internal) {
-    return std::make_shared<program>(engine, nodes, options, is_internal);
+    return std::make_shared<program>(engine, nodes, config, task_executor, is_internal);
 }
 
 program_node& program::get_node(primitive_id const& id) {
@@ -239,6 +297,7 @@ program_node const& program::get_node(primitive_id const& id) const {
 
 // TODO: Remove once we will get full support for input/output padding in all primitive implementations.
 bool program::analyze_output_size_handling_need() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("analyze_output_size_handling_need");
     bool handling_needed = false;
 
     // Calculate output size and compare with specified.
@@ -254,7 +313,7 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
-            auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
+            auto filter_size = prim_node.weights().get_output_layout().get_tensor();
 
             auto inputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range =
@@ -276,7 +335,7 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
-            auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
+            auto filter_size = prim_node.weights().get_output_layout().get_tensor();
 
             auto primInputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range =
@@ -300,7 +359,7 @@ bool program::analyze_output_size_handling_need() {
                 {0, 0, prim->output_size.spatial[0], prim->output_size.spatial[1], prim->output_size.spatial[2]},
                 1);
 
-            auto filter_size = prim_node.weights(0).get_output_layout().get_tensor();
+            auto filter_size = prim_node.weights().get_output_layout().get_tensor();
 
             auto primInputSize = prim_node.input().get_output_layout().get_tensor();
             auto calc_output_range = calc_sliding_window_needed_input_range(primInputSize,
@@ -445,20 +504,8 @@ void program::set_options() {
     static std::atomic<uint32_t> id_gen{0};
     prog_id = ++id_gen;
     assert(prog_id != 0);
-
-    if ((options.get<build_option_type::tuning_config>()->config.mode == tuning_mode::tuning_tune_and_cache ||
-         options.get<build_option_type::tuning_config>()->config.mode == tuning_mode::tuning_retune_and_cache) &&
-        !_engine.configuration().enable_profiling) {
-        throw std::invalid_argument("Engine must be created with profiling enabled in tune_and_cache mode!");
-    }
-
-    GPU_DEBUG_GET_INSTANCE(debug_config);
-    GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
-        options.set_option(cldnn::build_option::graph_dumps_dir(debug_config->dump_graphs));
-    }
-
-    if (!options.get<build_option_type::force_implementations>()->forcing.empty()) {
-        options.set_option(build_option::optimize_data(true));
+    if (!_config.get_property(ov::intel_gpu::force_implementations).empty()) {
+        _config.set_property(ov::intel_gpu::optimize_data(true));
     }
 }
 
@@ -498,8 +545,8 @@ void program::query_local_block_io_supported() {
     kernel_string->batch_compilation = true;
 
     try {
-        auto _kernels_cache_device_query = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, prog_id,
-                                                                    kernel_selector::KernelBase::get_db().get_batch_header_str()));
+        auto _kernels_cache_device_query = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, nullptr,
+                                                                                            kernel_selector::KernelBase::get_db().get_batch_header_str()));
         auto id = _kernels_cache_device_query->set_kernel_source(kernel_string, false);
         _kernels_cache_device_query->build_all();
 
@@ -512,6 +559,12 @@ void program::query_local_block_io_supported() {
     } catch (...) {
         is_subgroup_local_block_io_supported = static_cast<int8_t>(false);
         return;
+    }
+}
+
+void program::calc_nodes_hash() {
+    for (auto& node : processing_order) {
+        node->calculate_hash();
     }
 }
 
@@ -529,7 +582,7 @@ void program::build_program(bool is_internal) {
 #endif
         prepare_memory_dependencies();
 
-        if (options.get<build_option_type::partial_build_program>()->enabled()) {
+        if (_config.get_property(ov::intel_gpu::partial_build_program)) {
             return;
         }
 
@@ -539,14 +592,15 @@ void program::build_program(bool is_internal) {
 
     if (!is_internal) {
         prim_info = get_current_stage_info();
-        transfer_memory_to_device();
+        if (get_engine().get_device_info().dev_type == device_type::discrete_gpu)
+            transfer_memory_to_device();
     }
 
     cleanup();
 }
 
 void program::init_graph() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::InitGraph");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::InitGraph");
     apply_opt_pass<graph_initializations>();
 
     apply_opt_pass<calculate_prior_boxes>();
@@ -557,10 +611,7 @@ void program::init_graph() {
 void program::run_graph_compilation() { apply_opt_pass<compile_graph>(); }
 
 void program::pre_optimize_graph(bool is_internal) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::PreOptimizeGraph");
-
-    if (!is_internal)
-        load_tuning_cache();
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::PreOptimizeGraph");
 
     // trim to outputs
     apply_opt_pass<trim_to_outputs>();  // ToDo remove hidden dependencies from trimm pass
@@ -578,7 +629,8 @@ void program::pre_optimize_graph(bool is_internal) {
             node->get_output_layouts();
     }
 
-    if (options.get<build_option_type::optimize_data>()->enabled()) {
+    bool optimize_data = _config.get_property(ov::intel_gpu::optimize_data);
+    if (optimize_data) {
         apply_opt_pass<prepare_quantization>();
     }
 
@@ -586,7 +638,7 @@ void program::pre_optimize_graph(bool is_internal) {
     set_layout_optimizer_attributes(lo);
 
     reorder_factory rf;
-    if (options.get<build_option_type::optimize_data>()->enabled()) {
+    if (optimize_data) {
         apply_opt_pass<prepare_primitive_fusing_through>();
 
         apply_opt_pass<pre_replace_deconv>(lo);
@@ -619,7 +671,7 @@ void program::pre_optimize_graph(bool is_internal) {
 
     apply_opt_pass<prepare_padding>(output_size_handling_enabled);
 
-    apply_opt_pass<remove_redundant_reorders>(lo, options.get<build_option_type::optimize_data>()->enabled());
+    apply_opt_pass<remove_redundant_reorders>(lo, optimize_data);
 
     if (!is_internal) {
         // ToDo remove hidden dependencies from propagate_constants pass
@@ -627,7 +679,7 @@ void program::pre_optimize_graph(bool is_internal) {
     }
 
     // try to fuse buffers (i.e. depth_concat in bfyx format) after padding calculations
-    if (options.get<build_option_type::optimize_data>()->enabled()) {
+    if (optimize_data) {
         apply_opt_pass<prepare_buffer_fusing>();
     }
 
@@ -639,7 +691,7 @@ void program::pre_optimize_graph(bool is_internal) {
 }
 
 void program::post_optimize_graph(bool is_internal) {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::PostOptimizeGraph");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::PostOptimizeGraph");
     // input reorder for fully connected if necessary
     apply_opt_pass<post_input_reorder>();
 
@@ -649,17 +701,18 @@ void program::post_optimize_graph(bool is_internal) {
 
     apply_opt_pass<remove_redundant_reorders>(lo, false, true);  // TODO: do we need it at this place also?
 
+    auto partial_build = _config.get_property(ov::intel_gpu::partial_build_program);
 #ifdef GPU_DEBUG_CONFIG
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    if (!is_internal && (!options.get<build_option_type::partial_build_program>()->enabled() || !debug_config->dry_run_path.empty())) {
+    if (!is_internal && (!partial_build || !debug_config->dry_run_path.empty())) {
 #else
-    if (!is_internal && !options.get<build_option_type::partial_build_program>()->enabled()) {
+    if (!is_internal && !partial_build) {
 #endif
         // ToDo remove hidden dependencies from propagate_constants pass
         apply_opt_pass<propagate_constants>();
     }
 
-    if (options.get<build_option_type::optimize_data>()->enabled())
+    if (_config.get_property(ov::intel_gpu::optimize_data))
         apply_opt_pass<remove_redundant_reorders>(lo, false, true, true); // pass to remove output reorders while all others graph optimizations were done
 
     // update loop input/output primitive mappings
@@ -700,18 +753,21 @@ void program::mark_if_data_flow(program_node& node) {
 }
 
 void program::transfer_memory_to_device() {
-    OV_ITT_SCOPED_TASK(itt::domains::CLDNN, "ProgramImpl::TransferMemory");
+    GPU_DEBUG_DEFINE_MEM_LOGGER("transfer_memory_to_device");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::TransferMemory");
     if (!get_engine().supports_allocation(allocation_type::usm_device))
         return;
 
     for (auto& node : processing_order) {
+        if (node->is_shape_infer_dep()) {
+            continue;
+        }
         if (node->is_type<data>() && !node->need_lockable_memory()) {
             auto& data_node = node->as<data>();
             auto data_node_layout = data_node.get_output_layout();
             auto& mem = data_node.get_attached_memory();
             auto mem_layout = mem.get_layout();
             auto alloc_type = mem.get_allocation_type();
-
             if (!mem_layout.compatible(data_node_layout)) {
                 std::string err_str("Node and memory layouts are incompatible, error occurred for " + node->id() + " node");
                 throw std::invalid_argument(err_str);
@@ -719,17 +775,12 @@ void program::transfer_memory_to_device() {
 
 
             if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
-                GPU_DEBUG_GET_INSTANCE(debug_config);
-                GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                    GPU_DEBUG_COUT << "[" << data_node.id() << ": constant]" << std::endl;
-                }
+                GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
                 // Allocate and transfer memory
                 auto device_mem = mem.get_engine()->allocate_memory(data_node_layout, allocation_type::usm_device, false);
                 device_mem->copy_from(get_stream(), mem);
                 data_node.attach_memory(device_mem);
-                GPU_DEBUG_IF(debug_config->verbose >= 2) {
-                    GPU_DEBUG_COUT << "[" << data_node.id() << ": constant]" << std::endl;
-                }
+                GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
                 const_cast<memory::ptr&>(data_node.get_primitive()->mem).reset();
                 // TODO: Do we need finish call here? Maybe call it in network::execute() ?
                 get_stream().finish();
@@ -739,19 +790,9 @@ void program::transfer_memory_to_device() {
 }
 
 void program::cleanup() {
+    GPU_DEBUG_DEFINE_MEM_LOGGER("cleanup");
     for (auto& node : processing_order)
         node->get_output_layout();
-
-    // in debug build, at the end, mark all nodes as outputs so user can query for buffers of all not-optimized nodes,
-    // including internal ones etc.
-    if (is_debug_build()) {
-        for (auto& node : processing_order) {
-            if (!node->is_output()) {
-                node->set_output(true);
-                outputs.push_back(node);
-            }
-        }
-    }
 
     _kernels_cache->reset();
 }
@@ -785,7 +826,7 @@ program::nodes_ordering& program::get_processing_order() { return processing_ord
 const program::nodes_ordering& program::get_processing_order() const { return processing_order; }
 
 void program::prepare_memory_dependencies() {
-    if (!get_engine().configuration().use_memory_pool)
+    if (!_config.get_property(ov::intel_gpu::enable_memory_pool))
         return;
 
     apply_opt_pass<basic_memory_dependencies>();
@@ -1045,7 +1086,7 @@ bool program::remove_if_dangling(program_node& node) {
     if (!node.dependencies.empty())
         return false;
 
-    if (!node.is_output() || is_debug_build()) {
+    if (!node.is_output()) {
         if (node.is_input())
             inputs.remove(&node);
 
@@ -1061,7 +1102,7 @@ bool program::extract(program_node& node) {
     if (node.get_dependencies().size() != 1)
         return false;
 
-    if (node.is_output() && !is_debug_build()) {
+    if (node.is_output()) {
         auto& prev = node.get_dependency(0);
         auto node_id = node.id();
 
@@ -1133,14 +1174,6 @@ void program::fuse_nodes(program_node &fused_node,
     local_desc.total_num_deps = peer_node.get_dependencies().size();
     local_desc.input_layout = peer_node.get_dependency(0).get_output_layout();
     local_desc.output_layout = peer_layout;
-    local_desc.activation = activation_func::none;
-    if (!peer_node.get_fused_activations_funcs().empty()) {
-        if (peer_node.get_fused_activations_funcs().size() > 1)
-            CLDNN_ERROR_MESSAGE(peer_node.id(), "Fused primitive descriptor doesn't support > 1 activation functions in a peer node");
-
-        local_desc.activation = peer_node.get_fused_activations_funcs()[0];
-        local_desc.activation_params = peer_node.get_fused_activations_params()[0];
-    }
 
     auto fusedPadding = fused_node.get_output_layout().data_padding;
     cldnn::padding needed_padding = padding::max(peer_layout.data_padding,
@@ -1247,7 +1280,7 @@ void program::remove_nodes(std::vector<program_node*>& to_remove) {
 void program::dump_program(const char* stage,
                            bool with_full_info,
                            std::function<bool(program_node const&)> const& filter) const {
-    std::string path = get_dir_path(options);
+    std::string path = get_dir_path(_config);
     if (path.empty() || !with_full_info) {
         return;
     }
@@ -1371,7 +1404,7 @@ program::primitives_info program::get_current_stage_info() const {
 
 void program::save_pass_info(std::string pass_name) {
     // TODO: Directory path here can be probably changed to some bool flag
-    if (!options.get<build_option_type::graph_dumps_dir>()->directory_path.empty())
+    if (!_config.get_property(ov::intel_gpu::dump_graphs).empty())
         optimizer_passes_info.emplace_back(pass_name, get_current_stage_info());
 }
 
@@ -1399,7 +1432,8 @@ const program::primitives_info& program::get_primitives_info() const { return pr
 void program::apply_opt_pass(base_pass& pass) { pm->run(*this, pass); }
 
 void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
-    lo.set_implementation_forcing(options.get<build_option_type::force_implementations>()->forcing);
+    lo.set_implementation_forcing(_config.get_property(ov::intel_gpu::force_implementations));
+
 
     // first pass to set layout optimization_attributes for topology
     bool can_use_fsv16 = true;
@@ -1418,9 +1452,6 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
         auto &prim = *node;
         if (prim.type() == cldnn::convolution::type_id()) {
             auto &conv = prim.as<convolution>();
-            if (conv.get_primitive()->split() > 1)
-                lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::splitted_convolution, 1);
-
             if (conv.get_primitive()->groups > 1)
                 lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::group_convolution, 1);
 
@@ -1436,7 +1467,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                 else if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups < 16)
                     total_dw_splitted_conv_layers++;  // this counter is needed due to compatibility with b_fs_yx_fsv16
                                                       // heuristics
-                else if (conv.get_primitive()->groups > 1 || conv.get_primitive()->split() > 1)
+                else if (conv.get_primitive()->groups > 1)
                     total_grouped_conv_layers++;
 
                 if (input_size.spatial[0] == 1 && input_size.spatial[1] == 1)
@@ -1487,6 +1518,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
              || (prim.as<mvn>().input().get_output_layout().data_type != data_types::u8 &&
                  prim.as<mvn>().input().get_output_layout().data_type != data_types::i8)
              || prim.as<mvn>().get_primitive()->across_channels) &&
+            prim.type() != cldnn::arg_max_min::type_id() &&
             prim.type() != cldnn::dft::type_id() &&
             prim.type() != cldnn::grid_sample::type_id() &&
             prim.type() != cldnn::mutable_data::type_id() &&
@@ -1626,7 +1658,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
     auto& engine = get_engine();
     if (engine.get_device_info().supports_immad &&
         engine.get_device_info().vendor_id == INTEL_VENDOR_ID &&
-        engine.configuration().queue_type == queue_types::in_order)
+        get_config().get_property(ov::intel_gpu::queue_type) == QueueTypes::in_order)
         lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, 1);
 #endif
 }
@@ -1655,7 +1687,6 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
               });
     auto& engine = get_engine();
     int64_t host_alloc = 0;
-    GPU_DEBUG_GET_INSTANCE(debug_config);
     // just to prevent the memories from being freed during allocation
     std::unordered_set<memory::ptr> allocated_mem_ptrs;
     for (const auto& node : nodes_to_allocate) {
@@ -1675,10 +1706,8 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
         if (engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu)
             total_host_alloc_size += engine.get_used_device_memory(allocation_type::usm_device);
         if ((cur_vmem != -1 && total_host_alloc_size > cur_vmem * 0.5) || (total_host_alloc_size >= max_global_mem_size)) {
-            GPU_DEBUG_IF(debug_config->verbose >= 1) {
-                GPU_DEBUG_COUT << "Estimated host mem usage calculated with default base batch size(16) exceeds the available memory ("
-                    << cur_vmem << ")" << std::endl;
-            }
+            GPU_DEBUG_INFO << "Estimated host mem usage calculated with default base batch size(16) exceeds the available memory ("
+                           << cur_vmem << ")" << std::endl;
             return {-1L, -1L};
         }
         #endif
@@ -1704,4 +1733,9 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
 
 void program::remove_kernel(kernel_id id) {
     _kernels_cache->remove_kernel(id);
+}
+
+void program::cancel_compilation_context() {
+    if (_compilation_context != nullptr)
+        _compilation_context->cancel();
 }

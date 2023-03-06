@@ -9,7 +9,7 @@ Previously, a certain level of automatic configuration was the result of the *de
 The hints, in contrast, respect the actual model, so the parameters for optimal throughput are calculated for each model individually (based on its compute versus memory bandwidth requirements and capabilities of the device).
 
 ## Performance Hints: Latency and Throughput
-As discussed in the [Optimization Guide](../optimization_guide/dldt_optimization_guide.md) there are a few different metrics associated with inference speed.
+As discussed in the [Optimization Guide](../optimization_guide/dldt_deployment_optimization_guide.md) there are a few different metrics associated with inference speed.
 Throughput and latency are some of the most widely used metrics that measure the overall performance of an application.
 
 Therefore, in order to ease the configuration of the device, OpenVINO offers two dedicated hints, namely `ov::hint::PerformanceMode::THROUGHPUT` and `ov::hint::PerformanceMode::LATENCY`.

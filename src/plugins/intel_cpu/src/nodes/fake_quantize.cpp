@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,23 +7,25 @@
 #include <string>
 #include <vector>
 #include <math.h>
-#include <dnnl_types.h>
-#include <dnnl_extension_utils.h>
-#include "utils/general_utils.h"
-#include "utils/cpu_utils.hpp"
-
 #include <algorithm>
 #include <set>
 #include <cmath>
-#include <cpu/x64/jit_generator.hpp>
-#include "ie_parallel.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
+#include <dnnl_types.h>
+#include <dnnl_extension_utils.h>
+#include <cpu/x64/jit_generator.hpp>
+#include <common/dnnl_thread.hpp>
+
+#include "ie_parallel.hpp"
+#include "utils/general_utils.h"
+#include "utils/cpu_utils.hpp"
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "utils/ngraph_utils.hpp"
 #include "common/cpu_memcpy.h"
 #include <common/primitive_hashing_utils.hpp>
+
+#include <ngraph/opsets/opset1.hpp>
+#include "utils/ngraph_utils.hpp"
 
 // Quantization ranges validation is switched off by default in order to avoid regressions on user side
 // #define VALIDATE_QUANTIZATION_RANGES
@@ -914,8 +916,8 @@ struct FakeQuantKey {
 };
 }  // namespace
 
-FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
+        Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         algorithm = Algorithm::FQCommon;
@@ -1433,7 +1435,7 @@ void FakeQuantize::prepareParams() {
         key.jqp.is_planar = srcDesc->hasLayoutType(LayoutType::ncsp) && one_of(srcDesc->getShape().getRank(), 3, 4, 5);
         key.jqp.op_type = getAlgorithm();
 
-        auto cache = getRuntimeCache();
+        auto cache = context->getParamsCache();
         auto buildExecutor = [](const FakeQuantKey& key) {
             return std::make_shared<FakeQuantizeJitExecutor>(key.jqp);
         };

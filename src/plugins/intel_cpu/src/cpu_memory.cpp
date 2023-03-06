@@ -1,7 +1,8 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <oneapi/dnnl/dnnl.hpp>
 #include <vector>
 #include <numeric>
 #include <unordered_set>
@@ -52,14 +53,14 @@ void Memory::Create(const dnnl::memory::desc& desc, const void *data, bool pads_
     // ========================
     // Equivalent of constructor memory(const primitive_desc &desc, void *hdl)
     // but with ability to skipp pads zeroing.
-    prim.reset(new memory(desc, eng, DNNL_MEMORY_NONE));
+    prim = memory(desc, eng, DNNL_MEMORY_NONE);
     //
     // ========================
     if (data != nullptr) {
         if (pads_zeroing)
-            prim->set_data_handle(const_cast<void*>(data));
+            prim.set_data_handle(const_cast<void*>(data));
         else
-            prim->set_data_handle_no_pads_proc(const_cast<void*>(data));
+            prim.set_data_handle_no_pads_proc(const_cast<void*>(data));
     }
 }
 
@@ -95,15 +96,17 @@ void Memory::Create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
 void Memory::SetData(const Memory& src, bool ftz) const {
     node::Reorder::reorderData(src, *this);
 
+    dnnl::impl::memory_desc_wrapper wrapper(prim.get_desc().get());
+
     if (ftz
         && src.GetDataType() == memory::data_type::f32
-        && prim->get_desc().data.format_kind != dnnl_format_kind_wino
+        && !wrapper.is_wino_desc()
         // WA: to avoid zero filling auxiliary information
-        && prim->get_desc().data.format_kind != dnnl_format_kind_rnn_packed
+        && !wrapper.is_rnn_packed_desc()
         && GetDataType() != memory::data_type::bf16) {
         // Internal blobs haven't strides yet.
         auto *memData = static_cast<float *>(GetData());
-        memData += prim->get_desc().data.offset0;
+        memData += wrapper.offset0();
         setSubnormalsToZero(memData, GetSize() / sizeof(float));
     }
 }
@@ -116,7 +119,8 @@ void Memory::FillZero() {
 
 void *Memory::GetPtr() const  {
     auto ptr = static_cast<uint8_t*>(GetData());
-    const dnnl_memory_desc_t md = prim->get_desc().data;
+    const memory::desc desc = prim.get_desc();
+    const dnnl_memory_desc_t md = desc.get();
     dnnl::impl::memory_desc_wrapper wrapper(md);
     ptr += wrapper.offset0() * wrapper.data_type_size();
     return ptr;
@@ -144,12 +148,12 @@ void Memory::setDataHandle(void *data) {
 
     size_t maxMemSize = pMemDesc->hasDefinedMaxSize() ?  pMemDesc->getMaxMemSize() : 0;
     mgrHandle->setExtBuff(data, maxMemSize);
-    prim->set_data_handle(mgrHandle->getRawPtr()); // for pads zeroing, to preserve dnnl::memory::set_data_handle behaviour
+    prim.set_data_handle(mgrHandle->getRawPtr()); // for pads zeroing, to preserve dnnl::memory::set_data_handle behaviour
 }
 
 void Memory::update() {
     if (isAllocated()) {
-        prim->set_data_handle_no_pads_proc(mgrHandle->getRawPtr());
+        prim.set_data_handle_no_pads_proc(mgrHandle->getRawPtr());
     }
 }
 
@@ -185,7 +189,7 @@ bool MemoryMngrWithReuse::resize(size_t size) {
     if (size > _memUpperBound) {
         void *ptr = dnnl::impl::malloc(size, cacheLineSize);
         if (!ptr) {
-            throw std::bad_alloc();
+            IE_THROW() << "Failed to allocate " << size << " bytes of memory";
         }
         _memUpperBound = size;
         _useExternalStorage = false;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,7 @@ public:
     void compare_out_buffer_with_expected() {
         for(size_t i = 0; i < out_size; ++i) {
             // does output have expected values
-            EXPECT_TRUE(are_equal(out_buffer[i], expected_buffer[i]))
+            ASSERT_TRUE(are_equal(out_buffer[i], expected_buffer[i]))
                 << "At ["<< i <<  "] Expected : " << expected_buffer[i] << " actual : " << out_buffer[i];
         }
     }
@@ -50,123 +50,149 @@ public:
                 auto idx = b+x*output_b;
                 batch_wise_sum += out_buffer[idx];
                 // does output have expected values
-                EXPECT_TRUE(are_equal(out_buffer[idx], expected_buffer[idx]))
+                ASSERT_TRUE(are_equal(out_buffer[idx], expected_buffer[idx]))
                     << "At ["<< idx <<  "] Expected : " << expected_buffer[idx] << " actual : " << out_buffer[idx];
             }
             // does it sum to 1 batch wise
-            EXPECT_TRUE(are_equal(batch_wise_sum, 1.0f))
+            ASSERT_TRUE(are_equal(batch_wise_sum, 1.0f))
                 << "Expected : " << 1.0f << " actual : " << batch_wise_sum;
         }
+    }
+
+    void test_input_same_values(bool is_caching_test) {
+    // in_buffer filled with same value == 1.0f
+        for(uint32_t i = 0; i < out_size; ++i) {
+                in_buffer[i] = 1.0f;
+            expected_buffer[i] = 0.1f;
+        }
+        std::vector<float> in_b(std::begin(in_buffer), std::end(in_buffer));
+
+        set_values(input, in_b);
+
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(softmax("softmax", input_info("input"), 3));
+
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+
+        network->set_input_data("input", input);
+
+        auto outputs = network->execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "softmax");
+
+        auto output_prim = outputs.begin()->second.get_memory();
+
+        cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+        for (uint32_t i = 0; i < out_size; i++) {
+            out_buffer[i] = output_ptr[i];
+        }
+        compare_out_buffer_with_expected();
+
+    }
+
+    void test_input_same_values_batch_wise(bool is_caching_test) {
+    // in_buffer filled with same value == 1..2 each batch accordingly (softmax can only xb_f32 )
+        for(size_t i = 0; i < output_x; ++i) {
+            for(size_t j = 0; j < output_b; ++j)
+                in_buffer[j+i*output_b] = (j+i*output_b) % 2 +1.0f;
+        }
+
+        std::vector<float> in_b(std::begin(in_buffer), std::end(in_buffer));
+        set_values(input, in_b);
+        // fill buffer with the expected 0.1f value
+        for(size_t i = 0; i < out_size; ++i)
+            expected_buffer[i] = 0.1f;
+
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(softmax("softmax", input_info("input"), 3));
+
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input);
+
+        auto outputs = network->execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "softmax");
+
+        auto output_prim = outputs.begin()->second.get_memory();
+
+        cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+        for (uint32_t i = 0; i < out_size; i++) {
+            out_buffer[i] = output_ptr[i];
+        }
+        compare_out_buffer_with_expected_batch_wise();
+    }
+
+    void test_values_batch_wise(bool is_caching_test) {
+        float in_buf[in_size] = {
+        //b0  b1
+            2.0f, 2.0f, //x0
+            2.0f, 2.0f, //x1
+            2.0f, 2.0f, //x2
+            3.0f, 3.0f, //x3
+            5.0f, 5.0f, //x4
+            4.0f, 4.0f, //x5
+            3.0f, 3.0f, //x6
+            2.0f, 2.0f, //x7
+            2.0f, 2.0f, //x8
+            2.0f, 2.0f  //x9
+        };
+
+        float exp_buf[out_size] = {
+            0.02569957f,     0.02569957f,
+            0.02569957f,     0.02569957f,
+            0.02569957f,     0.02569957f,
+            0.069858674f,    0.069858674f,
+            0.516189665f,    0.516189665f,
+            0.189895565f,    0.189895565f,
+            0.069858674f,    0.069858674f,
+            0.02569957f,     0.02569957f,
+            0.02569957f,     0.02569957f,
+            0.02569957f,     0.02569957f
+
+        };
+
+        std::vector<float> in_b(std::begin(in_buf), std::end(in_buf));
+        set_values(input, in_b);
+        std::copy(exp_buf, exp_buf+in_size, expected_buffer);
+
+        // out_buffer filled with non-signaling NaN
+        for(size_t i = 0; i < out_size; ++i)
+            out_buffer[i] = NAN;
+
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(softmax("softmax", input_info("input"), 3));
+
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+
+        network->set_input_data("input", input);
+
+        auto outputs = network->execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "softmax");
+
+        auto output_prim = outputs.begin()->second.get_memory();
+
+        cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+        for (uint32_t i = 0; i < out_size; i++) {
+            out_buffer[i] = output_ptr[i];
+        }
+        compare_out_buffer_with_expected_batch_wise();
     }
 };
 
 TEST_F(softmax_gpu_xb_f32_test_fixture, input_same_values) {
-// in_buffer filled with same value == 1.0f
-    for(uint32_t i = 0; i < out_size; ++i) {
-              in_buffer[i] = 1.0f;
-        expected_buffer[i] = 0.1f;
-    }
-    std::vector<float> in_b(std::begin(in_buffer), std::end(in_buffer));
-
-    set_values(input, in_b);
-
-    network network(engine, topology(input_layout("input", input->get_layout()), softmax("softmax", input_info("input"), 3)));
-    network.set_input_data("input", input);
-
-    auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "softmax");
-
-    auto output_prim = outputs.begin()->second.get_memory();
-
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
-    for (uint32_t i = 0; i < out_size; i++) {
-        out_buffer[i] = output_ptr[i];
-    }
-    compare_out_buffer_with_expected();
+    this->test_input_same_values(false);
 }
 
 TEST_F(softmax_gpu_xb_f32_test_fixture, input_same_values_batch_wise) {
-// in_buffer filled with same value == 1..2 each batch accordingly (softmax can only xb_f32 )
-    for(size_t i = 0; i < output_x; ++i) {
-        for(size_t j = 0; j < output_b; ++j)
-            in_buffer[j+i*output_b] = (j+i*output_b) % 2 +1.0f;
-    }
-
-    std::vector<float> in_b(std::begin(in_buffer), std::end(in_buffer));
-    set_values(input, in_b);
-    // fill buffer with the expected 0.1f value
-    for(size_t i = 0; i < out_size; ++i)
-        expected_buffer[i] = 0.1f;
-
-    network network(engine, topology(input_layout("input", input->get_layout()), softmax("softmax", input_info("input"), 3)));
-    network.set_input_data("input", input);
-
-    auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "softmax");
-
-    auto output_prim = outputs.begin()->second.get_memory();
-
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
-    for (uint32_t i = 0; i < out_size; i++) {
-        out_buffer[i] = output_ptr[i];
-    }
-    compare_out_buffer_with_expected_batch_wise();
+    this->test_input_same_values_batch_wise(false);
 }
 
 TEST_F(softmax_gpu_xb_f32_test_fixture, values_batch_wise) {
-
-    float in_buf[in_size] = {
-       //b0  b1
-        2.0f, 2.0f, //x0
-        2.0f, 2.0f, //x1
-        2.0f, 2.0f, //x2
-        3.0f, 3.0f, //x3
-        5.0f, 5.0f, //x4
-        4.0f, 4.0f, //x5
-        3.0f, 3.0f, //x6
-        2.0f, 2.0f, //x7
-        2.0f, 2.0f, //x8
-        2.0f, 2.0f  //x9
-    };
-
-    float exp_buf[out_size] = {
-        0.02569957f,     0.02569957f,
-        0.02569957f,     0.02569957f,
-        0.02569957f,     0.02569957f,
-        0.069858674f,    0.069858674f,
-        0.516189665f,    0.516189665f,
-        0.189895565f,    0.189895565f,
-        0.069858674f,    0.069858674f,
-        0.02569957f,     0.02569957f,
-        0.02569957f,     0.02569957f,
-        0.02569957f,     0.02569957f
-
-    };
-
-    std::vector<float> in_b(std::begin(in_buf), std::end(in_buf));
-    set_values(input, in_b);
-    std::copy(exp_buf, exp_buf+in_size, expected_buffer);
-
-    // out_buffer filled with non-signaling NaN
-    for(size_t i = 0; i < out_size; ++i)
-        out_buffer[i] = NAN;
-
-    network network(engine, topology(input_layout("input", input->get_layout()), softmax("softmax", input_info("input"), 3)));
-    network.set_input_data("input", input);
-
-    auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "softmax");
-
-    auto output_prim = outputs.begin()->second.get_memory();
-
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
-    for (uint32_t i = 0; i < out_size; i++) {
-        out_buffer[i] = output_ptr[i];
-    }
-    compare_out_buffer_with_expected_batch_wise();
+    this->test_values_batch_wise(false);
 }
 
 TEST(softmax_gpu_bfyx_f32, normalize_y) {
@@ -217,8 +243,8 @@ TEST(softmax_gpu_bfyx_f32, normalize_y) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "softmax");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "softmax");
 
     auto output = outputs.at("softmax").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -244,11 +270,11 @@ TEST(softmax_gpu_bfyx_f32, normalize_y) {
                     }
                     sum += out_buffer[index];
                 }
-                EXPECT_EQ(true, are_equal(temp_max, expected_max_values[max_value_buffer_index]));
+                ASSERT_EQ(true, are_equal(temp_max, expected_max_values[max_value_buffer_index]));
                 temp_max = 0;
                 max_value_buffer_index++;
 
-                EXPECT_EQ(true, are_equal(sum, expected_sum));
+                ASSERT_EQ(true, are_equal(sum, expected_sum));
                 sum = 0.0f;
             }
         }
@@ -297,8 +323,8 @@ TEST(softmax_gpu_bfyx_f32, normalize_f) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "softmax");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "softmax");
 
     auto output = outputs.at("softmax").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -328,11 +354,11 @@ TEST(softmax_gpu_bfyx_f32, normalize_f) {
                     }
                     sum += out_buffer[index];
                 }
-                EXPECT_EQ(true, are_equal(temp_max, expected_max_values[max_value_buffer_index]));
+                ASSERT_EQ(true, are_equal(temp_max, expected_max_values[max_value_buffer_index]));
                 temp_max = 0;
                 max_value_buffer_index++;
 
-                EXPECT_EQ(true, are_equal(sum, expected_sum));
+                ASSERT_EQ(true, are_equal(sum, expected_sum));
                 sum = 0.0f;
             }
         }
@@ -382,8 +408,8 @@ TEST(softmax_gpu_bfzyx_f32, normalize_z) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "softmax");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "softmax");
 
     auto output = outputs.at("softmax").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -411,10 +437,10 @@ TEST(softmax_gpu_bfzyx_f32, normalize_z) {
                         }
                         sum += out_buffer[index];
                     }
-                    EXPECT_EQ(true, are_equal(temp_max, expected_max_values[max_value_buffer_index]));
+                    ASSERT_EQ(true, are_equal(temp_max, expected_max_values[max_value_buffer_index]));
                     temp_max = 0;
                     max_value_buffer_index++;
-                    EXPECT_EQ(true, are_equal(sum, expected_sum));
+                    ASSERT_EQ(true, are_equal(sum, expected_sum));
                     sum = 0.0f;
                 }
             }
@@ -465,8 +491,8 @@ TEST(softmax_gpu_bfyx_f32, normalize_b) {
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "softmax");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "softmax");
 
     auto output = outputs.at("softmax").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -492,11 +518,11 @@ TEST(softmax_gpu_bfyx_f32, normalize_b) {
                     }
                     sum += out_buffer[index];
                 }
-                EXPECT_EQ(true, are_equal(temp_max, expected_max_values[max_value_buffer_index]));
+                ASSERT_EQ(true, are_equal(temp_max, expected_max_values[max_value_buffer_index]));
                 temp_max = 0;
                 max_value_buffer_index++;
 
-                EXPECT_EQ(true, are_equal(sum, expected_sum));
+                ASSERT_EQ(true, are_equal(sum, expected_sum));
                 sum = 0.0f;
             }
         }
@@ -901,7 +927,7 @@ template<typename T>
 struct softmax_gpu_formats_test
         : public ::testing::TestWithParam<SoftmaxParamsWithFormat<T> > {
 public:
-    void test() {
+    void test(bool is_caching_test) {
         const auto data_type = type_to_data_type<T>::value;
         SoftmaxParams<T> params;
         format::type plain_format;
@@ -920,18 +946,18 @@ public:
 
         set_values(input, params.input);
 
-        build_options bo;
-        bo.set_option(build_option::optimize_data(false));
-        network network(engine, topology);
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::optimize_data(false));
+        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
-        network.set_input_data("input", input);
-        const auto outputs = network.execute();
+        network->set_input_data("input", input);
+        const auto outputs = network->execute();
         const auto output = outputs.at("softmax").get_memory();
         const cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(params.input_tensor.count(), output_ptr.size());
         for (uint32_t i = 0; i < output_ptr.size(); i++) {
-            EXPECT_NEAR(output_ptr[i], params.expected[i], getError<T>()) << "target_format=" << target_format << ", i=" << i;
+            ASSERT_NEAR(output_ptr[i], params.expected[i], getError<T>()) << "target_format=" << target_format << ", i=" << i;
         }
     }
 };
@@ -940,11 +966,11 @@ using softmax_gpu_formats_test_f32 = softmax_gpu_formats_test<float>;
 using softmax_gpu_formats_test_f16 = softmax_gpu_formats_test<half_t>;
 
 TEST_P(softmax_gpu_formats_test_f32, softmax_gpu_formats_test_f32) {
-    ASSERT_NO_FATAL_FAILURE(test());
+    ASSERT_NO_FATAL_FAILURE(test(false));
 }
 
 TEST_P(softmax_gpu_formats_test_f16, softmax_gpu_formats_test_f16) {
-    ASSERT_NO_FATAL_FAILURE(test());
+    ASSERT_NO_FATAL_FAILURE(test(false));
 }
 
 INSTANTIATE_TEST_SUITE_P(softmax_gpu_formats_test_f32_2d,
@@ -1022,9 +1048,9 @@ TEST(softmax_gpu_bfyx_f32, normalize_f_dynamic) {
         0.977054322f //b=1, y=1, x=1
     };
 
-    build_options bo;
-    bo.set_option(build_option::allow_new_shape_infer(true));
-    network network(engine, topology, bo);
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
     network.set_input_data("input", input);
 
     auto inst = network.get_primitive("softmax");
@@ -1033,8 +1059,8 @@ TEST(softmax_gpu_bfyx_f32, normalize_f_dynamic) {
     ASSERT_TRUE(impl->is_dynamic());
 
     auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "softmax");
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "softmax");
 
     auto output = outputs.at("softmax").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
@@ -1060,13 +1086,39 @@ TEST(softmax_gpu_bfyx_f32, normalize_f_dynamic) {
                     }
                     sum += out_buffer[index];
                 }
-                EXPECT_TRUE(are_equal(temp_max, expected_max_values[max_value_buffer_index]));
+                ASSERT_TRUE(are_equal(temp_max, expected_max_values[max_value_buffer_index]));
                 temp_max = 0;
                 max_value_buffer_index++;
 
-                EXPECT_TRUE(are_equal(sum, expected_sum));
+                ASSERT_TRUE(are_equal(sum, expected_sum));
                 sum = 0.0f;
             }
         }
     }
 }
+
+TEST_F(softmax_gpu_xb_f32_test_fixture, input_same_values_cached) {
+    this->test_input_same_values(true);
+}
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST_F(softmax_gpu_xb_f32_test_fixture, input_same_values_batch_wise_cached) {
+    this->test_input_same_values_batch_wise(true);
+}
+
+TEST_F(softmax_gpu_xb_f32_test_fixture, values_batch_wise_cached) {
+    this->test_values_batch_wise(true);
+}
+
+TEST_P(softmax_test, SOFTMAX_cached) {
+    run_single_test(true);
+}
+
+TEST_P(softmax_gpu_formats_test_f32, softmax_gpu_formats_test_f32_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+
+TEST_P(softmax_gpu_formats_test_f16, softmax_gpu_formats_test_f16_cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
+}
+#endif
