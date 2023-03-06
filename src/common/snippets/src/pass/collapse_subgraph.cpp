@@ -394,7 +394,9 @@ TokenizeSnippets::TokenizeSnippets() {
                     //  Would it be better to incorporate all inputs first and then remove repeated params.
                     for (size_t i = 0; i < input_body_parameters.size(); ++i) {
                         auto found = std::find(external_inputs.begin(), external_inputs.end(), subgraph->input_value(i));
-                        if (found != external_inputs.end()) {
+                        // if (found != external_inputs.end()) {
+                        // TODO: input parameters replaces does not work correctly
+                        if (0) {
                             // Todo: here we rely on friendly_name uniqueness. Propose a different algorithm.
                             size_t current_input_index = body_parameters.size();
                             for (size_t p_ind = 0; p_ind <  body_parameters.size(); p_ind++) {
