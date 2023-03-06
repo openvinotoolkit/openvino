@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/test_assertions.hpp"
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/constant.hpp"
@@ -402,19 +403,14 @@ TEST(type_prop, ess_fail_emb_table_0d) {
     auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{4});
     auto default_index = make_shared<op::Parameter>(element::i64, Shape{});
 
-    try {
-        auto ess = make_shared<op::v3::EmbeddingSegmentsSum>(emb_table,
-                                                             indices,
-                                                             segment_ids,
-                                                             num_segments,
-                                                             default_index,
-                                                             per_sample_weights);
-        FAIL() << "Invalid mismatch of shapes not detected";
-    } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("EMB_TABLE can't be a scalar"));
-    } catch (...) {
-        FAIL() << "Shapes check failed for unexpected reason";
-    }
+    OV_EXPECT_THROW(auto op = make_shared<op::v3::EmbeddingSegmentsSum>(emb_table,
+                                                                        indices,
+                                                                        segment_ids,
+                                                                        num_segments,
+                                                                        default_index,
+                                                                        per_sample_weights),
+                    NodeValidationFailure,
+                    HasSubstr("EMB_TABLE can't be a scalar"));
 }
 
 TEST(type_prop, ess_4_args_api) {
