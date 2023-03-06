@@ -29,8 +29,10 @@ More resources:
 A convenient environment to train Deep Learning models and convert them using the OpenVINO™ toolkit for optimized inference.
 
 More resources:
-* [Documentation](@ref ote_documentation)
+
+* [Overview](@ref ote_documentation)
 * [GitHub](https://github.com/openvinotoolkit/training_extensions)
+* [Documentation](https://openvinotoolkit.github.io/training_extensions/stable/guide/get_started/introduction.html)
 
 ### OpenVINO™ Security Add-on	 
 A solution for Model Developers and Independent Software Vendors to use secure packaging and secure model execution.	 
