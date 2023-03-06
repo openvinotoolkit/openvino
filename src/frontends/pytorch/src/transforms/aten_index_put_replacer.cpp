@@ -1,0 +1,163 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "aten_index_put_replacer.hpp"
+
+#include "openvino/core/rt_info.hpp"
+#include "openvino/frontend/pytorch/visibility.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/gather_elements.hpp"
+#include "openvino/op/gather_nd.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/non_zero.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/util/framework_node.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert_like.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/mod.hpp"
+#include "openvino/op/scatter_nd_update.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "utils.hpp"
+
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace pass {
+
+using namespace ov::op;
+
+namespace {
+Output<Node> generate_zeros_with_convertlike(
+                                             const Output<Node> sizes,
+                                             const Output<Node> tensor_of_type) {
+    auto const_0 = v0::Constant::create(element::i32, Shape{}, {0});
+    auto zeros = std::make_shared<v3::Broadcast>(const_0, sizes);
+    return std::make_shared<v1::ConvertLike>(zeros, tensor_of_type);
+}
+}  // namespace
+
+AtenIndexPutReplacer::AtenIndexPutReplacer() {
+    auto index_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
+
+    ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
+        auto index_op = cast_fw_node(m.get_match_root(), "aten::index_put_");
+        if (!index_op) {
+            return false;
+        }
+        auto const_0 = (v0::Constant::create(element::i32, Shape{}, {0}));
+        auto const_1 = (v0::Constant::create(element::i32, Shape{1}, {1}));
+        auto const_max_int =
+            (v0::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>::max()}));
+        auto const_neg_1 = (v0::Constant::create(element::i32, Shape{}, {-1}));
+
+        auto input = index_op->input_value(0);
+        auto input_shape = std::make_shared<v3::ShapeOf>(input, element::i32);
+        auto indices = index_op->input_value(1);
+        auto values = index_op->input_value(2);
+        auto acc_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(index_op->input_value(3).get_node_shared_ptr());
+        if (!acc_const) {
+            return false;
+        }
+        auto accumulate = acc_const->cast_vector<int64_t>()[0];
+
+        auto indicies = index_op->input_value(1).get_node_shared_ptr();
+        std::shared_ptr<Node> list_indicies;
+        int indices_list_len;
+        if (list_indicies = cast_fw_node(indicies, "prim::ListConstruct")) {
+            indices_list_len = list_indicies->input_values().size();
+        } else {
+            // TODO accept concatenated lists https://github.com/openvinotoolkit/openvino/blob/master/src/frontends/pytorch/src/op/index_put_.cpp#L51
+            return false;
+        }
+        auto const_indices_list_len = (v0::Constant::create(element::i32, Shape{1}, {indices_list_len}));
+        if (indices_list_len == 0) {
+            replace_node(index_op, values.get_node_shared_ptr());
+            return true;
+        }
+
+        std::shared_ptr<Node> broadcast_index_shape;
+        Output<Node> index;
+        if (indices_list_len > 1) {
+            index = list_indicies->input_values()[0];
+            for (int i = 1; i < indices_list_len; i++) {
+                index = std::make_shared<v1::Add>(index, list_indicies->input_values()[i]);
+            }
+            broadcast_index_shape = std::make_shared<v3::ShapeOf>(index, element::i32);
+            OutputVector indices_list;
+            for (int i = 0; i < indices_list_len; i++) {
+                auto broadcast =
+                    std::make_shared<v3::Broadcast>(list_indicies->input_values()[i], broadcast_index_shape);
+                auto unsqueeze = std::make_shared<v0::Unsqueeze>(broadcast, const_neg_1);
+
+                // change negative indices to positive indices
+                auto const_i = v0::Constant::create(element::i32, Shape{}, {i});
+                auto dim_i = std::make_shared<v8::Gather>(input_shape, const_i, const_0);
+                auto dim_i_correct_type = std::make_shared<v1::ConvertLike>(dim_i, index);
+                auto unsqueeze_add = std::make_shared<v1::Add>(unsqueeze, dim_i_correct_type);
+                auto unsqueeze_add_mod = std::make_shared<v1::Mod>(unsqueeze_add, dim_i_correct_type);
+
+                indices_list.push_back(unsqueeze_add_mod);
+            }
+            index = std::make_shared<v0::Concat>(indices_list, -1);
+        } else {
+            index = list_indicies->input_values()[0];
+            // change negative indices to positive indices
+            auto dim_0 = (std::make_shared<v8::Gather>(input_shape, const_0, const_0));
+            auto dim_0_correct_type = (std::make_shared<v1::ConvertLike>(dim_0, index));
+            index = (std::make_shared<v1::Add>(index, dim_0_correct_type));
+            index = (std::make_shared<v1::Mod>(index, dim_0_correct_type));
+
+            broadcast_index_shape = (std::make_shared<v3::ShapeOf>(index, element::i32));
+            index = (std::make_shared<v0::Unsqueeze>(index, const_neg_1));
+        }
+
+        auto sub_data_shape =
+            (std::make_shared<v8::Slice>(input_shape, const_indices_list_len, const_max_int, const_1));
+        auto values_shape =
+            (std::make_shared<v0::Concat>(OutputVector{broadcast_index_shape, sub_data_shape}, 0));
+        values = (std::make_shared<v3::Broadcast>(values, values_shape));
+        values = (std::make_shared<v1::ConvertLike>(values, input));
+
+        Output<Node> result;
+        if (accumulate) {
+            auto zeros = generate_zeros_with_convertlike(input_shape, input);
+            auto scatter = std::make_shared<v3::ScatterNDUpdate>(zeros, index, values);
+            result = std::make_shared<v1::Add>(input, scatter);
+        } else {
+            result = std::make_shared<v3::ScatterNDUpdate>(input, index, values);
+        }
+        replace_node(index_op, result.get_node_shared_ptr());
+        return true;
+
+
+        // return {result};
+    };
+
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(index_op, "ov::frontend::pytorch::pass::AtenIndexPutReplacer");
+    this->register_matcher(m, callback);
+}
+
+}  // namespace pass
+}  // namespace pytorch
+}  // namespace frontend
+}  // namespace ov
