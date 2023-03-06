@@ -70,7 +70,7 @@ void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
             for (auto prev : node.get_dependencies()) {
                 if (!prev.first->is_type<reshape>())
                     return;
-                if (prev.first->get_users().size() > 1)
+                if (prev.first->get_users().size() > 1 || prev.first->get_dependencies().size() > 1)
                     return;
                 if (prev.first->as<reshape>().input().get_output_layout() == node.get_output_layout()) {
                     p.add_optimized_primitive_info(prev.first->id());

@@ -297,7 +297,7 @@ KernelsData GatherKernelRef::GetKernelsData(const Params& params, const optional
                      2,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     newParams.outputs[0].is_dynamic());
+                     newParams.has_dynamic_tensors());
 
     return {kd};
 }
