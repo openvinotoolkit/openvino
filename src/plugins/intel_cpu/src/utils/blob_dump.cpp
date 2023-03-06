@@ -175,7 +175,7 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) const {
         case Precision::BF16: {
             auto *blob_ptr = reinterpret_cast<const bfloat16_t*>(ptr);
             for (size_t i = 0; i < data_size; i++) {
-                float fn = (float)blob_ptr[desc.getElementOffset(i)];
+                float fn = static_cast<float>(blob_ptr[desc.getElementOffset(i)]);
                 stream << fn << std::endl;
             }
             break;
