@@ -1122,3 +1122,82 @@ TEST_P(softmax_gpu_formats_test_f16, softmax_gpu_formats_test_f16_cached) {
     ASSERT_NO_FATAL_FAILURE(test(true));
 }
 #endif
+
+TEST(softmax_gpu_bfyx_f32, bf_opt_normalize_f_dynamic) {
+    auto& engine = get_test_engine();
+
+    const int64_t x = 1, y = 1, f = 3, b = 2;
+    const int64_t buf_size = b*f*y*x;
+    auto input_layout_dynamic = layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), y, x},
+                                       data_types::f32, format::bfyx};
+    auto input_layout_static = layout{ov::PartialShape{b, f, y, x}, data_types::f32, format::bfyx};
+
+    auto input = engine.allocate_memory(input_layout_static);
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(softmax("softmax", input_info("input"), 1));
+
+    vector<float> input_vec = {
+              //y0x0
+        /*b0f0*/0.1f,
+        /*b0f1*/0.2f,
+        /*b0f2*/0.2f,
+        /*b1f0*/3.f,
+        /*b1f1*/4.f,
+        /*b1f2*/0.2f,
+    };
+    set_values(input, input_vec);
+
+    float expected_max_values[2] = {
+        0.344253346f, //b=0, y=0, x=0
+        0.719294981f  //b=1, y=0, x=0
+    };
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto inst = network.get_primitive("softmax");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "softmax");
+
+    auto output = outputs.at("softmax").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    float out_buffer[buf_size];
+    for (uint32_t i = 0; i < buf_size; i++) {
+        out_buffer[i] = output_ptr[i];
+    }
+
+    float temp_max = 0;
+    float expected_sum = 1.0f;
+    int max_value_buffer_index = 0;
+    for (uint32_t i = 0; i < b; i++) { //this for loops will sum results in a batch per feature, we expect that: sum = 1.0f
+        for (uint32_t j = 0; j < y; j++) {
+            for (uint32_t k = 0; k < x; k++) {
+                float sum = 0.0f;
+                for (uint32_t l = 0; l < f; l++) {
+                    int index = i * f * x * y +
+                                l * x * y +
+                                j * x +
+                                k;
+                    if (out_buffer[index] >= temp_max) {
+                        temp_max = out_buffer[index];
+                    }
+                    sum += out_buffer[index];
+                }
+                ASSERT_TRUE(are_equal(temp_max, expected_max_values[max_value_buffer_index]));
+                temp_max = 0;
+                max_value_buffer_index++;
+
+                ASSERT_TRUE(are_equal(sum, expected_sum));
+                sum = 0.0f;
+            }
+        }
+    }
+}
