@@ -10,6 +10,7 @@
 #include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset10.hpp>
 #include <openvino/opsets/opset8.hpp>
 
 #include "itt.hpp"
@@ -153,5 +154,50 @@ ov::pass::PReluFusionMultiplySub::PReluFusionMultiplySub() {
         return true;
     };
     auto m = std::make_shared<ngraph::pattern::Matcher>(sub, matcher_name);
+    register_matcher(m, callback);
+}
+
+ov::pass::PReluFusionAbsSubMulMulAdd::PReluFusionAbsSubMulMulAdd() {
+    MATCHER_SCOPE(PReluFusionAbsSubMulMulAdd);
+
+    using namespace std;
+    using namespace ov;
+    using namespace ov::opset10;
+
+    const auto equals_half = [](const Output<Node>& node) {
+        float v;
+        const auto constant = dynamic_pointer_cast<Constant>(node.get_node_shared_ptr());
+        return constant && op::util::get_single_value(constant, v) && v == 0.5f;
+    };
+
+    const auto input = pass::pattern::any_input();
+    const auto relu = pattern::wrap_type<Relu>({input});
+    const auto abs = pattern::wrap_type<Abs>({input});
+    const auto sub = pattern::wrap_type<Subtract>({input, abs});
+    const auto mul_1_constant = pattern::wrap_type<Constant>();
+    const auto mul_1 = pattern::wrap_type<Multiply>({sub, mul_1_constant});
+    const auto mul_2_constant = pattern::wrap_type<Constant>(equals_half);
+    const auto mul_2 = pattern::wrap_type<Multiply>({mul_1, mul_2_constant});
+    const auto add = pattern::wrap_type<Add>({mul_2, relu});
+
+    matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        const auto& pattern_to_output = m.get_pattern_value_map();
+        const auto input_output = pattern_to_output.at(input);
+        const auto add_node = pattern_to_output.at(add).get_node_shared_ptr();
+        const auto slope = pattern_to_output.at(mul_1_constant);
+        const auto prelu = make_shared<PRelu>(input_output, slope);
+
+        prelu->set_friendly_name(m.get_match_root()->get_friendly_name());
+        const OutputVector copy_from = {pattern_to_output.at(relu),
+                                        pattern_to_output.at(abs),
+                                        pattern_to_output.at(sub),
+                                        pattern_to_output.at(mul_1),
+                                        pattern_to_output.at(mul_2),
+                                        pattern_to_output.at(add)};
+        copy_runtime_info(as_node_vector(copy_from), prelu);
+        replace_node(add_node, prelu);
+        return true;
+    };
+    auto m = make_shared<pattern::Matcher>(add, matcher_name);
     register_matcher(m, callback);
 }
