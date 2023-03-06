@@ -4,9 +4,9 @@
 
 #include "transformations/flush_fp32_subnormals_to_zero.hpp"
 
+#include <cmath>
 #include <memory>
 #include <vector>
-#include <cmath>
 
 #include "itt.hpp"
 #include "openvino/opsets/opset10.hpp"

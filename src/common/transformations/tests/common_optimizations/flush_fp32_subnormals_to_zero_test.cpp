@@ -34,25 +34,25 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_max_subnorm) {
         auto input = std::make_shared<Parameter>(element::f32, Shape{1, 3, 12, 12});
 
         auto const_weights = Constant::create(element::f32,
-                                                          Shape{1, 3, 4, 1},
-                                                          {0.0f,
-                                                           1.0f,
-                                                           2.0f,
-                                                           3.0f,
-                                                           4.0f,
-                                                           5.0f,
-                                                           subnormal_val,
-                                                           subnormal_val,
-                                                           subnormal_val,
-                                                           subnormal_val,
-                                                           subnormal_val,
-                                                           subnormal_val});
+                                              Shape{1, 3, 4, 1},
+                                              {0.0f,
+                                               1.0f,
+                                               2.0f,
+                                               3.0f,
+                                               4.0f,
+                                               5.0f,
+                                               subnormal_val,
+                                               subnormal_val,
+                                               subnormal_val,
+                                               subnormal_val,
+                                               subnormal_val,
+                                               subnormal_val});
         auto conv = std::make_shared<Convolution>(input,
-                                                              const_weights,
-                                                              Strides{1, 1},
-                                                              CoordinateDiff{0, 0},
-                                                              CoordinateDiff{0, 0},
-                                                              Strides{1, 1});
+                                                  const_weights,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{0, 0},
+                                                  Strides{1, 1});
         function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
 
         manager.register_pass<pass::FlushFP32SubnormalsToZero>();
@@ -61,16 +61,15 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_max_subnorm) {
     {
         auto input = std::make_shared<Parameter>(element::f32, Shape{1, 3, 12, 12});
 
-        auto const_weights =
-            Constant::create(element::f32,
-                                         Shape{1, 3, 4, 1},
-                                         {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+        auto const_weights = Constant::create(element::f32,
+                                              Shape{1, 3, 4, 1},
+                                              {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
         auto conv = std::make_shared<Convolution>(input,
-                                                              const_weights,
-                                                              Strides{1, 1},
-                                                              CoordinateDiff{0, 0},
-                                                              CoordinateDiff{0, 0},
-                                                              Strides{1, 1});
+                                                  const_weights,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{0, 0},
+                                                  Strides{1, 1});
 
         function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
     }
@@ -83,25 +82,25 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_min_subnorm) {
         auto input = std::make_shared<Parameter>(element::f32, Shape{1, 3, 12, 12});
 
         auto const_weights = Constant::create(element::f32,
-                                                          Shape{1, 3, 4, 1},
-                                                          {0.0f,
-                                                           1.0f,
-                                                           2.0f,
-                                                           3.0f,
-                                                           4.0f,
-                                                           5.0f,
-                                                           subnormal_val,
-                                                           subnormal_val,
-                                                           subnormal_val,
-                                                           subnormal_val,
-                                                           subnormal_val,
-                                                           subnormal_val});
+                                              Shape{1, 3, 4, 1},
+                                              {0.0f,
+                                               1.0f,
+                                               2.0f,
+                                               3.0f,
+                                               4.0f,
+                                               5.0f,
+                                               subnormal_val,
+                                               subnormal_val,
+                                               subnormal_val,
+                                               subnormal_val,
+                                               subnormal_val,
+                                               subnormal_val});
         auto conv = std::make_shared<Convolution>(input,
-                                                              const_weights,
-                                                              Strides{1, 1},
-                                                              CoordinateDiff{0, 0},
-                                                              CoordinateDiff{0, 0},
-                                                              Strides{1, 1});
+                                                  const_weights,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{0, 0},
+                                                  Strides{1, 1});
         function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
 
         manager.register_pass<pass::FlushFP32SubnormalsToZero>();
@@ -110,16 +109,15 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_min_subnorm) {
     {
         auto input = std::make_shared<Parameter>(element::f32, Shape{1, 3, 12, 12});
 
-        auto const_weights =
-            Constant::create(element::f32,
-                                         Shape{1, 3, 4, 1},
-                                         {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+        auto const_weights = Constant::create(element::f32,
+                                              Shape{1, 3, 4, 1},
+                                              {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
         auto conv = std::make_shared<Convolution>(input,
-                                                              const_weights,
-                                                              Strides{1, 1},
-                                                              CoordinateDiff{0, 0},
-                                                              CoordinateDiff{0, 0},
-                                                              Strides{1, 1});
+                                                  const_weights,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{0, 0},
+                                                  Strides{1, 1});
 
         function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
     }
@@ -132,25 +130,25 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_arbitrary_subnorm) 
         auto input = std::make_shared<Parameter>(element::f32, Shape{1, 3, 12, 12});
 
         auto const_weights = Constant::create(element::f32,
-                                                          Shape{1, 3, 4, 1},
-                                                          {0.0f,
-                                                           1.0f,
-                                                           2.0f,
-                                                           3.0f,
-                                                           4.0f,
-                                                           5.0f,
-                                                           subnormal_val,
-                                                           subnormal_val,
-                                                           subnormal_val,
-                                                           subnormal_val,
-                                                           subnormal_val,
-                                                           subnormal_val});
+                                              Shape{1, 3, 4, 1},
+                                              {0.0f,
+                                               1.0f,
+                                               2.0f,
+                                               3.0f,
+                                               4.0f,
+                                               5.0f,
+                                               subnormal_val,
+                                               subnormal_val,
+                                               subnormal_val,
+                                               subnormal_val,
+                                               subnormal_val,
+                                               subnormal_val});
         auto conv = std::make_shared<Convolution>(input,
-                                                              const_weights,
-                                                              Strides{1, 1},
-                                                              CoordinateDiff{0, 0},
-                                                              CoordinateDiff{0, 0},
-                                                              Strides{1, 1});
+                                                  const_weights,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{0, 0},
+                                                  Strides{1, 1});
         function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
 
         manager.register_pass<pass::FlushFP32SubnormalsToZero>();
@@ -159,16 +157,15 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_arbitrary_subnorm) 
     {
         auto input = std::make_shared<Parameter>(element::f32, Shape{1, 3, 12, 12});
 
-        auto const_weights =
-            Constant::create(element::f32,
-                                         Shape{1, 3, 4, 1},
-                                         {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+        auto const_weights = Constant::create(element::f32,
+                                              Shape{1, 3, 4, 1},
+                                              {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
         auto conv = std::make_shared<Convolution>(input,
-                                                              const_weights,
-                                                              Strides{1, 1},
-                                                              CoordinateDiff{0, 0},
-                                                              CoordinateDiff{0, 0},
-                                                              Strides{1, 1});
+                                                  const_weights,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{0, 0},
+                                                  Strides{1, 1});
 
         function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
     }
@@ -181,25 +178,25 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_max_neg_subnorm) {
         auto input = std::make_shared<Parameter>(element::f32, Shape{1, 3, 12, 12});
 
         auto const_weights = Constant::create(element::f32,
-                                                          Shape{1, 3, 4, 1},
-                                                          {0.0f,
-                                                           1.0f,
-                                                           2.0f,
-                                                           3.0f,
-                                                           4.0f,
-                                                           5.0f,
-                                                           subnormal_val,
-                                                           subnormal_val,
-                                                           subnormal_val,
-                                                           subnormal_val,
-                                                           subnormal_val,
-                                                           subnormal_val});
+                                              Shape{1, 3, 4, 1},
+                                              {0.0f,
+                                               1.0f,
+                                               2.0f,
+                                               3.0f,
+                                               4.0f,
+                                               5.0f,
+                                               subnormal_val,
+                                               subnormal_val,
+                                               subnormal_val,
+                                               subnormal_val,
+                                               subnormal_val,
+                                               subnormal_val});
         auto conv = std::make_shared<Convolution>(input,
-                                                              const_weights,
-                                                              Strides{1, 1},
-                                                              CoordinateDiff{0, 0},
-                                                              CoordinateDiff{0, 0},
-                                                              Strides{1, 1});
+                                                  const_weights,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{0, 0},
+                                                  Strides{1, 1});
         function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
 
         manager.register_pass<pass::FlushFP32SubnormalsToZero>();
@@ -208,16 +205,15 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_max_neg_subnorm) {
     {
         auto input = std::make_shared<Parameter>(element::f32, Shape{1, 3, 12, 12});
 
-        auto const_weights =
-            Constant::create(element::f32,
-                                         Shape{1, 3, 4, 1},
-                                         {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+        auto const_weights = Constant::create(element::f32,
+                                              Shape{1, 3, 4, 1},
+                                              {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
         auto conv = std::make_shared<Convolution>(input,
-                                                              const_weights,
-                                                              Strides{1, 1},
-                                                              CoordinateDiff{0, 0},
-                                                              CoordinateDiff{0, 0},
-                                                              Strides{1, 1});
+                                                  const_weights,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{0, 0},
+                                                  Strides{1, 1});
 
         function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
     }
@@ -230,25 +226,25 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_min_neg_subnorm) {
         auto input = std::make_shared<Parameter>(element::f32, Shape{1, 3, 12, 12});
 
         auto const_weights = Constant::create(element::f32,
-                                                          Shape{1, 3, 4, 1},
-                                                          {0.0f,
-                                                           1.0f,
-                                                           2.0f,
-                                                           3.0f,
-                                                           4.0f,
-                                                           5.0f,
-                                                           subnormal_val,
-                                                           subnormal_val,
-                                                           subnormal_val,
-                                                           subnormal_val,
-                                                           subnormal_val,
-                                                           subnormal_val});
+                                              Shape{1, 3, 4, 1},
+                                              {0.0f,
+                                               1.0f,
+                                               2.0f,
+                                               3.0f,
+                                               4.0f,
+                                               5.0f,
+                                               subnormal_val,
+                                               subnormal_val,
+                                               subnormal_val,
+                                               subnormal_val,
+                                               subnormal_val,
+                                               subnormal_val});
         auto conv = std::make_shared<Convolution>(input,
-                                                              const_weights,
-                                                              Strides{1, 1},
-                                                              CoordinateDiff{0, 0},
-                                                              CoordinateDiff{0, 0},
-                                                              Strides{1, 1});
+                                                  const_weights,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{0, 0},
+                                                  Strides{1, 1});
         function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
 
         manager.register_pass<pass::FlushFP32SubnormalsToZero>();
@@ -257,16 +253,15 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_min_neg_subnorm) {
     {
         auto input = std::make_shared<Parameter>(element::f32, Shape{1, 3, 12, 12});
 
-        auto const_weights =
-            Constant::create(element::f32,
-                                         Shape{1, 3, 4, 1},
-                                         {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+        auto const_weights = Constant::create(element::f32,
+                                              Shape{1, 3, 4, 1},
+                                              {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
         auto conv = std::make_shared<Convolution>(input,
-                                                              const_weights,
-                                                              Strides{1, 1},
-                                                              CoordinateDiff{0, 0},
-                                                              CoordinateDiff{0, 0},
-                                                              Strides{1, 1});
+                                                  const_weights,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{0, 0},
+                                                  Strides{1, 1});
 
         function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
     }
@@ -279,25 +274,25 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_arbitrary_neg_subno
         auto input = std::make_shared<Parameter>(element::f32, Shape{1, 3, 12, 12});
 
         auto const_weights = Constant::create(element::f32,
-                                                          Shape{1, 3, 4, 1},
-                                                          {0.0f,
-                                                           1.0f,
-                                                           2.0f,
-                                                           3.0f,
-                                                           4.0f,
-                                                           5.0f,
-                                                           subnormal_val,
-                                                           subnormal_val,
-                                                           subnormal_val,
-                                                           subnormal_val,
-                                                           subnormal_val,
-                                                           subnormal_val});
+                                              Shape{1, 3, 4, 1},
+                                              {0.0f,
+                                               1.0f,
+                                               2.0f,
+                                               3.0f,
+                                               4.0f,
+                                               5.0f,
+                                               subnormal_val,
+                                               subnormal_val,
+                                               subnormal_val,
+                                               subnormal_val,
+                                               subnormal_val,
+                                               subnormal_val});
         auto conv = std::make_shared<Convolution>(input,
-                                                              const_weights,
-                                                              Strides{1, 1},
-                                                              CoordinateDiff{0, 0},
-                                                              CoordinateDiff{0, 0},
-                                                              Strides{1, 1});
+                                                  const_weights,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{0, 0},
+                                                  Strides{1, 1});
         function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
 
         manager.register_pass<pass::FlushFP32SubnormalsToZero>();
@@ -306,16 +301,15 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_arbitrary_neg_subno
     {
         auto input = std::make_shared<Parameter>(element::f32, Shape{1, 3, 12, 12});
 
-        auto const_weights =
-            Constant::create(element::f32,
-                                         Shape{1, 3, 4, 1},
-                                         {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+        auto const_weights = Constant::create(element::f32,
+                                              Shape{1, 3, 4, 1},
+                                              {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
         auto conv = std::make_shared<Convolution>(input,
-                                                              const_weights,
-                                                              Strides{1, 1},
-                                                              CoordinateDiff{0, 0},
-                                                              CoordinateDiff{0, 0},
-                                                              Strides{1, 1});
+                                                  const_weights,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{0, 0},
+                                                  Strides{1, 1});
 
         function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
     }
@@ -329,25 +323,25 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_arbitrary_norm) {
         auto input = std::make_shared<Parameter>(element::f32, Shape{1, 3, 12, 12});
 
         auto const_weights = Constant::create(element::f32,
-                                                          Shape{1, 3, 4, 1},
-                                                          {0.0f,
-                                                           1.0f,
-                                                           2.0f,
-                                                           3.0f,
-                                                           4.0f,
-                                                           5.0f,
-                                                           normal_val,
-                                                           normal_val,
-                                                           normal_val,
-                                                           normal_val,
-                                                           normal_val,
-                                                           normal_val});
+                                              Shape{1, 3, 4, 1},
+                                              {0.0f,
+                                               1.0f,
+                                               2.0f,
+                                               3.0f,
+                                               4.0f,
+                                               5.0f,
+                                               normal_val,
+                                               normal_val,
+                                               normal_val,
+                                               normal_val,
+                                               normal_val,
+                                               normal_val});
         auto conv = std::make_shared<Convolution>(input,
-                                                              const_weights,
-                                                              Strides{1, 1},
-                                                              CoordinateDiff{0, 0},
-                                                              CoordinateDiff{0, 0},
-                                                              Strides{1, 1});
+                                                  const_weights,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{0, 0},
+                                                  Strides{1, 1});
         function = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
 
         manager.register_pass<pass::FlushFP32SubnormalsToZero>();
@@ -357,25 +351,25 @@ TEST_F(TransformationTestsF, test_flush_fp32_subnorm_to_zero_arbitrary_norm) {
         auto input = std::make_shared<Parameter>(element::f32, Shape{1, 3, 12, 12});
 
         auto const_weights = Constant::create(element::f32,
-                                                          Shape{1, 3, 4, 1},
-                                                          {0.0f,
-                                                           1.0f,
-                                                           2.0f,
-                                                           3.0f,
-                                                           4.0f,
-                                                           5.0f,
-                                                           normal_val,
-                                                           normal_val,
-                                                           normal_val,
-                                                           normal_val,
-                                                           normal_val,
-                                                           normal_val});
+                                              Shape{1, 3, 4, 1},
+                                              {0.0f,
+                                               1.0f,
+                                               2.0f,
+                                               3.0f,
+                                               4.0f,
+                                               5.0f,
+                                               normal_val,
+                                               normal_val,
+                                               normal_val,
+                                               normal_val,
+                                               normal_val,
+                                               normal_val});
         auto conv = std::make_shared<Convolution>(input,
-                                                              const_weights,
-                                                              Strides{1, 1},
-                                                              CoordinateDiff{0, 0},
-                                                              CoordinateDiff{0, 0},
-                                                              Strides{1, 1});
+                                                  const_weights,
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{0, 0},
+                                                  Strides{1, 1});
 
         function_ref = std::make_shared<Model>(NodeVector{conv}, ParameterVector{input});
     }

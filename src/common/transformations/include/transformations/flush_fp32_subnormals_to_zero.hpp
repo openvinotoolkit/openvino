@@ -21,7 +21,7 @@ class TRANSFORMATIONS_API FlushFP32SubnormalsToZero;
 
 /* @ingroup ie_transformation_common_api
  * @brief FlushFP32SubnormalsToZero flushes f32 subnormals to zero.
- * This is read/write expensive transformation, threfore should be run at offline phase.
+ * This is read/write expensive transformation, therefore should be run at offline phase.
  */
 class ov::pass::FlushFP32SubnormalsToZero : public MatcherPass {
 public:
