@@ -32,7 +32,12 @@ ov::pass::ReduceL2Decomposition::ReduceL2Decomposition() {
                                                                    reduce_l2_node->get_keep_dims());
         auto sqrt = std::make_shared<ov::opset4::Sqrt>(reduce_sum);
         sqrt->set_friendly_name(m.get_match_root()->get_friendly_name());
-        ngraph::copy_runtime_info(reduce_l2_node, {sqrt, reduce_sum, square, const_2});
+        if (ov::op::util::is_constant(reduce_l2_node->input_value(1).get_node())) {
+            ngraph::copy_runtime_info({reduce_l2_node, reduce_l2_node->input_value(1).get_node()},
+                                      {sqrt, reduce_sum, square, const_2});
+        } else {
+            ngraph::copy_runtime_info(reduce_l2_node, {sqrt, reduce_sum, square, const_2});
+        }
         ngraph::replace_node(m.get_match_root(), sqrt);
         return true;
     };
