@@ -36,7 +36,7 @@ struct border_impl : typed_primitive_impl_ocl<border> {
         std::vector<int32_t> end(primitive->pads_end.begin(), primitive->pads_end.end());
 
         size_t input_offset = 1;
-        if (!(primitive->non_constant_input_mask & border::PAD_NON_CONST_INPUT::BEGIN) && !params.has_dynamic_tensors()) {
+        if (!(primitive->non_constant_input_mask & border::PAD_NON_CONST_INPUT::BEGIN)) {
             params.begin_type = kernel_selector::base_params::ArgType::Constant;
 
             std::vector<int64_t> begin_vec;
@@ -55,7 +55,7 @@ struct border_impl : typed_primitive_impl_ocl<border> {
             input_offset += 1;
         }
 
-        if (!(primitive->non_constant_input_mask & border::PAD_NON_CONST_INPUT::END) && !params.has_dynamic_tensors()) {
+        if (!(primitive->non_constant_input_mask & border::PAD_NON_CONST_INPUT::END)) {
             params.end_type = kernel_selector::base_params::ArgType::Constant;
 
             std::vector<int64_t> end_vec;
