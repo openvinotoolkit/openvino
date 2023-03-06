@@ -33,3 +33,4 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                                                      const std::vector<std::vector<int>> proc_type_table);
 }  // namespace intel_cpu
 }  // namespace ov
+

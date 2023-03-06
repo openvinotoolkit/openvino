@@ -60,18 +60,6 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         }
         return streams_info_table;
 
-    } else if ((proc_type_table.size() > 1) && (proc_type_table.size() == input_streams + 1)) {
-        int limit_threads =
-            (input_threads == 0) ? model_prefer_threads : static_cast<int>(input_threads / input_streams);
-        stream_info[NUMBER_OF_STREAMS] = input_streams;
-        stream_info[PROC_TYPE] = MAIN_CORE_PROC;
-        stream_info[THREADS_PER_STREAM] =
-            (input_threads == 0)
-                ? static_cast<int>(proc_type_table[0][MAIN_CORE_PROC] / input_streams)
-                : std::min(static_cast<int>(proc_type_table[0][MAIN_CORE_PROC] / input_streams), limit_threads);
-        streams_info_table.push_back(stream_info);
-        return streams_info_table;
-
     } else {
         int n_streams = 0;
         int n_threads = 0;
