@@ -62,12 +62,14 @@ std::vector<ov::frontend::Place::Ptr> InputModel::get_outputs() const {
 
 Place::Ptr InputModel::get_place_by_tensor_name(const std::string& tensor_name) const {
     auto place_it = m_name_to_place.find(tensor_name);
-    FRONT_END_GENERAL_CHECK(place_it != m_name_to_place.end(), "Couldn't find Place for provided tensor name.");
-    return place_it->second;
+    if (place_it != m_name_to_place.end()) {
+        return place_it->second;
+    }
+    return nullptr;
 }
 
 void InputModel::set_partial_shape(const Place::Ptr& place, const ov::PartialShape& shape) {
-    FRONT_END_GENERAL_CHECK(place->is_input(), "Setting partial shape is supported for input only.");
+    FRONT_END_GENERAL_CHECK(place && place->is_input(), "Provided place is invalid, only inputs are supported for setting shape.");
     auto pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(place);
     FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported");
     auto it = m_descriptors.find(pytorch_place->get_tensor_index());
@@ -78,7 +80,9 @@ void InputModel::set_partial_shape(const Place::Ptr& place, const ov::PartialSha
 
 ov::PartialShape InputModel::get_partial_shape(const Place::Ptr& place) const {
     auto pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(place);
-    FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported");
+    FRONT_END_GENERAL_CHECK(
+        pytorch_place,
+        "Provided place is invalid. Only place of input or output is supported by PyTorch Frontend.");
     auto it = m_descriptors.find(pytorch_place->get_tensor_index());
     if (it != m_descriptors.end()) {
         return it->second.m_pshape;
@@ -87,7 +91,7 @@ ov::PartialShape InputModel::get_partial_shape(const Place::Ptr& place) const {
 }
 
 void InputModel::set_element_type(const Place::Ptr& place, const ov::element::Type& type) {
-    FRONT_END_GENERAL_CHECK(place->is_input(), "Setting element type is supported for input only.");
+    FRONT_END_GENERAL_CHECK(place && place->is_input(), "Provided place is invalid, only inputs are supported for setting element type.");
     auto pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(place);
     FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported");
     auto it = m_descriptors.find(pytorch_place->get_tensor_index());
@@ -98,7 +102,9 @@ void InputModel::set_element_type(const Place::Ptr& place, const ov::element::Ty
 
 ov::element::Type InputModel::get_element_type(const Place::Ptr& place) const {
     auto pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(place);
-    FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported");
+    FRONT_END_GENERAL_CHECK(
+        pytorch_place,
+        "Provided place is invalid. Only place of input or output is supported by PyTorch Frontend.");
     auto it = m_descriptors.find(pytorch_place->get_tensor_index());
     if (it != m_descriptors.end()) {
         return it->second.m_type;
@@ -107,7 +113,7 @@ ov::element::Type InputModel::get_element_type(const Place::Ptr& place) const {
 }
 
 void InputModel::set_tensor_value(const Place::Ptr& place, const void* value) {
-    FRONT_END_GENERAL_CHECK(place->is_input(), "Setting value is supported for input only.");
+    FRONT_END_GENERAL_CHECK(place && place->is_input(), "Provided place is invalid, only inputs are supported for setting tensor value.");
     auto pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(place);
     FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported");
     auto it = m_descriptors.find(pytorch_place->get_tensor_index());

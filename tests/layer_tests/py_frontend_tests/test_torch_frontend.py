@@ -24,7 +24,6 @@ def get_scripted_model(model):
 
 def test_pytorch_fe_set_input_shape():
     from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
-    from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 
     model = get_scripted_model(aten_relu())
     decoder = TorchScriptPythonDecoder(model)
@@ -40,7 +39,6 @@ def test_pytorch_fe_set_input_shape():
 
 def test_pytorch_fe_set_input_type():
     from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
-    from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 
     model = get_scripted_model(aten_relu())
     decoder = TorchScriptPythonDecoder(model)
@@ -55,7 +53,6 @@ def test_pytorch_fe_set_input_type():
 
 def test_pytorch_fe_set_input_value():
     from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
-    from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 
     model = get_scripted_model(aten_relu())
     decoder = TorchScriptPythonDecoder(model)
