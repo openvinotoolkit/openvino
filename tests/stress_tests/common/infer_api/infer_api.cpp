@@ -57,7 +57,7 @@ void InferAPI1::change_batch_size(int multiplier, int cur_iter) {
         auto layout = input.second->getTensorDesc().getLayout();
         if ((layout == InferenceEngine::Layout::NCHW) || (layout == InferenceEngine::Layout::NCDHW) ||
             (layout == InferenceEngine::Layout::NHWC) || (layout == InferenceEngine::Layout::NDHWC) ||
-            (layout == InferenceEngine::Layout::NC) || (layout == InferenceEngine::Layout::NCWH)) {
+            (layout == InferenceEngine::Layout::NC) || (layout == InferenceEngine::Layout::NCHW)) {
             batchIndex = 0;
         } else if (layout == InferenceEngine::CN) {
             batchIndex = 1;
