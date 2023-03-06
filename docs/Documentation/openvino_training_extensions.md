@@ -12,12 +12,6 @@ Detailed Workflow
 
 .. image:: ./_static/images/training_extensions_framework.png
 
-.. image:: ../_static/images/training_extensions_framework.png
-
-.. image:: ../../_static/images/training_extensions_framework.png
-
-.. image:: ././_static/images/training_extensions_framework.png
-
 1. To start working with OpenVINO Training Extensions, prepare and annotate your dataset. For example, on CVAT.
 
 2. OpenVINO Training Extensions train the model, using training interface, and evaluate the model quality on your dataset, using evaluation and inference interfaces.
@@ -42,4 +36,5 @@ Tutorials
 `Object Detection <https://github.com/openvinotoolkit/training_extensions/blob/master/ote_cli/notebooks/train.ipynb>`__
 
 @endsphinxdirective 
+
 
