@@ -5,12 +5,15 @@
 #pragma once
 
 #include "blocked_memory_desc.h"
+#include "openvino/util/util.hpp"
 #include <cpu_memory.h>
 #include <dnnl_extension_utils.h>
 
 namespace ov {
 namespace intel_cpu {
 
+DISABLE_WARNING_MSVC_BEGIN(4250)  // Visual Studio warns us about inheritance via dominance but it's done intentionally
+                                  // so turn it off
 class DnnlBlockedMemoryDesc : public BlockedMemoryDesc, public DnnlMemoryDesc {
 public:
     // Creates planar DnnlBlockedMemoryDesc
@@ -100,6 +103,7 @@ private:
     friend std::shared_ptr<DnnlBlockedMemoryDesc> DnnlExtensionUtils::makeUndefinedDesc(const dnnl::memory::desc &desc, const Shape& shape);
     friend class MemoryDescUtils;
 };
+DISABLE_WARNING_MSVC_END(4250)
 
 using DnnlBlockedMemoryDescPtr = std::shared_ptr<DnnlBlockedMemoryDesc>;
 using DnnlBlockedMemoryDescCPtr = std::shared_ptr<const DnnlBlockedMemoryDesc>;
