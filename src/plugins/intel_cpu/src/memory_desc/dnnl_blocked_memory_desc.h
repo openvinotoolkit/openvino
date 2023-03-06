@@ -5,7 +5,7 @@
 #pragma once
 
 #include "blocked_memory_desc.h"
-#include "../../common/util/include/openvino/util/util.hpp"
+#include "openvino/util/util.hpp"
 #include <cpu_memory.h>
 #include <dnnl_extension_utils.h>
 

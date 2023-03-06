@@ -5,7 +5,7 @@
 #pragma once
 
 #include "intel_gpu/runtime/profiling.hpp"
-#include "../../common/util/include/openvino/util/util.hpp"
+#include "openvino/util/util.hpp"
 #include "ocl_base_event.hpp"
 #include <memory>
 #include <list>
