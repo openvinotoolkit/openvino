@@ -639,5 +639,4 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _1sockets_6cores_tput_3,
                                          _1sockets_6cores_tput_4));
 
-
 }  // namespace

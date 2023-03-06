@@ -12,7 +12,6 @@
 #include "ie_system_conf.h"
 #include "threading/ie_cpu_streams_info.hpp"
 
-
 using namespace InferenceEngine;
 
 namespace ov {

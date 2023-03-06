@@ -13,6 +13,7 @@
 
 #include "openvino/runtime/intel_cpu/processor_type.hpp"
 #include "openvino/runtime/properties.hpp"
+
 namespace ov {
 
 /**
@@ -50,7 +51,5 @@ static constexpr Property<bool> denormals_optimization{"CPU_DENORMALS_OPTIMIZATI
 static constexpr Property<float> sparse_weights_decompression_rate{"SPARSE_WEIGHTS_DECOMPRESSION_RATE"};
 
 static constexpr Property<ProcessorType> processor_type{"CPU_PROCESSOR_TYPE"};
-
 }  // namespace intel_cpu
-
 }  // namespace ov

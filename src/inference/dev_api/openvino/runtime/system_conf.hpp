@@ -189,4 +189,5 @@ enum ColumnOfCPUMappingTable {
     CPU_MAP_USED_FLAG = 5,     //!< column for resource management of the processor
     CPU_MAP_TABLE_SIZE = 6     //!< Size of CPU mapping table
 };
+
 }  // namespace ov
