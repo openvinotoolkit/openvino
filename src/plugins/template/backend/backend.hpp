@@ -8,23 +8,16 @@
 #include <mutex>
 
 #include "executable.hpp"
-#include "ngraph/function.hpp"
-#include "ngraph/shape.hpp"
-#include "ngraph/type/element_type.hpp"
-#include "ngraph/util.hpp"
-#include "performance_counter.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/type/element_type.hpp"
 
-namespace ngraph {
+namespace ov {
 namespace runtime {
-class Tensor;
-class Backend;
-}  // namespace runtime
-}  // namespace ngraph
 
 /// \brief Interface to a generic backend.
 ///
 /// Backends are responsible for function execution and value allocation.
-class ngraph::runtime::Backend {
+class Backend {
 public:
     virtual ~Backend();
     /// \brief Create a new Backend object
@@ -44,14 +37,13 @@ public:
     /// passed as an output to a function the tensor will have a type and shape after executing
     /// a call.
     /// \returns shared_ptr to a new backend-specific tensor
-    virtual std::shared_ptr<ngraph::runtime::Tensor> create_tensor() = 0;
+    virtual ov::Tensor create_tensor() = 0;
 
     /// \brief Create a tensor specific to this backend
     /// \param element_type The type of the tensor element
     /// \param shape The shape of the tensor
     /// \returns shared_ptr to a new backend-specific tensor
-    virtual std::shared_ptr<ngraph::runtime::Tensor> create_tensor(const ngraph::element::Type& element_type,
-                                                                   const Shape& shape) = 0;
+    virtual ov::Tensor create_tensor(const ov::element::Type& element_type, const Shape& shape) = 0;
 
     /// \brief Create a tensor specific to this backend
     /// \param element_type The type of the tensor element
@@ -60,59 +52,23 @@ public:
     ///     must be sufficient to contain the tensor. The lifetime of the buffer is the
     ///     responsibility of the caller.
     /// \returns shared_ptr to a new backend-specific tensor
-    virtual std::shared_ptr<ngraph::runtime::Tensor> create_tensor(const ngraph::element::Type& element_type,
-                                                                   const Shape& shape,
-                                                                   void* memory_pointer) = 0;
+    virtual ov::Tensor create_tensor(const ov::element::Type& element_type,
+                                     const Shape& shape,
+                                     void* memory_pointer) = 0;
 
     /// \brief Create a tensor of C type T specific to this backend
     /// \param shape The shape of the tensor
     /// \returns shared_ptr to a new backend specific tensor
     template <typename T>
-    std::shared_ptr<ngraph::runtime::Tensor> create_tensor(const Shape& shape) {
+    ov::Tensor create_tensor(const Shape& shape) {
         return create_tensor(element::from<T>(), shape);
     }
 
-    /// \brief Create a dynamic tensor specific to this backend, if the backend supports dynamic
-    ///        tensors.
-    /// \param element_type The type of the tensor element
-    /// \param shape The shape of the tensor
-    /// \returns shared_ptr to a new backend-specific tensor
-    /// \throws std::invalid_argument if the backend does not support dynamic tensors
-    virtual std::shared_ptr<ngraph::runtime::Tensor> create_dynamic_tensor(const ngraph::element::Type& element_type,
-                                                                           const PartialShape& shape);
-
-    /// \returns `true` if this backend supports dynamic tensors, else `false`.
-    virtual bool supports_dynamic_tensors() {
-        return false;
-    }
     /// \brief Compiles a Function.
     /// \param func The function to compile
     /// \returns compiled function or nullptr on failure
-    virtual std::shared_ptr<Executable> compile(std::shared_ptr<Function> func,
-                                                bool enable_performance_data = false) = 0;
-
-    /// \brief Loads a previously saved Executable object from a stream.
-    /// \param input_stream the opened input stream containing the saved Executable
-    /// \returns A compiled function or throws an exception on error
-    virtual std::shared_ptr<Executable> load(std::istream& input_stream);
-
-    /// \brief Test if a backend is capable of supporting an op
-    /// \param node is the op to test.
-    /// \returns true if the op is supported, false otherwise.
-    virtual bool is_supported(const Node& node) const;
-
-    /// \brief Allows sending backend specific configuration. The map contains key, value pairs
-    ///     specific to a particluar backend. The definition of these key, value pairs is
-    ///     defined by each backend.
-    /// \param config The configuration map sent to the backend
-    /// \param error An error string describing any error encountered
-    /// \returns true if the configuration is supported, false otherwise. On false the error
-    ///     parameter value is valid.
-    virtual bool set_config(const std::map<std::string, std::string>& config, std::string& error);
-
-    /// \brief Get the version of the backend
-    /// The default value of 0.0.0 is chosen to be a parsable version number
-    virtual std::string get_version() const {
-        return "0.0.0";
-    }
+    virtual std::shared_ptr<Executable> compile(std::shared_ptr<ov::Model> model) = 0;
 };
+
+}  // namespace runtime
+}  // namespace ov

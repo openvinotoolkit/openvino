@@ -8,10 +8,10 @@ msg_fmt = 'Check for a new version of Intel(R) Distribution of OpenVINO(TM) tool
 
 
 def get_ov_update_message():
-    expected_update_date = datetime.date(year=2023, month=5, day=1)
+    expected_update_date = datetime.date(year=2023, month=12, day=1)
     current_date = datetime.date.today()
 
-    link = 'https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit/download.html?cid=other&source=prod&campid=ww_2023_bu_IOTG_OpenVINO-2022-3&content=upg_all&medium=organic'
+    link = 'https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit/download.html?cid=other&source=prod&campid=ww_2023_bu_IOTG_OpenVINO-2023-0&content=upg_all&medium=organic'
 
     return msg_fmt.format(link) if current_date >= expected_update_date else None
 

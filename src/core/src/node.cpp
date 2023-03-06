@@ -718,7 +718,13 @@ inline void update_output_tensors(ov::TensorVector& output_values, const ngraph:
     OPENVINO_ASSERT(output_values.size() == outputs.size());
     for (size_t i = 0; i < outputs.size(); i++) {
         if (auto dyn_output = std::dynamic_pointer_cast<DynamicTensor>(outputs[i])) {
-            output_values[i] = dyn_output->get_tensor();
+            auto tensor = dyn_output->get_tensor();
+            // In some cases (e.g. output with zero dims) we get empty tensor after casting to DynamicTensor.
+            // However we still can try to extract precision and shape from the corresponding HostTensor
+            if (!tensor && outputs[i]->get_partial_shape().is_static()) {
+                tensor = ov::Tensor(outputs[i]->get_element_type(), outputs[i]->get_shape());
+            }
+            output_values[i] = tensor;
         }
     }
 }
@@ -730,7 +736,8 @@ bool ov::Node::evaluate(ov::TensorVector& output_values, const ov::TensorVector&
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool sts = evaluate(output, input);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    update_output_tensors(output_values, output);
+    if (sts)
+        update_output_tensors(output_values, output);
     return sts;
 }
 
@@ -743,7 +750,8 @@ bool ov::Node::evaluate(ov::TensorVector& output_values,
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool sts = evaluate(output, input, evaluationContext);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    update_output_tensors(output_values, output);
+    if (sts)
+        update_output_tensors(output_values, output);
     // Call evaluate for ov::Tensor if op doesn't have evaluate with EvaluationContext
     return sts ? sts : evaluate(output_values, input_values);
 }

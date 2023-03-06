@@ -35,12 +35,12 @@ std::shared_ptr<Node> create_padding(std::shared_ptr<Node> input_rank,
     // PyTorch paddings represented as [N_pad_begins, N_pad_ends, N-1_pad_begins, N-1_pad_ends, ... ]
     // if len of paddings not equal to input rank * 2, zero padding added to first rank - N  dimensions
     // OV expects paddings separated on begins and ends for each dimension from first to last
-    auto minus_two = ov::op::v0::Constant::create(element::i64, Shape{}, {-2});
-    auto zero = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
-    auto pad_id_range = std::make_shared<ov::op::v4::Range>(start_id, end_id, minus_two, element::i64);
+    auto minus_two = ov::op::v0::Constant::create(element::i32, Shape{}, {-2});
+    auto zero = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
+    auto pad_id_range = std::make_shared<ov::op::v4::Range>(start_id, end_id, minus_two, element::i32);
     auto pads = std::make_shared<ov::op::v8::Gather>(padding, pad_id_range, zero);
     // add left side zero padding for difference between padding size and input rank
-    auto pads_short_len = std::make_shared<ov::op::v3::ShapeOf>(pads);
+    auto pads_short_len = std::make_shared<ov::op::v3::ShapeOf>(pads, element::i32);
     auto pads_diff = std::make_shared<ov::op::v1::Subtract>(input_rank, pads_short_len);
     auto pads_remaining = std::make_shared<ov::op::v3::Broadcast>(zero, pads_diff);
     auto pads_remaining_c = std::make_shared<ov::op::v1::ConvertLike>(pads_remaining, pads);
@@ -62,18 +62,18 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
         if (!pad_op) {
             return false;
         }
-        auto minus_two = ov::op::v0::Constant::create(element::i64, Shape{}, {-2});
-        auto minus_one = ov::op::v0::Constant::create(element::i64, Shape{}, {-1});
-        auto zero = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
+        auto minus_two = ov::op::v0::Constant::create(element::i32, Shape{}, {-2});
+        auto minus_one = ov::op::v0::Constant::create(element::i32, Shape{}, {-1});
+        auto zero = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
         auto input_node = pad_op->input_value(0).get_node_shared_ptr();
         auto padding = pad_op->input_value(1).get_node_shared_ptr();
         // for case. when padding is list of scalars, concatenate them into one tensor
         auto pad_values = concat_list_construct(padding);
         std::string mode = "constant";
         auto zero_f = ov::op::v0::Constant::create(element::f32, Shape{}, {0});
-        auto input_shape = std::make_shared<ov::op::v3::ShapeOf>(input_node);
-        auto input_rank = std::make_shared<ov::op::v3::ShapeOf>(input_shape);
-        auto pad_size_1d = std::make_shared<ov::op::v3::ShapeOf>(pad_values);
+        auto input_shape = std::make_shared<ov::op::v3::ShapeOf>(input_node, element::i32);
+        auto input_rank = std::make_shared<ov::op::v3::ShapeOf>(input_shape, element::i32);
+        auto pad_size_1d = std::make_shared<ov::op::v3::ShapeOf>(pad_values, element::i32);
         auto pad_size = std::make_shared<ov::op::v0::Squeeze>(pad_size_1d, zero);
         // get pad_begins and pad_ends indexes starting for end of paddings
         auto start_pad_begins = std::make_shared<ov::op::v1::Add>(pad_size, minus_two);
@@ -95,6 +95,7 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
                     pad_value = zero_f;
                 }
             }
+            pad_value = std::make_shared<ov::op::v1::ConvertLike>(pad_value, input_node);
         }
         FRONT_END_OP_CONVERSION_CHECK(PAD_MODES.find(mode) != PAD_MODES.end(),
                                       "Unsupported mode: ",
