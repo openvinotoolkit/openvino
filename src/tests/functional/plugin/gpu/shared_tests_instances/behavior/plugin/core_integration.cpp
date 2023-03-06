@@ -103,7 +103,7 @@ TEST_P(IEClassGetMetricTest_GPU_DEVICE_TOTAL_MEM_SIZE, GetMetricAndPrintNoThrow)
     InferenceEngine::Parameter p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE)));
-    uint64_t t = p;
+    auto t = p.as<uint64_t>();
 
     std::cout << "GPU device total memory size: " << t << std::endl;
 
@@ -123,7 +123,7 @@ TEST_P(IEClassGetMetricTest_GPU_OPTIMAL_BATCH_SIZE, GetMetricAndPrintNoThrow) {
 
     std::map<std::string, InferenceEngine::Parameter> _options = {{"MODEL_PTR", simpleCnnNetwork.getFunction()}};
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(OPTIMAL_BATCH_SIZE), _options).as<unsigned int>());
-    unsigned int t = p;
+    auto t = p.as<unsigned int>();
 
     std::cout << "GPU device optimal batch size: " << t << std::endl;
 
@@ -143,7 +143,7 @@ TEST_P(IEClassGetMetricTest_GPU_MAX_BATCH_SIZE_DEFAULT, GetMetricAndPrintNoThrow
 
     std::map<std::string, InferenceEngine::Parameter> _options = {{"MODEL_PTR", simpleCnnNetwork.getFunction()}};
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(MAX_BATCH_SIZE), _options).as<uint32_t>());
-    uint32_t t = p;
+    auto t = p.as<uint32_t>();
 
     std::cout << "GPU device max available batch size: " << t << std::endl;
 
@@ -168,7 +168,7 @@ TEST_P(IEClassGetMetricTest_GPU_MAX_BATCH_SIZE_STREAM_DEVICE_MEM, GetMetricAndPr
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, METRIC_KEY(MAX_BATCH_SIZE), _options).as<uint32_t>());
 
-    uint32_t t = p;
+    auto t = p.as<uint32_t>();
 
     std::cout << "GPU device max available batch size: " << t << std::endl;
 
@@ -187,7 +187,7 @@ TEST_P(IEClassGetMetricTest_GPU_UARCH_VERSION, GetMetricAndPrintNoThrow) {
     InferenceEngine::Parameter p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, GPU_METRIC_KEY(UARCH_VERSION)));
-    std::string t = p;
+    auto t = p.as<std::string>();
 
     std::cout << "GPU device uarch: " << t << std::endl;
 
@@ -206,7 +206,7 @@ TEST_P(IEClassGetMetricTest_GPU_EXECUTION_UNITS_COUNT, GetMetricAndPrintNoThrow)
     InferenceEngine::Parameter p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, GPU_METRIC_KEY(EXECUTION_UNITS_COUNT)));
-    int t = p;
+    auto t = p.as<int>();
 
     std::cout << "GPU EUs count: " << t << std::endl;
 
@@ -227,7 +227,7 @@ TEST_P(IEClassGetMetricTest_GPU_MEMORY_STATISTICS_DEFAULT, GetMetricAndPrintNoTh
     InferenceEngine::ExecutableNetwork exec_net = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, GPU_METRIC_KEY(MEMORY_STATISTICS)));
-    std::map<std::string, uint64_t> t = p;
+    auto t = p.as<std::map<std::string, uint64_t>>();
 
     ASSERT_FALSE(t.empty());
     std::cout << "Memory Statistics: " << std::endl;
@@ -253,7 +253,7 @@ TEST_P(IEClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTIPLE_NETWORKS, GetMetricAn
     InferenceEngine::ExecutableNetwork exec_net1 = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, GPU_METRIC_KEY(MEMORY_STATISTICS)));
-    std::map<std::string, uint64_t> t1 = p;
+    auto t1 = p.as<std::map<std::string, uint64_t>>();
 
     ASSERT_FALSE(t1.empty());
     for (auto &&kv : t1) {
@@ -263,7 +263,7 @@ TEST_P(IEClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTIPLE_NETWORKS, GetMetricAn
     InferenceEngine::ExecutableNetwork exec_net2 = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, GPU_METRIC_KEY(MEMORY_STATISTICS)));
-    std::map<std::string, uint64_t> t2 = p;
+    auto t2 = p.as<std::map<std::string, uint64_t>>();
 
     ASSERT_FALSE(t2.empty());
     for (auto &&kv : t2) {
@@ -289,14 +289,14 @@ TEST_P(IEClassGetMetricTest_GPU_MEMORY_STATISTICS_CHECK_VALUES, GetMetricAndPrin
     InferenceEngine::Parameter p;
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, GPU_METRIC_KEY(MEMORY_STATISTICS)));
-    std::map<std::string, uint64_t> t1 = p;
+    auto t1 = p.as<std::map<std::string, uint64_t>>();
     ASSERT_TRUE(t1.empty());
 
     {
         InferenceEngine::ExecutableNetwork exec_net1 = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
         ASSERT_NO_THROW(p = ie.GetMetric(target_device, GPU_METRIC_KEY(MEMORY_STATISTICS)));
-        std::map<std::string, uint64_t> t2 = p;
+        auto t2 = p.as<std::map<std::string, uint64_t>>();
 
         ASSERT_FALSE(t2.empty());
         for (auto &&kv : t2) {
@@ -306,7 +306,7 @@ TEST_P(IEClassGetMetricTest_GPU_MEMORY_STATISTICS_CHECK_VALUES, GetMetricAndPrin
             InferenceEngine::ExecutableNetwork exec_net2 = ie.LoadNetwork(actualCnnNetwork, target_device);
 
             ASSERT_NO_THROW(p = ie.GetMetric(target_device, GPU_METRIC_KEY(MEMORY_STATISTICS)));
-            std::map<std::string, uint64_t> t3 = p;
+            auto t3 = p.as<std::map<std::string, uint64_t>>();
 
             ASSERT_FALSE(t3.empty());
             for (auto &&kv : t3) {
@@ -314,7 +314,7 @@ TEST_P(IEClassGetMetricTest_GPU_MEMORY_STATISTICS_CHECK_VALUES, GetMetricAndPrin
             }
         }
         ASSERT_NO_THROW(p = ie.GetMetric(target_device, GPU_METRIC_KEY(MEMORY_STATISTICS)));
-        std::map<std::string, uint64_t> t4 = p;
+        auto t4 = p.as<std::map<std::string, uint64_t>>();
 
         ASSERT_FALSE(t4.empty());
         for (auto &&kv : t4) {
@@ -328,7 +328,7 @@ TEST_P(IEClassGetMetricTest_GPU_MEMORY_STATISTICS_CHECK_VALUES, GetMetricAndPrin
         }
     }
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, GPU_METRIC_KEY(MEMORY_STATISTICS)));
-    std::map<std::string, uint64_t> t5 = p;
+    auto t5 = p.as<std::map<std::string, uint64_t>>();
 
     ASSERT_FALSE(t5.empty());
     for (auto &&kv : t5) {
@@ -361,7 +361,7 @@ TEST_P(IEClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTI_THREADS, GetMetricAndPri
     InferenceEngine::ExecutableNetwork exec_net1 = ie.LoadNetwork(simpleCnnNetwork, target_device);
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, GPU_METRIC_KEY(MEMORY_STATISTICS)));
-    std::map<std::string, uint64_t> t1 = p;
+    auto t1 = p.as<std::map<std::string, uint64_t>>();
 
     ASSERT_FALSE(t1.empty());
     for (auto &&kv : t1) {
@@ -382,7 +382,7 @@ TEST_P(IEClassGetMetricTest_GPU_MEMORY_STATISTICS_MULTI_THREADS, GetMetricAndPri
     }
 
     ASSERT_NO_THROW(p = ie.GetMetric(target_device, GPU_METRIC_KEY(MEMORY_STATISTICS)));
-    std::map<std::string, uint64_t> t2 = p;
+    auto t2 = p.as<std::map<std::string, uint64_t>>();
 
     ASSERT_FALSE(t2.empty());
     for (auto &&kv : t2) {
