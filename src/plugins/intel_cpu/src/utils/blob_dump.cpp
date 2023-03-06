@@ -9,6 +9,7 @@
 #include <nodes/common/cpu_memcpy.h>
 
 #include "common/memory_desc_wrapper.hpp"
+#include "utils/bfloat16.hpp"
 
 #include <fstream>
 #include <memory_desc/cpu_memory_desc_utils.h>
@@ -172,13 +173,9 @@ void BlobDumper::dumpAsTxt(std::ostream &stream) const {
             break;
         }
         case Precision::BF16: {
-            auto *blob_ptr = reinterpret_cast<const int16_t*>(ptr);
+            auto *blob_ptr = reinterpret_cast<const bfloat16_t*>(ptr);
             for (size_t i = 0; i < data_size; i++) {
-                int i16n = blob_ptr[desc.getElementOffset(i)];
-                i16n = i16n << 16;
-                float fn;
-                assert(sizeof(fn) == sizeof(i16n));
-                memcpy(&fn, &i16n, sizeof(fn));  // Avoid -Wstrict-aliasing
+                float fn = (float)blob_ptr[desc.getElementOffset(i)];
                 stream << fn << std::endl;
             }
             break;
