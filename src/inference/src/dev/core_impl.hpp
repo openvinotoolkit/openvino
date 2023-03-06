@@ -100,7 +100,7 @@ private:
     };
 
     // Core settings (cache config, etc)
-    mutable PropertyManager property_manager;
+    PropertyManager property_manager;
 
     Any get_property_for_core(const std::string& name) const;
 

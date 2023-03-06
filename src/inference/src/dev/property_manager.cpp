@@ -11,9 +11,9 @@ namespace ov {
 class PropertyManagerImpl {
 public:
     PropertyManagerImpl() {
-        default_plugin_properties = {{ov::cache_dir.name(), ""},
-                                     {ov::hint::allow_auto_batching.name(), ov::Any(true)},
-                                     {ov::auto_batch_timeout.name(), "1000"}};
+        default_core_properties = {{ov::cache_dir.name(), ""},
+                                   {ov::hint::allow_auto_batching.name(), ov::Any(true)},
+                                   {ov::auto_batch_timeout.name(), "1000"}};
         default_global_properties = {{ov::force_tbb_terminate.name(), ov::Any(false)}};
     };
     ~PropertyManagerImpl(){};
@@ -24,7 +24,7 @@ public:
     ov::Any get_property(const std::string& property_name, const std::string& plugin_name = {});
 
     bool is_core_property(const std::string& property_name) {
-        return (default_plugin_properties.count(property_name) > 0) ||
+        return (default_core_properties.count(property_name) > 0) ||
                (default_global_properties.count(property_name) > 0);
     }
 
@@ -46,8 +46,8 @@ private:
 
 private:
     mutable std::mutex mutex;
-    // Default property can be used for all plugins, but its priority is low
-    ov::AnyMap default_plugin_properties;
+    // Default core property can be used for all plugins, but its priority is low
+    ov::AnyMap default_core_properties;
 
     // Plugin property is used for specified plugin, its priority is high
     // All models in a plugins will share the same plugin properties items
@@ -81,11 +81,11 @@ void PropertyManagerImpl::merge_property(const ov::AnyMap& properties, const std
         if (_value != plugin_properties.end()) {
             value = _value->second;
         }
-        merge(properties, default_plugin_properties, value, value);
+        merge(properties, default_core_properties, value, value);
         if (value.size() > 0)
             plugin_properties[plugin_name] = value;
     } else {
-        merge(properties, default_plugin_properties, default_plugin_properties, internal_properties);
+        merge(properties, default_core_properties, default_core_properties, internal_properties);
         merge(properties, default_global_properties, default_global_properties, internal_properties);
     }
 }
@@ -93,7 +93,7 @@ void PropertyManagerImpl::merge_property(const ov::AnyMap& properties, const std
 ov::AnyMap PropertyManagerImpl::exclude_property(const ov::AnyMap& property) {
     auto res = property;
 
-    for (auto& it : default_plugin_properties) {
+    for (auto& it : default_core_properties) {
         auto item = res.find(it.first);
         if (item != res.end()) {
             res.erase(item);
@@ -126,8 +126,8 @@ ov::Any PropertyManagerImpl::get_property(const std::string& name, const std::st
         }
     }
 
-    if (default_plugin_properties.count(name) > 0) {
-        return default_plugin_properties.at(name);
+    if (default_core_properties.count(name) > 0) {
+        return default_core_properties.at(name);
     }
 
     if (default_global_properties.count(name) > 0) {
