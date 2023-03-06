@@ -6,12 +6,6 @@
 
 #include "dev/threading/thread_affinity.hpp"
 
-#if defined(_WIN32)
-#    include <windows.h>
-
-#    include <thread>
-#endif
-
 namespace InferenceEngine {
 
 std::tuple<CpuSet, int> GetProcessMask() {

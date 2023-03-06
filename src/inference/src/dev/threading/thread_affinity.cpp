@@ -16,6 +16,12 @@
 #    include <unistd.h>
 #endif
 
+#if defined(_WIN32)
+#    include <windows.h>
+
+#    include <thread>
+#endif
+
 namespace ov {
 namespace threading {
 #if !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
