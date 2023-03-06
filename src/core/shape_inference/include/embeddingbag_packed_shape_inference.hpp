@@ -18,9 +18,9 @@ std::vector<TShape> shape_infer(const ov::op::util::EmbeddingBagPackedBase* op,
     const auto input_size = input_shapes.size();
     NODE_VALIDATION_CHECK(op, input_size == 2 || input_size == 3);
 
-    static constexpr int EMB_TABLE = 0;
-    static constexpr int INDICES = 1;
-    static constexpr int PER_SAMPLE_WEIGHTS = 2;
+    constexpr size_t EMB_TABLE = 0;
+    constexpr size_t INDICES = 1;
+    constexpr size_t PER_SAMPLE_WEIGHTS = 2;
 
     auto indices_shape = input_shapes[INDICES];
     NODE_VALIDATION_CHECK(op, indices_shape.rank().compatible(2), "INDICES must be 2D.");
