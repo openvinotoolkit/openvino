@@ -43,8 +43,7 @@ std::vector<TShape> shape_infer(const MaxPool* op, const std::vector<TShape>& in
 
     pooling::update_and_validate_attributes(const_cast<MaxPool*>(op), data_shape, dilations);
 
-    auto output_shape = pooling::out_shape_infer(op, data_shape, dilations);
-    return {2, output_shape};
+    return {2, pooling::out_shape_infer(op, data_shape, dilations)};
 }
 
 template <class TShape>
