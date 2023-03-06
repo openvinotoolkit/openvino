@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <vector>
+#include <cmath>
 
 #include "itt.hpp"
 #include "openvino/opsets/opset10.hpp"
@@ -32,21 +33,14 @@ ov::pass::FlushFP32SubnormalsToZero::FlushFP32SubnormalsToZero() {
         auto* data = const_cast<float*>(node->get_data_ptr<float>());
         const auto size = ov::shape_size(node->get_shape());
 
-        union {
-            float maximum_subnorm_val;
-            std::uint32_t uint_maximum_subnorm_val;
-        };
-        uint_maximum_subnorm_val = 0x007fffff;  // = 2^−126 * (1 - 2^−23) ~= 1.175e-38f
-
-        bool has_denormals = false;
+        bool has_subnormals = false;
         for (size_t i = 0; i < size; ++i) {
-            if (std::abs(data[i]) <= maximum_subnorm_val && data[i] != 0.0f) {
+            if (fpclassify(std::abs(data[i])) == FP_SUBNORMAL) {
                 data[i] = 0.0f;
-                has_denormals = true;
+                has_subnormals = true;
             }
         }
-
-        if (has_denormals)
+        if (has_subnormals)
             return true;
 
         return false;
