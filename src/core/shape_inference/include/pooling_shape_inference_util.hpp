@@ -152,10 +152,7 @@ TShape spatial_shape_infer(const TOp* op, const TShape& data_shape, const Stride
     const auto is_auto_pad = (op->get_auto_pad() == PadType::SAME_UPPER) || (op->get_auto_pad() == PadType::SAME_LOWER);
 
     using TDim = typename TShape::value_type;
-    using T = typename TDim::value_type;
-    const auto dim_divide =
-        is_ceil_mode ? [](const TDim& dividend, const T divisor){ return dim::ceil_div(dividend, divisor); }
-                     : [](const TDim& dividend, const T divisor){ return dim::floor_div(dividend, divisor); };
+    const auto& dim_divide = is_ceil_mode ? dim::ceil_div<TDim> : dim::floor_div<TDim>;
 
     TShape out_shape;
     out_shape.reserve(spatial_num);
@@ -225,8 +222,6 @@ TShape out_shape_infer(const TOp* op,
                        const std::vector<TShape>& input_shapes,
                        const std::map<size_t, HostTensorPtr>& constant_data = {}) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
-
-    constexpr size_t spatial_dim_offset = 2;
 
     const auto& data_shape = input_shapes[0];
     const auto& out_spatial_shape = input_shapes[1];
