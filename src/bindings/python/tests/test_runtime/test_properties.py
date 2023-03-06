@@ -249,8 +249,8 @@ def test_properties_ro(ov_property_ro, expected_value):
         ),
         (
             properties.intel_cpu.processor_type,
-            "PROCESSOR_TYPE",
-            (("UNDEFINED", "UNDEFINED"),),
+            "CPU_PROCESSOR_TYPE",
+            (("CPU_UNDEFINED", "CPU_UNDEFINED"),),
         ),        
         (properties.device.id, "DEVICE_ID", (("0", "0"),)),
         (
