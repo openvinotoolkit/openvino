@@ -1084,6 +1084,21 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v3::TopK> &nod
     return std::make_shared<ov::Model>(results, params, "TopKGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v11::TopK> &node) {
+    const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 3, 2}});
+    const auto k = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {}, {3});
+    auto Node = std::make_shared<ov::op::v11::TopK>(params.at(0),
+                                                   k,
+                                                   -2,
+                                                   ov::op::v11::TopK::Mode::MIN,
+                                                   ov::op::v11::TopK::SortType::SORT_VALUES,
+                                                   ov::element::i64,
+                                                   true);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(Node->output(0)),
+                             std::make_shared<ov::op::v0::Result>(Node->output(1))};
+    return std::make_shared<ov::Model>(results, params, "TopKGraph");
+}
+
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v1::Transpose> &node) {
     const auto params = ngraph::builder::makeDynamicParams(ov::element::f32, {{2, 2, 3}});
     const auto inputOrder = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {3}, {2, 1, 0});
@@ -1846,6 +1861,7 @@ OpGenerator getOpGeneratorMap() {
 #include "openvino/opsets/opset8_tbl.hpp"
 #include "openvino/opsets/opset9_tbl.hpp"
 #include "openvino/opsets/opset10_tbl.hpp"
+#include "openvino/opsets/opset11_tbl.hpp"
 #undef _OPENVINO_OP_REG
     };
     return opGeneratorMap;
