@@ -187,7 +187,7 @@ public:
         for (int i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
-            // TODO: after snippets fixed should remove 2nd condition
+            // TODO: after snippets fixed should remove 2nd condition, ticket: 105339
             if (patternType == 0 || expectedNode == "Subgraph")
                 tensor = ov::test::utils::create_and_fill_tensor_normal_distribution(funcInput.get_element_type(), targetInputStaticShapes[i], 1.0f, 0.5f);
             else
