@@ -38,4 +38,3 @@ typedef enum {
 } column_of_cpu_streams_info_table;
 
 }  // namespace InferenceEngine
-

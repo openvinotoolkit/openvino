@@ -222,7 +222,8 @@ enum CpuUseStatus {
 OPENVINO_RUNTIME_API std::vector<int> get_available_cpus(const ColumnOfProcessorTypeTable core_type,
                                                          const int num_cpus,
                                                          const int seek_status = NOT_USED,
-                                                         const int reset_status = CPU_USED);
+                                                         const int reset_status = CPU_USED,
+                                                         const int reserve_logic_core = false);
 
 /**
  * @enum       ColumnOfCPUMappingTable

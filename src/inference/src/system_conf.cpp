@@ -175,7 +175,8 @@ bool cpu_map_available() {
 std::vector<int> get_available_cpus(const ColumnOfProcessorTypeTable core_type,
                                     const int num_cpus,
                                     const int seek_status,
-                                    const int reset_status) {
+                                    const int reset_status,
+                                    const int reserve_logic_core) {
     return {};
 }
 std::vector<int> get_logic_cores(const std::vector<int> cpu_ids) {
@@ -276,7 +277,8 @@ bool cpu_map_available() {
 std::vector<int> get_available_cpus(const ColumnOfProcessorTypeTable core_type,
                                     const int num_cpus,
                                     const int seek_status,
-                                    const int reset_status) {
+                                    const int reset_status,
+                                    const int reserve_logic_core) {
     std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
     std::vector<int> cpu_ids;
     int socket = -1;
@@ -295,7 +297,14 @@ std::vector<int> get_available_cpus(const ColumnOfProcessorTypeTable core_type,
                 break;
             }
         }
+        if (reserve_logic_core) {
+            auto logic_ids = get_logic_cores(cpu_ids);
+            cpu_ids.insert(cpu_ids.end(), logic_ids.begin(), logic_ids.end());
+        }
         set_cpu_used(cpu_ids, reset_status);
+        if (reset_status >= GPU_PRE_USED) {
+            update_proc_type_table();
+        }
     } else {
         IE_THROW() << "Wrong value for core_type " << core_type;
     }
@@ -309,7 +318,7 @@ std::vector<int> get_logic_cores(const std::vector<int> cpu_ids) {
         for (int i = 0; i < cpu._processors; i++) {
             for (int j = 0; j < cpu_size; j++) {
                 if (cpu._cpu_mapping_table[i][CPU_MAP_CORE_ID] == cpu._cpu_mapping_table[cpu_ids[j]][CPU_MAP_CORE_ID] &&
-                    cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID] != cpu_ids[j]) {
+                    cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE] == HYPER_THREADING_PROC) {
                     logic_cores.push_back(cpu._cpu_mapping_table[i][CPU_MAP_PROCESSOR_ID]);
                 }
             }

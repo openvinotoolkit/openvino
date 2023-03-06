@@ -452,15 +452,14 @@ IStreamsExecutor::Config IStreamsExecutor::Config::set_executor_config(std::stri
                 streamExecutorConfig._plugin_task = get_task_flag();
             }
         }
-        const auto proc_type_table = get_num_available_cpu_cores();
         streamExecutorConfig._threads = streamExecutorConfig._streams;
         streamExecutorConfig._threadBindingType = thread_binding_type;
         streamExecutorConfig._threadPreferredCoreType = thread_core_type;
         if (streamExecutorConfig._threadPreferredCoreType == LITTLE) {
-            streamExecutorConfig._small_core_streams = std::min(num_streams, proc_type_table[0][EFFICIENT_CORE_PROC]);
+            streamExecutorConfig._small_core_streams = num_streams;
             streamExecutorConfig._threads_per_stream_small = 1;
         } else {
-            streamExecutorConfig._big_core_streams = std::min(num_streams, proc_type_table[0][MAIN_CORE_PROC]);
+            streamExecutorConfig._big_core_streams = num_streams;
             streamExecutorConfig._threads_per_stream_big = 1;
         }
         if (streamExecutorConfig._threadBindingType != NUMA) {
@@ -469,12 +468,11 @@ IStreamsExecutor::Config IStreamsExecutor::Config::set_executor_config(std::stri
             auto num_cores = streamExecutorConfig._threadPreferredCoreType == LITTLE
                                  ? streamExecutorConfig._small_core_streams
                                  : streamExecutorConfig._big_core_streams;
-            auto cpu_ids = get_available_cpus(core_type, num_cores, NOT_USED, streamExecutorConfig._plugin_task);
-            if (core_type == MAIN_CORE_PROC) {
-                std::vector<int> logic_cores = get_logic_cores(cpu_ids);
-                set_cpu_used(logic_cores, streamExecutorConfig._plugin_task);
-            }
-            update_proc_type_table();
+            get_available_cpus(core_type,
+                               num_cores,
+                               NOT_USED,
+                               streamExecutorConfig._plugin_task,
+                               core_type == MAIN_CORE_PROC);
         }
     }
     OPENVINO_DEBUG << "[ " << name << " SetExecutorConfig ] streams: " << num_streams
