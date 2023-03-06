@@ -27,7 +27,7 @@ This section covers the case when a single operation in framework representation
 .. note::
    ``OpExtension`` class is currently available for ONNX and TensorFlow frontends. PaddlePaddle frontend has named inputs and outputs for operation (not indexed) therefore OpExtension mapping is not applicable for this case.
 
-The next example maps ONNX operation with type `Identity <https://github.com/onnx/onnx/blob/main/docs/Operators.md#Identity`__ to OpenVINO template extension ``Identity`` class.
+The next example maps ONNX operation with type `Identity <https://github.com/onnx/onnx/blob/main/docs/Operators.md`__ to OpenVINO template extension ``Identity`` class.
 
 .. doxygensnippet:: docs/snippets/ov_extensions.cpp
    :language: cpp
@@ -58,13 +58,15 @@ Here is an example for a custom framework operation “MyRelu”. Suppose it is 
 
 
 .. tab:: C++
- 
+   :sync: cpp
+
     .. doxygensnippet:: docs/snippets/ov_extensions.cpp
         :language: cpp
         :fragment: [frontend_extension_MyRelu]
 
 .. tab:: Python
- 
+   :sync: python
+   
     .. doxygensnippet:: docs/snippets/ov_extensions.py
         :language: python
         :fragment: [py_frontend_extension_MyRelu]
@@ -120,7 +122,7 @@ Previous sections cover the case when a single operation is mapped to a single o
 
 In case if one-to-one mapping is not possible, *decomposition to multiple operations* should be considered. It is achieved by using more verbose and less automated ``ConversionExtension`` class. It enables writing arbitrary code to replace a single framework operation by multiple connected OpenVINO operations constructing dependency graph of any complexity.
 
-``ConversionExtension`` maps a single operation to a function which builds a graph using OpenVINO operation classes. Follow chapter :ref:`Build a Model in OpenVINO Runtime <openvino_docs_OV_UG_Model_Representation_ov_ug_build_model>` :ref:`Build a Model in OpenVINO Runtime 1 <_ov_ug_build_model>` :ref:`Build a Model in OpenVINO Runtime 2 <ov_ug_build_model>` :doc:`Build a Model in OpenVINO Runtime 3 <ov_ug_build_model>` :doc:`Build a Model in OpenVINO Runtime 4 <_ov_ug_build_model>` :doc:`Build a Model in OpenVINO Runtime 5 <openvino_docs_OV_UG_Model_Representation_ov_ug_build_model>` to learn how to use OpenVINO operation classes to build a fragment of model for replacement.
+``ConversionExtension`` maps a single operation to a function which builds a graph using OpenVINO operation classes. Follow chapter :ref:`Build a Model in OpenVINO Runtime <ov_ug_build_model>` to learn how to use OpenVINO operation classes to build a fragment of model for replacement.
 
 The next example illustrates using ``ConversionExtension`` for conversion of “ThresholdedRelu” from ONNX according to the formula: ``ThresholdedRelu(x, alpha) -> Multiply(x, Convert(Greater(x, alpha), type=float))``.
 
@@ -129,36 +131,36 @@ The next example illustrates using ``ConversionExtension`` for conversion of “
 
 .. tab-set::
 
-    .. tab-item:: C++
-       :sync: cpp
+   .. tab-item:: C++
+      :sync: cpp
  
-        .. doxygensnippet:: docs/snippets/ov_extensions.cpp
-            :language: cpp
-            :fragment: [frontend_extension_ThresholdedReLU_header]
+      .. doxygensnippet:: docs/snippets/ov_extensions.cpp
+         :language: cpp
+         :fragment: [frontend_extension_ThresholdedReLU_header]
 
-    .. tab-item:: Python
-       :sync: python
+   .. tab-item:: Python
+      :sync: python
 
-        .. doxygensnippet:: docs/snippets/ov_extensions.py
-            :language: python
-            :fragment: [py_frontend_extension_ThresholdedReLU_header]
+      .. doxygensnippet:: docs/snippets/ov_extensions.py
+         :language: python
+         :fragment: [py_frontend_extension_ThresholdedReLU_header]
 
 
 .. tab-set::
 
-    .. tab-item:: C++
-       :sync: cpp
+   .. tab-item:: C++
+      :sync: cpp
  
-        .. doxygensnippet:: docs/snippets/ov_extensions.cpp
-            :language: cpp
-            :fragment: [frontend_extension_ThresholdedReLU]
+      .. doxygensnippet:: docs/snippets/ov_extensions.cpp
+         :language: cpp
+         :fragment: [frontend_extension_ThresholdedReLU]
 
-    .. tab-item:: Python
-       :sync: python
+   .. tab-item:: Python
+      :sync: python
  
-        .. doxygensnippet:: docs/snippets/ov_extensions.py
-            :language: python
-            :fragment: [py_frontend_extension_ThresholdedReLU]
+      .. doxygensnippet:: docs/snippets/ov_extensions.py
+         :language: python
+         :fragment: [py_frontend_extension_ThresholdedReLU]
 
 
 To access original framework operation attribute value and connect to inputs, ``node`` object of type ``NodeContext`` is used. It has two main methods:
