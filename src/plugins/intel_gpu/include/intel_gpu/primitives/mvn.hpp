@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,5 +40,26 @@ struct mvn : public primitive_base<mvn> {
     bool eps_inside_sqrt;
     /// @brief Determines if the normalization is done across or within channels.
     bool across_channels;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, normalize_variance);
+        seed = hash_combine(seed, epsilon);
+        seed = hash_combine(seed, eps_inside_sqrt);
+        seed = hash_combine(seed, across_channels);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const mvn>(rhs);
+
+        return normalize_variance == rhs_casted.normalize_variance &&
+               epsilon == rhs_casted.epsilon &&
+               eps_inside_sqrt == rhs_casted.eps_inside_sqrt &&
+               across_channels == rhs_casted.across_channels;
+    }
 };
 }  // namespace cldnn

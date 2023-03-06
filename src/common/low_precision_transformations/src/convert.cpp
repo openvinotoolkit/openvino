@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -48,7 +48,7 @@ bool ConvertTransformation::transform(TransformationContext& context, ngraph::pa
 
     const ngraph::element::Type precisionBefore = convert->get_input_element_type(0);
 
-    std::shared_ptr<opset1::Subtract> subtract = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(
+    std::shared_ptr<opset1::Subtract> subtract = std::make_shared<ov::op::TypeRelaxed<opset1::Subtract>>(
         convert->input_value(0),
         std::make_shared<opset1::Constant>(precisionBefore, Shape{}, std::vector<size_t>({ 0 })));
     NetworkHelper::setOutDataPrecision(subtract, convert->get_output_element_type(0));

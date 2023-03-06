@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,7 +33,7 @@ struct network_output {
     memory::ptr get_memory() const {
         // TODO: in_order queue doesn't create proper output event in some cases which leads to syncronization issues with user app
         // So call finish for associated stream to enusre that the output data is ready.
-        if (_stream->get_queue_type() == queue_types::in_order) {
+        if (_stream->get_queue_type() == QueueTypes::in_order) {
             _stream->finish();
         } else {
             _event->wait();
@@ -41,11 +41,16 @@ struct network_output {
         return _result;
     }
 
+    layout get_layout() const { // Last tensor memory might be null (e.g., {N, 0} shape) but we should be able to get the layout
+        return _layout;
+    }
+
 private:
     event::ptr _event;
     memory::ptr _result;
     stream::ptr _stream;
-    network_output(event::ptr evt, memory::ptr mem, stream::ptr stream) : _event(evt), _result(mem), _stream(stream) {}
+    layout _layout;
+    network_output(event::ptr evt, memory::ptr mem, stream::ptr stream, layout layout) : _event(evt), _result(mem), _stream(stream), _layout(layout) {}
     friend struct network;
 };
 
@@ -67,14 +72,15 @@ public:
     };
     using variables_states_map = std::map<std::string, VariableState::Ptr>;
 
-    explicit network(program::ptr program, stream::ptr stream, bool is_internal = false, bool is_primary_stream = true);
+    explicit network(program::ptr program, const ExecutionConfig& config, stream::ptr stream, bool is_internal = false, bool is_primary_stream = true);
     network(engine& engine,
             const topology& topo,
-            const build_options& options = build_options(),
+            const ExecutionConfig& config = {},
             bool is_internal = false);
     network(engine& engine,
             const std::set<std::shared_ptr<program_node>>& nodes,
-            const build_options& options,
+            const ExecutionConfig& config,
+            std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
             bool is_internal);
 
     network(program::ptr program, uint16_t stream_id = 0);
@@ -82,6 +88,7 @@ public:
     network(program::ptr program, stream::ptr stream, uint16_t stream_id);
 
     network(cldnn::BinaryInputBuffer& ifs, stream::ptr stream, engine& engine, uint16_t stream_id = 0);
+    network(cldnn::BinaryInputBuffer& ifs, const ExecutionConfig& config, stream::ptr stream, engine& engine, uint16_t stream_id = 0);
 
     ~network();
 
@@ -89,11 +96,12 @@ public:
 
     static ptr build_network(engine& engine,
                              const topology& topology,
-                             const build_options& options = build_options(),
+                             const ExecutionConfig& config = {},
                              bool is_internal = false);
     static ptr build_network(engine& engine,
                              const std::set<std::shared_ptr<program_node>>& nodes,
-                             const build_options& options,
+                             const ExecutionConfig& config,
+                             std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
                              bool is_internal);
 
     static ptr allocate_network(stream::ptr stream,
@@ -121,13 +129,12 @@ public:
 
     network_output get_output(const primitive_id& output_id) {
         event::ptr evt;
-        if (get_stream().get_queue_type() == queue_types::out_of_order)
+        if (get_stream().get_queue_type() == QueueTypes::out_of_order)
             evt = get_primitive_event(output_id);
-        return network_output(evt, get_output_memory(output_id), get_stream_ptr());
+        return network_output(evt, get_output_memory(output_id), get_stream_ptr(), get_output_layout(output_id));
     }
-
-    memory::ptr get_output_memory(const primitive_id& output_id);
     layout get_node_output_layout(const primitive_id& output_id) const;
+    memory::ptr get_output_memory(const primitive_id& output_id);
     layout get_output_layout(const primitive_id& output_id) const;
     std::vector<layout> get_input_layouts() const;
 
@@ -224,28 +231,24 @@ public:
     /// Returns memory state @p variable_id of stateful network
     VariableState& get_variable_memory(const std::string &variable_id);
 
-    /// Return kernels_cache
-    kernels_cache& get_kernels_cache() const { return *_kernels_cache; }
-
-    /// Return implentations_cache
-    ImplementationsCache& get_implementations_cache() const { return *_impls_cache; }
-
     /// Return in_mem_kernels_cache
     KernelsCache& get_in_mem_kernels_cache() const { return *_in_mem_kernels_cache; }
-
-    ICompilationContext& get_compilation_context() const { return *_compilation_context; }
     std::mutex& get_impl_cache_mutex() const { return _in_mem_cache_mutex; }
+
+    const ExecutionConfig& get_config() const { return _config; }
 
 private:
     using output_chains_map = std::map<primitive_id, std::vector<std::shared_ptr<primitive_inst>>>;
     uint32_t net_id = 0;
     program::ptr _program;
+    ExecutionConfig _config;
     engine& _engine;
     stream::ptr _stream;
     std::unique_ptr<memory_pool> _memory_pool;
     bool _internal;
     bool _is_primary_stream;
     bool _is_dynamic = false;
+    bool _enable_profiling = false;
     bool _reset_arguments;
 
     std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> _primitives;
@@ -256,12 +259,13 @@ private:
     std::list<std::shared_ptr<primitive_inst>> _data_outputs;
     variables_states_map _variables_states;
     std::vector<std::shared_ptr<primitive_inst>> _variable_state_primitives;
+    program::primitives_info _prims_info;
+    std::map<primitive_id, primitive_id> _ext_id_mapping;
 
     std::unordered_map<primitive_id, event::ptr> _events;
     output_chains_map _output_chains;
 
     mutable std::mutex _in_mem_cache_mutex;
-    std::unique_ptr<ICompilationContext> _compilation_context;
 
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);
@@ -273,11 +277,8 @@ private:
     void add_default_output_chains();
     output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
 
-    std::unique_ptr<kernels_cache> _kernels_cache;
     // Move from cldnn::program to cldnn::network for multi-threads issue.
-    std::unique_ptr<ImplementationsCache> _impls_cache;
     std::unique_ptr<KernelsCache> _in_mem_kernels_cache;
-    const size_t _impls_cache_capacity = 10000;
     const size_t _in_mem_kernels_cache_capacity = 10000;
 };
 }  // namespace cldnn

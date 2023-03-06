@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,13 +14,14 @@
 #include "ngraph/shape.hpp"
 
 #if defined(__GNUC__) && !defined(__clang__)
-#    if defined(__linux__) && defined(__i386__) && (__GNUC__ == 7 && __GNUC_MINOR__ == 5 && __GNUC_PATCHLEVEL__ == 0)
-#        define NEED_FIX 1
+#    if defined(__linux__) && defined(OPENVINO_ARCH_X86) && \
+        (__GNUC__ == 7 && __GNUC_MINOR__ == 5 && __GNUC_PATCHLEVEL__ == 0)
+#        define _OV_DISABLE_GCC_OPTIMIZATION 1
 #    else
-#        define NEED_FIX 0
+#        define _OV_DISABLE_GCC_OPTIMIZATION 0
 #    endif
 #else
-#    define NEED_FIX 0
+#    define _OV_DISABLE_GCC_OPTIMIZATION 0
 #endif
 
 namespace {
@@ -99,7 +100,7 @@ struct PreCalc {
 // gives incorrect results after compiling by GCC 7.5.0 or Clang 10 in Ubuntu 18.04 32-bit, if the optimization
 // level is -O1 or -O2. Finally, the function gives correct result in Ubuntu 18.04 32-bit, if the optimization
 // level is -O0.
-#if NEED_FIX
+#if _OV_DISABLE_GCC_OPTIMIZATION
 #    pragma GCC push_options
 #    pragma GCC optimize("-O0")
 #endif
@@ -180,7 +181,7 @@ void pre_calc_for_bilinear_interpolate(const int64_t height,
         }
     }
 }
-#if NEED_FIX
+#if _OV_DISABLE_GCC_OPTIMIZATION
 #    pragma GCC pop_options
 #endif
 

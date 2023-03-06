@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -22,6 +22,8 @@ class InputModel : public ov::frontend::InputModel {
     class InputModelTFImpl;
     std::shared_ptr<InputModelTFImpl> _impl;
 
+    std::vector<std::string> get_input_names() const;
+    std::vector<std::string> get_output_names() const;
     std::vector<std::shared_ptr<OpPlace>> get_op_places() const;
     std::map<std::string, std::shared_ptr<TensorPlace>> get_tensor_places() const;
     std::map<std::string, Output<Node>> get_tensor_values() const;

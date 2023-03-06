@@ -1,6 +1,6 @@
 @echo off
 
-:: Copyright (C) 2018-2022 Intel Corporation
+:: Copyright (C) 2018-2023 Intel Corporation
 :: SPDX-License-Identifier: Apache-2.0
 
 set SCRIPT_NAME=%~nx0
@@ -36,8 +36,7 @@ if exist "%INTEL_OPENVINO_DIR%\extras\opencv\setupvars.bat" (
 set "InferenceEngine_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
 set "ngraph_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
 set "OpenVINO_DIR=%INTEL_OPENVINO_DIR%\runtime\cmake"
-set "HDDL_INSTALL_DIR=%INTEL_OPENVINO_DIR%\runtime\3rdparty\hddl"
-set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Release;%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Debug;%HDDL_INSTALL_DIR%\bin;%OPENVINO_LIB_PATHS%"
+set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Release;%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Debug;%OPENVINO_LIB_PATHS%"
 
 :: TBB
 if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb (

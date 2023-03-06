@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -62,8 +62,8 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCell) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y});
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -142,8 +142,8 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCell) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y});
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -225,8 +225,8 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCell) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y, Z});
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -306,8 +306,8 @@ TEST(TransformationTests, UnrollTensorIteratorGRUCellSingleIteration) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y});
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -380,8 +380,8 @@ TEST(TransformationTests, UnrollTensorIteratorRNNCellSingleIteration) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y});
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -456,8 +456,8 @@ TEST(TransformationTests, UnrollTensorIteratorLSTMCellSingleIterationSingleItera
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{res_ti_1}, ngraph::ParameterVector{X, Y, Z});
 
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::UnrollTensorIterator>();
         manager.run_passes(f);
 
         ASSERT_NO_THROW(check_rt_info(f));
@@ -541,9 +541,9 @@ TEST(TransformationTests, CheckTensorNamesAfterConvertToTIAndUnrolling) {
     collect_legacy_tensor_names(f, names_before);
 
     ngraph::pass::Manager m;
-    m.register_pass<ngraph::pass::InitNodeInfo>();
-    m.register_pass<ngraph::pass::ConvertGRUSequenceToTensorIterator>();  // inserts Unsqueeze after TI
-    m.register_pass<ngraph::pass::UnrollTensorIterator>();
+    m.register_pass<ov::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::ConvertGRUSequenceToTensorIterator>();  // inserts Unsqueeze after TI
+    m.register_pass<ov::pass::UnrollTensorIterator>();
     m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
 
@@ -609,8 +609,8 @@ TEST(TransformationTests, CheckTensorNamesAfterUnrolling) {
     collect_legacy_tensor_names(f, names_before);
 
     ngraph::pass::Manager m;
-    m.register_pass<ngraph::pass::InitNodeInfo>();
-    m.register_pass<ngraph::pass::UnrollTensorIterator>();
+    m.register_pass<ov::pass::InitNodeInfo>();
+    m.register_pass<ov::pass::UnrollTensorIterator>();
     m.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
 

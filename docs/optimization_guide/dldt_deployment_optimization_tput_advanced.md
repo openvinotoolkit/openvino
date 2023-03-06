@@ -8,7 +8,7 @@ This configurable method of this device-side parallelism is commonly referred as
 
 > **NOTE**: Be aware that streams are **really executing the requests in parallel, but not in the lock step** (as the batching does), which makes the streams fully compatible with [dynamically-shaped inputs](../OV_Runtime_UG/ov_dynamic_shapes.md), while individual requests can have different shapes.
 
-> **NOTE**: Most OpenVINO devices (including CPU, GPU and VPU) support the streams, yet the *optimal* number of the streams is deduced very differently. More information on this topic can be found in the section [below](@ref stream_considerations).
+> **NOTE**: Most OpenVINO devices (including CPU and GPU) support the streams, yet the *optimal* number of the streams is deduced very differently. More information on this topic can be found in the section [below](@ref stream_considerations).
 
 A few general considerations:
 * Using the streams does increase the latency of an individual request:
@@ -45,7 +45,6 @@ Similarly, different devices require a different number of execution streams to 
 In some cases, combination of streams and batching may be required to maximize the throughput.
 
 One possible throughput optimization strategy is to **set an upper bound for latency and then increase the batch size and/or number of the streams until that tail latency is met (or the throughput is not growing anymore)**.
-Consider [OpenVINO Deep Learning Workbench](@ref workbench_docs_Workbench_DG_Introduction) that builds handy latency vs throughput charts, iterating over possible values of the batch size and number of streams.
 
 > **NOTE**: When playing with [dynamically-shaped inputs](../OV_Runtime_UG/ov_dynamic_shapes.md), use only the streams (no batching), as they tolerate individual requests having different shapes. 
 

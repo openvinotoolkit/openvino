@@ -1,9 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "condition_inst.h"
-#include "impls/implementation_map.hpp"
+#include "implementation_map.hpp"
 #include "register.hpp"
 
 #include <algorithm>
@@ -34,6 +34,7 @@ struct condition_impl : typed_primitive_impl<condition> {
             a->wait();
         }
         auto ev = instance.get_network().get_stream().create_user_event(false);
+        set_node_params(instance.get_node());
 
         bool exec_branch = choose_branch_to_exec(instance);
         memory::ptr memory_to_copy;

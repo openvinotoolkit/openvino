@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,6 +24,8 @@ class GraphIteratorProto : public GraphIterator {
     size_t node_index = 0;
     std::vector<std::shared_ptr<DecoderBase>> m_decoders;
     std::unordered_map<std::string, int> m_library_map;
+    std::vector<std::string> m_input_names;
+    std::vector<std::string> m_output_names;
 
 public:
     GraphIteratorProto(const std::shared_ptr<::tensorflow::GraphDef>& graph_def,
@@ -42,6 +44,7 @@ public:
         // they are not NodeDef so we use separate Decoder class
         for (int input_ind = 0; input_ind < input_size; ++input_ind) {
             auto input_arg = &m_func_def->signature().input_arg(input_ind);
+            m_input_names.push_back(input_arg->name());
             m_decoders.push_back(std::make_shared<DecoderArgDef>(input_arg, "input_arg"));
         }
 
@@ -55,6 +58,7 @@ public:
         // they are not NodeDef so we use separate Decoder class
         for (int output_ind = 0; output_ind < output_size; ++output_ind) {
             auto output_arg = &m_func_def->signature().output_arg(output_ind);
+            m_output_names.push_back(output_arg->name());
             auto producer_name = ret_map.at(output_arg->name());
             m_decoders.push_back(std::make_shared<DecoderArgDef>(output_arg, "output_arg", producer_name));
         }
@@ -84,29 +88,40 @@ public:
         }
     }
 
-    /// Set iterator to the start position
+    /// \brief Check if the input file is supported
+    template <typename T>
+    static bool is_supported(const std::basic_string<T>& path) {
+        std::ifstream pb_stream(path, std::ios::in | std::ifstream::binary);
+        auto graph_def = std::make_shared<::tensorflow::GraphDef>();
+        return pb_stream && pb_stream.is_open() && graph_def->ParsePartialFromIstream(&pb_stream);
+    }
+
+    /// \brief Set iterator to the start position
     void reset() override {
         node_index = 0;
     }
 
+    /// \brief Return a number of nodes in the graph
     size_t size() const override {
         return m_decoders.size();
     }
 
-    /// Moves to the next node in the graph
+    /// \brief Move to the next node in the graph
     void next() override {
         node_index++;
     }
 
+    /// \brief Check if the graph is fully traversed
     bool is_end() const override {
         return node_index >= m_decoders.size();
     }
 
-    /// Return NodeContext for the current node that iterator points to
+    /// \brief Return NodeContext for the current node that iterator points to
     std::shared_ptr<DecoderBase> get_decoder() const override {
         return m_decoders[node_index];
     }
 
+    /// \brief Get GraphIterator for library funnction by name
     std::shared_ptr<GraphIterator> get_body_graph_iterator(const std::string& func_name) const override {
         if (m_library_map.count(func_name)) {
             auto func_ind = m_library_map.at(func_name);
@@ -121,6 +136,16 @@ public:
         }
 
         return nullptr;
+    }
+
+    /// \brief Get input names in the original order. Used for the library functions
+    std::vector<std::string> get_input_names() const override {
+        return m_input_names;
+    }
+
+    /// \brief Get output names in the original order. Used for the library functions
+    std::vector<std::string> get_output_names() const override {
+        return m_output_names;
     }
 };
 }  // namespace tensorflow

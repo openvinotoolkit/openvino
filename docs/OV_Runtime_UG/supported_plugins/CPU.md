@@ -11,7 +11,7 @@ For an in-depth description of CPU plugin, see:
 
 ## Device Name
 The `CPU` device name is used for the CPU plugin. Even though there can be more than one physical socket on a platform, only one device of this kind is listed by OpenVINO.
-On multi-socket platforms, load balancing and memory usage distribution between NUMA nodes are handled automatically.   
+On multi-socket platforms, load balancing and memory usage distribution between NUMA nodes are handled automatically.
 In order to use CPU for inference, the device name should be passed to the `ov::Core::compile_model()` method:
 
 @sphinxtabset
@@ -38,7 +38,7 @@ CPU plugin supports the following data types as inference precision of internal 
   - u8
   - i8
   - u1
-  
+
 [Hello Query Device C++ Sample](../../../samples/cpp/hello_query_device/README.md) can be used to print out supported data types for all detected devices.
 
 ### Quantized Data Types Specifics
@@ -60,7 +60,7 @@ For more details about the `bfloat16` format, see the [BFLOAT16 – Hardware Num
 Using the `bf16` precision provides the following performance benefits:
 
 - Faster multiplication of two `bfloat16` numbers because of shorter mantissa of the `bfloat16` data.
-- Reduced memory consumption since `bfloat16` data half the size of 32-bit float. 
+- Reduced memory consumption since `bfloat16` data half the size of 32-bit float.
 
 To check if the CPU device can support the `bfloat16` data type, use the [query device properties interface](./config_properties.md) to query `ov::device::capabilities` property, which should contain `BF16` in the list of CPU capabilities:
 
@@ -76,11 +76,11 @@ To check if the CPU device can support the `bfloat16` data type, use the [query 
 
 @endsphinxtabset
 
-If the model has been converted to `bf16`, the `ov::hint::inference_precision` is set to `ov::element::bf16` and can be checked via the `ov::CompiledModel::get_property` call. The code below demonstrates how to get the element type:
+If the model has been converted to `bf16`, the `ov::inference_precision` is set to `ov::element::bf16` and can be checked via the `ov::CompiledModel::get_property` call. The code below demonstrates how to get the element type:
 
 @snippet snippets/cpu/Bfloat16Inference1.cpp part1
 
-To infer the model in `f32` precision instead of `bf16` on targets with native `bf16` support, set the `ov::hint::inference_precision` to `ov::element::f32`.
+To infer the model in `f32` precision instead of `bf16` on targets with native `bf16` support, set the `ov::inference_precision` to `ov::element::f32`.
 
 @sphinxtabset
 
@@ -95,12 +95,12 @@ To infer the model in `f32` precision instead of `bf16` on targets with native `
 @endsphinxtabset
 
 The `Bfloat16` software simulation mode is available on CPUs with Intel® AVX-512 instruction set that do not support the native `avx512_bf16` instruction. This mode is used for development purposes and it does not guarantee good performance.
-To enable the simulation, the `ov::hint::inference_precision` has to be explicitly set to `ov::element::bf16`.
+To enable the simulation, the `ov::inference_precision` has to be explicitly set to `ov::element::bf16`.
 
-> **NOTE**: If ov::hint::inference_precision is set to ov::element::bf16 on a CPU without native bfloat16 support or bfloat16 simulation mode, an exception is thrown.
+> **NOTE**: If ov::inference_precision is set to ov::element::bf16 on a CPU without native bfloat16 support or bfloat16 simulation mode, an exception is thrown.
 
 > **NOTE**: Due to the reduced mantissa size of the `bfloat16` data type, the resulting `bf16` inference accuracy may differ from the `f32` inference, especially for models that were not trained using the `bfloat16` data type. If the `bf16` inference accuracy is not acceptable, it is recommended to switch to the `f32` precision.
-  
+
 ## Supported Features
 
 ### Multi-device Execution
@@ -204,7 +204,7 @@ The plugin supports the following properties:
 All parameters must be set before calling `ov::Core::compile_model()` in order to take effect or passed as additional argument to `ov::Core::compile_model()`
 
 - `ov::enable_profiling`
-- `ov::hint::inference_precision`
+- `ov::inference_precision`
 - `ov::hint::performance_mode`
 - `ov::hint::num_request`
 - `ov::num_streams`

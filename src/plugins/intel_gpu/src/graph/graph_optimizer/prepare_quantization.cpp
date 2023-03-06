@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,6 +18,8 @@
 #include <string>
 #include <memory>
 #include <vector>
+
+using namespace cldnn;
 
 template<typename T>
 bool check_binarization(memory::ptr mem_input_low, memory::ptr mem_input_high, program& p) {

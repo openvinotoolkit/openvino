@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -54,6 +54,9 @@ public:
     const Attributes& get_attrs() const {
         return m_attrs;
     }
+    void set_attrs(const Attributes& attrs) {
+        m_attrs = attrs;
+    }
     bool visit_attributes(AttributeVisitor& visitor) override;
 
 private:
@@ -103,6 +106,9 @@ public:
 
     const Attributes& get_attrs() const {
         return m_attrs;
+    }
+    void set_attrs(const Attributes& attrs) {
+        m_attrs = attrs;
     }
     bool visit_attributes(AttributeVisitor& visitor) override;
 

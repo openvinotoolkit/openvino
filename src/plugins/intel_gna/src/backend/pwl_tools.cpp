@@ -1,11 +1,11 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "pwl_tools.hpp"
 
-#include "gna_slope_scale.hpp"
 #include "common/numerical_utils.hpp"
+#include "gna_slope_scale.hpp"
 #include "runtime/pwl.h"
 
 namespace ov {

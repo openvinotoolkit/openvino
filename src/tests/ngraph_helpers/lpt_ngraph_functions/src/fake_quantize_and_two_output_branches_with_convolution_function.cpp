@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,10 +28,10 @@ std::shared_ptr<ngraph::opset1::Convolution> createConvolution(
         std::vector<float>(outputChannelsCount * inputChannelsCount, 1));
 
     const std::shared_ptr<ngraph::opset1::Convolution> convolution = typeRelaxed ?
-        std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Convolution>>(
+        std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Convolution>>(
             std::vector<element::Type>{ element::f32, element::f32 }, std::vector<element::Type>{},
-            ngraph::op::TemporaryReplaceOutputType(parent, element::f32).get(),
-            ngraph::op::TemporaryReplaceOutputType(fqOnWeights.empty() ?
+            ov::op::TemporaryReplaceOutputType(parent, element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(fqOnWeights.empty() ?
                 weights :
                 ngraph::builder::makeFakeQuantize(
                     weights, precision, fqOnWeights.quantizationLevel, fqOnWeights.constantShape,

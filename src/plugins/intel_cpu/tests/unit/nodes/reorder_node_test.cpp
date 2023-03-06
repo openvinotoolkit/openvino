@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <common/blocked_desc_creator.h>
@@ -322,7 +322,7 @@ public:
         std::ostringstream result;
         result << "IS:(";
         result << "InputPartialShape:" << CommonTestUtils::partialShape2str({p.inputPartialShape});
-        for (const auto inputShape : p.inputShapes) {
+        for (const auto& inputShape : p.inputShapes) {
             result << CommonTestUtils::vec2str(inputShape);
         }
         result << "_InputLayoutType:" << layoutName(p.srcLayout) << ".";

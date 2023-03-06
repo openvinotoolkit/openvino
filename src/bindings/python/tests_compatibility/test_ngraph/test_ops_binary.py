@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import operator
@@ -90,7 +90,7 @@ def test_binary_logical_op_parameter_inputs(ng_api_helper):
     [ng.logical_and, ng.logical_or, ng.logical_xor],
 )
 def test_binary_logical_numpy_input(ng_api_helper):
-    value_b = np.array([[False, True], [False, True]], dtype=np.bool)
+    value_b = np.array([[False, True], [False, True]], dtype=bool)
 
     shape = [2, 2]
     parameter_a = ng.parameter(shape, name="A", dtype=bool)

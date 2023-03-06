@@ -181,76 +181,62 @@ void set_arguments_impl(ocl_kernel_type& kernel,
     }
 }
 
-sync_methods get_expected_sync_method(const engine_configuration &config) {
-    return config.enable_profiling ? sync_methods::events : config.queue_type == queue_types::out_of_order ? sync_methods::barriers
-                                                                                                           : sync_methods::none;
+sync_methods get_expected_sync_method(const ExecutionConfig& config) {
+    auto profiling = config.get_property(ov::enable_profiling);
+    auto queue_type = config.get_property(ov::intel_gpu::queue_type);
+    return profiling ? sync_methods::events : queue_type == QueueTypes::out_of_order ? sync_methods::barriers
+                                                                                     : sync_methods::none;
 }
 
 }  // namespace
 
-ocl_stream::ocl_stream(const ocl_engine &engine)
-    : stream(engine.configuration().queue_type)
+ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config)
+    : stream(config.get_property(ov::intel_gpu::queue_type))
     , _engine(engine)
-    , sync_method(get_expected_sync_method(engine.configuration())) {
+    , sync_method(get_expected_sync_method(config)) {
     auto context = engine.get_cl_context();
     auto device = engine.get_cl_device();
-    auto config = engine.configuration();
     ocl::command_queues_builder queue_builder;
-    queue_builder.set_profiling(config.enable_profiling);
-    queue_builder.set_out_of_order((config.queue_type == queue_types::out_of_order));
+    queue_builder.set_profiling(config.get_property(ov::enable_profiling));
+    queue_builder.set_out_of_order(queue_type == QueueTypes::out_of_order);
 
-    if (sync_method == sync_methods::none && config.queue_type == queue_types::out_of_order) {
+    if (sync_method == sync_methods::none && queue_type == QueueTypes::out_of_order) {
         throw std::runtime_error("[CLDNN] Unexpected sync method (none) is specified for out_of_order queue");
     }
 
     bool priorty_extensions = engine.extension_supported("cl_khr_priority_hints") && engine.extension_supported("cl_khr_create_command_queue");
-    queue_builder.set_priority_mode(config.priority_mode, priorty_extensions);
+    queue_builder.set_priority_mode(config.get_property(ov::intel_gpu::hint::queue_priority), priorty_extensions);
 
     bool throttle_extensions = engine.extension_supported("cl_khr_throttle_hints") && engine.extension_supported("cl_khr_create_command_queue");
-    queue_builder.set_throttle_mode(config.throttle_mode, throttle_extensions);
+    queue_builder.set_throttle_mode(config.get_property(ov::intel_gpu::hint::queue_throttle), throttle_extensions);
 
     bool queue_families_extension = engine.get_device_info().supports_queue_families;
     queue_builder.set_supports_queue_families(queue_families_extension);
 
     _command_queue = queue_builder.build(context, device);
-
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    if (config.queue_type == queue_types::in_order && engine.get_device_info().vendor_id == INTEL_VENDOR_ID) {
-        auto onednn_engine = engine.get_onednn_engine();
-        _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ocl_interop::make_stream(engine.get_onednn_engine(), _command_queue.get()));
-    }
-#endif
 }
 
-ocl_stream::ocl_stream(const ocl_engine &engine, void *handle)
-    : stream(engine.configuration().queue_type)
+ocl_stream::ocl_stream(const ocl_engine &engine, const ExecutionConfig& config, void *handle)
+    : stream(ocl_stream::detect_queue_type(handle))
     , _engine(engine)
-    , sync_method(get_expected_sync_method(engine.configuration())) {
+    , sync_method(get_expected_sync_method(config)) {
     auto casted_handle = static_cast<cl_command_queue>(handle);
     _command_queue = ocl_queue_type(casted_handle, true);
-
-    if (ocl_stream::detect_queue_type(handle) != engine.configuration().queue_type)
-        throw std::runtime_error("Inconsistent engine config and external user queue are passed to ocl_stream");
-
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    auto config = engine.configuration();
-    if (config.queue_type == queue_types::in_order) {
-        auto onednn_engine = engine.get_onednn_engine();
-        _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ocl_interop::make_stream(engine.get_onednn_engine(), _command_queue.get()));
-    }
-#endif
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-dnnl::stream& ocl_stream::get_onednn_stream() const {
-    if (!_onednn_stream)
-        throw std::runtime_error("[GPU] onednn stream is nullptr");
+dnnl::stream& ocl_stream::get_onednn_stream() {
+    OPENVINO_ASSERT(queue_type == QueueTypes::in_order, "[GPU] Can't create onednn stream handle as onednn doesn't support out-of-order queue");
+    OPENVINO_ASSERT(_engine.get_device_info().vendor_id == INTEL_VENDOR_ID, "[GPU] Can't create onednn stream handle as for non-Intel devices");
+    if (!_onednn_stream) {
+        _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ocl_interop::make_stream(_engine.get_onednn_engine(), _command_queue.get()));
+    }
 
     return *_onednn_stream;
 }
 #endif
 
-queue_types ocl_stream::detect_queue_type(void *queue_handle) {
+QueueTypes ocl_stream::detect_queue_type(void *queue_handle) {
     cl_command_queue queue = static_cast<cl_command_queue>(queue_handle);
     cl_command_queue_properties properties;
     auto status = clGetCommandQueueInfo(queue, CL_QUEUE_PROPERTIES, sizeof(cl_command_queue_properties), &properties, nullptr);
@@ -258,7 +244,7 @@ queue_types ocl_stream::detect_queue_type(void *queue_handle) {
         throw std::runtime_error("Can't get queue properties for user handle\n");
     }
 
-    return (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) ? queue_types::out_of_order : queue_types::in_order;
+    return (properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) ? QueueTypes::out_of_order : QueueTypes::in_order;
 }
 
 void ocl_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args_desc, const kernel_arguments_data& args) {

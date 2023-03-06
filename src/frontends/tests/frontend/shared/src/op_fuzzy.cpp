@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,6 @@ std::string FrontEndFuzzyOpTest::getTestCaseName(const testing::TestParamInfo<Fu
 }
 
 void FrontEndFuzzyOpTest::SetUp() {
-    FrontEndTestUtils::setupTestEnv();
     m_fem = FrontEndManager();  // re-initialize after setting up environment
     initParamTest();
 }
@@ -108,7 +107,7 @@ void FrontEndFuzzyOpTest::runConvertedModel(const std::shared_ptr<ngraph::Functi
     }
 
     if (useFloatTest) {
-        testCase.run_with_tolerance_as_fp(2e-5);
+        testCase.run_with_tolerance_as_fp(2e-5f);
     } else {
         testCase.run();
     }

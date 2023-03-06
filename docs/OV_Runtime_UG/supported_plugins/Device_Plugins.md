@@ -9,7 +9,6 @@
    openvino_docs_OV_UG_query_api
    openvino_docs_OV_UG_supported_plugins_CPU
    openvino_docs_OV_UG_supported_plugins_GPU
-   openvino_docs_OV_UG_supported_plugins_VPU
    openvino_docs_OV_UG_supported_plugins_GNA
    openvino_docs_OV_UG_supported_plugins_ARM_CPU
 
@@ -19,7 +18,6 @@ OpenVINO™ Runtime can infer deep learning models using the following device ty
 
 * [CPU](CPU.md)    
 * [GPU](GPU.md)    
-* [VPUs](VPU.md)   
 * [GNA](GNA.md)   
 * [Arm® CPU](ARM_CPU.md)     
 
@@ -59,7 +57,7 @@ The OpenVINO Runtime API features dedicated methods of enumerating devices and t
   ...
       Device: GPU.1
   ...
-      Device: HDDL
+      Device: GNA
 ```
 
 A simple programmatic way to enumerate the devices and use with the multi-device is as follows:
@@ -74,7 +72,7 @@ A simple programmatic way to enumerate the devices and use with the multi-device
 
 @endsphinxdirective
 
-Beyond the typical "CPU", "GPU", "HDDL", and so on, when multiple instances of a device are available, the names are more qualified. For example, this is how two Intel® Movidius™ Myriad™ X sticks are listed with the hello_query_sample:
+Beyond the typical "CPU", "GPU", and so on, when multiple instances of a device are available, the names are more qualified. For example, this is how two Intel® Movidius™ Myriad™ X sticks are listed with the hello_query_sample:
 ```
 ...
     Device: MYRIAD.1.2-ma2480

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -676,9 +676,9 @@ void XmlDeserializer::read_legacy_meta_data(const std::shared_ptr<ov::Model>& mo
 }
 
 GenericLayerParams XmlDeserializer::parseGenericParams(const pugi::xml_node& node) {
-    const auto parsePort = [this](const pugi::xml_node& parentNode,
-                                  const GenericLayerParams& params,
-                                  bool input) -> GenericLayerParams::LayerPortData {
+    const auto parsePort = [](const pugi::xml_node& parentNode,
+                              const GenericLayerParams& params,
+                              bool input) -> GenericLayerParams::LayerPortData {
         GenericLayerParams::LayerPortData port;
 
         port.portId = XMLParseUtils::GetUIntAttr(parentNode, "id");

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "input_layout_inst.h"
@@ -11,7 +11,7 @@
 #include <algorithm>
 
 namespace {
-bool has_optimized_users(input_layout_node const& node) {
+bool has_optimized_users(cldnn::input_layout_node const& node) {
     for (auto& user : node.get_users()) {
         if (user->can_be_optimized()) {
             return true;

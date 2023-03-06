@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 project (pyopenvino)
@@ -61,10 +61,14 @@ if(TARGET openvino::frontend::paddle)
     add_subdirectory(frontend/paddle)
 endif()
 
+if(TARGET openvino::frontend::pytorch)
+    add_subdirectory(frontend/pytorch)
+endif()
+
 # create target
 
-file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp utils/*cpp pyopenvino.cpp)
-list(FILTER SOURCES EXCLUDE REGEX frontend/onnx|tensorflow|paddle/* )
+file(GLOB_RECURSE SOURCES core/*.cpp graph/*.cpp frontend/*.cpp utils/*.cpp pyopenvino.cpp)
+list(FILTER SOURCES EXCLUDE REGEX frontend/onnx|tensorflow|paddle|pytorch/* )
 
 pybind11_add_module(${PROJECT_NAME} MODULE NO_EXTRAS ${SOURCES})
 
@@ -75,10 +79,29 @@ else()
 endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
-target_link_libraries(${PROJECT_NAME} PRIVATE openvino::runtime::dev openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
-set_target_properties(${PROJECT_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO} OUTPUT_NAME "_pyopenvino")
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    openvino::runtime::dev openvino::runtime ${OFFLINE_TRANSFORMATIONS_LIB})
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO}
+    OUTPUT_NAME "_pyopenvino")
 
 addVersionDefines(pyopenvino.cpp CI_BUILD_NUMBER)
+
+if(OV_GENERATOR_MULTI_CONFIG)
+    string(APPEND _cmd_echo
+        "$<$<CONFIG:Debug>:"
+            "${CMAKE_COMMAND};-E;cmake_echo_color;--red;\"OpenVINO;Python;API;cannot;be;built;for;'Debug'\""
+        ">")
+    string(APPEND cmd_error
+        "$<$<CONFIG:Debug>:"
+            "${CMAKE_COMMAND};-E;false"
+        ">")
+
+    add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
+        COMMAND "${_cmd_echo}"
+        COMMAND "${cmd_error}"
+        COMMAND_EXPAND_LISTS)
+endif()
 
 # perform copy
 if(OpenVINO_SOURCE_DIR)

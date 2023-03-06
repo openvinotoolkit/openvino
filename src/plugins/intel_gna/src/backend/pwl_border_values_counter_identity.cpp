@@ -1,13 +1,14 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <limits>
 #include "pwl_border_values_counter_identity.hpp"
 
+#include <limits>
+
+#include "common/numerical_utils.hpp"
 #include "log/debug.hpp"
 #include "pwl_input_params.hpp"
-#include "common/numerical_utils.hpp"
 
 namespace ov {
 namespace intel_gna {

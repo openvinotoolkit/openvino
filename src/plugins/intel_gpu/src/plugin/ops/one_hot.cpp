@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,8 +29,8 @@ static void CreateOneHotOp(Program& p, const std::shared_ptr<ngraph::op::v1::One
     float on_value;
     float off_value;
 
-    if (!ngraph::op::util::get_single_value(on_value_node, on_value) ||
-        !ngraph::op::util::get_single_value(off_value_node, off_value)) {
+    if (!ov::op::util::get_single_value(on_value_node, on_value) ||
+        !ov::op::util::get_single_value(off_value_node, off_value)) {
         IE_THROW() << "Unsupported parameter size in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
     }
 

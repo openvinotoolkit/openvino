@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -53,8 +53,8 @@ TEST(TransformationTests, ConvertLSTMSequenceToTensorIterator) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{Y_out, Ho, Co}, ngraph::ParameterVector{X, Y, Z});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertLSTMSequenceToTensorIterator>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertLSTMSequenceToTensorIterator>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -161,8 +161,8 @@ TEST(TransformationTests, ConvertLSTMSequenceToTensorIteratorDynamic) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{Y_out, Ho, Co}, ngraph::ParameterVector{X, Y, Z});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertLSTMSequenceToTensorIterator>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertLSTMSequenceToTensorIterator>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -266,8 +266,8 @@ TEST(TransformationTests, ConvertRNNSequenceToTensorIterator) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{Y_out, Ho}, ngraph::ParameterVector{X, Y});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertRNNSequenceToTensorIterator>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -356,8 +356,8 @@ TEST(TransformationTests, ConvertRNNSequenceToTensorIteratorDynamic) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{Y_out, Ho}, ngraph::ParameterVector{X, Y});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertRNNSequenceToTensorIterator>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -445,8 +445,8 @@ TEST(TransformationTests, ConvertGRUSequenceToTensorIterator) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{Y_out, Ho}, ngraph::ParameterVector{X, Y});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertGRUSequenceToTensorIterator>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertGRUSequenceToTensorIterator>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -535,8 +535,8 @@ TEST(TransformationTests, ConvertGRUSequenceToTensorIteratorDynamic) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{Y_out, Ho}, ngraph::ParameterVector{X, Y});
 
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
-        m.register_pass<ngraph::pass::ConvertGRUSequenceToTensorIterator>();
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvertGRUSequenceToTensorIterator>();
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

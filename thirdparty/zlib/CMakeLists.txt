@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -12,6 +12,11 @@ else()
     if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         #266: function "XXX" declared implicitly
         set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -diag-disable=266")
+    endif()
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-deprecated-non-prototype")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-variable")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-deprecated-declarations")
     endif()
 endif()
 

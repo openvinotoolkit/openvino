@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,8 @@
 
 #include "behavior/ov_plugin/caching_tests.hpp"
 
+#include "openvino/pass/manager.hpp"
+
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/summary/api_summary.hpp"
@@ -15,6 +17,8 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/op/parameter.hpp"
 
 #define GTEST_COUT std::cout << "[          ] [ INFO ] "
 
@@ -278,8 +282,8 @@ void CompileModelLoadFromFileTestBase::SetUp() {
     target_device = targetDevice;
     APIBaseTest::SetUp();
     std::stringstream ss;
-    auto hash = std::hash<std::string>()(SubgraphBaseTest::GetTestName());
-    ss << "testCache_" << std::to_string(hash) << "_" << std::this_thread::get_id() << "_" << GetTimestamp();
+    std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+    ss << "testCache_" << filePrefix;
     m_modelName = ss.str() + ".xml";
     m_weightsName = ss.str() + ".bin";
     for (auto& iter : configuration) {
@@ -287,7 +291,7 @@ void CompileModelLoadFromFileTestBase::SetUp() {
     }
     m_cacheFolderName = ss.str();
     core->set_property(ov::cache_dir());
-    ngraph::pass::Manager manager;
+    ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
     manager.run_passes(ngraph::builder::subgraph::makeConvPoolRelu(
             {1, 3, 227, 227}, InferenceEngine::details::convertPrecision(InferenceEngine::Precision::FP32)));
@@ -335,10 +339,30 @@ std::string CompileModelLoadFromMemoryTestBase::getTestCaseName(
     return result.str();
 }
 
+bool CompileModelLoadFromMemoryTestBase::importExportSupported(ov::Core& core) const {
+    auto supportedProperties = core.get_property(targetDevice, ov::supported_properties);
+    if (std::find(supportedProperties.begin(), supportedProperties.end(), ov::device::capabilities) ==
+        supportedProperties.end()) {
+        return false;
+    }
+    auto device_capabilities = core.get_property(targetDevice, ov::device::capabilities);
+    if (std::find(device_capabilities.begin(),
+                  device_capabilities.end(),
+                  std::string(ov::device::capability::EXPORT_IMPORT)) == device_capabilities.end()) {
+        return false;
+    }
+    return true;
+}
+
 void CompileModelLoadFromMemoryTestBase::SetUp() {
     ovModelWithName funcPair;
     std::tie(targetDevice, configuration) = GetParam();
     target_device = targetDevice;
+    if ((targetDevice.find("GPU") != std::string::npos)) {
+#if !defined(_WIN32) && !defined(_WIN64)
+        setenv("OV_GPU_CACHE_MODEL", "1", 1);
+#endif
+    }
     APIBaseTest::SetUp();
     std::stringstream ss;
     auto hash = std::hash<std::string>()(SubgraphBaseTest::GetTestName());
@@ -350,7 +374,7 @@ void CompileModelLoadFromMemoryTestBase::SetUp() {
     }
     m_cacheFolderName = ss.str();
     core->set_property(ov::cache_dir());
-    ngraph::pass::Manager manager;
+    ov::pass::Manager manager;
     manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
     manager.run_passes(ngraph::builder::subgraph::makeConvPoolRelu(
         {1, 3, 227, 227},
@@ -392,24 +416,70 @@ void CompileModelLoadFromMemoryTestBase::TearDown() {
     core->set_property(ov::cache_dir());
     APIBaseTest::TearDown();
     weights_vector.clear();
+    if ((targetDevice.find("GPU") != std::string::npos)) {
+#if !defined(_WIN32) && !defined(_WIN64)
+        setenv("OV_GPU_CACHE_MODEL", "", 1);
+#endif
+    }
 }
 
 void CompileModelLoadFromMemoryTestBase::run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     core->set_property(ov::cache_dir(m_cacheFolderName));
-    try {
-        compiledModel = core->compile_model(m_model, m_weights, targetDevice, configuration);
-        inferRequest = compiledModel.create_infer_request();
-        inferRequest.infer();
-    } catch (const Exception& ex) {
-        GTEST_FAIL() << "Can't loadNetwork with model path " << m_modelName << "\nException [" << ex.what() << "]"
-                     << std::endl;
-    } catch (...) {
-        GTEST_FAIL() << "Can't compile network with model path " << m_modelName << std::endl;
+    for (int i = 0; i < 2; i++) {
+        try {
+            compiledModel = core->compile_model(m_model, m_weights, targetDevice, configuration);
+            if (importExportSupported(*core)) {
+                ASSERT_EQ(i != 0, compiledModel.get_property(ov::loaded_from_cache));
+            }
+            inferRequest = compiledModel.create_infer_request();
+            inferRequest.infer();
+        } catch (const Exception& ex) {
+            GTEST_FAIL() << "Can't loadNetwork with model path " << m_modelName << "\nException [" << ex.what() << "]"
+                         << std::endl;
+        } catch (...) {
+            GTEST_FAIL() << "Can't compile network with model path " << m_modelName << std::endl;
+        }
+
+        // For GPU plugin, KEY_GPU_THROUGHPUT_STREAMS will lead to config.throughput_streams==2, and Export stops.
+        if (targetDevice.find("GPU") != std::string::npos) {
+            auto item = configuration.find(ov::hint::performance_mode.name());
+            if (item != configuration.end() &&
+                item->second.as<ov::hint::PerformanceMode>() == ov::hint::PerformanceMode::THROUGHPUT) {
+                break;
+            }
+        }
     }
 }
 
 TEST_P(CompileModelLoadFromMemoryTestBase, CanLoadFromMemoryWithoutExecption) {
+    run();
+}
+
+TEST_P(CompileModelLoadFromMemoryTestBase, CanLoadFromMemoryWithoutWeightsANdExecption) {
+    ov::pass::Manager manager;
+    std::shared_ptr<ov::Model> model;
+    {
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 1, 2});
+
+        auto mul = std::make_shared<ov::op::v1::Multiply>(data, data);
+
+        auto res = std::make_shared<ov::op::v0::Result>(mul);
+        model = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{data});
+    }
+
+    manager.register_pass<ov::pass::Serialize>(m_modelName, m_weightsName);
+    manager.run_passes(model);
+
+    try {
+        std::ifstream model_file(m_modelName, std::ios::binary);
+        std::stringstream ss;
+        ss << model_file.rdbuf();
+        m_model = ss.str();
+    } catch (const Exception& ex) {
+        GTEST_FAIL() << "Can't read xml file from: " << m_modelName << "\nException [" << ex.what() << "]" << std::endl;
+    }
+    m_weights = ov::Tensor();
     run();
 }
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2022 Intel Corporation SPDX-License-Identifier: Apache-2.0
+# Copyright (C) 2018-2023 Intel Corporation SPDX-License-Identifier: Apache-2.0
 
 """ Use this script to create a openvino-dev wheel package:
     $ python3 setup.py bdist_wheel
@@ -152,7 +152,7 @@ class CustomBuild(build):
             unique_req = list(set(map(lambda x: x.lower(), req)))
             self.distribution.extras_require[extra] = unique_req
 
-        # add dependecy on runtime package
+        # add dependency on runtime package
         runtime_req = [f'openvino=={self.distribution.get_version()}']
         self.distribution.install_requires.extend(runtime_req)
 

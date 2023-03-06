@@ -1,5 +1,5 @@
 
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,7 +64,7 @@ namespace snippets {
             "CodegenGelu");
 
         if (useSubgraph) {
-            ngraph::pass::InitNodeInfo().run_on_function(function);
+            ov::pass::InitNodeInfo().run_on_function(function);
             ngraph::pass::ConstantFolding().run_on_function(function);
         }
     }

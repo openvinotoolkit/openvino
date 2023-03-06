@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,10 +16,6 @@ using namespace std;
 using namespace ngraph;
 
 op::Result::Result(const Output<Node>& arg) : Op({arg}) {
-    constructor_validate_and_infer_types();
-}
-
-op::Result::Result(const Output<Node>& arg, bool) : Op({arg}) {
     constructor_validate_and_infer_types();
 }
 

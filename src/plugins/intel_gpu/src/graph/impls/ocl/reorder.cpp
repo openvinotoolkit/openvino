@@ -1,14 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "reorder_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "reorder_inst.h"
 #include "reorder/reorder_kernel_selector.h"
 #include "reorder/reorder_kernel_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -41,10 +39,10 @@ protected:
     }
 
 public:
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<reorder>();
         auto&& output_layout = impl_param.get_output_layout();
-        auto params = get_default_params<kernel_selector::reorder_params>(impl_param);
+        auto params = get_default_params<kernel_selector::reorder_params>(impl_param, is_shape_agnostic);
         auto optional_params = get_default_optional_params<kernel_selector::reorder_optional_params>(impl_param.get_program());
 
         auto inputs_count = primitive->input.size();
@@ -101,12 +99,15 @@ public:
         }
 
         params.winograd = impl_param.input_layouts[0].format.is_winograd() || output_layout.format.is_winograd();
+        params.truncate = impl_param.typed_desc<reorder>()->truncate;
+
         return {params, optional_params};
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param);
+        auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        update_kernels_list_to_skip();
     }
 };
 
@@ -137,3 +138,4 @@ attach_reorder_impl::attach_reorder_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reorder_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::reorder)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -68,8 +68,8 @@ public:
         ngraph::pass::Manager manager;
         auto pass_config = manager.get_pass_config();
         manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
-        manager.register_pass<ngraph::pass::ShuffleChannelsFusion>(values.check_values);
+        manager.register_pass<ov::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::ShuffleChannelsFusion>(values.check_values);
         manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));

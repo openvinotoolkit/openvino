@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "intel_gpu/plugin/program.hpp"
@@ -29,8 +29,8 @@ namespace intel_gpu {
 
 template<class DATA_TYPE>
 static DATA_TYPE CreateScalarData(Program &p, const cldnn::primitive_id& id, int64_t num) {
-    auto mem = p.GetEngine().allocate_memory({ cldnn::data_types::i64, cldnn::format::bfyx, { 1, 1, 1, 1 } });
-    cldnn::mem_lock<int64_t> ptr{mem, p.GetEngine().get_program_stream()};
+    auto mem = p.get_engine().allocate_memory({ cldnn::data_types::i64, cldnn::format::bfyx, { 1, 1, 1, 1 } });
+    cldnn::mem_lock<int64_t> ptr{mem, p.get_engine().get_service_stream()};
     *ptr.begin() = num;
     return {id, mem};
 }
@@ -42,7 +42,7 @@ static cldnn::mutable_data CreateAdditionalOutputData(Program &p, const std::sha
     const auto format = cldnn::format::get_default_format(op->get_output_shape(output_idx).size());
     const auto tensor = tensor_from_dims(op->get_output_shape(output_idx));
     cldnn::layout output_layout = cldnn::layout(precision, format, tensor);
-    auto mem = p.GetEngine().allocate_memory(output_layout);
+    auto mem = p.get_engine().allocate_memory(output_layout);
     auto md = cldnn::mutable_data(id, {cldnn::input_info(input)}, mem); // cldnn::data cannot set dependency
     return md;
 }
@@ -66,7 +66,7 @@ static void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
     if (special_body_ports.current_iteration_input_idx >= 0) {
         auto current_iteration_input = body_inputs.at(special_body_ports.current_iteration_input_idx);
         body_current_iteration_id = layer_type_name_ID(current_iteration_input);
-        std::string input_name = ngraph::op::util::create_ie_output_name(current_iteration_input);
+        std::string input_name = ov::op::util::create_ie_output_name(current_iteration_input);
         const auto networkInput = networkInputs.at(input_name);
         auto precision = InferenceEngine::details::convertPrecision(current_iteration_input->get_element_type());
         networkInput->setPrecision(precision);
@@ -76,13 +76,13 @@ static void CreateLoopOp(Program& p, const std::shared_ptr<Loop>& op) {
     if (special_body_ports.body_condition_output_idx >= 0) {
         auto body_condition_output = body_outputs.at(special_body_ports.body_condition_output_idx)->get_input_node_shared_ptr(0);
         body_execution_condition_id = layer_type_name_ID(body_condition_output);
-        std::string output_name = ngraph::op::util::create_ie_output_name(body_condition_output);
+        std::string output_name = ov::op::util::create_ie_output_name(body_condition_output);
         const auto networkOutput = networkOutputs.at(output_name);
         networkOutput->setPrecision(InferenceEngine::Precision::I64);
     }
 
     // get body topology from ngraph function
-    Program body_program(body_network, p.GetEnginePtr(), p.GetConfig(), true);
+    Program body_program(body_network, p.get_engine(), p.get_config(), true);
     auto body_topology = *body_program.GetTopology();
 
     // setup input_primitive_maps/ output_primitive_maps and back_edges
