@@ -366,11 +366,11 @@ class ShapeInferBaseWithPadding : public entryBase {
 public:
     ShapeInferBaseWithPadding(std::shared_ptr<Node> node) : entryBase{std::move(node)}, m_pads_begin{}, m_pads_end{} {}
 
-    std::vector<StaticShape> infer(const std::vector<StaticShape>& input_shapes,
-                                   const std::map<size_t, ov::HostTensorPtr>& constant_data) override {
+    IShapeInferCommon::Result infer(const std::vector<StaticShape>& input_shapes,
+                                    const std::map<size_t, ov::HostTensorPtr>& constant_data) override {
         auto out_shapes = shape_infer(static_cast<TOp*>(node.get()), input_shapes);
         on_infer_exit();
-        return out_shapes;
+        return {std::move(out_shapes), ShapeInferStatus::success};
     }
 
     const ov::CoordinateDiff& get_pads_begin() override {
