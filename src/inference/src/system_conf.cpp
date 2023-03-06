@@ -13,10 +13,10 @@
 #include <numeric>
 #include <vector>
 
-#include "ie_common.h"
-#include "streams_executor.hpp"
 #include "dev/threading/parallel_custom_arena.hpp"
+#include "ie_common.h"
 #include "openvino/core/visibility.hpp"
+#include "streams_executor.hpp"
 
 #define XBYAK_NO_OP_NAMES
 #define XBYAK_UNDEF_JNL
@@ -163,7 +163,7 @@ int get_number_of_logical_cpu_cores(bool) {
     return parallel_get_max_threads();
 }
 std::vector<std::vector<int>> get_num_available_cpu_cores() {
-    return cpu._proc_type_table;;
+    return {{-1}};
 }
 void update_proc_type_table() {}
 int get_task_flag() {
