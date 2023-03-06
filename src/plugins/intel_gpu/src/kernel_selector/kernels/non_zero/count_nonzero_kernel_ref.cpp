@@ -36,8 +36,6 @@ ParamsKey CountNonzeroKernelRef::GetSupportedKey() const {
 CommonDispatchData CountNonzeroKernelRef::SetDefault(const count_nonzero_params& params) const {
     CommonDispatchData dispatchData;
     const auto& input = params.inputs[0];
-    auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
     int rank = input.Dimentions();
@@ -58,8 +56,8 @@ CommonDispatchData CountNonzeroKernelRef::SetDefault(const count_nonzero_params&
                        {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
     }
 
-    dispatchData.lws =
-        GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+    // Set 1 work group to avoid synchornization issue for summation of nonzero counting.
+    dispatchData.lws = dispatchData.gws;
 
     return dispatchData;
 }
