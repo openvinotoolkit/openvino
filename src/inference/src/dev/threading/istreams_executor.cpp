@@ -468,12 +468,12 @@ IStreamsExecutor::Config IStreamsExecutor::Config::make_default_multi_threaded(c
                        << ")  ECore: " << streamExecutorConfig._small_core_streams << "("
                        << streamExecutorConfig._threads_per_stream_small << ")";
         std::cout << "[ p_e_core_info ] streams (threads): " << streamExecutorConfig._streams << "("
-                       << streamExecutorConfig._threads_per_stream_big * streamExecutorConfig._big_core_streams +
-                              streamExecutorConfig._threads_per_stream_small * streamExecutorConfig._small_core_streams
-                       << ") -- PCore: " << streamExecutorConfig._big_core_streams << "("
-                       << streamExecutorConfig._threads_per_stream_big
-                       << ")  ECore: " << streamExecutorConfig._small_core_streams << "("
-                       << streamExecutorConfig._threads_per_stream_small << ")" << std::endl;
+                  << streamExecutorConfig._threads_per_stream_big * streamExecutorConfig._big_core_streams +
+                         streamExecutorConfig._threads_per_stream_small * streamExecutorConfig._small_core_streams
+                  << ") -- PCore: " << streamExecutorConfig._big_core_streams << "("
+                  << streamExecutorConfig._threads_per_stream_big
+                  << ")  ECore: " << streamExecutorConfig._small_core_streams << "("
+                  << streamExecutorConfig._threads_per_stream_small << ")" << std::endl;
     }
 #endif
     const auto hwCores =
