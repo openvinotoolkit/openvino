@@ -35,6 +35,8 @@ private:
                 FileUtils::createDirectoryRecursive(value);
                 std::shared_ptr<ov::ICacheManager> _cacheManager = std::make_shared<ov::FileStorageCacheManager>(value);
                 properties[ov::cache_manager.name()] = _cacheManager;
+            } else {
+                properties.erase(ov::cache_manager.name());
             }
         } else if (key == ov::force_tbb_terminate.name()) {
             auto flag = value == CONFIG_VALUE(YES) ? true : false;
@@ -108,7 +110,6 @@ ov::AnyMap PropertyManagerImpl::exclude_property(const ov::AnyMap& property) {
 
 ov::Any PropertyManagerImpl::get_property(const std::string& name, const std::string& plugin_name) {
     std::lock_guard<std::mutex> lock(mutex);
-
     if (name == ov::force_tbb_terminate.name()) {
         const auto flag = ov::threading::executor_manager()->get_property(name).as<bool>();
         return flag ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);

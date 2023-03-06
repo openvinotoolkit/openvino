@@ -866,10 +866,11 @@ TEST_P(CachingTest, TestNoCacheMetric_hasCacheDirConfig) {
     }
 }
 
-/// \brief If device supports 'cache_dir' or 'import_export' - setting cache_dir is passed to plugin on ie.LoadNetwork
+/// \brief If device supports 'cache_dir' or 'import_export' - cache_dir will not been passed to plugin on
+/// ie.LoadNetwork, but plugin will fetch it from core directly.
 TEST_P(CachingTest, TestNoCacheMetric_hasCacheDirConfig_inline) {
     m_checkConfigCb = [](const std::map<std::string, std::string>& config) {
-        EXPECT_NE(config.count(CONFIG_KEY(CACHE_DIR)), 0);
+        EXPECT_EQ(config.count(CONFIG_KEY(CACHE_DIR)), 0);
     };
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _))
         .Times(AnyNumber())
@@ -891,11 +892,11 @@ TEST_P(CachingTest, TestNoCacheMetric_hasCacheDirConfig_inline) {
     }
 }
 
-/// \brief ie.SetConfig(<cachedir>, "deviceName") is propagated to plugin's SetConfig if device supports CACHE_DIR
+/// \brief ie.SetConfig(<cachedir>, "deviceName") is propagated to plugin if device supports CACHE_DIR
 TEST_P(CachingTest, TestNoCacheMetric_hasCacheDirConfig_by_device_name) {
     m_checkConfigCb = [](const std::map<std::string, std::string>& config) {
-        // ie.SetConfig(<cachedir>) will propageted to Load/Import network
-        EXPECT_GT(config.count(CONFIG_KEY(CACHE_DIR)), 0);
+        // ie.SetConfig(<cachedir>) will not been propageted plugin by LoadNetwork, but plugin will get it from core.
+        EXPECT_EQ(config.count(CONFIG_KEY(CACHE_DIR)), 0);
     };
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_METRICS), _))
         .Times(AnyNumber())
@@ -985,8 +986,9 @@ TEST_P(CachingTest, TestNoCacheEnabled_cacheDirConfig) {
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _))
         .Times(AtLeast(1))
         .WillRepeatedly(Return(std::vector<std::string>{CONFIG_KEY(CACHE_DIR)}));
+    // Don't need call it to check whether plugin support ov::cache_dir property.
     EXPECT_CALL(*mockPlugin, GetMetric(ov::supported_properties.name(), _))
-        .Times(AtLeast(1))
+        .Times(AnyNumber())
         .WillRepeatedly(Return(std::vector<ov::PropertyName>{ov::supported_properties.name(), ov::cache_dir.name()}));
     EXPECT_CALL(*mockPlugin, SetConfig(_))
         .Times(AnyNumber())
@@ -1117,7 +1119,8 @@ TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_overwrite_device_dir) {
 /// import_export Expectation is that SetConfig for plugin will be called 2 times - without appropriate cache_dir values
 TEST_P(CachingTest, TestLoadChangeCacheDirOneCore_SupportsCacheDir_NoImportExport) {
     m_checkConfigCb = [](const std::map<std::string, std::string>& config) {
-        EXPECT_GT(config.count(CONFIG_KEY(CACHE_DIR)), 0);
+        // cache_dir will not set by loadNetwork.
+        EXPECT_EQ(config.count(CONFIG_KEY(CACHE_DIR)), 0);
     };
     EXPECT_CALL(*mockPlugin, GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS), _))
         .Times(AtLeast(1))
