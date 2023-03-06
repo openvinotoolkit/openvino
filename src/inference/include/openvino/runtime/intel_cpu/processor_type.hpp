@@ -9,6 +9,9 @@
  */
 #pragma once
 
+#include <istream>
+#include <ostream>
+
 namespace ov {
 
 namespace intel_cpu {
