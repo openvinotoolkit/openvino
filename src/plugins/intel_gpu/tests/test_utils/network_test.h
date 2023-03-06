@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 
+using namespace cldnn;
 
 namespace tests {
 
@@ -340,24 +341,7 @@ public:
 
     cldnn::network::ptr build_network(ExecutionConfig config, bool is_caching_test=false) {
         config.set_property(ov::intel_gpu::force_implementations(forced_impls));
-        cldnn::network::ptr net;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(eng, topo, config);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, eng);
-                net = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), eng);
-            }
-        } else {
-            net = std::make_shared<cldnn::network>(eng, topo, config);
-        }
+        cldnn::network::ptr net = get_network(eng, topo, config, get_test_stream_ptr(), is_caching_test);
 
         for (auto& in_data : inputs) {
             net->set_input_data(in_data.first, in_data.second);

@@ -7,13 +7,37 @@
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
+
+inline std::string GetInputTypeStr(uint32_t idx) {
+    return "INPUT" + std::to_string(idx) + "_TYPE";
+}
+
 JitConstants BorderKernelBase::GetJitConstants(const border_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    jit.AddConstants({MakeJitConstant("LT_SIZES", params.lt_sizes),
-                      MakeJitConstant("RB_SIZES", params.rb_sizes),
-                      MakeJitConstant("BORDER_VALUE", params.border_value),
-                      MakeJitConstant(toString(params.b_type), "")});
+    size_t input_offset = 1;
+    if (params.begin_type == base_params::ArgType::Input) {
+        jit.AddConstant(MakeJitConstant("BEGIN_TYPE", GetInputTypeStr(input_offset)));
+        input_offset += 1;
+    } else {
+        jit.AddConstant(MakeJitConstant("LT_SIZES", params.lt_sizes));
+    }
+
+    if (params.end_type == base_params::ArgType::Input) {
+        jit.AddConstant(MakeJitConstant("END_TYPE", GetInputTypeStr(input_offset)));
+        input_offset += 1;
+    } else {
+        jit.AddConstant(MakeJitConstant("RB_SIZES", params.rb_sizes));
+    }
+
+    if (params.pad_value_type == base_params::ArgType::Input) {
+        jit.AddConstant(MakeJitConstant("BORDER_VALUE_TYPE", GetInputTypeStr(input_offset)));
+        input_offset += 1;
+    } else {
+        jit.AddConstant(MakeJitConstant("BORDER_VALUE", params.border_value));
+    }
+
+    jit.AddConstants({MakeJitConstant(toString(params.b_type), "")});
 
     return jit;
 }
@@ -43,13 +67,16 @@ KernelsData BorderKernelBase::GetCommonKernelsData(const Params& params,
 
     auto dispatchData = SetDefault(prim_params);
     KernelData k_data = KernelData::Default<border_params>(params);
+    border_params& newParams = *static_cast<border_params*>(k_data.params.get());
 
     auto cldnn_jit = GetJitConstants(prim_params);
     auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
+                     "", false, false, static_cast<int>(newParams.inputs.size()),
+                     0, 1, newParams.has_dynamic_tensors());
 
     return {k_data};
 }

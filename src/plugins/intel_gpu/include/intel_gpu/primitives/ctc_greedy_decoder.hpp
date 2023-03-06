@@ -39,5 +39,16 @@ struct ctc_greedy_decoder : public primitive_base<ctc_greedy_decoder> {
         seed = hash_combine(seed, second_output.empty());
         return seed;
     }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const ctc_greedy_decoder>(rhs);
+
+        return blank_index == rhs_casted.blank_index &&
+               ctc_merge_repeated == rhs_casted.ctc_merge_repeated &&
+               second_output.empty() == rhs_casted.second_output.empty();
+    }
 };
 }  // namespace cldnn

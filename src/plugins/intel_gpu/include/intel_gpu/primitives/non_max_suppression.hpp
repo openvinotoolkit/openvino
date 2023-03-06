@@ -81,6 +81,25 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
         return seed;
     }
 
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const non_max_suppression>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(selected_indices_num) &&
+               cmp_fields(center_point_box) &&
+               cmp_fields(sort_result_descending) &&
+               cmp_fields(num_select_per_class.empty()) &&
+               cmp_fields(iou_threshold.empty()) &&
+               cmp_fields(score_threshold.empty()) &&
+               cmp_fields(soft_nms_sigma.empty()) &&
+               cmp_fields(second_output.empty()) &&
+               cmp_fields(third_output.empty());
+        #undef cmp_fields
+    }
+
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
         if (!num_select_per_class.empty())

@@ -8,9 +8,21 @@ import numpy as np
 import openvino.runtime as ov
 import pytest
 import torch
+import unittest
 from openvino.runtime import PartialShape, Dimension, Model, Type
 
 from common.mo_convert_test_class import CommonMOConvertTest
+
+
+class MyTorchOp(torch.autograd.Function):
+    @staticmethod
+    def symbolic(g, in_positions):
+        return g.op("MyTorchOp", in_positions)
+
+    @staticmethod
+    def forward(self, in_positions):
+        out_pos = in_positions.reshape(-1)
+        return out_pos + 0.5
 
 
 def make_pt_model_one_input():
@@ -422,7 +434,57 @@ def create_pytorch_nn_module_mean_list(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
 
     return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]],
+                                 'onnx_opset_version': 11, 'compress_to_fp16': False, "use_legacy_frontend": True}
+
+
+def create_pytorch_nn_module_mean_list_default_compression(tmp_dir):
+    # by default compression should be enabled (same as setting 'compress_to_fp16': True)
+    # therefore decompression Converts will be present
+    pt_model = make_pt_model_two_inputs()
+    shape = [1, 10, 10, 3]
+
+    shape = PartialShape(shape)
+    param1 = ov.opset8.parameter(shape)
+    param2 = ov.opset8.parameter(shape)
+    const1 = ov.opset8.constant([[[[0, 0, 0]]]], dtype=np.float16)
+    const1_decompressed = ov.opset8.convert(const1, destination_type=np.float32)
+    const2 = ov.opset8.constant([[[[0, 0, 0]]]], dtype=np.float16)
+    const2_decompressed = ov.opset8.convert(const2, destination_type=np.float32)
+    sub1 = ov.opset8.subtract(param1, const1_decompressed)
+    sub2 = ov.opset8.subtract(param2, const2_decompressed)
+    add = ov.opset8.add(sub1, sub2)
+    relu = ov.opset8.relu(add)
+    sigm = ov.opset8.sigmoid(relu)
+
+    parameter_list = [param1, param2]
+    ref_model = Model([sigm], parameter_list, "test")
+
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]],
                                  'onnx_opset_version': 11, "use_legacy_frontend": True}
+
+
+def create_pytorch_nn_module_mean_list_compressin_enabled(tmp_dir):
+    pt_model = make_pt_model_two_inputs()
+    shape = [1, 10, 10, 3]
+
+    shape = PartialShape(shape)
+    param1 = ov.opset8.parameter(shape)
+    param2 = ov.opset8.parameter(shape)
+    const1 = ov.opset8.constant([[[[0, 0, 0]]]], dtype=np.float16)
+    const1_decompressed = ov.opset8.convert(const1, destination_type=np.float32)
+    const2 = ov.opset8.constant([[[[0, 0, 0]]]], dtype=np.float16)
+    const2_decompressed = ov.opset8.convert(const2, destination_type=np.float32)
+    sub1 = ov.opset8.subtract(param1, const1_decompressed)
+    sub2 = ov.opset8.subtract(param2, const2_decompressed)
+    add = ov.opset8.add(sub1, sub2)
+    relu = ov.opset8.relu(add)
+    sigm = ov.opset8.sigmoid(relu)
+
+    parameter_list = [param1, param2]
+    ref_model = Model([sigm], parameter_list, "test")
+
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]],
+                                 'onnx_opset_version': 11, 'compress_to_fp16': True, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_scale_list(tmp_dir):
@@ -444,7 +506,57 @@ def create_pytorch_nn_module_scale_list(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
 
     return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]],
+                                 'onnx_opset_version': 11, 'compress_to_fp16': False, "use_legacy_frontend": True}
+
+
+def create_pytorch_nn_module_scale_list_default_compression(tmp_dir):
+    # by default compression should be enabled (same as setting 'compress_to_fp16': True)
+    # therefore decompression Converts will be present
+    pt_model = make_pt_model_two_inputs()
+    shape = [1, 10, 10, 3]
+
+    shape = PartialShape(shape)
+    param1 = ov.opset8.parameter(shape)
+    param2 = ov.opset8.parameter(shape)
+    const1 = ov.opset8.constant([[[[1, 1, 1]]]], dtype=np.float16)
+    const1_decompressed = ov.opset8.convert(const1, destination_type=np.float32)
+    const2 = ov.opset8.constant([[[[1, 1, 1]]]], dtype=np.float16)
+    const2_decompressed = ov.opset8.convert(const2, destination_type=np.float32)
+    sub1 = ov.opset8.multiply(param1, const1_decompressed)
+    sub2 = ov.opset8.multiply(param2, const2_decompressed)
+    add = ov.opset8.add(sub1, sub2)
+    relu = ov.opset8.relu(add)
+    sigm = ov.opset8.sigmoid(relu)
+
+    parameter_list = [param1, param2]
+    ref_model = Model([sigm], parameter_list, "test")
+
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]],
                                  'onnx_opset_version': 11, "use_legacy_frontend": True}
+
+
+def create_pytorch_nn_module_scale_list_compression_enabled(tmp_dir):
+    pt_model = make_pt_model_two_inputs()
+    shape = [1, 10, 10, 3]
+
+    shape = PartialShape(shape)
+    param1 = ov.opset8.parameter(shape)
+    param2 = ov.opset8.parameter(shape)
+    const1 = ov.opset8.constant([[[[1, 1, 1]]]], dtype=np.float16)
+    const1_decompressed = ov.opset8.convert(const1, destination_type=np.float32)
+    const2 = ov.opset8.constant([[[[1, 1, 1]]]], dtype=np.float16)
+    const2_decompressed = ov.opset8.convert(const2, destination_type=np.float32)
+    sub1 = ov.opset8.multiply(param1, const1_decompressed)
+    sub2 = ov.opset8.multiply(param2, const2_decompressed)
+    add = ov.opset8.add(sub1, sub2)
+    relu = ov.opset8.relu(add)
+    sigm = ov.opset8.sigmoid(relu)
+
+    parameter_list = [param1, param2]
+    ref_model = Model([sigm], parameter_list, "test")
+
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]],
+                                 'onnx_opset_version': 11, 'compress_to_fp16': True, "use_legacy_frontend": True}
 
 
 def create_pytorch_nn_module_shapes_list_static(tmp_dir):
@@ -607,7 +719,11 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         create_pytorch_nn_module_layout_list,
         create_pytorch_nn_module_layout_list_case2,
         create_pytorch_nn_module_mean_list,
+        create_pytorch_nn_module_mean_list_default_compression,
+        create_pytorch_nn_module_mean_list_compressin_enabled,
         create_pytorch_nn_module_scale_list,
+        create_pytorch_nn_module_scale_list_default_compression,
+        create_pytorch_nn_module_scale_list_compression_enabled,
         create_pytorch_nn_module_shapes_list_static,
         create_pytorch_nn_module_shapes_list_dynamic,
         create_pytorch_nn_module_shapes_list_dynamic_single_input,
@@ -631,3 +747,30 @@ class TestMoConvertPyTorch(CommonMOConvertTest):
         if mo_params is not None:
             test_params.update(mo_params)
         self._test_by_ref_graph(temp_dir, test_params, graph_ref, compare_tensor_names=False)
+
+
+def create_pt_model_with_custom_op():
+    #
+    #   Create PyTorch model with custom operation
+    #
+    import torch.nn as nn
+
+    class MyModel(nn.Module):
+        def __init__(self):
+            super(MyModel, self).__init__()
+            self.my_op = MyTorchOp()
+
+        def forward(self, x):
+            return self.my_op.apply(x)
+
+    return MyModel()
+
+
+class ConvertONNXFallthroughTest(unittest.TestCase):
+    def test_onnx_fallthrough(self):
+        from openvino.tools.mo import convert_model
+        pytorch_model = create_pt_model_with_custom_op()
+
+        # Check that ONNX conversion passed, so ONNX frontend raises error message of unsupported op.
+        with self.assertRaisesRegex(RuntimeError, ".*OpenVINO does not support the following ONNX operations: MyTorchOp.*"):
+            convert_model(pytorch_model, input_shape=[1, 2, 3], use_legacy_frontend=True)
