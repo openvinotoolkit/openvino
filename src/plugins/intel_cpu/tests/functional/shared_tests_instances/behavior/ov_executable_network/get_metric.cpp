@@ -8,7 +8,7 @@
 #include "openvino/core/any.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/compiled_model.hpp"
-#include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/properties.hpp"
 
 #include <gtest/gtest.h>
 
