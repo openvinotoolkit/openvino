@@ -68,8 +68,6 @@ TEST_F(OVClassConfigTestCPU, smoke_CheckCoreStreamsHasHigherPriorityThanThroughp
     ov::CompiledModel compiledModel = ie.compile_model(model, deviceName);
     ASSERT_NO_THROW(value = compiledModel.get_property(ov::num_streams));
     ASSERT_EQ(streams, value);
-
-    OV_ASSERT_NO_THROW(ie.set_property(deviceName, ov::intel_cpu::processor_type(ov::intel_cpu::ProcessorType::ALL)));
 }
 
 TEST_F(OVClassConfigTestCPU, smoke_CheckCoreStreamsHasHigherPriorityThanLatencyHint) {
@@ -83,19 +81,6 @@ TEST_F(OVClassConfigTestCPU, smoke_CheckCoreStreamsHasHigherPriorityThanLatencyH
     ov::CompiledModel compiledModel = ie.compile_model(model, deviceName);
     ASSERT_NO_THROW(value = compiledModel.get_property(ov::num_streams));
     ASSERT_EQ(streams, value);
-
-    ov::intel_cpu::ProcessorType type_str = ov::intel_cpu::ProcessorType::UNDEFINED;
-    ov::intel_cpu::ProcessorType get_str = ov::intel_cpu::ProcessorType::ALL;
-
-    // OV_ASSERT_NO_THROW(ie.set_property(deviceName,
-    // ov::intel_cpu::processor_type(ov::intel_cpu::ProcessorType::P_CORE_ONLY)));
-    OV_ASSERT_NO_THROW(get_str = ie.get_property(deviceName, ov::intel_cpu::processor_type));
-    ASSERT_EQ(type_str, get_str);
-
-    // type_str = ov::intel_cpu::ProcessorType::E_CORE_ONLY;
-    // OV_ASSERT_NO_THROW(ie.set_property(deviceName,
-    // ov::intel_cpu::processor_type(ov::intel_cpu::ProcessorType::E_CORE_ONLY))); OV_ASSERT_NO_THROW(get_str =
-    // ie.get_property(deviceName, ov::intel_cpu::processor_type)); ASSERT_EQ(type_str, get_str);
 }
 
 TEST_F(OVClassConfigTestCPU, smoke_CheckModelStreamsHasHigherPriorityThanLatencyHints) {

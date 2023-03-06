@@ -41,7 +41,7 @@ ProcessorTypeTestCase _2sockets_UNDEFINED = {
 };
 
 ProcessorTypeTestCase _2sockets_ALL = {
-    ov::intel_cpu::ProcessorType::ALL,
+    ov::intel_cpu::ProcessorType::ALL_CORE,
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
 };
@@ -77,7 +77,7 @@ ProcessorTypeTestCase _1sockets_UNDEFINED = {
 };
 
 ProcessorTypeTestCase _1sockets_ALL = {
-    ov::intel_cpu::ProcessorType::ALL,
+    ov::intel_cpu::ProcessorType::ALL_CORE,
     {{20, 6, 8, 6}},
     {{20, 6, 8, 6}},
 };

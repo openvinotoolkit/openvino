@@ -78,6 +78,8 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             streamExecutorConfig.SetConfig(key, val);
         } else if (hintsConfigKeys.end() != std::find(hintsConfigKeys.begin(), hintsConfigKeys.end(), key)) {
             perfHintsConfig.SetConfig(key, val);
+        } else if (key == CPUConfigParams::KEY_CPU_PROCESSOR_TYPE) {
+            proc_type_cfg.SetConfig(key, val);
         } else if (key == PluginConfigParams::KEY_DYN_BATCH_LIMIT) {
             int val_i = -1;
             try {
@@ -102,23 +104,6 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                                     << ". Sparse rate must be in range [0.0f,1.0f]";
             } else {
                 fcSparseWeiDecompressionRate = val_f;
-            }
-        } else if (key == CPUConfigParams::KEY_CPU_PROCESSOR_TYPE) {
-            std::string type_str = val;
-            if (type_str == "UNDEFINED") {
-                cpu_processor_type = ov::intel_cpu::ProcessorType::UNDEFINED;
-            } else if (type_str == "ALL") {
-                cpu_processor_type = ov::intel_cpu::ProcessorType::ALL;
-            } else if (type_str == "PHY_CORE_ONLY") {
-                cpu_processor_type = ov::intel_cpu::ProcessorType::PHY_CORE_ONLY;
-            } else if (type_str == "P_CORE_ONLY") {
-                cpu_processor_type = ov::intel_cpu::ProcessorType::P_CORE_ONLY;
-            } else if (type_str == "E_CORE_ONLY") {
-                cpu_processor_type = ov::intel_cpu::ProcessorType::E_CORE_ONLY;
-            } else if (type_str == "PHY_P_CORE_ONLY") {
-                cpu_processor_type = ov::intel_cpu::ProcessorType::PHY_P_CORE_ONLY;
-            } else {
-                throw ov::Exception{"Unsupported processor type: " + type_str};
             }
         } else if (key == PluginConfigParams::KEY_PERF_COUNT) {
             if (val == PluginConfigParams::YES) collectPerfCounters = true;

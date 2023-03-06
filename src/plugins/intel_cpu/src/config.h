@@ -8,6 +8,7 @@
 
 #include <bitset>
 #include <ie_performance_hints.hpp>
+#include <ie_processor_type.hpp>
 #include <map>
 #include <mutex>
 #include <openvino/runtime/system_conf.hpp>
@@ -50,7 +51,7 @@ struct Config {
     size_t rtCacheCapacity = 5000ul;
     InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
     InferenceEngine::PerfHintsConfig  perfHintsConfig;
-    ProcessorType cpu_processor_type = ProcessorType::UNDEFINED;
+    InferenceEngine::ProcTypeConfig  proc_type_cfg;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
     bool enforceBF16 = true;
@@ -79,47 +80,5 @@ struct Config {
 #endif
 };
 
-/** @cond INTERNAL */
-inline std::ostream& operator<<(std::ostream& os, const ProcessorType& processor_type) {
-    switch (processor_type) {
-    case ProcessorType::UNDEFINED:
-        return os << "UNDEFINED";
-    case ProcessorType::ALL:
-        return os << "ALL";
-    case ProcessorType::PHY_CORE_ONLY:
-        return os << "PHY_CORE_ONLY";
-    case ProcessorType::P_CORE_ONLY:
-        return os << "P_CORE_ONLY";
-    case ProcessorType::E_CORE_ONLY:
-        return os << "E_CORE_ONLY";
-    case ProcessorType::PHY_P_CORE_ONLY:
-        return os << "PHY_P_CORE_ONLY";
-    default:
-        throw ov::Exception{"Unsupported processor type!"};
-    }
-}
-
-inline std::istream& operator>>(std::istream& is, ProcessorType& processor_type) {
-    std::string str;
-    is >> str;
-    if (str =="UNDEFINED") {
-        processor_type = ProcessorType::UNDEFINED;
-    } else if (str =="ALL") {
-        processor_type = ProcessorType::ALL;
-    } else if (str =="PHY_CORE_ONLY") {
-        processor_type = ProcessorType::PHY_CORE_ONLY;
-    } else if (str =="P_CORE_ONLY") {
-        processor_type = ProcessorType::P_CORE_ONLY;
-    } else if (str =="E_CORE_ONLY") {
-        processor_type = ProcessorType::E_CORE_ONLY;
-    } else if (str =="PHY_P_CORE_ONLY") {
-        processor_type = ProcessorType::PHY_P_CORE_ONLY;
-    } else {
-        throw ov::Exception{"Unsupported processor type: " + str};
-    }
-    return is;
-}
-/** @endcond */
-
-}   // namespace intel_cpu
-}   // namespace ov
+}  // namespace intel_cpu
+}  // namespace ov

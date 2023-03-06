@@ -29,7 +29,7 @@ std::vector<std::vector<int>> apply_processor_type(const ProcessorType input_typ
             }
         }
         break;
-    case ProcessorType::ALL:
+    case ProcessorType::ALL_CORE:
         break;
     case ProcessorType::PHY_CORE_ONLY:
         if (proc_type_table[0][HYPER_THREADING_PROC] > 0) {

@@ -476,6 +476,7 @@ DECLARE_CONFIG_KEY(FORCE_TBB_TERMINATE);
 
 }  // namespace InferenceEngine
 
+#include "cpu/cpu_config.hpp"
 #include "gpu/gpu_config.hpp"
 #include "hetero/hetero_plugin_config.hpp"
 #include "multi-device/multi_device_config.hpp"
