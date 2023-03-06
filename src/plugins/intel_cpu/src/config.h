@@ -11,11 +11,11 @@
 #include <ie_processor_type.hpp>
 #include <map>
 #include <mutex>
-#include <openvino/runtime/system_conf.hpp>
 #include <openvino/util/common_util.hpp>
 #include <string>
 #include <threading/ie_istreams_executor.hpp>
 
+#include "openvino/runtime/intel_cpu/processor_type.hpp"
 #include "utils/debug_caps_config.h"
 
 namespace ov {

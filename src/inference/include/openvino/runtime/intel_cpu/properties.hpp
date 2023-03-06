@@ -11,9 +11,8 @@
  */
 #pragma once
 
+#include "openvino/runtime/intel_cpu/processor_type.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/runtime/system_conf.hpp"
-
 namespace ov {
 
 /**
@@ -49,12 +48,6 @@ namespace intel_cpu {
 static constexpr Property<bool> denormals_optimization{"CPU_DENORMALS_OPTIMIZATION"};
 
 static constexpr Property<float> sparse_weights_decompression_rate{"SPARSE_WEIGHTS_DECOMPRESSION_RATE"};
-
-/**
- * @enum       ProcessorType
- * @brief      This enum contains defination of processor type used for CPU inference.
- */
-using ov::ProcessorType;
 
 static constexpr Property<ProcessorType> processor_type{"CPU_PROCESSOR_TYPE"};
 
