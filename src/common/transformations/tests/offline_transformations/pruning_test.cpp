@@ -2044,8 +2044,7 @@ TEST_F(TransformationTestsF, PruneReducelayerUp) {
         function_ref = std::make_shared<ngraph::Function>(OutputVector{conv_1}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneReducelayerUp.svg")
-            .run_on_model(function);
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneReducelayerUp.svg").run_on_model(function);
 
     pass::Manager m;
     m.register_pass<pass::InitMasks>();
@@ -3519,8 +3518,7 @@ TEST(TransformationTests, PruneConvUpShort) {
     auto function = std::make_shared<ngraph::Function>(OutputVector{last_conv}, ParameterVector{input});
 
     if (VISUALIZE_TESTS_TREE)
-        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneConvUpShort.svg")
-            .run_on_model(function);
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneConvUpShort.svg").run_on_model(function);
 
     pass::Manager m;
     m.register_pass<pass::Pruning>();
@@ -3949,8 +3947,7 @@ TEST_F(TransformationTestsF, PropagateFlattenUp) {
         function_ref = std::make_shared<Function>(NodeVector{linear}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateFlattenUp.svg")
-            .run_on_model(function);
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateFlattenUp.svg").run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
