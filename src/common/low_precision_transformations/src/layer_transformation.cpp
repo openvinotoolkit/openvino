@@ -4,7 +4,6 @@
 
 #include <low_precision/layer_transformation.hpp>
 #include <low_precision/network_helper.hpp>
-#include "core/src/itt.hpp"
 
 #include <algorithm>
 #include <cmath>

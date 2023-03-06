@@ -6,7 +6,6 @@
 
 #include <numeric>
 
-#include "core/src/itt.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/range.hpp"

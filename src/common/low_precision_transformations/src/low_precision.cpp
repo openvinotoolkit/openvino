@@ -5,7 +5,6 @@
 #include "low_precision/low_precision.hpp"
 
 #include <memory>
-#include "core/src/itt.hpp"
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>

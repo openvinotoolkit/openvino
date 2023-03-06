@@ -72,13 +72,6 @@ private:
 
 ov::pass::ModelPass::~ModelPass() = default;
 
-bool ov::pass::ModelPass::run_on_model(const std::shared_ptr<ov::Model>& m) {
-    RUN_ON_MODEL_SCOPE(ModelPass);
-    RunLocker locked(call_on_model);
-    bool sts = run_on_model(m);
-    return sts;
-}
-
 NGRAPH_RTTI_DEFINITION(ngraph::pass::NodePass, "ngraph::pass::NodePass", 0);
 
 ngraph::pass::NodePass::~NodePass() = default;
