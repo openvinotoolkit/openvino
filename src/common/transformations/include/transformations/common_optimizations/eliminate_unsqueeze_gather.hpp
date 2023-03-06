@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,10 +40,3 @@ public:
     OPENVINO_RTTI("EliminateGatherUnsqueeze", "0");
     EliminateGatherUnsqueeze();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::EliminateGatherUnsqueeze;
-using ov::pass::EliminateUnsqueezeGather;
-}  // namespace pass
-}  // namespace ngraph

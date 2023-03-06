@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,6 +29,12 @@ struct input_layout : public primitive_base<input_layout> {
 
     void change_layout(const cldnn::layout& new_layout) {
         layout = new_layout;
+    }
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, id);
+        return seed;
     }
 };
 }  // namespace cldnn

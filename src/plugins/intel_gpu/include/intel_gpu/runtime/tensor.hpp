@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -316,6 +316,15 @@ public:
     friend std::ostream& operator<<(std::ostream& os, const tensor& tensor) {
         os << tensor.to_string();
         return os;
+    }
+
+    size_t hash() const {
+        size_t seed = 0;
+        seed = hash_range(seed, batch.begin(),      batch.end());
+        seed = hash_range(seed, feature.begin(),    feature.end());
+        seed = hash_range(seed, spatial.begin(),    spatial.end());
+        seed = hash_range(seed, group.begin(),      group.end());
+        return seed;
     }
 
     std::string to_string() const {

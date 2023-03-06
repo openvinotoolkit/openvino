@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -354,25 +354,6 @@ void ParamsKey::EnableArgMaxMinAxis(ArgMaxMinAxis a) {
             break;
         case ArgMaxMinAxis::BATCH:
             key.restrict.val.dedicated.argm.axisBatch = 1;
-            break;
-        default:
-            break;
-    }
-}
-
-void ParamsKey::EnableIndexSelectAxis(IndexSelectAxis a) {
-    switch (a) {
-        case IndexSelectAxis::X:
-            key.restrict.val.dedicated.idxsel.axisX = 1;
-            break;
-        case IndexSelectAxis::Y:
-            key.restrict.val.dedicated.idxsel.axisY = 1;
-            break;
-        case IndexSelectAxis::FEATURE:
-            key.restrict.val.dedicated.idxsel.axisFeature = 1;
-            break;
-        case IndexSelectAxis::BATCH:
-            key.restrict.val.dedicated.idxsel.axisBatch = 1;
             break;
         default:
             break;

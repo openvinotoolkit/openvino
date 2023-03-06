@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -31,6 +31,10 @@ if(ENABLE_CLANG_FORMAT AND NOT TARGET clang_format_check_all)
                           PROPERTIES FOLDER clang_format)
 endif()
 
+#
+# add_clang_format_target(FOR_TARGETS <target1 target2 ...> | FOR_SOURCES <source1 source2 ...>
+#                         [EXCLUDE_PATTERNS <pattern1 pattern2 ...>])
+#
 function(add_clang_format_target TARGET_NAME)
     if(NOT ENABLE_CLANG_FORMAT)
         return()
@@ -64,6 +68,10 @@ function(add_clang_format_target TARGET_NAME)
         # ignore object libraries
         if(NOT EXISTS "${source_file}")
             continue()
+        endif()
+
+        if(IS_DIRECTORY "${source_file}")
+            message(FATAL_ERROR "Directory ${source_file} cannot be passed to clang-format")
         endif()
 
         file(RELATIVE_PATH source_file_relative "${CMAKE_CURRENT_SOURCE_DIR}" "${source_file}")

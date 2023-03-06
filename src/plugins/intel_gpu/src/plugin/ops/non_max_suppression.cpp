@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@
 namespace ov {
 namespace intel_gpu {
 
-static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_ptr<ngraph::op::internal::NonMaxSuppressionIEInternal>& op) {
+static void CreateNonMaxSuppressionIEInternalOp(Program& p, const std::shared_ptr<ov::op::internal::NonMaxSuppressionIEInternal>& op) {
     validate_inputs_count(op, {2, 3, 4, 5, 6});
     auto inputs = p.GetInputInfo(op);
     std::vector<cldnn::input_info> reordered_inputs;

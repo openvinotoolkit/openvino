@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -25,9 +25,19 @@ if (ENABLE_OV_TF_FRONTEND)
     list(APPEND DEFINITIONS ENABLE_OV_TF_FRONTEND)
 endif()
 
+if (ENABLE_OV_TF_LITE_FRONTEND)
+    list(APPEND DEPENDENCIES openvino::frontend::tensorflow_lite)
+    list(APPEND DEFINITIONS ENABLE_OV_TF_LITE_FRONTEND)
+endif()
+
 if (ENABLE_OV_PADDLE_FRONTEND)
     list(APPEND DEPENDENCIES openvino::frontend::paddle)
     list(APPEND DEFINITIONS ENABLE_OV_PADDLE_FRONTEND)
+endif()
+
+if (ENABLE_OV_PYTORCH_FRONTEND)
+    list(APPEND DEPENDENCIES openvino::frontend::pytorch)
+    list(APPEND DEFINITIONS ENABLE_OV_PYTORCH_FRONTEND)
 endif()
 
 # Create library

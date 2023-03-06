@@ -6,7 +6,7 @@
 
 #include "openvino/core/any.hpp"
 #include "openvino/frontend/tensorflow/decoder.hpp"
-#include "openvino/frontend/visibility.hpp"
+#include "openvino/frontend/tensorflow/visibility.hpp"
 
 namespace ov {
 namespace frontend {

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,10 +27,6 @@
 #ifndef NOMINMAX
 #define NOMINMAX
 #define NOMINMAX_DEFINED_CTX_UT
-#endif
-
-#ifndef OV_GPU_USE_OPENCL_HPP
-# define OV_GPU_USE_OPENCL_HPP
 #endif
 
 #include <gpu/gpu_context_api_dx.hpp>

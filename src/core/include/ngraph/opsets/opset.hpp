@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,7 +24,7 @@ public:
     OpSet() = default;
     /// \brief Insert an op into the opset with a particular name and factory
     void insert(const std::string& name, const NodeTypeInfo& type_info, FactoryRegistry<Node>::Factory factory) {
-        return ov::OpSet::insert(name, type_info, std::move(factory));
+        ov::OpSet::insert(name, type_info, std::move(factory));
     }
     /// \brief Insert OP_TYPE into the opset with a special name and the default factory
     template <typename OP_TYPE>
@@ -53,5 +53,6 @@ const NGRAPH_API OpSet& get_opset7();
 const NGRAPH_API OpSet& get_opset8();
 const NGRAPH_API OpSet& get_opset9();
 const NGRAPH_API OpSet& get_opset10();
+const NGRAPH_API OpSet& get_opset11();
 const NGRAPH_API std::map<std::string, std::function<const ngraph::OpSet&()>>& get_available_opsets();
 }  // namespace ngraph

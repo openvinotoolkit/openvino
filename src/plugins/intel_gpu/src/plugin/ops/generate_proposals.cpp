@@ -15,7 +15,7 @@ namespace intel_gpu {
 
 static void CreateGenerateProposalsIEInternalOp(
     Program& p,
-    const std::shared_ptr<ngraph::op::internal::GenerateProposalsIEInternal>& op) {
+    const std::shared_ptr<ov::op::internal::GenerateProposalsIEInternal>& op) {
     validate_inputs_count(op, {4});
     if (op->get_output_size() != 3) {
         IE_THROW() << "GenerateProposals requires 3 outputs";

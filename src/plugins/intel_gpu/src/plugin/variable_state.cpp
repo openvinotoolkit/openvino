@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include <intel_gpu/plugin/variable_state.hpp>
@@ -21,7 +21,7 @@ VariableState::VariableState(const std::string &name,
     , engine_(engine) { }
 
 void VariableState::Reset() {
-    IterateOverStates([this](cldnn::network::VariableState &state) {
+    IterateOverStates([](cldnn::network::VariableState &state) {
         state.is_set = false;
     });
 }

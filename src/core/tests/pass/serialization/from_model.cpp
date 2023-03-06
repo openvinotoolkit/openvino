@@ -6,6 +6,7 @@
 
 #include <fstream>
 
+#include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/util/file_util.hpp"
@@ -29,9 +30,9 @@ public:
 
     void SetUp() override {
         m_builder = std::get<0>(GetParam());
-        std::string test_name = GetTestName() + "_" + GetTimestamp();
-        m_out_xml_path = test_name + ".xml";
-        m_out_bin_path = test_name + ".bin";
+        std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+        m_out_xml_path = filePrefix + ".xml";
+        m_out_bin_path = filePrefix + ".bin";
     }
 
     void TearDown() override {
@@ -114,7 +115,7 @@ std::vector<SerializationFromModelParams> get_models() {
     std::vector<size_t> shifts = {0, 1, 2, 4, 8, 16, 20};
     for (const auto& shift : shifts) {
         for (size_t offset = 0; offset < 2; offset++) {
-            auto s = (1llu << shift) + offset;
+            size_t s = (1llu << shift) + offset;
             auto builder = [s]() {
                 using namespace ov;
                 auto shape = Shape{s};
@@ -153,9 +154,9 @@ public:
     }
 
     void SetUp() override {
-        std::string test_name = std::to_string(GetParam()) + "_" + GetTimestamp();
-        m_out_xml_path = test_name + ".xml";
-        m_out_bin_path = test_name + ".bin";
+        std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+        m_out_xml_path = filePrefix + ".xml";
+        m_out_bin_path = filePrefix + ".bin";
     }
 
     void TearDown() override {

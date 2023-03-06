@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ namespace intel_gpu {
 class Plugin : public InferenceEngine::IInferencePlugin {
     struct impl;
     std::shared_ptr<impl> _impl;
-    bool isModelCachingEnabled = false;
+    bool isModelCachingEnabled = true;
 
     std::string default_device_id = "0";
     // key: device_id, value: cldnn device

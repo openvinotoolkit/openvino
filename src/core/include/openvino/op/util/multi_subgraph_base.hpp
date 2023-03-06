@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -195,7 +195,7 @@ public:
     ///
     /// \param     index sub-graph's index in op
     /// \return pointer to Model with sub-graph
-    virtual const std::shared_ptr<Model>& get_function(int index) const {
+    virtual const std::shared_ptr<Model>& get_function(size_t index) const {
         return m_bodies[index];
     };
     /// \brief     Adds sub-graph to MultiSubGraphOp

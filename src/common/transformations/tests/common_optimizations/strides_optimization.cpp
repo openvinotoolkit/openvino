@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,7 @@ TEST_F(TransformationTestsF, StridesOptimization1) {
                                                                     ngraph::Strides{});
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_2}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::StridesOptimization>();
+        manager.register_pass<ov::pass::StridesOptimization>();
     }
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
@@ -81,7 +81,7 @@ TEST_F(TransformationTestsF, StridesOptimization2) {
                                                                     ngraph::Strides{});
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_2}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::StridesOptimization>();
+        manager.register_pass<ov::pass::StridesOptimization>();
     }
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
@@ -124,7 +124,7 @@ TEST_F(TransformationTestsF, StridesOptimization3) {
                                                                     ngraph::Strides{});
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_2}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::StridesOptimization>();
+        manager.register_pass<ov::pass::StridesOptimization>();
     }
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
@@ -178,7 +178,7 @@ TEST_F(TransformationTestsF, StridesOptimization4) {
                                                                     ngraph::Strides{});
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::StridesOptimization>();
+        manager.register_pass<ov::pass::StridesOptimization>();
     }
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
@@ -235,7 +235,7 @@ TEST_F(TransformationTestsF, StridesOptimization5) {
                                                                     ngraph::Strides{});
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_2}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::StridesOptimization>();
+        manager.register_pass<ov::pass::StridesOptimization>();
     }
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
@@ -264,9 +264,6 @@ TEST_F(TransformationTestsF, StridesOptimization5) {
 
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_2}, ngraph::ParameterVector{data});
     }
-
-    // TODO: update transformation and remove this check XXX-68696
-    disable_rt_info_check();
 }
 
 // Pl->Conv(1x1,1x1)->Conv(1x1,2x2)->Conv(3x3,1x1)->Conv(1x1,2x2)
@@ -305,7 +302,7 @@ TEST_F(TransformationTestsF, StridesOptimization6) {
                                                                     ngraph::Strides{});
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_4}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::StridesOptimization>();
+        manager.register_pass<ov::pass::StridesOptimization>();
     }
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
@@ -382,7 +379,7 @@ TEST_F(TransformationTestsF, StridesOptimization7) {
 
         function =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3, conv_4}, ngraph::ParameterVector{data});
-        manager.register_pass<ngraph::pass::StridesOptimization>();
+        manager.register_pass<ov::pass::StridesOptimization>();
     }
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
@@ -424,8 +421,6 @@ TEST_F(TransformationTestsF, StridesOptimization7) {
         function_ref =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3, conv_4}, ngraph::ParameterVector{data});
     }
-    // TODO: update transformation and remove this check XXX-68696
-    disable_rt_info_check();
 }
 
 // Pl--->Conv(1x1,1x1)->ReLU--->Eltwise-->Conv(1x1,2x2)-->Eltwise-->Conv(1x1, 2x2)
@@ -468,7 +463,7 @@ TEST_F(TransformationTestsF, StridesOptimization8) {
 
         function =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3}, ngraph::ParameterVector{data, data_2});
-        manager.register_pass<ngraph::pass::StridesOptimization>();
+        manager.register_pass<ov::pass::StridesOptimization>();
     }
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
@@ -517,8 +512,6 @@ TEST_F(TransformationTestsF, StridesOptimization8) {
         function_ref =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3}, ngraph::ParameterVector{data, data_2});
     }
-    // TODO: update transformation and remove this check XXX-68696
-    disable_rt_info_check();
 }
 
 // Pl------->Conv(1x1,1x1)------>Eltwise------>Conv(1x1,2x2)---->Eltwise-->Conv(1x1, 2x2)
@@ -570,7 +563,7 @@ TEST_F(TransformationTestsF, StridesOptimization9) {
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3},
                                                       ngraph::ParameterVector{data, data_2, data_3});
-        manager.register_pass<ngraph::pass::StridesOptimization>();
+        manager.register_pass<ov::pass::StridesOptimization>();
     }
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 224, 224});
@@ -636,6 +629,4 @@ TEST_F(TransformationTestsF, StridesOptimization9) {
         function_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{conv_3},
                                                           ngraph::ParameterVector{data, data_2, data_3});
     }
-    // TODO: update transformation and remove this check XXX-68696
-    disable_rt_info_check();
 }

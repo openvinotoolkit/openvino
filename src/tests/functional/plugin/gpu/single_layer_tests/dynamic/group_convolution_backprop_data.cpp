@@ -80,7 +80,7 @@ public:
             result << ")_";
         }
         result << "config=(";
-        for (const auto configEntry : additionalConfig) {
+        for (const auto& configEntry : additionalConfig) {
             result << configEntry.first << ", " << configEntry.second << ":";
         }
         result << ")_";

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,7 +65,7 @@ ov::Any QuantizationAlignmentAttribute::create(
     return {};
 }
 
-void QuantizationAlignmentAttribute::merge(std::vector<ov::Any>& attributes) {
+void QuantizationAlignmentAttribute::merge_attributes(std::vector<ov::Any>& attributes) {
     for (const auto& other_attribute : attributes) {
         value() = value() || other_attribute.as<QuantizationAlignmentAttribute>().value();
     }

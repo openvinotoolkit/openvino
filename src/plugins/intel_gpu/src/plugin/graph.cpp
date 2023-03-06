@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/map_serializer.hpp"
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
+#include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/runtime/profiling.hpp"
@@ -21,7 +22,6 @@
 #include <exec_graph_info.hpp>
 
 #include <ie_ngraph_utils.hpp>
-#include <ngraph/variant.hpp>
 
 #include <list>
 #include <set>
@@ -36,7 +36,6 @@
 #include <sys/stat.h>
 #include <exec_graph_info.hpp>
 #include <ie_ngraph_utils.hpp>
-#include <ngraph/variant.hpp>
 #include <ngraph/ngraph.hpp>
 
 using namespace InferenceEngine;
@@ -66,11 +65,47 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, const
     if (m_program->m_max_batch > 1)
         m_config.set_property(ov::intel_gpu::max_dynamic_batch(m_program->m_max_batch));
 
+    bool need_onednn_engine = false;
+    ib >> need_onednn_engine;
+    if (need_onednn_engine) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        get_engine().create_onednn_engine(config);
+#else
+        IE_THROW() << "[GPU] Current model cache requires OneDNN, but cannot use it.";
+#endif  // ENABLE_ONEDNN_FOR_GPU
+    }
+
     ib >> m_program->inputLayouts;
+    Program::variables_state_info_map variablesStateInfoMap;
+    ib >> variablesStateInfoMap;
+    for (const auto& variablesStateInfo : variablesStateInfoMap) {
+        m_program->AddVariableStateInfo(variablesStateInfo.first, *variablesStateInfo.second.begin());
+    }
     ib >> primitiveIDs;
+    ib >> prevPrimitiveIDs;
+    ib >> profilingIDs;
+    {
+        size_t perfMap_size;
+        ib >> perfMap_size;
+        for (size_t i = 0; i < perfMap_size; ++i) {
+            cldnn::primitive_id prim_id;
+            ib >> prim_id;
+            perfMap[prim_id].first = prim_id;
+            auto& perfEntry = perfMap[prim_id].second;
+            ib >> perfEntry.layerType;
+            ib >> cldnn::make_data(&perfEntry.status, sizeof(InferenceEngine::InferenceEngineProfileInfo::LayerStatus));
+            perfEntry.cpu_uSec = perfEntry.realTime_uSec = 0;
+            ib >> perfEntry.isCPU;
+            ib >> perfEntry.parentPrimitive;
+        }
+    }
     ib >> outputDims;
 
-    m_networks.emplace_back(std::make_shared<cldnn::network>(ib, get_engine().create_stream(config), get_engine(), m_stream_id));
+    size_t num_networks;
+    ib >> num_networks;
+    for (size_t i = 0; i < num_networks; ++i) {
+        m_networks.emplace_back(std::make_shared<cldnn::network>(ib, get_engine().create_stream(config), get_engine(), m_stream_id));
+    }
 }
 
 Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
@@ -470,13 +505,38 @@ std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfoByPrimitivesInfo(std::v
 //     [ ov::intel_gpu::Graph::outputDims ]
 //     [ cldnn::network ]
 void Graph::Export(cldnn::BinaryOutputBuffer &ob) {
+    bool need_onednn_engine = false;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    try {
+        get_engine().get_onednn_engine();
+        need_onednn_engine = true;
+    } catch (ov::AssertFailure &) {
+        need_onednn_engine = false;
+    }
+#endif  // ENABLE_ONEDNN_FOR_GPU
+    ob << need_onednn_engine;
+
     ob << m_program->inputLayouts;
+    ob << m_program->GetVariablesStatesInfo();
     ob << primitiveIDs;
+    ob << prevPrimitiveIDs;
+    ob << profilingIDs;
+    {
+        ob << perfMap.size();
+        for (auto& perf_item : perfMap) {
+            ob << perf_item.first;
+            ob << perf_item.second.second.layerType;
+            ob << cldnn::make_data(&perf_item.second.second.status, sizeof(InferenceEngine::InferenceEngineProfileInfo::LayerStatus));
+            ob << perf_item.second.second.isCPU;
+            ob << perf_item.second.second.parentPrimitive;
+        }
+    }
     ob << outputDims;
 
-    auto m_network = m_networks.back();
-
-    m_network->save(ob);
+    ob << m_networks.size();
+    for (auto net : m_networks) {
+        net->save(ob);
+    }
 }
 
 std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfo() {
@@ -566,6 +626,13 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> Graph::GetPer
     auto executedPrimitives = GetNetwork()->get_executed_primitives();
     auto primitivesInfo = GetNetwork()->get_primitives_info();
     auto extIdMap = GetNetwork()->get_ext_id_mapping();
+    std::map<std::string, std::string> implementation_info;
+
+    if (GetNetwork()->get_program() == nullptr) {
+        for (auto& pi : primitivesInfo) {
+            implementation_info[pi.original_id] = pi.kernel_id;
+        }
+    }
 
     auto getUpperCaseName = [](std::string name) {
         std::vector<char> res;
@@ -610,7 +677,16 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> Graph::GetPer
             static const std::string cpuExecType("CPU");
             cpuExecType.copy(extPerfEntry.exec_type, cpuExecType.length());  // Override execType as CPU
         } else {
-            std::string impl = GetNetwork()->get_implementation_info(primId);
+            std::string impl;
+            if (GetNetwork()->get_program() != nullptr) {
+                impl = GetNetwork()->get_implementation_info(primId);
+            } else {
+                if (implementation_info.find(primId) != implementation_info.end()) {
+                    impl = implementation_info[primId];
+                } else {
+                    impl = "undef";
+                }
+            }
             impl.copy(extPerfEntry.exec_type, impl.length());
         }
 

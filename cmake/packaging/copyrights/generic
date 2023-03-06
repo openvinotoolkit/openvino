@@ -760,3 +760,8 @@ Files: \thirdparty\*
 Comment: onnx
 Copyright: authors
 License: Apache
+
+Files: *
+Comment: FlatBuffers
+Copyright: Copyright 2014-2022 Google Inc. All rights reserved.
+License: Apache

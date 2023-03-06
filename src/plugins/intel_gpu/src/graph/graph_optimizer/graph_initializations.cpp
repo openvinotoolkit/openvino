@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,6 @@
 #include "lstm_dynamic_timeloop_inst.h"
 #include "mutable_data_inst.h"
 #include "arg_max_min_inst.h"
-#include "kernel_selector_utils.h"
 
 #include <iomanip>
 #include <string>

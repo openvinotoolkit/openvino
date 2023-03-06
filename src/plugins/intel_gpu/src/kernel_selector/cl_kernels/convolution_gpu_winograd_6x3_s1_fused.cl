@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,7 +69,7 @@ KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 	__global INPUT0_TYPE* I,
 	__global OUTPUT_TYPE* O,
 #if FILTER_LAYOUT_IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_FBXYB || FILTER_LAYOUT_IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_XFBYB
-    __read_only image2d_t  U,
+    __read_only image2d_t U
 #else
 	__global FILTER_TYPE* U
 #endif

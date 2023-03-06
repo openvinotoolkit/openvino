@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -142,12 +142,6 @@ Plugin::Plugin() : m_default_contexts({}) {
             m_default_contexts.insert({device.first, ctx});
         }
     }
-
-    if (const char* env_p = std::getenv("OV_GPU_CACHE_MODEL")) {
-        if (env_p[0] == '1') {
-            isModelCachingEnabled = true;
-        }
-    }
 }
 
 auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
@@ -204,6 +198,9 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::LoadExeNetworkImpl::CreateExeNetwork");
         CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(transformedNetwork, context, config);
+        if (exeNetwork->m_graphs[0]->GetNetwork()->is_dynamic()) {
+            isModelCachingEnabled = false;
+        }
         update_memory_statistics(context->get_impl());
         return exeNetwork;
     }
@@ -423,7 +420,7 @@ auto StringRightTrim = [](std::string string, std::string substring, bool case_s
 Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::GetMetric");
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    std::string device_id = GetConfig(ov::device::id.name(), options);
+    auto device_id = GetConfig(ov::device::id.name(), options).as<std::string>();
 
     auto iter = device_map.find(std::to_string(cldnn::device_query::device_id));
     if (iter == device_map.end())
@@ -500,7 +497,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         std::tuple<unsigned int, unsigned int, unsigned int> range = std::make_tuple(1, 2, 1);
         IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, range);
     } else if (name == ov::range_for_streams) {
-        std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, 2);
+        std::tuple<unsigned int, unsigned int> range = std::make_tuple(1, device_info.num_ccs == 1 ? 2 : device_info.num_ccs);
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, range);
     } else if (name == GPU_METRIC_KEY(MEMORY_STATISTICS) ||
                name == ov::intel_gpu::memory_statistics) {
@@ -524,10 +521,11 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     } else if (name == ov::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties;
-        cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::uarch_version.name(), PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::device::architecture.name(), PropertyMutability::RO));
         cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO));
         cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::driver_version.name(), PropertyMutability::RO));
-        cachingProperties.push_back(ov::PropertyName(ov::intel_gpu::device_id.name(), PropertyMutability::RO));
+        cachingProperties.push_back(ov::PropertyName(ov::inference_precision.name(), PropertyMutability::RW));
+        cachingProperties.push_back(ov::PropertyName(ov::hint::execution_mode.name(), PropertyMutability::RW));
         return decltype(ov::caching_properties)::value_type(cachingProperties);
     } else if (name == ov::intel_gpu::driver_version) {
         return decltype(ov::intel_gpu::driver_version)::value_type {device_info.driver_version};
@@ -537,7 +535,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         return decltype(ov::intel_gpu::device_id)::value_type {s.str()};
     } else if (name == ov::device::architecture) {
         std::stringstream s;
-        s << "GPU: ";
+        s << "GPU: vendor=0x" << std::hex << device_info.vendor_id << std::dec << " arch=";
         if (device_info.gfx_ver.major == 0 && device_info.gfx_ver.minor == 0) {
             s << device_info.dev_name;
         } else {
@@ -581,10 +579,11 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::intel_gpu::enable_loop_unrolling.name(), PropertyMutability::RW},
         ov::PropertyName{ov::cache_dir.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::hint::execution_mode.name(), PropertyMutability::RW},
         ov::PropertyName{ov::compilation_num_threads.name(), PropertyMutability::RW},
         ov::PropertyName{ov::num_streams.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::num_requests.name(), PropertyMutability::RW},
-        ov::PropertyName{ov::hint::inference_precision.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::inference_precision.name(), PropertyMutability::RW},
         ov::PropertyName{ov::device::id.name(), PropertyMutability::RW},
     };
 
@@ -612,7 +611,7 @@ std::vector<std::string> Plugin::get_device_capabilities(const cldnn::device_inf
 
 uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& options) const {
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    std::string device_id = GetConfig(ov::device::id.name(), options);
+    auto device_id = GetConfig(ov::device::id.name(), options).as<std::string>();
     auto context = m_default_contexts.at(device_id)->get_impl();
     const auto& device_info = context->get_engine().get_device_info();
     const auto& config = m_configs_map.at(device_id);
@@ -644,7 +643,7 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
         } else if (it_streams->second.is<uint32_t>()) {
             n_streams = it_streams->second.as<uint32_t>();
         } else if (it_streams->second.is<std::string>()) {
-            std::string n_streams_str = it_streams->second.as<std::string>();
+            auto n_streams_str = it_streams->second.as<std::string>();
             if (n_streams_str != CONFIG_VALUE(GPU_THROUGHPUT_AUTO) &&
                 n_streams_str != util::to_string(ov::streams::AUTO)) {
                 IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
@@ -699,7 +698,7 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
 
         auto function = InferenceEngine::details::cloneNetwork(cloned_network).getFunction();
         ov::pass::Manager m;
-        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::InitNodeInfo>();
         m.register_pass<ov::pass::FindBatch>(true, false);
         m.run_passes(function);
         const auto& params = function->get_parameters();
@@ -716,7 +715,7 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
                 for (size_t s = 0; s < shape.size(); s++) {
                     if (ov::DimensionTracker::get_label(shape[s])) {
                         // batched dim for the input
-                        auto batched_input_id = ngraph::op::util::get_ie_output_name(params[input_id]->output(0));
+                        auto batched_input_id = ov::op::util::get_ie_output_name(params[input_id]->output(0));
                         GPU_DEBUG_LOG << "[MAX_BATCH_SIZE] detected batched input " << batched_input_id
                                       << "[" << s << "]" << std::endl;
                         batched_inputs.insert(std::make_pair(batched_input_id, s));
@@ -762,7 +761,7 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
 }
 
 uint32_t Plugin::get_optimal_batch_size(const std::map<std::string, Parameter>& options) const {
-    std::string device_id = GetConfig(ov::device::id.name(), options);
+    auto device_id = GetConfig(ov::device::id.name(), options).as<std::string>();
     auto context = m_default_contexts.at(device_id)->get_impl();
     const auto& device_info = context->get_engine().get_device_info();
     auto next_pow_of_2 = [] (float x) {

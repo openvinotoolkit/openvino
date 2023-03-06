@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -75,7 +75,6 @@ enum class Type {
     GridSample,
     OneHot,
     RegionYolo,
-    Select,
     Roll,
     Reference,
     ShuffleChannels,
@@ -165,6 +164,7 @@ enum class Algorithm {
     EltwiseTanh,
     EltwiseSigmoid,
     EltwiseAbs,
+    EltwiseSelect,
     EltwiseSqrt,
     EltwiseSoftRelu,
     EltwiseExp,

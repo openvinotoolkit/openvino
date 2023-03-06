@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -9,14 +9,15 @@ from contextlib import redirect_stdout
 from unittest.mock import patch
 
 from openvino.tools.mo.main import main
-from openvino.tools.mo.utils.get_ov_update_message import get_tf_fe_message, get_tf_fe_legacy_message
+from openvino.tools.mo.utils.get_ov_update_message import get_tf_fe_message, get_compression_message
 
 
 def arg_parse_helper(input_model,
                      use_legacy_frontend,
                      use_new_frontend,
                      input_model_is_text,
-                     framework):
+                     framework,
+                     compress_to_fp16=False):
     path = os.path.dirname(__file__)
     input_model = os.path.join(path, "test_models", input_model)
 
@@ -48,6 +49,7 @@ def arg_parse_helper(input_model,
         freeze_placeholder_with_value=None,
         data_type=None,
         tensorflow_custom_operations_config_update=None,
+        compress_to_fp16=compress_to_fp16,
     )
 
 
@@ -62,18 +64,19 @@ class TestInfoMessagesTFFE(unittest.TestCase):
             main(argparse.ArgumentParser())
             std_out = f.getvalue()
         tf_fe_message_found = get_tf_fe_message() in std_out
-        tf_fe_legacy_message_found = get_tf_fe_legacy_message() in std_out
-        assert tf_fe_message_found and not tf_fe_legacy_message_found
+        assert tf_fe_message_found
 
+
+class TestInfoMessagesCompressFP16(unittest.TestCase):
     @patch('argparse.ArgumentParser.parse_args',
-           return_value=arg_parse_helper(input_model="future_op.pbtxt",
-                                         use_legacy_frontend=True, use_new_frontend=False,
+           return_value=arg_parse_helper(input_model="model_int32.pbtxt",
+                                         use_legacy_frontend=False, use_new_frontend=True,
+                                         compress_to_fp16=True,
                                          framework=None, input_model_is_text=True))
-    def test_tf_fe_legacy(self, mock_argparse):
+    def test_compress_to_fp16(self, mock_argparse):
         f = io.StringIO()
         with redirect_stdout(f):
             main(argparse.ArgumentParser())
             std_out = f.getvalue()
-        tf_fe_message_found = get_tf_fe_message() in std_out
-        tf_fe_legacy_message_found = get_tf_fe_legacy_message() in std_out
-        assert tf_fe_legacy_message_found and not tf_fe_message_found
+        fp16_compression_message_found = get_compression_message() in std_out
+        assert fp16_compression_message_found

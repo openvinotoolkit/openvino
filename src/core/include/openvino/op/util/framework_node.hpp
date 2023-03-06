@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,6 +56,10 @@ public:
 
     std::string at(const std::string& key) const {
         return m_attrs.at(key);
+    }
+
+    attrs_t::const_iterator find(const std::string& key) const {
+        return m_attrs.find(key);
     }
 
     bool operator==(const FrameworkNodeAttrs& other) const {

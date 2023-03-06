@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,6 +56,4 @@ PYBIND11_MODULE(_pyngraph, m) {
     regmodule_pyngraph_passes(m);
     regmodule_pyngraph_util(m);
     regclass_pyngraph_Variant(m);
-    regclass_pyngraph_VariantWrapper<std::string>(m, std::string("String"));
-    regclass_pyngraph_VariantWrapper<int64_t>(m, std::string("Int"));
 }
