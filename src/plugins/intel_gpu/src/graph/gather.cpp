@@ -18,7 +18,7 @@ layout gather_inst::calc_output_layout(gather_node const& node, kernel_impl_para
     auto desc = impl_param.typed_desc<gather>();
 
     auto input_layout = impl_param.get_input_layout();
-    std::vector<tensor::value_type> dims_converted(desc->output_shape.size());
+    std::vector<tensor::value_type> dims_converted;
     for (auto dim : desc->output_shape) {
         dims_converted.push_back(static_cast<tensor::value_type>(dim));
     }
