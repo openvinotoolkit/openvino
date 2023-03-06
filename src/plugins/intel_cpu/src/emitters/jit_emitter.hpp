@@ -50,9 +50,6 @@ public:
                    const std::vector<size_t> &pool_vec_idxs = {}, const std::vector<size_t> &pool_gpr_idxs = {}) const override;
     void emit_data() const override;
 
-    virtual void emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                      const std::shared_ptr<const emitter_context> &emit_context,
-                      const std::vector<size_t> &pool_vec_idxs = {}, const std::vector<size_t> &pool_gpr_idxs = {});
     virtual size_t get_inputs_num() const = 0;
     virtual size_t aux_vecs_count() const;
     emitter_in_out_map get_in_out_type() const;
@@ -101,9 +98,7 @@ protected:
         _cmp_gt_os = dnnl::impl::cpu::x64::jit_generator::_cmp_nle_us,
     };
 
-    virtual void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                           const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                           const emitter_context *emit_context) const = 0;
+    virtual void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const = 0;
 
     virtual void emitter_preamble(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
                           const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const;

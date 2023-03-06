@@ -77,9 +77,7 @@ size_t jit_load_emitter::aux_gprs_count() const {
     return count;
 }
 
-void jit_load_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                                 const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                 const emitter_context *emit_context) const {
+void jit_load_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
     const int offset = in_idxs.size() == 2 ? in_idxs[1] : 0;
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(Reg64(in_idxs[0]), static_cast<int>(out_idxs[0]), offset);
@@ -620,9 +618,7 @@ void jit_store_emitter::emit_data() const {
         uni_vcvtneps2bf16_->emit_data();
 }
 
-void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                  const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                  const emitter_context *emit_context) const {
+void jit_store_emitter::emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const {
     const int offset = in_idxs.size() == 2 ? in_idxs[1] : 0;
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(static_cast<int>(in_idxs[0]), Reg64(out_idxs[0]), offset);

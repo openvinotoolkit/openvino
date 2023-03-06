@@ -90,10 +90,7 @@ private:
                             const std::vector<size_t> &pool,
                             const std::vector<size_t> &gpr) const override;
     void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override;
+                   const std::vector<size_t>& out) const override;
     void init_data_pointers(size_t, size_t, bool, const Reg64&, const Reg64&, const std::vector<Reg64>&) const;
 
     jit_snippets_compile_args jcp;
@@ -131,10 +128,7 @@ private:
                             const std::vector<size_t> &pool,
                             const std::vector<size_t> &gpr) const override;
     void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override;
+                   const std::vector<size_t>& out) const override;
 
     std::shared_ptr<ngraph::snippets::op::LoopBegin> loop_begin;
     size_t num_inputs = 0;
@@ -159,10 +153,7 @@ private:
                             const std::vector<size_t> &gpr) const override;
 
     void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override;
+                   const std::vector<size_t>& out) const override;
 
     std::shared_ptr<ngraph::snippets::op::LoopBegin> loop_begin;
     std::shared_ptr<ngraph::snippets::op::LoopEnd> loop_end;
@@ -189,10 +180,7 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override {
+                   const std::vector<size_t>& out) const override {
     }
 };
 
@@ -204,10 +192,7 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-              const std::vector<size_t>& out,
-              const std::vector<size_t>& pool,
-              const std::vector<size_t>& gpr,
-              const ov::intel_cpu::emitter_context *emit_context) const override;
+              const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
@@ -227,10 +212,7 @@ protected:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-              const std::vector<size_t>& out,
-              const std::vector<size_t>& pool,
-              const std::vector<size_t>& gpr,
-              const ov::intel_cpu::emitter_context *emit_context) const override;
+              const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
@@ -268,10 +250,7 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-              const std::vector<size_t>& out,
-              const std::vector<size_t>& pool,
-              const std::vector<size_t>& gpr,
-              const ov::intel_cpu::emitter_context *emit_context) const override;
+              const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
@@ -289,10 +268,7 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-              const std::vector<size_t>& out,
-              const std::vector<size_t>& pool,
-              const std::vector<size_t>& gpr,
-              const ov::intel_cpu::emitter_context *emit_context) const override;
+              const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
@@ -310,10 +286,7 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-              const std::vector<size_t>& out,
-              const std::vector<size_t>& pool,
-              const std::vector<size_t>& gpr,
-              const ov::intel_cpu::emitter_context *emit_context) const override;
+              const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
@@ -327,10 +300,7 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override;
+                   const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
@@ -348,10 +318,7 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override;
+                   const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
@@ -369,10 +336,7 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override;
+                   const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
@@ -422,10 +386,7 @@ protected:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override;
+                   const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
@@ -443,10 +404,7 @@ protected:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override;
+                   const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
@@ -460,10 +418,7 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override;
+                   const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
@@ -480,10 +435,7 @@ protected:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override;
+                   const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
