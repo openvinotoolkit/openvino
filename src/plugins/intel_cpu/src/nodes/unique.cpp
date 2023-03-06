@@ -405,7 +405,7 @@ void Unique::slicedTensorExec() {
                     auto dstIdx = moveTo[0];
                     for (int64_t b = 0; b < uniqueLen; b++) {
                         if (dstIdx == moveTo[dstIdx]) {
-                            dstIdx = moveTo[++dstIdx];
+                            dstIdx = moveTo[dstIdx + 1];
                             continue;
                         }
                         T* dst = currDst + dstIdx * elPerPart;
@@ -429,7 +429,7 @@ void Unique::slicedTensorExec() {
                 }
                 for (int k = 0; k < uniqueLen; k++) {
                     if (mPos == moveTo[mPos]) {
-                        mPos = moveTo[++mPos];
+                        mPos = moveTo[mPos + 1];
                         continue;
                     }
 
