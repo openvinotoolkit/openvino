@@ -19,15 +19,8 @@ void eye(T* data, const Shape& out_shape, const int64_t diagonal_index) {
     const int64_t num_columns = out_shape[out_shape.size() - 1];
     const int64_t matrix_size = num_rows * num_columns;
 
-#if defined(__GNUC__) && !defined(__clang__)
-#    pragma GCC diagnostic push
-#    pragma GCC diagnostic ignored "-Wclass-memaccess"  // to avoid warnings for memset of ov::float16, ov::bfloat16
-#endif
     // fill tensor by zero
-    std::memset(data, 0, num_matrices * num_columns * num_rows * sizeof(T));
-#if defined(__GNUC__) && !defined(__clang__)
-#    pragma GCC diagnostic pop
-#endif
+    std::fill(data, data + num_matrices * matrix_size, T(0));
 
     // set ones on diagonal
     const int64_t shift_by_columns = std::max(diagonal_index, int64_t(0));

@@ -8,7 +8,6 @@
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "intel_gpu/runtime/tensor.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/quantize.hpp"
 #include "intel_gpu/primitives/activation.hpp"
@@ -16,6 +15,7 @@
 
 #include "kernel_selector_params.h"
 #include "kernel_selector_common.h"
+#include "kernel_impl_params.hpp"
 #include "tensor_type.h"
 #include "fused_primitive_desc.h"
 
@@ -23,16 +23,6 @@
 #include <string>
 #include <vector>
 #include <memory>
-
-using namespace cldnn;
-
-namespace cldnn {
-enum class data_types : size_t;
-struct format;
-struct layout;
-struct program;
-struct fused_primitive_desc;
-}  // namespace cldnn
 
 namespace kernel_selector {
 using n_dims = kernel_selector::Tensor::NDims;
@@ -91,6 +81,13 @@ using generic_kernel_params = kernel_selector::GenericKernelParams;
 
 }  // namespace kernel_selector
 
+namespace cldnn {
+enum class data_types : size_t;
+struct format;
+struct layout;
+struct program;
+struct fused_primitive_desc;
+
 kernel_selector::data_type to_data_type(data_types dt);
 data_types from_data_type(kernel_selector::data_type dt);
 kernel_selector::weights_type to_weights_type(data_types dt);
@@ -104,100 +101,6 @@ kernel_selector::weights_tensor convert_weights_tensor(const layout& l, bool is_
 layout from_weights_tensor(const kernel_selector::weights_tensor& t);
 kernel_selector::activation_function get_kernel_selector_activation_param(activation_func activation_func);
 
-struct kernel_impl_params {
-    bool has_runtime_layouts = false;
-    const program *prog;
-    std::shared_ptr<const primitive> desc;
-    size_t unique_id;
-    std::vector<layout> input_layouts;
-    std::vector<layout> output_layouts;
-    std::vector<tensor> input_offsets;
-    std::vector<cldnn::fused_primitive_desc> fused_desc;
-#ifdef ENABLE_ONEDNN_FOR_GPU
-    std::vector<cldnn::fused_primitive_desc_onednn> fused_desc_onednn;
-#endif // ENABLE_ONEDNN_FOR_GPU
-
-    optional_layout weights_layout = optional_layout();
-
-    optional_layout bias_layout = optional_layout();
-    optional_layout weights_zero_points_layout = optional_layout();
-    optional_layout activations_zero_points_layout = optional_layout();
-    optional_layout compensation_layout = optional_layout();
-
-    std::map<size_t, memory::ptr> memory_deps = {};
-    size_t primary_input_idx = 0;
-
-    memory::ptr reordered_weights = nullptr;
-
-    kernel_impl_params() {}
-
-    kernel_impl_params(program& _prog,
-                       std::shared_ptr<const primitive> _desc,
-                       size_t _uid,
-                       const std::vector<layout>& _in_layouts,
-                       const std::vector<layout>& _out_layouts,
-                       const std::vector<cldnn::fused_primitive_desc>& _fused_descs)
-                       : has_runtime_layouts(true)
-                       , prog(&_prog)
-                       , desc(_desc)
-                       , unique_id(_uid)
-                       , input_layouts(_in_layouts)
-                       , output_layouts(_out_layouts)
-                       , fused_desc(_fused_descs)
-                       , primary_input_idx(0) {
-    }
-
-    layout get_input_layout(size_t idx = 0) const {
-        OPENVINO_ASSERT(input_layouts.size() > idx,
-                        "The size of input layouts must be greater than the requested index: ",
-                        "Requested index is ", idx, ", ",
-                        "but the size of input layouts is ", input_layouts.size());
-        return input_layouts[idx];
-    }
-
-    layout get_non_padded_input_layout(size_t idx = 0) const {
-        auto input_layout = get_input_layout(idx);
-        auto result = layout({input_layout.get_partial_shape(), input_layout.data_type, input_layout.format});
-        return result;
-    }
-
-    layout get_output_layout(size_t idx = 0) const {
-        OPENVINO_ASSERT(output_layouts.size() > idx,
-                        "The size of output layouts must be greater than the requested index: ",
-                        "Requested index is ", idx, ",",
-                        "but the size of output layouts is ", output_layouts.size());
-        return output_layouts[idx];
-    }
-
-    bool has_fused_primitives() const { return !fused_desc.empty(); }
-
-    layout get_fused_output_layout() const {
-        if (fused_desc.empty())
-            return layout(data_types::f32, format::bfyx, tensor());
-        return fused_desc.back().output_layout;
-    }
-
-    bool is_dynamic() const {
-        for (auto i : input_layouts)
-            if (i.is_dynamic())
-                return true;
-        for (auto i : output_layouts)
-            if (i.is_dynamic())
-                return true;
-        return false;
-    }
-
-    template <class PType>
-    std::shared_ptr<const PType> typed_desc() const { return std::static_pointer_cast<const PType>(desc); }
-
-    void save(BinaryOutputBuffer& ob) const;
-    void load(BinaryInputBuffer& ib);
-    const program& get_program() const {
-        OPENVINO_ASSERT(prog != nullptr, "[GPU] Program pointer in kernel_impl_params in not initialized");
-        return *prog;
-    }
-};
-
 template <typename T = std::uint32_t>
 kernel_selector::dim_tensor<T> convert_dim_vector(const tensor& t) {
     const auto& sizes = t.sizes(format::bfwzyx);
@@ -209,6 +112,7 @@ kernel_selector::dim_tensor<T> convert_dim_vector(const tensor& t) {
             static_cast<T>(sizes[5])};
 }
 
+std::shared_ptr<kernel_selector::fuse_params> convert_fuse_params(std::shared_ptr<NodeFuseParams> p);
 void convert_fused_ops_to_legacy_activations(const kernel_impl_params& param_info, std::vector<kernel_selector::base_activation_params>& activations);
 bool use_legacy_fused_ops(const kernel_impl_params& param_info);
 
@@ -237,12 +141,10 @@ inline params_t get_default_params(const kernel_impl_params& param_info, bool is
         size_t op_id = 0;
         for (auto& fused_prim : param_info.fused_desc) {
             kernel_selector::fused_operation_desc desc;
-            desc.op_params = std::move(fused_prim.f_param);
+            desc.op_params = convert_fuse_params(fused_prim.f_param);
 
-            if (!desc.op_params) {
-                CLDNN_ERROR_MESSAGE(param_info.desc->id, "Invalid fused operation (" + param_info.desc->id + ") of type " +
-                                            param_info.desc->type_string());
-            }
+            OPENVINO_ASSERT(desc.op_params != nullptr, "[GPU] Invalid fused operation (", param_info.desc->id , ") of type ", param_info.desc->type_string());
+
 
             desc.dep_idx_start = fused_prim.dep_start_idx;
             desc.dep_size = fused_prim.deps.size();
@@ -337,3 +239,4 @@ template <typename optional_params_t>
 inline optional_params_t get_default_weights_bias_optional_params(const program& program) {
     return get_default_optional_params<optional_params_t>(program);
 }
+}  // namespace cldnn

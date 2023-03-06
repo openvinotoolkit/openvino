@@ -33,10 +33,10 @@
 #include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/remote_context.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/variable_state.hpp"
-#include "so_ptr.hpp"
 #include "threading/ie_executor_manager.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -314,7 +314,7 @@ public:
     }
 
     void SetCore(std::weak_ptr<InferenceEngine::ICore> core) override {
-        return m_plugin->set_core(std::dynamic_pointer_cast<ov::ICore>(core));
+        return m_plugin->set_core(std::dynamic_pointer_cast<ov::ICore>(core.lock()));
     }
 
     std::shared_ptr<InferenceEngine::ICore> GetCore() const noexcept override {
@@ -471,9 +471,11 @@ public:
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override {
         auto res = m_request->get_profiling_info();
         std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> ret;
-        for (const auto& info : res) {
+        for (size_t i = 0; i < res.size(); i++) {
+            const auto& info = res[i];
             InferenceEngine::InferenceEngineProfileInfo old_info;
             old_info.cpu_uSec = info.cpu_time.count();
+            old_info.execution_index = static_cast<unsigned>(i);
             old_info.realTime_uSec = info.real_time.count();
             strncpy(old_info.exec_type, info.exec_type.c_str(), sizeof(old_info.exec_type));
             old_info.exec_type[sizeof(old_info.exec_type) - 1] = 0;

@@ -8,16 +8,16 @@
 
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
+#include "openvino/runtime/threading/immediate_executor.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
 #include "openvino/runtime/variable_state.hpp"
-#include "threading/ie_immediate_executor.hpp"
-#include "threading/ie_istreams_executor.hpp"
 
 namespace {
 
 struct ImmediateStreamsExecutor : public ov::threading::ITaskExecutor {
     explicit ImmediateStreamsExecutor(const std::shared_ptr<ov::threading::IStreamsExecutor>& streamsExecutor)
         : _streamsExecutor{streamsExecutor} {}
-    void run(InferenceEngine::Task task) override {
+    void run(ov::threading::Task task) override {
         _streamsExecutor->execute(std::move(task));
     }
     std::shared_ptr<ov::threading::IStreamsExecutor> _streamsExecutor;
@@ -40,10 +40,10 @@ ov::IAsyncInferRequest::IAsyncInferRequest(const std::shared_ptr<IInferRequest>&
                            m_sync_request->infer();
                        }}};
     if (m_sync_request)
-        m_sync_pipeline = {{std::make_shared<InferenceEngine::ImmediateExecutor>(), [this] {
+        m_sync_pipeline = {{std::make_shared<ov::threading::ImmediateExecutor>(), [this] {
                                 m_sync_request->infer();
                             }}};
-    auto streams_executor = std::dynamic_pointer_cast<InferenceEngine::IStreamsExecutor>(m_request_executor);
+    auto streams_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(m_request_executor);
     if (streams_executor != nullptr) {
         m_sync_pipeline = {{std::make_shared<ImmediateStreamsExecutor>(std::move(streams_executor)), [this] {
                                 m_sync_request->infer();
@@ -123,7 +123,7 @@ void ov::IAsyncInferRequest::run_first_stage(const Pipeline::iterator itBeginSta
     firstStageExecutor->run(make_next_stage_task(itBeginStage, itEndStage, std::move(callbackExecutor)));
 }
 
-InferenceEngine::Task ov::IAsyncInferRequest::make_next_stage_task(
+ov::threading::Task ov::IAsyncInferRequest::make_next_stage_task(
     const Pipeline::iterator itStage,
     const Pipeline::iterator itEndStage,
     const std::shared_ptr<ov::threading::ITaskExecutor> callbackExecutor) {
