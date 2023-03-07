@@ -40,3 +40,7 @@ void ov::intel_cpu::NgramNode::validate_and_infer_types() {
     out_shape[1] *= m_k;
     set_output_type(0, embeddings_et, out_shape);
 }
+
+size_t ov::intel_cpu::NgramNode::get_k() const {
+    return m_k;
+}

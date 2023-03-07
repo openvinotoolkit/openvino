@@ -11,7 +11,7 @@ namespace ov {
 namespace intel_cpu {
 class NgramNode : public ov::op::Op {
 public:
-    OPENVINO_OP("NgramNode", "cpu_plugin_opset");
+    OPENVINO_OP("Ngram", "cpu_plugin_opset");
 
     NgramNode() = default;
     NgramNode(const ov::Output<Node>& embeddings, const ov::Output<Node>& batch_idces, const size_t k);
