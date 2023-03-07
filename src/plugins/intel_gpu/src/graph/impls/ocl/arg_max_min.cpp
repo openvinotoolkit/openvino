@@ -76,7 +76,7 @@ public:
         argm_params.argMaxMinAxis = GetArgMaxMinAxis(axis, impl_param.get_output_layout().get_rank());
 
         auto& constant_mem = impl_param.memory_deps;
-        if (constant_mem.count(1)) {
+        if (constant_mem.count(1) && !argm_params.has_dynamic_outputs()) {
             // The topK could be got by reading impl_param.memory_deps.at(1).
             // However, here we utilize output_layout and axis information to minimize mem_lock.
             auto output_layout = impl_param.get_output_layout(0);

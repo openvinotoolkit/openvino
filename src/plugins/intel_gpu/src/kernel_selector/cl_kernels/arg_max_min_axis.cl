@@ -43,6 +43,75 @@
 
 #define MINIMUM_NUMBER_FOR_PARTIAL_SORTING 100
 
+inline void FUNC(get_indices_from_dims)(OPTIONAL_SHAPE_INFO_ARG
+                                        const uint output_idx,
+                                        uint* indices)
+{
+#ifdef BATCH_AXIS
+    #ifdef OUTPUT_LAYOUT_YXFB
+    const uint out_first_dim = output_idx / (INPUT0_SIZE_X * INPUT0_FEATURE_NUM); // Y
+    const uint out_second_dim = output_idx / INPUT0_FEATURE_NUM % INPUT0_SIZE_X; // X
+    const uint out_fourth_dim = output_idx % INPUT0_FEATURE_NUM; // F
+    indices[1] = out_fourth_dim; indices[3] = out_first_dim; indices[4] = out_second_dim; // BFZYX
+    #else
+    const uint out_first_dim = output_idx / (INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X); // F
+    const uint out_second_dim = output_idx / (INPUT0_SIZE_Y * INPUT0_SIZE_X) % INPUT0_SIZE_Z; // Z
+    const uint out_third_dim = output_idx / INPUT0_SIZE_X % INPUT0_SIZE_Y; // Y
+    const uint out_fourth_dim = output_idx % INPUT0_SIZE_X; // X
+    indices[1] = out_first_dim; indices[2] = out_second_dim; indices[3] = out_third_dim; indices[4] = out_fourth_dim;
+    #endif
+#endif
+#ifdef FEATURE_AXIS
+    #ifdef OUTPUT_LAYOUT_YXFB
+    const uint out_first_dim = output_idx / (INPUT0_SIZE_X * INPUT0_BATCH_NUM); // Y
+    const uint out_second_dim = output_idx / INPUT0_BATCH_NUM % INPUT0_SIZE_X; // X
+    const uint out_fourth_dim = output_idx % INPUT0_BATCH_NUM; // B
+    indices[0] = out_fourth_dim; indices[3] = out_first_dim; indices[4] = out_second_dim; // BFZYX
+    #else
+    const uint out_first_dim = output_idx / (INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X); // B
+    const uint out_second_dim = output_idx / (INPUT0_SIZE_Y * INPUT0_SIZE_X) % INPUT0_SIZE_Z; // Z
+    const uint out_third_dim = output_idx / INPUT0_SIZE_X % INPUT0_SIZE_Y;  // Y
+    const uint out_fourth_dim = output_idx % INPUT0_SIZE_X;  // X
+    indices[0] = out_first_dim; indices[2] = out_second_dim; indices[3] = out_third_dim; indices[4] = out_fourth_dim;
+    #endif
+#endif
+#ifdef Z_AXIS
+    const uint out_first_dim = output_idx / (INPUT0_FEATURE_NUM * INPUT0_SIZE_Y * INPUT0_SIZE_X);  // B
+    const uint out_second_dim = output_idx / (INPUT0_SIZE_Y * INPUT0_SIZE_X) % INPUT0_FEATURE_NUM; // F
+    const uint out_third_dim = output_idx / INPUT0_SIZE_X % INPUT0_SIZE_Y; // Y
+    const uint out_fourth_dim = output_idx % INPUT0_SIZE_X; // X
+    indices[0] = out_first_dim; indices[1] = out_second_dim; indices[3] = out_third_dim; indices[4] = out_fourth_dim;
+#endif
+#ifdef Y_AXIS
+    #ifdef OUTPUT_LAYOUT_YXFB
+    const uint out_first_dim = output_idx / (INPUT0_FEATURE_NUM * INPUT0_BATCH_NUM); // X
+    const uint out_second_dim = output_idx / INPUT0_BATCH_NUM % INPUT0_FEATURE_NUM; // F
+    const uint out_fourth_dim = output_idx % INPUT0_BATCH_NUM; // B
+    indices[0] = out_fourth_dim; indices[1] = out_second_dim; indices[4] = out_first_dim; // BFZYX
+    #else
+    const uint out_first_dim = output_idx / (INPUT0_FEATURE_NUM * INPUT0_SIZE_Z * INPUT0_SIZE_X); // B
+    const uint out_second_dim = output_idx / (INPUT0_SIZE_Z * INPUT0_SIZE_X) % INPUT0_FEATURE_NUM; // F
+    const uint out_third_dim = output_idx / INPUT0_SIZE_X % INPUT0_SIZE_Z; // Z
+    const uint out_fourth_dim = output_idx % INPUT0_SIZE_X; // X
+    indices[0] = out_first_dim; indices[1] = out_second_dim; indices[2] = out_third_dim; indices[4] = out_fourth_dim;
+    #endif
+#endif
+#ifdef X_AXIS
+    #ifdef OUTPUT_LAYOUT_YXFB
+    const uint out_first_dim = output_idx / (INPUT0_FEATURE_NUM * INPUT0_BATCH_NUM); // Y
+    const uint out_second_dim = output_idx / INPUT0_BATCH_NUM % INPUT0_FEATURE_NUM; // F
+    const uint out_fourth_dim = output_idx % INPUT0_BATCH_NUM; // B
+    indices[0] = out_fourth_dim; indices[1] = out_second_dim; indices[3] = out_first_dim; // BFZYX
+    #else
+    const uint out_first_dim = output_idx / (INPUT0_FEATURE_NUM * INPUT0_SIZE_Z * INPUT0_SIZE_Y); // B
+    const uint out_second_dim = output_idx / (INPUT0_SIZE_Z * INPUT0_SIZE_Y) % INPUT0_FEATURE_NUM; // F
+    const uint out_third_dim = output_idx / INPUT0_SIZE_Y % INPUT0_SIZE_Z; // Z
+    const uint out_fourth_dim = output_idx % INPUT0_SIZE_Y; // Y
+    indices[0] = out_first_dim; indices[1] = out_second_dim; indices[2] = out_third_dim; indices[3] = out_fourth_dim;
+    #endif
+#endif
+}
+
 KERNEL(arg_max_min_modified)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input
@@ -69,79 +138,14 @@ KERNEL(arg_max_min_modified)(
     const uint last_group_offset = (group_num - 1) * group_size;
 #endif // SORT_BY_VALUE
 
-#if OPERATION_NUM_COMP
     const uint output_idx = (uint)get_global_id(0);
-
-    if (output_idx >= OPERATION_NUM)
-        return;
-
-#ifdef BATCH_AXIS
-    #ifdef OUTPUT_LAYOUT_YXFB
-    const uint out_first_dim = output_idx / (INPUT0_SIZE_X * INPUT0_FEATURE_NUM); // Y
-    const uint out_second_dim = output_idx / INPUT0_FEATURE_NUM % INPUT0_SIZE_X; // X
-    const uint out_fourth_dim = output_idx % INPUT0_FEATURE_NUM; // F
-    uint indices[] = { 0, out_fourth_dim, 0, out_first_dim, out_second_dim }; // BFZYX
-    #else
-    const uint out_first_dim = output_idx / (INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X); // F
-    const uint out_second_dim = output_idx / (INPUT0_SIZE_Y * INPUT0_SIZE_X) % INPUT0_SIZE_Z; // Z
-    const uint out_third_dim = output_idx / INPUT0_SIZE_X % INPUT0_SIZE_Y; // Y
-    const uint out_fourth_dim = output_idx % INPUT0_SIZE_X; // X
-    uint indices[] = { 0, out_first_dim, out_second_dim, out_third_dim, out_fourth_dim };
-    #endif
-#endif
-#ifdef FEATURE_AXIS
-    #ifdef OUTPUT_LAYOUT_YXFB
-    const uint out_first_dim = output_idx / (INPUT0_SIZE_X * INPUT0_BATCH_NUM); // Y
-    const uint out_second_dim = output_idx / INPUT0_BATCH_NUM % INPUT0_SIZE_X; // X
-    const uint out_fourth_dim = output_idx % INPUT0_BATCH_NUM; // B
-    uint indices[] = { out_fourth_dim, 0, 0, out_first_dim, out_second_dim }; // BFZYX
-    #else
-    const uint out_first_dim = output_idx / (INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X); // B
-    const uint out_second_dim = output_idx / (INPUT0_SIZE_Y * INPUT0_SIZE_X) % INPUT0_SIZE_Z; // Z
-    const uint out_third_dim = output_idx / INPUT0_SIZE_X % INPUT0_SIZE_Y;  // Y
-    const uint out_fourth_dim = output_idx % INPUT0_SIZE_X;  // X
-    uint indices[] = { out_first_dim, 0, out_second_dim, out_third_dim, out_fourth_dim };
-    #endif
-#endif
-#ifdef Z_AXIS
-    const uint out_first_dim = output_idx / (INPUT0_FEATURE_NUM * INPUT0_SIZE_Y * INPUT0_SIZE_X);  // B
-    const uint out_second_dim = output_idx / (INPUT0_SIZE_Y * INPUT0_SIZE_X) % INPUT0_FEATURE_NUM; // F
-    const uint out_third_dim = output_idx / INPUT0_SIZE_X % INPUT0_SIZE_Y; // Y
-    const uint out_fourth_dim = output_idx % INPUT0_SIZE_X; // X
-    uint indices[] = { out_first_dim, out_second_dim, 0, out_third_dim, out_fourth_dim };
-#endif
-#ifdef Y_AXIS
-    #ifdef OUTPUT_LAYOUT_YXFB
-    const uint out_first_dim = output_idx / (INPUT0_FEATURE_NUM * INPUT0_BATCH_NUM); // X
-    const uint out_second_dim = output_idx / INPUT0_BATCH_NUM % INPUT0_FEATURE_NUM; // F
-    const uint out_fourth_dim = output_idx % INPUT0_BATCH_NUM; // B
-    uint indices[] = { out_fourth_dim, out_second_dim, 0, 0, out_first_dim }; // BFZYX
-    #else
-    const uint out_first_dim = output_idx / (INPUT0_FEATURE_NUM * INPUT0_SIZE_Z * INPUT0_SIZE_X); // B
-    const uint out_second_dim = output_idx / (INPUT0_SIZE_Z * INPUT0_SIZE_X) % INPUT0_FEATURE_NUM; // F
-    const uint out_third_dim = output_idx / INPUT0_SIZE_X % INPUT0_SIZE_Z; // Z
-    const uint out_fourth_dim = output_idx % INPUT0_SIZE_X; // X
-    uint indices[] = { out_first_dim, out_second_dim, out_third_dim, 0, out_fourth_dim };
-    #endif
-#endif
-#ifdef X_AXIS
-    #ifdef OUTPUT_LAYOUT_YXFB
-    const uint out_first_dim = output_idx / (INPUT0_FEATURE_NUM * INPUT0_BATCH_NUM); // Y
-    const uint out_second_dim = output_idx / INPUT0_BATCH_NUM % INPUT0_FEATURE_NUM; // F
-    const uint out_fourth_dim = output_idx % INPUT0_BATCH_NUM; // B
-    uint indices[] = { out_fourth_dim, out_second_dim, 0, out_first_dim, 0 }; // BFZYX
-    #else
-    const uint out_first_dim = output_idx / (INPUT0_FEATURE_NUM * INPUT0_SIZE_Z * INPUT0_SIZE_Y); // B
-    const uint out_second_dim = output_idx / (INPUT0_SIZE_Z * INPUT0_SIZE_Y) % INPUT0_FEATURE_NUM; // F
-    const uint out_third_dim = output_idx / INPUT0_SIZE_Y % INPUT0_SIZE_Z; // Z
-    const uint out_fourth_dim = output_idx % INPUT0_SIZE_Y; // Y
-    uint indices[] = { out_first_dim, out_second_dim, out_third_dim, out_fourth_dim, 0 };
-    #endif
-#endif
-
-#else // OPERATION_NUM_COMP
     uint indices[] = { 0, 0, 0, 0, 0 };
-#endif // OPERATION_NUM_COMP
+
+    if (OPERATION_NUM > 1) {
+        if (output_idx >= OPERATION_NUM)
+            return;
+        FUNC_CALL(get_indices_from_dims)(OPTIONAL_SHAPE_INFO_TENSOR output_idx, indices);
+    }
 
 // Using parallel sorting for sorting by values
 #if SORT_BY_VALUE
