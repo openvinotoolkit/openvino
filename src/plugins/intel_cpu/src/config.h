@@ -15,7 +15,6 @@
 #include <string>
 #include <threading/ie_istreams_executor.hpp>
 
-#include "openvino/runtime/intel_cpu/processor_type.hpp"
 #include "utils/debug_caps_config.h"
 
 namespace ov {
