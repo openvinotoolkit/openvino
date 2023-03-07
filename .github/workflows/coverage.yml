@@ -40,6 +40,8 @@ jobs:
           sudo ./install_build_dependencies.sh
           pip install -r src/bindings/python/src/compatibility/openvino/requirements-dev.txt
           pip install -r src/frontends/tensorflow/tests/requirements.txt
+          pip install -r src/frontends/onnx/tests/requirements.txt
+
           pip install -r src/frontends/tensorflow_lite/tests/requirements.txt
           pip install -r src/frontends/paddle/tests/requirements.txt
           mkdir build
@@ -53,6 +55,7 @@ jobs:
                 -DENABLE_COVERAGE=ON \
                 -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchains/ia32.linux.toolchain.cmake \
                 -DENABLE_INTEL_GPU=OFF \
+                -DENABLE_INTEL_CPU=OFF \
                 -B build
           cmake --build build --target all --jobs=$(nproc -all)
 
