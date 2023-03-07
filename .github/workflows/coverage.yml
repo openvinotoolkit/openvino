@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ['ubuntu-20.04']
+        os: ['ubuntu-22.04']
     runs-on: ${{ matrix.os }}
     steps:
       - name: Github workspace
@@ -38,6 +38,10 @@ jobs:
         run: |
           chmod +x install_build_dependencies.sh
           sudo ./install_build_dependencies.sh
+          pip install -r src/bindings/python/src/compatibility/openvino/requirements.txt
+          pip install -r src/frontends/tensorflow/tests/requirements.txt
+          pip install -r src/frontends/tensorflow_lite/tests/requirements.txt
+          pip install -r src/frontends/paddle/tests/requirements.txt
           mkdir build
 
       - name: Build OpenVINO
@@ -45,6 +49,7 @@ jobs:
           cmake -DCMAKE_BUILD_TYPE=Release \
                 -DENABLE_FASTER_BUILD=ON \
                 -DENABLE_TESTS=ON \
+                -DENABLE_PYTHON=ON \
                 -DENABLE_COVERAGE=ON \
                 -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchains/ia32.linux.toolchain.cmake \
                 -DENABLE_INTEL_GPU=OFF \
@@ -53,9 +58,6 @@ jobs:
 
       - name: ls all
         run:  ls -laR .
-
-      - name: Run OV
-        run: ctest -V -L OV
 
       - name:  Run IR
         run: ctest -V -L IR_FE
