@@ -4,11 +4,6 @@
 
 #pragma once
 
-#include <thread>
-#include "primitive_inst.h"
-#include "intel_gpu/graph/program.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/cl_kernel_data_serializer.hpp"
@@ -16,7 +11,13 @@
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
+#include "intel_gpu/graph/program.hpp"
+
+#include "primitive_inst.h"
+#include "kernel_selector_helper.h"
 #include "register.hpp"
+#include "implementation_map.hpp"
+
 #include <vector>
 #include <list>
 #include <utility>
@@ -274,6 +275,19 @@ protected:
             auto gws = _kernel_data.kernels[0].params.workGroups.global;
             _kernel_data.kernels[0].skip_execution =
                 (std::accumulate(gws.begin(), gws.end(), 1, std::multiplies<size_t>()) == 0);
+        }
+    }
+
+    void set_kernels(std::map<const std::string, kernel::ptr>& kernels) override {
+        if (is_cpu())
+            return;
+
+        _kernel_ids.clear();
+        _kernels.clear();
+        _kernels.reserve(kernels.size());
+        for (auto& k : kernels) {
+            _kernel_ids.push_back(k.first);
+            _kernels.emplace_back(std::move(k.second));
         }
     }
 };

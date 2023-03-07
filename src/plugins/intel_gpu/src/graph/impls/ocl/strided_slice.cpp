@@ -2,17 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "strided_slice_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "strided_slice_inst.h"
+#include "data_inst.h"
 #include "strided_slice/strided_slice_kernel_ref.h"
 #include "strided_slice/strided_slice_kernel_selector.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "data_inst.h"
-#include <vector>
-
-using namespace cldnn;
 
 namespace {
 template <typename T, typename DT, typename = typename std::enable_if<std::is_convertible<DT, T>::value>::type>
@@ -71,10 +66,10 @@ public:
         // Getting data from constant inputs. There are 3 args: Begin, End, Stride
         if (!begin.empty() && !params.has_dynamic_tensors()) {
             pad_vector_to_size(begin, dims_num, 0);
-            params.begin_type = kernel_selector::StridedSliceArgType::Constant;
+            params.begin_type = kernel_selector::base_params::ArgType::Constant;
             params.striding_params.push_back(begin);
         } else {
-            params.begin_type = kernel_selector::StridedSliceArgType::Input;
+            params.begin_type = kernel_selector::base_params::ArgType::Input;
             auto begin_layout = impl_param.get_input_layout(1);
             params.inputs.push_back(convert_data_tensor(begin_layout));
             params.begin_dims = begin_layout.count();
@@ -82,16 +77,16 @@ public:
 
         auto get_index_end = [&]() {
             size_t offset = 1;
-            if ((begin.empty() || params.has_dynamic_tensors()) && params.begin_type == kernel_selector::StridedSliceArgType::Input)
+            if ((begin.empty() || params.has_dynamic_tensors()) && params.begin_type == kernel_selector::base_params::ArgType::Input)
                 offset++;
             return offset;
         };
         if (!end.empty() && !params.has_dynamic_tensors()) {
             pad_vector_to_size(end, dims_num, 1);
-            params.end_type = kernel_selector::StridedSliceArgType::Constant;
+            params.end_type = kernel_selector::base_params::ArgType::Constant;
             params.striding_params.push_back(end);
         } else {
-            params.end_type = kernel_selector::StridedSliceArgType::Input;
+            params.end_type = kernel_selector::base_params::ArgType::Input;
             auto end_layout = impl_param.get_input_layout(get_index_end());
             params.inputs.push_back(convert_data_tensor(end_layout));
             params.end_dims = end_layout.count();
@@ -99,16 +94,16 @@ public:
 
         auto get_index_stride = [&]() {
             size_t offset = get_index_end();
-            if ((end.empty() || params.has_dynamic_tensors()) && params.end_type == kernel_selector::StridedSliceArgType::Input)
+            if ((end.empty() || params.has_dynamic_tensors()) && params.end_type == kernel_selector::base_params::ArgType::Input)
                 offset++;
             return offset;
         };
         if (!strides.empty() && !params.has_dynamic_tensors()) {
             pad_vector_to_size(strides, dims_num, 1);
-            params.stride_type = kernel_selector::StridedSliceArgType::Constant;
+            params.stride_type = kernel_selector::base_params::ArgType::Constant;
             params.striding_params.push_back(strides);
         } else {
-            params.stride_type = kernel_selector::StridedSliceArgType::Input;
+            params.stride_type = kernel_selector::base_params::ArgType::Input;
             auto stride_layout = impl_param.get_input_layout(get_index_stride());
             params.inputs.push_back(convert_data_tensor(stride_layout));
             params.stride_dims = stride_layout.count();

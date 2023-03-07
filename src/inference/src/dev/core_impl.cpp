@@ -58,7 +58,7 @@ void stripDeviceName(std::string& device, const std::string& substr) {
 
 ov::CoreImpl::CoreImpl(bool _newAPI) : m_new_api(_newAPI) {
     add_mutex("");  // Register global mutex
-    m_executor_manager = ov::executor_manager();
+    m_executor_manager = ov::threading::executor_manager();
     for (const auto& it : ov::get_available_opsets()) {
         opsetNames.insert(it.first);
     }
@@ -204,8 +204,8 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             }
             allowNotImplemented([&]() {
                 // Add device specific value to support device_name.device_id cases
-                std::vector<std::string> supportedConfigKeys =
-                    plugin.get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {});
+                auto supportedConfigKeys =
+                    plugin.get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {}).as<std::vector<std::string>>();
                 auto config_iter = std::find(supportedConfigKeys.begin(),
                                              supportedConfigKeys.end(),
                                              CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID));
@@ -633,7 +633,7 @@ void ov::CoreImpl::set_property(const std::string& device_name, const AnyMap& pr
 
 ov::Any ov::CoreImpl::get_property_for_core(const std::string& name) const {
     if (name == ov::force_tbb_terminate.name()) {
-        const auto flag = ov::executor_manager()->get_property(name).as<bool>();
+        const auto flag = ov::threading::executor_manager()->get_property(name).as<bool>();
         return decltype(ov::force_tbb_terminate)::value_type(flag);
     } else if (name == ov::cache_dir.name()) {
         return ov::Any(coreConfig.get_cache_dir());
@@ -739,7 +739,7 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
         } else {
             auto cache_it = config.find(CONFIG_KEY(CACHE_DIR));
             if (cache_it != config.end()) {
-                coreConfig.set_cache_dir_for_device(cache_it->second, clearDeviceName);
+                coreConfig.set_cache_dir_for_device((cache_it->second).as<std::string>(), clearDeviceName);
             }
         }
 
@@ -785,8 +785,8 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
                 configCopy.erase(CONFIG_KEY(CACHE_DIR));
             }
             // Add device specific value to support device_name.device_id cases
-            std::vector<std::string> supportedConfigKeys =
-                plugin.second.get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {});
+            auto supportedConfigKeys =
+                plugin.second.get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {}).as<std::vector<std::string>>();
             auto config_iter = std::find(supportedConfigKeys.begin(),
                                          supportedConfigKeys.end(),
                                          CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID));
@@ -994,7 +994,7 @@ void ov::CoreImpl::CoreConfig::set_and_update(ov::AnyMap& config) {
     it = config.find(ov::force_tbb_terminate.name());
     if (it != config.end()) {
         auto flag = it->second.as<std::string>() == CONFIG_VALUE(YES) ? true : false;
-        ov::executor_manager()->set_property({{it->first, flag}});
+        ov::threading::executor_manager()->set_property({{it->first, flag}});
         config.erase(it);
     }
 
@@ -1024,7 +1024,7 @@ ov::CoreImpl::CoreConfig::CacheConfig ov::CoreImpl::CoreConfig::get_cache_config
     ov::AnyMap& parsedConfig) const {
     if (parsedConfig.count(CONFIG_KEY(CACHE_DIR))) {
         CoreConfig::CacheConfig tempConfig;
-        CoreConfig::fill_config(tempConfig, parsedConfig.at(CONFIG_KEY(CACHE_DIR)));
+        CoreConfig::fill_config(tempConfig, parsedConfig.at(CONFIG_KEY(CACHE_DIR)).as<std::string>());
         if (!device_supports_cache_dir) {
             parsedConfig.erase(CONFIG_KEY(CACHE_DIR));
         }
