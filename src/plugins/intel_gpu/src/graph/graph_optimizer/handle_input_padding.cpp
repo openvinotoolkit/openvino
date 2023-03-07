@@ -97,7 +97,8 @@ void handle_input_padding::run(program& p) {
                 }
 
                 auto b_prim = std::make_shared<border>(border_id,
-                                                       input_id,
+                                                       std::vector<input_info>({input_id}),
+                                                       0,
                                                        pad_above,
                                                        pad_below,
                                                        ov::op::PadMode::CONSTANT,

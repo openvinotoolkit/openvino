@@ -2,15 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "quantize_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "quantize_inst.h"
 #include "quantize/quantize_kernel_selector.h"
 #include "quantize/quantize_kernel_ref.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -34,7 +30,7 @@ protected:
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
             args.inputs.push_back(instance.input_memory_ptr(i));
         }
-        if (instance.scale_shift_opt) {
+        if (instance.get_typed_desc<quantize>()->scale_shift_opt) {
             if (instance.dependencies().size() == 9) {
                 args.inputs.push_back(instance.dep_memory_ptr(5));
                 args.inputs.push_back(instance.dep_memory_ptr(6));
@@ -160,3 +156,4 @@ attach_quantize_impl::attach_quantize_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::quantize_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::quantize)

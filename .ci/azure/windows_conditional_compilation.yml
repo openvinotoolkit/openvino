@@ -93,7 +93,6 @@ jobs:
 
   - checkout: self
     clean: 'true'
-    fetchDepth: '1'
     submodules: 'true'
     path: openvino
 
@@ -107,7 +106,6 @@ jobs:
   - checkout: testdata
     clean: 'true'
     lfs: 'true'
-    fetchDepth: '1'
     path: testdata
 
   - script: |
