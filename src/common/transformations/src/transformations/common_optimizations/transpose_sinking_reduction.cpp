@@ -68,8 +68,8 @@ std::vector<size_t> get_updated_order_backward(const std::vector<size_t>& axes_v
 }
 
 bool get_keep_dims(const std::shared_ptr<Node>& reduction) {
-    auto arithmetic_reduce = std::dynamic_pointer_cast<op::util::ArithmeticReductionKeepDims>(reduction);
-    auto logical_reduce = std::dynamic_pointer_cast<op::util::LogicalReductionKeepDims>(reduction);
+    auto arithmetic_reduce = std::dynamic_pointer_cast<ov::op::util::ArithmeticReductionKeepDims>(reduction);
+    auto logical_reduce = std::dynamic_pointer_cast<ov::op::util::LogicalReductionKeepDims>(reduction);
     // auto squeeze = std::dynamic_pointer_cast<opset6::Squeeze>(reduction);
 
     bool keep_dims = false;  // squeeze always reduces number of output dimensions
