@@ -404,10 +404,8 @@ void eltwise_inst::check_inputs_count(eltwise_node const& node) {
         case eltwise_mode::logic_and:
         case eltwise_mode::logic_or:
         case eltwise_mode::logic_xor:
-            if (inputs_number < 2)
-                CLDNN_ERROR_MESSAGE(node.id(),
-                                    "Invalid eltwise inputs number (should be equal at least to 2). Actual: " +
-                                        std::to_string(inputs_number));
+            OPENVINO_ASSERT(inputs_number >= 2,
+                            "Node id: ", node.id(), ". Invalid eltwise inputs number (should be equal at least to 2). Actual: ", inputs_number);
             break;
         case eltwise_mode::eq:
         case eltwise_mode::ne:
@@ -418,18 +416,14 @@ void eltwise_inst::check_inputs_count(eltwise_node const& node) {
         case eltwise_mode::squared_diff:
         case eltwise_mode::pow:
         case eltwise_mode::floor_mod:
-            if (inputs_number != 2)
-                CLDNN_ERROR_MESSAGE(
-                    node.id(),
-                    "Invalid eltwise inputs number (should be equal to 2). Actual: " + std::to_string(inputs_number));
+            OPENVINO_ASSERT(inputs_number == 2,
+                            "Node id: ", node.id(), ". Invalid eltwise inputs number (should be equal to 2). Actual: ", inputs_number);
             break;
         case eltwise_mode::is_finite:
         case eltwise_mode::is_inf:
         case eltwise_mode::is_nan:
-            if (inputs_number != 1)
-                CLDNN_ERROR_MESSAGE(
-                    node.id(),
-                    "Invalid eltwise inputs number (should be equal to 1). Actual: " + std::to_string(inputs_number));
+            OPENVINO_ASSERT(inputs_number == 1,
+                            "Node id: ", node.id(), ". Invalid eltwise inputs number (should be equal to 1). Actual: ", inputs_number);
             break;
     }
 }
