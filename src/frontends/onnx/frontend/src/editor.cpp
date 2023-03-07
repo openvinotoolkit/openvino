@@ -214,7 +214,7 @@ void graph_topological_sort(GraphProto* graph) {
         std::multimap<std::string, const NodeProto*> output_name_to_node;
         GraphProto result;
 
-        for (size_t i = 0; i < graph->node().size(); ++i) {
+        for (int i = 0; i < graph->node().size(); ++i) {
             for (const auto& output_name : graph->node(i).output()) {
                 output_name_to_node.emplace(output_name, graph->mutable_node(static_cast<int>(i)));
             }
@@ -578,11 +578,11 @@ void onnx_editor::ONNXModelEditor::set_tensor_name(const std::string& current_na
     if (const auto value_info = find_graph_value_info(*graph, current_name))
         *value_info->mutable_name() = new_name;
 
-    for (size_t i = 0; i < graph->node().size(); ++i) {
+    for (int i = 0; i < graph->node().size(); ++i) {
         const auto node = graph->mutable_node(static_cast<int>(i));
 
         bool output_found = false;
-        for (size_t j = 0; j < node->output().size(); ++j)
+        for (int j = 0; j < node->output().size(); ++j)
             if (node->output(static_cast<int>(j)) == current_name) {
                 *node->mutable_output(static_cast<int>(j)) = new_name;
                 output_found = true;
@@ -591,7 +591,7 @@ void onnx_editor::ONNXModelEditor::set_tensor_name(const std::string& current_na
         if (output_found)
             continue;
 
-        for (size_t j = 0; j < node->input().size(); ++j)
+        for (int j = 0; j < node->input().size(); ++j)
             if (node->input(static_cast<int>(j)) == current_name)
                 *node->mutable_input(static_cast<int>(j)) = new_name;
     }
@@ -623,7 +623,7 @@ void onnx_editor::ONNXModelEditor::clear_nodes_name(const std::string& name) {
 
     m_pimpl->m_is_mapper_updated = false;
 
-    for (size_t i = 0; i < graph->node().size(); ++i) {
+    for (int i = 0; i < graph->node().size(); ++i) {
         const auto node = graph->mutable_node(static_cast<int>(i));
         if (node->has_name() && node->name() == name)
             node->clear_name();
@@ -647,7 +647,7 @@ void onnx_editor::ONNXModelEditor::set_name_for_dimension(const std::string& nod
 
     const auto set_dim_param = [&shape_dim_index, &dim_name](ValueInfoProto* tensor) {
         const auto shape = tensor->mutable_type()->mutable_tensor_type()->mutable_shape();
-        auto shape_dim_size = shape->dim_size();
+        size_t shape_dim_size = shape->dim_size();
 
         for (; shape_dim_size <= shape_dim_index; ++shape_dim_size)
             add_dim_to_onnx_shape(Dimension::dynamic(), *shape);
