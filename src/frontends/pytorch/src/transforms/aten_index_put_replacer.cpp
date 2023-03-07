@@ -10,22 +10,13 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/gather_elements.hpp"
-#include "openvino/op/gather_nd.hpp"
 #include "openvino/op/mod.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/non_zero.hpp"
-#include "openvino/op/reduce_prod.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
@@ -55,10 +46,10 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
         if (!index_op) {
             return false;
         }
-        auto const_0 = (v0::Constant::create(element::i32, Shape{}, {0}));
-        auto const_1 = (v0::Constant::create(element::i32, Shape{1}, {1}));
-        auto const_max_int = (v0::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>::max()}));
-        auto const_neg_1 = (v0::Constant::create(element::i32, Shape{}, {-1}));
+        auto const_0 = v0::Constant::create(element::i32, Shape{}, {0});
+        auto const_1 = v0::Constant::create(element::i32, Shape{1}, {1});
+        auto const_max_int = v0::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>::max()});
+        auto const_neg_1 = v0::Constant::create(element::i32, Shape{}, {-1});
 
         auto input = index_op->input_value(0);
         auto input_shape = std::make_shared<v3::ShapeOf>(input, element::i32);
@@ -71,12 +62,10 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
         }
         auto accumulate = acc_const->cast_vector<int64_t>()[0];
 
-        auto indicies = index_op->input_value(1).get_node_shared_ptr();
-        std::shared_ptr<Node> list_indicies;
         int64_t indices_list_len;
         OutputVector indices_inputs;
-        if (list_indicies = cast_fw_node(indicies, "prim::ListConstruct")) {
-            indices_inputs = list_indicies->input_values();
+        if (auto listconstruct = cast_fw_node(indices.get_node_shared_ptr(), "prim::ListConstruct")) {
+            indices_inputs = listconstruct->input_values();
             indices_list_len = indices_inputs.size();
         } else {
             auto indices_partial_shape = indices.get_partial_shape();
@@ -93,11 +82,13 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
             auto split = std::make_shared<v1::Split>(indices, const_0, indices_list_len);
             indices_inputs = split->outputs();
         }
-        auto const_indices_list_len = (v0::Constant::create(element::i32, Shape{1}, {indices_list_len}));
+
         if (indices_list_len == 0) {
             replace_node(index_op, values.get_node_shared_ptr());
             return true;
         }
+
+        auto const_indices_list_len = v0::Constant::create(element::i32, Shape{1}, {indices_list_len});
 
         std::shared_ptr<Node> broadcast_index_shape;
         Output<Node> index;
@@ -127,18 +118,17 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
             // change negative indices to positive indices
             auto dim_0 = (std::make_shared<v8::Gather>(input_shape, const_0, const_0));
             auto dim_0_correct_type = (std::make_shared<v1::ConvertLike>(dim_0, index));
-            index = (std::make_shared<v1::Add>(index, dim_0_correct_type));
-            index = (std::make_shared<v1::Mod>(index, dim_0_correct_type));
+            index = std::make_shared<v1::Add>(index, dim_0_correct_type);
+            index = std::make_shared<v1::Mod>(index, dim_0_correct_type);
 
-            broadcast_index_shape = (std::make_shared<v3::ShapeOf>(index, element::i32));
-            index = (std::make_shared<v0::Unsqueeze>(index, const_neg_1));
+            broadcast_index_shape = std::make_shared<v3::ShapeOf>(index, element::i32);
+            index = std::make_shared<v0::Unsqueeze>(index, const_neg_1);
         }
 
-        auto sub_data_shape =
-            (std::make_shared<v8::Slice>(input_shape, const_indices_list_len, const_max_int, const_1));
-        auto values_shape = (std::make_shared<v0::Concat>(OutputVector{broadcast_index_shape, sub_data_shape}, 0));
-        values = (std::make_shared<v3::Broadcast>(values, values_shape));
-        values = (std::make_shared<v1::ConvertLike>(values, input));
+        auto sub_data_shape = std::make_shared<v8::Slice>(input_shape, const_indices_list_len, const_max_int, const_1);
+        auto values_shape = std::make_shared<v0::Concat>(OutputVector{broadcast_index_shape, sub_data_shape}, 0);
+        values = std::make_shared<v3::Broadcast>(values, values_shape);
+        values = std::make_shared<v1::ConvertLike>(values, input);
 
         Output<Node> result;
         if (accumulate) {
