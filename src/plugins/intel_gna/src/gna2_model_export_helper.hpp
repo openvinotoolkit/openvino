@@ -73,7 +73,7 @@ void* ExportSueLegacyUsingGnaApi2(uint32_t modelId, uint32_t deviceIndex, Gna2Mo
 void ExportTlvModel(uint32_t modelId,
                     uint32_t deviceIndex,
                     std::ostream& outStream,
-                    const common::DeviceVersion& compileTarget,
+                    const target::DeviceVersion& compileTarget,
                     const std::vector<GnaEndpoint>& inputs,
                     const std::vector<GnaEndpoint>& outputs,
                     const GnaAllocations& allAllocation);

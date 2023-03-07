@@ -221,19 +221,23 @@ int main(int argc, char* argv[]) {
             }
         }
         gnaPluginConfig[ov::inference_precision.name()] = (FLAGS_qb == 8) ? ov::element::i8 : ov::element::i16;
+        const std::unordered_map<std::string, ov::intel_gna::HWGeneration> StringHWGenerationMap{
+            {"GNA_TARGET_1_0", ov::intel_gna::HWGeneration::GNA_1_0},
+            {"GNA_TARGET_2_0", ov::intel_gna::HWGeneration::GNA_2_0},
+            {"GNA_TARGET_3_0", ov::intel_gna::HWGeneration::GNA_3_0},
+            {"GNA_TARGET_3_1", ov::intel_gna::HWGeneration::GNA_3_1},
+            {"GNA_TARGET_3_5", ov::intel_gna::HWGeneration::GNA_3_5},
+            {"GNA_TARGET_3_5_E", ov::intel_gna::HWGeneration::GNA_3_5_E},
+            {"GNA_TARGET_3_6", ov::intel_gna::HWGeneration::GNA_3_6},
+            {"GNA_TARGET_4_0", ov::intel_gna::HWGeneration::GNA_4_0}};
         auto parse_target = [&](const std::string& target) -> ov::intel_gna::HWGeneration {
             auto hw_target = ov::intel_gna::HWGeneration::UNDEFINED;
-
-            if (target == "GNA_TARGET_2_0") {
-                hw_target = ov::intel_gna::HWGeneration::GNA_2_0;
-            } else if (target == "GNA_TARGET_3_0") {
-                hw_target = ov::intel_gna::HWGeneration::GNA_3_0;
-            } else if (target == "GNA_TARGET_3_5") {
-                hw_target = ov::intel_gna::HWGeneration::GNA_3_5;
+            const auto key_iter = StringHWGenerationMap.find(target);
+            if (key_iter != StringHWGenerationMap.end()) {
+                hw_target = key_iter->second;
             } else if (!target.empty()) {
                 slog::warn << "Unsupported target: " << target << slog::endl;
             }
-
             return hw_target;
         };
 

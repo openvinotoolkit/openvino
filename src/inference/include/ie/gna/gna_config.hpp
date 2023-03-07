@@ -54,13 +54,6 @@ DECLARE_GNA_CONFIG_KEY(PRECISION);
 DECLARE_GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE);
 
 /**
- * @brief Generation of GNA embedded device to export the model.
- * @deprecated Key is deprecated and will be removed in a future release.
- */
-INFERENCE_ENGINE_DEPRECATED("The config key will be removed")
-DECLARE_GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION);
-
-/**
  * @brief GNA proc_type setting that should be one of GNA_AUTO, GNA_HW, GNA_HW_WITH_SW_FBACK, GNA_SW_EXACT
  */
 DECLARE_GNA_CONFIG_KEY(DEVICE_MODE);

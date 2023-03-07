@@ -11,7 +11,7 @@
 #include "common/gna_target.hpp"
 
 using namespace ov::intel_gna::limitations;
-using namespace ov::intel_gna::common;
+using namespace ov::intel_gna::target;
 
 struct GNACnn2DValidatorTestParam {
     DeviceVersion target;

@@ -19,7 +19,7 @@
 
 namespace ov {
 namespace intel_gna {
-using namespace common;
+using namespace target;
 namespace pass {
 using namespace helper;
 

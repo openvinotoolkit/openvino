@@ -117,9 +117,14 @@ inline std::istream& operator>>(std::istream& is, ExecutionMode& execution_mode)
  */
 enum class HWGeneration {
     UNDEFINED = 0,  //!< GNA HW generation is undefined
+    GNA_1_0 = 4,    //!< GNA HW generation 1.0
     GNA_2_0 = 1,    //!< GNA HW generation 2.0
     GNA_3_0 = 2,    //!< GNA HW generation 3.0
+    GNA_3_1 = 5,    //!< GNA HW generation 3.1
     GNA_3_5 = 3,    //!< GNA HW generation 3.5
+    GNA_3_5_E = 6,  //!< GNA HW generation 3.5 embedded
+    GNA_3_6 = 7,    //!< GNA HW generation 3.6
+    GNA_4_0 = 8,    //!< GNA HW generation 4.0
 };
 
 /** @cond INTERNAL */
@@ -127,12 +132,22 @@ inline std::ostream& operator<<(std::ostream& os, const HWGeneration& hw_generat
     switch (hw_generation) {
     case HWGeneration::UNDEFINED:
         return os << "UNDEFINED";
+    case HWGeneration::GNA_1_0:
+        return os << "GNA_1_0";
     case HWGeneration::GNA_2_0:
         return os << "GNA_2_0";
     case HWGeneration::GNA_3_0:
         return os << "GNA_3_0";
+    case HWGeneration::GNA_3_1:
+        return os << "GNA_3_1";
     case HWGeneration::GNA_3_5:
         return os << "GNA_3_5";
+    case HWGeneration::GNA_3_5_E:
+        return os << "GNA_3_5_E";
+    case HWGeneration::GNA_3_6:
+        return os << "GNA_3_6";
+    case HWGeneration::GNA_4_0:
+        return os << "GNA_4_0";
     default:
         throw ov::Exception{"Unsupported HW generation!"};
     }
@@ -143,12 +158,22 @@ inline std::istream& operator>>(std::istream& is, HWGeneration& hw_generation) {
     is >> str;
     if (str == "UNDEFINED") {
         hw_generation = HWGeneration::UNDEFINED;
+    } else if (str == "GNA_1_0") {
+        hw_generation = HWGeneration::GNA_1_0;
     } else if (str == "GNA_2_0") {
         hw_generation = HWGeneration::GNA_2_0;
     } else if (str == "GNA_3_0") {
         hw_generation = HWGeneration::GNA_3_0;
+    } else if (str == "GNA_3_1") {
+        hw_generation = HWGeneration::GNA_3_1;
     } else if (str == "GNA_3_5") {
         hw_generation = HWGeneration::GNA_3_5;
+    } else if (str == "GNA_3_5_E") {
+        hw_generation = HWGeneration::GNA_3_5_E;
+    } else if (str == "GNA_3_6") {
+        hw_generation = HWGeneration::GNA_3_6;
+    } else if (str == "GNA_4_0") {
+        hw_generation = HWGeneration::GNA_4_0;
     } else {
         throw ov::Exception{"Unsupported HW generation: " + str};
     }
