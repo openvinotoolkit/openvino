@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/embeddingbag_offsets_sum.hpp>
-
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/embeddingbag_offsets_sum.hpp"
 #include "utils.hpp"
+
 namespace ov {
 namespace op {
 namespace util {
@@ -45,13 +45,10 @@ std::vector<TShape> shape_infer(const ov::op::util::EmbeddingBagOffsetsBase* op,
     const auto& emb_table_shape = input_shapes[EMB_TABLE];
     const auto& offsets_shape = input_shapes[OFFSETS];
 
-    TShape output_shape;
+    auto output_shape = emb_table_shape;
     if (emb_table_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(op, emb_table_shape.size() > 0, "EMB_TABLE can't be a scalar.");
-        output_shape = emb_table_shape;
         output_shape[0] = offsets_shape.rank().is_static() ? offsets_shape[0] : Dimension::dynamic();
-    } else {
-        output_shape = PartialShape::dynamic();
     }
     return {output_shape};
 }
