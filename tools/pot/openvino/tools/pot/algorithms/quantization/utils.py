@@ -323,7 +323,7 @@ def get_input_shape_for_bias(activations_statistics, input_node_name):
 
 def get_ignored_operations(model):
     operation = {"transformer": [{"type": "Add"}, {"type": "Power"},
-                                 {"type": "Squeeze"}, {"type": "Multiply"},
+                                 {"type": "Squeeze"},
                                  {"type": "Subtract"}, {"type": "ReduceMean"},
                                  {"type": "SquaredDifference"}, {"type": "MVN"}]}
     return operation[model]
