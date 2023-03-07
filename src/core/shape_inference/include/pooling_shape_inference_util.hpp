@@ -55,6 +55,13 @@ void update_and_validate_attributes(TOp* op, const TShape& data_shape, const Str
     const auto num_spatial = kernel.size();
     const auto& strides = op->get_strides();
 
+    if (auto_pad == PadType::VALID || op->get_pads_begin().empty()) {
+        op->set_pads_begin(Shape(num_spatial, 0));
+    }
+    if (auto_pad == PadType::VALID || op->get_pads_end().empty()) {
+        op->set_pads_end(Shape(num_spatial, 0));
+    }
+
     NODE_VALIDATION_CHECK(op,
                           op->get_pads_begin().size() == num_spatial,
                           "Expected pads_begin size to be equal to input size - 2. Got: ",
@@ -107,13 +114,6 @@ void update_and_validate_attributes(TOp* op, const TShape& data_shape, const Str
                           std::none_of(dilations.cbegin(), dilations.cend(), is_zero),
                           "Kernel dilations has zero dimension(s). ",
                           dilations);
-
-    if (auto_pad == PadType::VALID || op->get_pads_begin().empty()) {
-        op->set_pads_begin(Shape(num_spatial, 0));
-    }
-    if (auto_pad == PadType::VALID || op->get_pads_end().empty()) {
-        op->set_pads_end(Shape(num_spatial, 0));
-    }
 }
 
 template <class TOp, class TDim>
