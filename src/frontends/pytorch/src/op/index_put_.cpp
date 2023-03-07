@@ -13,6 +13,7 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_index_put_(NodeContext& context) {
+    // Pass as PtFrameworkNode to register as `inplace_op`. Conversion to OV operators is done as transformation.
     auto node = std::make_shared<PtFrameworkNode>(context.get_decoder(), context.inputs());
     return {context.mark_node(node)};
 };
