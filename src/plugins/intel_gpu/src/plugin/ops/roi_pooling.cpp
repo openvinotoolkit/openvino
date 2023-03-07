@@ -96,8 +96,8 @@ static void CreateROIPoolingOp(Program& p, const std::shared_ptr<ngraph::op::v0:
 
     // params
     auto out_size = op->get_output_size();
-    int pooled_height = out_size[0];
-    int pooled_width = out_size[1];
+    int pooled_height = static_cast<int>(out_size[0]);
+    int pooled_width = static_cast<int>(out_size[1]);
     float spatial_scale = op->get_spatial_scale();
     bool position_sensitive = false;
 
