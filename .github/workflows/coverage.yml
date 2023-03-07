@@ -37,14 +37,13 @@ jobs:
       - name: Install dependencies
         run: |
           chmod +x install_build_dependencies.sh
+          sudo ./install_build_dependencies.sh
           mkdir build
 
       - name: Build OpenVINO
         run: |
-          cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF \
-                -DCMAKE_BUILD_TYPE=Release \
+          cmake -DCMAKE_BUILD_TYPE=Release \
                 -DENABLE_FASTER_BUILD=ON \
-                -DENABLE_OV_ONNX_FRONTEND=ON \
                 -DENABLE_TESTS=ON \
                 -DENABLE_COVERAGE=ON \
                 -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchains/ia32.linux.toolchain.cmake \
