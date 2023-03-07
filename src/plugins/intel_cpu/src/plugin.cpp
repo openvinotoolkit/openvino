@@ -380,14 +380,17 @@ int Engine::GetModelPreferThreads(const int num_streams,
             if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||
                 (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
                 // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
-                model_prefer = IStreamsExecutor::Config::StreamMode::AGGRESSIVE;
+                model_prefer = 1;
             }  // otherwise (no recognized layers) falling back to the default value
         } else if (networkToleranceForLowCache.max_mem_tolerance > memThresholdAssumeLimitedForISA) {
             // network is below the ISA-specific threshold
-            model_prefer = IStreamsExecutor::Config::StreamMode::AGGRESSIVE;
+            model_prefer = 1;
         } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
             // network is below general threshold
-            model_prefer = IStreamsExecutor::Config::StreamMode::LESSAGGRESSIVE;
+            model_prefer = 2;
+        }
+        if (model_prefer == 1 && proc_type_table[0][EFFICIENT_CORE_PROC] == 0 && sockets == 1) {
+            model_prefer = 2;
         }
     }
 
