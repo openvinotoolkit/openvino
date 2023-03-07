@@ -666,7 +666,7 @@ ov::Any ov::CoreImpl::get_property(const std::string& device_name,
         return get_property_for_core(name);
     } else if (name == ov::cache_dir.name()) {
         ov::AnyMap empty_map;
-        return coreConfig.get_cache_config_for_device(get_plugin(parsed._deviceName), empty_map);
+        return coreConfig.get_cache_config_for_device(get_plugin(parsed._deviceName), empty_map)._cacheDir;
     }
 
     return get_plugin(parsed._deviceName).get_property(name, parsed._config);
