@@ -18,6 +18,7 @@ namespace pytorch {
 namespace op {
 
 OutputVector translate_div(NodeContext& context) {
+    num_inputs_check(context, 2, 3);
     auto x = context.get_input(0);
     auto y = context.get_input(1);
     std::string rounding_mode = "";
@@ -40,7 +41,7 @@ OutputVector translate_div(NodeContext& context) {
     if (rounding_mode == "floor") {
         res = context.mark_node(std::make_shared<v0::Floor>(res));
     } else if (rounding_mode == "trunc") {
-        const auto convert = context.mark_node(std::make_shared<v0::Convert>(res, element::i64));
+        const auto convert = context.mark_node(std::make_shared<v0::Convert>(res, element::i32));
         res = context.mark_node(std::make_shared<v1::ConvertLike>(convert, x));
     }
     return {res};

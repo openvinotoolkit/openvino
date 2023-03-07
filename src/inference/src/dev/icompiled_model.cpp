@@ -1,18 +1,17 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "openvino/runtime/icompiled_model.hpp"
 
-#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "icompiled_model_wrapper.hpp"
 #include "openvino/core/model.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model,
                                    const std::shared_ptr<const ov::IPlugin>& plugin,
-                                   const InferenceEngine::ITaskExecutor::Ptr& task_executor,
-                                   const InferenceEngine::ITaskExecutor::Ptr& callback_executor)
+                                   const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
+                                   const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor)
     : m_plugin(plugin),
       m_task_executor(task_executor),
       m_callback_executor(callback_executor) {
@@ -78,17 +77,18 @@ const std::vector<ov::Output<const ov::Node>>& ov::ICompiledModel::outputs() con
 const std::vector<ov::Output<const ov::Node>>& ov::ICompiledModel::inputs() const {
     return m_inputs;
 }
-std::shared_ptr<InferenceEngine::IInferRequestInternal> ov::ICompiledModel::create_infer_request() const {
+
+std::shared_ptr<ov::IAsyncInferRequest> ov::ICompiledModel::create_infer_request() const {
     return create_async_infer_request();
 }
 
 const std::shared_ptr<const ov::IPlugin>& ov::ICompiledModel::get_plugin() const {
     return m_plugin;
 }
-const InferenceEngine::ITaskExecutor::Ptr ov::ICompiledModel::get_task_executor() const {
+const std::shared_ptr<ov::threading::ITaskExecutor> ov::ICompiledModel::get_task_executor() const {
     return m_task_executor;
 }
-const InferenceEngine::ITaskExecutor::Ptr ov::ICompiledModel::get_callback_executor() const {
+const std::shared_ptr<ov::threading::ITaskExecutor> ov::ICompiledModel::get_callback_executor() const {
     return m_callback_executor;
 }
 

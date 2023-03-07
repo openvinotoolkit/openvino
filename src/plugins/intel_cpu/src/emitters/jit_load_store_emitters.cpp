@@ -150,6 +150,11 @@ void jit_load_emitter::emit_isa(const Xbyak::Reg64 &reg_src, const int out_vec_i
                 break;
         }
     }
+
+    if (is_fill_) {
+        int dword_num_loaded = (src_prc_ != dst_prc_) ? load_num_ : (load_size_ / sizeof(float));
+        fill_with_default(Vmm(out_vec_idx), fill_value_, dword_num_loaded);
+    }
 }
 
 /**
@@ -313,9 +318,6 @@ void jit_load_emitter::load_bytes(const Vmm &vmm, const Xbyak::Reg64 &reg, int o
             break;
         }
     }
-
-    if (is_fill_)
-        fill_with_default(vmm, fill_value_, load_size / 4);
 }
 
 /**
@@ -407,9 +409,6 @@ void jit_load_emitter::load_bytes_to_dword_extension(const Vmm &vmm, const Xbyak
             break;
         }
     }
-
-    if (is_fill_)
-        fill_with_default(vmm, fill_value_, load_size);
 }
 
 /**
@@ -524,9 +523,6 @@ void jit_load_emitter::load_words_to_dword_extension(const Vmm &vmm, const Xbyak
             break;
         }
     }
-
-    if (is_fill_)
-        fill_with_default(vmm, fill_value_, load_size / 2);
 }
 
 template <typename Vmm>

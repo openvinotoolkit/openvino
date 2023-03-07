@@ -3,7 +3,6 @@
 //
 #include "gemm_inst.h"
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 #include <utility>
@@ -77,6 +76,10 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
     }
 
     auto output_format = input0_layout.format;
+
+    if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
+        output_format = node.get_preferred_output_fmt();
+    }
 
     return layout(output_shape, output_type, output_format, prim->output_paddings[0]);
 }
@@ -185,7 +188,7 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
     layouts[0].set_partial_shape(updated_input0_pshape);
     layouts[1].set_partial_shape(updated_input1_pshape);
 
-    if (input_layouts.size() == 3) {
+    if (primitive->input_size() == 3) {
         auto bias_pshape = input_layouts[2].get_partial_shape();
         auto updated_bias_pshape = get_updated_input_shape(bias_pshape, weight_rank, output_rank, primitive->transpose_input1, false);
         layouts[2].set_partial_shape(updated_bias_pshape);

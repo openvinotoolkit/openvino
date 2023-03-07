@@ -15,6 +15,7 @@
 #include "default_opset.hpp"
 #include "framework.pb.h"
 #include "input_model.hpp"
+#include "internal/pass/transform_fakequantize.hpp"
 #include "internal/pass/transform_if.hpp"
 #include "internal/pass/transform_tensorarray.hpp"
 #include "internal/pass/transform_while.hpp"
@@ -275,7 +276,7 @@ std::map<int32_t, std::shared_ptr<ov::Model>> FrontEnd::convert_each_node_recurs
                     // TODO: figure a way to safely handle unused outputs
                     if (named_outputs.count(port.parameter())) {
                         const auto& ng_outputs = named_outputs.at(port.parameter());
-                        FRONT_END_OP_CONVERSION_CHECK(ng_outputs.size() == port.arguments_size(),
+                        FRONT_END_OP_CONVERSION_CHECK(ng_outputs.size() == (size_t)port.arguments_size(),
                                                       "The number of output tensors must be equal to "
                                                       "the number of outputs of the OV node.");
                         for (size_t idx = 0; idx < ng_outputs.size(); ++idx) {
@@ -328,6 +329,18 @@ void FrontEnd::try_remove_internal_ops(const std::vector<std::shared_ptr<Model>>
         manager.register_pass<ov::frontend::paddle::pass::TransformTensorArray>(models);
         manager.register_pass<ov::frontend::paddle::pass::TransformIf>(models);
         manager.register_pass<ov::frontend::paddle::pass::TransformWhile>(models);
+        manager.run_passes(model);
+    }
+    if (models.size() > 0) {
+        // revalidate as child models are transformed after parent models.
+        models[0]->validate_nodes_and_infer_types();
+    }
+}
+
+void FrontEnd::fuse_fakequantize_ops(const std::vector<std::shared_ptr<Model>>& models) const {
+    for (auto& model : models) {
+        ov::pass::Manager manager;
+        manager.register_pass<ov::frontend::paddle::pass::TransformFakeQuantize>();
         manager.run_passes(model);
     }
     if (models.size() > 0) {
@@ -430,6 +443,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const InputModel::Ptr& model) const
             return paddle::make_ng_node(nodes_dict, op_place, m_op_translators);
         });
 
+    fuse_fakequantize_ops(f);
     try_remove_internal_ops(f);
     return f[0];
 }
@@ -444,6 +458,7 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
         result->validate_and_infer_types();
     }
 
+    fuse_fakequantize_ops({partiallyConverted});
     try_remove_internal_ops({partiallyConverted});
 }
 
@@ -475,6 +490,7 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& mo
             return named_outputs;
         });
 
+    fuse_fakequantize_ops(f);
     try_remove_internal_ops(f);
 
     return f[0];
