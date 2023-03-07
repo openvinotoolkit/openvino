@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include "openvino/frontend/input_model.hpp"
-#include "openvino/frontend/pytorch/frontend.hpp"
+#include "input_model.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 
 namespace ov {
@@ -28,8 +27,10 @@ public:
     /// context which is visible from nested model. Empty external_tensor_map is used as an indication that this is a
     /// main body conversion.
     /// \return fully converted OV Model
-    std::shared_ptr<Model> convert_pytorch_model(std::shared_ptr<TorchDecoder> pytorch_model,
-                                                 const TensorMap& external_tensor_map = {});
+    std::shared_ptr<Model> convert_pytorch_model(
+        std::shared_ptr<TorchDecoder> pytorch_model,
+        const TensorMap& external_tensor_map = {},
+        const std::unordered_map<size_t, PlaceDesc>& external_descriptors = {});
 
     void encode_tensor_name(Output<Node> tensor_desc, size_t tensor_idx, std::string debug_name = "");
     size_t decode_tensor_name(const Output<Node>& tensor_desc);
