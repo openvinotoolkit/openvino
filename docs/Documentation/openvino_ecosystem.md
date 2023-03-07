@@ -8,7 +8,6 @@
 
    ote_documentation
    ovtf_integration
-   ote_documentation
    ovsa_get_started
    openvino_inference_engine_tools_compile_tool_README
    openvino_docs_tuning_utilities
