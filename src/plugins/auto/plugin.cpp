@@ -533,15 +533,20 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         const auto& deviceConfig = p.config;
         SoExecutableNetworkInternal exec_net;
         LOG_DEBUG_TAG("load network to device:%s", deviceName.c_str());
-        if (modelPath.empty()) {
-            exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
-        } else if (GetCore()->DeviceSupportsImportExport(deviceName)) {
-            exec_net = GetCore()->LoadNetwork(modelPath, deviceName, deviceConfig);
-        } else {
-            std::call_once(readNetworkFlag, [&]() {
-                network = GetCore()->ReadNetwork(modelPath, std::string());
-            });
-            exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
+        try {
+            if (modelPath.empty()) {
+                exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
+            } else {
+                exec_net = GetCore()->LoadNetwork(modelPath, deviceName, deviceConfig);
+            }
+        } catch (const IE::Exception& iie) {
+            if (_LogTag == "AUTO") {
+                LOG_DEBUG_TAG("Failed to load network to device:%s with error: %s", deviceName.c_str(), iie.what());
+                return;
+            } else {
+                IE_THROW() << "Failed to load network to device: " << deviceName.c_str() << " with error:" <<
+                    iie.what();
+            }
         }
 
         try {
