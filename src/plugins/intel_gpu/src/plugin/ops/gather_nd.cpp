@@ -21,7 +21,8 @@ static void CreateGatherNDOp(Program& p, const std::shared_ptr<ngraph::op::v5::G
     auto input_rank = op->get_input_partial_shape(0).size();
     auto indices_rank = op->get_input_partial_shape(1).size();
 
-    auto batch_dims = op->get_batch_dims();
+    auto batch_dims = static_cast<uint8_t>(op->get_batch_dims());
+    auto batch_merged_output = true;
 
     auto primitive = cldnn::gather_nd(layerName,
                                       inputs[0],
@@ -29,7 +30,7 @@ static void CreateGatherNDOp(Program& p, const std::shared_ptr<ngraph::op::v5::G
                                       input_rank,
                                       indices_rank,
                                       batch_dims,
-                                      true);
+                                      batch_merged_output);
 
     p.add_primitive(*op, primitive);
 }

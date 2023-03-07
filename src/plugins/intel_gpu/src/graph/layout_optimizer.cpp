@@ -827,7 +827,7 @@ static bool is_node_for_onednn(fully_connected_node const& node) {
     auto fc_prim = node.get_primitive();
     auto ps = node.get_output_layout().get_partial_shape();
     int non_spatial_count = 2 + (fc_prim->input_size == 3 ? 1 : 0);
-    int rank = ps.size();
+    int rank = static_cast<int>(ps.size());
 
     // OneDnn doesn't support spatial dimensions for output
     for (int i = non_spatial_count; i < rank; i++) {
