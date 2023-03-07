@@ -5,7 +5,7 @@
 #pragma once
 
 #include "intel_gpu/primitives/primitive.hpp"
-#include "meta_utils.h"
+#include "intel_gpu/runtime/utils.hpp"
 
 namespace cldnn {
 
