@@ -32,6 +32,7 @@
 #include <memory>
 #include <algorithm>
 
+namespace cldnn {
 namespace {
 
 bool is_optimized_output_user(const program_node* user) {
@@ -80,7 +81,6 @@ bool is_user_cpu(const program_node* user) {
 }
 }  // namespace
 
-namespace cldnn {
 bool is_any_user_cpu(const std::list<const program_node*>& users) {
     for (const auto& user : users) {
         if (is_user_cpu(user))
@@ -153,6 +153,9 @@ void primitive_inst::update_shape() {
         auto idx = _deps[i].second;
         auto new_shape = _deps[i].first->_impl_params->get_output_layout(idx);
         if (_impl_params->get_input_layout(i) != new_shape) {
+            GPU_DEBUG_TRACE_DETAIL << id() << ": update shape dep: " << _deps[i].first->id()
+                                   << " was: " << _impl_params->get_input_layout(i).to_short_string()
+                                   << " now: " << new_shape.to_short_string() << std::endl;
             _impl_params->input_layouts[i] = new_shape;
             input_shape_changed = true;
         }
@@ -321,10 +324,9 @@ bool primitive_inst::update_impl() {
         // Update param if fake_alignment is available
         auto updated_params = _node->type()->get_fake_aligned_params(*_impl_params);
         auto impl_key = get_impl_key(updated_params);
-        auto& cache = get_network().get_implementations_cache();
+        auto& cache = get_network().get_program()->get_implementations_cache();
         bool has_cached_impl = false;
         {
-            std::lock_guard<std::mutex> lock(get_network().get_impl_cache_mutex());
             has_cached_impl = cache.has(impl_key);
             if (has_cached_impl) {
                 _impl = cache.get(impl_key)->clone();
@@ -337,11 +339,13 @@ bool primitive_inst::update_impl() {
         }
         if (!has_cached_impl) {
             if (_dynamic_impl) {
-                auto& compilation_context = get_network().get_compilation_context();
-                compilation_context.push_task(impl_key, [this, updated_params, impl_key](kernels_cache& kc) {
-                    auto& cache = get_network().get_implementations_cache();
+                auto& compilation_context = get_network().get_program()->get_compilation_context();
+                compilation_context.push_task(impl_key, [this, &compilation_context, updated_params, impl_key]() {
+                    if (compilation_context.is_stopped())
+                        return;
+                    auto _program = get_network().get_program();
+                    auto& cache = _program->get_implementations_cache();
                     {
-                        std::lock_guard<std::mutex> lock(get_network().get_impl_cache_mutex());
                         // Check existense in the cache one more time as several iterations of model execution could happens and multiple compilation
                         // tasks created for same shapes
                         if (cache.has(impl_key))
@@ -349,13 +353,8 @@ bool primitive_inst::update_impl() {
                     }
 
                     auto impl = _node->type()->choose_impl(*_node, updated_params);
-                    auto kernel_ids = kc.add_kernels_source(impl->get_kernels_source());
-                    impl->set_kernel_ids(kernel_ids);
-                    kc.compile();
-                    impl->init_kernels(kc);
-                    kc.reset();
-
-                    std::lock_guard<std::mutex> lock(get_network().get_impl_cache_mutex());
+                    auto kernels = _program->get_kernels_cache().compile(impl->get_kernels_source());
+                    impl->set_kernels(kernels);
                     cache.add(impl_key, impl->clone());
                 });
                 _impl = _dynamic_impl->clone();
@@ -364,13 +363,9 @@ bool primitive_inst::update_impl() {
                 update_shape_info(*_impl_params);
             } else {
                 _impl = _node->type()->choose_impl(*_node, updated_params);
-                auto& kernels_cache = get_network().get_kernels_cache();
-                auto kernel_ids = kernels_cache.add_kernels_source(_impl->get_kernels_source());
-                _impl->set_kernel_ids(kernel_ids);
-                kernels_cache.compile();
-                _impl->init_kernels(kernels_cache);
-                kernels_cache.reset();
-                std::lock_guard<std::mutex> lock(get_network().get_impl_cache_mutex());
+                auto& kernels_cache = get_network().get_program()->get_kernels_cache();
+                auto kernels = kernels_cache.compile(_impl->get_kernels_source());
+                _impl->set_kernels(kernels);
                 cache.add(impl_key, _impl->clone());
 
                 auto new_impl_str = _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
@@ -526,7 +521,7 @@ void primitive_inst::rebuild_exec_deps(
 primitive_inst::primitive_inst(network& network)
     : _network(network)
     , _node(nullptr)
-    , _impl_params(nullptr)
+    , _impl_params(make_unique<kernel_impl_params>())
     , _impl(nullptr)
     , _dynamic_impl(nullptr)
     , _outputs({memory::ptr()})
@@ -707,12 +702,11 @@ event::ptr primitive_inst::update_weights() {
         } else {
             GPU_DEBUG_TRACE_DETAIL << id() << ": reorder weights from " << original_layout.to_short_string()
                                     << " to " << expected_layout.to_short_string() << std::endl;
-            auto& kernels_cache = get_network().get_kernels_cache();
-            auto kernel_id = kernels_cache.set_kernel_source(weights_params.clKernel->code.kernelString, false);
-            kernels_cache.compile();
-            kernel = kernels_cache.get_kernel(kernel_id);
+            auto& kernels_cache = get_network().get_program()->get_kernels_cache();
+            auto kernels = kernels_cache.compile({weights_params.clKernel->code.kernelString});
+            OPENVINO_ASSERT(kernels.size() == 1, "The output of kernel compile has issue");
+            kernel = kernels.begin()->second;
             cache.add(kernel_key, kernel);
-            kernels_cache.reset();
         }
 
         auto& stream = get_network().get_stream();
@@ -1142,41 +1136,9 @@ void primitive_inst::save(cldnn::BinaryOutputBuffer& ob) const {
 
     if (_impl != nullptr) {
         ob << true;
-        kernel_arguments_data args = _impl->get_arguments(*this);
-        kernel_arguments_data_idx args_idx;
-        convert_args(args, args_idx);
-        _impl->set_arguments(args_idx);
         ob << _impl;
     } else {
         ob << false;
-    }
-}
-
-void primitive_inst::convert_args(const kernel_arguments_data& args, kernel_arguments_data_idx& args_idx) const {
-    if (args.inputs.size() > 0) {
-        args_idx.inputs.resize(args.inputs.size());
-        for (uint32_t idx = 0; idx < args.inputs.size(); ++idx) {
-            args_idx.inputs[idx] = get_index_in_deps(args.inputs[idx]);
-        }
-    }
-
-    args_idx.weights = (args.weights == nullptr) ? -1 : get_index_in_deps(args.weights);
-    args_idx.recurrent = (args.recurrent == nullptr) ? -1 : get_index_in_deps(args.recurrent);
-    args_idx.hidden = (args.hidden == nullptr) ? -1 : get_index_in_deps(args.hidden);
-    args_idx.cell = (args.cell == nullptr) ? -1 : get_index_in_deps(args.cell);
-    args_idx.bias = (args.bias == nullptr) ? -1 : get_index_in_deps(args.bias);
-    args_idx.weights_zero_points = (args.weights_zero_points == nullptr) ? -1 : get_index_in_deps(args.weights_zero_points);
-    args_idx.activations_zero_points = (args.activations_zero_points == nullptr) ? -1 : get_index_in_deps(args.activations_zero_points);
-    args_idx.compensation = (args.compensation == nullptr) ? -1 : get_index_in_deps(args.compensation);
-    args_idx.lookup_table = (args.lookup_table == nullptr) ? -1 : get_index_in_deps(args.lookup_table);
-    args_idx.scale_table = (args.scale_table == nullptr) ? -1 : get_index_in_deps(args.scale_table);
-    args_idx.slope = (args.slope == nullptr) ? -1 : get_index_in_deps(args.slope);
-
-    if (args.fused_op_inputs.size() > 0) {
-        args_idx.fused_op_inputs.resize(args.fused_op_inputs.size());
-        for (uint32_t idx = 0; idx < args.fused_op_inputs.size(); ++idx) {
-            args_idx.fused_op_inputs[idx] = get_index_in_deps(args.fused_op_inputs[idx]);
-        }
     }
 }
 
@@ -1190,8 +1152,6 @@ int32_t primitive_inst::get_index_in_deps(memory::cptr arg) const {
 }
 
 void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
-    _impl_params.release();
-    _impl_params = make_unique<kernel_impl_params>();
     _impl_params->load(ib);
     ib.setKernlImplParams(_impl_params.get());
 
