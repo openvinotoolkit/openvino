@@ -67,7 +67,7 @@ void MultiDeviceInferRequest::CreateInferRequest(const InferenceEngine::SoIInfer
         auto l = it.second->getLayout();
         auto p = it.second->getPrecision();
         auto dims = it.second->getTensorDesc().getDims();
-
+        // for 1.0 API, dims is not dynamic anyway
         if (InferenceEngine::details::product(dims) == 0 && !modelOutputsMap.empty()) {
             // replace the dims with one from dynamic shape
             const auto outputNodeItr = modelOutputsMap.find(it.first);
