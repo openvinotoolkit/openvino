@@ -660,11 +660,15 @@ ov::Any ov::CoreImpl::get_property(const std::string& device_name,
                     "You can only get_property of the BATCH itself (without devices). "
                     "get_property is also possible for the individual devices before creating the BATCH on top.");
 
-    if (device_name.empty()) {
+    auto parsed = parseDeviceNameIntoConfig(device_name, arguments);
+
+    if (parsed._deviceName.empty()) {
         return get_property_for_core(name);
+    } else if (name == ov::cache_dir.name()) {
+        ov::AnyMap empty_map;
+        return coreConfig.get_cache_config_for_device(get_plugin(parsed._deviceName), empty_map);
     }
 
-    auto parsed = parseDeviceNameIntoConfig(device_name, arguments);
     return get_plugin(parsed._deviceName).get_property(name, parsed._config);
 }
 
