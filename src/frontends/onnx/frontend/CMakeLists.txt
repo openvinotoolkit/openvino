@@ -16,7 +16,7 @@ ov_add_frontend(NAME onnx
                 LINK_LIBRARIES ngraph::builder onnx_common openvino::core::dev)
 
 set(ONNX_OPSET_VERSION 17 CACHE INTERNAL "Supported version of ONNX operator set")
-target_compile_definitions(${TARGET_NAME} PUBLIC ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
+target_compile_definitions(${TARGET_NAME} PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
                     SOURCE_DIRECTORY "${${TARGET_NAME}_INCLUDE_DIR}"

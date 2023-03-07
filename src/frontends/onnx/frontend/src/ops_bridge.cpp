@@ -176,6 +176,8 @@
 #include "op/where.hpp"
 #include "op/xor.hpp"
 
+using namespace ov::frontend::onnx;
+
 namespace ngraph {
 namespace onnx_import {
 namespace {
@@ -195,10 +197,10 @@ typename Container::const_iterator find(int64_t version, const Container& map) {
 }
 }  // namespace
 
-void OperatorsBridge::register_operator_in_custom_domain(const std::string& name,
-                                                         const VersionRange& range,
+void OperatorsBridge::register_operator_in_custom_domain(std::string name,
+                                                         VersionRange range,
                                                          Operator fn,
-                                                         const std::string& domain,
+                                                         std::string domain,
                                                          std::string warning_mes) {
     for (int version = range.m_from; version <= range.m_to; ++version) {
         register_operator(name, version, domain, fn);
@@ -207,10 +209,7 @@ void OperatorsBridge::register_operator_in_custom_domain(const std::string& name
                 << " registered with warning: " << warning_mes;
 }
 
-void OperatorsBridge::register_operator(const std::string& name,
-                                        const VersionRange& range,
-                                        Operator fn,
-                                        std::string warning_mes) {
+void OperatorsBridge::register_operator(std::string name, VersionRange range, Operator fn, std::string warning_mes) {
     register_operator_in_custom_domain(name, range, std::move(fn), "", warning_mes);
 }
 

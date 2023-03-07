@@ -76,13 +76,13 @@ public:
     void overwrite_operator(const std::string& name, const std::string& domain, Operator fn);
 
 private:
-    void register_operator_in_custom_domain(const std::string& name,
-                                            const VersionRange& range,
+    void register_operator_in_custom_domain(std::string name,
+                                            ov::frontend::onnx::VersionRange range,
                                             Operator fn,
-                                            const std::string& domain,
+                                            std::string domain,
                                             std::string warning_mes = "");
-    void register_operator(const std::string& name,
-                           const VersionRange& range,
+    void register_operator(std::string name,
+                           ov::frontend::onnx::VersionRange range,
                            Operator fn,
                            std::string warning_mes = "");
     // Registered operators structure
