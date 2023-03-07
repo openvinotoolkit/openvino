@@ -157,6 +157,10 @@ void GraphOptimizer::ApplyCommonGraphOptimizations(Graph &graph) {
     reshapeRnnSeq(graph);
     graph.RemoveDroppedNodes();
 
+    OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "RemoveSameConvert");
+    RemoveSameConvert(graph);
+    graph.RemoveDroppedNodes();
+
     OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, "RemoveDroppedEdges");
     graph.RemoveDroppedEdges();
 }
@@ -2283,6 +2287,32 @@ void GraphOptimizer::reshapeRnnSeq(Graph &graph) {
 
             graph.RemoveEdge(edge);
         }
+    }
+}
+
+/*
+Remove Redundant Convert Node
+Example: BF16 model output is forced by post-procesing API
+Node [FP32] -> Convert[BF16] -> Outputs[BF16]
+After EnforceBF16 routine the subgraph becomes:
+Node [BF16] -> Convert [BF16] -> Outputs [BF16]
+So Convert is redundant."
+*/
+
+void GraphOptimizer::RemoveSameConvert(Graph& graph) {
+    auto& graphNodes = graph.GetNodes();
+
+    auto isSuitableParentNode = [](NodePtr parentNode) {
+        return parentNode->getType() == Type::Convert &&
+               (parentNode->getOriginalOutputPrecisionAtPort(0) == parentNode->getOriginalInputPrecisionAtPort(0));
+    };
+
+    for (size_t i = 0; i < graphNodes.size(); i++) {
+        auto parentNode = graphNodes[i];
+        if (!isSuitableParentNode(parentNode)) {
+            continue;
+        }
+        graph.DropNode(parentNode);
     }
 }
 

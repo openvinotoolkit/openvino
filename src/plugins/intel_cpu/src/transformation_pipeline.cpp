@@ -566,7 +566,7 @@ void Transformations::MainSnippets(void) {
     ngraph::pass::Manager snippetsManager;
     snippetsManager.set_per_pass_validation(false);
     if (snippetsMode != Config::SnippetsMode::IgnoreCallback)
-        snippetsManager.register_pass<SnippetsMarkSkipped>();
+        snippetsManager.register_pass<SnippetsMarkSkipped>(enableBF16);
     snippetsManager.register_pass<ngraph::snippets::pass::SnippetsTokenization>();
 
     const bool isMHASupported =

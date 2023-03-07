@@ -423,6 +423,32 @@ void MarkSubgraphOpAsSkipped(const std::shared_ptr<Node> &node) {
         }
     }
 }
+
+bool isSuitableConvert(const std::shared_ptr<const Node>& node) {
+    if (!ov::is_type<ngraph::op::Convert>(node))
+        return false;
+    auto hasResult = [](const std::shared_ptr<const Node>& node){
+        auto consumers = node->output(0).get_target_inputs();
+        bool findResult = false;
+        if (consumers.size() == 1) {
+            if (ov::is_type<ngraph::op::Result>(consumers.begin()->get_node()))
+                findResult = true;
+        }
+        return findResult;
+    };
+    // 1. check Parameter->Convert 2. check Convert->Result
+    if (ov::is_type<ngraph::op::Parameter>(node->get_input_node_ptr(0))) {
+        auto inPrc = node->get_input_element_type(0);
+        auto outPrc = node->get_output_element_type(0);
+        return inPrc == element::bf16 && outPrc == element::f32;
+    } else if (hasResult(node)) {
+        auto inPrc = node->get_input_element_type(0);
+        auto outPrc = node->get_output_element_type(0);
+        return inPrc == element::f32 && outPrc == element::bf16;
+    } else {
+        return false;
+    }
+}
 } // namespace
 
 bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
@@ -456,6 +482,12 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model> &m) {
                 SetNodeFusingType(node, NodeFusingType::FusedWithMatMul);
             channelAxis = DEFAULT_AXIS;
         } else if (isSuitableSubtractAsZeroPointsParent(node)) {
+            SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
+            channelAxis = DEFAULT_AXIS;
+        // CVS-105447
+        // This WA skip convert with same I/O precision in Snippets
+        // Such useless Convert is executed in Snippets
+        } else if (enableBF16 && isSuitableConvert(node)) {
             SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
             channelAxis = DEFAULT_AXIS;
         } else {
