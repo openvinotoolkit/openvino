@@ -48,6 +48,11 @@ public:
         FRONT_END_NOT_IMPLEMENTED(get_input);
     }
 
+    /// \brief Returns const input with a given index
+    virtual Any const_input(int idx) const {
+        FRONT_END_NOT_IMPLEMENTED(const_input);
+    }
+
     virtual const std::string& get_op_type() const {
         return m_op_type;
     }

@@ -8,11 +8,11 @@ import onnx
 import numpy as np
 from onnx.helper import make_graph, make_model, make_tensor_value_info
 import pytest
-from pathlib import Path
-from itertools import chain
 
 from openvino.frontend import FrontEndManager
 from tests.runtime import get_runtime
+
+from tests.test_frontend.common import get_builtin_extensions_path
 
 
 def create_onnx_model():
@@ -683,17 +683,6 @@ def test_op_extension_via_frontend_extension_map_attributes():
     assert model
 
 
-def get_builtin_extensions_path():
-    win_folder_path = Path(__file__).parent.parent.parent.parent
-    linux_folder_path = win_folder_path.joinpath("lib")
-    for lib_path in chain(win_folder_path.glob("*.dll"), linux_folder_path.glob("*.so")):
-        if "libtest_builtin_extensions" in lib_path.name:
-            return str(lib_path)
-    return ""
-
-
-@pytest.mark.skipif(len(get_builtin_extensions_path()) == 0,
-                    reason="The extension library path was not found")
 def test_so_extension_via_frontend_convert_input_model():
     skip_if_onnx_frontend_is_disabled()
 
@@ -709,8 +698,6 @@ def test_so_extension_via_frontend_convert_input_model():
     assert all(op.get_type_name() != "Relu" for op in model.get_ops())
 
 
-@pytest.mark.skipif(len(get_builtin_extensions_path()) == 0,
-                    reason="The extension library path was not found")
 def test_so_extension_via_frontend_decode_input_model():
     skip_if_onnx_frontend_is_disabled()
 

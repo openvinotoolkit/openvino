@@ -112,6 +112,15 @@ public:
     OpExtensionBase(const std::string& fw_type_name,
                     const std::map<std::string, std::string>& attr_names_map = {},
                     const std::map<std::string, ov::Any>& attr_values_map = {});
+
+    OpExtensionBase(const std::map<std::string, size_t>& attr_names_map,
+                    const std::map<std::string, ov::Any>& attr_values_map = {})
+        : OpExtensionBase(OVOpType::get_type_info_static().name, attr_names_map, attr_values_map) {}
+
+    // Maps op with a given type in FW and OV type given in template parameter
+    OpExtensionBase(const std::string& fw_type_name,
+                    const std::map<std::string, size_t>& attr_names_map,
+                    const std::map<std::string, ov::Any>& attr_values_map = {});
 };
 
 template <typename BaseConversionType>
@@ -130,6 +139,17 @@ public:
     OpExtensionBase(const std::string& ov_type_name,
                     const std::string& fw_type_name,
                     const std::map<std::string, std::string>& attr_names_map = {},
+                    const std::map<std::string, ov::Any>& attr_values_map = {});
+
+    explicit OpExtensionBase(const std::string& fw_ov_type_name,
+                             const std::map<std::string, size_t>& attr_names_map,
+                             const std::map<std::string, ov::Any>& attr_values_map = {})
+        : OpExtensionBase(fw_ov_type_name, fw_ov_type_name, attr_names_map, attr_values_map) {}
+
+    // Maps op with a given type in FW and specified OV type given in template parameter
+    OpExtensionBase(const std::string& ov_type_name,
+                    const std::string& fw_type_name,
+                    const std::map<std::string, size_t>& attr_names_map,
                     const std::map<std::string, ov::Any>& attr_values_map = {});
 };
 
@@ -198,6 +218,85 @@ private:
     std::map<std::string, ov::Any> m_attr_values_map;
 };
 
+class FWVisitorInputAttributes : public ov::AttributeVisitor {
+public:
+    explicit FWVisitorInputAttributes(const NodeContext& context,
+                                      const std::map<std::string, size_t>& attr_names_map = {},
+                                      const std::map<std::string, ov::Any>& attr_values_map = {})
+        : m_context(context),
+          m_attr_names_map(attr_names_map),
+          m_attr_values_map(attr_values_map) {}
+
+    void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
+        auto p_value = m_attr_values_map.find(name);
+
+        if (p_value != m_attr_values_map.end()) {
+            adapter.set_as_any(p_value->second);
+        } else {
+            auto it = m_attr_names_map.find(name);
+            OPENVINO_ASSERT(it != m_attr_names_map.end(),
+                            "\nValue for attribute \"",
+                            name,
+                            "\" is not set or mapping between "
+                            "framework and openvino node attributes is incorrect.");
+            try {
+                auto a = m_context.const_input(it->second);
+                adapter.set_as_any(a);
+            } catch (::ov::AssertFailure& ex) {
+                OPENVINO_ASSERT(false,
+                                ex.what(),
+                                "\nValue for attribute \"",
+                                "\nMapping between ",
+                                "framework and openvino node for attribute \"",
+                                name,
+                                "\" is incorrect.");
+            }
+        }
+    }
+
+private:
+    const NodeContext& m_context;
+    const std::map<std::string, size_t>& m_attr_names_map;
+    const std::map<std::string, ov::Any>& m_attr_values_map;
+};
+
+class OpConversionFunctionInputAttributes {
+public:
+    explicit OpConversionFunctionInputAttributes(const std::function<std::shared_ptr<ov::Node>()>& op_creator,
+                                                 const std::map<std::string, size_t>& attr_names_map = {},
+                                                 const std::map<std::string, ov::Any>& attr_values_map = {})
+        : m_op_creator(op_creator),
+          m_attr_names_map(attr_names_map),
+          m_attr_values_map(attr_values_map) {
+        first_attr_index = std::numeric_limits<size_t>::max();
+        for (const auto& it : m_attr_names_map) {
+            first_attr_index = std::min(first_attr_index, it.second);
+        }
+    }
+
+    ov::OutputVector operator()(const NodeContext& context) {
+        auto node = m_op_creator();
+
+        std::vector<Output<Node>> inputs;
+        for (size_t i = 0; i < context.get_input_size(); ++i) {
+            if (i < first_attr_index) {
+                inputs.push_back(context.get_input(static_cast<int>(i)));
+            }
+        }
+        node->set_arguments(inputs);
+        FWVisitorInputAttributes fw_visitor(context, m_attr_names_map, m_attr_values_map);
+        node->visit_attributes(fw_visitor);
+        node->validate_and_infer_types();
+        return node->outputs();
+    }
+
+private:
+    std::function<std::shared_ptr<ov::Node>()> m_op_creator;
+    std::map<std::string, size_t> m_attr_names_map;
+    std::map<std::string, ov::Any> m_attr_values_map;
+    size_t first_attr_index;
+};
+
 template <typename BaseConversionType>
 OpExtensionBase<BaseConversionType, void>::OpExtensionBase(const std::string& ov_type_name,
                                                            const std::string& fw_type_name,
@@ -211,12 +310,37 @@ OpExtensionBase<BaseConversionType, void>::OpExtensionBase(const std::string& ov
                              attr_names_map,
                              attr_values_map)) {}
 
+template <typename BaseConversionType>
+OpExtensionBase<BaseConversionType, void>::OpExtensionBase(const std::string& ov_type_name,
+                                                           const std::string& fw_type_name,
+                                                           const std::map<std::string, size_t>& attr_names_map,
+                                                           const std::map<std::string, ov::Any>& attr_values_map)
+    : BaseConversionType(fw_type_name,
+                         OpConversionFunctionInputAttributes(
+                             [ov_type_name]() {
+                                 return create_ov_node_by_name(ov_type_name);
+                             },
+                             attr_names_map,
+                             attr_values_map)) {}
+
 template <typename BaseConversionType, typename OVOpType>
 OpExtensionBase<BaseConversionType, OVOpType>::OpExtensionBase(const std::string& fw_type_name,
                                                                const std::map<std::string, std::string>& attr_names_map,
                                                                const std::map<std::string, ov::Any>& attr_values_map)
     : BaseConversionType(fw_type_name,
                          OpConversionFunction(
+                             []() {
+                                 return std::make_shared<OVOpType>();
+                             },
+                             attr_names_map,
+                             attr_values_map)) {}
+
+template <typename BaseConversionType, typename OVOpType>
+OpExtensionBase<BaseConversionType, OVOpType>::OpExtensionBase(const std::string& fw_type_name,
+                                                               const std::map<std::string, size_t>& attr_names_map,
+                                                               const std::map<std::string, ov::Any>& attr_values_map)
+    : BaseConversionType(fw_type_name,
+                         OpConversionFunctionInputAttributes(
                              []() {
                                  return std::make_shared<OVOpType>();
                              },
