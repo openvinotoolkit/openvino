@@ -19,8 +19,6 @@ endif()
 
 project(OpenVINO DESCRIPTION "OpenVINO toolkit")
 
-set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "CMake build type" FORCE)
-
 find_package(IEDevScripts REQUIRED
              PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
              NO_CMAKE_FIND_ROOT_PATH
