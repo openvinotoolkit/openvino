@@ -249,8 +249,6 @@ public:
     std::pair<int64_t/*const alloc*/, int64_t/*general alloc*/> get_estimated_device_mem_usage();
 
     void remove_kernel(kernel_id id);
-    bool is_local_block_io_supported() const;
-    void query_local_block_io_supported();
     void calc_nodes_hash();
 
     ImplementationsCache& get_implementations_cache() const { return *_impls_cache; }
@@ -270,7 +268,6 @@ private:
     nodes_ordering processing_order;
     std::unique_ptr<pass_manager> pm;
     bool is_body_program;
-    int8_t is_subgroup_local_block_io_supported;
     std::unique_ptr<ImplementationsCache> _impls_cache;
     const size_t _impls_cache_capacity = 10000;
     std::unique_ptr<ICompilationContext> _compilation_context;
