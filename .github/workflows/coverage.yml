@@ -49,8 +49,9 @@ jobs:
                 -DENABLE_TESTS=ON 
                 -DENABLE_COVERAGE=ON
                 -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchains/ia32.linux.toolchain.cmake
-                -DENABLE_INTEL_GPU=OFF ..
-          make --jobs=$(nproc -all)
+                -DENABLE_INTEL_GPU=OFF
+                -B build
+          cmake --build build --target all --jobs=$(nproc -all)
 
       - name: ls all
         run:  ls -laR .
