@@ -7,36 +7,29 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/pytorch/visibility.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
 #include "openvino/op/gather_nd.hpp"
+#include "openvino/op/mod.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/non_zero.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_nd_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/convert_like.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/mod.hpp"
-#include "openvino/op/scatter_nd_update.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/slice.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -47,9 +40,7 @@ namespace pass {
 using namespace ov::op;
 
 namespace {
-Output<Node> generate_zeros_with_convertlike(
-                                             const Output<Node> sizes,
-                                             const Output<Node> tensor_of_type) {
+Output<Node> generate_zeros_with_convertlike(const Output<Node> sizes, const Output<Node> tensor_of_type) {
     auto const_0 = v0::Constant::create(element::i32, Shape{}, {0});
     auto zeros = std::make_shared<v3::Broadcast>(const_0, sizes);
     return std::make_shared<v1::ConvertLike>(zeros, tensor_of_type);
@@ -66,15 +57,15 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
         }
         auto const_0 = (v0::Constant::create(element::i32, Shape{}, {0}));
         auto const_1 = (v0::Constant::create(element::i32, Shape{1}, {1}));
-        auto const_max_int =
-            (v0::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>::max()}));
+        auto const_max_int = (v0::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>::max()}));
         auto const_neg_1 = (v0::Constant::create(element::i32, Shape{}, {-1}));
 
         auto input = index_op->input_value(0);
         auto input_shape = std::make_shared<v3::ShapeOf>(input, element::i32);
         auto indices = index_op->input_value(1);
         auto values = index_op->input_value(2);
-        auto acc_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(index_op->input_value(3).get_node_shared_ptr());
+        auto acc_const =
+            std::dynamic_pointer_cast<ov::op::v0::Constant>(index_op->input_value(3).get_node_shared_ptr());
         if (!acc_const) {
             return false;
         }
@@ -118,8 +109,7 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
             broadcast_index_shape = std::make_shared<v3::ShapeOf>(index, element::i32);
             OutputVector indices_list;
             for (int i = 0; i < indices_list_len; i++) {
-                auto broadcast =
-                    std::make_shared<v3::Broadcast>(indices_inputs[i], broadcast_index_shape);
+                auto broadcast = std::make_shared<v3::Broadcast>(indices_inputs[i], broadcast_index_shape);
                 auto unsqueeze = std::make_shared<v0::Unsqueeze>(broadcast, const_neg_1);
 
                 // change negative indices to positive indices
@@ -146,8 +136,7 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
 
         auto sub_data_shape =
             (std::make_shared<v8::Slice>(input_shape, const_indices_list_len, const_max_int, const_1));
-        auto values_shape =
-            (std::make_shared<v0::Concat>(OutputVector{broadcast_index_shape, sub_data_shape}, 0));
+        auto values_shape = (std::make_shared<v0::Concat>(OutputVector{broadcast_index_shape, sub_data_shape}, 0));
         values = (std::make_shared<v3::Broadcast>(values, values_shape));
         values = (std::make_shared<v1::ConvertLike>(values, input));
 
@@ -163,7 +152,8 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(index_op, "ov::frontend::pytorch::pass::AtenIndexPutReplacer");
+    auto m =
+        std::make_shared<ov::pass::pattern::Matcher>(index_op, "ov::frontend::pytorch::pass::AtenIndexPutReplacer");
     this->register_matcher(m, callback);
 }
 
