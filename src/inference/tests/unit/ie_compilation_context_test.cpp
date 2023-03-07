@@ -62,18 +62,15 @@ public:
 };
 
 TEST_F(NetworkContext_CalcFileInfoTests, NoFile) {
-    ASSERT_NE(ModelCache::calculate_file_info("notexisting.abc"),
-              ModelCache::calculate_file_info("notexisting2.abc"));
+    ASSERT_NE(ModelCache::calculate_file_info("notexisting.abc"), ModelCache::calculate_file_info("notexisting2.abc"));
 
     std::string fileName(100, 'a');
     std::string fileName2(fileName);
-    ASSERT_EQ(ModelCache::calculate_file_info(fileName),
-              ModelCache::calculate_file_info(fileName2));
+    ASSERT_EQ(ModelCache::calculate_file_info(fileName), ModelCache::calculate_file_info(fileName2));
 }
 
 TEST_F(NetworkContext_CalcFileInfoTests, ExistingFile) {
-    ASSERT_EQ(ModelCache::calculate_file_info(m_fileName),
-              ModelCache::calculate_file_info(m_fileName));
+    ASSERT_EQ(ModelCache::calculate_file_info(m_fileName), ModelCache::calculate_file_info(m_fileName));
 }
 
 TEST_F(NetworkContext_CalcFileInfoTests, ExistingDiffFiles) {
@@ -88,8 +85,7 @@ TEST_F(NetworkContext_CalcFileInfoTests, ExistingDiffFiles) {
 TEST_F(NetworkContext_CalcFileInfoTests, ExistingFile_sameAbsPath) {
     std::string file1 = m_fileName;
     std::string file2 = std::string(".") + CommonTestUtils::FileSeparator + m_fileName;
-    ASSERT_EQ(ModelCache::calculate_file_info(file1),
-              ModelCache::calculate_file_info(file2))
+    ASSERT_EQ(ModelCache::calculate_file_info(file1), ModelCache::calculate_file_info(file2))
         << "Hash of [" << file1 << "] is not equal to hash of [" << file2 << "]";
 }
 
@@ -178,10 +174,8 @@ TEST(NetworkContext, HashOfSame) {
 TEST(NetworkContext, HashWithConfig) {
     auto net1 = create_simple_function();
     auto net2 = create_simple_function();
-    ASSERT_NE(ModelCache::compute_hash(net1, {{"key", "value"}}),
-              ModelCache::compute_hash(net2, {}));
-    ASSERT_EQ(ModelCache::compute_hash(net1, {{"key", "value"}}),
-              ModelCache::compute_hash(net2, {{"key", "value"}}));
+    ASSERT_NE(ModelCache::compute_hash(net1, {{"key", "value"}}), ModelCache::compute_hash(net2, {}));
+    ASSERT_EQ(ModelCache::compute_hash(net1, {{"key", "value"}}), ModelCache::compute_hash(net2, {{"key", "value"}}));
 }
 
 TEST(NetworkContext, HashWithPrimitivesPriority) {
@@ -337,14 +331,11 @@ TEST(NetworkContext, HashOfSameMultiThreading) {
 ////////////////////////////////////////////
 
 TEST(NetworkContext_ModelName, HashOfSame) {
-    ASSERT_EQ(ModelCache::compute_hash("model1", {}),
-              ModelCache::compute_hash("model1", {}));
+    ASSERT_EQ(ModelCache::compute_hash("model1", {}), ModelCache::compute_hash("model1", {}));
 
-    ASSERT_NE(ModelCache::compute_hash("model1", {}),
-              ModelCache::compute_hash("model2", {}));
+    ASSERT_NE(ModelCache::compute_hash("model1", {}), ModelCache::compute_hash("model2", {}));
 
-    ASSERT_NE(ModelCache::compute_hash("model1", {{"key", "value"}}),
-              ModelCache::compute_hash("model1", {}));
+    ASSERT_NE(ModelCache::compute_hash("model1", {{"key", "value"}}), ModelCache::compute_hash("model1", {}));
 
     ASSERT_EQ(ModelCache::compute_hash("model1", {{"key", "value"}}),
               ModelCache::compute_hash("model1", {{"key", "value"}}));
@@ -363,9 +354,7 @@ TEST(NetworkContext_ModelName, HashOfExistingFile) {
 
     ASSERT_EQ(ModelCache::compute_hash(file1, {}), ModelCache::compute_hash(file2, {}));
 
-    ASSERT_NE(ModelCache::compute_hash(file1, {{"key", "value"}}),
-              ModelCache::compute_hash(file2, {}));
+    ASSERT_NE(ModelCache::compute_hash(file1, {{"key", "value"}}), ModelCache::compute_hash(file2, {}));
 
-    ASSERT_EQ(ModelCache::compute_hash(file1, {{"key", "value"}}),
-              ModelCache::compute_hash(file2, {{"key", "value"}}));
+    ASSERT_EQ(ModelCache::compute_hash(file1, {{"key", "value"}}), ModelCache::compute_hash(file2, {{"key", "value"}}));
 }
