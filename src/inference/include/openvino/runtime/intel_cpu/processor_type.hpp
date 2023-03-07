@@ -19,14 +19,17 @@ namespace intel_cpu {
  * @brief      This enum contains defination of processor type used for CPU inference.
  */
 enum class ProcessorType {
-    UNDEFINED = -1,       //!<  Undefined value, default setting may vary by platform and performance hints
-    ALL_CORE = 1,         //!<  All processors can be used. If hyper threading is enabled, both processors
-                          //!<  ofoneperformance-corewill be used.
-    PHY_CORE_ONLY = 2,    //!<  Only one processor can be used per CPU core even with hyper threading enabled.
-    P_CORE_ONLY = 3,      //!<  Only processors of performance-cores can be used. If hyper threading is enabled, both
-                          //!<  processors of one performance-core will be used.
-    E_CORE_ONLY = 4,      //!<  Only processors of efficient-cores can be used.
-    PHY_P_CORE_ONLY = 5,  //!<  Only one processor can be used per performance-core even with hyper threading enabled.
+    UNDEFINED = -1,     //!<  Default setting. All processors can be used on one socket platform. And only processors of
+                        //!<  physical cores can be used on two socket platform.
+    ALL_CORE = 1,       //!<  All processors can be used. If hyper threading is enabled, both processor of one
+                        //!<  performance-core can be used.
+    PHY_CORE_ONLY = 2,  //!<  Only processors of physical cores can be used. If hyper threading is enabled, only one
+                        //!<  processor of one performance-core can be used.
+    P_CORE_ONLY = 3,    //!<  Only processors of performance-cores can be used. If hyper threading is enabled, both
+                        //!<  processor of one performance-core can be used.
+    E_CORE_ONLY = 4,    //!<  Only processors of efficient-cores can be used.
+    PHY_P_CORE_ONLY = 5,  //!<  Only processors of physical performance-cores can be used. If hyper threading is
+                          //!<  enabled, only one processor of one performance-core can be used.
 };
 
 /** @cond INTERNAL */
