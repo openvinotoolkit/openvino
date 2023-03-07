@@ -9,9 +9,7 @@
  */
 #pragma once
 
-#include <istream>
-#include <ostream>
-
+#include "openvino/runtime/common.hpp"
 namespace ov {
 
 namespace intel_cpu {
