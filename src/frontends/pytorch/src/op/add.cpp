@@ -23,7 +23,7 @@ OutputVector translate_add(NodeContext& context) {
     auto dtype1 = context.get_input_type(1);
     if (dtype0.is<type::List>() && dtype1.is<type::List>()) {
         // aten::add.t(t[] a, t[] b) -> t[]
-        // Case when two lists gets concatenated        
+        // Case when two lists gets concatenated
         FRONT_END_OP_CONVERSION_CHECK(false, "aten::add is used for concatenation of lists, not possible to convert");
     }
     align_eltwise_input_types(context, lhs, rhs);

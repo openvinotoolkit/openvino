@@ -97,10 +97,10 @@ AtenCatToConcat::AtenCatToConcat() {
         }
 
         const auto&& tmp_inputs = get_list_as_outputs(cat->get_input_source_output(0));
-        NodeVector rt_copy_from{cat};
         auto result = std::make_shared<ov::op::v0::Concat>(OutputVector(tmp_inputs.begin(), tmp_inputs.end()), axis);
-        copy_runtime_info(rt_copy_from, result);
+        copy_runtime_info(cat, result);
         replace_node(cat, result);
+        result->set_friendly_name(cat->get_friendly_name());
 
         return true;
     };
