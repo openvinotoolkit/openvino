@@ -47,7 +47,7 @@ class GNADeviceHelper : public GNADevice {
     uint32_t nGnaDeviceIndex = 0;
     bool useDeviceEmbeddedExport = false;
     uint32_t maxLayersCount_ = 0;
-    size_t memAlignment = 0;
+    size_t m_mem_alignment = 0;
 
     static const uint32_t TotalGna2InstrumentationPoints = 2;
     Gna2InstrumentationPoint gna2InstrumentationPoints[TotalGna2InstrumentationPoints] = {
@@ -129,8 +129,7 @@ public:
     }
 
     const size_t getMemAlignment() const {
-        IE_ASSERT(memAlignment);
-        return memAlignment;
+        return m_mem_alignment;
     }
 
     /**

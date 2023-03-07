@@ -74,10 +74,6 @@ HWGeneration DeviceToHwGeneration(const DeviceVersion& target) {
     return GetKeyForValue<HWGeneration, DeviceVersion>(target, HWGenerationDeviceMap);
 }
 
-size_t DeviceToGnaMemoryAlignment(const DeviceVersion& target) {
-    return 64;
-}
-
 DeviceVersion GnaToDevice(const Gna2DeviceVersion& target) {
     return GetValueForKey<Gna2DeviceVersion, DeviceVersion>(target, GnaDeviceMap);
 }

@@ -46,7 +46,6 @@ private:
 
 DeviceVersion HwGenerationToDevice(const HWGeneration& target);
 HWGeneration DeviceToHwGeneration(const DeviceVersion& target);
-size_t DeviceToGnaMemoryAlignment(const DeviceVersion& target);
 DeviceVersion GnaToDevice(const Gna2DeviceVersion& target);
 Gna2DeviceVersion DeviceToGna(const DeviceVersion& target);
 DeviceVersion StringToDevice(const std::string& target);

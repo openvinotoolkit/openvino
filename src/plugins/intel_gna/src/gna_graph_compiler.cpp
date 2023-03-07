@@ -78,7 +78,6 @@ GNAGraphCompiler::GNAGraphCompiler(const Config& gna_config) : gna_config(gna_co
 
 void GNAGraphCompiler::setGNAMemoryPtr(std::shared_ptr<gna_memory_type> gnaMemPtr) {
     this->gnamem = std::move(gnaMemPtr);
-    this->mem_alignment = this->gnamem->getDataMemAlignment();
 }
 
 void GNAGraphCompiler::setDNNPtr(std::shared_ptr<backend::AMIntelDNN> dnnPtr) {
@@ -1668,9 +1667,7 @@ void GNAGraphCompiler::AffinePrimitive(InferenceEngine::CNNLayerPtr layer, bool 
                 layer,
                 ptr_weights,
                 weightable._weights->byteSize(),
-                [isDiag, num_rows_in, num_rows_out, num_padding, transposedRows, transposedCols, weightsBuffer, wpSize](
-                    void* data,
-                    size_t size) {
+                [isDiag, num_rows_out, transposedRows, transposedCols, weightsBuffer, wpSize](void* data, size_t size) {
                     for (uint32_t k = 0; k < (isDiag ? 1 : num_rows_out); k++) {
                         auto rowOffset = k * transposedRows * transposedCols * wpSize;
                         auto cbuffer = weightsBuffer + rowOffset;
@@ -2393,7 +2390,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void* p
                 auto& nextMemoryLayer = nextMemoryLayerIt->second;
                 // memory layer not yet initialized
                 if (nextMemoryLayer.reserved_size == 0) {
-                    nextMemoryLayer.reserved_size = ALIGN(nextMemoryLayer.getByteSize(), mem_alignment);
+                    nextMemoryLayer.reserved_size = ALIGN(nextMemoryLayer.getByteSize(), gnamem->getDataMemAlignment());
                     gnamem->getQueue(REGION_STATES)
                         ->reserve_ptr(nullptr, &nextMemoryLayer.gna_ptr, nextMemoryLayer.reserved_size);
                     gnamem->getQueue(REGION_AUTO)
@@ -2609,8 +2606,8 @@ ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
             }
             inputs_ptr_->at(prevLayer->name).allocated_size = num_data_bytes_in;
         }
-        if (ALIGN(num_data_bytes_in, mem_alignment) >
-            ALIGN(inputs_ptr_->at(prevLayer->name).get_allocated_size(), mem_alignment)) {
+        if (ALIGN(num_data_bytes_in, gnamem->getDataMemAlignment()) >
+            ALIGN(inputs_ptr_->at(prevLayer->name).get_allocated_size(), gnamem->getDataMemAlignment())) {
             THROW_GNA_EXCEPTION << "Layer: " << layer->name << " Cannot bind pointer to already allocated input("
                                 << prevLayer->name
                                 << "), due to size_allocated=" << inputs_ptr_->at(prevLayer->name).get_allocated_size()
@@ -2709,16 +2706,16 @@ ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
         // TODO: this is duplicate with connect output
         auto& memoryLayer = prevMemoryLayer->second;
         if (memoryLayer.reserved_size == 0) {
-            memoryLayer.reserved_size = ALIGN(memoryLayer.getByteSize(), mem_alignment);
+            memoryLayer.reserved_size = ALIGN(memoryLayer.getByteSize(), gnamem->getDataMemAlignment());
             // connectTo used for  indicate that memory layer should be bound to given buffer
             if (connectTo) {
                 memoryLayer.reserved_size =
-                    ALIGN(std::max(memoryLayer.reserved_size, num_data_bytes_in), mem_alignment);
+                    ALIGN(std::max(memoryLayer.reserved_size, num_data_bytes_in), gnamem->getDataMemAlignment());
                 gnamem->getQueue(REGION_STATES)->reserve_ptr(nullptr, &memoryLayer.gna_ptr, memoryLayer.reserved_size);
                 gnamem->getQueue(REGION_AUTO)->bind_ptr(nullptr, ptr, &memoryLayer.gna_ptr, offset);
             } else {
-                if (ALIGN(num_data_bytes_in, mem_alignment) <
-                    ALIGN(memoryLayer.reserved_size + offset, mem_alignment)) {
+                if (ALIGN(num_data_bytes_in, gnamem->getDataMemAlignment()) <
+                    ALIGN(memoryLayer.reserved_size + offset, gnamem->getDataMemAlignment())) {
                     THROW_GNA_LAYER_EXCEPTION(layer)
                         << " invalid allocation request of " << num_data_bytes_in
                         << " is more then state tensor size of: " << memoryLayer.reserved_size + offset;
