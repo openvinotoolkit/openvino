@@ -10,10 +10,12 @@
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/gemm.hpp>
 #include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/runtime/tensor.hpp>
 
 #include <cmath>
 
 using namespace cldnn;
+using namespace ::details;
 using namespace ::tests;
 
 namespace {
@@ -31,6 +33,7 @@ struct gemm_test_params {
     size_t expected_fused_primitives;
     size_t expected_not_fused_primitives;
     std::string kernel_name;
+    dim_vec_kind broadcast_kind;
 };
 
 class GemmFusingTest : public ::BaseFusingTest<gemm_test_params> {
@@ -289,7 +292,10 @@ TEST_P(gemm_2in_add, sum) {
 
     auto add_data_layout = get_output_layout(p);
     auto add_data_size = add_data_layout.get_tensor();
-    add_data_size.batch[0] = 1;
+    if (p.broadcast_kind == dim_vec_kind::batch)
+        add_data_size.batch[0] = 1;
+    else
+        add_data_size.feature[0] = 1;
     add_data_layout.set_tensor(add_data_size);
 
     create_topologies(
@@ -316,7 +322,10 @@ TEST_P(gemm_2in_add, prod) {
 
     auto add_data_layout = get_output_layout(p);
     auto add_data_size = add_data_layout.get_tensor();
-    add_data_size.batch[0] = 1;
+    if (p.broadcast_kind == dim_vec_kind::batch)
+        add_data_size.batch[0] = 1;
+    else
+        add_data_size.feature[0] = 1;
     add_data_layout.set_tensor(add_data_size);
 
     create_topologies(
@@ -343,7 +352,10 @@ TEST_P(gemm_2in_add, sub) {
 
     auto add_data_layout = get_output_layout(p);
     auto add_data_size = add_data_layout.get_tensor();
-    add_data_size.batch[0] = 1;
+    if (p.broadcast_kind == dim_vec_kind::batch)
+        add_data_size.batch[0] = 1;
+    else
+        add_data_size.feature[0] = 1;
     add_data_layout.set_tensor(add_data_size);
 
     create_topologies(
@@ -360,7 +372,8 @@ TEST_P(gemm_2in_add, sub) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_add, ::testing::ValuesIn(std::vector<gemm_test_params>{
-    gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4 },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", dim_vec_kind::batch },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", dim_vec_kind::feature },
 }));
 
 class gemm_2in_act_scale_quantize_i8 : public GemmFusingTest {};

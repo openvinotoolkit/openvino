@@ -173,14 +173,9 @@ inline bool any_not_zero(const std::vector<T> vec) {
     return std::any_of(vec.begin(), vec.end(), [](const T& val) { return val != 0; });
 }
 
-template <typename T, typename P>
-constexpr bool one_of(const T& val, P option) {
-    return val == option;
-}
-
-template <typename T, typename P, typename... Args>
-constexpr bool one_of(const T& val, P option, Args... options) {
-    return val == option || one_of(val, options...);
+template <typename T>
+inline bool one_of(const T& val, const std::vector<T>& vec) {
+    return std::any_of(vec.begin(), vec.end(), [&val](const T& v) { return v == val; });
 }
 
 // Helpers to get string for types that have operator<< defined
