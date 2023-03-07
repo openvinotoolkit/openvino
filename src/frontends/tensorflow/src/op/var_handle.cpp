@@ -4,6 +4,8 @@
 
 #include "common_op_table.hpp"
 #include "graph_iterator_saved_model.hpp"
+#include "helper_ops/assignvariableop.hpp"
+#include "helper_ops/string_constant.hpp"
 #include "helper_ops/uninitialized_constant.hpp"
 #include "helper_ops/unsupported_constant.hpp"
 #include "input_model.hpp"
@@ -22,11 +24,11 @@ namespace op {
 // Reading variable from shard file
 template <typename T>
 static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<SavedModelVariablesIndex> var_index,
+                                               const ov::element::Type ov_type,
+                                               const ov::Shape shape,
                                                const ::tensorflow::BundleEntryProto& entry,
                                                const NodeContext& node) {
-    auto ov_type = node.get_attribute<element::Type>("dtype");
     std::vector<T> var_data;
-    auto shape = node.get_attribute<::ov::PartialShape>("shape").get_shape();
     google::protobuf::int64 size = 1;
     for (uint64_t i = 0; i < shape.size(); ++i) {
         size *= static_cast<google::protobuf::int64>(shape[i]);
@@ -45,6 +47,7 @@ static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<SavedModelVariabl
 }
 
 OutputVector translate_varhandle_op(const NodeContext& node) {
+    default_op_checks(node, 0, {"VarHandleOp"});
     auto translate_session = node.get_translate_session();
     TENSORFLOW_OP_VALIDATION(node,
                              translate_session,
@@ -60,6 +63,7 @@ OutputVector translate_varhandle_op(const NodeContext& node) {
         char* entry_data = nullptr;
         size_t entry_size = 0;
         auto var_name = node.get_name();
+        auto shape = node.get_attribute<::ov::PartialShape>("shape").get_shape();
         bool result = var_index->get_mapped_variable(var_name, &entry_data, &entry_size);
 
         if (result) {
@@ -69,31 +73,31 @@ OutputVector translate_varhandle_op(const NodeContext& node) {
                                      "[TensorFlow Frontend] Internal error: Cannot get read bundle entry.");
             switch (ov_type) {
             case ov::element::u8:
-                const_node = read_variable<uint8_t>(var_index, entry, node);
+                const_node = read_variable<uint8_t>(var_index, ov_type, shape, entry, node);
                 break;
             case ov::element::i8:
-                const_node = read_variable<int8_t>(var_index, entry, node);
+                const_node = read_variable<int8_t>(var_index, ov_type, shape, entry, node);
                 break;
             case ov::element::i16:
-                const_node = read_variable<int16_t>(var_index, entry, node);
+                const_node = read_variable<int16_t>(var_index, ov_type, shape, entry, node);
                 break;
             case ov::element::i32:
-                const_node = read_variable<int32_t>(var_index, entry, node);
+                const_node = read_variable<int32_t>(var_index, ov_type, shape, entry, node);
                 break;
             case ov::element::i64:
-                const_node = read_variable<int64_t>(var_index, entry, node);
+                const_node = read_variable<int64_t>(var_index, ov_type, shape, entry, node);
                 break;
             case ov::element::f16:
-                const_node = read_variable<float16>(var_index, entry, node);
+                const_node = read_variable<float16>(var_index, ov_type, shape, entry, node);
                 break;
             case ov::element::f32:
-                const_node = read_variable<float>(var_index, entry, node);
+                const_node = read_variable<float>(var_index, ov_type, shape, entry, node);
                 break;
             case ov::element::f64:
-                const_node = read_variable<double>(var_index, entry, node);
+                const_node = read_variable<double>(var_index, ov_type, shape, entry, node);
                 break;
             case ov::element::bf16:
-                const_node = read_variable<bfloat16>(var_index, entry, node);
+                const_node = read_variable<bfloat16>(var_index, ov_type, shape, entry, node);
                 break;
             default:
                 FRONT_END_THROW("Encountered unknown element type " + ov_type.get_type_name());
@@ -108,13 +112,16 @@ OutputVector translate_varhandle_op(const NodeContext& node) {
 }
 
 OutputVector translate_varisinitialized_op(const NodeContext& node) {
-    std::shared_ptr<Node> const_node = std::make_shared<Constant>(::ov::element::boolean, Shape{}, true);
+    auto const_node = std::make_shared<Constant>(::ov::element::boolean, Shape{}, true);
     set_node_name(node.get_name(), const_node);
     return {const_node};
 }
 
 OutputVector translate_assignvariable_op(const NodeContext& node) {
-    return {};
+    default_op_checks(node, 2, {"AssignVariableOp"});
+    auto assignvariableop_node = std::make_shared<AssignVariableOp>();
+    set_node_name(node.get_name(), assignvariableop_node);
+    return {assignvariableop_node};
 }
 
 OutputVector translate_restorev2_op(const NodeContext& node) {
@@ -126,13 +133,61 @@ OutputVector translate_restorev2_op(const NodeContext& node) {
     auto model = reinterpret_cast<ov::frontend::tensorflow::InputModel*>(translate_session->get_input_model().get());
     auto var_index = model->get_variables_index();
     auto tensor_names =
-        reinterpret_cast<UnsupportedConstant*>(node.get_input(1).get_node())->get_data().as<ov::Tensor>();
+        reinterpret_cast<StringConstant*>(node.get_input(1).get_node())->get_data().as<std::vector<std::string>>();
+    auto tensor_types = node.get_attribute<std::vector<ov::element::Type>>("dtypes");
 
     OutputVector outs = {};
-    auto data = tensor_names.data<uint64_t>();
 
-    for (size_t i = 0; i < tensor_names.get_shape()[0]; i++) {
-        auto const_node = std::make_shared<Constant>(ov::element::u64, Shape{}, data[i]);
+    for (size_t i = 0; i < tensor_names.size(); ++i) {
+        std::shared_ptr<ov::Node> const_node;
+        if (var_index->has_mapped_variable(tensor_names[i])) {
+            const_node = std::make_shared<UnsupportedConstant>();
+        } else {
+            size_t entry_size = 0;
+            char* entry_data = nullptr;
+            ::tensorflow::BundleEntryProto entry;
+            if (var_index->get_variable(tensor_names[i], &entry_data, &entry_size) &&
+                entry.ParseFromArray(entry_data, static_cast<int>(entry_size))) {
+                auto ov_type = tensor_types[i];
+                // Calculate one dimentional shape (will be reshaped on normalization step)
+                // Ignores undefined types (like a string)
+                size_t dimension = entry.size() / (ov_type != ov::element::undefined ? ov_type.size() : 1);
+                // Reads one dimentional data, will be reshaped on normalization step
+                auto shape = ov::Shape{dimension};
+
+                switch (ov_type) {
+                case ov::element::u8:
+                    const_node = read_variable<uint8_t>(var_index, ov_type, shape, entry, node);
+                    break;
+                case ov::element::i8:
+                    const_node = read_variable<int8_t>(var_index, ov_type, shape, entry, node);
+                    break;
+                case ov::element::i16:
+                    const_node = read_variable<int16_t>(var_index, ov_type, shape, entry, node);
+                    break;
+                case ov::element::i32:
+                    const_node = read_variable<int32_t>(var_index, ov_type, shape, entry, node);
+                    break;
+                case ov::element::i64:
+                    const_node = read_variable<int64_t>(var_index, ov_type, shape, entry, node);
+                    break;
+                case ov::element::f16:
+                    const_node = read_variable<float16>(var_index, ov_type, shape, entry, node);
+                    break;
+                case ov::element::f32:
+                    const_node = read_variable<float>(var_index, ov_type, shape, entry, node);
+                    break;
+                case ov::element::f64:
+                    const_node = read_variable<double>(var_index, ov_type, shape, entry, node);
+                    break;
+                case ov::element::bf16:
+                    const_node = read_variable<bfloat16>(var_index, ov_type, shape, entry, node);
+                    break;
+                default:
+                    const_node = std::make_shared<UnsupportedConstant>();
+                }
+            }
+        }
         if (i == 0)
             set_node_name(node.get_name(), const_node);
         else
@@ -145,23 +200,23 @@ OutputVector translate_restorev2_op(const NodeContext& node) {
 
 OutputVector translate_staticregexfullmatch_op(const NodeContext& node) {
     default_op_checks(node, 1, {"StaticRegexFullMatch"});
-    auto const_node = std::make_shared<Constant>(ov::element::boolean, Shape{}, true);
+    // auto pattern = node.get_attribute_as_any("pattern").as<std::string>();
+    auto const_node = std::make_shared<Constant>(ov::element::boolean, ov::Shape{}, true);
+    set_node_name(node.get_name(), const_node);
     return {const_node};
 }
 
 OutputVector translate_stringjoin_op(const NodeContext& node) {
     default_op_checks(node, 1, {"StringJoin"});
-    // MEMORY LEAK!!! ONLY FOR TEST PURPOSES!!!
-    const char* value = "joined_string";
-    auto const_node = std::make_shared<Constant>(ov::element::u64, Shape{}, reinterpret_cast<uint64_t>(value));
+    auto const_node = std::make_shared<UnsupportedConstant>();
+    set_node_name(node.get_name(), const_node);
     return {const_node};
 }
 
 OutputVector translate_mergev2checkpoint_op(const NodeContext& node) {
-    default_op_checks(node, 1, {"StringJoin"});
-    // MEMORY LEAK!!! ONLY FOR TEST PURPOSES!!!
-    const char* value = "joined_string";
-    auto const_node = std::make_shared<Constant>(ov::element::u64, Shape{}, reinterpret_cast<uint64_t>(value));
+    default_op_checks(node, 1, {"MergeV2Checkpoint"});
+    auto const_node = std::make_shared<UnsupportedConstant>();
+    set_node_name(node.get_name(), const_node);
     return {const_node};
 }
 
