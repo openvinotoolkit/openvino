@@ -9,26 +9,24 @@
 #include <openvino/pass/manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "transpose_sinking_test_utils.hpp"
 #include "gtest/gtest.h"
+#include "transpose_sinking_test_utils.hpp"
 
 using namespace ov;
 using namespace ov::opset10;
 
 using NodePtr = std::shared_ptr<ov::Node>;
 
-using CreateGraphF = std::function<std::shared_ptr<ov::Model>(FactoryPtr unary_factory,
-                                                              size_t num_unary_ops,
-                                                              const Shape& input_shape,
-                                                              element::Type input_type)>;
+using CreateGraphF = std::function<std::shared_ptr<
+    ov::Model>(FactoryPtr unary_factory, size_t num_unary_ops, const Shape& input_shape, element::Type input_type)>;
 
 using TestParams = std::tuple<FactoryPtr,
-        PassFactoryPtr,
-        size_t,         /* num_unary_ops */
-        CreateGraphF,   /* model_factory */
-        CreateGraphF,   /* reference_model_factory */
-        Shape,          /* input shape */
-        element::Type>; /* input type */
+                              PassFactoryPtr,
+                              size_t,         /* num_unary_ops */
+                              CreateGraphF,   /* model_factory */
+                              CreateGraphF,   /* reference_model_factory */
+                              Shape,          /* input shape */
+                              element::Type>; /* input type */
 
 class TransposeSinkingUnaryTestFixture : public ::testing::WithParamInterface<TestParams>, public TransformationTestsF {
 public:
@@ -59,7 +57,6 @@ public:
         return test_name.str();
     }
 };
-
 
 namespace transpose_sinking {
 namespace testing {
@@ -404,12 +401,12 @@ struct TestCase {
 
 auto wrapper = [](const TestCase& test_case) {
     return ::testing::Combine(::testing::ValuesIn(test_case.main_node),
-                       ::testing::Values(test_case.transformation),
-                       ::testing::ValuesIn(test_case.num_main_ops),
-                       ::testing::Values(test_case.test_model),
-                       ::testing::Values(test_case.ref_model),
-                       ::testing::Values(test_case.input_shape),
-                       ::testing::Values(test_case.type));
+                              ::testing::Values(test_case.transformation),
+                              ::testing::ValuesIn(test_case.num_main_ops),
+                              ::testing::Values(test_case.test_model),
+                              ::testing::Values(test_case.ref_model),
+                              ::testing::Values(test_case.input_shape),
+                              ::testing::Values(test_case.type));
 };
 
 auto test_forward = []() {
@@ -454,7 +451,8 @@ auto test_backward_multiple_consumers_reshape = []() {
     test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingUnaryBackward);
     test_case.num_main_ops = {1, 10};
     test_case.test_model = mult_consumers_last_node::with_reshape::CreateFunctionTransposeAfter;
-    test_case.ref_model = mult_consumers_last_node::with_reshape::CreateFunctionTransposeBefore;;
+    test_case.ref_model = mult_consumers_last_node::with_reshape::CreateFunctionTransposeBefore;
+    ;
     test_case.input_shape = {1, 96, 55, 55};
     test_case.type = element::f32;
     return wrapper(test_case);
@@ -519,9 +517,9 @@ auto test_forward_multiple_consumers_first_node = []() {
     test_case.type = element::f32;
     return wrapper(test_case);
 };
-}
-}
-}
+}  // namespace unary
+}  // namespace testing
+}  // namespace transpose_sinking
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryForwardTestSuite,
                          TransposeSinkingUnaryTestFixture,
@@ -533,44 +531,37 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryBackwardTestSuite,
                          transpose_sinking::testing::unary::test_backward(),
                          TransposeSinkingUnaryTestFixture::get_test_name);
 
-INSTANTIATE_TEST_SUITE_P(
-    TransposeSinkingUnaryForwardMultConsumersTestSuiteLastNodeReshape,
-    TransposeSinkingUnaryTestFixture,
-    transpose_sinking::testing::unary::test_forward_multiple_consumers_reshape(),
-    TransposeSinkingUnaryTestFixture::get_test_name);
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryForwardMultConsumersTestSuiteLastNodeReshape,
+                         TransposeSinkingUnaryTestFixture,
+                         transpose_sinking::testing::unary::test_forward_multiple_consumers_reshape(),
+                         TransposeSinkingUnaryTestFixture::get_test_name);
 
-INSTANTIATE_TEST_SUITE_P(
-    TransposeSinkingUnaryBackwardMultConsumersTestSuiteLastNodeReshape,
-    TransposeSinkingUnaryTestFixture,
-    transpose_sinking::testing::unary::test_backward_multiple_consumers_reshape(),
-    TransposeSinkingUnaryTestFixture::get_test_name);
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryBackwardMultConsumersTestSuiteLastNodeReshape,
+                         TransposeSinkingUnaryTestFixture,
+                         transpose_sinking::testing::unary::test_backward_multiple_consumers_reshape(),
+                         TransposeSinkingUnaryTestFixture::get_test_name);
 
-INSTANTIATE_TEST_SUITE_P(
-    TransposeSinkingUnaryForwardMultConsumersTestSuiteLastNodeEltwise,
-    TransposeSinkingUnaryTestFixture,
-    transpose_sinking::testing::unary::test_forward_multiple_consumers_eltwise(),
-    TransposeSinkingUnaryTestFixture::get_test_name);
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryForwardMultConsumersTestSuiteLastNodeEltwise,
+                         TransposeSinkingUnaryTestFixture,
+                         transpose_sinking::testing::unary::test_forward_multiple_consumers_eltwise(),
+                         TransposeSinkingUnaryTestFixture::get_test_name);
 
-INSTANTIATE_TEST_SUITE_P(
-    TransposeSinkingUnaryForwardMultConsumersTestSuiteFirstNode,
-    TransposeSinkingUnaryTestFixture,
-    transpose_sinking::testing::unary::test_backward_multiple_consumers_eltwise(),
-    TransposeSinkingUnaryTestFixture::get_test_name);
-
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryForwardMultConsumersTestSuiteFirstNode,
+                         TransposeSinkingUnaryTestFixture,
+                         transpose_sinking::testing::unary::test_backward_multiple_consumers_eltwise(),
+                         TransposeSinkingUnaryTestFixture::get_test_name);
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryBackwardMultConsumersTestSuiteFirstNode,
                          TransposeSinkingUnaryTestFixture,
                          transpose_sinking::testing::unary::test_backward_multiple_consumers_first_node(),
                          TransposeSinkingUnaryTestFixture::get_test_name);
 
-INSTANTIATE_TEST_SUITE_P(
-    TransposeSinkingUnaryBackwardMultTransposeConsumersTestSuiteFirstNode,
-    TransposeSinkingUnaryTestFixture,
-    transpose_sinking::testing::unary::test_backward_multiple_transposes_first_node(),
-    TransposeSinkingUnaryTestFixture::get_test_name);
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryBackwardMultTransposeConsumersTestSuiteFirstNode,
+                         TransposeSinkingUnaryTestFixture,
+                         transpose_sinking::testing::unary::test_backward_multiple_transposes_first_node(),
+                         TransposeSinkingUnaryTestFixture::get_test_name);
 
-INSTANTIATE_TEST_SUITE_P(
-        TransposeSinkingUnaryForwardMultTransposeConsumersTestSuiteFirstNode,
-        TransposeSinkingUnaryTestFixture,
-        transpose_sinking::testing::unary::test_forward_multiple_consumers_first_node(),
-        TransposeSinkingUnaryTestFixture::get_test_name);
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryForwardMultTransposeConsumersTestSuiteFirstNode,
+                         TransposeSinkingUnaryTestFixture,
+                         transpose_sinking::testing::unary::test_forward_multiple_consumers_first_node(),
+                         TransposeSinkingUnaryTestFixture::get_test_name);

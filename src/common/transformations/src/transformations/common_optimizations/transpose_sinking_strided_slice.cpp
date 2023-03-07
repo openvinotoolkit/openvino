@@ -23,8 +23,7 @@ ov::pass::TransposeSinkingStridedSliceForward::TransposeSinkingStridedSliceForwa
     MATCHER_SCOPE(TransposeSinkingStridedSliceForward);
     auto const_label = wrap_type<Constant>();
     auto transpose_label = wrap_type<Transpose>({any_input(), const_label});
-    auto main_node_label =
-        wrap_type<StridedSlice>({transpose_label, any_input(), any_input(), any_input()});
+    auto main_node_label = wrap_type<StridedSlice>({transpose_label, any_input(), any_input(), any_input()});
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_node = m.get_pattern_map();

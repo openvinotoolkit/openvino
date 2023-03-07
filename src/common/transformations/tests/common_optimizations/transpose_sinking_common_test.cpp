@@ -2,19 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/transpose_sinking_unary.hpp"
-#include "transformations/common_optimizations/transpose_sinking_binary.hpp"
-#include "transformations/common_optimizations/transpose_sinking_concat.hpp"
-#include "transformations/common_optimizations/transpose_sinking_split.hpp"
-#include "transformations/common_optimizations/transpose_sinking_data_movement.hpp"
-#include "transformations/common_optimizations/transpose_sinking_reduction.hpp"
-#include "transpose_sinking_test_utils.hpp"
-
 #include <openvino/opsets/opset10.hpp>
 #include <openvino/pass/manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
+#include "transformations/common_optimizations/transpose_sinking_binary.hpp"
+#include "transformations/common_optimizations/transpose_sinking_concat.hpp"
+#include "transformations/common_optimizations/transpose_sinking_data_movement.hpp"
+#include "transformations/common_optimizations/transpose_sinking_reduction.hpp"
+#include "transformations/common_optimizations/transpose_sinking_split.hpp"
+#include "transformations/common_optimizations/transpose_sinking_unary.hpp"
+#include "transpose_sinking_test_utils.hpp"
 
 using namespace std;
 using namespace ov;
@@ -88,7 +87,6 @@ public:
 FactoryPtr CreateConcatRefFactory(const std::string& type_name) {
     return std::make_shared<ConcatFactoryRef>(type_name);
 }
-
 
 class SplitFactory : public IFactory {
 public:
@@ -194,7 +192,8 @@ struct Preprocessing {
 struct TestCase;
 struct ModelDescription;
 using TestParams = tuple<size_t /* idx num_main_ops */, size_t /* idx main_op */, TestCase>;
-using CreateGraphF = function<shared_ptr<ov::Model>(size_t main_op_idx, const ModelDescription&, size_t, const OutputVector&)>;
+using CreateGraphF =
+    function<shared_ptr<ov::Model>(size_t main_op_idx, const ModelDescription&, size_t, const OutputVector&)>;
 
 // Describes a model to test.
 // Expects to be used in such a scenario:
@@ -242,16 +241,16 @@ public:
 };
 
 vector<FactoryPtr> unary_factories = {
-        CREATE_UNARY_FACTORY(Clamp),      CREATE_UNARY_FACTORY(Elu),      CREATE_UNARY_FACTORY(SoftPlus),
-        CREATE_UNARY_FACTORY(LogicalNot), CREATE_UNARY_FACTORY(Convert),  CREATE_UNARY_FACTORY(Abs),
-        CREATE_UNARY_FACTORY(Acos),       CREATE_UNARY_FACTORY(Asin),     CREATE_UNARY_FACTORY(Asinh),
-        CREATE_UNARY_FACTORY(Atan),       CREATE_UNARY_FACTORY(Ceiling),  CREATE_UNARY_FACTORY(Cos),
-        CREATE_UNARY_FACTORY(Cosh),       CREATE_UNARY_FACTORY(Erf),      CREATE_UNARY_FACTORY(Exp),
-        CREATE_UNARY_FACTORY(Gelu),       CREATE_UNARY_FACTORY(HSigmoid), CREATE_UNARY_FACTORY(HSwish),
-        CREATE_UNARY_FACTORY(Log),        CREATE_UNARY_FACTORY(Negative), CREATE_UNARY_FACTORY(Relu),
-        CREATE_UNARY_FACTORY(Sigmoid),    CREATE_UNARY_FACTORY(Sign),     CREATE_UNARY_FACTORY(Sin),
-        CREATE_UNARY_FACTORY(Sinh),       CREATE_UNARY_FACTORY(SoftSign), CREATE_UNARY_FACTORY(Sqrt),
-        CREATE_UNARY_FACTORY(Tan),        CREATE_UNARY_FACTORY(Tanh)};
+    CREATE_UNARY_FACTORY(Clamp),      CREATE_UNARY_FACTORY(Elu),      CREATE_UNARY_FACTORY(SoftPlus),
+    CREATE_UNARY_FACTORY(LogicalNot), CREATE_UNARY_FACTORY(Convert),  CREATE_UNARY_FACTORY(Abs),
+    CREATE_UNARY_FACTORY(Acos),       CREATE_UNARY_FACTORY(Asin),     CREATE_UNARY_FACTORY(Asinh),
+    CREATE_UNARY_FACTORY(Atan),       CREATE_UNARY_FACTORY(Ceiling),  CREATE_UNARY_FACTORY(Cos),
+    CREATE_UNARY_FACTORY(Cosh),       CREATE_UNARY_FACTORY(Erf),      CREATE_UNARY_FACTORY(Exp),
+    CREATE_UNARY_FACTORY(Gelu),       CREATE_UNARY_FACTORY(HSigmoid), CREATE_UNARY_FACTORY(HSwish),
+    CREATE_UNARY_FACTORY(Log),        CREATE_UNARY_FACTORY(Negative), CREATE_UNARY_FACTORY(Relu),
+    CREATE_UNARY_FACTORY(Sigmoid),    CREATE_UNARY_FACTORY(Sign),     CREATE_UNARY_FACTORY(Sin),
+    CREATE_UNARY_FACTORY(Sinh),       CREATE_UNARY_FACTORY(SoftSign), CREATE_UNARY_FACTORY(Sqrt),
+    CREATE_UNARY_FACTORY(Tan),        CREATE_UNARY_FACTORY(Tanh)};
 
 std::vector<FactoryPtr> binary_factories = {CREATE_BINARY_FACTORY(Add),
                                             CREATE_BINARY_FACTORY(Divide),
@@ -264,19 +263,19 @@ std::vector<FactoryPtr> binary_factories = {CREATE_BINARY_FACTORY(Add),
                                             CREATE_BINARY_FACTORY(Subtract),
                                             CREATE_BINARY_FACTORY(PRelu)};
 
-std::vector<FactoryPtr> reduction_factories = {CREATE_BINARY_FACTORY(ReduceMax),
-                                                CREATE_BINARY_FACTORY(ReduceMin),
-                                                CREATE_BINARY_FACTORY(ReduceMean),
-                                                CREATE_BINARY_FACTORY(ReduceSum),
-                                                CREATE_BINARY_FACTORY(ReduceProd),
-                                                //CREATE_BINARY_FACTORY(ReduceLogicalOr),
-                                                //CREATE_BINARY_FACTORY(ReduceLogicalAnd),
-                                                CREATE_BINARY_FACTORY(ReduceL1),
-                                                CREATE_BINARY_FACTORY(ReduceL2),
-                                                //CREATE_BINARY_FACTORY(Squeeze),
-                                                //CREATE_BINARY_FACTORY(Unsqueeze),
-                                                };
-
+std::vector<FactoryPtr> reduction_factories = {
+    CREATE_BINARY_FACTORY(ReduceMax),
+    CREATE_BINARY_FACTORY(ReduceMin),
+    CREATE_BINARY_FACTORY(ReduceMean),
+    CREATE_BINARY_FACTORY(ReduceSum),
+    CREATE_BINARY_FACTORY(ReduceProd),
+    // CREATE_BINARY_FACTORY(ReduceLogicalOr),
+    // CREATE_BINARY_FACTORY(ReduceLogicalAnd),
+    CREATE_BINARY_FACTORY(ReduceL1),
+    CREATE_BINARY_FACTORY(ReduceL2),
+    // CREATE_BINARY_FACTORY(Squeeze),
+    // CREATE_BINARY_FACTORY(Unsqueeze),
+};
 
 TEST_P(TransposeSinkingTestFixture, CompareFunctions) {
     int num_main_ops_idx;
@@ -311,8 +310,8 @@ shared_ptr<ov::Model> create_model(size_t main_node_idx,
     auto outputs = model_desc.preprocess_outputs_of_main.apply(main_node->outputs());
     return make_shared<ov::Model>(outputs, filter_parameters(inputs_to_main));
 }
-}
-}
+}  // namespace common
+}  // namespace transpose_sinking
 
 auto wrapper = [](const TestCase& test_case) {
     OPENVINO_ASSERT(test_case.model.main_op.size() == test_case.model_ref.main_op.size(),
@@ -330,7 +329,7 @@ auto test_forward_unary = []() {
     test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingUnaryForward);
     test_case.num_main_ops = {1, 10};
     test_case.inputs_to_main = {
-            parameter(element::f32, {1, 96, 55, 55}),
+        parameter(element::f32, {1, 96, 55, 55}),
     };
 
     // Test model description:
@@ -346,9 +345,7 @@ auto test_forward_unary = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonUnaryForward,
-                         TransposeSinkingTestFixture,
-                         test_forward_unary());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonUnaryForward, TransposeSinkingTestFixture, test_forward_unary());
 
 auto test_forward_binary = []() {
     TestCase test_case;
@@ -357,8 +354,8 @@ auto test_forward_binary = []() {
     test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingBinaryForward);
     test_case.num_main_ops = {1, 10};
     test_case.inputs_to_main = {
-            parameter(element::f32, {1, 96, 55, 55}),
-            parameter(element::f32, {55, 55, 96, 1}),
+        parameter(element::f32, {1, 96, 55, 55}),
+        parameter(element::f32, {55, 55, 96, 1}),
     };
 
     // Test model description:
@@ -375,10 +372,7 @@ auto test_forward_binary = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonBinaryForward,
-                         TransposeSinkingTestFixture,
-                         test_forward_binary());
-
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonBinaryForward, TransposeSinkingTestFixture, test_forward_binary());
 
 auto test_forward_concat = []() {
     TestCase test_case;
@@ -387,9 +381,9 @@ auto test_forward_concat = []() {
     test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingConcatForward);
     test_case.num_main_ops = {1, 3};
     test_case.inputs_to_main = {
-            parameter(element::f32, {1, 96, 55, 55}),
-            parameter(element::f32, {55, 55, 96, 1}),
-            parameter(element::f32, {55, 55, 96, 1}),
+        parameter(element::f32, {1, 96, 55, 55}),
+        parameter(element::f32, {55, 55, 96, 1}),
+        parameter(element::f32, {55, 55, 96, 1}),
     };
 
     // Test model description:
@@ -406,9 +400,7 @@ auto test_forward_concat = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonConcatForward,
-                         TransposeSinkingTestFixture,
-                         test_forward_concat());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonConcatForward, TransposeSinkingTestFixture, test_forward_concat());
 
 auto test_forward_split = []() {
     TestCase test_case;
@@ -417,8 +409,8 @@ auto test_forward_split = []() {
     test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingSplitForward);
     test_case.num_main_ops = {1, 2};
     test_case.inputs_to_main = {
-            parameter(element::f32, {1, 9, 55, 55}),
-            constant(element::i32, {}, {2}),
+        parameter(element::f32, {1, 9, 55, 55}),
+        constant(element::i32, {}, {2}),
     };
 
     // Test model description:
@@ -430,7 +422,8 @@ auto test_forward_split = []() {
     auto new_constant = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
-        new_out_vec[1] = make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{1});
+        new_out_vec[1] =
+            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{1});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{new_constant}, {{1}}};
@@ -441,9 +434,7 @@ auto test_forward_split = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSplitForward,
-                         TransposeSinkingTestFixture,
-                         test_forward_split());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSplitForward, TransposeSinkingTestFixture, test_forward_split());
 
 auto test_forward_pad = []() {
     TestCase test_case;
@@ -452,9 +443,9 @@ auto test_forward_pad = []() {
     test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingDataMovementForward);
     test_case.num_main_ops = {1, 2};
     test_case.inputs_to_main = {
-            parameter(element::f32, {1, 3, 55, 55}),
-            constant(element::i32, {4}, {1, 2, 3, 4}),
-            constant(element::i32, {4}, {1, 2, 3, 4}),
+        parameter(element::f32, {1, 3, 55, 55}),
+        constant(element::i32, {4}, {1, 2, 3, 4}),
+        constant(element::i32, {4}, {1, 2, 3, 4}),
     };
 
     // Test model description:
@@ -471,9 +462,7 @@ auto test_forward_pad = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonPadForward,
-                         TransposeSinkingTestFixture,
-                         test_forward_pad());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonPadForward, TransposeSinkingTestFixture, test_forward_pad());
 
 auto test_forward_batch_to_space = []() {
     TestCase test_case;
@@ -482,10 +471,10 @@ auto test_forward_batch_to_space = []() {
     test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingDataMovementForward);
     test_case.num_main_ops = {1, 2};
     test_case.inputs_to_main = {
-            parameter(element::f32, {128, 55, 3, 128}),
-            constant(element::i32, {4}, {1, 2, 2, 2}),
-            constant(element::i32, {4}, {1, 2, 2, 2}),
-            constant(element::i32, {4}, {1, 2, 2, 2}),
+        parameter(element::f32, {128, 55, 3, 128}),
+        constant(element::i32, {4}, {1, 2, 2, 2}),
+        constant(element::i32, {4}, {1, 2, 2, 2}),
+        constant(element::i32, {4}, {1, 2, 2, 2}),
     };
 
     // Test model description:
@@ -513,10 +502,10 @@ auto test_forward_space_to_batch = []() {
     test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingDataMovementForward);
     test_case.num_main_ops = {1};
     test_case.inputs_to_main = {
-            parameter(element::f32, {64, 9, 8, 1}),
-            constant(element::i32, {4}, {1, 2, 3, 4}),
-            constant(element::i32, {4}, {1, 2, 3, 4}),
-            constant(element::i32, {4}, {1, 2, 3, 4}),
+        parameter(element::f32, {64, 9, 8, 1}),
+        constant(element::i32, {4}, {1, 2, 3, 4}),
+        constant(element::i32, {4}, {1, 2, 3, 4}),
+        constant(element::i32, {4}, {1, 2, 3, 4}),
     };
 
     // Test model description:
@@ -544,8 +533,8 @@ auto test_forward_reduction = []() {
     test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingReductionForward);
     test_case.num_main_ops = {1};
     test_case.inputs_to_main = {
-            parameter(element::f32, {32, 4, 2, 1}),
-            constant(element::i32, {2}, {1, 3}),
+        parameter(element::f32, {32, 4, 2, 1}),
+        constant(element::i32, {2}, {1, 3}),
     };
 
     // Test model description:
@@ -557,7 +546,8 @@ auto test_forward_reduction = []() {
     auto new_constant = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
-        new_out_vec[1] = make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{2, 0});
+        new_out_vec[1] =
+            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{2, 0});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{new_constant}, {{1}}};
@@ -568,6 +558,4 @@ auto test_forward_reduction = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReductionForward,
-                         TransposeSinkingTestFixture,
-                         test_forward_reduction());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReductionForward, TransposeSinkingTestFixture, test_forward_reduction());

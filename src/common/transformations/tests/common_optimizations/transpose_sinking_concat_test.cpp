@@ -11,8 +11,8 @@
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "transpose_sinking_test_utils.hpp"
 #include "gtest/gtest.h"
+#include "transpose_sinking_test_utils.hpp"
 
 using namespace ov;
 using namespace ov::opset10;

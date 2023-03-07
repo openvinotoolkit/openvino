@@ -18,8 +18,8 @@ class TRANSFORMATIONS_API TransposeSinkingFuse;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief TransposeSinkingFuse transformation eliminates 2 consecutive Transposes if they result in no changes to input or
- * fuses them to single Transpose if input gets changed
+ * @brief TransposeSinkingFuse transformation eliminates 2 consecutive Transposes if they result in no changes to input
+ * or fuses them to single Transpose if input gets changed
  */
 class ov::pass::TransposeSinkingFuse : public ov::pass::MatcherPass {
 public:

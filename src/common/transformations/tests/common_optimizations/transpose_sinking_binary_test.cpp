@@ -65,25 +65,25 @@ FactoryPtr CreateBinaryFactory(const std::string& type_name) {
  * Unsqueeze insertion
  */
 std::vector<FactoryPtr> binary_elementwise_factories = {CREATE_BINARY_FACTORY(Add),
-                                                              CREATE_BINARY_FACTORY(Divide),
-                                                              CREATE_BINARY_FACTORY(Maximum),
-                                                              CREATE_BINARY_FACTORY(Minimum),
-                                                              CREATE_BINARY_FACTORY(Mod),
-                                                              CREATE_BINARY_FACTORY(Multiply),
-                                                              CREATE_BINARY_FACTORY(Power),
-                                                              CREATE_BINARY_FACTORY(SquaredDifference),
-                                                              CREATE_BINARY_FACTORY(Subtract)};
+                                                        CREATE_BINARY_FACTORY(Divide),
+                                                        CREATE_BINARY_FACTORY(Maximum),
+                                                        CREATE_BINARY_FACTORY(Minimum),
+                                                        CREATE_BINARY_FACTORY(Mod),
+                                                        CREATE_BINARY_FACTORY(Multiply),
+                                                        CREATE_BINARY_FACTORY(Power),
+                                                        CREATE_BINARY_FACTORY(SquaredDifference),
+                                                        CREATE_BINARY_FACTORY(Subtract)};
 
 std::vector<FactoryPtr> binary_factories = {CREATE_BINARY_FACTORY(Add),
-                                                  CREATE_BINARY_FACTORY(Divide),
-                                                  CREATE_BINARY_FACTORY(Maximum),
-                                                  CREATE_BINARY_FACTORY(Minimum),
-                                                  CREATE_BINARY_FACTORY(Mod),
-                                                  CREATE_BINARY_FACTORY(Multiply),
-                                                  CREATE_BINARY_FACTORY(Power),
-                                                  CREATE_BINARY_FACTORY(SquaredDifference),
-                                                  CREATE_BINARY_FACTORY(Subtract),
-                                                  CREATE_BINARY_FACTORY(PRelu)};
+                                            CREATE_BINARY_FACTORY(Divide),
+                                            CREATE_BINARY_FACTORY(Maximum),
+                                            CREATE_BINARY_FACTORY(Minimum),
+                                            CREATE_BINARY_FACTORY(Mod),
+                                            CREATE_BINARY_FACTORY(Multiply),
+                                            CREATE_BINARY_FACTORY(Power),
+                                            CREATE_BINARY_FACTORY(SquaredDifference),
+                                            CREATE_BINARY_FACTORY(Subtract),
+                                            CREATE_BINARY_FACTORY(PRelu)};
 
 std::vector<size_t> binary_operations_numbers = {1, 10};
 
@@ -150,9 +150,7 @@ std::shared_ptr<Model> CreateReferenceFunction(FactoryPtr binary_factory,
 }  // namespace one_input_transpose
 
 namespace double_transpose {
-std::shared_ptr<Model> CreateFunction(FactoryPtr binary_factory,
-                                      size_t num_binary_ops,
-                                      element::Type input_type) {
+std::shared_ptr<Model> CreateFunction(FactoryPtr binary_factory, size_t num_binary_ops, element::Type input_type) {
     const Shape input_shape{1, 96, 55, 55};
 
     auto X = std::make_shared<Parameter>(input_type, input_shape);
@@ -198,8 +196,8 @@ std::shared_ptr<Model> CreateReferenceFunction(FactoryPtr binary_factory,
     return std::make_shared<Model>(ov::OutputVector{transpose0}, ov::ParameterVector{X});
 }
 
-using CreateGraphBinaryTwoTransposeInputsF = std::function<
-    std::shared_ptr<Model>(FactoryPtr binary_factory, size_t num_binary_ops, element::Type input_type)>;
+using CreateGraphBinaryTwoTransposeInputsF =
+    std::function<std::shared_ptr<Model>(FactoryPtr binary_factory, size_t num_binary_ops, element::Type input_type)>;
 
 using TestBinaryTwoTransposeInputsParams =
     std::tuple<FactoryPtr,
@@ -1071,9 +1069,8 @@ std::shared_ptr<Model> CreateReferenceFunction(FactoryPtr binary_factory,
 
 }  // namespace backward
 
-using CreateGraphF = std::function<std::shared_ptr<Model>(FactoryPtr binary_factory,
-                                                          element::Type input_type,
-                                                          size_t binary_transpose_input_idx)>;
+using CreateGraphF = std::function<
+    std::shared_ptr<Model>(FactoryPtr binary_factory, element::Type input_type, size_t binary_transpose_input_idx)>;
 
 struct CreateGraphFunctionDesc {
     CreateGraphFunctionDesc() = default;

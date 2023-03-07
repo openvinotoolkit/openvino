@@ -13,11 +13,11 @@
 #include "transformations/common_optimizations/transpose_sinking_binary.hpp"
 #include "transformations/common_optimizations/transpose_sinking_concat.hpp"
 #include "transformations/common_optimizations/transpose_sinking_data_movement.hpp"
+#include "transformations/common_optimizations/transpose_sinking_fuse.hpp"
 #include "transformations/common_optimizations/transpose_sinking_interpolate.hpp"
+#include "transformations/common_optimizations/transpose_sinking_reduction.hpp"
 #include "transformations/common_optimizations/transpose_sinking_split.hpp"
 #include "transformations/common_optimizations/transpose_sinking_unary.hpp"
-#include "transformations/common_optimizations/transpose_sinking_fuse.hpp"
-#include "transformations/common_optimizations/transpose_sinking_reduction.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::TransposeSinkingGeneralForward::TransposeSinkingGeneralForward() {

@@ -64,7 +64,8 @@ ov::ParameterVector filter_parameters(const ov::OutputVector& out_vec);
 
 std::shared_ptr<ov::Node> create_main_node(const ov::OutputVector& inputs, size_t num_ops, const FactoryPtr& creator);
 
-
 std::shared_ptr<ov::Node> parameter(ov::element::Type el_type, const ov::PartialShape& ps);
 
-std::shared_ptr<ov::Node> constant(ov::element::Type el_type, const ov::Shape& shape, const std::vector<int64_t>& value);
+std::shared_ptr<ov::Node> constant(ov::element::Type el_type,
+                                   const ov::Shape& shape,
+                                   const std::vector<int64_t>& value);

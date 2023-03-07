@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transpose_sinking_test_utils.hpp"
+
 #include <openvino/frontend/manager.hpp>
 #include <openvino/opsets/opset10.hpp>
 #include <openvino/pass/manager.hpp>
 
-#include "transpose_sinking_test_utils.hpp"
 #include "gtest/gtest.h"
 
 using namespace std;
 using namespace ov;
 using namespace ov::opset10;
 
-shared_ptr <Node> create_main_node(const OutputVector &inputs, size_t num_ops, const FactoryPtr &creator) {
+shared_ptr<Node> create_main_node(const OutputVector& inputs, size_t num_ops, const FactoryPtr& creator) {
     OutputVector current_inputs = inputs;
     for (size_t i = 0; i < num_ops; ++i) {
         auto op = creator->create(current_inputs);
@@ -22,7 +23,7 @@ shared_ptr <Node> create_main_node(const OutputVector &inputs, size_t num_ops, c
     return current_inputs[0].get_node_shared_ptr();
 }
 
-ParameterVector filter_parameters(const OutputVector &out_vec) {
+ParameterVector filter_parameters(const OutputVector& out_vec) {
     ParameterVector parameters;
     for (const auto& out : out_vec) {
         auto node = out.get_node_shared_ptr();
@@ -36,7 +37,7 @@ ParameterVector filter_parameters(const OutputVector &out_vec) {
 OutputVector set_transpose_for(const vector<size_t>& idxs, const OutputVector& out_vec) {
     OutputVector result = out_vec;
     for (const auto& idx : idxs) {
-        const auto &out = out_vec[idx];
+        const auto& out = out_vec[idx];
         auto rank = out.get_partial_shape().rank().get_length();
         vector<int64_t> axes(rank);
         iota(axes.begin(), axes.end(), 0);
@@ -51,7 +52,7 @@ OutputVector set_transpose_for(const vector<size_t>& idxs, const OutputVector& o
 OutputVector set_gather_for(const vector<size_t>& idxs, const OutputVector& out_vec) {
     OutputVector result = out_vec;
     for (const auto& idx : idxs) {
-        const auto &out = out_vec[idx];
+        const auto& out = out_vec[idx];
         vector<int64_t> axes(out.get_shape()[0]);
         iota(axes.begin(), axes.end(), 0);
         reverse(axes.begin(), axes.end());
@@ -63,7 +64,7 @@ OutputVector set_gather_for(const vector<size_t>& idxs, const OutputVector& out_
     return result;
 }
 
-std::string to_string(const Shape &shape) {
+std::string to_string(const Shape& shape) {
     ostringstream result;
     result << "{";
     for (size_t idx = 0; idx < shape.size(); ++idx) {
@@ -75,10 +76,10 @@ std::string to_string(const Shape &shape) {
     return result.str();
 }
 
-std::shared_ptr<ov::Node> parameter(ov::element::Type el_type, const PartialShape &ps) {
+std::shared_ptr<ov::Node> parameter(ov::element::Type el_type, const PartialShape& ps) {
     return std::make_shared<Parameter>(el_type, ps);
 }
 
-shared_ptr<ov::Node> constant(ov::element::Type el_type, const Shape &shape, const vector<int64_t> &value) {
+shared_ptr<ov::Node> constant(ov::element::Type el_type, const Shape& shape, const vector<int64_t>& value) {
     return make_shared<Constant>(el_type, shape, value);
 }
