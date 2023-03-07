@@ -46,6 +46,7 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
         if (!index_op) {
             return false;
         }
+        NodeVector rt_copy_from{index_op};
         auto const_0 = v0::Constant::create(element::i32, Shape{}, {0});
         auto const_1 = v0::Constant::create(element::i32, Shape{1}, {1});
         auto const_max_int = v0::Constant::create(element::i32, Shape{1}, {std::numeric_limits<int32_t>::max()});
@@ -65,6 +66,7 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
         int64_t indices_list_len;
         OutputVector indices_inputs;
         if (auto listconstruct = cast_fw_node(indices.get_node_shared_ptr(), "prim::ListConstruct")) {
+            rt_copy_from.push_back(listconstruct);
             indices_inputs = listconstruct->input_values();
             indices_list_len = indices_inputs.size();
         } else {
@@ -84,6 +86,7 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
         }
 
         if (indices_list_len == 0) {
+            copy_runtime_info(rt_copy_from, values.get_node_shared_ptr());
             replace_node(index_op, values.get_node_shared_ptr());
             return true;
         }
@@ -130,7 +133,7 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
         values = std::make_shared<v3::Broadcast>(values, values_shape);
         values = std::make_shared<v1::ConvertLike>(values, input);
 
-        Output<Node> result;
+        std::shared_ptr<ov::Node> result;
         if (accumulate) {
             auto zeros = generate_zeros_with_convertlike(input_shape, input);
             auto scatter = std::make_shared<v3::ScatterNDUpdate>(zeros, index, values);
@@ -138,7 +141,8 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
         } else {
             result = std::make_shared<v3::ScatterNDUpdate>(input, index, values);
         }
-        replace_node(index_op, result.get_node_shared_ptr());
+        copy_runtime_info(rt_copy_from, result);
+        replace_node(index_op, result);
         return true;
     };
 
