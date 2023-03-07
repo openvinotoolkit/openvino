@@ -34,15 +34,13 @@ jobs:
           sudo apt --assume-yes update
           sudo apt --assume-yes install lcov
       
-        uses: 
-
       - name: Install dependencies
-        runs: |
+        run: |
           chmod +x install_build_dependencies.sh
           mkdir build
 
       - name: Build OpenVINO
-        runs: |
+        run: |
           cd build
           cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF 
                 -DCMAKE_BUILD_TYPE=Release 
