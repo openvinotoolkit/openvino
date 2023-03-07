@@ -82,12 +82,25 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
 
         auto indicies = index_op->input_value(1).get_node_shared_ptr();
         std::shared_ptr<Node> list_indicies;
-        int indices_list_len;
+        int64_t indices_list_len;
+        OutputVector indices_inputs;
         if (list_indicies = cast_fw_node(indicies, "prim::ListConstruct")) {
-            indices_list_len = list_indicies->input_values().size();
+            indices_inputs = list_indicies->input_values();
+            indices_list_len = indices_inputs.size();
         } else {
-            // TODO accept concatenated lists https://github.com/openvinotoolkit/openvino/blob/master/src/frontends/pytorch/src/op/index_put_.cpp#L51
-            return false;
+            auto indices_partial_shape = indices.get_partial_shape();
+            if (!indices_partial_shape.rank().is_static()) {
+                // "We support only indices with static rank."
+                return false;
+            }
+            auto indices_first_dim = indices_partial_shape[0];
+            if (!indices_first_dim.is_static()) {
+                // We support only lists of tensors with static number of elements.
+                return false;
+            }
+            indices_list_len = indices_first_dim.get_length();
+            auto split = std::make_shared<v1::Split>(indices, const_0, indices_list_len);
+            indices_inputs = split->outputs();
         }
         auto const_indices_list_len = (v0::Constant::create(element::i32, Shape{1}, {indices_list_len}));
         if (indices_list_len == 0) {
@@ -98,15 +111,15 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
         std::shared_ptr<Node> broadcast_index_shape;
         Output<Node> index;
         if (indices_list_len > 1) {
-            index = list_indicies->input_values()[0];
+            index = indices_inputs[0];
             for (int i = 1; i < indices_list_len; i++) {
-                index = std::make_shared<v1::Add>(index, list_indicies->input_values()[i]);
+                index = std::make_shared<v1::Add>(index, indices_inputs[i]);
             }
             broadcast_index_shape = std::make_shared<v3::ShapeOf>(index, element::i32);
             OutputVector indices_list;
             for (int i = 0; i < indices_list_len; i++) {
                 auto broadcast =
-                    std::make_shared<v3::Broadcast>(list_indicies->input_values()[i], broadcast_index_shape);
+                    std::make_shared<v3::Broadcast>(indices_inputs[i], broadcast_index_shape);
                 auto unsqueeze = std::make_shared<v0::Unsqueeze>(broadcast, const_neg_1);
 
                 // change negative indices to positive indices
@@ -120,7 +133,7 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
             }
             index = std::make_shared<v0::Concat>(indices_list, -1);
         } else {
-            index = list_indicies->input_values()[0];
+            index = indices_inputs[0];
             // change negative indices to positive indices
             auto dim_0 = (std::make_shared<v8::Gather>(input_shape, const_0, const_0));
             auto dim_0_correct_type = (std::make_shared<v1::ConvertLike>(dim_0, index));
@@ -148,9 +161,6 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
         }
         replace_node(index_op, result.get_node_shared_ptr());
         return true;
-
-
-        // return {result};
     };
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(index_op, "ov::frontend::pytorch::pass::AtenIndexPutReplacer");
