@@ -469,9 +469,9 @@ std::vector<cldnn::input_info> Program::GetInputInfo(const std::shared_ptr<ngrap
             if (primitive_ids.find(prevName) == primitive_ids.end()) {
                 IE_THROW() << "Input " << prevName << " hasn't been found in primitive_ids map";
             }
-            inputInfo.push_back(cldnn::input_info(primitive_ids.at(prevName), is_legacy_multiple_outputs ? 0: op->get_input_source_output(i).get_index()));
+            inputInfo.push_back(cldnn::input_info(primitive_ids.at(prevName), is_legacy_multiple_outputs ? 0: static_cast<int>(op->get_input_source_output(i).get_index())));
         } else {
-            inputInfo.push_back(cldnn::input_info(prevName, is_legacy_multiple_outputs ? 0 : op->get_input_source_output(i).get_index()));
+            inputInfo.push_back(cldnn::input_info(prevName, is_legacy_multiple_outputs ? 0 : static_cast<int>(op->get_input_source_output(i).get_index())));
         }
     }
     return inputInfo;
