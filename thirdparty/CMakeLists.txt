@@ -69,6 +69,13 @@ if(ENABLE_INTEL_GPU)
         if(OpenCL_HPP)
             set_target_properties(OpenCL::OpenCL PROPERTIES
                 INTERFACE_COMPILE_DEFINITIONS OV_GPU_USE_OPENCL_HPP)
+
+            # check whether CL/opencl.hpp contains C++ wrapper for property CL_DEVICE_UUID_KHR
+            file(STRINGS "${OpenCL_HPP}" CL_DEVICE_UUID_KHR_CPP REGEX ".*CL_DEVICE_UUID_KHR.*")
+            if(CL_DEVICE_UUID_KHR_CPP)
+                set_target_properties(OpenCL::OpenCL PROPERTIES
+                    INTERFACE_COMPILE_DEFINITIONS OV_GPU_OPENCL_HPP_HAS_UUID)
+            endif()
         endif()
 
         # set variables for onednn_gpu
@@ -87,6 +94,7 @@ if(ENABLE_INTEL_GPU)
 
         set(OpenCL_INCLUDE_DIR "${OpenCL_INCLUDE_DIR}" PARENT_SCOPE)
         set(OpenCL_LIBRARY "${OpenCL_LIBRARY}" PARENT_SCOPE)
+        set(opencl_root_hints "${opencl_root_hints}" PARENT_SCOPE)
     endif()
 
     # cmake cannot set properties for imported targets
@@ -96,7 +104,8 @@ if(ENABLE_INTEL_GPU)
     endif()
 
     if(SUGGEST_OVERRIDE_SUPPORTED)
-        set_target_properties(${opencl_target} PROPERTIES INTERFACE_COMPILE_OPTIONS "-Wno-suggest-override")
+        set_target_properties(${opencl_target} PROPERTIES INTERFACE_COMPILE_OPTIONS
+            $<$<COMPILE_LANGUAGE:CXX>:-Wno-suggest-override>)
     endif()
 
     # used in tests
