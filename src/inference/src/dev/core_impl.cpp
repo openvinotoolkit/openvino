@@ -932,6 +932,11 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
         // TODO: temporary disabled by #54335. In future don't throw only for new 'blob_outdated' exception
         // throw;
     }
+
+    // fallback scenario
+    if (!compiled_model)
+        compiled_model = compile_model_lambda();
+
     return compiled_model;
 }
 
