@@ -88,6 +88,21 @@ bool is_any_user_cpu(const std::list<const program_node*>& users) {
     }
     return false;
 }
+
+kernel_impl_params primitive_impl::static_canonicalize_shapes(const kernel_impl_params& impl_params) {
+    auto updated_impl_params = canonicalize_fused_shapes(impl_params);
+
+    for (auto& input_layout : updated_impl_params.input_layouts) {
+        input_layout.set_partial_shape(extend_shape_to_rank_from_end(input_layout.get_partial_shape()));
+    }
+
+    for (auto& output_layout : updated_impl_params.output_layouts) {
+        output_layout.set_partial_shape(extend_shape_to_rank_from_end(output_layout.get_partial_shape()));
+    }
+
+    return updated_impl_params;
+}
+
 uint32_t primitive_inst::get_network_id() const { return _network.get_id(); }
 
 void primitive_inst::check_memory_to_set(const memory& mem, const layout& layout) const {
@@ -304,7 +319,11 @@ bool primitive_inst::update_impl() {
         size_t offset = 0;
         for (size_t i = 0; i < _node->get_dependencies().size(); i++) {
             if (_node->get_dependency(i).get_output_layout().is_dynamic()) {
-                auto input_shape = _node->type()->extend_input_shape_to_6d(params, static_cast<uint32_t>(i));
+                auto pshape = params.get_input_layout(i).get_partial_shape();
+                auto input_shape = layout::transform(pshape,
+                                                     format::get_default_format(pshape.size()),
+                                                     format::bfwzyx).to_shape();
+
                 for (size_t j = 0; j < input_shape.size(); j++)
                     lock[offset++] = static_cast<int32_t>(input_shape[j]);
             }
@@ -312,7 +331,11 @@ bool primitive_inst::update_impl() {
 
         for (size_t i = 0; i < _node->get_output_layouts().size(); i++) {
             if (_node->get_output_layout(i).is_dynamic()) {
-                auto output_shape = _node->type()->extend_output_shape_to_6d(params, static_cast<uint32_t>(i));
+                auto pshape = params.get_output_layout(i).get_partial_shape();
+                auto output_shape = layout::transform(pshape,
+                                                      format::get_default_format(pshape.size()),
+                                                      format::bfwzyx).to_shape();
+
                 for (size_t j = 0; j < output_shape.size(); j++)
                     lock[offset++] = static_cast<int32_t>(output_shape[j]);
             }
@@ -361,9 +384,10 @@ bool primitive_inst::update_impl() {
                     cache.add(updated_params, impl->clone());
                 });
                 _impl = _dynamic_impl->clone();
-                _impl->update_dispatch_data(*_impl_params);
+                auto new_impl_params = _impl->canonicalize_shapes(*_impl_params);
+                _impl->update_dispatch_data(new_impl_params);
 
-                update_shape_info(*_impl_params);
+                update_shape_info(new_impl_params);
             } else {
                 _impl = _node->type()->choose_impl(*_node, updated_params);
                 auto& kernels_cache = get_network().get_program()->get_kernels_cache();
