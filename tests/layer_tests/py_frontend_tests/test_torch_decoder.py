@@ -24,6 +24,15 @@ def get_scripted_model(model):
         print(model.inlined_graph)  # will help debugging
         return model
 
+def get_traced_model(model, inputs=[], frozen=True):
+    with torch.no_grad():
+        model = torch.jit.trace(model, example_inputs=inputs)
+        model.eval()
+        if frozen:
+            model = torch.jit.freeze(model)
+        print(model.inlined_graph)  # will help debugging
+        return model
+
 
 @pytest.mark.precommit
 def test_pytorch_decoder_get_output_type_str():
@@ -443,3 +452,64 @@ def test_pytorch_decoder_can_convert_empty_list():
     assert len(ov_const) == 1
     assert ov_const[0].get_element_type() == Type.i32
     assert ov_const[0].get_partial_shape() == PartialShape([0])
+
+@pytest.mark.precommit
+def test_pytorch_decoder_can_convert_int_scalar_tensor():
+    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.runtime import PartialShape, Type
+
+    class SomeTensor(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.value: int = 1
+
+        def forward(self):
+            # Reproduce specific case where prim::Constant for `self.value + 1`
+            # would create torch.Node with output being Tensor with IValue  of type int.
+            return torch.add(torch.tensor([1], dtype=torch.int32), self.value + 1)
+
+    model = get_traced_model(SomeTensor(), frozen=False)
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
+              "prim::Constant"]
+    assert len(consts) > 0
+    some_const = consts[6]
+    node_output = list(some_const.outputs())[0]
+    assert node_output.isCompleteTensor()
+    assert isinstance(node_output.toIValue(), int)
+    nc_decoder = TorchScriptPythonDecoder(model, some_const)
+    ov_const = nc_decoder.as_constant()
+    assert ov_const is not None
+    assert len(ov_const) == 1
+    assert ov_const[0].get_element_type() == Type.i32
+    assert ov_const[0].get_partial_shape() == PartialShape([])
+
+@pytest.mark.precommit
+def test_pytorch_decoder_can_convert_float_scalar_tensor():
+    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    from openvino.runtime import PartialShape, Type
+
+    class SomeTensor(torch.nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.value: float = 1.
+
+        def forward(self):
+            # Reproduce specific case where prim::Constant for `self.value + 1`
+            # would create nore with output being Tensor with IValue  of type float.
+            return torch.add(torch.tensor([1.], dtype=torch.float), self.value + 1)
+
+
+    model = get_traced_model(SomeTensor(), frozen=False)
+    consts = [n for n in model.inlined_graph.nodes() if n.kind() ==
+            "prim::Constant"]
+    assert len(consts) > 0
+    some_const = consts[6]
+    node_output = list(some_const.outputs())[0]
+    assert node_output.isCompleteTensor()
+    assert isinstance(node_output.toIValue(), float)
+    nc_decoder = TorchScriptPythonDecoder(model, some_const)
+    ov_const = nc_decoder.as_constant()
+    assert ov_const is not None
+    assert len(ov_const) == 1
+    assert ov_const[0].get_element_type() == Type.f32
+    assert ov_const[0].get_partial_shape() == PartialShape([])
