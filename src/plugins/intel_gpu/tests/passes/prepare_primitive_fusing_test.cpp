@@ -11,6 +11,8 @@
 #include "data_inst.h"
 #include "eltwise_inst.h"
 #include "reduce_inst.h"
+#include "reshape_inst.h"
+#include "gemm_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 
@@ -402,4 +404,39 @@ TEST(prepare_primitive_fusing, fuse_eltwise_to_fc_dyn_illegal_2) {
     ASSERT_EQ(lock[1], 92);
     ASSERT_EQ(lock[2], 93);
     ASSERT_EQ(lock[3], 94);
+}
+
+TEST(prepare_primitive_fusing, dont_remove_only_dep_reshape) {
+    // Topology:
+    // input -> reshape(w/ 2nd non-const input) -> reshape(w/ 2nd const input) -> gemm
+    //
+    // Expectation:
+    // If only the input size of depedency reshape is not 1 among the sequence of reshapes
+    // The current reshape alone should not be removed, and removing redundant reshapes is skipped
+
+    auto& engine = get_test_engine();
+    auto in_layout = layout{ ov::PartialShape::dynamic(4), data_types::f32, format::bfyx };
+    auto pattern_layout = layout{ ov::PartialShape{ 4 }, data_types::i64, format::bfyx };
+
+    std::vector<int64_t> output_pattern { 0, 1, -1, 0 };
+
+    topology topology;
+    topology.add(input_layout("input1", in_layout));
+    topology.add(input_layout("pattern1", pattern_layout));
+    topology.add(input_layout("input2", in_layout));
+    topology.add(reshape("reshape1", input_info("input1"), input_info("pattern1"), true, ov::PartialShape::dynamic(4)));
+    topology.add(reshape("reshape2", input_info("reshape1"), true, output_pattern, ov::PartialShape::dynamic(4)));
+    topology.add(gemm("gemm", { input_info("reshape2"), input_info("input2") }, data_types::f32, false, false));
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    layout_optimizer lo(true);
+
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog, lo);
+
+    ASSERT_NE(prog, nullptr);
+    ASSERT_TRUE(has_node(*prog, "reshape2"));
 }
