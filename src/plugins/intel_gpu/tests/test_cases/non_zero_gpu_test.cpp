@@ -53,6 +53,30 @@ TEST(test_count_non_zero, 5d_fp16_1_3_2_1_2) {
     test_count_non_zero<FLOAT16>(layout{ov::PartialShape{1, 3, 2, 1, 2}, data_types::f16, format::bfzyx}, in_data);
 }
 
+TEST(test_count_non_zero, 2d_int32_1_256) {
+    const size_t len = 256;
+    std::vector<int32_t> in_data(len);
+    std::fill(in_data.begin(), in_data.end(), 1);
+
+    test_count_non_zero<int>(layout{ov::PartialShape{1, len}, data_types::i32, format::bfyx}, in_data);
+}
+
+TEST(test_count_non_zero, 2d_int32_1_513) {
+    const size_t len = 513;
+    std::vector<int32_t> in_data(len);
+    std::fill(in_data.begin(), in_data.end(), 1);
+
+    test_count_non_zero<int>(layout{ov::PartialShape{1, len}, data_types::i32, format::bfyx}, in_data);
+}
+
+TEST(test_count_non_zero, 2d_int32_1_1024) {
+    const size_t len = 1024;
+    std::vector<int32_t> in_data(len);
+    std::fill(in_data.begin(), in_data.end(), 1);
+
+    test_count_non_zero<int>(layout{ov::PartialShape{1, len}, data_types::i32, format::bfyx}, in_data);
+}
+
 template<typename T>
 void test_gather_non_zero(layout in_layout, std::vector<T> in_data) {
     auto& engine = get_test_engine();
