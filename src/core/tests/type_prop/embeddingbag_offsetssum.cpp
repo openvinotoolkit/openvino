@@ -274,9 +274,11 @@ TEST(type_prop, ebos_fail_emb_table_0d) {
     auto per_sample_weights = make_shared<op::Parameter>(element::f32, Shape{4});
     auto default_index = make_shared<op::Parameter>(element::i64, Shape{});
 
-    OV_EXPECT_THROW(auto op = make_shared<op::v3::EmbeddingBagOffsetsSum>(emb_table, indices, offsets, default_index, per_sample_weights),
-                    NodeValidationFailure,
-                    HasSubstr("EMB_TABLE can't be a scalar"));
+    OV_EXPECT_THROW(
+        auto op =
+            make_shared<op::v3::EmbeddingBagOffsetsSum>(emb_table, indices, offsets, default_index, per_sample_weights),
+        NodeValidationFailure,
+        HasSubstr("EMB_TABLE can't be a scalar"));
 }
 
 TEST(type_prop, ebos_fail_offsets_1d) {
