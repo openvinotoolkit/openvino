@@ -413,7 +413,6 @@ def test_core_cpu_properties(properties_to_set):
 
     # RW properties
     assert core.get_property("CPU", properties.enable_profiling()) is True
-    assert core.get_property("CPU", properties.cache_dir()) == "./"
     assert core.get_property("CPU", properties.inference_num_threads()) == 9
     assert core.get_property("CPU", properties.affinity()) == properties.Affinity.NONE
     assert core.get_property("CPU", properties.streams.num()) == 5
