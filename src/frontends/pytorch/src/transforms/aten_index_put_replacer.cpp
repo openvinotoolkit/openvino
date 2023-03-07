@@ -61,7 +61,7 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
         if (!acc_const) {
             return false;
         }
-        auto accumulate = acc_const->cast_vector<int64_t>()[0];
+        bool accumulate = acc_const->cast_vector<bool>()[0];
 
         int64_t indices_list_len;
         OutputVector indices_inputs;
