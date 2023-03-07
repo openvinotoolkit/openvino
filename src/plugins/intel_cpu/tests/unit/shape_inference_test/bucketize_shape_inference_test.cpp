@@ -4,8 +4,11 @@
 
 #include "bucketize_shape_inference.hpp"
 #include "common_test_utils/test_assertions.hpp"
-#include "openvino/op/ops.hpp"
 #include "utils.hpp"
+
+using namespace ov;
+using namespace ov::intel_cpu;
+using namespace testing;
 
 class BucketizeV3StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op::v3::Bucketize> {
     void SetUp() override {
@@ -13,7 +16,7 @@ class BucketizeV3StaticShapeInferenceTest : public OpStaticShapeInferenceTest<op
     }
 };
 
-TEST_F(BucketizeV3StaticShapeInferenceTest, defualt_ctor) {
+TEST_F(BucketizeV3StaticShapeInferenceTest, default_ctor) {
     op = make_op();
     op->set_output_type(element::i32);
     op->set_with_right_bound(false);
