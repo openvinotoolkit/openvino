@@ -21,20 +21,49 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
 #endif
 )
 {
-    const uint zyx = (uint)get_global_id(1);
+    const uint global_id = get_global_id(0);
+
+    // For double blocked formats, calculate its size of inner blocks (both batch & feature) : INNER_BLOCKS_COUNT = INNER_BATCH_SIZE * F_BLOCK_COUNT
+    const uint inner_block = global_id % INNER_BLOCKS_COUNT;
+    // Calculate index of feature axis inner block which is divided by vector size
+    uint inner_f = inner_block % F_BLOCK_COUNT;
+    // Calculate index of batch axis inner block
+    uint inner_b = inner_block / F_BLOCK_COUNT;
+
+    const uint zyx = (uint)global_id / INNER_BLOCKS_COUNT;
+
 #if OUTPUT_DIMS == 5
-    const uint z = zyx / (uint)XY_BLOCK;
-    const uint yx = zyx % XY_BLOCK;
-    const uint y = yx / OUTPUT_SIZE_X;
+    const uint yx = zyx % (uint)OUTPUT_SIZE_XY;
+    const uint bfz = zyx / (uint)OUTPUT_SIZE_XY;
+
     const uint x = yx % OUTPUT_SIZE_X;
+    const uint y = yx / OUTPUT_SIZE_X;
+
+    const uint z = bfz % (uint)OUTPUT_SIZE_Z;
+    const uint bf = bfz / (uint)OUTPUT_SIZE_Z;
+
+    const uint outer_f = bf % (uint)OUT_F_BLOCK;
+    const uint outer_b = bf / (uint)OUT_F_BLOCK;
 #else
     const uint z = 0;
-    const uint y = zyx / OUTPUT_SIZE_X;
     const uint x = zyx % OUTPUT_SIZE_X;
+    const uint bfy = zyx / OUTPUT_SIZE_X;
+
+    const uint y = bfy % OUTPUT_SIZE_Y;
+    const uint bf = bfy / OUTPUT_SIZE_Y;
+
+    const uint outer_f = bf % (uint)OUT_F_BLOCK;
+    const uint outer_b = bf / (uint)OUT_F_BLOCK;
 #endif
 
-    const uint f_block = get_global_id(0);
-    const uint b = get_global_id(2);
+    // Calculate batch and feature index for GET_INDEX_format(b, f_block, z, y, x)
+    const uint b = inner_b + outer_b * INNER_BATCH_SIZE;
+    const uint f_block = (inner_f + outer_f * F_BLOCK_COUNT);
+
+    // Feature axis of input tensor is smaller than inner block size : No need to calculate this block
+    if ((f_block*VEC_SIZE) > OUTPUT_FEATURE_NUM || b > OUTPUT_BATCH_NUM) {
+        return;
+    }
 
     MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, VEC_SIZE) res;
 
@@ -60,10 +89,14 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
     }
 #endif
 
+#if PADDED_OUTPUT
 #if OUTPUT_DIMS == 5
     VSTORE_N(out, 0, &output[OUTPUT_GET_INDEX(b, (f_block*VEC_SIZE), z, y, x)]);
 #else
     VSTORE_N(out, 0, &output[OUTPUT_GET_INDEX(b, (f_block*VEC_SIZE), y, x)]);
+#endif
+#else
+    VSTORE_N(out, global_id, output);
 #endif
 }
 

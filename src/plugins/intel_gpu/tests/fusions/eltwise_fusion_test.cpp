@@ -216,7 +216,7 @@ TEST_P(eltwise_fp32_fsv16, add) {
         reorder("out", input_info("activation"), p.default_format, data_types::f32)
     );
 
-    ov::intel_gpu::ImplementationDesc eltw_impl = { format::b_fs_yx_fsv16, "eltwise_b_fs_yx_fsv16" };
+    ov::intel_gpu::ImplementationDesc eltw_impl = { format::b_fs_yx_fsv16, "eltwise_blocked_opt" };
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise", eltw_impl } }));
 
     tolerance = default_tolerance(p.input_type);
@@ -235,7 +235,7 @@ TEST_P(eltwise_fp32_fsv16, add_per_element) {
         reorder("out", input_info("activation"), p.default_format, data_types::f32)
     );
 
-    ov::intel_gpu::ImplementationDesc eltw_impl = { format::b_fs_yx_fsv16, "eltwise_b_fs_yx_fsv16" };
+    ov::intel_gpu::ImplementationDesc eltw_impl = { format::b_fs_yx_fsv16, "eltwise_blocked_opt" };
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise", eltw_impl } }));
 
     tolerance = default_tolerance(p.input_type);
@@ -256,7 +256,7 @@ TEST_P(eltwise_fp32_fsv16, add_broadcast) {
         reorder("out", input_info("activation"), p.default_format, data_types::f32)
     );
 
-    ov::intel_gpu::ImplementationDesc eltw_impl = { format::b_fs_yx_fsv16, "eltwise_b_fs_yx_fsv16" };
+    ov::intel_gpu::ImplementationDesc eltw_impl = { format::b_fs_yx_fsv16, "eltwise_blocked_opt" };
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise", eltw_impl } }));
 
     tolerance = default_tolerance(p.input_type);
@@ -326,7 +326,7 @@ TEST_P(eltwise_fp32_fsv4, add) {
         reorder("out", input_info("activation"), p.default_format, data_types::f32)
     );
 
-    ov::intel_gpu::ImplementationDesc eltw_impl = { format::b_fs_yx_fsv4, "eltwise_b_fs_yx_fsv4" };
+    ov::intel_gpu::ImplementationDesc eltw_impl = { format::b_fs_yx_fsv4, "eltwise_blocked_opt" };
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise", eltw_impl } }));
 
     tolerance = default_tolerance(p.input_type);
@@ -345,7 +345,7 @@ TEST_P(eltwise_fp32_fsv4, add_per_element) {
         reorder("out", input_info("activation"), p.default_format, data_types::f32)
     );
 
-    ov::intel_gpu::ImplementationDesc eltw_impl = { format::b_fs_yx_fsv4, "eltwise_b_fs_yx_fsv4" };
+    ov::intel_gpu::ImplementationDesc eltw_impl = { format::b_fs_yx_fsv4, "eltwise_blocked_opt" };
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "eltwise", eltw_impl } }));
 
     tolerance = default_tolerance(p.input_type);
