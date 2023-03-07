@@ -3,6 +3,7 @@
 //
 
 #include "common_op_table.hpp"
+#include "helper_ops/string_constant.hpp"
 #include "helper_ops/unsupported_constant.hpp"
 #include "openvino/opsets/opset8.hpp"
 
@@ -20,7 +21,7 @@ OutputVector translate_const_op(const NodeContext& node) {
     std::shared_ptr<Node> const_node;
     if (!ov_type.is<ov::element::Type>()) {
         if (ov_type.is<std::string>() && ov_type.as<std::string>() == "DT_STRING") {
-            const_node = std::make_shared<UnsupportedConstant>(node.get_attribute_as_any("value"));
+            const_node = std::make_shared<StringConstant>(node.get_attribute_as_any("value"));
         } else {
             const_node = std::make_shared<UnsupportedConstant>();
         }

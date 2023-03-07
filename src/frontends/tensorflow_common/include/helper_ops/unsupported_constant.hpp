@@ -17,12 +17,6 @@ class UnsupportedConstant : public InternalOperation {
 public:
     OPENVINO_OP("UnsupportedConstant", "ov::frontend::tensorflow::util", InternalOperation);
 
-    UnsupportedConstant(ov::Any data, const std::shared_ptr<DecoderBase>& decoder = std::make_shared<DecoderFake>())
-        : InternalOperation(decoder, {}, 1),
-          m_data(data) {
-        validate_and_infer_types();
-    }
-
     UnsupportedConstant(const std::shared_ptr<DecoderBase>& decoder = std::make_shared<DecoderFake>())
         : InternalOperation(decoder, {}, 1) {
         validate_and_infer_types();
@@ -31,13 +25,6 @@ public:
     void validate_and_infer_types() override {
         set_output_type(0, ov::element::undefined, ov::PartialShape::dynamic());
     }
-
-    ov::Any get_data() {
-        return m_data;
-    }
-
-private:
-    ov::Any m_data;
 };
 
 }  // namespace tensorflow
