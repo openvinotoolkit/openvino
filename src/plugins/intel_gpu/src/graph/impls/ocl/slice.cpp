@@ -51,7 +51,7 @@ std::vector<std::int32_t> extractShape(kernel_selector::Tensor::DataTensor& tens
     std::vector<int32_t> reverse_logical_dims;
     for (auto it = logical_dims.rbegin(); it != logical_dims.rend(); ++it) {
         reverse_logical_dims.push_back(static_cast<int32_t>(*it));
-    } 
+    }
     return reverse_logical_dims;
 }
 

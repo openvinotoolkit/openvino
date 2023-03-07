@@ -289,7 +289,7 @@ void InferRequestLegacy::SetBlob(const std::string& name, const Blob::Ptr& data)
             auto batched_ptr = data->as<BatchedBlob>();
             bool is_batched = batched_ptr != nullptr;
             bool is_nv12 = nv12_ptr != nullptr;
-            auto expected_batch = is_batched ? desc.getDims()[0] : 1;
+            auto expected_batch = is_batched ? static_cast<int>(desc.getDims()[0]) : 1;
             if (ColorFormat::NV12 == foundInput->getPreProcess().getColorFormat() &&
                 m_graph->get_config().get_property(ov::intel_gpu::nv12_two_inputs)) {
                 // try extracting Y and UV remote blobs from it
@@ -297,7 +297,7 @@ void InferRequestLegacy::SetBlob(const std::string& name, const Blob::Ptr& data)
                 // that should then go into biplanar NV12 reorder
 
                 if (is_nv12 || is_batched) {
-                    auto num_blobs = is_batched ? batched_ptr->size() : 1;
+                    auto num_blobs = is_batched ? static_cast<int>(batched_ptr->size()) : 1;
                     for (auto i = 0; i < expected_batch; i++) {
                         std::string y_name = name + "_Y" + std::to_string(i);
                         std::string uv_name = name + "_UV" + std::to_string(i);
@@ -737,7 +737,7 @@ void InferRequestLegacy::enqueue() {
         if (is_nv12 || is_batched) {
             int num_blobs = is_batched
                 ? static_cast<int>(batched_ptr->size()) : 1;
-            int expected_batch = is_batched 
+            int expected_batch = is_batched
                 ? static_cast<int>(_networkInputs.at(inputName)->getTensorDesc().getDims()[0])
                 : 1;
             for (auto i = 0; i < expected_batch; i++) {
