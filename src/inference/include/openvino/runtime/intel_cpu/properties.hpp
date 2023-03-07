@@ -109,6 +109,19 @@ inline std::istream& operator>>(std::istream& is, ProcessorType& processor_type)
 }
 /** @endcond */
 
+/**
+ * @brief This property define CPU processor type used for CPU inference.
+ * @ingroup ov_runtime_cpu_prop_cpp_api
+ *
+ * Developer can use this property to select specific processors for CPU inference. Please refer ProcessorType for all
+ * definition of processor type.
+ *
+ * The following code is example to only use efficient-cores for inference on hybrid CPU.
+ *
+ * @code
+ * ie.set_property(ov::intel_cpu::processor_type(ov::intel_cpu::ProcessorType::E_CORE_ONLY));
+ * @endcode
+ */
 static constexpr Property<ProcessorType> processor_type{"CPU_PROCESSOR_TYPE"};
 }  // namespace intel_cpu
 }  // namespace ov
