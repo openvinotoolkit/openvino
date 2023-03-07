@@ -17,7 +17,7 @@ auto normalize_rank(int32_t allocation_rank, const size_t shape_rank) -> int32_t
 }
 
 snippets::op::Buffer::Buffer(const Output<Node>& x, const int32_t allocation_rank)
-    : Op({x}), m_allocation_rank(allocation_rank), m_offset(0) {
+    : Op({x}), m_offset(0), m_allocation_rank(allocation_rank) {
     constructor_validate_and_infer_types();
 }
 

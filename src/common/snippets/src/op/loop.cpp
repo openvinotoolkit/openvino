@@ -63,11 +63,11 @@ bool LoopBegin::get_evaluate_once() const {
 LoopEnd::LoopEnd(const std::vector<Output<Node>> &args, size_t work_amount, size_t work_amount_increment,
                  std::vector<bool> apply_increments, std::vector<int64_t> finalization_offsets)
         : LoopBase(args),
-        finalization_offsets(std::move(finalization_offsets)),
         has_outer_loop(true),
-        evaluate_once(false),
+        finalization_offsets(std::move(finalization_offsets)),
         work_amount(work_amount),
-        work_amount_increment(work_amount_increment) {
+        work_amount_increment(work_amount_increment),
+        evaluate_once(false) {
         ptr_increments.resize(apply_increments.size());
         std::transform(apply_increments.begin(), apply_increments.end(), ptr_increments.begin(),
                        [](bool apply) {
@@ -79,12 +79,12 @@ LoopEnd::LoopEnd(const std::vector<Output<Node>> &args, size_t work_amount, size
 LoopEnd::LoopEnd(const std::vector<Output<Node>> &args, size_t work_amount, size_t work_amount_increment,
                  std::vector<int64_t> ptr_increments, std::vector<int64_t> finalization_offsets)
         : LoopBase(args),
+        has_outer_loop(true),
         ptr_increments(std::move(ptr_increments)),
         finalization_offsets(std::move(finalization_offsets)),
-        has_outer_loop(true),
-        evaluate_once(false),
         work_amount(work_amount),
-        work_amount_increment(work_amount_increment) {
+        work_amount_increment(work_amount_increment),
+        evaluate_once(false) {
     constructor_validate_and_infer_types();
 }
 
@@ -140,7 +140,7 @@ void LoopEnd::set_evaluate_once(bool once) {
 
 void LoopEnd::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, get_input_size() >= 1, "LoopEnd must have at least one input");
-    const auto loop_io_size = static_cast<int64_t>(get_input_size()) - 1;
+    size_t loop_io_size = get_input_size() - 1;
     const auto loop_begin = ov::as_type_ptr<LoopBegin>(input(loop_io_size).get_source_output().get_node_shared_ptr());
     NODE_VALIDATION_CHECK(this, loop_begin != nullptr, "LoopEnd must have LoopBegin as the last argument");
     NODE_VALIDATION_CHECK(this, ptr_increments.empty() || ptr_increments.size() == loop_io_size,

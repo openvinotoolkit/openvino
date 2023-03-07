@@ -56,7 +56,7 @@ void InsertTailLoop::tail_transformations(LoweredExprIR& linear_ir,
 }
 
 bool InsertTailLoop::run(LoweredExprIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(itt::domains::SnippetsTransform, "Snippets::insertTailLoop")
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::insertTailLoop")
     bool modified = false;
     const auto& lowering_config = linear_ir.get_config();
     // *1* solo vector/tail loop + empty outer loop

@@ -54,7 +54,7 @@ void PropagateOffsetAndResetBuffer::propagate_offset(const LoweredExprIR& linear
 
 
 bool PropagateOffsetAndResetBuffer::run(LoweredExprIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(itt::domains::SnippetsTransform, "Snippets::buffer_propagate_offset_and_reset")
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::buffer_propagate_offset_and_reset")
     std::vector<LoweredExprIR::container::iterator> exprs_to_del;
     bool modified = false;
     size_t offset = 0;
@@ -90,7 +90,7 @@ bool PropagateOffsetAndResetBuffer::run(LoweredExprIR& linear_ir) {
             // This condition should be removed when Buffers stop being inplace by default.
             const auto& ins = expr_it->get()->get_inputs();
             std::vector<int> buffer_idx{};
-            for (size_t i = 0; i < ins.size() - 1; i++) {
+            for (int i = 0; i < static_cast<int>(ins.size()) - 1; i++) {
                 const auto& in = ins[i];
                 // If producer of the input expr is buffer: this covers Buffer->Load patterns
                 if (ov::is_type<op::Buffer>(linear_ir.get_expr_by_output(in)->get_node()))

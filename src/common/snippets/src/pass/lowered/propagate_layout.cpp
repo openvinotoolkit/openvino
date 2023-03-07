@@ -12,7 +12,7 @@ namespace pass {
 namespace lowered {
 
 bool PropagateLayout::run(LoweredExprIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(itt::domains::SnippetsTransform, "Snippets::PropagateLayout")
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::PropagateLayout")
     const auto& io_ops = linear_ir.get_IO_ops();
     auto io_ops_it = io_ops.begin();
     for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {

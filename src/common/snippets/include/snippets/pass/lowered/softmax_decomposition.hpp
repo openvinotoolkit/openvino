@@ -18,9 +18,9 @@ namespace lowered {
  */
 class SoftmaxDecomposition : public LinearIRTransformation {
     size_t m_vector_size;
-    size_t m_buffer_allocation_rank;
+    int32_t m_buffer_allocation_rank;
 public:
-    explicit SoftmaxDecomposition(size_t vector_size, size_t buffer_allocation_rqnk);
+    explicit SoftmaxDecomposition(size_t vector_size, int32_t buffer_allocation_rank);
     OPENVINO_RTTI("SoftmaxDecomposition", "LinearIRTransformation")
     bool run(LoweredExprIR& linear_ir) override;
 };

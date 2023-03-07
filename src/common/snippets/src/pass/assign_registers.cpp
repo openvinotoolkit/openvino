@@ -99,7 +99,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
             accumulator_reg++;
         }
     }
-    auto enumerate_out_tensors = [IS_MANUALLY_ALLOCATED_REG] (const std::shared_ptr<ov::Node>& op,
+    auto enumerate_out_tensors = [=] (const std::shared_ptr<ov::Node>& op,
                                      decltype(regs_vec)& reg_map,
                                      const std::map<tensor, Reg>& manually_assigned_regs,
                                      size_t& counter) {
@@ -130,7 +130,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
     std::vector<std::set<Reg>> used_vec(ops.size(), std::set<Reg>());
     std::vector<std::set<Reg>> defined_vec(ops.size(), std::set<Reg>());
 
-    auto tensor2reg = [IS_MANUALLY_ALLOCATED_REG] (const std::vector<tensor>& tensors, const std::map<tensor, Reg>& reg_map) {
+    auto tensor2reg = [=] (const std::vector<tensor>& tensors, const std::map<tensor, Reg>& reg_map) {
         std::set<Reg> result;
         for (const auto& t : tensors) {
             if (reg_map.count(t) == 0)
@@ -243,7 +243,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
             live_intervals_gpr[std::make_pair(i, find_last_use(life_in_gpr, static_cast<int>(def)))] = def;
     }
 
-    auto linescan_assign_registers = [](const decltype(live_intervals_vec)& live_intervals,
+    auto linescan_assign_registers = [=](const decltype(live_intervals_vec)& live_intervals,
                                         const std::set<Reg>& reg_pool) {
         // http://web.cs.ucla.edu/~palsberg/course/cs132/linearscan.pdf
         // todo: do we need multimap? <=> can an op have two inputs from the same op?
@@ -296,7 +296,7 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
 
     std::map<tensor, Reg> assigned_regs(std::move(manually_assigned_gprs));
     assigned_regs.insert(manually_assigned_vecs.begin(), manually_assigned_vecs.end());
-    auto register_assigned_regs = [IS_MANUALLY_ALLOCATED_REG, &assigned_regs](const std::map<tensor, Reg>& unique_regs,
+    auto register_assigned_regs = [=, &assigned_regs](const std::map<tensor, Reg>& unique_regs,
                                                    const std::map<Reg, Reg>& unique2reused) {
         for (const auto& reg : unique_regs) {
             if (reg.second == IS_MANUALLY_ALLOCATED_REG)

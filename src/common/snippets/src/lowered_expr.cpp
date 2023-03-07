@@ -73,7 +73,7 @@ IOLoweredExpr::IOLoweredExpr(const std::shared_ptr<ov::opset1::Result>& res, int
 }
 
 LoweredExprIR::LoweredExprIR(const std::shared_ptr<ov::Model>& model, LoweringConfig config)
-    : m_config{std::move(config)}, m_io_lowered_ops{} {
+    : m_io_lowered_ops{}, m_config{std::move(config)} {
     for (const auto& n : get_ordered_ops(model)) {
         std::shared_ptr<LoweredExpr> expr;
         std::vector<TensorDescriptorPtr> input_tds;
@@ -136,7 +136,7 @@ LoweredExprIR::container LoweredExprIR::deep_copy_range(LoweredExprIR::container
     for (auto it = begin; it != end; it++)
         original_nodes.push_back((*it)->get_node());
     NodeMap node_map;
-    const NodeVector& new_nodes = ngraph::clone_nodes(original_nodes,  node_map);
+    ngraph::clone_nodes(original_nodes,  node_map);
     for (auto it = begin; it != end; it++) {
         // copy by value, so result shared_pointer point to new objects
         LoweredExpr new_expr = **it;
@@ -240,7 +240,7 @@ void LoweredExprIR::replace_input(const LoweredExprPtr& expr, const TensorDescri
     expr->replace_input(from, std::move(to));
 }
 
-void LoweredExprIR::replace_output(const LoweredExprPtr& expr, const TensorDescriptorPtr& from, TensorDescriptorPtr to) {
+void LoweredExprIR::replace_output(const LoweredExprPtr& expr, const TensorDescriptorPtr& from, const TensorDescriptorPtr& to) {
     auto found = m_output2expression_map.find(from);
     if (found == m_output2expression_map.end() || found->second != expr)
         throw ngraph_error("Invalid expression of output was provided to replace_output");
@@ -355,6 +355,11 @@ LoweredExprIR::exprIt LoweredExprIR::erase(LoweredExprIR::exprIt pos) {
 LoweredExprIR::exprIt LoweredExprIR::erase(LoweredExprIR::constExprIt pos) {
     unregister_expression(*pos);
     return m_lowered_ops.erase(pos);
+}
+
+LoweredExprIR::exprIt LoweredExprIR::move(exprIt from, constExprIt to) {
+    m_lowered_ops.insert(to, *from);
+    return m_lowered_ops.erase(from);
 }
 
 }// namespace snippets

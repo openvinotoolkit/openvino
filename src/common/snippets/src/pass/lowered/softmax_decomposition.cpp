@@ -14,13 +14,13 @@ namespace snippets {
 namespace pass {
 namespace lowered {
 using std::make_shared;
-SoftmaxDecomposition::SoftmaxDecomposition(size_t vector_size, size_t buffer_allocation_rank) :
+SoftmaxDecomposition::SoftmaxDecomposition(size_t vector_size, int32_t buffer_allocation_rank) :
                         m_vector_size{vector_size},
                         m_buffer_allocation_rank(buffer_allocation_rank) {
 }
 
 bool SoftmaxDecomposition::run(LoweredExprIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(itt::domains::SnippetsTransform, "Snippets::SoftmaxDecompositionLowered")
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::SoftmaxDecompositionLowered")
     auto match_load = ngraph::pattern::wrap_type<op::Load>();
     auto match_softmax = ngraph::pattern::wrap_type<op::Softmax>({match_load});
     auto match_store = ngraph::pattern::wrap_type<op::Store>({match_softmax});
@@ -38,7 +38,6 @@ bool SoftmaxDecomposition::run(LoweredExprIR& linear_ir) {
             linear_ir.erase(std::prev(expr_it));
             expr_it = linear_ir.erase(expr_it);
             linear_ir.get_config();
-            const size_t buffer_allocation_rank = 2;
             // We need an iterator to the inserted element
             auto push_node = [&linear_ir, &expr_it](const std::shared_ptr<Node>& n) {
                 return std::make_pair(linear_ir.insert(expr_it, n), n);
@@ -73,9 +72,9 @@ bool SoftmaxDecomposition::run(LoweredExprIR& linear_ir) {
             const auto horizon_sum = push_node(make_shared<op::HorizonSum>(sum.second));
             loop_begin_end_offsets.emplace_back(loop_begin_offset, horizon_sum.first);
             // Divide is expensive operation, so we decompose it into 1 / x * y, where 1 / x is executed outside loop
-            const auto pow = push_node(make_shared<op::PowerStatic>(horizon_sum.second, -1.));
+            const auto pow = push_node(make_shared<op::PowerStatic>(horizon_sum.second, -1.f));
             const auto broadcast_pow = push_node(make_shared<op::BroadcastMove>(pow.second, horizon_sum.second->get_input_partial_shape(0)));
-            const auto buffer_exp = push_node(make_shared<op::Buffer>(store_exp.second, buffer_allocation_rank));
+            const auto buffer_exp = push_node(make_shared<op::Buffer>(store_exp.second, m_buffer_allocation_rank));
 
             //const auto loop_begin_div = push_node(make_shared<op::LoopBegin>());
             const auto load_div = push_node(make_shared<op::Load>(buffer_exp.second, m_vector_size));
@@ -94,7 +93,6 @@ bool SoftmaxDecomposition::run(LoweredExprIR& linear_ir) {
             // input of Sum by zero to avoid math incorrect calculations
             max.second->input(0).get_rt_info()["set_fill"] = uint32_t(0xff7fffff);
             sum.second->input(0).get_rt_info()["set_fill"] = uint32_t(0x00000000);
-            size_t m_vector_size = 16;
             for (const auto& begin_end : loop_begin_end_offsets) {
                 InsertLoopsLayout::inject_loops(begin_end.first, begin_end.second, linear_ir, 1, m_vector_size);
                 if (auto loop_end = as_type_ptr<op::LoopEnd>(std::prev(begin_end.second)->get()->get_node()))

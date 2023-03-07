@@ -11,28 +11,6 @@ namespace snippets {
 namespace pass {
 namespace lowered {
 namespace {
-void get_managed_outputs_and_tds(LoweredExprIR::constExprIt begin, LoweredExprIR::constExprIt end,
-                                 OutputVector& managed_outputs, std::vector<TensorDescriptorPtr>& managed_tds) {
-    managed_outputs.clear();
-    managed_tds.clear();
-    for (auto expr_it = begin; expr_it != end; expr_it++) {
-        const auto& node = (*expr_it)->get_node();
-        if (is_type<op::Load>(node) || is_type<op::BroadcastLoad>(node)) {
-            const auto& source = node->get_input_source_output(0);
-            managed_outputs.push_back(source);
-            // todo: note that we need an INPUT shape here (for example, not Broadcasted) otherwise we can't calc increments
-            //  and offsets properly
-            auto td = get_tensor_descriptor_ptr(node);
-            //managed_tds.emplace_back(source.get_shape(), td.get_subtensor(), td.get_layout());
-            managed_tds.emplace_back(td);
-        } else if (is_type<op::Store>(node)) {
-            const auto& dest = node->output(0);
-            managed_outputs.push_back(dest);
-            managed_tds.push_back(get_tensor_descriptor_ptr(dest));
-        }
-    }
-}
-
 void get_managed_outputs_and_exprs(LoweredExprIR::constExprIt begin, LoweredExprIR::constExprIt end,
                                    std::vector<LoweredExprPtr>& loop_in_exprs, std::vector<LoweredExprPtr>& loop_out_exprs,
                                    OutputVector& loop_in_outputs, OutputVector& loop_out_outputs) {
@@ -64,7 +42,7 @@ int64_t get_dim_stride(const size_t dim, const std::vector<size_t>& layout, cons
     return stride;
 }
 } // namespace
-InsertLoopsLayout::InsertLoopsLayout(size_t vector_size, size_t buffer_allocation_rank)
+InsertLoopsLayout::InsertLoopsLayout(size_t vector_size, int32_t buffer_allocation_rank)
     : LinearIRTransformation(), m_vector_size(vector_size), m_buffer_allocation_rank(buffer_allocation_rank) {
 }
 
@@ -85,15 +63,17 @@ bool InsertLoopsLayout::inject_loops(LoweredExprIR::constExprIt loop_begin_pos, 
     //  ill defined loops to support custom softmax (decomposition on LIR). Allow only well-defined loops when Softmax is
     //  supported through standard pipeline (decomposition on nG + loop optimizations)
     if (loop_in_exprs.empty() && loop_out_exprs.empty()) {
-//        throw ngraph_error("Every Loop must have at least one input (Load-like) and one output (Store-like)");
         return false;
     }
     auto inject_one_loop = [&loop_in_outputs, &loop_out_outputs, &loop_in_exprs, &loop_out_exprs, &linear_ir, loop_end_pos]
             (LoweredExprIR::constExprIt loop_begin_pos,
              size_t dim_idx,
-             int64_t work_amount,
-             int64_t work_amount_increment,
+             size_t work_amount_arg,
+             size_t work_amount_increment_arg,
              bool has_outer_loop = false) {
+        // This is to perform explicit casting, but localize it as much as possible
+        const auto work_amount = static_cast<int64_t>(work_amount_arg);
+        const auto work_amount_increment = static_cast<int64_t>(work_amount_increment_arg);
         std::vector<int64_t> ptr_increments;
         // Note: All loop inputs must have the same layout by definition.
         // If this doesn't hold, then we're trying to inject loops in the wrong place.
@@ -170,14 +150,26 @@ bool InsertLoopsLayout::inject_loops(LoweredExprIR::constExprIt loop_begin_pos, 
     // Note: currently we simply take out td of the last expr in the loop. If needed,
     // this can be generalized for loops with multiple different out td's.
     const auto& out_td = std::prev(loop_end_pos)->get()->get_outputs().front();
-    const auto& tensor_out = out_td->get_tensor();
     const auto& subtensor_in = loop_in_exprs[0]->get_outputs().front()->get_subtensor();
 
     const auto& layout_out = out_td->get_layout();
     const auto inner_dim = layout_out.back();
-    const auto inner_work_amount = tensor_out[inner_dim];
-    const auto outer_dim = layout_out.size() > 1 ? layout_out[layout_out.size() - 2] : 0;
-    const auto outer_work_amount = layout_out.size() > 1 ? tensor_out[outer_dim] : 0;
+    size_t inner_work_amount = 0;
+    for (const auto& expr : loop_in_exprs) {
+        const auto& td = expr->get_outputs()[0];
+        const auto& dst_layout = td->get_layout();
+        inner_work_amount = std::max(td->get_tensor()[dst_layout[inner_dim]], inner_work_amount);
+    }
+    size_t outer_work_amount = 0;
+    size_t outer_dim = 0;
+    if (layout_out.size() > 1) {
+        outer_dim = layout_out[layout_out.size() - 2];
+        for (const auto& expr : loop_in_exprs) {
+            const auto& td = expr->get_outputs()[0];
+            const auto& dst_layout = td->get_layout();
+            outer_work_amount = std::max(td->get_tensor()[dst_layout[outer_dim]], outer_work_amount);
+        }
+    }
     const bool has_outer_loop = outer_work_amount > 1 && loop_depth > 1;
     const bool inner_dim_processed_implicitly  = subtensor_in.size() > 1 && subtensor_in.back() == inner_work_amount;
     if (inner_work_amount >= 1 && !inner_dim_processed_implicitly) {
@@ -237,8 +229,7 @@ LoweredExprIR::exprIt InsertLoopsLayout::inject_store_buffer_load(LoweredExprIR:
     return new_loop_end_pos;
 }
 bool InsertLoopsLayout::run(LoweredExprIR& linear_ir) {
-    m_vector_size = 16ul;
-    OV_ITT_SCOPED_TASK(itt::domains::SnippetsTransform, "Snippets::OnsertLoopsLayout")
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::InsertLoopsLayout")
     if (linear_ir.empty())
         return false;
     const auto& lowering_config = linear_ir.get_config();
@@ -285,13 +276,19 @@ bool InsertLoopsLayout::run(LoweredExprIR& linear_ir) {
                         continue;
                     break;
                 }
+                // An expression is added if at least one input corresponds with the in-loop descriptor
+                must_be_inside_loop = false;
+                for (size_t i = 0; i < ins.size() && !must_be_inside_loop; i++) {
+                    const auto& in = ins[i];
+                    if (in->get_layout() == loop_inner_layout &&
+                        in->get_subtensor() == loop_inner_subtensor) {
+                        must_be_inside_loop = true;
+                    }
+                }
                 // Note: Brgemm might consume the same layout, but still must be outside the loop
                 // since it has implicit loop semantics
                 if (ov::is_type<op::Brgemm>(loop_end_pos->get()->get_node()))
                     must_be_inside_loop = false;
-                const auto& layout = ins.front()->get_layout();
-                const auto& subtensor = ins.front()->get_subtensor();
-                must_be_inside_loop &= layout == loop_inner_layout && subtensor == loop_inner_subtensor;
             } while (must_be_inside_loop);
             const auto& last_in_the_loop =  *std::prev(loop_end_pos);
             loop_end_pos = inject_store_buffer_load(loop_end_pos, last_in_the_loop, linear_ir);

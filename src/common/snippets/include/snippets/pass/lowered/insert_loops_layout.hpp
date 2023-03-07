@@ -23,12 +23,12 @@ namespace lowered {
  */
 class InsertLoopsLayout : public LinearIRTransformation {
     size_t m_vector_size;
-    size_t m_buffer_allocation_rank;
+    int32_t m_buffer_allocation_rank;
     LoweredExprIR::exprIt inject_store_buffer_load(LoweredExprIR::exprIt loop_end_pos, const LoweredExprPtr& ancor_expr,
                                                                       LoweredExprIR& linear_ir) const;
 public:
     OPENVINO_RTTI("InsertLoopsLayout", "LinearIRTransformation")
-    InsertLoopsLayout(size_t vector_size, size_t buffer_allocation_rank);
+    InsertLoopsLayout(size_t vector_size, int32_t buffer_allocation_rank);
     bool run(LoweredExprIR& linear_ir) override;
     bool static inject_loops(LoweredExprIR::constExprIt loop_begin_pos, LoweredExprIR::constExprIt loop_end_pos,
                              LoweredExprIR& linear_ir, size_t loop_depth, size_t vector_size);

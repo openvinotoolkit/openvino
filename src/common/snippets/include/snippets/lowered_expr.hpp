@@ -100,13 +100,20 @@ public:
     LoweredExprPtr get_expr_by_output(const TensorDescriptorPtr& n) const;
     const std::set<LoweredExprPtr>& get_exprs_by_input(const TensorDescriptorPtr& n) const;
     void replace_input(const LoweredExprPtr& expr, const TensorDescriptorPtr& from, TensorDescriptorPtr to);
-    void replace_output(const LoweredExprPtr& expr, const TensorDescriptorPtr& from, TensorDescriptorPtr to);
+    void replace_output(const LoweredExprPtr& expr, const TensorDescriptorPtr& from, const TensorDescriptorPtr& to);
     exprIt insert(constExprIt pos, const ov::NodeVector& nodes);
     exprIt insert(constExprIt pos, const std::shared_ptr<Node>& n);
     exprIt insert(constExprIt pos, container::value_type&& value);
     exprIt insert(constExprIt pos, const container::value_type& value);
     exprIt insert(constExprIt pos, exprIt begin, exprIt end);
     exprIt insert(constExprIt pos, constExprIt begin, constExprIt end);
+    /**
+    * @brief Move an expression from the position "from" to the position immediately before "to".
+     * Returns iterator to the element after "from" position. The behavior of this method is identical to calling
+     * insert(to, *from) + erase(from), except that no unnecessary updates of internal maps are performed.
+     * Note: this method does NOT take care about data dependencies and no relevant checks are performed
+    */
+    LoweredExprIR::exprIt move(exprIt from, constExprIt to);
 
     bool empty() const noexcept {return m_lowered_ops.empty(); }
     void debug_print(bool tds_as_pointers = false) const;

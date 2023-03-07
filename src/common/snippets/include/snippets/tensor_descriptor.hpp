@@ -60,22 +60,3 @@ TensorDescriptorPtr get_tensor_descriptor_ptr(const Output<const ov::Node>& out)
 
 } // namespace snippets
 } // namespace ngraph
-namespace ov {
-using ngraph::snippets::TensorDescriptor;
-template <>
-class OPENVINO_API AttributeAdapter<TensorDescriptor> : public ov::ValueAccessor<std::string> {
-public:
-    OPENVINO_RTTI("AttributeAdapter<TensorDescriptor>");
-    explicit AttributeAdapter(TensorDescriptor& value) : m_ref(value) {}
-
-    const std::string& get() override;
-    void set(const std::string& value) override;
-    explicit operator TensorDescriptor&() {
-        return m_ref;
-    }
-
-protected:
-    TensorDescriptor& m_ref;
-    std::string m_dump;
-};
-} // namespace ov

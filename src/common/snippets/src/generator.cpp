@@ -6,13 +6,12 @@
 #include "snippets/lowered_expr.hpp"
 #include "snippets/pass/assign_registers.hpp"
 #include "snippets/op/loop.hpp"
-#include "snippets/op/subgraph.hpp"
 #include "snippets/op/kernel.hpp"
 #include <snippets/itt.hpp>
 #include "snippets/pass/lowered/assign_registers.hpp"
 #include "snippets/pass/lowered/insert_tail_loop.hpp"
 #include "snippets/pass/lowered/insert_loops_layout.hpp"
-#include "snippets/pass/lowered/transpose_decomposition.hpp"
+#include "snippets/pass/lowered/move_scalar_to_consumer.hpp"
 #include "snippets/pass/lowered/buffer_propagate_offset_and_reset.hpp"
 #include "snippets/pass/lowered/propagate_layout.hpp"
 #include "snippets/pass/lowered/softmax_decomposition.hpp"
@@ -24,16 +23,18 @@ namespace snippets {
 
 Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, const LoweringConfig& config, const void* compile_params) {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator::generate")
+    OV_ITT_TASK_CHAIN(GENERATE, ngraph::pass::itt::domains::SnippetsTransform, "Snippets::Generator", "::Transformations")
     if (!target->is_supported())
         throw ngraph_error("unsupported architecture for code generation");
     auto linear_ir = LoweredExprIR(m, config);
     const size_t vector_size = target->get_lanes();
     // todo: fix buffer allocation rank
-    const size_t buffer_allocation_rank = -1;
+    const int32_t buffer_allocation_rank = -1;
     auto propagate_buffer_offsets = std::make_shared<pass::lowered::PropagateOffsetAndResetBuffer>();
     std::vector<std::shared_ptr<pass::lowered::LinearIRTransformation>> transformation_pipeline {
             std::make_shared<pass::lowered::InsertLoopsLayout>(vector_size, buffer_allocation_rank),
             std::make_shared<pass::lowered::SoftmaxDecomposition>(vector_size, buffer_allocation_rank),
+            std::make_shared<pass::lowered::MoveScalarToConsumer>(),
             std::make_shared<pass::lowered::PropagateLayout>(),
             propagate_buffer_offsets,
             std::make_shared<pass::lowered::AssignRegisters>(),

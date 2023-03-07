@@ -6,6 +6,8 @@
 #include "snippets/snippets_isa.hpp"
 #include "snippets/lowered_expr.hpp"
 #include "snippets/itt.hpp"
+// This header is needed to avoid MSVC warning "C2039: 'inserter': is not a member of 'std'"
+#include <iterator>
 
 namespace ngraph {
 namespace snippets {
@@ -99,7 +101,10 @@ bool AssignRegisters::run(LoweredExprIR& linear_ir) {
             accumulator_reg++;
         }
     }
-    auto enumerate_out_tensors = [] (const LoweredExprPtr& expr,
+    // Note: have to specify default capture "=" due to MSVC bug (it doesn't capture const expressions implicitly)
+    // Otherwise WIN build fails with "IS_MANUALLY_ALLOCATED_REG cannot be implicitly captured because no default capture mode has been specified"
+    // the same problem with all the other lambdas in this file
+    auto enumerate_out_tensors = [=] (const LoweredExprPtr& expr,
                                                               decltype(regs_vec)& reg_map,
                                                               const std::map<tensor, Reg>& manually_assigned_regs,
                                                               size_t& counter) {
@@ -129,7 +134,7 @@ bool AssignRegisters::run(LoweredExprIR& linear_ir) {
     std::vector<std::set<Reg>> used_vec(num_expressions, std::set<Reg>());
     std::vector<std::set<Reg>> defined_vec(num_expressions, std::set<Reg>());
 
-    auto tensor2reg = [] (const std::vector<tensor>& tensors, const std::map<tensor, Reg>& reg_map) {
+    auto tensor2reg = [=] (const std::vector<tensor>& tensors, const std::map<tensor, Reg>& reg_map) {
         std::set<Reg> result;
         for (const auto& t : tensors) {
             if (reg_map.count(t) == 0)
@@ -303,7 +308,7 @@ bool AssignRegisters::run(LoweredExprIR& linear_ir) {
 
     std::map<tensor, Reg> assigned_regs(std::move(manually_assigned_gprs));
     assigned_regs.insert(manually_assigned_vecs.begin(), manually_assigned_vecs.end());
-    auto register_assigned_regs = [&assigned_regs](const std::map<tensor, Reg>& unique_regs,
+    auto register_assigned_regs = [=, &assigned_regs](const std::map<tensor, Reg>& unique_regs,
                                                                               const std::map<Reg, Reg>& unique2reused) {
         for (const auto& reg : unique_regs) {
             if (reg.second == IS_MANUALLY_ALLOCATED_REG)

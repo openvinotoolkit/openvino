@@ -84,7 +84,8 @@ std::shared_ptr<ov::Model> Transpose0213MatMulLoweredFunction::initLowered() con
         const auto& td = ngraph::snippets::get_tensor_descriptor_ptr(anchor);
         const auto& tensor = td->get_tensor();
         const auto& subtensor = td->get_subtensor();
-        ngraph::snippets::set_tensor_descriptor_ptr(anchor, std::make_shared<TensorDescriptor>(tensor, subtensor, layout));
+        ngraph::snippets::set_tensor_descriptor_ptr(anchor,
+                                                    std::make_shared<ngraph::snippets::TensorDescriptor>(tensor, subtensor, layout));
     }
     auto matmul = std::make_shared<ngraph::snippets::op::Brgemm>(data[0], data[1]);
     if (transpose_position == 2) {
@@ -92,7 +93,8 @@ std::shared_ptr<ov::Model> Transpose0213MatMulLoweredFunction::initLowered() con
         const auto& td = ngraph::snippets::get_tensor_descriptor_ptr(anchor);
         const auto& tensor = td->get_tensor();
         const auto& subtensor = td->get_subtensor();
-        ngraph::snippets::set_tensor_descriptor_ptr(anchor, std::make_shared<TensorDescriptor>(tensor, subtensor, layout));
+        ngraph::snippets::set_tensor_descriptor_ptr(anchor,
+                                                    std::make_shared<ngraph::snippets::TensorDescriptor>(tensor, subtensor, layout));
         matmul->validate_and_infer_types();
     }
     return std::make_shared<ov::Model>(NodeVector{matmul}, data);
