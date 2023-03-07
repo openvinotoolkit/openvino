@@ -431,6 +431,9 @@ jobs:
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
 
+  - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_auto_batch_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-ov_auto_batch_unit_tests.xml
+    displayName: 'AutoBatch UT'
+
   - script: $(RUN_PREFIX) $(INSTALL_TEST_DIR)/ov_template_func_tests --gtest_filter=*smoke* --gtest_output=xml:$(INSTALL_TEST_DIR)/TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
 
@@ -524,22 +527,9 @@ jobs:
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
       export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
       export TEST_DEVICE=CPU
-      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/mo_python_api_tests/test_mo_convert_complex_params.py --ir_version=11 --junitxml=./TEST-test_mo_convert_complex_params.xmlTEST
-    displayName: 'MO Python API Tests - Complex Python params'
+      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/mo_python_api_tests/  --junitxml=./TEST-test_mo_convert.xmlTEST
+    displayName: 'MO Python API Tests'
 
-  - script: |
-      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
-      export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
-      export TEST_DEVICE=CPU
-      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/mo_python_api_tests/test_mo_convert_tf.py --ir_version=11 --junitxml=./TEST-test_mo_convert_tf.xmlTEST
-    displayName: 'MO Python API Tests - Import TF model from memory'
-
-  - script: |
-      python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt
-      export PYTHONPATH=$(LAYER_TESTS_DIR):$PYTHONPATH
-      export TEST_DEVICE=CPU
-      $(RUN_PREFIX) python3 -m pytest $(LAYER_TESTS_DIR)/mo_python_api_tests/test_mo_convert_pytorch.py --ir_version=11 --junitxml=./TEST-test_mo_convert_pytorch.xmlTEST
-    displayName: 'MO Python API Tests - Import PyTorch model from memory'
 
   - script: |
       python3 -m pip install -r $(LAYER_TESTS_DIR)/requirements.txt

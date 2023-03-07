@@ -750,6 +750,9 @@ struct convolution : public primitive_base<convolution> {
     /// If bilinear_interpolation_pad is false and the sampling location is within one pixel outside of the feature map boundary,
     /// then the sampling location shifts to the inner boundary of the feature map.
     bool bilinear_interpolation_pad {false};
+
+    bool transposed {false};
+
     /// @param grouped_weights_shape Defines if weights tensor has explicit group dimension.
     bool grouped_weights_shape;
     /// @brief List of primitive ids containing weights data.
@@ -772,6 +775,7 @@ struct convolution : public primitive_base<convolution> {
         seed = hash_combine(seed, deformable_groups);
         seed = hash_combine(seed, deformable_mode);
         seed = hash_combine(seed, bilinear_interpolation_pad);
+        seed = hash_combine(seed, transposed);
         seed = hash_combine(seed, grouped_weights_shape);
         seed = hash_combine(seed, weights.size());
         seed = hash_combine(seed, bias.size());
@@ -797,6 +801,7 @@ struct convolution : public primitive_base<convolution> {
                cmp_fields(padding_below) &&
                cmp_fields(deformable_mode) &&
                cmp_fields(bilinear_interpolation_pad) &&
+               cmp_fields(transposed) &&
                cmp_fields(grouped_weights_shape) &&
                cmp_fields(weights.size()) &&
                cmp_fields(bias.size()) &&

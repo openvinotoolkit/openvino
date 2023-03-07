@@ -92,7 +92,7 @@ public:
        IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, supportConfigs, {});
        ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
            .WillByDefault(Return(supportConfigs));
-       ON_CALL(*core, GetConfig(_, StrEq(GPU_CONFIG_KEY(MAX_NUM_THREADS))))
+       ON_CALL(*core, GetConfig(_, StrEq(ov::compilation_num_threads.name())))
            .WillByDefault(Return(12));
     }
 };
