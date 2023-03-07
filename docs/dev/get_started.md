@@ -12,6 +12,7 @@ Explore other resources to learn more about OpenVINO:
  * [OpenVINO contributing guidelines](../../CONTRIBUTING.md)
  * [OpenVINO conditional compilation](./conditional_compilation.md)
  * [OpenVINO Tutorials](../../README.md#tutorials)
+ * [Enabling tests in OpenVINO CI](./enable_ci_step.md)
 
 ## See also
  * [OpenVINO Developer Documentation](./index.md)
