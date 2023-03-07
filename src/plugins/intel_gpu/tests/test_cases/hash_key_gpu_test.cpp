@@ -251,9 +251,9 @@ TEST(check_hash_value, conv_basic) {
     const auto prog_node_hash = prog_node.get_hash();
     const auto prim_inst_hash = prim_inst->get_impl_key();
 
-    ASSERT_EQ(primitive_hash, 12460716932918224126UL);
-    ASSERT_EQ(prog_node_hash, 14591386802538030726UL);
-    ASSERT_EQ(prim_inst_hash, 3099955169197623490UL);
+    ASSERT_EQ(primitive_hash, 14591385718963138714UL);
+    ASSERT_EQ(prog_node_hash, 14591385718963138714UL);
+    ASSERT_EQ(prim_inst_hash, 6876197578014654797UL);
 }
 
 TEST(check_hash_value, quantize_basic) {
@@ -286,7 +286,7 @@ TEST(check_hash_value, quantize_basic) {
     const auto prog_node_hash = prog_node.get_hash();
     const auto prim_inst_hash = prim_inst->get_impl_key();
 
-    ASSERT_EQ(primitive_hash, 1569171484239412698UL);
+    ASSERT_EQ(primitive_hash, 4135863035456568493UL);
     ASSERT_EQ(prog_node_hash, 4135863035456568493UL);
     ASSERT_EQ(prim_inst_hash, 13898649554943348250UL);
 }
