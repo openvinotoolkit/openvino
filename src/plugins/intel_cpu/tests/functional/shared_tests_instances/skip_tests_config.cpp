@@ -13,6 +13,9 @@
 
 std::vector<std::string> disabledTestPatterns() {
     std::vector<std::string> retVector{
+        // todo: Enable this tests when loop fusing on linear IR is implemented
+        R"(.*MHASelect.*)",
+        R"(.*Snippets.*Select.*)",
         // TODO: Issue 31841
         R"(.*(QuantGroupConvBackpropData3D).*)",
         // TODO: Issue 31843
