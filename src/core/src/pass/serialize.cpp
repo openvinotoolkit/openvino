@@ -254,11 +254,6 @@ class XmlSerializer : public ngraph::AttributeVisitor {
             }
         }
 
-        if (ir_version < 11) {
-            // ops for serialized body function are provided in reversed order
-            std::reverse(output.begin(), output.end());
-        }
-
         return output;
     }
 
