@@ -47,7 +47,7 @@ Config::Config() {
     #endif
 
     std::cout << "streamExecutorConfig._threadBindingType value is " << streamExecutorConfig._threadBindingType
-                << std::endl;
+                << " parallel_get_max_threads value is " << parallel_get_max_threads() << std::endl;
 
     if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16))
         enforceBF16 = false;
