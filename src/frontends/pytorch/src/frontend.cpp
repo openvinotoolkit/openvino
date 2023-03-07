@@ -37,18 +37,10 @@ namespace pytorch {
 namespace {
 std::set<std::string> get_unconverted_types_from_model(const std::shared_ptr<Model>& model) {
     std::set<std::string> unconverted_ops_types;
-    int list = 0;
-    int index = 0;
     for (const auto& node : model->get_ordered_ops()) {
         if (const auto& fw_node = ov::as_type_ptr<PtFrameworkNode>(node)) {
             auto op_type = fw_node->get_decoder()->get_op_type();
             unconverted_ops_types.insert(op_type);
-            if (op_type == "aten::index_put_") {
-                index++;
-            }
-            if (op_type == "prim::ListConstruct") {
-                list++;
-            }
         }
         if (const auto& fw_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
             for (size_t i = 0; i < fw_node->get_internal_subgraphs_size(); i++) {

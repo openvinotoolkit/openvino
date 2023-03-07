@@ -13,7 +13,6 @@ namespace frontend {
 namespace pytorch {
 namespace pass {
 
-// This transformation replaces pattern prim::ListConstruct->aten::index
 class PYTORCH_API AtenIndexPutReplacer : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ov::frontend::pytorch::pass::AtenIndexPutReplacer");
