@@ -57,7 +57,8 @@ CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network,
     m_context(context),
     m_config(config),
     m_taskExecutor{ _taskExecutor },
-    m_waitExecutor(executorManager()->getIdleCPUStreamsExecutor({ "GPUWaitExecutor" })) {
+    m_waitExecutor(executorManager()->getIdleCPUStreamsExecutor({ "GPUWaitExecutor" })),
+    m_network(network) {
     auto graph_base = std::make_shared<Graph>(network, get_context_impl(m_context), m_config, 0);
     for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
@@ -274,6 +275,9 @@ void CompiledModel::Export(std::ostream& networkModel) {
         ob << true;
         ov::pass::StreamSerialize serializer(networkModel, {}, ov::pass::Serialize::Version::UNSPECIFIED);
         serializer.run_on_model(std::const_pointer_cast<ngraph::Function>(m_network.getFunction()));
+
+        ov::pass::Serialize hoho_serializer("hoho.xml", "hoho.bin");
+        hoho_serializer.run_on_model(std::const_pointer_cast<ngraph::Function>(m_network.getFunction()));
     } else {
         ob << false;
         m_graphs.front()->Export(ob);

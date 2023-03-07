@@ -45,3 +45,24 @@ ov::pass::ConvertShapeOf3::ConvertShapeOf3() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(shapeof, matcher_name);
     register_matcher(m, callback);
 }
+
+ov::pass::ConvertShapeOf1To3::ConvertShapeOf1To3() {
+    MATCHER_SCOPE(ConvertShapeOf1To3);
+    auto shapeof1 = pattern::wrap_type<ov::opset1::ShapeOf>();
+
+    matcher_pass_callback callback = [](pattern::Matcher& m) {
+        auto shapeof1 = std::dynamic_pointer_cast<ov::opset1::ShapeOf>(m.get_match_root());
+        if (!shapeof1) {
+            return false;
+        }
+
+        auto new_shapeof3 = std::make_shared<ov::opset3::ShapeOf>(shapeof1->input_value(0));
+        new_shapeof3->set_friendly_name(shapeof1->get_friendly_name()); 
+        ngraph::copy_runtime_info(shapeof1, new_shapeof3);
+        ngraph::replace_node(shapeof1, new_shapeof3);
+        return true;
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(shapeof1, matcher_name);
+    register_matcher(m, callback);
+}

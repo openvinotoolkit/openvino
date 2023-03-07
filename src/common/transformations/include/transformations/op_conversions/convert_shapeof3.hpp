@@ -13,6 +13,7 @@ namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertShapeOf3;
+class TRANSFORMATIONS_API ConvertShapeOf1To3;
 
 }  // namespace pass
 }  // namespace ov
@@ -21,4 +22,10 @@ class ov::pass::ConvertShapeOf3 : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ConvertShapeOf3", "0");
     ConvertShapeOf3();
+};
+
+class ov::pass::ConvertShapeOf1To3 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("ConvertShapeOf1To3", "0");
+    ConvertShapeOf1To3();
 };

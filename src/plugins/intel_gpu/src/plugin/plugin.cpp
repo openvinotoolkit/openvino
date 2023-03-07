@@ -204,7 +204,6 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::LoadExeNetworkImpl::CreateExeNetwork");
         CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(transformedNetwork, context, config);
-        exeNetwork->m_network = network;
         update_memory_statistics(context->get_impl());
         return exeNetwork;
     }
@@ -528,8 +527,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istr
             xmlString.resize(hdr.model_size);
             networkModel.read(const_cast<char*>(xmlString.c_str()), hdr.model_size);
 
-            auto originalNetwork = GetCore()->ReadNetwork(xmlString, std::move(dataBlob), true);
-            auto transformedNetwork = clone_and_transform_model(originalNetwork, config);
+            auto transformedNetwork = GetCore()->ReadNetwork(xmlString, std::move(dataBlob), true);
             exeNetwork = std::make_shared<CompiledModel>(transformedNetwork, context, config);
         } else {
             exeNetwork = std::make_shared<CompiledModel>(ib, context, config);
