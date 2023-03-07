@@ -19,14 +19,14 @@ external_data_full_path = os.path.join(os.path.dirname(__file__), "models", exte
 
 def setup_module():
     shutil.copyfile(external_data_model_full_path, external_data_model_current_folder_path)
-    os.mkdir('data')
+    os.mkdir("data")
     shutil.copyfile(external_data_full_path, external_data_current_folder_path)
 
 
 def teardown_module():
     os.remove(external_data_model_current_folder_path)
     os.remove(external_data_current_folder_path)
-    os.rmdir('data')
+    os.rmdir("data")
 
 
 @pytest.mark.parametrize("model_path", [external_data_model_full_path, external_data_model_current_folder_path])
