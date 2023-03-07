@@ -34,6 +34,7 @@ struct gemm_test_params {
     size_t expected_not_fused_primitives;
     std::string kernel_name;
     dim_vec_kind broadcast_kind;
+    eltwise_mode eltwise_m;
 };
 
 class GemmFusingTest : public ::BaseFusingTest<gemm_test_params> {
@@ -281,7 +282,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_scale, ::testing::ValuesIn(std::v
 
 
 class gemm_2in_add : public GemmFusingTest {};
-TEST_P(gemm_2in_add, sum) {
+TEST_P(gemm_2in_add, eltwise_postop) {
     auto p = GetParam();
 
     if (engine.get_device_info().supports_immad) {
@@ -303,67 +304,7 @@ TEST_P(gemm_2in_add, sum) {
         input_layout("input1", get_input_layout(p, 1)),
         data("add_data", get_mem(add_data_layout, 1.0f/p.kernel.count())),
         gemm("gemm_prim", { input_info("input0"), input_info("input1") }, data_types::f32),
-        eltwise("add_prim", { input_info("gemm_prim"), input_info("add_data") }, eltwise_mode::sum, p.default_type),
-        reorder("reorder_bfyx", input_info("add_prim"), p.default_format, data_types::f32)
-    );
-
-    tolerance = default_tolerance(p.default_type);
-    execute(p);
-}
-
-TEST_P(gemm_2in_add, prod) {
-    auto p = GetParam();
-
-    if (engine.get_device_info().supports_immad) {
-        ov::intel_gpu::ImplementationDesc gemmv_impl = { cldnn::format::type::any, "", impl_types::onednn };
-        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "gemm_prim", gemmv_impl } }));
-        cfg_fused.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
-    }
-
-    auto add_data_layout = get_output_layout(p);
-    auto add_data_size = add_data_layout.get_tensor();
-    if (p.broadcast_kind == dim_vec_kind::batch)
-        add_data_size.batch[0] = 1;
-    else
-        add_data_size.feature[0] = 1;
-    add_data_layout.set_tensor(add_data_size);
-
-    create_topologies(
-        input_layout("input0", get_input_layout(p, 0)),
-        input_layout("input1", get_input_layout(p, 1)),
-        data("add_data", get_mem(add_data_layout, 1.0f/p.kernel.count())),
-        gemm("gemm_prim", { input_info("input0"), input_info("input1") }, data_types::f32),
-        eltwise("add_prim", { input_info("gemm_prim"), input_info("add_data") }, eltwise_mode::prod, p.default_type),
-        reorder("reorder_bfyx", input_info("add_prim"), p.default_format, data_types::f32)
-    );
-
-    tolerance = default_tolerance(p.default_type);
-    execute(p);
-}
-
-TEST_P(gemm_2in_add, sub) {
-    auto p = GetParam();
-
-    if (engine.get_device_info().supports_immad) {
-        ov::intel_gpu::ImplementationDesc gemmv_impl = { cldnn::format::type::any, "", impl_types::onednn };
-        cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "gemm_prim", gemmv_impl } }));
-        cfg_fused.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
-    }
-
-    auto add_data_layout = get_output_layout(p);
-    auto add_data_size = add_data_layout.get_tensor();
-    if (p.broadcast_kind == dim_vec_kind::batch)
-        add_data_size.batch[0] = 1;
-    else
-        add_data_size.feature[0] = 1;
-    add_data_layout.set_tensor(add_data_size);
-
-    create_topologies(
-        input_layout("input0", get_input_layout(p, 0)),
-        input_layout("input1", get_input_layout(p, 1)),
-        data("add_data", get_mem(add_data_layout, 1.0f/p.kernel.count())),
-        gemm("gemm_prim", { input_info("input0"), input_info("input1") }, data_types::f32),
-        eltwise("add_prim", { input_info("gemm_prim"), input_info("add_data") }, eltwise_mode::sub, p.default_type),
+        eltwise("add_prim", { input_info("gemm_prim"), input_info("add_data") }, p.eltwise_m, p.default_type),
         reorder("reorder_bfyx", input_info("add_prim"), p.default_format, data_types::f32)
     );
 
@@ -372,8 +313,12 @@ TEST_P(gemm_2in_add, sub) {
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_add, ::testing::ValuesIn(std::vector<gemm_test_params>{
-    gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", dim_vec_kind::batch },
-    gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", dim_vec_kind::feature },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", dim_vec_kind::batch, eltwise_mode::sum },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", dim_vec_kind::batch, eltwise_mode::prod },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", dim_vec_kind::batch, eltwise_mode::sub },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", dim_vec_kind::feature, eltwise_mode::sum },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", dim_vec_kind::feature, eltwise_mode::prod },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", dim_vec_kind::feature, eltwise_mode::sub },
 }));
 
 class gemm_2in_act_scale_quantize_i8 : public GemmFusingTest {};
