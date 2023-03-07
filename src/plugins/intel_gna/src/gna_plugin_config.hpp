@@ -36,8 +36,7 @@ struct Config {
         inference_precision = r.inference_precision;
         gnaPrecision = r.gnaPrecision;
         embedded_export_path = r.embedded_export_path;
-        dumpXNNGeneration = r.dumpXNNGeneration;
-        target = std::make_shared<common::Target>();
+        target = std::make_shared<target::Target>();
         if (r.target) {
             *target = *r.target;
         }
@@ -63,9 +62,8 @@ struct Config {
     InferenceEngine::Precision gnaPrecision = InferenceEngine::Precision::I16;
 
     std::string embedded_export_path;
-    std::string dumpXNNGeneration;
 
-    std::shared_ptr<common::Target> target = std::make_shared<common::Target>();
+    std::shared_ptr<target::Target> target = std::make_shared<target::Target>();
 
     Gna2AccelerationMode pluginGna2AccMode = Gna2AccelerationModeSoftware;
     bool swExactMode = true;

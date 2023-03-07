@@ -15,11 +15,9 @@ namespace intel_gna {
 
 class TransformationsPipeline {
 public:
-    explicit TransformationsPipeline(const Config& config,
-                                     const ov::intel_gna::common::DeviceVersion& effective_compile_target =
-                                         ov::intel_gna::common::DeviceVersion::NotSet)
-        : config(config),
-          effective_compile_target(effective_compile_target) {}
+    explicit TransformationsPipeline(const Config& config) : config(config) {
+        effective_compile_target = config.target->get_effective_compile_target();
+    }
     void apply(const std::shared_ptr<ov::Model>& model);
     IE_SUPPRESS_DEPRECATED_START
     void apply_legacy(const InferenceEngine::CNNNetwork& network, bool runBeforeCopy);
@@ -34,7 +32,7 @@ private:
     bool is_ngraph_passes_used = false;
     bool fake_quantized = false;
     int legacy_pass_index = 0;
-    ov::intel_gna::common::DeviceVersion effective_compile_target;
+    ov::intel_gna::target::DeviceVersion effective_compile_target;
 };
 
 }  // namespace intel_gna
