@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "embedding_shape_infer_utils.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/util/embeddingbag_packed_base.hpp"
 #include "utils.hpp"
@@ -35,13 +36,7 @@ std::vector<TShape> shape_infer(const ov::op::util::EmbeddingBagPackedBase* op,
                               "INDICES and PER_SAMPLE_WEIGHTS shape must be same.");
     }
 
-    const auto& emb_table_shape = input_shapes[EMB_TABLE];
-    auto output_shape = emb_table_shape;
-    if (emb_table_shape.rank().is_static()) {
-        NODE_VALIDATION_CHECK(op, emb_table_shape.size() > 0, "EMB_TABLE can't be a scalar.");
-        output_shape[0] = indices_shape.rank().is_static() ? indices_shape[0] : Dimension::dynamic();
-    }
-    return {output_shape};
+    return {embedding::copy_shape_and_update_dim(op, input_shapes[EMB_TABLE], indices_shape)};
 }
 
 template <class TShape>
