@@ -18,6 +18,7 @@
 #include "transforms/append_list_unpack_replacer.hpp"
 #include "transforms/aten_cat_replacer.hpp"
 #include "transforms/aten_getitem_replacer.hpp"
+#include "transforms/aten_index_put_replacer.hpp"
 #include "transforms/aten_index_replacer.hpp"
 #include "transforms/aten_stack_list_construct_replacer.hpp"
 #include "transforms/einsum_list_construct.hpp"
@@ -27,7 +28,6 @@
 #include "transforms/prim_list_tuple_construct_replacer.hpp"
 #include "transforms/prim_list_unpack_replacer.hpp"
 #include "transforms/string_equality_replacer.hpp"
-#include "transforms/aten_index_put_replacer.hpp"
 #include "translate_session.hpp"
 
 namespace ov {
