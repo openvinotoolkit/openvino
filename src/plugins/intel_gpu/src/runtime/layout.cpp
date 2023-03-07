@@ -614,7 +614,7 @@ ov::PartialShape layout::transform(cldnn::format new_fmt) const {
     }
 
     auto new_dims = convert_dimensions(new_sizes, default_fmt.internal_order(), new_fmt.order());
-    for (int idx = (new_dims.size() - 1); idx >= 0; idx--) {
+    for (int idx = static_cast<int>(new_dims.size() - 1); idx >= 0; idx--) {
         if (new_dims[idx] == -1)
             new_dims.erase((new_dims.begin() + idx));
         else if (new_dims[idx] < 0)
