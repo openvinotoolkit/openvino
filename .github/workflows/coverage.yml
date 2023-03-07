@@ -38,7 +38,7 @@ jobs:
         run: |
           chmod +x install_build_dependencies.sh
           sudo ./install_build_dependencies.sh
-          pip install -r src/bindings/python/src/compatibility/openvino/requirements.txt
+          pip install -r src/bindings/python/src/compatibility/openvino/requirements-dev.txt
           pip install -r src/frontends/tensorflow/tests/requirements.txt
           pip install -r src/frontends/tensorflow_lite/tests/requirements.txt
           pip install -r src/frontends/paddle/tests/requirements.txt
