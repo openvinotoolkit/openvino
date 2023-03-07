@@ -17,7 +17,7 @@
 using namespace ov;
 using namespace opset10;
 
-ov::pass::TransposeFuse::TransposeFuse() {
+ov::pass::TransposeSinkingFuse::TransposeSinkingFuse() {
     MATCHER_SCOPE(TransposeFuse);
     auto transpose_label = pattern::wrap_type<Transpose>({pattern::any_input(), pattern::wrap_type<Constant>()});
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {

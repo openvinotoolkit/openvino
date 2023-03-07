@@ -101,7 +101,7 @@ TEST_P(TransposeSinkingFQ, TransposeFQReduce) {
     manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
     manager.register_pass<ov::pass::InitNodeInfo>();
     manager.register_pass<ov::pass::TransposeFQReduction>();
-    manager.register_pass<ov::pass::TransposeSinkingReductionForward>();
+    manager.register_pass<ov::pass::TransposeReduction>();
     manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
@@ -219,7 +219,7 @@ TEST_P(TransposeSinking, TransposeReduction) {
     ngraph::pass::Manager manager;
     manager.register_pass<ngraph::pass::InitUniqueNames>(unh);
     manager.register_pass<ov::pass::InitNodeInfo>();
-    manager.register_pass<ov::pass::TransposeSinkingReductionForward>();
+    manager.register_pass<ov::pass::TransposeReduction>();
     manager.register_pass<ngraph::pass::CheckUniqueNames>(unh);
     manager.run_passes(f);
     ASSERT_NO_THROW(check_rt_info(f));
@@ -340,7 +340,7 @@ TEST_F(TransformationTestsF, TransposeReduceNegative) {
         auto sub = std::make_shared<opset6::Subtract>(transpose, reduce_mean);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{sub}, ngraph::ParameterVector{input});
-        manager.register_pass<ov::pass::TransposeSinkingReductionForward>();
+        manager.register_pass<ov::pass::TransposeReduction>();
     }
 }
 

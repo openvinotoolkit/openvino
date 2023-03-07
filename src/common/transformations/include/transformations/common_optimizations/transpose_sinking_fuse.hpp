@@ -11,18 +11,18 @@
 namespace ov {
 namespace pass {
 
-class TRANSFORMATIONS_API TransposeFuse;
+class TRANSFORMATIONS_API TransposeSinkingFuse;
 
 }  // namespace pass
 }  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief TransposeFuse transformation eliminates 2 consecutive Transposes if they result in no changes to input or
+ * @brief TransposeSinkingFuse transformation eliminates 2 consecutive Transposes if they result in no changes to input or
  * fuses them to single Transpose if input gets changed
  */
-class ov::pass::TransposeFuse : public ov::pass::MatcherPass {
+class ov::pass::TransposeSinkingFuse : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("TransposeFuse", "0");
-    TransposeFuse();
+    OPENVINO_RTTI("TransposeSinkingFuse", "0");
+    TransposeSinkingFuse();
 };

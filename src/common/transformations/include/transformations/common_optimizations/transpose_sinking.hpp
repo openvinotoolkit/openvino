@@ -7,8 +7,6 @@
 #include <memory>
 #include <openvino/pass/graph_rewrite.hpp>
 #include <openvino/pass/pattern/matcher.hpp>
-#include <transformations/common_optimizations/transpose_sinking_fuse.hpp>
-#include <transformations/common_optimizations/transpose_sinking_reduction.hpp>
 #include <transformations_visibility.hpp>
 #include <vector>
 
@@ -18,10 +16,22 @@ namespace pass {
 class TRANSFORMATIONS_API TransposeSinking;
 class TRANSFORMATIONS_API TransposeConvert;
 class TRANSFORMATIONS_API TransposeEltwise;
+class TRANSFORMATIONS_API TransposeReduction;
 class TRANSFORMATIONS_API TransposeFQReduction;
+class TRANSFORMATIONS_API TransposeFuse;
 
 }  // namespace pass
 }  // namespace ov
+
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief TransposeReduction transformation sinks Transpose through Reduce operations
+ */
+class ov::pass::TransposeReduction : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("TransposeReduction", "0");
+    TransposeReduction();
+};
 
 /**
  * @ingroup ie_transformation_common_api
@@ -56,6 +66,17 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
+ * @brief TransposeFuse transformation eliminates 2 consequtive Transposes if they result in no changes to input or
+ * fuses them to single Transpose if input gets changed
+ */
+class ov::pass::TransposeFuse : public ov::pass::MatcherPass {
+public:
+    OPENVINO_RTTI("TransposeFuse", "0");
+    TransposeFuse();
+};
+
+/**
+ * @ingroup ie_transformation_common_api
  * @brief TransposeSinking transformation sinks Transposes through known operations
  */
 class ov::pass::TransposeSinking : public ov::pass::GraphRewrite {
@@ -63,7 +84,7 @@ public:
     OPENVINO_RTTI("TransposeSinking", "0");
     TransposeSinking() {
         add_matcher<ov::pass::TransposeFQReduction>();
-        add_matcher<ov::pass::TransposeSinkingReductionForward>();
+        add_matcher<ov::pass::TransposeReduction>();
         add_matcher<ov::pass::TransposeConvert>();
         add_matcher<ov::pass::TransposeEltwise>();
         add_matcher<ov::pass::TransposeFuse>();

@@ -10,13 +10,14 @@
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 
 #include "itt.hpp"
-#include "transformations/common_optimizations/transpose_sinking.hpp"
 #include "transformations/common_optimizations/transpose_sinking_binary.hpp"
 #include "transformations/common_optimizations/transpose_sinking_concat.hpp"
 #include "transformations/common_optimizations/transpose_sinking_data_movement.hpp"
 #include "transformations/common_optimizations/transpose_sinking_interpolate.hpp"
 #include "transformations/common_optimizations/transpose_sinking_split.hpp"
 #include "transformations/common_optimizations/transpose_sinking_unary.hpp"
+#include "transformations/common_optimizations/transpose_sinking_fuse.hpp"
+#include "transformations/common_optimizations/transpose_sinking_reduction.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::TransposeSinkingGeneralForward::TransposeSinkingGeneralForward() {
@@ -28,7 +29,7 @@ ov::pass::TransposeSinkingGeneralForward::TransposeSinkingGeneralForward() {
     add_matcher<ov::pass::TransposeSinkingDataMovementForward>();
     add_matcher<ov::pass::TransposeSinkingReductionForward>();
     add_matcher<ov::pass::TransposeSinkingInterpolateForward>();
-    add_matcher<ov::pass::TransposeFuse>();
+    add_matcher<ov::pass::TransposeSinkingFuse>();
 }
 
 ov::pass::TransposeSinkingGeneralBackward::TransposeSinkingGeneralBackward() {
@@ -40,7 +41,7 @@ ov::pass::TransposeSinkingGeneralBackward::TransposeSinkingGeneralBackward() {
     add_matcher<ov::pass::TransposeSinkingDataMovementBackward>();
     add_matcher<ov::pass::TransposeSinkingReductionBackward>();
     add_matcher<ov::pass::TransposeSinkingInterpolateBackward>();
-    add_matcher<ov::pass::TransposeFuse>();
+    add_matcher<ov::pass::TransposeSinkingFuse>();
 }
 
 bool ov::pass::TransposeSinkingGeneral::run_on_model(const std::shared_ptr<ov::Model>& f) {

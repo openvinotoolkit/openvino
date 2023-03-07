@@ -35,17 +35,30 @@ ParameterVector filter_parameters(const OutputVector &out_vec) {
 
 OutputVector set_transpose_for(const vector<size_t>& idxs, const OutputVector& out_vec) {
     OutputVector result = out_vec;
-    for (size_t i = 0; i < out_vec.size(); ++i) {
-        if (find(idxs.begin(), idxs.end(), i) != idxs.end()) {
-            const auto &out = out_vec[i];
-            auto rank = out.get_partial_shape().rank().get_length();
-            vector<int64_t> axes(rank);
-            iota(axes.begin(), axes.end(), 0);
-            reverse(axes.begin(), axes.end());
-            auto order = make_shared<Constant>(element::i32, Shape{axes.size()}, axes);
-            auto transpose = make_shared<Transpose>(out, order);
-            result[i] = transpose;
-        }
+    for (const auto& idx : idxs) {
+        const auto &out = out_vec[idx];
+        auto rank = out.get_partial_shape().rank().get_length();
+        vector<int64_t> axes(rank);
+        iota(axes.begin(), axes.end(), 0);
+        reverse(axes.begin(), axes.end());
+        auto order = make_shared<Constant>(element::i32, Shape{axes.size()}, axes);
+        auto transpose = make_shared<Transpose>(out, order);
+        result[idx] = transpose;
+    }
+    return result;
+}
+
+OutputVector set_gather_for(const vector<size_t>& idxs, const OutputVector& out_vec) {
+    OutputVector result = out_vec;
+    for (const auto& idx : idxs) {
+        const auto &out = out_vec[idx];
+        vector<int64_t> axes(out.get_shape()[0]);
+        iota(axes.begin(), axes.end(), 0);
+        reverse(axes.begin(), axes.end());
+        auto order = make_shared<Constant>(element::i32, Shape{axes.size()}, axes);
+        auto axis = make_shared<Constant>(element::i32, Shape{}, 0);
+        auto transpose = make_shared<Gather>(out, order, axis);
+        result[idx] = transpose;
     }
     return result;
 }
@@ -60,4 +73,12 @@ std::string to_string(const Shape &shape) {
     }
     result << "}";
     return result.str();
+}
+
+std::shared_ptr<ov::Node> parameter(ov::element::Type el_type, const PartialShape &ps) {
+    return std::make_shared<Parameter>(el_type, ps);
+}
+
+shared_ptr<ov::Node> constant(ov::element::Type el_type, const Shape &shape, const vector<int64_t> &value) {
+    return make_shared<Constant>(el_type, shape, value);
 }
