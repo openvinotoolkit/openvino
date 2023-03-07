@@ -146,10 +146,11 @@ void pre_replace_deconv::run(program& p) {
                                                                   output_padding);
                     }
                 }
+
+                conv_prim->transposed = true;
                 program_node& new_node = p.get_or_create(conv_prim);
 
                 auto& conv_node = new_node.as<convolution>();
-                conv_node.set_transposed(true);
 
                 // add connections input->convolution, weights->convolution and bias->convolution
                 p.add_connection(input_node, conv_node);
