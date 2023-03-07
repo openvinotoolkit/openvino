@@ -2,22 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "concatenation_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
+
+#include "concatenation_inst.h"
 #include "concatenation/concatenation_kernel_selector.h"
 #include "concatenation/concatenation_kernel_base.h"
-
-#include <initializer_list>
 
 namespace cldnn {
 namespace ocl {
 
 namespace {
 kernel_selector::concat_axis convert_axis(int64_t axis, size_t rank) {
-    unsigned cldnn_axis = axis >= 0 ? axis : axis + static_cast<int64_t>(rank);
+    auto cldnn_axis = axis >= 0 ? axis : axis + static_cast<int64_t>(rank);
     if (cldnn_axis >= rank)
         IE_THROW() << "Concatenation axis exceeds number of dimensions";
 

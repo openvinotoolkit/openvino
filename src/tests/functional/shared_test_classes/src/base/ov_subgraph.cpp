@@ -47,7 +47,7 @@ void SubgraphBaseTest::run() {
          ov::test::utils::PassRate::Statuses::SKIPPED :
          ov::test::utils::PassRate::Statuses::CRASHED;
     summary.setDeviceName(targetDevice);
-    summary.updateOPsStats(function, status);
+    summary.updateOPsStats(function, status, rel_influence_coef);
 
     if (isCurrentTestDisabled)
         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
@@ -92,14 +92,14 @@ void SubgraphBaseTest::run() {
             status = ov::test::utils::PassRate::Statuses::FAILED;
             errorMessage = "Unknown failure occurred.";
         }
-        summary.updateOPsStats(function, status);
+        summary.updateOPsStats(function, status, rel_influence_coef);
         if (status != ov::test::utils::PassRate::Statuses::PASSED) {
             GTEST_FATAL_FAILURE_(errorMessage.c_str());
         }
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
         IE_THROW() << "Crash happens";
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
-        summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED);
+        summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
         IE_THROW() << "Crash happens";
     }
 }
@@ -279,11 +279,6 @@ void SubgraphBaseTest::infer() {
 }
 
 std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
-    if (is_report_stages) {
-        std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is started"<< std::endl;
-    }
-    auto start_time = std::chrono::system_clock::now();
-
     using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::Tensor>;
 
     auto functionToProcess = functionRefs->clone();
@@ -341,11 +336,6 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
     functionToProcess = p.build();
 
     auto results = ngraph::helpers::interpretFunction(functionToProcess, inputs);
-    if (is_report_stages) {
-        auto end_time = std::chrono::system_clock::now();
-        std::chrono::duration<double> duration = end_time - start_time;
-        std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
-    }
     return results;
 }
 

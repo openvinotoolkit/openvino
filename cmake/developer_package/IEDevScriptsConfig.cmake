@@ -24,7 +24,6 @@ function(set_ci_build_number)
 endfunction()
 
 include(features)
-include(message)
 
 set_ci_build_number()
 
@@ -112,10 +111,13 @@ else()
     set(BIN_FOLDER "bin/${ARCH_FOLDER}")
 endif()
 
-set(CMAKE_BUILD_TYPE "Release" CACHE STRING "CMake build type")
-set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release;Debug;RelWithDebInfo;MinSizeRel")
 if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
+    # Ninja-Multi specific, see:
+    # https://cmake.org/cmake/help/latest/variable/CMAKE_DEFAULT_BUILD_TYPE.html
     set(CMAKE_DEFAULT_BUILD_TYPE "Release" CACHE STRING "CMake default build type")
+elseif(NOT OV_GENERATOR_MULTI_CONFIG)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "CMake build type")
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Release;Debug;RelWithDebInfo;MinSizeRel")
 endif()
 
 if(USE_BUILD_TYPE_SUBFOLDER)
@@ -153,10 +155,10 @@ set(CMAKE_DEBUG_POSTFIX ${IE_DEBUG_POSTFIX})
 set(CMAKE_RELEASE_POSTFIX ${IE_RELEASE_POSTFIX})
 
 # Support CMake multi-configuration for Visual Studio / Ninja or Xcode build
-if (OV_GENERATOR_MULTI_CONFIG)
+if(OV_GENERATOR_MULTI_CONFIG)
     set(IE_BUILD_POSTFIX $<$<CONFIG:Debug>:${IE_DEBUG_POSTFIX}>$<$<CONFIG:Release>:${IE_RELEASE_POSTFIX}>)
-else ()
-    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+else()
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         set(IE_BUILD_POSTFIX ${IE_DEBUG_POSTFIX})
     else()
         set(IE_BUILD_POSTFIX ${IE_RELEASE_POSTFIX})

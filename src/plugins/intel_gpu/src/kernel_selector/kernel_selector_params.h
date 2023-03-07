@@ -408,7 +408,7 @@ struct Params {
     virtual ParamsKey GetParamsKey() const;
 
 protected:
-    Params(KernelType kt, const std::string& id) : kType(kt), layerID(id) {}
+    Params(KernelType kt, const std::string& id) : kType(kt), layerID(id), is_shape_agnostic(false) {}
     KernelType kType;
 
 public:
@@ -416,7 +416,7 @@ public:
     std::string forceImplementation;
     EngineInfo engineInfo;
     std::string uniqueID;
-
+    bool is_shape_agnostic;
     virtual std::string to_string() const;
     virtual std::string to_cache_string_v2() const;
 };
@@ -522,13 +522,13 @@ struct FusedOpsConfiguration {
     FusedOpsConfiguration& SetShuffleVarName(std::string val) { shuffle_var_name = val; return *this; }
     bool IsPostReorderFused(void) const { return orig_output_layout != DataLayout::DataLayoutCount; }
     int GetDimIndexFromOrder(Tensor::DataChannelName val) const {
-        int dims_num = bfzyx_idx_order.size();
+        size_t dims_num = bfzyx_idx_order.size();
         if (val == Tensor::DataChannelName::BATCH && dims_num >= 1) {
             return 0;
         } else if (val == Tensor::DataChannelName::FEATURE && dims_num >= 2) {
             return 1;
         } else if (dims_num >= 3 && dims_num - static_cast<int>(val) - 1 >= 0) {
-            return bfzyx_idx_order.size() - static_cast<int>(val) - 1;
+            return static_cast<int>(bfzyx_idx_order.size()) - static_cast<int>(val) - 1;
         } else {
             return -1;
         }
@@ -627,11 +627,15 @@ struct fused_operation_desc {
 struct base_params : public Params {
     virtual ~base_params() {}
 
+    enum class ArgType {
+        Input,
+        Constant
+    };
+
     std::vector<base_activation_params> activations;
     std::vector<fused_operation_desc> fused_ops = {};
     MultiDataTensor inputs;
     MultiDataTensor outputs;
-    bool is_shape_agnostic;
     std::string to_string() const override;
     std::string to_cache_string_v2() const override;
     ParamsKey GetParamsKey() const override;
@@ -649,7 +653,7 @@ struct base_params : public Params {
     }
 
 protected:
-    explicit base_params(KernelType kt) : Params(kt, ""), inputs(1), outputs(1), is_shape_agnostic(false) {}
+    explicit base_params(KernelType kt) : Params(kt, ""), inputs(1), outputs(1) {}
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

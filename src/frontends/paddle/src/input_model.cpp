@@ -156,16 +156,8 @@ void InputModel::InputModelImpl::loadPlaces() {
 
 namespace {
 bool read_tensor(std::istream& is, char* data, size_t len) {
-    std::vector<char> header(16);
-    is.read(&header[0], 16);
-    uint32_t dims_len = 0;
-    is.read(reinterpret_cast<char*>(&dims_len), 4);
-    std::vector<char> dims_struct(dims_len);
-    is.read(&dims_struct[0], dims_len);
     is.read(data, len);
-    if (is.gcount() != len)
-        return false;
-    return true;
+    return (size_t)is.gcount() == len;
 }
 
 template <typename T>
@@ -279,9 +271,34 @@ void InputModel::InputModelImpl::loadConsts(const std::basic_string<T>& folder_w
             continue;
 
         FRONT_END_GENERAL_CHECK(var_desc.type().type() == ::paddle::framework::proto::VarType::LOD_TENSOR);
-        const auto& tensor = var_desc.type().lod_tensor().tensor();
-        Shape shape(tensor.dims().cbegin(), tensor.dims().cend());
-        const auto& type = TYPE_MAP[tensor.data_type()];
+        /*
+            reference:
+           https://github.com/PaddlePaddle/Paddle2ONNX/blob/c14446437041a0aa3572994d085b7a35c5b0985c/paddle2onnx/parser/parser.cc#L261
+            When deserialize the proto, the header of each weight
+            [ 4 byte ]      -- version(not need)
+            [   8 byte   ]  -- lod_level(not need)
+            [ 4 byte ]      -- version(not need)
+            [ 4 byte ]      -- TensorDesc size
+            [ x byte ... ]  -- TensorDesc
+            [ y byte ... ]  -- weight
+        */
+        {
+            const size_t header_size = 16;
+            std::vector<char> header(header_size);
+            weight_stream->read(&header[0], header_size);
+        }
+
+        int32_t size;
+        weight_stream->read(reinterpret_cast<char*>(&size), sizeof(size));
+
+        std::unique_ptr<char[]> buf(new char[size]);
+        weight_stream->read(reinterpret_cast<char*>(buf.get()), size);
+
+        std::unique_ptr<::paddle::framework::proto::VarType_TensorDesc> tensor_desc(
+            new ::paddle::framework::proto::VarType_TensorDesc());
+        tensor_desc->ParseFromArray(buf.get(), size);
+        Shape shape(tensor_desc->dims().cbegin(), tensor_desc->dims().cend());
+        const auto& type = TYPE_MAP[tensor_desc->data_type()];
         const auto& data_length = shape_size(shape) * type.size();
         std::vector<uint8_t> tensor_data(data_length);
 
@@ -365,7 +382,7 @@ void InputModel::InputModelImpl::createTempConsts() {
             var_place->set_partial_shape(tensor_ps);
 
             Shape shape(tensor_ps.size(), 0);
-            for (auto i = 0; i < tensor_ps.size(); i++) {
+            for (size_t i = 0; i < tensor_ps.size(); i++) {
                 const auto& dim = tensor_ps[i];
                 if (dim.is_static()) {
                     shape[i] = dim.get_length();

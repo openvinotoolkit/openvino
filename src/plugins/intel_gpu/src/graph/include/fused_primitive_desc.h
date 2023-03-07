@@ -5,11 +5,21 @@
 #pragma once
 
 #include "intel_gpu/primitives/primitive.hpp"
-#include "intel_gpu/primitives/activation.hpp"
-#include "kernel_selector_params.h"
 #include "meta_utils.h"
 
 namespace cldnn {
+
+class NodeFuseParams {
+public:
+    explicit NodeFuseParams(primitive_type_id type) : _type(type) {}
+    virtual ~NodeFuseParams() = default;
+    virtual primitive_type_id type() const { return _type; }
+    virtual size_t ops_count() const { return 0; }
+
+private:
+    const primitive_type_id _type;
+};
+
 struct fused_primitive_desc {
     explicit fused_primitive_desc(std::shared_ptr<const primitive> prim) : desc(prim) {}
 
@@ -36,7 +46,7 @@ struct fused_primitive_desc {
     layout input_layout = layout(data_types::f32, format::bfyx, tensor());
     layout output_layout = layout(data_types::f32, format::bfyx, tensor());
 
-    std::shared_ptr<kernel_selector::fuse_params> f_param;
+    std::shared_ptr<NodeFuseParams> f_param;
 
     std::vector<std::pair<primitive_id, size_t>> deps;
     std::map<primitive_id, size_t> fused_deps;
@@ -50,6 +60,7 @@ enum class onednn_post_op_type : uint32_t {
     eltwise_clip,
     eltwise_linear,
     eltwise_round,
+    eltwise_hardsigmoid,
     binary_mul,
     binary_add,
     binary_sub,
@@ -72,6 +83,7 @@ static inline std::ostream& operator<< (std::ostream& os, onednn_post_op_type& t
         case onednn_post_op_type::eltwise_clip: os << "eltwise_clip"; break;
         case onednn_post_op_type::eltwise_linear: os << "eltwise_linear"; break;
         case onednn_post_op_type::eltwise_round: os << "eltwise_round"; break;
+        case onednn_post_op_type::eltwise_hardsigmoid: os << "eltwise_hardsigmoid"; break;
         case onednn_post_op_type::binary_mul: os << "binary_mul"; break;
         case onednn_post_op_type::binary_add: os << "binary_add"; break;
         case onednn_post_op_type::binary_sub: os << "binary_sub"; break;

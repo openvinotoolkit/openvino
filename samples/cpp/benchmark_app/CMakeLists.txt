@@ -26,6 +26,7 @@ if(NOT TARGET nlohmann_json::nlohmann_json)
     if(TARGET nlohmann_json)
         # Ubuntu 18.04 case where target 'nlohmann_json' is here, but nlohmann_json_FOUND is OFF
         if(NOT TARGET nlohmann_json::nlohmann_json)
+            set_target_properties(nlohmann_json PROPERTIES IMPORTED_GLOBAL ON)
             add_library(nlohmann_json::nlohmann_json ALIAS nlohmann_json)
         endif()
         set(nlohmann_json_FOUND ON)
@@ -46,7 +47,7 @@ if(NOT TARGET nlohmann_json::nlohmann_json)
         # for example, on debian 9 there is no cmake / pkgconfig files
         find_file(nlohmann_include_file
                   NAMES "json.hpp"
-                  "Path to json.hpp (nlohmann-json-dev )")
+                  "Path to json.hpp (nlohmann-json-dev)")
         if(nlohmann_include_file)
             add_library(nlohmann_json::nlohmann_json INTERFACE IMPORTED)
             get_filename_component(nlohmann_include_dir "${nlohmann_include_file}" PATH)

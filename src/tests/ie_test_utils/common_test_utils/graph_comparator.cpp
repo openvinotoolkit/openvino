@@ -639,7 +639,7 @@ Comparator::Result Comparator::compare(const std::shared_ptr<ngraph::Function>& 
                                              "' is not a variable - graph comparison is not supported");
                     }
                     auto name2 = assign2->get_variable_id();
-                    if (name2.find(name1) != std::string::npos || name1.find(name2) != std::string::npos) {
+                    if (name2 == name1) {
                         found_sink2 = sink2;
                         break;
                     }
@@ -697,7 +697,8 @@ Comparator::Result Comparator::compare(ngraph::Node* node1, ngraph::Node* node2,
     auto type_info2 = node2->get_type_info();
 
     if (!compare_type_info(type_info1, type_info2)) {
-        return Result::error(typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2));
+        return Result::error(name(node1) + " and " + name(node2) + "have different type info: " +
+                             typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2));
     }
 
     auto subgraph1 = dynamic_cast<ov::op::util::SubGraphOp*>(node1);
@@ -806,6 +807,14 @@ void Comparator::compare_outputs(ngraph::Node* node1, ngraph::Node* node2, std::
         if (should_compare(CmpValues::RUNTIME_KEYS) && !compare_rt_keys(node1->output(i), node2->output(i), err_log)) {
             err_log << "Different runtime info detected at output(" << i << ")\n"
                     << name(node1) << " and " << name(node2) << " not equal runtime info." << std::endl;
+        }
+
+        if (should_compare(CmpValues::CONSUMERS_COUNT)) {
+            if (node1->output(i).get_target_inputs().size() != node2->output(i).get_target_inputs().size()) {
+                err_log << "Different consumers number detected\n"
+                        << name(node1) << " Output(" << i << ") " << node1->output(i).get_target_inputs().size() << " and "
+                        << name(node2) << " Output(" << i << ") " << node2->output(i).get_target_inputs().size() << std::endl;
+            }
         }
     }
 }

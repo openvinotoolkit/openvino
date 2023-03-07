@@ -9,9 +9,9 @@
 #include <ie_remote_context.hpp>
 
 #include "any_copy.hpp"
+#include "cache_guard.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "dev/plugin.hpp"
-#include "ie_cache_guard.hpp"
 #include "ie_cache_manager.hpp"
 #include "ie_extension.h"
 #include "ie_icore.hpp"
@@ -21,7 +21,7 @@
 #include "openvino/core/version.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
-#include "threading/ie_executor_manager.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
 
 #ifdef OPENVINO_STATIC_LIBRARY
 #    include "ie_plugins.hpp"
@@ -92,7 +92,7 @@ private:
     public:
         struct CacheConfig {
             std::string _cacheDir;
-            std::shared_ptr<InferenceEngine::ICacheManager> _cacheManager;
+            std::shared_ptr<ov::ICacheManager> _cacheManager;
         };
 
         bool flag_allow_auto_batching = true;
@@ -120,11 +120,11 @@ private:
     };
 
     struct CacheContent {
-        explicit CacheContent(const std::shared_ptr<InferenceEngine::ICacheManager>& cache_manager,
+        explicit CacheContent(const std::shared_ptr<ov::ICacheManager>& cache_manager,
                               const std::string model_path = {})
             : cacheManager(cache_manager),
               modelPath(model_path) {}
-        std::shared_ptr<InferenceEngine::ICacheManager> cacheManager;
+        std::shared_ptr<ov::ICacheManager> cacheManager;
         std::string blobId = {};
         std::string modelPath = {};
     };
@@ -134,7 +134,7 @@ private:
 
     Any get_property_for_core(const std::string& name) const;
 
-    mutable InferenceEngine::CacheGuard cacheGuard;
+    mutable ov::CacheGuard cacheGuard;
 
     struct PluginDescriptor {
         ov::util::FilePath libraryLocation;
@@ -162,7 +162,7 @@ private:
         }
     };
 
-    InferenceEngine::ExecutorManager::Ptr executorManagerPtr;
+    std::shared_ptr<ov::threading::ExecutorManager> m_executor_manager;
     mutable std::unordered_set<std::string> opsetNames;
     // TODO: make extensions to be optional with conditional compilation
     mutable std::vector<InferenceEngine::IExtensionPtr> extensions;
@@ -385,7 +385,7 @@ public:
      * @note  `deviceName` is not allowed in form of MULTI:CPU, HETERO:GPU,CPU, AUTO:CPU
      *        just simple forms like CPU, GPU, MULTI, GPU.0, etc
      */
-    void set_property_for_devivce(const ov::AnyMap& configMap, const std::string& deviceName);
+    void set_property_for_device(const ov::AnyMap& configMap, const std::string& deviceName);
 
     void add_extension(const std::vector<ov::Extension::Ptr>& extensions);
 

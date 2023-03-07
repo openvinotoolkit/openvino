@@ -2,17 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "mvn_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
+
+#include "mvn_inst.h"
 #include "mvn/mvn_kernel_selector.h"
 #include "mvn/mvn_kernel_base.h"
-
-#include <algorithm>
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -29,9 +23,9 @@ struct mvn_impl : typed_primitive_impl_ocl<mvn> {
         return make_unique<mvn_impl>(*this);
     }
 
-    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<mvn>();
-        auto params = get_default_params<kernel_selector::mvn_params>(impl_param);
+        auto params = get_default_params<kernel_selector::mvn_params>(impl_param, is_shape_agnostic);
         auto optional_params = get_default_optional_params<kernel_selector::mvn_optional_params>(impl_param.get_program());
 
         params.mvnMode = primitive->across_channels ? kernel_selector::mvn_mode::ACROSS_CHANNELS
@@ -45,8 +39,9 @@ struct mvn_impl : typed_primitive_impl_ocl<mvn> {
     }
 
     void update_dispatch_data(const kernel_impl_params& impl_param) override {
-        auto kernel_params = get_kernel_params(impl_param);
+        auto kernel_params = get_kernel_params(impl_param, true);
         (_kernel_data.update_dispatch_data_func)(kernel_params.first, _kernel_data);
+        update_kernels_list_to_skip();
     }
 };
 

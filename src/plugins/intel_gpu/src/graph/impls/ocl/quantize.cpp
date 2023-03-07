@@ -2,15 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "quantize_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "quantize_inst.h"
 #include "quantize/quantize_kernel_selector.h"
 #include "quantize/quantize_kernel_ref.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -34,8 +30,8 @@ protected:
         for (size_t i = 0; i < instance.inputs_memory_count(); i++) {
             args.inputs.push_back(instance.input_memory_ptr(i));
         }
-        if (instance.node->get_scale_shift_opt()) {
-            if (instance.node->get_dependencies().size() == 9) {
+        if (instance.scale_shift_opt) {
+            if (instance.dependencies().size() == 9) {
                 args.inputs.push_back(instance.dep_memory_ptr(5));
                 args.inputs.push_back(instance.dep_memory_ptr(6));
                 args.inputs.push_back(instance.dep_memory_ptr(7));
@@ -84,6 +80,7 @@ public:
             quantize_params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
         }
 
+        quantize_params.is_shape_agnostic = impl_param.is_dynamic();
         auto& kernel_selector = kernel_selector::quantize_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(quantize_params, quantize_optional_params);
 
@@ -95,6 +92,7 @@ public:
         const auto& output_layout = impl_param.get_output_layout();
         quantize_params.packed_binary_output = output_layout.data_type == data_types::bin;
         (_kernel_data.update_dispatch_data_func)(quantize_params, _kernel_data);
+        update_kernels_list_to_skip();
     }
 };
 
