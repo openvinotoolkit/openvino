@@ -11,7 +11,6 @@
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph/pass/visualize_tree.hpp"
 
 using namespace testing;
 using namespace ov;
