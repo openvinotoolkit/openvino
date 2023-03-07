@@ -191,17 +191,13 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
 }
 
 void KernelEmitter::emit_code(const std::vector<size_t> &in,
-                              const std::vector<size_t> &out,
-                              const std::vector<size_t> &pool,
-                              const std::vector<size_t> &gpr) const {
-    validate_arguments(in, out, pool, gpr);
+                              const std::vector<size_t> &out) const {
+    validate_arguments(in, out);
     emit_impl(in, out);
 }
 
 void KernelEmitter::validate_arguments(const std::vector<size_t> &in,
-                                       const std::vector<size_t> &out,
-                                       const std::vector<size_t> &pool,
-                                       const std::vector<size_t> &gpr) const {
+                                       const std::vector<size_t> &out) const {
     if (!in.empty())
         IE_THROW() << "KernelEmitter got invalid number of inputs. Expected 0, got " << in.size();
     if (!out.empty())
@@ -339,17 +335,13 @@ LoopBeginEmitter::LoopBeginEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl:
 }
 
 void LoopBeginEmitter::emit_code(const std::vector<size_t> &in,
-                                 const std::vector<size_t> &out,
-                                 const std::vector<size_t> &pool,
-                                 const std::vector<size_t> &gpr) const {
-    validate_arguments(in, out, pool, gpr);
+                                 const std::vector<size_t> &out) const {
+    validate_arguments(in, out);
     emit_impl(in, out);
 }
 
 void LoopBeginEmitter::validate_arguments(const std::vector<size_t> &in,
-                                        const std::vector<size_t> &out,
-                                        const std::vector<size_t> &pool,
-                                        const std::vector<size_t> &gpr) const {
+                                        const std::vector<size_t> &out) const {
     if (in.size() != num_inputs)
         IE_THROW() << "Invalid inputs size: expected " << num_inputs << " got " << in.size();
     if (out.size() != num_inputs + 1)
@@ -397,18 +389,14 @@ LoopEndEmitter::LoopEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::imp
 }
 
 void LoopEndEmitter::emit_code(const std::vector<size_t> &in,
-                                 const std::vector<size_t> &out,
-                                 const std::vector<size_t> &pool,
-                                 const std::vector<size_t> &gpr) const {
-    validate_arguments(in, out, pool, gpr);
+                                 const std::vector<size_t> &out) const {
+    validate_arguments(in, out);
     emit_impl(in, out);
 }
 
 
 void LoopEndEmitter::validate_arguments(const std::vector<size_t> &in,
-                                       const std::vector<size_t> &out,
-                                       const std::vector<size_t> &pool,
-                                       const std::vector<size_t> &gpr) const {
+                                       const std::vector<size_t> &out) const {
     if (loop_begin->input_regs.size() != num_inputs)
         IE_THROW() << "Invalid loop_begin->input_regs size: expected " << num_inputs << " got " << loop_begin->input_regs.size();
     if (out.size() != num_outputs)

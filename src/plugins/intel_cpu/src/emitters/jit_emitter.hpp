@@ -28,10 +28,6 @@ struct emitter_params {
     virtual size_t hash() const = 0;
 };
 
-struct emitter_context {
-    virtual ~emitter_context() = default;
-};
-
 class jit_emitter : public ngraph::snippets::Emitter {
 public:
     jit_emitter(dnnl::impl::cpu::x64::jit_generator* host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,
