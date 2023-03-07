@@ -57,7 +57,7 @@ jobs:
                 -DENABLE_INTEL_GPU=OFF \
                 -DENABLE_INTEL_CPU=OFF \
                 -B build
-          cmake --build build --target all --jobs=$(nproc -all)
+          cmake --build build --target all --jobs=$(nproc --all)
 
       - name: ls all
         run:  ls -laR .
