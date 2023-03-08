@@ -5,7 +5,7 @@
 #pragma once
 
 #include "intel_gpu/primitives/implementation_desc.hpp"
-#include "kernel_impl_params.hpp"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
 
 #include <functional>
 #include <map>
