@@ -11,5 +11,5 @@ namespace opset11 {
 #define NGRAPH_OP(a, b) using b::a;
 #include "ngraph/opsets/opset11_tbl.hpp"
 #undef NGRAPH_OP
-}  // namespace opset10
+}  // namespace opset11
 }  // namespace ngraph
