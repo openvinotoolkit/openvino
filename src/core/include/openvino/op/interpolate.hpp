@@ -85,11 +85,6 @@ class OPENVINO_API Interpolate : public util::InterpolateBase {
 public:
     OPENVINO_OP("Interpolate", "opset4", util::InterpolateBase, 4);
 
-    using util::InterpolateBase::CoordinateTransformMode;
-    using util::InterpolateBase::InterpolateMode;
-    using util::InterpolateBase::NearestMode;
-    using util::InterpolateBase::ShapeCalcMode;
-
     Interpolate() = default;
     /// \brief Constructs a Interpolate operation without 'axes' input.
     ///
