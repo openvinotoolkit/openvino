@@ -8,6 +8,7 @@
 #include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/lru_cache.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
 
 #include <list>
 #include <string>
@@ -249,8 +250,14 @@ public:
     std::pair<int64_t/*const alloc*/, int64_t/*general alloc*/> get_estimated_device_mem_usage();
 
     void remove_kernel(kernel_id id);
-    void calc_nodes_hash();
 
+    struct ImplHasher {
+        size_t operator()(const kernel_impl_params &k) const {
+            return k.hash();
+        }
+    };
+
+    using ImplementationsCache = cldnn::LruCacheThreadSafe<kernel_impl_params, std::shared_ptr<primitive_impl>, ImplHasher>;
     ImplementationsCache& get_implementations_cache() const { return *_impls_cache; }
     ICompilationContext& get_compilation_context() const { return *_compilation_context; }
     void cancel_compilation_context();

@@ -5,7 +5,7 @@
 #pragma once
 
 #include "intel_gpu/primitives/primitive.hpp"
-#include "meta_utils.h"
+#include "intel_gpu/runtime/utils.hpp"
 
 namespace cldnn {
 
@@ -40,6 +40,17 @@ struct fused_primitive_desc {
             throw std::runtime_error("Invalid dynamic cast of fused parameters!");
         return p;
     }
+
+    bool operator==(const fused_primitive_desc& rhs) const {
+        if (total_num_deps != rhs.total_num_deps)
+            return false;
+        if (dep_start_idx != rhs.dep_start_idx)
+            return false;
+
+        return *desc == *rhs.desc;
+    }
+
+    bool operator!=(const fused_primitive_desc& rhs) const { return !(*this == rhs); }
 
     std::shared_ptr<const primitive> desc;
 

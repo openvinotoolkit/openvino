@@ -124,7 +124,6 @@ program::program(engine& engine_ref,
     } else {
         build_program(is_internal);
     }
-    calc_nodes_hash();
 }
 
 program::program(engine& engine_ref,
@@ -142,7 +141,6 @@ program::program(engine& engine_ref,
     init_program();
     prepare_nodes(nodes);
     build_program(is_internal);
-    calc_nodes_hash();
 }
 
 program::program(engine& engine)
@@ -150,6 +148,7 @@ program::program(engine& engine)
       _stream(_engine.create_stream({})),
       _config(),
       processing_order() {
+    init_primitives();
     _config.apply_user_properties(_engine.get_device_info());
 }
 
@@ -171,8 +170,8 @@ void program::init_program() {
     _impls_cache = cldnn::make_unique<ImplementationsCache>(_impls_cache_capacity);
     // Remove items of compilation context's internal queue when some impl is popped in kernels_cache
     // compilation context's queue check duplication of inserted task
-    _impls_cache->set_remove_item_callback([this](std::pair<size_t, std::shared_ptr<cldnn::primitive_impl>>& item) {
-        get_compilation_context().remove_keys({item.first});
+    _impls_cache->set_remove_item_callback([this](ImplementationsCache::ItemType& item) {
+        get_compilation_context().remove_keys({item.first.hash()});
     });
 }
 
@@ -501,12 +500,6 @@ void program::set_options() {
     assert(prog_id != 0);
     if (!_config.get_property(ov::intel_gpu::force_implementations).empty()) {
         _config.set_property(ov::intel_gpu::optimize_data(true));
-    }
-}
-
-void program::calc_nodes_hash() {
-    for (auto& node : processing_order) {
-        node->calculate_hash();
     }
 }
 
