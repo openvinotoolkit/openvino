@@ -16,9 +16,9 @@ namespace v1 {
 /// \brief Computes indices and values of the k maximum/minimum values
 ///        for each slice along specified axis.
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API TopK : public util::TopK_Base {
+class OPENVINO_API TopK : public util::TopKBase {
 public:
-    OPENVINO_OP("TopK", "opset1", op::util::TopK_Base, 1);
+    OPENVINO_OP("TopK", "opset1", op::util::TopKBase, 1);
 
     using SortType = TopKSortType;
     using Mode = TopKMode;
@@ -67,9 +67,9 @@ namespace v3 {
 /// \brief Computes indices and values of the k maximum/minimum values
 ///        for each slice along specified axis.
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API TopK : public util::TopK_Base {
+class OPENVINO_API TopK : public util::TopKBase {
 public:
-    OPENVINO_OP("TopK", "opset3", op::util::TopK_Base, 3);
+    OPENVINO_OP("TopK", "opset3", op::util::TopKBase, 3);
     /// \brief Constructs a TopK operation
     TopK() = default;
     /// \brief Constructs a TopK operation with two outputs: values and indices.
@@ -109,9 +109,9 @@ public:
 namespace v11 {
 /// \brief Computes the top K elements of a given tensor along the specified axis.
 /// \ingroup ov_ops_cpp_api
-class OPENVINO_API TopK : public util::TopK_Base {
+class OPENVINO_API TopK : public util::TopKBase {
 public:
-    OPENVINO_OP("TopK", "opset11", op::util::TopK_Base, 11);
+    OPENVINO_OP("TopK", "opset11", op::util::TopKBase, 11);
     /// \brief Constructs a TopK operation
     TopK() = default;
     /// \brief Constructs a TopK operation with two outputs: values and indices.
