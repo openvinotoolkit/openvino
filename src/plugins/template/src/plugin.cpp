@@ -8,16 +8,15 @@
 
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_plugin_config.hpp"
+#include "itt.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "template/config.hpp"
-#include "template_itt.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
 #include "transformations/disable_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
-#include "transformations/template_pattern_transformation.hpp"
 
 namespace {
 static constexpr const char* wait_executor_name = "TemplateWaitExecutor";
@@ -65,12 +64,10 @@ void transform_model(const std::shared_ptr<ov::Model>& model) {
     ov::pass::Manager passManager;
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ov::pass::CommonOptimizations>();
+    // Disable some transformations
     passManager.get_pass_config()->disable<ov::pass::UnrollIf>();
     // This transformation changes output name
     passManager.get_pass_config()->disable<ov::pass::ConvertReduceSumToPooling>();
-    // Example: register plugin specific transformation
-    passManager.register_pass<ov::pass::DecomposeDivideMatcher>();
-    passManager.register_pass<ov::pass::ReluReluFusionMatcher>();
     // Register any other transformations
     // ..
 
