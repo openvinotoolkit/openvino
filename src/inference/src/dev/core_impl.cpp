@@ -925,10 +925,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work
         cacheContent.cacheManager->remove_cache_entry(cacheContent.blobId);
-        compiled_model = compile_model_lambda();
     } catch (...) {
         cacheContent.cacheManager->remove_cache_entry(cacheContent.blobId);
-        compiled_model = compile_model_lambda();
         // TODO: temporary disabled by #54335. In future don't throw only for new 'blob_outdated' exception
         // throw;
     }
@@ -1048,11 +1046,12 @@ ov::CoreImpl::CoreConfig::CacheConfig ov::CoreImpl::CoreConfig::get_cache_config
     const ov::Plugin& plugin,
     ov::AnyMap& parsedConfig) const {
     // cache_dir is enabled locally in compile_model only
-    if (parsedConfig.count(CONFIG_KEY(CACHE_DIR))) {
-        auto tempConfig = CoreConfig::CacheConfig::create(parsedConfig.at(CONFIG_KEY(CACHE_DIR)).as<std::string>());
+    if (parsedConfig.count(ov::cache_dir.name())) {
+        auto cache_dir_val = parsedConfig.at(ov::cache_dir.name()).as<std::string>();
+        auto tempConfig = CoreConfig::CacheConfig::create(cache_dir_val);
         // if plugin does not explicitly support cache_dir, we need to remove it from config
         if (!util::contains(plugin.get_property(ov::supported_properties), ov::cache_dir)) {
-            parsedConfig.erase(CONFIG_KEY(CACHE_DIR));
+            parsedConfig.erase(ov::cache_dir.name());
         }
         return tempConfig;
     } else {  // cache_dir is set to Core globally or for the specific device
