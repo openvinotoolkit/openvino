@@ -145,4 +145,4 @@ std::ostream& operator<<(std::ostream& s, const op::util::InterpolateBase::Coord
 std::ostream& operator<<(std::ostream& s, const op::util::InterpolateBase::NearestMode& type) {
     return s << as_string(type);
 }
-}
+}  // namespace ov
