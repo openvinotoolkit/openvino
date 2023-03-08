@@ -62,7 +62,7 @@ Concat::Concat(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
     if (axis < 0) {
         axis += inRank;
     }
-    if (axis >= inRank || axis < 0) {
+    if (axis >= static_cast<int64_t>(inRank) || axis < 0) {
         IE_THROW() << "Concat node with name '" << getName() << "' has invalid value of axis parameter: " << axis;
     }
     this->axis = axis;

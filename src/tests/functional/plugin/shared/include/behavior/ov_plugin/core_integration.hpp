@@ -781,7 +781,7 @@ TEST_P(OVClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS, GetMetricAndPrintNoT
     << std::endl;
 
     ASSERT_LE(start, end);
-    ASSERT_GE(step, 1);
+    ASSERT_GE(step, 1u);
     OV_ASSERT_PROPERTY_SUPPORTED(ov::range_for_async_infer_requests);
 }
 

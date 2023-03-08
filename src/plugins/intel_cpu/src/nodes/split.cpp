@@ -66,7 +66,7 @@ Split::Split(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr c
     if (axis < 0) {
         axis += inRank;
     }
-    if (axis >= inRank) {
+    if (axis >= static_cast<int64_t>(inRank)) {
         THROW_ERROR << "Split node with name '" << op->get_friendly_name() << "' has invalid value of axis parameter: " << axis;
     }
     this->axis = axis;
@@ -394,7 +394,7 @@ void Split::initOptimalPrimitiveDescriptor() {
     canUseOptimizedNspc2Ncsp = false;
     IE_ASSERT(config.inConfs.size() > 0);
     const auto inConfDesc = config.inConfs[0].getMemDesc();
-    if (axis == 1 && one_of(inConfDesc->getShape().getRank(), 4, 5) && inConfDesc->hasLayoutType(LayoutType::nspc)) {
+    if (axis == 1 && one_of(inConfDesc->getShape().getRank(), 4u, 5u) && inConfDesc->hasLayoutType(LayoutType::nspc)) {
         canUseOptimizedNspc2Ncsp = true;
         for (size_t i = 0; i < config.outConfs.size(); i++) {
             if (!config.outConfs[i].getMemDesc()->hasLayoutType(LayoutType::ncsp))
@@ -585,7 +585,7 @@ Split::SplitOptimizedExecutor::SplitOptimizedExecutor(BlockedMemoryDescCPtr inDe
     const auto getRank = srcDims.size();
 
     countStrides = 1;
-    for (int i = 0; i < axisOrderPos; i++)
+    for (unsigned int i = 0; i < axisOrderPos; i++)
         countStrides *= srcDims[i];
 
     srcDataStride = 0;
