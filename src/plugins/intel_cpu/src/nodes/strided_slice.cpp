@@ -115,7 +115,7 @@ public:
         if (const auto Slice_op = ov::as_type_ptr<const ov::op::v8::Slice>(m_op)) {
             return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), m_port_mask);
         } else if (const auto StridedSlice_op = ov::as_type_ptr<const ov::op::v1::StridedSlice>(m_op)) {
-            const auto ellipsis_mask = StridedSlice_op->get_ellipsis_mask();
+            const auto& ellipsis_mask = StridedSlice_op->get_ellipsis_mask();
             if (std::count(ellipsis_mask.begin(), ellipsis_mask.end(), 1)) {
                 return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), m_port_mask);
             } else {
