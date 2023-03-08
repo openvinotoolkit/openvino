@@ -174,6 +174,6 @@ This CMake script finds OpenVINO, using the ``find_package`` CMake command.
 See Also
 ########
 
-* [OpenVINO Transformations](./ov_transformations.md)
-* [Using OpenVINO Runtime Samples](../OV_Runtime_UG/Samples_Overview.md)
-* [Hello Shape Infer SSD sample](../../samples/cpp/hello_reshape_ssd/README.md)
+* :doc:`OpenVINO Transformations <openvino_docs_transformations>`
+* :doc:`Using OpenVINO Runtime Samples <openvino_docs_OV_UG_Samples_Overview>`
+* :doc:`Hello Shape Infer SSD sample <openvino_inference_engine_samples_hello_reshape_ssd_README>`
