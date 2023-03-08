@@ -202,10 +202,10 @@ void OperatorsBridge::register_operator_in_custom_domain(std::string name,
                                                          Operator fn,
                                                          std::string domain,
                                                          std::string warning_mes) {
-    for (int version = range.m_from; version <= range.m_to; ++version) {
+    for (int version = range.m_since; version <= range.m_until; ++version) {
         register_operator(name, version, domain, fn);
     }
-    NGRAPH_WARN << "Operator: " << name << " in version from: " << range.m_from << " to: " << range.m_to
+    NGRAPH_WARN << "Operator: " << name << " since version: " << range.m_since << " until version: " << range.m_until
                 << " registered with warning: " << warning_mes;
 }
 
@@ -312,16 +312,16 @@ static const char* const PYTORCH_ATEN_DOMAIN = "org.pytorch.aten";
 
 OperatorsBridge::OperatorsBridge() {
     register_operator("Abs", VersionRange{1, 5}, op::set_1::abs, "Legacy consumed_inputs is not supported");
-    register_operator("Abs", VersionRange::from_version(6), op::set_6::abs);
+    register_operator("Abs", VersionRange::since(6), op::set_6::abs);
     register_operator("Acos", VersionRange::single_version_for_all_opsets(), op::set_7::acos);
     register_operator("Acosh", VersionRange::single_version_for_all_opsets(), op::set_9::acosh);
     register_operator("Add", VersionRange{1, 5}, op::set_1::add, "Legacy consumed_inputs is not supported");
-    register_operator("Add", VersionRange::in_version(6), op::set_6::add);
+    register_operator("Add", VersionRange::in(6), op::set_6::add);
     register_operator("Add", VersionRange{7, 12}, op::set_7::add);
-    register_operator("Add", VersionRange::in_version(13), op::set_13::add);
-    register_operator("Add", VersionRange::from_version(14), op::set_14::add);
+    register_operator("Add", VersionRange::in(13), op::set_13::add);
+    register_operator("Add", VersionRange::since(14), op::set_14::add);
     register_operator("And", VersionRange{1, 6}, op::set_1::logical_and);
-    register_operator("And", VersionRange::from_version(6), op::set_7::logical_and);
+    register_operator("And", VersionRange::since(6), op::set_7::logical_and);
     // 101468 - Use the VersionRange-based approach for all operators
     REGISTER_OPERATOR("ArgMin", 1, argmin);
     REGISTER_OPERATOR("ArgMin", 12, argmin);
