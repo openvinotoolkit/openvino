@@ -53,9 +53,9 @@ in which the `LOG_LEVEL` is represented by the first letter of its name (ERROR b
 @sphinxdirective
 .. code-block:: sh
 
-   [17:09:36.6188]D[plugin.cpp:167] deviceName:MYRIAD, defaultDeviceID:, uniqueName:MYRIAD_
-   [17:09:36.6242]I[executable_network.cpp:181] [AUTOPLUGIN]:select device:MYRIAD
-   [17:09:36.6809]ERROR[executable_network.cpp:384] [AUTOPLUGIN] load failed, MYRIAD:[ GENERAL_ERROR ]
+   [17:09:36.6188]D[plugin.cpp:167] deviceName:GPU, defaultDeviceID:, uniqueName:GPU_
+   [17:09:36.6242]I[executable_network.cpp:181] [AUTOPLUGIN]:select device:GPU
+   [17:09:36.6809]ERROR[executable_network.cpp:384] [AUTOPLUGIN] load failed, GPU:[ GENERAL_ERROR ]
 @endsphinxdirective
 
 
