@@ -16,10 +16,9 @@
 
 using namespace ov;
 using namespace ov::opset10;
+using namespace transpose_sinking::testing;
 
 namespace {
-using NodePtr = std::shared_ptr<ov::Node>;
-using ModelPtr = std::shared_ptr<Model>;
 
 std::vector<size_t> concat_operations_numbers = {1, 10};
 

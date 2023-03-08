@@ -13,11 +13,16 @@
 #include "transformations/common_optimizations/transpose_sinking_reduction.hpp"
 #include "transformations/common_optimizations/transpose_sinking_split.hpp"
 #include "transformations/common_optimizations/transpose_sinking_unary.hpp"
+#include "transformations/common_optimizations/transpose_sinking_interpolate.hpp"
 #include "transpose_sinking_test_utils.hpp"
 
 using namespace std;
 using namespace ov;
 using namespace ov::opset10;
+using namespace transpose_sinking::testing;
+
+namespace transpose_sinking {
+namespace common {
 
 template <typename UnaryT>
 class UnaryFactory : public IFactory {
@@ -138,13 +143,41 @@ class ReductionFactory : public IFactory {
 public:
     explicit ReductionFactory(const std::string& type_name) : IFactory(type_name) {}
     NodePtr create(const OutputVector& parent_nodes) const override {
-        return std::make_shared<ReductionT>(parent_nodes[0], parent_nodes[1]);
+        return std::make_shared<ReductionT>(parent_nodes[0], parent_nodes[1], true);
     }
 };
 
 template <typename ReductionT>
 FactoryPtr CreateReductionFactory(const std::string& type_name) {
     return std::make_shared<ReductionFactory<ReductionT>>(type_name);
+}
+
+class InterpolateFactory : public IFactory {
+public:
+    explicit InterpolateFactory(const std::string& type_name, bool is_reference) : IFactory(type_name), m_is_reference(is_reference) {}
+    NodePtr create(const OutputVector& parent_nodes) const override {
+        std::vector<size_t> pads_begin{1, 2, 3, 4};
+        std::vector<size_t> pads_end{1, 2, 3, 4};
+        if (m_is_reference) {
+            pads_begin = {4, 3, 2, 1};
+            pads_end = {4, 3, 2, 1};
+        }
+        const Interpolate::InterpolateAttrs attrs{Interpolate::InterpolateMode::NEAREST,
+                                      Interpolate::ShapeCalcMode::SCALES,
+                                      pads_begin,
+                                      pads_end,
+                                      Interpolate::CoordinateTransformMode::HALF_PIXEL,
+                                      Interpolate::NearestMode::ROUND_PREFER_FLOOR,
+                                     false,
+                                     -0.75};
+        return std::make_shared<Interpolate>(parent_nodes[0], parent_nodes[1], parent_nodes[2], parent_nodes[3], attrs);
+    }
+private:
+    bool m_is_reference = false;
+};
+
+FactoryPtr CreateInterpolateFactory(const std::string& type_name, bool is_reference) {
+    return std::make_shared<InterpolateFactory>(type_name, is_reference);
 }
 // ----------------------------------------------------------------------------
 
@@ -174,6 +207,9 @@ FactoryPtr CreateReductionFactory(const std::string& type_name) {
 
 #undef CREATE_REDUCTION_FACTORY
 #define CREATE_REDUCTION_FACTORY(type_name) CreateReductionFactory<type_name>(#type_name)
+
+#undef CREATE_INTERPOLATE_FACTORY
+#define CREATE_INTERPOLATE_FACTORY(type_name, reference_flag) CreateInterpolateFactory(#type_name, reference_flag)
 // ----------------------------------------------------------------------------
 
 struct Preprocessing {
@@ -226,7 +262,7 @@ struct TestCase {
 
 class TransposeSinkingTestFixture : public ::testing::WithParamInterface<TestParams>, public TransformationTestsF {
 public:
-    static string get_test_name(testing::TestParamInfo<TestParams> obj) {
+    static string get_test_name(const ::testing::TestParamInfo<TestParams>& obj) {
         size_t num_main_ops_idx;
         size_t main_op_idx;
         TestCase test_case;
@@ -241,16 +277,22 @@ public:
 };
 
 vector<FactoryPtr> unary_factories = {
-    CREATE_UNARY_FACTORY(Clamp),      CREATE_UNARY_FACTORY(Elu),      CREATE_UNARY_FACTORY(SoftPlus),
-    CREATE_UNARY_FACTORY(LogicalNot), CREATE_UNARY_FACTORY(Convert),  CREATE_UNARY_FACTORY(Abs),
-    CREATE_UNARY_FACTORY(Acos),       CREATE_UNARY_FACTORY(Asin),     CREATE_UNARY_FACTORY(Asinh),
-    CREATE_UNARY_FACTORY(Atan),       CREATE_UNARY_FACTORY(Ceiling),  CREATE_UNARY_FACTORY(Cos),
-    CREATE_UNARY_FACTORY(Cosh),       CREATE_UNARY_FACTORY(Erf),      CREATE_UNARY_FACTORY(Exp),
-    CREATE_UNARY_FACTORY(Gelu),       CREATE_UNARY_FACTORY(HSigmoid), CREATE_UNARY_FACTORY(HSwish),
-    CREATE_UNARY_FACTORY(Log),        CREATE_UNARY_FACTORY(Negative), CREATE_UNARY_FACTORY(Relu),
-    CREATE_UNARY_FACTORY(Sigmoid),    CREATE_UNARY_FACTORY(Sign),     CREATE_UNARY_FACTORY(Sin),
-    CREATE_UNARY_FACTORY(Sinh),       CREATE_UNARY_FACTORY(SoftSign), CREATE_UNARY_FACTORY(Sqrt),
-    CREATE_UNARY_FACTORY(Tan),        CREATE_UNARY_FACTORY(Tanh)};
+        CREATE_UNARY_FACTORY(Abs),     CREATE_UNARY_FACTORY(Acos),     CREATE_UNARY_FACTORY(Acosh),
+        CREATE_UNARY_FACTORY(Asin),    CREATE_UNARY_FACTORY(Asinh),    CREATE_UNARY_FACTORY(Atan),
+        CREATE_UNARY_FACTORY(Atanh),   CREATE_UNARY_FACTORY(Ceiling),  CREATE_UNARY_FACTORY(Clamp),
+        CREATE_UNARY_FACTORY(Cos),     CREATE_UNARY_FACTORY(Cosh),     CREATE_UNARY_FACTORY(Convert),
+        CREATE_UNARY_FACTORY(Erf),     CREATE_UNARY_FACTORY(Elu),      CREATE_UNARY_FACTORY(Exp),
+        CREATE_UNARY_FACTORY(Floor),   CREATE_UNARY_FACTORY(Gelu),     CREATE_UNARY_FACTORY(HSigmoid),
+        CREATE_UNARY_FACTORY(HSwish),  CREATE_UNARY_FACTORY(Log),      CREATE_UNARY_FACTORY(LogicalNot),
+        CREATE_UNARY_FACTORY(Mish),    CREATE_UNARY_FACTORY(Negative), CREATE_UNARY_FACTORY(Relu),
+        CREATE_UNARY_FACTORY(Sigmoid), CREATE_UNARY_FACTORY(Sign),     CREATE_UNARY_FACTORY(Sin),
+        CREATE_UNARY_FACTORY(Sinh),    CREATE_UNARY_FACTORY(SoftPlus), CREATE_UNARY_FACTORY(SoftSign),
+        CREATE_UNARY_FACTORY(Sqrt),    CREATE_UNARY_FACTORY(Tan),      CREATE_UNARY_FACTORY(Tanh)};
+
+vector<FactoryPtr> logical_unary_factories = {
+        CREATE_UNARY_FACTORY(IsFinite),
+        CREATE_UNARY_FACTORY(IsInf),
+        CREATE_UNARY_FACTORY(IsNaN)};
 
 std::vector<FactoryPtr> binary_factories = {CREATE_BINARY_FACTORY(Add),
                                             CREATE_BINARY_FACTORY(Divide),
@@ -264,17 +306,13 @@ std::vector<FactoryPtr> binary_factories = {CREATE_BINARY_FACTORY(Add),
                                             CREATE_BINARY_FACTORY(PRelu)};
 
 std::vector<FactoryPtr> reduction_factories = {
-    CREATE_BINARY_FACTORY(ReduceMax),
-    CREATE_BINARY_FACTORY(ReduceMin),
-    CREATE_BINARY_FACTORY(ReduceMean),
-    CREATE_BINARY_FACTORY(ReduceSum),
-    CREATE_BINARY_FACTORY(ReduceProd),
-    // CREATE_BINARY_FACTORY(ReduceLogicalOr),
-    // CREATE_BINARY_FACTORY(ReduceLogicalAnd),
-    CREATE_BINARY_FACTORY(ReduceL1),
-    CREATE_BINARY_FACTORY(ReduceL2),
-    // CREATE_BINARY_FACTORY(Squeeze),
-    // CREATE_BINARY_FACTORY(Unsqueeze),
+    CREATE_REDUCTION_FACTORY(ReduceMax),
+    CREATE_REDUCTION_FACTORY(ReduceMin),
+    CREATE_REDUCTION_FACTORY(ReduceMean),
+    CREATE_REDUCTION_FACTORY(ReduceSum),
+    CREATE_REDUCTION_FACTORY(ReduceProd),
+    CREATE_REDUCTION_FACTORY(ReduceL1),
+    CREATE_REDUCTION_FACTORY(ReduceL2),
 };
 
 TEST_P(TransposeSinkingTestFixture, CompareFunctions) {
@@ -292,14 +330,12 @@ TEST_P(TransposeSinkingTestFixture, CompareFunctions) {
                                                    test_case.num_main_ops[num_main_ops_idx],
                                                    test_case.inputs_to_main);
     test_case.transformation->registerPass(manager);
-    // TODO: enable accuracy testing. The current issues: div by 0
-    // comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+    if (test_case.model.main_op[0]->getTypeName() == "Split") {
+        disable_result_friendly_names_check();
+    }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
-
-namespace transpose_sinking {
-namespace common {
 
 shared_ptr<ov::Model> create_model(size_t main_node_idx,
                                    const ModelDescription& model_desc,
@@ -310,8 +346,6 @@ shared_ptr<ov::Model> create_model(size_t main_node_idx,
     auto outputs = model_desc.preprocess_outputs_of_main.apply(main_node->outputs());
     return make_shared<ov::Model>(outputs, filter_parameters(inputs_to_main));
 }
-}  // namespace common
-}  // namespace transpose_sinking
 
 auto wrapper = [](const TestCase& test_case) {
     OPENVINO_ASSERT(test_case.model.main_op.size() == test_case.model_ref.main_op.size(),
@@ -322,30 +356,31 @@ auto wrapper = [](const TestCase& test_case) {
                               ::testing::Values(test_case));
 };
 
-auto test_forward_unary = []() {
+auto test_forward_unary = [](const vector<FactoryPtr>& factories, const vector<size_t>& num_main_ops) {
     TestCase test_case;
 
     // Initialize common attributes
     test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingUnaryForward);
-    test_case.num_main_ops = {1, 10};
+    test_case.num_main_ops = num_main_ops;
     test_case.inputs_to_main = {
         parameter(element::f32, {1, 96, 55, 55}),
     };
 
     // Test model description:
     test_case.model.preprocess_inputs_to_main = {{set_transpose_for}, {{0}}};
-    test_case.model.main_op = unary_factories;
+    test_case.model.main_op = factories;
     test_case.model.model_template = transpose_sinking::common::create_model;
 
     // Reference model description:
-    test_case.model_ref.main_op = unary_factories;
+    test_case.model_ref.main_op = factories;
     test_case.model_ref.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
     test_case.model_ref.model_template = transpose_sinking::common::create_model;
 
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonUnaryForward, TransposeSinkingTestFixture, test_forward_unary());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonUnaryForward, TransposeSinkingTestFixture, test_forward_unary(unary_factories, {1, 10}));
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonLogicalUnaryForward, TransposeSinkingTestFixture, test_forward_unary(logical_unary_factories, {1}));
 
 auto test_forward_binary = []() {
     TestCase test_case;
@@ -410,7 +445,7 @@ auto test_forward_split = []() {
     test_case.num_main_ops = {1, 2};
     test_case.inputs_to_main = {
         parameter(element::f32, {1, 9, 55, 55}),
-        constant(element::i32, {}, {2}),
+        constant<int64_t>(element::i32, {}, {2}),
     };
 
     // Test model description:
@@ -444,8 +479,8 @@ auto test_forward_pad = []() {
     test_case.num_main_ops = {1, 2};
     test_case.inputs_to_main = {
         parameter(element::f32, {1, 3, 55, 55}),
-        constant(element::i32, {4}, {1, 2, 3, 4}),
-        constant(element::i32, {4}, {1, 2, 3, 4}),
+        constant<int64_t>(element::i32, {4}, {1, 2, 3, 4}),
+        constant<int64_t>(element::i32, {4}, {1, 2, 3, 4}),
     };
 
     // Test model description:
@@ -472,9 +507,9 @@ auto test_forward_batch_to_space = []() {
     test_case.num_main_ops = {1, 2};
     test_case.inputs_to_main = {
         parameter(element::f32, {128, 55, 3, 128}),
-        constant(element::i32, {4}, {1, 2, 2, 2}),
-        constant(element::i32, {4}, {1, 2, 2, 2}),
-        constant(element::i32, {4}, {1, 2, 2, 2}),
+        constant<int64_t>(element::i32, {4}, {1, 2, 2, 2}),
+        constant<int64_t>(element::i32, {4}, {1, 2, 2, 2}),
+        constant<int64_t>(element::i32, {4}, {1, 2, 2, 2}),
     };
 
     // Test model description:
@@ -503,9 +538,9 @@ auto test_forward_space_to_batch = []() {
     test_case.num_main_ops = {1};
     test_case.inputs_to_main = {
         parameter(element::f32, {64, 9, 8, 1}),
-        constant(element::i32, {4}, {1, 2, 3, 4}),
-        constant(element::i32, {4}, {1, 2, 3, 4}),
-        constant(element::i32, {4}, {1, 2, 3, 4}),
+        constant<int64_t>(element::i32, {4}, {1, 2, 3, 4}),
+        constant<int64_t>(element::i32, {4}, {1, 2, 3, 4}),
+        constant<int64_t>(element::i32, {4}, {1, 2, 3, 4}),
     };
 
     // Test model description:
@@ -534,7 +569,7 @@ auto test_forward_reduction = []() {
     test_case.num_main_ops = {1};
     test_case.inputs_to_main = {
         parameter(element::f32, {32, 4, 2, 1}),
-        constant(element::i32, {2}, {1, 3}),
+        constant<int64_t>(element::i32, {2}, {1, 3}),
     };
 
     // Test model description:
@@ -559,3 +594,322 @@ auto test_forward_reduction = []() {
 };
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReductionForward, TransposeSinkingTestFixture, test_forward_reduction());
+
+auto test_forward_interpolate = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingInterpolateForward);
+    test_case.num_main_ops = {1};
+    test_case.inputs_to_main = {
+        parameter(element::f32, {1, 2, 48, 80}),
+        constant<int64_t>(element::i32, {2}, {24, 160}),
+        constant<float>(element::f32, {2}, {0.5, 2.}),
+        constant<int64_t>(element::i32, {2}, {1, 2}),
+    };
+
+    // Test model description:
+    test_case.model.preprocess_inputs_to_main = {{set_transpose_for}, {{0}}};
+    test_case.model.main_op = {CREATE_INTERPOLATE_FACTORY(Interpolate, false)};
+    test_case.model.model_template = transpose_sinking::common::create_model;
+
+    // Reference model description:
+    auto set_specific_gather_for = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector result = out_vec;
+        for (const auto& idx : idxs) {
+            const auto& out = out_vec[idx];
+            vector<int64_t> transpose_order(out_vec[0].get_shape().size());
+            iota(transpose_order.begin(), transpose_order.end(), 0);
+            reverse(transpose_order.begin(), transpose_order.end());
+            auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
+            auto axis = make_shared<Constant>(element::i32, Shape{}, 0);
+            auto transpose = make_shared<Gather>(data, out, axis);
+            result[idx] = transpose;
+        }
+        return result;
+    };
+    test_case.model_ref.preprocess_inputs_to_main = {{set_specific_gather_for}, {{3}}};
+    test_case.model_ref.main_op = {CREATE_INTERPOLATE_FACTORY(Interpolate, true)};
+    test_case.model_ref.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
+    test_case.model_ref.model_template = transpose_sinking::common::create_model;
+
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonInterpolateForward, TransposeSinkingTestFixture, test_forward_interpolate());
+
+// ------------------ BACKWARD --------------------
+
+auto test_backward_unary = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingUnaryBackward);
+    test_case.num_main_ops = {1, 10};
+    test_case.inputs_to_main = {
+            parameter(element::f32, {1, 96, 55, 55}),
+    };
+
+    // Test model description:
+    test_case.model.main_op = unary_factories;
+    test_case.model.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
+    test_case.model.model_template = transpose_sinking::common::create_model;
+
+    // Reference model description:
+    test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for}, {{0}}};
+    test_case.model_ref.main_op = unary_factories;
+    test_case.model_ref.model_template = transpose_sinking::common::create_model;
+
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonUnaryBackward, TransposeSinkingTestFixture, test_backward_unary());
+
+auto test_backward_binary = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingBinaryBackward);
+    test_case.num_main_ops = {1, 10};
+    test_case.inputs_to_main = {
+            parameter(element::f32, {1, 96, 55, 55}),
+            parameter(element::f32, {1, 96, 55, 55}),
+    };
+
+    // Test model description:
+    test_case.model.main_op = binary_factories;
+    test_case.model.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
+    test_case.model.model_template = transpose_sinking::common::create_model;
+
+    // Reference model description:
+    test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for}, {{0, 1}}};
+    test_case.model_ref.main_op = binary_factories;
+    test_case.model_ref.model_template = transpose_sinking::common::create_model;
+
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonBinaryBackward, TransposeSinkingTestFixture, test_backward_binary());
+
+auto test_backward_concat = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingConcatBackward);
+    test_case.num_main_ops = {1, 3};
+    test_case.inputs_to_main = {
+            parameter(element::f32, {1, 96, 55, 55}),
+            parameter(element::f32, {1, 96, 55, 55}),
+            parameter(element::f32, {1, 96, 55, 55}),
+    };
+
+    // Test model description:
+    test_case.model.main_op = {CREATE_CONCAT_FACTORY(Concat)};
+    test_case.model.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
+    test_case.model.model_template = transpose_sinking::common::create_model;
+
+    // Reference model description:
+    test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for}, {{0, 1, 2}}};
+    test_case.model_ref.main_op = {CREATE_CONCAT_REF_FACTORY(Concat)};
+    test_case.model_ref.model_template = transpose_sinking::common::create_model;
+
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonConcatBackward, TransposeSinkingTestFixture, test_backward_concat());
+
+auto test_backward_split = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingSplitBackward);
+    test_case.num_main_ops = {1, 2};
+    test_case.inputs_to_main = {
+            parameter(element::f32, {1, 9, 55, 55}),
+            constant<int64_t>(element::i32, {}, {1}),
+    };
+
+    // Test model description:
+    test_case.model.main_op = {CREATE_SPLIT_FACTORY(Split)};
+    test_case.model.preprocess_outputs_of_main = {{set_transpose_for}, {{0, 1, 2}}};
+    test_case.model.model_template = transpose_sinking::common::create_model;
+
+    // Reference model description:
+    auto new_constant = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector new_out_vec(out_vec.size());
+        new_out_vec[0] = out_vec[0];
+        new_out_vec[1] =
+                make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{2});
+        return new_out_vec;
+    };
+    test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, new_constant}, {{0}, {1}}};
+    test_case.model_ref.main_op = {CREATE_SPLIT_FACTORY(Split)};
+    test_case.model_ref.model_template = transpose_sinking::common::create_model;
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSplitBackward, TransposeSinkingTestFixture, test_backward_split());
+
+auto test_backward_pad = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingDataMovementBackward);
+    test_case.num_main_ops = {1, 2};
+    test_case.inputs_to_main = {
+            parameter(element::f32, {1, 3, 55, 55}),
+            constant<int64_t>(element::i32, {4}, {1, 2, 3, 4}),
+            constant<int64_t>(element::i32, {4}, {1, 2, 3, 4}),
+    };
+
+    // Test model description:
+    test_case.model.main_op = {CREATE_PAD_FACTORY(Pad)};
+    test_case.model.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
+    test_case.model.model_template = transpose_sinking::common::create_model;
+
+    // Reference model description:
+    test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, set_gather_for}, {{0}, {1, 2}}};
+    test_case.model_ref.main_op = {CREATE_PAD_FACTORY(Pad)};
+    test_case.model_ref.model_template = transpose_sinking::common::create_model;
+
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonPadBackward, TransposeSinkingTestFixture, test_backward_pad());
+
+auto test_backward_batch_to_space = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingDataMovementBackward);
+    test_case.num_main_ops = {1};
+    test_case.inputs_to_main = {
+            parameter(element::f32, {128, 55, 3, 128}),
+            constant<int64_t>(element::i32, {4}, {1, 2, 2, 2}),
+            constant<int64_t>(element::i32, {4}, {1, 2, 2, 2}),
+            constant<int64_t>(element::i32, {4}, {1, 2, 2, 2}),
+    };
+
+    // Reference model description:
+    test_case.model.main_op = {CREATE_BATCH_TO_SPACE_FACTORY(BatchToSpace)};
+    test_case.model.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
+    test_case.model.model_template = transpose_sinking::common::create_model;
+
+    // Test model description:
+    test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, set_gather_for}, {{0}, {1, 2, 3}}};
+    test_case.model_ref.main_op = {CREATE_BATCH_TO_SPACE_FACTORY(BatchToSpace)};
+    test_case.model_ref.model_template = transpose_sinking::common::create_model;
+
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonBatchToSpaceBackward,
+                         TransposeSinkingTestFixture,
+                         test_backward_batch_to_space());
+
+auto test_backward_space_to_batch = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingDataMovementBackward);
+    test_case.num_main_ops = {1};
+    test_case.inputs_to_main = {
+            parameter(element::f32, {1, 8, 9, 64}),
+            constant<int64_t>(element::i32, {4}, {1, 2, 3, 4}),
+            constant<int64_t>(element::i32, {4}, {1, 2, 3, 4}),
+            constant<int64_t>(element::i32, {4}, {1, 2, 3, 4}),
+    };
+
+    // Test model description:
+    test_case.model.main_op = {CREATE_SPACE_TO_BATCH_FACTORY(SpaceToBatch)};
+    test_case.model.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
+    test_case.model.model_template = transpose_sinking::common::create_model;
+
+    // Reference model description:
+    test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, set_gather_for}, {{0}, {1, 2, 3}}};
+    test_case.model_ref.main_op = {CREATE_SPACE_TO_BATCH_FACTORY(SpaceToBatch)};
+    test_case.model_ref.model_template = transpose_sinking::common::create_model;
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSpaceToBatchBackward,
+                         TransposeSinkingTestFixture,
+                         test_backward_space_to_batch());
+
+auto test_backward_reduction = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingReductionBackward);
+    test_case.num_main_ops = {1};
+    test_case.inputs_to_main = {
+            parameter(element::f32, {32, 4, 2, 1}),
+            constant<int64_t>(element::i32, {2}, {1, 3}),
+    };
+
+    // Test model description:
+    test_case.model.main_op = reduction_factories;
+    test_case.model.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
+    test_case.model.model_template = transpose_sinking::common::create_model;
+
+    // Reference model description:
+    auto new_constant = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector new_out_vec(out_vec.size());
+        new_out_vec[0] = out_vec[0];
+        new_out_vec[1] =
+                make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{2, 0});
+        return new_out_vec;
+    };
+    test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, new_constant}, {{0}, {1}}};
+    test_case.model_ref.main_op = reduction_factories;
+    test_case.model_ref.model_template = transpose_sinking::common::create_model;
+
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReductionBackward, TransposeSinkingTestFixture, test_backward_reduction());
+
+auto test_backward_interpolate = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingInterpolateBackward);
+    test_case.num_main_ops = {1};
+    test_case.inputs_to_main = {
+            parameter(element::f32, {1, 2, 48, 80}),
+            constant<int64_t>(element::i32, {2}, {24, 160}),
+            constant<float>(element::f32, {2}, {0.5, 2.}),
+            constant<int64_t>(element::i32, {2}, {1, 2}),
+    };
+
+    // Test model description:
+    test_case.model.main_op = {CREATE_INTERPOLATE_FACTORY(Interpolate, true)};
+    test_case.model.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
+    test_case.model.model_template = transpose_sinking::common::create_model;
+
+    // Reference model description:
+    auto set_specific_gather_for = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector result = out_vec;
+        for (const auto& idx : idxs) {
+            const auto& out = out_vec[idx];
+            vector<int64_t> transpose_order(out_vec[0].get_shape().size());
+            iota(transpose_order.begin(), transpose_order.end(), 0);
+            reverse(transpose_order.begin(), transpose_order.end());
+            auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
+            auto axis = make_shared<Constant>(element::i32, Shape{}, 0);
+            auto transpose = make_shared<Gather>(data, out, axis);
+            result[idx] = transpose;
+        }
+        return result;
+    };
+    test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, set_specific_gather_for}, {{0}, {3}}};
+    test_case.model_ref.main_op = {CREATE_INTERPOLATE_FACTORY(Interpolate, false)};
+    test_case.model_ref.model_template = transpose_sinking::common::create_model;
+
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonInterpolateBackward, TransposeSinkingTestFixture, test_backward_interpolate());
+
+}
+}

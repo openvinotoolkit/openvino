@@ -16,14 +16,9 @@
 using namespace ov;
 using namespace ov::opset10;
 
-namespace transpose_sinking_split {
-
-namespace {
-
-using NodePtr = std::shared_ptr<ov::Node>;
-using ModelPtr = std::shared_ptr<Model>;
-
-}  // namespace
+namespace transpose_sinking {
+namespace testing {
+namespace split {
 
 std::vector<size_t> split_tree_depth_nums = {1, 3};
 std::vector<size_t> split_operations_numbers = {1, 10};
@@ -496,7 +491,7 @@ using TestSplitParams = std::tuple<PassFactoryPtr,
 class TransposeSinkingSplitTestFixture : public ::testing::WithParamInterface<TestSplitParams>,
                                          public TransformationTestsF {
 public:
-    static std::string get_test_name(const testing::TestParamInfo<TestSplitParams>& obj) {
+    static std::string get_test_name(const ::testing::TestParamInfo<TestSplitParams>& obj) {
         PassFactoryPtr pass_factory;
         size_t num_split_ops;
         size_t num_split_outputs;
@@ -773,7 +768,7 @@ class TransposeSinkingSplitBackwardRestrictTestFixture
     : public ::testing::WithParamInterface<TestSplitBackwardRestrictParams>,
       public TransformationTestsF {
 public:
-    static std::string get_test_name(const testing::TestParamInfo<TestSplitBackwardRestrictParams>& obj) {
+    static std::string get_test_name(const ::testing::TestParamInfo<TestSplitBackwardRestrictParams>& obj) {
         PassFactoryPtr pass_factory;
         size_t split_tree_depth;
         size_t num_split_outputs;
@@ -840,4 +835,6 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingSplitBackwardRestrictTestSuite,
 
 }  // namespace backward
 
-}  // namespace transpose_sinking_split
+}
+}
+}

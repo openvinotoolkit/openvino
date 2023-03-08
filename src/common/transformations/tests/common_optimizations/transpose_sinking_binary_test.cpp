@@ -14,16 +14,12 @@
 #include "transpose_sinking_test_utils.hpp"
 
 using namespace ov;
-using namespace ov::opset9;
+using namespace ov::opset10;
+using namespace transpose_sinking::testing;
 
 namespace transpose_sinking_binary_eltwise {
 
 namespace {
-
-using NodePtr = std::shared_ptr<ov::Node>;
-using ModelPtr = std::shared_ptr<Model>;
-using Output = ov::Output<ov::Node>;
-
 namespace {
 std::string to_string(const Shape& shape) {
     std::ostringstream result;

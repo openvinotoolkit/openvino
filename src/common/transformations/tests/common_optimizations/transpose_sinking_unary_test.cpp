@@ -14,8 +14,11 @@
 
 using namespace ov;
 using namespace ov::opset10;
+using namespace transpose_sinking::testing;
 
-using NodePtr = std::shared_ptr<ov::Node>;
+namespace transpose_sinking {
+namespace testing {
+namespace unary {
 
 using CreateGraphF = std::function<std::shared_ptr<
     ov::Model>(FactoryPtr unary_factory, size_t num_unary_ops, const Shape& input_shape, element::Type input_type)>;
@@ -58,10 +61,6 @@ public:
     }
 };
 
-namespace transpose_sinking {
-namespace testing {
-namespace unary {
-
 template <typename UnaryT>
 class UnaryFactory : public IFactory {
 public:
@@ -95,8 +94,6 @@ FactoryPtr CreateUnaryFactory(const std::string& type_name) {
 #define CREATE_UNARY_FACTORY(type_name) CreateUnaryFactory<type_name>(#type_name)
 
 // ----------------------------------------------------------------------------
-
-namespace {
 
 std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(const FactoryPtr& unary_factory,
                                                          size_t num_unary_ops,
@@ -366,8 +363,6 @@ std::vector<FactoryPtr> unary_factories = {
     CREATE_UNARY_FACTORY(Sinh),       CREATE_UNARY_FACTORY(SoftSign), CREATE_UNARY_FACTORY(Sqrt),
     CREATE_UNARY_FACTORY(Tan),        CREATE_UNARY_FACTORY(Tanh)};
 
-}  // namespace
-
 TEST_P(TransposeSinkingUnaryTestFixture, CompareFunctions) {
     FactoryPtr unary_factory;
     PassFactoryPtr pass_factory;
@@ -517,9 +512,6 @@ auto test_forward_multiple_consumers_first_node = []() {
     test_case.type = element::f32;
     return wrapper(test_case);
 };
-}  // namespace unary
-}  // namespace testing
-}  // namespace transpose_sinking
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryForwardTestSuite,
                          TransposeSinkingUnaryTestFixture,
@@ -565,3 +557,7 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryForwardMultTransposeConsumersTestS
                          TransposeSinkingUnaryTestFixture,
                          transpose_sinking::testing::unary::test_forward_multiple_consumers_first_node(),
                          TransposeSinkingUnaryTestFixture::get_test_name);
+
+}  // namespace unary
+}  // namespace testing
+}  // namespace transpose_sinking

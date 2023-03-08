@@ -111,6 +111,7 @@ ov::pass::TransposeSinkingUnaryBackward::TransposeSinkingUnaryBackward() {
         unary->validate_and_infer_types();
         // remove output transposes
         RemoveSingleOutputConsumers(unary);
+        SwapNames(transpose, unary);
         return true;
     };
 

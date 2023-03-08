@@ -11,9 +11,10 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
 
-using NodePtr = std::shared_ptr<ov::Node>;
+namespace transpose_sinking {
+namespace testing {
 
-std::string to_string(const ov::Shape& shape);
+using NodePtr = std::shared_ptr<ov::Node>;
 
 class IFactory {
 public:
@@ -28,7 +29,6 @@ public:
 private:
     const std::string type_name_;
 };
-
 using FactoryPtr = std::shared_ptr<IFactory>;
 
 class IPassFactory {
@@ -44,8 +44,6 @@ private:
     const std::string type_name_;
 };
 
-using PassFactoryPtr = std::shared_ptr<IPassFactory>;
-
 template <typename PassT>
 class PassFactory : public IPassFactory {
 public:
@@ -54,18 +52,22 @@ public:
         pass_manager.register_pass<PassT>();
     }
 };
-
+using PassFactoryPtr = std::shared_ptr<IPassFactory>;
 #define CREATE_PASS_FACTORY(pass_name) std::make_shared<PassFactory<ov::pass::pass_name>>(#pass_name)
 
+std::string to_string(const ov::Shape& shape);
 ov::OutputVector set_transpose_for(const std::vector<size_t>& idxs, const ov::OutputVector& out_vec);
 ov::OutputVector set_gather_for(const std::vector<size_t>& idxs, const ov::OutputVector& out_vec);
-
+std::shared_ptr<ov::Node> create_main_node(const ov::OutputVector& inputs, size_t num_ops, const FactoryPtr& creator);
 ov::ParameterVector filter_parameters(const ov::OutputVector& out_vec);
 
-std::shared_ptr<ov::Node> create_main_node(const ov::OutputVector& inputs, size_t num_ops, const FactoryPtr& creator);
-
 std::shared_ptr<ov::Node> parameter(ov::element::Type el_type, const ov::PartialShape& ps);
-
+template<class T>
 std::shared_ptr<ov::Node> constant(ov::element::Type el_type,
                                    const ov::Shape& shape,
-                                   const std::vector<int64_t>& value);
+                                   const std::vector<T>& value) {
+    return ov::opset10::Constant::create<T>(el_type, shape, value);
+}
+
+}
+}

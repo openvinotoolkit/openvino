@@ -102,7 +102,7 @@ ov::pass::TransposeSinkingDataMovementBackward::TransposeSinkingDataMovementBack
 
         // remove output transposes
         RemoveSingleOutputConsumers(main_node);
-
+        SwapNames(main_node, transpose);
         const auto transpose_axis_order = transpose_const->get_axis_vector_val();
         auto axis = std::make_shared<Constant>(element::i32, Shape{}, std::vector<int32_t>{0});
 

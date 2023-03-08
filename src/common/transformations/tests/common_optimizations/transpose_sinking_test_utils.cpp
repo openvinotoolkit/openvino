@@ -14,6 +14,9 @@ using namespace std;
 using namespace ov;
 using namespace ov::opset10;
 
+namespace transpose_sinking {
+namespace testing {
+
 shared_ptr<Node> create_main_node(const OutputVector& inputs, size_t num_ops, const FactoryPtr& creator) {
     OutputVector current_inputs = inputs;
     for (size_t i = 0; i < num_ops; ++i) {
@@ -80,6 +83,5 @@ std::shared_ptr<ov::Node> parameter(ov::element::Type el_type, const PartialShap
     return std::make_shared<Parameter>(el_type, ps);
 }
 
-shared_ptr<ov::Node> constant(ov::element::Type el_type, const Shape& shape, const vector<int64_t>& value) {
-    return make_shared<Constant>(el_type, shape, value);
+}
 }
