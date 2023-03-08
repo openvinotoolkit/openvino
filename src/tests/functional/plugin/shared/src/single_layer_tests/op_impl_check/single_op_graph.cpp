@@ -625,10 +625,10 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v3::NonMaxSupp
                                                                ov::op::v3::NonMaxSuppression::BoxEncodingType::CENTER,
                                                                false);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(nms)};
-    return std::make_shared<ov::Model>(results, params, "NonMaxSuppression-1");
+    return std::make_shared<ov::Model>(results, params, "NonMaxSuppression-3");
 }
 
-std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v11::NonMaxSuppression> &node) {
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v4::NonMaxSuppression> &node) {
     const auto params = ngraph::builder::makeDynamicParams(
         {ov::element::f32, ov::element::f32, ov::element::i32, ov::element::f32, ov::element::f32},
         {{1, 6, 4}, {1, 1, 6}, {}, {}, {}});
@@ -640,7 +640,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v11::NonMaxSup
                                                                ov::op::v4::NonMaxSuppression::BoxEncodingType::CENTER,
                                                                false);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(nms)};
-    return std::make_shared<ov::Model>(results, params, "NonMaxSuppression-1");
+    return std::make_shared<ov::Model>(results, params, "NonMaxSuppression-4");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v5::NonMaxSuppression> &node) {
@@ -655,7 +655,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v5::NonMaxSupp
                                                                ov::op::v5::NonMaxSuppression::BoxEncodingType::CENTER,
                                                                false);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(nms)};
-    return std::make_shared<ov::Model>(results, params, "NonMaxSuppression-1");
+    return std::make_shared<ov::Model>(results, params, "NonMaxSuppression-5");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::NonMaxSuppression> &node) {
@@ -670,7 +670,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v9::NonMaxSupp
                                                                ov::op::v9::NonMaxSuppression::BoxEncodingType::CENTER,
                                                                false);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(nms)};
-    return std::make_shared<ov::Model>(results, params, "NonMaxSuppression-1");
+    return std::make_shared<ov::Model>(results, params, "NonMaxSuppression-9");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v3::NonZero> &node) {
