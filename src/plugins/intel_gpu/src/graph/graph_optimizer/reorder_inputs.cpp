@@ -7,12 +7,19 @@
 #include "layout_optimizer.h"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/utils.hpp"
 #include "program_helpers.h"
 #include "binary_convolution_inst.h"
 #include "mvn_inst.h"
 #include "to_string_utils.h"
 #include "pooling_inst.h"
 #include "reshape_inst.h"
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include "gemm_inst.h"
+#include "broadcast_inst.h"
+#include <impls/onednn/utils.hpp>
+#endif
 
 #include <vector>
 #include <memory>
@@ -958,4 +965,44 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
             }
         }
     }
+
+    // WA for OneDNN binary add fusions: we need to broadcast batch dimension to avoid situation with
+    // batch dimension mismatch in OneDNN tensor descriptors as follow:
+    // * Gemm output shape: (b,f,y,x) -> OneDNN shape: (b*f,y,x)
+    // * Gemm fused op shape: (1,f,y,x) -> OneDNN shape: (1*f,y,x)
+    // If batch dimension of gemm output is not equal to 1, then OneDNN will not be able to broadcast fused op data
+    // correctly and we need to do it manually
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    for (auto& node : p.get_processing_order()) {
+        if (node->is_type<gemm>() && node->get_preferred_impl_type() == impl_types::onednn) {
+            for (const auto& fused_prim : node->get_fused_primitives()) {
+                if (fused_prim.is_type<eltwise>() &&
+                    one_of(fused_prim.typed_desc<eltwise>()->mode, {eltwise_mode::sum, eltwise_mode::sub, eltwise_mode::prod})) {
+                    auto& data = node->get_dependency(fused_prim.dep_start_idx);
+
+                    auto gemm_layout = node->get_output_layout();
+                    auto gemm_dims = onednn::convert_gemm_tensor(gemm_layout.get_tensor(),
+                                                                 cldnn::format::dimension(gemm_layout.format),
+                                                                 false);
+
+                    auto data_layout = data.get_output_layout();
+                    auto data_dims = onednn::convert_gemm_tensor(data_layout.get_tensor(),
+                                                                 cldnn::format::dimension(data_layout.format),
+                                                                 false);
+
+                    if (gemm_dims[0] == data_dims[0])
+                        continue;
+
+                    static size_t idx = 0;
+                    const auto prim_id = "broadcast:" + data.id() + "_broadcasted" + std::to_string(idx++);
+                    auto broadcast_prim = std::make_shared<cldnn::broadcast>(prim_id, cldnn::input_info(data.id()), gemm_layout.get_shape(), ov::AxisSet{});
+
+                    auto& broadcast_node = p.get_or_create(broadcast_prim);
+                    p.add_intermediate(broadcast_node, *node, fused_prim.dep_start_idx, true);
+                    broadcast_node.recalc_output_layouts(false);
+                }
+            }
+        }
+    }
+#endif
 }

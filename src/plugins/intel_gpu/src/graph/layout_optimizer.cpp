@@ -1531,10 +1531,6 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         if (node.is_type<fully_connected>()) {
             if (!is_node_for_onednn(node.as<fully_connected>()))
                 impl_candidate = impl_types::ocl;
-        } else {
-            if (node.is_dynamic()) {
-                impl_candidate = impl_types::ocl;
-            }
         }
 
         preferred_impl = impl_candidate;
