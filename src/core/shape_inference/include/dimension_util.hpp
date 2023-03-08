@@ -4,7 +4,8 @@
 #pragma once
 
 #include <cstdint>
-#include <ngraph/util.hpp>
+
+#include "openvino/util/common_util.hpp"
 
 namespace ov {
 namespace util {
@@ -48,11 +49,11 @@ constexpr auto padded(const int64_t dim, const int64_t pad_num) -> int64_t {
 template <class TDim, class T = typename TDim::value_type>
 auto ceil_div(const TDim& dim, const T divisor) -> TDim {
     if (dim.is_static()) {
-        return {ngraph::ceil_div<T>(dim.get_length(), divisor)};
+        return {util::ceil_div<T>(dim.get_length(), divisor)};
     } else if (dim.get_max_length() == static_cast<T>(dim::inf_bound)) {
         return {dim};
     } else {
-        return {ngraph::ceil_div<T>(dim.get_min_length(), divisor), ngraph::ceil_div<T>(dim.get_max_length(), divisor)};
+        return {util::ceil_div<T>(dim.get_min_length(), divisor), util::ceil_div<T>(dim.get_max_length(), divisor)};
     }
 }
 

@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include <openvino/op/adaptive_max_pool.hpp>
-
+#include "openvino/op/adaptive_max_pool.hpp"
 #include "pooling_shape_inference_util.hpp"
 #include "utils.hpp"
 

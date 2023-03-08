@@ -4,11 +4,9 @@
 
 #pragma once
 
-#include <ngraph/util.hpp>
-#include <openvino/op/max_pool.hpp>
-
 #include "dimension_util.hpp"
 #include "max_pool_shape_inference.hpp"
+#include "openvino/op/max_pool.hpp"
 #include "utils.hpp"
 
 namespace ov {
