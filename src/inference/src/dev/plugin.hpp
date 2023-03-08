@@ -34,6 +34,8 @@ public:
 
     void set_name(const std::string& deviceName);
 
+    const std::string& get_name() const;
+
     void set_core(std::weak_ptr<ICore> core);
 
     const ov::Version get_version() const;

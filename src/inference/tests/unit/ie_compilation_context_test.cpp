@@ -62,50 +62,46 @@ public:
 };
 
 TEST_F(NetworkContext_CalcFileInfoTests, NoFile) {
-    ASSERT_NE(NetworkCompilationContext::calculate_file_info("notexisting.abc"),
-              NetworkCompilationContext::calculate_file_info("notexisting2.abc"));
+    ASSERT_NE(ModelCache::calculate_file_info("notexisting.abc"), ModelCache::calculate_file_info("notexisting2.abc"));
 
     std::string fileName(100, 'a');
     std::string fileName2(fileName);
-    ASSERT_EQ(NetworkCompilationContext::calculate_file_info(fileName),
-              NetworkCompilationContext::calculate_file_info(fileName2));
+    ASSERT_EQ(ModelCache::calculate_file_info(fileName), ModelCache::calculate_file_info(fileName2));
 }
 
 TEST_F(NetworkContext_CalcFileInfoTests, ExistingFile) {
-    ASSERT_EQ(NetworkCompilationContext::calculate_file_info(m_fileName),
-              NetworkCompilationContext::calculate_file_info(m_fileName));
+    ASSERT_EQ(ModelCache::calculate_file_info(m_fileName), ModelCache::calculate_file_info(m_fileName));
 }
 
 TEST_F(NetworkContext_CalcFileInfoTests, ExistingDiffFiles) {
-    auto hash1 = NetworkCompilationContext::calculate_file_info(m_fileName);
+    auto hash1 = ModelCache::calculate_file_info(m_fileName);
     std::string newName = m_fileName + "2";
     std::rename(m_fileName.c_str(), newName.c_str());
     m_fileName = std::move(newName);
-    auto hash2 = NetworkCompilationContext::calculate_file_info(m_fileName);
+    auto hash2 = ModelCache::calculate_file_info(m_fileName);
     ASSERT_NE(hash1, hash2);
 }
 
 TEST_F(NetworkContext_CalcFileInfoTests, ExistingFile_sameAbsPath) {
     std::string file1 = m_fileName;
     std::string file2 = std::string(".") + CommonTestUtils::FileSeparator + m_fileName;
-    ASSERT_EQ(NetworkCompilationContext::calculate_file_info(file1),
-              NetworkCompilationContext::calculate_file_info(file2))
+    ASSERT_EQ(ModelCache::calculate_file_info(file1), ModelCache::calculate_file_info(file2))
         << "Hash of [" << file1 << "] is not equal to hash of [" << file2 << "]";
 }
 
 TEST_F(NetworkContext_CalcFileInfoTests, DateModified) {
-    auto info1 = NetworkCompilationContext::calculate_file_info(m_fileName);
+    auto info1 = ModelCache::calculate_file_info(m_fileName);
     std::this_thread::sleep_for(std::chrono::seconds(2));
     createFile(m_fileName);
-    auto info2 = NetworkCompilationContext::calculate_file_info(m_fileName);
+    auto info2 = ModelCache::calculate_file_info(m_fileName);
     ASSERT_NE(info1, info2);
 }
 
 TEST_F(NetworkContext_CalcFileInfoTests, SizeModified) {
     createFile(m_fileName, 1);
-    auto info1 = NetworkCompilationContext::calculate_file_info(m_fileName);
+    auto info1 = ModelCache::calculate_file_info(m_fileName);
     createFile(m_fileName, 2);
-    auto info2 = NetworkCompilationContext::calculate_file_info(m_fileName);
+    auto info2 = ModelCache::calculate_file_info(m_fileName);
     ASSERT_NE(info1, info2);
 }
 
@@ -154,34 +150,32 @@ static void checkCustomRt(const std::function<void(Node::RTMap&)>& emptyCb,
     auto& op2 = model2->get_ops().front()->get_rt_info();
 
     emptyCb(op2);
-    ASSERT_NE(NetworkCompilationContext::compute_hash(model1, {}), NetworkCompilationContext::compute_hash(model2, {}));
+    ASSERT_NE(ModelCache::compute_hash(model1, {}), ModelCache::compute_hash(model2, {}));
 
     emptyCb(op1);
-    ASSERT_EQ(NetworkCompilationContext::compute_hash(model1, {}), NetworkCompilationContext::compute_hash(model2, {}));
+    ASSERT_EQ(ModelCache::compute_hash(model1, {}), ModelCache::compute_hash(model2, {}));
 
     nameCb(op1, "test");
-    ASSERT_NE(NetworkCompilationContext::compute_hash(model1, {}), NetworkCompilationContext::compute_hash(model2, {}));
+    ASSERT_NE(ModelCache::compute_hash(model1, {}), ModelCache::compute_hash(model2, {}));
 
     nameCb(op2, "test");
-    ASSERT_EQ(NetworkCompilationContext::compute_hash(model1, {}), NetworkCompilationContext::compute_hash(model2, {}));
+    ASSERT_EQ(ModelCache::compute_hash(model1, {}), ModelCache::compute_hash(model2, {}));
 
     nameCb(op1, "test2");
-    ASSERT_NE(NetworkCompilationContext::compute_hash(model1, {}), NetworkCompilationContext::compute_hash(model2, {}));
+    ASSERT_NE(ModelCache::compute_hash(model1, {}), ModelCache::compute_hash(model2, {}));
 }
 
 TEST(NetworkContext, HashOfSame) {
     auto model1 = create_simple_function();
     auto model2 = create_simple_function();
-    ASSERT_EQ(NetworkCompilationContext::compute_hash(model1, {}), NetworkCompilationContext::compute_hash(model2, {}));
+    ASSERT_EQ(ModelCache::compute_hash(model1, {}), ModelCache::compute_hash(model2, {}));
 }
 
 TEST(NetworkContext, HashWithConfig) {
     auto net1 = create_simple_function();
     auto net2 = create_simple_function();
-    ASSERT_NE(NetworkCompilationContext::compute_hash(net1, {{"key", "value"}}),
-              NetworkCompilationContext::compute_hash(net2, {}));
-    ASSERT_EQ(NetworkCompilationContext::compute_hash(net1, {{"key", "value"}}),
-              NetworkCompilationContext::compute_hash(net2, {{"key", "value"}}));
+    ASSERT_NE(ModelCache::compute_hash(net1, {{"key", "value"}}), ModelCache::compute_hash(net2, {}));
+    ASSERT_EQ(ModelCache::compute_hash(net1, {{"key", "value"}}), ModelCache::compute_hash(net2, {{"key", "value"}}));
 }
 
 TEST(NetworkContext, HashWithPrimitivesPriority) {
@@ -194,9 +188,9 @@ TEST(NetworkContext, HashWithPrimitivesPriority) {
     auto& op3 = net3->get_ops().front()->get_rt_info();
     op3["PrimitivesPriority"] = "testPriority";
 
-    ASSERT_NE(NetworkCompilationContext::compute_hash(net1, {}), NetworkCompilationContext::compute_hash(net2, {}));
+    ASSERT_NE(ModelCache::compute_hash(net1, {}), ModelCache::compute_hash(net2, {}));
 
-    ASSERT_EQ(NetworkCompilationContext::compute_hash(net2, {}), NetworkCompilationContext::compute_hash(net3, {}));
+    ASSERT_EQ(ModelCache::compute_hash(net2, {}), ModelCache::compute_hash(net3, {}));
 }
 
 TEST(NetworkContext, HashWithFusedNames) {
@@ -229,9 +223,9 @@ TEST(NetworkContext, HashWithAffinity) {
     auto& op3 = net3->get_ops().front()->get_rt_info();
     op3["affinity"] = "testAffinity";
 
-    ASSERT_NE(NetworkCompilationContext::compute_hash(net1, {}), NetworkCompilationContext::compute_hash(net2, {}));
+    ASSERT_NE(ModelCache::compute_hash(net1, {}), ModelCache::compute_hash(net2, {}));
 
-    ASSERT_EQ(NetworkCompilationContext::compute_hash(net2, {}), NetworkCompilationContext::compute_hash(net3, {}));
+    ASSERT_EQ(ModelCache::compute_hash(net2, {}), ModelCache::compute_hash(net3, {}));
 }
 
 TEST(NetworkContext, HashWithFutureRt_string) {
@@ -248,9 +242,9 @@ TEST(NetworkContext, HashWithFutureRt_string) {
     auto& op3 = net3->get_ops().front()->get_rt_info();
     op3["someFutureKey"] = "olleh";
 
-    ASSERT_EQ(NetworkCompilationContext::compute_hash(net1, {}), NetworkCompilationContext::compute_hash(net2, {}));
+    ASSERT_EQ(ModelCache::compute_hash(net1, {}), ModelCache::compute_hash(net2, {}));
 
-    ASSERT_NE(NetworkCompilationContext::compute_hash(net2, {}), NetworkCompilationContext::compute_hash(net3, {}));
+    ASSERT_NE(ModelCache::compute_hash(net2, {}), ModelCache::compute_hash(net3, {}));
 }
 
 TEST(NetworkContext, HashWithFutureRt_int64) {
@@ -267,9 +261,9 @@ TEST(NetworkContext, HashWithFutureRt_int64) {
     auto& op3 = net3->get_ops().front()->get_rt_info();
     op3["someFutureKey"] = int64_t(43);
 
-    ASSERT_EQ(NetworkCompilationContext::compute_hash(net1, {}), NetworkCompilationContext::compute_hash(net2, {}));
+    ASSERT_EQ(ModelCache::compute_hash(net1, {}), ModelCache::compute_hash(net2, {}));
 
-    ASSERT_NE(NetworkCompilationContext::compute_hash(net2, {}), NetworkCompilationContext::compute_hash(net3, {}));
+    ASSERT_NE(ModelCache::compute_hash(net2, {}), ModelCache::compute_hash(net3, {}));
 }
 
 TEST(NetworkContext, HashWithTensorNames) {
@@ -292,9 +286,9 @@ TEST(NetworkContext, HashWithTensorNames) {
     fun1->input().set_names(names1);
     fun2->input().set_names(names2);
 
-    ASSERT_EQ(NetworkCompilationContext::compute_hash(fun1, {}), NetworkCompilationContext::compute_hash(fun2, {}));
+    ASSERT_EQ(ModelCache::compute_hash(fun1, {}), ModelCache::compute_hash(fun2, {}));
 
-    ASSERT_NE(NetworkCompilationContext::compute_hash(fun2, {}), NetworkCompilationContext::compute_hash(fun3, {}));
+    ASSERT_NE(ModelCache::compute_hash(fun2, {}), ModelCache::compute_hash(fun3, {}));
 }
 
 TEST(NetworkContext, HashWithDifferentResults) {
@@ -303,8 +297,8 @@ TEST(NetworkContext, HashWithDifferentResults) {
     net2->remove_result(net2->get_results().front());
     auto net3 = create_simple_function();
     net3->remove_result(net3->get_results().front());
-    ASSERT_NE(NetworkCompilationContext::compute_hash(net1, {}), NetworkCompilationContext::compute_hash(net2, {}));
-    ASSERT_EQ(NetworkCompilationContext::compute_hash(net2, {}), NetworkCompilationContext::compute_hash(net3, {}));
+    ASSERT_NE(ModelCache::compute_hash(net1, {}), ModelCache::compute_hash(net2, {}));
+    ASSERT_EQ(ModelCache::compute_hash(net2, {}), ModelCache::compute_hash(net3, {}));
 }
 
 // Verify all internal hash calculations are thread-safe (like ngraph::function serialization)
@@ -318,8 +312,8 @@ TEST(NetworkContext, HashOfSameMultiThreading) {
     auto threadFun = [&](int& count) {
         do {
             count++;
-            auto hash1 = NetworkCompilationContext::compute_hash(net1, {});
-            auto hash2 = NetworkCompilationContext::compute_hash(net2, {});
+            auto hash1 = ModelCache::compute_hash(net1, {});
+            auto hash2 = ModelCache::compute_hash(net2, {});
             if (hash1 != hash2) {
                 fail = true;
                 break;
@@ -337,17 +331,14 @@ TEST(NetworkContext, HashOfSameMultiThreading) {
 ////////////////////////////////////////////
 
 TEST(NetworkContext_ModelName, HashOfSame) {
-    ASSERT_EQ(NetworkCompilationContext::compute_hash("model1", {}),
-              NetworkCompilationContext::compute_hash("model1", {}));
+    ASSERT_EQ(ModelCache::compute_hash("model1", {}), ModelCache::compute_hash("model1", {}));
 
-    ASSERT_NE(NetworkCompilationContext::compute_hash("model1", {}),
-              NetworkCompilationContext::compute_hash("model2", {}));
+    ASSERT_NE(ModelCache::compute_hash("model1", {}), ModelCache::compute_hash("model2", {}));
 
-    ASSERT_NE(NetworkCompilationContext::compute_hash("model1", {{"key", "value"}}),
-              NetworkCompilationContext::compute_hash("model1", {}));
+    ASSERT_NE(ModelCache::compute_hash("model1", {{"key", "value"}}), ModelCache::compute_hash("model1", {}));
 
-    ASSERT_EQ(NetworkCompilationContext::compute_hash("model1", {{"key", "value"}}),
-              NetworkCompilationContext::compute_hash("model1", {{"key", "value"}}));
+    ASSERT_EQ(ModelCache::compute_hash("model1", {{"key", "value"}}),
+              ModelCache::compute_hash("model1", {{"key", "value"}}));
 }
 
 TEST(NetworkContext_ModelName, HashOfExistingFile) {
@@ -359,13 +350,11 @@ TEST(NetworkContext_ModelName, HashOfExistingFile) {
         std::ofstream os(file1);
         os << "test";
     }
-    ASSERT_EQ(NetworkCompilationContext::compute_hash(file1, {}), NetworkCompilationContext::compute_hash(file1, {}));
+    ASSERT_EQ(ModelCache::compute_hash(file1, {}), ModelCache::compute_hash(file1, {}));
 
-    ASSERT_EQ(NetworkCompilationContext::compute_hash(file1, {}), NetworkCompilationContext::compute_hash(file2, {}));
+    ASSERT_EQ(ModelCache::compute_hash(file1, {}), ModelCache::compute_hash(file2, {}));
 
-    ASSERT_NE(NetworkCompilationContext::compute_hash(file1, {{"key", "value"}}),
-              NetworkCompilationContext::compute_hash(file2, {}));
+    ASSERT_NE(ModelCache::compute_hash(file1, {{"key", "value"}}), ModelCache::compute_hash(file2, {}));
 
-    ASSERT_EQ(NetworkCompilationContext::compute_hash(file1, {{"key", "value"}}),
-              NetworkCompilationContext::compute_hash(file2, {{"key", "value"}}));
+    ASSERT_EQ(ModelCache::compute_hash(file1, {{"key", "value"}}), ModelCache::compute_hash(file2, {{"key", "value"}}));
 }

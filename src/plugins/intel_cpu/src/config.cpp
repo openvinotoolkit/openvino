@@ -165,8 +165,6 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 IE_THROW() << "Wrong value for property key " << ov::inference_precision.name()
                     << ". Supported values: bf16, f32";
             }
-        } else if (key == PluginConfigParams::KEY_CACHE_DIR) {
-            cache_dir = val;
         } else if (PluginConfigInternalParams::KEY_CPU_RUNTIME_CACHE_CAPACITY == key) {
             int val_i = -1;
             try {
@@ -261,7 +259,6 @@ void Config::updateProperties() {
     _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT, perfHintsConfig.ovPerfHint });
     _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS,
             std::to_string(perfHintsConfig.ovPerfHintNumRequests) });
-    _config.insert({PluginConfigParams::KEY_CACHE_DIR, cache_dir});
 }
 
 }   // namespace intel_cpu
