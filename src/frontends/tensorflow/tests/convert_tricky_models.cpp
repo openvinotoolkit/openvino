@@ -334,3 +334,18 @@ TEST_F(TransformationTestsF, ModelWithLookupTableOperations) {
         model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{x});
     }
 }
+
+TEST_F(TransformationTestsF, ModelWithMultioutputBodyGraphNode) {
+    { model = convert_model("partitioned_call2/partitioned_call2.pb"); }
+    {
+        auto x = make_shared<Parameter>(i32, Shape{5});
+        auto y = make_shared<Parameter>(i32, Shape{5});
+        auto sub = make_shared<Subtract>(x, y);
+        auto const_three = make_shared<Constant>(i32, Shape{}, 3);
+        auto const_ten = make_shared<Constant>(i32, Shape{}, 10);
+        auto topk =
+            make_shared<TopK>(sub, const_three, -1, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES, i32);
+        auto add = make_shared<Add>(topk->output(1), const_ten);
+        model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{x, y});
+    }
+}

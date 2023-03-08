@@ -8,7 +8,7 @@
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
-#include "meta_utils.h"
+#include "intel_gpu/runtime/utils.hpp"
 #include "primitive_type.h"
 #include "program_node.h"
 #include "primitive_inst.h"
