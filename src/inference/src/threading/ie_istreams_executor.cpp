@@ -419,6 +419,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
 
     // by default, do not use the hyper-threading (to minimize threads synch overheads)
     int num_cores_default = getNumberOfCPUCores();
+    std::cout << "envThreads is " << envThreads << " num_cores_default is " << num_cores_default << std::endl;
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
     // additional latency-case logic for hybrid processors:
     if (ThreadBindingType::HYBRID_AWARE == streamExecutorConfig._threadBindingType) {
@@ -448,13 +449,13 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
         if (streamExecutorConfig._big_core_streams == 0 || streamExecutorConfig._threads) {
             UpdateHybridCustomThreads(streamExecutorConfig);
         }
-        OPENVINO_DEBUG << "[ p_e_core_info ] streams (threads): " << streamExecutorConfig._streams << "("
-                       << streamExecutorConfig._threads_per_stream_big * streamExecutorConfig._big_core_streams +
-                              streamExecutorConfig._threads_per_stream_small * streamExecutorConfig._small_core_streams
-                       << ") -- PCore: " << streamExecutorConfig._big_core_streams << "("
-                       << streamExecutorConfig._threads_per_stream_big
-                       << ")  ECore: " << streamExecutorConfig._small_core_streams << "("
-                       << streamExecutorConfig._threads_per_stream_small << ")";
+        std::cout << "[ p_e_core_info ] streams (threads): " << streamExecutorConfig._streams << "("
+                  << streamExecutorConfig._threads_per_stream_big * streamExecutorConfig._big_core_streams +
+                         streamExecutorConfig._threads_per_stream_small * streamExecutorConfig._small_core_streams
+                  << ") -- PCore: " << streamExecutorConfig._big_core_streams << "("
+                  << streamExecutorConfig._threads_per_stream_big
+                  << ")  ECore: " << streamExecutorConfig._small_core_streams << "("
+                  << streamExecutorConfig._threads_per_stream_small << ")";
     }
 #endif
     const auto hwCores =
@@ -470,6 +471,7 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
             //      big-cores only, but the #cores is "enough" (pls see the logic above)
             // it is usually beneficial not to use the hyper-threading (which is default)
             : num_cores_default;
+    std::cout << "hwCores value is " << hwCores << std::endl;
     const auto threads =
         streamExecutorConfig._threads ? streamExecutorConfig._threads : (envThreads ? envThreads : hwCores);
     streamExecutorConfig._threadsPerStream =
@@ -479,6 +481,8 @@ IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(cons
             ? streamExecutorConfig._big_core_streams * streamExecutorConfig._threads_per_stream_big +
                   streamExecutorConfig._small_core_streams * streamExecutorConfig._threads_per_stream_small
             : streamExecutorConfig._threadsPerStream * streamExecutorConfig._streams;
+    std::cout << "streamExecutorConfig._threads=" << streamExecutorConfig._threads
+              << " streamExecutorConfig._streams=" << streamExecutorConfig._streams << std::endl;
     return streamExecutorConfig;
 }
 
