@@ -1826,15 +1826,8 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
                 continue;
 
             size_t out_rank = node.get_output_layout().get_rank();
-            auto target_format = cldnn::format::bfyx;
+            auto target_format = format::get_default_format(out_rank);
 
-            if (out_rank == 5) {
-                target_format = cldnn::format::bfzyx;
-            } else if (out_rank == 6) {
-                target_format = cldnn::format::bfwzyx;
-            } else {
-                throw std::invalid_argument("Unsupported " + std::to_string(node.get_output_layout().get_rank()) + "rank size.");
-            }
             node.set_preferred_input_fmt(idx, target_format);
 
             if (node.get_preferred_output_fmt() == format::any) {
