@@ -1303,16 +1303,20 @@ public:
         std::vector<memory::ptr> in_memory;
         std::vector<primitive_id> input_ids;
 
-        // input0 -- eltwise -- conv -- concat -- output
-        //         /         \        /
-        // input1 -           --------
-        for (size_t i = 0; i < 2; i++) {
+        // input0 --- eltwise1 --- concat --- reorder
+        //          /            /
+        // input1 --            /
+        //                     /
+        // input2 --- eltwise2 -------------- conv
+        //          /
+        // input3 --
+        for (size_t i = 0; i < 4; i++) {
             auto size = tensor(static_cast<int32_t>(batch_num),
                                static_cast<int32_t>(output_f),
                                static_cast<int32_t>(input_x),
                                static_cast<int32_t>(input_y));
             auto data = input[i];
-            auto in_lay = layout(data_type, fmt, size);
+            auto in_lay = layout(data_type, format::bfyx, size);
             auto data_flat = std::vector<Type>(in_lay.get_linear_size(), 0);
 
             for (size_t bi = 0; bi < batch_num; ++bi) {
@@ -1335,7 +1339,8 @@ public:
             input_ids.push_back("input" + std::to_string(i));
         }
 
-        topology.add(eltwise("eltwise", {input_info(input_ids[0]), input_info(input_ids[1])},  eltwise_mode::sum));
+        topology.add(eltwise("eltwise1", {input_info(input_ids[0]), input_info(input_ids[1])}, eltwise_mode::sum));
+        topology.add(eltwise("eltwise2", {input_info(input_ids[2]), input_info(input_ids[3])}, eltwise_mode::sum));
 
         auto weights_lay = cldnn::layout(data_type, cldnn::format::bfyx, tensor(batch(output_f), feature(output_f)));
         auto weights_mem = engine.allocate_memory(weights_lay);
@@ -1350,14 +1355,13 @@ public:
                 weights_ptr[offset] = static_cast<Type>(1.f);
             }
         }
-
         topology.add(data("weights" , weights_mem));
-        topology.add(convolution("conv", input_info("eltwise"), { "weights" }));
-        topology.add(concatenation("concat", {input_info("conv"), input_info("eltwise")}, 1));
-        topology.add(reorder("reorder", input_info("concat"), layout(data_type, format::bfyx, {(int32_t)batch_num, (int32_t)(output_f * 2), (int32_t)input_y, (int32_t)input_x})));
+        topology.add(convolution("conv", input_info("eltwise2"), { "weights" }));
+        topology.add(concatenation("concat", {input_info("eltwise1"), input_info("eltwise2")}, 1));
+        topology.add(reorder("reorder", input_info("concat"), layout(data_types::f32, format::bfyx, {(int32_t)batch_num, (int32_t)(output_f * 2), (int32_t)input_y, (int32_t)input_x})));
 
         network concat_network(engine, topology, config);
-        for (size_t i = 0; i < 2; i++) {
+        for (size_t i = 0; i < 4; i++) {
             concat_network.set_input_data(input_ids[i], in_memory[i]);
         }
         concat_network.execute();
@@ -1379,8 +1383,8 @@ public:
         const size_t input_y = testing::get<2>(GetParam());
         const size_t input_x = testing::get<3>(GetParam());
 
-        std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> inputs(2);
-        for (size_t i = 0; i < 2; ++i) {
+        std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> inputs(4);
+        for (size_t i = 0; i < 4; ++i) {
             inputs[i] = generate_random_4d<Type>(batch_num, in_features[0], input_y, input_x, -1, 1);
         }
         return inputs;
@@ -1395,11 +1399,11 @@ public:
         }
         auto input = generate_input();
 
-        // implicit concat
+        // implicit concat when batch size is 1.
         ExecutionConfig config1;
         config1.set_property(ov::intel_gpu::optimize_data(true));
         ov::intel_gpu::ImplementationDesc impl = { fmt, std::string(""), impl_types::onednn };
-        config1.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", impl} }));
+        config1.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", impl}}));
         config1.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
 
         auto out_mem1 = run_concat_network(input, fmt, config1);
