@@ -65,7 +65,7 @@ public:
         auto endPtr = reinterpret_cast<int *>(data_dependency.at(2)->GetPtr());
         auto stridePtr = reinterpret_cast<int *>(data_dependency.at(3)->GetPtr());
 
-        for (auto i=0, new_idx=0; i<shapeIn.size(); ++i) {
+        for (auto i = 0, new_idx = 0; i < shapeIn.size(); ++i) {
             bool is_new_axis = m_new_axis_mask_set.count(i);
             bool is_shrink_axis = m_shrink_axis_mask_set.count(i);
             bool is_begin_axis = m_begin_mask_set.count(i);
