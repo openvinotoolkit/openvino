@@ -114,7 +114,7 @@ op::v1::TopK::TopK(const Output<Node>& data,
                    const std::string& mode,
                    const std::string& sort,
                    const element::Type& index_element_type)
-    : util::TopK_Base(data, k, axis, mode, sort, index_element_type) {
+    : util::TopKBase(data, k, axis, mode, sort, index_element_type) {
     constructor_validate_and_infer_types();
 }
 
@@ -124,7 +124,7 @@ op::v1::TopK::TopK(const Output<Node>& data,
                    const Mode mode,
                    const SortType sort,
                    const element::Type& index_element_type)
-    : util::TopK_Base(data, k, axis, mode, sort, index_element_type) {
+    : util::TopKBase(data, k, axis, mode, sort, index_element_type) {
     constructor_validate_and_infer_types();
 }
 
@@ -233,7 +233,7 @@ op::v3::TopK::TopK(const Output<Node>& data,
                    const Mode mode,
                    const SortType sort,
                    const element::Type& index_element_type)
-    : util::TopK_Base{data, k, axis, mode, sort, index_element_type} {
+    : util::TopKBase{data, k, axis, mode, sort, index_element_type} {
     constructor_validate_and_infer_types();
 }
 
@@ -335,7 +335,7 @@ ov::op::v11::TopK::TopK(const Output<Node>& data,
                         const TopKSortType sort,
                         const element::Type& index_element_type,
                         const bool stable)
-    : util::TopK_Base{data, k, axis, mode, sort, index_element_type},
+    : util::TopKBase{data, k, axis, mode, sort, index_element_type},
       m_stable{stable} {
     constructor_validate_and_infer_types();
 }
@@ -351,12 +351,12 @@ void ov::op::v11::TopK::validate_and_infer_types() {
             AttributeAdapter<TopKSortType>(m_sort).get());
     }
 
-    util::TopK_Base::validate_and_infer_types();
+    util::TopKBase::validate_and_infer_types();
 }
 
 bool ov::op::v11::TopK::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v11_TopK_visit_attributes);
-    util::TopK_Base::visit_attributes(visitor);
+    util::TopKBase::visit_attributes(visitor);
     visitor.on_attribute("stable", m_stable);
     return true;
 }

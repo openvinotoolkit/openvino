@@ -10,37 +10,36 @@
 namespace ov {
 namespace op {
 namespace util {
-class OPENVINO_API TopK_Base : public Op {
+class OPENVINO_API TopKBase : public Op {
 public:
     using Mode = TopKMode;
     using SortType = TopKSortType;
 
-    OPENVINO_OP("TopK_Base", "util");
-    TopK_Base() = default;
+    OPENVINO_OP("TopKBase", "util");
+    TopKBase() = default;
 
-    /// \param arg The node producing the input data batch tensor.
-    /// \param strides The strides.
-    /// \param pads_begin The beginning of padding shape.
-    /// \param pads_end The end of padding shape.
-    /// \param kernel The kernel shape.
-    /// \param rounding_mode Whether to use ceiling or floor rounding type while
-    /// computing output shape.
-    /// \param auto_pad The pad type for automatically computing padding sizes.
-    TopK_Base(const Output<Node>& data,
-              const Output<Node>& k,
-              const int64_t axis,
-              const std::string& mode,
-              const std::string& sort,
-              const element::Type& index_element_type = element::i32,
-              const bool stable = false);
+    /// \brief The common base class for all TopK operator versions
+    ///
+    /// \param data The input tensor
+    /// \param k Specifies how many maximum/minimum elements should be computed
+    /// \param axis The axis along which TopK should be computed
+    /// \param mode Specifies whether the maximum or minimum elements are selected
+    /// \param sort Specifies the order of output elements and/or indices
+    ///             Accepted values: none, index, value
+    /// \param index_element_type Specifies the type of produced indices
+    TopKBase(const Output<Node>& data,
+             const Output<Node>& k,
+             const int64_t axis,
+             const std::string& mode,
+             const std::string& sort,
+             const element::Type& index_element_type = element::i32);
 
-    TopK_Base(const Output<Node>& data,
-              const Output<Node>& k,
-              const int64_t axis,
-              const TopKMode mode,
-              const TopKSortType sort,
-              const element::Type& index_element_type = element::i32,
-              const bool stable = false);
+    TopKBase(const Output<Node>& data,
+             const Output<Node>& k,
+             const int64_t axis,
+             const TopKMode mode,
+             const TopKSortType sort,
+             const element::Type& index_element_type = element::i32);
 
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
