@@ -23,7 +23,7 @@ using ov::op::v4::Interpolate;
 }  // namespace v4
 namespace v11 {
 using ov::op::v11::Interpolate;
-}  // namespace v4
+}  // namespace v11
 using v0::Interpolate;
 using v0::InterpolateAttrs;
 }  // namespace op

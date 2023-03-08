@@ -110,17 +110,15 @@ public:
 
     InterpolateBase() = default;
 
-    InterpolateBase(const Output<Node>& image,
-                    const Output<Node>& scales_or_sizes,
-                    const InterpolateAttrs& attrs);
+    InterpolateBase(const Output<Node>& image, const Output<Node>& scales_or_sizes, const InterpolateAttrs& attrs);
 
-    // Since v11::Interpolate the second input serves different purpose depending on 
+    // Since v11::Interpolate the second input serves different purpose depending on
     // the value of attrs.shape_calculation_mode.
     //
     // If this constructor is used by v4::Interpolate the 3 inputs serve as: image, output_shape and scales
     InterpolateBase(const Output<Node>& image,
-                    const Output<Node>& scales_or_sizes, // v4::Interpolate -> output_shape
-                    const Output<Node>& axes,            // v4::Interpolate -> scales
+                    const Output<Node>& scales_or_sizes,  // v4::Interpolate -> output_shape
+                    const Output<Node>& axes,             // v4::Interpolate -> scales
                     const InterpolateAttrs& attrs);
 
     // This constructor should only be used by v4::Interpolate
