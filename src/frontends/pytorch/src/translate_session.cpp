@@ -20,7 +20,7 @@ namespace pytorch {
 using namespace ov::op;
 
 TranslateSession::TranslateSession(const ov::frontend::InputModel::Ptr& input_model,
-                                   const std::map<std::string, PytorchCreatorFunction>& translator_map)
+                                   const std::map<std::string, CreatorFunction>& translator_map)
     : m_input_model(input_model),
       m_translator_map(translator_map),
       m_ov_model(nullptr) {}
@@ -117,11 +117,8 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                     parameters.push_back(parameter);
                 }
             }
-            auto context = NodeContext(node, &tensor_map, &parameters, external_tensor_map, this);
+            auto context = NodeContext(node, external_tensor_map, &tensor_map, &parameters, &mutated_tensors, this);
             auto converted_outputs = convert_node(context);
-
-            auto mutated_t = context.get_mutated_tensors();
-            mutated_tensors.insert(mutated_t.begin(), mutated_t.end());
 
             auto fw_outputs = node->outputs();
             // Ops with subgraphs or with mutated inputs may have more outputs after conversion compared to pytorch ones
@@ -193,7 +190,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
     return resulting_model;
 }
 
-OutputVector TranslateSession::convert_node(NodeContext& context) {
+OutputVector TranslateSession::convert_node(const NodeContext& context) {
     try {
         auto it = m_translator_map.find(context.get_op_type());
         if (it != m_translator_map.end()) {

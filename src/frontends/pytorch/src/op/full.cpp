@@ -43,7 +43,7 @@ Output<Node> base_translate_full_with_convertlike(const NodeContext& context,
 }
 }  // namespace
 
-OutputVector translate_full(NodeContext& context) {
+OutputVector translate_full(const NodeContext& context) {
     num_inputs_check(context, 2, 6);
     auto sizes = context.get_input(0);
     auto value = context.get_input(1);
@@ -60,7 +60,7 @@ OutputVector translate_full(NodeContext& context) {
     return {base_translate_full_with_convert(context, sizes, value, dtype_id)};
 };
 
-OutputVector translate_full_like(NodeContext& context) {
+OutputVector translate_full_like(const NodeContext& context) {
     num_inputs_check(context, 2, 7);
     auto input = context.get_input(0);
     auto value = context.get_input(1);
@@ -72,7 +72,7 @@ OutputVector translate_full_like(NodeContext& context) {
     return {base_translate_full_with_convertlike(context, sizes, value, out)};
 };
 
-OutputVector translate_fill_(NodeContext& context) {
+OutputVector translate_fill_(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     auto input = context.get_input(0);
     auto value = context.get_input(1);
@@ -80,7 +80,7 @@ OutputVector translate_fill_(NodeContext& context) {
     return {base_translate_full_with_convertlike(context, sizes, value, input)};
 };
 
-OutputVector translate_new_full(NodeContext& context) {
+OutputVector translate_new_full(const NodeContext& context) {
     num_inputs_check(context, 3, 7);
     auto input = context.get_input(0);
     auto sizes = context.get_input(1);
@@ -91,7 +91,7 @@ OutputVector translate_new_full(NodeContext& context) {
     return {base_translate_full_with_convertlike(context, sizes, value, input)};
 };
 
-OutputVector translate_zeros(NodeContext& context) {
+OutputVector translate_zeros(const NodeContext& context) {
     num_inputs_check(context, 2, 5);
     auto sizes = context.get_input(0);
     auto value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
@@ -108,7 +108,7 @@ OutputVector translate_zeros(NodeContext& context) {
     return {base_translate_full_with_convert(context, sizes, value, dtype_id)};
 };
 
-OutputVector translate_zeros_like(NodeContext& context) {
+OutputVector translate_zeros_like(const NodeContext& context) {
     num_inputs_check(context, 1, 6);
     auto input = context.get_input(0);
     auto value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
@@ -120,7 +120,7 @@ OutputVector translate_zeros_like(NodeContext& context) {
     return {base_translate_full_with_convertlike(context, sizes, value, out)};
 };
 
-OutputVector translate_new_zeros(NodeContext& context) {
+OutputVector translate_new_zeros(const NodeContext& context) {
     num_inputs_check(context, 2, 6);
     auto input = context.get_input(0);
     auto sizes = context.get_input(1);
@@ -131,7 +131,7 @@ OutputVector translate_new_zeros(NodeContext& context) {
     return {base_translate_full_with_convertlike(context, sizes, value, input)};
 };
 
-OutputVector translate_ones(NodeContext& context) {
+OutputVector translate_ones(const NodeContext& context) {
     num_inputs_check(context, 1, 5);
     auto sizes = context.get_input(0);
     auto value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {1}));
@@ -148,7 +148,7 @@ OutputVector translate_ones(NodeContext& context) {
     return {base_translate_full_with_convert(context, sizes, value, dtype_id)};
 };
 
-OutputVector translate_ones_like(NodeContext& context) {
+OutputVector translate_ones_like(const NodeContext& context) {
     num_inputs_check(context, 1, 6);
     auto input = context.get_input(0);
     auto value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {1}));
@@ -160,7 +160,7 @@ OutputVector translate_ones_like(NodeContext& context) {
     return {base_translate_full_with_convertlike(context, sizes, value, out)};
 };
 
-OutputVector translate_new_ones(NodeContext& context) {
+OutputVector translate_new_ones(const NodeContext& context) {
     num_inputs_check(context, 2, 6);
     auto input = context.get_input(0);
     auto sizes = context.get_input(1);
@@ -171,7 +171,7 @@ OutputVector translate_new_ones(NodeContext& context) {
     return {base_translate_full_with_convertlike(context, sizes, value, input)};
 };
 
-OutputVector translate_empty(NodeContext& context) {
+OutputVector translate_empty(const NodeContext& context) {
     num_inputs_check(context, 1, 2);
     auto sizes = context.get_input(0);
     // In OV uninitialised data is not supported, so we create a tensor filled with zeros with a given shape and type.

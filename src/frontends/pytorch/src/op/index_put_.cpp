@@ -34,7 +34,7 @@ Output<Node> generate_zeros_with_convertlike(const NodeContext& context,
 }
 }  // namespace
 
-OutputVector translate_index_put_(NodeContext& context) {
+OutputVector translate_index_put_(const NodeContext& context) {
     num_inputs_check(context, 4, 4);
     auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     auto const_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));

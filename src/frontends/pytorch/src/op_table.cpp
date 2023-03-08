@@ -12,7 +12,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-#define OP_CONVERTER(op) OutputVector op(NodeContext& node)
+#define OP_CONVERTER(op) OutputVector op(const NodeContext& node)
 
 OP_CONVERTER(translate_adaptive_avg_pool3d);
 OP_CONVERTER(translate_adaptive_max_pool2d);
@@ -129,7 +129,7 @@ OP_CONVERTER(translate_zeros_like);
 
 }  // namespace op
 
-const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
+const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
         {"aten::__and__", op::translate_1to1_match_2_inputs<opset10::LogicalAnd>},  // TODO: cover numerical cases
         {"aten::__getitem__", op::translate_getitem},

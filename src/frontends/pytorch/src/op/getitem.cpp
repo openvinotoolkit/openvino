@@ -12,7 +12,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_getitem(NodeContext& context) {
+OutputVector translate_getitem(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     auto input = context.get_input(0);
     FRONT_END_OP_CONVERSION_CHECK(cast_fw_node(input.get_node_shared_ptr(), "prim::ListConstruct") == nullptr,

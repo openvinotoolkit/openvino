@@ -11,7 +11,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_cat(NodeContext& context) {
+OutputVector translate_cat(const NodeContext& context) {
     // This translator is only needed to get axis as constant from external scope
     num_inputs_check(context, 2, 2);
     auto fw_node = std::make_shared<PtFrameworkNode>(context.get_decoder(), OutputVector{context.get_input(0)}, 1);
