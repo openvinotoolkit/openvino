@@ -73,7 +73,7 @@ Any::~Any() {
     _impl = {};
 }
 
-Any::Any(const Any& other, const std::vector<std::shared_ptr<void>>& so) : _impl{other._impl}, _so{so} {}
+Any::Any(const Any& other, const std::vector<std::shared_ptr<void>>& so) : _so{so}, _impl{other._impl} {}
 
 Any::Any(const char* str) : Any(std::string{str}) {}
 
@@ -122,14 +122,6 @@ bool Any::operator==(const std::nullptr_t&) const {
 
 bool Any::operator!=(const Any& other) const {
     return !operator==(other);
-}
-
-Any::Base* Any::operator->() {
-    return _impl.get();
-}
-
-const Any::Base* Any::operator->() const {
-    return _impl.get();
 }
 
 void* Any::addressof() {

@@ -23,9 +23,3 @@ public:
     OPENVINO_RTTI("BatchNormDecomposition", "0");
     BatchNormDecomposition();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::BatchNormDecomposition;
-}  // namespace pass
-}  // namespace ngraph

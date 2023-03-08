@@ -15,6 +15,7 @@
 #include "ngraph/log.hpp"
 #include "onnx_common/parser.hpp"
 #include "onnx_common/utils.hpp"
+#include "openvino/util/file_util.hpp"
 #include "utils/common.hpp"
 #include "utils/onnx_internal.hpp"
 
@@ -174,6 +175,86 @@ void modify_initializer(TensorProto& initializer,
         tensor_type->set_elem_type(initializer.data_type());
     }
 }
+
+bool is_topologically_sorted(const GraphProto& graph) {
+    std::unordered_set<std::string> known_tensors;
+    std::transform(std::begin(graph.input()),
+                   std::end(graph.input()),
+                   std::inserter(known_tensors, std::end(known_tensors)),
+                   extract_name<ONNX_NAMESPACE::ValueInfoProto>);
+    std::transform(std::begin(graph.output()),
+                   std::end(graph.output()),
+                   std::inserter(known_tensors, std::end(known_tensors)),
+                   extract_name<ONNX_NAMESPACE::ValueInfoProto>);
+    std::transform(std::begin(graph.initializer()),
+                   std::end(graph.initializer()),
+                   std::inserter(known_tensors, std::end(known_tensors)),
+                   extract_name<ONNX_NAMESPACE::TensorProto>);
+
+    for (const auto& node : graph.node()) {
+        for (const auto& input : node.input()) {
+            if (input.empty()) {
+                continue;
+            }
+            if (known_tensors.count(input) == 0) {
+                return false;
+            }
+        }
+        for (const auto& output_name : node.output()) {
+            known_tensors.insert(output_name);
+        }
+    }
+    return true;
+}
+
+void graph_topological_sort(GraphProto* graph) {
+    if (!is_topologically_sorted(*graph)) {
+        std::stack<const NodeProto*, std::vector<const NodeProto*>> nodes_to_process;
+        std::unordered_set<const NodeProto*> processed_nodes;
+        std::multimap<std::string, const NodeProto*> output_name_to_node;
+        GraphProto result;
+
+        for (int i = 0; i < graph->node().size(); ++i) {
+            for (const auto& output_name : graph->node(i).output()) {
+                output_name_to_node.emplace(output_name, graph->mutable_node(static_cast<int>(i)));
+            }
+        }
+        auto get_node_by_out_name = [&output_name_to_node](const std::string& out_name) -> const NodeProto* {
+            const auto& idx_iter = output_name_to_node.find(out_name);
+            if (idx_iter != std::end(output_name_to_node)) {
+                return idx_iter->second;
+            }
+            return nullptr;
+        };
+        for (const auto& output : graph->output()) {
+            nodes_to_process.push(get_node_by_out_name(output.name()));
+        }
+
+        while (nodes_to_process.size() > 0) {
+            auto* node = nodes_to_process.top();
+            bool can_add = true;
+            for (const auto& in_name : node->input()) {
+                const auto* in_node = get_node_by_out_name(in_name);
+                if (in_node == nullptr) {  // can be an initializer or an model's input
+                    continue;
+                }
+                if (processed_nodes.count(in_node) == 0) {
+                    can_add = false;
+                    nodes_to_process.push(in_node);
+                }
+            }
+            if (can_add) {
+                auto* new_node = result.add_node();
+                new_node->MergeFrom(*node);
+                nodes_to_process.pop();
+                processed_nodes.insert(node);
+            }
+        }
+        graph->mutable_node()->Clear();
+        graph->mutable_node()->Swap(result.mutable_node());
+    }
+}
+
 class InferShapesAutoRelease {
 public:
     InferShapesAutoRelease(std::shared_ptr<ONNX_NAMESPACE::ModelProto> model_proto)
@@ -217,13 +298,15 @@ struct onnx_editor::ONNXModelEditor::Impl {
 
     Impl() = delete;
 
+    Impl(const std::shared_ptr<ONNX_NAMESPACE::ModelProto>& model_proto) : m_model_proto{model_proto} {
+        graph_topological_sort(m_model_proto->mutable_graph());
+    }
+
     Impl(const std::string& model_path)
-        : m_model_proto{
-              std::make_shared<ONNX_NAMESPACE::ModelProto>(ngraph::onnx_common::parse_from_file(model_path))} {}
+        : Impl(std::make_shared<ONNX_NAMESPACE::ModelProto>(ngraph::onnx_common::parse_from_file(model_path))) {}
 
     Impl(std::istream& model_stream)
-        : m_model_proto{
-              std::make_shared<ONNX_NAMESPACE::ModelProto>(ngraph::onnx_common::parse_from_istream(model_stream))} {}
+        : Impl(std::make_shared<ONNX_NAMESPACE::ModelProto>(ngraph::onnx_common::parse_from_istream(model_stream))) {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     Impl(const std::wstring& model_path)
@@ -233,16 +316,16 @@ struct onnx_editor::ONNXModelEditor::Impl {
 };
 
 onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::string& model_path, frontend::ExtensionHolder extensions)
-    : m_model_path{model_path},
-      m_extensions{std::move(extensions)},
+    : m_extensions{std::move(extensions)},
+      m_model_path{model_path},
       m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
                   delete impl;
               }} {}
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::wstring& model_path, frontend::ExtensionHolder extensions)
-    : m_model_path{ngraph::file_util::wstring_to_string(model_path)},
-      m_extensions{std::move(extensions)},
+    : m_extensions{std::move(extensions)},
+      m_model_path{ov::util::wstring_to_string(model_path)},
       m_pimpl{new ONNXModelEditor::Impl{model_path}, [](Impl* impl) {
                   delete impl;
               }} {}
@@ -251,8 +334,8 @@ onnx_editor::ONNXModelEditor::ONNXModelEditor(const std::wstring& model_path, fr
 onnx_editor::ONNXModelEditor::ONNXModelEditor(std::istream& model_stream,
                                               const std::string& model_path,
                                               frontend::ExtensionHolder extensions)
-    : m_model_path{model_path},
-      m_extensions{std::move(extensions)},
+    : m_extensions{std::move(extensions)},
+      m_model_path{model_path},
       m_pimpl{new ONNXModelEditor::Impl{model_stream}, [](Impl* impl) {
                   delete impl;
               }} {}
@@ -495,11 +578,11 @@ void onnx_editor::ONNXModelEditor::set_tensor_name(const std::string& current_na
     if (const auto value_info = find_graph_value_info(*graph, current_name))
         *value_info->mutable_name() = new_name;
 
-    for (size_t i = 0; i < graph->node().size(); ++i) {
+    for (int i = 0; i < graph->node().size(); ++i) {
         const auto node = graph->mutable_node(static_cast<int>(i));
 
         bool output_found = false;
-        for (size_t j = 0; j < node->output().size(); ++j)
+        for (int j = 0; j < node->output().size(); ++j)
             if (node->output(static_cast<int>(j)) == current_name) {
                 *node->mutable_output(static_cast<int>(j)) = new_name;
                 output_found = true;
@@ -508,7 +591,7 @@ void onnx_editor::ONNXModelEditor::set_tensor_name(const std::string& current_na
         if (output_found)
             continue;
 
-        for (size_t j = 0; j < node->input().size(); ++j)
+        for (int j = 0; j < node->input().size(); ++j)
             if (node->input(static_cast<int>(j)) == current_name)
                 *node->mutable_input(static_cast<int>(j)) = new_name;
     }
@@ -540,7 +623,7 @@ void onnx_editor::ONNXModelEditor::clear_nodes_name(const std::string& name) {
 
     m_pimpl->m_is_mapper_updated = false;
 
-    for (size_t i = 0; i < graph->node().size(); ++i) {
+    for (int i = 0; i < graph->node().size(); ++i) {
         const auto node = graph->mutable_node(static_cast<int>(i));
         if (node->has_name() && node->name() == name)
             node->clear_name();
@@ -564,7 +647,7 @@ void onnx_editor::ONNXModelEditor::set_name_for_dimension(const std::string& nod
 
     const auto set_dim_param = [&shape_dim_index, &dim_name](ValueInfoProto* tensor) {
         const auto shape = tensor->mutable_type()->mutable_tensor_type()->mutable_shape();
-        auto shape_dim_size = shape->dim_size();
+        size_t shape_dim_size = shape->dim_size();
 
         for (; shape_dim_size <= shape_dim_index; ++shape_dim_size)
             add_dim_to_onnx_shape(Dimension::dynamic(), *shape);

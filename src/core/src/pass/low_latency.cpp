@@ -11,7 +11,6 @@
 #include <ngraph/opsets/opset7.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
-#include <ngraph/variant.hpp>
 #include <openvino/cc/pass/itt.hpp>
 #include <openvino/op/util/variable.hpp>
 #include <openvino/opsets/opset1.hpp>
@@ -362,14 +361,14 @@ bool ov::pass::LowLatency2::run_on_model(const shared_ptr<Model>& f) {
                         }
                     }
 
-                    // insert ReadValue and Assign ops:
-                    //
-                    // Layers -> [new op: ReadValue] -> Subgraph operation
-                    //
-                    // Subgraph operation -> [new op: Assign]
-                    //                    \
-                    //                      ---> Layers -> ...
-                    //
+                    /** insert ReadValue and Assign ops:
+                     *
+                     * Layers -> [new op: ReadValue] -> Subgraph operation
+                     *
+                     * Subgraph operation -> [new op: Assign]
+                     *                    \
+                     *                     ---> Layers -> ...
+                     */
                     const auto& out_desc = sub_graph_op->get_output_descriptions();
                     bool is_output_exist = any_of(out_desc.begin(),
                                                   out_desc.end(),

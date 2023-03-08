@@ -55,6 +55,10 @@ public:
         return m_attributes;
     }
 
+    void set_attributes(const Attributes& attributes) {
+        m_attributes = attributes;
+    }
+
     OPENVINO_SUPPRESS_DEPRECATED_START
     bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END

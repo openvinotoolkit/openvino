@@ -97,9 +97,18 @@ std::string get_file_name(const std::string& path);
  * @brief Interface function to get absolute path of file
  * @param path - path to file, can be relative to current working directory
  * @return Absolute path of file
- * @throw runtime_error if any error occurred
+ * @throw runtime_error if absolute path can't be resolved
  */
 std::string get_absolute_file_path(const std::string& path);
+
+/**
+ * @brief Interface function to check path to file is absolute or not
+ * @param path - path to file, can be relative to current working directory
+ * @return True if path is absolute and False otherwise
+ * @throw runtime_error if any error occurred
+ */
+bool is_absolute_file_path(const std::string& path);
+
 /**
  * @brief Interface function to create directorty recursively by given path
  * @param path - path to file, can be relative to current working directory
@@ -241,6 +250,26 @@ inline std::basic_string<C> make_plugin_library_name(const std::basic_string<C>&
     return path + separator + FileTraits<C>::library_prefix() + input + FileTraits<C>::dot_symbol +
            FileTraits<C>::library_ext();
 }
+
+/**
+ * @brief Format plugin path (canonicalize, complete to absolute or complete to file name) for further
+ * dynamic loading by OS
+ * @param plugin - Path (absolute or relative) or name of a plugin. Depending on platform, `plugin` is wrapped with
+ * shared library suffix and prefix to identify library full name
+ * @return absolute path or file name with extension (to be found in ENV)
+ */
+FilePath get_plugin_path(const std::string& plugin);
+
+/**
+ * @brief Format plugin path (canonicalize, complete to absolute or complete to file name) for further
+ * dynamic loading by OS
+ * @param plugin - Path (absolute or relative) or name of a plugin. Depending on platform, `plugin` is wrapped with
+ * shared library suffix and prefix to identify library full name
+ * @param xml_path - Path (absolute or relative) to XML configuration file
+ * @param as_abs_only - Bool value, allows return file names or not
+ * @return absolute path or file name with extension (to be found in ENV)
+ */
+FilePath get_plugin_path(const std::string& plugin, const std::string& xml_path, bool as_abs_only = false);
 
 /**
  * @brief load binary data from file

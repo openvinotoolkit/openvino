@@ -142,6 +142,7 @@ public:
 
 protected:
     void apply_hints(const cldnn::device_info& info);
+    void apply_execution_hints(const cldnn::device_info& info);
     void apply_performance_hints(const cldnn::device_info& info);
     void apply_priority_hints(const cldnn::device_info& info);
     void apply_debug_options(const cldnn::device_info& info);

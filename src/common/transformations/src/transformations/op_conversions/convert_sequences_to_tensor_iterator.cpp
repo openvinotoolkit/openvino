@@ -78,7 +78,7 @@ bool convert_sequence_to_ti(const std::shared_ptr<ngraph::Node>& sequence,
     }
 
     auto max_seq_len = X_pshape[1].get_length();
-    bool enable_mask = ngraph::op::util::is_seq_len_provided(seq_lengths.get_node_shared_ptr(), max_seq_len);
+    bool enable_mask = ov::op::util::is_seq_len_provided(seq_lengths.get_node_shared_ptr(), max_seq_len);
 
     const bool is_reverse = direction == ngraph::op::RecurrentSequenceDirection::REVERSE;
     std::shared_ptr<ngraph::Node> reverse_seq_before;

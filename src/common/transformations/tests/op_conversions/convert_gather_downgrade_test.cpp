@@ -28,7 +28,7 @@ TEST_F(TransformationTestsF, ConvertGather7toGather1) {
 
         function =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_v7}, ngraph::ParameterVector{data, indices});
-        manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();
+        manager.register_pass<ov::pass::ConvertGather7ToGather1>();
     }
 
     {
@@ -53,7 +53,7 @@ TEST_F(TransformationTestsF, ConvertGather7toGather1_nonzero_batch_dims) {
 
         function =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_v7}, ngraph::ParameterVector{data, indices});
-        manager.register_pass<ngraph::pass::ConvertGather7ToGather1>();
+        manager.register_pass<ov::pass::ConvertGather7ToGather1>();
     }
 }
 
@@ -69,7 +69,7 @@ TEST_F(TransformationTestsF, ConvertGather8toGather7) {
         function =
             std::make_shared<ngraph::Function>(ngraph::NodeVector{gather_v8}, ngraph::ParameterVector{data, indices});
 
-        manager.register_pass<ngraph::pass::ConvertGather8ToGather7>();
+        manager.register_pass<ov::pass::ConvertGather8ToGather7>();
     }
 
     {

@@ -43,14 +43,14 @@ TranslateSession::TranslateSession(const ov::frontend::InputModel::Ptr& input_mo
                                    const std::string& model_name,
                                    bool fail_fast,
                                    bool telemetry)
-    : m_fail_fast(fail_fast),
+    : m_input_model(input_model),
+      m_fail_fast(fail_fast),
       m_telemetry(telemetry),
-      m_input_model(input_model),
       m_translator_map(translator_map),
       m_model_name(model_name),
-      m_ov_model(nullptr),
       m_cached_body_models(std::make_shared<CachedBodyModelsType>()),
-      m_telemetry_data(std::make_shared<TelemetryDataType>()) {}
+      m_telemetry_data(std::make_shared<TelemetryDataType>()),
+      m_ov_model(nullptr) {}
 
 std::shared_ptr<ov::Model> TranslateSession::get_converted_model() {
     if (m_ov_model) {
@@ -84,6 +84,7 @@ void TranslateSession::inject_body_model(std::shared_ptr<ov::Model> body_model,
 
 void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& input_model,
                                        std::shared_ptr<ov::Model>& ov_model) {
+    DecoderBase::OpTypeByName op_type_by_name;
     OpMap ng_op_map;
     ov::ParameterVector params;
     ov::ResultVector results;
@@ -130,6 +131,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     for (const auto& operation_place : operation_places) {
         auto operation_decoder = operation_place->get_decoder();
         auto operation_name = operation_place->get_names()[0];
+        op_type_by_name[operation_name] = operation_decoder->get_op_type();
         // output for parameter nodes has been already generated
         if (ng_op_map.count(operation_name)) {
             continue;
@@ -151,7 +153,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             std::string producer_name;
             size_t producer_port_idx;
             try {
-                operation_decoder->get_input_node(input_port_idx, producer_name, producer_port_idx);
+                operation_decoder->get_input_node(input_port_idx, producer_name, producer_port_idx, op_type_by_name);
             } catch (const std::exception&) {
                 FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(input_port_idx) +
                                 " for op '" + operation_decoder->get_op_name() + "', expected input name: '" +
@@ -214,7 +216,9 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 }
                 is_converted = true;
             }
-            FRONT_END_OP_CONVERSION_CHECK(is_converted, "No translator found for " + operation_type + " node.");
+            FRONT_END_OP_CONVERSION_CHECK(
+                is_converted,
+                "[TensorFlow Frontend] Internal error: No translator found for " + operation_type + " node.");
         } catch (...) {
             if (m_fail_fast) {
                 // in case of decode, unsupported operation will be converted to FrameworkNode
@@ -236,14 +240,13 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
         // register OV node outputs in the map for new operation node
         for (const auto& output : ov_outputs) {
-            if (auto result = std::dynamic_pointer_cast<ov::opset10::Result>(output.get_node_shared_ptr())) {
+            if (auto result = as_type_ptr<ov::opset10::Result>(output.get_node_shared_ptr())) {
                 // do not add RetVal type operation to ng_op_map
                 results.push_back(result);
             } else {
-                auto param = std::dynamic_pointer_cast<ov::opset8::Parameter>(output.get_node_shared_ptr());
+                auto param = as_type_ptr<ov::opset8::Parameter>(output.get_node_shared_ptr());
                 // avoid duplicating Parameter nodes if they are already in the Parameters vector
-                if (param && operation_decoder->get_op_type() != "Identity" &&
-                    std::find(params.begin(), params.end(), param) == params.end()) {
+                if (param && std::find(params.begin(), params.end(), param) == params.end()) {
                     params.push_back(param);
                 }
                 ng_op_map[operation_name].push_back(output);
@@ -267,7 +270,9 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             if (port_type == "none") {
                 for (const auto& node_output : ng_op_map[operation_name]) {
                     auto result_node = std::make_shared<ov::opset8::Result>(node_output);
-                    result_node->set_friendly_name(model_output_name);
+                    // to be aligned with Legacy Frontend we set a name along with output port index
+                    // though, the Result name is not used in the OV API 2.0 but it is checked in MO args tests
+                    result_node->set_friendly_name(model_output_name + ":0");
                     results.push_back(result_node);
                 }
             } else if (port_type == "out") {
@@ -294,7 +299,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 std::string producer_name;
                 size_t producer_port_idx;
                 try {
-                    operation_decoder->get_input_node(port_index, producer_name, producer_port_idx);
+                    operation_decoder->get_input_node(port_index, producer_name, producer_port_idx, op_type_by_name);
                 } catch (const std::exception&) {
                     FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(port_index) +
                                     " for op '" + operation_decoder->get_op_name() + "', expected input name: '" +
@@ -308,7 +313,10 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                                         "Output port with index " + std::to_string(producer_port_idx) + " of " +
                                             producer_name + "node specified as custom output does not exist");
                 auto result_node = std::make_shared<ov::opset8::Result>(node_outputs[producer_port_idx]);
-                result_node->set_friendly_name(model_output_name);
+                // to be aligned with Legacy Frontend we set a name of the output tensor name
+                // of the producer to the Result node
+                // though, the Result name is not used in the OV API 2.0 but it is checked in MO args tests
+                result_node->set_friendly_name(producer_name + ":" + std::to_string(producer_port_idx));
                 results.push_back(result_node);
             }
         }

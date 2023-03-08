@@ -21,11 +21,11 @@
 #include "openvino/core/runtime_attribute.hpp"
 
 namespace InferenceEngine {
-struct InferencePlugin;
 class ExecutableNetwork;
 }  // namespace InferenceEngine
 
 namespace ov {
+class Plugin;
 /** @cond INTERNAL */
 class Any;
 namespace util {
@@ -339,7 +339,6 @@ class RuntimeAttribute;
 class CompiledModel;
 class RemoteContext;
 class RemoteTensor;
-class InferencePlugin;
 
 /**
  * @brief This class represents an object to work with different types
@@ -627,12 +626,11 @@ class OPENVINO_API Any {
     };
 
     friend class ::ov::RuntimeAttribute;
-    friend struct ::InferenceEngine::InferencePlugin;
     friend class ::InferenceEngine::ExecutableNetwork;
     friend class ::ov::CompiledModel;
     friend class ::ov::RemoteContext;
     friend class ::ov::RemoteTensor;
-    friend class ::ov::InferencePlugin;
+    friend class ::ov::Plugin;
 
     Any(const Any& other, const std::vector<std::shared_ptr<void>>& so);
 
@@ -861,39 +859,6 @@ public:
     }
 
     /**
-     * @brief Converts to specified type
-     * @tparam T type
-     * @return casted object
-     */
-    template <typename T>
-    OPENVINO_DEPRECATED("Please use as() method")
-    operator T&() & {
-        return as<T>();
-    }
-
-    /**
-     * @brief Converts to specified type
-     * @tparam T type
-     * @return casted object
-     */
-    template <typename T>
-    OPENVINO_DEPRECATED("Please use as() method")
-    operator const T&() const& {
-        return as<T>();
-    }
-
-    /**
-     * @brief Converts to specified type
-     * @tparam T type
-     * @return casted object
-     */
-    template <typename T>
-    OPENVINO_DEPRECATED("Please use as() method")
-    operator T&() const& {
-        return const_cast<Any*>(this)->as<T>();
-    }
-
-    /**
      * @brief The comparison operator for the Any
      *
      * @param other object to compare
@@ -918,20 +883,6 @@ public:
     bool operator!=(const Any& other) const;
 
     /**
-     * @brief Standard pointer operator
-     * @return underlined interface
-     */
-    OPENVINO_DEPRECATED("Please use as() method")
-    Base* operator->();
-
-    /**
-     * @brief Standard pointer operator
-     * @return underlined interface
-     */
-    OPENVINO_DEPRECATED("Please use as() method")
-    const Base* operator->() const;
-
-    /**
      * @brief Prints underlying object to the given output stream.
      * Uses operator<< if it is defined, leaves stream unchanged otherwise.
      * In case of empty any or nullptr stream immediately returns.
@@ -950,26 +901,6 @@ public:
     void read(std::istream& stream);
 
     /**
-     * @brief Return pointer to underlined interface
-     * @return underlined interface
-     */
-    OPENVINO_DEPRECATED("Please use as() method")
-    Base* get() {
-        impl_check();
-        return _impl.get();
-    }
-
-    /**
-     * @brief Return pointer to underlined interface
-     * @return underlined interface
-     */
-    OPENVINO_DEPRECATED("Please use as() method")
-    const Base* get() const {
-        impl_check();
-        return _impl.get();
-    }
-
-    /**
      * @brief Returns address to internal value if any is not empty and `nullptr` instead
      * @return address to internal stored value
      */
@@ -981,23 +912,6 @@ public:
      */
     const void* addressof() const;
 };
-
-/** @cond INTERNAL */
-namespace util {
-template <>
-struct AsTypePtr<Any> {
-    template <typename T>
-    OPENVINO_DEPRECATED("Please use ov::Any::as() method")
-    static std::shared_ptr<T> call(const Any& any) {
-        try {
-            return any.as<std::shared_ptr<T>>();
-        } catch (...) {
-            return {};
-        }
-    }
-};
-}  // namespace util
-/** @endcond */
 
 using AnyMap = std::map<std::string, Any>;
 
@@ -1012,22 +926,3 @@ inline static void PrintTo(const Any& any, std::ostream* os) {
 /** @endcond */
 
 }  // namespace ov
-
-namespace std {
-template <typename T>
-OPENVINO_DEPRECATED("Please use ov::Any::as() method")
-std::shared_ptr<T> dynamic_pointer_cast(const ::ov::Any& any) {
-    try {
-        return any.as<std::shared_ptr<T>>();
-    } catch (...) {
-        return {};
-    }
-}
-
-template <typename T>
-OPENVINO_DEPRECATED("Please use ov::Any::as() method")
-std::shared_ptr<T> static_pointer_cast(const ::ov::Any& any) {
-    return any.as<std::shared_ptr<T>>();
-}
-
-}  // namespace std

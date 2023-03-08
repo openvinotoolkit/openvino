@@ -30,8 +30,12 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
         # After disabling a block of code, some variables might be unused.
         target_compile_options(${TARGET_NAME} INTERFACE
                                 -Wno-unused-function
+                                -Wno-unused-variable
                                 -Wno-unused-parameter
                                 -Wno-unused-local-typedefs)
+    endif()
+    if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)
+        target_compile_options(${TARGET_NAME} INTERFACE -Wno-unused-but-set-variable)
     endif()
 
     set(GENERATED_HEADER ${CMAKE_CURRENT_BINARY_DIR}/conditional_compilation_gen.h CACHE FILEPATH "")

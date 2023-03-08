@@ -456,7 +456,7 @@ TYPED_TEST_P(ArithmeticOperator, labels_different_interval_b_and_fully_dyn_a_bro
 
     PartialShape pshape_A = {dim_0_A, 3, 224, 1}, pshape_B = {dim_0_B, 3, 1, 224};
     PartialShape expected_shape = {Dimension(2, 4), 3, 224, 224};
-    std::vector<size_t> expected_labels{20, 0, 0, 0};
+    ov::TensorLabel expected_labels{20, 0, 0, 0};
 
     auto param_A = std::make_shared<op::Parameter>(element::f32, pshape_A);
     auto param_B = std::make_shared<op::Parameter>(element::f32, pshape_B);
@@ -478,7 +478,7 @@ TYPED_TEST_P(ArithmeticOperator, labels_different_interval_a_and_fully_dyn_b_bro
 
     PartialShape pshape_A = {dim_0_A, 3, 224, 1}, pshape_B = {dim_0_B, 3, 1, 224};
     PartialShape expected_shape = {Dimension(2, 4), 3, 224, 224};
-    std::vector<size_t> expected_labels{10, 0, 0, 0};
+    ov::TensorLabel expected_labels{10, 0, 0, 0};
 
     auto param_A = std::make_shared<op::Parameter>(element::f32, pshape_A);
     auto param_B = std::make_shared<op::Parameter>(element::f32, pshape_B);
@@ -517,7 +517,7 @@ TYPED_TEST_P(ArithmeticOperator, labels_different_interval_dims_without_one_broa
     PartialShape pshape_B{Dimension(2, 4), Dimension(4, 12), Dimension(10, 12), Dimension(16, 24)};
 
     PartialShape expected_shape = {Dimension(2, 4), Dimension(8, 12), Dimension(10, 12), 16};
-    std::vector<size_t> expected_labels{20, 21, 22, 23};
+    ov::TensorLabel expected_labels{20, 21, 22, 23};
 
     set_shape_labels(pshape_A, {10, 11, 12, 13});
     set_shape_labels(pshape_B, {20, 21, 22, 23});
@@ -552,11 +552,11 @@ TYPED_TEST_P(ArithmeticOperator, labels_different_interval_batch_without_one_equ
     const auto out_shape = op->get_output_partial_shape(0);
 
     PartialShape expected_shape = {Dimension(2, 4), 3, 224, 224};
-    std::vector<size_t> expected_labels{20, 0, 0, 0};
+    ov::TensorLabel expected_labels{20, 0, 0, 0};
 
     auto eq_table = table_of_equivalence->get_equivalence_table();
-    EXPECT_EQ(eq_table[ov::DimensionTracker::get_label(dim_0_A)], std::unordered_set<size_t>{20});
-    EXPECT_EQ(eq_table[ov::DimensionTracker::get_label(dim_0_B)], std::unordered_set<size_t>{10});
+    EXPECT_EQ(eq_table[ov::DimensionTracker::get_label(dim_0_A)], std::unordered_set<ov::label_t>{20});
+    EXPECT_EQ(eq_table[ov::DimensionTracker::get_label(dim_0_B)], std::unordered_set<ov::label_t>{10});
 
     EXPECT_EQ(out_shape, expected_shape);
     EXPECT_EQ(get_shape_labels(out_shape), expected_labels);
@@ -572,7 +572,7 @@ TYPED_TEST_P(ArithmeticOperator, labels_different_fully_dynamic_batch_broadcast_
 
     PartialShape pshape_A = {dim_0_A, 3, 224, 1}, pshape_B = {dim_0_B, 3, 1, 224};
     PartialShape expected_shape = {-1, 3, 224, 224};
-    std::vector<size_t> expected_labels{0, 0, 0, 0};
+    ov::TensorLabel expected_labels{0, 0, 0, 0};
 
     auto param_A = std::make_shared<op::Parameter>(element::f32, pshape_A);
     auto param_B = std::make_shared<op::Parameter>(element::f32, pshape_B);
@@ -594,7 +594,7 @@ TYPED_TEST_P(ArithmeticOperator, labels_equal_fully_dynamic_batch_broadcast_nump
 
     PartialShape pshape_A = {dim_0_A, 3, 224, 1}, pshape_B = {dim_0_B, 3, 1, 224};
     PartialShape expected_shape = {-1, 3, 224, 224};
-    std::vector<size_t> expected_labels{10, 0, 0, 0};
+    ov::TensorLabel expected_labels{10, 0, 0, 0};
 
     auto param_A = std::make_shared<op::Parameter>(element::f32, pshape_A);
     auto param_B = std::make_shared<op::Parameter>(element::f32, pshape_B);
@@ -612,7 +612,7 @@ TYPED_TEST_P(ArithmeticOperator, labels_dyn_batch_a_broadcast_numpy) {
     PartialShape A = {b, 3, 224, 224}, B = {1, 3, 1, 1};
     PartialShape expected_shape{b, 3, 224, 224};
 
-    std::vector<size_t> expected_labels{10, 0, 0, 0};
+    ov::TensorLabel expected_labels{10, 0, 0, 0};
 
     auto param_A = std::make_shared<op::Parameter>(element::f64, A);
     auto param_B = std::make_shared<op::Parameter>(element::f64, B);
@@ -630,7 +630,7 @@ TYPED_TEST_P(ArithmeticOperator, labels_dyn_batch_b_broadcast_numpy) {
     PartialShape B = {b, 3, 224, 224}, A = {1, 3, 1, 1};
     PartialShape expected_shape{b, 3, 224, 224};
 
-    std::vector<size_t> expected_labels{10, 0, 0, 0};
+    ov::TensorLabel expected_labels{10, 0, 0, 0};
 
     auto param_A = std::make_shared<op::Parameter>(element::f64, A);
     auto param_B = std::make_shared<op::Parameter>(element::f64, B);
@@ -650,7 +650,7 @@ TYPED_TEST_P(ArithmeticOperator, labels_dyn_batch_and_higher_rank_a_broadcast_nu
     PartialShape pshape_B{3, 1, 1};
     PartialShape expected_shape{b, 3, -1, -1};
 
-    std::vector<size_t> expected_labels{10, 0, 0, 0};
+    ov::TensorLabel expected_labels{10, 0, 0, 0};
 
     auto param_A = std::make_shared<op::Parameter>(element::f64, pshape_A);
     auto param_B = std::make_shared<op::Parameter>(element::f64, pshape_B);
@@ -670,7 +670,7 @@ TYPED_TEST_P(ArithmeticOperator, labels_dyn_batch_and_higher_rank_b_broadcast_nu
     PartialShape pshape_B{b, -1, -1, -1};
     PartialShape expected_shape{b, 3, -1, -1};
 
-    std::vector<size_t> expected_labels{10, 0, 0, 0};
+    ov::TensorLabel expected_labels{10, 0, 0, 0};
 
     auto param_A = std::make_shared<op::Parameter>(element::f64, pshape_A);
     auto param_B = std::make_shared<op::Parameter>(element::f64, pshape_B);

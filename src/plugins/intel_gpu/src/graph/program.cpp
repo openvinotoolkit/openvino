@@ -2,16 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/graph/program.hpp"
 
 #include <ie_system_conf.h>
 
-#include "kernel_selector_helper.h"
-#include "device_cache_reader.h"
 #include "auto_tuner.h"
 #include "layout_optimizer.h"
 #include "pass_manager.h"
@@ -19,6 +17,7 @@
 #include "program_dump_graph.h"
 #include "sliding_window_utils.hpp"
 #include "program_helpers.h"
+#include "compilation_context.hpp"
 
 #include "matrix_nms_inst.h"
 #include "roi_pooling_inst.h"
@@ -66,8 +65,11 @@
 #include "loop_inst.h"
 #include "reverse_inst.h"
 #include "to_string_utils.h"
-#include "intel_gpu/runtime/itt.hpp"
+
+// TODO: Remove once we have interface for kernels cache
 #include "runtime/kernels_cache.hpp"
+
+// TODO: implement self-registration for impls
 #include "impls/ocl/register.hpp"
 #include "impls/cpu/register.hpp"
 #include "impls/common/register.hpp"
@@ -96,6 +98,7 @@
 #include <sys/resource.h>
 #endif
 
+using namespace cldnn;
 using namespace ov::intel_gpu;
 
 program::program(engine& engine_ref,
@@ -108,20 +111,12 @@ program::program(engine& engine_ref,
       _stream(_engine.create_stream(config)),
       _config(config),
       processing_order(),
-      tuning_cache(nullptr),
-      is_body_program(is_body_program),
-      is_subgroup_local_block_io_supported(-1) {
+      is_body_program(is_body_program) {
+    _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
-    set_options();
-    query_local_block_io_supported();
-    _task_executor = make_task_executor(_config);
-
     GPU_DEBUG_INFO << "Program config\n" << config.to_string();
-
-    pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
+    init_program();
     prepare_nodes(topology);
-    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
-                                                                      kernel_selector::KernelBase::get_db().get_batch_header_str()));
     program_node::reset_unique_id();
 
     if (no_optimizations) {
@@ -140,18 +135,10 @@ program::program(engine& engine_ref,
       _stream(_engine.create_stream(config)),
       _config(config),
       _task_executor(task_executor),
-      processing_order(),
-      tuning_cache(nullptr),
-      is_subgroup_local_block_io_supported(-1) {
+      processing_order() {
+    _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
-    set_options();
-    query_local_block_io_supported();
-
-    _task_executor = make_task_executor(_config);
-
-    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
-                                                                      kernel_selector::KernelBase::get_db().get_batch_header_str()));
-    pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
+    init_program();
     prepare_nodes(nodes);
     build_program(is_internal);
 }
@@ -160,11 +147,32 @@ program::program(engine& engine)
     : _engine(engine),
       _stream(_engine.create_stream({})),
       _config(),
-      processing_order(),
-      tuning_cache(nullptr),
-      is_subgroup_local_block_io_supported(-1) { }
+      processing_order() {
+    init_primitives();
+    _config.apply_user_properties(_engine.get_device_info());
+}
+
 program::~program() {
-    query_local_block_io_supported();
+}
+
+void program::init_program() {
+    set_options();
+
+    pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
+
+    _task_executor = make_task_executor(_config);
+    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
+                                                                      kernel_selector::KernelBase::get_db().get_batch_header_str()));
+
+    _compilation_context = ICompilationContext::create(make_task_executor_config(_config,
+                                                            "Task executor config for CompilationContext in GPU plugin"));
+
+    _impls_cache = cldnn::make_unique<ImplementationsCache>(_impls_cache_capacity);
+    // Remove items of compilation context's internal queue when some impl is popped in kernels_cache
+    // compilation context's queue check duplication of inserted task
+    _impls_cache->set_remove_item_callback([this](ImplementationsCache::ItemType& item) {
+        get_compilation_context().remove_keys({item.first.hash()});
+    });
 }
 
 void program::init_primitives() {
@@ -200,8 +208,8 @@ static void adjust_num_cores(InferenceEngine::CPUStreamsExecutor::Config& config
     config._streams = std::min(config._streams, num_cores);
 }
 
-std::shared_ptr<InferenceEngine::CPUStreamsExecutor> program::make_task_executor(const ExecutionConfig& config) const {
-    InferenceEngine::CPUStreamsExecutor::Config task_executor_config("CPU Tasks executor for GPU plugin", 1);
+InferenceEngine::CPUStreamsExecutor::Config program::make_task_executor_config(const ExecutionConfig& config, std::string tags) const {
+    InferenceEngine::CPUStreamsExecutor::Config task_executor_config(tags, 1);
     task_executor_config._streams = config.get_property(ov::compilation_num_threads);
     auto priority = config.get_property(ov::intel_gpu::hint::host_task_priority);
     switch (priority) {
@@ -213,6 +221,11 @@ std::shared_ptr<InferenceEngine::CPUStreamsExecutor> program::make_task_executor
 
     adjust_num_cores(task_executor_config);
 
+    return task_executor_config;
+}
+
+std::shared_ptr<InferenceEngine::CPUStreamsExecutor> program::make_task_executor(const ExecutionConfig& config) const {
+    InferenceEngine::CPUStreamsExecutor::Config task_executor_config = make_task_executor_config(config, "CPU Tasks executor for GPU plugin");
     return std::make_shared<InferenceEngine::CPUStreamsExecutor>(task_executor_config);
 }
 
@@ -228,16 +241,6 @@ void program::init_kernels() {
             n->get_selected_impl()->init_kernels(*_kernels_cache);
             n->get_selected_impl()->reset_kernels_source();
         }
-    }
-}
-
-void program::load_tuning_cache() {
-    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::LoadTuningCache");
-    GPU_DEBUG_DEFINE_MEM_LOGGER("ProgramImpl::LoadTuningCache");
-    try {
-        tuning_cache = kernel_selector::CreateTuningCacheFromFile("cache.json");
-    } catch (...) {
-        tuning_cache = std::make_shared<kernel_selector::TuningCache>();
     }
 }
 
@@ -500,59 +503,6 @@ void program::set_options() {
     }
 }
 
-bool program::is_local_block_io_supported() const {
-    if (is_subgroup_local_block_io_supported == -1)
-        throw std::invalid_argument("subgroup_local_block_io_supported has NOT been initialized!");
-
-    return  static_cast<bool>(is_subgroup_local_block_io_supported);
-}
-
-void program::query_local_block_io_supported() {
-    auto& device = _engine.get_device();
-    auto device_info = device->get_info();
-    if (device_info.supports_local_block_io == false)
-        is_subgroup_local_block_io_supported = static_cast<int8_t>(false);
-
-    if (is_subgroup_local_block_io_supported != -1)
-        return;
-
-    std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
-    std::string kernel_code =
-        "__attribute__((intel_reqd_sub_group_size(8)))"
-        "__attribute__((reqd_work_group_size(8, 1, 1)))"
-        "void kernel is_local_block_io_supported(global uchar* dst) {"
-        "    uint lid = get_sub_group_local_id();"
-        "    uchar val = (uchar)lid * 2;"
-        "    __local uchar tmp_slm[8];"
-        "    intel_sub_group_block_write_uc2(tmp_slm, (uchar2)(val));"
-        "    barrier(CLK_LOCAL_MEM_FENCE);"
-        "    uchar2 read = intel_sub_group_block_read_uc2(tmp_slm);"
-        "    dst[lid] = read.s0 + 1;"
-        "}";
-
-    kernel_string->str = kernel_code;
-    kernel_string->options = "-Dcl_intel_subgroup_local_block_io -DLOCAL_BLOCK_IO_SUPPORTED=1";
-    kernel_string->entry_point = "is_local_block_io_supported";
-    kernel_string->batch_compilation = true;
-
-    try {
-        auto _kernels_cache_device_query = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, nullptr,
-                                                                                            kernel_selector::KernelBase::get_db().get_batch_header_str()));
-        auto id = _kernels_cache_device_query->set_kernel_source(kernel_string, false);
-        _kernels_cache_device_query->build_all();
-
-        auto kernel = _kernels_cache_device_query->get_kernel(id);
-        bool is_valid = _kernels_cache_device_query->validate_simple_kernel_execution(kernel);
-        is_subgroup_local_block_io_supported = static_cast<int8_t>(is_valid);
-
-        _kernels_cache_device_query->remove_kernel(id);
-        return;
-    } catch (...) {
-        is_subgroup_local_block_io_supported = static_cast<int8_t>(false);
-        return;
-    }
-}
-
 void program::build_program(bool is_internal) {
     init_graph();
     { pre_optimize_graph(is_internal); }
@@ -577,7 +527,8 @@ void program::build_program(bool is_internal) {
 
     if (!is_internal) {
         prim_info = get_current_stage_info();
-        transfer_memory_to_device();
+        if (get_engine().get_device_info().dev_type == device_type::discrete_gpu)
+            transfer_memory_to_device();
     }
 
     cleanup();
@@ -596,9 +547,6 @@ void program::run_graph_compilation() { apply_opt_pass<compile_graph>(); }
 
 void program::pre_optimize_graph(bool is_internal) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::PreOptimizeGraph");
-
-    if (!is_internal)
-        load_tuning_cache();
 
     // trim to outputs
     apply_opt_pass<trim_to_outputs>();  // ToDo remove hidden dependencies from trimm pass
@@ -746,13 +694,15 @@ void program::transfer_memory_to_device() {
         return;
 
     for (auto& node : processing_order) {
+        if (node->is_shape_infer_dep()) {
+            continue;
+        }
         if (node->is_type<data>() && !node->need_lockable_memory()) {
             auto& data_node = node->as<data>();
             auto data_node_layout = data_node.get_output_layout();
             auto& mem = data_node.get_attached_memory();
             auto mem_layout = mem.get_layout();
             auto alloc_type = mem.get_allocation_type();
-
             if (!mem_layout.compatible(data_node_layout)) {
                 std::string err_str("Node and memory layouts are incompatible, error occurred for " + node->id() + " node");
                 throw std::invalid_argument(err_str);
@@ -1159,14 +1109,6 @@ void program::fuse_nodes(program_node &fused_node,
     local_desc.total_num_deps = peer_node.get_dependencies().size();
     local_desc.input_layout = peer_node.get_dependency(0).get_output_layout();
     local_desc.output_layout = peer_layout;
-    local_desc.activation = activation_func::none;
-    if (!peer_node.get_fused_activations_funcs().empty()) {
-        if (peer_node.get_fused_activations_funcs().size() > 1)
-            CLDNN_ERROR_MESSAGE(peer_node.id(), "Fused primitive descriptor doesn't support > 1 activation functions in a peer node");
-
-        local_desc.activation = peer_node.get_fused_activations_funcs()[0];
-        local_desc.activation_params = peer_node.get_fused_activations_params()[0];
-    }
 
     auto fusedPadding = fused_node.get_output_layout().data_padding;
     cldnn::padding needed_padding = padding::max(peer_layout.data_padding,
@@ -1726,4 +1668,9 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
 
 void program::remove_kernel(kernel_id id) {
     _kernels_cache->remove_kernel(id);
+}
+
+void program::cancel_compilation_context() {
+    if (_compilation_context != nullptr)
+        _compilation_context->cancel();
 }

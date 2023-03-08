@@ -171,7 +171,7 @@ void printInputAndOutputsInfo(const ov::Model& network) {
     slog::info << "model name: " << network.get_friendly_name() << slog::endl;
 
     const std::vector<ov::Output<const ov::Node>> inputs = network.inputs();
-    for (const ov::Output<const ov::Node> input : inputs) {
+    for (const ov::Output<const ov::Node>& input : inputs) {
         slog::info << "    inputs" << slog::endl;
 
         const std::string name = input.get_names().empty() ? "NONE" : input.get_any_name();
@@ -185,7 +185,7 @@ void printInputAndOutputsInfo(const ov::Model& network) {
     }
 
     const std::vector<ov::Output<const ov::Node>> outputs = network.outputs();
-    for (const ov::Output<const ov::Node> output : outputs) {
+    for (const ov::Output<const ov::Node>& output : outputs) {
         slog::info << "    outputs" << slog::endl;
 
         const std::string name = output.get_names().empty() ? "NONE" : output.get_any_name();

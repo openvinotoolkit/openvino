@@ -13,6 +13,7 @@
 #include <process.h>
 #endif
 
+#include "openvino/pass/manager.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "transformations/convert_precision.hpp"
@@ -46,7 +47,7 @@ void SubgraphBaseTest::run() {
          ov::test::utils::PassRate::Statuses::SKIPPED :
          ov::test::utils::PassRate::Statuses::CRASHED;
     summary.setDeviceName(targetDevice);
-    summary.updateOPsStats(function, status);
+    summary.updateOPsStats(function, status, rel_influence_coef);
 
     if (isCurrentTestDisabled)
         GTEST_SKIP() << "Disabled test due to configuration" << std::endl;
@@ -91,14 +92,14 @@ void SubgraphBaseTest::run() {
             status = ov::test::utils::PassRate::Statuses::FAILED;
             errorMessage = "Unknown failure occurred.";
         }
-        summary.updateOPsStats(function, status);
+        summary.updateOPsStats(function, status, rel_influence_coef);
         if (status != ov::test::utils::PassRate::Statuses::PASSED) {
             GTEST_FATAL_FAILURE_(errorMessage.c_str());
         }
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::anyError) {
         IE_THROW() << "Crash happens";
     } else if (jmpRes == CommonTestUtils::JMP_STATUS::alarmErr) {
-        summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED);
+        summary.updateOPsStats(function, ov::test::utils::PassRate::Statuses::HANGED, rel_influence_coef);
         IE_THROW() << "Crash happens";
     }
 }
@@ -206,11 +207,11 @@ void SubgraphBaseTest::compile_model() {
 
     configure_model();
     if (functionRefs == nullptr) {
-        functionRefs = ov::clone_model(*function);
+        functionRefs = function->clone();
     }
 
     // Within the test scope we don't need any implicit bf16 optimisations, so let's run the network as is.
-    #if !(defined(__arm__) || defined(_M_ARM) || defined(__aarch64__) || defined(_M_ARM64))
+    #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         if (targetDevice == CommonTestUtils::DEVICE_CPU && !configuration.count(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16)) {
                 configuration.insert({InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16, InferenceEngine::PluginConfigParams::NO});
         }
@@ -225,7 +226,7 @@ void SubgraphBaseTest::compile_model() {
                 break;
             }
         }
-        configuration.insert({ov::hint::inference_precision.name(), hint});
+        configuration.insert({ov::inference_precision.name(), hint});
     }
 
     compiledModel = core->compile_model(function, targetDevice, configuration);
@@ -278,14 +279,9 @@ void SubgraphBaseTest::infer() {
 }
 
 std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
-    if (is_report_stages) {
-        std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is started"<< std::endl;
-    }
-    auto start_time = std::chrono::system_clock::now();
-
     using InputsMap = std::map<std::shared_ptr<ov::Node>, ov::Tensor>;
 
-    auto functionToProcess = ov::clone_model(*functionRefs);
+    auto functionToProcess = functionRefs->clone();
     //TODO: remove this conversions as soon as function interpreter fully support bf16 and f16
     precisions_array precisions = {
             { ngraph::element::bf16, ngraph::element::f32 }
@@ -306,7 +302,7 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
         precisions.push_back({ ngraph::element::f16, ngraph::element::f32});
     }
     pass::Manager manager;
-    manager.register_pass<ngraph::pass::ConvertPrecision>(precisions);
+    manager.register_pass<ov::pass::ConvertPrecision>(precisions);
     manager.run_passes(functionToProcess);
     functionToProcess->validate_nodes_and_infer_types();
 
@@ -340,11 +336,6 @@ std::vector<ov::Tensor> SubgraphBaseTest::calculate_refs() {
     functionToProcess = p.build();
 
     auto results = ngraph::helpers::interpretFunction(functionToProcess, inputs);
-    if (is_report_stages) {
-        auto end_time = std::chrono::system_clock::now();
-        std::chrono::duration<double> duration = end_time - start_time;
-        std::cout << "[ REFERENCE   ] `SubgraphBaseTest::calculate_refs()` is finished successfully. Duration is " << duration.count() << "s" << std::endl;
-    }
     return results;
 }
 

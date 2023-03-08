@@ -8,6 +8,8 @@
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 
+#include "crop_inst.h"
+
 using namespace cldnn;
 using namespace ::tests;
 
@@ -1213,24 +1215,7 @@ TEST_P(crop_gpu, pad_test) {
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::optimize_data(true));
 
-    cldnn::network::ptr network;
-
-    if (is_caching_test) {
-        membuf mem_buf;
-        {
-            cldnn::network _network(engine, topology, config);
-            std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-            _network.save(ob);
-        }
-        {
-            std::istream in_mem(&mem_buf);
-            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-        }
-    } else {
-        network = std::make_shared<cldnn::network>(engine, topology, config);
-    }
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input);
     auto outputs = network->execute();
@@ -1359,9 +1344,9 @@ TEST(crop_gpu, dynamic_in1x4x1x1_split) {
     topology.add(crop("crop1", { input_info("input"), input_info("data") }, tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0),batch(0)) }, op_mode, 0, num_splits));
     topology.add(crop("crop2", { input_info("input"), input_info("data") }, tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_2)), { tensor(feature(feature_offset_2), spatial(0,0),batch(0)) }, op_mode, 1, num_splits));
 
-    std::vector<int32_t> input_vec = { -1, 2, -3, 4 };
-    std::vector<int32_t> out1 = { -1, 2 };
-    std::vector<int32_t> out2 = { -3, 4 };
+    std::vector<float> input_vec = { -1.0f, 2.0f, -3.0f, 4.0f };
+    std::vector<float> out1 = { -1.0f, 2.0f };
+    std::vector<float> out2 = { -3.0f, 4.0f };
     set_values(input_mem, input_vec);
     ExecutionConfig config;
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -1372,14 +1357,21 @@ TEST(crop_gpu, dynamic_in1x4x1x1_split) {
     network.set_input_data("input", input_mem);
     auto outputs = network.execute();
 
-    auto output = outputs.at("crop1").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    auto impl1 = network.get_primitive("crop1")->get_impl();
+    ASSERT_TRUE(impl1 != nullptr);
+    ASSERT_TRUE(impl1->is_dynamic());
+    auto impl2 = network.get_primitive("crop2")->get_impl();
+    ASSERT_TRUE(impl2 != nullptr);
+    ASSERT_TRUE(impl2->is_dynamic());
+
+    auto output1 = outputs.at("crop1").get_memory();
+    cldnn::mem_lock<float> output_ptr_1(output1, get_test_stream());
 
     for (size_t i = 0; i < out1.size(); i++)
-        ASSERT_EQ(output_ptr[i], out1[i]);
+        ASSERT_EQ(output_ptr_1[i], out1[i]);
 
     auto output_2 = outputs.at("crop2").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr_2(output_2, get_test_stream());
+    cldnn::mem_lock<float> output_ptr_2(output_2, get_test_stream());
 
     for (size_t i = 0; i < out2.size(); i++)
         ASSERT_EQ(output_ptr_2[i], out2[i]);
@@ -1416,9 +1408,9 @@ TEST(crop_gpu, dynamic_in1x4x1x1_varaidic_split) {
     topology.add(crop("crop1", { input_info("input"), input_info("axis"), input_info("splits_length") }, tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_1)), { tensor(feature(feature_offset_1), spatial(0,0),batch(0)) }, op_mode, 0));
     topology.add(crop("crop2", { input_info("input"), input_info("axis"), input_info("splits_length") }, tensor(batch(crop_batch_num), spatial(crop_x_size, crop_y_size), feature(crop_feature_num_2)), { tensor(feature(feature_offset_2), spatial(0,0),batch(0)) }, op_mode, 1));
 
-    std::vector<int32_t> input_vec = { -1, 2, -3, 4 };
-    std::vector<int32_t> out1 = { -1, 2, -3 };
-    std::vector<int32_t> out2 = { 4 };
+    std::vector<float> input_vec = { -1.0f, 2.0f, -3.0f, 4.0f };
+    std::vector<float> out1 = { -1.0f, 2.0f, -3.0f };
+    std::vector<float> out2 = { 4.0f };
     std::vector<int64_t> splits_vec = {3, 1};
 
     set_values(input_mem, input_vec);
@@ -1434,14 +1426,21 @@ TEST(crop_gpu, dynamic_in1x4x1x1_varaidic_split) {
     network.set_input_data("input", input_mem);
     auto outputs = network.execute();
 
+    auto impl1 = network.get_primitive("crop1")->get_impl();
+    ASSERT_TRUE(impl1 != nullptr);
+    ASSERT_TRUE(impl1->is_dynamic());
+    auto impl2 = network.get_primitive("crop2")->get_impl();
+    ASSERT_TRUE(impl2 != nullptr);
+    ASSERT_TRUE(impl2->is_dynamic());
+
     auto output = outputs.at("crop1").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < out1.size(); i++)
         ASSERT_EQ(output_ptr[i], out1[i]);
 
     auto output_2 = outputs.at("crop2").get_memory();
-    cldnn::mem_lock<int32_t> output_ptr_2(output_2, get_test_stream());
+    cldnn::mem_lock<float> output_ptr_2(output_2, get_test_stream());
 
     for (size_t i = 0; i < out2.size(); i++)
         ASSERT_EQ(output_ptr_2[i], out2[i]);
@@ -1496,4 +1495,50 @@ TEST(crop_gpu, static_split_batch) {
 
     for (size_t i = 0; i < out3.size(); i++)
         ASSERT_EQ(output_ptr_3[i], out3[i]);
+}
+
+TEST(crop_gpu, optimized_out_crop) {
+    auto& engine = get_test_engine();
+
+    auto input_actual_layout = layout{ ov::PartialShape{5, 6, 1, 1}, data_types::f32, format::bfyx };
+    auto input_mem = engine.allocate_memory(input_actual_layout);
+    std::vector<int32_t> input_vec = {
+        0, 1, 2, 3, 4, 5,
+        0, 1, 2, 3, 4, 5,
+        0, 1, 2, 3, 4, 5,
+        0, 1, 2, 3, 4, 5,
+        0, 1, 2, 3, 4, 5,
+    };
+    set_values(input_mem, input_vec);
+
+    std::vector<int32_t> out_vec = {
+        0, 1, 2, 3,
+        0, 1, 2, 3,
+        0, 1, 2, 3,
+        0, 1, 2, 3,
+        0, 1, 2, 3,
+    };
+
+    topology topology;
+    topology.add(input_layout("input", input_actual_layout));
+    topology.add(crop("crop1", { input_info("input") }, tensor(5, 5, 1, 1), { tensor(0, 0, 0, 0) }, padding({0, 0, 0, 0}, {0, 0, 0, 0})));
+    topology.add(crop("crop2", { input_info("crop1") }, tensor(5, 4, 1, 1), { tensor(0, 0, 0, 0) }, padding({0, 0, 0, 0}, {0, 0, 0, 0})));
+    topology.add(reorder("reorder_out", input_info("crop2"), layout{ ov::PartialShape{5, 4, 1, 1}, data_types::f32, format::bfyx }));
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("reorder_out").get_memory();
+    cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < out_vec.size(); i++)
+        ASSERT_EQ(output_ptr[i], out_vec[i]);
+
+    auto all_primitives = network.get_all_primitives();
+    ASSERT_TRUE(all_primitives["crop1"] == "_optimized_");
+    ASSERT_TRUE(all_primitives["crop2"] == "_optimized_");
 }

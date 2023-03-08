@@ -20,6 +20,10 @@ namespace pass {
 class InsertMoveBroadcast: public ngraph::pass::MatcherPass {
 public:
     InsertMoveBroadcast();
+
+    static Output<ngraph::Node> BroadcastNodeLastDim(const ngraph::Output<ngraph::Node>& value,
+                                                     const ov::PartialShape& target_shape,
+                                                     const ov::PartialShape& normalized_shape);
 };
 
 } // namespace pass

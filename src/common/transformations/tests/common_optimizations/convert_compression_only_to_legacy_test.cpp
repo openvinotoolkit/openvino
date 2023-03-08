@@ -39,7 +39,7 @@ TEST(TransformationTests, ConvertCompressionOnlyToLegacy) {
         f = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
 
         ov::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::ConvertCompressedOnlyToLegacy>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -83,7 +83,7 @@ TEST(TransformationTests, ConvertCompressionOnlyToLegacyNoConvertion) {
         f = std::make_shared<ov::Model>(ov::NodeVector{conv}, ov::ParameterVector{input});
 
         ov::pass::Manager manager;
-        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ov::pass::InitNodeInfo>();
         manager.register_pass<ov::pass::ConvertCompressedOnlyToLegacy>();
         manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));

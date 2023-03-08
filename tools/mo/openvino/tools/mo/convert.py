@@ -2,7 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from collections import namedtuple
+
+from openvino.frontend import FrontEndManager
+
 from openvino.tools.mo.convert_impl import _convert
+from openvino.tools.mo.utils.cli_parser import get_all_cli_parser
+from openvino.tools.mo.utils.logger import get_logger_state, restore_logger_state
 
 InputCutInfo = namedtuple("InputInfo", ["name", "shape", "type", "value"])
 LayoutMap = namedtuple("LayoutMap", ["source_layout", "target_layout"])
@@ -44,4 +49,11 @@ def convert_model(input_model=None, **args):
         openvino.runtime.Model
     """
     args.update({'input_model': input_model})
-    return _convert(**args)
+    logger_state = get_logger_state()
+
+    cli_parser = get_all_cli_parser(FrontEndManager())
+    framework = None if 'framework' not in args else args['framework']
+
+    ov_model, _ = _convert(cli_parser, framework, args)
+    restore_logger_state(logger_state)
+    return ov_model

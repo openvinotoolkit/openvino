@@ -105,8 +105,8 @@ std::string generate_grouping_subscript(const std::string& input_subscript,
     return required_subscript;
 }
 
-std::unordered_map<std::string, std::vector<size_t>> compute_label_dim_map(const Rank& input_rank,
-                                                                           const std::string& input_subscript) {
+std::unordered_map<std::string, ov::TensorLabel> compute_label_dim_map(const Rank& input_rank,
+                                                                       const std::string& input_subscript) {
     constexpr char ellipsis[] = "...";
     auto labels = ngraph::opset7::Einsum::extract_labels(input_subscript);
     size_t input_rank_length = labels.size();
@@ -115,14 +115,14 @@ std::unordered_map<std::string, std::vector<size_t>> compute_label_dim_map(const
     if (input_rank.is_static()) {
         input_rank_length = input_rank.get_length();
     }
-    std::unordered_map<std::string, std::vector<size_t>> resulted_map;
+    std::unordered_map<std::string, ov::TensorLabel> resulted_map;
     NGRAPH_CHECK(input_rank_length >= labels.size());
     size_t num_broadcasted_dims = input_rank_length - labels.size() + 1;
 
     size_t current_dim = 0;
     for (const auto& label : labels) {
         if (label == ellipsis) {
-            std::vector<size_t> label_dims;
+            ov::TensorLabel label_dims;
             for (size_t ind = 0; ind < num_broadcasted_dims; ++ind) {
                 label_dims.push_back(current_dim + ind);
             }
@@ -132,7 +132,7 @@ std::unordered_map<std::string, std::vector<size_t>> compute_label_dim_map(const
             resulted_map[label].push_back(current_dim);
             ++current_dim;
         } else {
-            std::vector<size_t> label_dims;
+            ov::TensorLabel label_dims;
             label_dims.push_back(current_dim);
             resulted_map[label] = label_dims;
             ++current_dim;
@@ -468,7 +468,7 @@ void broadcast_input(HostTensorVector& inputs,
 /// identity
 ///
 template <typename T>
-HostTensorPtr build_identity(const HostTensorPtr& input_ptr, const std::vector<size_t>& repeated_label_dims) {
+HostTensorPtr build_identity(const HostTensorPtr& input_ptr, const ov::TensorLabel& repeated_label_dims) {
     // allocate HostTensor for building identity tensor
     NGRAPH_CHECK(repeated_label_dims.size() > 1);
     Shape input_shape = input_ptr->get_shape();
@@ -512,7 +512,7 @@ HostTensorPtr build_identity(const HostTensorPtr& input_ptr, const std::vector<s
 template <typename T>
 HostTensorPtr build_multi_identity(const HostTensorPtr& input_ptr,
                                    const std::vector<std::string>& repeated_labels,
-                                   std::unordered_map<std::string, std::vector<size_t>>& label_dim_map) {
+                                   std::unordered_map<std::string, ov::TensorLabel>& label_dim_map) {
     Shape input_shape = input_ptr->get_shape();
 
     // initially set multi-identity with identity for the first repeated label

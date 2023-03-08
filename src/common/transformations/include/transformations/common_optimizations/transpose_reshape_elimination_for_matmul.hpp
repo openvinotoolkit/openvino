@@ -29,9 +29,3 @@ public:
     OPENVINO_RTTI("TransposeReshapeEliminationForMatmul", "0");
     TransposeReshapeEliminationForMatmul();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::TransposeReshapeEliminationForMatmul;
-}  // namespace pass
-}  // namespace ngraph

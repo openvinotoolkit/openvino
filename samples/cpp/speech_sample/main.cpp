@@ -126,7 +126,7 @@ int main(int argc, char* argv[]) {
                     in.model().set_layout(ov::Layout(custom_layouts.at(item_name)));
                 }
             }
-            for (int i = 0; i < model->outputs().size(); i++) {
+            for (size_t i = 0; i < model->outputs().size(); i++) {
                 proc.output(i).tensor().set_element_type(ov::element::f32);
             }
             model = proc.build();
@@ -220,20 +220,24 @@ int main(int argc, char* argv[]) {
                 gnaPluginConfig[ov::intel_gna::scale_factors_per_input.name()] = scale_factors_per_input;
             }
         }
-        gnaPluginConfig[ov::hint::inference_precision.name()] = (FLAGS_qb == 8) ? ov::element::i8 : ov::element::i16;
+        gnaPluginConfig[ov::inference_precision.name()] = (FLAGS_qb == 8) ? ov::element::i8 : ov::element::i16;
+        const std::unordered_map<std::string, ov::intel_gna::HWGeneration> StringHWGenerationMap{
+            {"GNA_TARGET_1_0", ov::intel_gna::HWGeneration::GNA_1_0},
+            {"GNA_TARGET_2_0", ov::intel_gna::HWGeneration::GNA_2_0},
+            {"GNA_TARGET_3_0", ov::intel_gna::HWGeneration::GNA_3_0},
+            {"GNA_TARGET_3_1", ov::intel_gna::HWGeneration::GNA_3_1},
+            {"GNA_TARGET_3_5", ov::intel_gna::HWGeneration::GNA_3_5},
+            {"GNA_TARGET_3_5_E", ov::intel_gna::HWGeneration::GNA_3_5_E},
+            {"GNA_TARGET_3_6", ov::intel_gna::HWGeneration::GNA_3_6},
+            {"GNA_TARGET_4_0", ov::intel_gna::HWGeneration::GNA_4_0}};
         auto parse_target = [&](const std::string& target) -> ov::intel_gna::HWGeneration {
             auto hw_target = ov::intel_gna::HWGeneration::UNDEFINED;
-
-            if (target == "GNA_TARGET_2_0") {
-                hw_target = ov::intel_gna::HWGeneration::GNA_2_0;
-            } else if (target == "GNA_TARGET_3_0") {
-                hw_target = ov::intel_gna::HWGeneration::GNA_3_0;
-            } else if (target == "GNA_TARGET_3_5") {
-                hw_target = ov::intel_gna::HWGeneration::GNA_3_5;
+            const auto key_iter = StringHWGenerationMap.find(target);
+            if (key_iter != StringHWGenerationMap.end()) {
+                hw_target = key_iter->second;
             } else if (!target.empty()) {
                 slog::warn << "Unsupported target: " << target << slog::endl;
             }
-
             return hw_target;
         };
 
@@ -343,14 +347,22 @@ int main(int argc, char* argv[]) {
             if (output_name_files.size() != outputs.size() && outputs.size()) {
                 throw std::logic_error("The number of output files is not equal to the number of network outputs.");
             }
-            count_file = output_name_files.empty() ? 1 : output_name_files.size();
+            count_file = output_name_files.size();
+            if (executableNet.outputs().size() > 1 && output_data.second.empty() && count_file == 1) {
+                throw std::logic_error("-o is ambiguous: the model has multiple outputs but only one file provided "
+                                       "without output name specification");
+            }
         }
         if (!reference_data.first.empty()) {
             reference_name_files = convert_str_to_vector(reference_data.first);
             if (reference_name_files.size() != outputs.size() && outputs.size()) {
                 throw std::logic_error("The number of reference files is not equal to the number of network outputs.");
             }
-            count_file = reference_name_files.empty() ? 1 : reference_name_files.size();
+            count_file = reference_name_files.size();
+            if (executableNet.outputs().size() > 1 && reference_data.second.empty() && count_file == 1) {
+                throw std::logic_error("-r is ambiguous: the model has multiple outputs but only one file provided "
+                                       "without output name specification");
+            }
         }
         if (count_file > executableNet.outputs().size()) {
             throw std::logic_error(

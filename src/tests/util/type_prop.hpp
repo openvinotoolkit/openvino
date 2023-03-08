@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "dimension_tracker.hpp"
 #include "gmock/gmock.h"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/parameter.hpp"
@@ -23,8 +24,8 @@ struct PrintToDummyParamName {
  * \param p_shape      Shape to set labels.
  * \param first_label  Vale of first label (can't be 0)
  */
-void set_shape_labels(ov::PartialShape& p_shape, const size_t first_label);
-std::vector<size_t> get_shape_labels(const ov::PartialShape& p_shape);
+void set_shape_labels(ov::PartialShape& p_shape, const ov::label_t first_label);
+ov::TensorLabel get_shape_labels(const ov::PartialShape& p_shape);
 
 /**
  * \brief Set labels on all shape dimensions start from first label.
@@ -32,8 +33,8 @@ std::vector<size_t> get_shape_labels(const ov::PartialShape& p_shape);
  * \param p_shape      Shape to set labels.
  * \param first_label  Vale of first label (can't be 0)
  */
-void set_shape_labels(ov::PartialShape& p_shape, const size_t first_label);
-void set_shape_labels(ov::PartialShape& p_shape, const std::vector<size_t>& labels);
+void set_shape_labels(ov::PartialShape& p_shape, const ov::label_t first_label);
+void set_shape_labels(ov::PartialShape& p_shape, const ov::TensorLabel& labels);
 
 /**
  * \brief Test fixture for Unsqueeze/Squeeze type_prop tests.
@@ -57,7 +58,7 @@ protected:
         param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
     }
 
-    std::vector<size_t> in_labels;
+    ov::TensorLabel in_labels;
 };
 
 using PartialShapes = std::vector<ov::PartialShape>;

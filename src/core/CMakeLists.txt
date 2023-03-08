@@ -47,7 +47,13 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 add_library(ov_core_dev INTERFACE)
 add_library(openvino::core::dev ALIAS ov_core_dev)
 
-target_include_directories(ov_core_dev INTERFACE $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>)
+target_include_directories(ov_core_dev INTERFACE
+    $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/frontends/common/include>
+    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>)
+
+target_link_libraries(ov_core_dev INTERFACE openvino::itt openvino::util)
 
 set_target_properties(ov_core_dev PROPERTIES EXPORT_NAME core::dev)
 openvino_developer_export_targets(COMPONENT core TARGETS openvino::core::dev)
@@ -105,10 +111,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     endif()
 
     target_link_options(ngraph_obj ${link_type} "/IGNORE:4217,4286")
-    
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-ie_add_compiler_flags(/wd4267)
-endif()
+    ie_add_compiler_flags(/wd4267)
 endif()
 
 # some sources are located in ngraph, while headers are in inference_engine_transformations

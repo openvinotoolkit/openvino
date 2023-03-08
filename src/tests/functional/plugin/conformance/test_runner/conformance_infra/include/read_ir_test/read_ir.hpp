@@ -19,7 +19,7 @@ enum ShapeMode {
 extern ShapeMode shapeMode;
 
 using ReadIRParams = std::tuple<
-        std::string,                         // IR path
+        std::pair<std::string, std::string>, // pair<ir_path, cache_path>
         std::string,                         // Target Device
         ov::AnyMap>;                         // Plugin Config
 
@@ -28,14 +28,14 @@ class ReadIRTest : public testing::WithParamInterface<ReadIRParams>,
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReadIRParams> &obj);
     void query_model() override;
+    std::vector<ov::Tensor> calculate_refs() override;
 
 protected:
     void SetUp() override;
 
 private:
-    std::string pathToModel;
-    std::string sourceModel;
-    std::vector<std::pair<std::string, size_t>> ocuranceInModels;
+    std::string path_to_model, path_to_cache;
+    std::vector<std::pair<std::string, size_t>> ocurance_in_models;
 };
 } // namespace subgraph
 } // namespace test

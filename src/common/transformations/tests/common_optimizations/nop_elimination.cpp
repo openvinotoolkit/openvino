@@ -38,7 +38,7 @@ TEST(nop_elimination, eliminate_convert) {
     }
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<op::v0::Convert>(f), 0);
@@ -57,31 +57,40 @@ TEST(nop_elimination, convert_type_agnostic) {
     }
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::Validate>();
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::Validate>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<op::v0::Convert>(f), 0);
 }
 
-TEST(nop_elimination, eliminate_broadcast) {
+template <typename Op>
+void test_nop_eliminate_broadcast() {
     std::shared_ptr<Function> f;
     {
         Shape shape{1};
         auto A = make_shared<op::Parameter>(element::f32, shape);
-        auto b = make_shared<op::v1::Broadcast>(A, op::Constant::create(element::u64, Shape{1}, {1}));
+        auto b = make_shared<Op>(A, op::Constant::create(element::u64, Shape{1}, {1}));
         f = make_shared<Function>(make_shared<op::v0::Abs>(b), ParameterVector{A});
     }
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::v1::Broadcast>(f), 0);
+    ASSERT_EQ(count_ops_of_type<Op>(f), 0);
+}
+
+TEST(nop_elimination, eliminate_broadcast_v1) {
+    test_nop_eliminate_broadcast<op::v1::Broadcast>();
+}
+
+TEST(nop_elimination, eliminate_broadcast_v3) {
+    test_nop_eliminate_broadcast<op::v3::Broadcast>();
 }
 
 TEST(nop_elimination, pass_property) {
-    auto pass = std::make_shared<ngraph::pass::NopElimination>();
+    auto pass = std::make_shared<ov::pass::NopElimination>();
     ASSERT_FALSE(pass->get_property(pass::PassProperty::CHANGE_DYNAMIC_STATE));
 }
 
@@ -102,7 +111,7 @@ TEST(nop_elimination, reshape_elimination_v1) {
     auto nopass_func_zero = generate_func(true);
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(func);
     pass_manager.run_passes(func_zero);
     ASSERT_TRUE(count_ops_of_type<op::v1::Reshape>(nopass_func) == 2);
@@ -133,8 +142,8 @@ TEST(nop_elimination, squeeze_reshape_elimination_check_info) {
     }
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::InitNodeInfo>();
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::InitNodeInfo>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
 
     bool movement_are_missing = true;
@@ -168,8 +177,8 @@ TEST(nop_elimination, squeeze_unsqueeze_elimination) {
     }
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::InitNodeInfo>();
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::InitNodeInfo>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
 
     bool movement_are_missing = true;
@@ -188,7 +197,7 @@ TEST(nop_elimination, reshape_elimination_v1_dynamic) {
     auto abs = std::make_shared<op::v0::Abs>(reshape_v1);
     auto f = std::make_shared<Function>(NodeVector{abs}, ParameterVector{arg, pattern});
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
     ASSERT_TRUE(count_ops_of_type<op::v1::Reshape>(f) == 1);
 }
@@ -213,8 +222,8 @@ TEST(nop_elimination, reshape_elimination_v1_check_consumer_count) {
     }
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::InitNodeInfo>();
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::InitNodeInfo>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
 
     ASSERT_TRUE(count_ops_of_type<op::v1::Reshape>(f) == 2);
@@ -226,8 +235,8 @@ TEST(nop_elimination, concat_elimination_single_node) {
     auto f = make_shared<Function>(make_shared<op::v0::Concat>(NodeVector{A}, a), ParameterVector{A});
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::Validate>();
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::Validate>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<op::v0::Concat>(f), 1);
@@ -240,8 +249,8 @@ TEST(nop_elimination, concat_elimination_single_input) {
     auto f = make_shared<Function>(make_shared<op::v0::Abs>(B), ParameterVector{A});
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::Validate>();
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::Validate>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<op::v0::Concat>(f), 0);
@@ -254,8 +263,8 @@ TEST(nop_elimination, concat_elimination_single_input_dynamic) {
     auto f = make_shared<Function>(make_shared<op::v0::Abs>(B), ParameterVector{A});
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::Validate>();
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::Validate>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<op::v0::Concat>(f), 0);
@@ -269,8 +278,8 @@ TEST(nop_elimination, unsqueeze_elimination) {
     auto f = make_shared<Function>(unsqueeze, ParameterVector{A});
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::Validate>();
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::Validate>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<op::v0::Unsqueeze>(f), 1);
@@ -340,8 +349,8 @@ TEST(nop_elimination, squeeze_unsqueeze_overlap_elimination) {
         auto optimized_f = clone_function(*baseline_f);
 
         pass::Manager pass_manager;
-        pass_manager.register_pass<pass::Validate>();
-        pass_manager.register_pass<pass::NopElimination>();
+        pass_manager.register_pass<ov::pass::Validate>();
+        pass_manager.register_pass<ov::pass::NopElimination>();
         pass_manager.run_passes(optimized_f);
 
         auto ps = baseline_f->get_results()[0]->get_output_partial_shape(0);
@@ -532,8 +541,8 @@ TEST(nop_elimination, squeeze_squeeze_overlap_elimination) {
         auto optimized_f = clone_function(*baseline_f);
 
         pass::Manager pass_manager;
-        pass_manager.register_pass<pass::Validate>();
-        pass_manager.register_pass<pass::NopElimination>();
+        pass_manager.register_pass<ov::pass::Validate>();
+        pass_manager.register_pass<ov::pass::NopElimination>();
         pass_manager.run_passes(optimized_f);
         auto ps = baseline_f->get_results()[0]->get_output_partial_shape(0);
         auto ps_r = optimized_f->get_results()[0]->get_output_partial_shape(0);
@@ -566,8 +575,8 @@ TEST(nop_elimination, unsqueeze_unsqueeze_overlap_elimination) {
         auto optimized_f = clone_function(*baseline_f);
 
         pass::Manager pass_manager;
-        pass_manager.register_pass<pass::Validate>();
-        pass_manager.register_pass<pass::NopElimination>();
+        pass_manager.register_pass<ov::pass::Validate>();
+        pass_manager.register_pass<ov::pass::NopElimination>();
         pass_manager.run_passes(optimized_f);
         auto ps = baseline_f->get_results()[0]->get_output_partial_shape(0);
         auto ps_r = optimized_f->get_results()[0]->get_output_partial_shape(0);
@@ -597,7 +606,7 @@ TEST(nop_elimination, unsqueeze_squeeze_elimination) {
         auto baseline_f = generate_func(shape, axes_val);
         auto optimized_f = generate_func(shape, axes_val);
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.register_pass<ov::pass::NopElimination>();
         manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::v0::Squeeze>(baseline_f), 1);
@@ -626,7 +635,7 @@ TEST(nop_elimination, reshape_unsqueeze_elimination) {
             auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
             auto optimized_f = clone_function(*baseline_f);
             ngraph::pass::Manager manager;
-            manager.register_pass<ngraph::pass::NopElimination>();
+            manager.register_pass<ov::pass::NopElimination>();
             manager.run_passes(optimized_f);
 
             ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(baseline_f), 1);
@@ -654,7 +663,7 @@ TEST(nop_elimination, reshape_squeeze_elimination) {
             auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
             auto optimized_f = clone_function(*baseline_f);
             ngraph::pass::Manager manager;
-            manager.register_pass<ngraph::pass::NopElimination>();
+            manager.register_pass<ov::pass::NopElimination>();
             manager.run_passes(optimized_f);
 
             ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(baseline_f), 1);
@@ -681,7 +690,7 @@ TEST(nop_elimination, reshape_reshape_elimination) {
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.register_pass<ov::pass::NopElimination>();
         manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(baseline_f), 2);
@@ -707,7 +716,7 @@ TEST(nop_elimination, squeeze_reshape_elimination) {
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.register_pass<ov::pass::NopElimination>();
         manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(baseline_f), 1);
@@ -734,7 +743,7 @@ TEST(nop_elimination, unsqueeze_reshape_elimination) {
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(B1), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.register_pass<ov::pass::NopElimination>();
         manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(baseline_f), 1);
@@ -757,7 +766,7 @@ TEST(nop_elimination, squeeze_unsqueeze_elimination_negative) {
         auto baseline_f = make_shared<Function>(squeeze, ParameterVector{input});
         auto optimized_f = clone_function(*baseline_f);
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.register_pass<ov::pass::NopElimination>();
         manager.run_passes(optimized_f);
         ASSERT_EQ(count_ops_of_type<ngraph::opset1::Squeeze>(baseline_f), 1);
         ASSERT_EQ(count_ops_of_type<ngraph::opset1::Squeeze>(optimized_f), 1);
@@ -779,7 +788,7 @@ TEST(nop_elimination, topk_convert_elimination) {
         auto baseline_f = make_shared<Function>(make_shared<op::v0::Abs>(C), ParameterVector{A});
         auto optimized_f = clone_function(*baseline_f);
         ngraph::pass::Manager manager;
-        manager.register_pass<ngraph::pass::NopElimination>();
+        manager.register_pass<ov::pass::NopElimination>();
         manager.run_passes(optimized_f);
 
         ASSERT_EQ(count_ops_of_type<op::Convert>(baseline_f), 1);
@@ -831,8 +840,8 @@ TEST(nop_elimination, gather_3d_indices_constant_axis_1) {
         auto optimized_f = clone_function(*baseline_f);
 
         pass::Manager pass_manager;
-        pass_manager.register_pass<pass::Validate>();
-        pass_manager.register_pass<pass::NopElimination>();
+        pass_manager.register_pass<ov::pass::Validate>();
+        pass_manager.register_pass<ov::pass::NopElimination>();
         pass_manager.run_passes(optimized_f);
 
         auto ps = baseline_f->get_results()[0]->get_output_partial_shape(0);
@@ -1017,7 +1026,7 @@ TEST_P(EliminateEltwiseTests, eliminate_eltwise) {
     auto abs = make_shared<opset8::Abs>(node);
     function = make_shared<Function>(abs, ParameterVector{parameter});
 
-    manager.register_pass<pass::NopElimination>();
+    manager.register_pass<ov::pass::NopElimination>();
 
     if (can_fuse) {
         auto abs = make_shared<opset8::Abs>(parameter);
@@ -1106,7 +1115,7 @@ TEST_F(TransformationTestsF, eliminate_eltwise_dequantization_subgraph) {
         function_ref = make_shared<Function>(mul, ParameterVector{});
     }
 
-    manager.register_pass<pass::NopElimination>();
+    manager.register_pass<ov::pass::NopElimination>();
 
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
@@ -1192,8 +1201,8 @@ TEST_P(SplitConcatElimination, eliminate_split_concat_subgraph) {
     auto model = make_shared<ov::Model>(ResultVector{res}, ParameterVector{params});
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::Validate>();
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::Validate>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(model);
 
     // the transformation won't be applied if split_len is not equal to 1
@@ -1242,8 +1251,8 @@ TEST(SplitConcatElimination, split_inputs_not_in_order) {
     auto model = make_shared<ov::Model>(ResultVector{res}, ParameterVector{param});
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::Validate>();
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::Validate>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(model);
     // the transformation shouldn't be applied
     EXPECT_EQ(count_ops_of_type<ov::opset9::Concat>(model), 1) << "SplitConcatElimination transformation has failed. "
@@ -1268,8 +1277,8 @@ TEST(SplitConcatElimination, no_sequence_found) {
     auto model = make_shared<ov::Model>(ResultVector{res}, ParameterVector{param, param_2});
 
     pass::Manager pass_manager;
-    pass_manager.register_pass<pass::Validate>();
-    pass_manager.register_pass<pass::NopElimination>();
+    pass_manager.register_pass<ov::pass::Validate>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
     pass_manager.run_passes(model);
     // the transformation shouldn't be applied
     EXPECT_EQ(count_ops_of_type<ov::opset9::Concat>(model), 1) << "SplitConcatElimination transformation has failed. "
