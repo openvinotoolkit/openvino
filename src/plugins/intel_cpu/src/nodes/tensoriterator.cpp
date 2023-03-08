@@ -277,7 +277,7 @@ void DynamicBuffer::init(const dnnl::engine& eng) {
 
 bool DynamicBuffer::check_buffer() {
     if (map_rule.stride > 0) {
-        if (chunk_offset_in_byte + chunk_unit_in_byte > chunk_stride_in_byte) return true;
+        if (static_cast<ptrdiff_t>(chunk_offset_in_byte + chunk_unit_in_byte) > chunk_stride_in_byte) return true;
     } else {
         if (chunk_offset_in_byte < 0) return true;
     }

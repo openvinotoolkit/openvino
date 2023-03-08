@@ -86,7 +86,7 @@ void Reorder::initSupportedPrimitiveDescriptors() {
         IE_THROW() << "Reorder node with name: " << getName() << " doesn't support case when input and output shapes have different rank and dynamic";
     if (!isOptimized) {
         const auto &inShape = getInputShapeAtPort(0);
-        if (one_of(inShape.getRank(), 4, 5) &&
+        if (one_of(inShape.getRank(), 4u, 5u) &&
                 config.inConfs[0].getMemDesc()->hasLayoutType(LayoutType::nspc) &&
                 config.outConfs[0].getMemDesc()->hasLayoutType(LayoutType::ncsp) &&
                 config.inConfs[0].getMemDesc()->getPrecision() == Precision::FP32 &&
@@ -94,7 +94,7 @@ void Reorder::initSupportedPrimitiveDescriptors() {
             // oneDNN JIT reorder shows bad perf for nspc to ncsp reorder case so we fallback on simple c++ implementation
             isNspc2NcspCase = true;
         } else if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2) &&
-                   one_of(inShape.getRank(), 4, 5) &&
+                   one_of(inShape.getRank(), 4u, 5u) &&
                    config.inConfs[0].getMemDesc()->hasLayoutType(LayoutType::ncsp) &&
                    config.outConfs[0].getMemDesc()->hasLayoutType(LayoutType::nspc) &&
                    config.inConfs[0].getMemDesc()->getPrecision() == config.outConfs[0].getMemDesc()->getPrecision() &&

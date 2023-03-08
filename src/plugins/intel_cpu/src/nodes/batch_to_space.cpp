@@ -126,7 +126,7 @@ void BatchToSpace::batchToSpaceKernel() {
     auto outShape5D = getShape5D(outDims);
     auto blockShape = getShape5D(blockShapeIn);
 
-    if (srcDesc->hasLayoutType(LayoutType::nspc) && one_of(srcDesc->getShape().getRank(), 4, 5)) {
+    if (srcDesc->hasLayoutType(LayoutType::nspc) && one_of(srcDesc->getShape().getRank(), 4u, 5u)) {
         inShape5D.push_back(inShape5D[1]);
         inShape5D.erase(inShape5D.begin() + 1);
         outShape5D.push_back(outShape5D[1]);
@@ -174,7 +174,7 @@ void BatchToSpace::batchToSpaceKernel() {
             oAdd[2] = dimsSize == 5 ? bIdx % blockShapeIn[2] - cropsBeginIn[2] : 0lu;
             bIdx = dimsSize == 5 ? bIdx / blockShapeIn[2] : bIdx;
             oAdd[1] = bIdx % blockShapeIn[1] - cropsBeginIn[1];
-            if (srcDesc->hasLayoutType(LayoutType::nspc) && one_of(srcDesc->getShape().getRank(), 4, 5)) {
+            if (srcDesc->hasLayoutType(LayoutType::nspc) && one_of(srcDesc->getShape().getRank(), 4u, 5u)) {
                 oAdd.push_back(oAdd[1]);
                 oAdd.erase(oAdd.begin() + 1);
             }

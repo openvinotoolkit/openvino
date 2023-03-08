@@ -64,7 +64,7 @@ Eye::Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) 
 void Eye::getSupportedDescriptors() {
     if (!descs.empty())
         return;
-    if (!one_of(getParentEdges().size(), 3, 4))
+    if (!one_of(getParentEdges().size(), 3u, 4u))
         THROW_ERROR << errorPrefix << "has incorrect number of input edges: " << getParentEdges().size();
     if (getChildEdges().empty())
         THROW_ERROR << errorPrefix << "has incorrect number of output edges: " << getChildEdges().size();

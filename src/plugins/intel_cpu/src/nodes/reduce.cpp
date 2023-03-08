@@ -581,7 +581,7 @@ private:
     inline void pack_gathered_vector(Vmm vmm_val, Vmm vmm_index, int offset, memory::data_type src_dt) {
         sub(rsp, vlen);
         uni_vmovdqu(ptr[rsp], vmm_index);
-        int repeats = vlen / sizeof(float);
+        size_t repeats = vlen / sizeof(float);
         for (size_t i = 0; i < repeats; i++) {
             mov(reg_tmp_64.cvt32(), ptr[rsp + i * sizeof(int)]);
             Xbyak::Address table_idx = ptr[reg_src + offset + reg_tmp_64];
@@ -2939,9 +2939,9 @@ std::vector<int> Reduce::update_src_dims() {
     int outer_end = reduce_axes[0];
     int inner_start = reduce_axes[reduce_axes.size() - 1];
     for (size_t i = 0; i < src_dims.size(); i++) {
-        if (i < outer_end) {
+        if (static_cast<int>(i) < outer_end) {
             outer_dim *= src_dims[i];
-        } else if (i > inner_start) {
+        } else if (static_cast<int>(i) > inner_start) {
             inner_dim *= src_dims[i];
         } else {
             axis_dim *= src_dims[i];

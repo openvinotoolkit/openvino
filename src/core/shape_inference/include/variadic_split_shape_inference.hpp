@@ -92,7 +92,7 @@ void shape_infer(const VariadicSplit* op,
                                           data_shape[axis]);
                 }
 
-                for (int64_t output = 0; output < num_outputs; ++output) {
+                for (auto output = 0; output < num_outputs; ++output) {
                     if (split_lengths.at(output) == -1) {
                         auto out_shape = data_shape;
                         out_shape[axis] = Dimension::dynamic();
