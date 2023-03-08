@@ -134,9 +134,10 @@ struct CPUStreamsExecutor::Impl {
                             ? (small_core ? small_core_offset : (logic_core ? 0 : 1))
                             : 0;
                     std::cout << "_taskArena reset before" << std::endl;
-                    _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
-                                                                .set_core_type(selected_core_type)
-                                                                .set_max_concurrency(max_concurrency)});
+                    // _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
+                    //                                             .set_core_type(selected_core_type)
+                    //                                             .set_max_concurrency(max_concurrency)});
+                    _taskArena.reset(new custom::task_arena{max_concurrency});
                     std::cout << "_taskArena reset after" << std::endl;
                     CpuSet processMask;
                     int ncpus = 0;
