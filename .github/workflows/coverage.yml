@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Github workspace
         run: echo "$GITHUB_WORKSPACE"
-      
+
       - name: Install python 3.10
         uses: actions/setup-python@v4
         with:
@@ -28,23 +28,42 @@ jobs:
           submodules: recursive
           lfs: true
           fetch-depth: 0
-      
-      - name: Install lcov dependency
+
+      - name: Install lcov dependenucy
+        run: |
+
+      - name: Setup environment
+        run: |
+          mkdir build
+
+
+      - name: Install dependencies
         run: |
           sudo apt --assume-yes update
           sudo apt --assume-yes install lcov
-      
-      - name: Install dependencies
-        run: |
+
+
           chmod +x install_build_dependencies.sh
-          sudo ./install_build_dependencies.sh
+          sudo -E install_build_dependencies.sh
+
+          # Python requirements
+          pip install --upgrade pip
           pip install -r src/bindings/python/src/compatibility/openvino/requirements-dev.txt
+          pip install -r src/bindings/python/wheel/requirements-dev.txt
+          pip install -r src/bindings/python/requirements.txt
+
+          # Tests req
           pip install -r src/frontends/tensorflow/tests/requirements.txt
           pip install -r src/frontends/onnx/tests/requirements.txt
-
           pip install -r src/frontends/tensorflow_lite/tests/requirements.txt
           pip install -r src/frontends/paddle/tests/requirements.txt
-          mkdir build
+
+          pip install -r tools/mo/requirements_mxnet.txt
+          pip install -r tools/mo/requirements_caffe.txt
+          pip install -r tools/mo/requirements_kaldi.txt
+          pip install -r tools/mo/requirements_onnx.txt
+          pip install -r tools/mo/requirements_tf2.txt
+          pip install -r tools/mo/requirements_dev.txt
 
       - name: Build OpenVINO
         run: |
@@ -57,14 +76,14 @@ jobs:
                 -DENABLE_INTEL_GPU=OFF \
                 -DENABLE_INTEL_CPU=OFF \
                 -B build
-          cmake --build build --target all --jobs=$(nproc --all)
+          cmake --build build --target all --parallel=$(nproc --all)
 
       - name: ls all
         run:  ls -laR .
 
       - name:  Run IR
         run: ctest -V -L IR_FE
-      
+
       - name: Run ONNX_FE
         run: ctest -V -L ONNX_FE
 
@@ -92,7 +111,7 @@ jobs:
       - name: Generate raport
         run: |
           lcov --capture --directory . --output-file coverage.info
-          genhtml coverage.info --output-directory coverage-report 
+          genhtml coverage.info --output-directory coverage-report
 
       - name: Collect coverage
         uses: codecov/codecov-action@v3
