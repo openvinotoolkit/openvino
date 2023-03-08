@@ -27,7 +27,7 @@ public:
     virtual ~TileKernelRef() {}
 
     virtual JitConstants GetJitConstants(const tile_params& params) const;
-    virtual CommonDispatchData SetDefault(const tile_params& params, const optional_params&) const;
+    virtual CommonDispatchData SetDefault(const tile_params& params) const;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
