@@ -62,12 +62,10 @@ std::shared_ptr<ov::Node> create_main_node(const ov::OutputVector& inputs, size_
 ov::ParameterVector filter_parameters(const ov::OutputVector& out_vec);
 
 std::shared_ptr<ov::Node> parameter(ov::element::Type el_type, const ov::PartialShape& ps);
-template<class T>
-std::shared_ptr<ov::Node> constant(ov::element::Type el_type,
-                                   const ov::Shape& shape,
-                                   const std::vector<T>& value) {
+template <class T>
+std::shared_ptr<ov::Node> constant(ov::element::Type el_type, const ov::Shape& shape, const std::vector<T>& value) {
     return ov::opset10::Constant::create<T>(el_type, shape, value);
 }
 
-}
-}
+}  // namespace testing
+}  // namespace transpose_sinking

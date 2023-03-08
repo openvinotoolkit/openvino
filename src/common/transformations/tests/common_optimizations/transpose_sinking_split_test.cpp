@@ -835,6 +835,6 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingSplitBackwardRestrictTestSuite,
 
 }  // namespace backward
 
-}
-}
-}
+}  // namespace split
+}  // namespace testing
+}  // namespace transpose_sinking

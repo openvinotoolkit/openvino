@@ -83,5 +83,5 @@ std::shared_ptr<ov::Node> parameter(ov::element::Type el_type, const PartialShap
     return std::make_shared<Parameter>(el_type, ps);
 }
 
-}
-}
+}  // namespace testing
+}  // namespace transpose_sinking
