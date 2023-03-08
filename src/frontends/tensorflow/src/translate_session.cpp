@@ -84,6 +84,7 @@ void TranslateSession::inject_body_model(std::shared_ptr<ov::Model> body_model,
 
 void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& input_model,
                                        std::shared_ptr<ov::Model>& ov_model) {
+    DecoderBase::OpTypeByName op_type_by_name;
     OpMap ng_op_map;
     ov::ParameterVector params;
     ov::ResultVector results;
@@ -130,6 +131,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     for (const auto& operation_place : operation_places) {
         auto operation_decoder = operation_place->get_decoder();
         auto operation_name = operation_place->get_names()[0];
+        op_type_by_name[operation_name] = operation_decoder->get_op_type();
         // output for parameter nodes has been already generated
         if (ng_op_map.count(operation_name)) {
             continue;
@@ -151,7 +153,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             std::string producer_name;
             size_t producer_port_idx;
             try {
-                operation_decoder->get_input_node(input_port_idx, producer_name, producer_port_idx);
+                operation_decoder->get_input_node(input_port_idx, producer_name, producer_port_idx, op_type_by_name);
             } catch (const std::exception&) {
                 FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(input_port_idx) +
                                 " for op '" + operation_decoder->get_op_name() + "', expected input name: '" +
@@ -297,7 +299,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 std::string producer_name;
                 size_t producer_port_idx;
                 try {
-                    operation_decoder->get_input_node(port_index, producer_name, producer_port_idx);
+                    operation_decoder->get_input_node(port_index, producer_name, producer_port_idx, op_type_by_name);
                 } catch (const std::exception&) {
                     FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(port_index) +
                                     " for op '" + operation_decoder->get_op_name() + "', expected input name: '" +
