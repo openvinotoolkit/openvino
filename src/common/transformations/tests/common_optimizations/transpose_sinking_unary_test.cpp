@@ -504,7 +504,7 @@ auto test_backward_multiple_transposes_first_node = []() {
 auto test_forward_multiple_consumers_first_node = []() {
     TestCase test_case;
     test_case.main_node = unary_factories;
-    test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingUnaryBackward);
+    test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingUnaryForward);
     test_case.num_main_ops = {1, 10};
     test_case.test_model = mult_consumers_first_node::forward::CreateFunction;
     test_case.ref_model = mult_consumers_first_node::forward::CreateReferenceFunction;
@@ -538,7 +538,7 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryForwardMultConsumersTestSuiteLastN
                          transpose_sinking::testing::unary::test_forward_multiple_consumers_eltwise(),
                          TransposeSinkingUnaryTestFixture::get_test_name);
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryForwardMultConsumersTestSuiteFirstNode,
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryBackwardMultConsumersTestSuiteEltwise,
                          TransposeSinkingUnaryTestFixture,
                          transpose_sinking::testing::unary::test_backward_multiple_consumers_eltwise(),
                          TransposeSinkingUnaryTestFixture::get_test_name);
