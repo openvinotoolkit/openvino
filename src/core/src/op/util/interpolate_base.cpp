@@ -79,68 +79,70 @@ void InterpolateBase::validate_axes_element_type(const element::Type& et) const 
                           "Axes element type must be i32, i64, u32 or u64");
 }
 
+namespace ov {
 template <>
 OPENVINO_API EnumNames<op::util::InterpolateBase::InterpolateMode>&
-EnumNames<ov::op::util::InterpolateBase::InterpolateMode>::get() {
-    static auto enum_names = EnumNames<ov::op::util::InterpolateBase::InterpolateMode>(
+EnumNames<op::util::InterpolateBase::InterpolateMode>::get() {
+    static auto enum_names = EnumNames<op::util::InterpolateBase::InterpolateMode>(
         "op::util::InterpolateBase::InterpolateMode",
-        {{"nearest", ov::op::util::InterpolateBase::InterpolateMode::NEAREST},
-         {"linear", ov::op::util::InterpolateBase::InterpolateMode::LINEAR},
-         {"linear_onnx", ov::op::util::InterpolateBase::InterpolateMode::LINEAR_ONNX},
-         {"cubic", ov::op::util::InterpolateBase::InterpolateMode::CUBIC},
-         {"bilinear_pillow", ov::op::util::InterpolateBase::InterpolateMode::BILINEAR_PILLOW},
-         {"bicubic_pillow", ov::op::util::InterpolateBase::InterpolateMode::BICUBIC_PILLOW}});
+        {{"nearest", op::util::InterpolateBase::InterpolateMode::NEAREST},
+         {"linear", op::util::InterpolateBase::InterpolateMode::LINEAR},
+         {"linear_onnx", op::util::InterpolateBase::InterpolateMode::LINEAR_ONNX},
+         {"cubic", op::util::InterpolateBase::InterpolateMode::CUBIC},
+         {"bilinear_pillow", op::util::InterpolateBase::InterpolateMode::BILINEAR_PILLOW},
+         {"bicubic_pillow", op::util::InterpolateBase::InterpolateMode::BICUBIC_PILLOW}});
     return enum_names;
 }
 
 template <>
 OPENVINO_API EnumNames<op::util::InterpolateBase::ShapeCalcMode>&
-EnumNames<ov::op::util::InterpolateBase::ShapeCalcMode>::get() {
-    static auto enum_names = EnumNames<ov::op::util::InterpolateBase::ShapeCalcMode>(
+EnumNames<op::util::InterpolateBase::ShapeCalcMode>::get() {
+    static auto enum_names = EnumNames<op::util::InterpolateBase::ShapeCalcMode>(
         "op::util::InterpolateBase::ShapeCalcMode",
-        {{"sizes", ov::op::util::InterpolateBase::ShapeCalcMode::SIZES},
-         {"scales", ov::op::util::InterpolateBase::ShapeCalcMode::SCALES}});
+        {{"sizes", op::util::InterpolateBase::ShapeCalcMode::SIZES},
+         {"scales", op::util::InterpolateBase::ShapeCalcMode::SCALES}});
     return enum_names;
 }
 
 template <>
 OPENVINO_API EnumNames<op::util::InterpolateBase::CoordinateTransformMode>&
-EnumNames<ov::op::util::InterpolateBase::CoordinateTransformMode>::get() {
-    static auto enum_names = EnumNames<ov::op::util::InterpolateBase::CoordinateTransformMode>(
+EnumNames<op::util::InterpolateBase::CoordinateTransformMode>::get() {
+    static auto enum_names = EnumNames<op::util::InterpolateBase::CoordinateTransformMode>(
         "op::util::InterpolateBase::CoordinateTransformMode",
-        {{"half_pixel", ov::op::util::InterpolateBase::CoordinateTransformMode::HALF_PIXEL},
-         {"pytorch_half_pixel", ov::op::util::InterpolateBase::CoordinateTransformMode::PYTORCH_HALF_PIXEL},
-         {"asymmetric", ov::op::util::InterpolateBase::CoordinateTransformMode::ASYMMETRIC},
-         {"tf_half_pixel_for_nn", ov::op::util::InterpolateBase::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN},
-         {"align_corners", ov::op::util::InterpolateBase::CoordinateTransformMode::ALIGN_CORNERS}});
+        {{"half_pixel", op::util::InterpolateBase::CoordinateTransformMode::HALF_PIXEL},
+         {"pytorch_half_pixel", op::util::InterpolateBase::CoordinateTransformMode::PYTORCH_HALF_PIXEL},
+         {"asymmetric", op::util::InterpolateBase::CoordinateTransformMode::ASYMMETRIC},
+         {"tf_half_pixel_for_nn", op::util::InterpolateBase::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN},
+         {"align_corners", op::util::InterpolateBase::CoordinateTransformMode::ALIGN_CORNERS}});
     return enum_names;
 }
 
 template <>
 OPENVINO_API EnumNames<op::util::InterpolateBase::NearestMode>&
-EnumNames<ov::op::util::InterpolateBase::NearestMode>::get() {
-    static auto enum_names = EnumNames<ov::op::util::InterpolateBase::NearestMode>(
+EnumNames<op::util::InterpolateBase::NearestMode>::get() {
+    static auto enum_names = EnumNames<op::util::InterpolateBase::NearestMode>(
         "op::util::InterpolateBase::NearestMode",
-        {{"round_prefer_floor", ov::op::util::InterpolateBase::NearestMode::ROUND_PREFER_FLOOR},
-         {"round_prefer_ceil", ov::op::util::InterpolateBase::NearestMode::ROUND_PREFER_CEIL},
-         {"floor", ov::op::util::InterpolateBase::NearestMode::FLOOR},
-         {"ceil", ov::op::util::InterpolateBase::NearestMode::CEIL},
-         {"simple", ov::op::util::InterpolateBase::NearestMode::SIMPLE}});
+        {{"round_prefer_floor", op::util::InterpolateBase::NearestMode::ROUND_PREFER_FLOOR},
+         {"round_prefer_ceil", op::util::InterpolateBase::NearestMode::ROUND_PREFER_CEIL},
+         {"floor", op::util::InterpolateBase::NearestMode::FLOOR},
+         {"ceil", op::util::InterpolateBase::NearestMode::CEIL},
+         {"simple", op::util::InterpolateBase::NearestMode::SIMPLE}});
     return enum_names;
 }
 
-std::ostream& ov::operator<<(std::ostream& s, const ov::op::util::InterpolateBase::InterpolateMode& type) {
+std::ostream& operator<<(std::ostream& s, const op::util::InterpolateBase::InterpolateMode& type) {
     return s << as_string(type);
 }
 
-std::ostream& ov::operator<<(std::ostream& s, const ov::op::util::InterpolateBase::ShapeCalcMode& type) {
+std::ostream& operator<<(std::ostream& s, const op::util::InterpolateBase::ShapeCalcMode& type) {
     return s << as_string(type);
 }
 
-std::ostream& ov::operator<<(std::ostream& s, const ov::op::util::InterpolateBase::CoordinateTransformMode& type) {
+std::ostream& operator<<(std::ostream& s, const op::util::InterpolateBase::CoordinateTransformMode& type) {
     return s << as_string(type);
 }
 
-std::ostream& ov::operator<<(std::ostream& s, const ov::op::util::InterpolateBase::NearestMode& type) {
+std::ostream& operator<<(std::ostream& s, const op::util::InterpolateBase::NearestMode& type) {
     return s << as_string(type);
+}
 }

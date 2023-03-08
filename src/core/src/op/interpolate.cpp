@@ -17,16 +17,17 @@
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
-using namespace ov;
-
-op::v0::Interpolate::Interpolate(const Output<Node>& image, const Output<Node>& output_shape, const Attributes& attrs)
+namespace ov {
+ov::op::v0::Interpolate::Interpolate(const Output<Node>& image,
+                                     const Output<Node>& output_shape,
+                                     const Attributes& attrs)
     : Op({image, output_shape}),
       m_attrs(attrs) {
     ov::mark_as_precision_sensitive(input(1));
     constructor_validate_and_infer_types();
 }
 
-bool op::v0::Interpolate::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::v0::Interpolate::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v0_Interpolate_visit_attributes);
     visitor.on_attribute("align_corners", m_attrs.align_corners);
     visitor.on_attribute("antialias", m_attrs.antialias);
@@ -37,7 +38,7 @@ bool op::v0::Interpolate::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-void op::v0::Interpolate::validate_and_infer_types() {
+void ov::op::v0::Interpolate::validate_and_infer_types() {
     OV_OP_SCOPE(v0_Interpolate_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this,
                           get_input_element_type(1).is_integral_number(),
@@ -59,11 +60,10 @@ shared_ptr<Node> op::v0::Interpolate::clone_with_new_inputs(const OutputVector& 
     return make_shared<op::v0::Interpolate>(new_args.at(0), new_args.at(1), m_attrs);
 }
 
-std::ostream& ov::operator<<(std::ostream& s, const op::v0::Interpolate::InterpolateMode& type) {
+std::ostream& operator<<(std::ostream& s, const op::v0::Interpolate::InterpolateMode& type) {
     return s << as_string(type);
 }
 
-namespace ov {
 template <>
 OPENVINO_API EnumNames<ov::op::v0::Interpolate::InterpolateMode>&
 EnumNames<ov::op::v0::Interpolate::InterpolateMode>::get() {
@@ -78,24 +78,24 @@ EnumNames<ov::op::v0::Interpolate::InterpolateMode>::get() {
 }  // namespace ov
 
 // Interpolate v4
-op::v4::Interpolate::Interpolate(const Output<Node>& image,
-                                 const Output<Node>& output_shape,
-                                 const Output<Node>& scales,
-                                 const Output<Node>& axes,
-                                 const op::v4::Interpolate::InterpolateAttrs& attrs)
+ov::op::v4::Interpolate::Interpolate(const Output<Node>& image,
+                                     const Output<Node>& output_shape,
+                                     const Output<Node>& scales,
+                                     const Output<Node>& axes,
+                                     const ov::op::v4::Interpolate::InterpolateAttrs& attrs)
     : util::InterpolateBase{image, output_shape, scales, axes, attrs} {
     constructor_validate_and_infer_types();
 }
 
-op::v4::Interpolate::Interpolate(const Output<Node>& image,
-                                 const Output<Node>& output_shape,
-                                 const Output<Node>& scales,
-                                 const op::v4::Interpolate::InterpolateAttrs& attrs)
+ov::op::v4::Interpolate::Interpolate(const Output<Node>& image,
+                                     const Output<Node>& output_shape,
+                                     const Output<Node>& scales,
+                                     const ov::op::v4::Interpolate::InterpolateAttrs& attrs)
     : util::InterpolateBase{image, output_shape, scales, attrs} {
     constructor_validate_and_infer_types();
 }
 
-std::vector<int64_t> op::v4::Interpolate::get_axes() const {
+std::vector<int64_t> ov::op::v4::Interpolate::get_axes() const {
     auto inputs = input_values();
     if (inputs.size() <= 3) {
         ov::PartialShape input_shape = ov::PartialShape(get_input_partial_shape(0));
@@ -119,10 +119,10 @@ std::vector<int64_t> op::v4::Interpolate::get_axes() const {
 
 static constexpr float epsilon = 1.0e-6f;
 
-void op::v4::Interpolate::infer_using_scales(ov::PartialShape& output_shape,
-                                             const std::vector<int64_t>& axes,
-                                             const std::vector<float>& scales,
-                                             const ov::PartialShape& padded_input_shape) const {
+void ov::op::v4::Interpolate::infer_using_scales(ov::PartialShape& output_shape,
+                                                 const std::vector<int64_t>& axes,
+                                                 const std::vector<float>& scales,
+                                                 const ov::PartialShape& padded_input_shape) const {
     size_t i = 0;
     for (auto axis : axes) {
         const auto& current_dim = padded_input_shape[axis];
@@ -136,16 +136,16 @@ void op::v4::Interpolate::infer_using_scales(ov::PartialShape& output_shape,
     }
 }
 
-void op::v4::Interpolate::infer_using_shapes(ov::PartialShape& output_shape,
-                                             const std::vector<int64_t>& axes,
-                                             const std::vector<int64_t>& sizes) const {
+void ov::op::v4::Interpolate::infer_using_shapes(ov::PartialShape& output_shape,
+                                                 const std::vector<int64_t>& axes,
+                                                 const std::vector<int64_t>& sizes) const {
     size_t i = 0;
     for (auto axis : axes) {
         output_shape[axis] = Dimension(sizes[i++]);
     }
 }
 
-ov::PartialShape op::v4::Interpolate::get_padded_input_shape(const ov::PartialShape& input_shape) const {
+ov::PartialShape ov::op::v4::Interpolate::get_padded_input_shape(const ov::PartialShape& input_shape) const {
     const auto input_rank = input_shape.rank().get_length();
 
     ov::PartialShape padded_input_shape = input_shape;
@@ -160,7 +160,7 @@ ov::PartialShape op::v4::Interpolate::get_padded_input_shape(const ov::PartialSh
     return padded_input_shape;
 }
 
-void op::v4::Interpolate::validate_and_infer_types() {
+void ov::op::v4::Interpolate::validate_and_infer_types() {
     OV_OP_SCOPE(v4_Interpolate_validate_and_infer_types);
 
     InterpolateBase::validate_and_infer_types();
@@ -190,13 +190,17 @@ void op::v4::Interpolate::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 
-shared_ptr<Node> op::v4::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const {
+shared_ptr<ov::Node> ov::op::v4::Interpolate::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v4_Interpolate_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() <= 3) {
-        return make_shared<op::v4::Interpolate>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
+        return make_shared<ov::op::v4::Interpolate>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
     }
-    return make_shared<op::v4::Interpolate>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_attrs);
+    return make_shared<ov::op::v4::Interpolate>(new_args.at(0),
+                                                new_args.at(1),
+                                                new_args.at(2),
+                                                new_args.at(3),
+                                                m_attrs);
 }
 
 namespace {
@@ -206,7 +210,7 @@ static constexpr size_t scales_port = 2;
 static constexpr size_t axes_port = 3;
 static constexpr size_t max_num_of_ports = 4;
 
-std::vector<int64_t> get_axes_vector(const HostTensorVector& args) {
+std::vector<int64_t> get_axes_vector(const ngraph::HostTensorVector& args) {
     ov::Shape input_shape{args[data_port]->get_shape()};
     size_t input_rank = input_shape.size();
     size_t num_of_inputs = args.size();
@@ -237,7 +241,7 @@ std::vector<int64_t> get_axes_vector(const HostTensorVector& args) {
     return axes;
 }
 
-std::vector<int64_t> get_target_shape_vector(const HostTensorVector& args, size_t num_of_axes) {
+std::vector<int64_t> get_target_shape_vector(const ngraph::HostTensorVector& args, size_t num_of_axes) {
     std::vector<int64_t> target_shape;
     target_shape.reserve(num_of_axes);
 
@@ -256,9 +260,9 @@ std::vector<int64_t> get_target_shape_vector(const HostTensorVector& args, size_
     return target_shape;
 }
 
-std::vector<float> get_scales_vector(const HostTensorVector& args,
+std::vector<float> get_scales_vector(const ngraph::HostTensorVector& args,
                                      const ov::Shape& input_shape,
-                                     const op::v4::Interpolate::InterpolateAttrs& attrs,
+                                     const ov::op::v4::Interpolate::InterpolateAttrs& attrs,
                                      std::vector<int64_t> axes) {
     std::vector<float> scales;
     size_t num_of_axes = axes.size();
@@ -296,7 +300,7 @@ std::vector<T> correct_pad(const std::vector<T>& p, size_t rank) {
 }
 }  // namespace
 
-void op::v4::Interpolate::correct_pads() {
+void ov::op::v4::Interpolate::correct_pads() {
     ov::PartialShape input_shape = ov::PartialShape(get_input_partial_shape(0));
     if (input_shape.rank().is_dynamic()) {
         return;
@@ -317,7 +321,7 @@ static void pad_input_data(const uint8_t* data_ptr,
     ngraph::CoordinateTransform input_transform(input_shape);
     ngraph::CoordinateTransform padded_transform(padded_input_shape);
 
-    for (const Coordinate& input_coord : input_transform) {
+    for (const ngraph::Coordinate& input_coord : input_transform) {
         auto padded_coord = input_coord;
         size_t i = 0;
         for (size_t pad : pads_begin) {
@@ -331,7 +335,8 @@ static void pad_input_data(const uint8_t* data_ptr,
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
-bool op::v4::Interpolate::evaluate_interpolate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ov::op::v4::Interpolate::evaluate_interpolate(const HostTensorVector& outputs,
+                                                   const HostTensorVector& inputs) const {
     element::Type input_et = get_input_element_type(0);
     size_t type_size = input_et.size();
 
@@ -418,12 +423,12 @@ bool op::v4::Interpolate::evaluate_interpolate(const HostTensorVector& outputs, 
     return true;
 }
 
-bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+bool ov::op::v4::Interpolate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v4_Interpolate_evaluate);
     return evaluate_interpolate(outputs, inputs);
 }
 
-bool op::v4::Interpolate::has_evaluate() const {
+bool ov::op::v4::Interpolate::has_evaluate() const {
     OV_OP_SCOPE(v4_Interpolate_has_evaluate);
     switch (get_input_element_type(0)) {
     case ov::element::i8:
