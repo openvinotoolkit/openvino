@@ -528,7 +528,7 @@ def _fake_quantize_to_types(model, hardware_config):
 
 
 def change_configurations_by_model_type(model, config, fq_configuration, hardware_config):
-    if config['model_type'] == 'transformer' and config['target_device'] in ['ANY', 'CPU', 'GPU']:
+    if config['model_type'] == 'transformer' and config['target_device'] in ['ANY', 'CPU', 'CPU_SPR', 'GPU', 'VPU']:
         change_configurations_by_model_type_transformer(model, fq_configuration, hardware_config)
 
 

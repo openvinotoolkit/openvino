@@ -10,11 +10,11 @@
 #include <string>
 #include <utility>
 
+#include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "plugin.hpp"
-#include "template_itt.hpp"
 
 using Time = std::chrono::high_resolution_clock;
 

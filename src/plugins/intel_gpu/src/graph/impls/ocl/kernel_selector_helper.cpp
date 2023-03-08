@@ -31,9 +31,23 @@
 #include "intel_gpu/primitives/embedding_bag.hpp"
 #include "intel_gpu/primitives/extract_image_patches.hpp"
 
+#include "activation_inst.h"
+#include "depth_to_space_inst.h"
+#include "eltwise_inst.h"
+#include "quantize_inst.h"
+#include "reorder_inst.h"
+
+#include "kernel_selector/kernels/activation/activation_kernel_base.h"
+#include "kernel_selector/kernels/depth_to_space/depth_to_space_kernel_base.h"
+#include "kernel_selector/kernels/eltwise/eltwise_kernel_base.h"
+#include "kernel_selector/kernels/quantize/quantize_kernel_params.h"
+#include "kernel_selector/kernels/reorder/reorder_kernel_base.h"
+
+#include "runtime/kernels_cache.hpp"
+#include "kernel_base.h"
+
 #include <string>
 #include <vector>
-
 
 namespace {
 using namespace cldnn;
@@ -48,6 +62,58 @@ kernel_selector::dev_type get_device_type(cldnn::device_type type) {
             return kernel_selector::dev_type::integrated_gpu;
     }
 }
+
+bool query_local_block_io_supported(engine& e, const ExecutionConfig& config) {
+    auto device = e.get_device().get();
+    auto device_info = device->get_info();
+    if (!device_info.supports_local_block_io)
+        return false;
+
+    // We assume that new uarch which don't have simd8 support are not affected by driver bug and we can safely return flag value
+    auto simd_sizes = device_info.supported_simd_sizes;
+    if (std::find(simd_sizes.begin(), simd_sizes.end(), 8) == simd_sizes.end())
+        return device_info.supports_local_block_io;
+
+    static std::mutex m;
+    std::lock_guard<std::mutex> lock(m);
+    static std::map<cldnn::device*, bool> cache;
+    if (cache.find(device) != cache.end()) {
+        return cache.at(device);
+    }
+
+    std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
+    std::string kernel_code =
+        "__attribute__((intel_reqd_sub_group_size(8)))"
+        "__attribute__((reqd_work_group_size(8, 1, 1)))"
+        "void kernel is_local_block_io_supported(global uchar* dst) {"
+        "    uint lid = get_sub_group_local_id();"
+        "    uchar val = (uchar)lid * 2;"
+        "    __local uchar tmp_slm[8];"
+        "    intel_sub_group_block_write_uc2(tmp_slm, (uchar2)(val));"
+        "    barrier(CLK_LOCAL_MEM_FENCE);"
+        "    uchar2 read = intel_sub_group_block_read_uc2(tmp_slm);"
+        "    dst[lid] = read.s0 + 1;"
+        "}";
+
+    kernel_string->str = kernel_code;
+    kernel_string->options = "-Dcl_intel_subgroup_local_block_io -DLOCAL_BLOCK_IO_SUPPORTED=1";
+    kernel_string->entry_point = "is_local_block_io_supported";
+    kernel_string->batch_compilation = true;
+
+    try {
+        auto _kernels_cache_device_query = std::unique_ptr<kernels_cache>(new kernels_cache(e, config, 0));
+        auto id = _kernels_cache_device_query->set_kernel_source(kernel_string, false);
+        _kernels_cache_device_query->build_all();
+
+        auto kernel = _kernels_cache_device_query->get_kernel(id);
+        cache[device] = _kernels_cache_device_query->validate_simple_kernel_execution(kernel);
+    } catch (std::exception& /*ex*/) {
+        cache[device] = false;
+    }
+
+    return cache.at(device);
+}
+
 }  // namespace
 
 namespace cldnn {
@@ -435,6 +501,8 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::os_is_osv32_isv32_swizzled_by_4;
         case format::os_is_zyx_isv8_osv16_isv2:
             return kernel_selector::weights_layout::os_is_zyx_isv8_osv16_isv2;
+        case cldnn::format::os_iyx_osv8:
+            return kernel_selector::weights_layout::os_iyx_osv8;
         case format::os_zyxi_osv16:
             return kernel_selector::weights_layout::os_zyxi_osv16;
         case format::goiyx:
@@ -783,6 +851,8 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
             return cldnn::format::g_os_is_yx_osv16_isv4;
         case kernel_selector::weights_layout::g_os_is_yx_isv16_osv16:
             return cldnn::format::g_os_is_yx_isv16_osv16;
+        case kernel_selector::weights_layout::os_iyx_osv8:
+            return cldnn::format::os_iyx_osv8;
         case kernel_selector::weights_layout::os_iyx_osv32__ai32:
             return cldnn::format::os_iyx_osv32__ai32;
         case kernel_selector::weights_layout::os_is_osv32_isv32_swizzled_by_4:
@@ -1015,6 +1085,55 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
     }
 }
 
+std::shared_ptr<kernel_selector::fuse_params> convert_fuse_params(std::shared_ptr<NodeFuseParams> p) {
+    if (p->type() == activation::type_id()) {
+        auto casted = std::dynamic_pointer_cast<ActivationFuseParams>(p);
+        auto desc = casted->_desc;
+        kernel_selector::base_activation_params p;
+        p.function = get_kernel_selector_activation_param(desc->activation_function);
+        p.m = desc->additional_params.a;
+        p.n = desc->additional_params.b;
+
+        return std::make_shared<kernel_selector::activation_fuse_params>(p);
+    } else if (p->type() == depth_to_space::type_id()) {
+        return std::make_shared<kernel_selector::depth_to_space_fuse_params>();
+    } else if (p->type() == reorder::type_id()) {
+        auto casted = std::dynamic_pointer_cast<ReorderFuseParams>(p);
+        kernel_selector::DataLayout ks_input_layout = convert_data_tensor(casted->_in).GetLayout();
+        kernel_selector::DataLayout ks_output_layout = convert_data_tensor(casted->_out).GetLayout();
+        return std::make_shared<kernel_selector::reorder_fuse_params>(ks_input_layout, ks_output_layout);
+    } else if (p->type() == eltwise::type_id()) {
+        auto casted = std::dynamic_pointer_cast<EltwiseFuseParams>(p);
+        kernel_selector::eltwise_mode mode = convert_to_eltwise_mode(casted->_desc->mode);
+        return std::make_shared<kernel_selector::eltwise_fuse_params>(mode);
+    } else if (p->type() == quantize::type_id()) {
+        auto casted = std::dynamic_pointer_cast<QuantizeFuseParams>(p);
+        return std::make_shared<kernel_selector::quantize_fuse_params>(casted->_scale_shift_opt,
+                                                                       casted->_need_post_scale,
+                                                                       casted->_need_post_shift,
+                                                                       casted->_need_pre_shift,
+                                                                       casted->_need_clamp,
+                                                                       casted->_need_min_clamp,
+                                                                       casted->_need_max_clamp,
+                                                                       casted->_per_tensor_input_range,
+                                                                       casted->_per_tensor_input_scale,
+                                                                       casted->_per_tensor_input_shift,
+                                                                       casted->_per_tensor_output_range,
+                                                                       casted->_per_tensor_output_scale,
+                                                                       casted->_per_tensor_output_shift,
+                                                                       casted->_in_lo,
+                                                                       casted->_in_hi,
+                                                                       casted->_in_scale,
+                                                                       casted->_in_shift,
+                                                                       casted->_out_lo,
+                                                                       casted->_out_hi,
+                                                                       casted->_out_scale,
+                                                                       casted->_out_shift);
+    }
+
+    OPENVINO_ASSERT(false, "[GPU] Unhandled fused params type");
+}
+
 void convert_fused_ops_to_legacy_activations(const kernel_impl_params& param_info, std::vector<kernel_selector::base_activation_params>& activations) {
     auto op_desc = param_info.fused_desc[0].typed_desc<activation>();
     auto func = op_desc->activation_function;
@@ -1078,7 +1197,9 @@ bool use_legacy_fused_ops(const kernel_impl_params& param_info) {
 
 void set_params(const kernel_impl_params& param_info, kernel_selector::params& params) {
     const auto& program = param_info.prog;
-    const auto& device_info = program->get_engine().get_device_info();
+    auto& engine = program->get_engine();
+    const auto& config = program->get_config();
+    const auto& device_info = engine.get_device_info();
 
     params.uniqueID = std::to_string(param_info.unique_id);
     params.engineInfo.supports_fp16 = device_info.supports_fp16;
@@ -1096,7 +1217,7 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.enable_sub_groups_emulation = true;
     params.engineInfo.bOptHintsSupport = false;
 
-    params.engineInfo.bLocalBlockIOSupport = device_info.supports_local_block_io && program->is_local_block_io_supported();
+    params.engineInfo.bLocalBlockIOSupport = query_local_block_io_supported(engine, config);
     params.engineInfo.deviceType = get_device_type(device_info.dev_type);
     params.engineInfo.maxWorkGroupSize = device_info.max_work_group_size;
     params.engineInfo.maxLocalMemSize = device_info.max_local_mem_size;
@@ -1109,7 +1230,7 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.supportedSimdSizes = device_info.supported_simd_sizes;
     params.engineInfo.vendor_id = device_info.vendor_id;
 
-    auto impl_forcing = program->get_config().get_property(ov::intel_gpu::force_implementations);
+    auto impl_forcing = config.get_property(ov::intel_gpu::force_implementations);
 
     if (impl_forcing.count(param_info.desc->id) != 0) {
         params.forceImplementation = impl_forcing.at(param_info.desc->id).kernel_name;

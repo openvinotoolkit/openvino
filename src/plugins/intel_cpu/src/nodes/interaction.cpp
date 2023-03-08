@@ -239,7 +239,7 @@ void Interaction::execRef(dnnl::stream strm) {
                                             {DNNL_ARG_WEIGHTS, inputMemPtr->GetPrimitive()},
                                             {DNNL_ARG_DST, outputMemPtr->GetPrimitive()}};
     float* scales = fqScales.empty() ? nullptr : fqScales.data();
-    for (int64_t start = 0; start < batchSize; start++) {
+    for (int64_t start = 0; start < static_cast<int64_t>(batchSize); start++) {
         cat(reinterpret_cast<uint8_t*>(inputMemPtr->GetPtr()), inputPtrs, featureSizes, start, dataPrecision.size());
         prim.execute(strm, mem_ags);
         flat_triangle(reinterpret_cast<const uint8_t*>(outputMemPtr->GetPtr()),
