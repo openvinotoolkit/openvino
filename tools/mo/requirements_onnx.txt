@@ -1,4 +1,4 @@
-onnx>=1.8.1,<=1.12
+onnx>=1.8.1,<=1.13.1
 networkx~=2.5; python_version <= "3.6"
 networkx<=2.8.8; python_version > "3.6"
 numpy>=1.16.6,<1.25.0
