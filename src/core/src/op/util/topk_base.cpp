@@ -11,8 +11,6 @@
 #include "itt.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
-using namespace std;
-
 namespace {
 constexpr auto UNKNOWN_NORMALIZED_AXIS = std::numeric_limits<uint64_t>::max();
 }
@@ -22,8 +20,7 @@ ov::op::util::TopK_Base::TopK_Base(const Output<Node>& data,
                                    const int64_t axis,
                                    const std::string& mode,
                                    const std::string& sort,
-                                   const element::Type& index_element_type,
-                                   const bool stable)
+                                   const element::Type& index_element_type)
     : TopK_Base(data, k, axis, as_enum<TopKMode>(mode), as_enum<TopKSortType>(sort), index_element_type) {}
 
 ov::op::util::TopK_Base::TopK_Base(const Output<Node>& data,
@@ -31,8 +28,7 @@ ov::op::util::TopK_Base::TopK_Base(const Output<Node>& data,
                                    const int64_t axis,
                                    const TopKMode mode,
                                    const TopKSortType sort,
-                                   const element::Type& index_element_type,
-                                   const bool stable)
+                                   const element::Type& index_element_type)
     : Op{{data, k}},
       m_axis{axis},
       m_normalized_axis{UNKNOWN_NORMALIZED_AXIS},
