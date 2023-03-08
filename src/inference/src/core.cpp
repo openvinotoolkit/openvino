@@ -31,13 +31,13 @@ std::string resolve_extension_path(const std::string& path) {
 
 namespace ov {
 
-#define OV_CORE_CALL_STATEMENT(...)                     \
-    try {                                               \
-        __VA_ARGS__;                                    \
-    } catch (const std::exception& ex) {                \
-        throw ov::Exception(ex.what());                 \
-    } catch (...) {                                     \
-        OPENVINO_ASSERT(false, "Unexpected exception"); \
+#define OV_CORE_CALL_STATEMENT(...)                   \
+    try {                                             \
+        __VA_ARGS__;                                  \
+    } catch (const std::exception& ex) {              \
+        OPENVINO_UNREACHABLE(ex.what());              \
+    } catch (...) {                                   \
+        OPENVINO_UNREACHABLE("Unexpected exception"); \
     }
 
 class Core::Impl : public CoreImpl {
@@ -140,7 +140,7 @@ void Core::add_extension(const std::string& library_path) {
             add_extension(extension_ptr);
             OPENVINO_SUPPRESS_DEPRECATED_END
         } catch (const std::runtime_error&) {
-            throw ov::Exception("Cannot add extension. Cannot find entry point to the extension library");
+            OPENVINO_UNREACHABLE("Cannot add extension. Cannot find entry point to the extension library");
         }
     }
 }
@@ -157,7 +157,7 @@ void Core::add_extension(const std::wstring& library_path) {
             add_extension(extension_ptr);
             OPENVINO_SUPPRESS_DEPRECATED_END
         } catch (const std::runtime_error&) {
-            throw ov::Exception("Cannot add extension. Cannot find entry point to the extension library");
+            OPENVINO_UNREACHABLE("Cannot add extension. Cannot find entry point to the extension library");
         }
     }
 }

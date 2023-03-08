@@ -1063,7 +1063,7 @@ std::mutex& ov::CoreImpl::get_mutex(const std::string& dev_name) const {
     try {
         return dev_mutexes.at(dev_name);
     } catch (const std::out_of_range&) {
-        throw ov::Exception("Cannot get mutex for device: " + dev_name);
+        OPENVINO_UNREACHABLE("Cannot get mutex for device: ", dev_name);
     }
 }
 void ov::CoreImpl::add_mutex(const std::string& dev_name) {
@@ -1118,7 +1118,7 @@ std::string ov::findPluginXML(const std::string& xmlFile) {
         if (FileUtils::fileExist(xmlConfigFileDefault))
             return xmlConfigFile_ = ov::util::from_file_path(xmlConfigFileDefault);
 
-        throw ov::Exception("Failed to find plugins.xml file");
+        OPENVINO_UNREACHABLE("Failed to find plugins.xml file");
     }
     return xmlConfigFile_;
 }
