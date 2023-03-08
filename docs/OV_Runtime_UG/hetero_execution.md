@@ -141,7 +141,7 @@ You can use the GraphViz utility or a file converter to view the images. On the 
 
 You can use performance data (in sample applications, it is the option `-pc`) to get the performance data on each subgraph.
 
-Here is an example of the output for Googlenet v1 running on HDDL with fallback to CPU:
+Here is an example of the output for Googlenet v1 running on HDDL (device no longer supported) with fallback to CPU:
 
 ```
 subgraph1: 1. input preprocessing (mean data/HDDL):EXECUTED layerType:          realTime: 129   cpu: 129  execType:

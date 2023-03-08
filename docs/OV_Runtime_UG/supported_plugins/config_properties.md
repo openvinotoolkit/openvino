@@ -180,24 +180,6 @@ The `ov::CompiledModel::get_property` method is used to get property values the 
 
 @endsphinxtabset
 
-Or the current temperature of the `MYRIAD` device:
-
-@sphinxtabset
-
-@sphinxtab{C++}
-
-@snippet docs/snippets/ov_properties_api.cpp device_thermal
-
-@endsphinxtab
-
-@sphinxtab{Python}
-
-@snippet  docs/snippets/ov_properties_api.py device_thermal
-
-@endsphinxtab
-
-@endsphinxtabset
-
 
 Or the number of threads that would be used for inference on `CPU` device:
 
