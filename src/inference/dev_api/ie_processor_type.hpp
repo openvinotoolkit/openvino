@@ -14,7 +14,7 @@
 namespace InferenceEngine {
 
 struct ProcTypeConfig {
-    std::string ovProcType = "CPU_UNDEFINED";
+    std::string ovProcType = "CPU_DEFAULT";
 
     /**
      * @brief Parses configuration key/value pair
@@ -23,7 +23,7 @@ struct ProcTypeConfig {
      */
     void SetConfig(const std::string& key, const std::string& value) {
         if ((CPUConfigParams::KEY_CPU_PROCESSOR_TYPE == key) &&
-            (value == CPUConfigParams::CPU_UNDEFINED || value == CPUConfigParams::CPU_ALL_CORE ||
+            (value == CPUConfigParams::CPU_DEFAULT || value == CPUConfigParams::CPU_ALL_CORE ||
              value == CPUConfigParams::CPU_PHY_CORE_ONLY || value == CPUConfigParams::CPU_P_CORE_ONLY ||
              value == CPUConfigParams::CPU_E_CORE_ONLY || value == CPUConfigParams::CPU_PHY_P_CORE_ONLY)) {
             ovProcType = value;

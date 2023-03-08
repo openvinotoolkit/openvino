@@ -34,8 +34,8 @@ public:
     }
 };
 
-ProcessorTypeTestCase _2sockets_UNDEFINED = {
-    ov::intel_cpu::ProcessorType::UNDEFINED,
+ProcessorTypeTestCase _2sockets_DEFAULT = {
+    ov::intel_cpu::ProcessorType::DEFAULT,
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
 };
@@ -70,8 +70,8 @@ ProcessorTypeTestCase _2sockets_PHY_P_CORE_ONLY = {
     {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
 };
 
-ProcessorTypeTestCase _1sockets_UNDEFINED = {
-    ov::intel_cpu::ProcessorType::UNDEFINED,
+ProcessorTypeTestCase _1sockets_DEFAULT = {
+    ov::intel_cpu::ProcessorType::DEFAULT,
     {{20, 6, 8, 6}},
     {{20, 6, 8, 6}},
 };
@@ -110,13 +110,13 @@ TEST_P(ProcessorTypeTests, ProcessorType) {}
 
 INSTANTIATE_TEST_SUITE_P(ProcessorTypeTable,
                          ProcessorTypeTests,
-                         testing::Values(_2sockets_UNDEFINED,
+                         testing::Values(_2sockets_DEFAULT,
                                          _2sockets_ALL,
                                          _2sockets_PHY_CORE_ONLY,
                                          _2sockets_P_CORE_ONLY,
                                          _2sockets_E_CORE_ONLY,
                                          _2sockets_PHY_P_CORE_ONLY,
-                                         _1sockets_UNDEFINED,
+                                         _1sockets_DEFAULT,
                                          _1sockets_ALL,
                                          _1sockets_PHY_CORE_ONLY,
                                          _1sockets_P_CORE_ONLY,

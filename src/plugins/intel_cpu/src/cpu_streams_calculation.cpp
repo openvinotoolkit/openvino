@@ -22,7 +22,7 @@ std::vector<std::vector<int>> apply_processor_type(const ProcessorType input_typ
     std::vector<std::vector<int>> result_table = proc_type_table;
 
     switch (input_type) {
-    case ProcessorType::UNDEFINED:
+    case ProcessorType::DEFAULT:
         if ((proc_type_table.size() > 1) && (proc_type_table[0][HYPER_THREADING_PROC] > 0)) {
             for (auto& i : result_table) {
                 i[ALL_PROC] -= i[HYPER_THREADING_PROC];

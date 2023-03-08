@@ -54,7 +54,7 @@ static constexpr Property<float> sparse_weights_decompression_rate{"SPARSE_WEIGH
  * @brief      This enum contains defination of processor type used for CPU inference.
  */
 enum class ProcessorType {
-    UNDEFINED = -1,     //!<  Default setting. All processors can be used on one socket platform. And only processors of
+    DEFAULT = -1,       //!<  Default setting. All processors can be used on one socket platform. And only processors of
                         //!<  physical cores can be used on two socket platform.
     ALL_CORE = 1,       //!<  All processors can be used. If hyper threading is enabled, both processor of one
                         //!<  performance-core can be used.
@@ -70,8 +70,8 @@ enum class ProcessorType {
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const ProcessorType& processor_type) {
     switch (processor_type) {
-    case ProcessorType::UNDEFINED:
-        return os << "CPU_UNDEFINED";
+    case ProcessorType::DEFAULT:
+        return os << "CPU_DEFAULT";
     case ProcessorType::ALL_CORE:
         return os << "CPU_ALL_CORE";
     case ProcessorType::PHY_CORE_ONLY:
@@ -90,8 +90,8 @@ inline std::ostream& operator<<(std::ostream& os, const ProcessorType& processor
 inline std::istream& operator>>(std::istream& is, ProcessorType& processor_type) {
     std::string str;
     is >> str;
-    if (str == "CPU_UNDEFINED") {
-        processor_type = ProcessorType::UNDEFINED;
+    if (str == "CPU_DEFAULT") {
+        processor_type = ProcessorType::DEFAULT;
     } else if (str == "CPU_ALL_CORE") {
         processor_type = ProcessorType::ALL_CORE;
     } else if (str == "CPU_PHY_CORE_ONLY") {
