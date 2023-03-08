@@ -81,8 +81,8 @@ public:
                 continue;
             }
             if (i<shapeBegin[0]) {
-                auto begin = is_begin_axis? 0 : beginPtr[i];
-                auto end  = is_end_axis? shapeIn[i] : endPtr[i];
+                auto begin = is_begin_axis ? 0 : beginPtr[i];
+                auto end  = is_end_axis ? shapeIn[i] : endPtr[i];
                 m_outputShape[new_idx] = calculate_output_shape(begin, end, stridePtr[i], shapeIn[i]);
             } else {
                 m_outputShape[new_idx] = shapeIn[i];
