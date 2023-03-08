@@ -510,7 +510,7 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node) {
         auto to_string = [](const std::unordered_set<std::string>& names) {
             std::stringstream ss;
             size_t i = 0;
-            for (const auto name : names) {
+            for (const auto& name : names) {
                 ss << (i == 0 ? "" : ", ") << name;
                 i++;
             }
