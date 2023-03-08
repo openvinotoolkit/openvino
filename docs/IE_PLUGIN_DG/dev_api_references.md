@@ -6,7 +6,7 @@
    :maxdepth: 1
    :hidden:
 
-   ../groupie_dev_api
+   ../groupov_dev_api
    ../groupie_transformation_api
 
 @endsphinxdirective
