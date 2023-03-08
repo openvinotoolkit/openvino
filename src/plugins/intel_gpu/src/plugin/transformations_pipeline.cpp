@@ -194,7 +194,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         type_to_fuse_map empty_fuse_map = {};
         manager.register_pass<ov::pass::Validate>();
         //  call ConvertPrecision with keep_precision_sensitive_in_fp32 = true
-        manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_list, empty_fuse_map, true);
+        manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_list, empty_fuse_map, false);
 
         manager.register_pass<ov::pass::CommonOptimizations>();
 
