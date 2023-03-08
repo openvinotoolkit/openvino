@@ -10,13 +10,13 @@
 namespace ov {
 namespace op {
 namespace util {
-class OPENVINO_API TopK_Base : public Op {
+class OPENVINO_API TopKBase : public Op {
 public:
     using Mode = TopKMode;
     using SortType = TopKSortType;
 
-    OPENVINO_OP("TopK_Base", "util");
-    TopK_Base() = default;
+    OPENVINO_OP("TopKBase", "util");
+    TopKBase() = default;
 
     /// \brief The common base class for all TopK operator versions
     ///
@@ -27,14 +27,14 @@ public:
     /// \param sort Specifies the order of output elements and/or indices
     ///             Accepted values: none, index, value
     /// \param index_element_type Specifies the type of produced indices
-    TopK_Base(const Output<Node>& data,
+    TopKBase(const Output<Node>& data,
               const Output<Node>& k,
               const int64_t axis,
               const std::string& mode,
               const std::string& sort,
               const element::Type& index_element_type = element::i32);
 
-    TopK_Base(const Output<Node>& data,
+    TopKBase(const Output<Node>& data,
               const Output<Node>& k,
               const int64_t axis,
               const TopKMode mode,

@@ -16,9 +16,9 @@ namespace util {
 // Helper to get correct K from tensor as shape.
 template <class T>
 struct GetK {
-    const util::TopK_Base* m_op;
+    const util::TopKBase* m_op;
 
-    GetK(const util::TopK_Base* op) : m_op{op} {}
+    GetK(const util::TopKBase* op) : m_op{op} {}
 
     template <class K>
     T operator()(const K k) const {
@@ -43,7 +43,7 @@ struct GetK {
  * \return Vector of output shapes for
  */
 template <class TShape>
-std::vector<TShape> shape_infer(const util::TopK_Base* op,
+std::vector<TShape> shape_infer(const util::TopKBase* op,
                                 const std::vector<TShape>& input_shapes,
                                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
     using TDim = typename TShape::value_type;

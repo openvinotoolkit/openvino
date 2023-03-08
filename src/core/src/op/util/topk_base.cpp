@@ -15,15 +15,15 @@ namespace {
 constexpr auto UNKNOWN_NORMALIZED_AXIS = std::numeric_limits<uint64_t>::max();
 }
 
-ov::op::util::TopK_Base::TopK_Base(const Output<Node>& data,
+ov::op::util::TopKBase::TopKBase(const Output<Node>& data,
                                    const Output<Node>& k,
                                    const int64_t axis,
                                    const std::string& mode,
                                    const std::string& sort,
                                    const element::Type& index_element_type)
-    : TopK_Base(data, k, axis, as_enum<TopKMode>(mode), as_enum<TopKSortType>(sort), index_element_type) {}
+    : TopKBase(data, k, axis, as_enum<TopKMode>(mode), as_enum<TopKSortType>(sort), index_element_type) {}
 
-ov::op::util::TopK_Base::TopK_Base(const Output<Node>& data,
+ov::op::util::TopKBase::TopKBase(const Output<Node>& data,
                                    const Output<Node>& k,
                                    const int64_t axis,
                                    const TopKMode mode,
@@ -38,7 +38,7 @@ ov::op::util::TopK_Base::TopK_Base(const Output<Node>& data,
     ov::mark_as_precision_sensitive(input(1));
 }
 
-void ov::op::util::TopK_Base::validate_and_infer_types() {
+void ov::op::util::TopKBase::validate_and_infer_types() {
     OV_OP_SCOPE(util_TopK_Base_validate_and_infer_types);
 
     k_type_check(get_input_element_type(1));
@@ -51,7 +51,7 @@ void ov::op::util::TopK_Base::validate_and_infer_types() {
     set_output_type(1, m_index_element_type, output_shapes[1]);
 }
 
-bool ov::op::util::TopK_Base::visit_attributes(AttributeVisitor& visitor) {
+bool ov::op::util::TopKBase::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(util_TopK_Base_visit_attributes);
     visitor.on_attribute("axis", m_axis);
     visitor.on_attribute("mode", m_mode);
@@ -60,14 +60,14 @@ bool ov::op::util::TopK_Base::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-void ov::op::util::TopK_Base::k_type_check(const element::Type& k_element_type) const {
+void ov::op::util::TopKBase::k_type_check(const element::Type& k_element_type) const {
     NODE_VALIDATION_CHECK(this,
                           k_element_type.is_integral_number(),
                           "K input has to be an integer type, which does match the provided one:",
                           k_element_type);
 }
 
-size_t ov::op::util::TopK_Base::read_k_from_constant_node(const shared_ptr<Node>& node,
+size_t ov::op::util::TopKBase::read_k_from_constant_node(const std::shared_ptr<Node>& node,
                                                           const element::Type& k_element_type) const {
     k_type_check(k_element_type);
 
@@ -108,7 +108,7 @@ size_t ov::op::util::TopK_Base::read_k_from_constant_node(const shared_ptr<Node>
 }
 
 template <typename T>
-size_t ov::op::util::TopK_Base::validate_and_get_k(const shared_ptr<op::v0::Constant>& k_constant) const {
+size_t ov::op::util::TopKBase::validate_and_get_k(const std::shared_ptr<op::v0::Constant>& k_constant) const {
     const auto k_const_contents = k_constant->get_vector<T>();
 
     NODE_VALIDATION_CHECK(this,
@@ -128,11 +128,11 @@ size_t ov::op::util::TopK_Base::validate_and_get_k(const shared_ptr<op::v0::Cons
     return static_cast<size_t>(k_const_contents[0]);
 }
 
-void ov::op::util::TopK_Base::set_k(size_t k) {
+void ov::op::util::TopKBase::set_k(size_t k) {
     this->input(1).replace_source_output(op::v0::Constant::create(element::i64, ov::Shape{}, {k})->output(0));
 }
 
-size_t ov::op::util::TopK_Base::get_k() const {
+size_t ov::op::util::TopKBase::get_k() const {
     size_t k = 0;
     if (op::util::is_constant(input_value(1).get_node())) {
         k = read_k_from_constant_node(input_value(1).get_node_shared_ptr(), get_input_element_type(1));
@@ -144,16 +144,16 @@ size_t ov::op::util::TopK_Base::get_k() const {
     return k;
 }
 
-void ov::op::util::TopK_Base::set_axis(const int64_t axis) {
+void ov::op::util::TopKBase::set_axis(const int64_t axis) {
     set_axis(get_input_partial_shape(0).rank(), axis);
 }
 
-void ov::op::util::TopK_Base::set_axis(const Rank& input_rank, const int64_t axis) {
+void ov::op::util::TopKBase::set_axis(const Rank& input_rank, const int64_t axis) {
     m_normalized_axis = input_rank.is_static() ? normalize_axis(this, axis, input_rank) : UNKNOWN_NORMALIZED_AXIS;
     m_axis = axis;
 }
 
-uint64_t ov::op::util::TopK_Base::get_axis() const {
+uint64_t ov::op::util::TopKBase::get_axis() const {
     NODE_VALIDATION_CHECK(this, m_normalized_axis != UNKNOWN_NORMALIZED_AXIS, "Normalized axis of TopK is unknown");
 
     return m_normalized_axis;
