@@ -68,9 +68,7 @@ public:
     * \|/
     * dst_prc
     */
-    void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                   const emitter_context *emit_context) const override;
+    void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const override;
 
     size_t get_inputs_num() const override;
 
@@ -125,9 +123,7 @@ public:
     * dst_prc
     * note: FP32/I32-->BF16(x*) is supported only on at least avx512-core plateform
     */
-    void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                   const emitter_context *emit_context) const override;
+    void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const override;
 
     size_t get_inputs_num() const override;
 
