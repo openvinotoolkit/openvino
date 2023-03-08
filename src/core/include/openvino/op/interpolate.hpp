@@ -175,12 +175,6 @@ private:
                             const std::vector<int64_t>& sizes) const;
 
     template <class T>
-    friend void correct_pads_attr(const Interpolate* op,
-                                  std::vector<size_t>& pads_begin,
-                                  std::vector<size_t>& pads_end,
-                                  const std::vector<T>& input_shapes);
-
-    template <class T>
     friend void shape_infer(const Interpolate* op,
                             std::vector<size_t>& pads_begin,
                             std::vector<size_t>& pads_end,
@@ -215,6 +209,8 @@ public:
                 const Output<Node>& scales_or_sizes,
                 const Output<Node>& axes,
                 const InterpolateAttrs& attrs);
+
+    void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     bool has_evaluate() const override {

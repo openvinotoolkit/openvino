@@ -51,6 +51,34 @@ bool InterpolateBase::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
+void InterpolateBase::validate_and_infer_types() {
+    OV_OP_SCOPE(util_InterpolateBase_validate_and_infer_types);
+    const element::Type input_et = get_input_element_type(0);
+    NODE_VALIDATION_CHECK(this,
+                          input_et == element::f32 || input_et == element::f16 || input_et == element::i8 ||
+                              input_et == element::bf16 || input_et == element::u8 || input_et == element::i64 ||
+                              input_et == element::i32 || input_et == element::dynamic,
+                          "Input element type must be f32, f16, bf16, i8, u8, i64, i32");
+}
+
+void InterpolateBase::validate_scales_element_type(const element::Type& et) const {
+    NODE_VALIDATION_CHECK(this,
+                          et == element::f32 || et == element::f16 || et == element::bf16,
+                          "Scales element type must be f32, f16 or bf16");
+}
+
+void InterpolateBase::validate_sizes_element_type(const element::Type& et) const {
+    NODE_VALIDATION_CHECK(this,
+                          et == element::i32 || et == element::i64 || et == element::u32 || et == element::u64,
+                          "Sizes element type must be i32, i64, u32 or u64");
+}
+
+void InterpolateBase::validate_axes_element_type(const element::Type& et) const {
+    NODE_VALIDATION_CHECK(this,
+                          et == element::i64 || et == element::i32 || et == element::u32 || et == element::u64,
+                          "Axes element type must be i32, i64, u32 or u64");
+}
+
 template <>
 OPENVINO_API EnumNames<op::util::InterpolateBase::InterpolateMode>&
 EnumNames<ov::op::util::InterpolateBase::InterpolateMode>::get() {

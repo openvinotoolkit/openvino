@@ -128,8 +128,8 @@ void op::v4::Interpolate::infer_using_scales(ov::PartialShape& output_shape,
         const auto& current_dim = padded_input_shape[axis];
         float multiplier = scales[i] + epsilon;
 
-        int64_t new_lower_bound = multiply_bound_and_scale(current_dim.get_min_length(), multiplier);
-        int64_t new_upper_bound = multiply_bound_and_scale(current_dim.get_max_length(), multiplier);
+        int64_t new_lower_bound = util::multiply_bound_and_scale(current_dim.get_min_length(), multiplier);
+        int64_t new_upper_bound = util::multiply_bound_and_scale(current_dim.get_max_length(), multiplier);
 
         output_shape[axis] = Dimension(new_lower_bound, new_upper_bound);
         ++i;
@@ -162,30 +162,15 @@ ov::PartialShape op::v4::Interpolate::get_padded_input_shape(const ov::PartialSh
 
 void op::v4::Interpolate::validate_and_infer_types() {
     OV_OP_SCOPE(v4_Interpolate_validate_and_infer_types);
-    element::Type input_et = get_input_element_type(0);
-    NODE_VALIDATION_CHECK(this,
-                          input_et == element::f32 || input_et == element::f16 || input_et == element::i8 ||
-                              input_et == element::bf16 || input_et == element::u8 || input_et == element::i64 ||
-                              input_et == element::i32 || input_et == element::dynamic,
-                          "Input element type must be f32, f16, bf16, i8, u8, i64, i32");
 
-    element::Type sizes_et = get_input_element_type(1);
-    NODE_VALIDATION_CHECK(
-        this,
-        sizes_et == element::i32 || sizes_et == element::i64 || sizes_et == element::u32 || sizes_et == element::u64,
-        "Sizes element type must be i32, i64, u32 or u64");
+    InterpolateBase::validate_and_infer_types();
 
-    element::Type scales_et = get_input_element_type(2);
-    NODE_VALIDATION_CHECK(this,
-                          scales_et == element::f32 || scales_et == element::f16 || scales_et == element::bf16,
-                          "Scales element type must be f32, f16 or bf16");
+    validate_sizes_element_type(get_input_element_type(1));
+
+    validate_scales_element_type(get_input_element_type(2));
 
     if (input_values().size() == 4) {
-        element::Type axes_et = get_input_element_type(3);
-        NODE_VALIDATION_CHECK(
-            this,
-            axes_et == element::i64 || axes_et == element::i32 || sizes_et == element::u32 || sizes_et == element::u64,
-            "Axes element type must be i32, i64, u32 or u64");
+        validate_axes_element_type(get_input_element_type(3));
     }
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
@@ -200,7 +185,7 @@ void op::v4::Interpolate::validate_and_infer_types() {
         input_shapes = {input_shape, target_spatial_shape, scales, axes};
     }
 
-    correct_pads_attr(this, m_attrs.pads_begin, m_attrs.pads_end, input_shapes);
+    util::correct_pads_attr(this, m_attrs.pads_begin, m_attrs.pads_end, input_shapes);
     shape_infer(this, m_attrs.pads_begin, m_attrs.pads_end, input_shapes, output_shapes, {});
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
@@ -476,5 +461,37 @@ shared_ptr<Node> op::v11::Interpolate::clone_with_new_inputs(const OutputVector&
         return make_shared<op::v11::Interpolate>(new_args.at(0), new_args.at(1), m_attrs);
     }
     return make_shared<op::v11::Interpolate>(new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
+}
+
+void op::v11::Interpolate::validate_and_infer_types() {
+    OV_OP_SCOPE(v11_Interpolate_validate_and_infer_types);
+
+    InterpolateBase::validate_and_infer_types();
+
+    const auto& scales_or_sizes_et = get_input_element_type(1);
+    if (m_attrs.shape_calculation_mode == ShapeCalcMode::SCALES) {
+        validate_scales_element_type(scales_or_sizes_et);
+    } else {
+        validate_sizes_element_type(scales_or_sizes_et);
+    }
+
+    if (input_values().size() == 3) {
+        validate_axes_element_type(get_input_element_type(2));
+    }
+
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
+    std::vector<ov::PartialShape> input_shapes;
+    const auto& input_shape = get_input_partial_shape(0);
+    const auto& scales_or_sizes = get_input_partial_shape(1);
+    if (input_values().size() == 2) {
+        input_shapes = {input_shape, scales_or_sizes};
+    } else {
+        const auto& axes = get_input_partial_shape(2);
+        input_shapes = {input_shape, scales_or_sizes, axes};
+    }
+
+    util::correct_pads_attr(this, m_attrs.pads_begin, m_attrs.pads_end, input_shapes);
+    shape_infer(this, m_attrs.pads_begin, m_attrs.pads_end, input_shapes, output_shapes, {});
+    set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
 }  // namespace ov

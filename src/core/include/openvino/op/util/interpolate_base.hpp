@@ -114,11 +114,16 @@ public:
                     const Output<Node>& scales_or_sizes,
                     const InterpolateAttrs& attrs);
 
+    // Since v11::Interpolate the second input serves different purpose depending on 
+    // the value of attrs.shape_calculation_mode.
+    //
+    // If this constructor is used by v4::Interpolate the 3 inputs serve as: image, output_shape and scales
     InterpolateBase(const Output<Node>& image,
-                    const Output<Node>& scales_or_sizes,
-                    const Output<Node>& axes,
+                    const Output<Node>& scales_or_sizes, // v4::Interpolate -> output_shape
+                    const Output<Node>& axes,            // v4::Interpolate -> scales
                     const InterpolateAttrs& attrs);
 
+    // This constructor should only be used by v4::Interpolate
     InterpolateBase(const Output<Node>& image,
                     const Output<Node>& output_shape,
                     const Output<Node>& scales,
@@ -126,6 +131,8 @@ public:
                     const InterpolateAttrs& attrs);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
+
+    void validate_and_infer_types() override;
 
     const InterpolateAttrs& get_attrs() const {
         return m_attrs;
@@ -136,6 +143,16 @@ public:
 
 protected:
     InterpolateAttrs m_attrs;
+
+    void validate_scales_element_type(const element::Type& et) const;
+    void validate_sizes_element_type(const element::Type& et) const;
+    void validate_axes_element_type(const element::Type& et) const;
+
+    template <class T>
+    friend void correct_pads_attr(const InterpolateBase* op,
+                                  std::vector<size_t>& pads_begin,
+                                  std::vector<size_t>& pads_end,
+                                  const std::vector<T>& input_shapes);
 };
 }  // namespace util
 }  // namespace op
