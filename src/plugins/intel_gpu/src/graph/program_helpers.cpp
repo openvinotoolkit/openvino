@@ -97,9 +97,9 @@ add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
     if (!desc.is_type<eltwise>()) {
         return add_fusing_type::not_supported;
     }
-     if (desc.typed_desc<eltwise>()->mode != eltwise_mode::sum) {
-         return add_fusing_type::not_supported;
-     }
+    if (desc.typed_desc<eltwise>()->mode != eltwise_mode::sum) {
+        return add_fusing_type::not_supported;
+    }
 
     auto& dep_node = p_node.get_dependency(desc.dep_start_idx);
     auto p_layout = p_node.get_output_layout();
