@@ -43,16 +43,87 @@
 
 #define MINIMUM_NUMBER_FOR_PARTIAL_SORTING 100
 
-KERNEL(arg_max_min_modified)(const __global INPUT0_TYPE* input
-                                  ,__global OUTPUT_TYPE* output
+inline void FUNC(get_indices_from_dims)(OPTIONAL_SHAPE_INFO_ARG
+                                        const uint output_idx,
+                                        uint* indices)
+{
+#ifdef BATCH_AXIS
+    #ifdef OUTPUT_LAYOUT_YXFB
+    const uint out_first_dim = output_idx / (INPUT0_SIZE_X * INPUT0_FEATURE_NUM); // Y
+    const uint out_second_dim = output_idx / INPUT0_FEATURE_NUM % INPUT0_SIZE_X; // X
+    const uint out_fourth_dim = output_idx % INPUT0_FEATURE_NUM; // F
+    indices[1] = out_fourth_dim; indices[3] = out_first_dim; indices[4] = out_second_dim; // BFZYX
+    #else
+    const uint out_first_dim = output_idx / (INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X); // F
+    const uint out_second_dim = output_idx / (INPUT0_SIZE_Y * INPUT0_SIZE_X) % INPUT0_SIZE_Z; // Z
+    const uint out_third_dim = output_idx / INPUT0_SIZE_X % INPUT0_SIZE_Y; // Y
+    const uint out_fourth_dim = output_idx % INPUT0_SIZE_X; // X
+    indices[1] = out_first_dim; indices[2] = out_second_dim; indices[3] = out_third_dim; indices[4] = out_fourth_dim;
+    #endif
+#endif
+#ifdef FEATURE_AXIS
+    #ifdef OUTPUT_LAYOUT_YXFB
+    const uint out_first_dim = output_idx / (INPUT0_SIZE_X * INPUT0_BATCH_NUM); // Y
+    const uint out_second_dim = output_idx / INPUT0_BATCH_NUM % INPUT0_SIZE_X; // X
+    const uint out_fourth_dim = output_idx % INPUT0_BATCH_NUM; // B
+    indices[0] = out_fourth_dim; indices[3] = out_first_dim; indices[4] = out_second_dim; // BFZYX
+    #else
+    const uint out_first_dim = output_idx / (INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X); // B
+    const uint out_second_dim = output_idx / (INPUT0_SIZE_Y * INPUT0_SIZE_X) % INPUT0_SIZE_Z; // Z
+    const uint out_third_dim = output_idx / INPUT0_SIZE_X % INPUT0_SIZE_Y;  // Y
+    const uint out_fourth_dim = output_idx % INPUT0_SIZE_X;  // X
+    indices[0] = out_first_dim; indices[2] = out_second_dim; indices[3] = out_third_dim; indices[4] = out_fourth_dim;
+    #endif
+#endif
+#ifdef Z_AXIS
+    const uint out_first_dim = output_idx / (INPUT0_FEATURE_NUM * INPUT0_SIZE_Y * INPUT0_SIZE_X);  // B
+    const uint out_second_dim = output_idx / (INPUT0_SIZE_Y * INPUT0_SIZE_X) % INPUT0_FEATURE_NUM; // F
+    const uint out_third_dim = output_idx / INPUT0_SIZE_X % INPUT0_SIZE_Y; // Y
+    const uint out_fourth_dim = output_idx % INPUT0_SIZE_X; // X
+    indices[0] = out_first_dim; indices[1] = out_second_dim; indices[3] = out_third_dim; indices[4] = out_fourth_dim;
+#endif
+#ifdef Y_AXIS
+    #ifdef OUTPUT_LAYOUT_YXFB
+    const uint out_first_dim = output_idx / (INPUT0_FEATURE_NUM * INPUT0_BATCH_NUM); // X
+    const uint out_second_dim = output_idx / INPUT0_BATCH_NUM % INPUT0_FEATURE_NUM; // F
+    const uint out_fourth_dim = output_idx % INPUT0_BATCH_NUM; // B
+    indices[0] = out_fourth_dim; indices[1] = out_second_dim; indices[4] = out_first_dim; // BFZYX
+    #else
+    const uint out_first_dim = output_idx / (INPUT0_FEATURE_NUM * INPUT0_SIZE_Z * INPUT0_SIZE_X); // B
+    const uint out_second_dim = output_idx / (INPUT0_SIZE_Z * INPUT0_SIZE_X) % INPUT0_FEATURE_NUM; // F
+    const uint out_third_dim = output_idx / INPUT0_SIZE_X % INPUT0_SIZE_Z; // Z
+    const uint out_fourth_dim = output_idx % INPUT0_SIZE_X; // X
+    indices[0] = out_first_dim; indices[1] = out_second_dim; indices[2] = out_third_dim; indices[4] = out_fourth_dim;
+    #endif
+#endif
+#ifdef X_AXIS
+    #ifdef OUTPUT_LAYOUT_YXFB
+    const uint out_first_dim = output_idx / (INPUT0_FEATURE_NUM * INPUT0_BATCH_NUM); // Y
+    const uint out_second_dim = output_idx / INPUT0_BATCH_NUM % INPUT0_FEATURE_NUM; // F
+    const uint out_fourth_dim = output_idx % INPUT0_BATCH_NUM; // B
+    indices[0] = out_fourth_dim; indices[1] = out_second_dim; indices[3] = out_first_dim; // BFZYX
+    #else
+    const uint out_first_dim = output_idx / (INPUT0_FEATURE_NUM * INPUT0_SIZE_Z * INPUT0_SIZE_Y); // B
+    const uint out_second_dim = output_idx / (INPUT0_SIZE_Z * INPUT0_SIZE_Y) % INPUT0_FEATURE_NUM; // F
+    const uint out_third_dim = output_idx / INPUT0_SIZE_Y % INPUT0_SIZE_Z; // Z
+    const uint out_fourth_dim = output_idx % INPUT0_SIZE_Y; // Y
+    indices[0] = out_first_dim; indices[1] = out_second_dim; indices[2] = out_third_dim; indices[3] = out_fourth_dim;
+    #endif
+#endif
+}
+
+KERNEL(arg_max_min_modified)(
+    OPTIONAL_SHAPE_INFO_ARG
+    const __global INPUT0_TYPE* input
+    ,__global OUTPUT_TYPE* output
 #ifdef SECOND_OUTPUT_EXIST
 #ifdef MULTIPLE_OUTPUTS
-                                  ,__global OUTPUT1_TYPE* second_output
+    ,__global OUTPUT1_TYPE* second_output
 #else
-                                  ,__global INPUT1_TYPE* second_output
+    ,__global INPUT1_TYPE* second_output
 #endif
 #endif
-                            )
+)
 {
 #include "include/arg_max_min_common.cl"
 #if SORT_BY_VALUE
@@ -67,79 +138,14 @@ KERNEL(arg_max_min_modified)(const __global INPUT0_TYPE* input
     const uint last_group_offset = (group_num - 1) * group_size;
 #endif // SORT_BY_VALUE
 
-#if OPERATION_NUM > 1
     const uint output_idx = (uint)get_global_id(0);
-
-    if (output_idx >= OPERATION_NUM)
-        return;
-
-#ifdef BATCH_AXIS
-    #ifdef OUTPUT_LAYOUT_YXFB
-    const uint out_first_dim = output_idx / (INPUT0_SIZE_X * INPUT0_FEATURE_NUM); // Y
-    const uint out_second_dim = output_idx / INPUT0_FEATURE_NUM % INPUT0_SIZE_X; // X
-    const uint out_fourth_dim = output_idx % INPUT0_FEATURE_NUM; // F
-    uint indices[] = { 0, out_fourth_dim, 0, out_first_dim, out_second_dim }; // BFZYX
-    #else
-    const uint out_first_dim = output_idx / (INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X); // F
-    const uint out_second_dim = output_idx / (INPUT0_SIZE_Y * INPUT0_SIZE_X) % INPUT0_SIZE_Z; // Z
-    const uint out_third_dim = output_idx / INPUT0_SIZE_X % INPUT0_SIZE_Y; // Y
-    const uint out_fourth_dim = output_idx % INPUT0_SIZE_X; // X
-    uint indices[] = { 0, out_first_dim, out_second_dim, out_third_dim, out_fourth_dim };
-    #endif
-#endif
-#ifdef FEATURE_AXIS
-    #ifdef OUTPUT_LAYOUT_YXFB
-    const uint out_first_dim = output_idx / (INPUT0_SIZE_X * INPUT0_BATCH_NUM); // Y
-    const uint out_second_dim = output_idx / INPUT0_BATCH_NUM % INPUT0_SIZE_X; // X
-    const uint out_fourth_dim = output_idx % INPUT0_BATCH_NUM; // B
-    uint indices[] = { out_fourth_dim, 0, 0, out_first_dim, out_second_dim }; // BFZYX
-    #else
-    const uint out_first_dim = output_idx / (INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X); // B
-    const uint out_second_dim = output_idx / (INPUT0_SIZE_Y * INPUT0_SIZE_X) % INPUT0_SIZE_Z; // Z
-    const uint out_third_dim = output_idx / INPUT0_SIZE_X % INPUT0_SIZE_Y;  // Y
-    const uint out_fourth_dim = output_idx % INPUT0_SIZE_X;  // X
-    uint indices[] = { out_first_dim, 0, out_second_dim, out_third_dim, out_fourth_dim };
-    #endif
-#endif
-#ifdef Z_AXIS
-    const uint out_first_dim = output_idx / (INPUT0_FEATURE_NUM * INPUT0_SIZE_Y * INPUT0_SIZE_X);  // B
-    const uint out_second_dim = output_idx / (INPUT0_SIZE_Y * INPUT0_SIZE_X) % INPUT0_FEATURE_NUM; // F
-    const uint out_third_dim = output_idx / INPUT0_SIZE_X % INPUT0_SIZE_Y; // Y
-    const uint out_fourth_dim = output_idx % INPUT0_SIZE_X; // X
-    uint indices[] = { out_first_dim, out_second_dim, 0, out_third_dim, out_fourth_dim };
-#endif
-#ifdef Y_AXIS
-    #ifdef OUTPUT_LAYOUT_YXFB
-    const uint out_first_dim = output_idx / (INPUT0_FEATURE_NUM * INPUT0_BATCH_NUM); // X
-    const uint out_second_dim = output_idx / INPUT0_BATCH_NUM % INPUT0_FEATURE_NUM; // F
-    const uint out_fourth_dim = output_idx % INPUT0_BATCH_NUM; // B
-    uint indices[] = { out_fourth_dim, out_second_dim, 0, 0, out_first_dim }; // BFZYX
-    #else
-    const uint out_first_dim = output_idx / (INPUT0_FEATURE_NUM * INPUT0_SIZE_Z * INPUT0_SIZE_X); // B
-    const uint out_second_dim = output_idx / (INPUT0_SIZE_Z * INPUT0_SIZE_X) % INPUT0_FEATURE_NUM; // F
-    const uint out_third_dim = output_idx / INPUT0_SIZE_X % INPUT0_SIZE_Z; // Z
-    const uint out_fourth_dim = output_idx % INPUT0_SIZE_X; // X
-    uint indices[] = { out_first_dim, out_second_dim, out_third_dim, 0, out_fourth_dim };
-    #endif
-#endif
-#ifdef X_AXIS
-    #ifdef OUTPUT_LAYOUT_YXFB
-    const uint out_first_dim = output_idx / (INPUT0_FEATURE_NUM * INPUT0_BATCH_NUM); // Y
-    const uint out_second_dim = output_idx / INPUT0_BATCH_NUM % INPUT0_FEATURE_NUM; // F
-    const uint out_fourth_dim = output_idx % INPUT0_BATCH_NUM; // B
-    uint indices[] = { out_fourth_dim, out_second_dim, 0, out_first_dim, 0 }; // BFZYX
-    #else
-    const uint out_first_dim = output_idx / (INPUT0_FEATURE_NUM * INPUT0_SIZE_Z * INPUT0_SIZE_Y); // B
-    const uint out_second_dim = output_idx / (INPUT0_SIZE_Z * INPUT0_SIZE_Y) % INPUT0_FEATURE_NUM; // F
-    const uint out_third_dim = output_idx / INPUT0_SIZE_Y % INPUT0_SIZE_Z; // Z
-    const uint out_fourth_dim = output_idx % INPUT0_SIZE_Y; // Y
-    uint indices[] = { out_first_dim, out_second_dim, out_third_dim, out_fourth_dim, 0 };
-    #endif
-#endif
-
-#else // OPERATION_NUM > 1
     uint indices[] = { 0, 0, 0, 0, 0 };
-#endif // OPERATION_NUM > 1
+
+    if (OPERATION_NUM > 1) {
+        if (output_idx >= OPERATION_NUM)
+            return;
+        FUNC_CALL(get_indices_from_dims)(OPTIONAL_SHAPE_INFO_TENSOR output_idx, indices);
+    }
 
 // Using parallel sorting for sorting by values
 #if SORT_BY_VALUE
@@ -147,41 +153,41 @@ KERNEL(arg_max_min_modified)(const __global INPUT0_TYPE* input
     indices[AXIS] = sort_idx;
 
     iav_type result;
-    result.value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+    result.value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
     result.index = sort_idx;
 
     for (uint i = 0; i < sort_idx / 8; i++) {
         uint index_offset = i * 8;
         indices[AXIS] = index_offset;
-        INPUT0_TYPE test_value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        INPUT0_TYPE test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
             sort_position++;
         indices[AXIS] = index_offset + 1;
-        test_value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
             sort_position++;
         indices[AXIS] = index_offset + 2;
-        test_value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
             sort_position++;
         indices[AXIS] = index_offset + 3;
-        test_value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
             sort_position++;
         indices[AXIS] = index_offset + 4;
-        test_value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
             sort_position++;
         indices[AXIS] = index_offset + 5;
-        test_value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
             sort_position++;
         indices[AXIS] = index_offset + 6;
-        test_value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
             sort_position++;
         indices[AXIS] = index_offset + 7;
-        test_value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
             sort_position++;
         if (sort_position >= TOP_K)
@@ -190,7 +196,7 @@ KERNEL(arg_max_min_modified)(const __global INPUT0_TYPE* input
 
     for (uint i = (sort_idx / 8) * 8; i < sort_idx; i++) {
         indices[AXIS] = i;
-        INPUT0_TYPE test_value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        INPUT0_TYPE test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (result.value COMPARE_PARALLEL_SIGN_1 test_value)
             sort_position++;
     }
@@ -200,7 +206,7 @@ KERNEL(arg_max_min_modified)(const __global INPUT0_TYPE* input
 
     for (uint i = sort_idx + 1; i < VALUES_NUM; i++) {
         indices[AXIS] = i;
-        INPUT0_TYPE test_value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        INPUT0_TYPE test_value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         if (result.value COMPARE_PARALLEL_SIGN_2 test_value)
             sort_position++;
         if (sort_position >= TOP_K)
@@ -209,7 +215,7 @@ KERNEL(arg_max_min_modified)(const __global INPUT0_TYPE* input
 
 // Using simple sorting for sorting by indices and when TOP_K == 1
 #elif TOP_K == 1
-    INPUT0_TYPE val = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+    INPUT0_TYPE val = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
     result[0].index = 0;
     result[0].value = val;
     bool already_exist = false;
@@ -228,7 +234,7 @@ KERNEL(arg_max_min_modified)(const __global INPUT0_TYPE* input
             }
 
             indices[AXIS] = i;
-            INPUT0_TYPE in_data = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+            INPUT0_TYPE in_data = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
             if (val COMPARE_SIGN in_data) {
                 result[top_k].index = i;
                 result[top_k].value = in_data;
@@ -243,26 +249,26 @@ KERNEL(arg_max_min_modified)(const __global INPUT0_TYPE* input
     for (uint i = 0; i < VALUES_NUM / 8; i++) {
         uint index_offset = i * 8;
         indices[AXIS] = result[index_offset].index = index_offset;
-        result[index_offset].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        result[index_offset].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = result[index_offset + 1].index = index_offset + 1;
-        result[index_offset + 1].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        result[index_offset + 1].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = result[index_offset + 2].index = index_offset + 2;
-        result[index_offset + 2].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        result[index_offset + 2].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = result[index_offset + 3].index = index_offset + 3;
-        result[index_offset + 3].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        result[index_offset + 3].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = result[index_offset + 4].index = index_offset  + 4;
-        result[index_offset + 4].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        result[index_offset + 4].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = result[index_offset + 5].index = index_offset + 5;
-        result[index_offset + 5].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        result[index_offset + 5].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = result[index_offset + 6].index = index_offset + 6;
-        result[index_offset + 6].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        result[index_offset + 6].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = result[index_offset + 7].index = index_offset + 7;
-        result[index_offset + 7].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        result[index_offset + 7].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
     }
 
     for (uint i = (VALUES_NUM / 8) * 8; i < VALUES_NUM; i++) {
         indices[AXIS] = result[i].index = i;
-        result[i].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        result[i].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
     }
 
     for (uint k = 1; k < VALUES_NUM; k *= 2) {
@@ -293,26 +299,26 @@ KERNEL(arg_max_min_modified)(const __global INPUT0_TYPE* input
     for (uint i = 0; i < VALUES_NUM / 8; i++) {
         uint index_offset = i * 8;
         indices[AXIS] = temp_buf[index_offset].index = index_offset;
-        temp_buf[index_offset].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        temp_buf[index_offset].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = temp_buf[index_offset + 1].index = index_offset + 1;
-        temp_buf[index_offset + 1].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        temp_buf[index_offset + 1].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = temp_buf[index_offset + 2].index = index_offset + 2;
-        temp_buf[index_offset + 2].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        temp_buf[index_offset + 2].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = temp_buf[index_offset + 3].index = index_offset + 3;
-        temp_buf[index_offset + 3].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        temp_buf[index_offset + 3].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = temp_buf[index_offset + 4].index = index_offset  + 4;
-        temp_buf[index_offset + 4].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        temp_buf[index_offset + 4].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = temp_buf[index_offset + 5].index = index_offset + 5;
-        temp_buf[index_offset + 5].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        temp_buf[index_offset + 5].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = temp_buf[index_offset + 6].index = index_offset + 6;
-        temp_buf[index_offset + 6].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        temp_buf[index_offset + 6].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
         indices[AXIS] = temp_buf[index_offset + 7].index = index_offset + 7;
-        temp_buf[index_offset + 7].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        temp_buf[index_offset + 7].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
     }
 
     for (uint i = (VALUES_NUM / 8) * 8; i < VALUES_NUM; i++) {
         indices[AXIS] = temp_buf[i].index = i;
-        temp_buf[i].value = input[FUNC_CALL(get_input_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
+        temp_buf[i].value = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])];
     }
 
     for (uint group = 0; group < group_num - 1; group++) {
@@ -412,22 +418,22 @@ KERNEL(arg_max_min_modified)(const __global INPUT0_TYPE* input
 #if SORT_BY_VALUE
     indices[AXIS] = sort_position;
 #ifdef TOP_K_ORDER
-    output[FUNC_CALL(get_output_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT_TYPE(result.value);
+    output[FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT_TYPE(result.value);
 #else
-    output[FUNC_CALL(get_output_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT_TYPE(result.index);
+    output[FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT_TYPE(result.index);
 #endif
 #ifdef SECOND_OUTPUT_EXIST
 #ifdef MULTIPLE_OUTPUTS
     #ifdef TOP_K_ORDER
-    second_output[FUNC_CALL(get_output_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT1_TYPE(result.index);
+    second_output[FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT1_TYPE(result.index);
     #else
-    second_output[FUNC_CALL(get_output_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT1_TYPE(result.value);
+    second_output[FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT1_TYPE(result.value);
     #endif
 #else
     #ifdef TOP_K_ORDER
-    second_output[FUNC_CALL(get_output_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_INPUT1_TYPE(result.index);
+    second_output[FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_INPUT1_TYPE(result.index);
     #else
-    second_output[FUNC_CALL(get_output_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_INPUT1_TYPE(result.value);
+    second_output[FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_INPUT1_TYPE(result.value);
     #endif
 #endif
 #endif
@@ -445,22 +451,22 @@ KERNEL(arg_max_min_modified)(const __global INPUT0_TYPE* input
 
         indices[AXIS] = out_position;
 #ifdef TOP_K_ORDER
-        output[FUNC_CALL(get_output_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT_TYPE(result[top_k].value);
+        output[FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT_TYPE(result[top_k].value);
 #else
-        output[FUNC_CALL(get_output_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT_TYPE(result[top_k].index);
+        output[FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT_TYPE(result[top_k].index);
 #endif
 #ifdef SECOND_OUTPUT_EXIST
 #ifdef MULTIPLE_OUTPUTS
     #ifdef TOP_K_ORDER
-        second_output[FUNC_CALL(get_output_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT1_TYPE(result[top_k].index);
+        second_output[FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT1_TYPE(result[top_k].index);
     #else
-        second_output[FUNC_CALL(get_output_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT1_TYPE(result[top_k].value);
+        second_output[FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_OUTPUT1_TYPE(result[top_k].value);
     #endif
 #else
     #ifdef TOP_K_ORDER
-        second_output[FUNC_CALL(get_output_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_INPUT1_TYPE(result[top_k].index);
+        second_output[FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_INPUT1_TYPE(result[top_k].index);
     #else
-        second_output[FUNC_CALL(get_output_index)(indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_INPUT1_TYPE(result[top_k].value);
+        second_output[FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR indices[0], indices[1], 0, indices[2], indices[3], indices[4])] = TO_INPUT1_TYPE(result[top_k].value);
     #endif
 #endif
 #endif
