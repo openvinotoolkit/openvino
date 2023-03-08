@@ -5,7 +5,6 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "infer_request.hpp"
-#include <ngraph/ops.hpp>
 #include <ngraph/node.hpp>
 #include <transformations/utils/utils.hpp>
 #include <ie_input_info.hpp>

@@ -57,7 +57,6 @@ protected:
     std::vector<std::pair<std::vector<size_t>, std::vector<size_t>>> inOutShapes;
 };
 using OVNotSupportRequestDynamicTests = OVInferRequestDynamicTests;
-using OVInferRequestDynamicOutputTests = OVInferRequestDynamicTests;
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
