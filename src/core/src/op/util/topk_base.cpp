@@ -16,19 +16,19 @@ constexpr auto UNKNOWN_NORMALIZED_AXIS = std::numeric_limits<uint64_t>::max();
 }
 
 ov::op::util::TopKBase::TopKBase(const Output<Node>& data,
-                                   const Output<Node>& k,
-                                   const int64_t axis,
-                                   const std::string& mode,
-                                   const std::string& sort,
-                                   const element::Type& index_element_type)
+                                 const Output<Node>& k,
+                                 const int64_t axis,
+                                 const std::string& mode,
+                                 const std::string& sort,
+                                 const element::Type& index_element_type)
     : TopKBase(data, k, axis, as_enum<TopKMode>(mode), as_enum<TopKSortType>(sort), index_element_type) {}
 
 ov::op::util::TopKBase::TopKBase(const Output<Node>& data,
-                                   const Output<Node>& k,
-                                   const int64_t axis,
-                                   const TopKMode mode,
-                                   const TopKSortType sort,
-                                   const element::Type& index_element_type)
+                                 const Output<Node>& k,
+                                 const int64_t axis,
+                                 const TopKMode mode,
+                                 const TopKSortType sort,
+                                 const element::Type& index_element_type)
     : Op{{data, k}},
       m_axis{axis},
       m_normalized_axis{UNKNOWN_NORMALIZED_AXIS},
@@ -68,7 +68,7 @@ void ov::op::util::TopKBase::k_type_check(const element::Type& k_element_type) c
 }
 
 size_t ov::op::util::TopKBase::read_k_from_constant_node(const std::shared_ptr<Node>& node,
-                                                          const element::Type& k_element_type) const {
+                                                         const element::Type& k_element_type) const {
     k_type_check(k_element_type);
 
     const auto k_constant = ov::as_type_ptr<op::v0::Constant>(node);

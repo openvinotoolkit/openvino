@@ -28,18 +28,18 @@ public:
     ///             Accepted values: none, index, value
     /// \param index_element_type Specifies the type of produced indices
     TopKBase(const Output<Node>& data,
-              const Output<Node>& k,
-              const int64_t axis,
-              const std::string& mode,
-              const std::string& sort,
-              const element::Type& index_element_type = element::i32);
+             const Output<Node>& k,
+             const int64_t axis,
+             const std::string& mode,
+             const std::string& sort,
+             const element::Type& index_element_type = element::i32);
 
     TopKBase(const Output<Node>& data,
-              const Output<Node>& k,
-              const int64_t axis,
-              const TopKMode mode,
-              const TopKSortType sort,
-              const element::Type& index_element_type = element::i32);
+             const Output<Node>& k,
+             const int64_t axis,
+             const TopKMode mode,
+             const TopKSortType sort,
+             const element::Type& index_element_type = element::i32);
 
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
