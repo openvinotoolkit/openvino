@@ -36,7 +36,7 @@ struct TopKParams {
 class ReferenceTopKTest : public testing::TestWithParam<TopKParams>, public CommonReferenceTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<TopKParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "aType=" << param.A.type;
         result << "_aShape=" << param.A.shape;
@@ -74,7 +74,7 @@ struct TopKParamsResnet50 {
 class ReferenceTopKTestResnet50 : public testing::TestWithParam<TopKParamsResnet50>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params);
         inputData = {params.A.data};
         refOutData = {params.result5Value.data, params.result5Index.data,
@@ -82,7 +82,7 @@ public:
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<TopKParamsResnet50>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "aType=" << param.A.type;
         result << "_aShape=" << param.A.shape;
@@ -211,7 +211,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK_With_Hardcoded_Refs, ReferenceTopKTestResnet
 class ReferenceTopKTestMaxMinSort : public ReferenceTopKTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params);
         inputData = {params.A.data};
         refOutData = {params.result0.data, params.result1.data};
@@ -538,7 +538,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK_With_Hardcoded_Refs, ReferenceTopKTestMaxMin
 class ReferenceTopKTestBackend : public ReferenceTopKTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params);
         inputData = {params.A.data};
         refOutData = {params.result0.data, params.result1.data};
@@ -643,7 +643,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK_With_Hardcoded_Refs, ReferenceTopKTestBacken
 class ReferenceTopKTest1dMaxMin : public ReferenceTopKTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params, params.outIdx);
         inputData = {params.A.data};
         if (params.outIdx != 0) {
@@ -654,7 +654,7 @@ public:
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<TopKParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "aType=" << param.A.type;
         result << "_aShape=" << param.A.shape;
@@ -1459,7 +1459,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_TopK_With_Hardcoded_Refs, ReferenceTopKTestInt64,
 class ReferenceTopKTestSingleOutput : public ReferenceTopKTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params);
         inputData = {params.A.data};
         refOutData = {params.result1.data};
