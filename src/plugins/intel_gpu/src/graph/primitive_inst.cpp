@@ -324,11 +324,11 @@ bool primitive_inst::update_impl() {
         // Update param if fake_alignment is available
         auto updated_params = _node->type()->get_fake_aligned_params(*_impl_params);
         auto& cache = get_network().get_program()->get_implementations_cache();
-        bool has_cached_impl = false;
+        std::shared_ptr<primitive_impl> cached_impl = nullptr;
         {
-            has_cached_impl = cache.has(updated_params);
-            if (has_cached_impl) {
-                _impl = cache.get(updated_params)->clone();
+            cached_impl = cache.get(updated_params);
+            if (cached_impl) {
+                _impl = cached_impl->clone();
                 GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
                 GPU_DEBUG_TRACE_DETAIL << id() << ": get impl from cache " << _impl->get_kernel_name() << std::endl;
             // impl is not replaced
@@ -336,7 +336,7 @@ bool primitive_inst::update_impl() {
                 return false;
             }
         }
-        if (!has_cached_impl) {
+        if (!cached_impl) {
             if (_dynamic_impl) {
                 auto& compilation_context = get_network().get_program()->get_compilation_context();
                 compilation_context.push_task(updated_params.hash(), [this, &compilation_context, updated_params]() {

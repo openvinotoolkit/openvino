@@ -157,7 +157,7 @@ struct kernel_impl_params {
             return false;
 
         for (size_t i = 0; i < rhs.fused_desc.size(); i++) {
-            if (fused_desc[i].desc != rhs.fused_desc[i].desc)
+            if (fused_desc[i] != rhs.fused_desc[i])
                 return false;
         }
 
