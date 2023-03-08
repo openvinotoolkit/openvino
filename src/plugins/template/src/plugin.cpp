@@ -269,8 +269,7 @@ ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const
         return decltype(ov::device::architecture)::value_type(arch);
     } else if (ov::device::capabilities == name) {
         // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32 and EXPORT_IMPORT
-        std::vector<std::string> capabilities = {ov::device::capability::FP32,
-                                                 ov::device::capability::EXPORT_IMPORT};
+        std::vector<std::string> capabilities = {ov::device::capability::FP32, ov::device::capability::EXPORT_IMPORT};
         return decltype(ov::device::capabilities)::value_type(capabilities);
     } else if (ov::range_for_async_infer_requests == name) {
         // TODO: fill with actual values
