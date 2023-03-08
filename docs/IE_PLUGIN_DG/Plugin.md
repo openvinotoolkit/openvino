@@ -54,6 +54,12 @@ A plugin must define a device name enabled via the `set_device_name()` method of
 
 @snippet template/src/plugin.cpp plugin:ctor
 
+### Plugin Destructor
+
+A plugin destructor must stop all plugins activities, and clean all allocated resources.
+
+@snippet template/src/plugin.cpp plugin:dtor
+
 ### `compile_model()`
 
 The plugin should implement two `compile_model()` methods the first one compiles model without remote context, the second one with remote context if plugin supports.
@@ -140,6 +146,19 @@ information must be stored and checked during the import.
 - Information about precisions and shapes set by the user
 
 @snippet template/src/plugin.cpp plugin:import_model
+@snippet template/src/plugin.cpp plugin:import_model_with_remote
+
+### `create_context()`
+
+The Plugin should implement `Plugin::create_context()` method which returns `ov::RemoteContext` in case if plugin supports remote context, in other case the plugin can throw an exception that this method is not implemented.
+
+@snippet template/src/plugin.cpp plugin:create_context
+
+### `get_default_context()`
+
+`Plugin::get_default_context()` also needed in case if plugin supports remote context, if the plugin doesn't support it, this method can throw an exception that functionality is not implemented.
+
+@snippet template/src/plugin.cpp plugin:get_default_context
 
 Create Instance of Plugin Class
 ------------------------
