@@ -13,5 +13,5 @@
 
 The guides below provides extra API references needed for OpenVINO plugin development:
 
-* [OpenVINO Plugin API](@ref ie_dev_api)
+* [OpenVINO Plugin API](@ref ov_dev_api)
 * [OpenVINO Transformation API](@ref ie_transformation_api)

@@ -68,9 +68,6 @@ namespace InferenceEngine {
  * @defgroup ie_dev_api_xml XML helper utilities
  * @brief A PUGIXML wrappers to safely extract values of requested type.
  *
- * @defgroup ie_dev_profiling ITT profiling utilities
- * @brief Configurable macro wrappers for ITT profiling
- *
  * @}
  */
 

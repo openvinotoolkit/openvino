@@ -31,6 +31,45 @@ class IExtension;
 namespace ov {
 
 /**
+ * @defgroup ov_dev_api OpenVINO Plugin API
+ * @brief Defines Inference Engine Plugin API which can be used in plugin development
+ *
+ * @{
+ * @defgroup ov_dev_api_plugin_api Plugin base classes
+ * @brief A set of base and helper classes to implement a plugin class
+ *
+ * @defgroup ov_dev_api_compiled_model_api Compiled Model base classes
+ * @brief A set of base and helper classes to implement an compiled model class
+ *
+ * @defgroup ov_dev_api_sync_infer_request_api Inference Request base classes
+ * @brief A set of base and helper classes to implement a syncrhonous inference request class.
+ *
+ * @defgroup ov_dev_api_async_infer_request_api Asynchronous Inference Request base classes
+ * @brief A set of base and helper classes to implement asynchronous inference request class
+ *
+ * @defgroup ov_dev_api_variable_state_api Variable state base classes
+ * @brief A set of base and helper classes to implement variable state
+ *
+ * @defgroup ov_dev_api_threading Threading utilities
+ * @brief Threading API providing task executors for asynchronous operations
+ *
+ * @defgroup ov_dev_api_system_conf System configuration utilities
+ * @brief API to get information about the system, core processor capabilities
+ *
+ * TODO: Move execution node
+ * defgroup ie_dev_exec_graph Execution graph utilities
+ * brief Contains `ExecutionNode` and its properties
+ *
+ * @defgroup ov_dev_api_error_debug Error handling and debug helpers
+ * @brief Utility methods to works with errors or exceptional situations
+ *
+ * @defgroup ov_dev_profiling ITT profiling utilities
+ * @brief Configurable macro wrappers for ITT profiling
+ *
+ * @}
+ */
+
+/**
  * @brief OpenVINO Plugin Interface 2.0
  */
 class OPENVINO_RUNTIME_API IPlugin : public std::enable_shared_from_this<IPlugin> {
