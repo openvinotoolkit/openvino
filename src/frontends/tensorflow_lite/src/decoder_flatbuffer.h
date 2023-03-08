@@ -55,6 +55,11 @@ public:
     void get_input_node(size_t input_port_idx,
                         std::string& producer_name,
                         size_t& producer_output_port_index) const override;
+    void get_input_node(size_t input_port_idx,
+                        std::string& producer_name,
+                        size_t& producer_output_port_index,
+                        const OpTypeByName& op_type_by_name) const override;
+
     std::string get_output_tensor_name(size_t idx) const;
     element::Type get_output_tensor_type(size_t idx) const;
     std::string get_input_tensor_name(size_t idx) const;

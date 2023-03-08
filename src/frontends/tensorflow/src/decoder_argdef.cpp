@@ -4,6 +4,7 @@
 
 #include "decoder_argdef.hpp"
 
+#include "decoder_proto.hpp"
 #include "op_def.pb.h"
 #include "openvino/frontend/tensorflow/node_context.hpp"
 #include "openvino/frontend/tensorflow/special_types.hpp"
@@ -58,19 +59,16 @@ void DecoderArgDef::get_input_node(size_t input_port_idx,
     // and output port is 2
     FRONT_END_GENERAL_CHECK(m_op_type == "output_arg",
                             "[TensorFlow Frontend] Internal error: get_input_node is supported only for output_arg.");
-    auto first_colon = m_producer_name.find_first_of(":");
-    auto last_colon = m_producer_name.find_last_of(":");
-    if (first_colon != std::string::npos && last_colon != std::string::npos) {
-        producer_name = m_producer_name.substr(0, first_colon);
-        auto port_id = m_producer_name.substr(last_colon + 1);
-        FRONT_END_GENERAL_CHECK(!port_id.empty() && std::all_of(port_id.begin(), port_id.end(), ::isdigit),
-                                "Port id is not specified or not a number. Value: ",
-                                port_id);
-        producer_output_port_index = std::stoi(port_id);
-        return;
-    }
-    producer_name = m_producer_name;
-    producer_output_port_index = 0;
+    parse_producer_name(m_producer_name, producer_name, producer_output_port_index, {});
+}
+
+void DecoderArgDef::get_input_node(size_t input_port_idx,
+                                   std::string& producer_name,
+                                   size_t& producer_output_port_index,
+                                   const OpTypeByName& op_type_by_name) const {
+    FRONT_END_GENERAL_CHECK(m_op_type == "output_arg",
+                            "[TensorFlow Frontend] Internal error: get_input_node is supported only for output_arg.");
+    parse_producer_name(m_producer_name, producer_name, producer_output_port_index, op_type_by_name);
 }
 
 ov::Any DecoderArgDef::get_attribute(const std::string& name) const {

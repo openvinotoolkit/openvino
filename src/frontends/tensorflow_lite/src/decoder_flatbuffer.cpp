@@ -32,6 +32,13 @@ void DecoderFlatBuffer::get_input_node(size_t input_port_idx,
     producer_output_port_index = input_tensor_idx;
 }
 
+void DecoderFlatBuffer::get_input_node(size_t input_port_idx,
+                                       std::string& producer_name,
+                                       size_t& producer_output_port_index,
+                                       const OpTypeByName& op_type_by_name) const {
+    FRONT_END_NOT_IMPLEMENTED("get_input_node method with op_type_by_name map is not implemented for TFL FE.");
+}
+
 const std::string& DecoderFlatBuffer::get_op_type() const {
     return m_type;
 }
