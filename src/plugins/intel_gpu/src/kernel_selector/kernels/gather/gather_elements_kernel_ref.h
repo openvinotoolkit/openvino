@@ -28,7 +28,7 @@ public:
     GatherElementsKernelRef() : KernelBaseOpenCL("gather_elements_ref") {}
     virtual ~GatherElementsKernelRef() {}
     virtual JitConstants GetJitConstants(const gather_elements_params& params) const;
-    virtual CommonDispatchData SetDefault(const gather_elements_params& params, const optional_params&) const;
+    virtual CommonDispatchData SetDefault(const gather_elements_params& params) const;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
