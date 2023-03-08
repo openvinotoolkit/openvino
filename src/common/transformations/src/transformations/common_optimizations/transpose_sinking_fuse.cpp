@@ -19,7 +19,8 @@ using namespace opset10;
 
 ov::pass::TransposeSinkingFuse::TransposeSinkingFuse() {
     MATCHER_SCOPE(TransposeFuse);
-    auto transpose_1_label = pattern::wrap_type<Transpose>({pattern::any_input(), pattern::wrap_type<Constant>()}, transpose_sinking::HasSameOutputTransposeNodes);
+    auto transpose_1_label = pattern::wrap_type<Transpose>({pattern::any_input(), pattern::wrap_type<Constant>()},
+                                                           transpose_sinking::HasSameOutputTransposeNodes);
     auto transpose_2_label = pattern::wrap_type<Transpose>({transpose_1_label, pattern::wrap_type<Constant>()});
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
@@ -48,7 +49,6 @@ ov::pass::TransposeSinkingFuse::TransposeSinkingFuse() {
         auto transpose_order_type = transpose1_order->get_element_type();
         if (transpose_order_type != transpose2_order->get_element_type())
             transpose_order_type = element::i64;
-
 
         if (is_ordered) {
             for (const auto& out_transpose : transpose1->output(0).get_target_inputs()) {

@@ -30,14 +30,12 @@ TEST_F(TransformationTestsF, TransposeSinkingGeneralTestUnariesTransposesForward
 
         NodePtr in_op = X;
         for (size_t i = 0; i < num_unary_ops; ++i) {
-            auto ng_order0 =
-                std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+            auto ng_order0 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
             auto transpose0 = std::make_shared<Transpose>(in_op, ng_order0);
 
             auto unary = std::make_shared<Tanh>(transpose0);
 
-            auto ng_order1 =
-                std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+            auto ng_order1 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
             in_op = std::make_shared<Transpose>(unary, ng_order1);
         }
 
@@ -68,14 +66,12 @@ TEST_F(TransformationTestsF, TransposeSinkingGeneralTestUnariesTransposesBackwar
 
         NodePtr in_op = X;
         for (size_t i = 0; i < num_unary_ops; ++i) {
-            auto ng_order0 =
-                std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+            auto ng_order0 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
             auto transpose0 = std::make_shared<Transpose>(in_op, ng_order0);
 
             auto unary = std::make_shared<Tanh>(transpose0);
 
-            auto ng_order1 =
-                std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+            auto ng_order1 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
             in_op = std::make_shared<Transpose>(unary, ng_order1);
         }
 
@@ -108,14 +104,12 @@ TEST_F(TransformationTestsF, TransposeSinkingGeneralTestUnariesTransposesGeneral
 
         NodePtr in_op = transpose0;
         for (size_t i = 0; i < num_unary_ops; ++i) {
-            auto ng_order0 =
-                std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+            auto ng_order0 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
             auto transpose0 = std::make_shared<Transpose>(in_op, ng_order0);
 
             auto unary = std::make_shared<Tanh>(transpose0);
 
-            auto ng_order1 =
-                std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
+            auto ng_order1 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
             in_op = std::make_shared<Transpose>(unary, ng_order1);
         }
 
@@ -153,8 +147,7 @@ TEST_F(TransformationTestsF, TransposeSinkingGeneralTestBinaryGeneral) {
         NodePtr in_op = transpose0;
         for (size_t i = 0; i < num_binary_ops; ++i) {
             auto in_constant = std::make_shared<Constant>(input_type, input_shape, ov::Shape{1});
-            auto ng_order1 =
-                std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+            auto ng_order1 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
             auto transpose1 = std::make_shared<Transpose>(in_constant, ng_order1);
 
             in_op = std::make_shared<Add>(in_op, transpose1);
@@ -199,8 +192,7 @@ TEST_F(TransformationTestsF, TransposeSinkingGeneralTestConcatGeneral) {
             concat_inputs.push_back(in_op);
             for (size_t j = 1; j < num_concat_inputs; ++j) {
                 auto in_constant = std::make_shared<Constant>(input_type, input_shape, ov::Shape{1});
-                auto ng_order1 =
-                    std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
+                auto ng_order1 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
                 auto transpose1 = std::make_shared<Transpose>(in_constant, ng_order1);
                 concat_inputs.push_back(transpose1);
             }
@@ -385,8 +377,7 @@ TEST_F(TransformationTestsF, TransposeSinkingGeneralTestMultipleTypes) {
         auto ng_order0 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 2, 3, 1});
         auto transpose0 = std::make_shared<Transpose>(node0, ng_order0);
 
-        auto reshape_const =
-            std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{1, 40, 55, 96});
+        auto reshape_const = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{1, 40, 55, 96});
         auto reshape = std::make_shared<Reshape>(transpose0, reshape_const, false);
 
         auto ng_order1 = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{0, 3, 1, 2});
@@ -405,8 +396,7 @@ TEST_F(TransformationTestsF, TransposeSinkingGeneralTestMultipleTypes) {
 
         auto node0 = MakeAllNodesSubgraph(transpose0, 3, 3);
 
-        auto reshape_const =
-            std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{1, 40, 55, 96});
+        auto reshape_const = std::make_shared<Constant>(ov::element::u64, ov::Shape{4}, ov::Shape{1, 40, 55, 96});
         auto reshape = std::make_shared<Reshape>(node0, reshape_const, false);
 
         auto node1 = MakeAllNodesSubgraph(reshape, 3, 3);
@@ -420,6 +410,6 @@ TEST_F(TransformationTestsF, TransposeSinkingGeneralTestMultipleTypes) {
     manager.register_pass<ov::pass::TransposeSinkingGeneral>();
 }
 
-}
-}
-}
+}  // namespace general
+}  // namespace testing
+}  // namespace transpose_sinking
