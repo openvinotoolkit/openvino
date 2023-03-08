@@ -46,14 +46,16 @@ BorderKernelBase::DispatchData BorderKernelBase::SetDefault(const border_params&
     const auto& output = params.outputs[0];
 
     DispatchData dispatchData;
-    auto in_layout = params.inputs[0].GetLayout();
-    auto out_layout = params.outputs[0].GetLayout();
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X, Tensor::DataChannelName::Z },
-                                                                     { Tensor::DataChannelName::Y, Tensor::DataChannelName::W },
-                                                                     { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
+    if (!params.has_dynamic_tensors()) {
+        auto in_layout = params.inputs[0].GetLayout();
+        auto out_layout = params.outputs[0].GetLayout();
+        std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X, Tensor::DataChannelName::Z },
+                                                                         { Tensor::DataChannelName::Y, Tensor::DataChannelName::W },
+                                                                         { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
 
-    dispatchData.gws = { output.X().v * output.Z().v, output.Y().v * output.W().v, output.Batch().v * output.Feature().v };
-    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+        dispatchData.gws = { output.X().v * output.Z().v, output.Y().v * output.W().v, output.Batch().v * output.Feature().v };
+        dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
+    }
 
     return dispatchData;
 }
@@ -67,16 +69,32 @@ KernelsData BorderKernelBase::GetCommonKernelsData(const Params& params,
 
     auto dispatchData = SetDefault(prim_params);
     KernelData k_data = KernelData::Default<border_params>(params);
-    border_params& newParams = *static_cast<border_params*>(k_data.params.get());
+    k_data.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+    const auto& prim_params = static_cast<const border_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+    };
 
     auto cldnn_jit = GetJitConstants(prim_params);
     auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = k_data.kernels[0];
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     "", false, false, static_cast<int>(newParams.inputs.size()),
-                     0, 1, newParams.has_dynamic_tensors());
+    FillCLKernelData(kernel,
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     EXE_MODE_DEFAULT,
+                     false,
+                     false,
+                     (uint32_t)prim_params.inputs.size(),
+                     GetFusedPrimitiveInputsCount(params),
+                     1,
+                     prim_params.outputs[0].is_dynamic());
 
     return {k_data};
 }
