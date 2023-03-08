@@ -21,7 +21,8 @@ std::vector<T> shape_infer(const Tile* op,
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
 
     const auto& repeats_shape = input_shapes[1];
-    NODE_VALIDATION_CHECK(op, repeats_shape.rank().compatible(1), "Tile repeats must be of rank 1");
+    const auto& repeats_rank = repeats_shape.rank();
+    NODE_VALIDATION_CHECK(op, repeats_rank.compatible(1), "Tile repeats must be of rank 1");
 
     const auto& arg_shape = input_shapes[0];
     T output_shape;
@@ -51,8 +52,8 @@ std::vector<T> shape_infer(const Tile* op,
                        rep_it,
                        std::back_inserter(output_shape),
                        std::multiplies<TDim>());
-    } else if (arg_rank.is_static() && repeats_shape[0].is_static()) {
-        // unknown repeats but shape is 1-D static, any dim can be repeated (add missing dimension)
+    } else if (arg_rank.is_static() && repeats_rank.is_static() && repeats_shape[0].is_static()) {
+        // unknown repeats any dim can be repeated (add missing dimension)
         output_shape.resize(std::max<size_t>(arg_rank.get_length(), repeats_shape[0].get_length()));
     } else {
         // can't deduce shape, set default value
