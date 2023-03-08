@@ -69,12 +69,64 @@ TEST(test_count_non_zero, 2d_int32_1_513) {
     test_count_non_zero<int>(layout{ov::PartialShape{1, len}, data_types::i32, format::bfyx}, in_data);
 }
 
-TEST(test_count_non_zero, 2d_int32_1_1024) {
+TEST(test_count_non_zero, 2d_int32_1_1025) {
     const size_t len = 1024;
     std::vector<int32_t> in_data(len);
     std::fill(in_data.begin(), in_data.end(), 1);
 
     test_count_non_zero<int>(layout{ov::PartialShape{1, len}, data_types::i32, format::bfyx}, in_data);
+}
+
+class dyn_nonzero_count_net {
+public:
+    void create_network(cldnn::engine& engine, cldnn::topology& topology, ExecutionConfig& config) {
+        _network = std::make_shared<cldnn::network>(engine, topology, config);
+    }
+
+    std::map<primitive_id, network_output> execute(memory::ptr input_mem) {
+        _network->set_input_data("InputData", input_mem);
+        return _network->execute();
+    }
+
+private:
+    network::ptr _network;
+};
+
+TEST(test_count_non_zero, dynamic_test) {
+    auto& engine = get_test_engine();
+    auto in_dyn_layout = layout(ov::PartialShape::dynamic(2), data_types::i32, format::bfyx);
+
+    topology topology;
+    topology.add(input_layout("InputData", in_dyn_layout));
+    topology.add(count_nonzero("count_nonzero", input_info("InputData")));
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    std::vector<size_t> input_shapes = {171, 531, 168, 169, 174, 172, 168, 167, 1169, 16, 677};
+    dyn_nonzero_count_net _test;
+    _test.create_network(engine, topology, config);
+
+    for (size_t idx = 0; idx < input_shapes.size(); idx++) {
+        const size_t input_length = input_shapes[idx];
+
+        ov::PartialShape p_shape  = { 1, static_cast<long int>(input_length) };
+        auto in_layout = layout(p_shape, data_types::i32, format::bfyx);
+        auto input_mem = engine.allocate_memory(in_layout);
+
+        std::vector<int32_t> in_data(input_length);
+        std::fill(in_data.begin(), in_data.end(), 1);
+
+        set_values(input_mem, in_data);
+        auto outputs = _test.execute(input_mem);
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        auto output = outputs.at("count_nonzero").get_memory();
+        cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
+
+        auto count_non_zero = ngraph::runtime::reference::non_zero_get_count<int32_t>(in_data.data(), in_layout.get_shape());
+        ASSERT_EQ(count_non_zero, output_ptr[0]);
+    }
 }
 
 template<typename T>
