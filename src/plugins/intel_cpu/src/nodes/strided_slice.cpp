@@ -39,57 +39,75 @@ bool StridedSlice::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
     return true;
 }
 
-inline int calculate_output_shape(const int& startIdx, const int& stopIdx, const int& step, const int& len) {
-    auto start = (startIdx > len - 1) ? len - 1 : ((startIdx % len + len) % len);
-    auto stop = (stopIdx > len - 1)   ? len     : ((stopIdx % len + len) % len);
-    return (stop - start + step - 1) / step;
+// keep it in mind:
+// The calculate_output_shape function is designed based on the premise that the len parameter is a positive integer greater than 0.
+// If the len parameter is equal to 0, the output result will be 0 directly, and there is no need to call the function separately.
+inline int calculate_output_shape(int64_t startIdx, int64_t stopIdx, int64_t step, int64_t len) {
+    if (startIdx < 0) {
+        startIdx = startIdx < -len ? 0 : startIdx + len;
+    } else {
+        startIdx = startIdx > (len - 1) ? len : startIdx;
+    }
+
+    if (stopIdx < 0) {
+        stopIdx = stopIdx < -len ? 0 : stopIdx + len;
+    } else {
+        stopIdx = stopIdx > (len - 1) ? len : stopIdx;
+    }
+
+    if (step < 0) {
+        step = -step;
+    }
+    return (stopIdx - startIdx + step - 1) / step;
 }
 
 class StridedSliceShapeInfer : public ShapeInferEmptyPads {
 public:
-    StridedSliceShapeInfer(const std::shared_ptr<ov::Node>& op,
-                           const IShapeInfer::port_mask_t& port_mask,
-                           const std::set<int64_t>& begin_mask,
-                           const std::set<int64_t>& end_mask,
-                           const std::set<int64_t>& new_axis_mask,
-                           const std::set<int64_t>& shrink_axis_mask)
-    : m_op(op), m_port_mask(port_mask), m_outputShape(op->get_output_partial_shape(0).rank().get_length(), 1),
-      m_begin_mask_set(begin_mask), m_end_mask_set(end_mask), m_new_axis_mask_set(new_axis_mask), m_shrink_axis_mask_set(shrink_axis_mask) {}
+    StridedSliceShapeInfer(const IShapeInfer::port_mask_t& port_mask,
+                           size_t output_size,
+                           std::unordered_set<int64_t> begin_mask,
+                           std::unordered_set<int64_t> end_mask,
+                           std::unordered_set<int64_t> new_axis_mask,
+                           std::unordered_set<int64_t> shrink_axis_mask)
+    : m_port_mask(port_mask), m_outputShape(output_size, 1),
+      m_begin_mask_set(std::move(begin_mask)),
+      m_end_mask_set(std::move(end_mask)),
+      m_new_axis_mask_set(std::move(new_axis_mask)),
+      m_shrink_axis_mask_set(std::move(shrink_axis_mask)) {}
 
-    std::vector<VectorDims> infer(
+    Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         const VectorDims& shapeIn = input_shapes[0].get();
         const VectorDims& shapeBegin = input_shapes[1].get();
-        auto beginPtr = reinterpret_cast<int *>(data_dependency.at(1)->GetPtr());
-        auto endPtr = reinterpret_cast<int *>(data_dependency.at(2)->GetPtr());
-        auto stridePtr = reinterpret_cast<int *>(data_dependency.at(3)->GetPtr());
+        if (data_dependency.at(1)->GetDataType() != dnnl::memory::data_type::s32) {
+            IE_THROW(Unexpected) << "The data type of begin/end/stride is NOT s32, which is unexpected!";
+        }
+        auto beginPtr = reinterpret_cast<int32_t *>(data_dependency.at(1)->GetPtr());
+        auto endPtr = reinterpret_cast<int32_t *>(data_dependency.at(2)->GetPtr());
+        auto stridePtr = reinterpret_cast<int32_t *>(data_dependency.at(3)->GetPtr());
 
         for (auto i = 0, new_idx = 0; i < shapeIn.size(); ++i) {
-            bool is_new_axis = m_new_axis_mask_set.count(i);
-            bool is_shrink_axis = m_shrink_axis_mask_set.count(i);
-            bool is_begin_axis = m_begin_mask_set.count(i);
-            bool is_end_axis = m_end_mask_set.count(i);
-
-            if (is_new_axis) {
+            if (m_new_axis_mask_set.count(i)) {
+                // deal with new_axis_mask
                 m_outputShape[new_idx] = 1;
                 m_outputShape[new_idx+1] = shapeIn[i];
                 new_idx+=2;
-                continue;
-            }
-            if (is_shrink_axis) {
-                continue;
-            }
-            if (i<shapeBegin[0]) {
-                auto begin = is_begin_axis ? 0 : beginPtr[i];
-                auto end  = is_end_axis ? shapeIn[i] : endPtr[i];
-                m_outputShape[new_idx] = calculate_output_shape(begin, end, stridePtr[i], shapeIn[i]);
+            } else if (m_shrink_axis_mask_set.count(i)) {
+                // deal with shrink_axis_mask
             } else {
-                m_outputShape[new_idx] = shapeIn[i];
+                // deal with begin_mask and end_mask
+                if ((i >= shapeBegin[0]) || (shapeIn[i] == 0)) {
+                    m_outputShape[new_idx] = shapeIn[i];
+                } else {
+                    auto begin = m_begin_mask_set.count(i) ? 0 : beginPtr[i];
+                    auto end  = m_end_mask_set.count(i) ? shapeIn[i] : endPtr[i];
+                    m_outputShape[new_idx] = calculate_output_shape(begin, end, stridePtr[i], shapeIn[i]);
+                }
+                new_idx += 1;
             }
-            new_idx += 1;
         }
-        return {m_outputShape};
+        return {{m_outputShape}, ShapeInferStatus::success};
     }
 
     port_mask_t get_port_mask() const override {
@@ -97,19 +115,18 @@ public:
     }
 
 private:
-    const std::shared_ptr<ov::Node> m_op;
     const IShapeInfer::port_mask_t m_port_mask;
     VectorDims m_outputShape;
     // set
-    std::set<int64_t> m_begin_mask_set;
-    std::set<int64_t> m_end_mask_set;
-    std::set<int64_t> m_new_axis_mask_set;
-    std::set<int64_t> m_shrink_axis_mask_set;
+    const std::unordered_set<int64_t> m_begin_mask_set;
+    const std::unordered_set<int64_t> m_end_mask_set;
+    const std::unordered_set<int64_t> m_new_axis_mask_set;
+    const std::unordered_set<int64_t> m_shrink_axis_mask_set;
 };
 
 class StridedSliceShapeInferFactory : public ShapeInferFactory {
 public:
-    StridedSliceShapeInferFactory(const std::shared_ptr<ov::Node>& op, const IShapeInfer::port_mask_t& port_mask)
+    StridedSliceShapeInferFactory(const std::shared_ptr<ov::Node>& op, IShapeInfer::port_mask_t port_mask)
     : m_op(op), m_port_mask(port_mask) {}
     ShapeInferPtr makeShapeInfer() const override {
         if (const auto Slice_op = ov::as_type_ptr<const ov::op::v8::Slice>(m_op)) {
@@ -120,8 +137,8 @@ public:
                 return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), m_port_mask);
             } else {
                 auto vec_to_set = [](const std::vector<int64_t>& vec){
-                    std::set<int64_t> to_set;
-                    for (auto i=0; i<vec.size(); ++i) {
+                    std::unordered_set<int64_t> to_set;
+                    for (auto i = 0; i < vec.size(); ++i) {
                         if (vec[i] == 1) {
                             to_set.emplace(i);
                         }
@@ -129,7 +146,8 @@ public:
                     return to_set;
                 };
                 return std::make_shared<StridedSliceShapeInfer>(
-                    m_op, m_port_mask,
+                    m_port_mask,
+                    m_op->get_output_partial_shape(0).rank().get_length(),
                     vec_to_set(StridedSlice_op->get_begin_mask()),
                     vec_to_set(StridedSlice_op->get_end_mask()),
                     vec_to_set(StridedSlice_op->get_new_axis_mask()),
@@ -139,6 +157,7 @@ public:
             IE_THROW(NotImplemented) << "not Slice or StridedSlice";
         }
     }
+
 private:
     const std::shared_ptr<ov::Node> m_op;
     const IShapeInfer::port_mask_t m_port_mask;
