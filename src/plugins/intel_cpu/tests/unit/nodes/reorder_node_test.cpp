@@ -34,7 +34,7 @@ inline void checkReorder(const ov::intel_cpu::Memory& inputMemory,
     const dnnl::impl::memory_desc_wrapper mdwOutput(mdOutput.data);
     auto nelems = mdwInput.nelems();
 
-    for (size_t i = 0; i < nelems; ++i) {
+    for (dnnl::impl::dim_t i = 0; i < nelems; ++i) {
         auto srcOffset = mdwInput.off_l(i, false);
         auto dstOffset = mdwOutput.off_l(i, false);
         switch (prescision) {
@@ -75,11 +75,11 @@ inline void fillData(const ov::intel_cpu::Memory& inputMemory, const InferenceEn
     auto inputReorderData = inputMemory.GetData();
     switch (prec) {
     case InferenceEngine::Precision::FP32:
-        for (size_t i = 0; i < elemNum; ++i)
+        for (int64_t i = 0; i < elemNum; ++i)
             *(static_cast<float*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<float>(i);
         break;
     case InferenceEngine::Precision::I8:
-        for (size_t i = 0; i < elemNum; ++i)
+        for (int64_t i = 0; i < elemNum; ++i)
             *(static_cast<int8_t*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<int8_t>(i);
         break;
     default:
