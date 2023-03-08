@@ -4,9 +4,9 @@
 
 Template for ModelPass transformation class
 
-@snippet src/transformations/template_model_transformation.hpp model_pass:template_transformation_hpp
+@snippet template_model_transformation.hpp model_pass:template_transformation_hpp
 
-@snippet src/transformations/template_model_transformation.cpp model_pass:template_transformation_cpp
+@snippet template_model_transformation.cpp model_pass:template_transformation_cpp
 
 Using `ov::pass::ModelPass`, you need to override the `run_on_model` method where you will write the transformation code.
 Return value is `true` if the original model has changed during transformation (new operation was added, or operations replacement was made, or node attributes were changed); otherwise, it is `false`.

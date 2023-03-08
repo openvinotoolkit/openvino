@@ -3,9 +3,9 @@
 `ov::pass::MatcherPass` is used for pattern-based transformations.
 
 Template for MatcherPass transformation class
-@snippet src/transformations/template_pattern_transformation.hpp graph_rewrite:template_transformation_hpp
+@snippet template_pattern_transformation.hpp graph_rewrite:template_transformation_hpp
 
-@snippet src/transformations/template_pattern_transformation.cpp graph_rewrite:template_transformation_cpp
+@snippet template_pattern_transformation.cpp graph_rewrite:template_transformation_cpp
 
 To use `ov::pass::MatcherPass`, you need to complete these steps:
 1. Create a pattern
@@ -43,7 +43,7 @@ That means that matcher passes registered in `ov::pass::GraphRewrite` will be ap
 
 The example below shows how single MatcherPass can fuse sequence of operations using the `register_new_node` method.
 
-@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:relu_fusion
+@snippet template_pattern_transformation.cpp matcher_pass:relu_fusion
 
 > **NOTE**: If you register multiple nodes, please add them in topological order. We do not topologically sort these nodes as it is a time-consuming operation.
 
@@ -60,11 +60,11 @@ register_matcher(m, callback);
 
 MatcherPass has multiple ways to be executed:
 * Run on a single node - it can be useful if you want to run MatcherPass inside another transformation.
-@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:run_on_node
+@snippet template_pattern_transformation.cpp matcher_pass:run_on_node
 * Run on `ov::Model` using GraphRewrite - this approach gives ability to run MatcherPass on whole `ov::Model`. Moreover, multiple MatcherPass transformation can be registered in a single GraphRewite to be executed in a single graph traversal.
-@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:graph_rewrite
+@snippet template_pattern_transformation.cpp matcher_pass:graph_rewrite
 * Run on `ov::Model` using `ov::pass::Manager` - this approach helps you to register MatcherPass for execution on `ov::Model` as another transformation types.
-@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:manager
+@snippet template_pattern_transformation.cpp matcher_pass:manager
 
 ## Pattern Matching <a name="pattern_matching"></a>
 

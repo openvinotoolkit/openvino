@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "template_config.hpp"
+#include "config.hpp"
 
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 #include <ie_plugin_config.hpp>
@@ -13,7 +13,7 @@ using namespace ov::template_plugin;
 
 Configuration::Configuration() {}
 
-Configuration::Configuration(const ConfigMap& config, const Configuration& defaultCfg, bool throwOnUnsupported) {
+Configuration::Configuration(const ov::AnyMap& config, const Configuration& defaultCfg, bool throwOnUnsupported) {
     *this = defaultCfg;
     // If plugin needs to use ov::threading::StreamsExecutor it should be able to process its configuration
     auto streamExecutorConfigKeys =
