@@ -8,7 +8,7 @@
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/graph/network.hpp"
-#include "meta_utils.h"
+#include "intel_gpu/runtime/utils.hpp"
 #include "program_node.h"
 #include "primitive_type.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
@@ -218,9 +218,6 @@ public:
     std::shared_ptr<const PType> get_typed_desc() const { return _impl_params->typed_desc<PType>(); }
 
     virtual void update_output_memory() {}
-
-    virtual size_t get_impl_key(const kernel_impl_params& params) const;
-    virtual size_t get_impl_key() const;
 
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);

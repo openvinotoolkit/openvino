@@ -10,7 +10,7 @@
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/strides.hpp"
 
-#include "meta_utils.h"
+#include "intel_gpu/runtime/utils.hpp"
 
 #include <algorithm>
 #include <cassert>
