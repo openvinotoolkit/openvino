@@ -3,7 +3,7 @@
 `ov::pass::GraphRewrite` serves for running multiple matcher passes on `ov::Model` in a single graph traversal.
 Example:
 
-@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:graph_rewrite
+@snippet template_pattern_transformation.cpp matcher_pass:graph_rewrite
 
 In addition, GraphRewrite handles nodes that were registered by MatcherPasses during their execution. This nodes will be added to the beginning of the sequence with nodes for pattern matching.
 

@@ -9,10 +9,10 @@
 #include "async_infer_request.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
+#include "itt.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "plugin.hpp"
 #include "template/config.hpp"
-#include "template_itt.hpp"
 #include "transformations/utils/utils.hpp"
 
 // ! [executable_network:ctor_cnnnetwork]

@@ -4,9 +4,9 @@
 
 #include "async_infer_request.hpp"
 
+#include "itt.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "sync_infer_request.hpp"
-#include "template_itt.hpp"
 
 // ! [async_infer_request:ctor]
 ov::template_plugin::AsyncInferRequest::AsyncInferRequest(

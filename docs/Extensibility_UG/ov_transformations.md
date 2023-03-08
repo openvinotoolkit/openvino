@@ -124,7 +124,7 @@ Manual constant folding is more preferable than `ov::pass::ConstantFolding()` be
 
 Below you can find an example of manual constant folding:
 
-@snippet src/transformations/template_pattern_transformation.cpp manual_constant_folding
+@snippet template_pattern_transformation.cpp manual_constant_folding
 
 ## Common mistakes in transformations <a name="common_mistakes"></a>
 
@@ -145,11 +145,11 @@ In addition, `ov::pass::Manager` has extended debug capabilities (find more info
 
 The example below shows basic usage of `ov::pass::Manager`
 
-@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:manager3
+@snippet template_pattern_transformation.cpp matcher_pass:manager3
 
 Another example shows how multiple matcher passes can be united into single GraphRewrite.
 
-@snippet src/transformations/template_pattern_transformation.cpp matcher_pass:manager2
+@snippet template_pattern_transformation.cpp matcher_pass:manager2
 
 ## How to debug transformations <a name="how-to-debug-transformations"></a>
 

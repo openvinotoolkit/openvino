@@ -34,7 +34,7 @@ The provided plugin class also has several fields:
 * `_waitExecutor` - a task executor that waits for a response from a device about device tasks completion.
 * `_cfg` of type `Configuration`:
 
-@snippet template/src/template_config.hpp configuration:header
+@snippet template/src/config.hpp configuration:header
 
 As an example, a plugin configuration has three value parameters:
 

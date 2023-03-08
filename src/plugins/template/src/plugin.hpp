@@ -6,10 +6,10 @@
 
 #include "backend.hpp"
 #include "compiled_model.hpp"
+#include "config.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/threading/itask_executor.hpp"
-#include "template_config.hpp"
 
 //! [plugin:header]
 namespace ov {
