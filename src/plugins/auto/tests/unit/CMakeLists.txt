@@ -5,15 +5,15 @@
 set(TARGET_NAME ieMultiPluginUnitTests)
 
 set(CI_BUILD_NUMBER "unittest")
-addVersionDefines(${OpenVINO_SOURCE_DIR}/src/plugins/auto/plugin.cpp CI_BUILD_NUMBER)
+addVersionDefines(${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/plugin.cpp CI_BUILD_NUMBER)
 add_definitions(-DMULTIUNITTEST)
 
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-        ADDITIONAL_SOURCE_DIRS ${OpenVINO_SOURCE_DIR}/src/plugins/auto ${OpenVINO_SOURCE_DIR}/src/plugins/auto/utils
+        ADDITIONAL_SOURCE_DIRS ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils
         INCLUDES
-            ${OpenVINO_SOURCE_DIR}/src/plugins/auto ${CMAKE_CURRENT_SOURCE_DIR}
+            ${OpenVINO_SOURCE_DIR}/src/plugins/auto ${CMAKE_CURRENT_SOURCE_DIR} ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src
         LINK_LIBRARIES
             ngraphFunctions
             openvino::runtime

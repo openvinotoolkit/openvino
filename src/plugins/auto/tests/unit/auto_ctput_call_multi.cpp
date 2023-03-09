@@ -8,7 +8,7 @@
 #include <common_test_utils/test_constants.hpp>
 #include <ngraph_functions/subgraph_builders.hpp>
 
-#include "plugin/mock_load_network_properties.hpp"
+#include "include/mock_load_network_properties.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"

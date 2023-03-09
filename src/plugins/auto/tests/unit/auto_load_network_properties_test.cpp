@@ -6,36 +6,56 @@
 #include <gtest/gtest.h>
 
 #include <common_test_utils/test_constants.hpp>
+#include <ie_core.hpp>
+#include <ie_metric_helpers.hpp>
+#include <multi-device/multi_device_config.hpp>
 #include <ngraph_functions/subgraph_builders.hpp>
+#include <openvino/runtime/core.hpp>
 
-#include "plugin/mock_load_network_properties.hpp"
+#include "include/mock_common.hpp"
+#include "include/mock_load_network_properties.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_ivariable_state_internal.hpp"
+#include "unit_test_utils/mocks/mock_iinfer_request.hpp"
 
 using ::testing::_;
 using ::testing::MatcherCast;
+using ::testing::Matches;
 using ::testing::NiceMock;
 using ::testing::Return;
+using ::testing::ReturnRef;
 using ::testing::StrEq;
 using ::testing::Throw;
-
-using namespace MockMultiDevice;
 using Config = std::map<std::string, std::string>;
-using ConfigParams = std::tuple<std::vector<std::string>>;
 
-// define a matcher to check if perf hint expects
-MATCHER_P(ComparePerfHint, perfHint, "Check if perf hint expects.") {
-    std::string arg_perfHint = "";
-    auto itor = arg.find(PluginConfigParams::KEY_PERFORMANCE_HINT);
-    if (itor != arg.end()) {
-        arg_perfHint = itor->second;
+// define a matcher if all the elements of subMap are contained in the map.
+MATCHER_P(MapContains, subMap, "Check if all the elements of the subMap are contained in the map.") {
+    if (subMap.empty())
+        return true;
+    for (auto& item : subMap) {
+        auto key = item.first;
+        auto value = item.second;
+        auto dest = arg.find(key);
+        if (dest == arg.end()) {
+            return false;
+        } else if (dest->second != value) {
+            return false;
+        }
     }
-
-    return perfHint == arg_perfHint;
+    return true;
 }
+using namespace MockMultiDevice;
 
-class LoadNetworkWithCTPUTMockTest : public ::testing::TestWithParam<ConfigParams> {
+using ConfigParams = std::tuple<std::string,               // virtual device name to load network
+                                std::vector<std::string>,  // hardware device name to expect loading network on
+                                Config>;                   // secondary property setting to device
+
+static std::vector<ConfigParams> testConfigs;
+
+class LoadNetworkWithSecondaryConfigsMockTest : public ::testing::TestWithParam<ConfigParams> {
 public:
     std::shared_ptr<NiceMock<MockICore>> core;
     std::shared_ptr<NiceMock<MockMultiPluginForLoadNetworkWithPropertiesTest>> plugin;
@@ -55,18 +75,53 @@ public:
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
+        std::string deviceName;
         std::vector<std::string> targetDevices;
-        std::tie(targetDevices) = obj.param;
+        Config deviceConfigs;
+        std::tie(deviceName, targetDevices, deviceConfigs) = obj.param;
         std::ostringstream result;
-        result << "ctput_loadnetwork_to_device_";
+        result << "_virtual_device_" << deviceName;
+        result << "_loadnetwork_to_device_";
         for (auto& device : targetDevices) {
-            if (device == targetDevices.back()) {
-                result << device;
-            } else {
-                result << device << "_";
-            }
+            result << device << "_";
         }
+        auto cpuConfig = deviceConfigs.find("CPU");
+        auto gpuConfig = deviceConfigs.find("GPU");
+        result << "device_properties_";
+        if (cpuConfig != deviceConfigs.end())
+            result << "CPU_" << cpuConfig->second << "_";
+        if (gpuConfig != deviceConfigs.end())
+            result << "GPU_" << gpuConfig->second;
         return result.str();
+    }
+
+    static std::vector<ConfigParams> CreateConfigs() {
+        testConfigs.clear();
+        testConfigs.push_back(
+            ConfigParams{"AUTO", {"CPU"}, {{"CPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
+        testConfigs.push_back(
+            ConfigParams{"AUTO", {"CPU", "GPU"}, {{"GPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
+        testConfigs.push_back(
+            ConfigParams{"AUTO:CPU", {"CPU"}, {{"CPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});
+        testConfigs.push_back(
+            ConfigParams{"AUTO:CPU,GPU", {"CPU"}, {{"CPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
+        testConfigs.push_back(
+            ConfigParams{"AUTO:GPU", {"GPU"}, {{"GPU", "NUM_STREAMS 5"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});
+        testConfigs.push_back(ConfigParams{"AUTO:GPU,CPU",
+                                           {"CPU", "GPU"},
+                                           {{"GPU", "NUM_STREAMS 5"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
+
+        testConfigs.push_back(
+            ConfigParams{"MULTI:CPU", {"CPU"}, {{"CPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});
+        testConfigs.push_back(ConfigParams{"MULTI:CPU,GPU",
+                                           {"CPU", "GPU"},
+                                           {{"CPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
+        testConfigs.push_back(
+            ConfigParams{"MULTI:GPU", {"GPU"}, {{"GPU", "NUM_STREAMS 5"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});
+        testConfigs.push_back(ConfigParams{"MULTI:GPU,CPU",
+                                           {"CPU", "GPU"},
+                                           {{"GPU", "NUM_STREAMS 5"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
+        return testConfigs;
     }
 
     void TearDown() override {
@@ -118,6 +173,8 @@ public:
 
         std::vector<std::string> configKeys = {"SUPPORTED_CONFIG_KEYS", "NUM_STREAMS"};
         ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _)).WillByDefault(Return(configKeys));
+
+        ON_CALL(*core, GetConfig(_, StrEq(ov::compilation_num_threads.name()))).WillByDefault(Return(12));
 
         ON_CALL(*plugin, ParseMetaDevices)
             .WillByDefault(
@@ -182,102 +239,36 @@ public:
     }
 };
 
-TEST_P(LoadNetworkWithCTPUTMockTest, CTPUTSingleDevLogicTest) {
+TEST_P(LoadNetworkWithSecondaryConfigsMockTest, LoadNetworkWithSecondaryConfigsTest) {
+    std::string device;
     std::vector<std::string> targetDevices;
     Config config;
-    std::tie(targetDevices) = this->GetParam();
+    std::tie(device, targetDevices, config) = this->GetParam();
+    if (device.find("AUTO") != std::string::npos)
+        plugin->SetName("AUTO");
+    if (device.find("MULTI") != std::string::npos)
+        plugin->SetName("MULTI");
 
-    plugin->SetName("AUTO");
-    config.insert({{CONFIG_KEY(PERFORMANCE_HINT), InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT}});
-
-    if (targetDevices.size() == 1) {
-        std::string targetDevice = targetDevices[0];
-        config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, targetDevices[0]});
-        // Call single device logic and performance hint is THROUGHPUT
-        EXPECT_CALL(*core,
-                    LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                                ::testing::Matcher<const std::string&>(targetDevice),
-                                ::testing::Matcher<const std::map<std::string, std::string>&>(
-                                    ComparePerfHint(InferenceEngine::PluginConfigParams::THROUGHPUT))))
-            .Times(1);
-        // no MULTI logic to be called
-        EXPECT_CALL(*core,
-                    LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                                ::testing::Matcher<const std::string&>("MULTI:" + targetDevice),
-                                ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
-            .Times(0);
-        // if target device only has GPU, no CPU helper to be called
-        if (targetDevice.find("GPU") != std::string::npos) {
-            EXPECT_CALL(*core,
-                        LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                                    ::testing::Matcher<const std::string&>(CommonTestUtils::DEVICE_CPU),
-                                    ::testing::Matcher<const std::map<std::string, std::string>&>(
-                                        ComparePerfHint(InferenceEngine::PluginConfigParams::LATENCY))))
-                .Times(0);
+    for (auto& deviceName : targetDevices) {
+        auto item = config.find(deviceName);
+        Config deviceConfigs;
+        if (item != config.end()) {
+            std::stringstream strConfigs(item->second);
+            // Parse the device properties to common property into deviceConfigs.
+            ov::util::Read<Config>{}(strConfigs, deviceConfigs);
         }
-    } else {
-        std::string targetDev;
-        for (auto& deviceName : targetDevices) {
-            targetDev += deviceName;
-            targetDev += ((deviceName == targetDevices.back()) ? "" : ",");
-        }
-        config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, targetDev});
-        // Call MULTI logic
-        EXPECT_CALL(*core,
-                    LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                                ::testing::Matcher<const std::string&>("MULTI:" + targetDev),
-                                ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
+        EXPECT_CALL(
+            *core,
+            LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                        ::testing::Matcher<const std::string&>(deviceName),
+                        ::testing::Matcher<const std::map<std::string, std::string>&>(MapContains(deviceConfigs))))
             .Times(1);
-        // no CPU helper to be called
-        EXPECT_CALL(*core,
-                    LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                                ::testing::Matcher<const std::string&>(CommonTestUtils::DEVICE_CPU),
-                                ::testing::Matcher<const std::map<std::string, std::string>&>(
-                                    ComparePerfHint(InferenceEngine::PluginConfigParams::LATENCY))))
-            .Times(0);
     }
 
     ASSERT_NO_THROW(plugin->LoadExeNetworkImpl(simpleCnnNetwork, config));
 }
 
-using LoadNetworkWithCTPUTMockTestExeDevice = LoadNetworkWithCTPUTMockTest;
-TEST_P(LoadNetworkWithCTPUTMockTestExeDevice, CTPUTSingleDevExecutionDevie) {
-    std::vector<std::string> targetDevices;
-    Config config;
-    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> exeNetwork;
-    std::tie(targetDevices) = this->GetParam();
-
-    plugin->SetName("AUTO");
-    config.insert({{CONFIG_KEY(PERFORMANCE_HINT), InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT}});
-
-    std::string targetDevice = targetDevices[0];
-    config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, targetDevices[0]});
-    // Call single device logic and performance hint is THROUGHPUT
-
-    ON_CALL(*cpuMockIExeNet.get(), GetMetric(StrEq(ov::execution_devices.name())))
-        .WillByDefault(Throw(InferenceEngine::GeneralError{""}));
-
-    ASSERT_NO_THROW(exeNetwork = plugin->LoadExeNetworkImpl(simpleCnnNetwork, config));
-    EXPECT_EQ(exeNetwork->GetMetric(ov::execution_devices.name()).as<std::string>(), CommonTestUtils::DEVICE_CPU);
-}
-
-const std::vector<ConfigParams> testConfigs = {
-    ConfigParams{{"CPU"}},
-    ConfigParams{{"GPU"}},
-    ConfigParams{{"CPU", "GPU"}},
-    ConfigParams{{"GPU", "CPU"}},
-};
-
-INSTANTIATE_TEST_SUITE_P(smoke_AutoMock_CTPUTSingleDevLogicTest,
-                         LoadNetworkWithCTPUTMockTest,
-                         ::testing::ValuesIn(testConfigs),
-                         LoadNetworkWithCTPUTMockTest::getTestCaseName);
-
-const std::vector<ConfigParams> executionDevieTestConfigs = {
-    ConfigParams{{"CPU"}},
-};
-
-INSTANTIATE_TEST_SUITE_P(smoke_AutoCTPUTExecutionDevice,
-                         LoadNetworkWithCTPUTMockTestExeDevice,
-                         ::testing::ValuesIn(executionDevieTestConfigs),
-                         LoadNetworkWithCTPUTMockTestExeDevice::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_AutoMock_LoadNetworkWithSecondaryConfigs,
+                         LoadNetworkWithSecondaryConfigsMockTest,
+                         ::testing::ValuesIn(LoadNetworkWithSecondaryConfigsMockTest::CreateConfigs()),
+                         LoadNetworkWithSecondaryConfigsMockTest::getTestCaseName);
