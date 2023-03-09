@@ -198,6 +198,16 @@ bool concat_in_place_optimization::match(concatenation_node& node) {
         if (input.first->get_users().size() > 2)
             return false;
 
+        // If sibling is using onednn impl and batch > 1, the onednn impl cannot process the implicit concat'ed buffer.
+        // Onednn impls can process implicit concat'ed buffer only through buffer pointer manipulation.
+        if (node.get_output_layout().batch() > 1) {
+            for (auto& sib : input.first->get_users()) {
+                if (sib->get_preferred_impl_type() == impl_types::onednn) {
+                    return false;
+                }
+            }
+        }
+
         // Check that input isn't optimized out concatenation along different axis.
         if (input.first->is_type<concatenation>() && input.first->can_be_optimized() &&
             input.first->as<concatenation>().get_primitive()->axis != concat_axis)
