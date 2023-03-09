@@ -34,13 +34,13 @@ std::vector<std::vector<int>> apply_core_type(const SchedulingCoreType input_typ
         break;
     case SchedulingCoreType::ECORE_ONLY:
         if ((proc_type_table[0][EFFICIENT_CORE_PROC] > 0) &&
-            ((proc_type_table[0][MAIN_CORE_PROC] > 0) || (proc_type_table[0][HYPER_THREADING_PROC] > 0))) {
-            for (auto& i : result_table) {
-                i[ALL_PROC] -= i[MAIN_CORE_PROC] + i[HYPER_THREADING_PROC];
-                i[MAIN_CORE_PROC] = 0;
-                i[HYPER_THREADING_PROC] = 0;
+            (proc_type_table[0][EFFICIENT_CORE_PROC] != proc_type_table[0][ALL_PROC])) {
+                for (auto& i : result_table) {
+                    i[ALL_PROC] -= i[MAIN_CORE_PROC] + i[HYPER_THREADING_PROC];
+                    i[MAIN_CORE_PROC] = 0;
+                    i[HYPER_THREADING_PROC] = 0;
+                }
             }
-        }
         break;
     }
 

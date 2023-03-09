@@ -93,15 +93,18 @@ inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type)
  * @brief This property define core type can be used for CPU inference.
  * @ingroup ov_runtime_cpu_prop_cpp_api
  *
- * Developer can use this property to select specific CPU cores for CPU inference. Please refer SchedulingCoreType for all
- * definition of core type.
+ * Developer can use this property to select specific CPU cores for CPU inference. Please refer SchedulingCoreType for
+ * all definition of core type.
  *
- * The following code is example to only use efficient-cores for inference on hybrid CPU.
+ * The following code is example to only use efficient-cores for inference on hybrid CPU. If user sets this
+ * configuration on a platform with only performance-cores, CPU inference will still run on the performance-cores.
  *
  * @code
  * ie.set_property(ov::intel_cpu::scheduling_core_type(ov::intel_cpu::SchedulingCoreType::ECORE_ONLY));
  * @endcode
  */
 static constexpr Property<SchedulingCoreType> scheduling_core_type{"CPU_SCHEDULING_CORE_TYPE"};
+
 }  // namespace intel_cpu
 }  // namespace ov
+
