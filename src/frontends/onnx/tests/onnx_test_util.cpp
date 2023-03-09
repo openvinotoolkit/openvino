@@ -204,5 +204,21 @@ ComparisonResult compare_onnx_models(const std::string& model, const std::string
     const auto ref_model = onnx_common::parse_from_file(reference_model_path);
     return compare_onnx_graphs(model_proto.graph(), ref_model.graph(), comp);
 }
+
+std::string change_opset_version(const std::string& model,
+                                 const std::vector<int64_t>& new_opset_version,
+                                 const std::string& domain) {
+    std::stringstream model_stream{model};
+    auto model_proto = onnx_common::parse_from_istream(model_stream);
+    model_proto.clear_opset_import();
+    for (const auto& opset_version : new_opset_version) {
+        auto* opset_import = model_proto.add_opset_import();
+        opset_import->set_version(opset_version);
+        opset_import->set_domain(domain);
+    }
+
+    return model_proto.SerializeAsString();
+}
+
 }  // namespace test
 }  // namespace ngraph
