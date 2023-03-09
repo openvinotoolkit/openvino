@@ -113,9 +113,15 @@ namespace SubgraphTestsDefinitions {
         auto out_hidden = tensor_iterator->get_iter_value(H_o, -1);
         auto out_cell = tensor_iterator->get_iter_value(C_o, -1);
 
+        auto out_hidden_parameter = dynamic_cast<ov::op::v0::Parameter*>(out_hidden.get_node());
+        if (out_hidden_parameter != nullptr) {
+            out_hidden_parameter->set_element_type(ngPrc);
+        }
 
-        out_hidden.get_tensor().set_element_type(ngPrc);
-        out_cell.get_tensor().set_element_type(ngPrc);
+        auto out_cell_parameter = dynamic_cast<ov::op::v0::Parameter*>(out_cell.get_node());
+        if (out_cell_parameter != nullptr) {
+            out_cell_parameter->set_element_type(ngPrc);
+        }
 
         auto cell_memory_write = std::make_shared<Assign>(out_cell, var_cell);
         auto hidden_memory_write = std::make_shared<Assign>(out_hidden, var_hidden);
@@ -245,8 +251,15 @@ namespace SubgraphTestsDefinitions {
         auto out_hidden = tensor_iterator->get_iter_value(H_o, -1);
         auto out_cell = tensor_iterator->get_iter_value(C_o, -1);
 
-        out_hidden.get_tensor().set_element_type(ngPrc);
-        out_cell.get_tensor().set_element_type(ngPrc);
+        auto out_hidden_parameter = dynamic_cast<ov::op::v0::Parameter*>(out_hidden.get_node());
+        if (out_hidden_parameter != nullptr) {
+            out_hidden_parameter->set_element_type(ngPrc);
+        }
+
+        auto out_cell_parameter = dynamic_cast<ov::op::v0::Parameter*>(out_cell.get_node());
+        if (out_cell_parameter != nullptr) {
+            out_cell_parameter->set_element_type(ngPrc);
+        }
 
         auto final_reshape_pattern = std::make_shared<Constant>(element::i64, Shape{4},
                                                                                 std::vector<size_t>({1, 1, 1, hiddenSize}));

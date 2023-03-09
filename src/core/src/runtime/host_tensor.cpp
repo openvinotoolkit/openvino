@@ -130,11 +130,9 @@ bool runtime::HostTensor::get_is_allocated() const {
 }
 
 void runtime::HostTensor::set_element_type(const element::Type& element_type) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
     NGRAPH_CHECK(get_element_type().is_dynamic() || get_element_type() == element_type,
                  "Can not change a static element type");
-    m_descriptor->set_element_type(element_type);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    m_descriptor->m_element_type = element_type;
 }
 
 void runtime::HostTensor::set_shape(const Shape& shape) {
