@@ -88,10 +88,7 @@ def merge_xmls(xml_paths: list):
                         # workaround for unsaved reports
                         total_tests_count_xml, total_tests_count_summary = (0, 0)
                         for attr_name in device_results.find(op_result.tag).attrib:
-                            if attr_name == "passrate":
-                                continue
-                            # TODO
-                            if attr_name == "implemented":
+                            if "relative_" in attr_name or attr_name == "passrate" or attr_name == "implemented":
                                 continue
                             total_tests_count_xml += int(op_result.attrib.get(attr_name))
                             total_tests_count_summary += int(current_op_res.attrib.get(attr_name))

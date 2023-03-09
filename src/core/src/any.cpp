@@ -124,14 +124,6 @@ bool Any::operator!=(const Any& other) const {
     return !operator==(other);
 }
 
-Any::Base* Any::operator->() {
-    return _impl.get();
-}
-
-const Any::Base* Any::operator->() const {
-    return _impl.get();
-}
-
 void* Any::addressof() {
     return _impl != nullptr ? _impl->addressof() : nullptr;
 }
