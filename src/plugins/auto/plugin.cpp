@@ -483,6 +483,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         autoSContext->_LogTag = _LogTag;
         autoSContext->_bindBuffer = loadConfig.get_property(ov::intel_auto::device_bind_buffer);
         autoSContext->_startupfallback = loadConfig.get_property(ov::intel_auto::enable_startup_fallback);
+        autoSContext->_runtimeFallback = loadConfig.get_property(ov::intel_auto::enable_runtime_fallback);
         return std::make_shared<AutoExecutableNetwork>(autoSContext, std::make_shared<AutoSchedule>());
     }
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl:MultiMode");

@@ -56,8 +56,8 @@ public:
     ~MultiImmediateExecutor() override = default;
 
     void run(IE::Task task) override {
-        task();
         _task = std::move(task);
+        _task();
     }
     InferenceEngine::Task _task;
     int  count;
@@ -148,6 +148,7 @@ public:
     bool                                           _batchingDisabled = {false};
     bool                                           _bindBuffer = false;
     bool                                           _startupfallback = true;
+    bool                                           _runtimeFallback = true;
     virtual ~MultiScheduleContext() = default;
 };
 

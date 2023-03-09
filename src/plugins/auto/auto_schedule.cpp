@@ -79,28 +79,35 @@ void AutoSchedule::GenerateWorkers(const std::string& device,
                 IdleGuard<NotBusyPriorityWorkerRequests> idleGuard{workerRequestPtr, *idleWorkerRequestsPtr};
                 workerRequestPtr->_exceptionPtr = exceptionPtr;
                 {
-                    if (workerRequestPtr->_exceptionPtr != nullptr) {
+                    auto stopRetryAndContinue = [workerRequestPtr]() {
+                        auto capturedTask = std::move(workerRequestPtr->_task);
+                        capturedTask();
+                    };
+                    if (workerRequestPtr->_exceptionPtr != nullptr && _autoSContext->_runtimeFallback) {
                         if (workerRequestPtr->_testExec->count == 1) {
-                            auto capturedTask = std::move(workerRequestPtr->_task);
-                            capturedTask();
+                            stopRetryAndContinue();
                         } else {
-                            workerRequestPtr->_reload = true;
-                            auto capturedTask = std::move(workerRequestPtr->_testExec->_task);
+                            bool selectOtherDeviceFlag = false;
                             workerRequestPtr->_testExec->count++;
                             try {
-                                selectOtherDevice(workerRequestPtr->_deviceName);
+                                selectOtherDeviceFlag = selectOtherDevice(workerRequestPtr->_deviceName);
                             } catch (const IE::Exception&) {
+                                selectOtherDeviceFlag = false;
                             }
-                            if (_loadContext[FALLBACKDEVICE].isAlready) {
-                                workerRequestPtr->_startTimes.pop_back();
+                            if (selectOtherDeviceFlag) {
+                                workerRequestPtr->_reload = true;
+                                workerRequestPtr->_testExec->count = 0;
+                                // Add end time to current workerRequest
+                                workerRequestPtr->_endTimes.push_back(std::chrono::steady_clock::now());
+                                workerRequestPtr->_testExec->_task();
+                            } else {
+                                stopRetryAndContinue();
                             }
-                            capturedTask();
                         }
                     } else {
                         workerRequestPtr->_testExec->count = 0;
                         workerRequestPtr->_reload = false;
-                        auto capturedTask = std::move(workerRequestPtr->_task);
-                        capturedTask();
+                        stopRetryAndContinue();
                     }
                     // try to return the request to the idle list (fails if the overall object destruction has began)
                     if (idleGuard.Release()->try_push(std::make_pair(workerRequestPtr->_index, workerRequestPtr))) {
@@ -119,11 +126,12 @@ void AutoSchedule::GenerateWorkers(const std::string& device,
     }
 }
 
-void AutoSchedule::selectOtherDevice(std::string currentDeviceName) {
+bool AutoSchedule::selectOtherDevice(std::string currentDeviceName) {
     std::unique_lock<std::mutex> lck(_mutex);
     {
         std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
         _loadContext[FALLBACKDEVICE].isLoadSuccess = false;
+        _loadContext[FALLBACKDEVICE].workName = "";
         if (_autoSContext->_modelPath.empty())
             _loadContext[FALLBACKDEVICE].networkPrecision = GetNetworkPrecision(_autoSContext->_network);
         _loadContext[FALLBACKDEVICE].metaDevices = _autoSContext->_devicePriorities;
@@ -135,8 +143,12 @@ void AutoSchedule::selectOtherDevice(std::string currentDeviceName) {
                                             return d.deviceName.find(currentDeviceName) != std::string::npos;});
         if (CurrentDeviceIter != _autoSContext->_devicePriorities.end()) {
             _autoSContext->_devicePriorities.erase(CurrentDeviceIter);
+            if (_autoSContext->_devicePriorities.size() == 0) {
+                LOG_INFO_TAG("Select fallback device failed because of empty devicePriorities");
+                return false;
+            }
         } else {
-            return;
+            return false;
         }
     }
     _loadContext[FALLBACKDEVICE].deviceInfo =
@@ -150,7 +162,13 @@ void AutoSchedule::selectOtherDevice(std::string currentDeviceName) {
         _loadContext[ACTUALDEVICE].isLoadSuccess = false;
         _loadContext[ACTUALDEVICE].isAlready = false;
     }
-    LOG_INFO_TAG("Select fallback device:%s", _loadContext[FALLBACKDEVICE].deviceInfo.deviceName.c_str());
+    if (_loadContext[FALLBACKDEVICE].isLoadSuccess) {
+        LOG_INFO_TAG("Select fallback device:%s", _loadContext[FALLBACKDEVICE].deviceInfo.deviceName.c_str());
+        return true;
+    } else {
+        LOG_INFO_TAG("Select fallback device failed");
+        return false;
+    }
 }
 
 void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
@@ -168,10 +186,13 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     }
     _autoSContext->_config[IE::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = _autoSContext->_strDevices;
     std::string profilingTask = "AutoSchedule::AutoSchedule:AutoMode";
-    // loadContext[ACTUALDEVICE] and loadContext[FALLBACKDEVICE] is always enabled,
+    // loadContext[ACTUALDEVICE] is always enabled,
     // when there is CPU and there are more than two devices, loadContext[CPU] is enabled
     _loadContext[ACTUALDEVICE].isEnabled = true;
-    _loadContext[FALLBACKDEVICE].isEnabled = true;
+    if (_autoSContext->_runtimeFallback) {
+        _loadContext[FALLBACKDEVICE].isEnabled = true;
+        _loadContext[FALLBACKDEVICE].usefeature = false;
+    }
     if (_autoSContext->_modelPath.empty())
         _loadContext[ACTUALDEVICE].networkPrecision = GetNetworkPrecision(_autoSContext->_network);
     _loadContext[ACTUALDEVICE].metaDevices = _autoSContext->_devicePriorities;
@@ -232,7 +253,6 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
             _loadContext[CPU].isEnabled = false;
         }
     }
-    _loadContext[FALLBACKDEVICE].usefeature = false;
     // initialize the rest members of load context
     for (int i = 0; i < CONTEXTNUM; i++) {
         if (_loadContext[i].isEnabled) {

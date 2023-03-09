@@ -61,7 +61,7 @@ protected:
 private:
     void WaitFirstNetworkReady();
     void TryToLoadNetWork(AutoLoadContext& context, const std::string& modelPath, const IE::CNNNetwork& network);
-    void selectOtherDevice(std::string currentDeviceName);
+    bool selectOtherDevice(std::string currentDeviceName);
 
 private:
     IE::IStreamsExecutor::Ptr                _executor;
