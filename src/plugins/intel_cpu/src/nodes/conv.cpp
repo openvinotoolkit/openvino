@@ -626,8 +626,11 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
                 ops.append_sum(1.0, 0, DnnlExtensionUtils::IEPrecisionToDataType(eltwisePrecision));
             } else {
                 if (useLegacyPostOps) {
+                    bool forceBinary = false;
+                    // Temporary debug functionality to be able to force binary postops for any model
+                    CPU_DEBUG_CAP_ENABLE(if (std::getenv("OV_CPU_FORCE_ELTWISE_AS_BINARY")) {forceBinary = true;})
                     // try mapping with optimization w/o using binary postOps
-                    if (eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, false)) {
+                    if (eltwiseNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, forceBinary)) {
                         DEBUG_LOG("Append ", node->getName(), " as original post op without binary");
                         continue;
                     }
@@ -667,8 +670,11 @@ void Convolution::setPostOps(dnnl::primitive_attr& attr,
             }
 
             if (useLegacyPostOps) {
+                bool forceBinary = false;
+                // Temporary debug functionality to be able to force binary postops for any model
+                CPU_DEBUG_CAP_ENABLE(if (std::getenv("OV_CPU_FORCE_FQ_AS_BINARY")) {forceBinary = true;})
                 // can we implement it without binary postOps?
-                if (fakeQuantizeNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, false, do_rounding)) {
+                if (fakeQuantizeNode->appendAttrPostOps(dnnlpoc, isLastPostOp, outputDataType, forceBinary, do_rounding)) {
                     DEBUG_LOG("Append ", node->getName(), " as original post op without binary");
                     continue;
                 }

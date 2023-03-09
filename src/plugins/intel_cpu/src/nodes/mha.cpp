@@ -20,6 +20,7 @@
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
+using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::cpu::x64::matmul;
 using namespace Xbyak;
@@ -792,7 +793,7 @@ void MHA::init_brgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKerne
     brgemm_t brgDesc;
     brgemm_strides_t strides {static_cast<dnnl_dim_t>(ctx.M * ctx.K), static_cast<dnnl_dim_t>(ctx.K * ctx.N)};
 
-    const bool is_int8 = utils::one_of(ctx.dt_in0, data_type::u8, data_type::s8) && utils::one_of(ctx.dt_in1, data_type::u8, data_type::s8);
+    const bool is_int8 = one_of(ctx.dt_in0, data_type::u8, data_type::s8) && one_of(ctx.dt_in1, data_type::u8, data_type::s8);
     auto isa = use_amx ? isa_undef
         : ctx.dt_in0 == dnnl_data_type_t::dnnl_bf16 ? avx512_core_bf16 : (is_int8 ? avx512_core_vnni : avx512_core);
     auto status = brgemm_desc_init(&brgDesc, isa, brgemm_strd, ctx.dt_in0, ctx.dt_in1,
