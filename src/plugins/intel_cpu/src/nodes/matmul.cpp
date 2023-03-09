@@ -624,6 +624,7 @@ void MatMul::prepareParams() {
         primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
         matmul::primitive_desc prim_desc;
 
+        auto itpdFirst = itpd;
         while (static_cast<bool>(itpd))  {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
 
@@ -631,8 +632,10 @@ void MatMul::prepareParams() {
                 prim_desc = itpd.get();
                 break;
             }
-            if (!itpd.next_impl())
-                return matmul();
+            if (!itpd.next_impl()) {
+                prim_desc = itpdFirst.get();
+                break;
+            }
         }
         return matmul(prim_desc);
     };
