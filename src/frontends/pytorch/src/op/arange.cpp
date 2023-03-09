@@ -50,6 +50,7 @@ OutputVector translate_arange(NodeContext& context) {
         end = context.get_input(1);
         out_tensor = end;
         dtype_port = 2;
+        dtype_applied = true;
     } else if (num_inputs == 7) {
         // aten::arange(Scalar start, Scalar end, Scalar step, ScalarType dtype, Layout, Device, bool pin_memory)
         start = context.get_input(0);
@@ -57,6 +58,7 @@ OutputVector translate_arange(NodeContext& context) {
         step = context.get_input(2);
         out_tensor = end;
         dtype_port = 3;
+        dtype_applied = true;
     } else {
         FRONT_END_OP_CONVERSION_CHECK(false, "Not expected number of inputs for ", context.get_op_type());
     }
@@ -68,6 +70,7 @@ OutputVector translate_arange(NodeContext& context) {
         } else if (const auto& fw_node =
                        cast_fw_node(context.get_input(dtype_port).get_node_shared_ptr(), "prim::dtype")) {
             out_tensor = fw_node->input_value(0);
+            dtype_applied = false;
         } else {
             FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
         }

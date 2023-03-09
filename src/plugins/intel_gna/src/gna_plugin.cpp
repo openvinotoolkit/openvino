@@ -661,7 +661,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     const auto effectiveCompileTarget = config.target->get_effective_compile_target();
     graphCompiler.SetValidatorTarget(effectiveCompileTarget);
 
-    auto transformer = TransformationsPipeline(config, effectiveCompileTarget);
+    auto transformer = TransformationsPipeline(config);
 
     if (_network.getFunction()) {
         CNNNetwork clonedNetwork = InferenceEngine::cloneNetwork(_network);
@@ -1039,7 +1039,7 @@ void GNAPlugin::DumpXNNToFile() const {
     const auto& inputsDesc = inputs_ptr_->Get();
     const auto& outputsDesc = outputs_.Get();
 
-    if (config.target->get_effective_compile_target() == common::DeviceVersion::GNAEmbedded1_0) {
+    if (config.target->get_effective_compile_target() == target::DeviceVersion::GNA1_0) {
         auto dump = gnadevice->dumpXnn(modelId);
         dump.header.RwRegionSize = gnamem->getRegionBytes(REGION_SCRATCH);
         dump.header.InputScalingFactor = inputsDesc.begin()->scale_factor;
@@ -1631,7 +1631,7 @@ InferenceEngine::QueryNetworkResult GNAPlugin::QueryNetwork(
         auto supported = GetSupportedNodes(
             model,
             [&](std::shared_ptr<ov::Model>& model) {
-                TransformationsPipeline(qn_config, effectiveCompileTarget).apply(model);
+                TransformationsPipeline(qn_config).apply(model);
             },
             [&](const std::shared_ptr<ngraph::Node>& op) {
                 return limitations::is_op_supported(op, effectiveCompileTarget, qn_config.gnaPrecision);

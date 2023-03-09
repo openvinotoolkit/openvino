@@ -113,7 +113,7 @@ The `HETERO`, `MULTI`, `BATCH` and `AUTO` execution modes can also be used expli
 
 OpenVINO Runtime uses frontend libraries dynamically to read models in different formats:
 - `openvino_ir_frontend` is used to read OpenVINO IR.
-- `openvino_tensorflow_frontend` is used to read TensorFlow file format. Check [TensorFlow Frontend Capabilities and Limitations](../../resources/tensorflow_frontend.md).
+- `openvino_tensorflow_frontend` is used to read TensorFlow file format.
 - `openvino_onnx_frontend` is used to read ONNX file format.
 - `openvino_paddle_frontend` is used to read Paddle file format.
 

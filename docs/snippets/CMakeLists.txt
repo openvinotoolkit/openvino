@@ -47,10 +47,6 @@ list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide2.c
                          "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide3.cpp"
                          "${CMAKE_CURRENT_SOURCE_DIR}/dldt_optimization_guide4.cpp")
 
-# build separatelly as ov_integration_snippet and ov_integration_snippet_c
-list(REMOVE_ITEM SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/main.c"
-                         "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
-
 # create a static library
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
@@ -65,6 +61,7 @@ target_include_directories(${TARGET_NAME} PRIVATE "${OpenVINO_SOURCE_DIR}/src/in
                                                   "${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/frontends/common/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/core/template_extension/new/")
+ov_mark_target_as_cc(${TARGET_NAME})
 
 if(TARGET OpenCL::OpenCL)
     target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::OpenCL)
