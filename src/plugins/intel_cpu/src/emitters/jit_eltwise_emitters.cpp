@@ -35,9 +35,9 @@ InferenceEngine::Precision get_arithmetic_binary_exec_precision(const std::share
 } // namespace
 
 /// ADD ///
-jit_add_emitter::jit_add_emitter(x64::jit_generator* host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node)
+jit_add_emitter::jit_add_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node)
 : jit_emitter(host, host_isa, node, get_arithmetic_binary_exec_precision(node)) {}
-jit_add_emitter::jit_add_emitter(x64::jit_generator * host, x64::cpu_isa_t host_isa, Precision exec_prc)
+jit_add_emitter::jit_add_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
 : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_add_emitter::get_inputs_num() const { return 2; }
@@ -366,7 +366,7 @@ void jit_floor_emitter::emit_isa(const std::vector<size_t> &in_vec_idxs, const s
 /// CEILING ///
 jit_ceiling_emitter::jit_ceiling_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node, Precision exec_prc)
 : jit_emitter(host, host_isa, node, exec_prc) {}
-jit_ceiling_emitter::jit_ceiling_emitter(x64::jit_generator* host, x64::cpu_isa_t host_isa, Precision exec_prc)
+jit_ceiling_emitter::jit_ceiling_emitter(x64::jit_generator *host, x64::cpu_isa_t host_isa, Precision exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
 
 size_t jit_ceiling_emitter::get_inputs_num() const { return 1; }

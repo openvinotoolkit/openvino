@@ -97,7 +97,6 @@
 // Snippets
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/common_optimizations.hpp"
-#include "snippets/op/subgraph.hpp"
 
 // Misc
 #include "nodes/mvn.h"
@@ -612,8 +611,7 @@ void Transformations::MainSnippets(void) {
                                                            ov::is_type<const ov::op::v0::MatMul>(n) ||
                                                            ov::is_type<const ov::op::v1::Transpose>(n) ||
                                                            ov::is_type<const ov::op::v1::Broadcast>(n) ||
-                                                           ov::is_type<const ov::op::v3::Broadcast>(n) ||
-                                                           (!ngraph::snippets::op::Subgraph::check_broadcast(n)));
+                                                           ov::is_type<const ov::op::v3::Broadcast>(n));
                     const auto& inputs = n->inputs();
                     // todo: clarify whether we can evaluate snippets on const paths
                     const bool has_only_const_inputs = std::all_of(inputs.begin(), inputs.end(),

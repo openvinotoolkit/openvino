@@ -101,7 +101,6 @@ public:
     bool is_quantized() const { return config.m_is_quantized; }
     bool has_type_relaxed_ops() const { return config.m_has_type_relaxed_ops; }
     bool has_domain_sensitive_ops() const { return config.m_has_domain_sensitive_ops; }
-
     snippets::Schedule generate(const BlockedShapeVector& output_shapes,
                                 const BlockedShapeVector& input_shapes,
                                 ngraph::pass::Manager& pre_dialect,
@@ -109,11 +108,10 @@ public:
                                 ngraph::pass::Manager& post_precision,
                                 const void* compile_params = nullptr);
     snippets::Schedule generate(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes, const void* compile_params = nullptr);
-    snippets::Schedule generate(
-        ngraph::pass::Manager& pre_dialect,
-        ngraph::pass::Manager& post_dialect,
-        ngraph::pass::Manager& post_precision,
-        const void* compile_params = nullptr);
+    snippets::Schedule generate(ngraph::pass::Manager& pre_dialect,
+                                ngraph::pass::Manager& post_dialect,
+                                ngraph::pass::Manager& post_precision,
+                                const void* compile_params = nullptr);
     snippets::Schedule generate(const void* compile_params = nullptr);
     ov::PartialShape canonicalize(const BlockedShapeVector& output_shapes, const BlockedShapeVector& input_shapes);
     std::vector<PartialShape> reshape_body(const std::vector<PartialShape>& input_shapes);

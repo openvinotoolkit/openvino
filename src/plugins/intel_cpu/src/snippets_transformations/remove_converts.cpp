@@ -23,9 +23,9 @@ ov::intel_cpu::pass::RemoveConverts::RemoveConverts() {
         const auto child_convert = pm.at(child_convert_wrap).get_node_shared_ptr();
         if (
             (parent_convert->get_input_element_type(0) != element::f32) ||
-            (parent_convert->output(0).get_target_inputs().size() != 1ull) ||
-            (parent_convert->output(0).get_element_type() != element::bf16) ||
-            (child_convert->output(0).get_element_type() != element::f32)) {
+            (parent_convert->get_output_target_inputs(0).size() != 1ull) ||
+            (parent_convert->get_output_element_type(0) != element::bf16) ||
+            (child_convert->get_output_element_type(0) != element::f32)) {
             return false;
         }
 

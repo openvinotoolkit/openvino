@@ -16,6 +16,11 @@ namespace test {
 namespace snippets {
 
 namespace {
+
+/**
+ * @class DummyAdd
+ * @brief DummyAdd operation has custom validate_and_infer_types method implementation.
+ */
 class DummyAdd : public ngraph::opset1::Add {
 public:
     OPENVINO_OP("DummyAdd", "test::snippets");
@@ -51,11 +56,11 @@ public:
     }
 };
 
-class DummyPrecisionPropogationTargetMachine : public DummyTargetMachine {
+class DummyPrecisionPropagationTargetMachine : public DummyTargetMachine {
 public:
-    DummyPrecisionPropogationTargetMachine(
-        const std::set<std::vector<element::Type>> op1_supported_precisions,
-        const std::set<std::vector<element::Type>> op2_supported_precisions)
+    DummyPrecisionPropagationTargetMachine(
+        const std::set<std::vector<element::Type>>& op1_supported_precisions,
+        const std::set<std::vector<element::Type>>& op2_supported_precisions)
         : DummyTargetMachine() {
         jitters[DummyAdd::get_type_info_static()] = ngraph::snippets::jitters_value {
             [](const std::shared_ptr<ngraph::Node>& n) { return std::make_shared<DummyEmitter>(); },
@@ -117,7 +122,7 @@ TEST_P(PrecisionPropagationTest, CompareFunctions) {
                                                            test_values.actual.convertion_before_op2_1,
                                                            test_values.actual.convertion_before_op2_2);
 
-    const auto target_machine = std::make_shared<DummyPrecisionPropogationTargetMachine>(
+    const auto target_machine = std::make_shared<DummyPrecisionPropagationTargetMachine>(
         test_values.actual.op1_supported_precisions,
         test_values.actual.op2_supported_precisions);
 

@@ -50,7 +50,7 @@ std::string CheckBroadcast::getTestCaseName(testing::TestParamInfo<CheckBroadcas
 
     std::ostringstream result;
     result << "IS=" << test_case_params.input_shapes.first.get_shape() << "_" <<
-        test_case_params.input_shapes.first.get_shape() << "_";
+        test_case_params.input_shapes.second.get_shape() << "_";
     result << "IT=" << input_type << "_";
     result << "BCT=" << test_case_params.broadcast.m_type << "_";
     result << "BCA=" << test_case_params.broadcast.m_axis << "_";

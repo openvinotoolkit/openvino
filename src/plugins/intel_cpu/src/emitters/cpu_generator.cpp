@@ -30,7 +30,7 @@ using namespace ngraph::snippets;
     [this](const std::shared_ptr<ngraph::Node>& n) -> std::shared_ptr<ngraph::snippets::Emitter> { \
         return std::make_shared<e_type>(h.get(), isa, n); \
     }, \
-    [this](const std::shared_ptr<ngraph::Node>& n) -> std::set<std::vector<element::Type>> { \
+    [](const std::shared_ptr<ngraph::Node>& n) -> std::set<std::vector<element::Type>> { \
         return e_type::get_supported_precisions(n); \
     } \
 };

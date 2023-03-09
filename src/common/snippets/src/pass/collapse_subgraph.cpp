@@ -209,10 +209,14 @@ auto get_num_result_children(const std::shared_ptr<const Node> &node) -> size_t 
 } // namespace
 
 const std::set<ngraph::element::Type> ngraph::snippets::pass::TokenizeSnippets::supported_element_types =
-        { ngraph::element::f32, ngraph::element::bf16, ngraph::element::i8, ngraph::element::u8, ngraph::element::i32 };
+        { ngraph::element::f32, ngraph::element::bf16, ngraph::element::i8, ngraph::element::u8 };
 
 bool TokenizeSnippets::AppropriateForSubgraph(const std::shared_ptr<const Node> &node) {
-    return is_supported_op(node) && has_supported_in_out(node) && node->get_control_dependencies().empty();
+    return
+        is_supported_op(node) &&
+        has_supported_in_out(node) &&
+        node->get_control_dependencies().empty() &&
+        snippets::op::Subgraph::check_broadcast(node);
 }
 
 TokenizeSnippets::TokenizeSnippets() {

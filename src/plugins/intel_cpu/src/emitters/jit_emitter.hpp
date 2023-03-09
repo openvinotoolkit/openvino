@@ -50,9 +50,11 @@ public:
     virtual size_t aux_vecs_count() const;
     emitter_in_out_map get_in_out_type() const;
 
-    // returns supported precisions
-    // precisions are ordered, the first bigger bitnes precision with the same type will be selected
-    // empty collection means an emitter supports any input precisions
+    /**
+     * @brief Returns supported precisions.
+     * Precisions are ordered, the first bigger bitness precision with the same type will be selected.
+     * Empty collection means the emitter supports any input precisions.
+     */
     static std::set<std::vector<element::Type>> get_supported_precisions(const std::shared_ptr<ngraph::Node>& node = nullptr);
 
 protected:

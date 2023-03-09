@@ -13,7 +13,7 @@ namespace pass {
 
 /**
  * @interface RemoveConverts
- * @brief Remove sequence of two ConvertSaturation operations for specific precisions: FP32 => FP16 => FP32
+ * @brief Remove sequence of two ConvertSaturation operations for specific precisions: FP32 => BF16 => FP32
  * @ingroup snippets
  */
 class RemoveConverts : public ngraph::pass::MatcherPass {

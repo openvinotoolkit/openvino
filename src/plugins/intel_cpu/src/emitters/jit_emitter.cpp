@@ -3,7 +3,6 @@
 //
 
 #include "jit_emitter.hpp"
-#include <assert.h>
 #include <vector>
 #include "utils/general_utils.h"
 

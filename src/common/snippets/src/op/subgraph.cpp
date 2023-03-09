@@ -7,7 +7,6 @@
 
 #include "snippets/op/subgraph.hpp"
 #include "snippets/op/convert_saturation.hpp"
-#include "snippets/pass/convert_to_snippets_opset.hpp"
 #include "snippets/pass/insert_load_store.hpp"
 #include "snippets/pass/insert_movebroadcast.hpp"
 #include "snippets/pass/broadcast_to_movebroadcast.hpp"
@@ -594,8 +593,6 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
             manager.register_pass<snippets::pass::ResetBufferState>();
         }
     }
-    // TODO: not implemented: 104284
-    //manager.register_pass<snippets::pass::ConvertToSnippetsOpset>();
     manager.run_passes(body_ptr());
 }
 

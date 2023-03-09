@@ -175,7 +175,7 @@ bool ngraph::snippets::pass::PropagatePrecision::run_on_model(const std::shared_
                 const auto op_element_type = op->get_input_element_type(0);
                 if (type_relaxed_node->get_overridden_output_type(0) != op_element_type) {
                     was_updated = true;
-                    assert(op->get_output_size() == 1ull);
+                    OPENVINO_ASSERT(op->get_output_size() == 1ull, "operation with several output is not supported");
 
                     type_relaxed_node->set_overridden_output_type(op_element_type, 0);
                     op->validate_and_infer_types();

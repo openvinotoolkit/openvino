@@ -75,9 +75,7 @@ public:
     virtual ~TargetMachine() = default;
 
 protected:
-    std::map<
-        const ngraph::DiscreteTypeInfo,
-        jitters_value> jitters;
+    std::map<const ngraph::DiscreteTypeInfo, jitters_value> jitters;
 };
 
 /**
