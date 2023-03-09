@@ -2256,8 +2256,8 @@ TEST_P(CachingTest, LoadMulti_NoCachingOnDevice) {
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _, _)).Times(0);
         EXPECT_CALL(*mockPlugin, LoadExeNetworkImpl(_, _)).Times(TEST_DEVICE_MAX_COUNT);
         // Load network from file shall not be called by Multi plugin for devices with caching supported
-        EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile()).Times(0);
-
+        EXPECT_CALL(*mockPlugin, OnLoadNetworkFromFile())
+            .Times(m_type == TestLoadType::ECNN ? 0 : TEST_DEVICE_MAX_COUNT);
         EXPECT_CALL(*mockPlugin, ImportNetwork(_, _, _)).Times(0);
         EXPECT_CALL(*mockPlugin, ImportNetwork(_, _)).Times(0);
         for (auto& net : networks) {

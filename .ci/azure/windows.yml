@@ -302,6 +302,9 @@ jobs:
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
 
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_auto_batch_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_auto_batch_unit_tests.xml
+    displayName: 'AutoBatch UT'
+
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_template_func_tests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
 
