@@ -16,7 +16,8 @@ static const char help_message[] = "Print a usage message.";
 /// @brief message for input data argument
 static const char input_message[] = "Required. Paths to input file(s). "
                                     "Usage for a single file/layer: <input_file.ark> or <input_file.npz>. "
-                                    "Example of usage for several files/layers: <layer1>:<port_num1>=<input_file1.ark>,<layer2>:<port_num2>=<input_file2.ark>.";
+                                    "Example of usage for several files/layers: "
+                                    "<layer1>:<port_num1>=<input_file1.ark>,<layer2>:<port_num2>=<input_file2.ark>.";
 
 /// @brief message for model argument
 static const char model_message[] = "Required. Path to an .xml file with a trained model (required if -rg is missing).";
@@ -69,7 +70,8 @@ static const char output_message[] =
 static const char reference_score_message[] =
     "Optional. Read reference score file(s) and compare inference results with reference scores. "
     "Usage for a single file/layer: <reference_file.ark> or <reference_file.npz>. "
-    "Example of usage for several files/layers: <layer1>:<port_num1>=<reference_file1.ark>,<layer2>:<port_num2>=<reference_file2.ark>.";
+    "Example of usage for several files/layers: "
+    "<layer1>:<port_num1>=<reference_file1.ark>,<layer2>:<port_num2>=<reference_file2.ark>.";
 
 /// @brief message for read GNA model argument
 static const char read_gna_model_message[] =
