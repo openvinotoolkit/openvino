@@ -3,11 +3,11 @@
 @sphinxdirective
 
 
-The GPU plugin implementation of the `ov::RemoteContext` and `ov::RemoteTensor` interfaces supports GPU
+The GPU plugin implementation of the ``ov::RemoteContext`` and ``ov::RemoteTensor`` interfaces supports GPU
 pipeline developers who need video memory sharing and interoperability with existing native APIs, 
 such as OpenCL, Microsoft DirectX, or VAAPI.
 
-The `ov::RemoteContext` and `ov::RemoteTensor` interface implementation targets the need for memory sharing and
+The ``ov::RemoteContext`` and ``ov::RemoteTensor`` interface implementation targets the need for memory sharing and
 interoperability with existing native APIs, such as OpenCL, Microsoft DirectX, and VAAPI.
 They allow you to avoid any memory copy overhead when plugging OpenVINO™ inference
 into an existing GPU pipeline. They also enable OpenCL kernels to participate in the pipeline to become
@@ -15,13 +15,13 @@ native buffer consumers or producers of the OpenVINO™ inference.
 
 There are two interoperability scenarios supported by the Remote Tensor API:
 
-* The GPU plugin context and memory objects can be constructed from low-level device, display, or memory handles and used to create the OpenVINO™ `ov::CompiledModel` or `ov::Tensor` objects.
+* The GPU plugin context and memory objects can be constructed from low-level device, display, or memory handles and used to create the OpenVINO™ ``ov::CompiledModel`` or ``ov::Tensor`` objects.
 * The OpenCL context or buffer handles can be obtained from existing GPU plugin objects, and used in OpenCL processing on the application side.
 
 Class and function declarations for the API are defined in the following files:
 
-* Windows -- `openvino/runtime/intel_gpu/ocl/ocl.hpp` and `openvino/runtime/intel_gpu/ocl/dx.hpp`
-* Linux -- `openvino/runtime/intel_gpu/ocl/ocl.hpp` and `openvino/runtime/intel_gpu/ocl/va.hpp`
+* Windows -- ``openvino/runtime/intel_gpu/ocl/ocl.hpp`` and ``openvino/runtime/intel_gpu/ocl/dx.hpp``
+* Linux -- ``openvino/runtime/intel_gpu/ocl/ocl.hpp`` and ``openvino/runtime/intel_gpu/ocl/va.hpp``
 
 The most common way to enable the interaction of your application with the Remote Tensor API is to use user-side utility classes
 and functions that consume or produce native handles directly.
@@ -29,20 +29,20 @@ and functions that consume or produce native handles directly.
 Context Sharing Between Application and GPU Plugin
 ###########################################################
 
-GPU plugin classes that implement the `ov::RemoteContext` interface are responsible for context sharing.
+GPU plugin classes that implement the ``ov::RemoteContext`` interface are responsible for context sharing.
 Obtaining a context object is the first step in sharing pipeline objects.
 The context object of the GPU plugin directly wraps OpenCL context, setting a scope for sharing the
-`ov::CompiledModel` and `ov::RemoteTensor` objects. The `ov::RemoteContext` object can be either created on top of
+``ov::CompiledModel`` and ``ov::RemoteTensor`` objects. The ``ov::RemoteContext`` object can be either created on top of
 an existing handle from a native API or retrieved from the GPU plugin.
 
-Once you have obtained the context, you can use it to compile a new `ov::CompiledModel` or create `ov::RemoteTensor`
-objects. For network compilation, use a dedicated flavor of `ov::Core::compile_model()`, which accepts the context as an additional parameter.
+Once you have obtained the context, you can use it to compile a new ``ov::CompiledModel`` or create ``ov::RemoteTensor``
+objects. For network compilation, use a dedicated flavor of ``ov::Core::compile_model()``, which accepts the context as an additional parameter.
 
 Creation of RemoteContext from Native Handle
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-To create the `ov::RemoteContext` object for user context, explicitly provide the context to the plugin using constructor for one
-of `ov::RemoteContext` derived classes.
+To create the ``ov::RemoteContext`` object for user context, explicitly provide the context to the plugin using constructor for one
+of ``ov::RemoteContext`` derived classes.
 
 
 .. tab:: Linux
