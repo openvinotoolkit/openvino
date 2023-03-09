@@ -120,7 +120,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             else if (val == PluginConfigParams::NO) collectPerfCounters = false;
             else
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_PERF_COUNT
-                << ". Expected only YES/NO";
+                                   << ". Expected only YES/NO";
         } else if (key == PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS) {
             if (val == PluginConfigParams::YES) exclusiveAsyncRequests = true;
             else if (val == PluginConfigParams::NO) exclusiveAsyncRequests = false;
@@ -128,8 +128,10 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS
                                    << ". Expected only YES/NO";
         } else if (key.compare(PluginConfigParams::KEY_DYN_BATCH_ENABLED) == 0) {
-            if (val == PluginConfigParams::YES) exclusiveAsyncRequests = true;
-            else if (val == PluginConfigParams::NO) exclusiveAsyncRequests = false;
+            if (val.compare(PluginConfigParams::YES) == 0)
+                enableDynamicBatch = true;
+            else if (val.compare(PluginConfigParams::NO) == 0)
+                enableDynamicBatch = false;
             else
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_DYN_BATCH_ENABLED
                 << ". Expected only YES/NO";
@@ -183,6 +185,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 val_i = std::stoi(val);
             } catch (const std::exception&) {
                 IE_THROW() << "Wrong value for property key " << PluginConfigInternalParams::KEY_CPU_RUNTIME_CACHE_CAPACITY
+                           << ". Expected only integer numbers";
             }
             // any negative value will be treated
             // as zero that means disabling the cache
