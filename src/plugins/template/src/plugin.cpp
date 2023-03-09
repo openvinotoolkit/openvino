@@ -8,6 +8,7 @@
 
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_plugin_config.hpp"
+#include "itt.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "template/config.hpp"
@@ -16,9 +17,6 @@
 #include "transformations/control_flow/unroll_if.hpp"
 #include "transformations/disable_decompression_convert_constant_folding.hpp"
 #include "transformations/op_conversions/convert_reduce_to_pooling.hpp"
-#include "transformations/template_pattern_transformation.hpp"
-
-using namespace TemplatePlugin;
 
 namespace {
 static constexpr const char* wait_executor_name = "TemplateWaitExecutor";
@@ -26,20 +24,20 @@ static constexpr const char* stream_executor_name = "TemplateStreamsExecutor";
 }  // namespace
 
 // ! [plugin:ctor]
-Plugin::Plugin() {
+ov::template_plugin::Plugin::Plugin() {
     // TODO: fill with actual device name, backend engine
     set_device_name("TEMPLATE");
 
     // create ngraph backend which performs inference using ngraph reference implementations
-    _backend = ngraph::runtime::Backend::create();
+    _backend = ov::runtime::Backend::create();
 
     // create default stream executor with a given name
-    _waitExecutor = get_executor_manager()->getIdleCPUStreamsExecutor({wait_executor_name});
+    _waitExecutor = get_executor_manager()->get_idle_cpu_streams_executor({wait_executor_name});
 }
 // ! [plugin:ctor]
 
 // ! [plugin:dtor]
-Plugin::~Plugin() {
+ov::template_plugin::Plugin::~Plugin() {
     // Plugin should remove executors from executor cache to avoid threads number growth in the whole application
     get_executor_manager()->clear(stream_executor_name);
     get_executor_manager()->clear(wait_executor_name);
@@ -48,11 +46,11 @@ Plugin::~Plugin() {
 }
 // ! [plugin:dtor]
 
-ov::RemoteContext TemplatePlugin::Plugin::create_context(const ov::AnyMap& remote_properties) const {
+ov::RemoteContext ov::template_plugin::Plugin::create_context(const ov::AnyMap& remote_properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-ov::RemoteContext TemplatePlugin::Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
+ov::RemoteContext ov::template_plugin::Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
@@ -62,12 +60,10 @@ void transform_model(const std::shared_ptr<ov::Model>& model) {
     ov::pass::Manager passManager;
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ov::pass::CommonOptimizations>();
+    // Disable some transformations
     passManager.get_pass_config()->disable<ov::pass::UnrollIf>();
     // This transformation changes output name
     passManager.get_pass_config()->disable<ov::pass::ConvertReduceSumToPooling>();
-    // Example: register plugin specific transformation
-    passManager.register_pass<ov::pass::DecomposeDivideMatcher>();
-    passManager.register_pass<ov::pass::ReluReluFusionMatcher>();
     // Register any other transformations
     // ..
 
@@ -84,32 +80,34 @@ void transform_model(const std::shared_ptr<ov::Model>& model) {
 // ! [plugin:transform_network]
 
 // ! [plugin:load_exe_network_impl]
-std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                                          const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
+    const std::shared_ptr<const ov::Model>& model,
+    const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::compile_model");
 
     auto fullConfig = Configuration{properties, _cfg};
     auto streamsExecutorConfig =
-        InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(fullConfig._streamsExecutorConfig);
+        ov::threading::IStreamsExecutor::Config::make_default_multi_threaded(fullConfig._streamsExecutorConfig);
     streamsExecutorConfig._name = stream_executor_name;
     auto compiled_model =
         std::make_shared<CompiledModel>(model->clone(),
                                         shared_from_this(),
-                                        get_executor_manager()->getIdleCPUStreamsExecutor(streamsExecutorConfig),
+                                        get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig),
                                         fullConfig);
     return compiled_model;
 }
 
-std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
-                                                                          const ov::AnyMap& properties,
-                                                                          const ov::RemoteContext& context) const {
+std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
+    const std::shared_ptr<const ov::Model>& model,
+    const ov::AnyMap& properties,
+    const ov::RemoteContext& context) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 // ! [plugin:load_exe_network_impl]
 
 // ! [plugin:import_network]
-std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::import_model(std::istream& model,
-                                                                         const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(std::istream& model,
+                                                                              const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::import_model");
 
     auto fullConfig = Configuration{properties, _cfg};
@@ -124,33 +122,33 @@ std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::import_model(std::is
     ov::Tensor weights;
     model.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
     if (0 != dataSize) {
-        weights = ov::Tensor(ov::element::from<char>(), ov::Shape{dataSize});
+        weights = ov::Tensor(ov::element::from<char>(), ov::Shape{static_cast<ov::Shape::size_type>(dataSize)});
         model.read(weights.data<char>(), dataSize);
     }
 
     auto ov_model = get_core()->read_model(xmlString, weights);
     auto streamsExecutorConfig =
-        InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(fullConfig._streamsExecutorConfig);
+        ov::threading::IStreamsExecutor::Config::make_default_multi_threaded(fullConfig._streamsExecutorConfig);
     streamsExecutorConfig._name = stream_executor_name;
     auto compiled_model =
         std::make_shared<CompiledModel>(ov_model,
                                         shared_from_this(),
-                                        get_executor_manager()->getIdleCPUStreamsExecutor(streamsExecutorConfig),
+                                        get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig),
                                         fullConfig);
     return compiled_model;
 }
 
-std::shared_ptr<ov::ICompiledModel> TemplatePlugin::Plugin::import_model(std::istream& model,
-                                                                         const ov::RemoteContext& context,
-                                                                         const ov::AnyMap& properties) const {
+std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(std::istream& model,
+                                                                              const ov::RemoteContext& context,
+                                                                              const ov::AnyMap& properties) const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 // ! [plugin:import_network]
 
 // ! [plugin:query_network]
-ov::SupportedOpsMap TemplatePlugin::Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
-                                                        const ov::AnyMap& properties) const {
-    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::query_model");
+ov::SupportedOpsMap ov::template_plugin::Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
+                                                             const ov::AnyMap& properties) const {
+    OV_ITT_SCOPED_TASK(TemplatePlugin::itt::domains::TemplatePlugin, "Plugin::query_model");
 
     Configuration fullConfig{properties, _cfg, false};
 
@@ -193,13 +191,13 @@ ov::SupportedOpsMap TemplatePlugin::Plugin::query_model(const std::shared_ptr<co
 // ! [plugin:query_network]
 
 // ! [plugin:set_config]
-void TemplatePlugin::Plugin::set_property(const ov::AnyMap& properties) {
+void ov::template_plugin::Plugin::set_property(const ov::AnyMap& properties) {
     _cfg = Configuration{properties, _cfg};
 }
 // ! [plugin:set_config]
 
 // ! [plugin:get_config]
-ov::Any TemplatePlugin::Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
+ov::Any ov::template_plugin::Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
     const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
         properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
     };
@@ -235,7 +233,9 @@ ov::Any TemplatePlugin::Plugin::get_property(const std::string& name, const ov::
         return to_string_vector(metrics);
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         auto configs = default_rw_properties();
-        auto streamExecutorConfigKeys = InferenceEngine::IStreamsExecutor::Config{}.SupportedKeys();
+        auto streamExecutorConfigKeys = ov::threading::IStreamsExecutor::Config{}
+                                            .get_property(ov::supported_properties.name())
+                                            .as<std::vector<std::string>>();
         for (auto&& configKey : streamExecutorConfigKeys) {
             if (configKey != InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) {
                 configs.emplace_back(configKey);
@@ -265,8 +265,8 @@ ov::Any TemplatePlugin::Plugin::get_property(const std::string& name, const ov::
         std::string arch = "TEMPLATE";
         return decltype(ov::device::architecture)::value_type(arch);
     } else if (ov::device::capabilities == name) {
-        // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32
-        std::vector<std::string> capabilities = {ov::device::capability::FP32};
+        // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32 and EXPORT_IMPORT
+        std::vector<std::string> capabilities = {ov::device::capability::FP32, ov::device::capability::EXPORT_IMPORT};
         return decltype(ov::device::capabilities)::value_type(capabilities);
     } else if (ov::range_for_async_infer_requests == name) {
         // TODO: fill with actual values
@@ -280,5 +280,5 @@ ov::Any TemplatePlugin::Plugin::get_property(const std::string& name, const ov::
 
 // ! [plugin:create_plugin_engine]
 static const ov::Version version = {CI_BUILD_NUMBER, "openvino_template_plugin"};
-OV_DEFINE_PLUGIN_CREATE_FUNCTION(Plugin, version)
+OV_DEFINE_PLUGIN_CREATE_FUNCTION(ov::template_plugin::Plugin, version)
 // ! [plugin:create_plugin_engine]

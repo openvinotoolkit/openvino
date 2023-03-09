@@ -42,9 +42,14 @@ public:
     DepthToSpace(const Output<Node>& data, const std::string& mode, std::size_t block_size = 1);
     bool visit_attributes(AttributeVisitor& visitor) override;
 
+    void set_block_size(size_t block_size);
+
     const std::size_t& get_block_size() const {
         return m_blocksize;
     }
+
+    void set_mode(DepthToSpaceMode mode);
+
     DepthToSpaceMode get_mode() const {
         return m_mode;
     }

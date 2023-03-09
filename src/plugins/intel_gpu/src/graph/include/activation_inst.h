@@ -5,12 +5,19 @@
 #pragma once
 #include "intel_gpu/primitives/activation.hpp"
 #include "primitive_inst.h"
-#include "kernel_selector/kernels/activation/activation_kernel_base.h"
 
 #include <memory>
 #include <string>
 
 namespace cldnn {
+
+class ActivationFuseParams : public NodeFuseParams {
+public:
+    ActivationFuseParams(std::shared_ptr<activation> desc) : NodeFuseParams(activation::type_id()), _desc(desc) {}
+    size_t ops_count() const override { return 1; }
+
+    std::shared_ptr<activation> _desc;
+};
 
 template <>
 struct typed_program_node<activation> : public typed_program_node_base<activation> {
@@ -29,12 +36,8 @@ public:
 
     bool is_parameterized() const { return !typed_desc()->additional_params_input.empty(); }
 
-    std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const override {
-        kernel_selector::base_activation_params p;
-        p.function = get_kernel_selector_activation_param(typed_desc()->activation_function);
-        p.m = typed_desc()->additional_params.a;
-        p.n = typed_desc()->additional_params.b;
-        return std::make_shared<kernel_selector::activation_fuse_params>(p);
+    std::shared_ptr<NodeFuseParams> get_fuse_params() const override {
+        return std::make_shared<ActivationFuseParams>(typed_desc());
     }
 };
 
@@ -58,7 +61,7 @@ public:
 
     memory::ptr slope_memory() const { return dep_memory_ptr(1); }
 
-    bool is_parameterized() const { return !argument->additional_params_input.empty(); }
+    bool is_parameterized() const { return !get_typed_desc<activation>()->additional_params_input.empty(); }
 };
 
 using activation_inst = typed_primitive_inst<activation>;

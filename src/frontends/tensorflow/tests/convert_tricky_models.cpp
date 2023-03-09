@@ -285,3 +285,84 @@ TEST_F(TransformationTestsF, ModelWithConstResultSubgraphs) {
         model_ref = make_shared<Model>(OutputVector{transpose_to_nhwc}, ParameterVector{x});
     }
 }
+
+TEST_F(TransformationTestsF, ModelWithIteratorGetNext) {
+    { model = convert_model("model_with_iterator_get_next/model_with_iterator_get_next.pb"); }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, Shape{2, 3});
+        auto y = make_shared<Parameter>(element::f32, Shape{2, 3});
+        auto sub = make_shared<Subtract>(x, y);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{x, y});
+    }
+}
+
+TEST_F(TransformationTestsF, ModelWithQueueOperations) {
+    { model = convert_model("model_with_queue_ops/model_with_queue_ops.pb"); }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, PartialShape{Dimension::dynamic(), 160, 160, 3});
+        auto y = make_shared<Parameter>(element::f32, PartialShape{Dimension::dynamic(), 160, 160, 3});
+        auto sub = make_shared<Subtract>(x, y);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{x, y});
+    }
+}
+
+TEST_F(TransformationTestsF, ModelWithQueueOperations2) {
+    { model = convert_model("model_with_queue_ops2/model_with_queue_ops2.pb"); }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), 3});
+        auto y = make_shared<Constant>(element::f32,
+                                       Shape{1, 1, 1, 3},
+                                       vector<float>{123.68000030517578, 116.77899932861328, 103.93900299072266});
+        auto sub = make_shared<Subtract>(x, y);
+
+        model_ref = make_shared<Model>(OutputVector{sub}, ParameterVector{x});
+    }
+}
+
+TEST_F(TransformationTestsF, ModelWithLookupTableOperations) {
+    { model = convert_model("model_with_lookup_table/model_with_lookup_table.pb"); }
+    {
+        // create a reference graph
+        auto x = make_shared<Parameter>(element::f32, Shape{2});
+        auto const_2 = make_shared<Constant>(element::f32, Shape{2}, vector<float>{1, 2});
+        auto add = make_shared<Add>(x, const_2);
+
+        model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{x});
+    }
+}
+
+TEST_F(TransformationTestsF, ModelWithMultioutputBodyGraphNode) {
+    { model = convert_model("partitioned_call2/partitioned_call2.pb"); }
+    {
+        auto x = make_shared<Parameter>(i32, Shape{5});
+        auto y = make_shared<Parameter>(i32, Shape{5});
+        auto sub = make_shared<Subtract>(x, y);
+        auto const_three = make_shared<Constant>(i32, Shape{}, 3);
+        auto const_ten = make_shared<Constant>(i32, Shape{}, 10);
+        auto topk =
+            make_shared<TopK>(sub, const_three, -1, op::v1::TopK::Mode::MAX, op::v1::TopK::SortType::SORT_VALUES, i32);
+        auto add = make_shared<Add>(topk->output(1), const_ten);
+        model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{x, y});
+    }
+}
+
+TEST_F(TransformationTestsF, ModelWithEmptyTensorListAndPushBack) {
+    { model = convert_model("empty_tensor_list/empty_tensor_list.pb"); }
+    {
+        auto x = make_shared<Parameter>(f32, Shape{2, 3, 5});
+        auto minus_one_const = make_shared<Constant>(i32, Shape{1}, -1);
+        auto x_flatten = make_shared<Reshape>(x, minus_one_const, false);
+        auto zero_const = make_shared<Constant>(i32, Shape{1}, 0);
+        auto x_unsqueeze_flatten = make_shared<Unsqueeze>(x_flatten, zero_const);
+        auto empty_const = make_shared<Constant>(f32, Shape{0, 30}, vector<float>{});
+        auto list_push_back = make_shared<Concat>(OutputVector{empty_const, x_unsqueeze_flatten}, 0);
+        auto recover_item_shape = make_shared<Constant>(i32, Shape{4}, vector<int32_t>{1, 2, 3, 5});
+        auto recover_item = make_shared<Reshape>(list_push_back, recover_item_shape, false);
+        model_ref = make_shared<Model>(OutputVector{recover_item}, ParameterVector{x});
+    }
+}

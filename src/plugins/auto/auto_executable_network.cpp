@@ -3,6 +3,7 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+#include <ie_metric_helpers.hpp>
 #include "ie_performance_hints.hpp"
 #include "auto_executable_network.hpp"
 
@@ -26,13 +27,6 @@ void AutoExecutableNetwork::SetConfig(const std::map<std::string, IE::Parameter>
 }
 
 IE::Parameter AutoExecutableNetwork::GetConfig(const std::string& name) const {
-    {
-        std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
-        auto it = _autoSContext->_config.find(name);
-        if (it != _autoSContext->_config.end()) {
-            return it->second;
-        }
-    }
     IE_THROW(NotFound) << name << " not found in the ExecutableNetwork config";
 }
 
@@ -157,31 +151,48 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
         }
         return decltype(ov::optimal_number_of_infer_requests)::value_type {real};
     } else if (name == ov::execution_devices) {
-        std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
-        std::vector<std::string> exeDevices = {};
-        for (int i = 0; i < CONTEXTNUM; i++) {
-            if (_autoSchedule->_loadContext[i].isEnabled && _autoSchedule->_loadContext[i].isAlready) {
-                if (i == 0 && !_autoSchedule->_loadContext[CPU].executableNetwork._ptr) {
-                    continue;
-                } else {
-                    std::string exeDevices_string = _autoSchedule->_loadContext[i].workName.substr(_autoSchedule->_loadContext[i].workName.find(":") + 1);
-                    if (exeDevices_string == "CPU_HELP")
-                        exeDevices_string = "(CPU)";
-                    std::stringstream ss(exeDevices_string);
-                    std::string item;
-                    while (getline(ss, item, ',')) {
-                        exeDevices.push_back(item);
+        ov::Any execution_devices;
+        auto GetExecutionDevices = [&execution_devices](std::string ExeDevicesString) {
+            std::vector<std::string> exeDevices = {};
+            if (ExeDevicesString == "CPU_HELP")
+                ExeDevicesString = "(CPU)";
+            exeDevices.push_back(ExeDevicesString);
+            execution_devices = decltype(ov::execution_devices)::value_type {exeDevices};
+        };
+        if (_autoSContext->_performanceHint == IE::PluginConfigParams::CUMULATIVE_THROUGHPUT) {
+            try {
+                execution_devices = _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetMetric(name);
+            } catch(const IE::Exception&) {
+                GetExecutionDevices(_autoSchedule->_loadContext[ACTUALDEVICE].workName);
+            }
+        } else {
+            std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
+            for (int i = 0; i < CONTEXTNUM; i++) {
+                if (_autoSchedule->_loadContext[i].isEnabled && _autoSchedule->_loadContext[i].isAlready) {
+                    if (i == 0 && !_autoSchedule->_loadContext[CPU].executableNetwork._ptr) {
+                        continue;
+                    } else {
+                        GetExecutionDevices(_autoSchedule->_loadContext[i].workName);
+                        break;
                     }
-                    break;
                 }
             }
         }
-        return decltype(ov::available_devices)::value_type {exeDevices};
+        return execution_devices;
+    } else if (name == ov::model_name) {
+        std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
+        if (_autoSchedule->_loadContext[CPU].isEnabled && _autoSchedule->_loadContext[CPU].isAlready)
+            return _autoSchedule->_loadContext[CPU].executableNetwork->GetMetric(name);
+        return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetMetric(name);
+    } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS,
+                             {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS),
+                              METRIC_KEY(SUPPORTED_METRICS),
+                              METRIC_KEY(NETWORK_NAME),
+                              METRIC_KEY(SUPPORTED_CONFIG_KEYS)});
+    } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, {});
     }
-    if (_autoSchedule->_loadContext[ACTUALDEVICE].isAlready) {
-        return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetMetric(
-                name);
-    }
-    return _autoSchedule->_loadContext[CPU].executableNetwork->GetMetric(name);
+    IE_THROW() << "Unsupported metric key: " << name;
 }
 }  // namespace MultiDevicePlugin

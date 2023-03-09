@@ -5,7 +5,6 @@
 #pragma once
 
 #include <ngraph/rt_info.hpp>
-#include <ngraph/variant.hpp>
 #include <ie_ngraph_utils.hpp>
 
 #include "jit_emitter.hpp"
@@ -81,20 +80,13 @@ public:
 
     size_t get_inputs_num() const override {return 0;}
     void emit_code(const std::vector<size_t> &in,
-                   const std::vector<size_t> &out,
-                   const std::vector<size_t> &pool,
-                   const std::vector<size_t> &gpr) const override;
+                   const std::vector<size_t> &out) const;
 
 private:
     void validate_arguments(const std::vector<size_t> &in,
-                            const std::vector<size_t> &out,
-                            const std::vector<size_t> &pool,
-                            const std::vector<size_t> &gpr) const override;
+                            const std::vector<size_t> &out) const;
     void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override;
+                   const std::vector<size_t>& out) const override;
     void init_data_pointers(size_t, size_t, bool, const Reg64&, const Reg64&, const std::vector<Reg64>&) const;
 
     jit_snippets_compile_args jcp;
@@ -120,22 +112,15 @@ class LoopBeginEmitter : public jit_emitter {
 public:
     LoopBeginEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
     void emit_code(const std::vector<size_t> &in,
-                   const std::vector<size_t> &out,
-                   const std::vector<size_t> &pool,
-                   const std::vector<size_t> &gpr) const override;
+                   const std::vector<size_t> &out) const;
     // todo: it is purely virtual in the base class, but do we need it?
     size_t get_inputs_num() const override {return 0;}
 
 private:
     void validate_arguments(const std::vector<size_t> &in,
-                            const std::vector<size_t> &out,
-                            const std::vector<size_t> &pool,
-                            const std::vector<size_t> &gpr) const override;
+                            const std::vector<size_t> &out) const;
     void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override;
+                   const std::vector<size_t>& out) const override;
 
     std::shared_ptr<ngraph::snippets::op::LoopBegin> loop_begin;
     size_t num_inputs = 0;
@@ -147,23 +132,16 @@ class LoopEndEmitter : public jit_emitter {
 public:
     LoopEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
     void emit_code(const std::vector<size_t> &in,
-                   const std::vector<size_t> &out,
-                   const std::vector<size_t> &pool,
-                   const std::vector<size_t> &gpr) const override;
+                   const std::vector<size_t> &out) const;
     // todo: it is purely virtual in the base class, but do we need it?
     size_t get_inputs_num() const override {return 0;}
 
 private:
     void validate_arguments(const std::vector<size_t> &in,
-                            const std::vector<size_t> &out,
-                            const std::vector<size_t> &pool,
-                            const std::vector<size_t> &gpr) const override;
+                            const std::vector<size_t> &out) const;
 
     void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override;
+                   const std::vector<size_t>& out) const override;
 
     std::shared_ptr<ngraph::snippets::op::LoopBegin> loop_begin;
     std::shared_ptr<ngraph::snippets::op::LoopEnd> loop_end;
@@ -190,10 +168,7 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override {
+                   const std::vector<size_t>& out) const override {
     }
 };
 
@@ -205,10 +180,7 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-              const std::vector<size_t>& out,
-              const std::vector<size_t>& pool,
-              const std::vector<size_t>& gpr,
-              const ov::intel_cpu::emitter_context *emit_context) const override;
+              const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
@@ -228,10 +200,7 @@ protected:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-              const std::vector<size_t>& out,
-              const std::vector<size_t>& pool,
-              const std::vector<size_t>& gpr,
-              const ov::intel_cpu::emitter_context *emit_context) const override;
+              const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
@@ -269,10 +238,7 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-              const std::vector<size_t>& out,
-              const std::vector<size_t>& pool,
-              const std::vector<size_t>& gpr,
-              const ov::intel_cpu::emitter_context *emit_context) const override;
+              const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
@@ -290,10 +256,7 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-              const std::vector<size_t>& out,
-              const std::vector<size_t>& pool,
-              const std::vector<size_t>& gpr,
-              const ov::intel_cpu::emitter_context *emit_context) const override;
+              const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
@@ -311,10 +274,7 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-              const std::vector<size_t>& out,
-              const std::vector<size_t>& pool,
-              const std::vector<size_t>& gpr,
-              const ov::intel_cpu::emitter_context *emit_context) const override;
+              const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
@@ -328,10 +288,7 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override;
+                   const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
@@ -349,10 +306,7 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override;
+                   const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
@@ -370,10 +324,7 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override;
+                   const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
@@ -423,10 +374,7 @@ protected:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override;
+                   const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
@@ -444,10 +392,7 @@ protected:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override;
+                   const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
@@ -461,10 +406,7 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override;
+                   const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;
@@ -481,10 +423,7 @@ protected:
 
 private:
     void emit_impl(const std::vector<size_t>& in,
-                   const std::vector<size_t>& out,
-                   const std::vector<size_t>& pool,
-                   const std::vector<size_t>& gpr,
-                   const ov::intel_cpu::emitter_context *emit_context) const override;
+                   const std::vector<size_t>& out) const override;
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const;

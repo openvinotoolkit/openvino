@@ -35,6 +35,16 @@ public:
         return (opts->*member)();
     }
 
+    template<class Ret, class Class>
+    bool has_attribute(Ret (Class::*member)() const) const {
+        const auto opts = m_node_def->builtin_options_as<Class>();
+        if (opts == nullptr)
+            return false;
+        return (opts->*member)();
+    }
+
+
+
     ov::Any get_attribute(const std::string& name) const override {
         return {};
     }
@@ -45,6 +55,11 @@ public:
     void get_input_node(size_t input_port_idx,
                         std::string& producer_name,
                         size_t& producer_output_port_index) const override;
+    void get_input_node(size_t input_port_idx,
+                        std::string& producer_name,
+                        size_t& producer_output_port_index,
+                        const OpTypeByName& op_type_by_name) const override;
+
     std::string get_output_tensor_name(size_t idx) const;
     element::Type get_output_tensor_type(size_t idx) const;
     std::string get_input_tensor_name(size_t idx) const;
