@@ -199,6 +199,23 @@ public:
      */
     CompiledModel compile_model(const std::string& model_path, const AnyMap& properties = {});
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    /**
+     * @brief Reads and loads a compiled model from the IR/ONNX/PDPD file to the default OpenVINO device selected by the
+     * AUTO plugin.
+     *
+     * This can be more efficient than using the Core::read_model + Core::compile_model(model_in_memory_object) flow,
+     * especially for cases when caching is enabled and a cached model is available.
+     *
+     * @param model_path Path to a model.
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
+     * operation.
+     *
+     * @return A compiled model.
+     */
+    CompiledModel compile_model(const std::wstring& model_path, const AnyMap& properties = {});
+#endif
+
     /**
      * @brief Reads and loads a compiled model from IR / ONNX / PDPD file to the default OpenVINI device selected by
      * AUTO plugin.
@@ -219,6 +236,28 @@ public:
         return compile_model(model_path, AnyMap{std::forward<Properties>(properties)...});
     }
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    /**
+     * @brief Reads and loads a compiled model from IR / ONNX / PDPD file to the default OpenVINI device selected by
+     * AUTO plugin.
+     *
+     * This can be more efficient than using read_model + compile_model(Model) flow
+     * especially for cases when caching is enabled and cached model is available
+     *
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types
+     * @param model_path path to model
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this
+     * load operation
+     *
+     * @return A compiled model
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const std::wstring& model_path,
+                                                                           Properties&&... properties) {
+        return compile_model(model_path, AnyMap{std::forward<Properties>(properties)...});
+    }
+#endif
+
     /**
      * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
      *
@@ -235,6 +274,25 @@ public:
     CompiledModel compile_model(const std::string& model_path,
                                 const std::string& device_name,
                                 const AnyMap& properties = {});
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    /**
+     * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
+     *
+     * This can be more efficient than using the Core::read_model + Core::compile_model(model_in_memory_object) flow,
+     * especially for cases when caching is enabled and a cached model is available.
+     *
+     * @param model_path Path to a model.
+     * @param device_name Name of a device to load a model to.
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
+     * operation.
+     *
+     * @return A compiled model.
+     */
+    CompiledModel compile_model(const std::wstring& model_path,
+                                const std::string& device_name,
+                                const AnyMap& properties = {});
+#endif
 
     /**
      * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
@@ -256,6 +314,29 @@ public:
                                                                            Properties&&... properties) {
         return compile_model(model_path, device_name, AnyMap{std::forward<Properties>(properties)...});
     }
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    /**
+     * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD file.
+     *
+     * This can be more efficient than using read_model + compile_model(Model) flow
+     * especially for cases when caching is enabled and cached model is available.
+     *
+     * @tparam Properties Should be a pack of `std::pair<std::string, ov::Any>` types.
+     * @param model_path Path to a model.
+     * @param device_name Name of a device to load a model to.
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this
+     * load operation.
+     *
+     * @return A compiled model.
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> compile_model(const std::wstring& model_path,
+                                                                           const std::string& device_name,
+                                                                           Properties&&... properties) {
+        return compile_model(model_path, device_name, AnyMap{std::forward<Properties>(properties)...});
+    }
+#endif
 
     /**
      * @brief Reads a model and creates a compiled model from the IR/ONNX/PDPD memory.

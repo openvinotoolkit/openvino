@@ -98,12 +98,24 @@ CompiledModel Core::compile_model(const std::string& model_path, const AnyMap& c
     return compile_model(model_path, ov::DEFAULT_DEVICE_NAME, config);
 }
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+CompiledModel Core::compile_model(const std::wstring& model_path, const AnyMap& config) {
+    return compile_model(ov::util::wstring_to_string(model_path), config);
+}
+#endif
+
 CompiledModel Core::compile_model(const std::string& model_path, const std::string& device_name, const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->compile_model(model_path, device_name, flatten_sub_properties(device_name, config));
         return {exec._ptr, exec._so};
     });
 }
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+CompiledModel Core::compile_model(const std::wstring& model_path, const std::string& device_name, const AnyMap& config) {
+    return compile_model(ov::util::wstring_to_string(model_path), device_name, config);
+}
+#endif
 
 CompiledModel Core::compile_model(const std::string& model,
                                   const ov::Tensor& weights,
