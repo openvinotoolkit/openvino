@@ -20,17 +20,16 @@ NamedOutputs linspace(const NodeContext& node) {
 
     start = std::make_shared<default_opset::Convert>(start, element::f32);
     stop = std::make_shared<default_opset::Convert>(stop, element::f32);
-    // num = std::make_shared<default_opset::Convert>(num, element::f32);
 
     // compute step value, i.e. distance between neighbor values of the result
-    Output<Node> step = std::make_shared<default_opset::Subtract>(stop, start);  //[-1]
+    Output<Node> step = std::make_shared<default_opset::Subtract>(stop, start);
     auto const_one = std::make_shared<default_opset::Constant>(element::i32, Shape{}, 1);
-    Output<Node> num_minus_one = std::make_shared<default_opset::Subtract>(num, const_one);   //[3]
-    auto num_none_zero = std::make_shared<default_opset::Greater>(num_minus_one, const_one);  //[ture]
+    Output<Node> num_minus_one = std::make_shared<default_opset::Subtract>(num, const_one);
+    auto num_none_zero = std::make_shared<default_opset::Greater>(num_minus_one, const_one);
     num_minus_one = std::make_shared<default_opset::Select>(num_none_zero, num_minus_one, const_one);
 
     num_minus_one = std::make_shared<default_opset::Convert>(num_minus_one, element::f32);
-    step = std::make_shared<default_opset::Divide>(step, num_minus_one);  //[-1/3]
+    step = std::make_shared<default_opset::Divide>(step, num_minus_one);
 
     // generate a range of numbers [0, 1, ..., num)
     auto const_zero = std::make_shared<default_opset::Constant>(element::i32, Shape{}, 0);
