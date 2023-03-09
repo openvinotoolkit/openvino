@@ -10,7 +10,7 @@
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/strides.hpp"
 
-#include "meta_utils.h"
+#include "intel_gpu/runtime/utils.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -75,7 +75,7 @@ tensor calc_sliding_window_output_range(const tensor&,
                                         const tensor&,
                                         bool,
                                         const tensor::value_type&) {
-    static_assert(meta::always_false<meta::val_tuple<swor_mode, RangeMode>>::value,
+    static_assert(cldnn::meta::always_false<cldnn::meta::val_tuple<swor_mode, RangeMode>>::value,
                   "Sliding window output range calculation mode is not supported. Please implement specialization "
                   "for new swor_mode.");
 

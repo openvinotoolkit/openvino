@@ -3,7 +3,7 @@
 //
 
 #ifndef NOMINMAX
-# define NOMINMAX
+#    define NOMINMAX
 #endif
 
 #include <windows.h>
@@ -11,11 +11,11 @@
 #include <memory>
 #include <vector>
 
-#include "ie_system_conf.h"
+#include "dev/threading/parallel_custom_arena.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "streams_executor.hpp"
-#include "threading/ie_parallel_custom_arena.hpp"
 
-namespace InferenceEngine {
+namespace ov {
 
 struct CPU {
     int _processors = 0;
@@ -168,7 +168,7 @@ void parse_processor_info_win(const char* base_ptr,
     }
 }
 
-int getNumberOfCPUCores(bool bigCoresOnly) {
+int get_number_of_cpu_cores(bool bigCoresOnly) {
     const int fallback_val = parallel_get_max_threads();
     DWORD sz = 0;
     // querying the size of the resulting structure, passing the nullptr for the buffer
@@ -178,7 +178,8 @@ int getNumberOfCPUCores(bool bigCoresOnly) {
 
     std::unique_ptr<uint8_t[]> ptr(new uint8_t[sz]);
     if (!GetLogicalProcessorInformationEx(RelationProcessorCore,
-            reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(ptr.get()), &sz))
+                                          reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(ptr.get()),
+                                          &sz))
         return fallback_val;
 
     int phys_cores = 0;
@@ -188,20 +189,21 @@ int getNumberOfCPUCores(bool bigCoresOnly) {
         phys_cores++;
     } while (offset < sz);
 
-    #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
     auto core_types = custom::info::core_types();
     if (bigCoresOnly && core_types.size() > 1) /*Hybrid CPU*/ {
-        phys_cores = custom::info::default_concurrency(custom::task_arena::constraints{}
-                                                               .set_core_type(core_types.back())
-                                                               .set_max_threads_per_core(1));
+        phys_cores = custom::info::default_concurrency(
+            custom::task_arena::constraints{}.set_core_type(core_types.back()).set_max_threads_per_core(1));
     }
-    #endif
+#endif
     return phys_cores;
 }
 
-#if !(IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#if !(OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
 // OMP/SEQ threading on the Windows doesn't support NUMA
-std::vector<int> getAvailableNUMANodes() { return {-1}; }
+std::vector<int> get_available_numa_nodes() {
+    return {-1};
+}
 #endif
 
-}  // namespace InferenceEngine
+}  // namespace ov

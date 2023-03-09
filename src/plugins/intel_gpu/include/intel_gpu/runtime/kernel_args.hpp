@@ -114,58 +114,6 @@ struct kernel_arguments_data {
     const scalars_desc* scalars = nullptr;
 };
 
-struct kernel_arguments_data_idx {
-    std::vector<int32_t> inputs;
-    int32_t weights;
-    int32_t recurrent;
-    int32_t hidden;
-    int32_t cell;
-    int32_t bias;
-    int32_t weights_zero_points;
-    int32_t activations_zero_points;
-    int32_t compensation;
-    int32_t lookup_table;
-    int32_t scale_table;
-    int32_t slope;
-
-    std::vector<int32_t> fused_op_inputs;
-    scalars_desc scalars;
-
-    template <typename BufferType>
-    void save(BufferType& ob) const {
-        ob << inputs;
-        ob << weights;
-        ob << recurrent;
-        ob << hidden;
-        ob << cell;
-        ob << bias;
-        ob << weights_zero_points;
-        ob << activations_zero_points;
-        ob << compensation;
-        ob << lookup_table;
-        ob << scale_table;
-        ob << slope;
-        ob << fused_op_inputs;
-    }
-
-    template <typename BufferType>
-    void load(BufferType& ib) {
-        ib >> inputs;
-        ib >> weights;
-        ib >> recurrent;
-        ib >> hidden;
-        ib >> cell;
-        ib >> bias;
-        ib >> weights_zero_points;
-        ib >> activations_zero_points;
-        ib >> compensation;
-        ib >> lookup_table;
-        ib >> scale_table;
-        ib >> slope;
-        ib >> fused_op_inputs;
-    }
-};
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // KernelString
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
