@@ -48,7 +48,8 @@ bool ConcatenationKernelBase::Validate(const Params& p, const optional_params&) 
 
 JitConstants ConcatenationKernelBase::GetJitConstants(const concatenation_params& params) const {
     auto& inputs = params.original_input_layouts;
-    bool is_dynamic = std::any_of(inputs.begin(), inputs.end(), [](const DataTensor& t) { return t.is_dynamic(); });
+    bool is_dynamic = std::any_of(inputs.begin(), inputs.end(), [](const DataTensor& t) { return t.is_dynamic(); }) ||
+                      std::any_of(params.outputs.begin(), params.outputs.end(), [](const DataTensor& t) { return t.is_dynamic(); });
     JitConstants jit = MakeBaseParamsJitConstants(params, !is_dynamic);
 
     jit.AddConstants({
@@ -61,12 +62,12 @@ JitConstants ConcatenationKernelBase::GetJitConstants(const concatenation_params
         // So each dynamic kernel requires some custom offsets for shape_info access
         size_t in_offset = 0;
         for (size_t i = 0; i < params.kernel_split_id; i++) {
-            if (params.original_input_layouts[i].is_dynamic())
+            if (params.original_input_layouts[i].is_dynamic() || params.original_input_layouts[i].LogicalSize() == 0)
                 in_offset++;
         }
         size_t out_offset = 0;
         for (size_t i = 0; i < params.original_input_layouts.size(); i++) {
-            if (params.original_input_layouts[i].is_dynamic())
+            if (params.original_input_layouts[i].is_dynamic() || params.original_input_layouts[i].LogicalSize() == 0)
                 out_offset++;
         }
 
