@@ -26,7 +26,7 @@ Based on that, declaration of a plugin class can look as follows:
 
 @snippet template/src/plugin.hpp plugin:header
 
-#### Class Fields
+### Class Fields
 
 The provided plugin class also has several fields:
 
