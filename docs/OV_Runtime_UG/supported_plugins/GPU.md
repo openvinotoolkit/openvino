@@ -43,11 +43,11 @@ For demonstration purposes, see the :doc:`Hello Query Device C++ Sample <openvin
        Device: GNA
 
 
-Then, device name can be passed to the ``ov::Core::compile_model()`` method:
+Then, the device name can be passed to the ``ov::Core::compile_model()`` method, running on:
 
 .. tab-set::
    
-   .. tab-item:: Running on default device
+   .. tab-item:: default device
 
       .. tab-set::
 
@@ -65,7 +65,7 @@ Then, device name can be passed to the ``ov::Core::compile_model()`` method:
                :language: Python
                :fragment: compile_model_default_gpu
 
-   .. tab-item:: Running on specific GPU
+   .. tab-item:: specific GPU
 
       .. tab-set::
 
@@ -83,7 +83,7 @@ Then, device name can be passed to the ``ov::Core::compile_model()`` method:
                :language: Python
                :fragment: compile_model_gpu_with_id
 
-   .. tab-item:: Running on specific tile
+   .. tab-item:: specific tile
 
       .. tab-set::
 
@@ -258,7 +258,7 @@ The code snippet below demonstrates how to use dynamic batching in simple scenar
          :fragment: dynamic_batch
 
 
-For more details, see the :doc:`<dynamic shapes guide<openvino_docs_OV_UG_DynamicShapes>`.
+For more details, see the :doc:`dynamic shapes guide<openvino_docs_OV_UG_DynamicShapes>`.
 
 Preprocessing Acceleration
 +++++++++++++++++++++++++++++++++++++++
