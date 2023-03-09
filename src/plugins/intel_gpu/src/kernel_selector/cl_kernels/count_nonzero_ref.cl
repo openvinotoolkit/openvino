@@ -20,14 +20,16 @@ KERNEL (count_nonzero_ref)(
     barrier(CLK_GLOBAL_MEM_FENCE);
 
     uint workitem_nonzero_count = 0;
-    uint iter = 0;
-    for (; iter < items_num; iter++) {
-        uint count = (input[num_work_items * iter + local_idx] == INPUT0_VAL_ZERO) ? 0 : 1;
-        workitem_nonzero_count += count;
+    uint actual_items_num = items_num;
+    uint input_start_idx  = (actual_items_num * local_idx) + leftovers;
+    if (local_idx < leftovers) {
+        actual_items_num = items_num + 1;
+        input_start_idx  = actual_items_num * local_idx;
     }
 
-    if (local_idx < leftovers) {
-        uint count = (input[num_work_items * iter + local_idx] == INPUT0_VAL_ZERO) ? 0 : 1;
+    for (uint iter = 0; iter < actual_items_num; iter++) {
+        const uint idx = input_start_idx + iter;
+        uint count = (input[idx] == INPUT0_VAL_ZERO) ? 0 : 1;
         workitem_nonzero_count += count;
     }
 

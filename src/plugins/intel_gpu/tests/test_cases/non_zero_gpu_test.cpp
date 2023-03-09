@@ -16,6 +16,19 @@ using namespace cldnn;
 using namespace ::tests;
 
 template<typename T>
+std::vector<T> generate_random_input(const size_t input_size, int min, int max) {
+    static std::default_random_engine generator(random_seed);
+    int k = 8; // 1/k is the resolution of the floating point numbers
+    std::uniform_int_distribution<int> distribution(k * min, k * max);
+    std::vector<T> v(input_size);
+    for (size_t i = 0; i < input_size; ++i) {
+        v[i] = (T)distribution(generator);
+        v[i] /= k;
+    }
+    return v;
+}
+
+template<typename T>
 void test_count_non_zero(layout in_layout, std::vector<T> in_data) {
     auto& engine = get_test_engine();
     auto input_mem = engine.allocate_memory(in_layout);
@@ -54,27 +67,27 @@ TEST(test_count_non_zero, 5d_fp16_1_3_2_1_2) {
 }
 
 TEST(test_count_non_zero, 2d_int32_1_256) {
-    const size_t len = 256;
-    std::vector<int32_t> in_data(len);
-    std::fill(in_data.begin(), in_data.end(), 1);
-
-    test_count_non_zero<int>(layout{ov::PartialShape{1, len}, data_types::i32, format::bfyx}, in_data);
+    layout in_layout = {ov::PartialShape{1, 256}, data_types::i32, format::bfyx};
+    auto in_data = generate_random_input<int32_t>(in_layout.count(), -2, 2);
+    test_count_non_zero<int32_t>(in_layout, in_data);
 }
 
-TEST(test_count_non_zero, 2d_int32_1_513) {
-    const size_t len = 513;
-    std::vector<int32_t> in_data(len);
-    std::fill(in_data.begin(), in_data.end(), 1);
-
-    test_count_non_zero<int>(layout{ov::PartialShape{1, len}, data_types::i32, format::bfyx}, in_data);
+TEST(test_count_non_zero, 2d_f32_1_513) {
+    layout in_layout = {ov::PartialShape{1, 513}, data_types::f32, format::bfyx};
+    auto in_data = generate_random_input<float>(in_layout.count(), -2, 2);
+    test_count_non_zero<float>(in_layout, in_data);
 }
 
-TEST(test_count_non_zero, 2d_int32_1_1025) {
-    const size_t len = 1024;
-    std::vector<int32_t> in_data(len);
-    std::fill(in_data.begin(), in_data.end(), 1);
+TEST(test_count_non_zero, 6d_f32_21_18_1_5_3_2) {
+    layout in_layout = {ov::PartialShape{21, 18, 1, 5, 3, 2}, data_types::f32, format::bfwzyx};
+    auto in_data = generate_random_input<float>(in_layout.count(), -2, 2);
+    test_count_non_zero<float>(in_layout, in_data);
+}
 
-    test_count_non_zero<int>(layout{ov::PartialShape{1, len}, data_types::i32, format::bfyx}, in_data);
+TEST(test_count_non_zero, 5d_f32_1_16_4_2_24) {
+    layout in_layout = {ov::PartialShape{1, 16, 4, 2, 24}, data_types::f32, format::bfzyx};
+    auto in_data = generate_random_input<float>(in_layout.count(), -2, 2);
+    test_count_non_zero<float>(in_layout, in_data);
 }
 
 class dyn_nonzero_count_net {
@@ -92,9 +105,9 @@ private:
     network::ptr _network;
 };
 
-TEST(test_count_non_zero, dynamic_test) {
+TEST(test_count_non_zero, dynamic_2d_f32_bfyx) {
     auto& engine = get_test_engine();
-    auto in_dyn_layout = layout(ov::PartialShape::dynamic(2), data_types::i32, format::bfyx);
+    auto in_dyn_layout = layout(ov::PartialShape::dynamic(2), data_types::f32, format::bfyx);
 
     topology topology;
     topology.add(input_layout("InputData", in_dyn_layout));
@@ -107,15 +120,10 @@ TEST(test_count_non_zero, dynamic_test) {
     dyn_nonzero_count_net _test;
     _test.create_network(engine, topology, config);
 
-    for (size_t idx = 0; idx < input_shapes.size(); idx++) {
-        const size_t input_length = input_shapes[idx];
-
-        ov::PartialShape p_shape  = { 1, static_cast<long int>(input_length) };
-        auto in_layout = layout(p_shape, data_types::i32, format::bfyx);
+    for (size_t& input_length : input_shapes) {
+        auto in_layout = layout({1, static_cast<long int>(input_length)}, data_types::f32, format::bfyx);
         auto input_mem = engine.allocate_memory(in_layout);
-
-        std::vector<int32_t> in_data(input_length);
-        std::fill(in_data.begin(), in_data.end(), 1);
+        auto in_data = generate_random_input<float>(in_layout.count(), -2, 2);
 
         set_values(input_mem, in_data);
         auto outputs = _test.execute(input_mem);
@@ -124,7 +132,7 @@ TEST(test_count_non_zero, dynamic_test) {
         auto output = outputs.at("count_nonzero").get_memory();
         cldnn::mem_lock<int32_t> output_ptr(output, get_test_stream());
 
-        auto count_non_zero = ngraph::runtime::reference::non_zero_get_count<int32_t>(in_data.data(), in_layout.get_shape());
+        auto count_non_zero = ngraph::runtime::reference::non_zero_get_count<float>(in_data.data(), in_layout.get_shape());
         ASSERT_EQ(count_non_zero, output_ptr[0]);
     }
 }
