@@ -14,9 +14,9 @@
 static const char help_message[] = "Print a usage message.";
 
 /// @brief message for input data argument
-static const char input_message[] = "Required. Paths to input file or Layers names with corresponding paths to the "
-                                    "input files. Example of usage for single file: <file.ark> or <file.npz>. Example "
-                                    "of usage for named layers: <layer1>=<file1.ark>,<layer2>=<file2.ark>.";
+static const char input_message[] = "Required. Paths to input file(s). "
+                                    "Usage for a single file/layer: <input_file.ark> or <input_file.npz>. "
+                                    "Example of usage for several files/layers: <layer1>:<port_num1>=<input_file1.ark>,<layer2>:<port_num2>=<input_file2.ark>.";
 
 /// @brief message for model argument
 static const char model_message[] = "Required. Path to an .xml file with a trained model (required if -rg is missing).";
@@ -61,15 +61,15 @@ static const char custom_cpu_library_message[] = "Required for CPU plugin custom
 
 /// @brief message for score output argument
 static const char output_message[] =
-    "Optional. Output file name to save scores or Layer names with corresponding files names to save scores. Example "
-    "of usage for single file: <output.ark> or <output.npz>. Example of usage for named layers: "
-    "<layer1:port_num>=<output_file1.ark>,<layer2:port_num>=<output_file2.ark>.";
+    "Optional. Output file name(s) to save scores (inference results). "
+    "Usage for a single file/layer: <output_file.ark> or <output_file.npz>. "
+    "Example of usage for several files/layers: <layer1>:<port_num1>=<output_file1.ark>,<layer2>:<port_num2>=<output_file2.ark>.";
 
 /// @brief message for reference score file argument
 static const char reference_score_message[] =
-    "Optional. Read reference score file or named layers with corresponding score files and compare scores. Example of "
-    "usage for single file: <reference.ark> or <reference.npz>. Example of usage for named layers: "
-    "<layer1:port_num>=<reference_file2.ark>,<layer2:port_num>=<reference_file2.ark>.";
+    "Optional. Read reference score file(s) and compare inference results with reference scores. "
+    "Usage for a single file/layer: <reference_file.ark> or <reference_file.npz>. "
+    "Example of usage for several files/layers: <layer1>:<port_num1>=<reference_file1.ark>,<layer2>:<port_num2>=<reference_file2.ark>.";
 
 /// @brief message for read GNA model argument
 static const char read_gna_model_message[] =
@@ -89,17 +89,16 @@ static const char write_embedded_model_generation_message[] =
 
 /// @brief message for quantization argument
 static const char quantization_message[] =
-    "Optional. Input quantization mode: static (default), dynamic, or user (use with -sf).";
+    "Optional. Input quantization mode for GNA: static (default), dynamic, or user defined (use with -sf).";
 
 /// @brief message for quantization bits argument
-static const char quantization_bits_message[] = "Optional. Weight bits for quantization: 8 or 16 (default)";
+static const char quantization_bits_message[] = "Optional. Weight bits for GNA quantization: 8 or 16 (default)";
 
 /// @brief message for scale factor argument
 static const char scale_factor_message[] =
-    "Optional. User-specified input scale factor for quantization (use with -q user). "
-    "If the network contains multiple inputs, provide scale factors by separating them with "
-    "commas. "
-    "For example: <input_name1>:<sf1>,<input_name2>:<sf2> or just <sf> to be applied to all inputs";
+    "Optional. User-specified input scale factor for GNA quantization (use with -q user). "
+    "If the model contains multiple inputs, provide scale factors by separating them with commas. "
+    "For example: <layer1>:<sf1>,<layer2>:<sf2> or just <sf> to be applied to all inputs.";
 
 /// @brief message for batch size argument
 static const char batch_size_message[] = "Optional. Batch size 1-8 (default 1)";
