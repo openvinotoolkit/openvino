@@ -4,17 +4,14 @@
 
 #pragma once
 
+#include <threading/ie_istreams_executor.hpp>
+#include <ie_performance_hints.hpp>
 #include <ie/ie_common.h>
+#include <openvino/util/common_util.hpp>
+#include "utils/debug_caps_config.h"
 
 #include <bitset>
-#include <ie_performance_hints.hpp>
-#include <map>
-#include <mutex>
-#include <openvino/util/common_util.hpp>
 #include <string>
-#include <threading/ie_istreams_executor.hpp>
-
-#include "utils/debug_caps_config.h"
 
 namespace ov {
 namespace intel_cpu {
