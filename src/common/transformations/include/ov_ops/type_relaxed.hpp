@@ -11,7 +11,6 @@
 #include <string>
 #include <transformations_visibility.hpp>
 #include <vector>
-#include <openvino/op/parameter.hpp>
 
 namespace ov {
 namespace op {
@@ -159,10 +158,9 @@ public:
     TemporaryReplaceOutputType(Output<Node> output, element::Type tmp_type) : m_output(output) {
         // save original element type in order to restore it in the destructor
         orig_type = m_output.get_element_type();
-        auto parameter = dynamic_cast<ov::op::v0::Parameter*>(m_output.get_node());
-        if (parameter != nullptr) {
-            parameter->set_element_type(tmp_type);
-        }
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        m_output.get_tensor().set_element_type(tmp_type);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 
     /// Return the output port that was used in the constructor
@@ -172,10 +170,9 @@ public:
 
     /// Restores the original element type for the output
     ~TemporaryReplaceOutputType() {
-        auto parameter = dynamic_cast<ov::op::v0::Parameter*>(m_output.get_node());
-        if (parameter != nullptr) {
-            parameter->set_element_type(orig_type);
-        }
+        OPENVINO_SUPPRESS_DEPRECATED_START
+        m_output.get_tensor().set_element_type(orig_type);
+        OPENVINO_SUPPRESS_DEPRECATED_END
     }
 };
 
