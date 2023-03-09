@@ -118,15 +118,15 @@ The GPU plugin supports the following data types as inference precision of inter
   - u1
 
 Selected precision of each primitive depends on the operation precision in IR, quantization primitives, and available hardware capabilities.
-The `u1`/`u8`/`i8` data types are used for quantized operations only, which means that they are not selected automatically for non-quantized operations.
+The ``u1``/``u8``/``i8`` data types are used for quantized operations only, which means that they are not selected automatically for non-quantized operations.
 For more details on how to get a quantized model, refer to the :doc:`Model Optimization guide <openvino_docs_model_optimization_guide>`.
 
-Floating-point precision of a GPU primitive is selected based on operation precision in the OpenVINO IR, except for the :doc:`<compressed f16 OpenVINO IR form <openvino_docs_MO_DG_FP16_Compression>`, which is executed in the `f16` precision.
+Floating-point precision of a GPU primitive is selected based on operation precision in the OpenVINO IR, except for the :doc:`<compressed f16 OpenVINO IR form <openvino_docs_MO_DG_FP16_Compression>`, which is executed in the ``f16`` precision.
 
 .. note::
 
-   Hardware acceleration for `i8`/`u8` precision may be unavailable on some platforms. In such cases, a model is executed in the floating-point precision taken from IR. 
-   Hardware support of `u8`/`i8` acceleration can be queried via the `ov::device::capabilities` property.
+   Hardware acceleration for ``i8``/``u8`` precision may be unavailable on some platforms. In such cases, a model is executed in the floating-point precision taken from IR. 
+   Hardware support of ``u8``/``i8`` acceleration can be queried via the `ov::device::capabilities` property.
 
 :doc:`Hello Query Device C++ Sample<openvino_inference_engine_samples_hello_query_device_README>` can be used to print out the supported data types for all detected devices.
 
@@ -140,7 +140,7 @@ Multi-device Execution
 +++++++++++++++++++++++++++++++++++++++
 
 If a system has multiple GPUs (for example, an integrated and a discrete Intel GPU), then any supported model can be executed on all GPUs simultaneously.
-It is done by specifying `MULTI:GPU.1,GPU.0` as a target device.
+It is done by specifying ``MULTI:GPU.1,GPU.0`` as a target device.
 
 .. tab-set::
 
@@ -164,9 +164,9 @@ For more details, see the :doc:`Multi-device execution <openvino_docs_OV_UG_Runn
 Automatic Batching
 +++++++++++++++++++++++++++++++++++++++
 
-The GPU plugin is capable of reporting `ov::max_batch_size` and `ov::optimal_batch_size` metrics with respect to the current hardware
-platform and model. Therefore, automatic batching is enabled by default when `ov::optimal_batch_size` is `> 1` and `ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)` is set.
-Alternatively, it can be enabled explicitly via the device notion, for example `BATCH:GPU`.
+The GPU plugin is capable of reporting ``ov::max_batch_size`` and ``ov::optimal_batch_size`` metrics with respect to the current hardware
+platform and model. Therefore, automatic batching is enabled by default when ``ov::optimal_batch_size`` is ``> 1`` and ``ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)`` is set.
+Alternatively, it can be enabled explicitly via the device notion, for example ``BATCH:GPU``.
 
 
 .. tab-set::
@@ -213,13 +213,14 @@ For more details, see the :doc:`Automatic batching<openvino_docs_OV_UG_Automatic
 Multi-stream Execution
 +++++++++++++++++++++++++++++++++++++++
 
-If either the `ov::num_streams(n_streams)` with `n_streams > 1` or the `ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)` property is set for the GPU plugin,
+If either the ``ov::num_streams(n_streams)`` with ``n_streams > 1`` or the ``ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)`` property is set for the GPU plugin,
 multiple streams are created for the model. In the case of GPU plugin each stream has its own host thread and an associated OpenCL queue
 which means that the incoming infer requests can be processed simultaneously.
 
 .. note:: 
 
-   Simultaneous scheduling of kernels to different queues does not mean that the kernels are actually executed in parallel on the GPU device. The actual behavior depends on the hardware architecture and in some cases the execution may be serialized inside the GPU driver.
+   Simultaneous scheduling of kernels to different queues does not mean that the kernels are actually executed in parallel on the GPU device. 
+   The actual behavior depends on the hardware architecture and in some cases the execution may be serialized inside the GPU driver.
 
 When multiple inferences of the same model need to be executed in parallel, the multi-stream feature is preferred to multiple instances of the model or application.
 The reason for this is that the implementation of streams in the GPU plugin supports weight memory sharing across streams, thus, memory consumption may be lower, compared to the other approaches.
@@ -229,8 +230,8 @@ For more details, see the :doc:`optimization guide<openvino_docs_deployment_opti
 Dynamic Shapes
 +++++++++++++++++++++++++++++++++++++++
 
-The GPU plugin supports dynamic shapes for batch dimension only (specified as `N` in the :doc:`layouts terms<openvino_docs_OV_UG_Layout_Overview>`) with a fixed upper bound. 
-Any other dynamic dimensions are unsupported. Internally, GPU plugin creates `log2(N)` (`N` - is an upper bound for batch dimension here) 
+The GPU plugin supports dynamic shapes for batch dimension only (specified as ``N`` in the :doc:`layouts terms<openvino_docs_OV_UG_Layout_Overview>`) with a fixed upper bound. 
+Any other dynamic dimensions are unsupported. Internally, GPU plugin creates ``log2(N)`` (``N`` - is an upper bound for batch dimension here) 
 low-level execution graphs for batch sizes equal to powers of 2 to emulate dynamic behavior, so that incoming infer request 
 with a specific batch size is executed via a minimal combination of internal networks. For example, batch size 33 may be executed via 2 internal networks with batch size 32 and 1.
 
@@ -263,7 +264,7 @@ Preprocessing Acceleration
 +++++++++++++++++++++++++++++++++++++++
 
 The GPU plugin has the following additional preprocessing options:
-- The `ov::intel_gpu::memory_type::surface` and `ov::intel_gpu::memory_type::buffer` values for the `ov::preprocess::InputTensorInfo::set_memory_type()` preprocessing method. These values are intended to be used to provide a hint for the plugin on the type of input Tensors that will be set in runtime to generate proper kernels.
+- The ``ov::intel_gpu::memory_type::surface`` and ``ov::intel_gpu::memory_type::buffer`` values for the ``ov::preprocess::InputTensorInfo::set_memory_type()`` preprocessing method. These values are intended to be used to provide a hint for the plugin on the type of input Tensors that will be set in runtime to generate proper kernels.
 
 .. tab-set::
 
@@ -282,7 +283,7 @@ The GPU plugin has the following additional preprocessing options:
          :fragment: init_preproc
 
 
-With such preprocessing, GPU plugin will expect `ov::intel_gpu::ocl::ClImage2DTensor` (or derived) to be passed for each NV12 plane via `ov::InferRequest::set_tensor()` or `ov::InferRequest::set_tensors()` methods.
+With such preprocessing, GPU plugin will expect ``ov::intel_gpu::ocl::ClImage2DTensor`` (or derived) to be passed for each NV12 plane via ``ov::InferRequest::set_tensor()`` or ``ov::InferRequest::set_tensors()`` methods.
 
 For usage examples, refer to the :doc:`RemoteTensor API<openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API>`.
 
@@ -291,8 +292,8 @@ For more details, see the :doc:`preprocessing API<openvino_docs_OV_UG_Preprocess
 Model Caching
 +++++++++++++++++++++++++++++++++++++++
 
-Cache for the GPU plugin may be enabled via the common OpenVINO `ov::cache_dir` property. GPU plugin implementation supports only caching of compiled kernels, so all plugin-specific model transformations are executed on each `ov::Core::compile_model()` call regardless of the `cache_dir` option.
-Still, since kernel compilation is a bottleneck in the model loading process, a significant load time reduction can be achieved with the `ov::cache_dir` property enabled.
+Cache for the GPU plugin may be enabled via the common OpenVINO ``ov::cache_dir`` property. GPU plugin implementation supports only caching of compiled kernels, so all plugin-specific model transformations are executed on each ``ov::Core::compile_model()`` call regardless of the ``cache_dir`` option.
+Still, since kernel compilation is a bottleneck in the model loading process, a significant load time reduction can be achieved with the ``ov::cache_dir`` property enabled.
 
 .. note::
 
@@ -318,7 +319,7 @@ The plugin supports the properties listed below.
 Read-write properties
 +++++++++++++++++++++++++++++++++++++++
 
-All parameters must be set before calling `ov::Core::compile_model()` in order to take effect or passed as additional argument to `ov::Core::compile_model()`.
+All parameters must be set before calling ``ov::Core::compile_model()`` in order to take effect or passed as additional argument to ``ov::Core::compile_model()``.
 
 - ov::cache_dir
 - ov::enable_profiling
@@ -371,11 +372,11 @@ GPU Performance Checklist: Summary
 
 Since OpenVINO relies on the OpenCL kernels for the GPU implementation, many general OpenCL tips apply:
 
--	Prefer `FP16` inference precision over `FP32`, as Model Optimizer can generate both variants, and the `FP32` is the default. To learn about optimization options, see :doc:`Optimization Guide<openvino_docs_model_optimization_guide>`.
+-	Prefer ``FP16`` inference precision over ``FP32``, as Model Optimizer can generate both variants, and the ``FP32`` is the default. To learn about optimization options, see :doc:`Optimization Guide<openvino_docs_model_optimization_guide>`.
 - Try to group individual infer jobs by using :doc:`automatic batching<openvino_docs_OV_UG_Automatic_Batching>`.
 -	Consider :doc:`caching<openvino_docs_OV_UG_Model_caching_overview>` to minimize model load time.
 -	If your application performs inference on the CPU alongside the GPU, or otherwise loads the host heavily, make sure that the OpenCL driver threads do not starve. :doc:`CPU configuration options<openvino_docs_OV_UG_supported_plugins_CPU>` can be used to limit the number of inference threads for the CPU plugin.
--	Even in the GPU-only scenario, a GPU driver might occupy a CPU core with spin-loop polling for completion. If CPU load is a concern, consider the dedicated `queue_throttle` property mentioned previously. Note that this option may increase inference latency, so consider combining it with multiple GPU streams or :doc:`throughput performance hints<openvino_docs_OV_UG_Performance_Hints>`.
+-	Even in the GPU-only scenario, a GPU driver might occupy a CPU core with spin-loop polling for completion. If CPU load is a concern, consider the dedicated ``queue_throttle`` property mentioned previously. Note that this option may increase inference latency, so consider combining it with multiple GPU streams or :doc:`throughput performance hints<openvino_docs_OV_UG_Performance_Hints>`.
 - When operating media inputs, consider :doc:`remote tensors API of the GPU Plugin<openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API>`.
 
 
