@@ -224,6 +224,7 @@ AtenIndexToSelect::AtenIndexToSelect() {
             gather = std::make_shared<v1::Reshape>(gather, final_shape, false);
             copy_runtime_info({index_op, indicies}, gather);
             replace_node(index_op, gather);
+            gather->set_friendly_name(index_op->get_friendly_name());
             return true;
 
         } else {

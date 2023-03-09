@@ -18,6 +18,7 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/framework_node.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -50,6 +51,7 @@ ListConstructReplacer::ListConstructReplacer() {
     auto tile_op = pattern::wrap_type<v0::Tile>({pattern::any_input(), list_construct});
     // replace aten::permute(tensor, prim::ListConstruct)
     auto transpose_op = pattern::wrap_type<v1::Transpose>({pattern::any_input(), list_construct});
+    auto vsplit_op = pattern::wrap_type<v1::VariadicSplit>({pattern::any_input(), pattern::any_input(), list_construct});
     auto lc_pattern = std::make_shared<pattern::op::Or>(OutputVector{reshape_op,
                                                                      roll_op,
                                                                      broadcast_op,
@@ -58,7 +60,8 @@ ListConstructReplacer::ListConstructReplacer() {
                                                                      equal_op,
                                                                      select_op,
                                                                      tile_op,
-                                                                     transpose_op});
+                                                                     transpose_op,
+                                                                     vsplit_op});
 
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
@@ -77,6 +80,7 @@ ListConstructReplacer::ListConstructReplacer() {
             auto concat = std::make_shared<v0::Concat>(inputs, 0);
             copy_runtime_info({list_construct_node}, concat);
             replace_node(list_construct_node, concat);
+            concat->set_friendly_name(list_construct_node->get_friendly_name());
             return true;
         };
         return false;
