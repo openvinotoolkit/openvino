@@ -15,12 +15,9 @@ const std::vector<ov::AnyMap> cpu_properties = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
     {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
     {ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)},
-    {ov::intel_cpu::processor_type(ov::intel_cpu::ProcessorType::DEFAULT)},
-    {ov::intel_cpu::processor_type(ov::intel_cpu::ProcessorType::ALL_CORE)},
-    {ov::intel_cpu::processor_type(ov::intel_cpu::ProcessorType::PHY_CORE_ONLY)},
-    {ov::intel_cpu::processor_type(ov::intel_cpu::ProcessorType::P_CORE_ONLY)},
-    {ov::intel_cpu::processor_type(ov::intel_cpu::ProcessorType::E_CORE_ONLY)},
-    {ov::intel_cpu::processor_type(ov::intel_cpu::ProcessorType::PHY_P_CORE_ONLY)},
+    {ov::intel_cpu::scheduling_core_type(ov::intel_cpu::SchedulingCoreType::ALL)},
+    {ov::intel_cpu::scheduling_core_type(ov::intel_cpu::SchedulingCoreType::PCORE_ONLY)},
+    {ov::intel_cpu::scheduling_core_type(ov::intel_cpu::SchedulingCoreType::ECORE_ONLY)},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVPropertiesTests,

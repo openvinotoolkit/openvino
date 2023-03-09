@@ -50,78 +50,58 @@ static constexpr Property<bool> denormals_optimization{"CPU_DENORMALS_OPTIMIZATI
 static constexpr Property<float> sparse_weights_decompression_rate{"SPARSE_WEIGHTS_DECOMPRESSION_RATE"};
 
 /**
- * @enum       ProcessorType
- * @brief      This enum contains defination of processor type used for CPU inference.
+ * @enum       SchedulingCoreType
+ * @brief      This enum contains defination of core type can be used for CPU inference.
  */
-enum class ProcessorType {
-    DEFAULT = -1,       //!<  Default setting. All processors can be used on one socket platform. And only processors of
-                        //!<  physical cores can be used on two socket platform.
-    ALL_CORE = 1,       //!<  All processors can be used. If hyper threading is enabled, both processor of one
-                        //!<  performance-core can be used.
-    PHY_CORE_ONLY = 2,  //!<  Only processors of physical cores can be used. If hyper threading is enabled, only one
-                        //!<  processor of one performance-core can be used.
-    P_CORE_ONLY = 3,    //!<  Only processors of performance-cores can be used. If hyper threading is enabled, both
-                        //!<  processor of one performance-core can be used.
-    E_CORE_ONLY = 4,    //!<  Only processors of efficient-cores can be used.
-    PHY_P_CORE_ONLY = 5,  //!<  Only processors of physical performance-cores can be used. If hyper threading is
-                          //!<  enabled, only one processor of one performance-core can be used.
+enum class SchedulingCoreType {
+    ALL = 1,         //!<  All processors can be used.
+    PCORE_ONLY = 2,  //!<  Only processors of performance-cores can be used.
+    ECORE_ONLY = 3,  //!<  Only processors of efficient-cores can be used.
 };
 
 /** @cond INTERNAL */
-inline std::ostream& operator<<(std::ostream& os, const ProcessorType& processor_type) {
-    switch (processor_type) {
-    case ProcessorType::DEFAULT:
-        return os << "CPU_DEFAULT";
-    case ProcessorType::ALL_CORE:
-        return os << "CPU_ALL_CORE";
-    case ProcessorType::PHY_CORE_ONLY:
-        return os << "CPU_PHY_CORE_ONLY";
-    case ProcessorType::P_CORE_ONLY:
-        return os << "CPU_P_CORE_ONLY";
-    case ProcessorType::E_CORE_ONLY:
-        return os << "CPU_E_CORE_ONLY";
-    case ProcessorType::PHY_P_CORE_ONLY:
-        return os << "CPU_PHY_P_CORE_ONLY";
+inline std::ostream& operator<<(std::ostream& os, const SchedulingCoreType& core_type) {
+    switch (core_type) {
+    case SchedulingCoreType::ALL:
+        return os << "CPU_ALL";
+    case SchedulingCoreType::PCORE_ONLY:
+        return os << "CPU_PCORE_ONLY";
+    case SchedulingCoreType::ECORE_ONLY:
+        return os << "CPU_ECORE_ONLY";
     default:
-        throw ov::Exception{"Unsupported processor type!"};
+        throw ov::Exception{"Unsupported core type!"};
     }
 }
 
-inline std::istream& operator>>(std::istream& is, ProcessorType& processor_type) {
+inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type) {
     std::string str;
     is >> str;
-    if (str == "CPU_DEFAULT") {
-        processor_type = ProcessorType::DEFAULT;
-    } else if (str == "CPU_ALL_CORE") {
-        processor_type = ProcessorType::ALL_CORE;
-    } else if (str == "CPU_PHY_CORE_ONLY") {
-        processor_type = ProcessorType::PHY_CORE_ONLY;
-    } else if (str == "CPU_P_CORE_ONLY") {
-        processor_type = ProcessorType::P_CORE_ONLY;
-    } else if (str == "CPU_E_CORE_ONLY") {
-        processor_type = ProcessorType::E_CORE_ONLY;
-    } else if (str == "CPU_PHY_P_CORE_ONLY") {
-        processor_type = ProcessorType::PHY_P_CORE_ONLY;
+    if (str == "CPU_ALL") {
+        core_type = SchedulingCoreType::ALL;
+    } else if (str == "CPU_PCORE_ONLY") {
+        core_type = SchedulingCoreType::PCORE_ONLY;
+    } else if (str == "CPU_ECORE_ONLY") {
+        core_type = SchedulingCoreType::ECORE_ONLY;
     } else {
-        throw ov::Exception{"Unsupported processor type: " + str};
+        throw ov::Exception{"Unsupported core type: " + str};
     }
     return is;
 }
 /** @endcond */
 
 /**
- * @brief This property define CPU processor type used for CPU inference.
+ * @brief This property define core type can be used for CPU inference.
  * @ingroup ov_runtime_cpu_prop_cpp_api
  *
- * Developer can use this property to select specific processors for CPU inference. Please refer ProcessorType for all
- * definition of processor type.
+ * Developer can use this property to select specific CPU cores for CPU inference. Please refer SchedulingCoreType for all
+ * definition of core type.
  *
  * The following code is example to only use efficient-cores for inference on hybrid CPU.
  *
  * @code
- * ie.set_property(ov::intel_cpu::processor_type(ov::intel_cpu::ProcessorType::E_CORE_ONLY));
+ * ie.set_property(ov::intel_cpu::scheduling_core_type(ov::intel_cpu::SchedulingCoreType::ECORE_ONLY));
  * @endcode
  */
-static constexpr Property<ProcessorType> processor_type{"CPU_PROCESSOR_TYPE"};
+static constexpr Property<SchedulingCoreType> scheduling_core_type{"CPU_SCHEDULING_CORE_TYPE"};
 }  // namespace intel_cpu
 }  // namespace ov

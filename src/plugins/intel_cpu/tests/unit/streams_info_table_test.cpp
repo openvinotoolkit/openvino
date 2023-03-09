@@ -15,113 +15,71 @@ using namespace ov;
 
 namespace {
 
-struct ProcessorTypeTestCase {
-    ov::intel_cpu::ProcessorType input_type;
+struct SchedulingCoreTypeTestCase {
+    ov::intel_cpu::SchedulingCoreType input_type;
     std::vector<std::vector<int>> proc_type_table;
     std::vector<std::vector<int>> result_table;
 };
 
-class ProcessorTypeTests : public CommonTestUtils::TestsCommon,
-                           public testing::WithParamInterface<std::tuple<ProcessorTypeTestCase>> {
+class SchedulingCoreTypeTests : public CommonTestUtils::TestsCommon,
+                           public testing::WithParamInterface<std::tuple<SchedulingCoreTypeTestCase>> {
 public:
     void SetUp() override {
         const auto& test_data = std::get<0>(GetParam());
 
         std::vector<std::vector<int>> test_result_table =
-            ov::intel_cpu::apply_processor_type(test_data.input_type, test_data.proc_type_table);
+            ov::intel_cpu::apply_core_type(test_data.input_type, test_data.proc_type_table);
 
         ASSERT_EQ(test_data.result_table, test_result_table);
     }
 };
 
-ProcessorTypeTestCase _2sockets_DEFAULT = {
-    ov::intel_cpu::ProcessorType::DEFAULT,
-    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
-    {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
-};
-
-ProcessorTypeTestCase _2sockets_ALL = {
-    ov::intel_cpu::ProcessorType::ALL_CORE,
+SchedulingCoreTypeTestCase _2sockets_ALL = {
+    ov::intel_cpu::SchedulingCoreType::ALL,
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
 };
 
-ProcessorTypeTestCase _2sockets_PHY_CORE_ONLY = {
-    ov::intel_cpu::ProcessorType::PHY_CORE_ONLY,
-    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
-    {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
-};
-
-ProcessorTypeTestCase _2sockets_P_CORE_ONLY = {
-    ov::intel_cpu::ProcessorType::P_CORE_ONLY,
+SchedulingCoreTypeTestCase _2sockets_P_CORE_ONLY = {
+    ov::intel_cpu::SchedulingCoreType::PCORE_ONLY,
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
 };
 
-ProcessorTypeTestCase _2sockets_E_CORE_ONLY = {
-    ov::intel_cpu::ProcessorType::E_CORE_ONLY,
+SchedulingCoreTypeTestCase _2sockets_E_CORE_ONLY = {
+    ov::intel_cpu::SchedulingCoreType::ECORE_ONLY,
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
-    {{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}},
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
 };
 
-ProcessorTypeTestCase _2sockets_PHY_P_CORE_ONLY = {
-    ov::intel_cpu::ProcessorType::PHY_P_CORE_ONLY,
-    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
-    {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
-};
-
-ProcessorTypeTestCase _1sockets_DEFAULT = {
-    ov::intel_cpu::ProcessorType::DEFAULT,
+SchedulingCoreTypeTestCase _1sockets_ALL = {
+    ov::intel_cpu::SchedulingCoreType::ALL,
     {{20, 6, 8, 6}},
     {{20, 6, 8, 6}},
 };
 
-ProcessorTypeTestCase _1sockets_ALL = {
-    ov::intel_cpu::ProcessorType::ALL_CORE,
-    {{20, 6, 8, 6}},
-    {{20, 6, 8, 6}},
-};
-
-ProcessorTypeTestCase _1sockets_PHY_CORE_ONLY = {
-    ov::intel_cpu::ProcessorType::PHY_CORE_ONLY,
-    {{20, 6, 8, 6}},
-    {{14, 6, 8, 0}},
-};
-
-ProcessorTypeTestCase _1sockets_P_CORE_ONLY = {
-    ov::intel_cpu::ProcessorType::P_CORE_ONLY,
+SchedulingCoreTypeTestCase _1sockets_P_CORE_ONLY = {
+    ov::intel_cpu::SchedulingCoreType::PCORE_ONLY,
     {{20, 6, 8, 6}},
     {{12, 6, 0, 6}},
 };
 
-ProcessorTypeTestCase _1sockets_E_CORE_ONLY = {
-    ov::intel_cpu::ProcessorType::E_CORE_ONLY,
+SchedulingCoreTypeTestCase _1sockets_E_CORE_ONLY = {
+    ov::intel_cpu::SchedulingCoreType::ECORE_ONLY,
     {{20, 6, 8, 6}},
     {{8, 0, 8, 0}},
 };
 
-ProcessorTypeTestCase _1sockets_PHY_P_CORE_ONLY = {
-    ov::intel_cpu::ProcessorType::PHY_P_CORE_ONLY,
-    {{20, 6, 8, 6}},
-    {{6, 6, 0, 0}},
-};
+TEST_P(SchedulingCoreTypeTests, SchedulingCoreType) {}
 
-TEST_P(ProcessorTypeTests, ProcessorType) {}
-
-INSTANTIATE_TEST_SUITE_P(ProcessorTypeTable,
-                         ProcessorTypeTests,
-                         testing::Values(_2sockets_DEFAULT,
-                                         _2sockets_ALL,
-                                         _2sockets_PHY_CORE_ONLY,
+INSTANTIATE_TEST_SUITE_P(SchedulingCoreTypeTable,
+                         SchedulingCoreTypeTests,
+                         testing::Values(_2sockets_ALL,
                                          _2sockets_P_CORE_ONLY,
                                          _2sockets_E_CORE_ONLY,
-                                         _2sockets_PHY_P_CORE_ONLY,
-                                         _1sockets_DEFAULT,
                                          _1sockets_ALL,
-                                         _1sockets_PHY_CORE_ONLY,
                                          _1sockets_P_CORE_ONLY,
-                                         _1sockets_E_CORE_ONLY,
-                                         _1sockets_PHY_P_CORE_ONLY));
+                                         _1sockets_E_CORE_ONLY));
 
 
 struct StreamsCalculationTestCase {

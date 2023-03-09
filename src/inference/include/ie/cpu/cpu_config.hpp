@@ -43,27 +43,15 @@ DECLARE_CPU_CONFIG_KEY(DENORMALS_OPTIMIZATION);
 DECLARE_CPU_CONFIG_KEY(SPARSE_WEIGHTS_DECOMPRESSION_RATE);
 
 /**
- * @brief The name for defining processor type used for CPU inference.
+ * @brief The name for defining core type can be used for CPU inference.
  *
- *  - DEFAULT:         Default setting. All processors can be used on one socket platform. And only processors of
- *                     physical cores can be used on two socket platform.
- *  - ALL_CORE:        All processors can be used. If hyper threading is enabled, both processor of one performance-core
- *                     can be used.
- *  - PHY_CORE_ONLY:   Only processors of physical cores can be used. If hyper threading is enabled, only one processor
- *                     of one performance-core can be used.
- *  - P_CORE_ONLY:     Only processors of performance-cores can be used. If hyper threading is enabled, both processor
- *                     of one performance-core can be used.
- *  - E_CORE_ONLY:     Only processors of efficient-cores can be used.
- *  - PHY_P_CORE_ONLY: Only processors of physical performance-cores can be used. If hyper threading is enabled, only
- *                     one processor of one performance-core can be used.
+ *  - ALL_CORE:   All processors can be used.
+ *  - PCORE_ONLY: Only processors of performance-cores can be used.
+ *  - ECORE_ONLY: Only processors of efficient-cores can be used.
  */
-DECLARE_CPU_CONFIG_KEY(PROCESSOR_TYPE);
-DECLARE_CPU_CONFIG_VALUE(DEFAULT);
-DECLARE_CPU_CONFIG_VALUE(ALL_CORE);
-DECLARE_CPU_CONFIG_VALUE(PHY_CORE_ONLY);
-DECLARE_CPU_CONFIG_VALUE(P_CORE_ONLY);
-DECLARE_CPU_CONFIG_VALUE(E_CORE_ONLY);
-DECLARE_CPU_CONFIG_VALUE(PHY_P_CORE_ONLY);
-
+DECLARE_CPU_CONFIG_KEY(SCHEDULING_CORE_TYPE);
+DECLARE_CPU_CONFIG_VALUE(ALL);
+DECLARE_CPU_CONFIG_VALUE(PCORE_ONLY);
+DECLARE_CPU_CONFIG_VALUE(ECORE_ONLY);
 }  // namespace CPUConfigParams
 }  // namespace InferenceEngine
