@@ -244,6 +244,19 @@ private:
     bool m_is_new_api;                                                   //!< A flag which shows used API
 };
 
+/**
+ * @brief Returns set of nodes from original model which are
+ * determined as supported after applied transformation pipeline.
+ * @param model Original model
+ * @param transform Transformation pipeline function
+ * @param is_node_supported Function returning whether node is supported or not
+ * @return Set of strings which contains supported node names
+ */
+OPENVINO_RUNTIME_API std::unordered_set<std::string> get_supported_nodes(
+    const std::shared_ptr<const ov::Model>& model,
+    std::function<void(std::shared_ptr<ov::Model>&)> transform,
+    std::function<bool(const std::shared_ptr<ov::Node>)> is_node_supported);
+
 }  // namespace ov
 /**
  * @def OV_CREATE_PLUGIN

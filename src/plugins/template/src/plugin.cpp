@@ -162,7 +162,7 @@ ov::SupportedOpsMap ov::template_plugin::Plugin::query_model(const std::shared_p
 
     OPENVINO_ASSERT(model, "OpenVINO Model is empty!");
 
-    auto supported = InferenceEngine::GetSupportedNodes(
+    auto supported = ov::get_supported_nodes(
         model,
         [&](std::shared_ptr<ov::Model>& model) {
             // 1. It is needed to apply all transformations as it is done in compile_model

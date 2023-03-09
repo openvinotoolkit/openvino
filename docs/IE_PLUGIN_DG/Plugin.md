@@ -8,7 +8,7 @@ OpenVINO Plugin usually represents a wrapper around a backend. Backends can be:
 The responsibility of OpenVINO Plugin:
 - Initializes a backend and throw exception in `Engine` constructor if backend cannot be initialized.
 - Provides information about devices enabled by a particular backend, e.g. how many devices, their properties and so on.
-- Loads or imports [executable network](@ref openvino_docs_ie_plugin_dg_executable_network) objects.
+- Loads or imports [compiled model](@ref openvino_docs_ie_plugin_dg_executable_network) objects.
 
 In addition to the OpenVINO Public API, the OpenVINO provides the Plugin API, which is a set of functions and helper classes that simplify new plugin development:
 
@@ -30,7 +30,7 @@ Based on that, declaration of a plugin class can look as follows:
 
 The provided plugin class also has several fields:
 
-* `m_backend` - a backend engine that is used to perform actual computations for network inference. For `Template` plugin `ov::runtime::Backend` is used which performs computations using OpenVINO™ reference implementations.
+* `m_backend` - a backend engine that is used to perform actual computations for model inference. For `Template` plugin `ov::runtime::Backend` is used which performs computations using OpenVINO™ reference implementations.
 * `m_waitExecutor` - a task executor that waits for a response from a device about device tasks completion.
 * `m_cfg` of type `Configuration`:
 
@@ -41,6 +41,7 @@ As an example, a plugin configuration has three value parameters:
 - `device_id` - particular device ID to work with. Applicable if a plugin supports more than one `Template` device. In this case, some plugin methods, like `set_property`, `query_model`, and `compile_model`, must support the ov::device::id property. 
 - `perf_counts` - boolean value to identify whether to collect performance counters during [Inference Request](@ref openvino_docs_ie_plugin_dg_infer_request) execution.
 - `streams_executor_config` - configuration of `ov::threading::IStreamsExecutor` to handle settings of multi-threaded context.
+- `performance_mode` - configuration of `ov::hint::PerformanceMode` to set the performance mode.
 
 ### Plugin Constructor
 
@@ -62,10 +63,10 @@ A plugin destructor must stop all plugins activities, and clean all allocated re
 
 ### `compile_model()`
 
-The plugin should implement two `compile_model()` methods the first one compiles model without remote context, the second one with remote context if plugin supports.
+The plugin should implement two `compile_model()` methods: the first one compiles model without remote context, the second one with remote context if plugin supports.
 
-This is the most important function of the `Plugin` class and creates an instance of compiled `CompiledModel`,
-which holds a backend-dependent compiled graph in an internal representation:
+This is the most important function of the `Plugin` class is to create an instance of compiled `CompiledModel`,
+which holds a backend-dependent compiled model in an internal representation:
 
 @snippet template/src/plugin.cpp plugin:compile_model
 
@@ -74,7 +75,7 @@ which holds a backend-dependent compiled graph in an internal representation:
 Before a creation of an `CompiledModel` instance via a constructor, a plugin may check if a provided 
 ov::Model object is supported by a device if it is needed.
 
-Actual graph compilation is done in the `CompiledModel` constructor. Refer to the [CompiledModel Implementation Guide](@ref openvino_docs_ie_plugin_dg_executable_network) for details.
+Actual model compilation is done in the `CompiledModel` constructor. Refer to the [CompiledModel Implementation Guide](@ref openvino_docs_ie_plugin_dg_executable_network) for details.
 
 > **NOTE**: Actual configuration map used in `CompiledModel` is constructed as a base plugin 
 > configuration set via `Plugin::set_property`, where some values are overwritten with `config` passed to `Plugin::compile_model`. 
@@ -82,23 +83,23 @@ Actual graph compilation is done in the `CompiledModel` constructor. Refer to th
 
 ### `transform_model()`
 
-The function accepts a const shared pointer to `ov::Model` object and applies common and plugin-specific transformations on a copied graph to make the graph more friendly to hardware operations. For details how to write custom plugin-specific transformation, please, refer to [Writing OpenVINO™ transformations](@ref openvino_docs_transformations) guide. See detailed topics about network representation:
+The function accepts a const shared pointer to `ov::Model` object and applies common and device-specific transformations on a copied model to make it more friendly to hardware operations. For details how to write custom device-specific transformation, please, refer to [Writing OpenVINO™ transformations](@ref openvino_docs_transformations) guide. See detailed topics about model representation:
     * [Intermediate Representation and Operation Sets](@ref openvino_docs_MO_DG_IR_and_opsets)
     * [Quantized models](@ref openvino_docs_ie_plugin_dg_quantized_networks).
 
 @snippet template/src/plugin.cpp plugin:transform_model
 
-> **NOTE**: After all these transformations, a `ov::Model` object contains operations which can be perfectly mapped to backend kernels. E.g. if backend has kernel computing `A + B` operations at once, the `transform_model` function should contain a pass which fuses operations `A` and `B` into a single custom operation `A + B` which fits backend kernels set.
+> **NOTE**: After all these transformations, an `ov::Model` object contains operations which can be perfectly mapped to backend kernels. E.g. if backend has kernel computing `A + B` operations at once, the `transform_model` function should contain a pass which fuses operations `A` and `B` into a single custom operation `A + B` which fits backend kernels set.
 
 ### `query_model()`
 
-Use the method with the `HETERO` mode, which allows to distribute network execution between different 
+Use the method with the `HETERO` mode, which allows to distribute model execution between different 
 devices based on the `ov::Node::get_rt_info()` map, which can contain the `"affinity"` key.
 The `query_model` method analyzes operations of provided `model` and returns a list of supported
-operations via the ov::SupportedOpsMap structure. The `query_model` firstly applies `transform_model` passes to input `ov::Model` argument. After this, the transformed network in ideal case contains only operations are 1:1 mapped to kernels in computational backend. In this case, it's very easy to analyze which operations is supposed (`m_backend` has a kernel for such operation or extensions for the operation is provided) and not supported (kernel is missed in `m_backend`):
+operations via the ov::SupportedOpsMap structure. The `query_model` firstly applies `transform_model` passes to input `ov::Model` argument. After this, the transformed model in ideal case contains only operations are 1:1 mapped to kernels in computational backend. In this case, it's very easy to analyze which operations is supposed (`m_backend` has a kernel for such operation or extensions for the operation is provided) and not supported (kernel is missed in `m_backend`):
 
 1. Store original names of all operations in input `ov::Model`
-2. Apply `transform_model` passes. Note, the names of operations in a transformed network can be different and we need to restore the mapping in the steps below.
+2. Apply `transform_model` passes. Note, the names of operations in a transformed model can be different and we need to restore the mapping in the steps below.
 3. Construct `supported` map which contains names of original operations. Note, that since the inference is performed using OpenVINO™ reference backend, the decision whether the operation is supported or not depends on whether the latest OpenVINO opset contains such operation.
 4. `ov.SupportedOpsMap` contains only operations which are fully supported by `m_backend`.
 
@@ -111,7 +112,7 @@ Sets new values for plugin property keys:
 @snippet template/src/plugin.cpp plugin:set_property
 
 In the snippet above, the `Configuration` class overrides previous configuration values with the new 
-ones. All these values are used during backend specific graph compilation and execution of inference requests.
+ones. All these values are used during backend specific model compilation and execution of inference requests.
 
 > **NOTE**: The function must throw an exception if it receives an unsupported configuration key.
 
@@ -128,22 +129,21 @@ key value to the ov::Any and returns it.
 
 ### `import_model()`
 
-The importing network mechanism allows to import a previously exported backend specific graph and wrap it 
+The importing of compiled model mechanism allows to import a previously exported backend specific model and wrap it 
 using an [CompiledModel](@ref openvino_docs_ie_plugin_dg_executable_network) object. This functionality is useful if 
-backend specific graph compilation takes significant time and/or cannot be done on a target host 
+backend specific model compilation takes significant time and/or cannot be done on a target host 
 device due to other reasons.
 
-During export of backend specific graph using `CompiledModel::export_model`, a plugin may export any 
-type of information it needs to import a compiled graph properly and check its correctness. 
+During export of backend specific model using `CompiledModel::export_model`, a plugin may export any 
+type of information it needs to import a compiled model properly and check its correctness. 
 For example, the export information may include:
 
 - Compilation options (state of `Plugin::m_cfg` structure)
 - Information about a plugin and a device type to check this information later during the import and 
 throw an exception if the `model` stream contains wrong data. For example, if devices have different 
-capabilities and a graph compiled for a particular device cannot be used for another, such type of 
+capabilities and a model compiled for a particular device cannot be used for another, such type of 
 information must be stored and checked during the import. 
-- Compiled backend specific graph itself
-- Information about precisions and shapes set by the user
+- Compiled backend specific model itself
 
 @snippet template/src/plugin.cpp plugin:import_model
 @snippet template/src/plugin.cpp plugin:import_model_with_remote
