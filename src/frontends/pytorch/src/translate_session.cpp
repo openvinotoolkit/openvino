@@ -45,9 +45,9 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
     const std::unordered_map<size_t, PlaceDesc>& external_descriptors) {
     std::shared_ptr<Model> resulting_model;  // define here to make a conversion in a nested scope
     {
-        ParameterVector parameters;
-        TensorMap tensor_map;  // tensor map of the current context
-        std::set<size_t> mutated_tensors;
+        auto parameters = std::shared_ptr<ParameterVector>();
+        auto tensor_map = std::make_shared<TensorMap>();  // tensor map of the current context
+        auto mutated_tensors = std::make_shared<std::set<size_t>>();
 
         //  Go over all pytorch_model inputs and register them in the tensor map:
         auto inputs = pytorch_model->inputs();
@@ -74,7 +74,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             if (!input_node) {
                 auto parameter = std::make_shared<v0::Parameter>(type, pshape);
                 encode_tensor_name(parameter->output(0), inputs.at(i), pytorch_model->get_input_debug_name(i));
-                parameters.push_back(parameter);
+                parameters->push_back(parameter);
                 input_node = parameter;
                 auto order = pytorch_model->get_input_transpose_order(i);
                 if (order.size() > 0 && !std::is_sorted(order.begin(), order.end())) {
@@ -91,7 +91,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                     input_node = transpose;
                 }
             }
-            tensor_map[inputs.at(i)] = input_node;
+            (*tensor_map)[inputs.at(i)] = input_node;
         }
 
         auto node_visitor = [&](std::shared_ptr<TorchDecoder> node) {
@@ -102,7 +102,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             auto raw_inputs = node->inputs();
             for (size_t i = 0; i < raw_inputs.size(); ++i) {
                 auto input = raw_inputs.at(i);
-                if (tensor_map.find(input) == tensor_map.end()) {
+                if (tensor_map->find(input) == tensor_map->end()) {
                     // Input refers value in the outer scope, need to create a new Parameter in the current scope
                     // Linkage to external scope will be performed on the level of the parent operation (if or loop)
                     // TODO: Eliminate duplication with the main code for Parameters creation
@@ -111,13 +111,13 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                     // TODO: Use special API to set custom type specification
                     auto parameter = std::make_shared<v0::Parameter>(element::dynamic, ps);
                     // TODO: Missing get_input_transpose_order handling for not trivial layouts
-                    tensor_map[input] = parameter;
+                    (*tensor_map)[input] = parameter;
                     // set name of parameter to the index of node in the model
                     encode_tensor_name(parameter->output(0), input);
-                    parameters.push_back(parameter);
+                    parameters->push_back(parameter);
                 }
             }
-            auto context = NodeContext(node, external_tensor_map, &tensor_map, &parameters, &mutated_tensors, this);
+            auto context = NodeContext(node, external_tensor_map, tensor_map, parameters, mutated_tensors, this);
             auto converted_outputs = convert_node(context);
 
             auto fw_outputs = node->outputs();
@@ -131,10 +131,10 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             // FIXME: Now it is not true for at least prim::Constant
             for (size_t i = 0; i < fw_outputs.size(); ++i) {
                 size_t fw_tensor_id = node->output(i);
-                FRONT_END_GENERAL_CHECK(tensor_map.find(fw_tensor_id) == tensor_map.end(),
+                FRONT_END_GENERAL_CHECK(tensor_map->find(fw_tensor_id) == tensor_map->end(),
                                         "Duplicated producer for PT value with unique ID: ",
                                         fw_tensor_id);
-                tensor_map[fw_tensor_id] = converted_outputs[i];
+                (*tensor_map)[fw_tensor_id] = converted_outputs[i];
                 encode_tensor_name(converted_outputs[i], fw_tensor_id, node->get_output_debug_name(i));
             }
         };
@@ -145,14 +145,14 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
         ResultVector results;
         for (size_t i = 0; i < pytorch_model->num_of_outputs(); ++i) {
             size_t id = pytorch_model->output(i);
-            if (tensor_map.find(id) == tensor_map.end()) {
+            if (tensor_map->find(id) == tensor_map->end()) {
                 // Not found in this scope, adding Parameter to connect to external scope
                 auto parameter = std::make_shared<v0::Parameter>(element::dynamic, PartialShape::dynamic());
                 encode_tensor_name(parameter->output(0), id);
-                parameters.push_back(parameter);
-                tensor_map[id] = parameter;
+                parameters->push_back(parameter);
+                (*tensor_map)[id] = parameter;
             }
-            auto ov_output = tensor_map[id];
+            auto ov_output = tensor_map->at(id);
             auto order = pytorch_model->get_output_transpose_order(i);
             FRONT_END_GENERAL_CHECK(order.size() == 0 || std::is_sorted(order.begin(), order.end()),
                                     "Output strides have wrong order.");
@@ -165,25 +165,25 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
 
         // Since parameters can be added we need to list all current parameters
         std::set<size_t> param_names;
-        for (const auto& param : parameters) {
+        for (const auto& param : *parameters) {
             auto input_idx = decode_tensor_name(param->output(0));
             param_names.insert(input_idx);
         }
-        for (const auto& tensor_id : mutated_tensors) {
+        for (const auto& tensor_id : *mutated_tensors) {
             if (param_names.count(tensor_id)) {
-                FRONT_END_GENERAL_CHECK(tensor_map.count(tensor_id),
+                FRONT_END_GENERAL_CHECK(tensor_map->count(tensor_id),
                                         "Tensor with id: ",
                                         tensor_id,
                                         " doesn't exist in tensor map.");
                 // model input was mutated we need to make a result for it
-                auto mutated_tensor = tensor_map.at(tensor_id);
+                auto mutated_tensor = tensor_map->at(tensor_id);
                 // empty external_tensor_map means this is main body of the model and we don't want to create
                 // additional outputs in that case.
                 if (mutated_tensor.get_target_inputs().empty() && !external_tensor_map.empty())
-                    results.push_back(std::make_shared<v0::Result>(tensor_map.at(tensor_id)));
+                    results.push_back(std::make_shared<v0::Result>(tensor_map->at(tensor_id)));
             }
         }
-        resulting_model = std::make_shared<Model>(results, parameters);
+        resulting_model = std::make_shared<Model>(results, *parameters);
         // Did a conversion in a nested scope to automatically remove any holders of nodes except those in the graph
     }
 

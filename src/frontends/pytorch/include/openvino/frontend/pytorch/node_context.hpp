@@ -20,9 +20,9 @@ class NodeContext : public frontend::NodeContext {
 public:
     NodeContext(std::shared_ptr<TorchDecoder> decoder,
                 const TensorMap& ext_tensor_map,
-                TensorMap* tensor_map,
-                ParameterVector* external_parameters,
-                std::set<size_t>* mutated_tensors,
+                std::shared_ptr<TensorMap> tensor_map,
+                std::shared_ptr<ParameterVector> external_parameters,
+                std::shared_ptr<std::set<size_t>> mutated_tensors,
                 TranslateSession* translate_session)
         : frontend::NodeContext(decoder->get_op_type()),
           m_decoder(decoder),
@@ -135,9 +135,9 @@ public:
 private:
     std::shared_ptr<TorchDecoder> m_decoder;
     const TensorMap& m_ext_tensor_map;
-    TensorMap* m_tensor_map = nullptr;
-    ParameterVector* m_external_parameters = nullptr;
-    std::set<size_t>* m_mutated_tensors = nullptr;
+    std::shared_ptr<TensorMap> m_tensor_map;
+    std::shared_ptr<ParameterVector> m_external_parameters;
+    std::shared_ptr<std::set<size_t>> m_mutated_tensors;
     TranslateSession* m_translate_session = nullptr;
     const std::vector<size_t> m_decoder_inputs;
     const std::vector<size_t> m_decoder_outputs;
