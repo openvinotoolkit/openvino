@@ -21,10 +21,14 @@
 #include "emitters/jit_dnnl_emitters.hpp"
 #include "emitters/jit_load_store_emitters.hpp"
 
+using namespace InferenceEngine;
+using namespace dnnl::impl::cpu::x64;
+using namespace Xbyak;
+
 namespace ov {
 namespace intel_cpu {
 namespace node {
-using namespace Xbyak;
+
 #define THROW_ERROR IE_THROW() << getTypeStr() << " node with name '" << getName() << "' "
 template <cpu_isa_t isa>
 struct jit_move_scale_kernel : public jit_uni_move_scale_kernel, public jit_generator {
