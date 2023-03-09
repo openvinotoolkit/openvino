@@ -318,8 +318,8 @@ std::vector<FactoryPtr> reduction_factories = {
 };
 
 TEST_P(TransposeSinkingTestFixture, CompareFunctions) {
-    int num_main_ops_idx;
-    int main_op_idx;
+    size_t num_main_ops_idx;
+    size_t main_op_idx;
     TestCase test_case;
     tie(num_main_ops_idx, main_op_idx, test_case) = this->GetParam();
     model = test_case.model.model_template(main_op_idx,
