@@ -76,7 +76,14 @@ auto default_affinity = [] {
         }
 }();
 #else
-auto default_affinity = ov::Affinity::CORE;
+auto default_affinity = [] {
+    auto coreTypes = InferenceEngine::getAvailableCoresTypes();
+    if (coreTypes.size() > 1) {
+        return ov::Affinity::HYBRID_AWARE;
+    } else {
+        return ov::Affinity::CORE;
+    }
+}();
 #endif
 
 const std::vector<ov::AnyMap> default_properties = {
