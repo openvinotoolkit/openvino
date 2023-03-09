@@ -45,8 +45,6 @@
 
 #include <performance_heuristics.hpp>
 
-// #include <pugixml.hpp>
-
 // Undef DEVICE_TYPE macro which can be defined somewhere in windows headers as DWORD and conflict with our metric
 #ifdef DEVICE_TYPE
 #undef DEVICE_TYPE
@@ -528,7 +526,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istr
             networkModel.read(const_cast<char*>(xmlString.c_str()), hdr.model_size);
 
             auto transformedNetwork = GetCore()->ReadNetwork(xmlString, std::move(dataBlob), true);
-            exeNetwork = std::make_shared<CompiledModel>(transformedNetwork, context, config);
+            exeNetwork = std::make_shared<CompiledModel>(transformedNetwork, context, config, &inputs, &outputs);
         } else {
             exeNetwork = std::make_shared<CompiledModel>(ib, context, config);
             exeNetwork->SetPointerToPlugin(shared_from_this());

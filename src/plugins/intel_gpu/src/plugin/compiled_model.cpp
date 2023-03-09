@@ -41,7 +41,9 @@ namespace intel_gpu {
 
 CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network,
                              InferenceEngine::RemoteContext::Ptr context,
-                             const ExecutionConfig& config) :
+                             const ExecutionConfig& config,
+                             InferenceEngine::InputsDataMap* inputs,
+                             InferenceEngine::OutputsDataMap* outputs) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault{[&]() -> InferenceEngine::ITaskExecutor::Ptr {
         if (config.get_property(ov::intel_gpu::exclusive_async_requests)) {
             //exclusiveAsyncRequests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
@@ -59,7 +61,7 @@ CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network,
     m_taskExecutor{ _taskExecutor },
     m_waitExecutor(executorManager()->getIdleCPUStreamsExecutor({ "GPUWaitExecutor" })),
     m_network(network) {
-    auto graph_base = std::make_shared<Graph>(network, get_context_impl(m_context), m_config, 0);
+    auto graph_base = std::make_shared<Graph>(network, get_context_impl(m_context), m_config, 0, inputs, outputs);
     for (uint16_t n = 0; n < m_config.get_property(ov::num_streams); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);
