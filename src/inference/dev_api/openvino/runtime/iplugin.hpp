@@ -18,7 +18,7 @@
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/icore.hpp"
-#include "openvino/runtime/remote_context.hpp"
+#include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 
 namespace InferenceEngine {
@@ -115,7 +115,7 @@ public:
      *
      * @return A remote context object
      */
-    virtual ov::RemoteContext create_context(const ov::AnyMap& remote_properties) const = 0;
+    virtual std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const = 0;
 
     /**
      * @brief Provides a default remote context instance if supported by a plugin
@@ -123,7 +123,7 @@ public:
      *
      * @return The default context.
      */
-    virtual ov::RemoteContext get_default_context(const ov::AnyMap& remote_properties) const = 0;
+    virtual std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const = 0;
 
     /**
      * @brief Creates an compiled model from an previously exported model using plugin implementation

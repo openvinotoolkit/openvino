@@ -111,7 +111,7 @@ public:
      *
      * @return OpenVINO RemoteContext
      */
-    virtual ov::RemoteContext get_context() const = 0;
+    virtual std::shared_ptr<ov::IRemoteContext> get_context() const = 0;
 
 private:
     std::shared_ptr<const ov::IPlugin> m_plugin;

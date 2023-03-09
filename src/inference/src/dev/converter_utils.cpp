@@ -287,12 +287,12 @@ public:
     }
 
     std::shared_ptr<InferenceEngine::RemoteContext> CreateContext(const InferenceEngine::ParamMap& params) override {
-        return ov::legacy_convert::convert_remote_context(m_plugin->create_context(params)._impl);
+        return ov::legacy_convert::convert_remote_context(m_plugin->create_context(params));
     }
 
     std::shared_ptr<InferenceEngine::RemoteContext> GetDefaultContext(
         const InferenceEngine::ParamMap& params) override {
-        return ov::legacy_convert::convert_remote_context(m_plugin->get_default_context(params)._impl);
+        return ov::legacy_convert::convert_remote_context(m_plugin->get_default_context(params));
     }
 
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> ImportNetwork(
@@ -418,7 +418,7 @@ public:
     }
 
     std::shared_ptr<InferenceEngine::RemoteContext> GetContext() const override {
-        return ov::legacy_convert::convert_remote_context(m_model->get_context()._impl);
+        return ov::legacy_convert::convert_remote_context(m_model->get_context());
     }
 
     std::shared_ptr<ov::ICompiledModel> get_compiled_model() {

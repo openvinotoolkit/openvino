@@ -4,6 +4,7 @@
 
 #include "openvino/runtime/isync_infer_request.hpp"
 
+#include <openvino/runtime/iremote_context.hpp>
 #include <unordered_map>
 
 #include "cpp_interfaces/plugin_itt.hpp"
@@ -137,7 +138,7 @@ void ov::ISyncInferRequest::convert_batched_tensors() {
         auto tmp_shape = item.second.at(0).get_shape();
         auto tmp_et = item.second.at(0).get_element_type();
         tmp_shape[0] = item.second.size();
-        ov::RemoteContext remote_context;
+        std::shared_ptr<ov::IRemoteContext> remote_context;
         ov::Tensor input_tensor;
         try {
             auto net = get_compiled_model();
@@ -146,8 +147,8 @@ void ov::ISyncInferRequest::convert_batched_tensors() {
             }
         } catch (const ov::NotImplemented&) {
         }
-        if (remote_context._impl) {
-            input_tensor = remote_context.create_host_tensor(tmp_et, tmp_shape);
+        if (remote_context) {
+            input_tensor = ov::Tensor(remote_context->create_host_tensor(tmp_et, tmp_shape), {});
         } else {
             input_tensor = ov::Tensor(tmp_et, tmp_shape);
         }

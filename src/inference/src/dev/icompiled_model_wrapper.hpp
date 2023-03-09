@@ -23,7 +23,7 @@ public:
 
     ov::Any get_property(const std::string& name) const override;
 
-    ov::RemoteContext get_context() const override;
+    std::shared_ptr<ov::IRemoteContext> get_context() const override;
 
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> get_executable_network();
 

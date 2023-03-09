@@ -11,6 +11,7 @@
 #include "itt.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "remote_context.hpp"
 #include "template/config.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
@@ -46,12 +47,14 @@ ov::template_plugin::Plugin::~Plugin() {
 }
 // ! [plugin:dtor]
 
-ov::RemoteContext ov::template_plugin::Plugin::create_context(const ov::AnyMap& remote_properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+std::shared_ptr<ov::IRemoteContext> ov::template_plugin::Plugin::create_context(
+    const ov::AnyMap& remote_properties) const {
+    return std::make_shared<ov::template_plugin::RemoteContext>();
 }
 
-ov::RemoteContext ov::template_plugin::Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+std::shared_ptr<ov::IRemoteContext> ov::template_plugin::Plugin::get_default_context(
+    const ov::AnyMap& remote_properties) const {
+    return std::make_shared<ov::template_plugin::RemoteContext>();
 }
 
 // ! [plugin:transform_network]
@@ -101,7 +104,7 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
     const std::shared_ptr<const ov::Model>& model,
     const ov::AnyMap& properties,
     const ov::RemoteContext& context) const {
-    OPENVINO_NOT_IMPLEMENTED;
+    return compile_model(model, properties);
 }
 // ! [plugin:load_exe_network_impl]
 
@@ -141,7 +144,7 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(st
 std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(std::istream& model,
                                                                               const ov::RemoteContext& context,
                                                                               const ov::AnyMap& properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+    return import_model(model, properties);
 }
 // ! [plugin:import_network]
 
