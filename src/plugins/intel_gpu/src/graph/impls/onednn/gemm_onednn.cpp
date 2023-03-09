@@ -81,26 +81,15 @@ protected:
         const auto& in0_l = in_layouts[0];
         const auto& in1_l = in_layouts[1];
 
-        size_t in0_batched_size = in0_l.count() / (in0_l.spatial(0) * in0_l.spatial(1));
-        size_t in1_batched_size = in1_l.count() / (in1_l.spatial(0) * in1_l.spatial(1));
-        size_t out_batched_size = out_l.count() / (out_l.spatial(0) * out_l.spatial(1));
-
-        auto batched_dims_can_be_removed = in0_batched_size == 1 && in1_batched_size == 1 && out_batched_size == 1;
-        if (gemm_with_bias) {
-            const auto& bias_l = in_layouts[2];
-            size_t bias_batched_size = bias_l.count() / (bias_l.spatial(0) * bias_l.spatial(1));
-            batched_dims_can_be_removed &= bias_batched_size == 1;
-        }
-
         size_t rank = cldnn::format::dimension(out_l.format);
 
         in0_dt = onednn::convert_data_type(in0_l.data_type);
         in1_dt = onednn::convert_data_type(in1_l.data_type);
         out_dt = onednn::convert_data_type(out_l.data_type);
 
-        in0_dims = onednn::convert_gemm_tensor(in0_l.get_tensor(), rank, batched_dims_can_be_removed);
-        in1_dims = onednn::convert_gemm_tensor(in1_l.get_tensor(), rank, batched_dims_can_be_removed);
-        out_dims = onednn::convert_gemm_tensor(out_l.get_tensor(), rank, batched_dims_can_be_removed);
+        in0_dims = onednn::convert_tensor(in0_l.get_tensor(), rank);
+        in1_dims = onednn::convert_tensor(in1_l.get_tensor(), rank);
+        out_dims = onednn::convert_tensor(out_l.get_tensor(), rank);
 
         in0_fmt = onednn::convert_gemm_data_format(in0_dims);
         in1_fmt = onednn::convert_gemm_data_format(in1_dims);
@@ -120,7 +109,7 @@ protected:
             auto bias_l = impl_params.get_input_layout(2);
             auto bias_rank = cldnn::format::dimension(bias_l.format);
             bias_dt = onednn::convert_data_type(bias_l.data_type);
-            bias_dims = onednn::convert_gemm_tensor(bias_l.get_tensor(), bias_rank, batched_dims_can_be_removed);
+            bias_dims = onednn::convert_tensor(bias_l.get_tensor(), bias_rank);
             bias_fmt = onednn::convert_gemm_data_format(bias_dims);
         }
     }
@@ -301,16 +290,6 @@ public:
     }
 
     static std::unique_ptr<primitive_impl> create(const gemm_node& arg, const kernel_impl_params& impl_params) {
-        bool full_tensor_or_per_tensor = true;
-        for (auto prim : arg.get_fused_primitives()) {
-            if (prim.input_layout.is_static() && prim.output_layout.is_static()) {
-                full_tensor_or_per_tensor &=
-                    prim.input_layout.count() == prim.output_layout.count() || prim.input_layout.count() == 1;
-            }
-        }
-        if (!full_tensor_or_per_tensor) {
-            IE_THROW() << "Unimplemented: per channel binary post-operation is not supported for onednn gemm. Refer PR(#15353) message.";
-        }
         auto& engine = impl_params.prog->get_engine();
         auto& config = impl_params.prog->get_config();
         auto attr = arg.get_onednn_primitive_attributes();
