@@ -58,13 +58,17 @@ When using the ``reshape`` method, you may take one of the approaches:
 1. You can pass a new shape to the method in order to change the input shape of 
 the model with a single input. See the example of adjusting spatial dimensions to the input image:
 
+.. tab-set::
+
    .. tab-item:: C++
+      :sync: cpp
 
       .. doxygensnippet:: docs/snippets/ShapeInference.cpp
          :language: cpp
          :fragment: spatial_reshape
 
    .. tab-item:: Python
+      :sync: py
 
       .. doxygensnippet:: docs/snippets/ShapeInference.py
          :language: python
