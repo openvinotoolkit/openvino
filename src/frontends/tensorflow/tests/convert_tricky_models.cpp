@@ -350,3 +350,19 @@ TEST_F(TransformationTestsF, ModelWithMultioutputBodyGraphNode) {
         model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{x, y});
     }
 }
+
+TEST_F(TransformationTestsF, ModelWithEmptyTensorListAndPushBack) {
+    { model = convert_model("empty_tensor_list/empty_tensor_list.pb"); }
+    {
+        auto x = make_shared<Parameter>(f32, Shape{2, 3, 5});
+        auto minus_one_const = make_shared<Constant>(i32, Shape{1}, -1);
+        auto x_flatten = make_shared<Reshape>(x, minus_one_const, false);
+        auto zero_const = make_shared<Constant>(i32, Shape{1}, 0);
+        auto x_unsqueeze_flatten = make_shared<Unsqueeze>(x_flatten, zero_const);
+        auto empty_const = make_shared<Constant>(f32, Shape{0, 30}, vector<float>{});
+        auto list_push_back = make_shared<Concat>(OutputVector{empty_const, x_unsqueeze_flatten}, 0);
+        auto recover_item_shape = make_shared<Constant>(i32, Shape{4}, vector<int32_t>{1, 2, 3, 5});
+        auto recover_item = make_shared<Reshape>(list_push_back, recover_item_shape, false);
+        model_ref = make_shared<Model>(OutputVector{recover_item}, ParameterVector{x});
+    }
+}
