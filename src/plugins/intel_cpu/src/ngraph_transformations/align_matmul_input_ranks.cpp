@@ -49,7 +49,7 @@ ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
             auto rankTo = nodeTo.get_partial_shape().size();
 
             std::vector<int64_t> unsqueeze_axes;
-            for (int64_t j = 0; j < rankTo - rankFrom; ++j)
+            for (int64_t j = 0; j < static_cast<int64_t>(rankTo - rankFrom); ++j)
                 unsqueeze_axes.push_back(j);
 
             if (transposedUnsqueeze) // special case for one-dimensional second input
