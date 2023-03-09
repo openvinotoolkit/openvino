@@ -71,7 +71,7 @@ bool get_keep_dims(const std::shared_ptr<Node>& reduction) {
     auto arithmetic_reduce = std::dynamic_pointer_cast<ov::op::util::ArithmeticReductionKeepDims>(reduction);
     auto logical_reduce = std::dynamic_pointer_cast<ov::op::util::LogicalReductionKeepDims>(reduction);
 
-    bool keep_dims = false;  // squeeze always reduces number of output dimensions
+    bool keep_dims = false;  // squeeze/unsqueeze always reduces number of output dimensions
     if (logical_reduce)
         keep_dims = logical_reduce->get_keep_dims();
     else if (arithmetic_reduce)
@@ -100,6 +100,7 @@ ov::pass::TransposeSinkingReductionForward::TransposeSinkingReductionForward() {
         auto reduction_axes = std::dynamic_pointer_cast<Constant>(reduction->get_input_node_shared_ptr(1));
         if (!transpose_order || !reduction_axes)
             return false;
+
         auto unsqueeze = std::dynamic_pointer_cast<Unsqueeze>(reduction);
         auto rank =
             unsqueeze ? reduction->get_output_partial_shape(0).rank() : reduction->get_input_partial_shape(0).rank();
@@ -201,7 +202,7 @@ ov::pass::TransposeSinkingReductionBackward::TransposeSinkingReductionBackward()
                 }
             }
         }
-        bool special_case = false;
+        bool squeeze_all_dims = false;
         if (!keep_dims) {
             if (non_negative_axes.empty()) {
                 auto input_pshape = reduction->input_value(0).get_partial_shape();
@@ -211,7 +212,7 @@ ov::pass::TransposeSinkingReductionBackward::TransposeSinkingReductionBackward()
                             non_negative_axes.push_back(i);
                         }
                     }
-                    special_case = true;
+                    squeeze_all_dims = true;
                 } else {
                     return false;
                 }
@@ -233,26 +234,21 @@ ov::pass::TransposeSinkingReductionBackward::TransposeSinkingReductionBackward()
         auto new_transpose_order = std::make_shared<Constant>(transpose_order->get_element_type(),
                                                               Shape{transpose_order_values.size()},
                                                               transpose_order_values);
-
-        if (special_case) {
-            auto new_transpose = transpose->clone_with_new_inputs({reduction->input_value(0), new_transpose_order});
-            auto new_reduction = reduction->clone_with_new_inputs({new_transpose, reduction->input_value(1)});
-            new_reduction->set_friendly_name(transpose->get_friendly_name());
-            replace_node(transpose, new_reduction);
-            transpose_sinking::UpdateForwardSinkingAbility(new_transpose);
-            copy_runtime_info({transpose, reduction}, {new_transpose, new_reduction});
-            register_new_node(new_transpose);
+        std::shared_ptr<Node> new_transpose, new_reduction;
+        if (squeeze_all_dims) {
+            new_transpose = transpose->clone_with_new_inputs({reduction->input_value(0), new_transpose_order});
+            new_reduction = reduction->clone_with_new_inputs({new_transpose, reduction->input_value(1)});
         } else {
             auto new_const =
                 std::make_shared<Constant>(reduction_axes->get_element_type(), reduction_axes->get_shape(), new_values);
-            auto new_transpose = transpose->clone_with_new_inputs({reduction->input_value(0), new_transpose_order});
-            auto new_reduction = reduction->clone_with_new_inputs({new_transpose, new_const});
-            replace_node(transpose, new_reduction);
-            copy_runtime_info({transpose, reduction}, {new_transpose, new_reduction});
-            transpose_sinking::UpdateForwardSinkingAbility(new_transpose);
-            new_reduction->set_friendly_name(transpose->get_friendly_name());
-            register_new_node(new_transpose);
+            new_transpose = transpose->clone_with_new_inputs({reduction->input_value(0), new_transpose_order});
+            new_reduction = reduction->clone_with_new_inputs({new_transpose, new_const});
         }
+        replace_node(transpose, new_reduction);
+        copy_runtime_info({transpose, reduction}, {new_transpose, new_reduction});
+        transpose_sinking::UpdateForwardSinkingAbility(new_transpose);
+        new_reduction->set_friendly_name(transpose->get_friendly_name());
+        register_new_node(new_transpose);
         return true;
     };
 

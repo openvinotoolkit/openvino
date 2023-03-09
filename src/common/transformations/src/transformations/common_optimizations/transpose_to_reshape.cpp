@@ -79,6 +79,7 @@ ov::pass::TransposeToReshape::TransposeToReshape() {
 
         Output<Node> reshape_dim;
         NodeVector new_ops;
+
         if (count_if(dims.begin(), dims.end(), [](const DimensionToPosition& item) {
                 return item.dim.is_dynamic();
             }) < 2) {
@@ -102,7 +103,6 @@ ov::pass::TransposeToReshape::TransposeToReshape() {
         reshape_op->set_friendly_name(transpose->get_friendly_name());
         copy_runtime_info(transpose, new_ops);
         replace_node(transpose, reshape_op);
-
         return true;
     };
 

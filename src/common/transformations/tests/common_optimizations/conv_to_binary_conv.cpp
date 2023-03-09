@@ -21,15 +21,62 @@ using namespace testing;
 using namespace ngraph;
 
 TEST(TransformationTests, ConvToBinaryConvOutputLowZeroOutputHighOne) {
-    std::shared_ptr<Function> f(nullptr);
+    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    {
+        auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 3, 2, 2});
+        auto act_in_low = opset5::Constant::create(element::f32, Shape{1}, {1.0f});
+        auto act_in_high = opset5::Constant::create(element::f32, Shape{1}, {3.0f});
+        auto act_out_low = opset5::Constant::create(element::f32, Shape{1}, {0.0f});
+        auto act_out_high = opset5::Constant::create(element::f32, Shape{1}, {1.0f});
+        auto act_fq =
+            std::make_shared<opset5::FakeQuantize>(data, act_in_low, act_in_high, act_out_low, act_out_high, 2);
+        auto weights = opset5::Constant::create(element::f32, Shape{1, 3, 1, 1}, {-1, 1, 1});
+        auto conv = std::make_shared<opset5::Convolution>(act_fq,
+                                                          weights,
+                                                          Strides{1, 1},
+                                                          CoordinateDiff{0, 0},
+                                                          CoordinateDiff{0, 0},
+                                                          Strides{1, 1},
+                                                          op::PadType::EXPLICIT);
 
-    auto act_in_low = opset5::Constant::create(element::f32, Shape{}, {1.0f});
-    auto act_in_high = opset5::Constant::create(element::i64, Shape{0}, {0});
-    auto transpose = std::make_shared<opset5::Transpose>(act_in_low, act_in_high);
-    auto model = std::make_shared<ov::Model>(ov::OutputVector{transpose}, ParameterVector{});
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::ConstantFolding>();
-    manager.run_passes(model);
+        f = std::make_shared<Function>(NodeVector{conv}, ParameterVector{data});
+
+        pass::Manager m;
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::ConvToBinaryConv>();
+        m.register_pass<ov::pass::ConstantFolding>();
+        m.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        auto data = std::make_shared<opset5::Parameter>(element::f32, Shape{1, 3, 2, 2});
+        auto act_in_low = opset5::Constant::create(element::f32, Shape{1}, {1.0f});
+        auto act_in_high = opset5::Constant::create(element::f32, Shape{1}, {3.0f});
+        auto act_out_low = opset5::Constant::create(element::f32, Shape{1}, {0.0f});
+        auto act_out_high = opset5::Constant::create(element::f32, Shape{1}, {1.0f});
+        auto act_fq =
+            std::make_shared<opset5::FakeQuantize>(data, act_in_low, act_in_high, act_out_low, act_out_high, 2);
+        uint8_t weights_val = 6;
+        auto weights = std::make_shared<opset5::Constant>(element::u1, Shape{1, 3, 1, 1}, &weights_val);
+        auto conv =
+            std::make_shared<opset5::BinaryConvolution>(act_fq,
+                                                        weights,
+                                                        Strides{1, 1},
+                                                        CoordinateDiff{0, 0},
+                                                        CoordinateDiff{0, 0},
+                                                        Strides{1, 1},
+                                                        opset5::BinaryConvolution::BinaryConvolutionMode::XNOR_POPCOUNT,
+                                                        -1.0f,
+                                                        op::PadType::EXPLICIT);
+        auto add = std::make_shared<opset5::Add>(conv, opset5::Constant::create(element::f32, Shape{1, 1, 1}, {0.7f}));
+        auto mul = std::make_shared<opset5::Multiply>(add, opset5::Constant::create(element::f32, Shape{}, {0.2f}));
+
+        f_ref = std::make_shared<Function>(NodeVector{mul}, ParameterVector{data});
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
 }
 
 TEST(TransformationTests, ConvToBinaryConvOutputLowMinusOneOutputHighOne) {
