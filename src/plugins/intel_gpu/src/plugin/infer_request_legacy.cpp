@@ -352,7 +352,7 @@ void InferRequestLegacy::SetBlob(const std::string& name, const Blob::Ptr& data)
                     if (m_graph->GetMaxDynamicBatchSize() > 1) {
                         const auto batch_idx = m_graph->GetInputDynBatchDims()[name].first;
                         if (batch_idx >= 0)
-                            SetBatch(blobDesc.getDims()[batch_idx]);
+                            SetBatch(static_cast<int>(blobDesc.getDims()[batch_idx]));
                     }
                 } else {
                     size_t blobSize = desc.getLayout() != SCALAR
@@ -735,9 +735,9 @@ void InferRequestLegacy::enqueue() {
         bool is_nv12 = nv12_ptr != nullptr;
 
         if (is_nv12 || is_batched) {
-            int num_blobs = is_batched ? batched_ptr->size() : 1;
+            int num_blobs = is_batched ? static_cast<int>(batched_ptr->size()) : 1;
             int expected_batch = is_batched
-                ? _networkInputs.at(inputName)->getTensorDesc().getDims()[0]
+                ? static_cast<int>(_networkInputs.at(inputName)->getTensorDesc().getDims()[0])
                 : 1;
             for (auto i = 0; i < expected_batch; i++) {
                 std::string y_name = inputName + "_Y" + std::to_string(i);
@@ -890,7 +890,7 @@ void InferRequestLegacy::setup_stream_graph() {
     auto& streamGraphs = static_cast<CompiledModel*>(_exeNetwork.get())->m_graphs;
     if (nullptr != streamExecutor) {
         streamID = streamExecutor->GetStreamId();
-        int numGraphs = streamGraphs.size();
+        auto numGraphs = streamGraphs.size();
         streamID = streamID % numGraphs;
     }
     m_graph = streamGraphs[streamID];
@@ -904,7 +904,7 @@ void InferRequestLegacy::setup_stream_graph() {
             // extract new batch size from blob
             const auto batch_idx = m_graph->GetInputDynBatchDims()[input.first].first;
             if (batch_idx >= 0) {
-                SetBatch(_inputs[input.first]->getTensorDesc().getDims()[batch_idx]);
+                SetBatch(static_cast<int>(_inputs[input.first]->getTensorDesc().getDims()[batch_idx]));
                 break;
             }
         }
