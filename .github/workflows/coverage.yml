@@ -58,6 +58,7 @@ jobs:
       - name: Build OpenVINO
         run: |
           cmake -DCMAKE_VERBOSE_MAKEFILE=ON \
+                -DENABLE_OV_PDPD_FRONTEND=OFF \
                 -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
                 -DBUILD_SHARED_LIBS=OFF \
                 -DENABLE_ONEDNN_FOR_GPU=OFF \
