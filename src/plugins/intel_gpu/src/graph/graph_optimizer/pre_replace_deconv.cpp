@@ -252,7 +252,7 @@ void pre_replace_deconv::run(program& p) {
                          static_cast<int>(filter_layout.feature()),
                          static_cast<int>(filter_layout.spatial(0)),
                          static_cast<int>(filter_layout.spatial(1)),
-                         scale_factor,
+                         static_cast<int>(scale_factor),
                          subpixel_weights);
 
                      if (weights_data_type == data_types::f16) {

@@ -80,14 +80,17 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, ke
                              3,
                              "As for now, deconvolutions with more than 3 dimensions are not supported");
 
-    int32_t x = off_factor * pad[pad.size() - 1] + (input_layout.spatial(0) - 1) * strd[strd.size() - 1] + weights_layout.spatial(0);
+    int32_t x = static_cast<int32_t>(
+        off_factor * pad[pad.size() - 1] + (input_layout.spatial(0) - 1) * strd[strd.size() - 1] + weights_layout.spatial(0));
     int32_t y = 1;
     if (spatial_dims > 1) {
-        y = off_factor * pad[pad.size() - 2] + (input_layout.spatial(1) - 1) * strd[strd.size() - 2] + weights_layout.spatial(1);
+        y = static_cast<int32_t>(
+            off_factor * pad[pad.size() - 2] + (input_layout.spatial(1) - 1) * strd[strd.size() - 2] + weights_layout.spatial(1));
     }
     int32_t z = 1;
     if (spatial_dims > 2) {
-        z = off_factor * pad[pad.size() - 3] + (input_layout.spatial(2) - 1) * strd[strd.size() - 3] + weights_layout.spatial(2);
+        z = static_cast<int32_t>(
+            off_factor * pad[pad.size() - 3] + (input_layout.spatial(2) - 1) * strd[strd.size() - 3] + weights_layout.spatial(2));
     }
 
     tensor output_size(input_layout.batch(),

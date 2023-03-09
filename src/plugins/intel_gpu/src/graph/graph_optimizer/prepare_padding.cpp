@@ -277,9 +277,15 @@ void prepare_padding::run(program& p) {
         auto padding_begin_x = std::max<tensor::value_type>(pad_x, 0);
         auto padding_begin_y = std::max<tensor::value_type>(pad_y, 0);
         auto padding_begin_z = std::max<tensor::value_type>(pad_z, 0);
-        auto padding_end_x = std::max<tensor::value_type>(input_limit_x - prev_prim_output_layout.spatial(0), 0);
-        auto padding_end_y = std::max<tensor::value_type>(input_limit_y - prev_prim_output_layout.spatial(1), 0);
-        auto padding_end_z = std::max<tensor::value_type>(input_limit_z - prev_prim_output_layout.spatial(2), 0);
+        auto padding_end_x = std::max<tensor::value_type>(
+            static_cast<tensor::value_type>(input_limit_x) - prev_prim_output_layout.spatial(0),
+            0);
+        auto padding_end_y = std::max<tensor::value_type>(
+            static_cast<tensor::value_type>(input_limit_y) - prev_prim_output_layout.spatial(1),
+            0);
+        auto padding_end_z = std::max<tensor::value_type>(
+            static_cast<tensor::value_type>(input_limit_z) - prev_prim_output_layout.spatial(2),
+            0);
 
         cldnn::padding needed_padding({0, 0, padding_begin_x, padding_begin_y, padding_begin_z}, {0, 0, padding_end_x, padding_end_y, padding_end_z}, 0);
         needed_padding = padding::max(prev_prim_output_layout.data_padding, needed_padding);
