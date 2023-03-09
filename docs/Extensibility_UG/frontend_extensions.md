@@ -1,14 +1,18 @@
 ﻿# Frontend Extensions {#openvino_docs_Extensibility_UG_Frontend_Extensions}
 
-The goal of this chapter is to explain how to use Frontend extension classes to facilitate mapping of custom operations from framework model representation to OpenVINO representation. Refer to [Introduction to OpenVINO Extension](Intro.md) to understand entire flow.
+@sphinxdirective
 
-This API is applicable for new frontends only, which exist for ONNX and PaddlePaddle. If a different model format is used, follow legacy [Model Optimizer Extensions](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) guide.
+The goal of this chapter is to explain how to use Frontend extension classes to facilitate mapping of custom operations from framework model representation to OpenVINO representation. Refer to :doc:`Introduction to OpenVINO Extension <openvino_docs_Extensibility_UG_Intro>` to understand entire flow.
 
-> **NOTE**: This documentation is written based on the [Template extension](https://github.com/openvinotoolkit/openvino/tree/master/src/core/template_extension/new), which demonstrates extension development details based on minimalistic `Identity` operation that is a placeholder for your real custom operation. You can review the complete code, which is fully compliable, to see how it works.
+This API is applicable for new frontends only, which exist for ONNX, PaddlePaddle and TensorFlow. If a different model format is used, follow legacy :doc:`Model Optimizer Extensions <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` guide.
 
-## Single Operation Mapping with OpExtension
+.. note:: 
+   This documentation is written based on the `Template extension <https://github.com/openvinotoolkit/openvino/tree/master/src/core/template_extension/new>`__, which demonstrates extension development details based on minimalistic ``Identity`` operation that is a placeholder for your real custom operation. You can review the complete code, which is fully compliable, to see how it works.
 
-This section covers the case when a single operation in framework representation is mapped to a single operation in OpenVINO representation. This is called *one-to-one mapping*. There is `OpExtension` class that works well if all the following conditions are satisfied:
+Single Operation Mapping with OpExtension
+######################################### 
+
+This section covers the case when a single operation in framework representation is mapped to a single operation in OpenVINO representation. This is called *one-to-one mapping*. There is ``OpExtension`` class that works well if all the following conditions are satisfied:
 
 1. Number of inputs to operation in the Framework representation is the same as in the OpenVINO representation.
 
@@ -20,63 +24,87 @@ This section covers the case when a single operation in framework representation
 
 5. Each attribute in OpenVINO operation can be initialized from one of the attributes of original operation or by some predefined constant value. Value of copied attributes cannot contain expressions, value is accepted as-is, so type of a value should be compatible.
 
-> **NOTE**: `OpExtension` class is currently available for ONNX frontend only. PaddlePaddle frontend has named inputs and outputs for operation (not indexed) therefore OpExtension mapping is not applicable for this case.
+.. note::
+   ``OpExtension`` class is currently available for ONNX and TensorFlow frontends. PaddlePaddle frontend has named inputs and outputs for operation (not indexed) therefore OpExtension mapping is not applicable for this case.
 
-The next example maps ONNX operation with type [“Identity”]( https://github.com/onnx/onnx/blob/main/docs/Operators.md#Identity) to OpenVINO template extension `Identity` class.
+The next example maps ONNX operation with type `Identity <https://github.com/onnx/onnx/blob/main/docs/Operators.md#Identity>`__ to OpenVINO template extension ``Identity`` class.
 
-@snippet ov_extensions.cpp frontend_extension_Identity_header
-@snippet ov_extensions.cpp frontend_extension_Identity
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_Identity_header]
+
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_Identity]
 
 The mapping doesn’t involve any attributes, as operation Identity doesn’t have them.
 
-Extension objects, like just constructed `extension` can be used to add to the OpenVINO runtime just before the loading a model that contains custom operations:
+Extension objects, like just constructed ``extension`` can be used to add to the OpenVINO runtime just before the loading a model that contains custom operations:
 
-@snippet ov_extensions.cpp frontend_extension_read_model
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_read_model]
 
-Or extensions can be constructed in a separately compiled shared library. Separately compiled library can be used in Model Optimizer or `benchmark_app`. Read about how to build and load such library in chapter “Create library with extensions” in [Introduction to OpenVINO Extension](Intro.md).
+Or extensions can be constructed in a separately compiled shared library. Separately compiled library can be used in Model Optimizer or ``benchmark_app``. Read about how to build and load such library in chapter “Create library with extensions” in :doc:`Introduction to OpenVINO Extension <openvino_docs_Extensibility_UG_Intro>`.
 
-If operation have multiple inputs and/or outputs they will be mapped in order. The type of elements in input/output tensors should match expected types in the surrounding operations. For example, if custom operation produces `f32` data type then operation that consumes this output should also support `f32`. Otherwise, model conversion fails with an error, there are no automatic type conversion happens.
+If operation have multiple inputs and/or outputs they will be mapped in order. The type of elements in input/output tensors should match expected types in the surrounding operations. For example, if custom operation produces ``f32`` data type then operation that consumes this output should also support ``f32``. Otherwise, model conversion fails with an error, there are no automatic type conversion happens.
 
-### Converting to Standard OpenVINO Operation
+Converting to Standard OpenVINO Operation
++++++++++++++++++++++++++++++++++++++++++
 
-`OpExtension` class can be used when mapping to one of the operations from standard OpenVINO operation set is what you need and there is no class like `TemplateExtension::Identity` implemented.
+``OpExtension`` class can be used when mapping to one of the operations from standard OpenVINO operation set is what you need and there is no class like ``TemplateExtension::Identity`` implemented.
 
-Here is an example for a custom framework operation “MyRelu”. Suppose it is mathematically equivalent to standard `Relu` that exists in OpenVINO operation set, but for some reason has type name “MyRelu”. In this case you can directly say that “MyRelu” -> `Relu` mapping should be used:
+Here is an example for a custom framework operation “MyRelu”. Suppose it is mathematically equivalent to standard `Relu` that exists in OpenVINO operation set, but for some reason has type name “MyRelu”. In this case you can directly say that “MyRelu” -> ``Relu`` mapping should be used:
 
-@sphinxtabset
+.. tab-set::
 
-@sphinxtab{C++}
-@snippet ov_extensions.cpp frontend_extension_MyRelu
-@endsphinxtab
-@sphinxtab{Python}
-@snippet ov_extensions.py py_frontend_extension_MyRelu
-@endsphinxtab
+   .. tab-item:: C++
+      :sync: cpp
 
-@endsphinxtabset
+      .. doxygensnippet:: docs/snippets/ov_extensions.cpp
+         :language: cpp
+         :fragment: [frontend_extension_MyRelu]
 
-In the resulting converted OpenVINO model, “MyRelu” operation will be replaced by the standard operation `Relu` from the latest available OpenVINO operation set. Notice that when standard operation is used, it can be specified using just a type string (“Relu”) instead of using a `ov::opset8::Relu` class name as a template parameter for `OpExtension`. This method is available for operations from the standard operation set only. For a user custom OpenVINO operation the corresponding class should be always specified as a template parameter as it was demonstrated with `TemplateExtension::Identity`.
+   .. tab-item:: Python
+      :sync: python
+   
+      .. doxygensnippet:: docs/snippets/ov_extensions.py
+         :language: python
+         :fragment: [py_frontend_extension_MyRelu]
 
-### Attributes Mapping
 
-As described above, `OpExtension` is useful when attributes can be mapped one by one or initialized by a constant. If the set of attributes in framework representation and OpenVINO representation completely match by their names and types, nothing should be specified in OpExtension constructor parameters. The attributes are discovered and mapped automatically based on `visit_attributes` method that should be defined for any OpenVINO operation.
+In the resulting converted OpenVINO model, “MyRelu” operation will be replaced by the standard operation ``Relu`` from the latest available OpenVINO operation set. Notice that when standard operation is used, it can be specified using just a type string (“Relu”) instead of using a ``ov::opset8::Relu`` class name as a template parameter for ``OpExtension``. This method is available for operations from the standard operation set only. For a user custom OpenVINO operation the corresponding class should be always specified as a template parameter as it was demonstrated with ``TemplateExtension::Identity``.
 
-Imagine you have CustomOperation class implementation that has two attributes with names `attr1` and `attr2`:
+Attributes Mapping
+++++++++++++++++++
 
-@snippet ov_extensions.cpp frontend_extension_CustomOperation
+As described above, ``OpExtension`` is useful when attributes can be mapped one by one or initialized by a constant. If the set of attributes in framework representation and OpenVINO representation completely match by their names and types, nothing should be specified in OpExtension constructor parameters. The attributes are discovered and mapped automatically based on ``visit_attributes`` method that should be defined for any OpenVINO operation.
 
-And original model in framework representation also has operation with name “CustomOperatoin” with the same `attr1` and `attr2` attributes. Then with the following code:
+Imagine you have CustomOperation class implementation that has two attributes with names ``attr1`` and ``attr2``:
 
-@snippet ov_extensions.cpp frontend_extension_CustomOperation_as_is
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_CustomOperation]
 
-both `attr1` and `attr2` are copied from framework representation to OpenVINO representation automatically. If for some reason names of attributes are different but values still can be copied “as-is” you can pass attribute names mapping in `OpExtension` constructor:
+And original model in framework representation also has operation with name “CustomOperatoin” with the same ``attr1`` and ``attr2`` attributes. Then with the following code:
 
-@snippet ov_extensions.cpp frontend_extension_CustomOperation_rename
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_CustomOperation_as_is]
 
-Where `fw_attr1` and `fw_attr2` are names for corresponding attributes in framework operation representation.
+both ``attr1`` and ``attr2`` are copied from framework representation to OpenVINO representation automatically. If for some reason names of attributes are different but values still can be copied “as-is” you can pass attribute names mapping in ``OpExtension`` constructor:
 
-If copying of an attribute is not what you need, `OpExtension` also can set attribute to predefined constant value. For the same `CustomOperation`, imagine you want to set `attr2` to value 5 instead of copying from `fw_attr2`, to achieve that do the following:
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_CustomOperation_rename]
 
-@snippet ov_extensions.cpp frontend_extension_CustomOperation_rename_set
+Where ``fw_attr1`` and ``fw_attr2`` are names for corresponding attributes in framework operation representation.
+
+If copying of an attribute is not what you need, ``OpExtension`` also can set attribute to predefined constant value. For the same ``CustomOperation``, imagine you want to set ``attr2`` to value 5 instead of copying from ``fw_attr2``, to achieve that do the following:
+
+.. doxygensnippet:: docs/snippets/ov_extensions.cpp
+   :language: cpp
+   :fragment: [frontend_extension_CustomOperation_rename_set]
 
 So the conclusion is that each attribute of target OpenVINO operation should be initialized either by
 
@@ -88,46 +116,62 @@ So the conclusion is that each attribute of target OpenVINO operation should be 
 
 This is achieved by specifying maps as arguments for `OpExtension` constructor.
 
+Mapping to Multiple Operations with ConversionExtension
+#######################################################
 
-## Mapping to Multiple Operations with ConversionExtension
+Previous sections cover the case when a single operation is mapped to a single operation with optional adjustment in names and attribute values. That is likely enough for your own custom operation with existing C++ kernel implementation. In this case your framework representation and OpenVINO representation for the operation are under your control and inputs/outpus/attributes can be aligned to make ``OpExtension`` usable.
 
-Previous sections cover the case when a single operation is mapped to a single operation with optional adjustment in names and attribute values. That is likely enough for your own custom operation with existing C++ kernel implementation. In this case your framework representation and OpenVINO representation for the operation are under your control and inputs/outpus/attributes can be aligned to make `OpExtension` usable.
+In case if one-to-one mapping is not possible, *decomposition to multiple operations* should be considered. It is achieved by using more verbose and less automated ``ConversionExtension`` class. It enables writing arbitrary code to replace a single framework operation by multiple connected OpenVINO operations constructing dependency graph of any complexity.
 
-In case if one-to-one mapping is not possible, *decomposition to multiple operations* should be considered. It is achieved by using more verbose and less automated `ConversionExtension` class. It enables writing arbitrary code to replace a single framework operation by multiple connected OpenVINO operations constructing dependency graph of any complexity.
+``ConversionExtension`` maps a single operation to a function which builds a graph using OpenVINO operation classes. Follow chapter :ref:`Build a Model in OpenVINO Runtime <ov_ug_build_model>` to learn how to use OpenVINO operation classes to build a fragment of model for replacement.
 
-`ConversionExtension` maps a single operation to a function which builds a graph using OpenVINO operation classes. Follow chapter [Build a Model in OpenVINO Runtime](@ref ov_ug_build_model) to learn how to use OpenVINO operation classes to build a fragment of model for replacement.
+The next example illustrates using ``ConversionExtension`` for conversion of “ThresholdedRelu” from ONNX according to the formula: ``ThresholdedRelu(x, alpha) -> Multiply(x, Convert(Greater(x, alpha), type=float))``.
 
-The next example illustrates using `ConversionExtension` for conversion of “ThresholdedRelu” from ONNX according to the formula: `ThresholdedRelu(x, alpha) -> Multiply(x, Convert(Greater(x, alpha), type=float))`.
+.. note:: 
+   ``ThresholdedRelu`` is one of the standard ONNX operators which is supported by ONNX frontend natively out-of-the-box. Here we are re-implementing it to illustrate how you can add a similar support for your custom operation instead of ``ThresholdedRelu``.
 
-> **NOTE**: `ThresholdedRelu` is one of the standard ONNX operators which is supported by ONNX frontend natively out-of-the-box. Here we are re-implementing it to illustrate how you can add a similar support for your custom operation instead of `ThresholdedRelu`.
+.. tab-set::
 
-@sphinxtabset
+   .. tab-item:: C++
+      :sync: cpp
+ 
+      .. doxygensnippet:: docs/snippets/ov_extensions.cpp
+         :language: cpp
+         :fragment: [frontend_extension_ThresholdedReLU_header]
 
-@sphinxtab{C++}
-@snippet ov_extensions.cpp frontend_extension_ThresholdedReLU_header
-@endsphinxtab
-@sphinxtab{Python}
-@snippet ov_extensions.py py_frontend_extension_ThresholdedReLU_header
-@endsphinxtab
+   .. tab-item:: Python
+      :sync: python
 
-@endsphinxtabset
+      .. doxygensnippet:: docs/snippets/ov_extensions.py
+         :language: python
+         :fragment: [py_frontend_extension_ThresholdedReLU_header]
 
-@sphinxtabset
 
-@sphinxtab{C++}
-@snippet ov_extensions.cpp frontend_extension_ThresholdedReLU
-@endsphinxtab
-@sphinxtab{Python}
-@snippet ov_extensions.py py_frontend_extension_ThresholdedReLU
-@endsphinxtab
+.. tab-set::
 
-@endsphinxtabset
+   .. tab-item:: C++
+      :sync: cpp
+ 
+      .. doxygensnippet:: docs/snippets/ov_extensions.cpp
+         :language: cpp
+         :fragment: [frontend_extension_ThresholdedReLU]
 
-To access original framework operation attribute value and connect to inputs, `node` object of type `NodeContext` is used. It has two main methods:
+   .. tab-item:: Python
+      :sync: python
+ 
+      .. doxygensnippet:: docs/snippets/ov_extensions.py
+         :language: python
+         :fragment: [py_frontend_extension_ThresholdedReLU]
 
-* `NodeContext::get_input` to get input with a given index,
 
-* `NodeContext::get_attribute` to get attribute value with a given name.
+To access original framework operation attribute value and connect to inputs, ``node`` object of type ``NodeContext`` is used. It has two main methods:
+
+* ``NodeContext::get_input`` to get input with a given index,
+
+* ``NodeContext::get_attribute`` to get attribute value with a given name.
 
 The conversion function should return a vector of node outputs that are mapped to corresponding outputs of the original framework operation in the same order.
+
+@endsphinxdirective
+
 

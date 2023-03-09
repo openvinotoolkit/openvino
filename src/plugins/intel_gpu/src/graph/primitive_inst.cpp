@@ -32,6 +32,7 @@
 #include <memory>
 #include <algorithm>
 
+namespace cldnn {
 namespace {
 
 bool is_optimized_output_user(const program_node* user) {
@@ -80,7 +81,6 @@ bool is_user_cpu(const program_node* user) {
 }
 }  // namespace
 
-namespace cldnn {
 bool is_any_user_cpu(const std::list<const program_node*>& users) {
     for (const auto& user : users) {
         if (is_user_cpu(user))
@@ -153,6 +153,9 @@ void primitive_inst::update_shape() {
         auto idx = _deps[i].second;
         auto new_shape = _deps[i].first->_impl_params->get_output_layout(idx);
         if (_impl_params->get_input_layout(i) != new_shape) {
+            GPU_DEBUG_TRACE_DETAIL << id() << ": update shape dep: " << _deps[i].first->id()
+                                   << " was: " << _impl_params->get_input_layout(i).to_short_string()
+                                   << " now: " << new_shape.to_short_string() << std::endl;
             _impl_params->input_layouts[i] = new_shape;
             input_shape_changed = true;
         }
@@ -320,13 +323,12 @@ bool primitive_inst::update_impl() {
     if (!_node->is_type<data>() && !(_node->is_type<mutable_data>() && _node->get_dependencies().empty())) {
         // Update param if fake_alignment is available
         auto updated_params = _node->type()->get_fake_aligned_params(*_impl_params);
-        auto impl_key = get_impl_key(updated_params);
         auto& cache = get_network().get_program()->get_implementations_cache();
-        bool has_cached_impl = false;
+        std::shared_ptr<primitive_impl> cached_impl = nullptr;
         {
-            has_cached_impl = cache.has(impl_key);
-            if (has_cached_impl) {
-                _impl = cache.get(impl_key)->clone();
+            cached_impl = cache.get(updated_params);
+            if (cached_impl) {
+                _impl = cached_impl->clone();
                 GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
                 GPU_DEBUG_TRACE_DETAIL << id() << ": get impl from cache " << _impl->get_kernel_name() << std::endl;
             // impl is not replaced
@@ -334,10 +336,10 @@ bool primitive_inst::update_impl() {
                 return false;
             }
         }
-        if (!has_cached_impl) {
+        if (!cached_impl) {
             if (_dynamic_impl) {
                 auto& compilation_context = get_network().get_program()->get_compilation_context();
-                compilation_context.push_task(impl_key, [this, &compilation_context, updated_params, impl_key]() {
+                compilation_context.push_task(updated_params.hash(), [this, &compilation_context, updated_params]() {
                     if (compilation_context.is_stopped())
                         return;
                     auto _program = get_network().get_program();
@@ -345,14 +347,14 @@ bool primitive_inst::update_impl() {
                     {
                         // Check existense in the cache one more time as several iterations of model execution could happens and multiple compilation
                         // tasks created for same shapes
-                        if (cache.has(impl_key))
+                        if (cache.has(updated_params))
                             return;
                     }
 
                     auto impl = _node->type()->choose_impl(*_node, updated_params);
                     auto kernels = _program->get_kernels_cache().compile(impl->get_kernels_source());
                     impl->set_kernels(kernels);
-                    cache.add(impl_key, impl->clone());
+                    cache.add(updated_params, impl->clone());
                 });
                 _impl = _dynamic_impl->clone();
                 _impl->update_dispatch_data(*_impl_params);
@@ -363,7 +365,7 @@ bool primitive_inst::update_impl() {
                 auto& kernels_cache = get_network().get_program()->get_kernels_cache();
                 auto kernels = kernels_cache.compile(_impl->get_kernels_source());
                 _impl->set_kernels(kernels);
-                cache.add(impl_key, _impl->clone());
+                cache.add(updated_params, _impl->clone());
 
                 auto new_impl_str = _impl != nullptr ? _impl->get_kernel_name() : "nullptr";
                 GPU_DEBUG_TRACE_DETAIL << id() << ": update impl from " << prev_impl_str << " to " << new_impl_str << std::endl;
@@ -682,7 +684,7 @@ event::ptr primitive_inst::update_weights() {
         auto& engine = _network.get_engine();
 
         auto get_kernel_key = [&]() -> size_t {
-            auto seed = _node->get_hash();
+            auto seed = _node->get_primitive()->hash();
             seed = hash_combine(seed, expected_layout.hash());
             seed = hash_combine(seed, original_layout.hash());
             return seed;
@@ -1265,20 +1267,4 @@ void primitive_inst::load(cldnn::BinaryInputBuffer& ib) {
     }
 }
 
-size_t primitive_inst::get_impl_key(const kernel_impl_params& params) const {
-    size_t seed = _node->get_hash();
-    const size_t prime_number = 2654435761; // magic number to avoid hash collision.
-    for (auto& in : params.input_layouts) {
-        seed = hash_combine(seed, in.hash() * prime_number);
-    }
-    for (auto& out : params.output_layouts) {
-        seed = hash_combine(seed, out.hash() * prime_number);
-    }
-    return seed;
-}
-
-size_t primitive_inst::get_impl_key() const {
-    auto updated_params = _node->type()->get_fake_aligned_params(*_impl_params);
-    return get_impl_key(updated_params);
-}
 }  // namespace cldnn

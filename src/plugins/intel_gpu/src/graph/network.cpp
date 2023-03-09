@@ -13,25 +13,27 @@
 #include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/half.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/serialization/map_serializer.hpp"
-#include "assign_inst.h"
-#include "read_value_inst.h"
-#include "reshape_inst.h"
 
-#include "to_string_utils.h"
 #include "primitive_inst.h"
 #include "input_layout_inst.h"
 #include "mutable_data_inst.h"
 #include "condition_inst.h"
 #include "loop_inst.h"
-#include "kernel_selector_helper.h"
+#include "assign_inst.h"
+#include "read_value_inst.h"
+#include "reshape_inst.h"
 #include "program_helpers.h"
-#include "intel_gpu/runtime/itt.hpp"
+#include "to_string_utils.h"
 #include "kernels_cache.hpp"
 #include "compilation_context.hpp"
+
+// TODO: Remove once we have an abstraction for kernels_cache
+#include "kernel_base.h"
 
 #include <algorithm>
 #include <string>
@@ -461,6 +463,40 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
     }
 
     add_default_output_chains();
+
+    size_t prims_info_size;
+    ib >> prims_info_size;
+
+    for (size_t i = 0; i < prims_info_size; i++) {
+        primitive_id original_id;
+        std::string type_id;
+        primitive::primitive_id_arr c_dependencies;
+        primitive::primitive_id_arr c_users;
+        primitive::primitive_id_arr c_fused_ids;
+        layout output_layout;
+        std::string layout_str;
+        std::string kernel_id;
+        data_types runtime_precision;
+        bool is_cpu;
+        int exec_id;
+
+        ib >> original_id;
+        ib >> type_id;
+        ib >> c_dependencies;
+        ib >> c_users;
+        ib >> c_fused_ids;
+        ib >> output_layout;
+        ib >> layout_str;
+        ib >> kernel_id;
+        ib >> make_data(&runtime_precision, sizeof(data_types));
+        ib >> is_cpu;
+        ib >> exec_id;
+        primitive_info prim_info(original_id, type_id, c_dependencies, c_users, c_fused_ids,
+                            output_layout, layout_str, kernel_id, runtime_precision, is_cpu, exec_id);
+        _prims_info.emplace_back(prim_info);
+    }
+
+    ib >> _ext_id_mapping;
 }
 
 network::~network() {
@@ -544,6 +580,24 @@ void network::save(cldnn::BinaryOutputBuffer& ob) {
     for (const auto& p_inst : _variable_state_primitives) {
         ob << p_inst->id();
     }
+
+    auto& prims_info = get_primitives_info();
+    ob << prims_info.size();
+    for (auto& prim_info : prims_info) {
+        ob << prim_info.original_id;
+        ob << prim_info.type_id;
+        ob << prim_info.c_dependencies;
+        ob << prim_info.c_users;
+        ob << prim_info.c_fused_ids;
+        ob << prim_info.output_layout;
+        ob << prim_info.layout_str;
+        ob << prim_info.kernel_id;
+        ob << make_data(&prim_info.runtime_precision, sizeof(data_types));
+        ob << prim_info.is_cpu;
+        ob << prim_info.exec_id;
+    }
+
+    ob << get_ext_id_mapping();
 }
 
 network::ptr network::allocate_network(stream::ptr stream, program::ptr program, bool is_internal, bool is_primary_stream) {
@@ -1123,7 +1177,7 @@ std::vector<primitive_id> network::get_all_primitive_org_ids() const {
 }
 
 const program::primitives_info& network::get_primitives_info() const {
-    return _program->get_primitives_info();
+    return (_program == nullptr) ? _prims_info : _program->get_primitives_info();
 }
 
 const program::graph_optimizer_info& network::get_optimizer_passes_info() const {
@@ -1131,6 +1185,10 @@ const program::graph_optimizer_info& network::get_optimizer_passes_info() const 
 }
 
 std::map<primitive_id, primitive_id> network::get_ext_id_mapping() const {
+    if (_program == nullptr) {
+        return _ext_id_mapping;
+    }
+
     std::map<primitive_id, primitive_id> result;
     for (auto& prim : _primitives) {
         result.emplace(prim.first, prim.second->get_node().get_primitive()->origin_op_name);

@@ -6,13 +6,14 @@
 
 #include "backend.hpp"
 #include "compiled_model.hpp"
+#include "config.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/threading/itask_executor.hpp"
-#include "template_config.hpp"
 
 //! [plugin:header]
-namespace TemplatePlugin {
+namespace ov {
+namespace template_plugin {
 
 class Plugin : public ov::IPlugin {
 public:
@@ -46,13 +47,14 @@ public:
                                     const ov::AnyMap& properties) const override;
 
 private:
-    friend class TemplatePlugin::CompiledModel;
+    friend class CompiledModel;
     friend class InferRequest;
 
-    std::shared_ptr<ngraph::runtime::Backend> _backend;
+    std::shared_ptr<ov::runtime::Backend> _backend;
     Configuration _cfg;
     std::shared_ptr<ov::threading::ITaskExecutor> _waitExecutor;
 };
 
-}  // namespace TemplatePlugin
+}  // namespace template_plugin
+}  // namespace ov
    //! [plugin:header]

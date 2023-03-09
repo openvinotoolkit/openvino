@@ -95,6 +95,7 @@
 #include "ngraph/runtime/reference/convert_color_nv12.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
+#include "tensor_conversion_util.hpp"
 
 using namespace ngraph;
 using namespace std;
@@ -3302,46 +3303,21 @@ runtime::reference::custom_evaluate_function evaluate = [](const std::shared_ptr
                  inputsNumber,
                  " input blobs");
 
-    auto inputTensors = std::vector<std::shared_ptr<runtime::Tensor>>{};
-    for (const auto& parameter : parameters) {
-        const auto& parameterIndex = function->get_parameter_index(parameter);
-        const auto& parameterShape = parameter->get_shape();
-        const auto& parameterType = parameter->get_element_type();
-        const auto& parameterSize = shape_size(parameterShape) * parameterType.size();
-
-        const auto& input = inputs[parameterIndex];
-        const auto& inputSize = input->get_size_in_bytes();
-        NGRAPH_CHECK(parameterSize == inputSize,
-                     "Got parameter (",
-                     parameter->get_friendly_name(),
-                     ") of size ",
-                     parameterSize,
-                     " bytes, but corresponding input with index ",
-                     parameterIndex,
-                     " has ",
-                     inputSize,
-                     " bytes");
-
-        auto tensor = std::make_shared<runtime::HostTensor>(parameterType, parameterShape);
-        tensor->write(input->get_data_ptr(), parameterSize);
-        inputTensors.push_back(tensor);
-    }
-
     const auto& results = function->get_results();
-    std::vector<std::shared_ptr<ngraph::runtime::Tensor>> outputTensors;
-    outputTensors.reserve(results.size());
+    outputs.reserve(results.size());
     for (size_t i = 0; i < results.size(); ++i) {
-        outputTensors.push_back(std::make_shared<HostTensor>());
+        outputs.push_back(std::make_shared<HostTensor>(results[i]->output(0)));
     }
-    auto backend = runtime::Backend::create();
+
+    auto backend = ov::runtime::Backend::create();
     auto handle = backend->compile(function);
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    auto outputTensors = ov::util::wrap_tensors(outputs);
+    auto inputTensors = ov::util::wrap_tensors(inputs);
     handle->call_with_validate(outputTensors, inputTensors);
 
-    outputs.reserve(outputTensors.size());
-    for (const auto& tensor : outputTensors) {
-        auto host_tensor = static_pointer_cast<runtime::HostTensor>(tensor);
-        outputs.push_back(host_tensor);
-    }
+    ov::util::update_output_host_tensors(outputs, outputTensors);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 };
 }  // namespace ti_v0
 

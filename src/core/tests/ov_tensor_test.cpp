@@ -323,8 +323,10 @@ std::vector<T> fill_data(const ov::Tensor& tensor) {
     const T* data = tensor.data<T>();
     auto strides = tensor.get_strides();
     for (auto&& c : ngraph::CoordinateTransformBasic{tensor.get_shape()}) {
-        actual.emplace_back(
-            *(data + (c[2] * strides[2] + c[1] * strides[1] + c[0] * strides[0]) / tensor.get_element_type().size()));
+        size_t offset = 0;
+        for (size_t i = 0; i < strides.size(); i++)
+            offset += c[i] * strides[i];
+        actual.emplace_back(*(data + offset / tensor.get_element_type().size()));
     }
     return actual;
 };
@@ -394,7 +396,7 @@ void init_tensor(const ov::Tensor& tensor, bool input) {
 
 void compare_tensors(const ov::Tensor& src, const ov::Tensor& dst) {
     ASSERT_EQ(src.get_byte_size(), dst.get_byte_size());
-    ASSERT_EQ(src.get_shape(), dst.get_shape());
+    ASSERT_EQ(src.get_size(), dst.get_size());
     ASSERT_EQ(src.get_element_type(), dst.get_element_type());
     switch (src.get_element_type()) {
     case ov::element::bf16:
@@ -501,6 +503,18 @@ INSTANTIATE_TEST_SUITE_P(copy_tests,
                                                               TestParams {
                                                                   ov::Shape{3, 2, 2}, ov::Strides{64, 16, 8},
                                                                   ov::Shape{3, 2, 2}, ov::Strides{128, 24, 8}
+                                                              },
+                                                              TestParams {
+                                                                  ov::Shape{}, {}, 
+                                                                  {}, {}
+                                                              },
+                                                              TestParams {
+                                                                  ov::Shape{1}, {}, 
+                                                                  {}, {}
+                                                              },
+                                                              TestParams {
+                                                                  ov::Shape{}, {}, 
+                                                                  {1}, {}
                                                               }
                                            )));
 // clang-format on

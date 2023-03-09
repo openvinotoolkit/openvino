@@ -86,7 +86,7 @@ bool FCKey::operator==(const FCKey &rhs) const {
 class FCShapeInfer : public ShapeInferEmptyPads {
 public:
     FCShapeInfer(size_t outPut_rank) : out_rank(outPut_rank) {}
-    std::vector<VectorDims> infer(
+    Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         const VectorDims& activationShape = input_shapes[0].get();
@@ -108,7 +108,7 @@ public:
             outputShape[i + startIdx] = activationShape[i];
         }
 
-        return {outputShape};
+        return {{std::move(outputShape)}, ShapeInferStatus::success};
     }
 
     port_mask_t get_port_mask() const override {
@@ -145,11 +145,11 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ngraph::No
         }
         const auto inRank = fc->get_input_partial_shape(DATA_ID).size();
         const auto weightRank = fc->get_input_partial_shape(WEIGHTS_ID).size();
-        if (!one_of(inRank, 2, 3, 4)) {
+        if (!one_of(inRank, 2u, 3u, 4u)) {
             errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(inRank);
             return false;
         }
-        if ((one_of(inRank, 2, 3) && weightRank != 2) || (inRank == 4 && weightRank != 4)) {
+        if ((one_of(inRank, 2u, 3u) && weightRank != 2) || (inRank == 4 && weightRank != 4)) {
             errorMessage = "Doesn't support 'data' input with rank: " + std::to_string(inRank) +
                            " and 'weight' input with rank: " + std::to_string(weightRank);
             return false;
