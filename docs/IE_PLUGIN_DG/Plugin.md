@@ -61,7 +61,7 @@ A plugin destructor must stop all plugins activities, and clean all allocated re
 
 @snippet template/src/plugin.cpp plugin:dtor
 
-### `compile_model()`
+### compile_model()
 
 The plugin should implement two `compile_model()` methods: the first one compiles model without remote context, the second one with remote context if plugin supports.
 
@@ -81,7 +81,7 @@ Actual model compilation is done in the `CompiledModel` constructor. Refer to th
 > configuration set via `Plugin::set_property`, where some values are overwritten with `config` passed to `Plugin::compile_model`. 
 > Therefore, the config of  `Plugin::compile_model` has a higher priority.
 
-### `transform_model()`
+### transform_model()
 
 The function accepts a const shared pointer to `ov::Model` object and applies common and device-specific transformations on a copied model to make it more friendly to hardware operations. For details how to write custom device-specific transformation, please, refer to [Writing OpenVINO™ transformations](@ref openvino_docs_transformations) guide. See detailed topics about model representation:
     * [Intermediate Representation and Operation Sets](@ref openvino_docs_MO_DG_IR_and_opsets)
@@ -91,7 +91,7 @@ The function accepts a const shared pointer to `ov::Model` object and applies co
 
 > **NOTE**: After all these transformations, an `ov::Model` object contains operations which can be perfectly mapped to backend kernels. E.g. if backend has kernel computing `A + B` operations at once, the `transform_model` function should contain a pass which fuses operations `A` and `B` into a single custom operation `A + B` which fits backend kernels set.
 
-### `query_model()`
+### query_model()
 
 Use the method with the `HETERO` mode, which allows to distribute model execution between different 
 devices based on the `ov::Node::get_rt_info()` map, which can contain the `"affinity"` key.
@@ -105,7 +105,7 @@ operations via the ov::SupportedOpsMap structure. The `query_model` firstly appl
 
 @snippet template/src/plugin.cpp plugin:query_model
 
-### `set_property()`
+### set_property()
 
 Sets new values for plugin property keys:
 
@@ -116,7 +116,7 @@ ones. All these values are used during backend specific model compilation and ex
 
 > **NOTE**: The function must throw an exception if it receives an unsupported configuration key.
 
-### `set_property()`
+### get_property()
 
 Returns a current value for a specified property key:
 
@@ -127,7 +127,7 @@ key value to the ov::Any and returns it.
 
 > **NOTE**: The function must throw an exception if it receives an unsupported configuration key.
 
-### `import_model()`
+### import_model()
 
 The importing of compiled model mechanism allows to import a previously exported backend specific model and wrap it 
 using an [CompiledModel](@ref openvino_docs_ie_plugin_dg_executable_network) object. This functionality is useful if 
@@ -148,13 +148,13 @@ information must be stored and checked during the import.
 @snippet template/src/plugin.cpp plugin:import_model
 @snippet template/src/plugin.cpp plugin:import_model_with_remote
 
-### `create_context()`
+### create_context()
 
 The Plugin should implement `Plugin::create_context()` method which returns `ov::RemoteContext` in case if plugin supports remote context, in other case the plugin can throw an exception that this method is not implemented.
 
 @snippet template/src/plugin.cpp plugin:create_context
 
-### `get_default_context()`
+### get_default_context()
 
 `Plugin::get_default_context()` also needed in case if plugin supports remote context, if the plugin doesn't support it, this method can throw an exception that functionality is not implemented.
 
