@@ -42,12 +42,10 @@ TEST(check_hash_value, eltwise_basic) {
     const auto& prog_node = net.get_program()->get_node(key_prim_id);
 
     const auto primitive_hash = primitve->hash();
-    const auto prog_node_hash = prog_node.get_hash();
-    const auto prim_inst_hash = prim_inst->get_impl_key();
+    const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 11385140218618178073UL);
-    ASSERT_EQ(prog_node_hash, 11385140218618178073UL);
-    ASSERT_EQ(prim_inst_hash, 10460622021476296271UL);
+    ASSERT_EQ(params_hash, 10460622021476296271UL);
 }
 
 TEST(check_hash_value, fc_basic) {
@@ -74,12 +72,10 @@ TEST(check_hash_value, fc_basic) {
     const auto& prog_node = net.get_program()->get_node(key_prim_id);
 
     const auto primitive_hash = primitve->hash();
-    const auto prog_node_hash = prog_node.get_hash();
-    const auto prim_inst_hash = prim_inst->get_impl_key();
+    const auto params_hash = prog_node.type()->get_fake_aligned_params(*prog_node.get_kernel_impl_params()).hash();
 
     ASSERT_EQ(primitive_hash, 7881065839556591629UL);
-    ASSERT_EQ(prog_node_hash, 7881065839556591629UL);
-    ASSERT_EQ(prim_inst_hash, 12327057149074647711UL);
+    ASSERT_EQ(params_hash, 12327057149074647711UL);
 }
 
 TEST(check_hash_value, gather_basic) {
@@ -107,12 +103,10 @@ TEST(check_hash_value, gather_basic) {
     const auto& prog_node = net.get_program()->get_node(key_prim_id);
 
     const auto primitive_hash = primitve->hash();
-    const auto prog_node_hash = prog_node.get_hash();
-    const auto prim_inst_hash = prim_inst->get_impl_key();
+    const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 93320679543770233UL);
-    ASSERT_EQ(prog_node_hash, 93320679543770233UL);
-    ASSERT_EQ(prim_inst_hash, 18126277300376770566UL);
+    ASSERT_EQ(params_hash, 18126277300376770566UL);
 }
 
 TEST(check_hash_value, gemm_basic) {
@@ -135,12 +129,10 @@ TEST(check_hash_value, gemm_basic) {
     const auto& prog_node = net.get_program()->get_node(key_prim_id);
 
     const auto primitive_hash = primitve->hash();
-    const auto prog_node_hash = prog_node.get_hash();
-    const auto prim_inst_hash = prim_inst->get_impl_key();
+    const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 8009877756431655269UL);
-    ASSERT_EQ(prog_node_hash, 8009877756431655269UL);
-    ASSERT_EQ(prim_inst_hash, 2966249915421110547UL);
+    ASSERT_EQ(params_hash, 2966249915421110547UL);
 }
 
 TEST(check_hash_value, permute_basic) {
@@ -160,12 +152,10 @@ TEST(check_hash_value, permute_basic) {
     const auto& prog_node = net.get_program()->get_node(key_prim_id);
 
     const auto primitive_hash = primitve->hash();
-    const auto prog_node_hash = prog_node.get_hash();
-    const auto prim_inst_hash = prim_inst->get_impl_key();
+    const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 4658575237077439700UL);
-    ASSERT_EQ(prog_node_hash, 4658575237077439700UL);
-    ASSERT_EQ(prim_inst_hash, 4319508487906266226UL);
+    ASSERT_EQ(params_hash, 4319508487906266226UL);
 }
 
 TEST(check_hash_value, reorder_basic) {
@@ -191,12 +181,10 @@ TEST(check_hash_value, reorder_basic) {
     const auto& prog_node = net.get_program()->get_node(key_prim_id);
 
     const auto primitive_hash = primitve->hash();
-    const auto prog_node_hash = prog_node.get_hash();
-    const auto prim_inst_hash = prim_inst->get_impl_key();
+    const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 16293979194373117693UL);
-    ASSERT_EQ(prog_node_hash, 16293979194373117693UL);
-    ASSERT_EQ(prim_inst_hash, 1719378641386629286UL);
+    ASSERT_EQ(params_hash, 1719378641386629286UL);
 }
 
 TEST(check_hash_value, reshape_basic) {
@@ -219,12 +207,10 @@ TEST(check_hash_value, reshape_basic) {
     const auto& prog_node = net.get_program()->get_node(key_prim_id);
 
     const auto primitive_hash = primitve->hash();
-    const auto prog_node_hash = prog_node.get_hash();
-    const auto prim_inst_hash = prim_inst->get_impl_key();
+    const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 1534749073560581535UL);
-    ASSERT_EQ(prog_node_hash, 1534749073560581535UL);
-    ASSERT_EQ(prim_inst_hash, 1686780870642992006UL);
+    ASSERT_EQ(params_hash, 1686780870642992006UL);
 }
 
 TEST(check_hash_value, conv_basic) {
@@ -248,12 +234,10 @@ TEST(check_hash_value, conv_basic) {
     const auto& prog_node = net.get_program()->get_node(key_prim_id);
 
     const auto primitive_hash = primitve->hash();
-    const auto prog_node_hash = prog_node.get_hash();
-    const auto prim_inst_hash = prim_inst->get_impl_key();
+    const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
-    ASSERT_EQ(primitive_hash, 12460716932918224126UL);
-    ASSERT_EQ(prog_node_hash, 14591386802538030726UL);
-    ASSERT_EQ(prim_inst_hash, 3099955169197623490UL);
+    ASSERT_EQ(primitive_hash, 14591385718963138714UL);
+    ASSERT_EQ(params_hash, 6876197578014654797UL);
 }
 
 TEST(check_hash_value, quantize_basic) {
@@ -283,10 +267,8 @@ TEST(check_hash_value, quantize_basic) {
     const auto& prog_node = net.get_program()->get_node(key_prim_id);
 
     const auto primitive_hash = primitve->hash();
-    const auto prog_node_hash = prog_node.get_hash();
-    const auto prim_inst_hash = prim_inst->get_impl_key();
+    const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
-    ASSERT_EQ(primitive_hash, 1569171484239412698UL);
-    ASSERT_EQ(prog_node_hash, 4135863035456568493UL);
-    ASSERT_EQ(prim_inst_hash, 13898649554943348250UL);
+    ASSERT_EQ(primitive_hash, 4135863035456568493UL);
+    ASSERT_EQ(params_hash, 13898649554943348250UL);
 }
