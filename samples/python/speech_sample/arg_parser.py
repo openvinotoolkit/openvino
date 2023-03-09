@@ -28,8 +28,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
                       'Example of usage for several files/layers: <layer1>:<port_num1>=<output_file1.ark>,<layer2>:<port_num2>=<output_file2.ark>.')
     args.add_argument('-r', '--reference', type=str,
                       help='Optional. Read reference score file(s) and compare inference results with reference scores. '
-                      'Usage for single file/layer: <reference_file.ark> or <reference_file.npz>. '
-                      'Example of a usage for several files/layers: <layer1>:<port_num1>=<reference_file1.ark>,<layer2>:<port_num2>=<reference_file2.ark>.')
+                      'Usage for a single file/layer: <reference_file.ark> or <reference_file.npz>. '
+                      'Example of usage for several files/layers: <layer1>:<port_num1>=<reference_file1.ark>,<layer2>:<port_num2>=<reference_file2.ark>.')
     args.add_argument('-d', '--device', default='CPU', type=str,
                       help='Optional. Specify a target device to infer on. '
                       'CPU, GPU, VPUX, GNA_AUTO, GNA_HW, GNA_SW_FP32, GNA_SW_EXACT and HETERO with combination of GNA'
