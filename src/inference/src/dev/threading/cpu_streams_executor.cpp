@@ -135,11 +135,11 @@ struct CPUStreamsExecutor::Impl {
                             : 0;
                     std::cout << "_taskArena reset before" << std::endl;
 #    ifdef _WIN32
-                        _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
-                                                                    .set_core_type(selected_core_type)
-                                                                    .set_max_concurrency(max_concurrency)});
+                    _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
+                                                                .set_core_type(selected_core_type)
+                                                                .set_max_concurrency(max_concurrency)});
 #    else
-                        _taskArena.reset(new custom::task_arena{max_concurrency});
+                    _taskArena.reset(new custom::task_arena{max_concurrency});
 #    endif
                     std::cout << "_taskArena reset after" << std::endl;
                     CpuSet processMask;
