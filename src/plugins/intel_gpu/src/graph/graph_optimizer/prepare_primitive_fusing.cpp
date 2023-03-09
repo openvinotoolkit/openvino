@@ -791,6 +791,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (!should_fuse)
                 return;
 
+            // Onednn reorder does not support eltwise nor binary post operation
+            if (_lo.get_optimization_attributes().use_onednn_impls && input.is_type<reorder>()) {
+                return;
+            }
+
             p.fuse_nodes(input, activation_node, &fusing_history);
         };
 
