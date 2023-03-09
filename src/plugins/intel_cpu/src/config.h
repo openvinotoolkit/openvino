@@ -8,7 +8,6 @@
 
 #include <bitset>
 #include <ie_performance_hints.hpp>
-#include <ie_processor_type.hpp>
 #include <map>
 #include <mutex>
 #include <openvino/util/common_util.hpp>
@@ -50,7 +49,7 @@ struct Config {
     size_t rtCacheCapacity = 5000ul;
     InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
     InferenceEngine::PerfHintsConfig  perfHintsConfig;
-    InferenceEngine::ProcTypeConfig  proc_type_cfg;
+    std::string proc_type_cfg = "CPU_DEFAULT";
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
     bool enforceBF16 = true;

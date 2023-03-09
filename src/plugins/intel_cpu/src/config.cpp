@@ -79,7 +79,18 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
         } else if (hintsConfigKeys.end() != std::find(hintsConfigKeys.begin(), hintsConfigKeys.end(), key)) {
             perfHintsConfig.SetConfig(key, val);
         } else if (key == CPUConfigParams::KEY_CPU_PROCESSOR_TYPE) {
-            proc_type_cfg.SetConfig(key, val);
+            if ((CPUConfigParams::KEY_CPU_PROCESSOR_TYPE == key) &&
+                (val ==  CPUConfigParams::CPU_DEFAULT || val ==  CPUConfigParams::CPU_ALL_CORE ||
+                 val ==  CPUConfigParams::CPU_PHY_CORE_ONLY || val ==  CPUConfigParams::CPU_P_CORE_ONLY ||
+                 val ==  CPUConfigParams::CPU_E_CORE_ONLY || val ==  CPUConfigParams::CPU_PHY_P_CORE_ONLY)) {
+                proc_type_cfg = val;
+            } else {
+                IE_THROW() << "Wrong value " << val << "for property key " << CPUConfigParams::KEY_CPU_PROCESSOR_TYPE
+                           << ". Expected only " << CPUConfigParams::CPU_DEFAULT << "/" << CPUConfigParams::CPU_ALL_CORE
+                           << "/" << CPUConfigParams::CPU_PHY_CORE_ONLY << "/" << CPUConfigParams::CPU_P_CORE_ONLY
+                           << "/" << CPUConfigParams::CPU_E_CORE_ONLY << "/" << CPUConfigParams::CPU_PHY_P_CORE_ONLY
+                           << std::endl;
+            }
         } else if (key == PluginConfigParams::KEY_DYN_BATCH_LIMIT) {
             int val_i = -1;
             try {

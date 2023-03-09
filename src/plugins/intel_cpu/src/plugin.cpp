@@ -513,7 +513,7 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
         const auto perfHint = ov::util::from_string(engConfig.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
         return perfHint;
     } else if (name == ov::intel_cpu::processor_type) {
-        const auto proc_type = ov::util::from_string(engConfig.proc_type_cfg.ovProcType, ov::intel_cpu::processor_type);
+        const auto proc_type = ov::util::from_string(engConfig.proc_type_cfg, ov::intel_cpu::processor_type);
         return proc_type;
     } else if (name == ov::hint::num_requests) {
         const auto perfHintNumRequests = engConfig.perfHintsConfig.ovPerfHintNumRequests;
