@@ -277,9 +277,6 @@ void CompiledModel::Export(std::ostream& networkModel) {
         ob << true;
         ov::pass::StreamSerialize serializer(networkModel, {}, ov::pass::Serialize::Version::UNSPECIFIED);
         serializer.run_on_model(std::const_pointer_cast<ngraph::Function>(m_network.getFunction()));
-
-        ov::pass::Serialize hoho_serializer("hoho.xml", "hoho.bin");
-        hoho_serializer.run_on_model(std::const_pointer_cast<ngraph::Function>(m_network.getFunction()));
     } else {
         ob << false;
         m_graphs.front()->Export(ob);

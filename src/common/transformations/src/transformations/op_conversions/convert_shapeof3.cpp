@@ -57,7 +57,7 @@ ov::pass::ConvertShapeOf1To3::ConvertShapeOf1To3() {
         }
 
         auto new_shapeof3 = std::make_shared<ov::opset3::ShapeOf>(shapeof1->input_value(0));
-        new_shapeof3->set_friendly_name(shapeof1->get_friendly_name()); 
+        new_shapeof3->set_friendly_name(shapeof1->get_friendly_name());
         ngraph::copy_runtime_info(shapeof1, new_shapeof3);
         ngraph::replace_node(shapeof1, new_shapeof3);
         return true;
