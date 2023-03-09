@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "dev/itensor.hpp"
+#include "openvino/runtime/itensor.hpp"
 
 #include "ie_blob.h"
 #include "ie_ngraph_utils.hpp"

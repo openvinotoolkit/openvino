@@ -19,7 +19,6 @@
 #include "openvino/runtime/remote_tensor.hpp"
 
 namespace InferenceEngine {
-class RemoteContext;
 class IPluginWrapper;
 class ICompiledModelWrapper;
 class Core;
@@ -29,6 +28,7 @@ namespace ov {
 
 class Core;
 class CoreImpl;
+class IRemoteContext;
 class Plugin;
 class IPlugin;
 class ISyncInferRequest;
@@ -45,8 +45,8 @@ class CompiledModel;
  */
 class OPENVINO_RUNTIME_API RemoteContext {
 protected:
-    std::shared_ptr<InferenceEngine::RemoteContext> _impl;  //!< Pointer to the remote context implementation.
-    std::vector<std::shared_ptr<void>> _so;  //!< Reference to the shared object that loaded implementation.
+    std::shared_ptr<ov::IRemoteContext> _impl;  //!< Pointer to the remote context implementation.
+    std::vector<std::shared_ptr<void>> _so;     //!< Reference to the shared object that loaded implementation.
 
     /**
      * @brief Constructs RemoteContext from the initialized std::shared_ptr.
@@ -54,8 +54,7 @@ protected:
      * @param so Plugin to use. This is required to ensure that RemoteContext can work properly even if a plugin
      * object is destroyed.
      */
-    RemoteContext(const std::shared_ptr<InferenceEngine::RemoteContext>& impl,
-                  const std::vector<std::shared_ptr<void>>& so);
+    RemoteContext(const std::shared_ptr<ov::IRemoteContext>& impl, const std::vector<std::shared_ptr<void>>& so);
     friend class InferenceEngine::Core;
     friend class InferenceEngine::IPluginWrapper;
     friend class InferenceEngine::ICompiledModelWrapper;
