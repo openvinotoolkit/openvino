@@ -93,7 +93,7 @@ static void CreateStridedSliceOp(Program& p, const std::shared_ptr<ngraph::op::v
                 // -1 because it's a position of ellipses
                 unsigned long num_input_axis_after_ellipses =
                     static_cast<unsigned long>(begin.size() - axis - num_new_axis_after_ellipses - 1);
-                unsigned long num_of_hidden_dims = 
+                unsigned long num_of_hidden_dims =
                     static_cast<unsigned long>(input_shape.size() - num_input_axis_after_ellipses
                                                     - num_input_axis_before_ellipses);
                 for (size_t i = 0; i < num_of_hidden_dims; ++i) {
