@@ -380,6 +380,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         fullConfig.erase(ov::hint::performance_mode.name());
     if (!loadConfig.is_set_by_user(ov::cache_dir))
         fullConfig.erase(ov::cache_dir.name());
+    if (!loadConfig.is_set_by_user(ov::hint::execution_mode))
+        fullConfig.erase(ov::hint::execution_mode.name());
     // collect the settings that are applicable to the devices we are loading the network to
     std::unordered_map<std::string, ov::Any> multiNetworkConfig;
     std::vector<DeviceInformation> metaDevices;
@@ -514,7 +516,6 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     DeviceMap<SoExecutableNetworkInternal> executableNetworkPerDevice;
     std::mutex load_mutex;
     std::vector<Task> loads;
-    std::once_flag readNetworkFlag;
 
     auto loadInferEngTask = [&](DeviceInformation& p) {
         auto tmpiter = fullConfig.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
@@ -533,15 +534,20 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         const auto& deviceConfig = p.config;
         SoExecutableNetworkInternal exec_net;
         LOG_DEBUG_TAG("load network to device:%s", deviceName.c_str());
-        if (modelPath.empty()) {
-            exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
-        } else if (GetCore()->DeviceSupportsImportExport(deviceName)) {
-            exec_net = GetCore()->LoadNetwork(modelPath, deviceName, deviceConfig);
-        } else {
-            std::call_once(readNetworkFlag, [&]() {
-                network = GetCore()->ReadNetwork(modelPath, std::string());
-            });
-            exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
+        try {
+            if (modelPath.empty()) {
+                exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
+            } else {
+                exec_net = GetCore()->LoadNetwork(modelPath, deviceName, deviceConfig);
+            }
+        } catch (const IE::Exception& iie) {
+            if (_LogTag == "AUTO") {
+                LOG_DEBUG_TAG("Failed to load network to device:%s with error: %s", deviceName.c_str(), iie.what());
+                return;
+            } else {
+                IE_THROW() << "Failed to load network to device: " << deviceName.c_str() << " with error:" <<
+                    iie.what();
+            }
         }
 
         try {
