@@ -10,16 +10,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ['ubuntu-20.04']
+        os: ['ubuntu-22.04']
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Github workspace
-        run: echo "$GITHUB_WORKSPACE"
-
-      - name: Install python 3.10
+      - name: Install python 3.11
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
       - name: Clone OpenVINO
         uses: actions/checkout@v3
@@ -49,7 +46,7 @@ jobs:
           pip install -r src/frontends/tensorflow/tests/requirements.txt
           pip install -r src/frontends/onnx/tests/requirements.txt
           pip install -r src/frontends/tensorflow_lite/tests/requirements.txt
-          pip install -r src/frontends/paddle/tests/requirements.txt
+          # pip install -r src/frontends/paddle/tests/requirements.txt
 
           pip install -r tools/mo/requirements_mxnet.txt
           pip install -r tools/mo/requirements_caffe.txt
