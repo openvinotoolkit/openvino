@@ -15,114 +15,95 @@ using namespace ov;
 
 namespace {
 
-struct ProcessorTypeTestCase {
-    ov::intel_cpu::ProcessorType input_type;
+struct UseHTTestCase {
+    bool use_ht_value;
+    bool use_ht_changed;
     std::vector<std::vector<int>> proc_type_table;
     std::vector<std::vector<int>> result_table;
 };
 
-class ProcessorTypeTests : public CommonTestUtils::TestsCommon,
-                           public testing::WithParamInterface<std::tuple<ProcessorTypeTestCase>> {
+class UseHTTests : public CommonTestUtils::TestsCommon, public testing::WithParamInterface<std::tuple<UseHTTestCase>> {
 public:
     void SetUp() override {
         const auto& test_data = std::get<0>(GetParam());
 
         std::vector<std::vector<int>> test_result_table =
-            ov::intel_cpu::apply_processor_type(test_data.input_type, test_data.proc_type_table);
+            ov::intel_cpu::apply_hyper_threading(test_data.use_ht_value,
+                                                 test_data.use_ht_changed,
+                                                 test_data.proc_type_table);
 
         ASSERT_EQ(test_data.result_table, test_result_table);
     }
 };
 
-ProcessorTypeTestCase _2sockets_DEFAULT = {
-    ov::intel_cpu::ProcessorType::DEFAULT,
+UseHTTestCase _2sockets_false = {
+    false,
+    true,
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
 };
 
-ProcessorTypeTestCase _2sockets_ALL = {
-    ov::intel_cpu::ProcessorType::ALL_CORE,
+UseHTTestCase _2sockets_true = {
+    true,
+    true,
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
 };
 
-ProcessorTypeTestCase _2sockets_PHY_CORE_ONLY = {
-    ov::intel_cpu::ProcessorType::PHY_CORE_ONLY,
-    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
-    {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
-};
-
-ProcessorTypeTestCase _2sockets_P_CORE_ONLY = {
-    ov::intel_cpu::ProcessorType::P_CORE_ONLY,
-    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
-    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
-};
-
-ProcessorTypeTestCase _2sockets_E_CORE_ONLY = {
-    ov::intel_cpu::ProcessorType::E_CORE_ONLY,
-    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
-    {{0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}},
-};
-
-ProcessorTypeTestCase _2sockets_PHY_P_CORE_ONLY = {
-    ov::intel_cpu::ProcessorType::PHY_P_CORE_ONLY,
+UseHTTestCase _2sockets_default_1 = {
+    false,
+    false,
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
 };
 
-ProcessorTypeTestCase _1sockets_DEFAULT = {
-    ov::intel_cpu::ProcessorType::DEFAULT,
-    {{20, 6, 8, 6}},
-    {{20, 6, 8, 6}},
+UseHTTestCase _2sockets_default_2 = {
+    true,
+    false,
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
+    {{104, 104, 0, 0}, {52, 52, 0, 0}, {52, 52, 0, 0}},
 };
 
-ProcessorTypeTestCase _1sockets_ALL = {
-    ov::intel_cpu::ProcessorType::ALL_CORE,
-    {{20, 6, 8, 6}},
-    {{20, 6, 8, 6}},
-};
-
-ProcessorTypeTestCase _1sockets_PHY_CORE_ONLY = {
-    ov::intel_cpu::ProcessorType::PHY_CORE_ONLY,
+UseHTTestCase _1sockets_false = {
+    false,
+    true,
     {{20, 6, 8, 6}},
     {{14, 6, 8, 0}},
 };
 
-ProcessorTypeTestCase _1sockets_P_CORE_ONLY = {
-    ov::intel_cpu::ProcessorType::P_CORE_ONLY,
+UseHTTestCase _1sockets_true = {
+    true,
+    true,
     {{20, 6, 8, 6}},
-    {{12, 6, 0, 6}},
+    {{20, 6, 8, 6}},
 };
 
-ProcessorTypeTestCase _1sockets_E_CORE_ONLY = {
-    ov::intel_cpu::ProcessorType::E_CORE_ONLY,
+UseHTTestCase _1sockets_default_1 = {
+    false,
+    false,
     {{20, 6, 8, 6}},
-    {{8, 0, 8, 0}},
+    {{20, 6, 8, 6}},
 };
 
-ProcessorTypeTestCase _1sockets_PHY_P_CORE_ONLY = {
-    ov::intel_cpu::ProcessorType::PHY_P_CORE_ONLY,
+UseHTTestCase _1sockets_default_2 = {
+    true,
+    false,
     {{20, 6, 8, 6}},
-    {{6, 6, 0, 0}},
+    {{20, 6, 8, 6}},
 };
 
-TEST_P(ProcessorTypeTests, ProcessorType) {}
+TEST_P(UseHTTests, UseHT) {}
 
-INSTANTIATE_TEST_SUITE_P(ProcessorTypeTable,
-                         ProcessorTypeTests,
-                         testing::Values(_2sockets_DEFAULT,
-                                         _2sockets_ALL,
-                                         _2sockets_PHY_CORE_ONLY,
-                                         _2sockets_P_CORE_ONLY,
-                                         _2sockets_E_CORE_ONLY,
-                                         _2sockets_PHY_P_CORE_ONLY,
-                                         _1sockets_DEFAULT,
-                                         _1sockets_ALL,
-                                         _1sockets_PHY_CORE_ONLY,
-                                         _1sockets_P_CORE_ONLY,
-                                         _1sockets_E_CORE_ONLY,
-                                         _1sockets_PHY_P_CORE_ONLY));
-
+INSTANTIATE_TEST_SUITE_P(UseHTTable,
+                         UseHTTests,
+                         testing::Values(_2sockets_false,
+                                         _2sockets_true,
+                                         _2sockets_default_1,
+                                         _2sockets_default_2,
+                                         _1sockets_false,
+                                         _1sockets_true,
+                                         _1sockets_default_1,
+                                         _1sockets_default_2));
 
 struct StreamsCalculationTestCase {
     int input_streams;

@@ -50,78 +50,19 @@ static constexpr Property<bool> denormals_optimization{"CPU_DENORMALS_OPTIMIZATI
 static constexpr Property<float> sparse_weights_decompression_rate{"SPARSE_WEIGHTS_DECOMPRESSION_RATE"};
 
 /**
- * @enum       ProcessorType
- * @brief      This enum contains defination of processor type used for CPU inference.
- */
-enum class ProcessorType {
-    DEFAULT = -1,       //!<  Default setting. All processors can be used on one socket platform. And only processors of
-                        //!<  physical cores can be used on two socket platform.
-    ALL_CORE = 1,       //!<  All processors can be used. If hyper threading is enabled, both processor of one
-                        //!<  performance-core can be used.
-    PHY_CORE_ONLY = 2,  //!<  Only processors of physical cores can be used. If hyper threading is enabled, only one
-                        //!<  processor of one performance-core can be used.
-    P_CORE_ONLY = 3,    //!<  Only processors of performance-cores can be used. If hyper threading is enabled, both
-                        //!<  processor of one performance-core can be used.
-    E_CORE_ONLY = 4,    //!<  Only processors of efficient-cores can be used.
-    PHY_P_CORE_ONLY = 5,  //!<  Only processors of physical performance-cores can be used. If hyper threading is
-                          //!<  enabled, only one processor of one performance-core can be used.
-};
-
-/** @cond INTERNAL */
-inline std::ostream& operator<<(std::ostream& os, const ProcessorType& processor_type) {
-    switch (processor_type) {
-    case ProcessorType::DEFAULT:
-        return os << "CPU_DEFAULT";
-    case ProcessorType::ALL_CORE:
-        return os << "CPU_ALL_CORE";
-    case ProcessorType::PHY_CORE_ONLY:
-        return os << "CPU_PHY_CORE_ONLY";
-    case ProcessorType::P_CORE_ONLY:
-        return os << "CPU_P_CORE_ONLY";
-    case ProcessorType::E_CORE_ONLY:
-        return os << "CPU_E_CORE_ONLY";
-    case ProcessorType::PHY_P_CORE_ONLY:
-        return os << "CPU_PHY_P_CORE_ONLY";
-    default:
-        throw ov::Exception{"Unsupported processor type!"};
-    }
-}
-
-inline std::istream& operator>>(std::istream& is, ProcessorType& processor_type) {
-    std::string str;
-    is >> str;
-    if (str == "CPU_DEFAULT") {
-        processor_type = ProcessorType::DEFAULT;
-    } else if (str == "CPU_ALL_CORE") {
-        processor_type = ProcessorType::ALL_CORE;
-    } else if (str == "CPU_PHY_CORE_ONLY") {
-        processor_type = ProcessorType::PHY_CORE_ONLY;
-    } else if (str == "CPU_P_CORE_ONLY") {
-        processor_type = ProcessorType::P_CORE_ONLY;
-    } else if (str == "CPU_E_CORE_ONLY") {
-        processor_type = ProcessorType::E_CORE_ONLY;
-    } else if (str == "CPU_PHY_P_CORE_ONLY") {
-        processor_type = ProcessorType::PHY_P_CORE_ONLY;
-    } else {
-        throw ov::Exception{"Unsupported processor type: " + str};
-    }
-    return is;
-}
-/** @endcond */
-
-/**
- * @brief This property define CPU processor type used for CPU inference.
+ * @brief This property define if using hyper threading for CPU inference.
  * @ingroup ov_runtime_cpu_prop_cpp_api
  *
- * Developer can use this property to select specific processors for CPU inference. Please refer ProcessorType for all
- * definition of processor type.
+ * Developer can use this property to use or not use hyper threading for CPU inference. If user does not explicitly set
+ * value for this property, OpenVINO may choose any desired value based on internal logic.
  *
  * The following code is example to only use efficient-cores for inference on hybrid CPU.
  *
  * @code
- * ie.set_property(ov::intel_cpu::processor_type(ov::intel_cpu::ProcessorType::E_CORE_ONLY));
+ * ie.set_property(ov::intel_cpu::use_hyper_threading(true));
+ * ie.set_property(ov::intel_cpu::use_hyper_threading(false));
  * @endcode
  */
-static constexpr Property<ProcessorType> processor_type{"CPU_PROCESSOR_TYPE"};
+static constexpr Property<bool> use_hyper_threading{"CPU_USE_HYPER_THREADING"};
 }  // namespace intel_cpu
 }  // namespace ov

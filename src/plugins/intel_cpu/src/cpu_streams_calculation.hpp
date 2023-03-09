@@ -18,11 +18,13 @@ namespace intel_cpu {
 /**
  * @brief      Limit available CPU resource in processors type table according to processor type property
  * @param[in]  input_type input value of processor type property.
+ * @param[in]  input_changed input value of processor type property.
  * @param[in]  proc_type_table candidate processors available at this time
  * @return     updated proc_type_table which removed unmatched processors
  */
-std::vector<std::vector<int>> apply_processor_type(const ProcessorType input_type,
-                                                   const std::vector<std::vector<int>> proc_type_table);
+std::vector<std::vector<int>> apply_hyper_threading(const bool input_type,
+                                                    const bool input_changed,
+                                                    const std::vector<std::vector<int>> proc_type_table);
 
 /**
  * @brief      Generate streams information table according to processors type table

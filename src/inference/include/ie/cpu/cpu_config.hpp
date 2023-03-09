@@ -57,13 +57,6 @@ DECLARE_CPU_CONFIG_KEY(SPARSE_WEIGHTS_DECOMPRESSION_RATE);
  *  - PHY_P_CORE_ONLY: Only processors of physical performance-cores can be used. If hyper threading is enabled, only
  *                     one processor of one performance-core can be used.
  */
-DECLARE_CPU_CONFIG_KEY(PROCESSOR_TYPE);
-DECLARE_CPU_CONFIG_VALUE(DEFAULT);
-DECLARE_CPU_CONFIG_VALUE(ALL_CORE);
-DECLARE_CPU_CONFIG_VALUE(PHY_CORE_ONLY);
-DECLARE_CPU_CONFIG_VALUE(P_CORE_ONLY);
-DECLARE_CPU_CONFIG_VALUE(E_CORE_ONLY);
-DECLARE_CPU_CONFIG_VALUE(PHY_P_CORE_ONLY);
-
+DECLARE_CPU_CONFIG_KEY(USE_HYPER_THREADING);
 }  // namespace CPUConfigParams
 }  // namespace InferenceEngine
