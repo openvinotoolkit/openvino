@@ -355,6 +355,8 @@ void Input::cloneBlobIfRequired() {
     if (weightCache) {
         MemoryPtr ptr = *weightCache->findOrCreate(blobKey(), cloneBlob);
         memoryPtr = std::const_pointer_cast<const Memory>(ptr);
+    // IRs already have all subnormals flushed to zero, but in
+    // read_model scenario with directly loaded original model still can have subnormals
     } else if (isBlobAligned() && !hasSubnormals() && !isWA()) {
         auto ptr = new Memory(getEngine());
         ptr->Create(memDesc, constOp->get_data_ptr());
