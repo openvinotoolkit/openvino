@@ -143,6 +143,7 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
         }
         copy_runtime_info(rt_copy_from, result);
         replace_node(index_op, result);
+        result->set_friendly_name(index_op->get_friendly_name());
         return true;
     };
 
