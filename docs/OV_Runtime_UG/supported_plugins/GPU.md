@@ -21,12 +21,12 @@ The GPU plugin is a part of the Intel® Distribution of OpenVINO™ toolkit. For
 Device Naming Convention
 #######################################
 
-* Devices are enumerated as `GPU.X`, where `X={0, 1, 2,...}` (only Intel® GPU devices are considered).
-* If the system has an integrated GPU, its `id` is always 0 (`GPU.0`).
+* Devices are enumerated as ``GPU.X``, where ``X={0, 1, 2,...}`` (only Intel® GPU devices are considered).
+* If the system has an integrated GPU, its ``id`` is always 0 (``GPU.0``).
 * The order of other GPUs is not predefined and depends on the GPU driver.
-* The `GPU` is an alias for `GPU.0`.
+* The ``GPU`` is an alias for ``GPU.0``.
 * If the system does not have an integrated GPU, devices are enumerated, starting from 0.
-* For GPUs with multi-tile architecture (multiple sub-devices in OpenCL terms), a specific tile may be addressed as `GPU.X.Y`, where `X,Y={0, 1, 2,...}`, `X` - id of the GPU device, `Y` - id of the tile within device `X`
+* For GPUs with multi-tile architecture (multiple sub-devices in OpenCL terms), a specific tile may be addressed as ``GPU.X.Y``, where ``X,Y={0, 1, 2,...}``, ``X`` - id of the GPU device, ``Y`` - id of the tile within device ``X``
 
 For demonstration purposes, see the :doc:`Hello Query Device C++ Sample <openvino_inference_engine_samples_hello_query_device_README>` that can print out the list of available devices with associated indices. Below is an example output (truncated to the device names only):
 
@@ -43,7 +43,7 @@ For demonstration purposes, see the :doc:`Hello Query Device C++ Sample <openvin
        Device: GNA
 
 
-Then, device name can be passed to the `ov::Core::compile_model()` method:
+Then, device name can be passed to the ``ov::Core::compile_model()`` method:
 
 .. tab-set::
    
