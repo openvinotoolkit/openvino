@@ -18,7 +18,7 @@ namespace cldnn {
 struct primitive_impl;
 
 /// @brief LRU cache which remove the least recently used data when cache is full.
-template<typename Key, typename Value>
+template<typename Key, typename Value, typename KeyHasher = std::hash<Key>>
 class LruCache {
 public:
     using data_type = std::pair<Key, Value>;
@@ -141,7 +141,7 @@ private:
     using lru_data_list_iter = typename lru_data_list_type::iterator;
 
     std::list<data_type> _lru_data_list;
-    std::unordered_map<Key, lru_data_list_iter> _key_map;
+    std::unordered_map<Key, lru_data_list_iter, KeyHasher> _key_map;
     const size_t _capacity;
 
     /**
@@ -168,11 +168,13 @@ private:
 
 using KernelsCache = cldnn::LruCache<size_t, cldnn::kernel::ptr>;
 
-template<typename Key, typename Value>
-class LruCacheThreadSafe : LruCache<Key, Value> {
+template<typename Key, typename Value, typename KeyHasher = std::hash<Key>>
+class LruCacheThreadSafe : public LruCache<Key, Value, KeyHasher> {
 public:
-    using parent = LruCache<Key, Value>;
-    using FuncRemoveItem = std::function<void(std::pair<Key, Value>&)>;
+    using parent = LruCache<Key, Value, KeyHasher>;
+    using ItemType = std::pair<Key, Value>;
+    using FuncRemoveItem = std::function<void(ItemType&)>;
+    using parent::parent;
 
     explicit LruCacheThreadSafe(size_t caps) : parent(caps) { }
 
@@ -204,8 +206,5 @@ private:
     FuncRemoveItem _remove_popped_item;
     mutable std::mutex _mutex;
 };
-
-
-using ImplementationsCache = cldnn::LruCacheThreadSafe<size_t, std::shared_ptr<primitive_impl>>;
 
 }  // namespace cldnn

@@ -33,6 +33,10 @@ void ov::Plugin::set_name(const std::string& deviceName) {
     });
 }
 
+const std::string& ov::Plugin::get_name() const {
+    OV_PLUGIN_CALL_STATEMENT({ return m_ptr->get_device_name(); });
+}
+
 void ov::Plugin::set_core(std::weak_ptr<ICore> core) {
     OV_PLUGIN_CALL_STATEMENT({
         m_ptr->set_core(core);
