@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ['ubuntu-latest-16-cores']
+        os: ['ubuntu-20.04']
     runs-on: ${{ matrix.os }}
     steps:
       - name: Github workspace
@@ -41,7 +41,7 @@ jobs:
         run: |
           sudo apt --assume-yes update
           sudo apt --assume-yes install lcov
-
+          pip install coverage
 
           chmod +x install_build_dependencies.sh
           sudo -E ./install_build_dependencies.sh
