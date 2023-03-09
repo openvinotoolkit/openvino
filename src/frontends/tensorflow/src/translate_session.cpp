@@ -202,9 +202,19 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         ov::OutputVector ov_outputs;
         auto operation_type = operation_decoder->get_op_type();
         if (m_translator_map->count(operation_type)) {
-            auto translator = m_translator_map->at(operation_decoder->get_op_type());
-            NodeContext node_context(operation_decoder, ov_inputs, this);
-            ov_outputs = translator(node_context);
+            try {
+                auto translator = m_translator_map->at(operation_decoder->get_op_type());
+                NodeContext node_context(operation_decoder, ov_inputs, this);
+                ov_outputs = translator(node_context);
+            } catch (const std::exception&) {
+                // continue translation by replacing with FrameworkNode
+                // in case of any failures in translators due to their limitation
+                auto fw_node = std::make_shared<FrameworkNode>(operation_decoder,
+                                                               ov_inputs,
+                                                               operation_place->get_output_ports().size());
+                set_node_name(operation_name, fw_node);
+                ov_outputs = fw_node->outputs();
+            }
         } else if (auto body_ov_model = get_body_ov_model(operation_type)) {
             inject_body_model(body_ov_model, operation_type, ov_inputs, ov_outputs);
 
