@@ -76,7 +76,7 @@ Then, device name can be passed to the `ov::Core::compile_model()` method:
                :language: cpp
                :fragment: compile_model_gpu_with_id
 
-         .. tab-item:: Running on default device
+         .. tab-item:: Python
             :sync: py
 
             .. doxygensnippet:: docs/snippets/gpu/compile_model.py
