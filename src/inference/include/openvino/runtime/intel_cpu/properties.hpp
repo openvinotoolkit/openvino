@@ -56,7 +56,7 @@ static constexpr Property<float> sparse_weights_decompression_rate{"SPARSE_WEIGH
  * Developer can use this property to use or not use hyper threading for CPU inference. If user does not explicitly set
  * value for this property, OpenVINO may choose any desired value based on internal logic.
  *
- * The following code is example to only use efficient-cores for inference on hybrid CPU.
+ * The following code is example to use this property.
  *
  * @code
  * ie.set_property(ov::intel_cpu::use_hyper_threading(true));

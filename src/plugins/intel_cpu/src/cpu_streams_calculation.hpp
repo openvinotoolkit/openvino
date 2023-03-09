@@ -16,9 +16,9 @@ namespace ov {
 namespace intel_cpu {
 
 /**
- * @brief      Limit available CPU resource in processors type table according to processor type property
- * @param[in]  input_type input value of processor type property.
- * @param[in]  input_changed input value of processor type property.
+ * @brief      Limit available CPU resource in processors type table according to hyper threading property
+ * @param[in]  input_type indicate value of property use_hyper_threading.
+ * @param[in]  input_changed indicate if value is set by user.
  * @param[in]  proc_type_table candidate processors available at this time
  * @return     updated proc_type_table which removed unmatched processors
  */

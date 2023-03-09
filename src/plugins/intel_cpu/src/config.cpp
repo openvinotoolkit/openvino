@@ -96,7 +96,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 val_i = std::stoi(val);
             } catch (const std::exception&) {
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_DYN_BATCH_LIMIT
-                           << ". Expected only integer numbers";
+                                    << ". Expected only integer numbers";
             }
             // zero and any negative value will be treated
             // as default batch size
@@ -106,41 +106,33 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             try {
                 val_f = std::stof(val);
             } catch (const std::exception&) {
-                IE_THROW() << "Wrong value for property key "
-                           << CPUConfigParams::KEY_CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE
-                           << ". Expected only float numbers";
+                IE_THROW() << "Wrong value for property key " << CPUConfigParams::KEY_CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE
+                                    << ". Expected only float numbers";
             }
             if (val_f < 0.f || val_f > 1.f) {
-                IE_THROW() << "Wrong value for property key "
-                           << CPUConfigParams::KEY_CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE
-                           << ". Sparse rate must be in range [0.0f,1.0f]";
+                IE_THROW() << "Wrong value for property key " << CPUConfigParams::KEY_CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE
+                                    << ". Sparse rate must be in range [0.0f,1.0f]";
             } else {
                 fcSparseWeiDecompressionRate = val_f;
             }
         } else if (key == PluginConfigParams::KEY_PERF_COUNT) {
-            if (val == PluginConfigParams::YES)
-                collectPerfCounters = true;
-            else if (val == PluginConfigParams::NO)
-                collectPerfCounters = false;
+            if (val == PluginConfigParams::YES) collectPerfCounters = true;
+            else if (val == PluginConfigParams::NO) collectPerfCounters = false;
             else
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_PERF_COUNT
-                           << ". Expected only YES/NO";
+                << ". Expected only YES/NO";
         } else if (key == PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS) {
-            if (val == PluginConfigParams::YES)
-                exclusiveAsyncRequests = true;
-            else if (val == PluginConfigParams::NO)
-                exclusiveAsyncRequests = false;
+            if (val == PluginConfigParams::YES) exclusiveAsyncRequests = true;
+            else if (val == PluginConfigParams::NO) exclusiveAsyncRequests = false;
             else
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_EXCLUSIVE_ASYNC_REQUESTS
-                           << ". Expected only YES/NO";
+                                   << ". Expected only YES/NO";
         } else if (key.compare(PluginConfigParams::KEY_DYN_BATCH_ENABLED) == 0) {
-            if (val.compare(PluginConfigParams::YES) == 0)
-                enableDynamicBatch = true;
-            else if (val.compare(PluginConfigParams::NO) == 0)
-                enableDynamicBatch = false;
+            if (val == PluginConfigParams::YES) exclusiveAsyncRequests = true;
+            else if (val == PluginConfigParams::NO) exclusiveAsyncRequests = false;
             else
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_DYN_BATCH_ENABLED
-                           << ". Expected only YES/NO";
+                << ". Expected only YES/NO";
             IE_SUPPRESS_DEPRECATED_START
         } else if (key.compare(PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT) == 0) {
             IE_SUPPRESS_DEPRECATED_END
@@ -166,7 +158,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 manualEnforceBF16 = false;
             } else {
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_ENFORCE_BF16
-                           << ". Expected only YES/NO";
+                    << ". Expected only YES/NO";
             }
         } else if (key == ov::inference_precision.name()) {
             if (val == "bf16") {
@@ -181,7 +173,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 manualEnforceBF16 = false;
             } else {
                 IE_THROW() << "Wrong value for property key " << ov::inference_precision.name()
-                           << ". Supported values: bf16, f32";
+                    << ". Supported values: bf16, f32";
             }
         } else if (key == PluginConfigParams::KEY_CACHE_DIR) {
             cache_dir = val;
@@ -190,9 +182,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             try {
                 val_i = std::stoi(val);
             } catch (const std::exception&) {
-                IE_THROW() << "Wrong value for property key "
-                           << PluginConfigInternalParams::KEY_CPU_RUNTIME_CACHE_CAPACITY
-                           << ". Expected only integer numbers";
+                IE_THROW() << "Wrong value for property key " << PluginConfigInternalParams::KEY_CPU_RUNTIME_CACHE_CAPACITY
             }
             // any negative value will be treated
             // as zero that means disabling the cache
@@ -205,7 +195,7 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             } else {
                 denormalsOptMode = DenormalsOptMode::DO_Keep;
                 IE_THROW() << "Wrong value for property key " << CPUConfigParams::KEY_CPU_DENORMALS_OPTIMIZATION
-                           << ". Expected only YES/NO";
+                << ". Expected only YES/NO";
             }
         } else if (key == PluginConfigInternalParams::KEY_SNIPPETS_MODE) {
             if (val == PluginConfigInternalParams::ENABLE)
@@ -216,11 +206,11 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 snippetsMode = SnippetsMode::Disable;
             else
                 IE_THROW() << "Wrong value for property key " << PluginConfigInternalParams::KEY_SNIPPETS_MODE
-                           << ". Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
+                            << ". Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
         } else {
             IE_THROW(NotFound) << "Unsupported property " << key << " by CPU plugin";
         }
-        }
+    }
 
     if (!prop.empty())
         _config.clear();
