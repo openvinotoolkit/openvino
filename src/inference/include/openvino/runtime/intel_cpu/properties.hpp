@@ -107,4 +107,3 @@ static constexpr Property<SchedulingCoreType> scheduling_core_type{"CPU_SCHEDULI
 
 }  // namespace intel_cpu
 }  // namespace ov
-
