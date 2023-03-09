@@ -60,7 +60,7 @@ in the model preparation script for such a case.
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: ocs/snippets/ov_preprocessing.cpp
+      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
          :language: cpp
          :fragment: ov:preprocess:save
 
@@ -85,7 +85,7 @@ time when the cached model is available.
    .. tab-item:: C++
       :sync: cpp
 
-      .. doxygensnippet:: ocs/snippets/ov_preprocessing.cpp
+      .. doxygensnippet:: docs/snippets/ov_preprocessing.cpp
          :language: cpp
          :fragment: ov:preprocess:save_load
 

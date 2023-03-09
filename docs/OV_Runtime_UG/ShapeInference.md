@@ -58,13 +58,13 @@ When using the ``reshape`` method, you may take one of the approaches:
 1. You can pass a new shape to the method in order to change the input shape of 
 the model with a single input. See the example of adjusting spatial dimensions to the input image:
 
-   .. tab:: C++
+   .. tab-item:: C++
 
       .. doxygensnippet:: docs/snippets/ShapeInference.cpp
          :language: cpp
          :fragment: spatial_reshape
 
-   .. tab:: Python
+   .. tab-item:: Python
 
       .. doxygensnippet:: docs/snippets/ShapeInference.py
          :language: python
@@ -77,62 +77,76 @@ the model with a single input. See the example of adjusting spatial dimensions t
 
 2. You can express a reshape plan, specifying the input by the port, the index, and the tensor name:
 
-   .. tab:: Port
+.. tab-set::
 
-      .. tab:: C++
+   .. tab-item:: Port
 
-         ``map<ov::Output<ov::Node>, ov::PartialShape`` specifies input by passing actual input port:
+      .. tab-set::
 
-         .. doxygensnippet:: docs/snippets/ShapeInference.cpp
-            :language: cpp
-            :fragment: [obj_to_shape]
+         .. tab-item:: C++
+            :sync: cpp
 
-      .. tab:: Python
+            ``map<ov::Output<ov::Node>, ov::PartialShape`` specifies input by passing actual input port:
 
-         ``openvino.runtime.Output`` dictionary key specifies input by passing actual input object.
-         Dictionary values representing new shapes could be ``PartialShape``:
+            .. doxygensnippet:: docs/snippets/ShapeInference.cpp
+               :language: cpp
+               :fragment: [obj_to_shape]
 
-         .. doxygensnippet:: docs/snippets/ShapeInference.py
-            :language: python
-            :fragment: [obj_to_shape]
+         .. tab-item:: Python
+            :sync: py
 
-   .. tab:: Index
+            ``openvino.runtime.Output`` dictionary key specifies input by passing actual input object.
+            Dictionary values representing new shapes could be ``PartialShape``:
 
-      .. tab:: C++
+            .. doxygensnippet:: docs/snippets/ShapeInference.py
+               :language: python
+               :fragment: [obj_to_shape]
 
-         ``map<size_t, ov::PartialShape>`` specifies input by its index:
+   .. tab-item:: Index
 
-         .. doxygensnippet:: docs/snippets/ShapeInference.cpp
-            :language: cpp
-            :fragment: [idx_to_shape]
+      .. tab-set::
 
-      .. tab:: Python
+         .. tab-item:: C++
+            :sync: cpp
 
-         ``int`` dictionary key specifies input by its index.
-         Dictionary values representing new shapes could be ``tuple``:
+            ``map<size_t, ov::PartialShape>`` specifies input by its index:
 
-         .. doxygensnippet:: docs/snippets/ShapeInference.py
-            :language: python
-            :fragment: [idx_to_shape]
+            .. doxygensnippet:: docs/snippets/ShapeInference.cpp
+               :language: cpp
+               :fragment: [idx_to_shape]
 
-   .. tab:: Tensor Name
+         .. tab-item:: Python
+            :sync: py
 
-      .. tab:: C++
+            ``int`` dictionary key specifies input by its index.
+            Dictionary values representing new shapes could be ``tuple``:
 
-         map<string, ov::PartialShape> specifies input by its name:
+            .. doxygensnippet:: docs/snippets/ShapeInference.py
+               :language: python
+               :fragment: [idx_to_shape]
 
-         .. doxygensnippet:: docs/snippets/ShapeInference.cpp
-            :language: cpp
-            :fragment: [name_to_shape]
+   .. tab-item:: Tensor Name
 
-      .. tab:: Python
+      .. tab-set::
 
-         ``str`` dictionary key specifies input by its name.
-         Dictionary values representing new shapes could be ``str``:
+         .. tab-item:: C++
+            :sync: cpp
 
-         .. doxygensnippet:: docs/snippets/ShapeInference.py
-            :language: python
-            :fragment: [name_to_shape]
+            ``map<string, ov::PartialShape>`` specifies input by its name:
+
+            .. doxygensnippet:: docs/snippets/ShapeInference.cpp
+               :language: cpp
+               :fragment: [name_to_shape]
+
+         .. tab-item:: Python
+            :sync: py
+
+            ``str`` dictionary key specifies input by its name.
+            Dictionary values representing new shapes could be ``str``:
+
+            .. doxygensnippet:: docs/snippets/ShapeInference.py
+               :language: python
+               :fragment: [name_to_shape]
 
 
 You can find the usage scenarios of the ``reshape`` method in 
@@ -162,7 +176,7 @@ To change the batch dimension of the model, :ref:`set the layout <declare_model_
    .. tab-item:: Python
       :sync: py
 
-      .. doxygensnippet:: snippets/ShapeInference.py
+      .. doxygensnippet:: docs/snippets/ShapeInference.py
          :language: Python
          :fragment: set_batch
 
@@ -196,6 +210,6 @@ Additional Resources
 * `Model.reshape <api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.reshape>`__ - in OpenVINO Runtime Python API.
 * :doc:`Dynamic Shapes <openvino_docs_OV_UG_DynamicShapes>`
 * :doc:`OpenVINO samples <openvino_docs_OV_UG_Samples_Overview>`
-* :doc:`Preprocessing API <openvino_docs_OV_UG_Preprocessing_Overview>``
+* :doc:`Preprocessing API <openvino_docs_OV_UG_Preprocessing_Overview>`
 
 @endsphinxdirective
