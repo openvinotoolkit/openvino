@@ -3,6 +3,7 @@
 
 import itertools
 import warnings
+from copy import deepcopy
 
 import numpy as np
 from common.constants import test_device, test_precision
@@ -51,7 +52,7 @@ class PytorchLayerTest:
                 model = torch.jit.script(model)
             else:
                 torch_inputs = [torch.from_numpy(inp) for inp in inputs]
-                model = torch.jit.trace(model, torch_inputs)
+                model = torch.jit.trace(model, deepcopy(torch_inputs))
             if kwargs.get('freeze_model', True):
                 model = torch.jit.freeze(model)
             graph = model.inlined_graph
@@ -91,14 +92,14 @@ class PytorchLayerTest:
         # OV infer:
         core = Core()
         compiled = core.compile_model(om, ie_device)
-        infer_res = compiled(inputs)
+        infer_res = compiled(deepcopy(inputs))
 
         if hasattr(self, 'skip_framework') and self.skip_framework:
             warnings.warn('Framework is skipped')
             return
 
         # Framework infer:
-        fw_res = model(*torch_inps)
+        fw_res = model(*deepcopy(torch_inps))
 
         if not isinstance(fw_res, (tuple)):
             fw_res = (fw_res,)
