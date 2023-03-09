@@ -88,13 +88,9 @@ protected:
         for (size_t i = 0; i < node.get_input_size(); ++i) {
             auto origin_input_type = get_origin_input_type(i);
             if (origin_input_type != element::undefined) {
-                auto parameter = dynamic_cast<ov::op::v0::Parameter*>(node.get_input_node_ptr(i));
-                if (parameter != nullptr) {
-                    parameter->set_element_type(origin_input_type);
-                }
-                if (parameter != nullptr) {
-                    parameter->set_partial_shape(node.get_input_partial_shape(i));
-                }
+                OPENVINO_SUPPRESS_DEPRECATED_START
+                node.get_input_tensor(i).set_tensor_type(origin_input_type, node.get_input_partial_shape(i));
+                OPENVINO_SUPPRESS_DEPRECATED_END
             }
         }
     }
@@ -102,13 +98,9 @@ protected:
     void restore_input_data_types(Node& node, const element::TypeVector& old_input_types) {
         // Restore original input data types
         for (size_t i = 0; i < node.get_input_size(); ++i) {
-            auto parameter = dynamic_cast<ov::op::v0::Parameter*>(node.get_input_node_ptr(i));
-            if (parameter != nullptr) {
-                parameter->set_element_type(old_input_types[i]);
-            }
-            if (parameter != nullptr) {
-                parameter->set_partial_shape(node.get_input_partial_shape(i));
-            }
+            OPENVINO_SUPPRESS_DEPRECATED_START
+            node.get_input_tensor(i).set_tensor_type(old_input_types[i], node.get_input_partial_shape(i));
+            OPENVINO_SUPPRESS_DEPRECATED_END
         }
 
         if (m_original_output_data_types.empty()) {
