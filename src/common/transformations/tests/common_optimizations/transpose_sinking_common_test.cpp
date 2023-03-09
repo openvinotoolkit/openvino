@@ -653,8 +653,8 @@ auto test_forward_squeeze = []() {
     test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingReductionForward);
     test_case.num_main_ops = {1};
     test_case.inputs_to_main = {
-            parameter(element::f32, {32, 1, 2, 1}),
-            constant<int64_t>(element::i32, {2}, {0, 2}),
+        parameter(element::f32, {32, 1, 2, 1}),
+        constant<int64_t>(element::i32, {2}, {0, 2}),
     };
 
     // Test model description:
@@ -667,7 +667,7 @@ auto test_forward_squeeze = []() {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
         new_out_vec[1] =
-                make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{3, 1});
+            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{3, 1});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{new_constant}, {{1}}};
@@ -687,8 +687,8 @@ auto test_forward_unsqueeze = []() {
     test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingReductionForward);
     test_case.num_main_ops = {1};
     test_case.inputs_to_main = {
-            parameter(element::f32, {32, 3, 2, 1}),
-            constant<int64_t>(element::i32, {2}, {0, 2}),
+        parameter(element::f32, {32, 3, 2, 1}),
+        constant<int64_t>(element::i32, {2}, {0, 2}),
     };
 
     // Test model description:
@@ -701,7 +701,7 @@ auto test_forward_unsqueeze = []() {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
         new_out_vec[1] =
-                make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{0, 2});
+            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{0, 2});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{new_constant}, {{1}}};
@@ -998,7 +998,6 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonInterpolateBackward,
                          TransposeSinkingTestFixture,
                          test_backward_interpolate());
 
-
 auto test_backward_squeeze = []() {
     TestCase test_case;
 
@@ -1006,8 +1005,8 @@ auto test_backward_squeeze = []() {
     test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingReductionBackward);
     test_case.num_main_ops = {1};
     test_case.inputs_to_main = {
-            parameter(element::f32, {32, 1, 2, 1}),
-            constant<int64_t>(element::i32, {2}, {1, 3}),
+        parameter(element::f32, {32, 1, 2, 1}),
+        constant<int64_t>(element::i32, {2}, {1, 3}),
     };
 
     // Test model description:
@@ -1039,8 +1038,8 @@ auto test_backward_unsqueeze = []() {
     test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingReductionBackward);
     test_case.num_main_ops = {1};
     test_case.inputs_to_main = {
-            parameter(element::f32, {32, 3, 2, 1}),
-            constant<int64_t>(element::i32, {2}, {0, 2}),
+        parameter(element::f32, {32, 3, 2, 1}),
+        constant<int64_t>(element::i32, {2}, {0, 2}),
     };
 
     // Test model description:
@@ -1053,7 +1052,7 @@ auto test_backward_unsqueeze = []() {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
         new_out_vec[1] =
-                make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{5, 3});
+            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{5, 3});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, new_constant}, {{0}, {1}}};
@@ -1063,6 +1062,8 @@ auto test_backward_unsqueeze = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonUnsqueezeBackward, TransposeSinkingTestFixture, test_backward_unsqueeze());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonUnsqueezeBackward,
+                         TransposeSinkingTestFixture,
+                         test_backward_unsqueeze());
 }  // namespace common
 }  // namespace transpose_sinking
