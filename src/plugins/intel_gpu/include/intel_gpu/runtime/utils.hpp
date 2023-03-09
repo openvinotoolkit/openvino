@@ -47,6 +47,13 @@ struct all : public std::true_type {};
 template <bool Val, bool... Values>
 struct all<Val, Values...> : public std::integral_constant<bool, Val && all<Values...>::value> {};
 
+template <class T>
+struct is_primitive
+    : public std::integral_constant<bool,
+                                    std::is_base_of<primitive, T>::value &&
+                                        !std::is_same<primitive, typename std::remove_cv<T>::type>::value &&
+                                        std::is_same<T, typename std::remove_cv<T>::type>::value> {};
+
 }  // namespace meta
 
 /// @cond CPP_HELPERS
