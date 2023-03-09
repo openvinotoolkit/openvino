@@ -53,7 +53,7 @@ void CreateRollOp(Program& p, const std::shared_ptr<ngraph::op::v7::Roll>& op) {
     }
 
     // Normalize shift
-    for (size_t s = 0; s < rank; ++s) {
+    for (size_t s = 0; s < static_cast<size_t>(rank); ++s) {
         auto& sh = shift[s];
         const auto dim = static_cast<int32_t>(input_shape[s]);
         sh %= dim;
