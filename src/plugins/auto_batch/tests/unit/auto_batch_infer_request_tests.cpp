@@ -4,6 +4,7 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <thread>
 
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "ie_ngraph_utils.hpp"
