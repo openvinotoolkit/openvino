@@ -14,14 +14,7 @@
 namespace ov {
 namespace template_plugin {
 
-class RemoteContext;
-
 class VectorTensor : public ov::RemoteTensor {
-private:
-    class VectorImpl;
-    std::shared_ptr<VectorImpl> get_impl() const;
-    friend class RemoteContext;
-
 public:
     /**
      * @brief Checks that type defined runtime parameters are presented in remote object
@@ -35,10 +28,8 @@ public:
      * @brief Returns the underlying vector
      * @return vector if T is compatible with element type
      */
-    template <class T>
-    const std::vector<T>& get() const {
-        return *get_impl();
-    }
+    const void* get_data_ptr() const;
+    void* get_data_ptr();
 };
 
 }  // namespace template_plugin

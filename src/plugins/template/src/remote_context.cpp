@@ -42,12 +42,16 @@ public:
         return {{ov::device::id.name(), "TEMPLATE"}};
     }
 
-    std::vector<T> get() {
+    const std::vector<T>& get() const {
+        return m_data;
+    }
+
+    std::vector<T>& get() {
         return m_data;
     }
 
     void* data(const ov::element::Type& type = {}) const override {
-        OPENVINO_NOT_IMPLEMENTED;
+        return const_cast<void*>(static_cast<const void*>(m_data.data()));
     }
 
 protected:
@@ -56,12 +60,7 @@ protected:
     std::vector<T> m_data;
 };
 
-}  // namespace
-
-namespace ov {
-namespace template_plugin {
-
-class VectorTensor::VectorImpl : public ov::ITensor {
+class VectorImpl : public ov::ITensor {
 private:
     std::shared_ptr<ov::ITensor> m_tensor;
 
@@ -69,7 +68,7 @@ public:
     VectorImpl(const std::shared_ptr<ov::ITensor>& tensor) : m_tensor(tensor) {}
 
     template <class T>
-    operator const std::vector<T>&() {
+    operator std::vector<T>&() const {
         auto impl = std::dynamic_pointer_cast<VectorTensorImpl<T>>(m_tensor);
         OPENVINO_ASSERT(impl, "Cannot get vector. Type is incorrect!");
         return impl->get();
@@ -79,11 +78,11 @@ public:
         m_tensor->set_shape(shape);
     }
 
-    const element::Type& get_element_type() const override {
+    const ov::element::Type& get_element_type() const override {
         return m_tensor->get_element_type();
     }
 
-    const Shape& get_shape() const override {
+    const ov::Shape& get_shape() const override {
         return m_tensor->get_shape();
     }
 
@@ -95,35 +94,47 @@ public:
         return m_tensor->get_byte_size();
     }
 
-    Coordinate get_offsets() const override {
+    ov::Coordinate get_offsets() const override {
         return m_tensor->get_offsets();
     }
 
-    Strides get_strides() const override {
+    ov::Strides get_strides() const override {
         return m_tensor->get_strides();
     }
 
-    void* data(const element::Type& type = {}) const override {
+    void* data(const ov::element::Type& type = {}) const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    void* get_data_ptr() const {
         return m_tensor->data();
     }
 
     template <typename T, typename datatype = typename std::decay<T>::type>
     T* data() const {
-        return static_cast<T*>(data(element::from<datatype>()));
+        OPENVINO_NOT_IMPLEMENTED;
     }
 
-    AnyMap get_properties() const override {
+    ov::AnyMap get_properties() const override {
         return m_tensor->get_properties();
     }
 };
 
-}  // namespace template_plugin
+}  // namespace
+
+namespace ov {
+namespace template_plugin {}  // namespace template_plugin
 }  // namespace ov
 
-std::shared_ptr<ov::template_plugin::VectorTensor::VectorImpl> ov::template_plugin::VectorTensor::get_impl() const {
-    auto impl = std::dynamic_pointer_cast<ov::template_plugin::VectorTensor::VectorImpl>(_impl);
+const void* ov::template_plugin::VectorTensor::get_data_ptr() const {
+    auto impl = std::dynamic_pointer_cast<VectorImpl>(_impl);
     OPENVINO_ASSERT(impl);
-    return impl;
+    return impl->get_data_ptr();
+}
+void* ov::template_plugin::VectorTensor::get_data_ptr() {
+    auto impl = std::dynamic_pointer_cast<VectorImpl>(_impl);
+    OPENVINO_ASSERT(impl);
+    return impl->get_data_ptr();
 }
 
 ov::template_plugin::RemoteContext::RemoteContext() : m_name("TEMPLATE") {}
@@ -185,5 +196,5 @@ std::shared_ptr<ov::ITensor> ov::template_plugin::RemoteContext::create_tensor(c
     default:
         OPENVINO_UNREACHABLE("Cannot create remote tensor for unsupported type: ", type);
     }
-    return std::make_shared<ov::template_plugin::VectorTensor::VectorImpl>(tensor);
+    return std::make_shared<VectorImpl>(tensor);
 }
