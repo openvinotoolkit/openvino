@@ -442,6 +442,7 @@ std::string Node::getPrimitiveDescriptorType() {
     SEARCH_TYPE(gemm);
     SEARCH_TYPE(brgconv);
     SEARCH_TYPE(brgemm);
+    SEARCH_TYPE(brdgmm);
     SEARCH_TYPE(ref);
 
     SEARCH_TYPE(avx512);

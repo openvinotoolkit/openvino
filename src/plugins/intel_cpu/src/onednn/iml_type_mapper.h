@@ -13,12 +13,13 @@ enum impl_desc_type {
     unknown = 0x00000000,
     undef,
     // Optimization approach
-    simple  = 1<<6,
-    ref     = 1<<7,
-    jit     = 1<<8,
-    gemm    = 1<<9,
-    brgconv = 1<<10,
-    brgemm  = 1<<11,
+    simple  = 1<<4,
+    ref     = 1<<5,
+    jit     = 1<<6,
+    gemm    = 1<<7,
+    brgconv = 1<<8,
+    brgemm  = 1<<9,
+    brdgmm  = 1<<10,
     // CPU version
     sse42  = 1<<12,
     avx    = 1<<13,
@@ -71,7 +72,7 @@ enum impl_desc_type {
     jit_sse42_dw        = jit  | sse42  | _dw,
     jit_uni_dw          = jit  | uni    | _dw,
     jit_avx512_amx_dw   = jit  | avx512 | amx | _dw,
-    brgconv_avx512_dw   = brgconv  | avx512 | _dw,
+    brdgmm_avx512_dw    = brdgmm   | avx512 | _dw,
 
     brgconv_avx512      = brgconv  | avx512,
     brgconv_avx2        = brgconv  | avx2,

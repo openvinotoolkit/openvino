@@ -201,8 +201,8 @@ protected:
 };
 
 TEST_P(GroupConvolutionLayerCPUTest, CompareWithRefs) {
-    // Skip tests for brgconv dw convolution where dilates is not 1
-    if (priority[0] == "brgconv_avx512_dw") {
+    // Skip tests for brdgmm dw convolution where dilates is not 1
+    if (priority[0] == "brdgmm_avx512_dw") {
         bool has_unsupport_dilate = false;
         for (const auto i : dilation) {
             if (i != 1) {
@@ -211,14 +211,14 @@ TEST_P(GroupConvolutionLayerCPUTest, CompareWithRefs) {
             }
         }
         if (has_unsupport_dilate) {
-            GTEST_SKIP() << "Disabled test due to the brgconv dw requiring dilation=1." << std::endl;
+            GTEST_SKIP() << "Disabled test due to the brdgmm dw requiring dilation=1." << std::endl;
         }
 
-        // brgconv_avx512_dw needs bf16 hardware support, does not support emulation
+        // brdgmm_avx512_dw needs bf16 hardware support, does not support emulation
         if (additionalConfig.count(PluginConfigParams::KEY_ENFORCE_BF16) &&
             PluginConfigParams::YES == additionalConfig[PluginConfigParams::KEY_ENFORCE_BF16]) {
             if (!with_cpu_x86_bfloat16())
-                GTEST_SKIP() << "Disabled test due to the brgconv dw requiring bf16 hw support." << std::endl;
+                GTEST_SKIP() << "Disabled test due to the brdgmm dw requiring bf16 hw support." << std::endl;
         }
     }
 

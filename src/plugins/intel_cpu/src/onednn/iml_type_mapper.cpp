@@ -50,7 +50,7 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
     SEARCH_WORD_2(nchw, ref);
     SEARCH_WORD_2(ncdhw, ref);
     SEARCH_WORD_2(wino, winograd);
-    SEARCH_WORD_2(brdgmm, brgconv);
+    SEARCH_WORD_2(brdgmm, brdgmm);
 
 #undef SEARCH_WORD_2
 #undef SEARCH_WORD
@@ -97,7 +97,7 @@ const char* impl_type_to_string(impl_desc_type type) {
     CASE(brgconv_avx);
     CASE(brgconv_sse42);
     CASE(brgconv_uni);
-    CASE(brgconv_avx512_dw);
+    CASE(brdgmm_avx512_dw);
     CASE(brgconv_avx512_amx);
     CASE(brgconv_avx512_1x1);
     CASE(brgconv_avx2_1x1);
