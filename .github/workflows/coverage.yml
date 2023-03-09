@@ -21,7 +21,6 @@ jobs:
         with:
           python-version: '3.10'
 
-
       - name: Clone OpenVINO
         uses: actions/checkout@v3
         with:
@@ -29,18 +28,12 @@ jobs:
           lfs: true
           fetch-depth: 0
 
-      - name: Install lcov dependenucy
-        run: |
-
-      - name: Setup environment
+      - name: Install dependencies
         run: |
           mkdir build
 
-
-      - name: Install dependencies
-        run: |
           sudo apt --assume-yes update
-          sudo apt --assume-yes install lcov
+          sudo apt --assume-yes install lcov clang
           pip install coverage
 
           chmod +x install_build_dependencies.sh
@@ -67,16 +60,23 @@ jobs:
 
       - name: Build OpenVINO
         run: |
-          cmake -DCMAKE_BUILD_TYPE=Release \
+          cmake -GNinja \
+                -DCMAKE_VERBOSE_MAKEFILE=ON \
+                -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
+                -DBUILD_SHARED_LIBS=OFF \
+                -DENABLE_ONEDNN_FOR_GPU=OFF \
+                -DENABLE_OV_ONNX_FRONTEND=ON \
+                -DBUILD_nvidia_plugin=OFF \
+                -DENABLE_STRICT_DEPENDENCIES=OFF \
+                -DCMAKE_BUILD_TYPE=Release \
                 -DENABLE_FASTER_BUILD=ON \
                 -DENABLE_TESTS=ON \
                 -DENABLE_PYTHON=ON \
                 -DENABLE_COVERAGE=ON \
-                -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchains/ia32.linux.toolchain.cmake \
                 -DENABLE_INTEL_GPU=OFF \
-                -DENABLE_INTEL_CPU=OFF \
                 -B build
-          cmake --build build --target all --parallel=$(nproc --all)
+                # -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchains/ia32.linux.toolchain.cmake \
+          cmake --build build --parallel --config Release
 
       - name: ls all
         run:  ls -laR .
