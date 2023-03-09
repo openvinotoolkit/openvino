@@ -60,8 +60,7 @@ jobs:
 
       - name: Build OpenVINO
         run: |
-          cmake -GNinja \
-                -DCMAKE_VERBOSE_MAKEFILE=ON \
+          cmake -DCMAKE_VERBOSE_MAKEFILE=ON \
                 -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
                 -DBUILD_SHARED_LIBS=OFF \
                 -DENABLE_ONEDNN_FOR_GPU=OFF \
@@ -81,26 +80,29 @@ jobs:
       - name: ls all
         run:  ls -laR .
 
-      - name:  Run IR
-        run: ctest -V -L IR_FE
+      - name: Run Tests
+        run: ctest -V
+      
+    # - name:  Run IR
+    #   run: ctest -V -L IR_FE
 
-      - name: Run ONNX_FE
-        run: ctest -V -L ONNX_FE
+    # - name: Run ONNX_FE
+    #   run: ctest -V -L ONNX_FE
 
-      - name: Run PADDLE_FE
-        run: ctest -V -L PADDLE_FE
+    # - name: Run PADDLE_FE
+    #   run: ctest -V -L PADDLE_FE
 
-      - name: Run TF_FE
-        run: ctest -V -L TF_FE
+    # - name: Run TF_FE
+    #   run: ctest -V -L TF_FE
 
-      - name: Run CPU
-        run: ctest -V -L CPU
+    # - name: Run CPU
+    #   run: ctest -V -L CPU
 
-      - name: Run GPU
-        run: ctest -V -L GPU
+    # - name: Run GPU
+    #   run: ctest -V -L GPU
 
-      - name: Run GNA
-        run: ctest -V -L GNA
+    # - name: Run GNA
+    #   run: ctest -V -L GNA
 
       - name: Build coverage
         run:  cmake --build build --target ov_coverage
