@@ -118,13 +118,11 @@ jobs:
 
   - checkout: self
     clean: 'true'
-    fetchDepth: '1'
     submodules: 'true'
     path: openvino
 
   - checkout: openvino_contrib
     clean: 'true'
-    fetchDepth: '1'
     submodules: 'true'
     path: openvino_contrib
 
@@ -160,6 +158,7 @@ jobs:
         -DENABLE_TESTS=ON
         -DBUILD_java_api=ON
         -DBUILD_nvidia_plugin=OFF
+        -DENABLE_INTEL_GPU=ON
         -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_CXX_LINKER_LAUNCHER=ccache
         -DCMAKE_C_LINKER_LAUNCHER=ccache

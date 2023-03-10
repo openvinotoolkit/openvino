@@ -960,6 +960,7 @@ def test_array_like_input_request(device, shared_flag):
     request, _, input_data = abs_model_with_data(device, Type.f32, np.single)
     model_input_object = ArrayLikeObject(input_data.tolist())
     model_input_list = [ArrayLikeObject(input_data.tolist())]
+    model_input_dict = {0: ArrayLikeObject(input_data.tolist())}
 
     # Test single array-like object in InferRequest().Infer()
     res_object = request.infer(model_input_object, shared_memory=shared_flag)
@@ -968,6 +969,10 @@ def test_array_like_input_request(device, shared_flag):
     # Test list of array-like objects to use normalize_inputs()
     res_list = request.infer(model_input_list)
     assert np.array_equal(res_list[request.model_outputs[0]], np.abs(input_data))
+
+    # Test dict of array-like objects to use normalize_inputs()
+    res_dict = request.infer(model_input_dict)
+    assert np.array_equal(res_dict[request.model_outputs[0]], np.abs(input_data))
 
 
 @pytest.mark.parametrize("shared_flag", [True, False])

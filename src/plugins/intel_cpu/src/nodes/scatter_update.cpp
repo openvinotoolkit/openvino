@@ -456,7 +456,7 @@ void ScatterUpdate::scatterElementsUpdate(uint8_t *indices, uint8_t *update, int
 
         for (size_t iwork = start; iwork < end; iwork++) {
             int64_t idxValue = getIndicesValue(indices, iwork);
-            if (idxValue < srcDataDim[axis])
+            if (idxValue < static_cast<int64_t>(srcDataDim[axis]))
                 cpu_memcpy(dstData + dataSize * (dst_idx + idxValue * srcBlockND[axis + 1]),
                             update + iwork * dataSize, dataSize);
 
