@@ -17,8 +17,6 @@ namespace template_plugin {
 
 class Plugin : public ov::IPlugin {
 public:
-    using Ptr = std::shared_ptr<Plugin>;
-
     Plugin();
     ~Plugin();
 
@@ -50,9 +48,9 @@ private:
     friend class CompiledModel;
     friend class InferRequest;
 
-    std::shared_ptr<ov::runtime::Backend> _backend;
-    Configuration _cfg;
-    std::shared_ptr<ov::threading::ITaskExecutor> _waitExecutor;
+    std::shared_ptr<ov::runtime::Backend> m_backend;
+    Configuration m_cfg;
+    std::shared_ptr<ov::threading::ITaskExecutor> m_waitExecutor;
 };
 
 }  // namespace template_plugin

@@ -14,7 +14,7 @@
 #include <string>
 #include <utility>
 
-/** @ingroup ie_dev_profiling
+/** @ingroup ov_dev_profiling
   * @brief openvino namespace
   */
 namespace openvino
@@ -23,14 +23,14 @@ namespace openvino
     {
         /**
          * @typedef domain_t
-         * @ingroup ie_dev_profiling
+         * @ingroup ov_dev_profiling
          * @brief A domain type which enables tagging trace data for different modules or libraries in a program.
          */
         typedef struct domain_ {} *domain_t;
 
         /**
          * @typedef handle_t
-         * @ingroup ie_dev_profiling
+         * @ingroup ov_dev_profiling
          * @brief Annotation handle for section of code which would be named at runtime.
          */
         typedef struct handle_ {} *handle_t;
@@ -52,7 +52,7 @@ namespace openvino
 
         /**
          * @fn void threadName(const char* name)
-         * @ingroup ie_dev_profiling
+         * @ingroup ov_dev_profiling
          * @brief Set thread name using a char string.
          * @param name [in] The thread name
          */
@@ -78,7 +78,7 @@ namespace openvino
 
         /**
          * @fn handle_t handle(char const *name)
-         * @ingroup ie_dev_profiling
+         * @ingroup ov_dev_profiling
          * @brief Create annotation handle with a given name.
          * @details If template function is instantiated with a tag, the handle is created as a singleton.
          * @param name [in] The annotation name
@@ -104,7 +104,7 @@ namespace openvino
 
         /**
          * @class ScopedTask
-         * @ingroup ie_dev_profiling
+         * @ingroup ov_dev_profiling
          * @brief Used to annotate section of code which would be named at runtime
          * @tparam The @p domain parameter is domain type which shoud be defined with OV_ITT_DOMAIN() macro.
          */
@@ -130,7 +130,7 @@ namespace openvino
 
         /**
          * @class TaskChain
-         * @ingroup ie_dev_profiling
+         * @ingroup ov_dev_profiling
          * @brief Used to annotate a sequence of sections of code which would be named at runtime
          * @tparam The @p domain parameter is domain type which shoud be defined with OV_ITT_DOMAIN() macro.
          */
@@ -211,7 +211,7 @@ namespace openvino
 
 /**
  * @def OV_ITT_DOMAIN(domainName)
- * @ingroup ie_dev_profiling
+ * @ingroup ov_dev_profiling
  * @brief Declare domain with a given name.
  * @param domainName [in] Known at compile time name of module or library (the domain name).
  * @param domainDisplayName [in] Domain name used as the ITT counter name and displayed in Intel VTune. Parameter is optional.
@@ -244,7 +244,7 @@ inline openvino::itt::domain_t domainName() noexcept                            
 
 /**
  * @def OV_ITT_SCOPE(domain, handleOrTaskName)
- * @ingroup ie_dev_profiling
+ * @ingroup ov_dev_profiling
  * @brief Annotate section of code till scope exit to be profiled using known @p handle or @p taskName as section id.
  * @details In case if handle or taskName absent, the current function name is used.
  * @param group [in] ITT counter group name used for enabling/disabling at compile time.
@@ -275,7 +275,7 @@ inline openvino::itt::domain_t domainName() noexcept                            
 
 /**
  * @def OV_ITT_SCOPED_TASK(domain, handleOrTaskName)
- * @ingroup ie_dev_profiling
+ * @ingroup ov_dev_profiling
  * @brief Annotate section of code till scope exit to be profiled using known @p handle or @p taskName as section id.
  * @details In case if handle or taskName absent, the current function name is used.
  * @param domainName [in] Known at compile time name of module or library (the domain name).
@@ -285,7 +285,7 @@ inline openvino::itt::domain_t domainName() noexcept                            
 
 /**
  * @def OV_ITT_TASK_CHAIN(chainId, domain, prefix, taskName)
- * @ingroup ie_dev_profiling
+ * @ingroup ov_dev_profiling
  * @brief Begins the sequrence of an annotated sections of code using @p prefix and @p taskName as section id.
  * @details In case if prefix absent, the current function name is used,
  *          if taskName absent, the first chain index is used, i.e 1.
@@ -329,7 +329,7 @@ inline openvino::itt::domain_t domainName() noexcept                            
 
 /**
  * @def OV_ITT_SCOPE_NEXT(group, chainId, taskName)
- * @ingroup ie_dev_profiling
+ * @ingroup ov_dev_profiling
  * @brief Inserts new annotated section of code to tasks chain using @p taskName as section id.
  * @details If taskName is missing, the current chain index is used.
  * @param group [in] ITT counter group name used for enabling/disabling at compile time.
@@ -358,7 +358,7 @@ inline openvino::itt::domain_t domainName() noexcept                            
 
 /**
  * @def OV_ITT_SCOPE_SKIP(group, chainId)
- * @ingroup ie_dev_profiling
+ * @ingroup ov_dev_profiling
  * @brief Skips the remaining task scope.
  * @param group [in] ITT counter group name used for enabling/disabling at compile time.
  * @param chainId [in] The tasks chain identifier.
@@ -379,7 +379,7 @@ inline openvino::itt::domain_t domainName() noexcept                            
 
 /**
  * @def OV_ITT_TASK_CHAIN(chainId, domain, prefix, taskName)
- * @ingroup ie_dev_profiling
+ * @ingroup ov_dev_profiling
  * @brief Begins the sequrence of an annotated sections of code using @p prefix and @p taskName as section id.
  * @details In case if prefix absent, the current function name is used,
  *          if taskName absent, the first chain index is used, i.e 1.
@@ -392,7 +392,7 @@ inline openvino::itt::domain_t domainName() noexcept                            
 
 /**
  * @def OV_ITT_TASK_NEXT(chainId, taskName)
- * @ingroup ie_dev_profiling
+ * @ingroup ov_dev_profiling
  * @brief Inserts new annotated section of code to tasks chain using @p taskName as section id.
  * @details If taskName is missing, the current chain index is used.
  * @param chainId [in] The tasks chain identifier.
@@ -402,7 +402,7 @@ inline openvino::itt::domain_t domainName() noexcept                            
 
 /**
  * @def OV_ITT_TASK_SKIP(chainId)
- * @ingroup ie_dev_profiling
+ * @ingroup ov_dev_profiling
  * @brief Skips the remaining task scope.
  * @param chainId [in] The tasks chain identifier.
  */
