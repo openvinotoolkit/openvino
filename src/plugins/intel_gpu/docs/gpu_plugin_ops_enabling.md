@@ -94,7 +94,7 @@
 
 1. Create PR with your changes
     * If you are `OpenVINO` group member in github, CI will be triggered.
-    * Please review the [OpenVINO contribution guide](https://github.com/openvinotoolkit/openvino/wiki/Contribute).
+    * Please review the [OpenVINO contribution guide](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING.md).
 
 <br>
 
@@ -109,7 +109,7 @@
 ## Writing OCL kernel
 
 ### Jitter
-In GPU OCL kernels, many conditional statements are processed with `#ifdef` so that it can be handled during compile-time. The definitions are created with `jitter.cpp`. It is set during graph compilation. You can see generated macros following the steps in [source dumps](https://github.com/openvinotoolkit/openvino/wiki/GPUPluginDebugUtils#sources-dumps).
+In GPU OCL kernels, many conditional statements are processed with `#ifdef` so that it can be handled during compile-time. The definitions are created with `jitter.cpp`. It is set during graph compilation. You can see generated macros following the steps in [source dumps](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/docs/gpu_debug_utils.md#sources-dumps).
 Jitter also contains run-time parameters such as input and output size.
 Additional macros can be defined from host-code of kernel itself. For example, see below code snippet. It passes `SUB_GROUP_SIZE` through macro definition through jitter.
 ```
@@ -124,7 +124,7 @@ Jitter generates macros for index calculations. With these macros, you can progr
 
 ### Layout support
 If a kernel is not performance-critical, you can support `bfyx`, `bfzyx` and `bfwzyx` only for layout. Those are default layouts. As an optimized format, `b_fs_yx_fsv16`, `b_fs_yx_fsv4` or `byxf` can be used as well.
-[General description of layout can be found here](https://github.com/openvinotoolkit/openvino/wiki/GPUPluginMemoryFormats) and [header file is here](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/thirdparty/clDNN/api/tensor.hpp)
+[General description of layout can be found here](https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/docs/gpu_memory_formats.md) and [header file is here](https://github.com/openvinotoolkit/openvino/blob/master/inference-engine/thirdparty/clDNN/api/tensor.hpp)
 
 ### Layer fusion
 When layers are fused, `jitter` will create macros to generate code for fused layers. It is realized into `FUSED_OPS..` in OCL kernel. You can understand the usage from other kernels.

@@ -12,7 +12,7 @@
 The GPU plugin is an OpenCL based plugin for inference of deep neural networks on Intel GPUs, both integrated and discrete ones.
 For an in-depth description of the GPU plugin, see:
 
-- `GPU plugin developers documentation <https://github.com/openvinotoolkit/openvino/wiki/GPUPluginDevelopersDocs>`__
+- `GPU plugin developers documentation <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/README.md>`__
 - `OpenVINO Runtime GPU plugin source files <https://github.com/openvinotoolkit/openvino/tree/master/src/plugins/intel_gpu/>`__
 - `Accelerate Deep Learning Inference with Intel® Processor Graphics <https://software.intel.com/en-us/articles/accelerating-deep-learning-inference-with-intel-processor-graphics>`__
 
@@ -385,7 +385,7 @@ Additional Resources
 
 * :doc:`Supported Devices<openvino_docs_OV_UG_supported_plugins_Supported_Devices>`.
 * :doc:`Optimization guide<openvino_docs_deployment_optimization_guide_dldt_optimization_guide>`.
-* `GPU plugin developers documentation <https://github.com/openvinotoolkit/openvino/wiki/GPUPluginDevelopersDocs>`__
+* `GPU plugin developers documentation <https://github.com/openvinotoolkit/openvino/blob/master/src/plugins/intel_gpu/README.md>`__
 
 
 @endsphinxdirective
