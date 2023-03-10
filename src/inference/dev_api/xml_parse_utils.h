@@ -36,7 +36,7 @@
  * @brief XML helpers function to extract values from `pugi::xml_node`
  * @ingroup    ie_dev_api_xml
  */
-namespace XMLParseUtils {
+namespace pugixml_utils {
 
 /**
  * @brief      Gets the integer attribute from `pugi::xml_node`
@@ -217,7 +217,7 @@ GetPrecisionAttr(const pugi::xml_node& node, const char* str, InferenceEngine::P
  */
 INFERENCE_ENGINE_API_CPP(int) GetIntChild(const pugi::xml_node& node, const char* str, int defVal);
 
-}  // namespace XMLParseUtils
+}  // namespace pugixml_utils
 
 /**
  * @brief      A XML parse result structure with an error message and the `pugi::xml_document` document.

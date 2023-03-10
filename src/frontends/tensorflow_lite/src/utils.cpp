@@ -29,8 +29,7 @@ std::shared_ptr<ov::frontend::tensorflow_lite::QuantizationInfo> ov::frontend::t
     return quantization;
 }
 
-namespace {
-const std::map<tflite::TensorType, ov::element::Type>& TYPE_MAP() {
+ov::element::Type ov::frontend::tensorflow_lite::get_ov_type(const tflite::TensorType& tf_type) {
     static const std::map<tflite::TensorType, ov::element::Type> type_map{
         {tflite::TensorType_FLOAT32, element::f32},
         {tflite::TensorType_FLOAT16, element::f16},
@@ -52,16 +51,10 @@ const std::map<tflite::TensorType, ov::element::Type>& TYPE_MAP() {
         //          {TensorType_RESOURCE,       element::resource},
         //          {TensorType_VARIANT,        element::variant},
     };
-    return type_map;
-}
-}  // namespace
-
-ov::element::Type ov::frontend::tensorflow_lite::get_ov_type(const tflite::TensorType& tf_type) {
-    const auto& mapping = TYPE_MAP();
-    FRONT_END_GENERAL_CHECK(mapping.find(tf_type) != mapping.end(),
+    FRONT_END_GENERAL_CHECK(type_map.find(tf_type) != type_map.end(),
                             "Unexpected type: ",
                             tflite::EnumNameTensorType(tf_type));
-    return mapping.at(tf_type);
+    return type_map.at(tf_type);
 }
 
 ov::PartialShape ov::frontend::tensorflow_lite::get_ov_shape(const flatbuffers::Vector<int32_t>* tf_shape,
