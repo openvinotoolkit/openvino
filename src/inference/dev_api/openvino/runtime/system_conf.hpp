@@ -191,10 +191,10 @@ enum ColumnOfProcessorTypeTable {
  * @brief      Defination of CPU_MAP_USED_FLAG column in CPU mapping table.
  */
 enum CpuUseStatus {
-    NOT_USED = -1,            //!< CPU is not bound to thread
-    CPU_USED = 1,             //!< CPU is in using
-    PLUGIN_USED_START = 100   //!< Plugin other than CPU needs to use. If more GPUs use CPUs, the CPU_MAP_USED_FLAG is
-                              //!< accumulated from PLUGIN_USED_START. For example: GPU.0:100, GPU.1:101
+    NOT_USED = -1,           //!< CPU is not bound to thread
+    CPU_USED = 1,            //!< CPU is in using
+    PLUGIN_USED_START = 100  //!< Plugin other than CPU needs to use. If more GPUs use CPUs, the CPU_MAP_USED_FLAG is
+                             //!< accumulated from PLUGIN_USED_START. For example: GPU.0:100, GPU.1:101
 };
 
 /**
