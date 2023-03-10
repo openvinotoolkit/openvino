@@ -1080,7 +1080,7 @@ std::mutex& ov::CoreImpl::get_mutex(const std::string& dev_name) const {
     try {
         return dev_mutexes.at(dev_name);
     } catch (const std::out_of_range&) {
-        throw ov::Exception("Cannot get mutex for device: " + dev_name);
+        OPENVINO_UNREACHABLE("Cannot get mutex for device: ", dev_name);
     }
 }
 

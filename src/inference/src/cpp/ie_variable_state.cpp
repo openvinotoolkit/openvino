@@ -22,9 +22,9 @@
     try {                                                                    \
         __VA_ARGS__;                                                         \
     } catch (const std::exception& ex) {                                     \
-        throw ov::Exception(ex.what());                                      \
+        OPENVINO_UNREACHABLE(ex.what());                                     \
     } catch (...) {                                                          \
-        OPENVINO_ASSERT(false, "Unexpected exception");                      \
+        OPENVINO_UNREACHABLE("Unexpected exception");                        \
     }
 
 namespace InferenceEngine {

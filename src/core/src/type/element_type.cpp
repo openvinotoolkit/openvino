@@ -360,8 +360,7 @@ inline size_t compiler_byte_size(ov::element::Type_t et) {
         return 0;
     }
 
-    throw ov::Exception("compiler_byte_size: Unsupported value of ov::element::Type_t: " +
-                        std::to_string(static_cast<int>(et)));
+    OPENVINO_UNREACHABLE("compiler_byte_size: Unsupported value of ov::element::Type_t: ", static_cast<int>(et));
 }
 
 namespace ov {

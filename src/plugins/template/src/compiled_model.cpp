@@ -30,11 +30,11 @@ ov::template_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Mode
         compile_model(m_model);
     } catch (const InferenceEngine::Exception& e) {
         // Some transformations can throw legacy exception
-        throw ov::Exception(e.what());
+        OPENVINO_UNREACHABLE(e.what());
     } catch (const std::exception& e) {
-        OPENVINO_ASSERT(false, "Standard exception from compilation library: ", e.what());
+        OPENVINO_UNREACHABLE("Standard exception from compilation library: ", e.what());
     } catch (...) {
-        throw ov::Exception("Generic exception is thrown");
+        OPENVINO_UNREACHABLE("Generic exception is thrown");
     }
 }
 // ! [executable_network:ctor_cnnnetwork]

@@ -36,14 +36,10 @@ static ov::NodeTypeInfo get_type(const std::string& type_name) {
     std::string operation_type(it, type_name.end());
 
     const auto& opsets = ov::get_available_opsets();
-    if (!opsets.count(opset_type)) {
-        throw ov::Exception("Unsupported opset type: " + opset_type);
-    }
+    OPENVINO_ASSERT(opsets.count(opset_type), "Unsupported opset type: ", opset_type);
 
     const ov::OpSet& m_opset = opsets.at(opset_type)();
-    if (!m_opset.contains_type(operation_type)) {
-        throw ov::Exception("Unrecognized operation type: " + operation_type);
-    }
+    OPENVINO_ASSERT(m_opset.contains_type(operation_type), "Unrecognized operation type: ", operation_type);
 
     return m_opset.create(operation_type)->get_type_info();
 }

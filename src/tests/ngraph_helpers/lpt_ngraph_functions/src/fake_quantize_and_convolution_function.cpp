@@ -20,9 +20,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::get(
     const FakeQuantizeOnData& fqOnData,
     const FakeQuantizeOnWeights& fqOnWeights) {
     const auto rankLength = inputShape.rank().is_dynamic() ? 4 : inputShape.rank().get_length();
-    if ((rankLength != 3ul) && (rankLength != 4ul)) {
-        throw ov::Exception("not supported input shape rank: " + std::to_string(rankLength));
-    }
+    OPENVINO_ASSERT(rankLength == 3ul || rankLength == 4ul, "not supported input shape rank: ", rankLength);
 
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     const auto fakeQuantizeOnActivations = fqOnData.empty() ?

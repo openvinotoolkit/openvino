@@ -366,11 +366,8 @@ InputModel::Ptr FrontEndMockPy::load_impl(const std::vector<ov::Any>& params) co
         m_telemetry->send_stack_trace("mock_stack_trace");
     }
     if (!params.empty()) {
-        if (params[0].is<std::string>()) {
-            m_stat.m_load_paths.push_back(params[0].as<std::string>());
-        } else {
-            throw ov::Exception("Only path is supported.");
-        }
+        OPENVINO_ASSERT(params[0].is<std::string>(), "Only path is supported.");
+        m_stat.m_load_paths.push_back(params[0].as<std::string>());
     }
 
     return std::make_shared<InputModelMockPy>();
