@@ -196,9 +196,18 @@ class TestParallelRunner:
 
     def __get_test_list_by_runtime(self):
         test_list_file_name = os.path.join(self._working_dir, "test_list.lst")
+        if os.path.isfile(test_list_file_name):
+            os.remove(test_list_file_name)
         command_to_get_test_list = self._command + f' --gtest_list_tests >> {test_list_file_name}'
         logger.info(f"Get test list using command: {command_to_get_test_list}")
-        run(command_to_get_test_list, check=True, shell=True)
+        run_res = run(command_to_get_test_list, check=True, shell=True)
+        if run_res.stderr != "" and run_res.stderr != None:
+            logger.error(f"Ooops! Something is going wrong... {run_res.stderr}")
+            exit(-1)
+
+        if not os.path.isfile(test_list_file_name):
+            logger.error(f"The test list file does not exists! Please check the process output!")
+            exit(-1)
 
         test_list = list()
         with open(test_list_file_name) as test_list_file:
@@ -216,6 +225,9 @@ class TestParallelRunner:
             test_list_file.close()
         os.remove(test_list_file_name)
         logger.info(f"Len test_list_runtime (without disabled tests): {len(test_list)}")
+        if len(test_list) == 0:
+            logger.warning(f"Look like there are not tests to run! Please check the filters!")
+            exit(0)
         return test_list
 
 
@@ -317,7 +329,7 @@ class TestParallelRunner:
         if not os.path.isfile(self._exec_file_path):
             logger.error(f"Test executable file {self._exec_file_path} is not exist!")
             sys.exit(-1)
-
+        
         test_list_runtime = self.__get_test_list_by_runtime()
         test_list_cache = self.__get_test_list_by_cache()
         
