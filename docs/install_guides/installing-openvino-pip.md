@@ -97,7 +97,7 @@ Run the command below:
 
 If installation was successful, you will not see any error messages (no console output).
 
-Congratulations! You finished installing OpenVINO Runtime. Now you can start exploring OpenVINO's functionality through Jupyter Notebooks and sample applications. See the :ref:`What's Next <whats-next>`section to learn more!
+Congratulations! You finished installing OpenVINO Runtime. Now you can start exploring OpenVINO's functionality through Jupyter Notebooks and sample applications. See the :ref:`What's Next <whats-next>` section to learn more!
 
 Installing OpenVINO Development Tools
 #####################################
