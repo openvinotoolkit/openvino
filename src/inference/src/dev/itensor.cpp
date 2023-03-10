@@ -182,6 +182,7 @@ public:
             m_allocator.deallocate(m_ptr, old_byte_size);
             m_ptr = m_allocator.allocate(get_byte_size());
         }
+        update_strides();
     }
 
 private:
