@@ -27,7 +27,7 @@ CxxDynamicCastExpression: '^.*$'
 # not needed values
 ClassTemplatePartialSpecialization: '^.*$'
 ConversionFunction: '^.*$'
-UsingDirective: 'XXXX'
+UsingDirective: '^.*$'
 ClassAccessSpecifier: '^.*$' # looks like can be fixed
 TypeReference: '^.*$' # looks like can be fixed
 CxxBaseSpecifier: '^.*$' # looks like can be fixed
