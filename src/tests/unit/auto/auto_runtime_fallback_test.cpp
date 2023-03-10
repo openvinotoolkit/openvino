@@ -54,9 +54,9 @@ public:
     std::shared_ptr<mockAsyncInferRequest>     mockInferrequestActual;
     std::shared_ptr<mockAsyncInferRequest>     mockInferrequestActualBackUp;
 
-    std::shared_ptr<mockRequestExecutor>     mockExecutor;
-    std::shared_ptr<mockRequestExecutor>     mockExecutorActual;
-    std::shared_ptr<mockRequestExecutor>     mockExecutorActualBackUp;
+    std::shared_ptr<ImmediateExecutor>     mockExecutor;
+    std::shared_ptr<ImmediateExecutor>     mockExecutorActual;
+    std::shared_ptr<ImmediateExecutor>     mockExecutorActualBackUp;
 
     size_t optimalNum;
 
@@ -180,18 +180,18 @@ public:
             });
 
         inferReqInternal = std::make_shared<NiceMock<MockIInferRequestInternal>>();
-        mockExecutor = std::make_shared<mockRequestExecutor>();
+        mockExecutor = std::make_shared<ImmediateExecutor>();
         IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, optimalNum, 1);
         ON_CALL(*mockIExeNet.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))
            .WillByDefault(Return(optimalNum));
 
         inferReqInternalActual = std::make_shared<NiceMock<MockIInferRequestInternal>>();
-        mockExecutorActual = std::make_shared<mockRequestExecutor>();
+        mockExecutorActual = std::make_shared<ImmediateExecutor>();
         ON_CALL(*mockIExeNetActual.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))
            .WillByDefault(Return(optimalNum));
 
         inferReqInternalActualBackUp = std::make_shared<NiceMock<MockIInferRequestInternal>>();
-        mockExecutorActualBackUp = std::make_shared<mockRequestExecutor>();
+        mockExecutorActualBackUp = std::make_shared<ImmediateExecutor>();
         ON_CALL(*mockIExeNetActualBackUp.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))
            .WillByDefault(Return(optimalNum));
     }
