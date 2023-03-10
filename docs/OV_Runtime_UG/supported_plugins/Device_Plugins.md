@@ -59,7 +59,7 @@ Enumerating Available Devices
 
 The OpenVINO Runtime API features dedicated methods of enumerating devices and their capabilities. See the :doc:`Hello Query Device C++ Sample <openvino_inference_engine_samples_hello_query_device_README>`. This is an example output from the sample (truncated to device names only):
 
-.. code-block: sh
+.. code-block:: sh
 
    ./hello_query_device
    Available devices:
@@ -85,7 +85,7 @@ A simple programmatic way to enumerate the devices and use with the multi-device
 Beyond the typical "CPU", "GPU", and so on, when multiple instances of a device are available, the names are more qualified. 
 For example, this is how two GPUs can be listed (iGPU is always GPU.0):
 
-.. code-block: sh
+.. code-block:: sh
 
    ...
        Device: GPU.0
