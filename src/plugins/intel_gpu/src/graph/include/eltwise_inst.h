@@ -51,6 +51,12 @@ inline kernel_selector::eltwise_mode convert_to_eltwise_mode(eltwise_mode mode) 
             return kernel_selector::eltwise_mode::SQUARED_DIFF;
         case eltwise_mode::floor_mod:
             return kernel_selector::eltwise_mode::FLOOR_MOD;
+        case eltwise_mode::is_finite:
+            return kernel_selector::eltwise_mode::IS_FINITE;
+        case eltwise_mode::is_inf:
+            return kernel_selector::eltwise_mode::IS_INF;
+        case eltwise_mode::is_nan:
+            return kernel_selector::eltwise_mode::IS_NAN;
         default:
             return kernel_selector::eltwise_mode::ADD;
     }
