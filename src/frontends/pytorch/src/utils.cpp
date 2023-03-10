@@ -393,6 +393,37 @@ void align_eltwise_input_types(const NodeContext& context, Output<Node>& lhs, Ou
     }
 }
 
+std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start) {
+    std::deque<Output<Node>> res;
+    auto current_output = start;
+    while (const auto& input_fw_node =
+               std::dynamic_pointer_cast<ov::op::util::FrameworkNode>(current_output.get_node_shared_ptr())) {
+        const auto& attrs = input_fw_node->get_attrs();
+        if (attrs.find("PtTypeName") == attrs.end()) {
+            break;
+        }
+        if (attrs.at("PtTypeName") == "aten::append") {
+            res.push_front(input_fw_node->input(1).get_source_output());
+        } else if (attrs.at("PtTypeName") == "aten::add") {
+            const auto&& lhs_list = get_list_as_outputs(input_fw_node->input(1).get_source_output());
+            res.insert(res.end(), lhs_list.begin(), lhs_list.end());
+        } else {
+            break;
+        }
+        current_output = input_fw_node->input(0).get_source_output();
+    }
+    auto list_construct = cast_fw_node(current_output.get_node_shared_ptr(), "prim::ListConstruct");
+    if (list_construct) {
+        auto inputs = list_construct->inputs();
+        for (auto input_it = inputs.rbegin(); input_it != inputs.rend(); ++input_it) {
+            res.push_front(input_it->get_source_output());
+        }
+    } else {
+        res.push_front(current_output);
+    }
+    return res;
+}
+
 }  // namespace pytorch
 }  // namespace frontend
 }  // namespace ov

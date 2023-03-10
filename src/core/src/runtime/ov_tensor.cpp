@@ -22,7 +22,7 @@ namespace ov {
     try {                                                             \
         __VA_ARGS__;                                                  \
     } catch (const std::exception& ex) {                              \
-        throw ov::Exception(ex.what());                               \
+        OPENVINO_UNREACHABLE(ex.what());                              \
     } catch (...) {                                                   \
         OPENVINO_ASSERT(false, "Unexpected exception");               \
     }
@@ -71,14 +71,6 @@ const element::Type& Tensor::get_element_type() const {
 }
 
 void Tensor::set_shape(const ov::Shape& shape) {
-    // WA for tensor conversion from host tensor with dynamic shape.
-    // if (util::is_dynamic_shape(get_shape())) {
-    //     _impl = make_blob_with_precision(
-    //         {_impl->getTensorDesc().getPrecision(), shape, ie::TensorDesc::getLayoutByRank(shape.size())});
-    //     _impl->allocate();
-    // } else {
-    //     OV_TENSOR_STATEMENT(_impl->setShape({shape.begin(), shape.end()}));
-    // }
     OV_TENSOR_STATEMENT(_impl->set_shape(shape));
 }
 

@@ -642,7 +642,7 @@ public:
         } catch (const InferenceEngine::InferCancelled& e) {
             throw ov::Cancelled{e.what()};
         } catch (const std::exception& ex) {
-            throw ov::Exception(ex.what());
+            OPENVINO_UNREACHABLE(ex.what());
         } catch (...) {
             OPENVINO_UNREACHABLE("Unexpected exception");
         }
@@ -653,7 +653,7 @@ public:
         } catch (const InferenceEngine::InferCancelled& e) {
             throw ov::Cancelled{e.what()};
         } catch (const std::exception& ex) {
-            throw Exception(ex.what());
+            OPENVINO_UNREACHABLE(ex.what());
         } catch (...) {
             OPENVINO_UNREACHABLE("Unexpected exception");
         }
