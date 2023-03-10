@@ -221,7 +221,7 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
     split_connection.emplace(id, layerInfoItem);
 }
 
-void GNAGraphCompiler::SetValidatorTarget(const DeviceVersion& target) {
+void GNAGraphCompiler::SetValidatorTarget(const target::DeviceVersion& target) {
     auto temp = limitations::cnn2d::AbstractValidator::Create(target);
     cnn2dValidator.reset(temp.release());
 }

@@ -1077,11 +1077,12 @@ void Graph::InferDynamic(InferRequestBase* request) {
     std::function<void(size_t, size_t)> updateDynParams;
 
     updateShapes = [&](size_t node_indx, size_t stop_indx) {
-        const auto& node = executableGraphNodes[node_indx];
         prepareCounter.store(node_indx);
         if (node_indx >= stop_indx) {
             return;
         }
+
+        const auto& node = executableGraphNodes[node_indx];
         if (node->isDynamicNode()) {
             node->updateShapes();
         }
@@ -1092,11 +1093,12 @@ void Graph::InferDynamic(InferRequestBase* request) {
     };
 
     updateDynParams = [&](size_t node_indx, size_t stop_indx) {
-        const auto& node = executableGraphNodes[node_indx];
         if (node_indx >= stop_indx) {
             prepareCounter.store(node_indx);
             return;
         }
+
+        const auto& node = executableGraphNodes[node_indx];
         if (node->isDynamicNode()) {
             node->updateDynamicParams();
         }
@@ -1533,6 +1535,8 @@ void Graph::EnforceBF16() {
     // starting from output nodes
     for (const auto& entry : outputNodesMap) {
         const auto& node = entry.second;
+        if (node->getOriginalInputPrecisionAtPort(0) == Precision::BF16)
+            continue;
         searchForNodesToSkip(node, nodesToSkip);
     }
 
