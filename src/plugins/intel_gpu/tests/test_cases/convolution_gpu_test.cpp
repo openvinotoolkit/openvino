@@ -8849,14 +8849,14 @@ public:
                             output_index += (lower_output_padding.spatial[1] + output_yi) * output_buffer_size.spatial[0] + lower_output_padding.spatial[0] + output_xi;
 
                             for (int kernel_y = 0; kernel_y < weights_size.spatial[1]; kernel_y++) {
-                                auto input_yi = y * stride[0] - pad[0] + kernel_y * dilation[0];
-                                if ((input_yi < 0) || (input_yi >= input_size.spatial[1])) {
+                                int input_yi = static_cast<int>(y * stride[0] - pad[0] + kernel_y * dilation[0]);
+                                if ((input_yi < 0) || (input_yi >= static_cast<int>(input_size.spatial[1]))) {
                                     continue;
                                 }
 
                                 for (int kernel_x = 0; kernel_x < weights_size.spatial[0]; kernel_x++) {
-                                    auto input_xi = x * stride[1] - pad[1] + kernel_x * dilation[1];
-                                    if ((input_xi < 0) || (input_xi >= input_size.spatial[0])) {
+                                    int input_xi = static_cast<int>(x * stride[1] - pad[1] + kernel_x * dilation[1]);
+                                    if ((input_xi < 0) || (input_xi >= static_cast<int>(input_size.spatial[0]))) {
                                         continue;
                                     }
 
