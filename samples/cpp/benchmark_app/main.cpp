@@ -851,7 +851,7 @@ int main(int argc, char* argv[]) {
             if (!modelStream.is_open()) {
                 throw std::runtime_error("Cannot open model file " + FLAGS_m);
             }
-            compiledModel = core.import_model(modelStream, device_name, {});
+            compiledModel = core.import_model(modelStream, device_name, device_config);
             modelStream.close();
 
             auto duration_ms = get_duration_ms_till_now(startTime);
