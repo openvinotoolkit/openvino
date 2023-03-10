@@ -117,4 +117,12 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_AutoBatch_BehaviorTests, OVPropertiesTes
                 ::testing::Values(CommonTestUtils::DEVICE_BATCH),
                 ::testing::ValuesIn(auto_batch_properties)),
         OVPropertiesTests::getTestCaseName);
+
+const std::vector<std::tuple<std::string, std::pair<ov::AnyMap, std::string>>> GetMetricTest_ExecutionDevice_TEMPLATE = {
+        {CommonTestUtils::DEVICE_TEMPLATE, std::make_pair(ov::AnyMap{}, CommonTestUtils::DEVICE_TEMPLATE)}};
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_OVClassExecutableNetworkGetMetricTest, OVClassExecutableNetworkGetMetricTest_EXEC_DEVICES,
+        ::testing::ValuesIn(GetMetricTest_ExecutionDevice_TEMPLATE),
+        OVCompileModelGetExecutionDeviceTests::getTestCaseName);
 } // namespace
