@@ -133,7 +133,7 @@ public:
             });
 
         ON_CALL(*plugin, GetValidDevice)
-            .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
+            .WillByDefault([](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
                 std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
                 return devices;
             });

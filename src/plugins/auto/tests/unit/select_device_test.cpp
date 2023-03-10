@@ -105,15 +105,15 @@ public:
     }
     // combine select_num devices from devices and make them to ConfigParams
     // insert the ConfigParams into testConfigs
-    static void combine_device(const std::vector<DeviceInformation>& devices, int start,
-            int* result, int result_index, const int select_num, std::string& netPrecision,
+    static void combine_device(const std::vector<DeviceInformation>& devices, size_t start,
+            size_t* result, size_t result_index, const size_t select_num, std::string& netPrecision,
             bool enableDevicePriority, bool reverse) {
         for (size_t i = start; i < devices.size() + 1 - result_index; i++) {
             result[result_index - 1] = i;
             if (result_index - 1 == 0) {
                 std::vector<DeviceInformation> metaDevices = {};
                 int devicePriority = 0;
-                for (int j = select_num - 1; j >= 0; j--) {
+                for (int j = static_cast<int>(select_num) - 1; j >= 0; j--) {
                     auto tmpDevInfo = devices[result[j]];
                     if (enableDevicePriority) {
                         tmpDevInfo.devicePriority = devicePriority;
@@ -176,7 +176,7 @@ public:
     }
 
     static std::vector<ConfigParams> CreateConfigs() {
-        auto result = new int[totalDevices.size()];
+        auto result = new size_t[totalDevices.size()];
         // test all netPrecision with all possible combine devices
         // netPrecision number is 5
         // device number is 5
@@ -270,7 +270,7 @@ TEST_P(SelectDeviceTest, SelectDevice) {
 
     EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(1);
     if (devices.size() >= 1) {
-        EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AtLeast(devices.size() - 1));
+        EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AtLeast(static_cast<int>(devices.size()) - 1));
     } else {
         EXPECT_CALL(*core, GetMetric(_, _, _)).Times(0);
     }

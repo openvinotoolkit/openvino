@@ -98,6 +98,8 @@ public:
                    const std::map<std::string, std::string>& config) {
                return plugin->MultiDeviceInferencePlugin::ParseMetaDevices(priorityDevices, config);
                });
+        std::tie(priorityDevices, metaDevices, throwException) = GetParam();
+        sizeOfMetaDevices = static_cast<int>(metaDevices.size());
     }
 
     void compare(std::vector<DeviceInformation>& result, std::vector<DeviceInformation>& expect) {
@@ -120,6 +122,13 @@ public:
             }
         }
     }
+
+protected:
+    // get Parameter
+    std::string priorityDevices;
+    std::vector<DeviceInformation> metaDevices;
+    bool throwException;
+    int sizeOfMetaDevices;
 };
 using ParseMetaDeviceNoIDTest = ParseMetaDeviceTest;
 
@@ -128,17 +137,12 @@ TEST_P(ParseMetaDeviceTest, ParseMetaDevicesWithPriority) {
     IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, configKeys, {});
     ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
            .WillByDefault(RETURN_MOCK_VALUE(configKeys));
-    // get Parameter
-    std::string priorityDevices;
-    std::vector<DeviceInformation> metaDevices;
-    bool throwException;
-    std::tie(priorityDevices, metaDevices, throwException) = this->GetParam();
 
     EXPECT_CALL(*plugin, ParseMetaDevices(_, _)).Times(1);
     EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AnyNumber());
     EXPECT_CALL(*core, GetConfig(_, _)).Times(AnyNumber());
     EXPECT_CALL(*core, GetAvailableDevices()).Times(1);
-    EXPECT_CALL(*core, GetSupportedConfig(_, _)).Times(metaDevices.size());
+    EXPECT_CALL(*core, GetSupportedConfig(_, _)).Times(sizeOfMetaDevices);
     if (throwException) {
         ASSERT_ANY_THROW(plugin->ParseMetaDevices(priorityDevices, {}));
     } else {
@@ -153,11 +157,6 @@ TEST_P(ParseMetaDeviceTest, ParseMetaDevicesNotWithPriority) {
     IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, configKeys, {});
     ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
            .WillByDefault(RETURN_MOCK_VALUE(configKeys));
-    // get Parameter
-    std::string priorityDevices;
-    std::vector<DeviceInformation> metaDevices;
-    bool throwException;
-    std::tie(priorityDevices, metaDevices, throwException) = this->GetParam();
 
     EXPECT_CALL(*plugin, ParseMetaDevices(_, _)).Times(1 + !throwException);
     EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AnyNumber());
@@ -184,17 +183,11 @@ TEST_P(ParseMetaDeviceNoIDTest, ParseMetaDevices) {
     IE_SET_METRIC(SUPPORTED_CONFIG_KEYS, configKeys, {CONFIG_KEY(DEVICE_ID)});
     ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
            .WillByDefault(RETURN_MOCK_VALUE(configKeys));
-    // get Parameter
-    std::string priorityDevices;
-    std::vector<DeviceInformation> metaDevices;
-    bool throwException;
-    std::tie(priorityDevices, metaDevices, throwException) = this->GetParam();
-
     EXPECT_CALL(*plugin, ParseMetaDevices(_, _)).Times(1);
     EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AnyNumber());
     EXPECT_CALL(*core, GetConfig(_, _)).Times(AnyNumber());
     EXPECT_CALL(*core, GetAvailableDevices()).Times(1);
-    EXPECT_CALL(*core, GetSupportedConfig(_, _)).Times(metaDevices.size());
+    EXPECT_CALL(*core, GetSupportedConfig(_, _)).Times(sizeOfMetaDevices);
     if (throwException) {
         ASSERT_ANY_THROW(plugin->ParseMetaDevices(priorityDevices, {}));
     } else {

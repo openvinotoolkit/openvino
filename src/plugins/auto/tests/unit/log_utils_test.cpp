@@ -131,7 +131,7 @@ TEST(smoke_Auto_BehaviorTests, LogUtilsSingleton) {
     std::vector<std::future<void>> futureVect;
     std::shared_ptr<Log> instanceVector[20];
     for (unsigned int i = 0; i < 20; i++) {
-        auto future = std::async(std::launch::async, [this, &instanceVector, i] {
+        auto future = std::async(std::launch::async, [&instanceVector, i] {
                 instanceVector[i] = Log::instance();
                 });
         futureVect.push_back(std::move(future));

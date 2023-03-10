@@ -279,7 +279,7 @@ TEST_P(ExecNetworkGetMetricOptimalNumInferReq, OPTIMAL_NUMBER_OF_INFER_REQUESTS)
     ON_CALL(*plugin, SelectDevice(_, _, _)).WillByDefault(Return(metaDevices[1]));
     ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
     ON_CALL(*plugin, GetValidDevice)
-        .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
+        .WillByDefault([](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
             std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
             return devices;
         });
@@ -414,7 +414,7 @@ TEST_P(ExecNetworkGetMetricOtherTest, modelPriority_perfHint_exclusiveAsyncReq_t
     ON_CALL(*plugin, SelectDevice(_, _, _)).WillByDefault(Return(metaDevices[1]));
     ON_CALL(*plugin, ParseMetaDevices(_, _)).WillByDefault(Return(metaDevices));
     ON_CALL(*plugin, GetValidDevice)
-        .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
+        .WillByDefault([](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
             std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
             return devices;
         });

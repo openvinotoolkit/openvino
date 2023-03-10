@@ -28,11 +28,6 @@ using ::testing::InvokeWithoutArgs;
 using Config = std::map<std::string, std::string>;
 using namespace MockMultiDevice;
 
-// const char cpuFullDeviceName[] = "Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz";
-const char igpuFullDeviceName[] = "Intel(R) Gen9 HD Graphics (iGPU)";
-const char dgpuFullDeviceName[] = "Intel(R) Iris(R) Xe MAX Graphics (dGPU)";
-// const char myriadFullDeviceName[] = "Intel Movidius Myriad X VPU";
-// const char vpuxFullDeviceName[] = "";
 const std::vector<std::string> availableDevs = {"CPU", "GPU.0", "GPU.1", "VPUX", "UNSUPPORTED_DEVICE"};
 using ConfigParams = std::tuple<
         std::string,                        // Priority devices

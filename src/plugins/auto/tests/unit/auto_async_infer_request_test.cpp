@@ -4,12 +4,26 @@
 #include "include/mock_auto_device_plugin.hpp"
 #include "include/auto_infer_request_test_base.hpp"
 
+std::string AsyncInferenceTest::getTestCaseName(testing::TestParamInfo<AsyncInferenceTestParams> obj) {
+    ov::AnyMap property;
+    std::tie(property) = obj.param;
+    std::ostringstream result;
+    result << "_property_";
+    for (auto& iter : property)
+        result << iter.first << "_as_" << iter.second.as<std::string>();
+    return result.str();
+}
+
 void AsyncInferenceTest::SetUp() {
+        ov::AnyMap property;
+        std::tie(property) = GetParam();
+        for (auto& iter : property)
+           configToLoad[iter.first] = iter.second.as<std::string>();
         ON_CALL(*core.get(), isNewAPI()).WillByDefault(Return(true));
         // replace core with mock Icore
         plugin->SetCore(core);
         makeAsyncRequest();
-        exeNetwork = plugin->LoadNetwork(cnnNet, {});
+        exeNetwork = plugin->LoadNetwork(cnnNet, configToLoad);
         auto_request = exeNetwork->CreateInferRequest();
 }
 
@@ -32,7 +46,7 @@ void AsyncInferenceTest::makeAsyncRequest() {
 void AsyncInferenceTest::TearDown() {
 }
 
-TEST_F(AsyncInferenceTest, returnRequestBusyOnStartAsync) {
+TEST_P(AsyncInferenceTest, returnRequestBusyOnStartAsync) {
     for (size_t i = 0; i < target_request_num ; i++)
         ON_CALL(*inferReqInternal[i], InferImpl()).WillByDefault(Return());
     ASSERT_NO_THROW(auto_request->StartAsync());
@@ -40,7 +54,7 @@ TEST_F(AsyncInferenceTest, returnRequestBusyOnStartAsync) {
     std::dynamic_pointer_cast<DeferedExecutor>(taskExecutor)->executeAll();
 }
 
-TEST_F(AsyncInferenceTest, canInferIfStartAsyncSuccess) {
+TEST_P(AsyncInferenceTest, canInferIfStartAsyncSuccess) {
     auto_request->SetCallback([&](std::exception_ptr exceptionPtr_) {
         auto exceptionPtr = exceptionPtr_;
         ASSERT_EQ(exceptionPtr, nullptr);
@@ -50,7 +64,7 @@ TEST_F(AsyncInferenceTest, canInferIfStartAsyncSuccess) {
     ASSERT_NO_THROW(auto_request->Wait(InferRequest::WaitMode::RESULT_READY));
 }
 
-TEST_F(AsyncInferenceTest, canRethrowIfStartAsyncFails) {
+TEST_P(AsyncInferenceTest, canRethrowIfStartAsyncFails) {
     for (size_t i = 0; i < target_request_num ; i++)
         ON_CALL(*inferReqInternal[i], InferImpl()).WillByDefault(Throw(std::exception()));
     auto_request->SetCallback([&](std::exception_ptr exceptionPtr_) {
@@ -62,7 +76,7 @@ TEST_F(AsyncInferenceTest, canRethrowIfStartAsyncFails) {
     EXPECT_THROW(auto_request->Wait(InferRequest::WaitMode::RESULT_READY), std::exception);
 }
 
-TEST_F(AsyncInferenceTest, canStart2AsyncInferRequests) {
+TEST_P(AsyncInferenceTest, canStart2AsyncInferRequests) {
     auto another_auto_request = exeNetwork->CreateInferRequest();
     auto_request->SetCallback([&](std::exception_ptr exceptionPtr_) {
         auto exceptionPtr = exceptionPtr_;
@@ -78,3 +92,13 @@ TEST_F(AsyncInferenceTest, canStart2AsyncInferRequests) {
     ASSERT_NO_THROW(auto_request->Wait(InferRequest::WaitMode::RESULT_READY));
     ASSERT_NO_THROW(another_auto_request->Wait(InferRequest::WaitMode::RESULT_READY));
 }
+
+const std::vector<AsyncInferenceTestParams> testConfigs = {
+    AsyncInferenceTestParams {{},
+                    },
+    //AsyncInferenceTestParams {{ov::enable_runtime_fallback(false))},
+                    //},
+};
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, AsyncInferenceTest,
+                ::testing::ValuesIn(testConfigs),
+                AsyncInferenceTest::getTestCaseName);

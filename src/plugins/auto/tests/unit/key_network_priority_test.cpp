@@ -73,6 +73,8 @@ public:
     }
 
     void SetUp() override {
+        std::tie(netPrecision, enableDevicePriority, PriorityConfigs) = GetParam();
+        sizeOfConfigs = static_cast<int>(PriorityConfigs.size());
        // prepare mockicore and cnnNetwork for loading
        core  = std::shared_ptr<MockICore>(new MockICore());
        auto* origin_plugin = new MockMultiDeviceInferencePlugin();
@@ -101,17 +103,16 @@ public:
                return plugin->MultiDeviceInferencePlugin::GetValidDevice(metaDevices, netPrecision);
            });
     }
-};
 
-TEST_P(KeyNetworkPriorityTest, SelectDevice) {
-    // get Parameter
-
+protected:
     std::string netPrecision;
     bool enableDevicePriority;
     std::vector<PriorityParams> PriorityConfigs;
-    std::tie(netPrecision, enableDevicePriority, PriorityConfigs) = this->GetParam();
-    std::vector<DeviceInformation> resDevInfo;
+    int sizeOfConfigs;
+};
 
+TEST_P(KeyNetworkPriorityTest, SelectDevice) {
+    std::vector<DeviceInformation> resDevInfo;
     if (enableDevicePriority) {
         metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
             {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "iGPU_01", 1},
@@ -126,27 +127,21 @@ TEST_P(KeyNetworkPriorityTest, SelectDevice) {
             {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "VPUX_01", 0}};
     }
 
-    EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(PriorityConfigs.size());
-    EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AtLeast(PriorityConfigs.size() * 4));
+    EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(sizeOfConfigs);
+    EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AtLeast(sizeOfConfigs * 4));
 
     for (auto& item : PriorityConfigs) {
         resDevInfo.push_back(plugin->SelectDevice(metaDevices, netPrecision, std::get<0>(item)));
     }
-    for (unsigned int i = 0; i < PriorityConfigs.size(); i++) {
+    for (int i = 0; i < sizeOfConfigs; i++) {
         EXPECT_EQ(resDevInfo[i].uniqueName, std::get<1>(PriorityConfigs[i]));
         plugin->UnregisterPriority(std::get<0>(PriorityConfigs[i]), std::get<1>(PriorityConfigs[i]));
     }
 }
 
 TEST_P(KeyNetworkPriorityTest, MultiThreadsSelectDevice) {
-    // get Parameter
-    std::string netPrecision;
-    bool enableDevicePriority;
-    std::vector<PriorityParams> PriorityConfigs;
-    std::tie(netPrecision, enableDevicePriority, PriorityConfigs) = this->GetParam();
     std::vector<DeviceInformation> resDevInfo;
     std::vector<std::future<void>> futureVect;
-
     if (enableDevicePriority) {
         metaDevices = {{CommonTestUtils::DEVICE_CPU, {}, 2, "", "CPU_01", 0},
             {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "iGPU_01", 1},
@@ -161,13 +156,13 @@ TEST_P(KeyNetworkPriorityTest, MultiThreadsSelectDevice) {
             {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "VPUX_01", 0}};
     }
 
-    EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(PriorityConfigs.size() * 2);
-    EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AtLeast(PriorityConfigs.size() * 4 * 2));
+    EXPECT_CALL(*plugin, SelectDevice(_, _, _)).Times(sizeOfConfigs * 2);
+    EXPECT_CALL(*core, GetMetric(_, _, _)).Times(AtLeast(sizeOfConfigs * 4 * 2));
     // selectdevice in multi threads, and UnregisterPriority them all, should not affect the
     // Priority Map
     for (auto& item : PriorityConfigs) {
        unsigned int priority = std::get<0>(item);
-       auto future = std::async(std::launch::async, [this, &netPrecision, priority] {
+       auto future = std::async(std::launch::async, [this, priority] {
                auto deviceInfo = plugin->SelectDevice(metaDevices, netPrecision, priority);
                plugin->UnregisterPriority(priority, deviceInfo.uniqueName);
                });
@@ -181,7 +176,7 @@ TEST_P(KeyNetworkPriorityTest, MultiThreadsSelectDevice) {
     for (auto& item : PriorityConfigs) {
         resDevInfo.push_back(plugin->SelectDevice(metaDevices, netPrecision, std::get<0>(item)));
     }
-    for (unsigned int i = 0; i < PriorityConfigs.size(); i++) {
+    for (int i = 0; i < sizeOfConfigs; i++) {
         EXPECT_EQ(resDevInfo[i].uniqueName, std::get<1>(PriorityConfigs[i]));
         plugin->UnregisterPriority(std::get<0>(PriorityConfigs[i]), std::get<1>(PriorityConfigs[i]));
     }

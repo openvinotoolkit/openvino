@@ -100,14 +100,19 @@ protected:
         ov::Any targetList;
 };
 
+using AsyncInferenceTestParams = std::tuple<
+        ov::AnyMap                // property for loadnetwork, control if restart after infer fail
+        >;
 class AsyncInferenceTest : public AutoInferRequestTestBase,
-                            public ::testing::Test {
+                            public ::testing::TestWithParam<AsyncInferenceTestParams> {
 public:
+    static std::string getTestCaseName(testing::TestParamInfo<AsyncInferenceTestParams> obj);
     void SetUp() override;
     void TearDown() override;
     void makeAsyncRequest();
 
 protected:
+    std::map<std::string, std::string> configToLoad;
     ITaskExecutor::Ptr taskExecutor;
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> exeNetwork;
     std::shared_ptr<InferenceEngine::IInferRequestInternal> auto_request;
