@@ -2425,9 +2425,9 @@ struct deconvolution_random_test_params {
         };
 
         auto print_strides = [&](const ov::Strides& s) {
-            std::string res = to_string_neg(s[0]);
+            std::string res = to_string_neg(static_cast<int>(s[0]));
             for (size_t i = 1; i < s.size(); i++) {
-                res += "x" + to_string_neg(s[i]);
+                res += "x" + to_string_neg(static_cast<int>(s[i]));
             }
             return res;
         };
