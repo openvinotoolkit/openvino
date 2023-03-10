@@ -88,7 +88,6 @@ AtenCatToConcat::AtenCatToConcat() {
             auto list_construct = cast_fw_node(loop->get_input_node_shared_ptr(input_index), "prim::ListConstruct");
             if (!list_construct || list_construct->get_input_size() > 0)
                 return false;
-            // TODO: Is unsqueeze needed?
             auto new_result = std::make_shared<ov::op::v0::Result>(append->input_value(1));
             body->add_results({new_result});
             auto new_output = loop->get_concatenated_slices(new_result, 0, 1, 1, -1, axis);
@@ -97,25 +96,11 @@ AtenCatToConcat::AtenCatToConcat() {
             return true;
         }
 
-        OutputVector tmp_inputs;
-        NodeVector rt_copy_from{cat};
-        while (const auto& input_fw_node = cast_fw_node(input_node, "aten::append")) {
-            rt_copy_from.push_back(input_fw_node);
-            tmp_inputs.push_back(input_fw_node->input(1).get_source_output());
-            input_node = input_fw_node->input(0).get_source_output().get_node_shared_ptr();
-        }
-        auto list_construct = cast_fw_node(input_node, "prim::ListConstruct");
-        if (!list_construct)
-            return false;
-        rt_copy_from.push_back(list_construct);
-        OutputVector inputs;
-        for (auto& input : list_construct->inputs()) {
-            inputs.push_back(input.get_source_output());
-        }
-        inputs.insert(inputs.end(), tmp_inputs.rbegin(), tmp_inputs.rend());
-        auto result = std::make_shared<ov::op::v0::Concat>(inputs, axis);
-        copy_runtime_info(rt_copy_from, result);
+        const auto&& tmp_inputs = get_list_as_outputs(cat->get_input_source_output(0));
+        auto result = std::make_shared<ov::op::v0::Concat>(OutputVector(tmp_inputs.begin(), tmp_inputs.end()), axis);
+        copy_runtime_info(cat, result);
         replace_node(cat, result);
+        result->set_friendly_name(cat->get_friendly_name());
 
         return true;
     };

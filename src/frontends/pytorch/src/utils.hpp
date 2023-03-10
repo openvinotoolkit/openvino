@@ -49,13 +49,15 @@ OutputVector make_framework_node(NodeContext& context);
 
 std::shared_ptr<op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node, const std::string& type);
 
-// TODO: Elimitate the need of this function by implementing more accurate custom data type handling
+// TODO: Eliminate the need of this function by implementing more accurate custom data type handling
 Any simplified_type_interpret(Any type);
 
 void align_eltwise_input_types(const NodeContext& context,
                                Output<Node>& lhs,
                                Output<Node>& rhs,
                                bool align_scalars = false);
+
+std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start);
 
 namespace op {
 template <OutputVector (*T)(NodeContext&), size_t idx = 0>
