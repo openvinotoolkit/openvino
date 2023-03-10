@@ -5,23 +5,22 @@
 #include "evaluates_map.hpp"
 
 #include "backend.hpp"
-#include "ngraph/ops.hpp"
-#include "ngraph/runtime/reference/abs.hpp"
-#include "ngraph/runtime/reference/adaptive_avg_pool.hpp"
-#include "ngraph/runtime/reference/adaptive_max_pool.hpp"
-#include "ngraph/runtime/reference/avg_pool.hpp"
-#include "ngraph/runtime/reference/batch_norm.hpp"
-#include "ngraph/runtime/reference/binary_convolution.hpp"
-#include "ngraph/runtime/reference/bucketize.hpp"
-#include "ngraph/runtime/reference/ceiling.hpp"
-#include "ngraph/runtime/reference/convert.hpp"
-#include "ngraph/runtime/reference/convert_color_nv12.hpp"
-#include "ngraph/runtime/reference/convolution.hpp"
-#include "ngraph/runtime/reference/convolution_backprop_data.hpp"
-#include "ngraph/runtime/reference/ctc_greedy_decoder.hpp"
-#include "ngraph/runtime/reference/ctc_greedy_decoder_seq_len.hpp"
-#include "ngraph/runtime/reference/ctc_loss.hpp"
-#include "ngraph/runtime/reference/cum_sum.hpp"
+// #include "ngraph/runtime/reference/abs.hpp"
+// #include "ngraph/runtime/reference/adaptive_avg_pool.hpp"
+// #include "ngraph/runtime/reference/adaptive_max_pool.hpp"
+// #include "ngraph/runtime/reference/avg_pool.hpp"
+// #include "ngraph/runtime/reference/batch_norm.hpp"
+// #include "ngraph/runtime/reference/binary_convolution.hpp"
+// #include "ngraph/runtime/reference/bucketize.hpp"
+// #include "ngraph/runtime/reference/ceiling.hpp"
+// #include "ngraph/runtime/reference/convert.hpp"
+// #include "ngraph/runtime/reference/convert_color_nv12.hpp"
+// #include "ngraph/runtime/reference/convolution.hpp"
+// #include "ngraph/runtime/reference/convolution_backprop_data.hpp"
+// #include "ngraph/runtime/reference/ctc_greedy_decoder.hpp"
+// #include "ngraph/runtime/reference/ctc_greedy_decoder_seq_len.hpp"
+// #include "ngraph/runtime/reference/ctc_loss.hpp"
+// #include "ngraph/runtime/reference/cum_sum.hpp"
 #include "ngraph/runtime/reference/deformable_convolution.hpp"
 #include "ngraph/runtime/reference/deformable_psroi_pooling.hpp"
 #include "ngraph/runtime/reference/detection_output.hpp"
@@ -102,243 +101,6 @@ bool evaluate(std::shared_ptr<ngraph::Node> op,
               const ngraph::HostTensorVector& outputs,
               const ngraph::HostTensorVector& inputs) {
     return false;
-}
-
-namespace bucketize_v3 {
-template <ngraph::element::Type_t t1, ngraph::element::Type_t t2, ngraph::element::Type_t t3>
-inline void evaluate(const std::shared_ptr<ngraph::op::v3::Bucketize>& op,
-                     const ngraph::HostTensorVector& outputs,
-                     const ngraph::HostTensorVector& inputs) {
-    using T1 = typename ngraph::element_type_traits<t1>::value_type;
-    using T2 = typename ngraph::element_type_traits<t2>::value_type;
-    using T3 = typename ngraph::element_type_traits<t3>::value_type;
-
-    ngraph::runtime::reference::bucketize<T1, T2, T3>(inputs[0]->get_data_ptr<T1>(),
-                                                      inputs[1]->get_data_ptr<T2>(),
-                                                      outputs[0]->get_data_ptr<T3>(),
-                                                      op->get_input_shape(0),
-                                                      op->get_input_shape(1),
-                                                      op->get_with_right_bound());
-}
-
-static inline constexpr uint16_t getElementMask(ngraph::element::Type_t type1, ngraph::element::Type_t type2) {
-    return (static_cast<uint8_t>(type1)) | (static_cast<uint8_t>(type2) << 8);
-}
-
-}  // namespace bucketize_v3
-
-template <ngraph::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ngraph::op::v3::Bucketize>& op,
-              const ngraph::HostTensorVector& outputs,
-              const ngraph::HostTensorVector& inputs) {
-    switch (bucketize_v3::getElementMask(op->get_input_element_type(0), op->get_input_element_type(1))) {
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::f32, ngraph::element::Type_t::f32):
-        bucketize_v3::evaluate<ngraph::element::Type_t::f32, ngraph::element::Type_t::f32, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::f32, ngraph::element::Type_t::f16):
-        bucketize_v3::evaluate<ngraph::element::Type_t::f32, ngraph::element::Type_t::f16, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::f32, ngraph::element::Type_t::i32):
-        bucketize_v3::evaluate<ngraph::element::Type_t::f32, ngraph::element::Type_t::i32, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::f32, ngraph::element::Type_t::i64):
-        bucketize_v3::evaluate<ngraph::element::Type_t::f32, ngraph::element::Type_t::i64, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::f32, ngraph::element::Type_t::i8):
-        bucketize_v3::evaluate<ngraph::element::Type_t::f32, ngraph::element::Type_t::i8, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::f32, ngraph::element::Type_t::u8):
-        bucketize_v3::evaluate<ngraph::element::Type_t::f32, ngraph::element::Type_t::u8, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::f16, ngraph::element::Type_t::f32):
-        bucketize_v3::evaluate<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::f16, ngraph::element::Type_t::f16):
-        bucketize_v3::evaluate<ngraph::element::Type_t::f16, ngraph::element::Type_t::f16, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::f16, ngraph::element::Type_t::i32):
-        bucketize_v3::evaluate<ngraph::element::Type_t::f16, ngraph::element::Type_t::i32, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::f16, ngraph::element::Type_t::i64):
-        bucketize_v3::evaluate<ngraph::element::Type_t::f16, ngraph::element::Type_t::i64, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::f16, ngraph::element::Type_t::i8):
-        bucketize_v3::evaluate<ngraph::element::Type_t::f16, ngraph::element::Type_t::i8, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::f16, ngraph::element::Type_t::u8):
-        bucketize_v3::evaluate<ngraph::element::Type_t::f16, ngraph::element::Type_t::u8, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::i32, ngraph::element::Type_t::f32):
-        bucketize_v3::evaluate<ngraph::element::Type_t::i32, ngraph::element::Type_t::f32, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::i32, ngraph::element::Type_t::f16):
-        bucketize_v3::evaluate<ngraph::element::Type_t::i32, ngraph::element::Type_t::f16, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::i32, ngraph::element::Type_t::i32):
-        bucketize_v3::evaluate<ngraph::element::Type_t::i32, ngraph::element::Type_t::i32, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::i32, ngraph::element::Type_t::i64):
-        bucketize_v3::evaluate<ngraph::element::Type_t::i32, ngraph::element::Type_t::i64, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::i32, ngraph::element::Type_t::i8):
-        bucketize_v3::evaluate<ngraph::element::Type_t::i32, ngraph::element::Type_t::i8, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::i32, ngraph::element::Type_t::u8):
-        bucketize_v3::evaluate<ngraph::element::Type_t::i32, ngraph::element::Type_t::u8, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::i64, ngraph::element::Type_t::f32):
-        bucketize_v3::evaluate<ngraph::element::Type_t::i64, ngraph::element::Type_t::f32, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::i64, ngraph::element::Type_t::f16):
-        bucketize_v3::evaluate<ngraph::element::Type_t::i64, ngraph::element::Type_t::f16, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::i64, ngraph::element::Type_t::i32):
-        bucketize_v3::evaluate<ngraph::element::Type_t::i64, ngraph::element::Type_t::i32, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::i64, ngraph::element::Type_t::i64):
-        bucketize_v3::evaluate<ngraph::element::Type_t::i64, ngraph::element::Type_t::i64, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::i64, ngraph::element::Type_t::i8):
-        bucketize_v3::evaluate<ngraph::element::Type_t::i64, ngraph::element::Type_t::i8, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::i64, ngraph::element::Type_t::u8):
-        bucketize_v3::evaluate<ngraph::element::Type_t::i64, ngraph::element::Type_t::u8, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::i8, ngraph::element::Type_t::f32):
-        bucketize_v3::evaluate<ngraph::element::Type_t::i8, ngraph::element::Type_t::f32, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::i8, ngraph::element::Type_t::f16):
-        bucketize_v3::evaluate<ngraph::element::Type_t::i8, ngraph::element::Type_t::f16, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::i8, ngraph::element::Type_t::i32):
-        bucketize_v3::evaluate<ngraph::element::Type_t::i8, ngraph::element::Type_t::i32, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::i8, ngraph::element::Type_t::i64):
-        bucketize_v3::evaluate<ngraph::element::Type_t::i8, ngraph::element::Type_t::i64, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::i8, ngraph::element::Type_t::i8):
-        bucketize_v3::evaluate<ngraph::element::Type_t::i8, ngraph::element::Type_t::i8, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::i8, ngraph::element::Type_t::u8):
-        bucketize_v3::evaluate<ngraph::element::Type_t::i8, ngraph::element::Type_t::u8, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::u8, ngraph::element::Type_t::f32):
-        bucketize_v3::evaluate<ngraph::element::Type_t::u8, ngraph::element::Type_t::f32, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::u8, ngraph::element::Type_t::f16):
-        bucketize_v3::evaluate<ngraph::element::Type_t::u8, ngraph::element::Type_t::f16, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::u8, ngraph::element::Type_t::i32):
-        bucketize_v3::evaluate<ngraph::element::Type_t::u8, ngraph::element::Type_t::i32, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::u8, ngraph::element::Type_t::i64):
-        bucketize_v3::evaluate<ngraph::element::Type_t::u8, ngraph::element::Type_t::i64, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::u8, ngraph::element::Type_t::i8):
-        bucketize_v3::evaluate<ngraph::element::Type_t::u8, ngraph::element::Type_t::i8, ET>(op, outputs, inputs);
-        break;
-    case bucketize_v3::getElementMask(ngraph::element::Type_t::u8, ngraph::element::Type_t::u8):
-        bucketize_v3::evaluate<ngraph::element::Type_t::u8, ngraph::element::Type_t::u8, ET>(op, outputs, inputs);
-        break;
-    default:
-        return false;
-    }
-    return true;
-}
-
-template <ngraph::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ngraph::op::v1::Convolution>& op,
-              const ngraph::HostTensorVector& outputs,
-              const ngraph::HostTensorVector& inputs) {
-    const auto filter_data = inputs[1]->get_data_ptr<ET>();
-    auto out_data_ptr = outputs[0]->get_data_ptr<ET>();
-    const auto in_data_ptr = inputs[0]->get_data_ptr<ET>();
-    const auto& out_shape = outputs[0]->get_shape();
-    const auto& in_shape = inputs[0]->get_shape();
-    const auto& filter_shape = inputs[1]->get_shape();
-    ngraph::runtime::reference::convolution<typename ngraph::element_type_traits<ET>::value_type>(in_data_ptr,
-                                                                                                  filter_data,
-                                                                                                  out_data_ptr,
-                                                                                                  in_shape,
-                                                                                                  filter_shape,
-                                                                                                  out_shape,
-                                                                                                  op->get_strides(),
-                                                                                                  op->get_dilations(),
-                                                                                                  op->get_pads_begin(),
-                                                                                                  op->get_pads_end());
-    return true;
-}
-
-namespace bin_conv_v1 {
-template <ngraph::element::Type_t t_in, ngraph::element::Type_t t_f>
-inline void evaluate(const std::shared_ptr<ngraph::op::v1::BinaryConvolution>& op,
-                     const ngraph::HostTensorVector& outputs,
-                     const ngraph::HostTensorVector& inputs) {
-    using T_IN = typename ngraph::element_type_traits<t_in>::value_type;
-    using T_F = typename ngraph::element_type_traits<t_f>::value_type;
-
-    const auto in_data_ptr = inputs[0]->get_data_ptr<T_IN>();
-    const auto filter_data_ptr = inputs[1]->get_data_ptr<T_F>();
-    auto out_data_ptr = outputs[0]->get_data_ptr<T_IN>();
-    const auto in_shape = inputs[0]->get_shape();
-    const auto filter_shape = inputs[1]->get_shape();
-    const auto out_shape = outputs[0]->get_shape();
-
-    ngraph::runtime::reference::binary_convolution<T_IN, T_F>(in_data_ptr,
-                                                              filter_data_ptr,
-                                                              out_data_ptr,
-                                                              in_shape,
-                                                              filter_shape,
-                                                              out_shape,
-                                                              op->get_strides(),
-                                                              op->get_dilations(),
-                                                              op->get_pads_begin(),
-                                                              op->get_pads_end(),
-                                                              op->get_pad_value());
-}
-}  // namespace bin_conv_v1
-
-template <ngraph::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ngraph::op::v1::BinaryConvolution>& op,
-              const ngraph::HostTensorVector& outputs,
-              const ngraph::HostTensorVector& inputs) {
-    switch (inputs[1]->get_element_type()) {
-    case ngraph::element::Type_t::u1:
-        bin_conv_v1::evaluate<ET, ngraph::element::Type_t::u8>(op, outputs, inputs);
-        break;
-    default:
-        throw std::runtime_error("BinaryConvolution supports only u1 element type for filters input");
-        break;
-    }
-    return true;
-}
-
-template <ngraph::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ngraph::op::v1::ConvolutionBackpropData>& op,
-              const ngraph::HostTensorVector& outputs,
-              const ngraph::HostTensorVector& inputs) {
-    const auto filter_data = inputs[1]->get_data_ptr<ET>();
-    auto out_data_ptr = outputs[0]->get_data_ptr<ET>();
-    const auto in_data_ptr = inputs[0]->get_data_ptr<ET>();
-    const auto& out_shape = outputs[0]->get_shape();
-    const auto& in_shape = inputs[0]->get_shape();
-    const auto& filter_shape = inputs[1]->get_shape();
-    ngraph::Strides in_dilation(std::vector<size_t>(in_shape.size() - 2));
-    std::fill(in_dilation.begin(), in_dilation.end(), 1);
-    ngraph::runtime::reference::convolution_backprop_in<typename ngraph::element_type_traits<ET>::value_type>(
-        in_data_ptr,
-        filter_data,
-        out_data_ptr,
-        in_shape,
-        filter_shape,
-        out_shape,
-        in_dilation,
-        op->get_dilations(),
-        op->get_pads_begin(),
-        op->get_pads_end(),
-        op->get_strides(),
-        op->get_output_padding());
-    return true;
 }
 
 template <ngraph::element::Type_t ET>
@@ -513,37 +275,6 @@ bool evaluate(const std::shared_ptr<ngraph::op::v1::Equal>& op,
                                                                                             in0_shape,
                                                                                             in1_shape,
                                                                                             broadcast_spec);
-    return true;
-}
-
-namespace cum_sum_v0 {
-template <ngraph::element::Type_t t1, ngraph::element::Type_t t2>
-inline void evaluate(const std::shared_ptr<ngraph::op::v0::CumSum>& op,
-                     const ngraph::HostTensorVector& outputs,
-                     const ngraph::HostTensorVector& inputs) {
-    using T1 = typename ngraph::element_type_traits<t1>::value_type;
-    using T2 = typename ngraph::element_type_traits<t2>::value_type;
-    ngraph::runtime::reference::cumsum<T1, T2>(inputs[0]->get_data_ptr<T1>(),
-                                               inputs[1]->get_data_ptr<T2>(),
-                                               outputs[0]->get_data_ptr<T1>(),
-                                               inputs[0]->get_shape(),
-                                               op->is_exclusive(),
-                                               op->is_reverse());
-}
-}  // namespace cum_sum_v0
-
-template <ngraph::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ngraph::op::v0::CumSum>& op,
-              const ngraph::HostTensorVector& outputs,
-              const ngraph::HostTensorVector& inputs) {
-    switch (inputs[1]->get_element_type()) {
-    case ngraph::element::Type_t::i64:
-        cum_sum_v0::evaluate<ET, ngraph::element::Type_t::i64>(op, outputs, inputs);
-        break;
-    default:
-        cum_sum_v0::evaluate<ET, ngraph::element::Type_t::i32>(op, outputs, inputs);
-        break;
-    }
     return true;
 }
 
@@ -2625,23 +2356,6 @@ bool evaluate(const std::shared_ptr<ngraph::op::v3::ScatterNDUpdate>& op,
 }
 
 template <ngraph::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ngraph::op::v1::AvgPool>& op,
-              const ngraph::HostTensorVector& outputs,
-              const ngraph::HostTensorVector& inputs) {
-    using T = typename ngraph::element_type_traits<ET>::value_type;
-    ngraph::runtime::reference::avg_pool<T>(inputs[0]->get_data_ptr<T>(),
-                                            outputs[0]->get_data_ptr<T>(),
-                                            inputs[0]->get_shape(),
-                                            op->get_output_shape(0),
-                                            op->get_kernel(),
-                                            op->get_strides(),
-                                            op->get_pads_begin(),
-                                            op->get_pads_end(),
-                                            !op->get_exclude_pad());
-    return true;
-}
-
-template <ngraph::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ngraph::op::v0::HardSigmoid>& op,
               const ngraph::HostTensorVector& outputs,
               const ngraph::HostTensorVector& inputs) {
@@ -2732,17 +2446,6 @@ bool evaluate(const std::shared_ptr<ngraph::op::v0::Selu>& op,
 }
 
 template <ngraph::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ngraph::op::v0::Ceiling>& op,
-              const ngraph::HostTensorVector& outputs,
-              const ngraph::HostTensorVector& inputs) {
-    using T = typename ngraph::element_type_traits<ET>::value_type;
-    ngraph::runtime::reference::ceiling<T>(inputs[0]->get_data_ptr<T>(),
-                                           outputs[0]->get_data_ptr<T>(),
-                                           ngraph::shape_size(inputs[0]->get_shape()));
-    return true;
-}
-
-template <ngraph::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ngraph::op::v0::Gelu>& op,
               const ngraph::HostTensorVector& outputs,
               const ngraph::HostTensorVector& inputs) {
@@ -2802,17 +2505,6 @@ bool evaluate(const std::shared_ptr<ngraph::op::v0::Sign>& op,
 }
 
 template <ngraph::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ngraph::op::v0::Abs>& op,
-              const ngraph::HostTensorVector& outputs,
-              const ngraph::HostTensorVector& inputs) {
-    using T = typename ngraph::element_type_traits<ET>::value_type;
-    ngraph::runtime::reference::abs<T>(inputs[0]->get_data_ptr<T>(),
-                                       outputs[0]->get_data_ptr<T>(),
-                                       ngraph::shape_size(inputs[0]->get_shape()));
-    return true;
-}
-
-template <ngraph::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ngraph::op::v0::Sigmoid>& op,
               const ngraph::HostTensorVector& outputs,
               const ngraph::HostTensorVector& inputs) {
@@ -2853,96 +2545,6 @@ bool evaluate(const std::shared_ptr<ngraph::op::v0::Log>& op,
     ngraph::runtime::reference::log<T>(inputs[0]->get_data_ptr<T>(),
                                        outputs[0]->get_data_ptr<T>(),
                                        ngraph::shape_size(inputs[0]->get_shape()));
-    return true;
-}
-
-namespace ctc_loss_v4 {
-template <ngraph::element::Type_t t1,
-          ngraph::element::Type_t t2,
-          typename std::enable_if<
-              !std::is_floating_point<typename ngraph::element_type_traits<t1>::value_type>::value &&
-                  !std::is_same<typename ngraph::element_type_traits<t1>::value_type, ngraph::bfloat16>::value &&
-                  !std::is_same<typename ngraph::element_type_traits<t1>::value_type, ngraph::float16>::value,
-              bool>::type = true>
-inline void evaluate(const std::shared_ptr<ngraph::op::v4::CTCLoss>& op,
-                     const ngraph::HostTensorVector& outputs,
-                     const ngraph::HostTensorVector& inputs) {
-    OPENVINO_ASSERT(false,
-                    "The data type for logits is expected to be a floating point type. Got:",
-                    ngraph::element::Type(t1));
-}
-
-template <ngraph::element::Type_t t1,
-          ngraph::element::Type_t t2,
-          typename std::enable_if<
-              std::is_floating_point<typename ngraph::element_type_traits<t1>::value_type>::value ||
-                  std::is_same<typename ngraph::element_type_traits<t1>::value_type, ngraph::bfloat16>::value ||
-                  std::is_same<typename ngraph::element_type_traits<t1>::value_type, ngraph::float16>::value,
-              bool>::type = true>
-inline void evaluate(const std::shared_ptr<ngraph::op::v4::CTCLoss>& op,
-                     const ngraph::HostTensorVector& outputs,
-                     const ngraph::HostTensorVector& inputs) {
-    using T1 = typename ngraph::element_type_traits<t1>::value_type;
-    using T2 = typename ngraph::element_type_traits<t2>::value_type;
-    ngraph::runtime::reference::CTCLoss<T1, T2>(inputs[0]->get_data_ptr<T1>(),
-                                                inputs[0]->get_shape(),
-                                                inputs[1]->get_data_ptr<T2>(),
-                                                inputs[2]->get_data_ptr<T2>(),
-                                                inputs[3]->get_data_ptr<T2>(),
-                                                inputs[4]->get_data_ptr<T2>(),
-                                                op->get_preprocess_collapse_repeated(),
-                                                op->get_ctc_merge_repeated(),
-                                                op->get_unique(),
-                                                outputs[0]->get_data_ptr<T1>());
-}
-}  // namespace ctc_loss_v4
-
-template <ngraph::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ngraph::op::v4::CTCLoss>& op,
-              const ngraph::HostTensorVector& outputs,
-              const ngraph::HostTensorVector& inputs) {
-    switch (inputs[1]->get_element_type()) {
-    case ngraph::element::Type_t::i32:
-        ctc_loss_v4::evaluate<ET, ngraph::element::Type_t::i32>(op, outputs, inputs);
-        break;
-    case ngraph::element::Type_t::i64:
-        ctc_loss_v4::evaluate<ET, ngraph::element::Type_t::i64>(op, outputs, inputs);
-        break;
-    default:
-        return false;
-    }
-    return true;
-}
-
-template <ngraph::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ngraph::op::v0::BatchNormInference>& op,
-              const ngraph::HostTensorVector& outputs,
-              const ngraph::HostTensorVector& inputs) {
-    using T = typename ngraph::element_type_traits<ET>::value_type;
-    ngraph::runtime::reference::batch_norm_inference<T>(static_cast<float>(op->get_eps_value()),
-                                                        inputs[2]->get_data_ptr<T>(),
-                                                        inputs[0]->get_data_ptr<T>(),
-                                                        inputs[1]->get_data_ptr<T>(),
-                                                        inputs[3]->get_data_ptr<T>(),
-                                                        inputs[4]->get_data_ptr<T>(),
-                                                        outputs[0]->get_data_ptr<T>(),
-                                                        inputs[2]->get_shape());
-    return true;
-}
-
-template <ngraph::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ngraph::op::v5::BatchNormInference>& op,
-              const ngraph::HostTensorVector& outputs,
-              const ngraph::HostTensorVector& inputs) {
-    using T = typename ngraph::element_type_traits<ET>::value_type;
-    ngraph::runtime::reference::batch_norm_inference<T>(static_cast<float>(static_cast<float>(op->get_eps_value())),
-                                                        inputs[0]->get_data_ptr<const T>(),
-                                                        inputs[1]->get_data_ptr<const T>(),
-                                                        inputs[2]->get_data_ptr<const T>(),
-                                                        inputs[3]->get_data_ptr<const T>(),
-                                                        inputs[4]->get_data_ptr<const T>(),
-                                                        outputs[0]->get_data_ptr<T>(),
-                                                        op->get_input_shape(0));
     return true;
 }
 
@@ -3022,88 +2624,6 @@ bool evaluate(const std::shared_ptr<ngraph::op::v3::ExtractImagePatches>& op,
     return true;
 }
 
-namespace convert_like_v1 {
-template <ngraph::element::Type_t ti, ngraph::element::Type_t to>
-inline void evaluate(const std::shared_ptr<ngraph::op::v1::ConvertLike>& op,
-                     const ngraph::HostTensorVector& outputs,
-                     const ngraph::HostTensorVector& inputs) {
-    outputs[0]->set_shape(inputs[0]->get_shape());
-    size_t element_count = ngraph::shape_size(outputs[0]->get_shape());
-
-    if (((ti == ngraph::element::u1) || (to == ngraph::element::u1)) ||
-        ((ti == ngraph::element::u4) || (to == ngraph::element::u4)) ||
-        ((ti == ngraph::element::i4) || (to == ngraph::element::i4))) {
-        ngraph::runtime::reference::detail::lp_convert(inputs[0]->get_data_ptr<ti>(),
-                                                       outputs[0]->get_data_ptr<to>(),
-                                                       element_count,
-                                                       ti,
-                                                       to);
-    } else {
-        ngraph::runtime::reference::convert(inputs[0]->get_data_ptr<ti>(),
-                                            outputs[0]->get_data_ptr<to>(),
-                                            element_count);
-    }
-}
-}  // namespace convert_like_v1
-
-template <ngraph::element::Type_t OUT_ET>
-bool evaluate(const std::shared_ptr<ngraph::op::v1::ConvertLike>& op,
-              const ngraph::HostTensorVector& outputs,
-              const ngraph::HostTensorVector& inputs) {
-    switch (inputs[0]->get_element_type()) {
-    case ngraph::element::Type_t::boolean:
-        convert_like_v1::evaluate<ngraph::element::Type_t::boolean, OUT_ET>(op, outputs, inputs);
-        break;
-    case ngraph::element::Type_t::u1:
-        convert_like_v1::evaluate<ngraph::element::Type_t::u1, OUT_ET>(op, outputs, inputs);
-        break;
-    case ngraph::element::Type_t::u4:
-        convert_like_v1::evaluate<ngraph::element::Type_t::u4, OUT_ET>(op, outputs, inputs);
-        break;
-    case ngraph::element::Type_t::u8:
-        convert_like_v1::evaluate<ngraph::element::Type_t::u8, OUT_ET>(op, outputs, inputs);
-        break;
-    case ngraph::element::Type_t::u16:
-        convert_like_v1::evaluate<ngraph::element::Type_t::u16, OUT_ET>(op, outputs, inputs);
-        break;
-    case ngraph::element::Type_t::u32:
-        convert_like_v1::evaluate<ngraph::element::Type_t::u32, OUT_ET>(op, outputs, inputs);
-        break;
-    case ngraph::element::Type_t::u64:
-        convert_like_v1::evaluate<ngraph::element::Type_t::u64, OUT_ET>(op, outputs, inputs);
-        break;
-    case ngraph::element::Type_t::i4:
-        convert_like_v1::evaluate<ngraph::element::Type_t::i4, OUT_ET>(op, outputs, inputs);
-        break;
-    case ngraph::element::Type_t::i8:
-        convert_like_v1::evaluate<ngraph::element::Type_t::i8, OUT_ET>(op, outputs, inputs);
-        break;
-    case ngraph::element::Type_t::i16:
-        convert_like_v1::evaluate<ngraph::element::Type_t::i16, OUT_ET>(op, outputs, inputs);
-        break;
-    case ngraph::element::Type_t::i32:
-        convert_like_v1::evaluate<ngraph::element::Type_t::i32, OUT_ET>(op, outputs, inputs);
-        break;
-    case ngraph::element::Type_t::i64:
-        convert_like_v1::evaluate<ngraph::element::Type_t::i64, OUT_ET>(op, outputs, inputs);
-        break;
-    case ngraph::element::Type_t::bf16:
-        convert_like_v1::evaluate<ngraph::element::Type_t::bf16, OUT_ET>(op, outputs, inputs);
-        break;
-    case ngraph::element::Type_t::f16:
-        convert_like_v1::evaluate<ngraph::element::Type_t::f16, OUT_ET>(op, outputs, inputs);
-        break;
-    case ngraph::element::Type_t::f32:
-        convert_like_v1::evaluate<ngraph::element::Type_t::f32, OUT_ET>(op, outputs, inputs);
-        break;
-    case ngraph::element::Type_t::f64:
-        convert_like_v1::evaluate<ngraph::element::Type_t::f64, OUT_ET>(op, outputs, inputs);
-        break;
-    default:
-        return false;
-    }
-    return true;
-}
 template <ngraph::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ngraph::op::v0::RNNCell>& op,
               const ngraph::HostTensorVector& outputs,
@@ -3652,91 +3172,6 @@ bool evaluate(const std::shared_ptr<ngraph::op::v0::NormalizeL2>& op,
 }
 
 template <ngraph::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ngraph::op::v0::CTCGreedyDecoder>& op,
-              const ngraph::HostTensorVector& outputs,
-              const ngraph::HostTensorVector& inputs) {
-    using T = typename ngraph::element_type_traits<ET>::value_type;
-    ngraph::runtime::reference::ctc_greedy_decoder<T>(inputs[0]->get_data_ptr<const T>(),
-                                                      inputs[1]->get_data_ptr<const T>(),
-                                                      outputs[0]->get_data_ptr<T>(),
-                                                      inputs[0]->get_shape(),
-                                                      inputs[1]->get_shape(),
-                                                      outputs[0]->get_shape(),
-                                                      op->get_ctc_merge_repeated());
-    return true;
-}
-
-namespace ctc_greedy_decoder_v6 {
-template <ngraph::element::Type_t T1, ngraph::element::Type_t T2, ngraph::element::Type_t TOUT>
-inline void evaluate(const std::shared_ptr<ngraph::op::v6::CTCGreedyDecoderSeqLen>& op,
-                     const ngraph::HostTensorVector& outputs,
-                     const ngraph::HostTensorVector& inputs) {
-    using TF = typename ngraph::element_type_traits<T1>::value_type;
-    using TI = typename ngraph::element_type_traits<T2>::value_type;
-    using TIND1 = typename ngraph::element_type_traits<TOUT>::value_type;
-    TI blank_index_val = static_cast<TI>(inputs[0]->get_shape().back() - 1);
-    const TI* blank_index = &blank_index_val;
-    if (inputs.size() == 3) {
-        blank_index = inputs[2]->get_data_ptr<const TI>();
-    }
-    if (op->get_sequence_length_type() == ngraph::element::i32) {
-        ngraph::runtime::reference::ctc_greedy_decoder_seq_len<TF>(inputs[0]->get_data_ptr<const TF>(),
-                                                                   inputs[1]->get_data_ptr<const TI>(),
-                                                                   blank_index,
-                                                                   outputs[0]->get_data_ptr<TIND1>(),
-                                                                   outputs[1]->get_data_ptr<int32_t>(),
-                                                                   inputs[0]->get_shape(),
-                                                                   outputs[0]->get_shape(),
-                                                                   op->get_merge_repeated());
-    } else if (op->get_sequence_length_type() == ngraph::element::i64) {
-        ngraph::runtime::reference::ctc_greedy_decoder_seq_len<TF>(inputs[0]->get_data_ptr<const TF>(),
-                                                                   inputs[1]->get_data_ptr<const TI>(),
-                                                                   blank_index,
-                                                                   outputs[0]->get_data_ptr<TIND1>(),
-                                                                   outputs[1]->get_data_ptr<int64_t>(),
-                                                                   inputs[0]->get_shape(),
-                                                                   outputs[0]->get_shape(),
-                                                                   op->get_merge_repeated());
-    }
-}
-}  // namespace ctc_greedy_decoder_v6
-template <ngraph::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ngraph::op::v6::CTCGreedyDecoderSeqLen>& op,
-              const ngraph::HostTensorVector& outputs,
-              const ngraph::HostTensorVector& inputs) {
-    const auto& dataType = inputs[0]->get_element_type();
-    const auto& seqLenType = inputs[1]->get_element_type();
-    if (dataType == ngraph::element::Type_t::f16 && seqLenType == ngraph::element::Type_t::i32) {
-        ctc_greedy_decoder_v6::evaluate<ngraph::element::Type_t::f16, ngraph::element::Type_t::i32, ET>(op,
-                                                                                                        outputs,
-                                                                                                        inputs);
-    } else if (dataType == ngraph::element::Type_t::f32 && seqLenType == ngraph::element::Type_t::i32) {
-        ctc_greedy_decoder_v6::evaluate<ngraph::element::Type_t::f32, ngraph::element::Type_t::i32, ET>(op,
-                                                                                                        outputs,
-                                                                                                        inputs);
-    } else if (dataType == ngraph::element::Type_t::f64 && seqLenType == ngraph::element::Type_t::i32) {
-        ctc_greedy_decoder_v6::evaluate<ngraph::element::Type_t::f64, ngraph::element::Type_t::i32, ET>(op,
-                                                                                                        outputs,
-                                                                                                        inputs);
-    } else if (dataType == ngraph::element::Type_t::f16 && seqLenType == ngraph::element::Type_t::i64) {
-        ctc_greedy_decoder_v6::evaluate<ngraph::element::Type_t::f16, ngraph::element::Type_t::i64, ET>(op,
-                                                                                                        outputs,
-                                                                                                        inputs);
-    } else if (dataType == ngraph::element::Type_t::f32 && seqLenType == ngraph::element::Type_t::i64) {
-        ctc_greedy_decoder_v6::evaluate<ngraph::element::Type_t::f32, ngraph::element::Type_t::i64, ET>(op,
-                                                                                                        outputs,
-                                                                                                        inputs);
-    } else if (dataType == ngraph::element::Type_t::f64 && seqLenType == ngraph::element::Type_t::i64) {
-        ctc_greedy_decoder_v6::evaluate<ngraph::element::Type_t::f64, ngraph::element::Type_t::i64, ET>(op,
-                                                                                                        outputs,
-                                                                                                        inputs);
-    } else {
-        return false;
-    }
-    return true;
-}
-
-template <ngraph::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ngraph::op::v6::ExperimentalDetectronTopKROIs>& op,
               const ngraph::HostTensorVector& outputs,
               const ngraph::HostTensorVector& inputs) {
@@ -4116,39 +3551,6 @@ bool evaluate(const std::shared_ptr<ngraph::op::v7::Einsum>& op,
 }
 
 template <ngraph::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ngraph::op::v8::AdaptiveAvgPool>& op,
-              const ngraph::HostTensorVector& outputs,
-              const ngraph::HostTensorVector& inputs) {
-    using T = typename ngraph::element_type_traits<ET>::value_type;
-    ngraph::runtime::reference::adaptive_avg_pool(inputs[0]->get_data_ptr<T>(),
-                                                  outputs[0]->get_data_ptr<T>(),
-                                                  inputs[0]->get_shape(),
-                                                  op->get_output_shape(0));
-    return true;
-}
-
-template <ngraph::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ngraph::op::v8::AdaptiveMaxPool>& op,
-              const ngraph::HostTensorVector& outputs,
-              const ngraph::HostTensorVector& inputs) {
-    using T = typename ngraph::element_type_traits<ET>::value_type;
-    if (op->get_index_element_type() == ngraph::element::i32) {
-        ngraph::runtime::reference::adaptive_max_pool(inputs[0]->get_data_ptr<T>(),
-                                                      outputs[0]->get_data_ptr<T>(),
-                                                      outputs[1]->get_data_ptr<int32_t>(),
-                                                      inputs[0]->get_shape(),
-                                                      op->get_output_shape(0));
-    } else if (op->get_index_element_type() == ngraph::element::i64) {
-        ngraph::runtime::reference::adaptive_max_pool(inputs[0]->get_data_ptr<T>(),
-                                                      outputs[0]->get_data_ptr<T>(),
-                                                      outputs[1]->get_data_ptr<int64_t>(),
-                                                      inputs[0]->get_shape(),
-                                                      op->get_output_shape(0));
-    }
-    return true;
-}
-
-template <ngraph::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ngraph::op::v8::Gather>& op,
               const ngraph::HostTensorVector& outputs,
               const ngraph::HostTensorVector& inputs) {
@@ -4195,50 +3597,6 @@ bool evaluate(const std::shared_ptr<ngraph::op::v3::ReadValue>& op,
     void* input = inputs[0]->get_data_ptr();
     outputs[0]->write(input, outputs[0]->get_size_in_bytes());
     return true;
-}
-
-template <ov::element::Type_t ET>
-inline bool evaluate(const std::shared_ptr<ngraph::op::v8::NV12toRGB>& op,
-                     const ngraph::HostTensorVector& outputs,
-                     const ngraph::HostTensorVector& inputs) {
-    return ngraph::runtime::reference::color_convert_nv12<ET>(
-        op,
-        outputs,
-        inputs,
-        ov::op::util::ConvertColorNV12Base::ColorConversion::NV12_TO_RGB);
-}
-
-template <ov::element::Type_t ET>
-inline bool evaluate(const std::shared_ptr<ngraph::op::v8::NV12toBGR>& op,
-                     const ngraph::HostTensorVector& outputs,
-                     const ngraph::HostTensorVector& inputs) {
-    return ngraph::runtime::reference::color_convert_nv12<ET>(
-        op,
-        outputs,
-        inputs,
-        ov::op::util::ConvertColorNV12Base::ColorConversion::NV12_TO_BGR);
-}
-
-template <ov::element::Type_t ET>
-inline bool evaluate(const std::shared_ptr<ngraph::op::v8::I420toRGB>& op,
-                     const ngraph::HostTensorVector& outputs,
-                     const ngraph::HostTensorVector& inputs) {
-    return ngraph::runtime::reference::color_convert_i420<ET>(
-        op,
-        outputs,
-        inputs,
-        ov::op::util::ConvertColorI420Base::ColorConversion::I420_TO_RGB);
-}
-
-template <ov::element::Type_t ET>
-inline bool evaluate(const std::shared_ptr<ngraph::op::v8::I420toBGR>& op,
-                     const ngraph::HostTensorVector& outputs,
-                     const ngraph::HostTensorVector& inputs) {
-    return ngraph::runtime::reference::color_convert_i420<ET>(
-        op,
-        outputs,
-        inputs,
-        ov::op::util::ConvertColorI420Base::ColorConversion::I420_TO_BGR);
 }
 
 template <ngraph::element::Type_t ET>
