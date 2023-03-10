@@ -100,7 +100,7 @@ private:
             ExecutorConv1x1(const dnnl::convolution_forward::primitive_desc& pd);
     };
 
-    static std::shared_ptr<dnnl::convolution_forward::primitive_desc>
+    static dnnl::convolution_forward::primitive_desc
     createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
                                     DnnlMemoryDescCPtr weightDescPtr,
                                     DnnlMemoryDescCPtr biasDescPtr,

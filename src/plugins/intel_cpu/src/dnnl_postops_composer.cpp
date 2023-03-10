@@ -177,7 +177,7 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool allo
 bool DnnlPostOpsComposer::appendShift(const std::vector<float>& shift, bool allowBinary) {
     if (shift.size() == 1) {
         if (shift[0] != 0.0f) {
-            ops.append_eltwise(dnnl::algorithm::eltwise_linear, 1.0f, shift[0]);
+            appendEltwise(dnnl::algorithm::eltwise_linear, 1.0f, shift[0]);
         }
     } else {
         if (!allowBinary)
@@ -194,7 +194,7 @@ bool DnnlPostOpsComposer::appendLinear(const std::vector<float>& scale,
         if (shift[0] == 0.0f)
             return appendScale(scale, allowBinary);
         else
-            ops.append_eltwise(dnnl::algorithm::eltwise_linear, scale[0], shift[0]);
+            appendEltwise(dnnl::algorithm::eltwise_linear, scale[0], shift[0]);
     } else {
         // return before committing any changes
         if (!allowBinary && shift.size() > 1)
@@ -214,15 +214,15 @@ bool DnnlPostOpsComposer::appendLinear(const std::vector<float>& scale,
 
 void DnnlPostOpsComposer::appendClip(const std::vector<float>& low, const std::vector<float>& high) {
     if (low.size() == 1 && high.size() == 1) {
-        ops.append_eltwise(dnnl::algorithm::eltwise_clip, low[0], high[0]);
+        appendEltwise(dnnl::algorithm::eltwise_clip, low[0], high[0]);
     } else if (low.size() == 1) {
         IE_ASSERT(high.size() == OC);
-        ops.append_eltwise(dnnl::algorithm::eltwise_clip, low[0], std::numeric_limits<float>::max());
+        appendEltwise(dnnl::algorithm::eltwise_clip, low[0], std::numeric_limits<float>::max());
         if (high.size() > 0)
             appendBinary(dnnl::algorithm::binary_min, high);
     } else if (high.size() == 1) {
         IE_ASSERT(low.size() == OC);
-        ops.append_eltwise(dnnl::algorithm::eltwise_clip, -std::numeric_limits<float>::max(), high[0]);
+        appendEltwise(dnnl::algorithm::eltwise_clip, -std::numeric_limits<float>::max(), high[0]);
         if (low.size() > 0)
             appendBinary(dnnl::algorithm::binary_max, low);
     } else {

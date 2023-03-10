@@ -110,6 +110,13 @@ bool SoftMax::created() const {
     return getType() == Type::Softmax;
 }
 
+Node::AttrPtr SoftMax::initPrimitiveAttr() {
+    auto attr = std::make_shared<dnnl::primitive_attr>(dnnl::primitive_attr());
+    (*attr).set_scratchpad_mode(dnnl::scratchpad_mode::user);
+
+    return attr;
+}
+
 void SoftMax::initOptimalPrimitiveDescriptor() {
     auto selected_pd = getSelectedPrimitiveDescriptor();
     if (selected_pd == nullptr)
@@ -136,16 +143,16 @@ void SoftMax::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
     DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
     auto in_candidate = definedInpMemDesc->getDnnlDesc();
 
-    dnnl::primitive_attr attr;
+    auto attr = initPrimitiveAttr();
 
-    auto desc = std::make_shared<softmax_forward::primitive_desc>(
+    auto desc = softmax_forward::primitive_desc(
         getEngine(),
         prop_kind::forward_inference,
         algorithm::softmax_accurate,
         in_candidate,
         in_candidate,
         axis,
-        attr,
+        *attr,
         true);
 
     descs.push_back(desc);
@@ -158,10 +165,9 @@ void SoftMax::prepareParams() {
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set for node " << getName() << ".";
 
-    dnnl::primitive_attr attr;
-    attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
+    auto attr = initPrimitiveAttr();
 
-    SoftmaxKey key = {inpDesc, selected_pd->getImplementationType(), axis, attr};
+    SoftmaxKey key = {inpDesc, selected_pd->getImplementationType(), axis, *attr};
     auto engine = getEngine();
 
     auto builder = [&engine](const SoftmaxKey& key) -> dnnl::primitive {

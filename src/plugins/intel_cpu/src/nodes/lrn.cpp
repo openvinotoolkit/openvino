@@ -236,7 +236,7 @@ void Lrn::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
     DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
     const auto& in_candidate = definedInpMemDesc->getDnnlDesc();
 
-    auto desc = std::make_shared<dnnl::lrn_forward::primitive_desc>(
+    auto desc = dnnl::lrn_forward::primitive_desc(
         getEngine(),
         dnnl::prop_kind::forward_inference,
         alg,

@@ -42,9 +42,9 @@ private:
 
     void initEffectiveAttributes(const Shape &inDims, const Shape &outDims);
     dnnl::algorithm getPoolingAlgorithm() const;
-    std::shared_ptr<dnnl::pooling_forward::primitive_desc> createDescriptorInternal(const dnnl::memory::desc& in_candidate,
-                                                                                    const dnnl::memory::desc& out_candidate,
-                                                                                    const dnnl::algorithm alg);
+    dnnl::pooling_forward::primitive_desc createDescriptorInternal(const dnnl::memory::desc& in_candidate,
+                                                                   const dnnl::memory::desc& out_candidate,
+                                                                   const dnnl::algorithm alg);
 
     AttrPtr pAttr;
 

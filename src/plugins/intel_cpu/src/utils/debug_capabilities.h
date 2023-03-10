@@ -94,6 +94,7 @@ std::ostream & operator<<(std::ostream & os, const PrintableModel& model);
 std::ostream & operator<<(std::ostream & os, const PrintableDelta& us);
 std::ostream & operator<<(std::ostream & os, const Edge::ReorderStatus reorderStatus);
 
+std::ostream & operator<<(std::ostream & os, const dnnl::primitive_desc& desc);
 std::ostream & operator<<(std::ostream & os, const dnnl::memory::desc& desc);
 std::ostream & operator<<(std::ostream & os, const impl_desc_type impl_type);
 std::ostream & operator<<(std::ostream & os, const dnnl::memory::data_type dtype);

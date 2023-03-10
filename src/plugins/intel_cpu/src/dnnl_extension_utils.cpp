@@ -6,6 +6,7 @@
 #include "utils/general_utils.h"
 #include <vector>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "onednn/iml_type_mapper.h"
 
 using namespace dnnl;
 
@@ -172,6 +173,23 @@ std::string DnnlExtensionUtils::query_impl_info_str(const const_dnnl_primitive_d
     if (status != dnnl_success)
         IE_THROW() << "query_impl_info_str failed.";
     return std::string(res);
+}
+
+bool DnnlExtensionUtils::hasProperImplementationType(dnnl::primitive_desc& desc, impl_desc_type implType) {
+    primitive_desc_iterator& itpd = desc;
+
+    while (itpd) {
+        const impl_desc_type descImplType = parse_impl_name(itpd.impl_info_str());
+
+        if (descImplType == implType) {
+            return true;
+        }
+
+        if (!itpd.next_impl())
+            break;
+    }
+
+    return false;
 }
 
 }   // namespace intel_cpu
