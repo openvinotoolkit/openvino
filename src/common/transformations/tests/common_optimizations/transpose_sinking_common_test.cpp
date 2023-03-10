@@ -14,6 +14,7 @@
 #include "transformations/common_optimizations/transpose_sinking_reduction.hpp"
 #include "transformations/common_optimizations/transpose_sinking_split.hpp"
 #include "transformations/common_optimizations/transpose_sinking_unary.hpp"
+#include "transformations/common_optimizations/transpose_sinking_slice.hpp"
 #include "transpose_sinking_test_utils.hpp"
 
 using namespace std;
@@ -182,6 +183,18 @@ private:
 FactoryPtr CreateInterpolateFactory(const std::string& type_name, bool is_reference) {
     return std::make_shared<InterpolateFactory>(type_name, is_reference);
 }
+
+class SliceFactory : public IFactory {
+public:
+    explicit SliceFactory(const std::string& type_name) : IFactory(type_name) {}
+    NodePtr create(const OutputVector& parent_nodes) const override {
+        return std::make_shared<Slice>(parent_nodes[0], parent_nodes[1], parent_nodes[2], parent_nodes[3], parent_nodes[4]);
+    }
+};
+
+FactoryPtr CreateSliceFactory(const std::string& type_name) {
+    return std::make_shared<SliceFactory>(type_name);
+}
 // ----------------------------------------------------------------------------
 
 #undef CREATE_UNARY_FACTORY
@@ -213,6 +226,9 @@ FactoryPtr CreateInterpolateFactory(const std::string& type_name, bool is_refere
 
 #undef CREATE_INTERPOLATE_FACTORY
 #define CREATE_INTERPOLATE_FACTORY(type_name, reference_flag) CreateInterpolateFactory(#type_name, reference_flag)
+
+#undef CREATE_SLICE_FACTORY
+#define CREATE_SLICE_FACTORY(type_name) CreateSliceFactory(#type_name)
 // ----------------------------------------------------------------------------
 
 struct Preprocessing {
@@ -721,6 +737,49 @@ auto test_forward_unsqueeze = []() {
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonUnsqueezeForward, TransposeSinkingTestFixture, test_forward_unsqueeze());
 
+auto test_forward_slice = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingSliceForward);
+    test_case.num_main_ops = {1};
+    test_case.inputs_to_main = {
+            parameter(element::f32, {6, 4, 5, 3}),
+            constant<int64_t>(element::i32, {3}, {1, 2, 3}),
+            constant<int64_t>(element::i32, {3}, {0, 4, 11}),
+            constant<int64_t>(element::i32, {3}, {1, 2, -1}),
+            constant<int64_t>(element::i32, {3}, {0, 1, 2}),
+    };
+
+    // Test model description:
+    test_case.model.preprocess_inputs_to_main = {{set_transpose_for}, {{0}}};
+    test_case.model.main_op = {CREATE_SLICE_FACTORY(SliceFactory)};
+    test_case.model.model_template = transpose_sinking::common::create_model;
+
+    // Reference model description:
+    auto set_specific_gather_for = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector result = out_vec;
+        for (const auto& idx : idxs) {
+            const auto& out = out_vec[idx];
+            vector<int64_t> transpose_order(out_vec[0].get_shape().size());
+            iota(transpose_order.begin(), transpose_order.end(), 0);
+            reverse(transpose_order.begin(), transpose_order.end());
+            auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
+            auto axis = make_shared<Constant>(element::i32, Shape{}, 0);
+            auto transpose = make_shared<Gather>(data, out, axis);
+            result[idx] = transpose;
+        }
+        return result;
+    };
+    test_case.model_ref.preprocess_inputs_to_main = {{set_specific_gather_for}, {{4}}};
+    test_case.model_ref.main_op = {CREATE_SLICE_FACTORY(Slice)};
+    test_case.model_ref.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
+    test_case.model_ref.model_template = transpose_sinking::common::create_model;
+
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSliceForward, TransposeSinkingTestFixture, test_forward_slice());
 // ------------------ BACKWARD --------------------
 
 auto test_backward_unary = []() {
@@ -1064,5 +1123,47 @@ auto test_backward_unsqueeze = []() {
 };
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonUnsqueezeBackward, TransposeSinkingTestFixture, test_backward_unsqueeze());
+
+auto test_backward_slice = []() {
+    TestCase test_case;
+
+    // Initialize common attributes
+    test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingSliceBackward);
+    test_case.num_main_ops = {1};
+    test_case.inputs_to_main = {
+            parameter(element::f32, {6, 4, 5, 3}),
+            constant<int64_t>(element::i32, {3}, {1, 2, 3}),
+            constant<int64_t>(element::i32, {3}, {0, 4, 11}),
+            constant<int64_t>(element::i32, {3}, {1, 2, -1}),
+            constant<int64_t>(element::i32, {3}, {0, 1, 2}),
+    };
+
+    // Test model description:
+    test_case.model.main_op = {CREATE_SLICE_FACTORY(Slice)};
+    test_case.model.preprocess_outputs_of_main = {{set_transpose_for}, {{0}}};
+    test_case.model.model_template = transpose_sinking::common::create_model;
+
+    // Reference model description:
+    auto set_specific_gather_for = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector result = out_vec;
+        for (const auto& idx : idxs) {
+            const auto& out = out_vec[idx];
+            vector<int64_t> transpose_order(out_vec[0].get_shape().size());
+            iota(transpose_order.begin(), transpose_order.end(), 0);
+            reverse(transpose_order.begin(), transpose_order.end());
+            auto data = make_shared<Constant>(element::i32, Shape{transpose_order.size()}, transpose_order);
+            auto axis = make_shared<Constant>(element::i32, Shape{}, 0);
+            auto transpose = make_shared<Gather>(data, out, axis);
+            result[idx] = transpose;
+        }
+        return result;
+    };
+    test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, set_specific_gather_for}, {{0}, {4}}};
+    test_case.model_ref.main_op = {CREATE_SLICE_FACTORY(SliceFactory)};
+    test_case.model_ref.model_template = transpose_sinking::common::create_model;
+    return wrapper(test_case);
+};
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonSliceBackward, TransposeSinkingTestFixture, test_backward_slice());
 }  // namespace common
 }  // namespace transpose_sinking
