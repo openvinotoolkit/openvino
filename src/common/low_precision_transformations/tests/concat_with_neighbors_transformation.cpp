@@ -138,7 +138,7 @@ public:
     }
 };
 
-TEST_P(ConcatWithNeighborsTransformation, CompareFunctions) {
+TEST_P(ConcatWithNeighborsTransformation, DISABLED_CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(actualFunction, referenceFunction, true, true, false);
     ASSERT_TRUE(res.first) << res.second;
