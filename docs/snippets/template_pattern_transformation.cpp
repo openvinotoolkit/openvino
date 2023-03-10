@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/template_pattern_transformation.hpp"
+#include "template_pattern_transformation.hpp"
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/opsets/opset3.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/template_model_transformation.hpp"
+#include "template_model_transformation.hpp"
 
 // ! [graph_rewrite:template_transformation_cpp]
 // template_pattern_transformation.cpp

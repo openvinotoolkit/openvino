@@ -41,7 +41,7 @@ class GNADeviceHelper : public GNADevice {
         static std::string gnaLibraryVersion{", GNA library version: " + GNADeviceHelper::GetGnaLibraryVersion()};
         return gnaLibraryVersion;
     }
-    std::shared_ptr<common::Target> target;
+    std::shared_ptr<target::Target> target;
     std::string modeOfOperation = "default";
     GnaAllocations allAllocations;
     uint32_t nGnaDeviceIndex = 0;
@@ -50,8 +50,8 @@ class GNADeviceHelper : public GNADevice {
 
     static const uint32_t TotalGna2InstrumentationPoints = 2;
     Gna2InstrumentationPoint gna2InstrumentationPoints[TotalGna2InstrumentationPoints] = {
-        Gna2InstrumentationPointHwTotalCycles,
-        Gna2InstrumentationPointHwStallCycles};
+        Gna2InstrumentationPointHwTotal,
+        Gna2InstrumentationPointHwStall};
 
     uint64_t instrumentationResults[TotalGna2InstrumentationPoints] = {};
     uint64_t instrumentationTotal[TotalGna2InstrumentationPoints] = {};
@@ -69,7 +69,7 @@ class GNADeviceHelper : public GNADevice {
     static constexpr const char* kDumpDelimiter = ".";
 
 public:
-    explicit GNADeviceHelper(std::shared_ptr<common::Target> target = std::make_shared<common::Target>(),
+    explicit GNADeviceHelper(std::shared_ptr<target::Target> target = std::make_shared<target::Target>(),
                              bool isPerformanceMeasuring = false,
                              bool deviceEmbedded = false);
 
@@ -92,8 +92,8 @@ public:
     void releaseModel(const uint32_t model_id);
     static uint32_t getNumberOfGnaDevices();
     static uint32_t selectGnaDevice();
-    static bool is_hw_target(const common::DeviceVersion device_version) {
-        return common::DeviceVersion::SoftwareEmulation != device_version;
+    static bool is_hw_target(const target::DeviceVersion device_version) {
+        return target::DeviceVersion::SoftwareEmulation != device_version;
     }
     bool is_hw_detected() const {
         return is_hw_target(target->get_detected_device_version());
@@ -170,10 +170,10 @@ private:
 
     static void enforceLegacyCnns(Gna2Model& gnaModel);
     static void enforceLegacyCnnsWhenNeeded(Gna2Model& gnaModel);
-    static bool is_up_to_20_hw(const common::DeviceVersion device_version) {
-        return device_version <= common::DeviceVersion::GNA2_0 && is_hw_target(device_version);
+    static bool is_up_to_20_hw(const target::DeviceVersion device_version) {
+        return device_version <= target::DeviceVersion::GNA2_0 && is_hw_target(device_version);
     }
-    void createVirtualDevice(const common::DeviceVersion& devVersion);
+    void createVirtualDevice(const target::DeviceVersion& devVersion);
     void updateGnaDeviceVersion();
 
     void initGnaPerfCounters() {

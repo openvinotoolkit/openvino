@@ -30,7 +30,7 @@
 
 namespace ov {
 namespace intel_gna {
-using namespace common;
+using namespace target;
 
 std::mutex GNADeviceHelper::acrossPluginsSync{};
 
@@ -570,10 +570,15 @@ uint32_t GNADeviceHelper::retrieveMaxLayersCount() {
     using namespace limitations;
 
     switch (target->get_effective_execution_target()) {
+    case DeviceVersion::GNA1_0:
     case DeviceVersion::GNA2_0:
         return kMaxLayersCountGNA2_0;
     case DeviceVersion::GNA3_0:
+    case DeviceVersion::GNA3_1:
     case DeviceVersion::GNA3_5:
+    case DeviceVersion::GNAEmbedded3_5:
+    case DeviceVersion::GNA3_6:
+    case DeviceVersion::GNA4_0:
     default:
         return kMaxLayersCountGNA3_X;
     }
