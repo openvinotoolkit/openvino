@@ -249,7 +249,8 @@ public:
     void* data(const element::Type& element_type) const override {
         auto owner_data = m_owner->data(element_type);
         auto& strides = get_strides();
-        size_t byte_offset = std::inner_product(m_offsets.begin(), m_offsets.end(), strides.begin(), 0);
+        size_t byte_offset =
+            std::inner_product(m_offsets.begin(), m_offsets.end(), strides.begin(), static_cast<size_t>(0));
         return static_cast<uint8_t*>(owner_data) + byte_offset;
     }
 

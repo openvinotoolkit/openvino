@@ -127,6 +127,7 @@ OPENVINO_RUNTIME_API std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<
                                                           const Coordinate& begin,
                                                           const Coordinate& end);
 
+/** @cond INTERNAL */
 OPENVINO_RUNTIME_API std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<InferenceEngine::Blob>& tensor);
 
 OPENVINO_RUNTIME_API std::shared_ptr<InferenceEngine::Blob> tensor_to_blob(const std::shared_ptr<ITensor>& tensor);
