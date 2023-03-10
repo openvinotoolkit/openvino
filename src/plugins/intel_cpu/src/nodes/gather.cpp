@@ -44,17 +44,22 @@ bool Gather::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
 
 class GatherShapeInfer : public ShapeInferEmptyPads {
 public:
-    GatherShapeInfer(bool isAxisInputConst, int axis, int batchDims, IShapeInfer::port_mask_t port_mask) :
-                     m_isAxisInputConst(isAxisInputConst), m_axis(axis), m_batchDims(batchDims), m_port_mask(port_mask) {}
+    GatherShapeInfer(bool isAxisInputConst, int axis, int batchDims) : m_isAxisInputConst(isAxisInputConst),
+                     m_axis(axis), m_batchDims(batchDims) {}
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         static constexpr size_t GATHER_DATA = 0, GATHER_INDICES = 1, GATHER_AXIS = 2;
 
-        auto input_shape = input_shapes[GATHER_DATA].get();
-        auto indices_shape = input_shapes[GATHER_INDICES].get();
+        const auto& input_shape = input_shapes[GATHER_DATA].get();
+        const auto& indices_shape = input_shapes[GATHER_INDICES].get();
 
-        if (!m_isAxisInputConst)
+        if (!m_isAxisInputConst) {
+            if (data_dependency.at(GATHER_AXIS)->getDesc().getPrecision() != Precision::I32) {
+                IE_THROW() << "Unsupported precision " << data_dependency.at(GATHER_AXIS)->getDesc().getPrecision()
+                           << " for axis tensor.";
+            }
             m_axis = reinterpret_cast<const int32_t *>(data_dependency.at(GATHER_AXIS)->GetPtr())[0];
+        }
 
         if (m_axis < 0)
             m_axis += input_shape.size();
@@ -67,22 +72,21 @@ public:
         output_shape.insert(output_shape.end(), indices_shape.begin() + m_batchDims, indices_shape.end());
         output_shape.insert(output_shape.end(), input_shape.begin() + m_axis + 1, input_shape.end());
 
-        return {{output_shape}, ShapeInferStatus::success};
+        return {{std::move(output_shape)}, ShapeInferStatus::success};
     }
     port_mask_t get_port_mask() const override {
-        return m_port_mask;
+        return PortMask(2);
     }
 
 private:
     bool m_isAxisInputConst = false;
     int m_axis = 0;
     int m_batchDims = 0;
-    port_mask_t m_port_mask;
 };
 
 class GatherShapeInferFactory : public ShapeInferFactory {
 public:
-    GatherShapeInferFactory(std::shared_ptr<ov::Node> op, IShapeInfer::port_mask_t port_mask) : m_op(op), m_port_mask(port_mask) {}
+    GatherShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
     ShapeInferPtr makeShapeInfer() const override {
         static constexpr size_t GATHER_AXIS = 2;
 
@@ -90,16 +94,15 @@ public:
         int axis = isAxisInputConst ? ov::as_type<ov::op::v0::Constant>(m_op->get_input_node_ptr(GATHER_AXIS))->cast_vector<int>()[0] : 0;
         int batchDims = ov::is_type<ov::op::v8::Gather>(m_op) ? static_cast<int>(ov::as_type_ptr<ov::op::v8::Gather>(m_op)->get_batch_dims()) : (
                         ov::is_type<ov::op::v7::Gather>(m_op) ? static_cast<int>(ov::as_type_ptr<ov::op::v7::Gather>(m_op)->get_batch_dims()) : 0);
-        return std::make_shared<GatherShapeInfer>(isAxisInputConst, axis, batchDims, m_port_mask);
+        return std::make_shared<GatherShapeInfer>(isAxisInputConst, axis, batchDims);
     }
 
 private:
     std::shared_ptr<ov::Node> m_op;
-    IShapeInfer::port_mask_t m_port_mask;
 };
 
 Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
-    : Node(op, context, GatherShapeInferFactory(op, PortMask(GATHER_AXIS))),
+    : Node(op, context, GatherShapeInferFactory(op)),
       batchDims(0) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
