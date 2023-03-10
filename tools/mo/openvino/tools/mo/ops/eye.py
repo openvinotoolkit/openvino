@@ -89,7 +89,7 @@ class Eye(Op):
 
         if is_fully_defined(output_shape) and diagonal_index is not None:
             tile_shape = [*batch_shape, 1, 1]
-            one_matrix = np.eye(num_rows, M=num_columns, k=diagonal_index, dtype=node.output_type)
+            one_matrix = np.eye(num_rows, M=num_columns, k=np.array(diagonal_index).item(), dtype=node.output_type)
             output_value = np.tile(one_matrix, tile_shape)
             node.out_port(0).data.set_value(shape_array(output_value))
 

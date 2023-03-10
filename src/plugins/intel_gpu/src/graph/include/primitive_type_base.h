@@ -8,7 +8,7 @@
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 
-#include "meta_utils.h"
+#include "intel_gpu/runtime/utils.hpp"
 #include "primitive_type.h"
 #include "program_node.h"
 #include "primitive_inst.h"
@@ -55,7 +55,7 @@ struct primitive_type_base : primitive_type {
                                         "[GPU] Original name: ", p->origin_op_name, "\n"
                                         "[GPU] Original type: ", p->origin_op_type_name, "\n"
                                         "[GPU] Reason: ", e.what());
-            throw ov::Exception(ss.str());
+            OPENVINO_UNREACHABLE(ss.str());
         }
     }
 
