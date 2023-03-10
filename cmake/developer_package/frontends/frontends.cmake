@@ -194,20 +194,6 @@ macro(ov_add_frontend)
             "-DGetAPIVersion=GetAPIVersion${OV_FRONTEND_NAME}")
     endif()
 
-    # enable LTO
-    set_target_properties(${TARGET_NAME} PROPERTIES
-        INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
-
-    if(OV_FRONTEND_SKIP_NCC_STYLE)
-        # frontend's CMakeLists.txt must define its own custom 'ov_ncc_naming_style' step
-    else()
-        ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
-                            SOURCE_DIRECTORIES "${frontend_root_dir}/include"
-                                            #    "${frontend_root_dir}/src"
-                            ADDITIONAL_INCLUDE_DIRECTORIES
-                                $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>)
-    endif()
-
     target_include_directories(${TARGET_NAME}
             PUBLIC
                 $<BUILD_INTERFACE:${${TARGET_NAME}_INCLUDE_DIR}>
@@ -255,6 +241,21 @@ macro(ov_add_frontend)
 
     add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
                             EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS} ${proto_files} ${flatbuffers_schema_files})
+
+    # enable LTO
+    set_target_properties(${TARGET_NAME} PROPERTIES
+                          INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+    if(OV_FRONTEND_SKIP_NCC_STYLE)
+        # frontend's CMakeLists.txt must define its own custom 'ov_ncc_naming_style' step
+    else()
+        ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
+                            SOURCE_DIRECTORIES "${frontend_root_dir}/include"
+                                               "${frontend_root_dir}/src"
+                            ADDITIONAL_INCLUDE_DIRECTORIES
+                                $<TARGET_PROPERTY:${TARGET_NAME},INTERFACE_INCLUDE_DIRECTORIES>
+                                $<TARGET_PROPERTY:${TARGET_NAME},INCLUDE_DIRECTORIES>)
+    endif()
 
     add_dependencies(ov_frontends ${TARGET_NAME})
 
