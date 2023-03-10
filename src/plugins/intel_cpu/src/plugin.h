@@ -5,6 +5,7 @@
 #pragma once
 
 #include "exec_network.h"
+#include "cpu_streams_calculation.hpp"
 
 #include <string>
 #include <map>
@@ -46,23 +47,10 @@ private:
 
     void ApplyPerformanceHints(std::map<std::string, std::string> &config, const std::shared_ptr<ngraph::Function>& ngraphFunc) const;
 
-    int GetModelPreferThreads(const int num_streams,
-                              const std::vector<std::vector<int>> proc_type_table,
-                              const std::shared_ptr<ngraph::Function>& ngraphFunc) const;
+    void GetPerformanceStreams(std::map<std::string, std::string> &config, const std::shared_ptr<ngraph::Function>& ngraphFunc) const;
 
     void SetStreamtoConfig(const std::map<std::string, std::string> &config);
 
-    struct StreamCfg {
-        int num_streams;               // Number of streams
-        int num_threads;               // Number of threads
-        int big_core_streams;          // Number of streams in Performance-core(big core)
-        int big_core_logic_streams;    // Number of streams in Performance logical core(big core)
-        int small_core_streams;        // Number of streams in Efficient-core(small core)
-        int threads_per_stream_big;    // Threads per stream in big cores
-        int threads_per_stream_small;  // Threads per stream in small cores
-        int small_core_offset;
-    };
-    StreamCfg ParseStreamsTable(std::vector<std::vector<int>> streams_table) const;
     StreamCfg GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
                             int stream_mode,
                             const bool enable_hyper_thread = true) const;

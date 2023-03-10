@@ -116,7 +116,7 @@ struct CPUStreamsExecutor::Impl {
                     const auto small_core_threads_3 = cpu_core_type == ov::EFFICIENT_CORE_PROC && concurrency == 3 &&
                                                       _impl->_config._small_core_streams > 1;
                     const auto num_cpus = small_core_threads_3 ? concurrency + 1 : concurrency;
-                    _cpu_ids = get_available_cpus(cpu_core_type, num_cpus, _impl->_config._plugin_task);
+                    _cpu_ids = reserve_available_cpus(cpu_core_type, num_cpus, _impl->_config._plugin_task);
                     if (_cpu_ids.size() > 0) {
                         CpuSet processMask;
                         int ncpus = 0;
@@ -275,7 +275,6 @@ struct CPUStreamsExecutor::Impl {
             }
 #if IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO
             set_cpu_used(_cpu_ids, ov::NOT_USED);
-            update_proc_type_table();
             if (nullptr != _observer) {
                 _observer->observe(false);
             }

@@ -6,7 +6,6 @@
 
 #include "plugin.h"
 
-#include "cpu_streams_calculation.hpp"
 #include "transformation_pipeline.h"
 #include "itt.h"
 #include "extension_mngr.h"
@@ -219,46 +218,7 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
             streams_info.num_streams =
                 std::min(streams_info.num_streams, engConfig.perfHintsConfig.ovPerfHintNumRequests);
         }
-        return std::pair<std::string, Engine::StreamCfg>(std::to_string(streams_info.num_streams), streams_info);
-    };
-
-    auto getNumStreams = [&](int nstreams) {
-        auto num_requests = config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
-        if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
-            auto val = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second);
-            if (val > 0)
-                nstreams = std::min(nstreams, val);
-        } else if (engConfig.perfHintsConfig.ovPerfHintNumRequests) {  // set thru SetConfig to the plugin, 2nd priority
-            nstreams = std::min(nstreams, engConfig.perfHintsConfig.ovPerfHintNumRequests);
-        }
-
-        const std::vector<std::vector<int>> proc_type_table = get_num_available_cpu_cores();
-        const int model_prefer = GetModelPreferThreads(nstreams, proc_type_table, ngraphFunc);
-        const std::vector<std::vector<int>> stream_info_table =
-            get_streams_info_table(nstreams, engConfig.streamExecutorConfig._threads, model_prefer, proc_type_table);
-        StreamCfg streams_info = ParseStreamsTable(stream_info_table);
-
-        DEBUG_LOG("[ p_e_core_info ] streams (threads): ",
-                  streams_info.num_streams,
-                  "(",
-                  streams_info.threads_per_stream_big *
-                          (streams_info.big_core_streams + streams_info.big_core_logic_streams) +
-                      streams_info.threads_per_stream_small * streams_info.small_core_streams,
-                  ") -- PCore: ",
-                  streams_info.big_core_streams,
-                  "(",
-                  streams_info.threads_per_stream_big,
-                  ") ",
-                  streams_info.big_core_logic_streams,
-                  "(",
-                  streams_info.threads_per_stream_big,
-                  ")  ECore: ",
-                  streams_info.small_core_streams,
-                  "(",
-                  streams_info.threads_per_stream_small,
-                  ")\n");
-
-        return std::pair<std::string, Engine::StreamCfg>(std::to_string(streams_info.num_streams), streams_info);
+        return std::pair<std::string, StreamCfg>(std::to_string(streams_info.num_streams), streams_info);
     };
 
     auto getPerfHintName = [&]() {
@@ -294,139 +254,77 @@ void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, c
     ngraphFunc->set_rt_info(hints_props, "intel_cpu_hints_config");
 
     const auto perf_hint_name = getPerfHintName();
-    if (cpu_map_available()) {
-        int streams = engConfig.streamExecutorConfig._streams;
-        if (perf_hint_name == CONFIG_VALUE(LATENCY)) {
-            streams = static_cast<int>(getAvailableNUMANodes().size());
-        } else if (perf_hint_name == CONFIG_VALUE(THROUGHPUT)) {
-            streams = 0;
-        } else if (perf_hint_name.empty()) {
-            streams = streams > 1 ? streams : (engConfig.streamExecutorConfig._set_streams ? streams : 0);
-        }
-        const auto common_hints = getNumStreams(streams);
-
-        config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = common_hints.first;
-        config[ov::num_streams.name()] = common_hints.first;
-        config[CONFIG_KEY(CPU_THREADS_NUM)] = std::to_string(common_hints.second.num_threads);
-        config[CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)] = std::to_string(common_hints.second.big_core_streams);
-        config[CONFIG_KEY_INTERNAL(BIG_CORE_LOGIC_STREAMS)] = std::to_string(common_hints.second.big_core_logic_streams);
-        config[CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)] = std::to_string(common_hints.second.small_core_streams);
+    if (perf_hint_name == CONFIG_VALUE(LATENCY)) {
+        config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = latency_hints.first;
+        config[ov::num_streams.name()] = latency_hints.second;
+    } else if (perf_hint_name == CONFIG_VALUE(THROUGHPUT)) {
+        config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = tput_hints.first;
+        config[ov::num_streams.name()] = tput_hints.first;
+        config[CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)] = std::to_string(tput_hints.second.big_core_streams);
+        config[CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)] = std::to_string(tput_hints.second.small_core_streams);
         config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)] =
-            std::to_string(common_hints.second.threads_per_stream_big);
+            std::to_string(tput_hints.second.threads_per_stream_big);
         config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)] =
-            std::to_string(common_hints.second.threads_per_stream_small);
-        config[CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)] = std::to_string(common_hints.second.small_core_offset);
-    } else {
-        if (perf_hint_name == CONFIG_VALUE(LATENCY)) {
-            config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = latency_hints.first;
-            config[ov::num_streams.name()] = latency_hints.second;
-        } else if (perf_hint_name == CONFIG_VALUE(THROUGHPUT)) {
-            config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = tput_hints.first;
-            config[ov::num_streams.name()] = tput_hints.first;
-            config[CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)] = std::to_string(tput_hints.second.big_core_streams);
-            config[CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)] = std::to_string(tput_hints.second.small_core_streams);
-            config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)] =
-                std::to_string(tput_hints.second.threads_per_stream_big);
-            config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)] =
-                std::to_string(tput_hints.second.threads_per_stream_small);
-            config[CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)] = std::to_string(tput_hints.second.small_core_offset);
-        }
+            std::to_string(tput_hints.second.threads_per_stream_small);
+        config[CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)] = std::to_string(tput_hints.second.small_core_offset);
     }
 }
 
-int Engine::GetModelPreferThreads(const int num_streams,
-                                  const std::vector<std::vector<int>> proc_type_table,
-                                  const std::shared_ptr<ngraph::Function>& ngraphFunc) const {
-    const int sockets = static_cast<int>(getAvailableNUMANodes().size());
-    auto model_prefer = 0;
-    if (num_streams <= sockets && num_streams > 0 &&
-        engConfig.streamExecutorConfig._threadBindingType == IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
-        bool fp_intesive = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(ngraphFunc);
-        const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
-        const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
-        // by default the latency case uses (faster) Big cores only, depending on the compute ratio
-        model_prefer = proc_type_table[0][MAIN_CORE_PROC] > (proc_type_table[0][EFFICIENT_CORE_PROC] /
-                                                             (fp_intesive ? fp32_threshold : int8_threshold))
-                           ? proc_type_table[0][MAIN_CORE_PROC]
-                           : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
-    } else {
-        const auto isa = dnnl::get_effective_cpu_isa();
-        float isaSpecificThreshold = 1.0f;
-        switch (isa) {
-        case dnnl::cpu_isa::sse41:
-            isaSpecificThreshold = 0.5f;
-            break;
-        case dnnl::cpu_isa::avx2:
-        case dnnl::cpu_isa::avx512_core:
-            isaSpecificThreshold = 1.0f;
-            break;
-        case dnnl::cpu_isa::avx512_core_vnni:
-        case dnnl::cpu_isa::avx2_vnni:
-            isaSpecificThreshold = 2.0f;
-            break;
-        case dnnl::cpu_isa::avx512_core_amx:
-            isaSpecificThreshold = 4.0f;
-            break;
-        default:
-            isaSpecificThreshold = 1.0f;
-        }
-        // the more "capable" the CPU in general, the more streams we may want to keep to keep it utilized
-        const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED / isaSpecificThreshold;
-        const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
-        ov::MemBandwidthPressure networkToleranceForLowCache =
-            ov::MemBandwidthPressureTolerance(ngraphFunc, L2_cache_size, memThresholdAssumeLimitedForISA);
-        model_prefer = IStreamsExecutor::Config::StreamMode::DEFAULT;
-        if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
-            if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||
-                (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
-                // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
-                model_prefer = 1;
-            }  // otherwise (no recognized layers) falling back to the default value
-        } else if (networkToleranceForLowCache.max_mem_tolerance > memThresholdAssumeLimitedForISA) {
-            // network is below the ISA-specific threshold
-            model_prefer = 1;
-        } else if (networkToleranceForLowCache.max_mem_tolerance > ov::MemBandwidthPressure::LIMITED) {
-            // network is below general threshold
-            model_prefer = 2;
-        }
-        if (model_prefer == 1 && proc_type_table[0][EFFICIENT_CORE_PROC] == 0 && sockets == 1) {
-            model_prefer = 2;
-        }
+void Engine::GetPerformanceStreams(std::map<std::string, std::string>& config,
+                                   const std::shared_ptr<ngraph::Function>& ngraphFunc) const {
+    auto getPerfHintName = [&]() {
+        const bool streamsExplicitlySetForModel = streamsSet(config);
+        // checking streams (to avoid overriding what user might explicitly set in the incoming config or previously via
+        // SetConfig)
+        if (streamsExplicitlySetForModel || streamsExplicitlySetForEngine)
+            return std::string();
+
+        const auto& perf_hint = config.find(CONFIG_KEY(PERFORMANCE_HINT));
+        // the perf_hint may have just arrived to the LoadNetwork, or was set with the plugin's SetConfig
+        if (perf_hint == config.end() && engConfig.perfHintsConfig.ovPerfHint.empty())
+            return std::string();
+        /* performance hints set for network has higher pririty than engine ones.
+         * This applies for all the configuration parameters */
+        const auto perf_hint_name = (perf_hint != config.end())
+                                        ? PerfHintsConfig::CheckPerformanceHintValue(perf_hint->second)
+                                        : engConfig.perfHintsConfig.ovPerfHint;
+        return perf_hint_name;
+    };
+
+    const auto perf_hint_name = getPerfHintName();
+    int streams = engConfig.streamExecutorConfig._streams;
+    if (perf_hint_name == CONFIG_VALUE(LATENCY)) {
+        streams = static_cast<int>(getAvailableNUMANodes().size());
+    } else if (perf_hint_name == CONFIG_VALUE(THROUGHPUT)) {
+        streams = 0;
+    } else if (perf_hint_name.empty()) {
+        streams = streams > 1 ? streams : (engConfig.streamExecutorConfig._set_streams ? streams : 0);
     }
 
-    return model_prefer;
-}
-
-Engine::StreamCfg Engine::ParseStreamsTable(std::vector<std::vector<int>> streams_table) const {
-    StreamCfg streams_info = {0};
-    for (int i = 0; i < streams_table.size(); i++) {
-        if (streams_table[i][PROC_TYPE] == ALL_PROC) {
-            streams_info.num_streams = streams_table[i][NUMBER_OF_STREAMS];
-            streams_info.num_threads = streams_table[i][THREADS_PER_STREAM];
-        } else if (streams_table[i][PROC_TYPE] == MAIN_CORE_PROC) {
-            streams_info.big_core_streams = streams_table[i][NUMBER_OF_STREAMS];
-            streams_info.threads_per_stream_big = streams_table[i][THREADS_PER_STREAM];
-        } else if (streams_table[i][PROC_TYPE] == EFFICIENT_CORE_PROC) {
-            streams_info.small_core_streams = streams_table[i][NUMBER_OF_STREAMS];
-            streams_info.threads_per_stream_small = streams_table[i][THREADS_PER_STREAM];
-        } else if (streams_table[i][PROC_TYPE] == HYPER_THREADING_PROC) {
-            streams_info.big_core_logic_streams = streams_table[i][NUMBER_OF_STREAMS];
-            streams_info.threads_per_stream_big = streams_table[i][THREADS_PER_STREAM];
-        }
+    auto num_requests = config.find(CONFIG_KEY(PERFORMANCE_HINT_NUM_REQUESTS));
+    if (num_requests != config.end()) {  // arrived with config to the LoadNetwork (and thus higher pri)
+        auto val = PerfHintsConfig::CheckPerformanceHintRequestValue(num_requests->second);
+        if (val > 0)
+            streams = std::min(streams, val);
+    } else if (engConfig.perfHintsConfig.ovPerfHintNumRequests) {  // set thru SetConfig to the plugin, 2nd priority
+        streams = std::min(streams, engConfig.perfHintsConfig.ovPerfHintNumRequests);
     }
-    streams_info.num_streams =
-        streams_info.num_streams == 0
-            ? streams_info.big_core_streams + streams_info.small_core_streams + streams_info.big_core_logic_streams
-            : streams_info.num_streams;
-    streams_info.num_threads = streams_info.num_threads == 0
-                                   ? ((streams_info.big_core_streams + streams_info.big_core_logic_streams) *
-                                          streams_info.threads_per_stream_big +
-                                      streams_info.small_core_streams * streams_info.threads_per_stream_small)
-                                   : streams_info.num_threads;
-    return streams_info;
+
+    const auto common_hints = get_num_streams(streams, ngraphFunc, engConfig.streamExecutorConfig);
+
+    config[CONFIG_KEY(CPU_THROUGHPUT_STREAMS)] = common_hints.first;
+    config[ov::num_streams.name()] = common_hints.first;
+    config[CONFIG_KEY(CPU_THREADS_NUM)] = std::to_string(common_hints.second.num_threads);
+    config[CONFIG_KEY_INTERNAL(BIG_CORE_STREAMS)] = std::to_string(common_hints.second.big_core_streams);
+    config[CONFIG_KEY_INTERNAL(BIG_CORE_LOGIC_STREAMS)] = std::to_string(common_hints.second.big_core_logic_streams);
+    config[CONFIG_KEY_INTERNAL(SMALL_CORE_STREAMS)] = std::to_string(common_hints.second.small_core_streams);
+    config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_BIG)] = std::to_string(common_hints.second.threads_per_stream_big);
+    config[CONFIG_KEY_INTERNAL(THREADS_PER_STREAM_SMALL)] =
+        std::to_string(common_hints.second.threads_per_stream_small);
+    config[CONFIG_KEY_INTERNAL(SMALL_CORE_OFFSET)] = std::to_string(common_hints.second.small_core_offset);
 }
 
-Engine::StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
+StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBindingType thread_binding_type,
                                         int stream_mode,
                                         const bool enable_hyper_thread) const {
     const int sockets = static_cast<int>(getAvailableNUMANodes().size());
@@ -585,9 +483,12 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
         }
     }
 
-    SetStreamtoConfig(config);
-
-    ApplyPerformanceHints(config, nGraphFunc);
+    if (cpu_map_available()) {
+        SetStreamtoConfig(config);
+        GetPerformanceStreams(config, nGraphFunc);
+    } else {
+        ApplyPerformanceHints(config, nGraphFunc);
+    }
     transformations.CpuSpecificOpSet();
 
     DEBUG_LOG(PrintableModel(*nGraphFunc, "cpu_"));

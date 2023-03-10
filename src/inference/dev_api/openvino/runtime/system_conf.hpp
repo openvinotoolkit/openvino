@@ -132,32 +132,18 @@ OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx_bf16();
 OPENVINO_RUNTIME_API bool with_cpu_x86_avx512_core_amx();
 
 /**
- * @brief      Checks whether CPU mapping Available
+ * @brief      Checks whether cpu_mapping Available
  * @ingroup    ie_dev_api_system_conf
  * @return     `True` is CPU mapping is available, `false` otherwise
  */
 OPENVINO_RUNTIME_API bool cpu_map_available();
 
 /**
- * @brief      Set flag bit 'Used' of CPU
- * @ingroup    ie_dev_api_system_conf
- * @param[in]  cpu_ids cpus in cup_mapping.
- * @param[in]  used flag bit
- */
-OPENVINO_RUNTIME_API void set_cpu_used(std::vector<int> cpu_ids, int used);
-
-/**
  * @brief      Returns number of CPU cores on Linux/Windows
  * @ingroup    ie_dev_api_system_conf
- * @return     Number of CPU cores with core_type.
+ * @return     A table about number of CPU cores of different types defined with ColumnOfProcessorTypeTable
  */
 OPENVINO_RUNTIME_API std::vector<std::vector<int>> get_num_available_cpu_cores();
-
-/**
- * @brief      Update proc_type_table
- * @ingroup    ie_dev_api_system_conf
- */
-OPENVINO_RUNTIME_API void update_proc_type_table();
 
 /**
  * @brief      Get cpu_used_flag in current task
@@ -170,7 +156,7 @@ OPENVINO_RUNTIME_API int get_task_flag();
  * @brief      Returns corresponding logical cores
  * @ingroup    ie_dev_api_system_conf
  * @param[in]  cpu_ids physical cores
- * @return     logical cores Corresponding to physical core.
+ * @return     logical cores corresponding to physical core.
  */
 OPENVINO_RUNTIME_API std::vector<int> get_logic_cores(const std::vector<int> cpu_ids);
 
@@ -205,13 +191,14 @@ enum ColumnOfProcessorTypeTable {
  * @brief      Defination of CPU_MAP_USED_FLAG column in CPU mapping table.
  */
 enum CpuUseStatus {
-    NOT_USED = -1,       //!< CPU is not bound to thread
-    CPU_USED = 1,        //!< CPU is in using
-    GPU_PRE_USED = 100,  //!< GPU need to use
+    NOT_USED = -1,            //!< CPU is not bound to thread
+    CPU_USED = 1,             //!< CPU is in using
+    PLUGIN_USED_START = 100   //!< Plugin other than CPU needs to use. If more GPUs use CPUs, the CPU_MAP_USED_FLAG is
+                              //!< accumulated from PLUGIN_USED_START. For example: GPU.0:100, GPU.1:101
 };
 
 /**
- * @brief      Returns available cpu ids
+ * @brief      Get and reserve available cpu ids
  * @ingroup    ie_dev_api_system_conf
  * @param[in]  core_type core type.
  * @param[in]  num_cpus number of cpus.
@@ -219,11 +206,19 @@ enum CpuUseStatus {
  * @param[in]  reset_status reset CPU_MAP_USED_FLAG with reset_status.
  * @return     Array of available cpu ids.
  */
-OPENVINO_RUNTIME_API std::vector<int> get_available_cpus(const ColumnOfProcessorTypeTable core_type,
-                                                         const int num_cpus,
-                                                         const int seek_status = NOT_USED,
-                                                         const int reset_status = CPU_USED,
-                                                         const int reserve_logic_core = false);
+OPENVINO_RUNTIME_API std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_type,
+                                                             const int num_cpus,
+                                                             const int seek_status = NOT_USED,
+                                                             const int reset_status = CPU_USED,
+                                                             const bool reserve_logic_core = false);
+
+/**
+ * @brief      Set CPU_MAP_USED_FLAG of cpu_mapping
+ * @ingroup    ie_dev_api_system_conf
+ * @param[in]  cpu_ids cpus in cpu_mapping.
+ * @param[in]  used update CPU_MAP_USED_FLAG of cpu_mapping with this flag bit
+ */
+OPENVINO_RUNTIME_API void set_cpu_used(std::vector<int> cpu_ids, int used);
 
 /**
  * @enum       ColumnOfCPUMappingTable

@@ -48,7 +48,7 @@ DECLARE_CONFIG_KEY(CPU_THREADS_PER_STREAM);
 
 /**
  * @brief Number of streams in Performance-core(big core)
- *        The value is calculated in loadExeNetwork and is used by CPU Executor Streams to execute `parallel_for` calls
+ *        The value is calculated in CPU plugin and is used by CPU Executor Streams to execute `parallel_for` calls
  * @ingroup ie_dev_api_plugin_api
  * @brief Shortcut for defining internal configuration values
  */
@@ -56,7 +56,7 @@ DECLARE_CONFIG_KEY(BIG_CORE_STREAMS);
 
 /**
  * @brief Number of streams in Performance-logical core(big core)
- *        The value is calculated in loadExeNetwork and is used by CPU Executor Streams to execute `parallel_for` calls
+ *        The value is calculated in CPU plugin and is used by CPU Executor Streams to execute `parallel_for` calls
  * @ingroup ie_dev_api_plugin_api
  * @brief Shortcut for defining internal configuration values
  */
@@ -64,7 +64,7 @@ DECLARE_CONFIG_KEY(BIG_CORE_LOGIC_STREAMS);
 
 /**
  * @brief Number of streams in Efficient-core(small core) in HYBRID_AWARE and throughput
- *        The value is calculated in loadExeNetwork and is used by CPU Executor Streams to execute `parallel_for` calls
+ *        The value is calculated in CPU plugin and is used by CPU Executor Streams to execute `parallel_for` calls
  * @ingroup ie_dev_api_plugin_api
  * @brief Shortcut for defining internal configuration values
  */
@@ -72,7 +72,7 @@ DECLARE_CONFIG_KEY(SMALL_CORE_STREAMS);
 
 /**
  * @brief Threads per stream in big cores in HYBRID_AWARE and throughput
- *        The value is calculated in loadExeNetwork and is used by CPU Executor Streams to execute `parallel_for` calls
+ *        The value is calculated in CPU plugin and is used by CPU Executor Streams to execute `parallel_for` calls
  * @ingroup ie_dev_api_plugin_api
  * @brief Shortcut for defining internal configuration values
  */
@@ -80,7 +80,7 @@ DECLARE_CONFIG_KEY(THREADS_PER_STREAM_BIG);
 
 /**
  * @brief Threads per stream in small cores in HYBRID_AWARE and throughput
- *        The value is calculated in loadExeNetwork and is used by CPU Executor Streams to execute `parallel_for` calls
+ *        The value is calculated in CPU plugin and is used by CPU Executor Streams to execute `parallel_for` calls
  * @ingroup ie_dev_api_plugin_api
  * @brief Shortcut for defining internal configuration values
  */

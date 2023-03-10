@@ -166,12 +166,6 @@ using ov::set_cpu_used;
 using ov::get_num_available_cpu_cores;
 
 /**
- * @brief      Update proc_type_table
- * @ingroup    ie_dev_api_system_conf
- */
-using ov::update_proc_type_table;
-
-/**
  * @brief      Get cpu_used_flag in current task
  * @ingroup    ie_dev_api_system_conf
  * @return     Task status
@@ -182,7 +176,7 @@ using ov::get_task_flag;
  * @brief      Returns corresponding logical cores
  * @ingroup    ie_dev_api_system_conf
  * @param[in]  cpu_ids physical cores
- * @return     logical cores Corresponding to physical core.
+ * @return     logical cores corresponding to physical core.
  */
 using ov::get_logic_cores;
 
@@ -194,7 +188,7 @@ using ov::get_logic_cores;
  * @param[in]  cpu_task is cpu task, not other plugin tasks
  * @return     Array of available cpu ids.
  */
-using ov::get_available_cpus;
+using ov::reserve_available_cpus;
 
 /**
  * @brief      This enum contains defination of each columns in processor type table which bases on cpu core types. Will

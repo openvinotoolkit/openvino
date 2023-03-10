@@ -447,10 +447,8 @@ IStreamsExecutor::Config IStreamsExecutor::Config::set_executor_config(std::stri
                                                                        PreferredCoreType thread_core_type) {
     Config streamExecutorConfig = Config{name, num_streams};
     if (cpu_map_available()) {
-        if (name.find("CPU") == std::string::npos) {
-            if (name.find("GPU") != std::string::npos) {
-                streamExecutorConfig._plugin_task = get_task_flag();
-            }
+        if (name.find("CPU") != std::string::npos) {
+            streamExecutorConfig._plugin_task = get_task_flag();
         }
         streamExecutorConfig._threads = streamExecutorConfig._streams;
         streamExecutorConfig._threadBindingType = thread_binding_type;
@@ -468,11 +466,11 @@ IStreamsExecutor::Config IStreamsExecutor::Config::set_executor_config(std::stri
             auto num_cores = streamExecutorConfig._threadPreferredCoreType == LITTLE
                                  ? streamExecutorConfig._small_core_streams
                                  : streamExecutorConfig._big_core_streams;
-            get_available_cpus(core_type,
-                               num_cores,
-                               NOT_USED,
-                               streamExecutorConfig._plugin_task,
-                               core_type == MAIN_CORE_PROC);
+            reserve_available_cpus(core_type,
+                                   num_cores,
+                                   NOT_USED,
+                                   streamExecutorConfig._plugin_task,
+                                   core_type == MAIN_CORE_PROC);
         }
     }
     OPENVINO_DEBUG << "[ " << name << " SetExecutorConfig ] streams: " << num_streams

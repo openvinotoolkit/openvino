@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/itask_executor.hpp"
 
 namespace ov {
@@ -102,7 +103,7 @@ public:
         int _small_core_offset = 0;         //!< Calculate small core start offset when binding cpu cores
         bool _enable_hyper_thread = true;   //!< enable hyper thread
         bool _set_streams = false;
-        int _plugin_task = -1;
+        int _plugin_task = NOT_USED;
         enum StreamMode { DEFAULT, AGGRESSIVE, LESSAGGRESSIVE };
         enum PreferredCoreType {
             ANY,

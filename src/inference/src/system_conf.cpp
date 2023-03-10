@@ -165,18 +165,17 @@ int get_number_of_logical_cpu_cores(bool) {
 std::vector<std::vector<int>> get_num_available_cpu_cores() {
     return {{-1}};
 }
-void update_proc_type_table() {}
 int get_task_flag() {
     return -1;
 }
 bool cpu_map_available() {
     return false;
 }
-std::vector<int> get_available_cpus(const ColumnOfProcessorTypeTable core_type,
-                                    const int num_cpus,
-                                    const int seek_status,
-                                    const int reset_status,
-                                    const int reserve_logic_core) {
+std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_type,
+                                        const int num_cpus,
+                                        const int seek_status,
+                                        const int reset_status,
+                                        const bool reserve_logic_core) {
     return {};
 }
 std::vector<int> get_logic_cores(const std::vector<int> cpu_ids) {
@@ -193,7 +192,7 @@ struct CPU {
     std::vector<std::vector<int>> _proc_type_table;
     std::vector<std::vector<int>> _cpu_mapping_table;
     std::mutex _cpu_mutex;
-    int _plugin_status = GPU_PRE_USED;
+    int _plugin_status = PLUGIN_USED_START;
     int _socket_idx = 0;
 
     CPU() {
@@ -247,25 +246,6 @@ std::vector<std::vector<int>> get_num_available_cpu_cores() {
     return cpu._proc_type_table;
 }
 
-void update_proc_type_table() {
-    std::vector<int> all_table;
-    int start = cpu._sockets > 1 ? 1 : 0;
-    cpu._proc_type_table.assign(cpu._proc_type_table.size(), std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
-    all_table.resize(PROC_TYPE_TABLE_SIZE, 0);
-    for (int i = 0; i < cpu._processors; i++) {
-        if (cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] < GPU_PRE_USED) {
-            cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] + start]
-                                [cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
-            cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] + start][ALL_PROC]++;
-            all_table[cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
-            all_table[ALL_PROC]++;
-        }
-    }
-    if (cpu._sockets > 1) {
-        cpu._proc_type_table[0] = all_table;
-    }
-}
-
 int get_task_flag() {
     return cpu._plugin_status++;
 }
@@ -274,15 +254,15 @@ bool cpu_map_available() {
     return cpu._cpu_mapping_table.size() > 0;
 }
 
-std::vector<int> get_available_cpus(const ColumnOfProcessorTypeTable core_type,
-                                    const int num_cpus,
-                                    const int seek_status,
-                                    const int reset_status,
-                                    const int reserve_logic_core) {
+std::vector<int> reserve_available_cpus(const ColumnOfProcessorTypeTable core_type,
+                                        const int num_cpus,
+                                        const int seek_status,
+                                        const int reset_status,
+                                        const bool reserve_logic_core) {
     std::lock_guard<std::mutex> lock{cpu._cpu_mutex};
     std::vector<int> cpu_ids;
     int socket = -1;
-    if (reset_status >= GPU_PRE_USED && cpu._sockets > 1) {
+    if (reset_status >= PLUGIN_USED_START && cpu._sockets > 1) {
         socket = cpu._socket_idx;
         cpu._socket_idx = (cpu._socket_idx + 1) % cpu._sockets;
     }
@@ -302,9 +282,6 @@ std::vector<int> get_available_cpus(const ColumnOfProcessorTypeTable core_type,
             cpu_ids.insert(cpu_ids.end(), logic_ids.begin(), logic_ids.end());
         }
         set_cpu_used(cpu_ids, reset_status);
-        if (reset_status >= GPU_PRE_USED) {
-            update_proc_type_table();
-        }
     } else {
         IE_THROW() << "Wrong value for core_type " << core_type;
     }
@@ -336,6 +313,27 @@ void set_cpu_used(std::vector<int> cpu_ids, int used) {
     for (int i = 0; i < cpu_size; i++) {
         if (cpu_ids[i] < cpu._processors) {
             cpu._cpu_mapping_table[cpu_ids[i]][CPU_MAP_USED_FLAG] = used;
+        }
+    }
+    // update _proc_type_table
+    if (used == NOT_USED || used >= PLUGIN_USED_START) {
+        std::vector<int> all_table;
+        int start = cpu._sockets > 1 ? 1 : 0;
+        if (cpu_map_available()) {
+            cpu._proc_type_table.assign(cpu._proc_type_table.size(), std::vector<int>(PROC_TYPE_TABLE_SIZE, 0));
+            all_table.resize(PROC_TYPE_TABLE_SIZE, 0);
+            for (int i = 0; i < cpu._processors; i++) {
+                if (cpu._cpu_mapping_table[i][CPU_MAP_USED_FLAG] < PLUGIN_USED_START) {
+                    cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] + start]
+                                        [cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
+                    cpu._proc_type_table[cpu._cpu_mapping_table[i][CPU_MAP_SOCKET_ID] + start][ALL_PROC]++;
+                    all_table[cpu._cpu_mapping_table[i][CPU_MAP_CORE_TYPE]]++;
+                    all_table[ALL_PROC]++;
+                }
+            }
+            if (cpu._sockets > 1) {
+                cpu._proc_type_table[0] = all_table;
+            }
         }
     }
 }
