@@ -18,7 +18,7 @@ using namespace ngraph;
 using namespace InferenceEngine;
 
 namespace {
-void ParsePreProcess(pugi::xml_node& root,
+void parse_pre_process(pugi::xml_node& root,
                      std::shared_ptr<ngraph::runtime::AlignedBuffer> weights,
                      std::shared_ptr<Function> f) {
     /* Preprocessing block can have two preprocessing types:
@@ -234,7 +234,7 @@ std::shared_ptr<Function> InputModel::InputModelIRImpl::convert() {
     std::shared_ptr<ngraph::Function> function;
     visitor.on_attribute("net", function);
     function->get_rt_info()["version"] = int64_t(version);
-    ParsePreProcess(m_root, m_weights, function);
+    parse_pre_process(m_root, m_weights, function);
 
     return function;
 }

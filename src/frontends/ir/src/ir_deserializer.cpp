@@ -41,7 +41,7 @@ XmlDeserializer::IoMap XmlDeserializer::updated_io_map(const pugi::xml_node& nod
     return extend_io_map;
 }
 
-std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> XmlDeserializer::parseInputDescription(
+std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> XmlDeserializer::parse_input_description(
     const pugi::xml_node& node,
     const std::string& body_name,
     const std::string& port_map_name) {
@@ -117,7 +117,7 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> Xml
 }
 
 std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>
-XmlDeserializer::parseOutputDescription(const pugi::xml_node& node,
+XmlDeserializer::parse_output_description(const pugi::xml_node& node,
                                         const std::string& body_name,
                                         const std::string& port_map_name) {
     std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>> outputs;
@@ -174,7 +174,7 @@ XmlDeserializer::parseOutputDescription(const pugi::xml_node& node,
     return outputs;
 }
 
-ngraph::op::v5::Loop::SpecialBodyPorts XmlDeserializer::parsePurposeAttribute(const pugi::xml_node& node) {
+ngraph::op::v5::Loop::SpecialBodyPorts XmlDeserializer::parse_purpose_attribute(const pugi::xml_node& node) {
     ngraph::op::v5::Loop::SpecialBodyPorts result = {-1, -1};
     auto body_node = node.child("body");
     const auto up_io_map = updated_io_map(node, body_node);
@@ -239,13 +239,13 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
         }
         if (auto a = ngraph::as_type<ngraph::AttributeAdapter<
                 std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::InputDescription>>>>(&adapter)) {
-            a->set(parseInputDescription(m_node, body_name, port_map_name));
+            a->set(parse_input_description(m_node, body_name, port_map_name));
         } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<
                        std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>>>(&adapter)) {
-            a->set(parseOutputDescription(m_node, body_name, port_map_name));
+            a->set(parse_output_description(m_node, body_name, port_map_name));
         } else if (auto a =
                        ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::v5::Loop::SpecialBodyPorts>>(&adapter)) {
-            a->set(parsePurposeAttribute(m_node));
+            a->set(parse_purpose_attribute(m_node));
         }
     }
 
@@ -414,25 +414,25 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
         ngraph::SinkVector sinks;
     };
 
-    struct edge {
+    struct Edge {
         size_t fromLayerId, fromPortId, toPortId;
     };
-    struct node_params {
+    struct NodeParams {
         pugi::xml_node xml;
         GenericLayerParams params;
     };
 
-    std::map<size_t /*layer-id*/, node_params> params;
+    std::map<size_t /*layer-id*/, NodeParams> params;
 
     std::vector<size_t /*layer-id*/> outputs;
     std::unordered_set<std::string> opName;
 
     std::vector<size_t> order;
     std::set<size_t> dfs_used_nodes;
-    std::map<size_t /*to-layer-id*/, std::vector<edge>> edges;
+    std::map<size_t /*to-layer-id*/, std::vector<Edge>> edges;
     // Read all layers and store their parameters in params map
     FOREACH_CHILD (node, root.child("layers"), "layer") {
-        auto node_param = parseGenericParams(node);
+        auto node_param = parse_generic_params(node);
         if (opName.find(node_param.name) != opName.end() && node_param.type != "Result")
             IE_THROW() << "Invalid IR! " << node_param.name << " name is not unique!";
         opName.insert(node_param.name);
@@ -489,14 +489,14 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
                 IE_THROW() << "Attempt to access node " << e.fromLayerId << " that not in graph.";
             }
             auto& p_output = params[e.fromLayerId].params;
-            size_t const realInputPortId = p.params.getRealInputPortId(e.toPortId);
+            size_t const realInputPortId = p.params.get_real_input_port_id(e.toPortId);
             if (realInputPortId >= inputs.size())
                 IE_THROW() << p.params.type << " layer " << p.params.name << " with id: " << p.params.layerId
                            << " is inconsistent!";
-            inputs[realInputPortId] = input_node->output(p_output.getRealOutputPortId(e.fromPortId));
+            inputs[realInputPortId] = input_node->output(p_output.get_real_output_port_id(e.fromPortId));
         }
 
-        auto node = createNode(inputs, p.xml, weights, p.params);
+        auto node = create_node(inputs, p.xml, weights, p.params);
         id_to_node[layer_id] = node;
 
         // Check that output shape after OpenVINO node validation the same as in IR
@@ -675,7 +675,7 @@ void XmlDeserializer::read_legacy_meta_data(const std::shared_ptr<ov::Model>& mo
         read_meta(model, it, root_section.child(it.c_str()));
 }
 
-GenericLayerParams XmlDeserializer::parseGenericParams(const pugi::xml_node& node) {
+GenericLayerParams XmlDeserializer::parse_generic_params(const pugi::xml_node& node) {
     const auto parsePort = [](const pugi::xml_node& parentNode,
                               const GenericLayerParams& params,
                               bool input) -> GenericLayerParams::LayerPortData {
@@ -753,7 +753,7 @@ static const std::string& translate_type_name(const std::string& name) {
     return name;
 }
 
-std::shared_ptr<ngraph::Node> XmlDeserializer::createNode(
+std::shared_ptr<ngraph::Node> XmlDeserializer::create_node(
     const std::vector<ngraph::Output<ngraph::Node>>& inputs,
     const pugi::xml_node& node,
     const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
