@@ -3083,8 +3083,9 @@ public:
             {
                 auto pool_size_w = pooling->size[1];
                 auto pool_size_h = pooling->size[0];
-                auto dynamic_mode = statis_cast<int>(((output_tensor.spatial[0] - 1) * stride_width) + pool_size_w) > -2 * pad_width + width ||
-                                    statis_cast<int>(((output_tensor.spatial[1] - 1) * stride_height) + pool_size_h) >
+                auto dynamic_mode = static_cast<int>(((output_tensor.spatial[0] - 1) * stride_width) + pool_size_w) >
+                                        -2 * pad_width + width ||
+                                    static_cast<int>(((output_tensor.spatial[1] - 1) * stride_height) + pool_size_h) >
                                         -2 * pad_height + height;
 
                 auto divider = [=](int actual_x, int actual_y) {
