@@ -181,7 +181,7 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
     // test auto plugin
     plugin->SetName("AUTO");
     std::string devicesStr = "";
-    int selDevsSize = deviceConfigs.size();
+    auto selDevsSize = deviceConfigs.size();
     for (auto iter = deviceConfigs.begin(); iter != deviceConfigs.end(); selDevsSize--) {
         std::string deviceName = std::get<0>(*iter);
         bool loadSuccess = std::get<1>(*iter);

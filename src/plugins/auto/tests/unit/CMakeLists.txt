@@ -16,8 +16,6 @@ addIeTargetTest(
             ${OpenVINO_SOURCE_DIR}/src/plugins/auto ${CMAKE_CURRENT_SOURCE_DIR} ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src
         LINK_LIBRARIES
             ngraphFunctions
-            openvino::runtime
-            openvino::runtime::dev
             unitTestUtils
         ADD_CPPLINT
         DEPENDENCIES

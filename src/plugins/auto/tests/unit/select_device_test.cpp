@@ -108,8 +108,7 @@ public:
     static void combine_device(const std::vector<DeviceInformation>& devices, int start,
             int* result, int result_index, const int select_num, std::string& netPrecision,
             bool enableDevicePriority, bool reverse) {
-        int i = 0;
-        for (i = start; i < devices.size() + 1 - result_index; i++) {
+        for (size_t i = start; i < devices.size() + 1 - result_index; i++) {
             result[result_index - 1] = i;
             if (result_index - 1 == 0) {
                 std::vector<DeviceInformation> metaDevices = {};
@@ -140,7 +139,7 @@ public:
                                 validDevices.push_back(*device);
                             }
                         }
-                        int currentDevicePriority = 100;
+                        unsigned int currentDevicePriority = 100;
                         for (auto iter = validDevices.begin(); iter != validDevices.end(); iter++) {
                             if (iter->devicePriority < currentDevicePriority) {
                                 expect = *iter;
@@ -185,7 +184,7 @@ public:
         // null device 1
         // total test config num is 32*5 = 160
         for (auto netPrecision : netPrecisions) {
-            for (int i = 1; i <= totalDevices.size(); i++) {
+            for (size_t i = 1; i <= totalDevices.size(); i++) {
                 combine_device(totalDevices, 0, result, i, i, netPrecision, false, false);
             }
             // test null device
@@ -193,7 +192,7 @@ public:
         }
         // reverse totalDevices for test
         for (auto netPrecision : netPrecisions) {
-            for (int i = 1; i <= reverseTotalDevices.size(); i++) {
+            for (size_t i = 1; i <= reverseTotalDevices.size(); i++) {
                 combine_device(reverseTotalDevices, 0, result, i, i, netPrecision, false, true);
             }
         }
@@ -201,14 +200,14 @@ public:
         // add test for enableDevicePriority
         // test case num is 31*5 = 155
         for (auto netPrecision : netPrecisions) {
-            for (int i = 1; i <= totalDevices.size(); i++) {
+            for (size_t i = 1; i <= totalDevices.size(); i++) {
                 combine_device(totalDevices, 0, result, i, i, netPrecision, true, false);
             }
         }
 
         // reverse totalDevices for test
         for (auto netPrecision : netPrecisions) {
-            for (int i = 1; i <= reverseTotalDevices.size(); i++) {
+            for (size_t i = 1; i <= reverseTotalDevices.size(); i++) {
                 combine_device(reverseTotalDevices, 0, result, i, i, netPrecision, true, true);
             }
         }
