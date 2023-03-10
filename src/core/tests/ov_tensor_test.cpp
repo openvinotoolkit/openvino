@@ -271,7 +271,7 @@ TEST_F(OVTensorTest, canSetShapeOfSameSizeOnPreallocatedMemory) {
     ASSERT_NO_THROW(t.set_shape(newShape));
 }
 
-TEST_F(OVTensorTest, DISABLED_canSetShapeOfOriginalSizeAfterDecreasingOnPreallocatedMemory) {
+TEST_F(OVTensorTest, canSetShapeOfOriginalSizeAfterDecreasingOnPreallocatedMemory) {
     float data[4 * 5 * 6 * 2];
     ov::Tensor t{ov::element::f32, {4, 5, 6}, data};
     const ov::Shape smallerShape({1, 2, 3});
@@ -279,6 +279,16 @@ TEST_F(OVTensorTest, DISABLED_canSetShapeOfOriginalSizeAfterDecreasingOnPrealloc
 
     ASSERT_NO_THROW(t.set_shape(smallerShape));
     ASSERT_NO_THROW(t.set_shape(originalShape));
+}
+
+TEST_F(OVTensorTest, canChangeShapeOnStridedTensor) {
+    float data[64 * 4];
+    ov::Tensor t{ov::element::f32, {4, 2, 2}, data, {64, 16, 4}};
+    const ov::Shape incorrect_shape({2, 4, 2});
+    const ov::Shape correct_shape({1, 1, 2});
+
+    ASSERT_THROW(t.set_shape(incorrect_shape), ov::Exception);
+    ASSERT_NO_THROW(t.set_shape(correct_shape));
 }
 
 TEST_F(OVTensorTest, makeRangeRoiTensor) {

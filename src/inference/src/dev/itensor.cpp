@@ -34,6 +34,7 @@ public:
     ViewTensor(const element::Type element_type, const Shape& shape, void* ptr)
         : m_element_type{element_type},
           m_shape{shape},
+          m_capacity{shape},
           m_ptr{ptr} {
         OPENVINO_ASSERT(m_ptr != nullptr);
         m_offsets = {m_shape.size(), 0};
@@ -60,10 +61,7 @@ public:
     }
 
     void set_shape(ov::Shape new_shape) override {
-        auto old_byte_size = get_byte_size();
-        OPENVINO_ASSERT(shape_size(new_shape) * get_element_type().size() <= old_byte_size,
-                        "Could set new shape: ",
-                        new_shape);
+        OPENVINO_ASSERT(shape_size(new_shape) <= ov::shape_size(m_capacity), "Could set new shape: ", new_shape);
         m_shape = std::move(new_shape);
         m_offsets = {m_shape.size(), 0};
         update_strides();
@@ -97,6 +95,7 @@ protected:
 
     element::Type m_element_type;
     Shape m_shape;
+    Shape m_capacity;
     Coordinate m_offsets;
     Strides m_strides;
     void* m_ptr;
@@ -108,14 +107,17 @@ protected:
 class StridedViewTensor : public ViewTensor {
 public:
     StridedViewTensor(const element::Type element_type, const Shape& shape, void* ptr, const Strides& strides)
-        : ViewTensor{element_type, shape, ptr},
-          m_strides{strides} {
+        : ViewTensor{element_type, shape, ptr} {
         OPENVINO_ASSERT(
             get_element_type().bitwidth() >= 8,
             "Could not create strided access tensor for types with bitwidths less then 8 bit. Tensor type: ",
             get_element_type());
+        // Save default strides
+        auto shape_strides = m_strides;
+        // Change strides
+        m_strides = strides;
         OPENVINO_ASSERT(get_shape().size() == m_strides.size());
-        auto& shape_strides = ViewTensor::get_strides();
+
         for (size_t i = 0; i < m_strides.size(); ++i) {
             OPENVINO_ASSERT(shape_strides[i] <= m_strides[i],
                             "shape stride: ",
@@ -130,12 +132,25 @@ public:
         }
     }
 
+    void set_shape(ov::Shape new_shape) override {
+        OPENVINO_ASSERT(m_capacity.size() == new_shape.size(),
+                        "Cannot set new shape: ",
+                        new_shape,
+                        " for tensor with strides! Shapes are not compatible.");
+        for (size_t i = 0; i < new_shape.size(); i++) {
+            OPENVINO_ASSERT(m_capacity[i] >= new_shape[i],
+                            "Cannot set new shape: ",
+                            new_shape,
+                            " for tensor with strides! Dimension: ",
+                            i,
+                            " is not compatible.");
+        }
+        m_shape = std::move(new_shape);
+    }
+
     const Strides& get_strides() const override {
         return m_strides;
     }
-
-private:
-    Strides m_strides;
 };
 
 /**
