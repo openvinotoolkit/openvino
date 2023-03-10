@@ -14,22 +14,24 @@ NamedOutputs linspace(const NodeContext& node) {
     auto start = node.get_input("Start");
     auto stop = node.get_input("Stop");
     auto num = node.get_input("Num");
-    int flag = 0;
-    if (start.get_element_type() == element::i32 || start.get_element_type() == element::i64)
-        flag = 1;
+    std::unordered_map<int, element::Type> umap{{2, element::i32}, {3, element::i64}, {5, element::f32}};
+    const auto dtype = node.get_attribute<int>("dtype", 5);
+    PADDLE_OP_CHECK(node,
+                    umap.count(dtype),
+                    "linspace don't support current attr dtype, try float32 int32 int64 instead");
 
     start = std::make_shared<default_opset::Convert>(start, element::f32);
     stop = std::make_shared<default_opset::Convert>(stop, element::f32);
 
     // compute step value, i.e. distance between neighbor values of the result
-    Output<Node> step = std::make_shared<default_opset::Subtract>(stop, start);
+    Output<Node> step = std::make_shared<default_opset::Subtract>(stop, start);  //[-1]
     auto const_one = std::make_shared<default_opset::Constant>(element::i32, Shape{}, 1);
-    Output<Node> num_minus_one = std::make_shared<default_opset::Subtract>(num, const_one);
-    auto num_none_zero = std::make_shared<default_opset::Greater>(num_minus_one, const_one);
+    Output<Node> num_minus_one = std::make_shared<default_opset::Subtract>(num, const_one);   //[3]
+    auto num_none_zero = std::make_shared<default_opset::Greater>(num_minus_one, const_one);  //[ture]
     num_minus_one = std::make_shared<default_opset::Select>(num_none_zero, num_minus_one, const_one);
 
     num_minus_one = std::make_shared<default_opset::Convert>(num_minus_one, element::f32);
-    step = std::make_shared<default_opset::Divide>(step, num_minus_one);
+    step = std::make_shared<default_opset::Divide>(step, num_minus_one);  //[-1/3]
 
     // generate a range of numbers [0, 1, ..., num)
     auto const_zero = std::make_shared<default_opset::Constant>(element::i32, Shape{}, 0);
@@ -39,8 +41,11 @@ NamedOutputs linspace(const NodeContext& node) {
     // compute the result
     Output<Node> linspace = std::make_shared<default_opset::Multiply>(range0_n, step);
     auto result = std::make_shared<default_opset::Add>(linspace, start);
-    if (flag == 1) {
+    if (umap.at(dtype) == element::i32) {
         return node.default_single_output_mapping({std::make_shared<default_opset::Convert>(result, element::i32)},
+                                                  {"Out"});
+    } else if (umap.at(dtype) == element::i64) {
+        return node.default_single_output_mapping({std::make_shared<default_opset::Convert>(result, element::i64)},
                                                   {"Out"});
     } else {
         return node.default_single_output_mapping({result}, {"Out"});
