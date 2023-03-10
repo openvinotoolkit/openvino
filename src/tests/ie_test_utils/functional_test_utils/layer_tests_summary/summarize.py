@@ -84,6 +84,7 @@ def merge_xmls(xml_paths: list):
             else:
                 for op_result in device:
                     current_op_res = device_results.find(op_result.tag)
+                    stat_update_utils.update_rel_values(current_op_res)
                     if current_op_res is not None:
                         # workaround for unsaved reports
                         total_tests_count_xml, total_tests_count_summary = (0, 0)
@@ -271,7 +272,7 @@ def create_summary(summary_root: Element, output_folder: os.path, expected_devic
 
     device_list = sorted(device_list)
 
-    script_dir, script_name = os.path.split(os.path.abspath(__file__))
+    script_dir, _ = os.path.split(os.path.abspath(__file__))
     file_loader = FileSystemLoader(os.path.join(script_dir, 'template'))
     env = Environment(loader=file_loader)
     template = env.get_template('report_template.html')
