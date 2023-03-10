@@ -75,8 +75,8 @@ the model with a single input. See the example of adjusting spatial dimensions t
          :fragment: simple_spatials_change
 
 
-   To do the opposite - to resize input image to match the input shapes of the model, 
-   use the :doc:`pre-processing API <openvino_docs_OV_UG_Preprocessing_Overview>`.
+To do the opposite - to resize input image to match the input shapes of the model, 
+use the :doc:`pre-processing API <openvino_docs_OV_UG_Preprocessing_Overview>`.
 
 
 2. You can express a reshape plan, specifying the input by the port, the index, and the tensor name:
@@ -210,7 +210,7 @@ Additional Resources
 ####################
 
 * :doc:`Extensibility documentation <openvino_docs_Extensibility_UG_Intro>` - describes a special mechanism in OpenVINO that allows adding support of shape inference for custom operations.
-* ``ov::Model::reshape`` - in OpenVINO Runtime C++ API
+* `ov::Model::reshape <classov_1_1Model.html#doxid-classov-1-1-model-1aa21aff80598d5089d591888a4c7f33ae>`__ - in OpenVINO Runtime C++ API
 * `Model.reshape <api/ie_python_api/_autosummary/openvino.runtime.Model.html#openvino.runtime.Model.reshape>`__ - in OpenVINO Runtime Python API.
 * :doc:`Dynamic Shapes <openvino_docs_OV_UG_DynamicShapes>`
 * :doc:`OpenVINO samples <openvino_docs_OV_UG_Samples_Overview>`
