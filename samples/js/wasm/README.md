@@ -5,7 +5,7 @@
 1. Build WASM package:
    - From repository root: `mkdir build`
    - Run emscripten compiler `docker run -it --rm -v $(pwd):/openvino emscripten/emsdk`
-   - From docker `cd /openvino`
+   - From docker `cd /openvino/build`
    - Run compilation 
    ```
    emcmake cmake \
@@ -14,7 +14,7 @@
       -DENABLE_OV_TF_LITE_FRONTEND=OFF \
       -DENABLE_OV_ONNX_FRONTEND=OFF \
       -DENABLE_OV_PADDLE_FRONTEND=OFF \
-         ..
+      ..
    ```
    - After finish compilation, enter `exit` to exit from container
    - Directory *./bin/ia32/Release/* should contain `openvino_wasm.js` and `openvino_wasm.wasm` files
