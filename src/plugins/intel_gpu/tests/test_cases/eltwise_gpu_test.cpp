@@ -2924,10 +2924,10 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast)
         return;
     }
 
-    size_t input_b = 2;
-    size_t input_f = 72;
-    size_t input1_y = 10, input1_x = 10;
-    size_t input2_y = 1, input2_x = 1;
+    tensor::value_type input_b = 2;
+    tensor::value_type input_f = 72;
+    tensor::value_type input1_y = 10, input1_x = 10;
+    tensor::value_type input2_y = 1, input2_x = 1;
 
     tensor input1_tensor(input_b, input_f, input1_x, input1_y);
     tensor input2_tensor(input_b, input_f, input2_x, input2_y);
@@ -2989,9 +2989,9 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast_bfyx)
         return;
     }
 
-    size_t input_b = 2;
-    size_t input_f = 72;
-    size_t input1_y = 10, input1_x = 10;
+    tensor::value_type input_b = 2;
+    tensor::value_type input_f = 72;
+    tensor::value_type input1_y = 10, input1_x = 10;
 
     tensor input1_tensor(input_b, input_f, input1_x, input1_y);
     tensor input2_tensor(1, input_f, 1, 1);
