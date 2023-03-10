@@ -8,7 +8,7 @@
    
    OpenVINO Runtime <openvino_docs_install_guides_install_runtime>
    OpenVINO Development Tools <openvino_docs_install_guides_install_dev_tools>
-   Build from Source <https://github.com/openvinotoolkit/openvino/wiki/BuildingCode>
+   Build from Source <https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md>
    Creating a Yocto Image <openvino_docs_install_guides_installing_openvino_yocto>
 
 @endsphinxdirective
@@ -68,7 +68,7 @@ The following methods are available to install OpenVINO Runtime:
 
 ### Option 3. Build OpenVINO from source
 
-Source files are also available in the OpenVINO Toolkit GitHub repository. If you want to build OpenVINO from source for your platform, follow the [OpenVINO Build Instructions](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
+Source files are also available in the OpenVINO Toolkit GitHub repository. If you want to build OpenVINO from source for your platform, follow the [OpenVINO Build Instructions](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md).
 
 ## Next Steps
 Still unsure if you want to install OpenVINO toolkit? Check out the [OpenVINO tutorials](../tutorials.md) to run example applications directly in your web browser without installing it locally. Here are some exciting demos you can explore:
@@ -79,4 +79,4 @@ Still unsure if you want to install OpenVINO toolkit? Check out the [OpenVINO tu
 Follow these links to install OpenVINO:
 - [Install OpenVINO Development Tools](installing-model-dev-tools.md)
 - [Install OpenVINO Runtime](installing-openvino-runtime.md)
-- [Build from Source](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode)
+- [Build from Source](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md)
