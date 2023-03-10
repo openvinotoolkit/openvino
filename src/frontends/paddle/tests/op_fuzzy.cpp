@@ -238,6 +238,8 @@ static const std::vector<std::string> models{
     std::string("greater_than_int32"),
     std::string("greater_than_int64"),
     std::string("grid_sampler_1"),
+    std::string("grid_sampler_2"),
+    std::string("grid_sampler_3"),
     std::string("group_norm_1/group_norm_1.pdmodel"),
     std::string("group_norm_2/group_norm_2.pdmodel"),
     std::string("group_norm_3/group_norm_3.pdmodel"),
