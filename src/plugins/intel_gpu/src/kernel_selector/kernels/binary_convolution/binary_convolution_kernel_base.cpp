@@ -181,8 +181,6 @@ bool CheckConvolutionBinaryPaddedInputDesc(const binary_convolution_params& para
                      reqDesc.Feature().pad.after <= params.inputs[0].Feature().pad.after &&
                      reqDesc.Batch().pad.after <= params.inputs[0].Batch().pad.after;
 
-    properPadding &= ((params.padding.x == 0 && params.padding.y == 0) || params.inputs[0].GetPaddedVal() == 0.f);
-
     return properPadding;
 }
 
@@ -217,14 +215,12 @@ static DataTensor GetConvolutionBFYXPaddedTensor(const binary_convolution_params
 
 bool ConvolutionBinaryCheckInput(const Params& p, const optional_params& o) {
     const binary_convolution_params& params = static_cast<const binary_convolution_params&>(p);
-    const binary_convolution_optional_params& optParams = static_cast<const binary_convolution_optional_params&>(o);
 
-    const auto req_input = GetConvolutionBFYXPaddedTensor(params);
-    const bool bProperInputDesc = CheckConvolutionBinaryPaddedInputDesc(params, req_input);
-    const bool bInputPadded = optParams.allowInputReordering || bProperInputDesc;
+    if (params.padding.x == 0 && params.padding.y == 0) {
+        const auto req_input = GetConvolutionBFYXPaddedTensor(params);
+        const bool bProperInputDesc = CheckConvolutionBinaryPaddedInputDesc(params, req_input);
 
-    if (!bInputPadded) {
-        return false;
+        return bProperInputDesc;
     }
 
     return true;

@@ -44,13 +44,6 @@ FullyConnected_bs_f_bsv8_af8::DispatchData FullyConnected_bs_f_bsv8_af8::SetDefa
     return dispatchData;
 }
 
-static bool check_input_layout(const DataTensor& t) {
-    bool b16_layout = false;
-    b16_layout |= t.GetLayout() == DataLayout::bs_f_bsv8__af8;
-    b16_layout |= DataTensor::Channelndex(t.GetLayout(), Tensor::DataChannelName::BATCH) == 0 && (t.Batch().v == 8);
-    return b16_layout;
-}
-
 static bool check_output_layout(const DataTensor& t) {
     bool b16_layout = false;
     b16_layout |= (t.GetLayout() == DataLayout::fb) && (t.Batch().v == 8);
@@ -67,7 +60,6 @@ bool FullyConnected_bs_f_bsv8_af8::Validate(const Params& p, const optional_para
         return false;
 
     const auto& params = static_cast<const fully_connected_params&>(p);
-    const auto& optParams = static_cast<const fully_connected_optional_params&>(o);
 
     if (!params.engineInfo.supports_intel_subgroups_short && params.inputs[0].GetDType() == Datatype::F16) {
         return false;
@@ -75,11 +67,9 @@ bool FullyConnected_bs_f_bsv8_af8::Validate(const Params& p, const optional_para
 
     const bool bProperBatch = params.inputs[0].Batch().v >= 8 && params.inputs[0].Batch().v % 8 == 0;
     const bool bProperFeature = params.inputs[0].Feature().v >= 8 && params.inputs[0].Feature().v % 8 == 0;
-    const bool bProperInput = check_input_layout(params.inputs[0]);
     const bool bProperOutput = check_output_layout(params.outputs[0]);
-    const bool bSupportedLayout = optParams.allowInputReordering || bProperInput;
 
-    if (!bProperBatch || !bProperFeature || !bSupportedLayout || !bProperOutput) {
+    if (!bProperBatch || !bProperFeature || !bProperOutput) {
         return false;
     }
 
