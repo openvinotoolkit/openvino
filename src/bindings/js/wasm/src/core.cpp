@@ -41,9 +41,9 @@ EMSCRIPTEN_BINDINGS(my_module) {
     function("getDescriptionString", &getDescriptionString);
 
     class_<Session>("Session")
-    .constructor<std::string, std::string, ShapeLite*, std::string>()
-    .function("infer", &Session::infer, allow_raw_pointers())
-    ;
+        .constructor<std::string, std::string, ShapeLite*, std::string>()
+        .function("infer", &Session::infer, allow_raw_pointers())
+        ;
 
     class_<ShapeLite>("Shape")
         .constructor<uintptr_t, int>()
