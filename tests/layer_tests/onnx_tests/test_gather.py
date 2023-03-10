@@ -277,8 +277,9 @@ class TestGather(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data_negative_indices)
     @pytest.mark.nightly
-    @pytest.mark.xfail(reason='Mark as xfailed all failed onnx layer tests')
     def test_gather_nightly_negative_indices(self, params, ie_device, precision, ir_version,
                                              temp_dir, use_old_api):
+        if ie_device == 'GPU':
+            pytest.xfail('Mark as xfailed all failed onnx layer tests')
         self._test(*self.create_net(**params, ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
