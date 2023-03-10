@@ -16,9 +16,10 @@
 namespace MultiDevicePlugin {
 struct AutoLoadContext {
     std::atomic<bool> isEnabled = {false};
-    std::atomic<bool> usefeature = {true};
     std::atomic<bool> isAlready = {false};
     std::atomic<bool> isLoadSuccess = {false};
+    std::atomic<bool> isReloadSuccess = {false};
+    std::atomic<bool> ableReload = {false};
     std::future<void> future;
     std::promise<void> promise;
     SoExecNetwork executableNetwork;
@@ -62,11 +63,13 @@ private:
     void WaitFirstNetworkReady();
     void TryToLoadNetWork(AutoLoadContext& context, const std::string& modelPath, const IE::CNNNetwork& network);
     bool selectOtherDevice(std::string currentDeviceName);
+    void releaseActualdevice(std::string currentDeviceName);
 
 private:
     IE::IStreamsExecutor::Ptr                _executor;
     mutable std::once_flag                   _oc;
     std::once_flag                           _firstLoadOC;
+    std::once_flag                           _firstReleaseActualDevice;
     std::future<void>                        _firstLoadFuture;
     std::promise<void>                       _firstLoadPromise;
     bool                                     _exitFlag = {false};

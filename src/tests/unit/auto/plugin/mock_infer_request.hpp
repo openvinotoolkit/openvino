@@ -17,7 +17,7 @@ public:
     mockAsyncInferRequest(const InferenceEngine::IInferRequestInternal::Ptr &inferRequest,
                       const ImmediateExecutor::Ptr& taskExecutor,
                       const ImmediateExecutor::Ptr& callbackExecutor,
-                      bool threw);
+                      bool ifThrow);
 
     ~mockAsyncInferRequest() override = default;
 private:
@@ -27,8 +27,8 @@ private:
 mockAsyncInferRequest::mockAsyncInferRequest(const InferenceEngine::IInferRequestInternal::Ptr &inferRequest,
                                      const ImmediateExecutor::Ptr& taskExecutor,
                                      const ImmediateExecutor::Ptr& callbackExecutor,
-                                     bool threw)
-    : InferenceEngine::AsyncInferRequestThreadSafeDefault(inferRequest, taskExecutor, callbackExecutor), _throw(threw) {
+                                     bool ifThrow)
+    : InferenceEngine::AsyncInferRequestThreadSafeDefault(inferRequest, taskExecutor, callbackExecutor), _throw(ifThrow) {
     _pipeline = {};
 
     _pipeline.push_back({taskExecutor,

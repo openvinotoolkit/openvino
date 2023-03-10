@@ -60,7 +60,6 @@ public:
         _task();
     }
     InferenceEngine::Task _task;
-    int  count;
 };
 
 struct DeviceInformation {
@@ -162,6 +161,7 @@ public:
     unsigned int                _modelPriority = 0;
     std::string                 _performanceHint;
     std::mutex                  _confMutex;
+    std::mutex                  _fallbackMutex;
     MultiDeviceInferencePlugin* _plugin;
     virtual ~AutoScheduleContext() = default;
 };
