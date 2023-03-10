@@ -163,7 +163,7 @@ The system requirements vary depending on platform and are available on dedicate
 
 ## How to build
 
-See the [OpenVINO Wiki](https://github.com/openvinotoolkit/openvino/wiki#how-to-build) to get more information about the OpenVINO build process.
+See [How to build OpenVINO](./docs/dev/build.md) to get more information about the OpenVINO build process.
 
 ## How to contribute
 

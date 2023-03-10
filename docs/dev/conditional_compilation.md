@@ -9,13 +9,13 @@
 
 ## Introduction
 
-Conditional compilation can significantly reduce OpenVINO™ binaries size by excluding unnecessary components for particular model inference.
-The following components can be excluded from the build:
-* Operations and graph transformations in OpenVINO and plugins,
+Conditional compilation can significantly reduce the size of OpenVINO™ binaries by excluding unnecessary components for inference of particular models. The components are:
+* layers and graph transformations in OpenVINO Runtime and plugins,
+* OpenVINO Runtime operations,
 * jit kernels in a CPU plugin,
 * arbitrary code that is not used for particular model inference.
 
-However, the conditional compilation has a significant drawback - **the resulting OpenVINO Runtime will work only with a limited set of models and devices.**
+However, conditional compilation has a significant drawback - the resulting OpenVINO runtime will properly infer only using the models and devices for which it was compiled. If just one model is used to collect statistics for compilation, only this particular model is guaranteed to work with the resulting OpenVINO runtime.
 
 There are two conditional compilation build stages: `SELECTIVE_BUILD=COLLECT` and `SELECTIVE_BUILD=ON`.
 
@@ -66,7 +66,7 @@ To apply conditional compilation, follow the steps below:
     1. Run the CMake tool with the following options: `-DSELECTIVE_BUILD=ON -DSELECTIVE_BUILD_STAT=${ABSOLUTE_PATH_TO_STATISTICS_FILES}/*.csv -DENABLE_PROFILING_ITT=OFF`
     2. `cmake --build <cmake_build_directory>`
 
-The `-niter 1 -nireq 1` flags are highly recommended for the benchmark_app. Otherwise, the trace files will be very large.
+The `-niter 1 -nireq 1` flags are highly recommended for benchmark_app. Otherwise, the trace files will be very large. 
 If you are using an application other than benchmark_app, remember to limit the number of inference requests and iterations.
 
 ## Building for devices with different ISA
