@@ -84,17 +84,17 @@ struct PoolingKey {
     }
 };
 
-std::shared_ptr<dnnl::pooling_forward::primitive_desc> createDescriptorHelper(const dnnl::engine& engine,
-                                                                              const dnnl::memory::desc& in_candidate,
-                                                                              const dnnl::memory::desc& out_candidate,
-                                                                              const dnnl::algorithm alg,
-                                                                              const std::vector<ptrdiff_t>& stride,
-                                                                              const std::vector<ptrdiff_t>& kernel,
-                                                                              const std::vector<ptrdiff_t>& effective_pad_begin,
-                                                                              const std::vector<ptrdiff_t>& effective_pad_end,
-                                                                              const std::vector<ptrdiff_t>& effective_dilation,
-                                                                              const std::vector<ptrdiff_t>& data_pad_end,
-                                                                              const dnnl::primitive_attr& attr) {
+dnnl::pooling_forward::primitive_desc createDescriptorHelper(const dnnl::engine& engine,
+                                                             const dnnl::memory::desc& in_candidate,
+                                                             const dnnl::memory::desc& out_candidate,
+                                                             const dnnl::algorithm alg,
+                                                             const std::vector<ptrdiff_t>& stride,
+                                                             const std::vector<ptrdiff_t>& kernel,
+                                                             const std::vector<ptrdiff_t>& effective_pad_begin,
+                                                             const std::vector<ptrdiff_t>& effective_pad_end,
+                                                             const std::vector<ptrdiff_t>& effective_dilation,
+                                                             const std::vector<ptrdiff_t>& data_pad_end,
+                                                             const dnnl::primitive_attr& attr) {
     if (alg == dnnl::algorithm::undef) {
         IE_THROW() << "Unsupported pooling type";
     }
@@ -103,7 +103,7 @@ std::shared_ptr<dnnl::pooling_forward::primitive_desc> createDescriptorHelper(co
         return memory::dims(orig_dims.begin(), orig_dims.end());
     };
 
-    auto desc_ptr = std::make_shared<dnnl::pooling_forward::primitive_desc>(
+    auto desc = dnnl::pooling_forward::primitive_desc(
         engine,
         prop_kind::forward_inference,
         alg,
@@ -134,7 +134,7 @@ std::shared_ptr<dnnl::pooling_forward::primitive_desc> createDescriptorHelper(co
         // }
     // }
 
-    return desc_ptr;
+    return desc;
 }
 
 }  // namespace
@@ -370,17 +370,17 @@ void Pooling::prepareParams() {
                       selected_pd->getImplementationType()};
     auto engine = getEngine();
     auto builder = [&engine](const PoolingKey& key) -> dnnl::primitive {
-        primitive_desc_iterator itpd = *createDescriptorHelper(engine,
-                                                               key.inp->getDnnlDesc(),
-                                                               key.out->getDnnlDesc(),
-                                                               key.alg,
-                                                               key.stride,
-                                                               key.kernel,
-                                                               key.effective_pad_begin,
-                                                               key.effective_pad_end,
-                                                               key.effective_dilation,
-                                                               key.data_pad_end,
-                                                               key.attr);
+        primitive_desc_iterator itpd = createDescriptorHelper(engine,
+                                                              key.inp->getDnnlDesc(),
+                                                              key.out->getDnnlDesc(),
+                                                              key.alg,
+                                                              key.stride,
+                                                              key.kernel,
+                                                              key.effective_pad_begin,
+                                                              key.effective_pad_end,
+                                                              key.effective_dilation,
+                                                              key.data_pad_end,
+                                                              key.attr);
         dnnl::pooling_forward::primitive_desc prim_desc = itpd.get();
         while (static_cast<bool>(itpd)) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
@@ -449,13 +449,12 @@ dnnl::algorithm Pooling::getPoolingAlgorithm() const {
     }
 }
 
-std::shared_ptr<dnnl::pooling_forward::primitive_desc> Pooling::createDescriptorInternal(
+dnnl::pooling_forward::primitive_desc Pooling::createDescriptorInternal(
     const dnnl::memory::desc& in_candidate,
     const dnnl::memory::desc& out_candidate,
     const dnnl::algorithm alg) {
 
-    dnnl::primitive_attr attr;
-    setPostOps(attr);
+    auto attr = initPrimitiveAttr();
 
     return createDescriptorHelper(getEngine(),
                                   in_candidate,
@@ -467,7 +466,7 @@ std::shared_ptr<dnnl::pooling_forward::primitive_desc> Pooling::createDescriptor
                                   effective_pad_end,
                                   effective_dilation,
                                   data_pad_end,
-                                  attr);
+                                  *attr);
 }
 
 void Pooling::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
@@ -487,10 +486,10 @@ void Pooling::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
         initEffectiveAttributes(inDesc->getShape(), outDesc->getShape());
     }
     auto dnnlOutDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(*outDesc);
-    auto out_candidate = dnnlOutDesc.getDnnlDesc();
+    const auto& out_candidate = dnnlOutDesc.getDnnlDesc();
 
-    auto desc_ptr = createDescriptorInternal(in_candidate, out_candidate, getPoolingAlgorithm());
-    descs.emplace_back(desc_ptr);
+    auto desc = createDescriptorInternal(in_candidate, out_candidate, getPoolingAlgorithm());
+    descs.emplace_back(desc);
 }
 
 void Pooling::initSupportedPrimitiveDescriptors() {
@@ -501,7 +500,7 @@ void Pooling::initSupportedPrimitiveDescriptors() {
     setPostOps(attr);
 
     for (auto& desc : descs) {
-         auto itpd = *desc;
+         auto itpd = desc;
 
         while (static_cast<bool>(itpd)) {
             NodeConfig config;

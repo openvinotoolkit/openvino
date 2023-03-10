@@ -579,7 +579,7 @@ protected:
     std::unordered_map<int, dnnl::memory> primArgs;
     std::unordered_map<int, MemoryPtr> postOpsArgs;
     dnnl::primitive prim;
-    std::vector<std::shared_ptr<dnnl::primitive_desc>> descs;
+    std::vector<dnnl::primitive_desc> descs;
 
     const GraphContext::CPtr context;
 

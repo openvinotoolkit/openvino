@@ -317,8 +317,7 @@ void FullyConnected::prepareParams() {
         executorPtr execPtr = nullptr;
         if (key.useConv1x1) {
             auto desc = createDescriptorInternalForConv(key.inp0, key.inp1, key.bias, key.out, key.attr, engine);
-            // primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
-            primitive_desc_iterator itpd = *desc;
+            primitive_desc_iterator itpd = desc;
             convolution_forward::primitive_desc prim_desc;
 
             while (static_cast<bool>(itpd))  {
@@ -656,7 +655,7 @@ void FullyConnected::createDescriptorInternal(const dnnl::memory::desc &inputDes
     if (withBiases) {
         dnnl::memory::desc bias_candidate(DnnlExtensionUtils::convertToDnnlDims(getInputShapeAtPort(BIAS_ID).getStaticDims()), bdt,
                                             dnnl::memory::format_tag::any);
-        auto desc = std::make_shared<inner_product_forward::primitive_desc>(
+        auto desc = inner_product_forward::primitive_desc(
             getEngine(),
             prop_kind::forward_inference,
             in_candidate,
@@ -668,7 +667,7 @@ void FullyConnected::createDescriptorInternal(const dnnl::memory::desc &inputDes
 
         descs.push_back(desc);
     } else {
-        auto desc = std::make_shared<inner_product_forward::primitive_desc>(
+        auto desc = inner_product_forward::primitive_desc(
             getEngine(),
             prop_kind::forward_inference,
             in_candidate,
@@ -705,7 +704,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
         return;
 
     for (auto& desc : descs) {
-        primitive_desc_iterator itpd = *desc;
+        primitive_desc_iterator itpd = desc;
         while (static_cast<bool>(itpd)) {
             // 3D FC requires implicit reshape so strides should be defined
             auto supportsUndefStridesAndOffset = [&]() {
@@ -807,7 +806,7 @@ void FullyConnected::initOptimalPrimitiveDescriptor() {
     selectedPD->setConfig(config);
 }
 
-std::shared_ptr<dnnl::convolution_forward::primitive_desc>
+dnnl::convolution_forward::primitive_desc
 FullyConnected::createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
                                                 DnnlMemoryDescCPtr weightDescPtr,
                                                 DnnlMemoryDescCPtr biasDescPtr,
@@ -846,9 +845,8 @@ FullyConnected::createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
                             dnnl::memory::dim{1}};
     auto convWeightDescAny = dnnl::memory::desc(normalizedWeightDims, weightDesc.get_data_type(), dnnl::memory::format_tag::any);
 
-    std::shared_ptr<dnnl::convolution_forward::primitive_desc> desc;
     if (biasDescPtr) {
-        desc = std::make_shared<dnnl::convolution_forward::primitive_desc>(
+        return dnnl::convolution_forward::primitive_desc(
             engine,
             prop_kind::forward_inference,
             dnnl::algorithm::convolution_direct,
@@ -859,7 +857,7 @@ FullyConnected::createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
             dnnl::memory::dims{0},   // paddingR
             attr);
     } else {
-        desc = std::make_shared<dnnl::convolution_forward::primitive_desc>(
+        return dnnl::convolution_forward::primitive_desc(
             engine,
             prop_kind::forward_inference, dnnl::algorithm::convolution_direct,
             convInDesc, convWeightDescAny, convOutDesc,
@@ -869,8 +867,6 @@ FullyConnected::createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
             dnnl::memory::dims{0},   // paddingR
             attr);
     }
-
-    return desc;
 }
 
 bool FullyConnected::canBeExecutedInConv1x1() const {

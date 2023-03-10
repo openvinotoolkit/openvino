@@ -45,10 +45,6 @@ public:
 
     bool hasEmptyExtraData() const;
 
-    void reset(dnnl_memory_desc_t md) {
-        desc.reset(md);
-    }
-
 protected:
     DnnlMemoryDesc() {}
     static constexpr size_t UNREACHABLE_DIM = std::numeric_limits<size_t>::max();

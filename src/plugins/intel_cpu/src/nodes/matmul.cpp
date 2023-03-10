@@ -477,9 +477,9 @@ std::pair<Shape, Shape> MatMul::makeDummyInputShapes(const Shape& in0, const Sha
 void MatMul::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                               const std::vector<MemoryDescPtr>& outputDesc) {
     const auto attr = initPrimitiveAttr();
-    std::shared_ptr<dnnl::matmul::primitive_desc> matmul_desc;
+    dnnl::matmul::primitive_desc matmul_desc;
     if (withBiases) {
-        matmul_desc = std::make_shared<matmul::primitive_desc>(
+        matmul_desc = matmul::primitive_desc(
             getEngine(),
             inDataDesc[0]->getDnnlDesc(),
             inDataDesc[1]->getDnnlDesc(),
@@ -487,7 +487,7 @@ void MatMul::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
             outDataDesc->getDnnlDesc(),
             *attr);
     } else {
-        matmul_desc = std::make_shared<matmul::primitive_desc>(
+        matmul_desc = matmul::primitive_desc(
             getEngine(),
             inDataDesc[0]->getDnnlDesc(),
             inDataDesc[1]->getDnnlDesc(),
@@ -503,7 +503,7 @@ void MatMul::initSupportedPrimitiveDescriptors() {
         return;
 
     for (auto& desc : descs) {
-        auto itpd = *desc;
+        auto itpd = desc;
         while (itpd) {
             NodeConfig config;
             config.dynBatchSupport = true;

@@ -843,19 +843,19 @@ void RNN::copyWeightsData() {
 }
 
 namespace {
-std::shared_ptr<dnnl::primitive_desc> createPrimitiveDescriptor(const dnnl::engine        engine,
-                                                                const dnnl::algorithm     cellType,
-                                                                const dnnl::algorithm     cellAct,
-                                                                const dnnl::rnn_direction direction,
-                                                                const std::vector<DnnlBlockedMemoryDescPtr>& inDataDescs,
-                                                                const std::vector<DnnlBlockedMemoryDescPtr>& outDataDescs,
-                                                                const std::vector<dnnl::memory::desc>& wDescs,
-                                                                const dnnl::primitive_attr& attr) {
+dnnl::primitive_desc createPrimitiveDescriptor(const dnnl::engine        engine,
+                                               const dnnl::algorithm     cellType,
+                                               const dnnl::algorithm     cellAct,
+                                               const dnnl::rnn_direction direction,
+                                               const std::vector<DnnlBlockedMemoryDescPtr>& inDataDescs,
+                                               const std::vector<DnnlBlockedMemoryDescPtr>& outDataDescs,
+                                               const std::vector<dnnl::memory::desc>& wDescs,
+                                               const dnnl::primitive_attr& attr) {
     const dnnl::prop_kind propKind = dnnl::prop_kind::forward_inference;
 
     switch (cellType) {
     case dnnl::algorithm::vanilla_rnn:
-        return std::make_shared<dnnl::vanilla_rnn_forward::primitive_desc>(
+        return dnnl::vanilla_rnn_forward::primitive_desc(
             engine,
             propKind,
             cellAct,
@@ -868,7 +868,7 @@ std::shared_ptr<dnnl::primitive_desc> createPrimitiveDescriptor(const dnnl::engi
             outDataDescs[RNN::InOutKind::Layer]->getDnnlDesc(),        // Out Data
             outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc()); // Out State
     case dnnl::algorithm::vanilla_gru:
-        return std::make_shared<dnnl::gru_forward::primitive_desc>(
+        return dnnl::gru_forward::primitive_desc(
             engine,
             propKind,
             direction,
@@ -880,7 +880,7 @@ std::shared_ptr<dnnl::primitive_desc> createPrimitiveDescriptor(const dnnl::engi
             outDataDescs[RNN::InOutKind::Layer]->getDnnlDesc(),        // Out Data
             outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc()); // Out State
     case dnnl::algorithm::lbr_gru:
-        return std::make_shared<dnnl::lbr_gru_forward::primitive_desc>(
+        return dnnl::lbr_gru_forward::primitive_desc(
             engine,
             propKind,
             direction,
@@ -892,7 +892,7 @@ std::shared_ptr<dnnl::primitive_desc> createPrimitiveDescriptor(const dnnl::engi
             outDataDescs[RNN::InOutKind::Layer]->getDnnlDesc(),        // Out Data
             outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc()); // Out State
     case dnnl::algorithm::vanilla_lstm:
-        return std::make_shared<dnnl::lstm_forward::primitive_desc>(
+        return dnnl::lstm_forward::primitive_desc(
             engine,
             propKind,
             direction,
@@ -906,7 +906,7 @@ std::shared_ptr<dnnl::primitive_desc> createPrimitiveDescriptor(const dnnl::engi
             outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc(),  // Out State
             outDataDescs[RNN::InOutKind::CellState]->getDnnlDesc());   // Out State C
     case dnnl::algorithm::vanilla_augru:
-        return std::make_shared<dnnl::augru_forward::primitive_desc>(
+        return dnnl::augru_forward::primitive_desc(
             engine,
             propKind,
             direction,
@@ -919,7 +919,7 @@ std::shared_ptr<dnnl::primitive_desc> createPrimitiveDescriptor(const dnnl::engi
             outDataDescs[RNN::InOutKind::Layer]->getDnnlDesc(),        // Out Data
             outDataDescs[RNN::InOutKind::HiddenState]->getDnnlDesc()); // Out State
     case dnnl::algorithm::lbr_augru:
-        return std::make_shared<dnnl::lbr_augru_forward::primitive_desc>(
+        return dnnl::lbr_augru_forward::primitive_desc(
             engine,
             propKind,
             direction,
@@ -1072,7 +1072,7 @@ void RNN::prepareParams() {
                                                        key.wDescs,
                                                        key.attr);
 
-        return dnnl::primitive(*descPtr);
+        return dnnl::primitive(descPtr);
     };
 
     auto cache = context->getParamsCache();

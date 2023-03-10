@@ -3,10 +3,10 @@
 //
 
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include <dnnl_types.h>
-#include <oneapi/dnnl/dnnl.h>
+
 #include <common/memory_desc_wrapper.hpp>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <dnnl_types.h>
 #include "cpu_types.h"
 #include "ie_common.h"
 #include "nodes/common/dnnl_executor.h"
@@ -653,7 +653,6 @@ MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewPrecision(const InferenceEngine
 }
 
 void DnnlBlockedMemoryDesc::recomputeDefaultStrides() {
-    IE_THROW() << "ONEDNN_3_0: Strides recomputation is not implemented" << "\n";
     const auto &rank = getShape().getRank();
 
     if (order.size() != blockedDims.size())

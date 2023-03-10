@@ -67,7 +67,7 @@ typedef std::unordered_set<EdgePtr> edge_cluster_t;
 typedef std::vector<edge_cluster_t> edge_clusters_t;
 
 Graph::~Graph() {
-    // CPU_DEBUG_CAP_ENABLE(summary_perf(*this));
+    CPU_DEBUG_CAP_ENABLE(summary_perf(*this));
 }
 
 template<typename NET>

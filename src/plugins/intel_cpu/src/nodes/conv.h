@@ -105,7 +105,7 @@ private:
     void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool useLegacyPostOps, bool initWeights = false);
     void SetPostOpsAndZeroPoints(std::vector<dnnl::primitive_attr> &attrs);
     void filterSupportedDescriptors();
-    bool isPossibleToSkipInitConfig(dnnl::primitive_desc &desc) const;
+    bool isPossibleToSkipInitConfig(const dnnl::primitive_desc &desc) const;
     bool isNspcAvailable() const;
     InferenceEngine::Blob::Ptr createInternalBlob(InferenceEngine::SizeVector dims, size_t edgeNum, bool isGrouped = false);
 
