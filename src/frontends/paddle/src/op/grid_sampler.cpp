@@ -20,7 +20,7 @@ NamedOutputs grid_sampler(const NodeContext& node) {
         node.get_attribute<std::string>("padding_mode", "zeros"));
 
     return node.default_single_output_mapping({std::make_shared<default_opset::GridSample>(data, grid, attributes)},
-                                          {"Output"});
+                                              {"Output"});
 }
 }  // namespace op
 }  // namespace paddle

@@ -10,7 +10,7 @@ from save_model import saveModel
 import sys
 
 
-def grid_sampler(name: str, x, grid, mode="bilinear", padding_mode="zeros", align_corners=False):
+def grid_sampler(name: str, x, grid, mode="bilinear", padding_mode="zeros", align_corners=True):
     paddle.enable_static()
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
@@ -32,10 +32,18 @@ def main():
     dtype = np.float32
     mode = "bilinear"
     padding_mode = "zeros"
-    align_corners = False
+    align_corners = True
     x = np.random.randn(*(x_shape)).astype(dtype)
     grid = np.random.uniform(-1, 1, grid_shape).astype(dtype)
     grid_sampler(name='grid_sampler_1', x=x, grid=grid, mode=mode, padding_mode=padding_mode, align_corners=align_corners)
+
+    mode = "nearest"
+    padding_mode = "reflection"
+    align_corners = False
+    grid_sampler(name='grid_sampler_2', x=x, grid=grid, mode=mode, padding_mode=padding_mode, align_corners=align_corners)
+
+    padding_mode = "border"
+    grid_sampler(name='grid_sampler_3', x=x, grid=grid, mode=mode, padding_mode=padding_mode, align_corners=align_corners)
 
 
 if __name__ == "__main__":
