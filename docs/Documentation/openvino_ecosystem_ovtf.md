@@ -13,8 +13,9 @@ This is all you need:
 
 
 **OpenVINO™ integration with TensorFlow** accelerates inference across many AI models on a variety of Intel® technologies, such as:
-- Intel® CPUs
-- Intel® integrated GPUs
+
+* Intel® CPUs
+* Intel® integrated GPUs
 
 .. note:: 
    For maximum performance, efficiency, tooling customization, and hardware control, we recommend developers to adopt native OpenVINO™ solutions.
@@ -48,7 +49,6 @@ We welcome community contributions to **OpenVINO™ integration with TensorFlow*
 
 We will review your contribution as soon as possible. If any additional fixes or modifications are necessary, we will guide you and provide feedback. Before you make your contribution, make sure you can build **OpenVINO™ integration with TensorFlow** and run all the examples with your fix/patch. If you want to introduce a large feature, create test cases for your feature. Upon our verification of your pull request, we will merge it to the repository provided that the pull request has met the above mentioned requirements and proved acceptable.
 
----
 \* Other names and brands may be claimed as the property of others.
 
 @endsphinxdirective
