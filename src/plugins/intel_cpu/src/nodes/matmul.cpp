@@ -624,7 +624,7 @@ void MatMul::prepareParams() {
         primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
         matmul::primitive_desc prim_desc;
 
-        auto itpdFirst = itpd;
+        auto itpd_first = itpd;
         while (static_cast<bool>(itpd))  {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
 
@@ -633,7 +633,10 @@ void MatMul::prepareParams() {
                 break;
             }
             if (!itpd.next_impl()) {
-                prim_desc = itpdFirst.get();
+                // implType(AMX) will be not in list when input dynamic shape for AMX.
+                // Bcause AMX will be available when it assumes batch 16 for dynamic shape in compile model.
+                // However if we only pass batch 1 in runtime, AMX will be not avaiable(Performance is low).
+                prim_desc = itpd_first.get();
                 break;
             }
         }
