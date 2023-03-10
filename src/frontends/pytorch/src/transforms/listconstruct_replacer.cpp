@@ -16,7 +16,6 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/transpose.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
@@ -33,23 +32,23 @@ using namespace ov::op;
 
 ListConstructReplacer::ListConstructReplacer() {
     // Transformation for torch operators for cases where prim::ListConstruct can be replaced with Concat.
-    auto list_construct = pattern::wrap_type<ov::op::util::FrameworkNode>();
+    auto list = pattern::wrap_type<ov::op::util::FrameworkNode>();
 
     // Both aten::view and aten::reshape are using same translation returning Reshape operator.
-    auto reshape_op = pattern::wrap_type<v1::Reshape>({pattern::any_input(), list_construct});
-    auto roll_op = pattern::wrap_type<v7::Roll>({pattern::any_input(), list_construct, pattern::any_input()});
-    auto broadcast_op = pattern::wrap_type<v3::Broadcast>({pattern::any_input(), list_construct});
-    auto adapool_op = pattern::wrap_type<v8::AdaptiveAvgPool>({pattern::any_input(), list_construct});
+    auto reshape_op = pattern::wrap_type<v1::Reshape>({pattern::any_input(), list});
+    auto roll_op = pattern::wrap_type<v7::Roll>({pattern::any_input(), list, pattern::any_input()});
+    auto broadcast_op = pattern::wrap_type<v3::Broadcast>({pattern::any_input(), list});
+    auto adapool_op = pattern::wrap_type<v8::AdaptiveAvgPool>({pattern::any_input(), list});
     // replace list construct for aten::expand(tensor, prim::ListConstruct(shapes)) decomposition
     //  shape_of + broadcast + equal + select
-    auto shape_of_op = pattern::wrap_type<v3::ShapeOf>({list_construct});
-    auto equal_op = pattern::wrap_type<v1::Equal>({list_construct, pattern::any_input()});
-    auto select_op = pattern::wrap_type<v1::Select>({pattern::any_input(), pattern::any_input(), list_construct});
+    auto shape_of_op = pattern::wrap_type<v3::ShapeOf>({list});
+    auto equal_op = pattern::wrap_type<v1::Equal>({list, pattern::any_input()});
+    auto select_op = pattern::wrap_type<v1::Select>({pattern::any_input(), pattern::any_input(), list});
     // replace list construct for aten::repeat(tensor,  prim::ListConstruct(shapes)))
     // shape_of + broadcast + tile
-    auto tile_op = pattern::wrap_type<v0::Tile>({pattern::any_input(), list_construct});
+    auto tile_op = pattern::wrap_type<v0::Tile>({pattern::any_input(), list});
     // replace aten::permute(tensor, prim::ListConstruct)
-    auto transpose_op = pattern::wrap_type<v1::Transpose>({pattern::any_input(), list_construct});
+    auto transpose_op = pattern::wrap_type<v1::Transpose>({pattern::any_input(), list});
     auto lc_pattern = std::make_shared<pattern::op::Or>(OutputVector{reshape_op,
                                                                      roll_op,
                                                                      broadcast_op,
@@ -63,23 +62,32 @@ ListConstructReplacer::ListConstructReplacer() {
     ov::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto& pattern_map = m.get_pattern_value_map();
 
-        auto list_construct_node = pattern_map.at(list_construct).get_node_shared_ptr();
-        if (auto list_unpack_node = cast_fw_node(list_construct_node, "prim::ListConstruct")) {
-            // Concatenation is possible because all elements in list should be scalar intigers.
-            OutputVector inputs;
-            auto axis_0 = v0::Constant::create(element::i32, Shape{}, {0});
-            for (auto& input : list_construct_node->inputs()) {
-                auto rank = input.get_partial_shape().rank();
-                FRONT_END_OP_CONVERSION_CHECK(rank.is_dynamic() || rank.get_length() == 0, "Rank must be 0");
-                auto unsqueeze = std::make_shared<v0::Unsqueeze>(input.get_source_output(), axis_0);
-                inputs.push_back(unsqueeze);
+        auto list_node = pattern_map.at(list).get_node_shared_ptr();
+        // Concatenation is possible because all elements in list should be scalar or 1D tensors,
+        // result should be 1D tensor.
+        OutputVector inputs;
+        auto neg_1 = v0::Constant::create(element::i32, Shape{1}, {-1});
+        const auto& start_output = list_node->output(0);
+        for (const auto& input : get_list_as_outputs(start_output)) {
+            if (input == start_output) {
+                // Start output exist in list elements, it might mean we have only 1 element in list inputs and it is
+                // already a list, we do not need to concat it
+                return false;
             }
-            auto concat = std::make_shared<v0::Concat>(inputs, 0);
-            copy_runtime_info({list_construct_node}, concat);
-            replace_node(list_construct_node, concat);
-            return true;
-        };
-        return false;
+            auto rank = input.get_partial_shape().rank();
+            if (rank.is_static() && rank.get_length() > 1) {
+                // if list elements of rank higher then 1D we cannot resolve it
+                return false;
+            }
+            // reshape all elements to 1D
+            auto reshape = std::make_shared<v1::Reshape>(input, neg_1, false);
+            inputs.push_back(reshape);
+        }
+        auto concat = std::make_shared<v0::Concat>(inputs, 0);
+        copy_runtime_info({list_node}, concat);
+        replace_node(list_node, concat);
+        concat->set_friendly_name(list_node->get_friendly_name());
+        return true;
     };
     auto m = std::make_shared<pattern::Matcher>(lc_pattern, "ov::frontend::pytorch::pass::ListConstructReplacer");
     this->register_matcher(m, callback);

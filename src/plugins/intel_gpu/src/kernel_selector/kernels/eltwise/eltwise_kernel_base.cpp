@@ -53,6 +53,9 @@ uint32_t GetNumberOfInputs(EltwiseMode m) {
         case EltwiseMode::SQRT:
         case EltwiseMode::RSQRT:
         case EltwiseMode::ASSIGN:
+        case EltwiseMode::IS_FINITE:
+        case EltwiseMode::IS_INF:
+        case EltwiseMode::IS_NAN:
             return 1;
         default:
             return 0;
@@ -146,6 +149,9 @@ bool EltwiseKernelBase::IsUnsupportedModeForVecCode(const eltwise_params& params
         EltwiseMode::LOGIC_OR,
         EltwiseMode::LOGIC_XOR,
         EltwiseMode::FLOOR_MOD,
+        EltwiseMode::IS_FINITE,
+        EltwiseMode::IS_INF,
+        EltwiseMode::IS_NAN,
     };
 
     for (size_t op_num = 0; op_num <  params.operations.size(); op_num++) {
@@ -296,6 +302,16 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
             }
             case EltwiseMode::ASSIGN:
                 op += input0_str;
+                break;
+            case EltwiseMode::IS_FINITE:
+                op += "(isfinite(" + input0_str + "))";
+                break;
+            case EltwiseMode::IS_INF:
+                op += "(isinf(" + input0_str + ") && (" + toCodeString(coefficients.at(0)) + " && signbit(" +
+                      input0_str + ") || " + toCodeString(coefficients.at(1)) + " && !signbit(" + input0_str + ")))";
+                break;
+            case EltwiseMode::IS_NAN:
+                op += "(isnan(" + input0_str + "))";
                 break;
             default:
                 break;
