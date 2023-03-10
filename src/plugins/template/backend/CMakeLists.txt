@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set (SRC
+file(GLOB SRC 
     backend.cpp
     backend.hpp
     executable.cpp
@@ -10,6 +10,7 @@ set (SRC
     int_backend.cpp 
     int_executable.cpp 
     evaluates_map.cpp
+    "${CMAKE_CURRENT_SOURCE_DIR}/ops/*.cpp"
     )
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
