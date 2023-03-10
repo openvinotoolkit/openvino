@@ -6,7 +6,11 @@ const events = {
   onLibInitializing: setStatus('OpenVINO initializing...'),
   onModelLoaging: setStatus('OpenVINO successfully initialized. Model loading...'),
   onInferenceRunning: setStatus('Inference is in the progress, please wait...'),
-  onFinish: setStatus('Open browser\'s console to see result'),
+  onFinish: outputTensor => {
+    console.log(outputTensor);
+
+    setStatus('Open browser\'s console to see result')();
+  },
 };
 
 const inferenceParametersMobilenetV3 = { 

@@ -1,4 +1,4 @@
-import { Session } from './node_modules/openvinojs/openvinojs.mjs';
+import { Session } from './node_modules/openvinojs/dist/index.mjs';
 
 import { default as imagenetClassesMap } from './assets/imagenet_classes_map.mjs';
 

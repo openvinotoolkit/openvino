@@ -5,7 +5,7 @@
   "main": "nodejs/index.js",
   "scripts": {
     "nodejs": "cd nodejs && node index.mjs",
-    "browser": "http-server -p8080 -c-1 ./browser/",
+    "browser": "http-server -p8081 -c-1 ./browser/",
     "postinstall": "./create_symlinks.sh"
   },
   "author": "vishniakov-nikolai",
