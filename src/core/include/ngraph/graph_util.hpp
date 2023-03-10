@@ -63,51 +63,7 @@ NodeVector find_common_args(std::shared_ptr<Node> target, std::shared_ptr<Node> 
 /// Topological sort of just nodes
 template <typename T>
 std::vector<std::shared_ptr<Node>> subgraph_topological_sort(T nodes) {
-    std::stack<Node*, std::vector<Node*>> nodes_to_do;
-    std::unordered_set<Node*> nodes_done;
-    std::unordered_set<Node*> nodes_to_emit;
-    std::vector<std::shared_ptr<Node>> result;
-
-    for (auto& node : nodes) {
-        nodes_to_emit.insert(node.get());
-        nodes_to_do.push(node.get());
-    }
-    // NB: Some centos versions implement std::list::size() by counting elements
-    size_t nodes_remaining = nodes_to_emit.size();
-    while (nodes_to_do.size() > 0 && nodes_remaining > 0) {
-        Node* node = nodes_to_do.top();
-        if (nodes_done.count(node) == 0) {
-            bool can_add = true;
-            size_t arg_count = node->get_input_size();
-            for (size_t i = 0; i < arg_count; ++i) {
-                Node* dep = node->get_input_node_ptr(arg_count - i - 1);
-                if (nodes_done.count(dep) == 0 && nodes_to_emit.count(node) != 0) {
-                    can_add = false;
-                    nodes_to_do.push(dep);
-                }
-            }
-            for (auto& depptr : node->get_control_dependencies()) {
-                Node* dep = depptr.get();
-                if (nodes_done.count(dep) == 0) {
-                    can_add = false;
-                    nodes_to_do.push(dep);
-                }
-            }
-            if (can_add) {
-                if (nodes_to_emit.count(node) != 0) {
-                    result.push_back(node->shared_from_this());
-                    nodes_remaining--;
-                }
-                nodes_to_do.pop();
-                nodes_done.insert(node);
-            }
-        }
-
-        else {
-            nodes_to_do.pop();
-        }
-    }
-    return result;
+    return topological_sort(nodes);
 }
 
 template <typename T>
