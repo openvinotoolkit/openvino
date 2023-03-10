@@ -9,8 +9,6 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
-            //TODO: Issue: 34748
-            R"(.*(ComparisonLayerTest).*)",
             // TODO: Issue: 39612
             R"(.*Interpolate.*cubic.*tf_half_pixel_for_nn.*FP16.*)",
             // TODO: Issue: 43794

@@ -1100,6 +1100,149 @@ TEST(eltwise_gpu_f32, logicalXOR_in2_float_out1_int) {
     }
 }
 
+TEST(eltwise_gpu_f32, isfinite_in1_float_out1_int) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {2, 2, 2, 2}});
+    set_values(input,
+               {
+                   1.f,
+                   2.5f,
+                   5.f,
+                   std::numeric_limits<float>::infinity(),
+                   2.f,
+                   0.f,
+                   6.f,
+                   -std::numeric_limits<float>::infinity(),
+                   3.f,
+                   0.5f,
+                   7.f,
+                   std::numeric_limits<float>::quiet_NaN(),
+                   4.f,
+                   0.f,
+                   8.f,
+                   -std::numeric_limits<float>::quiet_NaN(),
+               });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(eltwise("eltwise", {input_info("input")}, eltwise_mode::is_finite));
+
+    network network(engine, topology);
+    network.set_input_data("input", input);
+
+    const auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
+
+    const auto output = outputs.at("eltwise").get_memory();
+    const cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+
+    const std::vector<int8_t> answers = {1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0};
+    for (size_t i = 0; i < answers.size(); ++i) {
+        ASSERT_EQ(answers[i], output_ptr[i]);
+    }
+}
+
+TEST(eltwise_gpu_f32, isinf_in1_float_out1_int) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {2, 2, 2, 2}});
+    set_values(input,
+               {
+                   1.f,
+                   2.5f,
+                   5.f,
+                   std::numeric_limits<float>::infinity(),
+                   2.f,
+                   0.f,
+                   6.f,
+                   -std::numeric_limits<float>::infinity(),
+                   3.f,
+                   0.5f,
+                   7.f,
+                   std::numeric_limits<float>::quiet_NaN(),
+                   4.f,
+                   0.f,
+                   8.f,
+                   -std::numeric_limits<float>::quiet_NaN(),
+               });
+
+    const std::vector<std::pair<std::vector<float>, std::vector<int8_t>>> params = {
+        {{0.f, 0.f}, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+        {{0.f, 1.f}, {0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+        {{1.f, 0.f}, {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0}},
+        {{1.f, 1.f}, {0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0}},
+    };
+
+    for (const auto& param : params) {
+        const auto& coefficients = param.first;
+        const auto& answers = param.second;
+
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(eltwise("eltwise", {input_info("input")}, eltwise_mode::is_inf, coefficients, data_types::i8));
+
+        network network(engine, topology);
+        network.set_input_data("input", input);
+
+        const auto outputs = network.execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "eltwise");
+
+        const auto output = outputs.at("eltwise").get_memory();
+        const cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+
+        for (size_t i = 0; i < answers.size(); ++i) {
+            ASSERT_EQ(answers[i], output_ptr[i]);
+        }
+    }
+}
+
+TEST(eltwise_gpu_f32, isnan_in1_float_out1_int) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {2, 2, 2, 2}});
+    set_values(input,
+               {
+                   1.f,
+                   2.5f,
+                   5.f,
+                   std::numeric_limits<float>::infinity(),
+                   2.f,
+                   0.f,
+                   6.f,
+                   -std::numeric_limits<float>::infinity(),
+                   3.f,
+                   0.5f,
+                   7.f,
+                   std::numeric_limits<float>::quiet_NaN(),
+                   4.f,
+                   0.f,
+                   8.f,
+                   -std::numeric_limits<float>::quiet_NaN(),
+               });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(eltwise("eltwise", {input_info("input")}, eltwise_mode::is_nan));
+
+    network network(engine, topology);
+    network.set_input_data("input", input);
+
+    const auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
+
+    const auto output = outputs.at("eltwise").get_memory();
+    const cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+
+    const std::vector<int8_t> answers = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1};
+    for (size_t i = 0; i < answers.size(); ++i) {
+        ASSERT_EQ(answers[i], output_ptr[i]);
+    }
+}
+
 TEST(eltwise_gpu_f32, dynamic_kernel_no_broadcast) {
     auto& engine = get_test_engine();
 

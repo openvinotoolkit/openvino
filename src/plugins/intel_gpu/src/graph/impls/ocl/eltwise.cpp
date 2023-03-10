@@ -36,23 +36,27 @@ public:
 
         auto params = get_default_params<kernel_selector::eltwise_params>(impl_param, is_shape_agnostic);
         auto optional_params = get_default_optional_params<kernel_selector::eltwise_optional_params>(impl_param.get_program());
+        const auto mode = convert_to_eltwise_mode(primitive->mode);
 
         for (size_t i = 1; i < inputs_count; i++) {
             params.inputs.push_back(convert_data_tensor(impl_param.input_layouts[i]));
         }
 
-        params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0), kernel_selector::eltwise_params::InputType::Buffer(1)},
-                                     convert_to_eltwise_mode(primitive->mode)});
+        if (inputs_count == 1) {
+            params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0)}, mode});
+        } else {
+            params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0),
+                                          kernel_selector::eltwise_params::InputType::Buffer(1)},
+                                         mode});
+        }
 
         for (uint32_t i = 2; i < static_cast<uint32_t>(inputs_count); i++) {
             params.operations.push_back({{kernel_selector::eltwise_params::InputType::Intermediate(i - 2),
                                           kernel_selector::eltwise_params::InputType::Buffer(i)},
-                                          convert_to_eltwise_mode(primitive->mode)});
+                                         mode});
         }
 
-        if (primitive->mode == eltwise_mode::sum) {
-            params.coefficients = primitive->coefficients;
-        }
+        params.coefficients = primitive->coefficients;
 
         // WA to always match compiled dynamic kernel with dispatch data
         // W/O enforcing this option we may generate kernel for "broadcast" scneario due to umatched tensor dimensions
