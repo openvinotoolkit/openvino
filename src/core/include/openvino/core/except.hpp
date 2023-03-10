@@ -149,7 +149,6 @@ public:
 /// \throws ::ov::AssertFailure if the macro is executed.
 // TODO: throw ov::Exception after migration to functions
 #define OPENVINO_THROW(...)                         OPENVINO_ASSERT(false, __VA_ARGS__)
-#define OPENVINO_UNREACHABLE(...)                   OPENVINO_ASSERT(false, "Unreachable: ", __VA_ARGS__)
 #define OPENVINO_ASSERT_HELPER(exc_class, ctx, ...) CALL_OVERLOAD(OPENVINO_ASSERT_HELPER, exc_class, ctx, __VA_ARGS__)
 #define OPENVINO_NOT_IMPLEMENTED                    OPENVINO_ASSERT_HELPER(::ov::NotImplemented, "", false, "Not Implemented", "")
 

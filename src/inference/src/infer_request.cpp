@@ -25,7 +25,7 @@
     } catch (const std::exception& ex) {                                    \
         OPENVINO_THROW(ex.what());                                          \
     } catch (...) {                                                         \
-        OPENVINO_UNREACHABLE("Unexpected exception");                       \
+        OPENVINO_THROW("Unexpected exception");                             \
     }
 
 namespace {
@@ -238,7 +238,7 @@ void InferRequest::wait() {
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
-        OPENVINO_UNREACHABLE("Unexpected exception");
+        OPENVINO_THROW("Unexpected exception");
     }
 }
 
@@ -251,7 +251,7 @@ bool InferRequest::wait_for(const std::chrono::milliseconds timeout) {
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
-        OPENVINO_UNREACHABLE("Unexpected exception");
+        OPENVINO_THROW("Unexpected exception");
     }
 }
 

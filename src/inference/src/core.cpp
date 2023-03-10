@@ -93,13 +93,13 @@ std::string findPluginXML(const std::string& xmlFile) {
 
 #endif  // OPENVINO_STATIC_LIBRARY
 
-#define OV_CORE_CALL_STATEMENT(...)                   \
-    try {                                             \
-        __VA_ARGS__;                                  \
-    } catch (const std::exception& ex) {              \
-        OPENVINO_THROW(ex.what());                    \
-    } catch (...) {                                   \
-        OPENVINO_UNREACHABLE("Unexpected exception"); \
+#define OV_CORE_CALL_STATEMENT(...)             \
+    try {                                       \
+        __VA_ARGS__;                            \
+    } catch (const std::exception& ex) {        \
+        OPENVINO_THROW(ex.what());              \
+    } catch (...) {                             \
+        OPENVINO_THROW("Unexpected exception"); \
     }
 
 class Core::Impl : public CoreImpl {

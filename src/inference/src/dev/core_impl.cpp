@@ -639,9 +639,7 @@ ov::Any ov::CoreImpl::get_property_for_core(const std::string& name) const {
         return decltype(ov::hint::allow_auto_batching)::value_type(flag);
     }
 
-    OPENVINO_UNREACHABLE("Exception is thrown while trying to call get_property with unsupported property: '",
-                         name,
-                         "'");
+    OPENVINO_THROW("Exception is thrown while trying to call get_property with unsupported property: '", name, "'");
 }
 
 ov::Any ov::CoreImpl::get_property(const std::string& device_name,

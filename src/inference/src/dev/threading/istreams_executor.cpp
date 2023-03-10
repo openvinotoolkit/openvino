@@ -69,7 +69,7 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
                 _threadBindingType = ThreadBindingType::HYBRID_AWARE;
                 break;
             default:
-                OPENVINO_UNREACHABLE("Unsupported affinity type");
+                OPENVINO_THROW("Unsupported affinity type");
             }
         } else if (key == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
             if (value.as<std::string>() == CONFIG_VALUE(CPU_THROUGHPUT_NUMA)) {
@@ -205,7 +205,7 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
             } else if (value.as<std::string>() == CONFIG_VALUE(NO)) {
                 _enable_hyper_thread = false;
             } else {
-                OPENVINO_UNREACHABLE("Unsupported enable hyper thread type");
+                OPENVINO_THROW("Unsupported enable hyper thread type");
             }
         } else {
             IE_THROW() << "Wrong value for property key " << key;

@@ -24,7 +24,7 @@
     } catch (const std::exception& ex) {                                     \
         OPENVINO_THROW(ex.what());                                           \
     } catch (...) {                                                          \
-        OPENVINO_UNREACHABLE("Unexpected exception");                        \
+        OPENVINO_THROW("Unexpected exception");                              \
     }
 
 namespace InferenceEngine {
