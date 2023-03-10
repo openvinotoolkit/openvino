@@ -119,6 +119,9 @@ The bounds are coded as arguments for the `ov::Dimension`:
 
 @endsphinxtabset
 
+
+@sphinxdirective
+
 Information about bounds gives an opportunity for the inference plugin to apply additional optimizations.
 Using dynamic shapes assumes the plugins apply more flexible optimization approach during model compilation.
 It may require more time/memory for model compilation and inference.
@@ -127,9 +130,13 @@ For the same reason, it is not recommended to leave dimensions as undefined, wit
 
 When specifying bounds, the lower bound is not as important as the upper one. The upper bound allows inference devices to allocate memory for intermediate tensors more precisely. It also allows using a fewer number of tuned kernels for different sizes.
 More precisely, benefits of specifying the lower or upper bound is device dependent.
-Depending on the plugin, specifying the upper bounds can be required. For information about dynamic shapes support on different devices, refer to the [Features Support Matrix](@ref features_support_matrix).
+Depending on the plugin, specifying the upper bounds can be required. For information about dynamic shapes support on different devices, refer to the :ref:`feature support table <devicesupport-feature-support-matrix>`.
 
 If the lower and upper bounds for a dimension are known, it is recommended to specify them, even if a plugin can execute a model without the bounds.
+
+@endsphinxdirective
+
+
 
 ### Setting Input Tensors
 

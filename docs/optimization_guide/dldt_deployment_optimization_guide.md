@@ -23,12 +23,23 @@ Therefore, optimization should start with defining the use case. For example, if
 
 It is also important to understand how the full-stack application would use the inference component "end-to-end." For example, to know what stages need to be orchestrated to save workload devoted to fetching and preparing input data.
 
+
+
+
 For more information on this topic, see the following articles:
-* [feature support by device](@ref features_support_matrix)
+
+@sphinxdirective
+* :ref:`feature support by device <devicesupport-feature-support-matrix>`
+@endsphinxdirective
+
+
 * [Inputs Pre-processing with the OpenVINO](@ref inputs_pre_processing)
 * [Async API](@ref async_api)
 * [The 'get_tensor' Idiom](@ref tensor_idiom)
 * For variably-sized inputs, consider [dynamic shapes](../OV_Runtime_UG/ov_dynamic_shapes.md)
+
+
+
 
 See the [latency](./dldt_deployment_optimization_latency.md) and [throughput](./dldt_deployment_optimization_tput.md) optimization guides, for **use-case-specific optimizations**
 
