@@ -655,7 +655,7 @@ void regclass_InferRequest(py::module m) {
                                   return self.m_inputs;
                               },
                               R"(
-                                Gets all inputs of a compiled model which was used to create this InferRequest.
+                                Gets all inputs of a CompiledModel which was used to create this InferRequest.
                                 
                                 :rtype: List[openvino.runtime.ConstOutput]
                               )");
@@ -665,7 +665,7 @@ void regclass_InferRequest(py::module m) {
                                   return self.m_outputs;
                               },
                               R"(
-                                Gets all outputs of a compiled model which was used to create this InferRequest.
+                                Gets all outputs of a CompiledModel which was used to create this InferRequest.
                                 
                                 :rtype: List[openvino.runtime.ConstOutput]
                               )");

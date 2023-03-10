@@ -7,8 +7,8 @@ import pytest
 import numpy as np
 
 from tests.conftest import model_path
-from tests.test_utils.test_utils import get_relu_model, generate_image, generate_model_and_image, generate_relu_compiled_model
-from openvino.runtime import Model, ConstOutput, Type, Shape, Core, Tensor
+from tests.test_utils.test_utils import generate_relu_compiled_model
+from openvino.runtime import Type, Shape, Tensor
 from openvino.runtime.utils.data_helpers import _data_dispatch
 
 is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
@@ -117,8 +117,8 @@ def test_ndarray_copied_dispatcher(device, input_shape):
     result, infer_request = _run_dispatcher(device, test_data, input_shape, False)
 
     assert result == {}
-    assert np.array_equal(infer_request.inputs[0].data, test_data)
+    assert np.array_equal(infer_request.input_tensors[0].data, test_data)
 
     test_data[0] = 2.0
 
-    assert not np.array_equal(infer_request.inputs[0].data, test_data)
+    assert not np.array_equal(infer_request.input_tensors[0].data, test_data)

@@ -100,7 +100,6 @@ def test_get_profiling_info(device):
     tensor_name = compiled_model.input("data").any_name
     request.infer({tensor_name: img})
     assert request.latency > 0
-    assert request.get_latency() > 0
     prof_info = request.get_profiling_info()
     soft_max_node = next(node for node in prof_info if node.node_name == "fc_out")
     assert "Softmax" in soft_max_node.node_type
@@ -199,28 +198,12 @@ def test_set_tensors(device):
     t7 = request.get_tensor(request.model_inputs[0])
     assert np.allclose(tensor1.data, t7.data, atol=1e-2, rtol=1e-2)
 
-    request.set_input_tensor(tensor3)
-    t6 = request.get_tensor(request.get_model_inputs()[0])
-    assert np.allclose(tensor3.data, t6.data, atol=1e-2, rtol=1e-2)
-
-    request.set_input_tensor(0, tensor1)
-    t7 = request.get_tensor(request.get_model_inputs()[0])
-    assert np.allclose(tensor1.data, t7.data, atol=1e-2, rtol=1e-2)
-
     request.set_output_tensor(tensor2)
     t8 = request.get_tensor(request.model_outputs[0])
     assert np.allclose(tensor2.data, t8.data, atol=1e-2, rtol=1e-2)
 
     request.set_output_tensor(0, tensor4)
     t9 = request.get_tensor(request.model_outputs[0])
-    assert np.allclose(tensor4.data, t9.data, atol=1e-2, rtol=1e-2)
-
-    request.set_output_tensor(tensor2)
-    t8 = request.get_tensor(request.get_model_outputs()[0])
-    assert np.allclose(tensor2.data, t8.data, atol=1e-2, rtol=1e-2)
-
-    request.set_output_tensor(0, tensor4)
-    t9 = request.get_tensor(request.get_model_outputs()[0])
     assert np.allclose(tensor4.data, t9.data, atol=1e-2, rtol=1e-2)
 
 
@@ -294,21 +277,13 @@ def test_inputs_outputs_property_and_method(device):
     request = compiled_model.create_infer_request()
     data = [np.atleast_1d(i) for i in range(num_inputs)]
     results = request.infer(data).values()
-    for result, output_tensor in zip(results, request.outputs):
+    for result, output_tensor in zip(results, request.output_tensors):
         assert np.array_equal(result, output_tensor.data)
-    for result, output_tensor in zip(results, request.get_outputs()):
-        assert np.array_equal(result, output_tensor.data)
-    for input_data, input_tensor in zip(data, request.inputs):
-        assert np.array_equal(input_data, input_tensor.data)
-    for input_data, input_tensor in zip(data, request.get_inputs()):
+    for input_data, input_tensor in zip(data, request.input_tensors):
         assert np.array_equal(input_data, input_tensor.data)
     for input_tensor in request.input_tensors:
         assert list(input_tensor.get_shape()) == input_shape
-    for input_tensor in request.get_input_tensors():
-        assert list(input_tensor.get_shape()) == input_shape
     for output_tensor in request.output_tensors:
-        assert list(output_tensor.get_shape()) == input_shape
-    for output_tensor in request.get_output_tensors():
         assert list(output_tensor.get_shape()) == input_shape
 
 
@@ -356,7 +331,6 @@ def test_start_async(device, shared_flag):
     for request in requests:
         request.wait()
         assert request.latency > 0
-        assert request.get_latency() > 0
     assert callbacks_info["finished"] == jobs
 
 
@@ -425,7 +399,7 @@ def test_infer_mixed_values(device, ov_type, numpy_dtype, shared_flag):
 
     request.infer([tensor1, array1], shared_memory=shared_flag)
 
-    assert np.array_equal(request.outputs[0].data, np.concatenate((tensor1.data, array1)))
+    assert np.array_equal(request.output_tensors[0].data, np.concatenate((tensor1.data, array1)))
 
 
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
@@ -449,8 +423,7 @@ def test_async_mixed_values(device, ov_type, numpy_dtype, shared_flag):
 
     request.start_async([tensor1, array1], shared_memory=shared_flag)
     request.wait()
-
-    assert np.array_equal(request.outputs[0].data, np.concatenate((tensor1.data, array1)))
+    assert np.array_equal(request.output_tensors[0].data, np.concatenate((tensor1.data, array1)))
 
 
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
@@ -542,7 +515,6 @@ def test_infer_queue_iteration(device):
     it = iter(infer_queue)
     infer_request = next(it)
     assert isinstance(infer_request, InferRequest)
-    assert infer_request.get_userdata() is None
     assert infer_request.userdata is None
     with pytest.raises(StopIteration):
         next(it)
@@ -555,7 +527,6 @@ def test_infer_queue_userdata_is_empty(device):
     compiled_model = core.compile_model(model, device)
     infer_queue = AsyncInferQueue(compiled_model, 1)
     assert infer_queue.userdata == [None]
-    assert infer_queue.get_userdata() == [None]
 
 
 def test_infer_queue_userdata_is_empty_more_jobs(device):
@@ -565,7 +536,6 @@ def test_infer_queue_userdata_is_empty_more_jobs(device):
     compiled_model = core.compile_model(model, device)
     infer_queue = AsyncInferQueue(compiled_model, 5)
     assert infer_queue.userdata == [None, None, None, None, None]
-    assert infer_queue.get_userdata() == [None, None, None, None, None]
 
 
 def test_infer_queue_fail_on_cpp_model(device):
@@ -728,7 +698,6 @@ def test_get_results(device, shared_flag):
     results = request.infer(inputs, shared_memory=shared_flag)
     for output in compiled_model.outputs:
         assert np.array_equal(results[output], request.results[output])
-        assert np.array_equal(results[output], request.get_results()[output])
 
 
 @pytest.mark.parametrize("shared_flag", [True, False])
