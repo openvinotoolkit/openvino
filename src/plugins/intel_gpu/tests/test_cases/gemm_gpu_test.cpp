@@ -1366,9 +1366,6 @@ struct gemm_onednn_test_params {
 template <typename T>
 class GemmOneDNNTest : public ::testing::TestWithParam<T> {
 public:
-    static const int min_random = -200;
-    static const int max_random = 200;
-
     cldnn::engine& engine = get_test_engine();
     topology topology_ocl;
     topology topology_onednn;
@@ -1388,15 +1385,15 @@ public:
     }
 
     void execute(T& p) {
-        auto input0_prim = get_mem(get_input_layout(p, 0));
-        auto input1_prim = get_mem(get_input_layout(p, 1));
+        auto input0_prim = get_generated_random_1d_mem(engine, get_input_layout(p, 0));
+        auto input1_prim = get_generated_random_1d_mem(engine, get_input_layout(p, 1));
 
         network network_ocl(engine, topology_ocl, config_ocl);
         network network_onednn(engine, topology_onednn, config_onednn);
 
         network_ocl.set_input_data("input0", input0_prim);
-        network_ocl.set_input_data("input1", input0_prim);
-        network_onednn.set_input_data("input0", input1_prim);
+        network_ocl.set_input_data("input1", input1_prim);
+        network_onednn.set_input_data("input0", input0_prim);
         network_onednn.set_input_data("input1", input1_prim);
 
         compare(network_ocl, network_onednn, p);
@@ -1433,26 +1430,6 @@ public:
         else
             return layout{ p.data_type_in2, p.input_format, p.in_shapes.at(2), padding{ pad_ } };
     }
-
-    cldnn::memory::ptr get_mem(cldnn::layout l) {
-        auto prim = engine.allocate_memory(l);
-        tensor s = l.get_tensor();
-        if (l.data_type == data_types::bin) {
-            VF<int32_t> rnd_vec = generate_random_1d<int32_t>(s.count() / 32, min_random, max_random);
-            set_values(prim, rnd_vec);
-        } else if (l.data_type == data_types::i8 || l.data_type == data_types::u8) {
-            VF<uint8_t> rnd_vec = generate_random_1d<uint8_t>(s.count(), min_random, max_random);
-            set_values(prim, rnd_vec);
-        } else if (l.data_type == data_types::f16) {
-            VF<uint16_t> rnd_vec = generate_random_1d<uint16_t>(s.count(), -1, 1);
-            set_values(prim, rnd_vec);
-        } else {
-            VF<float> rnd_vec = generate_random_1d<float>(s.count(), -1, 1);
-            set_values(prim, rnd_vec);
-        }
-
-        return prim;
-    }
 };
 
 class gemm_onednn_ndims : public GemmOneDNNTest<gemm_onednn_test_params> {};
@@ -1488,13 +1465,22 @@ TEST_P(gemm_onednn_ndims, basic) {
 data_types::f16, data_types::f16, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 #define CASE_GEMM_ONEDNN_FP16_5D { { 1, 3, 4, 4, 4 }, { 1, 3, 4, 4, 4 } }, { 1, 3, 4, 4, 4 }, tensor{ 1 }, tensor{ 0 }, \
 data_types::f16, data_types::f16, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
-#define CASE_GEMM_ONEDNN_FP16_6D { { 2, 3, 5, 5, 3, 2 }, { 2, 3, 5, 5, 3, 2 } }, { 2, 3, 5, 5, 3, 2 }, tensor{ 1 }, tensor{ 0 }, \
+#define CASE_GEMM_ONEDNN_FP16_6D { { 2, 3, 5, 4, 3, 2 }, { 2, 3, 4, 5, 3, 2 } }, { 2, 3, 5, 5, 3, 2 }, tensor{ 1 }, tensor{ 0 }, \
 data_types::f16, data_types::f16, data_types::f16, format::bfwzyx, data_types::f16, format::bfwzyx
+#define CASE_GEMM_ONEDNN_I8_4D { { 2, 3, 2, 2 }, { 2, 3, 2, 2 } }, { 2, 3, 2, 2 }, tensor{ 1 }, tensor{ 0 }, \
+data_types::i8, data_types::i8, data_types::i8, format::bfyx, data_types::i8, format::bfyx
+#define CASE_GEMM_ONEDNN_I8_5D { { 1, 3, 4, 4, 4 }, { 1, 3, 4, 4, 4 } }, { 1, 3, 4, 4, 4 }, tensor{ 1 }, tensor{ 0 }, \
+data_types::i8, data_types::i8, data_types::i8, format::bfzyx, data_types::i8, format::bfzyx
+#define CASE_GEMM_ONEDNN_I8_6D { { 2, 3, 5, 4, 3, 2 }, { 2, 3, 4, 5, 3, 2 } }, { 2, 3, 5, 5, 3, 2 }, tensor{ 1 }, tensor{ 0 }, \
+data_types::i8, data_types::i8, data_types::i8, format::bfwzyx, data_types::i8, format::bfwzyx
 
 INSTANTIATE_TEST_SUITE_P(gemm_gpu, gemm_onednn_ndims, ::testing::ValuesIn(std::vector<gemm_onednn_test_params>{
     gemm_onednn_test_params{ CASE_GEMM_ONEDNN_FP16_4D },
     gemm_onednn_test_params{ CASE_GEMM_ONEDNN_FP16_5D },
     gemm_onednn_test_params{ CASE_GEMM_ONEDNN_FP16_6D },
+    gemm_onednn_test_params{ CASE_GEMM_ONEDNN_I8_4D },
+    gemm_onednn_test_params{ CASE_GEMM_ONEDNN_I8_5D },
+    gemm_onednn_test_params{ CASE_GEMM_ONEDNN_I8_6D },
 }));
 
 class gemm_int8_simple_tests_onednn : public ::GemmBaseTest<gemm_base_test_params, int8_t, int8_t, float, float, int32_t> {};
