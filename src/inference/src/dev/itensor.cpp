@@ -74,20 +74,21 @@ public:
     }
 
     const Strides& get_strides() const override {
+        OPENVINO_ASSERT(m_element_type.bitwidth() >= 8,
+                        "Could not get strides for types with bitwidths less then 8 bit. Tensor type: ",
+                        m_element_type);
         return m_strides;
     }
 
 protected:
     void update_strides() {
-        auto element_type = get_element_type();
-        OPENVINO_ASSERT(element_type.bitwidth() >= 8,
-                        "Could not get strides for types with bitwidths less then 8 bit. Tensor type: ",
-                        element_type);
+        if (m_element_type.bitwidth() < 8)
+            return;
         auto& shape = get_shape();
         Strides strides;
         if (!shape.empty()) {
             strides.resize(shape.size());
-            strides.back() = element_type.size();
+            strides.back() = m_element_type.size();
             std::copy(shape.rbegin(), shape.rend() - 1, strides.rbegin() + 1);
             std::partial_sum(strides.rbegin(), strides.rend(), strides.rbegin(), std::multiplies<size_t>());
         }
