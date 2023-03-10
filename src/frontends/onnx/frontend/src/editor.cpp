@@ -433,7 +433,7 @@ PartialShape onnx_editor::ONNXModelEditor::get_tensor_shape(const std::string& t
     } else if (tensor) {
         return PartialShape{Shape{tensor->dims().cbegin(), tensor->dims().cend()}};
     } else {
-        OPENVINO_UNREACHABLE("The tensor: ", tensor_name, " was not found in the graph");
+        OPENVINO_THROW("The tensor: ", tensor_name, " was not found in the graph");
     }
 }
 

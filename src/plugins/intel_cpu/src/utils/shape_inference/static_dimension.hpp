@@ -36,7 +36,7 @@ public:
     StaticDimension() = default;
 
     StaticDimension(const Dimension &) {
-        OPENVINO_UNREACHABLE("[shape infer] Shoudn't convert from Dimension to StaticDimension.");
+        OPENVINO_THROW("[shape infer] Shoudn't convert from Dimension to StaticDimension.");
     }
 
     bool operator==(const StaticDimension& dimension) const;
@@ -51,7 +51,7 @@ public:
 
     Interval& get_interval() const {
         static Interval dummy{};
-        OPENVINO_UNREACHABLE("[shape infer] Shoudn't call get_interval() in StaticDimension.");
+        OPENVINO_THROW("[shape infer] Shoudn't call get_interval() in StaticDimension.");
         return dummy;
     }
 

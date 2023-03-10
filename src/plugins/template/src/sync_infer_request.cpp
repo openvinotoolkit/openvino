@@ -198,7 +198,7 @@ void ov::template_plugin::InferRequest::set_tensors_impl(const ov::Output<const 
             return;
         }
     }
-    OPENVINO_UNREACHABLE("Cannot find input tensors for port ", port);
+    OPENVINO_THROW("Cannot find input tensors for port ", port);
 }
 // ! [infer_request:set_blobs_impl]
 

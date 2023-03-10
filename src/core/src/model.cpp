@@ -685,7 +685,7 @@ ov::Output<const ov::Node> ov::Model::output(const std::string& tensor_name) con
             return result;
         }
     }
-    OPENVINO_UNREACHABLE("Output for tensor name '", tensor_name, "' is not found.");
+    OPENVINO_THROW("Output for tensor name '", tensor_name, "' is not found.");
 }
 
 std::vector<ov::Output<ov::Node>> ov::Model::outputs() {
@@ -707,7 +707,7 @@ ov::Output<ov::Node> ov::Model::output(const std::string& tensor_name) {
         if (res->get_input_tensor(0).get_names().count(tensor_name))
             return res;
     }
-    OPENVINO_UNREACHABLE("Output for tensor name '", tensor_name, "' is not found.");
+    OPENVINO_THROW("Output for tensor name '", tensor_name, "' is not found.");
 }
 
 /// Input Model
@@ -736,7 +736,7 @@ ov::Output<const ov::Node> ov::Model::input(const std::string& tensor_name) cons
             return parameter;
         }
     }
-    OPENVINO_UNREACHABLE("Input for tensor name '", tensor_name, "' is not found.");
+    OPENVINO_THROW("Input for tensor name '", tensor_name, "' is not found.");
 }
 
 std::vector<ov::Output<ov::Node>> ov::Model::inputs() {
@@ -759,7 +759,7 @@ ov::Output<ov::Node> ov::Model::input(const std::string& tensor_name) {
         if (param->get_output_tensor(0).get_names().count(tensor_name))
             return param;
     }
-    OPENVINO_UNREACHABLE("Input for tensor name '", tensor_name, "' is not found.");
+    OPENVINO_THROW("Input for tensor name '", tensor_name, "' is not found.");
 }
 
 void ov::Model::reshape(const ov::PartialShape& partial_shape) {
@@ -993,7 +993,7 @@ const ov::AnyMap& ov::Model::get_map_from_attr(const ov::Any& info) const {
         std::shared_ptr<ov::Meta> meta = info.as<std::shared_ptr<ov::Meta>>();
         return *info.as<std::shared_ptr<ov::Meta>>();
     }
-    OPENVINO_UNREACHABLE("Cannot get runtime attribute. Path to runtime attribute is incorrect.");
+    OPENVINO_THROW("Cannot get runtime attribute. Path to runtime attribute is incorrect.");
 }
 
 ov::AnyMap& ov::Model::get_map_from_attr(ov::Any& info) const {
@@ -1009,7 +1009,7 @@ ov::AnyMap& ov::Model::get_map_from_attr(ov::Any& info) const {
         std::shared_ptr<ov::Meta> meta = info.as<std::shared_ptr<ov::Meta>>();
         return *info.as<std::shared_ptr<ov::Meta>>();
     }
-    OPENVINO_UNREACHABLE("Cannot get runtime attribute. Path to runtime attribute is incorrect.");
+    OPENVINO_THROW("Cannot get runtime attribute. Path to runtime attribute is incorrect.");
 }
 
 const ov::Any& ov::Model::get_attr(const ov::Any& info) const {

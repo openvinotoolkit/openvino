@@ -36,7 +36,7 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
             std::stringstream strm{value.as<std::string>()};
             strm >> performance_mode;
         } else if (throwOnUnsupported) {
-            OPENVINO_UNREACHABLE("Property was not found: ", key);
+            OPENVINO_THROW("Property was not found: ", key);
         }
     }
 }
@@ -62,6 +62,6 @@ ov::Any Configuration::Get(const std::string& name) const {
     } else if (name == ov::hint::performance_mode) {
         return performance_mode;
     } else {
-        OPENVINO_UNREACHABLE("Property was not found: ", name);
+        OPENVINO_THROW("Property was not found: ", name);
     }
 }
