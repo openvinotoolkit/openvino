@@ -239,6 +239,8 @@ static format to_weights_format(format f, bool is_grouped) {
             return format::o_is_yx_isv16;
         case format::bs_xs_xsv8_bsv8:
             return format::os_i_osv8__ai8;
+        case format::b_fs_yx_32fp:
+            return format::os_is_yx_osv32_isv32p;
         default:
             throw std::invalid_argument("Unable to convert data format " + f.to_string() + " to weights format");
     }

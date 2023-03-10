@@ -746,7 +746,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         }
     };
 
-    const auto reorder_input_binary_convolution = [&p, &rf](typed_program_node<binary_convolution>& binary_conv_node) {
+    const auto reorder_input_and_weights_binary_convolution = [&p, &rf](typed_program_node<binary_convolution>& binary_conv_node) {
         auto& input = binary_conv_node.input();
         auto input_layout = input.get_output_layout();
         auto new_layout = input_layout;
@@ -756,6 +756,17 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
 
         if (reorder.first) {
             p.add_intermediate(reorder.first, binary_conv_node, 0, !reorder.second);
+        }
+
+        auto& weights = binary_conv_node.weights();
+        auto weights_layout = weights.get_output_layout();
+        if (!weights.is_type<data>() && !weights.is_constant()) {
+            auto new_layout = layout{ weights_layout.get_partial_shape(), data_types::bin, format::b_fs_yx_32fp };
+            auto reorder = rf.get_reorder(weights.id(), weights_layout, new_layout);
+            if (reorder.first) {
+                p.add_intermediate(reorder.first, binary_conv_node, 1, !reorder.second);
+                p.get_or_create(reorder.first).recalc_output_layouts(false);
+            }
         }
     };
 
@@ -924,7 +935,7 @@ void reorder_inputs::run(program& p, layout_optimizer& lo, reorder_factory& rf) 
         program_helpers::do_for_types<detection_output, binary_convolution, deconvolution, convolution, fully_connected, pooling>(
             *prim,
             reorder_input_detection_output,
-            reorder_input_binary_convolution,
+            reorder_input_and_weights_binary_convolution,
             reorder_input_and_weights_deconvolution,
             reorder_convolution,
             reorder_input_fully_connected,
