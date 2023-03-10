@@ -5,7 +5,6 @@
 #pragma once
 #include "openvino/core/any.hpp"
 #include "openvino/frontend/node_context.hpp"
-#include "openvino/frontend/paddle/visibility.hpp"
 
 namespace ov {
 namespace frontend {
@@ -16,7 +15,7 @@ using TensorName = std::string;
 using NamedOutputs = std::map<OutPortName, OutputVector>;
 using NamedInputs = std::map<InPortName, OutputVector>;
 
-class PADDLE_API DecoderBase {
+class DecoderBase {
 public:
     /// \brief Get attribute value by name and requested type
     ///

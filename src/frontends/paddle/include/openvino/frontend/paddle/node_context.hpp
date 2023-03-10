@@ -6,7 +6,6 @@
 #include "openvino/core/any.hpp"
 #include "openvino/frontend/paddle/decoder.hpp"
 #include "openvino/frontend/paddle/exception.hpp"
-#include "openvino/frontend/paddle/visibility.hpp"
 
 namespace ov {
 namespace frontend {
@@ -19,7 +18,7 @@ using NamedInputs = std::map<InPortName, OutputVector>;
 
 /// Keep necessary data for a single node in the original FW graph to facilitate
 /// conversion process in the rules code.
-class PADDLE_API NodeContext : public ov::frontend::NodeContext {
+class NodeContext : public ov::frontend::NodeContext {
 public:
     using Ptr = std::shared_ptr<NodeContext>;
     NodeContext(const std::shared_ptr<DecoderBase>& _decoder, const NamedInputs& _name_map)
