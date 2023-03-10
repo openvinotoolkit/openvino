@@ -70,7 +70,7 @@ Step 3. Set Up and Update PIP to the Highest Version
 
 Use the following command:
 
-.. code-block: sh
+.. code-block:: sh
 
    python -m pip install --upgrade pip
 
@@ -80,7 +80,7 @@ Step 4. Install the Package
 
 Use the following command:
 
-.. code-block: sh
+.. code-block:: sh
 
    pip install openvino
 
@@ -90,7 +90,7 @@ Step 5. Verify that the Package Is Installed
 
 Run the command below:
 
-.. code-block: sh
+.. code-block:: sh
 
    python -c "from openvino.runtime import Core"
 
