@@ -618,7 +618,7 @@ TEST(TransformationTests, CheckTensorNamesAfterUnrolling) {
     collect_legacy_tensor_names(f, names_after);
 
     EXPECT_NE(names_before, names_after);
-    EXPECT_EQ(names_after.size(), 2);
-    EXPECT_EQ(names_after[0], "TensorIterator.0");
-    EXPECT_EQ(names_after[1], "TensorIterator.1");
+    ASSERT_EQ(names_after.size(), 2);
+    EXPECT_EQ(names_after[1], "TensorIterator.0");
+    EXPECT_EQ(names_after[0], "TensorIterator.1");
 }
