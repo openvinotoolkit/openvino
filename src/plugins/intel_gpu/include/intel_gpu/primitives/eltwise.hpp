@@ -47,7 +47,13 @@ enum class eltwise_mode : int32_t {
     /// @brief Eltwise XOR.
     logic_xor,
     /// @brief Eltwise floormod.
-    floor_mod
+    floor_mod,
+    /// @brief Eltwise is finite.
+    is_finite,
+    /// @brief Eltwise is infinite.
+    is_inf,
+    /// @brief Eltwise is nan.
+    is_nan,
 };
 
 /// @brief Performs elementwise operations (sum, subtract, max or product) on two input primitives
@@ -136,32 +142,29 @@ struct eltwise : public primitive_base<eltwise> {
     /// @param id This primitive id.
     /// @param inputs Input primitives ids.
     /// @param mode Eltwise mode.
-    /// @param coefficients Blob-wise coefficient for SUM operation
+    /// @param coefficients Blob-wise coefficient.
     /// @param data_type Expected output data type.
     /// @param spec Auto broadcast rule specificiation.
     eltwise(const primitive_id& id,
             const std::vector<input_info>& inputs,
             eltwise_mode mode,
-            const std::vector<float>& coefficients,
+            std::vector<float> coeffs,
             data_types data_type,
             const ov::op::AutoBroadcastSpec& spec = ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::NUMPY),
             const padding& output_padding = padding())
         : primitive_base(id, inputs, {output_padding}, {optional_data_type{data_type}}),
           mode(mode),
-          coefficients(coefficients),
+          coefficients(std::move(coeffs)),
           stride(std::vector<tensor>(0)),
           broadcast_spec(spec.m_type, spec.m_axis) {
         if (mode == eltwise_mode::sum && !coefficients.empty() && coefficients.size() != inputs.size()) {
             throw std::invalid_argument("Invalid eltwise sum coefficients count (should be equal to 0 or input.size)");
         }
-        if (mode != eltwise_mode::sum && !coefficients.empty()) {
-            throw std::invalid_argument("Only eltwise sum operation supports blob-wise coefficients");
-        }
     }
 
     /// @param mode Eltwise mode.
     eltwise_mode mode;
-    /// @param coefficients Blob-wise coefficient for SUM operation.
+    /// @param coefficients Blob-wise coefficient.
     std::vector<float> coefficients;
     /// @brief Defines shift in input buffers between adjacent calculations of output values.
     std::vector<tensor> stride;

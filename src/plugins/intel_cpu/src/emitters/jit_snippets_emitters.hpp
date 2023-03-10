@@ -83,8 +83,9 @@ public:
                    const std::vector<size_t> &out) const;
 
 private:
+    using jit_emitter::emit_code;
     void validate_arguments(const std::vector<size_t> &in,
-                            const std::vector<size_t> &out) const;
+                            const std::vector<size_t> &out) const override;
     void emit_impl(const std::vector<size_t>& in,
                    const std::vector<size_t>& out) const override;
     void init_data_pointers(size_t, size_t, bool, const Reg64&, const Reg64&, const std::vector<Reg64>&) const;
@@ -117,8 +118,9 @@ public:
     size_t get_inputs_num() const override {return 0;}
 
 private:
+    using jit_emitter::emit_code;
     void validate_arguments(const std::vector<size_t> &in,
-                            const std::vector<size_t> &out) const;
+                            const std::vector<size_t> &out) const override;
     void emit_impl(const std::vector<size_t>& in,
                    const std::vector<size_t>& out) const override;
 
@@ -137,8 +139,9 @@ public:
     size_t get_inputs_num() const override {return 0;}
 
 private:
+    using jit_emitter::emit_code;
     void validate_arguments(const std::vector<size_t> &in,
-                            const std::vector<size_t> &out) const;
+                            const std::vector<size_t> &out) const override;
 
     void emit_impl(const std::vector<size_t>& in,
                    const std::vector<size_t>& out) const override;
