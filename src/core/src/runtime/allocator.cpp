@@ -16,7 +16,9 @@ struct DefaultAllocator {
         if (alignment == alignof(max_align_t)) {
             return ::operator new(bytes);
         } else {
-            OPENVINO_ASSERT((alignment % 2) == 0, "Alignment is not power of 2: ", alignment);
+            OPENVINO_ASSERT(alignment && !static_cast<bool>(alignment & (alignment - static_cast<size_t>(1))),
+                            "Alignment is not power of 2: ",
+                            alignment);
 #if defined(_WIN32)
             return _aligned_malloc(bytes, alignment);
 #else

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <openvino/runtime/common.hpp>
 
 #include "openvino/core/coordinate.hpp"
 #include "openvino/core/core_visibility.hpp"
@@ -20,24 +21,24 @@ class Blob;
 
 namespace ov {
 
-class ITensor : public std::enable_shared_from_this<ITensor> {
+class OPENVINO_RUNTIME_API ITensor : public std::enable_shared_from_this<ITensor> {
 public:
     /**
-     * @brief Set new shape for tensor, deallocate/allocate if new total size is bigger than previous one.
+     * @brief Set new shape for tensor
      * @note Memory allocation may happen
      * @param shape A new shape
      */
-    virtual void set_shape(const ov::Shape& shape);
+    virtual void set_shape(ov::Shape shape) = 0;
 
     /**
      * @return A tensor element type
      */
-    virtual const element::Type& get_element_type() const;
+    virtual const element::Type& get_element_type() const = 0;
 
     /**
      * @return A tensor shape
      */
-    virtual const Shape& get_shape() const;
+    virtual const Shape& get_shape() const = 0;
 
     /**
      * @brief Returns the total number of elements (a product of all the dims or 1 for scalar)
@@ -54,12 +55,12 @@ public:
     /**
      * @return Tensor's offseta in elements
      */
-    virtual Coordinate get_offsets() const;
+    virtual const Coordinate& get_offsets() const = 0;
 
     /**
      * @return Tensor's strides in bytes
      */
-    virtual Strides get_strides() const;
+    virtual const Strides& get_strides() const = 0;
 
     /**
      * @brief Provides an access to the underlaying host memory
@@ -68,7 +69,7 @@ public:
      * if specified type's fundamental type does not match with tensor element type's fundamental type
      * @return A host pointer to tensor memory
      */
-    virtual void* data(const element::Type& type = {}) const;
+    virtual void* data(const element::Type& type = {}) const = 0;
 
     /**
      * @brief Provides an access to the underlaying host memory casted to type `T`
@@ -96,7 +97,9 @@ protected:
  * @param shape Tensor shape
  * @param allocator allocates memory for internal tensor storage
  */
-std::shared_ptr<ITensor> make_tensor(const element::Type type, const Shape& shape, const Allocator& allocator = {});
+OPENVINO_RUNTIME_API std::shared_ptr<ITensor> make_tensor(const element::Type type,
+                                                          const Shape& shape,
+                                                          const Allocator& allocator = {});
 
 /**
  * @brief Constructs Tensor using element type and shape. Wraps allocated host memory.
@@ -107,10 +110,10 @@ std::shared_ptr<ITensor> make_tensor(const element::Type type, const Shape& shap
  * @param strides Optional strides parameters in bytes. Strides are supposed to be computed automatically based
  * on shape and element size
  */
-std::shared_ptr<ITensor> make_tensor(const element::Type type,
-                                     const Shape& shape,
-                                     void* host_ptr,
-                                     const Strides& strides = {});
+OPENVINO_RUNTIME_API std::shared_ptr<ITensor> make_tensor(const element::Type type,
+                                                          const Shape& shape,
+                                                          void* host_ptr,
+                                                          const Strides& strides = {});
 
 /**
  * @brief Constructs region of interest (ROI) tensor form another tensor.
@@ -120,14 +123,13 @@ std::shared_ptr<ITensor> make_tensor(const element::Type type,
  * @param end end coordinate of ROI object inside of the original object.
  * @note A Number of dimensions in `begin` and `end` must match number of dimensions in `other.get_shape()`
  */
-std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<ITensor>& other,
-                                     const Coordinate& begin,
-                                     const Coordinate& end);
+OPENVINO_RUNTIME_API std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<ITensor>& other,
+                                                          const Coordinate& begin,
+                                                          const Coordinate& end);
 
-/** @cond INTERNAL */
-std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<InferenceEngine::Blob>& tensor);
+OPENVINO_RUNTIME_API std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<InferenceEngine::Blob>& tensor);
 
-std::shared_ptr<InferenceEngine::Blob> tensor_to_blob(const std::shared_ptr<ITensor>& tensor);
+OPENVINO_RUNTIME_API std::shared_ptr<InferenceEngine::Blob> tensor_to_blob(const std::shared_ptr<ITensor>& tensor);
 /** @endcond */
 
 }  // namespace ov
