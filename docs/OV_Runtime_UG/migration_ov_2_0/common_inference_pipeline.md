@@ -1,679 +1,890 @@
 # Inference Pipeline {#openvino_2_0_inference_pipeline}
 
+@sphinxdirective
+
 To infer models with OpenVINO™ Runtime, you usually need to perform the following steps in the application pipeline:
-1. [Create a Core object](@ref create_core).
-   - 1.1. [(Optional) Load extensions](@ref load_extensions)
-2. [Read a model from a drive](@ref read_model).
-   - 2.1. [(Optional) Perform model preprocessing](@ref perform_preprocessing).
-3. [Load the model to the device](@ref load_model_to_device).
-4. [Create an inference request](@ref create_inference_request).
-5. [Fill input tensors with data](@ref fill_tensor).
-6. [Start inference](@ref start_inference).
-7. [Process the inference results](@ref process_results).
 
-Based on the steps, the following code demostrates how to change the application code to migrate to API 2.0.
+1. `Create a Core object <#create-a-core-object>`__.
 
-@anchor create_core
-## 1. Create a Core Object
+   * 1.1. `(Optional) Load extensions <#optional-load-extensions>`__
+
+2. `Read a model from a drive <#read-a-model-from-a-drive>`__.
+
+   * 2.1. `(Optional) Perform model preprocessing <#optional-perform-model-preprocessing>`__.
+
+3. `Load the model to the device <#load-the-model-to-the-device>`__.
+4. `Create an inference request <#create-an-inference-request>`__.
+5. `Fill input tensors with data <#fill-input-tensors-with-data>`__.
+6. `Start inference <#start-inference>`__.
+7. `Process the inference results <#process-the-inference-results>`__.
+
+Based on the steps, the following code demonstrates how to change the application code to migrate to API 2.0.
+
+1. Create a Core Object
+#######################
 
 **Inference Engine API**
 
-@sphinxtabset
+.. tab-set::
 
-@sphinxtab{C++}
-@snippet docs/snippets/ie_common.cpp ie:create_core
-@endsphinxtab
+   .. tab-item:: C++
+      :sync: cpp
 
-@sphinxtab{Python}
-@snippet docs/snippets/ie_common.py ie:create_core
-@endsphinxtab
+      .. doxygensnippet:: docs/snippets/ie_common.cpp
+         :language: cpp
+         :fragment: ie:create_core
 
-@sphinxtab{C}
-@snippet docs/snippets/ie_common.c ie:create_core
-@endsphinxtab
+   .. tab-item:: Python
+      :sync: py
 
-@endsphinxtabset
+      .. doxygensnippet:: docs/snippets/ie_common.py
+         :language: python
+         :fragment: ie:create_core
+
+   .. tab-item:: C
+      :sync: c
+
+      .. doxygensnippet:: docs/snippets/ie_common.c
+         :language: cpp
+         :fragment: ie:create_core
 
 **API 2.0**
 
-@sphinxtabset
+.. tab-set::
 
-@sphinxtab{C++}
-@snippet docs/snippets/ov_common.cpp ov_api_2_0:create_core
-@endsphinxtab
+   .. tab-item:: C++
+      :sync: cpp
 
-@sphinxtab{Python}
-@snippet docs/snippets/ov_common.py ov_api_2_0:create_core
-@endsphinxtab
+      .. doxygensnippet:: docs/snippets/ov_common.cpp
+         :language: cpp
+         :fragment: ov_api_2_0:create_core
 
-@sphinxtab{C}
-@snippet docs/snippets/ov_common.c ov_api_2_0:create_core
-@endsphinxtab
+   .. tab-item:: Python
+      :sync: py
 
-@endsphinxtabset
+      .. doxygensnippet:: docs/snippets/ov_common.py
+         :language: python
+         :fragment: ov_api_2_0:create_core
 
-@anchor load_extensions
-### 1.1 (Optional) Load Extensions
+   .. tab-item:: C
+      :sync: c
 
-To load a model with custom operations, you need to add extensions for these operations. It is highly recommended to use [OpenVINO Extensibility API](@ref openvino_docs_Extensibility_UG_Intro) to write extensions. However, you can also load the old extensions to the new OpenVINO™ Runtime:
+      .. doxygensnippet:: docs/snippets/ov_common.c
+         :language: cpp
+         :fragment: ov_api_2_0:create_core
+
+
+1.1 (Optional) Load Extensions
+++++++++++++++++++++++++++++++
+
+To load a model with custom operations, you need to add extensions for these operations. 
+It is highly recommended to use :doc:`OpenVINO Extensibility API <openvino_docs_Extensibility_UG_Intro>` 
+to write extensions. However, you can also load the old extensions to the new OpenVINO™ Runtime:
 
 **Inference Engine API**
 
-@sphinxtabset
+.. tab-set::
 
-@sphinxtab{C++}
-@snippet docs/snippets/ie_common.cpp ie:load_old_extension
-@endsphinxtab
+   .. tab-item:: C++
+      :sync: cpp
 
-@sphinxtab{Python}
-@snippet docs/snippets/ie_common.py ie:load_old_extension
-@endsphinxtab
+      .. doxygensnippet:: docs/snippets/ie_common.cpp
+         :language: cpp
+         :fragment: ie:load_old_extension
 
-@sphinxtab{C}
-@snippet docs/snippets/ie_common.c ie:load_old_extension
-@endsphinxtab
+   .. tab-item:: Python
+      :sync: py
 
-@endsphinxtabset
+      .. doxygensnippet:: docs/snippets/ie_common.py
+         :language: python
+         :fragment: ie:load_old_extension
+
+   .. tab-item:: C
+      :sync: c
+
+      .. doxygensnippet:: docs/snippets/ie_common.c
+         :language: cpp
+         :fragment: ie:load_old_extension
+
 
 **API 2.0**
 
-@sphinxtabset
+.. tab-set::
 
-@sphinxtab{C++}
-@snippet docs/snippets/ov_common.cpp ov_api_2_0:load_old_extension
-@endsphinxtab
+   .. tab-item:: C++
+      :sync: cpp
 
-@sphinxtab{Python}
-@snippet docs/snippets/ov_common.py ov_api_2_0:load_old_extension
-@endsphinxtab
+      .. doxygensnippet:: docs/snippets/ov_common.cpp
+         :language: cpp
+         :fragment: ov_api_2_0:load_old_extension
 
-@sphinxtab{C}
-@snippet docs/snippets/ov_common.c ov_api_2_0:load_old_extension
-@endsphinxtab
+   .. tab-item:: Python
+      :sync: py
 
-@endsphinxtabset
+      .. doxygensnippet:: docs/snippets/ov_common.py
+         :language: python
+         :fragment: ov_api_2_0:load_old_extension
 
-@anchor read_model
-## 2. Read a Model from a Drive
+   .. tab-item:: C
+      :sync: c
+
+      .. doxygensnippet:: docs/snippets/ov_common.c
+         :language: cpp
+         :fragment: ov_api_2_0:load_old_extension
+
+
+2. Read a Model from a Drive
+############################
 
 **Inference Engine API**
 
-@sphinxtabset
+.. tab-set::
 
-@sphinxtab{C++}
-@snippet docs/snippets/ie_common.cpp ie:read_model
-@endsphinxtab
+   .. tab-item:: C++
+      :sync: cpp
 
-@sphinxtab{Python}
-@snippet docs/snippets/ie_common.py ie:read_model
-@endsphinxtab
+      .. doxygensnippet:: docs/snippets/ie_common.cpp
+         :language: cpp
+         :fragment: ie:read_model
 
-@sphinxtab{C}
-@snippet docs/snippets/ie_common.c ie:read_model
-@endsphinxtab
+   .. tab-item:: Python
+      :sync: py
 
-@endsphinxtabset
+      .. doxygensnippet:: docs/snippets/ie_common.py
+         :language: python
+         :fragment: ie:read_model
+
+   .. tab-item:: C
+      :sync: c
+
+      .. doxygensnippet:: docs/snippets/ie_common.c
+         :language: cpp
+         :fragment: ie:read_model
+
 
 **API 2.0**
 
-@sphinxtabset
+.. tab-set::
 
-@sphinxtab{C++}
-@snippet docs/snippets/ov_common.cpp ov_api_2_0:read_model
-@endsphinxtab
+   .. tab-item:: C++
+      :sync: cpp
 
-@sphinxtab{Python}
-@snippet docs/snippets/ov_common.py ov_api_2_0:read_model
-@endsphinxtab
+      .. doxygensnippet:: docs/snippets/ov_common.cpp
+         :language: cpp
+         :fragment: ov_api_2_0:read_model
 
-@sphinxtab{C}
-@snippet docs/snippets/ov_common.c ov_api_2_0:read_model
-@endsphinxtab
+   .. tab-item:: Python
+      :sync: py
 
-@endsphinxtabset
+      .. doxygensnippet:: docs/snippets/ov_common.py
+         :language: python
+         :fragment: ov_api_2_0:read_model
 
-Reading a model has the same structure as the example in the [model creation migration guide](@ref openvino_2_0_model_creation).
+   .. tab-item:: C
+      :sync: c
 
-You can combine reading and compiling a model into a single call `ov::Core::compile_model(filename, devicename)`.
+      .. doxygensnippet:: docs/snippets/ov_common.c
+         :language: cpp
+         :fragment: ov_api_2_0:read_model
 
-@anchor perform_preprocessing
-### 2.1 (Optional) Perform Model Preprocessing
 
-When the application input data does not perfectly match the model input format, preprocessing may be necessary. See [preprocessing in API 2.0](@ref openvino_2_0_preprocessing) for more details.
+Reading a model has the same structure as the example in the :doc:`model creation migration guide <openvino_2_0_model_creation>`.
 
-@anchor load_model_to_device
-## 3. Load the Model to the Device
+You can combine reading and compiling a model into a single call ``ov::Core::compile_model(filename, devicename)``.
+
+
+2.1 (Optional) Perform Model Preprocessing
+++++++++++++++++++++++++++++++++++++++++++
+
+When the application input data does not perfectly match the model input format, 
+preprocessing may be necessary. See :doc:`preprocessing in API 2.0 <openvino_2_0_preprocessing>` for more details.
+
+
+3. Load the Model to the Device
+###############################
 
 **Inference Engine API**
 
-@sphinxtabset
+.. tab-set::
 
-@sphinxtab{C++}
-@snippet docs/snippets/ie_common.cpp ie:compile_model
-@endsphinxtab
+   .. tab-item:: C++
+      :sync: cpp
 
-@sphinxtab{Python}
-@snippet docs/snippets/ie_common.py ie:compile_model
-@endsphinxtab
+      .. doxygensnippet:: docs/snippets/ie_common.cpp
+         :language: cpp
+         :fragment: ie:compile_model
 
-@sphinxtab{C}
-@snippet docs/snippets/ie_common.c ie:compile_model
-@endsphinxtab
+   .. tab-item:: Python
+      :sync: py
 
-@endsphinxtabset
+      .. doxygensnippet:: docs/snippets/ie_common.py
+         :language: python
+         :fragment: ie:compile_model
+
+   .. tab-item:: C
+      :sync: c
+
+      .. doxygensnippet:: docs/snippets/ie_common.c
+         :language: cpp
+         :fragment: ie:compile_model
+
 
 **API 2.0**
 
-@sphinxtabset
+.. tab-set::
 
-@sphinxtab{C++}
-@snippet docs/snippets/ov_common.cpp ov_api_2_0:compile_model
-@endsphinxtab
+   .. tab-item:: C++
+      :sync: cpp
 
-@sphinxtab{Python}
-@snippet docs/snippets/ov_common.py ov_api_2_0:compile_model
-@endsphinxtab
+      .. doxygensnippet:: docs/snippets/ov_common.cpp
+         :language: cpp
+         :fragment: ov_api_2_0:compile_model
 
-@sphinxtab{C}
-@snippet docs/snippets/ov_common.c ov_api_2_0:compile_model
-@endsphinxtab
+   .. tab-item:: Python
+      :sync: py
 
-@endsphinxtabset
+      .. doxygensnippet:: docs/snippets/ov_common.py
+         :language: python
+         :fragment: ov_api_2_0:compile_model
 
-If you need to configure devices with additional parameters for OpenVINO Runtime, refer to [Configuring Devices](@ref openvino_2_0_configure_devices).
+   .. tab-item:: C
+      :sync: c
 
-@anchor create_inference_request
-## 4. Create an Inference Request
+      .. doxygensnippet:: docs/snippets/ov_common.c
+         :language: cpp
+         :fragment: ov_api_2_0:compile_model
+
+
+If you need to configure devices with additional parameters for OpenVINO Runtime, refer to :doc:`Configuring Devices <openvino_2_0_configure_devices>`.
+
+
+4. Create an Inference Request
+##############################
 
 **Inference Engine API**
 
-@sphinxtabset
+.. tab-set::
 
-@sphinxtab{C++}
-@snippet docs/snippets/ie_common.cpp ie:create_infer_request
-@endsphinxtab
+   .. tab-item:: C++
+      :sync: cpp
 
-@sphinxtab{Python}
-@snippet docs/snippets/ie_common.py ie:create_infer_request
-@endsphinxtab
+      .. doxygensnippet:: docs/snippets/ie_common.cpp
+         :language: cpp
+         :fragment: ie:create_infer_request
 
-@sphinxtab{C}
-@snippet docs/snippets/ie_common.c ie:create_infer_request
-@endsphinxtab
+   .. tab-item:: Python
+      :sync: py
 
-@endsphinxtabset
+      .. doxygensnippet:: docs/snippets/ie_common.py
+         :language: python
+         :fragment: ie:create_infer_request
+
+   .. tab-item:: C
+      :sync: c
+
+      .. doxygensnippet:: docs/snippets/ie_common.c
+         :language: cpp
+         :fragment: ie:create_infer_request
+
 
 **API 2.0**
 
-@sphinxtabset
+.. tab-set::
 
-@sphinxtab{C++}
-@snippet docs/snippets/ov_common.cpp ov_api_2_0:create_infer_request
-@endsphinxtab
+   .. tab-item:: C++
+      :sync: cpp
 
-@sphinxtab{Python}
-@snippet docs/snippets/ov_common.py ov_api_2_0:create_infer_request
-@endsphinxtab
+      .. doxygensnippet:: docs/snippets/ov_common.cpp
+         :language: cpp
+         :fragment: ov_api_2_0:create_infer_request
 
-@sphinxtab{C}
-@snippet docs/snippets/ov_common.c ov_api_2_0:create_infer_request
-@endsphinxtab
+   .. tab-item:: Python
+      :sync: py
 
-@endsphinxtabset
+      .. doxygensnippet:: docs/snippets/ov_common.py
+         :language: python
+         :fragment: ov_api_2_0:create_infer_request
 
-@anchor fill_tensor
-## 5. Fill Input Tensors with Data
+   .. tab-item:: C
+      :sync: c
+
+      .. doxygensnippet:: docs/snippets/ov_common.c
+         :language: cpp
+         :fragment: ov_api_2_0:create_infer_request
+
+
+5. Fill Input Tensors with Data
+###############################
 
 **Inference Engine API**
 
-The Inference Engine API fills inputs with data of the `I32` precision (**not** aligned with the original model):
+The Inference Engine API fills inputs with data of the ``I32`` precision (**not** aligned with the original model):
 
-@sphinxtabset
+.. tab-set::
 
-@sphinxtab{IR v10}
+   .. tab-item:: IR v10
+      :sync: irv10
 
-@sphinxtabset
+      .. tab-set::
 
-@sphinxtab{C++}
-@snippet docs/snippets/ie_common.cpp ie:get_input_tensor
-@endsphinxtab
+         .. tab-item:: C++
+            :sync: cpp
 
-@sphinxtab{Python}
-@snippet docs/snippets/ie_common.py ie:get_input_tensor
-@endsphinxtab
+            .. doxygensnippet:: docs/snippets/ie_common.cpp
+               :language: cpp
+               :fragment: ie:get_input_tensor
 
-@sphinxtab{C}
-@snippet docs/snippets/ie_common.c ie:get_input_tensor
-@endsphinxtab
+         .. tab-item:: Python
+            :sync: py
 
-@endsphinxtabset
+            .. doxygensnippet:: docs/snippets/ie_common.py
+               :language: python
+               :fragment: ie:get_input_tensor
 
-@endsphinxtab
+         .. tab-item:: C
+            :sync: c
 
-@sphinxtab{IR v11}
+            .. doxygensnippet:: docs/snippets/ie_common.c
+               :language: cpp
+               :fragment: ie:get_input_tensor
 
-@sphinxtabset
+   .. tab-item:: IR v11
+      :sync: irv11
 
-@sphinxtab{C++}
-@snippet docs/snippets/ie_common.cpp ie:get_input_tensor
-@endsphinxtab
+      .. tab-set::
 
-@sphinxtab{Python}
-@snippet docs/snippets/ie_common.py ie:get_input_tensor
-@endsphinxtab
+         .. tab-item:: C++
+            :sync: cpp
 
-@sphinxtab{C}
-@snippet docs/snippets/ie_common.c ie:get_input_tensor
-@endsphinxtab
+            .. doxygensnippet:: docs/snippets/ie_common.cpp
+               :language: cpp
+               :fragment: ie:get_input_tensor
 
-@endsphinxtabset
+         .. tab-item:: Python
+            :sync: py
 
-@endsphinxtab
+            .. doxygensnippet:: docs/snippets/ie_common.py
+               :language: python
+               :fragment: ie:get_input_tensor
 
-@sphinxtab{ONNX}
+         .. tab-item:: C
+            :sync: c
 
-@sphinxtabset
+            .. doxygensnippet:: docs/snippets/ie_common.c
+               :language: cpp
+               :fragment: ie:get_input_tensor
 
-@sphinxtab{C++}
-@snippet docs/snippets/ie_common.cpp ie:get_input_tensor
-@endsphinxtab
+   .. tab-item:: ONNX
+      :sync: onnx
 
-@sphinxtab{Python}
-@snippet docs/snippets/ie_common.py ie:get_input_tensor
-@endsphinxtab
+      .. tab-set::
 
-@sphinxtab{C}
-@snippet docs/snippets/ie_common.c ie:get_input_tensor
-@endsphinxtab
+         .. tab-item:: C++
+            :sync: cpp
 
-@endsphinxtabset
+            .. doxygensnippet:: docs/snippets/ie_common.cpp
+               :language: cpp
+               :fragment: ie:get_input_tensor
 
-@endsphinxtab
+         .. tab-item:: Python
+            :sync: py
 
-@sphinxtab{Model created in code}
+            .. doxygensnippet:: docs/snippets/ie_common.py
+               :language: python
+               :fragment: ie:get_input_tensor
 
-@sphinxtabset
+         .. tab-item:: C
+            :sync: c
 
-@sphinxtab{C++}
-@snippet docs/snippets/ie_common.cpp ie:get_input_tensor
-@endsphinxtab
+            .. doxygensnippet:: docs/snippets/ie_common.c
+               :language: cpp
+               :fragment: ie:get_input_tensor
 
-@sphinxtab{Python}
-@snippet docs/snippets/ie_common.py ie:get_input_tensor
-@endsphinxtab
 
-@sphinxtab{C}
-@snippet docs/snippets/ie_common.c ie:get_input_tensor
-@endsphinxtab
+   .. tab-item:: Model created in code
+      :sync: model
 
-@endsphinxtabset
+      .. tab-set::
 
-@endsphinxtab
+         .. tab-item:: C++
+            :sync: cpp
 
-@endsphinxtabset
+            .. doxygensnippet:: docs/snippets/ie_common.cpp
+               :language: cpp
+               :fragment: ie:get_input_tensor
+
+         .. tab-item:: Python
+            :sync: py
+
+            .. doxygensnippet:: docs/snippets/ie_common.py
+               :language: python
+               :fragment: ie:get_input_tensor
+
+         .. tab-item:: C
+            :sync: c
+
+            .. doxygensnippet:: docs/snippets/ie_common.c
+               :language: cpp
+               :fragment: ie:get_input_tensor
+
 
 **API 2.0**
 
-API 2.0 fills inputs with data of the `I64` precision (aligned with the original model):
+API 2.0 fills inputs with data of the ``I64`` precision (aligned with the original model):
 
-@sphinxtabset
+.. tab-set::
 
-@sphinxtab{IR v10}
+   .. tab-item:: IR v10
+      :sync: irv10
 
-@sphinxtabset
+      .. tab-set::
 
-@sphinxtab{C++}
-@snippet docs/snippets/ov_common.cpp ov_api_2_0:get_input_tensor_v10
-@endsphinxtab
+         .. tab-item:: C++
+            :sync: cpp
 
-@sphinxtab{Python}
-@snippet docs/snippets/ov_common.py ov_api_2_0:get_input_tensor_v10
-@endsphinxtab
+            .. doxygensnippet:: docs/snippets/ov_common.cpp
+               :language: cpp
+               :fragment: ov_api_2_0:get_input_tensor_v10
 
-@sphinxtab{C}
-@snippet docs/snippets/ov_common.c ov_api_2_0:get_input_tensor_v10
-@endsphinxtab
+         .. tab-item:: Python
+            :sync: py
 
-@endsphinxtabset
+            .. doxygensnippet:: docs/snippets/ov_common.py
+               :language: python
+               :fragment: ov_api_2_0:get_input_tensor_v10
 
-@endsphinxtab
+         .. tab-item:: C
+            :sync: c
 
-@sphinxtab{IR v11}
+            .. doxygensnippet:: docs/snippets/ov_common.c
+               :language: cpp
+               :fragment: ov_api_2_0:get_input_tensor_v10
 
-@sphinxtabset
+   .. tab-item:: IR v11
+      :sync: irv11
 
-@sphinxtab{C++}
-@snippet docs/snippets/ov_common.cpp ov_api_2_0:get_input_tensor_aligned
-@endsphinxtab
+      .. tab-set::
 
-@sphinxtab{Python}
-@snippet docs/snippets/ov_common.py ov_api_2_0:get_input_tensor_aligned
-@endsphinxtab
+         .. tab-item:: C++
+            :sync: cpp
 
-@sphinxtab{C}
-@snippet docs/snippets/ov_common.c ov_api_2_0:get_input_tensor_aligned
-@endsphinxtab
+            .. doxygensnippet:: docs/snippets/ov_common.cpp
+               :language: cpp
+               :fragment: ov_api_2_0:get_input_tensor_aligned
 
-@endsphinxtabset
+         .. tab-item:: Python
+            :sync: py
 
-@endsphinxtab
+            .. doxygensnippet:: docs/snippets/ov_common.py
+               :language: python
+               :fragment: ov_api_2_0:get_input_tensor_aligned
 
-@sphinxtab{ONNX}
+         .. tab-item:: C
+            :sync: c
 
-@sphinxtabset
+            .. doxygensnippet:: docs/snippets/ov_common.c
+               :language: cpp
+               :fragment: ov_api_2_0:get_input_tensor_aligned
 
-@sphinxtab{C++}
-@snippet docs/snippets/ov_common.cpp ov_api_2_0:get_input_tensor_aligned
-@endsphinxtab
+   .. tab-item:: ONNX
+      :sync: onnx
 
-@sphinxtab{Python}
-@snippet docs/snippets/ov_common.py ov_api_2_0:get_input_tensor_aligned
-@endsphinxtab
+      .. tab-set::
 
-@sphinxtab{C}
-@snippet docs/snippets/ov_common.c ov_api_2_0:get_input_tensor_aligned
-@endsphinxtab
+         .. tab-item:: C++
+            :sync: cpp
 
-@endsphinxtabset
+            .. doxygensnippet:: docs/snippets/ov_common.cpp
+               :language: cpp
+               :fragment: ov_api_2_0:get_input_tensor_aligned
 
-@endsphinxtab
+         .. tab-item:: Python
+            :sync: py
 
-@sphinxtab{Model created in code}
+            .. doxygensnippet:: docs/snippets/ov_common.py
+               :language: python
+               :fragment: ov_api_2_0:get_input_tensor_aligned
 
-@sphinxtabset
+         .. tab-item:: C
+            :sync: c
 
-@sphinxtab{C++}
-@snippet docs/snippets/ov_common.cpp ov_api_2_0:get_input_tensor_aligned
-@endsphinxtab
+            .. doxygensnippet:: docs/snippets/ov_common.c
+               :language: cpp
+               :fragment: ov_api_2_0:get_input_tensor_aligned
 
-@sphinxtab{Python}
-@snippet docs/snippets/ov_common.py ov_api_2_0:get_input_tensor_aligned
-@endsphinxtab
 
-@sphinxtab{C}
-@snippet docs/snippets/ov_common.c ov_api_2_0:get_input_tensor_aligned
-@endsphinxtab
+   .. tab-item:: Model created in code
+      :sync: model
 
-@endsphinxtabset
+      .. tab-set::
 
-@endsphinxtab
+         .. tab-item:: C++
+            :sync: cpp
 
-@endsphinxtabset
+            .. doxygensnippet:: docs/snippets/ov_common.cpp
+               :language: cpp
+               :fragment: ov_api_2_0:get_input_tensor_aligned
 
-@anchor start_inference
-## 6. Start Inference
+         .. tab-item:: Python
+            :sync: py
+
+            .. doxygensnippet:: docs/snippets/ov_common.py
+               :language: python
+               :fragment: ov_api_2_0:get_input_tensor_aligned
+
+         .. tab-item:: C
+            :sync: c
+
+            .. doxygensnippet:: docs/snippets/ov_common.c
+               :language: cpp
+               :fragment: ov_api_2_0:get_input_tensor_aligned
+
+
+6. Start Inference
+##################
 
 **Inference Engine API**
 
-@sphinxtabset
+.. tab-set::
 
-@sphinxtab{Sync}
+   .. tab-item:: Sync
+      :sync: sync
 
-@sphinxtabset
+      .. tab-set::
 
-@sphinxtab{C++}
-@snippet docs/snippets/ie_common.cpp ie:inference
-@endsphinxtab
+         .. tab-item:: C++
+            :sync: cpp
 
-@sphinxtab{Python}
-@snippet docs/snippets/ie_common.py ie:inference
-@endsphinxtab
+            .. doxygensnippet:: docs/snippets/ie_common.cpp
+               :language: cpp
+               :fragment: ie:inference
 
-@sphinxtab{C}
-@snippet docs/snippets/ie_common.c ie:inference
-@endsphinxtab
+         .. tab-item:: Python
+            :sync: py
 
-@endsphinxtabset
+            .. doxygensnippet:: docs/snippets/ie_common.py
+               :language: python
+               :fragment: ie:inference
 
-@endsphinxtab
+         .. tab-item:: C
+            :sync: c
 
-@sphinxtab{Async}
+            .. doxygensnippet:: docs/snippets/ie_common.c
+               :language: cpp
+               :fragment: ie:inference
 
-@sphinxtabset
+   .. tab-item:: Async
+      :sync: async
 
-@sphinxtab{C++}
-@snippet docs/snippets/ie_common.cpp ie:start_async_and_wait
-@endsphinxtab
+      .. tab-set::
 
-@sphinxtab{Python}
-@snippet docs/snippets/ie_common.py ie:start_async_and_wait
-@endsphinxtab
+         .. tab-item:: C++
+            :sync: cpp
 
-@sphinxtab{C}
-@snippet docs/snippets/ie_common.c ie:start_async_and_wait
-@endsphinxtab
+            .. doxygensnippet:: docs/snippets/ie_common.cpp
+               :language: cpp
+               :fragment: ie:start_async_and_wait
 
-@endsphinxtabset
+         .. tab-item:: Python
+            :sync: py
 
-@endsphinxtab
+            .. doxygensnippet:: docs/snippets/ie_common.py
+               :language: python
+               :fragment: ie:start_async_and_wait
 
-@endsphinxtabset
+         .. tab-item:: C
+            :sync: c
+
+            .. doxygensnippet:: docs/snippets/ie_common.c
+               :language: cpp
+               :fragment: ie:start_async_and_wait
+
 
 **API 2.0**
 
-@sphinxtabset
+.. tab-set::
 
-@sphinxtab{Sync}
+   .. tab-item:: Sync
+      :sync: sync
 
-@sphinxtabset
+      .. tab-set::
 
-@sphinxtab{C++}
-@snippet docs/snippets/ov_common.cpp ov_api_2_0:inference
-@endsphinxtab
+         .. tab-item:: C++
+            :sync: cpp
 
-@sphinxtab{Python}
-@snippet docs/snippets/ov_common.py ov_api_2_0:inference
-@endsphinxtab
+            .. doxygensnippet:: docs/snippets/ov_common.cpp
+               :language: cpp
+               :fragment: ov_api_2_0:inference
 
-@sphinxtab{C}
-@snippet docs/snippets/ov_common.c ov_api_2_0:inference
-@endsphinxtab
+         .. tab-item:: Python
+            :sync: py
 
-@endsphinxtabset
+            .. doxygensnippet:: docs/snippets/ov_common.py
+               :language: python
+               :fragment: ov_api_2_0:inference
 
-@endsphinxtab
+         .. tab-item:: C
+            :sync: c
 
-@sphinxtab{Async}
+            .. doxygensnippet:: docs/snippets/ov_common.c
+               :language: cpp
+               :fragment: ov_api_2_0:inference
 
-@sphinxtabset
+   .. tab-item:: Async
+      :sync: async
 
-@sphinxtab{C++}
-@snippet docs/snippets/ov_common.cpp ov_api_2_0:start_async_and_wait
-@endsphinxtab
+      .. tab-set::
 
-@sphinxtab{Python}
-@snippet docs/snippets/ov_common.py ov_api_2_0:start_async_and_wait
-@endsphinxtab
+         .. tab-item:: C++
+            :sync: cpp
 
-@sphinxtab{C}
-@snippet docs/snippets/ov_common.c ov_api_2_0:start_async_and_wait
-@endsphinxtab
+            .. doxygensnippet:: docs/snippets/ov_common.cpp
+               :language: cpp
+               :fragment: ov_api_2_0:start_async_and_wait
 
-@endsphinxtabset
+         .. tab-item:: Python
+            :sync: py
 
-@endsphinxtab
+            .. doxygensnippet:: docs/snippets/ov_common.py
+               :language: python
+               :fragment: ov_api_2_0:start_async_and_wait
 
-@endsphinxtabset
+         .. tab-item:: C
+            :sync: c
 
-@anchor process_results
+            .. doxygensnippet:: docs/snippets/ov_common.c
+               :language: cpp
+               :fragment: ov_api_2_0:start_async_and_wait
 
-## 7. Process the Inference Results
+
+7. Process the Inference Results
+################################
 
 **Inference Engine API**
 
-The Inference Engine API processes outputs as they are of the `I32` precision (**not** aligned with the original model):
+The Inference Engine API processes outputs as they are of the ``I32`` precision (**not** aligned with the original model):
 
-@sphinxtabset
+.. tab-set::
 
-@sphinxtab{IR v10}
+   .. tab-item:: IR v10
+      :sync: irv10
 
-@sphinxtabset
+      .. tab-set::
 
-@sphinxtab{C++}
-@snippet docs/snippets/ie_common.cpp ie:get_output_tensor
-@endsphinxtab
+         .. tab-item:: C++
+            :sync: cpp
 
-@sphinxtab{Python}
-@snippet docs/snippets/ie_common.py ie:get_output_tensor
-@endsphinxtab
+            .. doxygensnippet:: docs/snippets/ie_common.cpp
+               :language: cpp
+               :fragment: ie:get_output_tensor
 
-@sphinxtab{C}
-@snippet docs/snippets/ie_common.c ie:get_output_tensor
-@endsphinxtab
+         .. tab-item:: Python
+            :sync: py
 
-@endsphinxtabset
+            .. doxygensnippet:: docs/snippets/ie_common.py
+               :language: python
+               :fragment: ie:get_output_tensor
 
-@endsphinxtab
+         .. tab-item:: C
+            :sync: c
 
-@sphinxtab{IR v11}
+            .. doxygensnippet:: docs/snippets/ie_common.c
+               :language: cpp
+               :fragment: ie:get_output_tensor
 
-@sphinxtabset
+   .. tab-item:: IR v11
+      :sync: irv11
 
-@sphinxtab{C++}
-@snippet docs/snippets/ie_common.cpp ie:get_output_tensor
-@endsphinxtab
+      .. tab-set::
 
-@sphinxtab{Python}
-@snippet docs/snippets/ie_common.py ie:get_output_tensor
-@endsphinxtab
+         .. tab-item:: C++
+            :sync: cpp
 
-@sphinxtab{C}
-@snippet docs/snippets/ie_common.c ie:get_output_tensor
-@endsphinxtab
+            .. doxygensnippet:: docs/snippets/ie_common.cpp
+               :language: cpp
+               :fragment: ie:get_output_tensor
 
-@endsphinxtabset
+         .. tab-item:: Python
+            :sync: py
 
-@endsphinxtab
+            .. doxygensnippet:: docs/snippets/ie_common.py
+               :language: python
+               :fragment: ie:get_output_tensor
 
-@sphinxtab{ONNX}
+         .. tab-item:: C
+            :sync: c
 
-@sphinxtabset
+            .. doxygensnippet:: docs/snippets/ie_common.c
+               :language: cpp
+               :fragment: ie:get_output_tensor
 
-@sphinxtab{C++}
-@snippet docs/snippets/ie_common.cpp ie:get_output_tensor
-@endsphinxtab
+   .. tab-item:: ONNX
+      :sync: onnx
 
-@sphinxtab{Python}
-@snippet docs/snippets/ie_common.py ie:get_output_tensor
-@endsphinxtab
+      .. tab-set::
 
-@sphinxtab{C}
-@snippet docs/snippets/ie_common.c ie:get_output_tensor
-@endsphinxtab
+         .. tab-item:: C++
+            :sync: cpp
 
-@endsphinxtabset
+            .. doxygensnippet:: docs/snippets/ie_common.cpp
+               :language: cpp
+               :fragment: ie:get_output_tensor
 
-@endsphinxtab
+         .. tab-item:: Python
+            :sync: py
 
-@sphinxtab{Model created in code}
+            .. doxygensnippet:: docs/snippets/ie_common.py
+               :language: python
+               :fragment: ie:get_output_tensor
 
-@sphinxtabset
+         .. tab-item:: C
+            :sync: c
 
-@sphinxtab{C++}
-@snippet docs/snippets/ie_common.cpp ie:get_output_tensor
-@endsphinxtab
+            .. doxygensnippet:: docs/snippets/ie_common.c
+               :language: cpp
+               :fragment: ie:get_output_tensor
 
-@sphinxtab{Python}
-@snippet docs/snippets/ie_common.py ie:get_output_tensor
-@endsphinxtab
 
-@sphinxtab{C}
-@snippet docs/snippets/ie_common.c ie:get_output_tensor
-@endsphinxtab
+   .. tab-item:: Model created in code
+      :sync: model
 
-@endsphinxtabset
+      .. tab-set::
 
-@endsphinxtab
+         .. tab-item:: C++
+            :sync: cpp
 
-@endsphinxtabset
+            .. doxygensnippet:: docs/snippets/ie_common.cpp
+               :language: cpp
+               :fragment: ie:get_output_tensor
+
+         .. tab-item:: Python
+            :sync: py
+
+            .. doxygensnippet:: docs/snippets/ie_common.py
+               :language: python
+               :fragment: ie:get_output_tensor
+
+         .. tab-item:: C
+            :sync: c
+
+            .. doxygensnippet:: docs/snippets/ie_common.c
+               :language: cpp
+               :fragment: ie:get_output_tensor
+
 
 **API 2.0**
 
 API 2.0 processes outputs as they are of:
 
-- the `I32` precision (**not** aligned with the original model) for OpenVINO IR v10 models, to match the [old behavior](@ref differences_api20_ie).
-- the `I64` precision (aligned with the original model) for OpenVINO IR v11, ONNX, ov::Model, PaddlePaddle and TensorFlow models, to match the [new behavior](@ref differences_api20_ie).
+* the ``I32`` precision (**not** aligned with the original model) for OpenVINO IR v10 models, to match the :ref:`old behavior <differences_api20_ie>`.
+* the ``I64`` precision (aligned with the original model) for OpenVINO IR v11, ONNX, ov::Model, PaddlePaddle and TensorFlow models, to match the :ref:`new behavior <differences_api20_ie>`.
 
-@sphinxtabset
+.. tab-set::
 
-@sphinxtab{IR v10}
+   .. tab-item:: IR v10
+      :sync: irv10
 
-@sphinxtabset
+      .. tab-set::
 
-@sphinxtab{C++}
-@snippet docs/snippets/ov_common.cpp ov_api_2_0:get_output_tensor_v10
-@endsphinxtab
+         .. tab-item:: C++
+            :sync: cpp
 
-@sphinxtab{Python}
-@snippet docs/snippets/ov_common.py ov_api_2_0:get_output_tensor_v10
-@endsphinxtab
+            .. doxygensnippet:: docs/snippets/ov_common.cpp
+               :language: cpp
+               :fragment: ov_api_2_0:get_output_tensor_v10
 
-@sphinxtab{C}
-@snippet docs/snippets/ov_common.c ov_api_2_0:get_output_tensor_v10
-@endsphinxtab
+         .. tab-item:: Python
+            :sync: py
 
-@endsphinxtabset
+            .. doxygensnippet:: docs/snippets/ov_common.py
+               :language: python
+               :fragment: ov_api_2_0:get_output_tensor_v10
 
-@endsphinxtab
+         .. tab-item:: C
+            :sync: c
 
-@sphinxtab{IR v11}
+            .. doxygensnippet:: docs/snippets/ov_common.c
+               :language: cpp
+               :fragment: ov_api_2_0:get_output_tensor_v10
 
-@sphinxtabset
+   .. tab-item:: IR v11
+      :sync: irv11
 
-@sphinxtab{C++}
-@snippet docs/snippets/ov_common.cpp ov_api_2_0:get_output_tensor_aligned
-@endsphinxtab
+      .. tab-set::
 
-@sphinxtab{Python}
-@snippet docs/snippets/ov_common.py ov_api_2_0:get_output_tensor_aligned
-@endsphinxtab
+         .. tab-item:: C++
+            :sync: cpp
 
-@sphinxtab{C}
-@snippet docs/snippets/ov_common.c ov_api_2_0:get_output_tensor_aligned
-@endsphinxtab
+            .. doxygensnippet:: docs/snippets/ov_common.cpp
+               :language: cpp
+               :fragment: ov_api_2_0:get_output_tensor_aligned
 
-@endsphinxtabset
+         .. tab-item:: Python
+            :sync: py
 
-@endsphinxtab
+            .. doxygensnippet:: docs/snippets/ov_common.py
+               :language: python
+               :fragment: ov_api_2_0:get_output_tensor_aligned
 
-@sphinxtab{ONNX}
+         .. tab-item:: C
+            :sync: c
 
-@sphinxtabset
+            .. doxygensnippet:: docs/snippets/ov_common.c
+               :language: cpp
+               :fragment: ov_api_2_0:get_output_tensor_aligned
 
-@sphinxtab{C++}
-@snippet docs/snippets/ov_common.cpp ov_api_2_0:get_output_tensor_aligned
-@endsphinxtab
+   .. tab-item:: ONNX
+      :sync: onnx
 
-@sphinxtab{Python}
-@snippet docs/snippets/ov_common.py ov_api_2_0:get_output_tensor_aligned
-@endsphinxtab
+      .. tab-set::
 
-@sphinxtab{C}
-@snippet docs/snippets/ov_common.c ov_api_2_0:get_output_tensor_aligned
-@endsphinxtab
+         .. tab-item:: C++
+            :sync: cpp
 
-@endsphinxtabset
+            .. doxygensnippet:: docs/snippets/ov_common.cpp
+               :language: cpp
+               :fragment: ov_api_2_0:get_output_tensor_aligned
 
-@endsphinxtab
+         .. tab-item:: Python
+            :sync: py
 
-@sphinxtab{Model created in code}
+            .. doxygensnippet:: docs/snippets/ov_common.py
+               :language: python
+               :fragment: ov_api_2_0:get_output_tensor_aligned
 
-@sphinxtabset
+         .. tab-item:: C
+            :sync: c
 
-@sphinxtab{C++}
-@snippet docs/snippets/ov_common.cpp ov_api_2_0:get_output_tensor_aligned
-@endsphinxtab
+            .. doxygensnippet:: docs/snippets/ov_common.c
+               :language: cpp
+               :fragment: ov_api_2_0:get_output_tensor_aligned
 
-@sphinxtab{Python}
-@snippet docs/snippets/ov_common.py ov_api_2_0:get_output_tensor_aligned
-@endsphinxtab
 
-@sphinxtab{C}
-@snippet docs/snippets/ov_common.c ov_api_2_0:get_output_tensor_aligned
-@endsphinxtab
+   .. tab-item:: Model created in code
+      :sync: model
 
-@endsphinxtabset
+      .. tab-set::
 
-@endsphinxtab
+         .. tab-item:: C++
+            :sync: cpp
 
-@endsphinxtabset
+            .. doxygensnippet:: docs/snippets/ov_common.cpp
+               :language: cpp
+               :fragment: ov_api_2_0:get_output_tensor_aligned
+
+         .. tab-item:: Python
+            :sync: py
+
+            .. doxygensnippet:: docs/snippets/ov_common.py
+               :language: python
+               :fragment: ov_api_2_0:get_output_tensor_aligned
+
+         .. tab-item:: C
+            :sync: c
+
+            .. doxygensnippet:: docs/snippets/ov_common.c
+               :language: cpp
+               :fragment: ov_api_2_0:get_output_tensor_aligned
+
+
+@endsphinxdirective

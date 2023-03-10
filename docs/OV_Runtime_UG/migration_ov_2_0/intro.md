@@ -50,7 +50,13 @@ However, Post-Training Optimization Tool of OpenVINO 2022.1 does not support Ope
 
 > **NOTE**: To quantize your OpenVINO IR v10 models to run with OpenVINO 2022.1, download and use Post-Training Optimization Tool of OpenVINO 2021.4.
 
-@anchor differences_api20_ie
+@sphinxdirective
+
+.. _differences_api20_ie:
+
+@endsphinxdirective
+
+
 ### Differences in API 2.0 and Inference Engine API Behaviors
 
 Inference Engine and nGraph APIs do not become deprecated with the introduction of the new API, and they can still be used in applications. However, it is highly recommended to migrate to API 2.0, as it offers more features (further extended in future releases), such as:
