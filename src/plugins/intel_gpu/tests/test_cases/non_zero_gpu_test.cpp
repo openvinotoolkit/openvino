@@ -17,6 +17,13 @@ using namespace cldnn;
 using namespace ::tests;
 
 template<typename T>
+T generate_random_number(int min, int max) {
+    static std::default_random_engine generator(random_seed);
+    std::uniform_int_distribution<T> uniform_dist(min, max);
+    return uniform_dist(generator);
+}
+
+template<typename T>
 std::vector<T> generate_random_input(const size_t input_size, int min, int max, int min_num_zero = 0) {
     int k = 8;
     auto vec = generate_random_1d<T>(input_size, min, max, k);
