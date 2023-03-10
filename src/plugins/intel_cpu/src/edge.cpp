@@ -596,8 +596,10 @@ EdgePtr Edge::getBaseEdge(int look) {
         for (auto &ch_edge : ch_edges) {
             auto &chch_conf = ch_edge->getChild()->getSelectedPrimitiveDescriptor()->getConfig();
 
-            if (chch_conf.inConfs[ch_edge->getOutputNum()].inPlace() >= 0)
+            if (chch_conf.inConfs[ch_edge->getOutputNum()].inPlace() >= 0) {
+                break;
                 next_ch_edge = ch_edge;
+            }
         }
         return next_ch_edge->getBaseEdge(LOOK_DOWN);
     } else if (parentConfig.outConfs[inputNum].inPlace() >= 0 && (look & LOOK_UP)) {
