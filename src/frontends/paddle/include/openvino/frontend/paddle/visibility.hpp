@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/visibility.hpp"
 
 #ifdef OPENVINO_STATIC_LIBRARY
 #    define PADDLE_API

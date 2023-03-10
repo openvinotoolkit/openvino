@@ -55,6 +55,15 @@ public:
         : AssertFailure(check_loc_info, context_info, explanation) {}
     ~NotImplemented() override;
 };
+
+[[noreturn]] OPENVINO_API void throw_assert_failure(const CheckLocInfo& check_loc_info,
+                                                    const std::string& context_info,
+                                                    const std::string& explanation);
+
+[[noreturn]] OPENVINO_API void throw_not_implemented(const CheckLocInfo& check_loc_info,
+                                                     const std::string& context_info,
+                                                     const std::string& explanation);
+
 }  // namespace ov
 
 //
@@ -78,7 +87,7 @@ public:
 //      While validating node 'Broadcast[Broadcast_10](Reshape_9: float{1,3,4,5}) -> (??)':
 //      Node must have an input of rank 1, but got 2.
 //
-// To implement this, he first step is to define a subclass of AssertFailure (let's say it's called
+// To implement this, the first step is to define a subclass of AssertFailure (let's say it's called
 // MyFailure), which must have a constructor of the form:
 //
 //      MyFailure(const CheckLocInfo& check_loc_info,
@@ -109,7 +118,7 @@ public:
 // Then, we define the macro NODE_VALIDATION_CHECK as follows:
 //
 // #define NODE_VALIDATION_CHECK(node, cond, ...) <backslash>
-//     OPENVINO_ASSERT_HELPER(::ov::NodeValidationFailure, (node), (cond), ##__VA_ARGS__)
+//     OPENVINO_ASSERT_HELPER(::ov::throw_node_validation_failure, (node), (cond), ##__VA_ARGS__)
 //
 // The macro NODE_VALIDATION_CHECK can now be called on any condition, with a Node* pointer
 // supplied to generate an informative error message via node_validation_failure_loc_string().
@@ -119,20 +128,20 @@ public:
 // The "..." may be filled with expressions of any type that has an "operator<<" overload for
 // insertion into std::ostream.
 //
-#define OPENVINO_ASSERT_HELPER2(exc_class, ctx, check, ...)                                        \
-    do {                                                                                           \
-        if (!(check)) {                                                                            \
-            ::std::stringstream ss___;                                                             \
-            ::ov::write_all_to_stream(ss___, __VA_ARGS__);                                         \
-            throw exc_class((::ov::CheckLocInfo{__FILE__, __LINE__, #check}), (ctx), ss___.str()); \
-        }                                                                                          \
+#define OPENVINO_ASSERT_HELPER2(exc_func, ctx, check, ...)                                  \
+    do {                                                                                    \
+        if (!(check)) {                                                                     \
+            ::std::stringstream ss___;                                                      \
+            ::ov::write_all_to_stream(ss___, __VA_ARGS__);                                  \
+            exc_func((::ov::CheckLocInfo{__FILE__, __LINE__, #check}), (ctx), ss___.str()); \
+        }                                                                                   \
     } while (0)
 
-#define OPENVINO_ASSERT_HELPER1(exc_class, ctx, check)                                    \
-    do {                                                                                  \
-        if (!(check)) {                                                                   \
-            throw exc_class((::ov::CheckLocInfo{__FILE__, __LINE__, #check}), (ctx), ""); \
-        }                                                                                 \
+#define OPENVINO_ASSERT_HELPER1(exc_func, ctx, check)                              \
+    do {                                                                           \
+        if (!(check)) {                                                            \
+            exc_func((::ov::CheckLocInfo{__FILE__, __LINE__, #check}), (ctx), ""); \
+        }                                                                          \
     } while (0)
 
 /// \brief Macro to check whether a boolean condition holds.
@@ -141,15 +150,15 @@ public:
 ///            stream-insertion operator. Note that the expressions here will be evaluated lazily,
 ///            i.e., only if the `cond` evalutes to `false`.
 /// \throws ::ov::AssertFailure if `cond` is false.
-#define OPENVINO_ASSERT(...) OPENVINO_ASSERT_HELPER(::ov::AssertFailure, "", __VA_ARGS__)
+#define OPENVINO_ASSERT(...) OPENVINO_ASSERT_HELPER(::ov::throw_assert_failure, "", __VA_ARGS__)
 
 /// \brief Macro to signal a code path that is unreachable in a successful execution. It's
 /// implemented with OPENVINO_ASSERT macro.
 /// \param ... Additional error message that should describe why that execution path is unreachable.
 /// \throws ::ov::AssertFailure if the macro is executed.
-#define OPENVINO_UNREACHABLE(...)                   OPENVINO_ASSERT(false, "Unreachable: ", __VA_ARGS__)
-#define OPENVINO_ASSERT_HELPER(exc_class, ctx, ...) CALL_OVERLOAD(OPENVINO_ASSERT_HELPER, exc_class, ctx, __VA_ARGS__)
-#define OPENVINO_NOT_IMPLEMENTED                    OPENVINO_ASSERT_HELPER(::ov::NotImplemented, "", false, "Not Implemented", "")
+#define OPENVINO_UNREACHABLE(...)                  OPENVINO_ASSERT(false, "Unreachable: ", __VA_ARGS__)
+#define OPENVINO_ASSERT_HELPER(exc_func, ctx, ...) CALL_OVERLOAD(OPENVINO_ASSERT_HELPER, exc_func, ctx, __VA_ARGS__)
+#define OPENVINO_NOT_IMPLEMENTED                   OPENVINO_ASSERT_HELPER(::ov::throw_not_implemented, "", false, "Not Implemented", "")
 
 #define GLUE(x, y) x y
 
@@ -189,5 +198,5 @@ public:
 #define OVERLOAD_MACRO1(name, count) OVERLOAD_MACRO2(name, count)
 #define OVERLOAD_MACRO(name, count)  OVERLOAD_MACRO1(name, count)
 
-#define CALL_OVERLOAD(name, exc_class, ctx, ...) \
-    GLUE(OVERLOAD_MACRO(name, COUNT_ARGS_MAXN(__VA_ARGS__)), (exc_class, ctx, __VA_ARGS__))
+#define CALL_OVERLOAD(name, exc_func, ctx, ...) \
+    GLUE(OVERLOAD_MACRO(name, COUNT_ARGS_MAXN(__VA_ARGS__)), (exc_func, ctx, __VA_ARGS__))

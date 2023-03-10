@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/paddle/visibility.hpp"
 
 namespace ov {
 namespace frontend {
@@ -12,7 +13,7 @@ namespace paddle {
 
 class NodeContext;
 
-class OpValidationFailure : public ov::frontend::OpValidationFailure {
+class PADDLE_API OpValidationFailure : public ov::frontend::OpValidationFailure {
 public:
     OpValidationFailure(const CheckLocInfo& check_loc_info, const NodeContext& node, const std::string& explanation)
         : ov::frontend::OpValidationFailure(check_loc_info, get_error_msg_prefix_paddle(node), explanation) {}
@@ -20,6 +21,10 @@ public:
 private:
     static std::string get_error_msg_prefix_paddle(const NodeContext& node);
 };
+
+[[noreturn]] PADDLE_API void throw_op_validation_failure(const CheckLocInfo& loc_info,
+                                                         const ov::frontend::paddle::NodeContext& context_info,
+                                                         const std::string& explanation);
 }  // namespace paddle
 }  // namespace frontend
 
@@ -31,5 +36,5 @@ private:
 ///            i.e., only if the `cond` evalutes to `false`.
 /// \throws ::ov::OpValidationFailure if `cond` is false.
 #define PADDLE_OP_CHECK(node_context, ...) \
-    OPENVINO_ASSERT_HELPER(::ov::frontend::paddle::OpValidationFailure, (node_context), __VA_ARGS__)
+    OPENVINO_ASSERT_HELPER(::ov::frontend::paddle::throw_op_validation_failure, (node_context), __VA_ARGS__)
 }  // namespace ov

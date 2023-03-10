@@ -16,7 +16,7 @@ using TensorName = std::string;
 using NamedOutputs = std::map<OutPortName, OutputVector>;
 using NamedInputs = std::map<InPortName, OutputVector>;
 
-class DecoderBase {
+class PADDLE_API DecoderBase {
 public:
     /// \brief Get attribute value by name and requested type
     ///

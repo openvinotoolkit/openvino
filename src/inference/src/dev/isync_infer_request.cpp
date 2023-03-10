@@ -225,7 +225,7 @@ void ov::ISyncInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
 
 void ov::ISyncInferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
                                              const std::vector<ov::Tensor>& tensors) {
-    OPENVINO_ASSERT_HELPER(::ov::NotImplemented,
+    OPENVINO_ASSERT_HELPER(::ov::throw_not_implemented,
                            "",
                            false,
                            "Not Implemented",

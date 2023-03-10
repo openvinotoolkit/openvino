@@ -541,25 +541,13 @@ public:
     NodeValidationFailure(const ov::CheckLocInfo& check_loc_info, const Node* node, const std::string& explanation)
         : AssertFailure(check_loc_info, node_validation_failure_loc_string(node), explanation) {}
 };
-}  // namespace ov
-#define NODE_VALIDATION_CHECK(node, ...) OPENVINO_ASSERT_HELPER(::ov::NodeValidationFailure, (node), __VA_ARGS__)
 
-namespace ov {
-template <typename T>
-void check_new_args_count(const Node* node, T new_args) {
-    NODE_VALIDATION_CHECK(node,
-                          new_args.size() == node->input_values().size(),
-                          "clone_with_new_inputs() expected ",
-                          node->input_values().size(),
-                          " argument",
-                          (node->input_values().size() == 1 ? "" : "s"),
-                          " but got ",
-                          new_args.size());
-}
+OPENVINO_API void check_new_args_count(const Node* node, OutputVector new_args);
 
-}  // namespace ov
+[[noreturn]] OPENVINO_API void throw_on_node_validation_failure(const ov::CheckLocInfo& check_loc_info,
+                                                                const Node* node,
+                                                                const std::string& explanation);
 
-namespace ov {
 /// \brief Visits a reference to a node that has been registered with the visitor.
 template <>
 class OPENVINO_API AttributeAdapter<std::shared_ptr<ov::Node>> : public VisitorAdapter {
@@ -587,3 +575,6 @@ protected:
 };
 
 }  // namespace ov
+
+#define NODE_VALIDATION_CHECK(node, ...) \
+    OPENVINO_ASSERT_HELPER(::ov::throw_on_node_validation_failure, (node), __VA_ARGS__)

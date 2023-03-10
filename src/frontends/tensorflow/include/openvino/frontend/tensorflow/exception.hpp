@@ -16,7 +16,7 @@ namespace ov {
 
 #ifndef TENSORFLOW_OP_VALIDATION
 #    define TENSORFLOW_OP_VALIDATION(node_context, ...)                                        \
-        OPENVINO_ASSERT_HELPER(::ov::frontend::OpValidationFailure,                            \
+        OPENVINO_ASSERT_HELPER(::ov::frontend::throw_op_validation_failure,                    \
                                ("While validating node '" + node_context.get_op_type() + "'"), \
                                __VA_ARGS__)
 #endif

@@ -33,3 +33,15 @@ std::string ov::AssertFailure::make_what(const CheckLocInfo& check_loc_info,
 ov::Exception::~Exception() = default;
 ov::AssertFailure::~AssertFailure() = default;
 ov::NotImplemented::~NotImplemented() = default;
+
+void ov::throw_assert_failure(const ov::CheckLocInfo& check_loc_info,
+                              const std::string& context_info,
+                              const std::string& explanation) {
+    throw AssertFailure(check_loc_info, context_info, explanation);
+}
+
+void ov::throw_not_implemented(const ov::CheckLocInfo& check_loc_info,
+                               const std::string& context_info,
+                               const std::string& explanation) {
+    throw NotImplemented(check_loc_info, context_info, explanation);
+}
