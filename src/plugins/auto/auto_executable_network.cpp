@@ -69,6 +69,9 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
         const unsigned int defaultNumForTPUT = 4u;
         const unsigned int defaultNumForLatency = 1u;
         unsigned int real = 0;
+        if (_autoSchedule->_pCTPUTLoadContext) {
+            return _autoSContext->_ctputOtimalNums;
+        }
         if (_autoSchedule->_loadContext[ACTUALDEVICE].isAlready) {
             real = _autoSchedule->_loadContext[ACTUALDEVICE].
                 executableNetwork->GetMetric(name).as<unsigned int>();
@@ -175,6 +178,9 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
         std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
         if (_autoSchedule->_loadContext[CPU].isEnabled && _autoSchedule->_loadContext[CPU].isAlready)
             return _autoSchedule->_loadContext[CPU].executableNetwork->GetMetric(name);
+        if (_autoSchedule->_pCTPUTLoadContext) {
+            return _autoSchedule->_pCTPUTLoadContext[0].executableNetwork->GetMetric(name);
+        }
         return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetMetric(name);
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS,
