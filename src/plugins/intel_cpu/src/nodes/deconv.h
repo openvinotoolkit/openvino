@@ -82,7 +82,7 @@ private:
     };
     // have to hold reference (shared_ptr) to forward convolution primitive_desc
     // since backward one uses the reference to it as a hint
-    std::vector<std::shared_ptr<dnnl::convolution_forward::primitive_desc>> fwdConvPD;
+    std::vector<dnnl::convolution_forward::primitive_desc> fwdConvPD;
 
     bool withGroups = false;
     bool isDW = false;

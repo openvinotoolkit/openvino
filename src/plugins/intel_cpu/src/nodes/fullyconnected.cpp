@@ -656,7 +656,7 @@ void FullyConnected::createDescriptorInternal(const dnnl::memory::desc &inputDes
     if (withBiases) {
         dnnl::memory::desc bias_candidate(DnnlExtensionUtils::convertToDnnlDims(getInputShapeAtPort(BIAS_ID).getStaticDims()), bdt,
                                             dnnl::memory::format_tag::any);
-        auto desc = std::make_shared<inner_product_forward::primitive_desc>(
+        auto desc = inner_product_forward::primitive_desc(
             getEngine(),
             prop_kind::forward_inference,
             in_candidate,
@@ -668,7 +668,7 @@ void FullyConnected::createDescriptorInternal(const dnnl::memory::desc &inputDes
 
         descs.push_back(desc);
     } else {
-        auto desc = std::make_shared<inner_product_forward::primitive_desc>(
+        auto desc = inner_product_forward::primitive_desc(
             getEngine(),
             prop_kind::forward_inference,
             in_candidate,
@@ -705,7 +705,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
         return;
 
     for (auto& desc : descs) {
-        primitive_desc_iterator itpd = *desc;
+        primitive_desc_iterator itpd = desc;
         while (static_cast<bool>(itpd)) {
             // 3D FC requires implicit reshape so strides should be defined
             auto supportsUndefStridesAndOffset = [&]() {

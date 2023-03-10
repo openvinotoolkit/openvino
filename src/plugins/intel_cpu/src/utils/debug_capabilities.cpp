@@ -2,6 +2,7 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <common/primitive_desc_iface.hpp>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include "memory_desc/blocked_memory_desc.h"
@@ -45,12 +46,10 @@ DebugLogEnabled::DebugLogEnabled(const char* file, const char* func, int line, c
     }
 
     // check each filter patten:
-    bool filter_match_action;
+    bool filter_match_action = true;
     if (p_filters[0] == '-') {
         p_filters++;
         filter_match_action = false;
-    } else {
-        filter_match_action = true;
     }
 
     bool match = false;
@@ -514,6 +513,11 @@ std::ostream & operator<<(std::ostream & os, const Edge::ReorderStatus reorderSt
     case Edge::ReorderStatus::Optimized: os << "Optimizer"; break;
     case Edge::ReorderStatus::No: os << "No"; break;
     }
+    return os;
+}
+
+std::ostream & operator<<(std::ostream & os, const dnnl::primitive_desc& desc) {
+    os << desc.get()->info();
     return os;
 }
 

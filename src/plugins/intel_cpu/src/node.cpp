@@ -281,8 +281,8 @@ void Node::selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& pr
             const size_t descInConfSize = supportedPrimitiveDesc.getConfig().inConfs.size();
 
             if (descInConfSize > getParentEdges().size()) {
-                DEBUG_LOG(getName(), " Desc ", i, " with type: ", supportedType,
-                          " has more input ports than node: ", descInConfSize, " vs ", getParentEdges().size());
+                IE_THROW() << getName() << " Desc " << i << " with type: " << supportedType <<
+                    " has more input ports than node: " << descInConfSize << " vs " << getParentEdges().size();
                 continue;
             }
 
@@ -636,7 +636,7 @@ void Node::initSupportedPrimitiveDescriptors() {
     auto attr = initPrimitiveAttr();
 
     for (auto& desc : descs) {
-        primitive_desc_iterator itpd = *desc;
+        primitive_desc_iterator itpd = desc;
 
         while (static_cast<bool>(itpd)) {
             NodeConfig config;
@@ -760,23 +760,6 @@ void Node::initDescriptor(const NodeConfig& config) {
         return updatedConfig;
     };
 
-    auto haveProperImplementationType = [](dnnl::primitive_desc& desc, impl_desc_type implType) {
-        primitive_desc_iterator& itpd = desc;
-
-        while (itpd) {
-            const impl_desc_type descImplType = parse_impl_name(itpd.impl_info_str());
-
-            if (descImplType == implType) {
-                return true;
-            }
-
-            if (!itpd.next_impl())
-                break;
-        }
-
-        return false;
-    };
-
     descs.clear();
 
     std::vector<MemoryDescPtr> inDescs;
@@ -788,7 +771,7 @@ void Node::initDescriptor(const NodeConfig& config) {
     createDescriptor(inDescs, outDescs);
 
     for (auto& desc : descs) {
-        if (haveProperImplementationType(*desc, selectedPD->getImplementationType())) {
+        if (DnnlExtensionUtils::hasProperImplementationType(desc, selectedPD->getImplementationType())) {
             selectedPD->setConfig(config);
             return;
         }
@@ -830,7 +813,7 @@ void Node::prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs) {
             Memory memory{ engine };
             memory.Create(newDesc, internalBlob->buffer());
 
-            MemoryPtr _ptr = MemoryPtr(new Memory(engine));
+            MemoryPtr _ptr = std::make_shared<Memory>(engine);
             _ptr->Create(*intDescs[i]);
             _ptr->SetData(memory);
 

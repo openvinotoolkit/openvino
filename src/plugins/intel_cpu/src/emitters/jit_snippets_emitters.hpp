@@ -69,7 +69,6 @@ protected:
 /// }
 /// Note that Kernel doesn't accept any input arguments.
 ///
-// using namespace dnnl::impl::cpu::x64;
 
 class KernelEmitter : public jit_container_emitter {
 public:

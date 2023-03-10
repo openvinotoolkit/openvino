@@ -12,6 +12,7 @@
 
 #include "onednn/dnnl.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "onednn/iml_type_mapper.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -50,6 +51,7 @@ public:
 
     static std::shared_ptr<DnnlMemoryDesc> query_md(const const_dnnl_primitive_desc_t& pd, const dnnl::query& what, int idx = 0);
     static std::string query_impl_info_str(const const_dnnl_primitive_desc_t& pd);
+    static bool hasProperImplementationType(dnnl::primitive_desc& desc, impl_desc_type implType);
 };
 
 }   // namespace intel_cpu
