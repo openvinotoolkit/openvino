@@ -650,21 +650,23 @@ void regclass_InferRequest(py::module m) {
             :rtype: List[openvino.runtime.ConstOutput]
         )");
 
-    cls.def_property_readonly("inputs",
-                              [](InferRequestWrapper& self) {
-                                  return self.m_inputs;
-                              },
-                              R"(
+    cls.def_property_readonly(
+        "inputs",
+        [](InferRequestWrapper& self) {
+            return self.m_inputs;
+        },
+        R"(
                                 Gets all inputs of a CompiledModel which was used to create this InferRequest.
                                 
                                 :rtype: List[openvino.runtime.ConstOutput]
                               )");
 
-    cls.def_property_readonly("outputs",
-                              [](InferRequestWrapper& self) {
-                                  return self.m_outputs;
-                              },
-                              R"(
+    cls.def_property_readonly(
+        "outputs",
+        [](InferRequestWrapper& self) {
+            return self.m_outputs;
+        },
+        R"(
                                 Gets all outputs of a CompiledModel which was used to create this InferRequest.
                                 
                                 :rtype: List[openvino.runtime.ConstOutput]
