@@ -119,4 +119,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVCompiledModelPropertie
                 ::testing::Values(CommonTestUtils::DEVICE_BATCH),
                 ::testing::ValuesIn(auto_batch_properties)),
         OVCompiledModelPropertiesTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_BehaviorTests, OVCompiledModelEmptyPropertiesTests, ::testing::Values(CommonTestUtils::DEVICE_TEMPLATE),
+        OVCompiledModelEmptyPropertiesTests::getTestCaseName);
 } // namespace
