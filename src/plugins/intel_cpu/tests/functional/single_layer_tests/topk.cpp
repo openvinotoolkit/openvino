@@ -171,7 +171,7 @@ protected:
         } else if (netPrecision == ElementType::bf16) {
             size_t O = 1, A = 1, I = 1;
             A = shape[axis];
-            for (size_t i = 0; i < axis; i++)
+            for (int64_t i = 0; i < axis; i++)
                 O *= shape[i];
             for (size_t i = axis + 1; i < shape.size(); i++)
                 I *= shape[i];

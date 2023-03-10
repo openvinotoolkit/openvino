@@ -574,9 +574,9 @@ void RNN::initSequence() {
         THROW_ERROR << "has incorrect input/output shapes. Input data shape: " << inDataShape.toString() <<
                 " Output shape: " << outDataShape.toString();
 
-    if (!one_of(getOriginalInputsNumber(), 6, 7))
+    if (!one_of(getOriginalInputsNumber(), 6u, 7u))
         THROW_ERROR << "has incorrect number of input ports: " << getOriginalInputsNumber();
-    if (!one_of(getOriginalOutputsNumber(), 2, 3))
+    if (!one_of(getOriginalOutputsNumber(), 2u, 3u))
         THROW_ERROR << "has incorrect number of output ports: " << getOriginalOutputsNumber();
 
     T = {inDataShape.getMinDims()[1], inDataShape.getMaxDims()[1]};
@@ -722,7 +722,7 @@ void RNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t rIdx)
             }
 
             Prec *l_r_ptr = r_ptr + gate_map[g] * SC + out_i;
-            for (int in_i = 0; in_i < SC; in_i++) {
+            for (size_t in_i = 0; in_i < SC; in_i++) {
                 *l_r_ptr = *ie_r_ptr;
                 ie_r_ptr++;
                 l_r_ptr += step;

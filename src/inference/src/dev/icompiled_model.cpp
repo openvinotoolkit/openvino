@@ -97,5 +97,5 @@ void ov::ICompiledModel::loaded_from_cache() {
         wrapper->get_executable_network()->loadedFromCache();
         return;
     }
-    OPENVINO_NOT_IMPLEMENTED;
+    // OPENVINO_NOT_IMPLEMENTED;
 }

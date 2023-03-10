@@ -23,6 +23,7 @@ void PluginConfig::set_default() {
         std::make_tuple(ov::log::level, ov::log::Level::NO),
         std::make_tuple(ov::intel_auto::device_bind_buffer, false),
         std::make_tuple(ov::hint::performance_mode, ov::hint::PerformanceMode::UNDEFINED),
+        std::make_tuple(ov::hint::execution_mode, ov::hint::ExecutionMode::UNDEFINED),
         std::make_tuple(ov::hint::num_requests, 0, UnsignedTypeValidator()),
         std::make_tuple(ov::intel_auto::enable_startup_fallback, true),
         // TODO 1) cache_dir 2) allow_auto_batch 3) auto_batch_timeout
