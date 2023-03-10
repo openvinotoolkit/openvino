@@ -56,7 +56,7 @@ std::shared_ptr<ov::IAsyncInferRequest> ov::template_plugin::CompiledModel::crea
     auto async_infer_request = std::make_shared<AsyncInferRequest>(
         std::static_pointer_cast<ov::template_plugin::InferRequest>(internal_request),
         get_task_executor(),
-        get_template_plugin()->_waitExecutor,
+        get_template_plugin()->m_waitExecutor,
         get_callback_executor());
 
     return async_infer_request;
@@ -130,7 +130,7 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
         auto model_name = m_model->get_friendly_name();
         return decltype(ov::model_name)::value_type(model_name);
     } else if (ov::optimal_number_of_infer_requests == name) {
-        unsigned int value = _cfg._streamsExecutorConfig._streams;
+        unsigned int value = _cfg.streams_executor_config._streams;
         return decltype(ov::optimal_number_of_infer_requests)::value_type(value);
     }
 
