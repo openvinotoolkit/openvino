@@ -1,7 +1,7 @@
-import Model from './model.js';
-import Tensor from './tensor.js';
+import Model from './model.mjs';
+import Tensor from './tensor.mjs';
 
-import type { IShape, ITensor } from './types.js';
+import type { IShape, ITensor } from './types.mjs';
 
 export default class ModelBrowser extends Model {
   // @ts-ignore: FIXME: Align signatures

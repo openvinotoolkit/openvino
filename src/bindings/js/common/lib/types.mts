@@ -1,4 +1,4 @@
-import { OpenvinoModule, OriginalShapeWrapper, OriginalTensorWrapper } from './ov-module.js';
+import { OpenvinoModule, OriginalShapeWrapper, OriginalTensorWrapper } from './ov-module.mjs';
 
 export type OVType =
   | 'uint8_t'

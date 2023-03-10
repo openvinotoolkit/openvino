@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
-import { OpenvinoModule } from './ov-module.js';
+import { OpenvinoModule } from './ov-module.mjs';
 
-import Session from './session.js';
+import Session from './session.mjs';
 
-import type { IShape } from './types.js';
+import type { IShape } from './types.mjs';
 
 export default class SessionNodejs extends Session {
   constructor(ov: OpenvinoModule) {

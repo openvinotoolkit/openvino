@@ -1,7 +1,7 @@
-import { OpenvinoModule, OriginalModel } from './ov-module.js';
-import Shape from './shape.js';
+import { OpenvinoModule, OriginalModel } from './ov-module.mjs';
+import Shape from './shape.mjs';
 
-import type { IShape, SessionEnvironment, ISession, IModel } from './types.js';
+import type { IShape, SessionEnvironment, ISession, IModel } from './types.mjs';
 
 type ISessionFactory = new (ov: OpenvinoModule) => ISession
 type IModelFactory = new (ov: OpenvinoModule, model: OriginalModel) => IModel
@@ -18,7 +18,7 @@ export default class Session implements ISession {
 
   async loadModel(xmlData: Uint8Array, binData: Uint8Array, shapeData: number[] | IShape, layout: string): Promise<IModel> {
     const originalModel = await loadModel(this._ov, xmlData, binData, shapeData, layout);
-    const ModelFactory: IModelFactory = (await import(this._env == 'browser' ? './model-browser.js' : './model-nodejs.js')).default;
+    const ModelFactory: IModelFactory = (await import(this._env == 'browser' ? './model-browser.mjs' : './model-nodejs.mjs')).default;
 
     return new ModelFactory(this._ov, originalModel);
   }
@@ -32,7 +32,7 @@ export default class Session implements ISession {
   }
 
   static async init(openvinojs: () => Promise<OpenvinoModule>, env = 'browser'): Promise<ISession> {
-    const SessionFactory: ISessionFactory = (await import(env == 'browser' ? './session-browser.js' : './session-nodejs.js')).default;
+    const SessionFactory: ISessionFactory = (await import(env == 'browser' ? './session-browser.mjs' : './session-nodejs.mjs')).default;
 
     return new SessionFactory(await openvinojs());
   }

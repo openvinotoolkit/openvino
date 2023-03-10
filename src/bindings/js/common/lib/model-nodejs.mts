@@ -1,10 +1,10 @@
 import { createCanvas, loadImage } from 'canvas';
 
-import Model from './model.js';
-import Tensor from './tensor.js';
+import Model from './model.mjs';
+import Tensor from './tensor.mjs';
 
 import type { Image } from 'canvas';
-import type { IShape, ITensor } from './types.js';
+import type { IShape, ITensor } from './types.mjs';
 
 export default class ModelNodejs extends Model {
   // @ts-ignore: FIXME: Align signatures

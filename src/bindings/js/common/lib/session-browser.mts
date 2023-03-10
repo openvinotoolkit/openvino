@@ -1,7 +1,7 @@
-import { OpenvinoModule } from './ov-module.js';
-import Session from './session.js';
+import { OpenvinoModule } from './ov-module.mjs';
+import Session from './session.mjs';
 
-import type { IShape, IModel, ISession } from './types.js';
+import type { IShape, IModel, ISession } from './types.mjs';
 
 export default class SessionBrowser extends Session implements ISession {
   constructor(ov: OpenvinoModule) {

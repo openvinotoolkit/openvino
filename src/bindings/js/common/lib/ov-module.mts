@@ -1,4 +1,4 @@
-import type { TypedArray, OVType, PrecisionSupportedType } from './types.js';
+import type { TypedArray, OVType, PrecisionSupportedType } from './types.mjs';
 
 interface WASMFilesystem {
   open(filename: string, flags: string): string,

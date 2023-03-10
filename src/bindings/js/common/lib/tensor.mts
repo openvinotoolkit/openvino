@@ -1,43 +1,58 @@
+import { OpenvinoModule, OriginalTensor, OriginalTensorWrapper } from './ov-module.mjs';
+
+import {
+  jsTypeByPrecisionMap, 
+  ovTypesMap, 
+  heapLabelByArrayTypeMap, 
+} from './maps.mjs';
+
 import Shape from './shape.mjs';
-import { ovTypesMap, jsTypeByPrecisionMap, heapLabelByTypeMap } from './types.mjs';
 
-export default class Tensor {
-  #precision;
-  #data;
-  #shape;
+import type { 
+  TypedArray,
+  PrecisionSupportedType, 
+  IShape,
+  ITensor,
+} from './types.mjs';
 
-  constructor(precision, data, shapeData) {
+export default class Tensor implements ITensor {
+  #precision: PrecisionSupportedType;
+  #data: TypedArray;
+  #shape: IShape;
+
+  constructor(precision: PrecisionSupportedType, data: number[] | TypedArray, shapeData: IShape | number[]) {
     this.#precision = precision;
     this.#data = new jsTypeByPrecisionMap[this.#precision](data);
     
     if (shapeData instanceof Shape) this.#shape = shapeData;
-    else this.#shape = new Shape(...shapeData);
+    else this.#shape = new Shape(...shapeData as number[]);
   }
 
-  get precision() {
+  get precision(): PrecisionSupportedType {
     return this.#precision;
   }
 
-  get data() {
+  get data(): TypedArray {
     return this.#data;
   }
 
-  get shape() {
+  get shape(): IShape {
     return this.#shape;
   }
 
-  static parse(ov, originalTensor) {
+  static parse(ov: OpenvinoModule, originalTensor: OriginalTensor): ITensor {
     const precision = ovTypesMap[originalTensor.getPrecision()];
     const shape = Shape.parse(ov, originalTensor.getShape());
 
     const dataType = jsTypeByPrecisionMap[precision];
-    const heapTypeLabel = heapLabelByTypeMap[dataType.name];
+    const heapTypeLabel = heapLabelByArrayTypeMap[dataType.name];
     const originalDataPointer = originalTensor.getData();
 
     const elementsCount = shape.data.reduce((acc, val) => acc*val);
-    const data = new dataType(elementsCount);
+    const data: TypedArray = new dataType(elementsCount);
 
     for (let i = 0; i < elementsCount; i++) {
+      // @ts-ignore: FIXME: Fix OpenvinoModule type
       const element = ov[heapTypeLabel][originalDataPointer/dataType.BYTES_PER_ELEMENT + i];
       
       data[i] = element;
@@ -46,7 +61,7 @@ export default class Tensor {
     return new Tensor(precision, data, shape);
   }
 
-  static convert(ov, tensor) {
+  static convert(ov: OpenvinoModule, tensor: Tensor): OriginalTensorWrapper {
     const { precision } = tensor;
     const dataType = jsTypeByPrecisionMap[precision];
     const originalShape = tensor.shape.convert(ov);
@@ -55,8 +70,9 @@ export default class Tensor {
     const elementSizeInBytes = originalData.BYTES_PER_ELEMENT;
     const heapSpace = ov._malloc(originalData.length*elementSizeInBytes);
     const offset = Math.log2(elementSizeInBytes);
-    const waPrecision = heapLabelByTypeMap[dataType.name];
+    const waPrecision = heapLabelByArrayTypeMap[dataType.name];
 
+    // @ts-ignore: FIXME: Fix OpenvinoModule type
     ov[waPrecision].set(originalData, heapSpace>>offset); 
 
     return { 
@@ -68,20 +84,7 @@ export default class Tensor {
      };
   }
 
-  convert(ov) {
+  convert(ov: OpenvinoModule): OriginalTensorWrapper {
     return Tensor.convert(ov, this);
   }
 };
-
-// # Demo of usage:
-// const inputData = (new Array(224*224*3)).fill(1);
-
-// const tensor = new Tensor('float16', inputData, [1, 224, 224, 3]);
-
-// tensor.shape;
-// tensor.data;
-// tensor.precision;
-
-// tensor.convert(); // => { obj, free() }
-// Tensor.parse(ov, originalTensor);
-
