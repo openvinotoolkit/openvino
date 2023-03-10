@@ -10,7 +10,6 @@
 #include <memory>
 
 namespace cldnn {
-struct memory;
 
 template <>
 struct typed_program_node<input_layout> : public typed_program_node_base<input_layout> {
