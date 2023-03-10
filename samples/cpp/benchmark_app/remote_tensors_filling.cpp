@@ -61,7 +61,7 @@ void fill_buffer(void* inputBuffer, size_t elementsNum, const ov::element::Type&
     } else if (type == ov::element::boolean) {
         fill_buffer_random<uint8_t, uint32_t>(inputBuffer, elementsNum, 0, 1);
     } else {
-        throw ov::Exception("Requested type is not supported");
+        OPENVINO_THROW("Requested type is not supported");
     }
 }
 
@@ -124,7 +124,7 @@ std::map<std::string, ov::TensorVector> get_remote_input_tensors(
     }
     return remoteTensors;
 #else
-    throw ov::Exception("Device memory requested for GPU device, but OpenCL was not linked");
+    OPENVINO_THROW("Device memory requested for GPU device, but OpenCL was not linked");
 #endif
 }
 
@@ -136,19 +136,18 @@ ov::Shape get_static_shape(const ov::Output<const ov::Node>& compiled_output) {
     if (compiled_pshape.is_static())
         return compiled_pshape.to_shape();
     else if (compiled_pshape.rank().is_dynamic())
-        OPENVINO_UNREACHABLE(
-            "Benchmark App - NOT IMPLEMENTED - Output of dynamic rank is not supported for remote tensor. ",
-            "Output: ",
-            compiled_output);
+        OPENVINO_THROW("Benchmark App - NOT IMPLEMENTED - Output of dynamic rank is not supported for remote tensor. ",
+                       "Output: ",
+                       compiled_output);
     ov::Shape shape;
     for (const auto& dimension : compiled_pshape) {
         if (dimension.get_interval().has_upper_bound())
             shape.push_back(static_cast<ov::Shape::value_type>(dimension.get_max_length()));
         else
-            OPENVINO_UNREACHABLE("Benchmark App - NOT IMPLEMENTED - Fully dynamic output dimensions are not supported "
-                                 "for remote tensor. ",
-                                 "Output: ",
-                                 compiled_output);
+            OPENVINO_THROW("Benchmark App - NOT IMPLEMENTED - Fully dynamic output dimensions are not supported "
+                           "for remote tensor. ",
+                           "Output: ",
+                           compiled_output);
     }
     return shape;
 }
@@ -184,7 +183,7 @@ std::map<std::string, ov::Tensor> get_remote_output_tensors(const ov::CompiledMo
 
     return outputTensors;
 #else
-    throw ov::Exception("Device memory requested for GPU device, but OpenCL was not linked");
+    OPENVINO_THROW("Device memory requested for GPU device, but OpenCL was not linked");
 #endif
 }
 }  // namespace gpu

@@ -46,7 +46,7 @@ ov::Tensor create_and_fill_tensor(
                 static_cast<uint8_t*>(tensor.data()),
                 tensor.get_byte_size(),
                 range, start_from, resolution, seed); break;
-        default: OPENVINO_UNREACHABLE("Unsupported element type: ", element_type);
+        default: OPENVINO_THROW("Unsupported element type: ", element_type);
     }
 #undef CASE
     return tensor;
@@ -94,7 +94,7 @@ ov::Tensor create_and_fill_tensor_unique_sequence(const ov::element::Type elemen
                                                        seed);
         break;
     default:
-        OPENVINO_UNREACHABLE("Unsupported element type: ", element_type);
+        OPENVINO_THROW("Unsupported element type: ", element_type);
     }
 #undef CASE
     return tensor;
@@ -132,7 +132,7 @@ ov::runtime::Tensor create_and_fill_tensor_normal_distribution(
                     static_cast<uint8_t*>(tensor.data()),
                     tensor.get_byte_size(),
                     mean, stddev, seed); break;
-        default: OPENVINO_UNREACHABLE("Unsupported element type: ", element_type);
+        default: OPENVINO_THROW("Unsupported element type: ", element_type);
     }
 #undef CASE
     return tensor;
@@ -167,7 +167,7 @@ tensor.get_size(), range, start_from, resolution); break;
             ::CommonTestUtils::fill_data_ptr_consistently(
                     static_cast<uint8_t*>(tensor.data()),
                     tensor.get_byte_size(), range, start_from, resolution); break;
-        default: OPENVINO_UNREACHABLE("Unsupported element type: ", element_type);
+        default: OPENVINO_THROW("Unsupported element type: ", element_type);
     }
 #undef CASE
     return tensor;
@@ -325,7 +325,7 @@ void compare(
         CASE0(X, ov::element::Type_t::u16)                          \
         CASE0(X, ov::element::Type_t::u32)                          \
         CASE0(X, ov::element::Type_t::u64)                          \
-        default: OPENVINO_UNREACHABLE("Unsupported element type: ", \
+        default: OPENVINO_THROW("Unsupported element type: ", \
             "expected ", expected.get_element_type(),               \
             ", actual ", actual.get_element_type());                \
     } break;
@@ -347,7 +347,7 @@ void compare(
         CASE(ov::element::Type_t::u16)
         CASE(ov::element::Type_t::u32)
         CASE(ov::element::Type_t::u64)
-        default: OPENVINO_UNREACHABLE("Unsupported element type: ", expected.get_element_type());
+        default: OPENVINO_THROW("Unsupported element type: ", expected.get_element_type());
     }
 #undef CASE0
 #undef CASE

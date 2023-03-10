@@ -98,7 +98,7 @@ void shape_infer(const ov::opset1::Reshape* op,
 
 template <class T>
 inline void dynamic_shape(T& output_shape) {
-    OPENVINO_UNREACHABLE("This code should be executed only for PartialShape class");
+    OPENVINO_THROW("This code should be executed only for PartialShape class");
 }
 
 template <>

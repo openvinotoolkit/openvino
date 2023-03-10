@@ -97,7 +97,7 @@ protected:
             CASE(ElementType::u1)
             CASE(ElementType::i4)
             CASE(ElementType::u4)
-            default: OPENVINO_UNREACHABLE("Unsupported element type: ", tensor.get_element_type());
+            default: OPENVINO_THROW("Unsupported element type: ", tensor.get_element_type());
         }
     }
 

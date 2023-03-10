@@ -165,7 +165,7 @@ bool convertTensorIteratorToSequence(const std::shared_ptr<ov::opset5::TensorIte
                                                       gru_cell->get_clip(),
                                                       gru_cell->get_linear_before_reset());
     } else {
-        OPENVINO_UNREACHABLE("Unsupported sequence type");
+        OPENVINO_THROW("Unsupported sequence type");
     }
 
     ngraph::Output<ngraph::Node> out = sequence->output(0);

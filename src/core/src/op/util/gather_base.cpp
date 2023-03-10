@@ -104,9 +104,7 @@ bool evaluate(const ngraph::HostTensorPtr& arg0,
                                                        axis,
                                                        batch_dims);
     } else {
-        OPENVINO_UNREACHABLE("Unexpected type ",
-                             arg1->get_element_type().c_type_string(),
-                             " for Gather evaluate method.");
+        OPENVINO_THROW("Unexpected type ", arg1->get_element_type().c_type_string(), " for Gather evaluate method.");
     }
 
     return true;
@@ -224,7 +222,7 @@ bool ov::op::util::GatherBase::evaluate(const HostTensorVector& outputs, const H
         axis = inputs[2]->get_data_ptr<element::Type_t::u64>()[0];
         break;
     default:
-        OPENVINO_UNREACHABLE("axis must be of integral data type.");
+        OPENVINO_THROW("axis must be of integral data type.");
     }
 
     if (axis < 0) {
