@@ -9,6 +9,7 @@
 #include "input.h"
 #include <ngraph/opsets/opset1.hpp>
 #include <utils/shape_inference/shape_inference_ngraph.hpp>
+#include "slice_shape_inference_utils.hpp"
 
 #include <string>
 
@@ -37,28 +38,6 @@ bool StridedSlice::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
         return false;
     }
     return true;
-}
-
-// keep it in mind:
-// The calculate_output_shape function is designed based on the premise that the len parameter is a positive integer greater than 0.
-// If the len parameter is equal to 0, the output result will be 0 directly, and there is no need to call the function separately.
-inline int calculate_output_shape(int64_t startIdx, int64_t stopIdx, int64_t step, int64_t len) {
-    if (startIdx < 0) {
-        startIdx = startIdx < -len ? 0 : startIdx + len;
-    } else {
-        startIdx = startIdx > (len - 1) ? len : startIdx;
-    }
-
-    if (stopIdx < 0) {
-        stopIdx = stopIdx < -len ? 0 : stopIdx + len;
-    } else {
-        stopIdx = stopIdx > (len - 1) ? len : stopIdx;
-    }
-
-    if (step < 0) {
-        step = -step;
-    }
-    return (stopIdx - startIdx + step - 1) / step;
 }
 
 class StridedSliceShapeInfer : public ShapeInferEmptyPads {
@@ -102,7 +81,7 @@ public:
                 } else {
                     auto begin = m_begin_mask_set.count(i) ? 0 : beginPtr[i];
                     auto end  = m_end_mask_set.count(i) ? shapeIn[i] : endPtr[i];
-                    m_outputShape[new_idx] = calculate_output_shape(begin, end, stridePtr[i], shapeIn[i]);
+                    m_outputShape[new_idx] = ov::op::slice::get_sliced_value(shapeIn[i], begin, end, stridePtr[i]);
                 }
                 new_idx += 1;
             }
