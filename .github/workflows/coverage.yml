@@ -1,5 +1,5 @@
 name: Code coverage
-on: [push, pull_request]
+on: [push]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -26,6 +26,8 @@ jobs:
           sudo apt update
           sudo apt --assume-yes install lcov
           pip install coverage
+          pip install -r src/bindings/python/src/compatibility/openvino/requirements-dev.txt
+          pip install -r src/bindings/python/wheel/requirements-dev.txt
 
           chmod +x install_build_dependencies.sh
           sudo -E ./install_build_dependencies.sh
