@@ -471,7 +471,7 @@ void InputModel::InputModelImpl::override_all_outputs(const std::vector<Place::P
 }
 
 void InputModel::InputModelImpl::extract_subgraph(const std::vector<Place::Ptr>& inputs,
-                                                 const std::vector<Place::Ptr>& outputs) {
+                                                  const std::vector<Place::Ptr>& outputs) {
     m_graph_changed = true;
     override_all_inputs(inputs);
     override_all_outputs(outputs);

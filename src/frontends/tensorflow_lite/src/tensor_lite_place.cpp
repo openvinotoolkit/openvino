@@ -3,8 +3,9 @@
 //
 
 #include "tensor_lite_place.hpp"
-#include "utils.hpp"
+
 #include "quantization_info.hpp"
+#include "utils.hpp"
 
 void ov::frontend::tensorflow_lite::TensorLitePlace::translate(ov::Output<ov::Node>& output,
                                                                bool convert_tensor_attrs_to_nodes) {

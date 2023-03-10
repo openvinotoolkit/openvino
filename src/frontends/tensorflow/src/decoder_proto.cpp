@@ -82,7 +82,7 @@ void extract_compressed_tensor_content(const ::tensorflow::TensorProto& tensor_p
 #endif
 }  // namespace
 
-ov::element::Type get_ov_type(const ::tensorflow::DataType & type) {
+ov::element::Type get_ov_type(const ::tensorflow::DataType& type) {
     static const std::map<::tensorflow::DataType, ov::element::Type> type_map{
         {::tensorflow::DataType::DT_BOOL, ov::element::boolean},
         {::tensorflow::DataType::DT_INT16, ov::element::i16},

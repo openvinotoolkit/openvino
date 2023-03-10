@@ -21,7 +21,7 @@ namespace paddle {
 
 using namespace ::paddle::framework;
 
-ov::element::Type get_ov_type(const ::paddle::framework::proto::VarType_Type & type) {
+ov::element::Type get_ov_type(const ::paddle::framework::proto::VarType_Type& type) {
     static const std::map<proto::VarType_Type, ov::element::Type> type_map{
         {proto::VarType_Type::VarType_Type_BOOL, ov::element::boolean},
         {proto::VarType_Type::VarType_Type_INT16, ov::element::i16},

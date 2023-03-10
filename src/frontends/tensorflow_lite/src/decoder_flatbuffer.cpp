@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "utils.hpp"
 #include "decoder_flatbuffer.h"
 
 #include "schema_generated.h"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {

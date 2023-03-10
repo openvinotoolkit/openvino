@@ -19,8 +19,8 @@ using namespace InferenceEngine;
 
 namespace {
 void parse_pre_process(pugi::xml_node& root,
-                     std::shared_ptr<ngraph::runtime::AlignedBuffer> weights,
-                     std::shared_ptr<Function> f) {
+                       std::shared_ptr<ngraph::runtime::AlignedBuffer> weights,
+                       std::shared_ptr<Function> f) {
     /* Preprocessing block can have two preprocessing types:
      *
      * <pre-process mean-precision="FP32" reference-layer-name="data">

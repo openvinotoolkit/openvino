@@ -190,8 +190,8 @@ macro(ov_add_frontend)
     if(NOT BUILD_SHARED_LIBS)
         # override default function names
         target_compile_definitions(${TARGET_NAME} PRIVATE
-            "-DGetFrontEndData=GetFrontEndData${OV_FRONTEND_NAME}"
-            "-DGetAPIVersion=GetAPIVersion${OV_FRONTEND_NAME}")
+            "-Dget_front_end_data=get_front_end_data_${OV_FRONTEND_NAME}"
+            "-Dget_api_version=get_api_version_${OV_FRONTEND_NAME}")
     endif()
 
     target_include_directories(${TARGET_NAME}

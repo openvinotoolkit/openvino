@@ -118,8 +118,8 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> Xml
 
 std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>>
 XmlDeserializer::parse_output_description(const pugi::xml_node& node,
-                                        const std::string& body_name,
-                                        const std::string& port_map_name) {
+                                          const std::string& body_name,
+                                          const std::string& port_map_name) {
     std::vector<std::shared_ptr<ngraph::op::util::MultiSubGraphOp::OutputDescription>> outputs;
     auto body_node = node.child(body_name.c_str());
     const auto up_io_map = updated_io_map(node, body_node);

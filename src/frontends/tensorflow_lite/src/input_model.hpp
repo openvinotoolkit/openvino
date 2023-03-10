@@ -5,8 +5,8 @@
 #pragma once
 
 #include "graph_iterator_flatbuffer.hpp"
-#include "openvino/frontend/input_model.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
+#include "openvino/frontend/input_model.hpp"
 #include "openvino/frontend/tensorflow_lite/frontend.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "tensor_lite_place.hpp"

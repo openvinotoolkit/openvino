@@ -156,8 +156,10 @@ private:
     /// \brief Traverses port_map in order to create vector of OutputDescription shared_ptrs.
     /// Shall be used only for ops which have port_map attribute.
     /// \param node xml op representation
-    std::vector<std::shared_ptr<ov::op::util::SubGraphOp::OutputDescription>>
-    parse_output_description(const pugi::xml_node& node, const std::string& body_name, const std::string& port_map_name);
+    std::vector<std::shared_ptr<ov::op::util::SubGraphOp::OutputDescription>> parse_output_description(
+        const pugi::xml_node& node,
+        const std::string& body_name,
+        const std::string& port_map_name);
 
     // TODO consider to call only once per layer/TI-Loop node
     IoMap updated_io_map(const pugi::xml_node& node, const pugi::xml_node& body_node);
@@ -176,9 +178,9 @@ private:
     GenericLayerParams parse_generic_params(const pugi::xml_node& node);
 
     std::shared_ptr<ov::Node> create_node(const ov::OutputVector& inputs,
-                                         const pugi::xml_node& node,
-                                         const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
-                                         const GenericLayerParams& params);
+                                          const pugi::xml_node& node,
+                                          const std::shared_ptr<ngraph::runtime::AlignedBuffer>& weights,
+                                          const GenericLayerParams& params);
 
     void read_meta_data(const std::shared_ptr<ov::Model>& model, const pugi::xml_node& meta_section);
 
