@@ -22,7 +22,7 @@
     try {                                                                    \
         __VA_ARGS__;                                                         \
     } catch (const std::exception& ex) {                                     \
-        OPENVINO_UNREACHABLE(ex.what());                                     \
+        OPENVINO_THROW(ex.what());                                           \
     } catch (...) {                                                          \
         OPENVINO_UNREACHABLE("Unexpected exception");                        \
     }

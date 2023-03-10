@@ -23,7 +23,7 @@
     } catch (const ::InferenceEngine::RequestBusy& ex) {                    \
         throw ov::Busy(ex.what());                                          \
     } catch (const std::exception& ex) {                                    \
-        OPENVINO_UNREACHABLE(ex.what());                                    \
+        OPENVINO_THROW(ex.what());                                          \
     } catch (...) {                                                         \
         OPENVINO_UNREACHABLE("Unexpected exception");                       \
     }
@@ -236,7 +236,7 @@ void InferRequest::wait() {
     } catch (const ie::InferCancelled& e) {
         throw Cancelled{e.what()};
     } catch (const std::exception& ex) {
-        OPENVINO_UNREACHABLE(ex.what());
+        OPENVINO_THROW(ex.what());
     } catch (...) {
         OPENVINO_UNREACHABLE("Unexpected exception");
     }
@@ -249,7 +249,7 @@ bool InferRequest::wait_for(const std::chrono::milliseconds timeout) {
     } catch (const ie::InferCancelled& e) {
         throw Cancelled{e.what()};
     } catch (const std::exception& ex) {
-        OPENVINO_UNREACHABLE(ex.what());
+        OPENVINO_THROW(ex.what());
     } catch (...) {
         OPENVINO_UNREACHABLE("Unexpected exception");
     }

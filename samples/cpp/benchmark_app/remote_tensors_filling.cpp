@@ -136,19 +136,18 @@ ov::Shape get_static_shape(const ov::Output<const ov::Node>& compiled_output) {
     if (compiled_pshape.is_static())
         return compiled_pshape.to_shape();
     else if (compiled_pshape.rank().is_dynamic())
-        OPENVINO_UNREACHABLE(
-            "Benchmark App - NOT IMPLEMENTED - Output of dynamic rank is not supported for remote tensor. ",
-            "Output: ",
-            compiled_output);
+        OPENVINO_THROW("Benchmark App - NOT IMPLEMENTED - Output of dynamic rank is not supported for remote tensor. ",
+                       "Output: ",
+                       compiled_output);
     ov::Shape shape;
     for (const auto& dimension : compiled_pshape) {
         if (dimension.get_interval().has_upper_bound())
             shape.push_back(static_cast<ov::Shape::value_type>(dimension.get_max_length()));
         else
-            OPENVINO_UNREACHABLE("Benchmark App - NOT IMPLEMENTED - Fully dynamic output dimensions are not supported "
-                                 "for remote tensor. ",
-                                 "Output: ",
-                                 compiled_output);
+            OPENVINO_THROW("Benchmark App - NOT IMPLEMENTED - Fully dynamic output dimensions are not supported "
+                           "for remote tensor. ",
+                           "Output: ",
+                           compiled_output);
     }
     return shape;
 }

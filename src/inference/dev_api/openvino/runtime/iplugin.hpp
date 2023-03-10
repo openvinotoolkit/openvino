@@ -227,8 +227,8 @@ private:
             plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                                        \
             plugin->set_version(version);                                                                \
         } catch (const InferenceEngine::Exception& ex) {                                                 \
-            OPENVINO_UNREACHABLE(ex.what());                                                             \
+            OPENVINO_THROW(ex.what());                                                                   \
         } catch (const std::exception& ex) {                                                             \
-            OPENVINO_UNREACHABLE(ex.what());                                                             \
+            OPENVINO_THROW(ex.what());                                                                   \
         }                                                                                                \
     }

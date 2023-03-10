@@ -51,7 +51,7 @@ public:
                         std::rethrow_exception(exception_ptr);
                     }
                 } catch (const std::exception& e) {
-                    OPENVINO_UNREACHABLE("Caught exception: ", e.what());
+                    OPENVINO_THROW("Caught exception: ", e.what());
                 }
             });
         }

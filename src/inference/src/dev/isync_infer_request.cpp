@@ -190,7 +190,7 @@ void ov::ISyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, c
     try {
         check_tensor(port, tensor);
     } catch (const ov::Exception& ex) {
-        OPENVINO_UNREACHABLE("Failed to set tensor. ", ex.what());
+        OPENVINO_THROW("Failed to set tensor. ", ex.what());
     }
     if (found_port.is_input()) {
         m_tensors.at(get_inputs().at(found_port.idx).get_tensor_ptr()) = tensor;
