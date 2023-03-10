@@ -1,4 +1,4 @@
-import { OVType, JSArrayType, PrecisionSupportedType, HEAPType } from './types';
+import type { OVType, JSArrayType, PrecisionSupportedType, HEAPType } from './types.js';
 
 export const ovTypesMap: { [Type in OVType]: PrecisionSupportedType } = {
   'uint8_t': 'uint8',

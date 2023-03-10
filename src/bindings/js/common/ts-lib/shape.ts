@@ -1,12 +1,13 @@
-import { 
+import { PrecisionSupportedTypes } from './types.js';
+import { jsTypeByPrecisionMap, heapLabelByArrayTypeMap } from './maps.js';
+
+import { OpenvinoModule, OriginalShape, OriginalShapeWrapper } from './ov-module.js';
+
+import type { 
   JSArrayType, 
   HEAPType, 
-  PrecisionSupportedTypes,
   IShape,
-} from './types';
-import { jsTypeByPrecisionMap, heapLabelByArrayTypeMap } from './maps';
-
-import { OpenvinoModule, OriginalShape, OriginalShapeWrapper } from './ov-module';
+} from './types.js';
 
 export default class Shape implements IShape {
   #dimensions: Uint32Array;

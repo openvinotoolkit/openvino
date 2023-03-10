@@ -1,17 +1,20 @@
-import Tensor from './tensor.mjs';
+import { OpenvinoModule, OriginalModel } from './ov-module.js';
+import Tensor from './tensor.js';
 
-export default class Model {
-  #ov = null;
-  #originalModel = null;
+import type { ITensor, IModel } from './types.js';
 
-  constructor(ov, originalModel) {
+export default class Model implements IModel {
+  #ov: OpenvinoModule;
+  #originalModel: OriginalModel;
+
+  constructor(ov: OpenvinoModule, originalModel: OriginalModel) {
     this.#ov = ov;
     this.#originalModel = originalModel;
   }
 
-  async infer(tensor) {
-    const wrapper = new Promise((resolve, reject) => {
-      let outputTensor = null;
+  infer(tensor: ITensor): Promise<ITensor> {
+    const wrapper = new Promise<ITensor>((resolve, reject) => {
+      let outputTensor: ITensor | null;
       
       try {
         outputTensor = runInference(this.#ov, this.#originalModel, tensor);
@@ -19,14 +22,14 @@ export default class Model {
         return reject(e);
       }
 
-      resolve(outputTensor);
+      outputTensor ? resolve(outputTensor) : reject(null);
     });
 
     return wrapper;
   }
 }
 
-function runInference(ov, model, tensor) {
+function runInference(ov: OpenvinoModule, model: OriginalModel, tensor: ITensor): ITensor | null {
   let originalTensor;
   let originalOutputTensor; 
 

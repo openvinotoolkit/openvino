@@ -14,7 +14,7 @@ export default class Session {
     const originalModel = await loadModel(this._ov, xmlData, binData, shapeData, layout);
     const ModelFactory = (await import(this._env == 'browser' ? './model-browser.mjs' : './model-nodejs.mjs')).default;
 
-    return new ModelFactory(this._ov, originalModel, Session._preprocessInferParameters);
+    return new ModelFactory(this._ov, originalModel);
   }
 
   getVersionString() {

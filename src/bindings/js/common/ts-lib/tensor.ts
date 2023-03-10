@@ -1,31 +1,31 @@
-import { OpenvinoModule, OriginalTensor, OriginalTensorWrapper } from './ov-module';
-
-import { 
-  TypedArray,
-  PrecisionSupportedType, 
-  IShape,
-  ITensor,
-} from './types';
+import { OpenvinoModule, OriginalTensor, OriginalTensorWrapper } from './ov-module.js';
 
 import {
   jsTypeByPrecisionMap, 
   ovTypesMap, 
   heapLabelByArrayTypeMap, 
-} from './maps';
+} from './maps.js';
 
-import Shape from './shape';
+import Shape from './shape.js';
+
+import type { 
+  TypedArray,
+  PrecisionSupportedType, 
+  IShape,
+  ITensor,
+} from './types.js';
 
 export default class Tensor implements ITensor {
   #precision: PrecisionSupportedType;
   #data: TypedArray;
   #shape: IShape;
 
-  constructor(precision: PrecisionSupportedType, data: number[] | TypedArray, shapeData: Shape | number[]) {
+  constructor(precision: PrecisionSupportedType, data: number[] | TypedArray, shapeData: IShape | number[]) {
     this.#precision = precision;
     this.#data = new jsTypeByPrecisionMap[this.#precision](data);
     
     if (shapeData instanceof Shape) this.#shape = shapeData;
-    else this.#shape = new Shape(...shapeData);
+    else this.#shape = new Shape(...shapeData as number[]);
   }
 
   get precision(): PrecisionSupportedType {

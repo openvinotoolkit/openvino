@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "module": "CommonJS",
-    "moduleResolution": "node",
+    "module": "node16",
+    "moduleResolution": "nodenext",
     "declaration": true,
     "esModuleInterop": true,
     "target": "ES2017",

@@ -1,4 +1,4 @@
-import { OpenvinoModule, OriginalShapeWrapper } from "./ov-module";
+import { OpenvinoModule, OriginalShapeWrapper, OriginalTensorWrapper } from './ov-module.js';
 
 export type OVType =
   | 'uint8_t'
@@ -13,7 +13,7 @@ export type OVType =
 export type TypedArray =
   | Int8Array
   | Uint8Array
-  // | Uint8ClampedArray
+  | Uint8ClampedArray
   | Int16Array
   | Uint16Array
   | Int32Array
@@ -58,11 +58,31 @@ export type PrecisionSupportedType = keyof typeof PrecisionSupportedTypes;
 export interface IShape {
   dim: number,
   data: Uint32Array,
-  convert(ov: OpenvinoModule): OriginalShapeWrapper
+  convert(ov: OpenvinoModule): OriginalShapeWrapper,
 };
 
 export interface ITensor {
   precision: PrecisionSupportedType,
   data: TypedArray,
   shape: IShape,
+  convert(ov: OpenvinoModule): OriginalTensorWrapper,
 };
+
+export type SessionEnvironment = 'nodejs' | 'browser';
+
+export interface IModel {
+  // new (ov: OpenvinoModule, originalModel: OriginalModel): void,
+  infer(tensor: ITensor): Promise<ITensor>,
+}
+
+export interface ISession {
+  _ov: OpenvinoModule,
+  _env: SessionEnvironment,
+
+  getVersionString(): string,
+  getDescriptionString(): string,
+
+  // new (ov: OpenvinoModule, environment?: SessionEnvironment): ISession,
+  // loadModel(xmlPath: string, binPath: string, shape: IShape, layout: string): Promise<IModel>
+  loadModel(xmlData: Uint8Array, binData: Uint8Array, shapeData: number[] | IShape, layout: string): Promise<IModel>
+}
