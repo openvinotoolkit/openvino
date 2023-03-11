@@ -531,7 +531,7 @@ void InferRequestLegacy::SetGraph(std::shared_ptr<Graph> graph) {
     }
 
     if (m_graph->GetMaxDynamicBatchSize() > 1) {
-        SetBatch(m_graph->GetMaxDynamicBatchSize());
+        SetBatch(static_cast<int>(m_graph->GetMaxDynamicBatchSize()));
         allocate_inputs_dynamic();
         allocate_outputs_dynamic();
     } else {

@@ -43,7 +43,7 @@ TEST(lru_cache, basic_data_type)
 
     std::vector<std::pair<int, int>> expected_value;
     for (size_t i = ca.size(); i > 0; i--) {  // 5, 1, 2, 4
-        int idx = static_cast<int>(input_values.size() - i);
+        auto idx = input_values.size() - i;
         expected_value.push_back(input_values[idx]);
     }
 

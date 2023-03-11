@@ -2408,7 +2408,7 @@ struct deconvolution_random_test_params {
 
     static std::string print_params(const testing::TestParamInfo<deconvolution_random_test_params>& param_info) {
         auto& param = param_info.param;
-        auto to_string_neg = [](int v) {
+        auto to_string_neg = [](int64_t v) {
             if (v >= 0) {
                 return std::to_string(v);
             } else {
@@ -2425,9 +2425,9 @@ struct deconvolution_random_test_params {
         };
 
         auto print_strides = [&](const ov::Strides& s) {
-            std::string res = to_string_neg(static_cast<int>(s[0]));
+            std::string res = to_string_neg(s[0]);
             for (size_t i = 1; i < s.size(); i++) {
-                res += "x" + to_string_neg(static_cast<int>(s[i]));
+                res += "x" + to_string_neg(s[i]);
             }
             return res;
         };
