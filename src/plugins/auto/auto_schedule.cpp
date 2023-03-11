@@ -124,6 +124,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         std::list<DeviceInformation> validDevices =
             _autoSContext->_plugin->GetValidDevice(_autoSContext->_devicePriorities,
                                                    _loadContext[ACTUALDEVICE].networkPrecision);
+        // When the hint is ctput and there is only one device, the single-device logic is used
         if (validDevices.size() == 1) {
             _loadContext[ACTUALDEVICE].deviceInfo = validDevices.front();
             _loadContext[ACTUALDEVICE].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
@@ -134,6 +135,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
             for (auto& validDevice : validDevices) {
                 _autoSContext->_devicePriorities.push_back(validDevice);
             }
+            // Total number of devices in CTPUT
             _nCTPUTDeviceNums = validDevices.size();
             DeviceInformation cpuDeviceInformation;
             const auto CPUIter =
@@ -150,6 +152,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                 cpuDeviceInformation = *CPUIter;
                 validDevices.erase(CPUIter);
             }
+            // Generate contexts for loading each device
             _pCTPUTLoadContext.reset(new AutoLoadContext[_nCTPUTDeviceNums]);
             int idx = 0;
             for (auto& device : validDevices) {
@@ -157,6 +160,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                 _pCTPUTLoadContext[idx].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] = IE::PluginConfigParams::THROUGHPUT;
                 idx++;
             }
+            // If there is a CPU, the CPU is loaded last
             if (cpuDeviceInformation.deviceName.find("CPU") != std::string::npos) {
                 _pCTPUTLoadContext[idx].deviceInfo = cpuDeviceInformation;
                 _pCTPUTLoadContext[idx].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] = IE::PluginConfigParams::THROUGHPUT;
@@ -210,6 +214,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                 }
             });
         }
+        // Handle device load failure in case of ctput
         if (isCumulative && !contextPtr->isLoadSuccess) {
             std::string failedDeviceName = contextPtr->deviceInfo.deviceName;
             std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
@@ -223,7 +228,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
             if (DeviceIter != _autoSContext->_devicePriorities.end()) {
                 _autoSContext->_devicePriorities.erase(DeviceIter);
             }
-            // Remove failed device from config
+            // Remove failed device from ov::device::priorities in config
             auto it_prior = _autoSContext->_config.find(ov::device::priorities.name());
             if (it_prior != _autoSContext->_config.end()) {
                 auto priorities = it_prior->second.as<std::string>();
@@ -279,7 +284,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
             }
         }
     }
-    std::vector<Task> loads;
+    std::vector<Task> otherDevicesloads;
     std::vector<Task> cpuLoads;
     if (_pCTPUTLoadContext) {
         for (int i = 0; i < _nCTPUTDeviceNums; i++) {
@@ -288,10 +293,11 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
             auto modelPath = _autoSContext->_modelPath;
             auto network = _autoSContext->_network;
             _pCTPUTLoadContext[i].task = std::bind(loadDeviceTask, contextPtr, modelPath, network, isCumulative);
-            if (i == _nCTPUTDeviceNums - 1 && _pCTPUTLoadContext[i].deviceInfo.deviceName.find("CPU") != std::string::npos) {
+            if (i == _nCTPUTDeviceNums - 1 &&
+                _pCTPUTLoadContext[i].deviceInfo.deviceName.find("CPU") != std::string::npos) {
                 cpuLoads.push_back(_pCTPUTLoadContext[i].task);
             } else {
-                loads.push_back(_pCTPUTLoadContext[i].task);
+                otherDevicesloads.push_back(_pCTPUTLoadContext[i].task);
             }
         }
     }
@@ -378,9 +384,9 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                 0 /*default threads per stream, workaround for ticket 62376*/,
                 IStreamsExecutor::ThreadBindingType::NONE});
             // Load other devices fist
-            if (loads.size() > 0) {
+            if (otherDevicesloads.size() > 0) {
                 // Wait for the devices other than CPU to load the network
-                _executor->runAndWait(loads);
+                _executor->runAndWait(otherDevicesloads);
             }
             // Finally load the CPU
             if (cpuLoads.size() > 0) {
@@ -520,16 +526,17 @@ void AutoSchedule::WaitFirstNetworkReady() {
             LOG_ERROR_TAG("load failed, %s", _loadContext[i].errMessage.c_str());
         }
     }
-    // CTPUT devices load successfully
+    // devices loaded successfully in CTPUT
     if (_pCTPUTLoadContext) {
         int nLoadSucNums = 0;
         for (int i = 0; i < _nCTPUTDeviceNums; i++) {
             _pCTPUTLoadContext[i].future.wait();
-            // check if loading is successful
+            // check if device loaded successfully
             if (_pCTPUTLoadContext[i].isAlready) {
                 nLoadSucNums++;
             }
         }
+        // one or more devices loaded successfully
         if (nLoadSucNums > 0) {
             return;
         }
