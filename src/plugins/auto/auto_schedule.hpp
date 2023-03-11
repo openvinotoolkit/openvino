@@ -58,7 +58,7 @@ protected:
 
 private:
     void WaitFirstNetworkReady();
-    void TryToLoadNetWork(AutoLoadContext& context, const std::string& modelPath, const IE::CNNNetwork& network);
+    void TryToLoadNetWork(AutoLoadContext& context, const std::string& modelPath, const IE::CNNNetwork& network, bool isCumulative);
 
 private:
     IE::IStreamsExecutor::Ptr                _executor;

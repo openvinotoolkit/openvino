@@ -156,24 +156,31 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
     } else if (name == ov::execution_devices) {
         std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
         std::vector<std::string> exeDevices = {};
-        for (int i = 0; i < CONTEXTNUM; i++) {
-            if (_autoSchedule->_loadContext[i].isEnabled && _autoSchedule->_loadContext[i].isAlready) {
-                if (i == 0 && !_autoSchedule->_loadContext[CPU].executableNetwork._ptr) {
-                    continue;
-                } else {
-                    std::string exeDevices_string = _autoSchedule->_loadContext[i].workName.substr(_autoSchedule->_loadContext[i].workName.find(":") + 1);
-                    if (exeDevices_string == "CPU_HELP")
-                        exeDevices_string = "(CPU)";
-                    std::stringstream ss(exeDevices_string);
-                    std::string item;
-                    while (getline(ss, item, ',')) {
-                        exeDevices.push_back(item);
+        if (_autoSchedule->_pCTPUTLoadContext) {
+            for (auto n : _autoSContext->_devicePriorities) {
+                exeDevices.push_back(n.deviceName);
+            }
+        } else {
+            for (int i = 0; i < CONTEXTNUM; i++) {
+                if (_autoSchedule->_loadContext[i].isEnabled && _autoSchedule->_loadContext[i].isAlready) {
+                    if (i == 0 && !_autoSchedule->_loadContext[CPU].executableNetwork._ptr) {
+                        continue;
+                    } else {
+                        std::string exeDevices_string = _autoSchedule->_loadContext[i].workName.substr(
+                            _autoSchedule->_loadContext[i].workName.find(":") + 1);
+                        if (exeDevices_string == "CPU_HELP")
+                            exeDevices_string = "(CPU)";
+                        std::stringstream ss(exeDevices_string);
+                        std::string item;
+                        while (getline(ss, item, ',')) {
+                            exeDevices.push_back(item);
+                        }
+                        break;
                     }
-                    break;
                 }
             }
         }
-        return decltype(ov::available_devices)::value_type {exeDevices};
+        return decltype(ov::available_devices)::value_type{exeDevices};
     } else if (name == ov::model_name) {
         std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
         if (_autoSchedule->_loadContext[CPU].isEnabled && _autoSchedule->_loadContext[CPU].isAlready)

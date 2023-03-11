@@ -3,7 +3,6 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-#include <memory>
 #include "auto_schedule.hpp"
 #include "async_infer_request.hpp"
 #include "auto_executable_network.hpp"
@@ -174,7 +173,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                               std::string modelPath,
                               IE::CNNNetwork& network,
                               bool isCumulative) {
-        TryToLoadNetWork(*contextPtr, modelPath, network);
+        TryToLoadNetWork(*contextPtr, modelPath, network, isCumulative);
         if (contextPtr->isLoadSuccess) {
             if (contextPtr->workName.empty()) {
                 contextPtr->workName = contextPtr->deviceInfo.deviceName;
@@ -192,6 +191,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
             if (isCumulative) {
                 auto optimalNums = contextPtr->executableNetwork->GetMetric(ov::optimal_number_of_infer_requests.name())
                                        .as<unsigned int>();
+                LOG_INFO_TAG("device:%s, optimal_infer_number:%d", deviceName.c_str(), optimalNums);
                 std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
                 _autoSContext->_ctputOtimalNums += optimalNums;
             }
@@ -209,6 +209,34 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                     }
                 }
             });
+        }
+        if (isCumulative && !contextPtr->isLoadSuccess) {
+            std::string failedDeviceName = contextPtr->deviceInfo.deviceName;
+            std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
+            const auto DeviceIter =
+                std::find_if(_autoSContext->_devicePriorities.begin(),
+                             _autoSContext->_devicePriorities.end(),
+                             [&](const DeviceInformation& d) -> bool {
+                                 return d.deviceName.find(failedDeviceName) != std::string::npos;
+                             });
+            // Remove failed device from _devicePriorities
+            if (DeviceIter != _autoSContext->_devicePriorities.end()) {
+                _autoSContext->_devicePriorities.erase(DeviceIter);
+            }
+            // Remove failed device from config
+            auto it_prior = _autoSContext->_config.find(ov::device::priorities.name());
+            if (it_prior != _autoSContext->_config.end()) {
+                auto priorities = it_prior->second.as<std::string>();
+                size_t nPos = priorities.find(failedDeviceName);
+                if (nPos != std::string::npos) {
+                    // If need to delete failed device and "," then length plus 1
+                    int nNameLen = (nPos + failedDeviceName.length()) == priorities.length()
+                                   ? failedDeviceName.length()
+                                   : failedDeviceName.length() + 1;
+                    priorities.erase(nPos, nNameLen);
+                    it_prior->second = priorities;
+                }
+            }
         }
         contextPtr->promise.set_value();
         // the first load network process finished
@@ -368,7 +396,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     WaitFirstNetworkReady();
 }
 
-void AutoSchedule::TryToLoadNetWork(AutoLoadContext& context, const std::string& modelPath, const IE::CNNNetwork& network) {
+void AutoSchedule::TryToLoadNetWork(AutoLoadContext& context, const std::string& modelPath, const IE::CNNNetwork& network, bool isCumulative) {
     auto& device = context.deviceInfo.deviceName;
     auto& deviceConfig = context.deviceInfo.config;
     auto& deviceList = context.metaDevices;
@@ -408,7 +436,7 @@ void AutoSchedule::TryToLoadNetWork(AutoLoadContext& context, const std::string&
         context.errMessage += device + ":" + e.what();
         context.isLoadSuccess = false;
     }
-    if (context.isLoadSuccess || curDevIsCPU) {
+    if (context.isLoadSuccess || curDevIsCPU || isCumulative) {
         return;
     }
     // need to reload network, unregister it's priority
@@ -462,7 +490,7 @@ void AutoSchedule::TryToLoadNetWork(AutoLoadContext& context, const std::string&
     }
     LOG_DEBUG_TAG("try to load %s", context.deviceInfo.deviceName.c_str());
     // try to load this candidate device
-    TryToLoadNetWork(context, modelPath, network);
+    TryToLoadNetWork(context, modelPath, network, isCumulative);
 }
 
 void AutoSchedule::WaitFirstNetworkReady() {

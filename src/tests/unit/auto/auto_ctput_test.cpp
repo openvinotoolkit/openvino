@@ -219,14 +219,20 @@ TEST_P(LoadNetworkWithCTPUTMockTest, CTPUTSingleDevLogicTest) {
         for (auto& deviceName : targetDevices) {
             targetDev += deviceName;
             targetDev += ((deviceName == targetDevices.back()) ? "" : ",");
+            EXPECT_CALL(*core,
+                        LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                                    ::testing::Matcher<const std::string&>(deviceName),
+                                    ::testing::Matcher<const std::map<std::string, std::string>&>(
+                                        ComparePerfHint(InferenceEngine::PluginConfigParams::THROUGHPUT))))
+                .Times(1);
         }
         config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, targetDev});
-        // Call MULTI logic
+        // no MULTI logic to be called
         EXPECT_CALL(*core,
                     LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                                 ::testing::Matcher<const std::string&>("MULTI:" + targetDev),
                                 ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
-            .Times(1);
+            .Times(0);
         // no CPU helper to be called
         EXPECT_CALL(*core,
                     LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
