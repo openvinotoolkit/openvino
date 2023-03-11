@@ -227,19 +227,31 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
     normalize(partiallyConverted);
 }
 
-void FrontEnd::normalize(const std::shared_ptr<ov::Model>& function) const {
-    ov::pass::Manager manager;
+void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
+    {
+        // run transformations to convert sub-graphs with intermediate (or FrameworkNode) operations
+        // into sub-graphs with only OpenVINO operations
+        ov::pass::Manager manager;
+        manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
+        manager.register_pass<pass::BlockLSTMReplacer>();
+        manager.register_pass<pass::GRUBlockCellReplacer>();
+        manager.register_pass<pass::ConstToResultRemover>();
+        manager.run_passes(model);
+    }
 
-    // Runs middle transformations to convert sub-graphs with intermediate (frontend internal) operations
-    // into sub-graphs with only OpenVINO operations
-    manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
-    manager.register_pass<pass::BlockLSTMReplacer>();
-    manager.register_pass<pass::GRUBlockCellReplacer>();
-    manager.register_pass<pass::ConstToResultRemover>();
+    // TODO: TransposeSinkingGeneral can fail on models with Framework nodes (not converted to OV opset)
+    auto unsupported_ops = get_unconverted_types_from_model(model);
+    if (unsupported_ops.size() > 0) {
+        return;
+    }
 
-    manager.register_pass<ov::pass::TransposeSinkingGeneral>();
-    manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
-    manager.run_passes(function);
+    {
+        // perform transpose sinking and reverse infer if the model contains only OpenVINO operations
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::TransposeSinkingGeneral>();
+        manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
+        manager.run_passes(model);
+    }
 }
 
 void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
