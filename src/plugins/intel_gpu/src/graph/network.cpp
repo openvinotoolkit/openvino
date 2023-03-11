@@ -540,8 +540,7 @@ void network::save(cldnn::BinaryOutputBuffer& ob) {
         }
     }
 
-    int exec_order_size;
-    exec_order_size = static_cast<int>(_exec_order.size());
+    auto exec_order_size = _exec_order.size();
     ob << exec_order_size;
 
     for (const auto& p_inst : _exec_order) {

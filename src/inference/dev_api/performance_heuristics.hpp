@@ -29,7 +29,7 @@ static MemBandwidthPressure MemBandwidthPressureTolerance(
     const float memThresholdAssumeLimited = MemBandwidthPressure::LIMITED) {
     int total_convs = 0, mem_limited_convs = 0, compute_convs = 0, total_gemms = 0, mem_limited_gemms = 0,
         total_deconvs = 0, compute_deconvs = 0, mem_limited_deconvs = 0;
-    auto memLimitedFactor = [&](int size_data_moved, int datatype_size = 4) -> float {
+    auto memLimitedFactor = [&](size_t size_data_moved, int datatype_size = 4) -> float {
         return (cache_size / (size_data_moved * datatype_size));
     };
     auto isLowPrecision = [&](ngraph::element::Type type) -> bool {
@@ -77,7 +77,7 @@ static MemBandwidthPressure MemBandwidthPressureTolerance(
                     std::accumulate(shapeOutput.begin(), shapeOutput.end(), size_t(1), std::multiplies<size_t>());
                 const auto total_data = dataSizeInput0 + non_const * dataSizeInput1 + dataSizeOutput;
                 total_gemms++;
-                const auto factor = memLimitedFactor(static_cast<int>(total_data), data_type_size);
+                const auto factor = memLimitedFactor(total_data, data_type_size);
                 mem_limited_gemms += factor < memThresholdAssumeLimited;
                 worst_case = std::min(factor, worst_case);
             }
