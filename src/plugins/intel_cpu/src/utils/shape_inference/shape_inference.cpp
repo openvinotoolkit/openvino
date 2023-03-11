@@ -222,13 +222,12 @@ public:
             local_op = op->clone_with_new_inputs(new_inputs);
         } else {
             local_op = local_op_default;
-            OPENVINO_SUPPRESS_DEPRECATED_START
             for (size_t i = 0; i < local_op->get_input_size(); i++) {
-                if (dynamic_cast<ov::opset1::Parameter*>(local_op->get_input_node_ptr(i))) {
-                    local_op->get_input_tensor(i).set_partial_shape(input_shapes[i].to_partial_shape());
+                auto parameter = dynamic_cast<ov::opset1::Parameter*>(local_op->get_input_node_ptr(i));
+                if (parameter != nullptr) {
+                    parameter->set_partial_shape(input_shapes[i].to_partial_shape());
                 }
             }
-            OPENVINO_SUPPRESS_DEPRECATED_END
         }
 
         local_op->validate_and_infer_types();
