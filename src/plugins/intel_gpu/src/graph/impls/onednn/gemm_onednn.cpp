@@ -49,6 +49,8 @@ protected:
             case dnnl::memory::format_tag::ab: return dnnl::memory::format_tag::ba;
             case dnnl::memory::format_tag::abc: return dnnl::memory::format_tag::acb;
             case dnnl::memory::format_tag::abcd: return dnnl::memory::format_tag::abdc;
+            case dnnl::memory::format_tag::abcde: return dnnl::memory::format_tag::abced;
+            case dnnl::memory::format_tag::abcdef: return dnnl::memory::format_tag::abcdfe;
             default: throw std::runtime_error("Unsupported fmt in transpose_format gemm function");
         }
     }
