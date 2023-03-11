@@ -108,7 +108,7 @@ ov::pass::GroupedGatherElimination::GroupedGatherElimination() {
                                                       joint_indices->output(0),
                                                       opset1::Constant::create(element::i64, {}, {0})->output(0));
             } else {
-                OPENVINO_UNREACHABLE("Unexpected Gather version");
+                OPENVINO_THROW("Unexpected Gather version");
             }
             new_ops.push_back(joint_indices);
             new_ops.push_back(new_gather);

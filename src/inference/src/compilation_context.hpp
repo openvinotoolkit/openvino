@@ -23,7 +23,7 @@ namespace ov {
 class Tensor;
 class Model;
 
-struct NetworkCompilationContext final {
+struct ModelCache final {
     static std::string calculate_file_info(const std::string& filePath);
 
     static std::string compute_hash(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& compileOptions);

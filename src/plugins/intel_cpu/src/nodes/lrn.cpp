@@ -86,7 +86,7 @@ bool Lrn::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, st
         } else {
             std::vector<bool> norm(dataRank, false);
             for (auto &axis : axes) {
-                if (axis < 0 || axis >= dataRank) {
+                if (axis < 0 || axis >= static_cast<int64_t>(dataRank)) {
                     errorMessage = "Has incorrect reduction axis: " + std::to_string(axis);
                     return false;
                 }

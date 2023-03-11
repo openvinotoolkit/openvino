@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/common.hpp"
 
@@ -270,7 +271,7 @@ inline std::ostream& operator<<(std::ostream& os, const Priority& priority) {
     case Priority::HIGH:
         return os << "HIGH";
     default:
-        throw ov::Exception{"Unsupported performance measure hint"};
+        OPENVINO_THROW("Unsupported performance measure hint");
     }
 }
 
@@ -284,7 +285,7 @@ inline std::istream& operator>>(std::istream& is, Priority& priority) {
     } else if (str == "HIGH") {
         priority = Priority::HIGH;
     } else {
-        throw ov::Exception{"Unsupported model priority: " + str};
+        OPENVINO_THROW("Unsupported model priority: ", str);
     }
     return is;
 }
@@ -320,7 +321,7 @@ inline std::ostream& operator<<(std::ostream& os, const PerformanceMode& perform
     case PerformanceMode::CUMULATIVE_THROUGHPUT:
         return os << "CUMULATIVE_THROUGHPUT";
     default:
-        throw ov::Exception{"Unsupported performance mode hint"};
+        OPENVINO_THROW("Unsupported performance mode hint");
     }
 }
 
@@ -336,7 +337,7 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
     } else if (str == "UNDEFINED") {
         performance_mode = PerformanceMode::UNDEFINED;
     } else {
-        throw ov::Exception{"Unsupported performance mode: " + str};
+        OPENVINO_THROW("Unsupported performance mode: ", str);
     }
     return is;
 }
@@ -391,7 +392,7 @@ inline std::ostream& operator<<(std::ostream& os, const ExecutionMode& mode) {
     case ExecutionMode::ACCURACY:
         return os << "ACCURACY";
     default:
-        throw ov::Exception{"Unsupported execution mode hint"};
+        OPENVINO_THROW("Unsupported execution mode hint");
     }
 }
 
@@ -405,7 +406,7 @@ inline std::istream& operator>>(std::istream& is, ExecutionMode& mode) {
     } else if (str == "UNDEFINED") {
         mode = ExecutionMode::UNDEFINED;
     } else {
-        throw ov::Exception{"Unsupported execution mode: " + str};
+        OPENVINO_THROW("Unsupported execution mode: ", str);
     }
     return is;
 }
@@ -467,7 +468,7 @@ inline std::ostream& operator<<(std::ostream& os, const Level& level) {
     case Level::TRACE:
         return os << "LOG_TRACE";
     default:
-        throw ov::Exception{"Unsupported log level"};
+        OPENVINO_THROW("Unsupported log level");
     }
 }
 
@@ -487,7 +488,7 @@ inline std::istream& operator>>(std::istream& is, Level& level) {
     } else if (str == "LOG_TRACE") {
         level = Level::TRACE;
     } else {
-        throw ov::Exception{"Unsupported log level: " + str};
+        OPENVINO_THROW("Unsupported log level: ", str);
     }
     return is;
 }
@@ -753,7 +754,7 @@ inline std::ostream& operator<<(std::ostream& os, const Type& device_type) {
     case Type::INTEGRATED:
         return os << "integrated";
     default:
-        throw ov::Exception{"Unsupported device type"};
+        OPENVINO_THROW("Unsupported device type");
     }
 }
 
@@ -765,7 +766,7 @@ inline std::istream& operator>>(std::istream& is, Type& device_type) {
     } else if (str == "integrated") {
         device_type = Type::INTEGRATED;
     } else {
-        throw ov::Exception{"Unsupported device type: " + str};
+        OPENVINO_THROW("Unsupported device type: ", str);
     }
     return is;
 }
@@ -880,7 +881,7 @@ inline std::istream& operator>>(std::istream& is, Num& num_val) {
         try {
             num_val = {std::stoi(str)};
         } catch (const std::exception& e) {
-            throw ov::Exception{std::string{"Could not read number of streams from str: "} + str + "; " + e.what()};
+            OPENVINO_THROW("Could not read number of streams from str: ", str, "; ", e.what());
         }
     }
     return is;
@@ -931,7 +932,7 @@ inline std::ostream& operator<<(std::ostream& os, const Affinity& affinity) {
     case Affinity::HYBRID_AWARE:
         return os << "HYBRID_AWARE";
     default:
-        throw ov::Exception{"Unsupported affinity pattern"};
+        OPENVINO_THROW("Unsupported affinity pattern");
     }
 }
 
@@ -947,7 +948,7 @@ inline std::istream& operator>>(std::istream& is, Affinity& affinity) {
     } else if (str == "HYBRID_AWARE") {
         affinity = Affinity::HYBRID_AWARE;
     } else {
-        throw ov::Exception{"Unsupported affinity pattern: " + str};
+        OPENVINO_THROW("Unsupported affinity pattern: ", str);
     }
     return is;
 }
