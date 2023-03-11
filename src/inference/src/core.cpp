@@ -174,7 +174,9 @@ CompiledModel Core::compile_model(const std::string& model_path, const std::stri
 }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
-CompiledModel Core::compile_model(const std::wstring& model_path, const std::string& device_name, const AnyMap& config) {
+CompiledModel Core::compile_model(const std::wstring& model_path,
+                                  const std::string& device_name,
+                                  const AnyMap& config) {
     return compile_model(ov::util::wstring_to_string(model_path), device_name, config);
 }
 #endif
