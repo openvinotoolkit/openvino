@@ -106,7 +106,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         auto input_shape = input_tensor_place->get_partial_shape();
         auto input_type = input_tensor_place->get_element_type();
 
-        // in case of cutting graph, types of custom inputs can be undefined,
+        // in case of cutting graph, types of custom inputs can be dynamic,
         // according to MO help, fp32 is used by default in such cases
         if (input_type == element::undefined) {
             input_type = element::f32;
