@@ -17,25 +17,26 @@ using namespace cldnn;
 using namespace ::tests;
 
 template<typename T>
-T generate_random_number(int min, int max) {
-    static std::default_random_engine generator(random_seed);
-    std::uniform_int_distribution<T> uniform_dist(min, max);
-    return uniform_dist(generator);
-}
-
-template<typename T>
 std::vector<T> generate_random_input(const size_t input_size, int min, int max, int min_num_zero = 0) {
-    int k = 8;
-    auto vec = generate_random_1d<T>(input_size, min, max, k);
+    static std::default_random_engine generator(random_seed);
+    int k = 8;  // 1/k is the resolution of the floating point numbers
+    std::uniform_int_distribution<int> distribution(k * min, k * max);
+    std::vector<T> vec(input_size);
+    for (size_t i = 0; i < input_size; ++i) {
+        vec[i] = (T)distribution(generator);
+        vec[i] /= k;
+    }
+
     auto num_zero = std::count_if(vec.begin(), vec.end(), [](T val) {
         return (val == 0);
     });
     min_num_zero = std::max(0, std::min((static_cast<int>(vec.size()) - 1), min_num_zero));
 
     if (num_zero < min_num_zero) {
+        std::uniform_int_distribution<size_t> index_dist(0, (vec.size()-1));
         for (auto idx = num_zero; idx < min_num_zero; idx++) {
             while(true) {
-                auto index = generate_random_number<size_t>(0, (vec.size()-1));
+                auto index = index_dist(generator);
                 if (vec[index] != 0) {
                     vec[index] = 0;
                     break;
