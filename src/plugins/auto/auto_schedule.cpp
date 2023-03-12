@@ -235,7 +235,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                 size_t nPos = priorities.find(failedDeviceName);
                 if (nPos != std::string::npos) {
                     // If need to delete failed device and "," then length plus 1
-                    int nNameLen = (nPos + failedDeviceName.length()) == priorities.length()
+                    size_t nNameLen = (nPos + failedDeviceName.length()) == priorities.length()
                                    ? failedDeviceName.length()
                                    : failedDeviceName.length() + 1;
                     priorities.erase(nPos, nNameLen);
@@ -287,7 +287,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     std::vector<Task> otherDevicesloads;
     std::vector<Task> cpuLoads;
     if (_pCTPUTLoadContext) {
-        for (int i = 0; i < _nCTPUTDeviceNums; i++) {
+        for (size_t i = 0; i < _nCTPUTDeviceNums; i++) {
             _pCTPUTLoadContext[i].future = _pCTPUTLoadContext[i].promise.get_future();
             auto* contextPtr = &_pCTPUTLoadContext[i];
             auto modelPath = _autoSContext->_modelPath;
@@ -529,7 +529,7 @@ void AutoSchedule::WaitFirstNetworkReady() {
     // devices loaded successfully in CTPUT
     if (_pCTPUTLoadContext) {
         int nLoadSucNums = 0;
-        for (int i = 0; i < _nCTPUTDeviceNums; i++) {
+        for (size_t i = 0; i < _nCTPUTDeviceNums; i++) {
             _pCTPUTLoadContext[i].future.wait();
             // check if device loaded successfully
             if (_pCTPUTLoadContext[i].isAlready) {

@@ -69,7 +69,7 @@ private:
     bool                                     _exitFlag = {false};
     size_t                                   _cpuHelpInferCount = 0;
     AutoScheduleContext::Ptr                 _autoSContext;
-    int                                      _nCTPUTDeviceNums = 0;
+    size_t                                   _nCTPUTDeviceNums = 0;
 };
 
 }  // namespace MultiDevicePlugin
