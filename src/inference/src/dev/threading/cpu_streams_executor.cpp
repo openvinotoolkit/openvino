@@ -312,6 +312,16 @@ struct CPUStreamsExecutor::Impl {
              ThreadBindingType::HYBRID_AWARE == config._threadBindingType) ||
             ThreadBindingType::CORES == config._threadBindingType) {
             bind_cores = true;
+            if (_config._plugin_task >= PLUGIN_USED_START) {
+                _config._threads = _config._streams;
+                if (_config._threadPreferredCoreType == Config::PreferredCoreType::LITTLE) {
+                    _config._small_core_streams = config._small_core_streams;
+                    _config._threads_per_stream_small = 1;
+                } else {
+                    _config._big_core_streams = config._small_core_streams;
+                    _config._threads_per_stream_big = 1;
+                }
+            }
         }
         if (ThreadBindingType::HYBRID_AWARE == config._threadBindingType) {
             any_cores = config._streams >

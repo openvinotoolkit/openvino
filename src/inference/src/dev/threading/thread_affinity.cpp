@@ -16,12 +16,6 @@
 #    include <unistd.h>
 #endif
 
-#if defined(_WIN32)
-#    include <windows.h>
-
-#    include <thread>
-#endif
-
 namespace ov {
 namespace threading {
 #if !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
@@ -128,11 +122,6 @@ bool pin_thread_to_vacant_core(int thrIdx,
                                const CpuSet& procMask,
                                std::vector<int> cpu_ids,
                                int cpuIdxOffset) {
-#    if defined(_WIN32)
-    return 0 != SetThreadAffinityMask(GetCurrentThread(), DWORD_PTR(1) << cpu_ids[thrIdx]);
-#    else
-    return false;
-#    endif
 }
 bool pin_current_thread_by_mask(int ncores, const CpuSet& procMask) {
     return false;

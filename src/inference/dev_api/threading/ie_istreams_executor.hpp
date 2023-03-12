@@ -74,10 +74,7 @@ public:
             const bool enable_hyper_thread = true);  // no network specifics considered (only CPU's caps);
         static int GetHybridNumStreams(std::map<std::string, std::string>& config, const int stream_mode);
         static void UpdateHybridCustomThreads(Config& config);
-        static Config SetExecutorConfig(std::string name,
-                                        int num_streams = 1,
-                                        ThreadBindingType thread_binding_type = NUMA,
-                                        PreferredCoreType thread_core_type = BIG);
+        static Config ReserveCpuCores(Config& config);
 
         /**
          * @brief      A constructor with arguments

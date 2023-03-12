@@ -441,50 +441,25 @@ void IStreamsExecutor::Config::update_hybrid_custom_threads(Config& config) {
     }
 }
 
-IStreamsExecutor::Config IStreamsExecutor::Config::set_executor_config(std::string name,
-                                                                       int num_streams,
-                                                                       ThreadBindingType thread_binding_type,
-                                                                       PreferredCoreType thread_core_type) {
-    Config streamExecutorConfig = Config{name, num_streams};
+IStreamsExecutor::Config IStreamsExecutor::Config::reserve_cpu_cores(const Config& config) {
+    auto streamExecutorConfig = config;
     if (cpu_map_available()) {
-        if (name.find("CPU") != std::string::npos) {
+        if (streamExecutorConfig._name.find("CPU") == std::string::npos) {
             streamExecutorConfig._plugin_task = get_task_flag();
-        }
-        streamExecutorConfig._threads = streamExecutorConfig._streams;
-        streamExecutorConfig._threadBindingType = thread_binding_type;
-        streamExecutorConfig._threadPreferredCoreType = thread_core_type;
-        if (streamExecutorConfig._threadPreferredCoreType == LITTLE) {
-            streamExecutorConfig._small_core_streams = num_streams;
-            streamExecutorConfig._threads_per_stream_small = 1;
-        } else {
-            streamExecutorConfig._big_core_streams = num_streams;
-            streamExecutorConfig._threads_per_stream_big = 1;
         }
         if (streamExecutorConfig._threadBindingType != NUMA) {
             auto core_type =
                 streamExecutorConfig._threadPreferredCoreType == LITTLE ? EFFICIENT_CORE_PROC : MAIN_CORE_PROC;
-            auto num_cores = streamExecutorConfig._threadPreferredCoreType == LITTLE
-                                 ? streamExecutorConfig._small_core_streams
-                                 : streamExecutorConfig._big_core_streams;
             reserve_available_cpus(core_type,
-                                   num_cores,
+                                   streamExecutorConfig._streams,
                                    NOT_USED,
                                    streamExecutorConfig._plugin_task,
                                    core_type == MAIN_CORE_PROC);
         }
     }
-    OPENVINO_DEBUG << "[ " << name << " SetExecutorConfig ] streams: " << num_streams
-                   << " thread_binding_type: " << thread_binding_type << " thread_core_type: " << thread_core_type
-                   << " streams (threads): " << streamExecutorConfig._streams << "("
-                   << streamExecutorConfig._threads_per_stream_big *
-                              (streamExecutorConfig._big_core_streams + streamExecutorConfig._big_core_logic_streams) +
-                          streamExecutorConfig._threads_per_stream_small * streamExecutorConfig._small_core_streams
-                   << ") -- PCore: " << streamExecutorConfig._big_core_streams << "("
-                   << streamExecutorConfig._threads_per_stream_big << ") "
-                   << streamExecutorConfig._big_core_logic_streams << "("
-                   << streamExecutorConfig._threads_per_stream_big
-                   << ")  ECore: " << streamExecutorConfig._small_core_streams << "("
-                   << streamExecutorConfig._threads_per_stream_small << ")";
+    OPENVINO_DEBUG << "[ " << streamExecutorConfig._name << " reserve_cpu_cores ] "
+                   << " streams: " << streamExecutorConfig._streams
+                   << " core type: " << streamExecutorConfig._threadPreferredCoreType << "\n";
     return streamExecutorConfig;
 }
 

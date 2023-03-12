@@ -45,11 +45,8 @@ void IStreamsExecutor::Config::UpdateHybridCustomThreads(Config& config) {
     return update_hybrid_custom_threads(config);
 }
 
-IStreamsExecutor::Config IStreamsExecutor::Config::SetExecutorConfig(std::string name,
-                                                                     int num_streams,
-                                                                     ThreadBindingType thread_binding_type,
-                                                                     PreferredCoreType thread_core_type) {
-    return set_executor_config(name, num_streams, thread_binding_type, thread_core_type);
+IStreamsExecutor::Config IStreamsExecutor::Config::ReserveCpuCores(Config& config) {
+    return reserve_cpu_cores(config);
 }
 
 IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(const IStreamsExecutor::Config& initial,
