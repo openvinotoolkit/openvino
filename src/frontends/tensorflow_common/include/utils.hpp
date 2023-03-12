@@ -6,6 +6,7 @@
 
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/node_context.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 
@@ -31,6 +32,18 @@ void set_out_name(const std::string& out_name, const Output<Node>& output);
 void set_node_name(const std::string& node_name, const std::shared_ptr<Node>& node);
 
 bool is_conditional_edge(const std::string& input_tensor_name);
+
+template <typename T>
+ov::Output<ov::Node> create_same_type_const_scalar(const ov::Output<ov::Node>& same_type_output, T value) {
+    if (same_type_output.get_element_type().is_static()) {
+        return std::make_shared<ov::opset10::Constant>(same_type_output.get_element_type(), ov::Shape{}, value);
+    } else {
+        ov::Output<ov::Node> const_res =
+            std::make_shared<ov::opset10::Constant>(ov::element::from<T>(), ov::Shape{}, value);
+        const_res = std::make_shared<ov::opset10::ConvertLike>(same_type_output, const_res);
+        return const_res;
+    }
+}
 
 template <typename T>
 void get_const_input(const NodeContext& node, int input_index, std::vector<T>* vector) {

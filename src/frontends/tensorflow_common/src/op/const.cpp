@@ -18,7 +18,7 @@ namespace op {
 OutputVector translate_const_op(const NodeContext& node) {
     auto ov_type = node.get_attribute<element::Type>("dtype");
     std::shared_ptr<Node> const_node;
-    if (ov_type == element::undefined) {
+    if (ov_type == element::dynamic) {
         const_node = std::make_shared<UnsupportedConstant>();
     } else {
         auto tensor = node.get_attribute<Tensor>("value");
