@@ -122,6 +122,7 @@ bool pin_thread_to_vacant_core(int thrIdx,
                                const CpuSet& procMask,
                                std::vector<int> cpu_ids,
                                int cpuIdxOffset) {
+    return false;
 }
 bool pin_current_thread_by_mask(int ncores, const CpuSet& procMask) {
     return false;
