@@ -77,8 +77,8 @@ ov::Any DecoderArgDef::get_attribute(const std::string& name) const {
     if (TYPE_MAP().count(m_arg_def->type())) {
         return TYPE_MAP().at(m_arg_def->type());
     } else {
-        // for all unsupported types return undefined type
-        return ov::element::undefined;
+        // for all unsupported types return dynamic type
+        return ov::element::dynamic;
     }
 }
 
