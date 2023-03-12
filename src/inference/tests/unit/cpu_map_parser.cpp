@@ -2464,7 +2464,7 @@ WinCpuMapTestCase cache_1sockets_16cores_hyperthreading_set1 = {
     22,
     1,
     16,
-    {{{22}, {6}, {8}, {2}, {6}}},
+    {{22, 6, 8, 2, 6}},
     {
         {0, 0, 0, HYPER_THREADING_PROC, 0, -1},
         {1, 0, 0, PCORE_MAIN_PROC, 0, -1},
