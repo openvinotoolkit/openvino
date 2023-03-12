@@ -2,22 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/group_conv.hpp"
-
-#include <convolution_shape_inference.hpp>
+#include "openvino/op/group_conv.hpp"
 
 #include "bound_evaluate.hpp"
+#include "group_convolution_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/attribute_visitor.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
-using namespace ngraph;
 
 //------------------------------------------------------------------------------
 //                        v1::GroupConvolution
 //------------------------------------------------------------------------------
-
+namespace ov {
 op::v1::GroupConvolution::GroupConvolution(const Output<Node>& data_batch,
                                            const Output<Node>& filters,
                                            const Strides& strides,
@@ -34,7 +31,7 @@ op::v1::GroupConvolution::GroupConvolution(const Output<Node>& data_batch,
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v1::GroupConvolution::visit_attributes(AttributeVisitor& visitor) {
+bool op::v1::GroupConvolution::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v1_GroupConvolution_visit_attributes);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("pads_begin", m_pads_begin);
@@ -46,8 +43,8 @@ bool ngraph::op::v1::GroupConvolution::visit_attributes(AttributeVisitor& visito
 
 void op::v1::GroupConvolution::validate_and_infer_types() {
     OV_OP_SCOPE(v1_GroupConvolution_validate_and_infer_types);
-    element::Type data_batch_et = get_input_element_type(0);
-    element::Type filters_et = get_input_element_type(1);
+    const auto& data_batch_et = get_input_element_type(0);
+    const auto& filters_et = get_input_element_type(1);
 
     element::Type result_et;
     NODE_VALIDATION_CHECK(this,
@@ -63,21 +60,13 @@ void op::v1::GroupConvolution::validate_and_infer_types() {
                           "Element type of inputs must be numeric. Got: ",
                           result_et);
 
-    auto& data_shape = get_input_partial_shape(0);
-    auto& filter_shape = get_input_partial_shape(1);
-
-    m_num_spatial = calculate_num_spatial(this, data_shape, filter_shape, 2, 3);
-    update_and_validate_attributes(this, m_num_spatial);
-
-    std::vector<ov::PartialShape> input_shapes = {data_shape, filter_shape};
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
-
-    if (m_num_spatial != -1) {
-        resolve_auto_pad_for_shape(this, m_pads_begin, m_pads_end, input_shapes, 2, 3);
-        shape_infer(this, m_pads_begin, m_pads_end, input_shapes, output_shapes);
-    }
-
+    m_num_spatial = ov::util::dim::inf_bound;
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, result_et, output_shapes[0]);
+    if (input_shapes[0].rank().is_static() && input_shapes[1].rank().is_static()) {
+        m_num_spatial = convolution::get_num_spatial(this, input_shapes);
+    }
 }
 
 shared_ptr<Node> op::v1::GroupConvolution::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -160,7 +149,7 @@ op::v1::GroupConvolutionBackpropData::GroupConvolutionBackpropData(const Output<
     constructor_validate_and_infer_types();
 }
 
-bool ngraph::op::v1::GroupConvolutionBackpropData::visit_attributes(AttributeVisitor& visitor) {
+bool op::v1::GroupConvolutionBackpropData::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v1_GroupConvolutionBackpropData_visit_attributes);
     visitor.on_attribute("strides", m_strides);
     visitor.on_attribute("pads_begin", m_pads_begin);
@@ -211,9 +200,9 @@ void op::v1::GroupConvolutionBackpropData::infer_conv_backprop_output_spatial_sh
     const CoordinateDiff& output_padding,
     vector<Dimension>& output_spatial_shape) {
     size_t num_spatial_dims = input_data_shape.size();
-    NGRAPH_CHECK(filters_shape.size() == num_spatial_dims && strides.size() == num_spatial_dims &&
-                 dilations.size() == num_spatial_dims && pads_begin.size() == num_spatial_dims &&
-                 pads_end.size() == num_spatial_dims && output_padding.size() == num_spatial_dims);
+    OPENVINO_ASSERT(filters_shape.size() == num_spatial_dims && strides.size() == num_spatial_dims &&
+                    dilations.size() == num_spatial_dims && pads_begin.size() == num_spatial_dims &&
+                    pads_end.size() == num_spatial_dims && output_padding.size() == num_spatial_dims);
 
     for (size_t i = 0; i < num_spatial_dims; ++i) {
         if (input_data_shape[i].is_static() && filters_shape[i].is_static()) {
@@ -305,3 +294,4 @@ shared_ptr<Node> op::v1::GroupConvolutionBackpropData::clone_with_new_inputs(con
                                                              m_output_padding);
     }
 }
+}  // namespace ov

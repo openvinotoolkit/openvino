@@ -105,10 +105,10 @@ void append_spatial_shape(const TOp* op, const std::vector<TShape>& input_shapes
     using namespace ov::util;
     using TDim = typename TShape::value_type;
 
-    const auto& data_shape = input_shapes[0];
-
     const auto& strides = op->get_strides();
     const auto spatial_num = strides.size();
+
+    const auto& data_shape = input_shapes[0].rank().is_static() ? input_shapes[0] : PartialShape::dynamic(spatial_num);
     auto data_dim = data_shape.cend() - spatial_num;
 
     if (is_auto_pad(op)) {
@@ -118,7 +118,8 @@ void append_spatial_shape(const TOp* op, const std::vector<TShape>& input_shapes
                        std::back_inserter(out_shape),
                        &dim::ceil_div<TDim>);
     } else {
-        const auto& filters_shape = input_shapes[1];
+        const auto& filters_shape =
+            input_shapes[1].rank().is_static() ? input_shapes[1] : PartialShape::dynamic(spatial_num);
         auto filters_dim = filters_shape.cend() - spatial_num;
         const auto& pads_begin = op->get_pads_begin();
         const auto& pads_end = op->get_pads_end();
@@ -128,9 +129,9 @@ void append_spatial_shape(const TOp* op, const std::vector<TShape>& input_shapes
             auto dim = *data_dim + (pads_begin[i] + pads_end[i]);
             const auto filter_dilated = dim::dilated(*filters_dim, dilations[i]);
 
-            if (data_dim->is_static() && filters_dim->is_static()) {
-                // Use check from pooling op helpers as is same.
-                pooling::valid_dilated_kernel_with_dim(op, filters_dim->get_length(), *data_dim, i);
+            if (dim.is_static() && filter_dilated.is_static()) {
+                // Use check from pooling op as it is same.
+                pooling::valid_dilated_kernel_with_dim(op, filter_dilated.get_length(), dim, i);
             }
 
             dim = dim::floor_div(dim - filter_dilated, strides[i]);

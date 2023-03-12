@@ -43,6 +43,7 @@
 #include "gather_shape_inference.hpp"
 #include "gather_tree_shape_inference.hpp"
 #include "grid_sample_shape_inference.hpp"
+#include "group_convolution_shape_inference.hpp"
 #include "gru_cell_shape_inference.hpp"
 #include "gru_sequence_shape_inference.hpp"
 #include "interpolate_shape_inference.hpp"
@@ -597,6 +598,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(GatherND, entryIO),
     _OV_OP_SHAPE_INFER_REG(GatherTree, entryIO),
     _OV_OP_SHAPE_INFER_REG(GridSample, entryIO),
+    _OV_OP_SHAPE_INFER_REG(GroupConvolution, ShapeInferConvolution),
     _OV_OP_SHAPE_INFER_REG(GRUCell, entryIO),
     _OV_OP_SHAPE_INFER_REG(GRUSequence, entryIO),
     _OV_OP_SHAPE_INFER_REG(IDFT, entryIOC),
@@ -635,9 +637,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(Unsqueeze, entryIOC),
     _OV_OP_SHAPE_INFER_REG(VariadicSplit, entryIOC),
     _OV_OP_SHAPE_INFER_VA_REG(ConvolutionBackpropData, entryConvBackprop, ConvolutionBackpropData, false),
-    _OV_OP_SHAPE_INFER_VA_REG(ConvolutionBackpropData, entryConvBackprop, ConvolutionBackpropData, false),
     _OV_OP_SHAPE_INFER_VA_REG(Gather, entryIOC, ov::op::util::GatherBase),
-    _OV_OP_SHAPE_INFER_VA_REG(GroupConvolution, entryConv, GroupConvolution, true),
     _OV_OP_SHAPE_INFER_VA_REG(GroupConvolutionBackpropData, entryConvBackprop, GroupConvolutionBackpropData, true),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceL1, entryIOC, op::util::ArithmeticReductionKeepDims),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceL2, entryIOC, op::util::ArithmeticReductionKeepDims),

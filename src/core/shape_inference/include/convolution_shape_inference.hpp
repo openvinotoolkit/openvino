@@ -112,14 +112,6 @@ void update_and_validate_attributes(ConvType* op, const std::vector<TShape>& inp
                               data_shape);
 
         NODE_VALIDATION_CHECK(op,
-                              data_rank.compatible(filters_rank),
-                              "Data batch and filters rank do not match (data batch shape: ",
-                              data_shape,
-                              ", filters shape: ",
-                              filters_shape,
-                              ").");
-
-        NODE_VALIDATION_CHECK(op,
                               static_cast<int64_t>(strides.size()) == num_spatial,
                               "Strides should be defined for all and only spatial dimensions.");
         NODE_VALIDATION_CHECK(op,
@@ -128,7 +120,7 @@ void update_and_validate_attributes(ConvType* op, const std::vector<TShape>& inp
         NODE_VALIDATION_CHECK(
             op,
             static_cast<int64_t>(pads_begin.size()) == num_spatial && pads_end.size() == pads_begin.size(),
-            "Pads begin should be defined for all and only spatial dimensions.");
+            "Pads begin and end should be defined for all and only spatial dimensions.");
 
         constexpr auto is_zero = cmp::Equal<size_t>(0);
         NODE_VALIDATION_CHECK(op,
@@ -338,12 +330,18 @@ std::vector<TShape> shape_infer(const Convolution* op, const std::vector<TShape>
 
     TShape output_shape;
     if (num_spatial != dim::inf_bound) {
-        update_and_validate_attributes(const_cast<Convolution*>(op), input_shapes);
-
         const auto& data_shape = input_shapes[0];
         const auto& filters_shape = input_shapes[1];
         const auto data_rank = data_shape.rank();
         const auto filters_rank = filters_shape.rank();
+
+        NODE_VALIDATION_CHECK(op,
+                              data_rank.compatible(filters_rank),
+                              "Data batch and filters rank do not match (data batch shape: ",
+                              data_shape,
+                              ", filters shape: ",
+                              filters_shape,
+                              ").");
 
         NODE_VALIDATION_CHECK(
             op,
@@ -354,15 +352,13 @@ std::vector<TShape> shape_infer(const Convolution* op, const std::vector<TShape>
             filters_shape[1],
             ").");
 
+        update_and_validate_attributes(const_cast<Convolution*>(op), input_shapes);
+
         output_shape.reserve(convolution::spatial_dim_offset + num_spatial);
         output_shape.emplace_back(data_rank.is_static() ? data_shape[0] : dim::inf_bound);
         output_shape.emplace_back(filters_rank.is_static() ? filters_shape[0] : dim::inf_bound);
 
-        if (data_rank.is_static() && filters_rank.is_static()) {
-            convolution::append_spatial_shape(op, input_shapes, output_shape);
-        } else {
-            output_shape.insert(output_shape.end(), num_spatial, dim::inf_bound);
-        }
+        convolution::append_spatial_shape(op, input_shapes, output_shape);
     } else {
         output_shape = PartialShape::dynamic();
     }

@@ -185,7 +185,7 @@ TEST_F(TypePropConvolutionV1Test, data_dynamic_rank_filters_2d) {
 
 TEST_F(TypePropConvolutionV1Test, data_rank_to_low) {
     const auto data = make_shared<op::Parameter>(element::f32, PartialShape{2, 3});
-    const auto filters = make_shared<op::Parameter>(element::f32, PartialShape{2, 3, 4});
+    const auto filters = make_shared<op::Parameter>(element::f32, PartialShape{2, 3});
     const auto strides = Strides{1, 1};
     const auto dilations = Strides{1, 1};
 
@@ -196,7 +196,7 @@ TEST_F(TypePropConvolutionV1Test, data_rank_to_low) {
 
 TEST_F(TypePropConvolutionV1Test, data_rank_to_high) {
     const auto data = make_shared<op::Parameter>(element::f32, PartialShape{2, 3, 5, 5, 5, 5});
-    const auto filters = make_shared<op::Parameter>(element::f32, PartialShape{2, 3, 4});
+    const auto filters = make_shared<op::Parameter>(element::f32, PartialShape{2, 3, 4, 4, 4, 4});
     const auto strides = Strides{1, 1};
     const auto dilations = Strides{1, 1};
 
@@ -217,8 +217,8 @@ TEST_F(TypePropConvolutionV1Test, data_and_filters_rank_not_compatible) {
 }
 
 TEST_F(TypePropConvolutionV1Test, data_and_filters_channel_number_not_compatible) {
-    const auto data = make_shared<op::Parameter>(element::f32, PartialShape{2, 2, 5});
-    const auto filters = make_shared<op::Parameter>(element::f32, PartialShape{2, 3, 4});
+    const auto data = make_shared<op::Parameter>(element::f32, PartialShape{2, 2, 5, 5});
+    const auto filters = make_shared<op::Parameter>(element::f32, PartialShape{2, 3, 4, 4});
     const auto strides = Strides{1, 1};
     const auto dilations = Strides{1, 1};
 
@@ -281,5 +281,5 @@ TEST_F(TypePropConvolutionV1Test, pads_not_defined_for_spatial_only) {
 
     OV_EXPECT_THROW(auto op = make_op(data, filters, strides, pads_begin, pads_end, dilations),
                     NodeValidationFailure,
-                    HasSubstr("Pads begin should be defined for all and only spatial dimensions."));
+                    HasSubstr("Pads begin and end should be defined for all and only spatial dimensions."));
 }
