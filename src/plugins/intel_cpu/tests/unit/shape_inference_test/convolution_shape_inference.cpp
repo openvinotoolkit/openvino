@@ -9,27 +9,6 @@
 using namespace ov;
 using namespace ov::intel_cpu;
 
-TEST(StaticShapeInferenceTest, ConvolutionTest) {
-    Strides strides{1, 1};
-    CoordinateDiff pads_begin{0, 0};
-    CoordinateDiff pads_end{0, 0};
-    Strides dilations{1, 1};
-    const auto auto_pad = op::PadType::SAME_LOWER;
-
-    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto filters = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-
-    auto conv =
-        std::make_shared<op::v1::Convolution>(data, filters, strides, pads_begin, pads_end, dilations, auto_pad);
-
-    std::vector<StaticShape> static_input_shapes = {StaticShape{3, 6, 5, 5}, StaticShape{7, 6, 3, 3}},
-                             static_output_shapes = {StaticShape{}};
-    shape_inference(conv.get(), static_input_shapes, static_output_shapes);
-
-    ASSERT_EQ(static_output_shapes[0], StaticShape({3, 7, 5, 5}));
-}
-
-
 TEST(StaticShapeInferenceTest, GroupConvolutionTest) {
     Strides strides{1, 1};
     CoordinateDiff pads_begin{0, 0};
@@ -110,8 +89,7 @@ TEST(StaticShapeInferenceTest, GroupConvolutionBackPropDataTest) {
     ASSERT_EQ(static_output_shapes[0], StaticShape({1, 24, 3, 3}));
 }
 
-
-#if 0
+#if 1
 TEST(StaticShapeInferenceTest, ConvolutionTimeTest) {
     Strides strides{1, 1};
     CoordinateDiff pads_begin{0, 0};

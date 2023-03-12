@@ -10,6 +10,12 @@
 
 namespace ov {
 namespace op {
+namespace convolution {
+
+template <class TConv, class TShape>
+int64_t get_num_spatial(const TConv* op, const std::vector<TShape>& input_shapes);
+}
+
 namespace v1 {
 /// \brief Batched convolution operation, with optional window dilation and stride.
 ///
@@ -123,6 +129,12 @@ private:
                             const CoordinateDiff& pads_end,
                             const std::vector<T>& input_shapes,
                             std::vector<T>& output_shapes);
+
+    template <class TConv, class TShape>
+    friend int64_t convolution::get_num_spatial(const TConv* op, const std::vector<TShape>& input_shapes);
+
+    template <class ConvType, class TShape>
+    friend void update_and_validate_attributes(ConvType* op, const std::vector<TShape>& input_shapes);
 };
 
 /// \brief Data batch backprop for batched convolution operation.

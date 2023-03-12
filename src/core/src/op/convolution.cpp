@@ -2,21 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/convolution.hpp"
-
-#include <convolution_shape_inference.hpp>
+#include "openvino/op/convolution.hpp"
 
 #include "bound_evaluate.hpp"
+#include "convolution_shape_inference.hpp"
 #include "itt.hpp"
-#include "ngraph/axis_vector.hpp"
-#include "ngraph/coordinate_diff.hpp"
-#include "ngraph/op/reshape.hpp"
-#include "ngraph/util.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 
 using namespace std;
-using namespace ngraph;
 
+namespace ov {
 // *** Convolution OP SET 1 ***
 op::v1::Convolution::Convolution(const Output<Node>& data_batch,
                                  const Output<Node>& filters,
@@ -46,8 +41,8 @@ bool op::v1::Convolution::visit_attributes(AttributeVisitor& visitor) {
 
 void op::v1::Convolution::validate_and_infer_types() {
     OV_OP_SCOPE(v1_Convolution_validate_and_infer_types);
-    element::Type data_batch_et = get_input_element_type(0);
-    element::Type filters_et = get_input_element_type(1);
+    const auto& data_batch_et = get_input_element_type(0);
+    const auto& filters_et = get_input_element_type(1);
 
     element::Type result_et;
     NODE_VALIDATION_CHECK(this,
@@ -62,21 +57,14 @@ void op::v1::Convolution::validate_and_infer_types() {
                           result_et.is_real() || result_et.is_integral_number(),
                           "Element types must be numeric. Got: ",
                           result_et);
-    auto& data_shape = get_input_partial_shape(0);
-    auto& filter_shape = get_input_partial_shape(1);
-
-    m_num_spatial = calculate_num_spatial(this, data_shape, filter_shape, 2, 2);
-    update_and_validate_attributes(this, m_num_spatial);
-
-    std::vector<ov::PartialShape> input_shapes = {data_shape, filter_shape};
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
-
-    if (m_num_spatial != -1) {
-        resolve_auto_pad_for_shape(this, m_pads_begin, m_pads_end, input_shapes, 2, 2);
-        shape_infer(this, m_pads_begin, m_pads_end, input_shapes, output_shapes);
-    }
-
+    // Set to infinite to always run full validation during shape_infer.
+    m_num_spatial = ov::util::dim::inf_bound;
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, result_et, output_shapes[0]);
+    if (input_shapes[0].rank().is_static() && input_shapes[1].rank().is_static()) {
+        m_num_spatial = convolution::get_num_spatial(this, input_shapes);
+    }
 }
 
 shared_ptr<Node> op::v1::Convolution::clone_with_new_inputs(const OutputVector& new_args) const {
@@ -277,3 +265,4 @@ shared_ptr<Node> op::v1::ConvolutionBackpropData::clone_with_new_inputs(const Ou
                                                         m_output_padding);
     }
 }
+}  // namespace ov

@@ -392,6 +392,26 @@ protected:
     ov::CoordinateDiff m_pads_begin, m_pads_end;
 };
 
+template <class TOp>
+class ShapeInferConvolution : public entryBase {
+public:
+    ShapeInferConvolution(std::shared_ptr<Node> node) : entryBase{std::move(node)} {}
+
+    IShapeInferCommon::Result infer(const std::vector<StaticShape>& input_shapes,
+                                    const std::map<size_t, ov::HostTensorPtr>& constant_data) override {
+        auto out_shapes = shape_infer(static_cast<TOp*>(node.get()), input_shapes);
+        return {std::move(out_shapes), ShapeInferStatus::success};
+    }
+
+    const ov::CoordinateDiff& get_pads_begin() override {
+        return static_cast<TOp*>(node.get())->get_pads_begin();
+    }
+
+    const ov::CoordinateDiff& get_pads_end() override {
+        return static_cast<TOp*>(node.get())->get_pads_end();
+    }
+};
+
 /**
  * @brief Base shape inference object implementing the IStaticShapeInfer without padding support
  *
@@ -552,6 +572,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(Broadcast, entryIOC),
     _OV_OP_SHAPE_INFER_REG(Bucketize, entryIO),
     _OV_OP_SHAPE_INFER_REG(Concat, entryIO),
+    _OV_OP_SHAPE_INFER_REG(Convolution, ShapeInferConvolution),
     _OV_OP_SHAPE_INFER_REG(CTCGreedyDecoder, entryIO),
     _OV_OP_SHAPE_INFER_REG(CTCGreedyDecoderSeqLen, entryIO),
     _OV_OP_SHAPE_INFER_REG(CTCLoss, entryIO),
@@ -613,7 +634,6 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(Transpose, entryIOC),
     _OV_OP_SHAPE_INFER_REG(Unsqueeze, entryIOC),
     _OV_OP_SHAPE_INFER_REG(VariadicSplit, entryIOC),
-    _OV_OP_SHAPE_INFER_VA_REG(Convolution, entryConv, Convolution, false),
     _OV_OP_SHAPE_INFER_VA_REG(ConvolutionBackpropData, entryConvBackprop, ConvolutionBackpropData, false),
     _OV_OP_SHAPE_INFER_VA_REG(ConvolutionBackpropData, entryConvBackprop, ConvolutionBackpropData, false),
     _OV_OP_SHAPE_INFER_VA_REG(Gather, entryIOC, ov::op::util::GatherBase),
