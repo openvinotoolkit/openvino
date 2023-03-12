@@ -46,8 +46,19 @@ CompiledModel::CompiledModel(InferenceEngine::CNNNetwork &network,
             //exclusiveAsyncRequests essentially disables the streams (and hence should be checked first) => aligned with the CPU behavior
             return executorManager()->getExecutor("GPU");
         }  else if (config.get_property(ov::num_streams) > 1) {
+            auto executorConfig = InferenceEngine::IStreamsExecutor::Config{
+                "Intel GPU plugin executor",
+                config.get_property(ov::num_streams),
+                0,
+                InferenceEngine::IStreamsExecutor::ThreadBindingType::CORES,
+                1,
+                0,
+                0,
+                InferenceEngine::IStreamsExecutor::Config::PreferredCoreType::BIG};
             return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
-                IStreamsExecutor::Config{"Intel GPU plugin executor", config.get_property(ov::num_streams)});
+                InferenceEngine::IStreamsExecutor::Config::ReserveCpuCores(executorConfig));
+            // return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
+            //     IStreamsExecutor::Config{"Intel GPU plugin executor", config.get_property(ov::num_streams)});
         } else {
             return std::make_shared<InferenceEngine::CPUStreamsExecutor>(
                 IStreamsExecutor::Config{"Intel GPU plugin executor", 1});
