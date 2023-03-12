@@ -193,7 +193,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
 #else
         weights_path += ".bin";
 #endif
-        if (!FileUtils::fileExist(weights_path)) {
+        if (!ov::util::file_exists(weights_path)) {
             weights_path.clear();
         }
     }

@@ -57,7 +57,7 @@ public:
     void override_all_outputs(const std::vector<ov::frontend::Place::Ptr>& outputs);
     void override_all_inputs(const std::vector<ov::frontend::Place::Ptr>& inputs);
     void extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
-                         const std::vector<ov::frontend::Place::Ptr>& outputs);
+                          const std::vector<ov::frontend::Place::Ptr>& outputs);
 
 private:
     void load_model();
@@ -197,7 +197,8 @@ std::shared_ptr<TensorPlace> castToTensorPlace(const ov::frontend::Place::Ptr& p
     FRONT_END_GENERAL_CHECK(false, "Cannot cast this Place to TensorPlace.");
 }
 
-ov::frontend::Place::Ptr InputModel::InputModelTFLiteImpl::get_place_by_tensor_name(const std::string& tensorName) const {
+ov::frontend::Place::Ptr InputModel::InputModelTFLiteImpl::get_place_by_tensor_name(
+    const std::string& tensorName) const {
     if (m_tensor_places.find(tensorName) != m_tensor_places.end())
         return castToTensorPlace(m_tensor_places.at(tensorName));
     else
@@ -254,7 +255,8 @@ void InputModel::InputModelTFLiteImpl::add_name_for_tensor(const Place::Ptr& ten
     tf_tensor->set_names(names);
 }
 
-void InputModel::InputModelTFLiteImpl::set_name_for_operation(const Place::Ptr& operation, const std::string& new_name) {
+void InputModel::InputModelTFLiteImpl::set_name_for_operation(const Place::Ptr& operation,
+                                                              const std::string& new_name) {
     auto op = castToOpPlace(operation);
     auto names = op->get_names();
     names.push_back(new_name);
@@ -289,7 +291,7 @@ void InputModel::InputModelTFLiteImpl::override_all_outputs(const std::vector<ov
 }
 
 void InputModel::InputModelTFLiteImpl::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
-                                                       const std::vector<ov::frontend::Place::Ptr>& outputs) {
+                                                        const std::vector<ov::frontend::Place::Ptr>& outputs) {
     for (const auto& input_place : m_inputs) {
         auto input_lite_place = std::dynamic_pointer_cast<ov::frontend::tensorflow_lite::TensorLitePlace>(input_place);
         FRONT_END_GENERAL_CHECK(input_lite_place != nullptr, "Input Model has unexpected place as input");

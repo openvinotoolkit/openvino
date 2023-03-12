@@ -62,7 +62,7 @@ public:
     void override_all_outputs(const std::vector<ov::frontend::Place::Ptr>& outputs);
     void override_all_inputs(const std::vector<ov::frontend::Place::Ptr>& inputs);
     void extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
-                         const std::vector<ov::frontend::Place::Ptr>& outputs);
+                          const std::vector<ov::frontend::Place::Ptr>& outputs);
     void set_partial_shape(ov::frontend::Place::Ptr place, const ov::PartialShape&);
     ov::PartialShape get_partial_shape(ov::frontend::Place::Ptr place) const;
     void set_element_type(ov::frontend::Place::Ptr place, const ov::element::Type&);
@@ -406,7 +406,7 @@ void InputModel::InputModelTFImpl::override_all_outputs(const std::vector<ov::fr
 }
 
 void InputModel::InputModelTFImpl::extract_subgraph(const std::vector<ov::frontend::Place::Ptr>& inputs,
-                                                   const std::vector<ov::frontend::Place::Ptr>& outputs) {
+                                                    const std::vector<ov::frontend::Place::Ptr>& outputs) {
     m_graph_changed = true;
     override_all_inputs(inputs);
     override_all_outputs(outputs);
