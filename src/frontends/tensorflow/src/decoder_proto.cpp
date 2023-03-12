@@ -96,8 +96,8 @@ ov::element::Type get_ov_type(const ::tensorflow::DataType & type) {
         {::tensorflow::DataType::DT_BFLOAT16, ov::element::bf16}};
 
     auto it = type_map.find(type);
-    // for all unsupported types return undefined type
-    return it == type_map.end() ? ov::element::undefined : it->second;
+    // for all unsupported types return dynamic type
+    return it == type_map.end() ? ov::element::dynamic : it->second;
 }
 
 ov::Any DecoderProto::get_attribute(const std::string& name) const {

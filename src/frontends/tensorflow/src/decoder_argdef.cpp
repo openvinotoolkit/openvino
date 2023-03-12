@@ -17,11 +17,7 @@ namespace tensorflow {
 size_t DecoderArgDef::get_input_size() const {
     FRONT_END_GENERAL_CHECK(m_op_type == "input_arg" || m_op_type == "output_arg",
                             "[TensorFlow Frontend] Internal error: Incorrect use of DecoderArgDef class.");
-    if (m_op_type == "input_arg") {
-        return 0;
-    } else {
-        return 1;
-    }
+    return m_op_type == "input_arg" ? 0 : 1;
 }
 
 const std::string& DecoderArgDef::get_op_type() const {

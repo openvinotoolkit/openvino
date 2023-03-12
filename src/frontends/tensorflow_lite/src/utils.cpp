@@ -14,14 +14,14 @@ using namespace ov;
 
 std::shared_ptr<ov::frontend::tensorflow_lite::QuantizationInfo> ov::frontend::tensorflow_lite::get_quantization(
     const tflite::QuantizationParameters* tf_quantization) {
-    if (tf_quantization == NULL)
+    if (tf_quantization == nullptr)
         return {};
     auto quantization = std::make_shared<ov::frontend::tensorflow_lite::QuantizationInfo>();
     auto tf_zp = tf_quantization->zero_point();
     auto tf_scale = tf_quantization->scale();
-    if (tf_zp != NULL)
+    if (tf_zp != nullptr)
         quantization->set_zero_point({(*tf_zp).begin(), (*tf_zp).end()});
-    if (tf_scale != NULL)
+    if (tf_scale != nullptr)
         quantization->set_scale({(*tf_scale).begin(), (*tf_scale).end()});
     if (quantization->get_zero_point().empty() && quantization->get_scale().empty())
         return {};
