@@ -1187,11 +1187,11 @@ void prepare_primitive_fusing::optimize_fused_ops(program& p) {
             auto& fp_next = *fp_itr;
             if (fp.is_type<activation>() && fp_next.is_type<quantize>()) {
                 const auto& act_prim = fp.typed_desc<activation>();;
-                const auto& quant_param = fp_next.get_typed_fuse_params<kernel_selector::quantize_fuse_params>();
+                const auto& quant_param = fp_next.get_typed_fuse_params<QuantizeFuseParams>();
 
                 bool can_skip = fp.deps.empty() && data_type_traits::is_i8_u8(fp_next.output_layout.data_type);
                 can_skip &= ((act_prim->activation_function == activation_func::relu) && (act_prim->additional_params.a == 0.0f));
-                can_skip &= (quant_param->scale_shift_opt && !quant_param->has_pre_shift);
+                can_skip &= (quant_param->_scale_shift_opt && !quant_param->_need_pre_shift);
 
                 if (can_skip) {
                     remove_deps_of_node(fp);
