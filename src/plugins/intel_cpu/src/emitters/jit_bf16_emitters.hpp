@@ -20,9 +20,7 @@ public:
     size_t get_inputs_num() const override { return 1; }
 
 private:
-    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs,
-        const std::vector<size_t>& pool_vec_idxs, const std::vector<size_t>& pool_gpr_idxs,
-        const emitter_context *emit_context) const override {
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override {
         if (host_isa_ == dnnl::impl::cpu::x64::avx512_core) {
             emit_isa<dnnl::impl::cpu::x64::avx512_core>(in_vec_idxs, out_vec_idxs);
         } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {

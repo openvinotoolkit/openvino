@@ -167,6 +167,9 @@ public:
 #define CASE_PERMUTE_TILE_8x8_4x4_FSV16_5D_2 { 1, 16,  3, 2, 2 }, { 1, 2, 16,  3, 2 }, { 0, 2, 3, 4, 1 }, tensor{ 0 }, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::b_fs_zyx_fsv16
 #define CASE_PERMUTE_TILE_8x8_4x4_FSV16_5D_3 { 1,  5,  7, 2, 2 }, { 1, 2,  5,  7, 2 }, { 0, 2, 3, 4, 1 }, tensor{ 0 }, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::b_fs_zyx_fsv16
 
+// permute_bfzyx_to_bfyxz
+#define CASE_PERMUTE_TILE_BFZYX_TO_BFYXZ_0 { 1, 8, 8, 2, 2 }, { 1, 8, 2, 8, 2 }, { 0, 1, 3, 4, 2 }, tensor{ 0 }, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
+
 class permute_activation_scale_eltwise: public PermuteFusingTest {};
 TEST_P(permute_activation_scale_eltwise, basic) {
     auto p = GetParam();
@@ -259,6 +262,9 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_activation_scale_eltwise, ::testin
     permute_params{ CASE_PERMUTE_TILE_8x8_4x4_FSV16_5D_1, 2, 5 },
     permute_params{ CASE_PERMUTE_TILE_8x8_4x4_FSV16_5D_2, 2, 5 },
     permute_params{ CASE_PERMUTE_TILE_8x8_4x4_FSV16_5D_3, 2, 5 },
+
+    // Fusing tests for permute_bfzyx_to_bfyxz
+    permute_params{ CASE_PERMUTE_TILE_BFZYX_TO_BFYXZ_0, 2, 5 },
 }));
 
 class permute_quant_u8: public PermuteFusingTest {};
@@ -461,6 +467,9 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, permute_scale_eltwise_actv_scale_actv, ::t
     permute_params{ CASE_PERMUTE_TILE_8x8_4x4_FSV16_5D_1, 2, 7 },
     permute_params{ CASE_PERMUTE_TILE_8x8_4x4_FSV16_5D_2, 2, 7 },
     permute_params{ CASE_PERMUTE_TILE_8x8_4x4_FSV16_5D_3, 2, 7 },
+
+    // Fusing tests for permute_bfzyx_to_bfyxz
+    permute_params{ CASE_PERMUTE_TILE_BFZYX_TO_BFYXZ_0, 2, 7 },
 }));
 
 /* ------------------------------------------------------------------------------------------------------------ */

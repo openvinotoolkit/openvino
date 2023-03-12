@@ -25,6 +25,7 @@ addIeTarget(
                 openvino::runtime::dev
                 commonTestUtils
                 inference_engine_snippets
+                lptNgraphFunctions
         ADD_CPPLINT
         DEVELOPER_PACKAGE
             tests
