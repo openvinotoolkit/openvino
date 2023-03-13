@@ -14,6 +14,9 @@ import torch
 import numpy as np
 import inspect
 
+def make_constant(*args, **kwargs):
+    return op.Constant(*args, **kwargs)
+
 def get_type_from_py_type(value):
     if isinstance(value, float):
         return OVType.f32
@@ -74,6 +77,8 @@ def get_value_from_getattr(getattr_node, self_module):
 pt_to_ov_type_map = {
     "float": OVType.f32,
     "int": OVType.i32,
+    float: OVType.f32,
+    int: OVType.i32,
     "bool": OVType.boolean,
     "torch.float16": OVType.f16,
     "torch.float32": OVType.f32,
@@ -331,6 +336,9 @@ class TorchScriptPythonDecoder (Decoder):
                     return pt_value is None
         return False
 
+    def inlined_inputs(self, index):
+        return []
+
 class TorchFXPythonDecoder (Decoder):
 
     def __init__(self, pt_module, fx_gm, nodes=None, mark_node_callback=None):
@@ -393,6 +401,9 @@ class TorchFXPythonDecoder (Decoder):
         print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         return self.inputs()[index]  # TODO: find specialized method
 
+    def get_input_debug_name(self, index):
+        return "input"+str(index)
+
     def get_input_shape(self, index):
         print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         input = self._raw_input(index)
@@ -402,6 +413,9 @@ class TorchFXPythonDecoder (Decoder):
         print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         input = self._raw_input(index)
         return self.get_type_for_value(input)
+
+    def get_output_debug_name(self, index):
+        return "output"+str(index)
 
     def get_output_shape(self, index):
         print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')

@@ -105,6 +105,9 @@ class PyDecoder : public ov::frontend::pytorch::TorchDecoder {
     std::shared_ptr<TorchDecoder> get_subgraph_decoder(size_t index) const override {
         PYBIND11_OVERRIDE_PURE(std::shared_ptr<TorchDecoder>, TorchDecoder, get_subgraph_decoder, index);
     }
+
+    ov::OutputVector inlined_inputs(size_t start_index) const override {
+        PYBIND11_OVERRIDE_PURE(ov::OutputVector, TorchDecoder, inlined_inputs, start_index); }
 };
 
 void regclass_frontend_pytorch_decoder(py::module m);

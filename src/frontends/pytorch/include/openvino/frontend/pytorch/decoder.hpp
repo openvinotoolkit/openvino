@@ -103,6 +103,11 @@ public:
 
     /// Probably this toghether with immediate nodes visitor is a replacement for visit_subgraphs with an index
     virtual std::shared_ptr<TorchDecoder> get_subgraph_decoder(size_t index) const = 0;
+
+    /// Returns new nodes for inputs inlined in the op itself
+    // Used in Torch.FX decoder
+    virtual OutputVector inlined_inputs (size_t start_index) const
+    { return {}; }
 };
 
 }  // namespace pytorch
