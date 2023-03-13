@@ -445,7 +445,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     if (cpu.has(Xbyak::util::Cpu::tSSE)) {
         if (conf.denormalsOptMode == Config::DenormalsOptMode::DO_On) {
             flush_to_zero(true);
-            denormals_as_zero(true);
+            conf.DAZOn = denormals_as_zero(true);
         } else if (conf.denormalsOptMode == Config::DenormalsOptMode::DO_Off) {
             flush_to_zero(false);
             denormals_as_zero(false);
