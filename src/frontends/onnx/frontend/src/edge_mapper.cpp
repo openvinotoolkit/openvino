@@ -104,11 +104,11 @@ InputEdge onnx_editor::EdgeMapper::find_input_edge(const EditorNode& node, const
         if (node_indexes.size() == 1) {
             node_index = node_indexes[0];
         } else if (node_indexes.empty()) {
-            OPENVINO_UNREACHABLE("Node with name: ",
-                                 (node.m_node_name.empty() ? "not_given" : node.m_node_name),
-                                 " and output_name: ",
-                                 (node.m_output_name.empty() ? "not_given" : node.m_output_name),
-                                 " was not found");
+            OPENVINO_THROW("Node with name: ",
+                           (node.m_node_name.empty() ? "not_given" : node.m_node_name),
+                           " and output_name: ",
+                           (node.m_output_name.empty() ? "not_given" : node.m_output_name),
+                           " was not found");
         } else if (!in.m_input_name.empty())  // input indexes are not deterministic if a node name is ambiguous
         {
             // many nodes with the same name
@@ -133,11 +133,11 @@ InputEdge onnx_editor::EdgeMapper::find_input_edge(const EditorNode& node, const
                             in.m_input_name,
                             " are ambiguous to determine input edge");
         } else {
-            OPENVINO_UNREACHABLE("Given node name: ",
-                                 node.m_node_name,
-                                 " and input index: ",
-                                 in.m_input_index,
-                                 " are ambiguous to determine input edge");
+            OPENVINO_THROW("Given node name: ",
+                           node.m_node_name,
+                           " and input index: ",
+                           in.m_input_index,
+                           " are ambiguous to determine input edge");
         }
     } else {  // the node index is provided
         check_node_index(node_index);
@@ -156,7 +156,7 @@ InputEdge onnx_editor::EdgeMapper::find_input_edge(const EditorNode& node, const
                         ". You should use port indexes to distinguish them.");
         return InputEdge{node_index, input_indexes[0], in.m_new_input_name};
     } else {
-        OPENVINO_UNREACHABLE("Not enough information to determine input edge");
+        OPENVINO_THROW("Not enough information to determine input edge");
     }
 }
 
@@ -168,11 +168,11 @@ OutputEdge onnx_editor::EdgeMapper::find_output_edge(const EditorNode& node, con
         if (node_indexes.size() == 1) {
             node_index = node_indexes[0];
         } else if (node_indexes.empty()) {
-            OPENVINO_UNREACHABLE("Node with name: ",
-                                 (node.m_node_name.empty() ? "not_given" : node.m_node_name),
-                                 " and output_name: ",
-                                 (node.m_output_name.empty() ? "not_given" : node.m_output_name),
-                                 " was not found");
+            OPENVINO_THROW("Node with name: ",
+                           (node.m_node_name.empty() ? "not_given" : node.m_node_name),
+                           " and output_name: ",
+                           (node.m_output_name.empty() ? "not_given" : node.m_output_name),
+                           " was not found");
         } else if (!out.m_output_name.empty())  // output indexes are not deterministic if a node name is ambiguous
         {
             // many nodes with the same name
@@ -192,11 +192,11 @@ OutputEdge onnx_editor::EdgeMapper::find_output_edge(const EditorNode& node, con
                             out.m_output_name,
                             " was not found");
         } else {
-            OPENVINO_UNREACHABLE("Given node name: ",
-                                 node.m_node_name,
-                                 " and output index: ",
-                                 out.m_output_index,
-                                 " are ambiguous to determine output edge");
+            OPENVINO_THROW("Given node name: ",
+                           node.m_node_name,
+                           " and output index: ",
+                           out.m_output_index,
+                           " are ambiguous to determine output edge");
         }
     } else {  // the node index is provided
         check_node_index(node_index);

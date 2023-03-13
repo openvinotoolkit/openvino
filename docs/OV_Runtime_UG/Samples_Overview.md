@@ -102,7 +102,7 @@ The officially supported Linux build environment is the following:
 * GCC 7.5.0 (for Ubuntu 18.04) or GCC 9.3.0 (for Ubuntu 20.04)
 * CMake version 3.10 or higher
 
-> **NOTE**: For building samples from the open-source version of OpenVINO toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
+> **NOTE**: For building samples from the open-source version of OpenVINO toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md).
 
 To build the C or C++ sample applications for Linux, go to the `<INSTALL_DIR>/samples/c` or `<INSTALL_DIR>/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
 ```sh
@@ -179,7 +179,7 @@ The officially supported macOS build environment is the following:
 * Clang compiler from Xcode 10.1 or higher
 * CMake version 3.13 or higher
 
-> **NOTE**: For building samples from the open-source version of OpenVINO toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode).
+> **NOTE**: For building samples from the open-source version of OpenVINO toolkit, see the [build instructions on GitHub](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md).
 
 To build the C or C++ sample applications for macOS, go to the `<INSTALL_DIR>/samples/c` or `<INSTALL_DIR>/samples/cpp` directory, respectively, and run the `build_samples.sh` script:
 ```sh
