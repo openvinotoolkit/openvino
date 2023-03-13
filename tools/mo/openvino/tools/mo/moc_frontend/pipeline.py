@@ -19,7 +19,7 @@ from openvino.tools.mo.moc_frontend.analysis import json_model_analysis_dump
 from openvino.tools.mo.moc_frontend.extractor import fe_user_data_repack
 from openvino.tools.mo.utils.class_registration import get_enabled_and_disabled_transforms
 from openvino.tools.mo.utils.error import Error
-from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import pytorch_process_after_convert
+from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import resolve_input_signature
 
 
 def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
@@ -75,9 +75,12 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         # a model is not processed further in json analysis mode
         sys.exit(0)
 
+    model_inputs = input_model.get_inputs()
+    if moc_front_end.get_name() == "pytorch":
+        model_inputs = model_inputs[1:]
     inputs_equal = True
     if user_shapes:
-        inputs_equal = check_places_are_same(input_model.get_inputs(), user_shapes)
+        inputs_equal = check_places_are_same(model_inputs, user_shapes)
 
     outputs_equal = True
     if outputs:
@@ -196,7 +199,7 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     # Set batch size
     if argv.batch is not None and argv.batch > 0:
         log.debug('Setting batch size to {}'.format(argv.batch))
-        for place in input_model.get_inputs():
+        for place in model_inputs:
             old_partial_shape = input_model.get_partial_shape(place)
             old_shape_array = shape_to_array(old_partial_shape) if old_partial_shape.rank.is_static else []
             joined_name = ' '.join(place.get_names())
@@ -215,7 +218,6 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
 
     ngraph_function = moc_front_end.convert(input_model)
 
-    # TO DO: remove as part of PyTorch frontend productization CVS-103615
     if argv.framework == "pytorch":
-        pytorch_process_after_convert(argv, ngraph_function)
+        resolve_input_signature(argv, ngraph_function)
     return ngraph_function

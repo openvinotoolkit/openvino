@@ -397,8 +397,7 @@ def create_pytorch_nn_module_layout_list(tmp_dir):
     ref_model.inputs[0].node.layout = Layout('nchw')
     ref_model.inputs[1].node.layout = Layout('nhwc')
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'layout': ['nchw', Layout('nhwc')],
-                                 'onnx_opset_version': 11, "use_legacy_frontend": True}
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'layout': ['nchw', Layout('nhwc')]}
 
 
 def create_pytorch_nn_module_layout_list_case2(tmp_dir):
@@ -411,8 +410,7 @@ def create_pytorch_nn_module_layout_list_case2(tmp_dir):
     ref_model.inputs[0].node.layout = Layout('nchw')
     ref_model.inputs[1].node.layout = Layout('nhwc')
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'layout': ('nchw', Layout('nhwc')),
-                                 'onnx_opset_version': 11, "use_legacy_frontend": True}
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'layout': ('nchw', Layout('nhwc'))}
 
 
 def create_pytorch_nn_module_mean_list(tmp_dir):
@@ -433,8 +431,7 @@ def create_pytorch_nn_module_mean_list(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]],
-                                 'onnx_opset_version': 11, 'compress_to_fp16': False, "use_legacy_frontend": True}
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]], 'compress_to_fp16': False}
 
 
 def create_pytorch_nn_module_mean_list_default_compression(tmp_dir):
@@ -459,8 +456,7 @@ def create_pytorch_nn_module_mean_list_default_compression(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]],
-                                 'onnx_opset_version': 11, "use_legacy_frontend": True}
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]]}
 
 
 def create_pytorch_nn_module_mean_list_compressin_enabled(tmp_dir):
@@ -483,8 +479,7 @@ def create_pytorch_nn_module_mean_list_compressin_enabled(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]],
-                                 'onnx_opset_version': 11, 'compress_to_fp16': True, "use_legacy_frontend": True}
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'mean_values': [[0, 0, 0], [0, 0, 0]], 'compress_to_fp16': True}
 
 
 def create_pytorch_nn_module_scale_list(tmp_dir):
@@ -505,8 +500,7 @@ def create_pytorch_nn_module_scale_list(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]],
-                                 'onnx_opset_version': 11, 'compress_to_fp16': False, "use_legacy_frontend": True}
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]], 'compress_to_fp16': False}
 
 
 def create_pytorch_nn_module_scale_list_default_compression(tmp_dir):
@@ -531,8 +525,7 @@ def create_pytorch_nn_module_scale_list_default_compression(tmp_dir):
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
 
-    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]],
-                                 'onnx_opset_version': 11, "use_legacy_frontend": True}
+    return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]]}
 
 
 def create_pytorch_nn_module_scale_list_compression_enabled(tmp_dir):
@@ -556,14 +549,14 @@ def create_pytorch_nn_module_scale_list_compression_enabled(tmp_dir):
     ref_model = Model([sigm], parameter_list, "test")
 
     return pt_model, ref_model, {'input_shape': [shape, shape], 'scale_values': [[1, 1, 1], [1, 1, 1]],
-                                 'onnx_opset_version': 11, 'compress_to_fp16': True, "use_legacy_frontend": True}
+                                 'compress_to_fp16': True}
 
 
 def create_pytorch_nn_module_shapes_list_static(tmp_dir):
     pt_model = make_pt_model_two_inputs()
     ref_model = make_ref_pt_model_two_inputs([1, 3, 20, 20])
 
-    return pt_model, ref_model, {'input_shape': [[1, 3, 20, 20], [1, 3, 20, 20]], 'onnx_opset_version': 11, "use_legacy_frontend": True}
+    return pt_model, ref_model, {'input_shape': [[1, 3, 20, 20], [1, 3, 20, 20]]}
 
 
 def create_pytorch_nn_module_shapes_list_dynamic(tmp_dir):
@@ -578,21 +571,20 @@ def create_pytorch_nn_module_shapes_list_dynamic(tmp_dir):
 
     parameter_list = [param1, param2]
     ref_model = Model([sigm], parameter_list, "test")
-    return pt_model, ref_model, {'input_shape': inp_shapes, 'onnx_opset_version': 11, "use_legacy_frontend": True}
-
+    return pt_model, ref_model, {'input_shape': inp_shapes}
 
 def create_pytorch_nn_module_shapes_list_dynamic_single_input(tmp_dir):
     pt_model = make_pt_model_one_input()
     inp_shapes = [[Dimension(-1), 3, 20, Dimension(20, -1)]]
     ref_model = make_ref_pt_model_one_input(inp_shapes[0])
-    return pt_model, ref_model, {'input_shape': inp_shapes, 'onnx_opset_version': 11, "use_legacy_frontend": True}
+    return pt_model, ref_model, {'input_shape': inp_shapes}
 
 
 def create_pytorch_nn_module_shapes_list_static_single_input(tmp_dir):
     pt_model = make_pt_model_one_input()
     inp_shapes = [[1, 3, 20, 20]]
     ref_model = make_ref_pt_model_one_input(inp_shapes[0])
-    return pt_model, ref_model, {'input_shape': inp_shapes, 'onnx_opset_version': 11, "use_legacy_frontend": True}
+    return pt_model, ref_model, {'input_shape': inp_shapes}
 
 
 def create_pytorch_nn_module_convert_pytorch_frontend1(tmp_dir):
@@ -629,8 +621,7 @@ def create_pytorch_nn_module_convert_pytorch_frontend3(tmp_dir):
     shape = PartialShape(shape)
     param1 = ov.opset10.parameter(shape)
     param2 = ov.opset10.parameter(shape)
-    param2_convert = ov.opset10.convert_like(param2, param1)
-    add = ov.opset10.add(param1, param2_convert)
+    add = ov.opset10.add(param1, param2)
     relu = ov.opset10.relu(add)
     sigm = ov.opset10.sigmoid(relu)
 
@@ -645,8 +636,7 @@ def create_pytorch_nn_module_convert_pytorch_frontend4(tmp_dir):
     shape = PartialShape(shape)
     param1 = ov.opset10.parameter(shape)
     param2 = ov.opset10.parameter(shape)
-    param2_convert = ov.opset10.convert_like(param2, param1)
-    add = ov.opset10.add(param1, param2_convert)
+    add = ov.opset10.add(param1, param2)
     relu = ov.opset10.relu(add)
     sigm = ov.opset10.sigmoid(relu)
 
@@ -664,8 +654,7 @@ def create_pytorch_jit_script_module_convert_pytorch_frontend(tmp_dir):
     shape = PartialShape(shape)
     param1 = ov.opset10.parameter(shape)
     param2 = ov.opset10.parameter(shape)
-    param2_convert = ov.opset10.convert_like(param2, param1)
-    add = ov.opset10.add(param1, param2_convert)
+    add = ov.opset10.add(param1, param2)
     relu = ov.opset10.relu(add)
     sigm = ov.opset10.sigmoid(relu)
     parameter_list = [param1, param2]
@@ -683,8 +672,7 @@ def create_pytorch_jit_trace_module_convert_pytorch_frontend(tmp_dir):
     shape = PartialShape(shape)
     param1 = ov.opset10.parameter(shape)
     param2 = ov.opset10.parameter(shape)
-    param2_convert = ov.opset10.convert_like(param2, param1)
-    add = ov.opset10.add(param1, param2_convert)
+    add = ov.opset10.add(param1, param2)
     relu = ov.opset10.relu(add)
     sigm = ov.opset10.sigmoid(relu)
     parameter_list = [param1, param2]

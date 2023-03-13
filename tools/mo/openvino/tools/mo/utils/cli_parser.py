@@ -2010,7 +2010,7 @@ def get_mean_scale_dictionary(mean_values, scale_values, argv_input: str):
     res = {}
     # collect input names
     if argv_input:
-        inputs = argv_input.split(',')
+        inputs =  [get_node_name_with_port_from_input_value(input_value) for input_value in split_inputs(argv_input)]
     else:
         inputs = []
         if type(mean_values) is dict:
