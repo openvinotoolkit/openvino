@@ -123,6 +123,7 @@ bool TopK_evaluate(const ov::op::util::TopKBase* const node,
     const size_t k = output_shape[axis];
     OPENVINO_ASSERT(k <= arg_shape[axis], "'K' exceeds the dimension of top_k_axis");
 
+    // TopK reference implementation provides stable indices output so this parameter is not passed on
     return evaluate_topk(inputs[0],
                          outputs[1],
                          outputs[0],

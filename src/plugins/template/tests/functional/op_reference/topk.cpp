@@ -562,59 +562,6 @@ TEST_P(ReferenceTopKTestBackend, CompareWithRefs) {
     Exec();
 }
 
-template <element::Type_t ET, element::Type_t ET2, element::Type_t ET_OUT>
-std::vector<TopKParams> generateParamsV3() {
-    using T = typename element_type_traits<ET>::value_type;
-    using T2 = typename element_type_traits<ET2>::value_type;
-    using T_OUT = typename element_type_traits<ET_OUT>::value_type;
-    std::vector<TopKParams> params {
-        TopKParams(
-            reference_tests::Tensor(ET, {5}, std::vector<T>{3, 1, 2, 5, 4}),
-            reference_tests::Tensor(ET2, {}, std::vector<T2>{3}),
-            0,
-            opset1::TopK::Mode::MAX,
-            opset1::TopK::SortType::SORT_VALUES,
-            reference_tests::Tensor(ET, {3}, std::vector<T>{5, 4, 3}),
-            reference_tests::Tensor(ET_OUT, {3}, std::vector<T_OUT>{3, 4, 0}),
-            0,
-            "topk_mode_sort_order"),
-
-        TopKParams(
-            reference_tests::Tensor(ET, {5}, std::vector<T>{3, 1, 2, 5, 4}),
-            reference_tests::Tensor(ET2, {}, std::vector<T2>{3}),
-            0,
-            opset1::TopK::Mode::MAX,
-            opset1::TopK::SortType::SORT_INDICES,
-            reference_tests::Tensor(ET, {3}, std::vector<T>{3, 5, 4}),
-            reference_tests::Tensor(ET_OUT, {3}, std::vector<T_OUT>{0, 3, 4}),
-            0,
-            "topk_mode_sort_order_1"),
-
-        TopKParams(
-            reference_tests::Tensor(ET, {5}, std::vector<T>{3, 1, 2, 5, 4}),
-            reference_tests::Tensor(ET2, {}, std::vector<T2>{3}),
-            0,
-            opset1::TopK::Mode::MIN,
-            opset1::TopK::SortType::SORT_VALUES,
-            reference_tests::Tensor(ET, {3}, std::vector<T>{1, 2, 3}),
-            reference_tests::Tensor(ET_OUT, {3}, std::vector<T_OUT>{1, 2, 0}),
-            0,
-            "topk_mode_sort_order_2"),
-
-        TopKParams(
-            reference_tests::Tensor(ET, {5}, std::vector<T>{3, 1, 2, 5, 4}),
-            reference_tests::Tensor(ET2, {}, std::vector<T2>{3}),
-            0,
-            opset1::TopK::Mode::MIN,
-            opset1::TopK::SortType::SORT_INDICES,
-            reference_tests::Tensor(ET, {3}, std::vector<T>{3, 1, 2}),
-            reference_tests::Tensor(ET_OUT, {3}, std::vector<T_OUT>{0, 1, 2}),
-            0,
-            "topk_mode_sort_order_3"),
-    };
-    return params;
-}
-
 std::vector<TopKParams> generateCombinedParamsBackend() {
     const std::vector<std::vector<TopKParams>> generatedParams {
         generateParamsMaxMinSort<element::Type_t::i8, element::Type_t::i64, element::Type_t::i32>(),
