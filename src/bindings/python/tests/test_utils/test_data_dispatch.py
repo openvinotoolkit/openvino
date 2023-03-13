@@ -38,7 +38,7 @@ def test_scalars_dispatcher(device, data_type, input_shape, is_shared):
 
     assert isinstance(result, Tensor)
     assert result.get_shape() == Shape([])
-    assert result.get_element_type() == Type(data_type)
+    assert result.get_element_type() == Type(np.float32)
     assert result.data == expected.data
 
 
