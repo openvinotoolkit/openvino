@@ -132,14 +132,14 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         } else if (validDevices.size() > 1) {
             _loadContext[ACTUALDEVICE].isEnabled = false;
             _autoSContext->_devicePriorities.clear();
-            for (auto& validDevice : validDevices) {
-                _autoSContext->_devicePriorities.push_back(validDevice);
-            }
+            std::copy(std::begin(validDevices),
+                      std::end(validDevices),
+                      std::back_inserter(_autoSContext->_devicePriorities));
             // Total number of devices in CTPUT
-            _nCTPUTDeviceNums = validDevices.size();
+            _nCTputDeviceNums = validDevices.size();
             DeviceInformation cpuDeviceInformation;
             const auto CPUIter =
-                std::find_if(validDevices.begin(), validDevices.end(), [=](const DeviceInformation& d) -> bool {
+                std::find_if(validDevices.begin(), validDevices.end(), [](const DeviceInformation& d) -> bool {
                     return d.deviceName.find("CPU") != std::string::npos;
                 });
             if (CPUIter != validDevices.end()) {
@@ -153,7 +153,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                 validDevices.erase(CPUIter);
             }
             // Generate contexts for loading each device
-            _pCTPUTLoadContext.reset(new AutoLoadContext[_nCTPUTDeviceNums]);
+            _pCTPUTLoadContext.reset(new AutoLoadContext[_nCTputDeviceNums]);
             int idx = 0;
             for (auto& device : validDevices) {
                 _pCTPUTLoadContext[idx].deviceInfo = device;
@@ -259,7 +259,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         } else {
             const auto CPUIter = std::find_if(_autoSContext->_devicePriorities.begin(),
                                               _autoSContext->_devicePriorities.end(),
-                                              [=](const DeviceInformation& d) -> bool {
+                                              [](const DeviceInformation& d) -> bool {
                                                   return d.deviceName.find("CPU") != std::string::npos;
                                               });
             // if have CPU Device,  enable _loadContext[CPU]
@@ -287,13 +287,12 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     std::vector<Task> otherDevicesloads;
     std::vector<Task> cpuLoads;
     if (_pCTPUTLoadContext) {
-        for (size_t i = 0; i < _nCTPUTDeviceNums; i++) {
-            _pCTPUTLoadContext[i].future = _pCTPUTLoadContext[i].promise.get_future();
+        for (size_t i = 0; i < _nCTputDeviceNums; i++) {
             auto* contextPtr = &_pCTPUTLoadContext[i];
             auto modelPath = _autoSContext->_modelPath;
             auto network = _autoSContext->_network;
             _pCTPUTLoadContext[i].task = std::bind(loadDeviceTask, contextPtr, modelPath, network, isCumulative);
-            if (i == _nCTPUTDeviceNums - 1 &&
+            if (i == _nCTputDeviceNums - 1 &&
                 _pCTPUTLoadContext[i].deviceInfo.deviceName.find("CPU") != std::string::npos) {
                 cpuLoads.push_back(_pCTPUTLoadContext[i].task);
             } else {
@@ -383,7 +382,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                 static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
                 0 /*default threads per stream, workaround for ticket 62376*/,
                 IStreamsExecutor::ThreadBindingType::NONE});
-            // Load other devices fist
+            // load devices other than CPU first
             if (otherDevicesloads.size() > 0) {
                 // Wait for the devices other than CPU to load the network
                 _executor->runAndWait(otherDevicesloads);
@@ -529,8 +528,7 @@ void AutoSchedule::WaitFirstNetworkReady() {
     // devices loaded successfully in CTPUT
     if (_pCTPUTLoadContext) {
         int nLoadSucNums = 0;
-        for (size_t i = 0; i < _nCTPUTDeviceNums; i++) {
-            _pCTPUTLoadContext[i].future.wait();
+        for (size_t i = 0; i < _nCTputDeviceNums; i++) {
             // check if device loaded successfully
             if (_pCTPUTLoadContext[i].isAlready) {
                 nLoadSucNums++;

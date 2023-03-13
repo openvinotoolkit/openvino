@@ -185,12 +185,13 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
         return execution_devices;
     } else if (name == ov::model_name) {
         std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
-        if (_autoSchedule->_loadContext[CPU].isEnabled && _autoSchedule->_loadContext[CPU].isAlready)
-            return _autoSchedule->_loadContext[CPU].executableNetwork->GetMetric(name);
         if (_autoSchedule->_pCTPUTLoadContext) {
             return _autoSchedule->_pCTPUTLoadContext[0].executableNetwork->GetMetric(name);
+        } else {
+            if (_autoSchedule->_loadContext[CPU].isEnabled && _autoSchedule->_loadContext[CPU].isAlready)
+                return _autoSchedule->_loadContext[CPU].executableNetwork->GetMetric(name);
+            return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetMetric(name);
         }
-        return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetMetric(name);
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS,
                              {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS),
