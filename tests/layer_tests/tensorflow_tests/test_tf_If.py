@@ -49,6 +49,8 @@ class TestIfFloat(CommonTFLayerTest):
         y = np.random.randint(-50, 50, y_shape).astype(np.float32)
         concrete_func = tf_if_graph.get_concrete_function(cond, x, y)
 
+        # lower_control_flow defines representation of If operation
+        # in case of lower_control_flow=True it is decomposed into Switch and Merge nodes
         frozen_func = convert_variables_to_constants_v2(concrete_func,
                                                         lower_control_flow=lower_control_flow)
 
@@ -117,6 +119,8 @@ class TestIfInt(CommonTFLayerTest):
         y = np.random.randint(-50, 50, y_shape).astype(np.float32)
         concrete_func = tf_if_graph.get_concrete_function(cond, ind, y)
 
+        # lower_control_flow defines representation of If operation
+        # in case of lower_control_flow=True it is decomposed into Switch and Merge nodes
         frozen_func = convert_variables_to_constants_v2(concrete_func,
                                                         lower_control_flow=lower_control_flow)
 
