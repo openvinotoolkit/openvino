@@ -635,7 +635,7 @@ void MatMul::prepareParams() {
             if (!itpd.next_impl()) {
                 // implType(AMX) will be not in list when input dynamic shape for AMX.
                 // Bcause AMX will be available when it assumes batch 16 for dynamic shape in compile model.
-                // However if we only pass batch 1 in runtime, AMX will be not avaiable(Performance is low).
+                // However if we only pass batch 1 in runtime, AMX will be not available(Performance is low).
                 prim_desc = itpd_first.get();
                 break;
             }
