@@ -311,7 +311,15 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ngraph::Func
     std::pair<ov::element::Type, ov::element::Type> compress_f16_pair = {ov::element::f32, ov::element::f16};
     bool has_compress_f16 = std::count(m_precisions.begin(), m_precisions.end(), compress_f16_pair) > 0;
 
-    if (m_keep_precision_sensitive_in_fp32 && has_compress_f16) {
+    bool has_quantize_nodes = false;
+    for (const auto& op : f->get_ops()) {
+        if (std::dynamic_pointer_cast<opset8::FakeQuantize>(op)) {
+            has_quantize_nodes = true;
+            break;
+        }
+    }
+
+    if (m_keep_precision_sensitive_in_fp32 && has_compress_f16 && !has_quantize_nodes) {
         pass::Manager manager(get_pass_config());
         // Mark subgraphs with disable_fp16_compression to keep them in FP32
         manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
