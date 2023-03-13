@@ -102,9 +102,9 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
             const auto lt_sizes = offsets.sub({0, 0, 0, 0, 0});
             const auto out_sizes = in_sizes - (rb_sizes + lt_sizes);
 
-            return {layout({in_layout.data_type, in_layout.format, out_sizes})};
+            return {layout{out_sizes.get_partial_shape(in_layout.get_partial_shape().size()), in_layout.data_type, in_layout.format}};
         }
-        return {layout({in_layout.data_type, in_layout.format, ref_in_sizes})};
+        return {layout{ref_in_sizes.get_partial_shape(in_layout.get_partial_shape().size()), in_layout.data_type, in_layout.format}};
     }
 
     bool is_output_static = false;

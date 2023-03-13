@@ -3,6 +3,7 @@
 //
 
 #include "concatenation_inst.h"
+#include "concat_shape_inference.hpp"
 #include "primitive_type_base.h"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
@@ -54,18 +55,16 @@ std::vector<layout> concatenation_inst::calc_output_layouts(const concatenation_
     }
 
     auto axis_index = desc->axis;
-
-    auto output_shape = input_layout.get<ShapeType>();
-    output_shape[axis_index] = 0;
+    std::vector<ShapeType> input_shapes;
+    std::vector<ShapeType> output_shapes = {ShapeType{}};
     for (size_t i = 0; i < desc->input.size(); ++i) {
         auto input_shape = impl_param.get_input_layout(i).get<ShapeType>();
-        if (input_shape.is_dynamic()) {
-            return { layout {ov::PartialShape::dynamic(input_shape.size()), output_dt, output_format} };
-        }
-        output_shape[axis_index] += input_shape[axis_index];
+        input_shapes.push_back(input_shape);
     }
-
-    return { layout {output_shape, output_dt, output_format} };
+    ov::op::v0::Concat op;
+    op.set_concatenation_axis(axis_index);
+    ov::op::v0::shape_infer(&op, input_shapes, output_shapes);
+    return { layout {output_shapes[0], output_dt, output_format} };
 }
 
 template std::vector<layout> concatenation_inst::calc_output_layouts<ov::PartialShape>(concatenation_node const& node, const kernel_impl_params& impl_param);
