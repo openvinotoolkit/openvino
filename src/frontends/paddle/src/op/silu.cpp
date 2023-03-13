@@ -10,12 +10,9 @@ namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs silu(const NodeContext& node) {
-    auto x = node.get_input("X");
-    auto neg_x = std::make_shared<default_opset::Negative>(x);
-    auto exp_neg_x = std::make_shared<default_opset::Exp>(neg_x);
-    auto const_one = default_opset::Constant::create<float>(ov::element::f32, {1}, {1});
-    auto denominator = std::make_shared<default_opset::Add>(const_one, exp_neg_x);
-    return node.default_single_output_mapping({std::make_shared<default_opset::Divide>(x, denominator)}, {"Out"});
+    const auto x = node.get_input("X");
+    const auto beta_node = default_opset::Constant::create(element::f32, Shape{}, {1.0f});
+    return node.default_single_output_mapping({std::make_shared<default_opset::Swish>(x, beta_node)}, {"Out"});
 }
 }  // namespace op
 }  // namespace paddle
