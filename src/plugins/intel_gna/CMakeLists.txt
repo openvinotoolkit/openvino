@@ -43,6 +43,13 @@ file(GLOB_RECURSE HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
 
+# build avx2.cpp with AVX2 support, only for Windows
+if(ENABLE_AVX2 AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    ie_avx2_optimization_flags(avx2_flags)
+    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/src/avx2.cpp PROPERTIES COMPILE_OPTIONS "${avx2_flags}")
+    add_compile_definitions(HAVE_AVX2=1)
+endif()
+
 addVersionDefines(src/gna_plugin_entry_points.cpp CI_BUILD_NUMBER)
 
 find_package(libGNA REQUIRED

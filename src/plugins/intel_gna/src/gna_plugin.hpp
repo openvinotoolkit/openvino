@@ -18,6 +18,7 @@
 #include <utility>
 #include <vector>
 
+#include "avx2.hpp"
 #include "backend/am_intel_dnn.hpp"
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
 #include "descriptions/gna_desc.hpp"
@@ -42,11 +43,12 @@ protected:
     std::string _pluginName = "GNA";
 
     Config config{};
-    std::shared_ptr<backend::AMIntelDNN> dnn;
-    std::shared_ptr<GNAFlags> gnaFlags;
-    std::shared_ptr<gna_memory_type> gnamem;
-    std::shared_ptr<GnaInputs> inputs_ptr_;
-    GnaOutputs outputs_;
+    std::shared_ptr<ov::intel_gna::backend::AMIntelDNN> dnn;
+    std::shared_ptr<ov::intel_gna::GNAFlags> gnaFlags;
+    std::shared_ptr<ov::intel_gna::gna_memory_type> gnamem;
+    std::shared_ptr<ov::intel_gna::GnaInputs> inputs_ptr_;
+    ov::intel_gna::GnaOutputs outputs_;
+    bool isAvx2Supported;
 
     GNAGraphCompiler graphCompiler;
 
@@ -188,37 +190,6 @@ protected:
     void InitGNADevice();
 
     void DumpXNNToFile() const;
-
-    void ImportFrames(void* ptr_dst,
-                      const void* ptr_src,
-                      InferenceEngine::Precision input_precision,
-                      float scaleFactor,
-                      intel_dnn_orientation_t orientation,
-                      uint32_t num_frames,
-                      uint32_t num_group,
-                      uint32_t num_vector_elements,
-                      uint32_t num_vector_stride);
-
-    void ExportScores(void* ptr_dst,
-                      const void* ptr_src,
-                      intel_dnn_orientation_t orientation,
-                      uint32_t num_frames,
-                      uint32_t num_group,
-                      uint32_t num_vector_elements,
-                      uint32_t num_active_elements,
-                      uint32_t num_vector_stride,
-                      InferenceEngine::Precision precision_in,
-                      InferenceEngine::Precision precision_out);
-
-    template <typename T, typename U>
-    void copyInputData(T* dst,
-                       const U* src,
-                       uint32_t num_frames,
-                       uint32_t num_group,
-                       uint32_t num_vector_elements,
-                       uint32_t num_vector_stride,
-                       intel_dnn_orientation_t orientation,
-                       float scaleFactor);
 
     void UpdateFieldsFromConfig();
     void UpdateInputScaleFromNetwork(InferenceEngine::CNNNetwork& network);
