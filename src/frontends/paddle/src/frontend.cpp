@@ -283,7 +283,7 @@ std::map<int32_t, std::shared_ptr<ov::Model>> FrontEnd::convert_each_node_recurs
                             const auto& var_name = port.arguments()[static_cast<int>(idx)];
                             ng_outputs[idx].get_tensor().set_names({var_name});
                             // if nodes_dict already has node mapped to this tensor name it
-                            // usually means that it was overwritten using setTensorValue
+                            // usually means that it was overwritten using set_tensor_value
                             nodes_dict[var_name] = ng_outputs[idx];
                         }
                     }
@@ -534,11 +534,11 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
 }  // namespace frontend
 }  // namespace ov
 
-PADDLE_C_API FrontEndVersion GetAPIVersion() {
+PADDLE_C_API FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;
 }
 
-PADDLE_C_API void* GetFrontEndData() {
+PADDLE_C_API void* get_front_end_data() {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
     res->m_name = "paddle";
     res->m_creator = []() {
