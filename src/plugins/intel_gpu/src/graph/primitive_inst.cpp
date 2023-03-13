@@ -800,10 +800,8 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
                                !_engine.supports_allocation(allocation_type::usm_device);
     const auto& lockable_mem_type = _engine.get_lockable_preferred_memory_allocation_type(layout.format.is_image_2d());
 
-    // If this node is to be used as shape infer, it needs to copy data to be used by shape infer.
     auto alloc_type = use_lockable_memory ? lockable_mem_type
-                    : !usm_device_allocatable ? lockable_mem_type :
-                      !_node.is_shape_infer_dep() ? allocation_type::usm_device : lockable_mem_type;
+                    : !usm_device_allocatable ? lockable_mem_type : allocation_type::usm_device;
 
     if ((is_internal && (_node.can_be_optimized() || _node.is_type<generic_layer>())) || (memory_reuse_by_user == false)) {
         GPU_DEBUG_LOG << "[" << _node.id() << ": output]" << std::endl;

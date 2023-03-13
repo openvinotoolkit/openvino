@@ -19,7 +19,7 @@ Place::Place(const ov::frontend::InputModel& input_model, size_t tensor_index)
       m_is_input(false),
       m_is_output(false) {
     m_names.push_back(std::to_string(tensor_index));
-    const auto im = dynamic_cast<const ov::frontend::pytorch::InputModel*>(&input_model);
+    const auto im = dynamic_cast<const ov::frontend::pytorch::InputModel*>(&m_input_model);
     FRONT_END_GENERAL_CHECK(im, "PyTorch Place requires PyTorch InputModel class.");
     const auto& inputs = im->m_model_decoder->inputs();
     const auto& outputs = im->m_model_decoder->outputs();
