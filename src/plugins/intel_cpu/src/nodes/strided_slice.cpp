@@ -40,15 +40,18 @@ bool StridedSlice::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
     return true;
 }
 
+namespace {
+
+constexpr IShapeInfer::port_mask_t port_mask = PortMask(/*BEGIN_ID*/1, /*END_ID*/2, /*STRIDE_ID*/3, /*AXES_ID*/4);
+
 class StridedSliceShapeInfer : public ShapeInferEmptyPads {
 public:
-    StridedSliceShapeInfer(const IShapeInfer::port_mask_t& port_mask,
-                           size_t output_size,
+    StridedSliceShapeInfer(size_t output_size,
                            std::unordered_set<int64_t> begin_mask,
                            std::unordered_set<int64_t> end_mask,
                            std::unordered_set<int64_t> new_axis_mask,
                            std::unordered_set<int64_t> shrink_axis_mask)
-    : m_port_mask(port_mask), m_outputShape(output_size, 1),
+    : m_outputShape(output_size, 1),
       m_begin_mask_set(std::move(begin_mask)),
       m_end_mask_set(std::move(end_mask)),
       m_new_axis_mask_set(std::move(new_axis_mask)),
@@ -57,14 +60,18 @@ public:
     Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        const VectorDims& shapeIn = input_shapes[0].get();
-        const VectorDims& shapeBegin = input_shapes[1].get();
-        if (data_dependency.at(1)->GetDataType() != dnnl::memory::data_type::s32) {
-            IE_THROW(Unexpected) << "The data type of begin/end/stride is NOT s32, which is unexpected!";
+        // align with intel_cpu::node::StridedSlice
+        static constexpr size_t DATA_ID = 0, BEGIN_ID = 1, END_ID = 2, STRIDE_ID = 3;
+        const VectorDims& shapeIn = input_shapes[DATA_ID].get();
+        const VectorDims& shapeBegin = input_shapes[BEGIN_ID].get();
+        if (data_dependency.at(BEGIN_ID)->getDesc().getPrecision() != Precision::I32 ||
+            data_dependency.at(END_ID)->getDesc().getPrecision() != Precision::I32 ||
+            data_dependency.at(STRIDE_ID)->getDesc().getPrecision() != Precision::I32) {
+            IE_THROW(Unexpected) << "The data type of begin/end/stride is NOT I32, which is unexpected!";
         }
-        auto beginPtr = reinterpret_cast<int32_t *>(data_dependency.at(1)->GetPtr());
-        auto endPtr = reinterpret_cast<int32_t *>(data_dependency.at(2)->GetPtr());
-        auto stridePtr = reinterpret_cast<int32_t *>(data_dependency.at(3)->GetPtr());
+        auto beginPtr = reinterpret_cast<int32_t *>(data_dependency.at(BEGIN_ID)->GetPtr());
+        auto endPtr = reinterpret_cast<int32_t *>(data_dependency.at(END_ID)->GetPtr());
+        auto stridePtr = reinterpret_cast<int32_t *>(data_dependency.at(STRIDE_ID)->GetPtr());
 
         for (auto i = 0, new_idx = 0; i < shapeIn.size(); ++i) {
             if (m_new_axis_mask_set.count(i)) {
@@ -72,9 +79,7 @@ public:
                 m_outputShape[new_idx] = 1;
                 m_outputShape[new_idx+1] = shapeIn[i];
                 new_idx+=2;
-            } else if (m_shrink_axis_mask_set.count(i)) {
-                // deal with shrink_axis_mask
-            } else {
+            } else if (!m_shrink_axis_mask_set.count(i)) {
                 // deal with begin_mask and end_mask
                 if ((i >= shapeBegin[0]) || (shapeIn[i] == 0)) {
                     m_outputShape[new_idx] = shapeIn[i];
@@ -90,13 +95,11 @@ public:
     }
 
     port_mask_t get_port_mask() const override {
-        return m_port_mask;
+        return port_mask;
     }
 
 private:
-    const IShapeInfer::port_mask_t m_port_mask;
     VectorDims m_outputShape;
-    // set
     const std::unordered_set<int64_t> m_begin_mask_set;
     const std::unordered_set<int64_t> m_end_mask_set;
     const std::unordered_set<int64_t> m_new_axis_mask_set;
@@ -105,15 +108,15 @@ private:
 
 class StridedSliceShapeInferFactory : public ShapeInferFactory {
 public:
-    StridedSliceShapeInferFactory(const std::shared_ptr<ov::Node>& op, IShapeInfer::port_mask_t port_mask)
-    : m_op(op), m_port_mask(port_mask) {}
+    StridedSliceShapeInferFactory(const std::shared_ptr<ov::Node>& op)
+    : m_op(op) {}
     ShapeInferPtr makeShapeInfer() const override {
         if (const auto Slice_op = ov::as_type_ptr<const ov::op::v8::Slice>(m_op)) {
-            return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), m_port_mask);
+            return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), port_mask);
         } else if (const auto StridedSlice_op = ov::as_type_ptr<const ov::op::v1::StridedSlice>(m_op)) {
             const auto& ellipsis_mask = StridedSlice_op->get_ellipsis_mask();
-            if (std::count(ellipsis_mask.begin(), ellipsis_mask.end(), 1)) {
-                return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), m_port_mask);
+            if (std::any_of(ellipsis_mask.begin(), ellipsis_mask.end(), [](int64_t x){ return x == 1; })) {
+                return std::make_shared<NgraphShapeInfer>(make_shape_inference(m_op), port_mask);
             } else {
                 auto vec_to_set = [](const std::vector<int64_t>& vec){
                     std::unordered_set<int64_t> to_set;
@@ -125,7 +128,6 @@ public:
                     return to_set;
                 };
                 return std::make_shared<StridedSliceShapeInfer>(
-                    m_port_mask,
                     m_op->get_output_partial_shape(0).rank().get_length(),
                     vec_to_set(StridedSlice_op->get_begin_mask()),
                     vec_to_set(StridedSlice_op->get_end_mask()),
@@ -139,11 +141,12 @@ public:
 
 private:
     const std::shared_ptr<ov::Node> m_op;
-    const IShapeInfer::port_mask_t m_port_mask;
 };
 
+}  // namespace
+
 StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
-        Node(op, context, StridedSliceShapeInferFactory(op, PortMask(1, 2, 3, 4))) {
+        Node(op, context, StridedSliceShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
