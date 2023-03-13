@@ -5,13 +5,14 @@
 ``:ref:`ov::pass::GraphRewrite <doxid-classov_1_1pass_1_1_graph_rewrite>``` serves for running multiple matcher passes on ``:ref:`ov::Model <doxid-classov_1_1_model>``` in a single graph traversal.
 Example:
 
-.. doxygensnippet:: template_pattern_transformation.cpp
+.. doxygensnippet:: docs/snippets/template_pattern_transformation.cpp
    :language: cpp
    :fragment: [matcher_pass:graph_rewrite]
 
 In addition, GraphRewrite handles nodes that were registered by MatcherPasses during their execution. This nodes will be added to the beginning of the sequence with nodes for pattern matching.
 
 .. note:: 
+
    When using `ov::pass::Manager` temporary GraphRewrite is used to execute single MatcherPass.
 
 GraphRewrite has two algorithms for MatcherPasses execution. First algorithm is straightforward. It applies each MatcherPass in registration order to current node.
@@ -24,6 +25,7 @@ And then creates map from registered MatcherPasses. That helps to avoid addition
 .. image:: ./img/graph_rewrite_efficient_search.png
 
 .. note::
+
    GraphRewrite execution algorithm cannot be set manually and depends only on root nodes registered inside MatcherPasses.
 
 See Also

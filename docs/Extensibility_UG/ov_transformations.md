@@ -213,10 +213,4 @@ See Also
 * :doc:`OpenVINO™ Model Representation <openvino_docs_OV_UG_Model_Representation>` 
 * :doc:`OpenVINO™ Extensions <openvino_docs_Extensibility_UG_Intro>`
 
-[ngraph_replace_node]: ./img/ngraph_replace_node.png
-[ngraph_insert_node]: ./img/ngraph_insert_node.png
-[transformations_structure]: ./img/transformations_structure.png
-[register_new_node]: ./img/register_new_node.png
-
 @endsphinxdirective
-
