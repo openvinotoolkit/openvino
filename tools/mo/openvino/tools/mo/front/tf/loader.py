@@ -324,6 +324,9 @@ def load_tf_graph_def(graph_file_name: str = "", is_binary: bool = True, checkpo
 
 def convert_to_pb(argv: argparse.Namespace):
     from openvino.tools.mo.utils.cli_parser import get_model_name
+    env_setup = get_environment_setup("tf")
+    if "tensorflow" in env_setup and env_setup["tensorflow"] >= LooseVersion("2.0.0"):
+        tf.keras.backend.clear_session()
 
     # if this is already binary frozen format .pb, there is no need to create auxiliary binary frozen protobuf
     # the main thing is to differentiate this format from text frozen format and checkpoint
