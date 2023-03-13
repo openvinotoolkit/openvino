@@ -5,8 +5,8 @@
 
 #include "test_model_repo.hpp"
 
-std::string xml_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.xml");
-std::string bin_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.bin");
+std::string xml_std = TestDataHelpers::get_model_xml_file_name();
+std::string bin_std = TestDataHelpers::get_model_bin_file_name();
 
 const char* xml = xml_std.c_str();
 const char* bin = bin_std.c_str();

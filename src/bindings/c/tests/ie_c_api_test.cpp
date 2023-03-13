@@ -13,13 +13,13 @@
 #include "test_model_repo.hpp"
 #include <fstream>
 
-std::string xml_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.xml"),
-            bin_std = TestDataHelpers::generate_model_path("test_model", "test_model_fp32.bin"),
-            input_image_nv12_std = TestDataHelpers::generate_image_path("224x224", "dog6.yuv");
+std::string xml_std = TestDataHelpers::get_model_xml_file_name(),
+            bin_std = TestDataHelpers::get_model_bin_file_name();
+const char* input_port_name = "Param_1";
+const char* output_port_name = "Relu_1";
 
 const char* xml = xml_std.c_str();
 const char* bin = bin_std.c_str();
-const char* input_image_nv12 = input_image_nv12_std.c_str();
 
 std::mutex m;
 bool ready = false;
@@ -66,7 +66,7 @@ static void completion_callback(void *args) {
     ie_infer_request_t *infer_request = (ie_infer_request_t *)args;
     ie_blob_t *output_blob = nullptr;
 
-    IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "fc_out", &output_blob));
+    IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, output_port_name, &output_blob));
 
     ie_blob_buffer_t buffer;
     IE_EXPECT_OK(ie_blob_get_buffer(output_blob, &buffer));
@@ -276,7 +276,7 @@ TEST(ie_core_export_network_to_file, exportNetworktoFile) {
     IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "HETERO:CPU", &config, &exe_network));
     EXPECT_NE(nullptr, exe_network);
 
-    std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
+    std::string export_path = TestDataHelpers::get_exported_blob_file_name();
     IE_EXPECT_OK(ie_core_export_network(exe_network, export_path.c_str()));
     std::ifstream file(export_path.c_str());
     EXPECT_NE(file.peek(), std::ifstream::traits_type::eof());
@@ -296,7 +296,7 @@ TEST(ie_core_import_network_from_memory, importNetworkFromMem) {
     IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "HETERO:CPU", nullptr, &exe_network));
     EXPECT_NE(nullptr, exe_network);
 
-    std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
+    std::string export_path = TestDataHelpers::get_exported_blob_file_name();
     IE_EXPECT_OK(ie_core_export_network(exe_network, export_path.c_str()));
 
     std::vector<uint8_t> buffer(content_from_file(export_path.c_str(), true));
@@ -321,7 +321,7 @@ TEST(ie_core_import_network_from_file, importNetworkFromFile) {
     IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "HETERO:CPU", &conf, &network));
     EXPECT_NE(nullptr, network);
 
-    std::string exported_model = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
+    std::string exported_model = TestDataHelpers::get_exported_blob_file_name();
     IE_EXPECT_OK(ie_core_export_network(network, exported_model.c_str()));
     std::ifstream file(exported_model);
     EXPECT_NE(file.peek(), std::ifstream::traits_type::eof());
@@ -346,7 +346,7 @@ TEST(ie_core_import_network_from_file, importNetwork_errorHandling) {
     IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "HETERO:CPU", &config, &network));
     EXPECT_NE(nullptr, network);
 
-    std::string exported_model = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
+    std::string exported_model = TestDataHelpers::get_exported_blob_file_name();
     IE_EXPECT_OK(ie_core_export_network(network, exported_model.c_str()));
 
     ie_executable_network_t *exe_network = nullptr;
@@ -379,8 +379,8 @@ TEST(ie_core_load_network, loadNetwork) {
     IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
     EXPECT_NE(nullptr, network);
 
-    IE_EXPECT_OK(ie_network_set_input_layout(network, "data", layout_e::NHWC));
-    IE_EXPECT_OK(ie_network_set_input_precision(network, "data", precision_e::U8));
+    IE_EXPECT_OK(ie_network_set_input_layout(network, input_port_name, layout_e::NHWC));
+    IE_EXPECT_OK(ie_network_set_input_precision(network, input_port_name, precision_e::U8));
 
     ie_config_t config = {"CPU_THREADS_NUM", "3", nullptr};
     ie_executable_network_t *exe_network = nullptr;
@@ -494,7 +494,7 @@ TEST(ie_network_get_name, networkName) {
     char *network_name = nullptr;
     IE_EXPECT_OK(ie_network_get_name(network, &network_name));
 
-    EXPECT_STREQ(network_name, "test_model");
+    EXPECT_STREQ(network_name, "Model0");
 
     ie_network_name_free(&network_name);
     ie_network_free(&network);
@@ -531,7 +531,7 @@ TEST(ie_network_get_input_name, inputName) {
     char *input_name = nullptr;
     IE_EXPECT_OK(ie_network_get_input_name(network, 0, &input_name));
 
-    EXPECT_STREQ(input_name, "data");
+    EXPECT_STREQ(input_name, input_port_name);
 
     ie_network_name_free(&input_name);
     ie_network_free(&network);
@@ -547,9 +547,8 @@ TEST(ie_network_get_input_precision, getPrecision) {
     IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
     EXPECT_NE(nullptr, network);
 
-    const char *name = "data";
     precision_e p;
-    IE_EXPECT_OK(ie_network_get_input_precision(network, name, &p));
+    IE_EXPECT_OK(ie_network_get_input_precision(network, input_port_name, &p));
     EXPECT_EQ(p, precision_e::FP32);
 
     ie_network_free(&network);
@@ -582,11 +581,10 @@ TEST(ie_network_set_input_precision, setPrecision) {
     IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
     EXPECT_NE(nullptr, network);
 
-    const char *name = "data";
     const precision_e p = precision_e::FP16;
-    IE_EXPECT_OK(ie_network_set_input_precision(network, name, p));
+    IE_EXPECT_OK(ie_network_set_input_precision(network, input_port_name, p));
     precision_e p2;
-    IE_EXPECT_OK(ie_network_get_input_precision(network, name, &p2));
+    IE_EXPECT_OK(ie_network_get_input_precision(network, input_port_name, &p2));
     EXPECT_EQ(p, p2);
 
     ie_network_free(&network);
@@ -602,9 +600,8 @@ TEST(ie_network_get_input_layout, getLayout) {
     IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
     EXPECT_NE(nullptr, network);
 
-    const char *name = "data";
     layout_e l;
-    IE_EXPECT_OK(ie_network_get_input_layout(network, name, &l));
+    IE_EXPECT_OK(ie_network_get_input_layout(network, input_port_name, &l));
     EXPECT_EQ(l, layout_e::NCHW);
 
     ie_network_free(&network);
@@ -620,11 +617,10 @@ TEST(ie_network_set_input_layout, setLayout) {
     IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
     EXPECT_NE(nullptr, network);
 
-    const char *name = "data";
     const layout_e l = layout_e ::NHWC;
-    IE_EXPECT_OK(ie_network_set_input_layout(network, name, l));
+    IE_EXPECT_OK(ie_network_set_input_layout(network, input_port_name, l));
     layout_e l2;
-    IE_EXPECT_OK(ie_network_get_input_layout(network, name, &l2));
+    IE_EXPECT_OK(ie_network_get_input_layout(network, input_port_name, &l2));
     EXPECT_EQ(l, l2);
 
     ie_network_free(&network);
@@ -640,13 +636,12 @@ TEST(ie_network_get_input_dims, getDims) {
     IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
     EXPECT_NE(nullptr, network);
 
-    const char *name = "data";
     dimensions_t dims_res;
-    IE_EXPECT_OK(ie_network_get_input_dims(network, name, &dims_res));
+    IE_EXPECT_OK(ie_network_get_input_dims(network, input_port_name, &dims_res));
     EXPECT_EQ(dims_res.dims[0], 1);
     EXPECT_EQ(dims_res.dims[1], 3);
-    EXPECT_EQ(dims_res.dims[2], 32);
-    EXPECT_EQ(dims_res.dims[3], 32);
+    EXPECT_EQ(dims_res.dims[2], 227);
+    EXPECT_EQ(dims_res.dims[3], 227);
 
     ie_network_free(&network);
     ie_core_free(&core);
@@ -661,9 +656,8 @@ TEST(ie_network_get_input_resize_algorithm, getResizeAlgo) {
     IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
     EXPECT_NE(nullptr, network);
 
-    const char *name = "data";
     resize_alg_e resizeAlg;
-    IE_EXPECT_OK(ie_network_get_input_resize_algorithm(network, name, &resizeAlg));
+    IE_EXPECT_OK(ie_network_get_input_resize_algorithm(network, input_port_name, &resizeAlg));
     EXPECT_EQ(resizeAlg, resize_alg_e::NO_RESIZE);
 
     ie_network_free(&network);
@@ -679,12 +673,11 @@ TEST(ie_network_set_input_resize_algorithm, setResizeAlgo) {
     IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
     EXPECT_NE(nullptr, network);
 
-    const char *name = "data";
     resize_alg_e resizeAlg = resize_alg_e::RESIZE_BILINEAR;
-    IE_EXPECT_OK(ie_network_set_input_resize_algorithm(network, name, resizeAlg));
+    IE_EXPECT_OK(ie_network_set_input_resize_algorithm(network, input_port_name, resizeAlg));
 
     resize_alg_e resizeAlg2;
-    IE_EXPECT_OK(ie_network_get_input_resize_algorithm(network, name, &resizeAlg2));
+    IE_EXPECT_OK(ie_network_get_input_resize_algorithm(network, input_port_name, &resizeAlg2));
     EXPECT_EQ(resizeAlg, resizeAlg2);
 
     ie_network_free(&network);
@@ -700,9 +693,8 @@ TEST(ie_network_get_color_format, getColorFormat) {
     IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
     EXPECT_NE(nullptr, network);
 
-    const char *name = "data";
     colorformat_e color;
-    IE_EXPECT_OK(ie_network_get_color_format(network, name, &color));
+    IE_EXPECT_OK(ie_network_get_color_format(network, input_port_name, &color));
     EXPECT_EQ(color, colorformat_e::RAW);
 
     ie_network_free(&network);
@@ -718,12 +710,11 @@ TEST(ie_network_set_color_format, setColorFormat) {
     IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
     EXPECT_NE(nullptr, network);
 
-    const char *name = "data";
     const colorformat_e color = colorformat_e::BGR;
-    IE_EXPECT_OK(ie_network_set_color_format(network, name, color));
+    IE_EXPECT_OK(ie_network_set_color_format(network, input_port_name, color));
 
     colorformat_e color2;
-    IE_EXPECT_OK(ie_network_get_color_format(network, name, &color2));
+    IE_EXPECT_OK(ie_network_get_color_format(network, input_port_name, &color2));
     EXPECT_EQ(color2, colorformat_e::BGR);
 
     ie_network_free(&network);
@@ -802,7 +793,7 @@ TEST(ie_network_get_output_name, getName) {
 
     char *output_name = nullptr;
     IE_EXPECT_OK(ie_network_get_output_name(network, 0, &output_name));
-    EXPECT_STREQ(output_name, "fc_out");
+    EXPECT_STREQ(output_name, output_port_name);
 
     ie_network_name_free(&output_name);
     ie_network_free(&network);
@@ -835,9 +826,8 @@ TEST(ie_network_get_output_precision, getPrecision) {
     IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
     EXPECT_NE(nullptr, network);
 
-    const char *name = "fc_out";
     precision_e p;
-    IE_EXPECT_OK(ie_network_get_output_precision(network, name, &p));
+    IE_EXPECT_OK(ie_network_get_output_precision(network, output_port_name, &p));
     EXPECT_EQ(p, precision_e::FP32);
 
     ie_network_free(&network);
@@ -853,12 +843,11 @@ TEST(ie_network_set_output_precision, setPrecision) {
     IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
     EXPECT_NE(nullptr, network);
 
-    const char *name = "fc_out";
     precision_e p = precision_e::FP16;
-    IE_EXPECT_OK(ie_network_set_output_precision(network, name, p));
+    IE_EXPECT_OK(ie_network_set_output_precision(network, output_port_name, p));
 
     precision_e precision_res;
-    IE_EXPECT_OK(ie_network_get_output_precision(network, name, &precision_res));
+    IE_EXPECT_OK(ie_network_get_output_precision(network, output_port_name, &precision_res));
     EXPECT_EQ(p, precision_res);
 
     ie_network_free(&network);
@@ -874,10 +863,9 @@ TEST(ie_network_get_output_layout, getLayout) {
     IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
     EXPECT_NE(nullptr, network);
 
-    const char *name = "fc_out";
     layout_e l;
-    IE_EXPECT_OK(ie_network_get_output_layout(network, name, &l));
-    EXPECT_EQ(l, layout_e::NC);
+    IE_EXPECT_OK(ie_network_get_output_layout(network, output_port_name, &l));
+    EXPECT_EQ(l, layout_e::NCHW);
 
     ie_network_free(&network);
     ie_core_free(&core);
@@ -892,11 +880,10 @@ TEST(ie_network_set_output_layout, setLayout) {
     IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
     EXPECT_NE(nullptr, network);
 
-    const char *name = "fc_out";
-    layout_e l = layout_e::CN;
-    IE_EXPECT_OK(ie_network_set_output_layout(network, name, l));
+    layout_e l = layout_e::NCHW;
+    IE_EXPECT_OK(ie_network_set_output_layout(network, output_port_name, l));
     layout_e l_res;
-    IE_EXPECT_OK(ie_network_get_output_layout(network, name, &l_res));
+    IE_EXPECT_OK(ie_network_get_output_layout(network, output_port_name, &l_res));
     EXPECT_EQ(l, l_res);
 
     ie_network_free(&network);
@@ -912,11 +899,10 @@ TEST(ie_network_get_output_dims, getDims) {
     IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
     EXPECT_NE(nullptr, network);
 
-    const char *name = "fc_out";
     dimensions_t dims_res;
-    IE_EXPECT_OK(ie_network_get_output_dims(network, name, &dims_res));
+    IE_EXPECT_OK(ie_network_get_output_dims(network, output_port_name, &dims_res));
     EXPECT_EQ(dims_res.dims[0], 1);
-    EXPECT_EQ(dims_res.dims[1], 10);
+    EXPECT_EQ(dims_res.dims[1], 4);
 
     ie_network_free(&network);
     ie_core_free(&core);
@@ -1071,9 +1057,9 @@ TEST(ie_infer_request_set_blob, setBlob) {
     dimensions_t dim_t;
     precision_e p = precision_e::U8;
     layout_e l = layout_e::NCHW;
-    IE_EXPECT_OK(ie_network_get_input_dims(network, "data", &dim_t));
-    IE_EXPECT_OK(ie_network_set_input_layout(network, "data", l));
-    IE_EXPECT_OK(ie_network_set_input_precision(network, "data", p));
+    IE_EXPECT_OK(ie_network_get_input_dims(network, input_port_name, &dim_t));
+    IE_EXPECT_OK(ie_network_set_input_layout(network, input_port_name, l));
+    IE_EXPECT_OK(ie_network_set_input_precision(network, input_port_name, p));
 
     const char *device_name = "CPU";
     ie_config_t config = {nullptr, nullptr, nullptr};
@@ -1092,7 +1078,7 @@ TEST(ie_infer_request_set_blob, setBlob) {
     ie_blob_t *blob = nullptr;
     IE_EXPECT_OK(ie_blob_make_memory(&tensor, &blob));
 
-    IE_EXPECT_OK(ie_infer_request_set_blob(infer_request, "data", blob));
+    IE_EXPECT_OK(ie_infer_request_set_blob(infer_request, input_port_name, blob));
 
     ie_blob_deallocate(&blob);
     ie_infer_request_free(&infer_request);
@@ -1110,7 +1096,7 @@ TEST(ie_infer_request_infer, infer) {
     IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
     EXPECT_NE(nullptr, network);
 
-    IE_EXPECT_OK(ie_network_set_input_precision(network, "data", precision_e::U8));
+    IE_EXPECT_OK(ie_network_set_input_precision(network, input_port_name, precision_e::U8));
 
     const char *device_name = "CPU";
     ie_config_t config = {nullptr, nullptr, nullptr};
@@ -1123,7 +1109,7 @@ TEST(ie_infer_request_infer, infer) {
     EXPECT_NE(nullptr, infer_request);
 
     ie_blob_t *blob = nullptr;
-    IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "data", &blob));
+    IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, input_port_name, &blob));
 
     dimensions_t dims;
     IE_EXPECT_OK(ie_blob_get_dims(blob, &dims));
@@ -1137,11 +1123,11 @@ TEST(ie_infer_request_infer, infer) {
     IE_EXPECT_OK(ie_infer_request_infer(infer_request));
 
     ie_blob_t *output_blob = nullptr;
-    IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "fc_out", &output_blob));
+    IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, output_port_name, &output_blob));
     dimensions_t dim_res;
     IE_EXPECT_OK(ie_blob_get_dims(output_blob, &dim_res));
-    EXPECT_EQ(dim_res.ranks, 2);
-    EXPECT_EQ(dim_res.dims[1], 10);
+    EXPECT_EQ(dim_res.ranks, 4);
+    EXPECT_EQ(dim_res.dims[1], 4);
 
     ie_blob_buffer_t out_buffer;
     IE_EXPECT_OK(ie_blob_get_buffer(output_blob, &out_buffer));
@@ -1165,7 +1151,7 @@ TEST(ie_infer_request_infer_async, inferAsyncWaitFinish) {
     IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
     EXPECT_NE(nullptr, network);
 
-    IE_EXPECT_OK(ie_network_set_input_precision(network, "data", precision_e::U8));
+    IE_EXPECT_OK(ie_network_set_input_precision(network, input_port_name, precision_e::U8));
 
     const char *device_name = "CPU";
     ie_config_t config = {nullptr, nullptr, nullptr};
@@ -1178,7 +1164,7 @@ TEST(ie_infer_request_infer_async, inferAsyncWaitFinish) {
     EXPECT_NE(nullptr, infer_request);
 
     ie_blob_t *blob = nullptr;
-    IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "data", &blob));
+    IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, input_port_name, &blob));
 
     dimensions_t dims;
     IE_EXPECT_OK(ie_blob_get_dims(blob, &dims));
@@ -1195,7 +1181,7 @@ TEST(ie_infer_request_infer_async, inferAsyncWaitFinish) {
     if (!HasFatalFailure()) {
         IE_EXPECT_OK(ie_infer_request_wait(infer_request, -1));
 
-        IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "fc_out", &output_blob));
+        IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, output_port_name, &output_blob));
         EXPECT_NE(nullptr, output_blob);
 
         ie_blob_buffer_t out_buffer;
@@ -1221,7 +1207,7 @@ TEST(ie_infer_request_infer_async, inferAsyncWaitTime) {
     IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
     EXPECT_NE(nullptr, network);
 
-    IE_EXPECT_OK(ie_network_set_input_precision(network, "data", precision_e::U8));
+    IE_EXPECT_OK(ie_network_set_input_precision(network, input_port_name, precision_e::U8));
 
     const char *device_name = "CPU";
     ie_config_t config = {nullptr, nullptr, nullptr};
@@ -1234,7 +1220,7 @@ TEST(ie_infer_request_infer_async, inferAsyncWaitTime) {
     EXPECT_NE(nullptr, infer_request);
 
     ie_blob_t *blob = nullptr;
-    IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "data", &blob));
+    IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, input_port_name, &blob));
     EXPECT_NE(nullptr, blob);
 
     dimensions_t dims;
@@ -1256,7 +1242,7 @@ TEST(ie_infer_request_infer_async, inferAsyncWaitTime) {
             IE_EXPECT_OK(ie_infer_request_wait(infer_request, -1));
         }
 
-        IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "fc_out", &output_blob));
+        IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, output_port_name, &output_blob));
 
         ie_blob_buffer_t out_buffer;
         IE_EXPECT_OK(ie_blob_get_buffer(output_blob, &out_buffer));
@@ -1593,7 +1579,7 @@ TEST(ie_infer_set_completion_callback, setCallback) {
     IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
     EXPECT_NE(nullptr, network);
 
-    IE_EXPECT_OK(ie_network_set_input_precision(network, "data", precision_e::U8));
+    IE_EXPECT_OK(ie_network_set_input_precision(network, input_port_name, precision_e::U8));
 
     const char *device_name = "CPU";
     ie_config_t config = {nullptr, nullptr, nullptr};
@@ -1606,7 +1592,7 @@ TEST(ie_infer_set_completion_callback, setCallback) {
     EXPECT_NE(nullptr, infer_request);
 
     ie_blob_t *blob = nullptr;
-    IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "data", &blob));
+    IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, input_port_name, &blob));
 
     dimensions_t dims;
     IE_EXPECT_OK(ie_blob_get_dims(blob, &dims));
@@ -1839,11 +1825,11 @@ TEST(ie_blob_make_memory_nv12, inferRequestWithNV12Blob) {
     IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
     EXPECT_NE(nullptr, network);
 
-    IE_EXPECT_OK(ie_network_set_input_precision(network, "data", precision_e::U8));
-    IE_EXPECT_OK(ie_network_set_input_layout(network, "data", layout_e::NCHW));
-    IE_EXPECT_OK(ie_network_set_input_resize_algorithm(network, "data", resize_alg_e::RESIZE_BILINEAR));
-    IE_EXPECT_OK(ie_network_set_color_format(network, "data", colorformat_e::NV12));
-    IE_EXPECT_OK(ie_network_set_output_precision(network, "fc_out", precision_e::FP32));
+    IE_EXPECT_OK(ie_network_set_input_precision(network, input_port_name, precision_e::U8));
+    IE_EXPECT_OK(ie_network_set_input_layout(network, input_port_name, layout_e::NCHW));
+    IE_EXPECT_OK(ie_network_set_input_resize_algorithm(network, input_port_name, resize_alg_e::RESIZE_BILINEAR));
+    IE_EXPECT_OK(ie_network_set_color_format(network, input_port_name, colorformat_e::NV12));
+    IE_EXPECT_OK(ie_network_set_output_precision(network, output_port_name, precision_e::FP32));
 
     ie_config_t config = {nullptr, nullptr, nullptr};
     ie_executable_network_t *exe_network = nullptr;
@@ -1858,7 +1844,7 @@ TEST(ie_blob_make_memory_nv12, inferRequestWithNV12Blob) {
     size_t img_size = img_width * (img_height * 3 / 2);
     unsigned char *img_data = (unsigned char *)calloc(img_size, sizeof(unsigned char));
     EXPECT_NE(nullptr, img_data);
-    EXPECT_EQ(img_size, read_image_from_file(input_image_nv12, img_data, img_size));
+    TestDataHelpers::fill_random_input_nv12_data(img_data, img_width, img_height);
 
     dimensions_t dim_y = {4, {1, 1, img_height, img_width}};
     dimensions_t dim_uv = {4, {1, 2, img_height / 2, img_width / 2}};
@@ -1874,21 +1860,17 @@ TEST(ie_blob_make_memory_nv12, inferRequestWithNV12Blob) {
     IE_EXPECT_OK(ie_blob_make_memory_from_preallocated(&tensor_uv, img_data + offset, img_width * (img_height / 2), &blob_uv));
     IE_EXPECT_OK(ie_blob_make_memory_nv12(blob_y, blob_uv, &blob_nv12));
 
-    IE_EXPECT_OK(ie_infer_request_set_blob(infer_request, "data", blob_nv12));
+    IE_EXPECT_OK(ie_infer_request_set_blob(infer_request, input_port_name, blob_nv12));
     IE_EXPECT_OK(ie_infer_request_infer(infer_request));
 
     ie_blob_t *output_blob = nullptr;
-    IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "fc_out", &output_blob));
+    IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, output_port_name, &output_blob));
     EXPECT_NE(nullptr, output_blob);
 
     ie_blob_buffer_t buffer;
     buffer.buffer = nullptr;
     IE_EXPECT_OK(ie_blob_get_buffer(output_blob, &buffer));
     EXPECT_NE(buffer.buffer, nullptr);
-    if (buffer.buffer) {
-        float *output_data = (float *)(buffer.buffer);
-        EXPECT_NEAR(output_data[1], 0.f, 1.e-5);
-    }
 
     ie_blob_free(&output_blob);
     ie_blob_free(&blob_nv12);
@@ -2146,11 +2128,11 @@ TEST(ie_blob_make_memory_i420, inferRequestWithI420) {
     IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
     EXPECT_NE(nullptr, network);
 
-    IE_EXPECT_OK(ie_network_set_input_precision(network, "data", precision_e::U8));
-    IE_EXPECT_OK(ie_network_set_input_layout(network, "data", layout_e::NCHW));
-    IE_EXPECT_OK(ie_network_set_input_resize_algorithm(network, "data", resize_alg_e::RESIZE_BILINEAR));
-    IE_EXPECT_OK(ie_network_set_color_format(network, "data", colorformat_e::I420));
-    IE_EXPECT_OK(ie_network_set_output_precision(network, "fc_out", precision_e::FP32));
+    IE_EXPECT_OK(ie_network_set_input_precision(network, input_port_name, precision_e::U8));
+    IE_EXPECT_OK(ie_network_set_input_layout(network, input_port_name, layout_e::NCHW));
+    IE_EXPECT_OK(ie_network_set_input_resize_algorithm(network, input_port_name, resize_alg_e::RESIZE_BILINEAR));
+    IE_EXPECT_OK(ie_network_set_color_format(network, input_port_name, colorformat_e::I420));
+    IE_EXPECT_OK(ie_network_set_output_precision(network, output_port_name, precision_e::FP32));
 
     ie_config_t config = {nullptr, nullptr, nullptr};
     ie_executable_network_t *exe_network = nullptr;
@@ -2165,7 +2147,7 @@ TEST(ie_blob_make_memory_i420, inferRequestWithI420) {
     size_t img_size = img_width * (img_height * 3 / 2);
     unsigned char *img_data = (unsigned char *)calloc(img_size, sizeof(unsigned char));
     EXPECT_NE(nullptr, img_data);
-    EXPECT_EQ(img_size, read_image_from_file(input_image_nv12, img_data, img_size));
+    TestDataHelpers::fill_random_input_nv12_data(img_data, img_width, img_height);
 
     dimensions_t dim_y = {4, {1, 1, img_height, img_width}};
     dimensions_t dim_u = {4, {1, 1, img_height / 2, img_width / 2}};
@@ -2184,16 +2166,16 @@ TEST(ie_blob_make_memory_i420, inferRequestWithI420) {
     IE_EXPECT_OK(ie_blob_make_memory_from_preallocated(&tensor_v, img_data + offset * 5 / 4, img_width * (img_height / 4), &blob_v));
     IE_EXPECT_OK(ie_blob_make_memory_i420(blob_y, blob_u, blob_v, &blob_i420));
 
-    IE_EXPECT_OK(ie_infer_request_set_blob(infer_request, "data", blob_i420));
+    IE_EXPECT_OK(ie_infer_request_set_blob(infer_request, input_port_name, blob_i420));
     IE_EXPECT_OK(ie_infer_request_infer(infer_request));
 
     ie_blob_t *output_blob = nullptr;
-    IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "fc_out", &output_blob));
+    IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, output_port_name, &output_blob));
 
     ie_blob_buffer_t buffer;
     IE_EXPECT_OK(ie_blob_get_buffer(output_blob, &buffer));
     float *output_data = (float *)(buffer.buffer);
-    EXPECT_NEAR(output_data[1], 0.f, 1.e-5);
+    EXPECT_NE(output_data, nullptr);
 
     ie_blob_free(&output_blob);
     ie_blob_free(&blob_i420);

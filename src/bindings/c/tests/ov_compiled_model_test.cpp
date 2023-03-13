@@ -291,7 +291,7 @@ TEST_P(ov_compiled_model, ov_compiled_model_output_by_name) {
     EXPECT_NE(nullptr, compiled_model);
 
     ov_output_const_port_t* output_port = nullptr;
-    OV_EXPECT_OK(ov_compiled_model_output_by_name(compiled_model, "fc_out", &output_port));
+    OV_EXPECT_OK(ov_compiled_model_output_by_name(compiled_model, "relu", &output_port));
     EXPECT_NE(nullptr, output_port);
 
     ov_shape_t shape;

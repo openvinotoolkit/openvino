@@ -432,7 +432,7 @@ TEST_P(ov_core, ov_compiled_model_export_model) {
     OV_EXPECT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), 0, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
-    std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
+    std::string export_path = TestDataHelpers::get_exported_blob_file_name();
     OV_EXPECT_OK(ov_compiled_model_export_model(compiled_model, export_path.c_str()));
 
     ov_compiled_model_free(compiled_model);
@@ -456,7 +456,7 @@ TEST_P(ov_core, ov_core_import_model) {
     OV_EXPECT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), 0, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
-    std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
+    std::string export_path = TestDataHelpers::get_exported_blob_file_name();
     OV_EXPECT_OK(ov_compiled_model_export_model(compiled_model, export_path.c_str()));
     ov_compiled_model_free(compiled_model);
 

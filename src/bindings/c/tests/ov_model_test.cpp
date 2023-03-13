@@ -177,7 +177,7 @@ TEST(ov_model, ov_model_const_output_by_name) {
     EXPECT_NE(nullptr, model);
 
     ov_output_const_port_t* output_port = nullptr;
-    OV_EXPECT_OK(ov_model_const_output_by_name(model, "fc_out", &output_port));
+    OV_EXPECT_OK(ov_model_const_output_by_name(model, "relu", &output_port));
     EXPECT_NE(nullptr, output_port);
 
     ov_shape_t shape;
@@ -239,7 +239,7 @@ TEST(ov_model, ov_model_output_by_name) {
     EXPECT_NE(nullptr, model);
 
     ov_output_port_t* output_port = nullptr;
-    OV_EXPECT_OK(ov_model_output_by_name(model, "fc_out", &output_port));
+    OV_EXPECT_OK(ov_model_output_by_name(model, "relu", &output_port));
     EXPECT_NE(nullptr, output_port);
 
     ov_shape_t shape;

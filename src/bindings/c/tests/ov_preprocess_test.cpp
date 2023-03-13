@@ -341,7 +341,7 @@ TEST_F(ov_preprocess, ov_preprocess_prepostprocessor_get_output_info_by_name) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
     EXPECT_NE(nullptr, preprocess);
 
-    OV_EXPECT_OK(ov_preprocess_prepostprocessor_get_output_info_by_name(preprocess, "fc_out", &output_info));
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_get_output_info_by_name(preprocess, "relu", &output_info));
     EXPECT_NE(nullptr, output_info);
 }
 
