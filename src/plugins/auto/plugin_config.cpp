@@ -5,9 +5,9 @@
 
 namespace MultiDevicePlugin {
 const std::set<std::string> PluginConfig::_availableDevices = {"AUTO", "CPU", "GPU", "TEMPLATE", "NVIDIA", "VPUX", "MULTI", "HETERO", "mock"};
-// AUTO/MULTI will disable the device appeared in blacklist if
-// 1.No device condidate list passing to AUTO/MULTI.(eg. core.compile_model(model, "AUTO", configs);)
-// 2.No valid device parsed out from device condidate list (eg. core.compile_model(model, "AUTO:-CPU,-GPU", configs);).
+// AUTO will enable the back list if
+// 1.No device priority been passed to AUTO/MULTI.(eg. core.compile_model(model, "AUTO", configs);)
+// 2.No valid device parsed out from device priority (eg. core.compile_model(model, "AUTO:-CPU,-GPU", configs);).
 const std::set<std::string> PluginConfig::_deviceBlacklist = {"VPUX", "GNA"};
 
 PluginConfig::PluginConfig() {
