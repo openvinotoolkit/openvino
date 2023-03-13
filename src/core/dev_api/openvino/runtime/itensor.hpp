@@ -75,14 +75,8 @@ public:
         return static_cast<T*>(data(element::from<datatype>()));
     }
 
-    /**
-     * @brief Return additional information associated with tensor
-     * @return Map of property names to properties
-     */
-    virtual AnyMap get_properties() const;
-
 protected:
-    ~ITensor() = default;
+    virtual ~ITensor();
 };
 
 /**
