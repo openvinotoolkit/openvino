@@ -10,12 +10,17 @@ from save_model import saveModel
 import sys
 
 
-def grid_sampler(name: str, x, grid, mode="bilinear", padding_mode="zeros", align_corners=True, not_empty=True):
+def grid_sampler(name: str, x, grid, mode="bilinear", padding_mode="zeros", align_corners=True, not_empty=True,
+                 is_dynamic=False):
     paddle.enable_static()
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
-        x_node = paddle.static.data(name="x", shape=x.shape, dtype=x.dtype)
-        grid_node = paddle.static.data(name="grid", shape=grid.shape, dtype=grid.dtype)
+        if is_dynamic:
+            x_node = paddle.static.data(name="x", shape=(-1, -1, -1, -1), dtype=x.dtype)
+            grid_node = paddle.static.data(name="grid", shape=(-1, -1, -1, 2), dtype=grid.dtype)
+        else:
+            x_node = paddle.static.data(name="x", shape=x.shape, dtype=x.dtype)
+            grid_node = paddle.static.data(name="grid", shape=grid.shape, dtype=grid.dtype)
         out = paddle.nn.functional.grid_sample(x_node, grid_node, mode=mode, padding_mode=padding_mode,
                                                align_corners=align_corners) if not_empty else paddle.nn.functional.grid_sample(
             x_node, grid_node)
@@ -46,8 +51,8 @@ def main():
     x = np.random.randn(2, 3, 128, 128).astype(dtype)
     grid = np.random.uniform(-1, 1, [2, 130, 130, 2]).astype(dtype)
     padding_mode = "border"
-    grid_sampler(name='grid_sampler_3', x=x, grid=grid, mode=mode, padding_mode=padding_mode,
-                 align_corners=align_corners)
+    grid_sampler(name='grid_sampler_dyn', x=x, grid=grid, mode=mode, padding_mode=padding_mode,
+                 align_corners=align_corners, is_dynamic=True)
 
 
 if __name__ == "__main__":
