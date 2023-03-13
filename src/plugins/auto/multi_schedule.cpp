@@ -251,23 +251,26 @@ MultiSchedule::~MultiSchedule() {
                     LOG_INFO_TAG("CPU_HELP:fps:%lf", count * 1000 / durtation.count());
                 }
             } else {
-                LOG_INFO_TAG("%s:infer:%ld", _workerRequest.first.c_str(), count);
-                auto n = reqAllStartTimes.size();
                 Time time;
+                // skip the first infer, Calculate fps using the time between the last infer and the second infer
+                if (!reqAllStartTimes.empty()) {
+                    reqAllStartTimes.pop_front();
+                    count--;
+                }
                 while (!reqAllStartTimes.empty()) {
                     time = reqAllStartTimes.front();
                     if (time < _cpuHelpReleaseTime) {
                         reqAllStartTimes.pop_front();
-                        n--;
+                        count--;
                     } else {
                         break;
                     }
                 }
-                if (n >= 1) {
-                    std::chrono::duration<double, std::milli> durtation =
-                        reqAllEndTimes.back() - time;
-                    LOG_INFO_TAG("%s:fps:%lf", _workerRequest.first.c_str(),
-                        n * 1000 / durtation.count());
+                LOG_INFO_TAG("%s:infer:%ld", _workerRequest.first.c_str(), count);
+                if (count >= 1) {
+                    std::chrono::duration<double, std::milli> durtation = reqAllEndTimes.back() - time;
+                    LOG_INFO_TAG("%s:duration:%lf", _workerRequest.first.c_str(), durtation.count());
+                    LOG_INFO_TAG("%s:fps:%lf", _workerRequest.first.c_str(), count * 1000 / durtation.count());
                 }
             }
         }
