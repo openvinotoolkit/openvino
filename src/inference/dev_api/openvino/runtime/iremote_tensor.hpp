@@ -25,9 +25,14 @@ public:
     ~IRemoteTensor() override;
 
     /**
-     * @brief Return additional information associated with tensor
+     * @brief Returns additional information associated with tensor
      * @return Map of property names to properties
      */
-    virtual AnyMap get_properties() const = 0;
+    virtual const AnyMap& get_properties() const = 0;
+    /**
+     * @brief Returns device name
+     * @return Device name
+     */
+    virtual const std::string& get_device_name() const = 0;
 };
 }  // namespace ov

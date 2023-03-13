@@ -104,6 +104,8 @@ class RemoteBlobTensor : public IRemoteTensor {
     mutable element::Type m_type;
     mutable Shape m_shape;
     mutable Strides m_strides;
+    mutable ov::AnyMap m_properties;
+    mutable std::string m_dev_name;
 
 public:
     std::shared_ptr<ie::RemoteBlob> blob;
@@ -149,10 +151,14 @@ public:
         return blob->byteSize();
     }
 
-    AnyMap get_properties() const override {
-        auto params = blob->getParams();
-        params.insert(ov::device::id(blob->getDeviceName()));
-        return params;
+    const AnyMap& get_properties() const override {
+        m_properties = blob->getParams();
+        return m_properties;
+    }
+
+    const std::string& get_device_name() const override {
+        m_dev_name = blob->getDeviceName();
+        return m_dev_name;
     }
 };
 
@@ -173,7 +179,7 @@ public:
     }
     std::string getDeviceName() const noexcept override {
         try {
-            return tensor->get_properties().at(ov::device::id.name()).as<std::string>();
+            return tensor->get_device_name();
         } catch (...) {
             return {};
         }
