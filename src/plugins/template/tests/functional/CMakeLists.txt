@@ -5,6 +5,9 @@
 # [cmake:functional_tests]
 set(TARGET_NAME ov_template_func_tests)
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    ie_add_compiler_flags(/wd4305)
+endif()
 
 ov_add_test_target(
         NAME ${TARGET_NAME}
