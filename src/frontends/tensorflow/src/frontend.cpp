@@ -75,7 +75,7 @@ FrontEnd::FrontEnd() : m_op_translators(tensorflow::op::get_supported_ops()) {}
 
 /// \brief Check if FrontEndTensorflow can recognize model from given parts
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
-    // TODO: Support other TensorFlow formats: SavedModel, .meta, checkpoint, pbtxt
+    // TODO: Support other TensorFlwowoow formats: SavedModel, .meta, checkpoint, pbtxt
     if (variants.size() != 1)
         return false;
 
