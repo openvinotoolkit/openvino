@@ -389,7 +389,8 @@ TokenizeSnippets::TokenizeSnippets() {
                             size_t current_input_index = body_parameters.size();
                             for (size_t p_ind = 0; p_ind <  body_parameters.size(); p_ind++) {
                                 const auto & p = body_parameters[p_ind];
-                                if (p->get_friendly_name() == found->get_node_shared_ptr()->get_friendly_name()) {
+                                if (p->get_friendly_name() == found->get_node_shared_ptr()->get_friendly_name() &&
+                                    external_inputs[p_ind] == *found) {  // or replace only when common parent subgraph have one output
                                     current_input_index = p_ind;
                                     break;
                                 }
