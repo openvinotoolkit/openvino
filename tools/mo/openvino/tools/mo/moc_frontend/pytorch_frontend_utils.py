@@ -81,13 +81,22 @@ def align_input_parameters(f_model, input_signature, inputs, input_shape, args):
                 input_signature = input_signature[:len(inputs)]
         if isinstance(inputs, torch.Tensor):
             inputs = [inputs]
+        is_list_scalars = all([isinstance(inp, (float, int, bool)) for inp in inputs])
+        if is_list_scalars:
+            inputs = [inputs]
         input_info = []
         for idx, input_data in enumerate(inputs):
             input_name = input_names[idx]
-            input_data_rank = input_data.ndim
+            if hasattr(input_data, "ndim"):
+                input_data_rank = input_data.ndim
+            elif is_list_scalars:
+                input_data_rank = 1
+            else:
+                input_data_rank = 0
+            dynamic_input = [-1] * input_data_rank 
             pt_dtype = input_data.dtype if isinstance(input_data, torch.Tensor) else type(input_data)
             dtype = pt_to_ov_type_map.get(str(pt_dtype))
-            input_sh = input_shape[idx] if input_shape is not None else [-1] * input_data_rank
+            input_sh = input_shape[idx] if input_shape is not None else dynamic_input
             input_info.append(InputCutInfo(input_name, input_sh, dtype, None))
         
         input_argv = args.get("input")
@@ -144,6 +153,8 @@ def to_torch_tensor(tensor):
         return torch.tensor(tensor)
     if isinstance(tensor, Tensor):
         return torch.tensor(tensor.data)
+    if isinstance(tensor, (float, int, bool)):
+        return tensor
     else:
         raise Error("Unexpected type of example_input. Supported types torch.Tensor, np.array or ov.Tensor. "
                     "Got {}".format(type(tensor)))
