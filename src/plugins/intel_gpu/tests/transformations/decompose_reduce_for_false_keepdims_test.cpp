@@ -21,6 +21,7 @@
 
 using namespace testing;
 using namespace ::tests;
+using namespace cldnn;
 
 using InputShape = ngraph::PartialShape;
 using KeepDims = bool;

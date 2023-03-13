@@ -501,6 +501,11 @@ endfunction()
 # Tries to use gold linker in current scope (directory, function)
 #
 function(ov_try_use_gold_linker)
+    # don't use the gold linker, if the mold linker is set
+    if(CMAKE_EXE_LINKER_FLAGS MATCHES "mold" OR CMAKE_MODULE_LINKER_FLAGS MATCHES "mold" OR CMAKE_SHARED_LINKER_FLAGS MATCHES "mold")
+        return()
+    endif()
+
     # gold linker on ubuntu20.04 may fail to link binaries build with sanitizer
     if(CMAKE_COMPILER_IS_GNUCXX AND NOT ENABLE_SANITIZER AND NOT CMAKE_CROSSCOMPILING)
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold" PARENT_SCOPE)

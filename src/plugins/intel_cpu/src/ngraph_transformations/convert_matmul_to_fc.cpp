@@ -73,26 +73,15 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
                 std::swap(*(shape_b_aligned.end() - 1), *(shape_b_aligned.end() - 2));
             }
 
+            // check on per-batch MatMul which can't be converted to FC
             for (size_t i = 0; i < max_size - 2; ++i) {
-                auto a_dim = shape_a_aligned[i], b_dim = shape_b_aligned[i];
-                if (a_dim.is_dynamic()) {
-                    if (b_dim == 1) {
-                        shape_a_aligned[i] = shape_b_aligned[i] = a_dim;
-                    } else {
-                        return std::make_tuple(false, ngraph::PartialShape{shape_a_aligned}, ngraph::PartialShape{shape_b_aligned});
-                    }
-                    continue;
+                if (shape_b_aligned[i] == 1) {
+                    shape_b_aligned[i] = shape_a_aligned[i];
+                } else {
+                    return std::make_tuple(false, std::move(shape_a_aligned), std::move(shape_b_aligned));
                 }
-                // both dimensions are static
-                if (a_dim != b_dim && a_dim.get_length() > 1 && b_dim.get_length() > 1) {
-                    std::ostringstream stream;
-                    stream << "Shapes can't be aligned: " << shape_a_aligned << " " << shape_b_aligned;
-                    throw ngraph::ngraph_error(stream.str());
-                }
-                size_t max_value = std::max(a_dim.get_length(), b_dim.get_length());
-                shape_a_aligned[i] = shape_b_aligned[i] = max_value;
             }
-            return std::make_tuple(true, shape_a_aligned, shape_b_aligned);
+            return std::make_tuple(true, std::move(shape_a_aligned), std::move(shape_b_aligned));
         };
 
         /*

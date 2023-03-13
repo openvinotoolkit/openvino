@@ -21,7 +21,6 @@ if(CMAKE_COMPILER_IS_GNUCC)
     ie_add_compiler_flags(-Wno-int-in-bool-context)
 elseif(OV_COMPILER_IS_CLANG)
     ie_add_compiler_flags(-Wno-int-in-bool-context)
-    ie_add_compiler_flags(-Wno-implicit-const-int-float-conversion)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # C4267, 4244 issues from mkl-dnn headers conversion from 'XXX' to 'YYY', possible loss of data
     ie_add_compiler_flags(/wd4267)
@@ -71,6 +70,7 @@ target_compile_definitions(${TARGET_NAME}
         _NO_MKL_
     )
 
+# must be called after all target_link_libraries
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 #
@@ -139,5 +139,3 @@ if(NOT BUILD_SHARED_LIBS)
 endif()
 
 add_subdirectory(tests)
-
-

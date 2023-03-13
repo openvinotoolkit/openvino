@@ -9,9 +9,9 @@
 #include <ie_remote_context.hpp>
 
 #include "any_copy.hpp"
+#include "cache_guard.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "dev/plugin.hpp"
-#include "ie_cache_guard.hpp"
 #include "ie_cache_manager.hpp"
 #include "ie_extension.h"
 #include "ie_icore.hpp"
@@ -21,7 +21,7 @@
 #include "openvino/core/version.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
-#include "threading/ie_executor_manager.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
 
 #ifdef OPENVINO_STATIC_LIBRARY
 #    include "ie_plugins.hpp"
@@ -74,8 +74,6 @@ std::string findPluginXML(const std::string& xmlFile);
 
 #endif
 
-ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& properties);
-
 class CoreImpl : public InferenceEngine::ICore, public std::enable_shared_from_this<InferenceEngine::ICore> {
 private:
     mutable std::map<std::string, ov::Plugin> plugins;
@@ -92,39 +90,42 @@ private:
     public:
         struct CacheConfig {
             std::string _cacheDir;
-            std::shared_ptr<InferenceEngine::ICacheManager> _cacheManager;
+            std::shared_ptr<ov::ICacheManager> _cacheManager;
+
+            static CacheConfig create(const std::string& dir);
         };
 
-        bool flag_allow_auto_batching = true;
-
+        /**
+         * @brief Removes core-level properties from config and triggers new state for core config
+         * @param config - config to be updated
+         */
         void set_and_update(ov::AnyMap& config);
 
+        OPENVINO_DEPRECATED("Don't use this method, it will be removed soon")
         void set_cache_dir_for_device(const std::string& dir, const std::string& name);
 
         std::string get_cache_dir() const;
 
+        bool get_allow_auto_batch() const;
+
         // Creating thread-safe copy of config including shared_ptr to ICacheManager
         // Passing empty or not-existing name will return global cache config
-        CacheConfig get_cache_config_for_device(const std::string& device_name,
-                                                bool device_supports_cache_dir,
+        CacheConfig get_cache_config_for_device(const ov::Plugin& plugin,
                                                 ov::AnyMap& parsedConfig) const;
 
-        CacheConfig get_cache_config_for_device(const std::string& device_name) const;
-
     private:
-        static void fill_config(CacheConfig& config, const std::string& dir);
-
         mutable std::mutex _cacheConfigMutex;
         CacheConfig _cacheConfig;
         std::map<std::string, CacheConfig> _cacheConfigPerDevice;
+        bool _flag_allow_auto_batching = true;
     };
 
     struct CacheContent {
-        explicit CacheContent(const std::shared_ptr<InferenceEngine::ICacheManager>& cache_manager,
+        explicit CacheContent(const std::shared_ptr<ov::ICacheManager>& cache_manager,
                               const std::string model_path = {})
             : cacheManager(cache_manager),
               modelPath(model_path) {}
-        std::shared_ptr<InferenceEngine::ICacheManager> cacheManager;
+        std::shared_ptr<ov::ICacheManager> cacheManager;
         std::string blobId = {};
         std::string modelPath = {};
     };
@@ -134,7 +135,7 @@ private:
 
     Any get_property_for_core(const std::string& name) const;
 
-    mutable InferenceEngine::CacheGuard cacheGuard;
+    mutable ov::CacheGuard cacheGuard;
 
     struct PluginDescriptor {
         ov::util::FilePath libraryLocation;
@@ -162,7 +163,7 @@ private:
         }
     };
 
-    InferenceEngine::ExecutorManager::Ptr executorManagerPtr;
+    std::shared_ptr<ov::threading::ExecutorManager> m_executor_manager;
     mutable std::unordered_set<std::string> opsetNames;
     // TODO: make extensions to be optional with conditional compilation
     mutable std::vector<InferenceEngine::IExtensionPtr> extensions;
@@ -172,32 +173,31 @@ private:
 
     const bool m_new_api;
 
-    ov::SoPtr<ov::ICompiledModel> compile_model_impl(const std::shared_ptr<const ov::Model>& model,
+    ov::SoPtr<ov::ICompiledModel> compile_model_and_cache(const std::shared_ptr<const ov::Model>& model,
                                                      ov::Plugin& plugin,
                                                      const ov::AnyMap& parsedConfig,
                                                      const ov::RemoteContext& context,
-                                                     const CacheContent& cacheContent,
-                                                     bool forceDisableCache = false) const;
+                                                     const CacheContent& cacheContent) const;
 
     static ov::SoPtr<ov::ICompiledModel> load_model_from_cache(const CacheContent& cacheContent,
                                                                ov::Plugin& plugin,
                                                                const ov::AnyMap& config,
                                                                const ov::RemoteContext& context,
-                                                               bool& networkIsImported);
+                                                               std::function<ov::SoPtr<ov::ICompiledModel>()> compile_model_lambda);
 
     bool device_supports_import_export(const ov::Plugin& plugin) const;
 
     bool device_supports_property(const ov::Plugin& plugin, const std::string& key) const;
 
+    OPENVINO_DEPRECATED("Don't use this method, it will be removed soon")
     bool device_supports_cache_dir(const ov::Plugin& plugin) const;
 
-    ov::SoPtr<ov::ICompiledModel> compile_model(ov::Plugin& plugin,
+    ov::SoPtr<ov::ICompiledModel> compile_model_with_preprocess(ov::Plugin& plugin,
                                                 const std::shared_ptr<const ov::Model>& model,
                                                 const ov::RemoteContext& context,
                                                 const ov::AnyMap& config) const;
 
     ov::AnyMap create_compile_config(const ov::Plugin& plugin,
-                                     const std::string& deviceFamily,
                                      const ov::AnyMap& origConfig) const;
 
     // Legacy API
@@ -272,8 +272,6 @@ public:
                                             bool frontendMode = false) const override;
 
     bool isNewAPI() const override;
-
-    static std::tuple<bool, std::string> CheckStatic(const InferenceEngine::CNNNetwork& network);
 
     InferenceEngine::RemoteContext::Ptr GetDefaultContext(const std::string& deviceName) override;
 

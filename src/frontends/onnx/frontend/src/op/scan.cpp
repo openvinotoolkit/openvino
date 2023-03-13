@@ -45,7 +45,7 @@ OutputVector scan_to_tensor_iterator(const OutputVector& node_inputs,
     // but in ONNX Scan the slice of input can has one dimension less,
     // so the parameter needs to have aligned rank with 1 at sliced axis,
     // and then squeezed to restore original shape.
-    for (size_t i = 0; i < num_scan_inputs; ++i) {
+    for (int64_t i = 0; i < num_scan_inputs; ++i) {
         const auto in_idx = num_initial_values + i;
         auto axis = scan_input_axes[i];
         const auto axis_node = default_opset::Constant::create(element::i64, Shape{1}, {axis});
@@ -79,7 +79,7 @@ OutputVector scan_to_tensor_iterator(const OutputVector& node_inputs,
     tensor_iterator->set_function(ti_body);
 
     // Set slicing for Scan (TensorIterator) inputs
-    for (size_t i = 0; i < num_scan_inputs; ++i) {
+    for (int64_t i = 0; i < num_scan_inputs; ++i) {
         const auto in_idx = num_initial_values + i;
         const auto axis = ov::normalize_axis(node_description,
                                              scan_input_axes[i],

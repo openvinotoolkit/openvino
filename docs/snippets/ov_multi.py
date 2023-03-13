@@ -27,26 +27,28 @@ def MULTI_1():
 #! [MULTI_1]
     core = Core()
     model = core.read_model(model_path)
-    core.set_property(device_name="MULTI", properties={"MULTI_DEVICE_PRIORITIES":"HDDL,GPU"})
+    core.set_property(device_name="MULTI", properties={"MULTI_DEVICE_PRIORITIES":"CPU,GPU"})
     # Once the priority list is set, you can alter it on the fly:
     # reverse the order of priorities
-    core.set_property(device_name="MULTI", properties={"MULTI_DEVICE_PRIORITIES":"GPU,HDDL"})
+    core.set_property(device_name="MULTI", properties={"MULTI_DEVICE_PRIORITIES":"GPU,CPU"})
     
-    # exclude some devices (in this case, HDDL)
+    # exclude some devices (in this case, CPU)
     core.set_property(device_name="MULTI", properties={"MULTI_DEVICE_PRIORITIES":"GPU"})
     
     # bring back the excluded devices
-    core.set_property(device_name="MULTI", properties={"MULTI_DEVICE_PRIORITIES":"HDDL,GPU"})
+    core.set_property(device_name="MULTI", properties={"MULTI_DEVICE_PRIORITIES":"GPU,CPU"})
 
     # You cannot add new devices on the fly!
-    # Attempting to do so, for example, adding CPU:
-    core.set_property(device_name="MULTI", properties={"MULTI_DEVICE_PRIORITIES":"CPU,HDDL,GPU"})
-    # would trigger the following exception:
+    # Attempting to do so will trigger the following exception:
     # [ ERROR ] [NOT_FOUND] You can only change device
     # priorities but not add new devices with the model's
     # ov::device::priorities. CPU device was not in the original device list!
 
 #! [MULTI_1]
+
+
+# the following two pieces of code appear not to be used anywhere
+# they should be considered for removal
 
 def available_devices_1():
 #! [available_devices_1]
@@ -61,7 +63,7 @@ def available_devices_2():
 #! [available_devices_2]
     match_list = []
     all_devices = "MULTI:"
-    dev_match_str = "MYRIAD"
+    dev_match_str = "GPU"
     core = Core()
     model = core.read_model(model_path)
     for d in core.available_devices:
@@ -81,18 +83,16 @@ def available_devices_2():
 def MULTI_4():
 #! [MULTI_4]
     core = Core()
-    hddl_config = {}
+    cpu_config = {}
     gpu_config = {}
 
     # Read a network in IR, PaddlePaddle, or ONNX format:
     model = core.read_model(model_path)
 
-    # When compiling the model on MULTI, configure CPU and MYRIAD 
-    # (devices, priorities, and device configurations):
-    core.set_property(device_name="GPU", properties=gpu_config)
-    core.set_property(device_name="HDDL", properties=hddl_config)
-    compiled_model = core.compile_model(model=model, device_name="MULTI:HDDL,GPU")
-    
+    # When compiling the model on MULTI, configure CPU and GPU 
+    # (devices, priorities, and device configurations; gpu_config and cpu_config will load during compile_model() ):
+    compiled_model = core.compile_model(model=model, device_name="MULTI:GPU,CPU", config={"CPU":"NUM_STREAMS 4", "GPU":"NUM_STREAMS 8"})
+
     # Optionally, query the optimal number of requests:
     nireq = compiled_model.get_property("OPTIMAL_NUMBER_OF_INFER_REQUESTS")
 #! [MULTI_4]

@@ -12,7 +12,8 @@
 
 namespace ov {
 namespace intel_gna {
-namespace common {
+using namespace common;
+namespace target {
 
 static constexpr const char* kGnaTargetUnspecified = "";
 static constexpr const char* kGnaTargetSoftwareEmulation = "GNA_SW_EMULATION";
@@ -22,35 +23,48 @@ static constexpr const char* kGnaTarget3_0 = "GNA_TARGET_3_0";
 static constexpr const char* kGnaTarget3_1 = "GNA_TARGET_3_1";
 static constexpr const char* kGnaTarget3_5 = "GNA_TARGET_3_5";
 static constexpr const char* kGnaTarget3_5_e = "GNA_TARGET_3_5_E";
+static constexpr const char* kGnaTarget3_6 = "GNA_TARGET_3_6";
+static constexpr const char* kGnaTarget4_0 = "GNA_TARGET_4_0";
 
 static const std::unordered_map<HWGeneration, DeviceVersion> HWGenerationDeviceMap{
+    {HWGeneration::GNA_1_0, DeviceVersion::GNA1_0},
     {HWGeneration::GNA_2_0, DeviceVersion::GNA2_0},
     {HWGeneration::GNA_3_0, DeviceVersion::GNA3_0},
+    {HWGeneration::GNA_3_1, DeviceVersion::GNA3_1},
     {HWGeneration::GNA_3_5, DeviceVersion::GNA3_5},
+    {HWGeneration::GNA_3_5_E, DeviceVersion::GNAEmbedded3_5},
+    {HWGeneration::GNA_3_6, DeviceVersion::GNA3_6},
+    {HWGeneration::GNA_4_0, DeviceVersion::GNA4_0},
     {HWGeneration::UNDEFINED, DeviceVersion::NotSet}};
 
 static const std::unordered_map<Gna2DeviceVersion, DeviceVersion> GnaDeviceMap{
-    {Gna2DeviceVersionEmbedded1_0, DeviceVersion::GNAEmbedded1_0},
+    {Gna2DeviceVersionEmbedded1_0, DeviceVersion::GNA1_0},
     {Gna2DeviceVersion2_0, DeviceVersion::GNA2_0},
     {Gna2DeviceVersion3_0, DeviceVersion::GNA3_0},
-    {Gna2DeviceVersionEmbedded3_1, DeviceVersion::GNAEmbedded3_1},
+    {Gna2DeviceVersionEmbedded3_1, DeviceVersion::GNA3_1},
     {Gna2DeviceVersion3_5, DeviceVersion::GNA3_5},
     {Gna2DeviceVersionEmbedded3_5, DeviceVersion::GNAEmbedded3_5},
+    {Gna2DeviceVersionEmbedded3_5, DeviceVersion::GNA3_6},
+    {Gna2DeviceVersionEmbedded3_5, DeviceVersion::GNA4_0},
     {Gna2DeviceVersionSoftwareEmulation, DeviceVersion::SoftwareEmulation}};
 
 static const std::unordered_map<std::string, DeviceVersion> StringDeviceMap{
-    {kGnaTarget1_0, DeviceVersion::GNAEmbedded1_0},
+    {kGnaTarget1_0, DeviceVersion::GNA1_0},
     {kGnaTarget2_0, DeviceVersion::GNA2_0},
     {kGnaTarget3_0, DeviceVersion::GNA3_0},
-    {kGnaTarget3_1, DeviceVersion::GNAEmbedded3_1},
+    {kGnaTarget3_1, DeviceVersion::GNA3_1},
     {kGnaTarget3_5, DeviceVersion::GNA3_5},
     {kGnaTarget3_5_e, DeviceVersion::GNAEmbedded3_5},
+    {kGnaTarget3_6, DeviceVersion::GNA3_6},
+    {kGnaTarget4_0, DeviceVersion::GNA4_0},
     {kGnaTargetSoftwareEmulation, DeviceVersion::SoftwareEmulation},
     {kGnaTargetUnspecified, DeviceVersion::NotSet}};
 
-static const std::vector<DeviceVersion> EmbeddedDevices{DeviceVersion::GNAEmbedded1_0,
-                                                        DeviceVersion::GNAEmbedded3_1,
-                                                        DeviceVersion::GNAEmbedded3_5};
+static const std::vector<DeviceVersion> EmbeddedDevices{DeviceVersion::GNA1_0,
+                                                        DeviceVersion::GNA3_1,
+                                                        DeviceVersion::GNAEmbedded3_5,
+                                                        DeviceVersion::GNA3_6,
+                                                        DeviceVersion::GNA4_0};
 
 DeviceVersion HwGenerationToDevice(const HWGeneration& target) {
     return GetValueForKey<HWGeneration, DeviceVersion>(target, HWGenerationDeviceMap);
@@ -124,6 +138,6 @@ DeviceVersion Target::get_effective_compile_target() const {
     }
 }
 
-}  // namespace common
+}  // namespace target
 }  // namespace intel_gna
 }  // namespace ov

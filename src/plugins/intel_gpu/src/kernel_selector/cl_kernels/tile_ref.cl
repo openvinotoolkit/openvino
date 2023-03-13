@@ -4,7 +4,9 @@
 
 #include "include/batch_headers/fetch_data.cl"
 
-KERNEL(tile_ref)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
+KERNEL(tile_ref)(OPTIONAL_SHAPE_INFO_ARG
+                 const __global INPUT0_TYPE* input,
+                 __global OUTPUT_TYPE* output)
 {
     const uint x = (uint)get_global_id(0) % OUTPUT_SIZE_X;
     const uint y = (uint)get_global_id(0) / OUTPUT_SIZE_X;
