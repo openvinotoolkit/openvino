@@ -17,10 +17,6 @@
 namespace ov {
 
 class OPENVINO_RUNTIME_API IRemoteTensor : public ITensor {
-private:
-    template <typename T>
-    struct fail : std::false_type {};
-
 public:
     void* data(const element::Type& type = {}) const final {
         OPENVINO_NOT_IMPLEMENTED;
