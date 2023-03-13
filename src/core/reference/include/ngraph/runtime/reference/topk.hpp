@@ -40,8 +40,13 @@ inline bool compare_by_value_and_index(const std::tuple<T, U>& a, const std::tup
 }
 
 template <typename T, typename U>
-inline bool sort_indices_ascending(const std::tuple<T, U>& a, const std::tuple<T, U>& b) {
+inline bool compare_indices_ascending(const std::tuple<T, U>& a, const std::tuple<T, U>& b) {
     return std::get<1>(a) < std::get<1>(b);
+}
+
+template <typename T, typename U>
+inline bool compare_indices_descending(const std::tuple<T, U>& a, const std::tuple<T, U>& b) {
+    return std::get<1>(a) > std::get<1>(b);
 }
 
 // TopK reference implementation provides stable indices output
@@ -112,7 +117,10 @@ void topk(const T* arg,
         case op::TopKSortType::NONE:
             break;
         case op::TopKSortType::SORT_INDICES:
-            std::sort(workspace.begin(), workspace.begin() + k, sort_indices_ascending<T, U>);
+            if (compute_max)
+                std::sort(workspace.begin(), workspace.begin() + k, compare_indices_descending<T, U>);
+            else
+                std::sort(workspace.begin(), workspace.begin() + k, compare_indices_ascending<T, U>);
             break;
         case op::TopKSortType::SORT_VALUES:
             if (compute_max)
