@@ -339,4 +339,3 @@ ie::Blob::Ptr tensor_to_blob(const std::shared_ptr<ITensor>& tensor) {
     }
 }
 }  // namespace ov
-
