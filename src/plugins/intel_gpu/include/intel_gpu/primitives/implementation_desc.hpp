@@ -64,7 +64,7 @@ inline std::istream& operator>>(std::istream& is, impl_types& impl_type) {
     } else if (str == "any") {
         impl_type = impl_types::any;
     } else {
-        OPENVINO_UNREACHABLE("Unsupported impl type: ", str);
+        OPENVINO_THROW("Unsupported impl type: ", str);
     }
     return is;
 }
