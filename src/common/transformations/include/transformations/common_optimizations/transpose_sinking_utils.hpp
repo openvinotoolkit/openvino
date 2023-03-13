@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -10,6 +10,7 @@
 
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset9.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
@@ -109,4 +110,5 @@ void RemoveSingleOutputConsumers(const std::shared_ptr<ov::Node>&);
 ov::Output<ov::Node> ChangeValuesOrder(const ov::Output<ov::Node>& input,
                                        const ov::AxisVector& transpose_axis_order,
                                        const std::shared_ptr<ov::opset9::Constant>& axis);
+
 }  // namespace transpose_sinking

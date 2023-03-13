@@ -1,4 +1,8 @@
-#include "transformations/common_optimizations/transpose_sinking_pad.hpp"
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "transformations/common_optimizations/transpose_sinking_data_movement.hpp"
 
 #include <openvino/pass/pattern/op/or.hpp>
 
@@ -10,16 +14,17 @@
 #include "transformations/common_optimizations/transpose_sinking_utils.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 
-using namespace ov::pass::pattern;
 using namespace ov;
 using namespace ov::opset10;
+using namespace ov::pass::pattern;
 using namespace transpose_sinking;
 
-ov::pass::TransposeSinkingPadForward::TransposeSinkingPadForward() {
-    MATCHER_SCOPE(TransposeSinkingPadForward);
+ov::pass::TransposeSinkingDataMovementForward::TransposeSinkingDataMovementForward() {
+    MATCHER_SCOPE(TransposeSinkingDataMovementForward);
     auto const_label = wrap_type<Constant>();
     auto transpose_label = wrap_type<Transpose>({any_input(), const_label});
-    auto main_node_label = wrap_type<Pad>({transpose_label, any_input(), any_input(), any_input()});
+    auto main_node_label =
+        wrap_type<Pad, BatchToSpace, SpaceToBatch>({transpose_label, any_input(), any_input(), any_input()});
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_node = m.get_pattern_map();
@@ -49,7 +54,14 @@ ov::pass::TransposeSinkingPadForward::TransposeSinkingPadForward() {
         main_node->input(2).replace_source_output(
             ChangeValuesOrder(main_node->input_value(2), reversed_transpose_order, axis));
 
-        // insert Transpose for Pad output
+        const auto& bts = std::dynamic_pointer_cast<BatchToSpace>(main_node);
+        const auto& stb = std::dynamic_pointer_cast<SpaceToBatch>(main_node);
+        if (bts || stb) {
+            main_node->input(3).replace_source_output(
+                ChangeValuesOrder(main_node->input_value(3), reversed_transpose_order, axis));
+        }
+
+        main_node->validate_and_infer_types();
         TransposeInputsInfo transpose_input_info = {transpose, transpose_const, 0};
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
             register_new_node(new_node);
@@ -62,10 +74,10 @@ ov::pass::TransposeSinkingPadForward::TransposeSinkingPadForward() {
     register_matcher(m, matcher_pass_callback);
 }
 
-ov::pass::TransposeSinkingPadBackward::TransposeSinkingPadBackward() {
-    MATCHER_SCOPE(TransposeSinkingPadBackward);
+ov::pass::TransposeSinkingDataMovementBackward::TransposeSinkingDataMovementBackward() {
+    MATCHER_SCOPE(TransposeSinkingDataMovementBackward);
 
-    auto main_node_label = wrap_type<Pad>([](const Output<Node>& output) -> bool {
+    auto main_node_label = wrap_type<Pad, BatchToSpace, SpaceToBatch>([](const Output<Node>& output) -> bool {
         return has_static_rank()(output) && HasSameOutputTransposeNodes(output);
     });
 
@@ -90,7 +102,7 @@ ov::pass::TransposeSinkingPadBackward::TransposeSinkingPadBackward() {
 
         // remove output transposes
         RemoveSingleOutputConsumers(main_node);
-
+        SwapNames(main_node, transpose);
         const auto transpose_axis_order = transpose_const->get_axis_vector_val();
         auto axis = std::make_shared<Constant>(element::i32, Shape{}, std::vector<int32_t>{0});
 
@@ -98,6 +110,14 @@ ov::pass::TransposeSinkingPadBackward::TransposeSinkingPadBackward() {
             ChangeValuesOrder(main_node->input_value(1), transpose_axis_order, axis));
         main_node->input(2).replace_source_output(
             ChangeValuesOrder(main_node->input_value(2), transpose_axis_order, axis));
+
+        const auto& bts = std::dynamic_pointer_cast<BatchToSpace>(main_node);
+        const auto& stb = std::dynamic_pointer_cast<SpaceToBatch>(main_node);
+        if (bts || stb) {
+            main_node->input(3).replace_source_output(
+                ChangeValuesOrder(main_node->input_value(3), transpose_axis_order, axis));
+        }
+        main_node->validate_and_infer_types();
         return true;
     };
 

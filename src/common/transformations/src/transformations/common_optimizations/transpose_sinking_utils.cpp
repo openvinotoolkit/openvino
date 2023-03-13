@@ -1,38 +1,31 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "transformations/common_optimizations/transpose_sinking_utils.hpp"
 
-#include <openvino/pass/pattern/op/or.hpp>
 #include <transformations/utils/utils.hpp>
-#include <utility>
 
 #include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/opsets/opset9.hpp"
-#include "openvino/pass/pattern/op/label.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/util/common_util.hpp"
-#include "openvino/util/log.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 
 namespace transpose_sinking {
 
 using namespace ov;
-using namespace ov::opset9;
+using namespace ov::opset10;
 
 using NodePtr = std::shared_ptr<Node>;
 
 Output<Node> ChangeValuesOrder(const Output<Node>& input,
                                const AxisVector& transpose_axis_order,
                                const std::shared_ptr<Constant>& axis) {
-    auto rank = transpose_axis_order.size();
-    auto split_pad = std::make_shared<Split>(input, axis, rank);
-    auto split_outputs = split_pad->outputs();
-    OutputVector new_order(split_outputs.size());
-    for (size_t i = 0; i < rank; ++i) {
-        new_order[i] = split_outputs[transpose_axis_order[i]];
-    }
-    auto concat_pad = std::make_shared<Concat>(new_order, 0);
-    copy_runtime_info(input.get_node_shared_ptr(), {split_pad, concat_pad});
-    return concat_pad;
+    auto indices = std::make_shared<Constant>(element::i32, Shape{transpose_axis_order.size()}, transpose_axis_order);
+    auto gather = std::make_shared<Gather>(input, indices, axis);
+    copy_runtime_info(input.get_node_shared_ptr(), gather);
+    return gather;
 }
 
 TransposeInputsInfo GetFirstTransposeInput(const NodePtr& node) {
@@ -202,24 +195,22 @@ void RemoveInputNode(const NodePtr& main_node, size_t input_idx) {
 NodeVector InsertOutputTransposes(const NodePtr& main_node, const TransposeInputsInfo& transpose_input_info) {
     if (transpose_input_info.isEmpty())
         return {};
-
-    auto new_transpose_order = AlignTransposeOrder(main_node->output(0), transpose_input_info);
+    const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
     const auto transpose_element_type = transpose_input_info.transpose_const->get_element_type();
 
     NodeVector new_nodes;
 
     for (size_t i = 0; i < main_node->get_output_size(); ++i) {
-        auto new_transpose_const =
-            std::make_shared<Constant>(transpose_element_type, Shape{new_transpose_order.size()}, new_transpose_order);
+        auto new_transpose_const = std::make_shared<Constant>(transpose_element_type,
+                                                              Shape{transpose_axis_order.size()},
+                                                              transpose_axis_order);
         auto main_node_consumers = main_node->output(i).get_target_inputs();
         auto new_transpose = std::make_shared<Transpose>(main_node->output(i), new_transpose_const);
         for (auto& consumer : main_node_consumers) {
             consumer.replace_source_output(new_transpose);
         }
-
         copy_runtime_info(main_node, {new_transpose, new_transpose_const});
         SwapOutputNames(main_node->output(i), new_transpose->output(0));
-
         if (main_node->get_output_size() > 1)
             new_transpose->set_friendly_name(main_node->get_friendly_name() + "." + std::to_string(i));
         else

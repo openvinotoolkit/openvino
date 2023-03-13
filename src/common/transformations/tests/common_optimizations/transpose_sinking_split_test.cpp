@@ -4,51 +4,21 @@
 
 #include <functional>
 #include <openvino/frontend/manager.hpp>
-#include <openvino/opsets/opset9.hpp>
+#include <openvino/opsets/opset10.hpp>
 #include <openvino/pass/manager.hpp>
 #include <transformations/common_optimizations/transpose_sinking_split.hpp>
 #include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
+#include "transpose_sinking_test_utils.hpp"
 
 using namespace ov;
-using namespace ov::opset9;
+using namespace ov::opset10;
 
-namespace transpose_sinking_split {
-
-namespace {
-
-using NodePtr = std::shared_ptr<ov::Node>;
-using ModelPtr = std::shared_ptr<Model>;
-
-class IPassFactory {
-public:
-    IPassFactory(const std::string& type_name) : type_name_(type_name) {}
-    virtual ~IPassFactory() = default;
-    virtual void registerPass(ov::pass::Manager& pass_manager) const = 0;
-    const std::string& getTypeName() const {
-        return type_name_;
-    }
-
-private:
-    const std::string type_name_;
-};
-
-using PassFactoryPtr = std::shared_ptr<IPassFactory>;
-
-template <typename PassT>
-class PassFactory : public IPassFactory {
-public:
-    PassFactory(const std::string& type_name) : IPassFactory(type_name) {}
-    void registerPass(ov::pass::Manager& pass_manager) const override {
-        pass_manager.register_pass<PassT>();
-    }
-};
-
-#define CREATE_PASS_FACTORY(pass_name) std::make_shared<PassFactory<ov::pass::pass_name>>(#pass_name)
-
-}  // namespace
+namespace transpose_sinking {
+namespace testing {
+namespace split {
 
 std::vector<size_t> split_tree_depth_nums = {1, 3};
 std::vector<size_t> split_operations_numbers = {1, 10};
@@ -521,7 +491,7 @@ using TestSplitParams = std::tuple<PassFactoryPtr,
 class TransposeSinkingSplitTestFixture : public ::testing::WithParamInterface<TestSplitParams>,
                                          public TransformationTestsF {
 public:
-    static std::string get_test_name(const testing::TestParamInfo<TestSplitParams>& obj) {
+    static std::string get_test_name(const ::testing::TestParamInfo<TestSplitParams>& obj) {
         PassFactoryPtr pass_factory;
         size_t num_split_ops;
         size_t num_split_outputs;
@@ -798,7 +768,7 @@ class TransposeSinkingSplitBackwardRestrictTestFixture
     : public ::testing::WithParamInterface<TestSplitBackwardRestrictParams>,
       public TransformationTestsF {
 public:
-    static std::string get_test_name(const testing::TestParamInfo<TestSplitBackwardRestrictParams>& obj) {
+    static std::string get_test_name(const ::testing::TestParamInfo<TestSplitBackwardRestrictParams>& obj) {
         PassFactoryPtr pass_factory;
         size_t split_tree_depth;
         size_t num_split_outputs;
@@ -865,4 +835,6 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingSplitBackwardRestrictTestSuite,
 
 }  // namespace backward
 
-}  // namespace transpose_sinking_split
+}  // namespace split
+}  // namespace testing
+}  // namespace transpose_sinking

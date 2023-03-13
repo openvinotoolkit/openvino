@@ -893,7 +893,6 @@ std::vector<size_t> ov::normalize_axes(const std::string& node_description,
     for (const auto& axis : axes) {
         new_axes.push_back(normalize_axis(node_description, axis, tensor_rank));
     }
-
     return new_axes;
 }
 
