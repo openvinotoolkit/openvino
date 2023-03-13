@@ -353,23 +353,14 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                 return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
             });
 
-    if (!isLegacyApi) {
-        auto nmsCallback = [](const_node_ptr &node) -> bool {
-            for (size_t i = 0; i < node->get_output_size(); i++) {
-                const auto outputs = node->get_output_target_inputs(i);
-                for (const auto &out : outputs) {
-                    if (!ov::op::util::is_output(out.get_node())) {
-                        return false;
-                    }
-                }
-            }
-            return true;
-        };
-
-        pass_config->set_callback<ov::pass::ConvertNMS9ToNMSIEInternal>(nmsCallback);
-        pass_config->set_callback<ov::pass::ConvertMulticlassNmsToMulticlassNmsIE>(nmsCallback);
-        pass_config->set_callback<ov::pass::ConvertMatrixNmsToMatrixNmsIE>(nmsCallback);
-    }
+    // NMS-alike nodes are always transformed to NMSIEInternal node in case of legacy api, for compatibility.
+    // And on the other hand in case of api 2.0, keep them internal dynamic for better performance and functionality.
+    auto nmsCallback = [isLegacyApi](const_node_ptr &node) -> bool {
+        return isLegacyApi ?  false : true;
+    };
+    pass_config->set_callback<ov::pass::ConvertNMS9ToNMSIEInternal>(nmsCallback);
+    pass_config->set_callback<ov::pass::ConvertMulticlassNmsToMulticlassNmsIE>(nmsCallback);
+    pass_config->set_callback<ov::pass::ConvertMatrixNmsToMatrixNmsIE>(nmsCallback);
 
     // List of enabled/disabled transformations
 

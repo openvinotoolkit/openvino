@@ -136,6 +136,8 @@ private:
     // control placeholder for NMS in new opset.
     bool isSoftSuppressedByIOU = false;
 
+    bool m_outStaticShape = false;
+
     std::string errorPrefix;
 
     std::vector<std::vector<size_t>> numFiltBox;

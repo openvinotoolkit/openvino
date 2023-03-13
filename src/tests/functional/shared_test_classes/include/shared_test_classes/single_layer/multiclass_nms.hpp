@@ -62,7 +62,7 @@ protected:
 
 private:
     void GetOutputParams(size_t& numBatches, size_t& maxOutputBoxesPerBatch);
-    bool m_outStaticShape;
+    bool m_outStaticShape = false;
 };
 
 class MulticlassNmsLayerTest8 : public MulticlassNmsLayerTest {

@@ -51,7 +51,7 @@ protected:
 private:
     void GetOutputParams(size_t& numBatches, size_t& maxOutputBoxesPerBatch);
     ngraph::op::v8::MatrixNms::Attributes m_attrs;
-    bool m_outStaticShape;
+    bool m_outStaticShape = false;
 };
 
 } // namespace subgraph
