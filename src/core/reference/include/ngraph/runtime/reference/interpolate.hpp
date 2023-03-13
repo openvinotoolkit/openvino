@@ -303,7 +303,7 @@ public:
             cubic_func(input_data, out);
             break;
         default:
-            OPENVINO_UNREACHABLE("Unsupported interpolation mode");
+            OPENVINO_THROW("Unsupported interpolation mode");
             break;
         }
     }
