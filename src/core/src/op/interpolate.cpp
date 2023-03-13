@@ -92,6 +92,7 @@ ov::op::v4::Interpolate::Interpolate(const Output<Node>& image,
                                      const Output<Node>& scales,
                                      const ov::op::v4::Interpolate::InterpolateAttrs& attrs)
     : util::InterpolateBase{image, output_shape, scales, attrs} {
+    ov::mark_as_precision_sensitive(input(2));
     constructor_validate_and_infer_types();
 }
 
