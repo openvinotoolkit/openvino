@@ -583,6 +583,8 @@ NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ngraph::Node>& op, co
     }
 
     errorPrefix = "NMS layer with name '" + op->get_friendly_name() + "' ";
+    if (one_of(op->get_type_info(), ov::op::internal::NonMaxSuppressionIEInternal::get_type_info_static()))
+        m_outStaticShape = true;
 
     if (getOriginalInputsNumber() < 2 || getOriginalInputsNumber() > 6)
         IE_THROW() << errorPrefix << "has incorrect number of input edges: " << getOriginalInputsNumber();
