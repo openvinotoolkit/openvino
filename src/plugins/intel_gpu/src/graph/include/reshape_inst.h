@@ -5,7 +5,6 @@
 #pragma once
 #include "intel_gpu/primitives/reshape.hpp"
 #include "primitive_inst.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 
 #include <string>
 #include <memory>
@@ -22,10 +21,7 @@ struct typed_program_node<reshape> : public typed_program_node_base<reshape> {
 public:
     using parent::parent;
 
-    program_node& input() const {
-        CLDNN_ERROR_LESS_THAN(id(), "the number of dependencies", dependencies.size(), "1", 1, "ERROR: the node has no input");
-        return get_dependency(0);
-    }
+    program_node& input() const { return get_dependency(0); }
 
     bool is_in_place() const {
         if (this->is_output() || this->has_fused_primitives())

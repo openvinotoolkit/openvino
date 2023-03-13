@@ -627,6 +627,11 @@ struct fused_operation_desc {
 struct base_params : public Params {
     virtual ~base_params() {}
 
+    enum class ArgType {
+        Input,
+        Constant
+    };
+
     std::vector<base_activation_params> activations;
     std::vector<fused_operation_desc> fused_ops = {};
     MultiDataTensor inputs;

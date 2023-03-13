@@ -4,15 +4,16 @@
 
 #include "async_infer_request.hpp"
 
-#include "infer_request.hpp"
+#include "itt.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
-#include "template_itt.hpp"
+#include "sync_infer_request.hpp"
 
 // ! [async_infer_request:ctor]
-TemplatePlugin::AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<TemplatePlugin::InferRequest>& request,
-                                                     const InferenceEngine::ITaskExecutor::Ptr& task_executor,
-                                                     const InferenceEngine::ITaskExecutor::Ptr& wait_executor,
-                                                     const InferenceEngine::ITaskExecutor::Ptr& callback_executor)
+ov::template_plugin::AsyncInferRequest::AsyncInferRequest(
+    const std::shared_ptr<ov::template_plugin::InferRequest>& request,
+    const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
+    const std::shared_ptr<ov::threading::ITaskExecutor>& wait_executor,
+    const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor)
     : ov::IAsyncInferRequest(request, task_executor, callback_executor),
       m_wait_executor(wait_executor) {
     // In current implementation we have CPU only tasks and no needs in 2 executors
@@ -46,7 +47,7 @@ TemplatePlugin::AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<Templ
 // ! [async_infer_request:ctor]
 
 // ! [async_infer_request:dtor]
-TemplatePlugin::AsyncInferRequest::~AsyncInferRequest() {
+ov::template_plugin::AsyncInferRequest::~AsyncInferRequest() {
     ov::IAsyncInferRequest::stop_and_wait();
 }
 // ! [async_infer_request:dtor]

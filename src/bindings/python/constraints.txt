@@ -17,6 +17,6 @@ setuptools>=53.0.0
 # Frontends
 docopt~=0.6.2
 gast==0.3.3
-paddlepaddle==2.4.1
+paddlepaddle==2.4.2
 tensorflow>=1.15.5,<=2.11.0
 six~=1.16.0
