@@ -467,7 +467,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
         IE_THROW(NetworkNotRead) << "Error reading HETERO device xml header";
     }
 
-    using namespace XMLParseUtils;
+    using namespace pugixml::utils;
 
     pugi::xml_node heteroNode = heteroXmlDoc.document_element();
     _name = GetStrAttr(heteroNode, "name");
