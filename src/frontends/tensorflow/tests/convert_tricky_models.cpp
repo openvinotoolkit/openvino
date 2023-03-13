@@ -222,8 +222,7 @@ TEST_F(TransformationTestsF, InjectedBodyAndIf) {
     }
 }
 
-// Ticket 101756
-TEST_F(TransformationTestsF, DISABLED_ModelWithDilatedGroupConvolution) {
+TEST_F(TransformationTestsF, ModelWithDilatedGroupConvolution) {
     {
         model = convert_model("dilated_gconv_model/dilated_gconv_model.pb");
         // need to call MOC to fuse BatchToSpace/SpaceToBatch with GroupConvolution
@@ -336,6 +335,17 @@ TEST_F(TransformationTestsF, ModelWithLookupTableOperations) {
     }
 }
 
+TEST_F(TransformationTestsF, ModelWithIteratorGetNextAndUnsupportedOp) {
+    { model = convert_model("unsupported_op_itergetnext/unsupported_op_itergetnext.pb"); }
+    {
+        // create then branch body graph
+        auto x = make_shared<Parameter>(f32, Shape{2, 3});
+        auto y = make_shared<Parameter>(f32, Shape{3});
+        auto add = make_shared<Add>(x, y);
+
+        model_ref = make_shared<Model>(OutputVector{add}, ParameterVector{x, y});
+    }
+}
 TEST_F(TransformationTestsF, ModelWithMultioutputBodyGraphNode) {
     { model = convert_model("partitioned_call2/partitioned_call2.pb"); }
     {
