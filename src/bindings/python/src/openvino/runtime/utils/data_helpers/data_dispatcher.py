@@ -75,7 +75,7 @@ def _(
 @value_to_tensor.register(float)
 def _(
     value: ScalarTypes,
-    request: Optional[_InferRequestWrapper] = None,
+    request: _InferRequestWrapper,
     is_shared: bool = False,
     key: Optional[ValidKeys] = None,
 ) -> Tensor:

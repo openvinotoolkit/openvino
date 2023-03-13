@@ -135,7 +135,7 @@ def test_with_tensor_memory(cls, shared_flag_one, shared_flag_two, ov_type, nump
     np.float32(3.0),
     np.int64(7.0),
     4,
-    5.0
+    5.0,
 ])
 def test_with_scalars(cls, shared_flag, scalar):
     # If scalar is 0-dim np.array, create a copy for convinience. Otherwise, it will be

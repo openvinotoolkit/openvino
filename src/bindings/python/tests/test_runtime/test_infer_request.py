@@ -1047,12 +1047,12 @@ def test_only_scalar_model(device, shared_flag, input_data):
 
 @pytest.mark.parametrize("shared_flag", [True, False])
 @pytest.mark.parametrize("input_data", [
-{0: np.array(1.0, dtype=np.float32), 1: np.array([1.0, 2.0], dtype=np.float32)},
-{0: np.array(1, dtype=np.int32), 1: np.array([1, 2], dtype=np.int32)},
-{0: np.float32(1.0), 1: np.array([1, 2], dtype=np.float32)},
-{0: np.int32(1.0), 1: np.array([1, 2], dtype=np.int32)},
-{0: 1.0, 1: np.array([1.0, 2.0], dtype=np.float32)},
-{0: 1, 1: np.array([1.0, 2.0], dtype=np.int32)},
+    {0: np.array(1.0, dtype=np.float32), 1: np.array([1.0, 2.0], dtype=np.float32)},
+    {0: np.array(1, dtype=np.int32), 1: np.array([1, 2], dtype=np.int32)},
+    {0: np.float32(1.0), 1: np.array([1, 2], dtype=np.float32)},
+    {0: np.int32(1.0), 1: np.array([1, 2], dtype=np.int32)},
+    {0: 1.0, 1: np.array([1.0, 2.0], dtype=np.float32)},
+    {0: 1, 1: np.array([1.0, 2.0], dtype=np.int32)},
 ])
 def test_mixed_scalar_model(device, shared_flag, input_data):
     core = Core()
