@@ -13,7 +13,7 @@
 This article describes Model Optimizer internals. Altering them may result in application instability, and in case of future changes to the API, lack of backward compatibility.
 
 .. note:: 
-   If you want to add support for ONNX, PaddlePaddle or Tensorflow operations, or you are not familiar with other extension alternatives in OpenVINO, read :doc:`this guide <openvino_docs_Extensibility_UG_Intro>` instead.
+   If you want to add support for ONNX, PaddlePaddle or TensorFlow operations, or you are not familiar with other extension alternatives in OpenVINO, read :doc:`this guide <openvino_docs_Extensibility_UG_Intro>` instead.
 
 .. _model-optimizer-extensibility:
 
