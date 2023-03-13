@@ -546,7 +546,7 @@ void InferRequestLegacy::SetBatch(int new_batch) {
     if (m_graph->GetMaxDynamicBatchSize() < 0)
         IE_THROW() << "Dynamic batch is not enabled.";
 
-    if (new_batch < 1 || new_batch > m_graph->GetMaxDynamicBatchSize()) {
+     if (new_batch < 1 || static_cast<size_t>(new_batch) > m_graph->GetMaxDynamicBatchSize()) {
         IE_THROW() << "Invalid dynamic batch size " << new_batch <<
             " for this request. Got: " << new_batch << ". Expected value in range [1;" << m_graph->GetMaxDynamicBatchSize() << "]";
     }
