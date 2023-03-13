@@ -156,7 +156,7 @@ public:
 /// implemented with OPENVINO_ASSERT macro.
 /// \param ... Additional error message that should describe why that execution path is unreachable.
 /// \throws ::ov::AssertFailure if the macro is executed.
-#define OPENVINO_UNREACHABLE(...)                  OPENVINO_ASSERT(false, "Unreachable: ", __VA_ARGS__)
+#define OPENVINO_THROW(...)                        OPENVINO_ASSERT(false, __VA_ARGS__)
 #define OPENVINO_ASSERT_HELPER(exc_func, ctx, ...) CALL_OVERLOAD(OPENVINO_ASSERT_HELPER, exc_func, ctx, __VA_ARGS__)
 #define OPENVINO_NOT_IMPLEMENTED                   OPENVINO_ASSERT_HELPER(::ov::throw_not_implemented, "", false, "Not Implemented", "")
 

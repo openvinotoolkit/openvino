@@ -641,9 +641,9 @@ public:
         } catch (const InferenceEngine::InferCancelled& e) {
             OPENVINO_CANCELLED(e.what());
         } catch (const std::exception& ex) {
-            OPENVINO_UNREACHABLE(ex.what());
+            OPENVINO_THROW(ex.what());
         } catch (...) {
-            OPENVINO_UNREACHABLE("Unexpected exception");
+            OPENVINO_THROW("Unexpected exception");
         }
     }
     bool wait_for(const std::chrono::milliseconds& timeout) override {
@@ -652,9 +652,9 @@ public:
         } catch (const InferenceEngine::InferCancelled& e) {
             OPENVINO_CANCELLED(e.what());
         } catch (const std::exception& ex) {
-            OPENVINO_UNREACHABLE(ex.what());
+            OPENVINO_THROW(ex.what());
         } catch (...) {
-            OPENVINO_UNREACHABLE("Unexpected exception");
+            OPENVINO_THROW("Unexpected exception");
         }
     }
 

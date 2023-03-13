@@ -30,9 +30,9 @@ struct Configuration {
 
     // Plugin configuration parameters
 
-    int deviceId = 0;
-    bool perfCount = true;
-    ov::threading::IStreamsExecutor::Config _streamsExecutorConfig;
+    int device_id = 0;
+    bool perf_count = true;
+    ov::threading::IStreamsExecutor::Config streams_executor_config;
     ov::hint::PerformanceMode performance_mode = ov::hint::PerformanceMode::UNDEFINED;
 };
 // ! [configuration:header]

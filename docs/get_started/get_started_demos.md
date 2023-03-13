@@ -20,7 +20,7 @@ To use sample applications, install OpenVINO Runtime via one of the following di
 * Archive files (recommended) - [Linux](@ref openvino_docs_install_guides_installing_openvino_from_archive_linux) | [Windows](@ref openvino_docs_install_guides_installing_openvino_from_archive_windows) | [macOS](@ref openvino_docs_install_guides_installing_openvino_from_archive_macos)
 * [APT](@ref openvino_docs_install_guides_installing_openvino_apt) or [YUM](@ref openvino_docs_install_guides_installing_openvino_yum) for Linux
 * Docker image - [Linux](@ref openvino_docs_install_guides_installing_openvino_docker_linux) | [Windows](@ref openvino_docs_install_guides_installing_openvino_docker_windows)
-* [Build from source](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode)
+* [Build from source](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md)
 
 Make sure that you also [install OpenCV](https://github.com/opencv/opencv/wiki/BuildOpenCV4OpenVINO), as it's required for running sample applications.
 

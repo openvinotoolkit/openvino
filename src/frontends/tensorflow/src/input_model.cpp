@@ -197,7 +197,7 @@ void InputModel::InputModelTFImpl::loadPlaces() {
     for (auto& output_name : op_names_without_consumers) {
         std::vector<std::string> output_names = {output_name};
         auto output_place =
-            std::make_shared<TensorPlace>(m_input_model, ov::PartialShape({}), ov::element::undefined, output_names);
+            std::make_shared<TensorPlace>(m_input_model, ov::PartialShape({}), ov::element::dynamic, output_names);
         m_tensor_places[output_name] = output_place;
         m_outputs.push_back(output_place);
     }
@@ -370,7 +370,7 @@ ov::frontend::Place::Ptr InputModel::InputModelTFImpl::getPlaceByTensorName(cons
         // new Tensor places must be constructed of dynamic rank and type
         std::vector<std::string> names = {tensorName};
         auto m_var_place =
-            std::make_shared<TensorPlace>(m_input_model, ov::PartialShape::dynamic(), ov::element::undefined, names);
+            std::make_shared<TensorPlace>(m_input_model, ov::PartialShape::dynamic(), ov::element::dynamic, names);
         m_tensor_places[tensorName] = m_var_place;
         return m_var_place;
     }

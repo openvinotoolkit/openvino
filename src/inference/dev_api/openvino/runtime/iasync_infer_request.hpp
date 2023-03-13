@@ -33,6 +33,7 @@ namespace ov {
  * @par Example
  *        Here is an example of asynchronous inference request implementation for some accelerator device.
  *        It uses 5 different executors to run different stages of a synchronous inference request.
+ * @ingroup ov_dev_api_async_infer_request_api
  */
 class OPENVINO_RUNTIME_API IAsyncInferRequest : public IInferRequest {
 public:
