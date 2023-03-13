@@ -35,9 +35,13 @@ std::basic_string<wchar_t> get_variables_index_name<wchar_t>();
 
 // Stores information about variables index
 class SavedModelVariablesIndex {
+    // Contains maximum amount of shards, used for creating corrext extension
     int32_t m_total_shards;
+    // Contains BundleEntryProto variables list, readed from .index file
     std::map<std::string, std::vector<char>> m_variables_index;
+    // List of opened data files for using with BundleEntryProto
     std::map<int32_t, std::shared_ptr<std::ifstream>> m_data_files;
+    // List of mapped variables which could be read using TrackableObjectGraph
     std::map<std::string, std::string> m_variables_map;
 
 public:
@@ -59,13 +63,17 @@ public:
     /// \param data Pointer on a pointer where data pointer will be returned
     /// \param size Pointer on a variable which will stores data size
     /// \returns Returns true in case variable was found, false otherwise (data and size will be untouched)
-    bool get_variable(const std::string& name, char** data, size_t* size) {
+    bool get_variable(const std::string& name, const char** data, size_t* size) const {
         auto varItem = m_variables_index.find(name);
         if (varItem == m_variables_index.end()) {
             return false;
         }
-        *data = varItem->second.data();
-        *size = varItem->second.size();
+        if (data != nullptr) {
+            *data = varItem->second.data();
+        }
+        if (size != nullptr) {
+            *size = varItem->second.size();
+        }
         return true;
     }
 
@@ -74,7 +82,7 @@ public:
     /// \param data Pointer on a pointer where data pointer will be returned
     /// \param size Pointer on a variable which will stores data size
     /// \returns Returns true in case variable was found, false otherwise (data and size will be untouched)
-    bool get_mapped_variable(const std::string& name, char** data, size_t* size) {
+    bool get_mapped_variable(const std::string& name, const char** data, size_t* size) const {
         auto mapItem = m_variables_map.find(name);
         if (mapItem == m_variables_map.end()) {
             return false;
@@ -82,12 +90,28 @@ public:
         return get_variable(mapItem->second, data, size);
     }
 
-    std::shared_ptr<std::ifstream> get_data_file(const int32_t shard_id) {
+    /// \brief Checks if variable has a mapped pair
+    /// \param name Name of variable for checking existance
+    /// \returns True in case variable has mapped value and false otherwise
+    bool has_mapped_variable(const std::string& name) const {
+        auto mapItem = m_variables_map.find(name);
+        return mapItem != m_variables_map.end();
+    }
+
+    /// \brief Returns shared pointer to a requested shard_id, or nullptr in case of shard_id isn't found
+    /// \param shard_id Requested shard_id
+    /// \returns Valid shared_ptr with ifstream or with nullptr if shard isn't found
+    std::shared_ptr<std::ifstream> get_data_file(const int32_t shard_id) const {
         auto result = m_data_files.find(shard_id);
         return result != m_data_files.end() ? result->second : nullptr;
     }
 
-    bool map_variable(const std::string var_name, const std::string map_name, bool rewrite = false) {
+    /// \brief Adds variable mapping to the variables map
+    /// \param var_name Variable full name (from .index file)
+    /// \param map_name Mapped name
+    /// \param rewrite Rewrite mapped value in case it exists
+    /// \returns True if map updated. False if nothing changed (if variable exists and rewrite is false).
+    bool map_variable(const std::string& var_name, const std::string& map_name, bool rewrite = false) {
         if (m_variables_map.find(var_name) != m_variables_map.end() && rewrite == false) {
             return false;
         }
@@ -101,13 +125,13 @@ private:
     void read_variables_index_block(std::ifstream& fs,
                                     const VIBlock* index,
                                     std::vector<char>& data,
-                                    uint32_t* offset,
-                                    uint32_t* offset_end);
-    void read_variables_index_pair(char** ptr,
+                                    uint32_t& offset,
+                                    uint32_t& offset_end);
+    void read_variables_index_pair(char*& ptr,
                                    const char* ptr_end,
                                    std::string& key,
-                                   char** value,
-                                   uint32_t* val_length);
+                                   char*& value,
+                                   uint32_t& val_length);
     void read_variables_index(std::ifstream& fs, std::map<std::string, std::vector<char>>& varIndex);
     void read_bundle_header();
     void read_checkpointable_object_graph();
@@ -120,9 +144,9 @@ class GraphIteratorSavedModel : public GraphIteratorProto {
 
 public:
     template <typename T>
-    GraphIteratorSavedModel(const std::basic_string<T>& path)
+    GraphIteratorSavedModel(const std::basic_string<T>& path, const std::string& tags)
         : m_saved_model(std::make_shared<::tensorflow::SavedModel>()) {
-        this->read_saved_model(path);
+        this->read_saved_model(path, tags);
     }
 
     static bool is_supported(const std::string& path);
@@ -135,10 +159,10 @@ public:
     }
 
 private:
-    bool is_valid_signature(const ::tensorflow::SignatureDef& signature);
+    bool is_valid_signature(const ::tensorflow::SignatureDef& signature) const;
 
     template <typename T>
-    bool read_saved_model(const std::basic_string<T>& path) {
+    bool read_saved_model(const std::basic_string<T>& path, const std::string& tags) {
         std::ifstream sm_stream{path + get_saved_model_name<T>(), std::ifstream::in | std::ifstream::binary};
         FRONT_END_GENERAL_CHECK(sm_stream && sm_stream.is_open(), "Model file does not exist");
 
@@ -155,42 +179,67 @@ private:
         bool res = m_saved_model->ParseFromIstream(&sm_stream);
         FRONT_END_GENERAL_CHECK(res && m_saved_model->meta_graphs_size(), "Saved Model cannot be parsed");
 
-        // Supported only first meta_graph at the moment
-        const ::tensorflow::MetaGraphDef& meta_graph = m_saved_model->meta_graphs(0);
-        FRONT_END_GENERAL_CHECK(meta_graph.has_graph_def(), "Saved Model doesn't contain GraphDef");
-
-        std::vector<std::string> validSignatures = {};
-        for (auto& sit : meta_graph.signature_def()) {
-            const std::string& key = sit.first;
-            const ::tensorflow::SignatureDef& val = sit.second;
-            if (is_valid_signature(val)) {
-                validSignatures.push_back(key);
-            } else {
-                OPENVINO_ASSERT(false, "Saved Model contains invalid signatures");
+        for (const auto& meta_graph : m_saved_model->meta_graphs()) {
+            if (!meta_graph.has_graph_def()) {
+                continue;
             }
+
+            if (m_saved_model->meta_graphs_size() > 1) {
+                bool tag_found = false;
+                for (const auto& tag : meta_graph.meta_info_def().tags()) {
+                    if (tags.find(tag) != std::string::npos) {
+                        tag_found = true;
+                        break;
+                    }
+                }
+                if (!tag_found) {
+                    continue;
+                }
+            }
+
+            std::vector<std::string> validSignatures = {};
+            for (auto& sit : meta_graph.signature_def()) {
+                const std::string& key = sit.first;
+                const ::tensorflow::SignatureDef& val = sit.second;
+                if (is_valid_signature(val)) {
+                    validSignatures.push_back(key);
+                }
+            }
+
+            // TODO: assets reading
+
+            m_graph_def = std::make_shared<::tensorflow::GraphDef>(meta_graph.graph_def());
+
+            // Update variables map using information by resolving AssignVariableOp graph nodes
+            std::map<std::string, std::string> var_map;
+            map_assignvariable(m_graph_def, var_map);
+            for (auto var : var_map) {
+                m_variables_index->map_variable(var.first, var.second);
+            }
+
+            auto nodes_size = m_graph_def->node_size();
+            m_decoders.resize(static_cast<size_t>(nodes_size));
+            for (int node_ind = 0; node_ind < nodes_size; ++node_ind) {
+                m_decoders[node_ind] = std::make_shared<DecoderProto>(&m_graph_def->node(node_ind));
+            }
+
+            // initialize a library map
+            auto num_funcs = m_graph_def->library().function_size();
+            for (int func_ind = 0; func_ind < num_funcs; ++func_ind) {
+                auto func = m_graph_def->library().function(func_ind);
+                auto func_name = func.signature().name();
+                m_library_map.insert(std::pair<std::string, int>(func_name, func_ind));
+            }
+
+            return true;
         }
 
-        // TODO: assets reading
+        FRONT_END_GENERAL_CHECK(false, "Saved Model doesn't contain MetaGraph with requested tag");
 
-        m_graph_def = std::make_shared<::tensorflow::GraphDef>(meta_graph.graph_def());
-
-        // TODO: update loading nodes by using data from separately
-        auto nodes_size = m_graph_def->node_size();
-        m_decoders.resize(static_cast<size_t>(nodes_size));
-        for (int node_ind = 0; node_ind < nodes_size; ++node_ind) {
-            m_decoders[node_ind] = std::make_shared<DecoderProto>(&m_graph_def->node(node_ind));
-        }
-
-        // initialize a library map
-        auto num_funcs = m_graph_def->library().function_size();
-        for (int func_ind = 0; func_ind < num_funcs; ++func_ind) {
-            auto func = m_graph_def->library().function(func_ind);
-            auto func_name = func.signature().name();
-            m_library_map.insert(std::pair<std::string, int>(func_name, func_ind));
-        }
-
-        return true;
+        return false;
     }
+    void map_assignvariable(const std::shared_ptr<::tensorflow::GraphDef> graph_def,
+                            std::map<std::string, std::string>& map_variables);
 };  // GraphIteratorSavedModel
 
 }  // namespace tensorflow

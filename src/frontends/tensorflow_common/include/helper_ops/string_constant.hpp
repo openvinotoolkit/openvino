@@ -20,15 +20,13 @@ public:
 
     StringConstant(ov::Any data, const std::shared_ptr<DecoderBase>& decoder = std::make_shared<DecoderFake>())
         : InternalOperation(decoder, {}, 1),
-          m_data(data),
-          m_str() {
+          m_data(data) {
         validate_and_infer_types();
     }
 
     StringConstant(std::string& str, const std::shared_ptr<DecoderBase>& decoder = std::make_shared<DecoderFake>())
         : InternalOperation(decoder, {}, 1),
-          m_data(),
-          m_str(str) {
+          m_data({str}) {
         validate_and_infer_types();
     }
 
@@ -46,12 +44,12 @@ public:
     }
 
     std::string& get_string() {
-        return m_str;
+        return m_data.as<std::vector<std::string>>()[0];
     }
 
 private:
     ov::Any m_data;
-    std::string m_str;
+    ov::Shape m_shape;
 };
 
 }  // namespace tensorflow

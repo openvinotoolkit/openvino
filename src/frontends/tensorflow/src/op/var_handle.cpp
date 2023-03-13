@@ -4,9 +4,7 @@
 
 #include "common_op_table.hpp"
 #include "graph_iterator_saved_model.hpp"
-#include "helper_ops/assignvariableop.hpp"
 #include "helper_ops/string_constant.hpp"
-#include "helper_ops/uninitialized_constant.hpp"
 #include "helper_ops/unsupported_constant.hpp"
 #include "input_model.hpp"
 #include "openvino/opsets/opset8.hpp"
@@ -60,51 +58,49 @@ OutputVector translate_varhandle_op(const NodeContext& node) {
         const_node = std::make_shared<UnsupportedConstant>();
     } else {
         // Getting variable description from variables index
-        char* entry_data = nullptr;
+        const char* entry_data = nullptr;
         size_t entry_size = 0;
         auto var_name = node.get_name();
         auto shape = node.get_attribute<::ov::PartialShape>("shape").get_shape();
         bool result = var_index->get_mapped_variable(var_name, &entry_data, &entry_size);
 
-        if (result) {
-            ::tensorflow::BundleEntryProto entry;
-            TENSORFLOW_OP_VALIDATION(node,
-                                     entry.ParseFromArray(entry_data, static_cast<int>(entry_size)),
-                                     "[TensorFlow Frontend] Internal error: Cannot get read bundle entry.");
-            switch (ov_type) {
-            case ov::element::u8:
-                const_node = read_variable<uint8_t>(var_index, ov_type, shape, entry, node);
-                break;
-            case ov::element::i8:
-                const_node = read_variable<int8_t>(var_index, ov_type, shape, entry, node);
-                break;
-            case ov::element::i16:
-                const_node = read_variable<int16_t>(var_index, ov_type, shape, entry, node);
-                break;
-            case ov::element::i32:
-                const_node = read_variable<int32_t>(var_index, ov_type, shape, entry, node);
-                break;
-            case ov::element::i64:
-                const_node = read_variable<int64_t>(var_index, ov_type, shape, entry, node);
-                break;
-            case ov::element::f16:
-                const_node = read_variable<float16>(var_index, ov_type, shape, entry, node);
-                break;
-            case ov::element::f32:
-                const_node = read_variable<float>(var_index, ov_type, shape, entry, node);
-                break;
-            case ov::element::f64:
-                const_node = read_variable<double>(var_index, ov_type, shape, entry, node);
-                break;
-            case ov::element::bf16:
-                const_node = read_variable<bfloat16>(var_index, ov_type, shape, entry, node);
-                break;
-            default:
-                FRONT_END_THROW("Encountered unknown element type " + ov_type.get_type_name());
-            }
-        } else {
-            auto ov_shape = node.get_attribute<::ov::PartialShape>("shape").get_shape();
-            const_node = std::make_shared<UninitializedConstant>(ov_type, ov_shape);
+        TENSORFLOW_OP_VALIDATION(node, result, "[TensorFlow Frontend] Internal error: Cannot find requested variable.");
+
+        ::tensorflow::BundleEntryProto entry;
+        TENSORFLOW_OP_VALIDATION(node,
+                                 entry.ParseFromArray(entry_data, static_cast<int>(entry_size)),
+                                 "[TensorFlow Frontend] Internal error: Cannot get read bundle entry.");
+
+        switch (ov_type) {
+        case ov::element::u8:
+            const_node = read_variable<uint8_t>(var_index, ov_type, shape, entry, node);
+            break;
+        case ov::element::i8:
+            const_node = read_variable<int8_t>(var_index, ov_type, shape, entry, node);
+            break;
+        case ov::element::i16:
+            const_node = read_variable<int16_t>(var_index, ov_type, shape, entry, node);
+            break;
+        case ov::element::i32:
+            const_node = read_variable<int32_t>(var_index, ov_type, shape, entry, node);
+            break;
+        case ov::element::i64:
+            const_node = read_variable<int64_t>(var_index, ov_type, shape, entry, node);
+            break;
+        case ov::element::f16:
+            const_node = read_variable<float16>(var_index, ov_type, shape, entry, node);
+            break;
+        case ov::element::f32:
+            const_node = read_variable<float>(var_index, ov_type, shape, entry, node);
+            break;
+        case ov::element::f64:
+            const_node = read_variable<double>(var_index, ov_type, shape, entry, node);
+            break;
+        case ov::element::bf16:
+            const_node = read_variable<bfloat16>(var_index, ov_type, shape, entry, node);
+            break;
+        default:
+            FRONT_END_THROW("Encountered unknown element type " + ov_type.get_type_name());
         }
     }
     set_node_name(node.get_name(), const_node);
@@ -117,9 +113,39 @@ OutputVector translate_varisinitialized_op(const NodeContext& node) {
     return {const_node};
 }
 
+OutputVector translate_readvariable_op(const NodeContext& node) {
+    default_op_checks(node, 1, {"ReadVariableOp"});
+    auto ov_type = node.get_attribute<element::Type>("dtype");
+    // Documentation says it should return only one tensor with dtype, but
+    // _output_shapes in a vector of shapes and it means it could have multiple outputs
+    // https://www.tensorflow.org/api_docs/python/tf/raw_ops/ReadVariableOp
+    auto output_shapes = node.get_attribute<std::vector<::ov::PartialShape>>("_output_shapes");
+
+    OutputVector outs = {};
+
+    for (size_t i = 0; i < output_shapes.size(); ++i) {
+        std::shared_ptr<ov::Node> output_node;
+        if (node.get_input(0).get_partial_shape().is_static() &&
+            output_shapes[i].get_shape() != node.get_input(0).get_shape()) {
+            auto reshape_shape = make_shared<Constant>(ov::element::i32, output_shapes[i].get_shape());
+            output_node = make_shared<Reshape>(node.get_input(0), reshape_shape, false);
+        } else {
+            output_node = node.get_input(0).get_node_shared_ptr();
+        }
+        if (i == 0) {
+            set_out_name(node.get_name(), output_node);
+            set_out_name(node.get_name() + ":" + "0", output_node);
+        } else {
+            set_node_name(node.get_name() + ":" + std::to_string(i), output_node);
+        }
+        outs.push_back(output_node);
+    }
+    return outs;
+}
+
 OutputVector translate_assignvariable_op(const NodeContext& node) {
     default_op_checks(node, 2, {"AssignVariableOp"});
-    auto assignvariableop_node = std::make_shared<AssignVariableOp>();
+    auto assignvariableop_node = std::make_shared<UnsupportedConstant>();
     set_node_name(node.get_name(), assignvariableop_node);
     return {assignvariableop_node};
 }
@@ -139,55 +165,7 @@ OutputVector translate_restorev2_op(const NodeContext& node) {
     OutputVector outs = {};
 
     for (size_t i = 0; i < tensor_names.size(); ++i) {
-        std::shared_ptr<ov::Node> const_node;
-        if (var_index->has_mapped_variable(tensor_names[i])) {
-            const_node = std::make_shared<UnsupportedConstant>();
-        } else {
-            size_t entry_size = 0;
-            char* entry_data = nullptr;
-            ::tensorflow::BundleEntryProto entry;
-            if (var_index->get_variable(tensor_names[i], &entry_data, &entry_size) &&
-                entry.ParseFromArray(entry_data, static_cast<int>(entry_size))) {
-                auto ov_type = tensor_types[i];
-                // Calculate one dimentional shape (will be reshaped on normalization step)
-                // Ignores undefined types (like a string)
-                size_t dimension = entry.size() / (ov_type != ov::element::undefined ? ov_type.size() : 1);
-                // Reads one dimentional data, will be reshaped on normalization step
-                auto shape = ov::Shape{dimension};
-
-                switch (ov_type) {
-                case ov::element::u8:
-                    const_node = read_variable<uint8_t>(var_index, ov_type, shape, entry, node);
-                    break;
-                case ov::element::i8:
-                    const_node = read_variable<int8_t>(var_index, ov_type, shape, entry, node);
-                    break;
-                case ov::element::i16:
-                    const_node = read_variable<int16_t>(var_index, ov_type, shape, entry, node);
-                    break;
-                case ov::element::i32:
-                    const_node = read_variable<int32_t>(var_index, ov_type, shape, entry, node);
-                    break;
-                case ov::element::i64:
-                    const_node = read_variable<int64_t>(var_index, ov_type, shape, entry, node);
-                    break;
-                case ov::element::f16:
-                    const_node = read_variable<float16>(var_index, ov_type, shape, entry, node);
-                    break;
-                case ov::element::f32:
-                    const_node = read_variable<float>(var_index, ov_type, shape, entry, node);
-                    break;
-                case ov::element::f64:
-                    const_node = read_variable<double>(var_index, ov_type, shape, entry, node);
-                    break;
-                case ov::element::bf16:
-                    const_node = read_variable<bfloat16>(var_index, ov_type, shape, entry, node);
-                    break;
-                default:
-                    const_node = std::make_shared<UnsupportedConstant>();
-                }
-            }
-        }
+        auto const_node = std::make_shared<UnsupportedConstant>();
         if (i == 0)
             set_node_name(node.get_name(), const_node);
         else

@@ -8,6 +8,7 @@
 #include <string>
 
 #include "graph_iterator_saved_model.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "tensor_bundle.pb.h"
 #include "trackable_object_graph.pb.h"
 
@@ -25,10 +26,10 @@ static T smReadFixed(const char* ptr) {
 }
 
 template <typename T>
-static T smUnpack(char** ptr, const char* ptr_end) {
+static T smUnpack(char*& ptr, const char* ptr_end) {
     T result = 0;
-    for (uint8_t i = 0; i < sizeof(T) * 7 && *ptr < ptr_end; i += 7) {
-        T byte = *((*ptr)++);
+    for (uint8_t i = 0; i < sizeof(T) * 7 && ptr < ptr_end; i += 7) {
+        T byte = *(ptr++);
         if (byte & 0x80) {
             result |= ((byte & 0x7F) << i);
         } else {
@@ -43,7 +44,7 @@ struct VIBlock {
     uint64_t m_size;
     uint64_t m_offset;
 
-    void read(char** ptr, const char* ptr_end) {
+    void read(char*& ptr, const char* ptr_end) {
         m_offset = smUnpack<uint64_t>(ptr, ptr_end);
         m_size = smUnpack<uint64_t>(ptr, ptr_end);
     }
@@ -53,7 +54,7 @@ struct VIFooter {
     VIBlock m_metaIndex;
     VIBlock m_index;
 
-    void read(char** ptr, const char* ptr_end) {
+    void read(char*& ptr, const char* ptr_end) {
         m_index.read(ptr, ptr_end);
         m_metaIndex.read(ptr, ptr_end);
     }
@@ -74,16 +75,16 @@ struct VIFooter {
         FRONT_END_GENERAL_CHECK(magic_no == 0xdb4775248b80fb57ull, "Wrong index file, magic number mismatch detected");
 
         ptr = &footerData[0];
-        m_metaIndex.read(&ptr, ptr + sizeof(footerData));
-        m_index.read(&ptr, ptr + sizeof(footerData));
+        m_metaIndex.read(ptr, ptr + sizeof(footerData));
+        m_index.read(ptr, ptr + sizeof(footerData));
     }
 };
 
 void SavedModelVariablesIndex::read_variables_index_block(std::ifstream& fs,
                                                           const VIBlock* index,
                                                           std::vector<char>& data,
-                                                          uint32_t* offset,
-                                                          uint32_t* offset_end) {
+                                                          uint32_t& offset,
+                                                          uint32_t& offset_end) {
     data.clear();
     data.resize(index->m_size + 5 /*kBlockTrailerSize*/);
     fs.seekg(index->m_offset, std::ios::beg);
@@ -92,19 +93,19 @@ void SavedModelVariablesIndex::read_variables_index_block(std::ifstream& fs,
     uint32_t numRestarts = smReadFixed<uint32_t>(data.data() + index->m_size - sizeof(uint32_t));
     size_t maxRestarts = (index->m_size - sizeof(uint32_t)) / sizeof(uint32_t);
     FRONT_END_GENERAL_CHECK(maxRestarts >= numRestarts, "Wrong restarts value");
-    *offset_end = static_cast<uint32_t>(index->m_size) - ((numRestarts + 1) * sizeof(uint32_t));
-    *offset = smReadFixed<uint32_t>(data.data() + *offset_end);
+    offset_end = static_cast<uint32_t>(index->m_size) - ((numRestarts + 1) * sizeof(uint32_t));
+    offset = smReadFixed<uint32_t>(data.data() + offset_end);
 }
 
-void SavedModelVariablesIndex::read_variables_index_pair(char** ptr,
+void SavedModelVariablesIndex::read_variables_index_pair(char*& ptr,
                                                          const char* ptr_end,
                                                          std::string& key,
-                                                         char** value,
-                                                         uint32_t* val_length) {
+                                                         char*& value,
+                                                         uint32_t& val_length) {
     uint32_t shared, nonShared;
     shared = smUnpack<uint32_t>(ptr, ptr_end);
     nonShared = smUnpack<uint32_t>(ptr, ptr_end);
-    *val_length = smUnpack<uint32_t>(ptr, ptr_end);
+    val_length = smUnpack<uint32_t>(ptr, ptr_end);
 
     // Key inherits last part of string (shared-size bytes) and appends new string
     // shared_part_key1 //resize(0) + append(shared_part_key1)
@@ -113,10 +114,10 @@ void SavedModelVariablesIndex::read_variables_index_pair(char** ptr,
     // new_shared_key4 //resize(0) + append(new_shared_key4)
     // ...........key5 //resize(11) + append(key5)
     key.resize(shared);
-    key.append(*ptr, nonShared);
+    key.append(ptr, nonShared);
 
-    *value = *ptr + nonShared;
-    *ptr = *value + *val_length;
+    value = ptr + nonShared;
+    ptr = value + val_length;
 }
 
 void SavedModelVariablesIndex::read_variables_index(std::ifstream& fs,
@@ -130,28 +131,28 @@ void SavedModelVariablesIndex::read_variables_index(std::ifstream& fs,
 
     uint32_t offset = 0, offset_end = 0;
 
-    read_variables_index_block(fs, &footer.m_index, blockData, &offset, &offset_end);
+    read_variables_index_block(fs, &footer.m_index, blockData, offset, offset_end);
     char *ptr = blockData.data() + offset, *ptr_end = blockData.data() + offset_end, *value = nullptr;
     std::string key = "";
     uint32_t valLength;
 
     while (ptr < ptr_end) {
-        read_variables_index_pair(&ptr, ptr_end, key, &value, &valLength);
+        read_variables_index_pair(ptr, ptr_end, key, value, valLength);
 
         VIBlock valBlock;
-        valBlock.read(&value, value + valLength);
+        valBlock.read(value, value + valLength);
         secondLevel.push_back(valBlock);
         ptr = value + valLength;
     }
 
     for (auto& block : secondLevel) {
-        read_variables_index_block(fs, &block, blockData, &offset, &offset_end);
+        read_variables_index_block(fs, &block, blockData, offset, offset_end);
 
         key = "";
         ptr = blockData.data() + offset;
         ptr_end = blockData.data() + offset_end;
         while (ptr < ptr_end) {
-            read_variables_index_pair(&ptr, ptr_end, key, &value, &valLength);
+            read_variables_index_pair(ptr, ptr_end, key, value, valLength);
             varIndex[key] = std::vector<char>(value, value + valLength);
         }
     }
@@ -210,17 +211,26 @@ void SavedModelVariablesIndex::read_checkpointable_object_graph() {
     }
 }
 
-bool GraphIteratorSavedModel::is_valid_signature(const ::tensorflow::SignatureDef& signature) {
+bool GraphIteratorSavedModel::is_valid_signature(const ::tensorflow::SignatureDef& signature) const {
+    const std::map<::tensorflow::DataType, ov::element::Type> types{
+        {::tensorflow::DataType::DT_BOOL, ov::element::boolean},
+        {::tensorflow::DataType::DT_INT16, ov::element::i16},
+        {::tensorflow::DataType::DT_INT32, ov::element::i32},
+        {::tensorflow::DataType::DT_INT64, ov::element::i64},
+        {::tensorflow::DataType::DT_HALF, ov::element::f16},
+        {::tensorflow::DataType::DT_FLOAT, ov::element::f32},
+        {::tensorflow::DataType::DT_DOUBLE, ov::element::f64},
+        {::tensorflow::DataType::DT_UINT8, ov::element::u8},
+        {::tensorflow::DataType::DT_INT8, ov::element::i8},
+        {::tensorflow::DataType::DT_BFLOAT16, ov::element::bf16},
+        {::tensorflow::DataType::DT_STRING, ov::element::undefined}};
+
     for (const auto& it : signature.inputs()) {
-        if (it.second.name().empty()
-            //			|| !isRefType(it.second.dtype())
-        )
+        if (it.second.name().empty() || types.find(it.second.dtype()) == types.end())
             return false;
     }
     for (const auto& it : signature.outputs()) {
-        if (it.second.name().empty()
-            //			|| !isRefType(it.second.dtype())
-        )
+        if (it.second.name().empty() || types.find(it.second.dtype()) == types.end())
             return false;
     }
     return true;
@@ -264,6 +274,156 @@ bool SavedModelVariablesIndex::read_variables(std::ifstream& vi_stream, const st
     return true;
 }
 #endif
+
+struct pNode {
+    const ::tensorflow::NodeDef* node;
+    std::vector<pNode*> inputs;
+    std::vector<pNode*> outputs;
+
+    pNode() : node(nullptr), inputs(), outputs() {}
+
+    pNode(const ::tensorflow::NodeDef& src_node, const std::map<std::string, pNode*>& node_dictionary) {
+        node = &src_node;
+        std::vector<std::string> parsedName;
+        for (const auto& input_name : node->input()) {
+            parse_node_name(input_name, parsedName);
+
+            auto input_node = node_dictionary.find(parsedName[0]);
+            if (input_node == node_dictionary.end()) {
+                continue;
+            }
+
+            input_node->second->outputs.push_back(this);
+            inputs.push_back(input_node->second);
+        }
+    }
+
+    void find_parent_by_op(const std::string& op, std::vector<pNode*>& result) {
+        for (auto input : inputs) {
+            if (input->op() == op) {
+                result.push_back(input);
+            }
+            input->find_parent_by_op(op, result);
+        }
+    }
+
+    static void parse_node_name(const std::string& name, std::vector<std::string>& result) {
+        result.clear();
+        size_t left_pos = name.find_first_of('^'), right_pos = name.find(':');
+        if (left_pos != std::string::npos && left_pos < right_pos) {
+            ++left_pos;
+        } else {
+            left_pos = 0;
+        }
+        while (right_pos != std::string::npos && right_pos > left_pos) {
+            result.push_back(name.substr(left_pos, right_pos - left_pos));
+            left_pos = right_pos + 1;
+            right_pos = name.find(':', left_pos);
+        }
+        result.push_back(name.substr(left_pos, name.length() - left_pos));
+    }
+
+    const std::string& op() {
+        return node->op();
+    }
+};
+
+static void read_stateful_partitioned_call(const std::shared_ptr<::tensorflow::GraphDef> graph_def,
+                                           const ::tensorflow::NodeDef& partCall,
+                                           std::map<std::string, pNode*>& node_dictionary) {
+    FRONT_END_GENERAL_CHECK(partCall.op() == "StatefulPartitionedCall", "Passed node isn't StatefulPartitionedCall");
+
+    std::string func_name = partCall.attr().at("f").func().name();
+
+    const ::tensorflow::FunctionDef* func_def = nullptr;
+    for (const auto& func : graph_def->library().function()) {
+        if (func.signature().name() == func_name) {
+            func_def = &func;
+            break;
+        }
+    }
+
+    FRONT_END_GENERAL_CHECK(func_def, "Function isn't found in the library");
+    FRONT_END_GENERAL_CHECK(graph_def->has_library(), "GraphDef contains functions, but doesn't have the library");
+
+    std::map<std::string, pNode*> nodes;
+
+    // Fill temporary input nodes for exact function
+    for (int i = 0; i < func_def->signature().input_arg_size(); ++i) {
+        const auto& input_arg = func_def->signature().input_arg(i).name();
+        const auto& parent_input = partCall.input(i);
+        auto input_node = node_dictionary.find(parent_input);
+        if (input_node != node_dictionary.end()) {
+            nodes[input_arg] = input_node->second;
+        }
+    }
+
+    // Parsing nodes and inline partitioned calls
+    for (const auto& node : func_def->node_def()) {
+        nodes[node.name()] = new pNode(node, nodes);
+
+        if (node.op() == "StatefulPartitionedCall") {
+            read_stateful_partitioned_call(graph_def, node, nodes);
+        }
+    }
+
+    // Removing temporary input nodes
+    for (int i = 0; i < func_def->signature().input_arg_size(); ++i) {
+        const auto& input_arg = func_def->signature().input_arg(i).name();
+        auto input_node = nodes.find(input_arg);
+        if (input_node != nodes.end()) {
+            nodes.erase(input_node);
+        }
+    }
+
+    // Moving nodes to the global dictionary
+    for (auto node : nodes) {
+        std::string global_name = partCall.name() + "/" + node.first;
+        node_dictionary[global_name] = node.second;
+    }
+}
+
+void GraphIteratorSavedModel::map_assignvariable(const std::shared_ptr<::tensorflow::GraphDef> graph_def,
+                                                 std::map<std::string, std::string>& map_variables) {
+    std::map<std::string, pNode*> nodes;
+
+    for (const auto& node : graph_def->node()) {
+        nodes[node.name()] = new pNode(node, nodes);
+
+        if (node.op() == "StatefulPartitionedCall") {
+            read_stateful_partitioned_call(graph_def, node, nodes);
+        }
+    }
+
+    for (const auto node : nodes) {
+        if (node.second->op() != "AssignVariableOp") {
+            continue;
+        }
+
+        std::vector<pNode*> restorev2_nodes;
+        std::vector<pNode*> varhandle_nodes;
+
+        node.second->find_parent_by_op("RestoreV2", restorev2_nodes);
+        node.second->find_parent_by_op("VarHandleOp", varhandle_nodes);
+
+        FRONT_END_GENERAL_CHECK(restorev2_nodes.size() == 1, "Found unexpected amount of RestoreV2 nodes");
+        FRONT_END_GENERAL_CHECK(varhandle_nodes.size() == 1, "Found unexpected amount of VarHandleOp nodes");
+
+        std::vector<std::string> restore_output;
+        // Expected path is: RestoreV2 -(output_index)-(0)-> Identity -(0)-(1)-> AssignVariableOp
+        pNode::parse_node_name(node.second->inputs[1]->node->input(0), restore_output);
+
+        int output_index = std::atoi(restore_output[restore_output.size() - 1].c_str());
+
+        // Expected path is: Const(tensor_names) -(0)-(1)-> RestoreV2
+        const auto& variable_name =
+            restorev2_nodes[0]->inputs[1]->node->attr().at("value").tensor().string_val(output_index);
+
+        map_variables[varhandle_nodes[0]->node->name()] = variable_name;
+    }
+
+    nodes.clear();
+}
 
 bool GraphIteratorSavedModel::is_supported(const std::string& path) {
     return ov::util::directory_exists(path) && ov::util::file_exists(ov::util::path_join({path, "saved_model.pb"}));

@@ -124,7 +124,12 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
             // handle binary protobuf format
             return std::make_shared<InputModel>(std::make_shared<GraphIteratorProto>(model_path), m_telemetry);
         } else if (GraphIteratorSavedModel::is_supported(model_path)) {
-            auto graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path);
+            std::shared_ptr<GraphIteratorSavedModel> graph_iterator;
+            if (variants.size() > 1 && variants[1].is<std::string>()) {
+                graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, variants[1].as<std::string>());
+            } else {
+                graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, std::string("serve"));
+            }
             return std::make_shared<InputModel>(graph_iterator, m_telemetry, graph_iterator->get_variables_index());
         }
     }
@@ -135,7 +140,14 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
             // handle binary protobuf format with a path in Unicode
             return std::make_shared<InputModel>(std::make_shared<GraphIteratorProto>(model_path), m_telemetry);
         } else if (GraphIteratorSavedModel::is_supported(model_path)) {
-            auto graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path);
+            std::shared_ptr<GraphIteratorSavedModel> graph_iterator;
+            if (variants.size() > 1 && variants[1].is<std::string>()) {
+                graph_iterator = std::make_shared<GraphIteratorSavedModel>(
+                    model_path,
+                    ov::util::wstring_to_string(variants[1].as<std::wstring>()));
+            } else {
+                graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, std::string("serve"));
+            }
             return std::make_shared<InputModel>(graph_iterator, m_telemetry, graph_iterator->get_variables_index());
         }
     }
