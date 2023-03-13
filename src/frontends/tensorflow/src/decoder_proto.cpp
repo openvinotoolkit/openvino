@@ -195,7 +195,7 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         const auto& tf_type = tensor_proto.dtype();
         auto ov_type = get_ov_type(tf_type);
         FRONT_END_GENERAL_CHECK(
-            ov_type != ov::element::undefined,
+            ov_type.s_static(),
             "Encountered unknown element type " + DataType_Name(tf_type) + " on an empty tensor_proto");
         ov::Tensor res(ov_type, pshape.get_shape());
         auto tensor_content = tensor_proto.tensor_content();
