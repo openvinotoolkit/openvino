@@ -134,10 +134,6 @@ struct CPUStreamsExecutor::Impl {
                     : (stream_id < _impl->_config._big_core_streams + _impl->_config._big_core_logic_streams
                            ? _impl->_config._threads_per_stream_big
                            : _impl->_config._threads_per_stream_small);
-            const auto selected_core_type =
-                (stream_id < _impl->_config._big_core_streams + _impl->_config._big_core_logic_streams)
-                    ? custom::info::core_types().back()
-                    : custom::info::core_types().front();
             if (ThreadBindingType::CORES == _impl->_config._threadBindingType ||
                 ThreadBindingType::NONE == _impl->_config._threadBindingType || _impl->any_cores ||
                 _streamId >= _impl->_config._streams) {
@@ -146,6 +142,10 @@ struct CPUStreamsExecutor::Impl {
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
             } else if (ThreadBindingType::HYBRID_AWARE == _impl->_config._threadBindingType) {
 #    ifdef _WIN32
+                const auto selected_core_type =
+                    (stream_id < _impl->_config._big_core_streams + _impl->_config._big_core_logic_streams)
+                        ? custom::info::core_types().back()
+                        : custom::info::core_types().front();
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                             .set_core_type(selected_core_type)
                                                             .set_max_concurrency(concurrency)});
