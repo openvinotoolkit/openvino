@@ -197,16 +197,26 @@ TEST(CoreTests_parse_device_config, get_device_config) {
     };
     // Single device
     check_parsed_config("DEVICE.0", ov::AnyMap{}, "DEVICE", ov::AnyMap{ov::device::id("0")});
+    // simple flattening
     check_parsed_config("DEVICE",
                         ov::AnyMap{ov::device::properties("DEVICE", ov::log::level(ov::log::Level::ERR))},
                         "DEVICE",
                         ov::AnyMap{ov::log::level(ov::log::Level::ERR)});
+    // sub-property has flattened, property is kept as is, device_id is moved to property
+    check_parsed_config(
+        "DEVICE.X",
+        ov::AnyMap{ov::num_streams(5),
+                    ov::device::properties("DEVICE", ov::log::level(ov::log::Level::ERR))},
+        "DEVICE",
+        ov::AnyMap{ov::device::id("X"), ov::num_streams(5), ov::log::level(ov::log::Level::ERR)});
+    // explicit device sub-property has higher priority than ov::AnyMap
     check_parsed_config(
         "DEVICE",
         ov::AnyMap{ov::device::properties("DEVICE", ov::log::level(ov::log::Level::ERR)),
                    ov::device::properties(ov::AnyMap{{"DEVICE", ov::AnyMap{ov::log::level(ov::log::Level::WARNING)}}})},
         "DEVICE",
         ov::AnyMap{ov::log::level(ov::log::Level::ERR)});
+    // property always has higher priority than sub-property
     check_parsed_config(
         "DEVICE",
         ov::AnyMap{ov::log::level(ov::log::Level::DEBUG),
@@ -214,14 +224,36 @@ TEST(CoreTests_parse_device_config, get_device_config) {
                    ov::device::properties(ov::AnyMap{{"DEVICE", ov::AnyMap{ov::log::level(ov::log::Level::WARNING)}}})},
         "DEVICE",
         ov::AnyMap{ov::log::level(ov::log::Level::DEBUG)});
+    // DEVICE.X is not applicable for DEVICE
+    check_parsed_config(
+        "DEVICE",
+        ov::AnyMap{ov::device::properties("DEVICE.X", ov::log::level(ov::log::Level::ERR)),
+                   ov::device::properties(ov::AnyMap{{"DEVICE", ov::AnyMap{ov::log::level(ov::log::Level::WARNING)}}})},
+        "DEVICE",
+        ov::AnyMap{ov::log::level(ov::log::Level::WARNING)});
+    // properties for another device (for example, MULTI) are dropped
+    check_parsed_config("DEVICE",
+                        ov::AnyMap{ov::device::properties("MULTI", ov::log::level(ov::log::Level::ERR))},
+                        "DEVICE",
+                        ov::AnyMap{});
+    // device ID mismatch
+    EXPECT_THROW(ov::parseDeviceNameIntoConfig("DEVICE.X", ov::AnyMap{ov::device::id("Y")}), InferenceEngine::Exception);
+
     // HETERO
     check_parsed_config("HETERO:DEVICE", ov::AnyMap{}, "HETERO", ov::AnyMap{ov::device::priorities("DEVICE")});
     check_parsed_config(
         "HETERO:DEVICE",
-        ov::AnyMap{ov::device::properties("DEVICE", ov::log::level(ov::log::Level::ERR))},
+        ov::AnyMap{ov::device::properties("ANOTHER_DEVICE", ov::log::level(ov::log::Level::ERR))},
         "HETERO",
         ov::AnyMap{ov::device::priorities("DEVICE"),
-                   ov::device::properties(ov::AnyMap{{"DEVICE", ov::AnyMap{ov::log::level(ov::log::Level::ERR)}}})});
+                   ov::device::properties(ov::AnyMap{{"ANOTHER_DEVICE", ov::AnyMap{ov::log::level(ov::log::Level::ERR)}}})});
+    check_parsed_config(
+        "HETERO:DEVICE",
+        ov::AnyMap{ov::device::properties("HETERO", ov::log::level(ov::log::Level::WARNING)),
+                   ov::device::properties("ANOTHER_DEVICE", ov::log::level(ov::log::Level::ERR))},
+        "HETERO",
+        ov::AnyMap{ov::device::priorities("DEVICE"), ov::log::level(ov::log::Level::WARNING),
+                   ov::device::properties(ov::AnyMap{{"ANOTHER_DEVICE", ov::AnyMap{ov::log::level(ov::log::Level::ERR)}}})});
     check_parsed_config(
         "HETERO:DEVICE",
         ov::AnyMap{ov::device::properties("DEVICE", ov::log::level(ov::log::Level::ERR)),
@@ -237,6 +269,10 @@ TEST(CoreTests_parse_device_config, get_device_config) {
         "HETERO",
         ov::AnyMap{ov::device::priorities("DEVICE"),
                    ov::device::properties(ov::AnyMap{{"DEVICE", ov::AnyMap{ov::log::level(ov::log::Level::ERR)}}})});
+    // device priorities mismatch
+    EXPECT_THROW(ov::parseDeviceNameIntoConfig("HETERO:DEVICE",
+        ov::AnyMap{ov::device::priorities("ANOTHER_DEVICE")}), InferenceEngine::Exception);
+
     // MULTI
     check_parsed_config("MULTI:DEVICE", ov::AnyMap{}, "MULTI", ov::AnyMap{ov::device::priorities("DEVICE")});
     check_parsed_config(
@@ -260,6 +296,7 @@ TEST(CoreTests_parse_device_config, get_device_config) {
         "MULTI",
         ov::AnyMap{ov::device::priorities("DEVICE"),
                    ov::device::properties(ov::AnyMap{{"DEVICE", ov::AnyMap{ov::log::level(ov::log::Level::ERR)}}})});
+
     // AUTO
     check_parsed_config("AUTO:DEVICE", ov::AnyMap{}, "AUTO", ov::AnyMap{ov::device::priorities("DEVICE")});
     check_parsed_config(
@@ -283,20 +320,21 @@ TEST(CoreTests_parse_device_config, get_device_config) {
         "AUTO",
         ov::AnyMap{ov::device::priorities("DEVICE"),
                    ov::device::properties(ov::AnyMap{{"DEVICE", ov::AnyMap{ov::log::level(ov::log::Level::ERR)}}})});
+
     // BATCH
-    check_parsed_config("BATCH:DEVICE", ov::AnyMap{}, "BATCH", ov::AnyMap{{"AUTO_BATCH_DEVICE_CONFIG", "DEVICE"}});
+    check_parsed_config("BATCH:DEVICE", ov::AnyMap{}, "BATCH", ov::AnyMap{{ov::device::priorities.name(), "DEVICE"}});
     check_parsed_config(
         "BATCH:DEVICE",
         ov::AnyMap{ov::device::properties("DEVICE", ov::log::level(ov::log::Level::ERR))},
         "BATCH",
-        ov::AnyMap{std::make_pair<std::string, ov::Any>("AUTO_BATCH_DEVICE_CONFIG", "DEVICE"),
+        ov::AnyMap{std::make_pair<std::string, ov::Any>(ov::device::priorities.name(), "DEVICE"),
                    ov::device::properties(ov::AnyMap{{"DEVICE", ov::AnyMap{ov::log::level(ov::log::Level::ERR)}}})});
     check_parsed_config(
         "BATCH:DEVICE",
         ov::AnyMap{ov::device::properties("DEVICE", ov::log::level(ov::log::Level::ERR)),
                    ov::device::properties(ov::AnyMap{{"DEVICE", ov::AnyMap{ov::num_streams(5)}}})},
         "BATCH",
-        ov::AnyMap{std::make_pair<std::string, ov::Any>("AUTO_BATCH_DEVICE_CONFIG", "DEVICE"),
+        ov::AnyMap{std::make_pair<std::string, ov::Any>(ov::device::priorities.name(), "DEVICE"),
                    ov::device::properties(
                        ov::AnyMap{{"DEVICE", ov::AnyMap{ov::log::level(ov::log::Level::ERR), ov::num_streams(5)}}})});
     check_parsed_config(
@@ -304,6 +342,6 @@ TEST(CoreTests_parse_device_config, get_device_config) {
         ov::AnyMap{ov::device::properties("DEVICE", ov::log::level(ov::log::Level::ERR)),
                    ov::device::properties(ov::AnyMap{{"DEVICE", ov::AnyMap{ov::log::level(ov::log::Level::WARNING)}}})},
         "BATCH",
-        ov::AnyMap{std::make_pair<std::string, ov::Any>("AUTO_BATCH_DEVICE_CONFIG", "DEVICE"),
+        ov::AnyMap{std::make_pair<std::string, ov::Any>(ov::device::priorities.name(), "DEVICE"),
                    ov::device::properties(ov::AnyMap{{"DEVICE", ov::AnyMap{ov::log::level(ov::log::Level::ERR)}}})});
 }

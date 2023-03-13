@@ -28,6 +28,7 @@ namespace AutoBatchPlugin {
 using namespace InferenceEngine;
 
 std::vector<std::string> supported_configKeys = {CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG),
+                                                 ov::device::priorities.name(),
                                                  CONFIG_KEY(AUTO_BATCH_TIMEOUT),
                                                  CONFIG_KEY(CACHE_DIR)};
 
@@ -731,6 +732,8 @@ RemoteContext::Ptr AutoBatchInferencePlugin::CreateContext(const InferenceEngine
     auto cfg = config;
     auto it = cfg.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
     if (it == cfg.end())
+        it = cfg.find(ov::device::priorities.name());
+    if (it == cfg.end())
         IE_THROW() << "Value for KEY_AUTO_BATCH_DEVICE_CONFIG is not set";
 
     auto val = it->second.as<std::string>();
@@ -762,7 +765,8 @@ void AutoBatchInferencePlugin::CheckConfig(const std::map<std::string, std::stri
         const auto val = kvp.second;
         if (supported_configKeys.end() == std::find(supported_configKeys.begin(), supported_configKeys.end(), name))
             IE_THROW() << "Unsupported config key: " << name;
-        if (name == CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)) {
+        if (name == CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) ||
+            name == ov::device::priorities.name()) {
             ParseBatchDevice(val);
         } else if (name == CONFIG_KEY(AUTO_BATCH_TIMEOUT)) {
             try {
@@ -826,6 +830,8 @@ InferenceEngine::IExecutableNetworkInternal::Ptr AutoBatchInferencePlugin::LoadN
     }
     auto fullConfig = mergeConfigs(_config, config);
     auto device_batch = fullConfig.find(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG));
+    if (device_batch == fullConfig.end())
+        device_batch = fullConfig.find(ov::device::priorities.name());
     if (device_batch == fullConfig.end()) {
         IE_THROW() << "KEY_AUTO_BATCH key is not set for BATCH device";
     }
@@ -997,13 +1003,14 @@ InferenceEngine::QueryNetworkResult AutoBatchInferencePlugin::QueryNetwork(
         return InferenceEngine::QueryNetworkResult();
     auto cfg = config;
     for (auto c : cfg) {
-        if (c.first == CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)) {
+        if (c.first == CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) ||
+            c.first == ov::device::priorities.name()) {
             auto val = c.second;
             cfg.erase(c.first);
             auto metaDevice = ParseMetaDevice(val, cfg);
             return core->QueryNetwork(network, metaDevice.deviceName, cfg);
         }
     }
-    IE_THROW() << "Value for KEY_AUTO_BATCH is not set";
+    IE_THROW() << "Value for KEY_AUTO_BATCH_DEVICE_CONFIG is not set";
 }
 }  // namespace AutoBatchPlugin

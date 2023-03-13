@@ -31,20 +31,12 @@ namespace ov {
 
 const std::string DEFAULT_DEVICE_NAME = "DEFAULT_DEVICE";
 
-template <typename T>
 struct Parsed {
     std::string _deviceName;
-    std::map<std::string, T> _config;
+    AnyMap _config;
 };
 
-template <typename T>
-ov::Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::map<std::string, T>& config = {});
-
-template <>
-ov::Parsed<std::string> parseDeviceNameIntoConfig(const std::string& deviceName, const std::map<std::string, std::string>& config);
-
-template <>
-ov::Parsed<ov::Any> parseDeviceNameIntoConfig(const std::string& deviceName, const std::map<std::string, ov::Any>& config);
+Parsed parseDeviceNameIntoConfig(const std::string& deviceName, const AnyMap& config = {});
 
 /**
  * @brief Checks whether config is applicable for device with 'device_name'
@@ -417,7 +409,7 @@ public:
 
     ov::RemoteContext create_context(const std::string& device_name, const AnyMap& args) const override;
 
-    ov::AnyMap get_supported_property(const std::string& device_name, const ov::AnyMap& config) const;
+    ov::AnyMap get_supported_property(const std::string& device_name, const ov::AnyMap& config) const override;
 
     bool is_new_api() const override;
 
