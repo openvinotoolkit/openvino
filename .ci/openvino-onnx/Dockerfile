@@ -27,7 +27,7 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
 # OpenVINO dependencies
         build-essential \
         ninja-build \
-        cmake \
+        cmake=3.24.0 \
         curl \
         git \
         unzip \
