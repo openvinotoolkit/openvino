@@ -390,7 +390,7 @@ void init_tensor(const ov::Tensor& tensor, bool input) {
         init_tensor<ov::element_type_traits<ov::element::u64>::value_type>(tensor, input);
         break;
     default:
-        OPENVINO_UNREACHABLE("Unsupported data type");
+        OPENVINO_THROW("Unsupported data type");
     }
 }
 
@@ -436,7 +436,7 @@ void compare_tensors(const ov::Tensor& src, const ov::Tensor& dst) {
         compare_data<ov::element_type_traits<ov::element::u64>::value_type>(src, dst);
         break;
     default:
-        OPENVINO_UNREACHABLE("Unsupported data type");
+        OPENVINO_THROW("Unsupported data type");
     }
 }
 }  // namespace

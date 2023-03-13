@@ -65,7 +65,7 @@ inline std::ostream& operator<<(std::ostream& os, const Protocol& protocol) {
     case Protocol::USB:
         return os << "MYRIAD_USB";
     default:
-        throw ov::Exception{"Unsupported myriad protocol"};
+        OPENVINO_THROW("Unsupported myriad protocol");
     }
 };
 inline std::istream& operator>>(std::istream& is, Protocol& protocol) {
@@ -76,7 +76,7 @@ inline std::istream& operator>>(std::istream& is, Protocol& protocol) {
     } else if (str == "MYRIAD_USB") {
         protocol = Protocol::USB;
     } else {
-        throw ov::Exception{"Unsupported myriad protocol: " + str};
+        OPENVINO_THROW("Unsupported myriad protocol: ", str);
     }
     return is;
 };
@@ -122,7 +122,7 @@ inline std::ostream& operator<<(std::ostream& os, const DDRType& ddrType) {
     case DDRType::MYRIAD_DDR_MICRON_1GB:
         return os << "MYRIAD_DDR_MICRON_1GB";
     default:
-        throw ov::Exception{"Unsupported myriad ddr type"};
+        OPENVINO_THROW("Unsupported myriad ddr type");
     }
 };
 
@@ -140,7 +140,7 @@ inline std::istream& operator>>(std::istream& is, DDRType& ddrType) {
     } else if (str == "MYRIAD_DDR_MICRON_1GB") {
         ddrType = DDRType::MYRIAD_DDR_MICRON_1GB;
     } else {
-        throw ov::Exception{"Unsupported myriad protocol: " + str};
+        OPENVINO_THROW("Unsupported myriad protocol: ", str);
     }
     return is;
 };
