@@ -18,7 +18,7 @@
 #endif
 
 using namespace InferenceEngine;
-using namespace pugixml_utils;
+using namespace pugixml::utils;
 
 #define CheckAndReturnError(cond, errorMsg) \
     if (cond) { std::stringstream ss; ss << errorMsg; m_ErrorMessage = ss.str(); return; }

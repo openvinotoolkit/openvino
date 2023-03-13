@@ -11,7 +11,7 @@ namespace InferenceEngine {
 namespace details {
 
 inline size_t get_ir_version(pugi::xml_node& root) {
-    return pugixml_utils::GetUIntAttr(root, "version", 0);
+    return pugixml::utils::GetUIntAttr(root, "version", 0);
 }
 
 /**

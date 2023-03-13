@@ -28,13 +28,13 @@ XmlDeserializer::IoMap XmlDeserializer::updated_io_map(const pugi::xml_node& nod
     auto extend_io_map = io_map;
 
     FOREACH_CHILD (layer, body_node.child("layers"), "layer") {
-        auto type = pugixml_utils::GetStrAttr(layer, "type");
+        auto type = pugixml::utils::GetStrAttr(layer, "type");
 
         if (type == "Parameter") {
-            auto id = pugixml_utils::GetUIntAttr(layer, "id");
+            auto id = pugixml::utils::GetUIntAttr(layer, "id");
             extend_io_map.inputs.insert({id, -1});  // try add as unconnected
         } else if (type == "Result") {
-            auto id = pugixml_utils::GetUIntAttr(layer, "id");
+            auto id = pugixml::utils::GetUIntAttr(layer, "id");
             extend_io_map.outputs.insert({id, -1});  // try add as unconnected
         }
     }
@@ -53,23 +53,23 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> Xml
     // Parse PortMap: external_port_id for inputs does not always appear in consecutive order
     std::map<uint64_t, pugi::xml_node> input_map;
     FOREACH_CHILD (input, node.child(port_map_name.c_str()), "input") {
-        int64_t ext_port_id = pugixml_utils::GetInt64Attr(input, "external_port_id");
+        int64_t ext_port_id = pugixml::utils::GetInt64Attr(input, "external_port_id");
         input_map.emplace(ext_port_id, input);
     }
 
     for (const auto& input : input_map) {
         auto& xml_input = input.second;
         auto axis_attr = xml_input.attribute("axis");
-        int64_t ti_input_index = pugixml_utils::GetInt64Attr(xml_input, "external_port_id");
-        size_t body_parameter_index = pugixml_utils::GetUIntAttr(xml_input, "internal_layer_id");
+        int64_t ti_input_index = pugixml::utils::GetInt64Attr(xml_input, "external_port_id");
+        size_t body_parameter_index = pugixml::utils::GetUIntAttr(xml_input, "internal_layer_id");
 
         // if axis is set, then slicing is enabled. Create ngraph::TensorIterator::SlicedInput.
         if (!axis_attr.empty()) {
-            size_t axis = pugixml_utils::GetUIntAttr(xml_input, "axis");
-            int64_t start = pugixml_utils::GetInt64Attr(xml_input, "start", 0);
-            int64_t stride = pugixml_utils::GetInt64Attr(xml_input, "stride", 1);
-            int64_t end = pugixml_utils::GetInt64Attr(xml_input, "end", -1);
-            int64_t part_size = pugixml_utils::GetInt64Attr(xml_input, "part_size", 1);
+            size_t axis = pugixml::utils::GetUIntAttr(xml_input, "axis");
+            int64_t start = pugixml::utils::GetInt64Attr(xml_input, "start", 0);
+            int64_t stride = pugixml::utils::GetInt64Attr(xml_input, "stride", 1);
+            int64_t end = pugixml::utils::GetInt64Attr(xml_input, "end", -1);
+            int64_t part_size = pugixml::utils::GetInt64Attr(xml_input, "part_size", 1);
 
             const auto input_index = up_io_map.inputs.at(body_parameter_index);
 
@@ -84,10 +84,10 @@ std::vector<std::shared_ptr<ngraph::op::util::SubGraphOp::InputDescription>> Xml
             // otherwise find corresponding back edge and create ngraph::TensorIterator::MergedInput
             bool is_back_edge_exist = false;
             FOREACH_CHILD (xml_edge, node.child("back_edges"), "edge") {
-                size_t to_layer = pugixml_utils::GetUIntAttr(xml_edge, "to-layer");
+                size_t to_layer = pugixml::utils::GetUIntAttr(xml_edge, "to-layer");
 
                 if (to_layer == body_parameter_index) {
-                    size_t from_layer = pugixml_utils::GetUIntAttr(xml_edge, "from-layer");
+                    size_t from_layer = pugixml::utils::GetUIntAttr(xml_edge, "from-layer");
 
                     const auto input_index = up_io_map.inputs.at(body_parameter_index);
                     const auto output_index = up_io_map.outputs.at(from_layer);
@@ -127,7 +127,7 @@ XmlDeserializer::parse_output_description(const pugi::xml_node& node,
     // Parse PortMap: outputs
     std::map<int64_t, pugi::xml_node> output_map;
     FOREACH_CHILD (output, node.child(port_map_name.c_str()), "output") {
-        int64_t ext_port_id = pugixml_utils::GetInt64Attr(output, "external_port_id");
+        int64_t ext_port_id = pugixml::utils::GetInt64Attr(output, "external_port_id");
         output_map.emplace(ext_port_id, output);
     }
 
@@ -135,19 +135,19 @@ XmlDeserializer::parse_output_description(const pugi::xml_node& node,
     for (const auto& output : output_map) {
         auto& xml_output = output.second;
         auto axis_attr = xml_output.attribute("axis");
-        size_t body_result_index = pugixml_utils::GetUIntAttr(xml_output, "internal_layer_id");
+        size_t body_result_index = pugixml::utils::GetUIntAttr(xml_output, "internal_layer_id");
 
         // if external_port_id < 0 it means that this body result isn't connected to the Loop output
         // and is used only for internal needs. For TensorIterator external_port_id is always > 0.
-        if (pugixml_utils::GetInt64Attr(xml_output, "external_port_id") >= 0) {
+        if (pugixml::utils::GetInt64Attr(xml_output, "external_port_id") >= 0) {
             // if axis is set, then concatenation is enabled. Create
             // ngraph::TensorIterator::ConcatOutput.
             if (!axis_attr.empty()) {
-                int64_t axis = pugixml_utils::GetInt64Attr(xml_output, "axis");
-                int64_t start = pugixml_utils::GetInt64Attr(xml_output, "start", 0);
-                int64_t stride = pugixml_utils::GetInt64Attr(xml_output, "stride", 1);
-                int64_t end = pugixml_utils::GetInt64Attr(xml_output, "end", -1);
-                int64_t part_size = pugixml_utils::GetInt64Attr(xml_output, "part_size", 1);
+                int64_t axis = pugixml::utils::GetInt64Attr(xml_output, "axis");
+                int64_t start = pugixml::utils::GetInt64Attr(xml_output, "start", 0);
+                int64_t stride = pugixml::utils::GetInt64Attr(xml_output, "stride", 1);
+                int64_t end = pugixml::utils::GetInt64Attr(xml_output, "end", -1);
+                int64_t part_size = pugixml::utils::GetInt64Attr(xml_output, "part_size", 1);
 
                 const auto output_index = up_io_map.outputs.at(body_result_index);
 
@@ -186,19 +186,19 @@ ngraph::op::v5::Loop::SpecialBodyPorts XmlDeserializer::parse_purpose_attribute(
     // order
     std::map<uint64_t, pugi::xml_node> input_map;
     FOREACH_CHILD (input, node.child("port_map"), "input") {
-        int64_t ext_port_id = pugixml_utils::GetInt64Attr(input, "external_port_id");
+        int64_t ext_port_id = pugixml::utils::GetInt64Attr(input, "external_port_id");
         input_map.emplace(ext_port_id, input);
     }
     std::map<int64_t, pugi::xml_node> output_map;
     FOREACH_CHILD (output, node.child("port_map"), "output") {
-        int64_t ext_port_id = pugixml_utils::GetInt64Attr(output, "external_port_id");
+        int64_t ext_port_id = pugixml::utils::GetInt64Attr(output, "external_port_id");
         output_map.emplace(ext_port_id, output);
     }
 
     for (const auto& input : input_map) {
         auto& xml_input = input.second;
-        auto purpose = pugixml_utils::GetStrAttr(xml_input, "purpose", "");
-        size_t body_parameter_index = pugixml_utils::GetUIntAttr(xml_input, "internal_layer_id");
+        auto purpose = pugixml::utils::GetStrAttr(xml_input, "purpose", "");
+        size_t body_parameter_index = pugixml::utils::GetUIntAttr(xml_input, "internal_layer_id");
         if (purpose == "current_iteration") {
             result.current_iteration_input_idx = up_io_map.inputs.at(body_parameter_index);
         }
@@ -206,8 +206,8 @@ ngraph::op::v5::Loop::SpecialBodyPorts XmlDeserializer::parse_purpose_attribute(
 
     for (const auto& output : output_map) {
         auto& xml_output = output.second;
-        auto purpose = pugixml_utils::GetStrAttr(xml_output, "purpose", "");
-        size_t body_parameter_index = pugixml_utils::GetUIntAttr(xml_output, "internal_layer_id");
+        auto purpose = pugixml::utils::GetStrAttr(xml_output, "purpose", "");
+        size_t body_parameter_index = pugixml::utils::GetUIntAttr(xml_output, "internal_layer_id");
         if (purpose == "execution_condition") {
             result.body_condition_output_idx = up_io_map.outputs.at(body_parameter_index);
         }
@@ -318,7 +318,7 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
                    &adapter)) {
         std::string value;
         pugi::xml_node dn = m_node.child("data");
-        auto type = pugixml_utils::GetStrAttr(m_node, "type");
+        auto type = pugixml::utils::GetStrAttr(m_node, "type");
 
         if (dn.empty())
             IE_THROW() << "No attrtibutes defined for " << type << " op!";
@@ -332,8 +332,8 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
             std::vector<int64_t> shape;
             std::string el_type_str;
 
-            size_t offset = pugixml_utils::GetUInt64Attr(dn, "offset");
-            size_t size = pugixml_utils::GetUInt64Attr(dn, "size");
+            size_t offset = pugixml::utils::GetUInt64Attr(dn, "offset");
+            size_t size = pugixml::utils::GetUInt64Attr(dn, "size");
             if (!getStrAttribute(dn, "element_type", el_type_str))
                 return;
             if (!getParameters<int64_t>(dn, "shape", shape))
@@ -357,8 +357,8 @@ void XmlDeserializer::on_adapter(const std::string& name, ngraph::ValueAccessor<
             a->set(buffer);
         }
     } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::FrameworkNodeAttrs>>(&adapter)) {
-        const auto& type = pugixml_utils::GetStrAttr(m_node, "type");
-        const auto& version = pugixml_utils::GetStrAttr(m_node, "version");
+        const auto& type = pugixml::utils::GetStrAttr(m_node, "type");
+        const auto& version = pugixml::utils::GetStrAttr(m_node, "version");
 
         ngraph::op::FrameworkNodeAttrs node_attrs;
         node_attrs.set_opset_name(version);
@@ -451,10 +451,10 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
 
     // Read all edges and store them for further usage
     FOREACH_CHILD (_ec, root.child("edges"), "edge") {
-        size_t fromLayer = pugixml_utils::GetUIntAttr(_ec, "from-layer");
-        size_t fromPort = pugixml_utils::GetUIntAttr(_ec, "from-port");
-        size_t toLayer = pugixml_utils::GetUIntAttr(_ec, "to-layer");
-        size_t toPort = pugixml_utils::GetUIntAttr(_ec, "to-port");
+        size_t fromLayer = pugixml::utils::GetUIntAttr(_ec, "from-layer");
+        size_t fromPort = pugixml::utils::GetUIntAttr(_ec, "from-port");
+        size_t toLayer = pugixml::utils::GetUIntAttr(_ec, "to-layer");
+        size_t toPort = pugixml::utils::GetUIntAttr(_ec, "to-port");
         edges[toLayer].push_back({fromLayer, fromPort, toPort});
     }
 
@@ -537,7 +537,7 @@ std::shared_ptr<ngraph::Function> XmlDeserializer::parse_function(
     auto function = std::make_shared<ngraph::Function>(func_nodes.results,
                                                        func_nodes.sinks,
                                                        func_nodes.parameters,
-                                                       pugixml_utils::GetStrAttr(root, "name", ""));
+                                                       pugixml::utils::GetStrAttr(root, "name", ""));
     for (const auto& sink : func_nodes.sinks) {
         if (const auto& assign = std::dynamic_pointer_cast<ngraph::op::AssignBase>(sink)) {
             assign->add_control_dependency(variable_id_to_read_value.at(assign->get_variable_id()));
@@ -582,9 +582,9 @@ private:
 
     ov::Any parse_value(const pugi::xml_node& node) const {
         if (has_attr(node)) {
-            return pugixml_utils::GetStrAttr(node, "value");
+            return pugixml::utils::GetStrAttr(node, "value");
         } else if (std::string(node.name()) == "unset" && has_attr(node, "unset_cli_parameters")) {
-            return pugixml_utils::GetStrAttr(node, "unset_cli_parameters");
+            return pugixml::utils::GetStrAttr(node, "unset_cli_parameters");
         } else {
             return parse_node(node);
         }
@@ -636,7 +636,7 @@ void XmlDeserializer::read_meta_data(const std::shared_ptr<ov::Model>& model, co
         if (data.empty())
             continue;
         if (!data.attribute("value").empty()) {
-            rt_info[data.name()] = pugixml_utils::GetStrAttr(data, "value");
+            rt_info[data.name()] = pugixml::utils::GetStrAttr(data, "value");
         } else {
             // Use meta data for set of parameters
             std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>(data.name(), data);
@@ -660,7 +660,7 @@ void XmlDeserializer::read_legacy_meta_data(const std::shared_ptr<ov::Model>& mo
                     std::shared_ptr<ov::Meta> meta = std::make_shared<MetaDataParser>("cli_parameters", data);
                     rt_info["conversion_parameters"] = meta;
                 } else if (!data.attribute("value").empty()) {
-                    rt_info[data.name()] = pugixml_utils::GetStrAttr(data, "value");
+                    rt_info[data.name()] = pugixml::utils::GetStrAttr(data, "value");
                 } else {
                     OPENVINO_THROW("Unsupported legacy argument: ", data.name());
                 }
@@ -681,7 +681,7 @@ GenericLayerParams XmlDeserializer::parse_generic_params(const pugi::xml_node& n
                               bool input) -> GenericLayerParams::LayerPortData {
         GenericLayerParams::LayerPortData port;
 
-        port.portId = pugixml_utils::GetUIntAttr(parentNode, "id");
+        port.portId = pugixml::utils::GetUIntAttr(parentNode, "id");
 
         FOREACH_CHILD (node, parentNode, "dim") {
             int64_t dim = 0;
@@ -697,7 +697,7 @@ GenericLayerParams XmlDeserializer::parse_generic_params(const pugi::xml_node& n
         ngraph::element::Type type(ngraph::element::Type_t::undefined);
         // Input port hasn't precision
         if (!input) {
-            const std::string& preStr = pugixml_utils::GetStrAttr(parentNode, "precision");
+            const std::string& preStr = pugixml::utils::GetStrAttr(parentNode, "precision");
             type = InferenceEngine::details::convertPrecision(preStr);
         }
         port.precision = type;
@@ -721,12 +721,12 @@ GenericLayerParams XmlDeserializer::parse_generic_params(const pugi::xml_node& n
     };
     GenericLayerParams params;
 
-    params.layerId = pugixml_utils::GetUIntAttr(node, "id");
-    params.version = pugixml_utils::GetStrAttr(node, "version");
+    params.layerId = pugixml::utils::GetUIntAttr(node, "id");
+    params.version = pugixml::utils::GetStrAttr(node, "version");
 
-    params.type = pugixml_utils::GetStrAttr(node, "type");
+    params.type = pugixml::utils::GetStrAttr(node, "type");
 
-    params.name = pugixml_utils::GetStrAttr(node, "name");
+    params.name = pugixml::utils::GetStrAttr(node, "name");
 
     auto outNode = node.child("output");
     if (!outNode.empty()) {
