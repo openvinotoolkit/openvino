@@ -20,7 +20,7 @@ using namespace InferenceEngine;
 
 bool IRReader::supportModel(std::istream& model) const {
     OV_ITT_SCOPED_TASK(itt::domains::V7Reader, "IRReader::supportModel");
-    auto version = details::GetIRVersion(model);
+    auto version = details::get_ir_version(model);
     return version > 1 && version <= 7;
 }
 
@@ -39,7 +39,7 @@ CNNNetwork IRReader::read(std::istream& model,
     }
     pugi::xml_node root = xmlDoc.document_element();
 
-    auto version = details::GetIRVersion(root);
+    auto version = details::get_ir_version(root);
     IRParser parser(version, exts);
     return CNNNetwork(parser.parse(root, weights));
 }

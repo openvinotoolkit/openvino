@@ -10,8 +10,8 @@
 namespace InferenceEngine {
 namespace details {
 
-inline size_t GetIRVersion(pugi::xml_node& root) {
-    return XMLParseUtils::GetUIntAttr(root, "version", 0);
+inline size_t get_ir_version(pugi::xml_node& root) {
+    return pugixml::utils::GetUIntAttr(root, "version", 0);
 }
 
 /**
@@ -19,7 +19,7 @@ inline size_t GetIRVersion(pugi::xml_node& root) {
  * @param model Models stream
  * @return IR version, 0 if model does represent IR
  */
-inline size_t GetIRVersion(std::istream& model) {
+inline size_t get_ir_version(std::istream& model) {
     std::array<char, 512> header = {};
 
     model.seekg(0, model.beg);
@@ -38,7 +38,7 @@ inline size_t GetIRVersion(std::istream& model) {
         std::transform(node_name.begin(), node_name.end(), node_name.begin(), ::tolower);
 
         if (node_name == "net") {
-            return GetIRVersion(root);
+            return get_ir_version(root);
         }
     }
 

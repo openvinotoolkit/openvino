@@ -159,7 +159,7 @@ void registerReaders() {
 }
 
 void assertIfIRv7LikeModel(std::istream& modelStream) {
-    auto irVersion = details::GetIRVersion(modelStream);
+    auto irVersion = details::get_ir_version(modelStream);
     bool isIRv7 = irVersion > 1 && irVersion <= 7;
 
     if (!isIRv7 || reader_irv7)

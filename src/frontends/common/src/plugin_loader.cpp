@@ -147,7 +147,7 @@ bool PluginInfo::load_internal() {
         return false;
     }
 
-    auto info_addr = reinterpret_cast<void* (*)()>(ov::util::get_symbol(so, "GetAPIVersion"));
+    auto info_addr = reinterpret_cast<void* (*)()>(ov::util::get_symbol(so, "get_api_version"));
     if (!info_addr) {
         OPENVINO_DEBUG << "Loaded FrontEnd [" << m_file_path << "] doesn't have API version" << std::endl;
         return false;
@@ -161,7 +161,7 @@ bool PluginInfo::load_internal() {
         return false;
     }
 
-    auto creator_addr = reinterpret_cast<void* (*)()>(ov::util::get_symbol(so, "GetFrontEndData"));
+    auto creator_addr = reinterpret_cast<void* (*)()>(ov::util::get_symbol(so, "get_front_end_data"));
     if (!creator_addr) {
         OPENVINO_DEBUG << "Loaded FrontEnd [" << m_file_path << "] doesn't have Frontend Data" << std::endl;
         return false;

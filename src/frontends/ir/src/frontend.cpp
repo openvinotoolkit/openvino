@@ -23,8 +23,8 @@ namespace frontend {
 namespace ir {
 namespace {
 
-inline size_t GetIRVersion(pugi::xml_node& root) {
-    return XMLParseUtils::GetUIntAttr(root, "version", 0);
+inline size_t get_ir_version(pugi::xml_node& root) {
+    return pugixml::utils::GetUIntAttr(root, "version", 0);
 }
 
 /**
@@ -32,7 +32,7 @@ inline size_t GetIRVersion(pugi::xml_node& root) {
  * @param model Models stream
  * @return IR version, 0 if model does represent IR
  */
-size_t GetIRVersion(std::istream& model) {
+size_t get_ir_version(std::istream& model) {
     std::array<char, 512> header{};
 
     model.seekg(0, model.beg);
@@ -51,7 +51,7 @@ size_t GetIRVersion(std::istream& model) {
         std::transform(node_name.begin(), node_name.end(), node_name.begin(), ::tolower);
 
         if (node_name == "net") {
-            return GetIRVersion(root);
+            return get_ir_version(root);
         }
     }
 
@@ -89,9 +89,9 @@ bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
 
     size_t version;
     if (provided_model_stream) {
-        version = GetIRVersion(*provided_model_stream);
+        version = get_ir_version(*provided_model_stream);
     } else if (local_model_stream.is_open()) {
-        version = GetIRVersion(local_model_stream);
+        version = get_ir_version(local_model_stream);
         local_model_stream.close();
     } else {
         return false;
@@ -193,7 +193,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
 #else
         weights_path += ".bin";
 #endif
-        if (!FileUtils::fileExist(weights_path)) {
+        if (!ov::util::file_exists(weights_path)) {
             weights_path.clear();
         }
     }
@@ -238,11 +238,11 @@ std::string FrontEnd::get_name() const {
 }  // namespace frontend
 }  // namespace ov
 
-IR_C_API ov::frontend::FrontEndVersion GetAPIVersion() {
+IR_C_API ov::frontend::FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;
 }
 
-IR_C_API void* GetFrontEndData() {
+IR_C_API void* get_front_end_data() {
     frontend::FrontEndPluginInfo* res = new frontend::FrontEndPluginInfo();
     res->m_name = "ir";
     res->m_creator = []() {

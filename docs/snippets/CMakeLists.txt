@@ -83,7 +83,7 @@ if(OpenCV_FOUND)
 endif()
 
 # ov_ncc_naming_style(FOR_TARGET "${TARGET_NAME}"
-#                     SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+#                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}"
 #                     ADDITIONAL_INCLUDE_DIRECTORIES
 #                         $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>)
 

@@ -193,14 +193,14 @@ public:
     }
 };
 
-MOCK_C_API FrontEndVersion GetAPIVersion();
-MOCK_C_API void* GetFrontEndData();
+MOCK_C_API FrontEndVersion get_api_version();
+MOCK_C_API void* get_front_end_data();
 
-MOCK_C_API FrontEndVersion GetAPIVersion() {
+MOCK_C_API FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;
 }
 
-MOCK_C_API void* GetFrontEndData() {
+MOCK_C_API void* get_front_end_data() {
     auto* res = new FrontEndPluginInfo();
     res->m_name = "mock1";
     res->m_creator = []() {

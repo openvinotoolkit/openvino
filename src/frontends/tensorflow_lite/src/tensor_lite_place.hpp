@@ -10,7 +10,6 @@
 #include "openvino/frontend/tensorflow_lite/visibility.hpp"
 #include "place.hpp"
 #include "quantization_info.hpp"
-#include "utils.hpp"
 
 namespace ov {
 namespace frontend {

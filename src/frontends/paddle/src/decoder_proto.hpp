@@ -22,7 +22,8 @@
 namespace ov {
 namespace frontend {
 namespace paddle {
-extern std::map<::paddle::framework::proto::VarType_Type, ov::element::Type> TYPE_MAP;
+
+ov::element::Type get_ov_type(const ::paddle::framework::proto::VarType_Type& type);
 
 class DecoderProto : public paddle::DecoderBase {
 public:

@@ -3,6 +3,7 @@
 //
 
 #pragma once
+
 #include "decoder_flatbuffer.h"
 #include "place.hpp"
 #include "quantization_info.hpp"

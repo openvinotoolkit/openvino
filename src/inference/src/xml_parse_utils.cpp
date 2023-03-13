@@ -12,7 +12,7 @@
 
 #include "ie_precision.hpp"
 
-int XMLParseUtils::GetIntAttr(const pugi::xml_node& node, const char* str) {
+int pugixml::utils::GetIntAttr(const pugi::xml_node& node, const char* str) {
     auto attr = node.attribute(str);
     if (attr.empty())
         IE_THROW() << "node <" << node.name() << "> is missing mandatory attribute: " << str << " at offset "
@@ -27,7 +27,7 @@ int XMLParseUtils::GetIntAttr(const pugi::xml_node& node, const char* str) {
     return int_value;
 }
 
-int64_t XMLParseUtils::GetInt64Attr(const pugi::xml_node& node, const char* str) {
+int64_t pugixml::utils::GetInt64Attr(const pugi::xml_node& node, const char* str) {
     auto attr = node.attribute(str);
     if (attr.empty())
         IE_THROW() << "node <" << node.name() << "> is missing mandatory attribute: " << str << " at offset "
@@ -42,7 +42,7 @@ int64_t XMLParseUtils::GetInt64Attr(const pugi::xml_node& node, const char* str)
     return static_cast<int64_t>(int_value);
 }
 
-uint64_t XMLParseUtils::GetUInt64Attr(const pugi::xml_node& node, const char* str) {
+uint64_t pugixml::utils::GetUInt64Attr(const pugi::xml_node& node, const char* str) {
     auto attr = node.attribute(str);
     if (attr.empty())
         IE_THROW() << "node <" << node.name() << "> is missing mandatory attribute: " << str << " at offset "
@@ -57,7 +57,7 @@ uint64_t XMLParseUtils::GetUInt64Attr(const pugi::xml_node& node, const char* st
     return static_cast<uint64_t>(int_value);
 }
 
-unsigned int XMLParseUtils::GetUIntAttr(const pugi::xml_node& node, const char* str) {
+unsigned int pugixml::utils::GetUIntAttr(const pugi::xml_node& node, const char* str) {
     auto attr = node.attribute(str);
     if (attr.empty())
         IE_THROW() << "node <" << node.name() << "> is missing mandatory attribute: " << str << " at offset "
@@ -72,7 +72,7 @@ unsigned int XMLParseUtils::GetUIntAttr(const pugi::xml_node& node, const char* 
     return static_cast<unsigned int>(int_value);
 }
 
-std::string XMLParseUtils::GetStrAttr(const pugi::xml_node& node, const char* str) {
+std::string pugixml::utils::GetStrAttr(const pugi::xml_node& node, const char* str) {
     auto attr = node.attribute(str);
     if (attr.empty())
         IE_THROW() << "node <" << node.name() << "> is missing mandatory attribute: '" << str << "' at offset "
@@ -80,14 +80,14 @@ std::string XMLParseUtils::GetStrAttr(const pugi::xml_node& node, const char* st
     return attr.value();
 }
 
-std::string XMLParseUtils::GetStrAttr(const pugi::xml_node& node, const char* str, const char* def) {
+std::string pugixml::utils::GetStrAttr(const pugi::xml_node& node, const char* str, const char* def) {
     auto attr = node.attribute(str);
     if (attr.empty())
         return def;
     return attr.value();
 }
 
-bool XMLParseUtils::GetBoolAttr(const pugi::xml_node& node, const char* str, const bool def) {
+bool pugixml::utils::GetBoolAttr(const pugi::xml_node& node, const char* str, const bool def) {
     auto attr = node.attribute(str);
     if (attr.empty())
         return def;
@@ -108,7 +108,7 @@ bool XMLParseUtils::GetBoolAttr(const pugi::xml_node& node, const char* str, con
     return is_true;
 }
 
-bool XMLParseUtils::GetBoolAttr(const pugi::xml_node& node, const char* str) {
+bool pugixml::utils::GetBoolAttr(const pugi::xml_node& node, const char* str) {
     auto attr = node.attribute(str);
     if (attr.empty())
         IE_THROW() << "node <" << node.name() << "> is missing mandatory attribute: " << str << " at offset "
@@ -130,7 +130,7 @@ bool XMLParseUtils::GetBoolAttr(const pugi::xml_node& node, const char* str) {
     return is_true;
 }
 
-float XMLParseUtils::GetFloatAttr(const pugi::xml_node& node, const char* str) {
+float pugixml::utils::GetFloatAttr(const pugi::xml_node& node, const char* str) {
     auto attr = node.attribute(str);
     if (attr.empty())
         IE_THROW() << "node <" << node.name() << "> is missing mandatory attribute: " << str << " at offset "
@@ -147,7 +147,7 @@ float XMLParseUtils::GetFloatAttr(const pugi::xml_node& node, const char* str) {
     return float_value;
 }
 
-InferenceEngine::Precision XMLParseUtils::GetPrecisionAttr(const pugi::xml_node& node, const char* str) {
+InferenceEngine::Precision pugixml::utils::GetPrecisionAttr(const pugi::xml_node& node, const char* str) {
     auto attr = node.attribute(str);
     if (attr.empty())
         IE_THROW() << "node <" << node.name() << "> is missing mandatory attribute: " << str << " at offset "
@@ -155,51 +155,51 @@ InferenceEngine::Precision XMLParseUtils::GetPrecisionAttr(const pugi::xml_node&
     return InferenceEngine::Precision::FromStr(attr.value());
 }
 
-InferenceEngine::Precision XMLParseUtils::GetPrecisionAttr(const pugi::xml_node& node,
-                                                           const char* str,
-                                                           InferenceEngine::Precision def) {
+InferenceEngine::Precision pugixml::utils::GetPrecisionAttr(const pugi::xml_node& node,
+                                                            const char* str,
+                                                            InferenceEngine::Precision def) {
     auto attr = node.attribute(str);
     if (attr.empty())
         return InferenceEngine::Precision(def);
     return InferenceEngine::Precision::FromStr(attr.value());
 }
 
-int XMLParseUtils::GetIntAttr(const pugi::xml_node& node, const char* str, int defVal) {
+int pugixml::utils::GetIntAttr(const pugi::xml_node& node, const char* str, int defVal) {
     auto attr = node.attribute(str);
     if (attr.empty())
         return defVal;
     return GetIntAttr(node, str);
 }
 
-int64_t XMLParseUtils::GetInt64Attr(const pugi::xml_node& node, const char* str, int64_t defVal) {
+int64_t pugixml::utils::GetInt64Attr(const pugi::xml_node& node, const char* str, int64_t defVal) {
     auto attr = node.attribute(str);
     if (attr.empty())
         return defVal;
     return GetInt64Attr(node, str);
 }
 
-uint64_t XMLParseUtils::GetUInt64Attr(const pugi::xml_node& node, const char* str, uint64_t defVal) {
+uint64_t pugixml::utils::GetUInt64Attr(const pugi::xml_node& node, const char* str, uint64_t defVal) {
     auto attr = node.attribute(str);
     if (attr.empty())
         return defVal;
     return GetUInt64Attr(node, str);
 }
 
-unsigned int XMLParseUtils::GetUIntAttr(const pugi::xml_node& node, const char* str, unsigned int defVal) {
+unsigned int pugixml::utils::GetUIntAttr(const pugi::xml_node& node, const char* str, unsigned int defVal) {
     auto attr = node.attribute(str);
     if (attr.empty())
         return defVal;
     return GetUIntAttr(node, str);
 }
 
-float XMLParseUtils::GetFloatAttr(const pugi::xml_node& node, const char* str, float defVal) {
+float pugixml::utils::GetFloatAttr(const pugi::xml_node& node, const char* str, float defVal) {
     auto attr = node.attribute(str);
     if (attr.empty())
         return defVal;
     return GetFloatAttr(node, str);
 }
 
-int XMLParseUtils::GetIntChild(const pugi::xml_node& node, const char* str, int defVal) {
+int pugixml::utils::GetIntChild(const pugi::xml_node& node, const char* str, int defVal) {
     auto child = node.child(str);
     if (child.empty())
         return defVal;

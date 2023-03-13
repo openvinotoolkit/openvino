@@ -6,7 +6,6 @@
 
 #include <fstream>
 
-#include "decoder_flatbuffer.h"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/util/file_util.hpp"
 #include "schema_generated.h"

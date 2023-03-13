@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <graph_iterator_flatbuffer.hpp>
+#include "graph_iterator_flatbuffer.hpp"
+
+#include <map>
+
+#include "decoder_flatbuffer.h"
 
 using namespace ov::frontend::tensorflow_lite;
 
