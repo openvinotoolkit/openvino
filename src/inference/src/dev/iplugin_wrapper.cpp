@@ -88,9 +88,7 @@ std::shared_ptr<ov::ICompiledModel> IPluginWrapper::import_model(std::istream& m
 ov::SupportedOpsMap IPluginWrapper::query_model(const std::shared_ptr<const ov::Model>& model,
                                                 const ov::AnyMap& properties) const {
     auto res = m_old_plugin->QueryNetwork(ov::legacy_convert::convert_model(model, is_new_api()), any_copy(properties));
-    if (res.rc != InferenceEngine::OK) {
-        throw ov::Exception(res.resp.msg);
-    }
+    OPENVINO_ASSERT(res.rc == InferenceEngine::OK, res.resp.msg);
     return res.supportedLayersMap;
 }
 

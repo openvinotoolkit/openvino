@@ -176,6 +176,7 @@ jobs:
         -DENABLE_STRICT_DEPENDENCIES=OFF ^
         -DENABLE_PYTHON=ON ^
         -DBUILD_nvidia_plugin=OFF ^
+        -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" ^
         -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.10.7\x64\python.exe" ^
         -DPYTHON_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.10.7\x64\include" ^
         -DPYTHON_LIBRARY="C:\hostedtoolcache\windows\Python\3.10.7\x64\libs\python310.lib" ^
