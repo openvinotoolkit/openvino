@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -171,7 +171,7 @@ public:
         if (input_pshape.is_static()) {
             auto input_shape = input_pshape.to_shape();
             ngraph::Shape output_shape(input_shape);
-            for (int i = 0; i < input_shape.size(); ++i) {
+            for (size_t i = 0; i < input_shape.size(); ++i) {
                 output_shape[i] = input_shape[i] * test2 + (test1 ? 0 : 1);
             }
             set_output_type(0, get_input_element_type(0), ngraph::PartialShape(output_shape));

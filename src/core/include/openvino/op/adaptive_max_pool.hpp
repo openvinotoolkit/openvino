@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,6 +42,7 @@ public:
     element::Type get_index_element_type() const {
         return m_index_element_type;
     }
+    void set_index_element_type(const element::Type& type);
 
 protected:
     ov::element::Type m_index_element_type = ov::element::i64;

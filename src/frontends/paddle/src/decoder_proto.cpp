@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,17 +21,23 @@ namespace paddle {
 
 using namespace ::paddle::framework;
 
-std::map<proto::VarType_Type, ov::element::Type> TYPE_MAP{
-    {proto::VarType_Type::VarType_Type_BOOL, ov::element::boolean},
-    {proto::VarType_Type::VarType_Type_INT16, ov::element::i16},
-    {proto::VarType_Type::VarType_Type_INT32, ov::element::i32},
-    {proto::VarType_Type::VarType_Type_INT64, ov::element::i64},
-    {proto::VarType_Type::VarType_Type_FP16, ov::element::f16},
-    {proto::VarType_Type::VarType_Type_FP32, ov::element::f32},
-    {proto::VarType_Type::VarType_Type_FP64, ov::element::f64},
-    {proto::VarType_Type::VarType_Type_UINT8, ov::element::u8},
-    {proto::VarType_Type::VarType_Type_INT8, ov::element::i8},
-    {proto::VarType_Type::VarType_Type_BF16, ov::element::bf16}};
+ov::element::Type get_ov_type(const ::paddle::framework::proto::VarType_Type& type) {
+    static const std::map<proto::VarType_Type, ov::element::Type> type_map{
+        {proto::VarType_Type::VarType_Type_BOOL, ov::element::boolean},
+        {proto::VarType_Type::VarType_Type_INT16, ov::element::i16},
+        {proto::VarType_Type::VarType_Type_INT32, ov::element::i32},
+        {proto::VarType_Type::VarType_Type_INT64, ov::element::i64},
+        {proto::VarType_Type::VarType_Type_FP16, ov::element::f16},
+        {proto::VarType_Type::VarType_Type_FP32, ov::element::f32},
+        {proto::VarType_Type::VarType_Type_FP64, ov::element::f64},
+        {proto::VarType_Type::VarType_Type_UINT8, ov::element::u8},
+        {proto::VarType_Type::VarType_Type_INT8, ov::element::i8},
+        {proto::VarType_Type::VarType_Type_BF16, ov::element::bf16}};
+
+    auto it = type_map.find(type);
+    OPENVINO_ASSERT(it != type_map.end(), "Cannot convert PDPD type to ov::element::Type");
+    return it->second;
+}
 
 ov::Any DecoderProto::get_attribute(const std::string& name) const {
     auto attrs = decode_attribute_helper(name);
@@ -71,12 +77,12 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
 
 ov::Any DecoderProto::convert_attribute(const Any& data, const std::type_info& type_info) const {
     if (data.is<int32_t>() && type_info == typeid(ov::element::Type)) {
-        return TYPE_MAP.at(static_cast<proto::VarType_Type>(data.as<int32_t>()));
+        return get_ov_type(static_cast<proto::VarType_Type>(data.as<int32_t>()));
     } else if (data.is<std::vector<int32_t>>() && type_info == typeid(std::vector<ov::element::Type>)) {
         const auto& casted = data.as<std::vector<int32_t>>();
         std::vector<ov::element::Type> types(casted.size());
         for (size_t i = 0; i < casted.size(); ++i) {
-            types[i] = TYPE_MAP.at(static_cast<proto::VarType_Type>(casted[i]));
+            types[i] = get_ov_type(static_cast<proto::VarType_Type>(casted[i]));
         }
         return types;
     }

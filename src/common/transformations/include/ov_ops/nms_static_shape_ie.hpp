@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -116,11 +116,3 @@ void NmsStaticShapeIE<BaseNmsOp>::validate_and_infer_types() {
 }  // namespace internal
 }  // namespace op
 }  // namespace ov
-
-namespace ngraph {
-namespace op {
-namespace internal {
-using ov::op::internal::NmsStaticShapeIE;
-}  // namespace internal
-}  // namespace op
-}  // namespace ngraph

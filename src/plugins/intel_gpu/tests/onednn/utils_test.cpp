@@ -1,8 +1,9 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_debug.h>
 
 #include "test_utils.h"
 
@@ -164,46 +165,3 @@ INSTANTIATE_TEST_SUITE_P(smoke, weight_format_test_match_dnnl,
         {{32, 32, 8, 8}, dnnl::memory::data_type::u8, dnnl::memory::format_tag::BAcd4b8a8b4a, cldnn::format::is_os_yx_isa4_osa8_isv8_osv4},
     }),
     weight_format_test_match_dnnl::PrintToString);
-
-struct stride_matching_test_params {
-    dnnl_desc_params test_desc;
-    int inner_nblks;  // The number of innermost blocks
-    dnnl_dims_t inner_idxs;  // The size of the blocks, e.g. `{4, 16, 4}` in case of `OIhw_4i16o4i`
-    dnnl_dims_t inner_blks;  // The logical indices of the blocks, e.g. `{1, 0, 1}` in case of 4i16o4i
-    cldnn::format cldnn_format;
-};
-
-class weight_format_test_with_stride : public testing::TestWithParam<stride_matching_test_params> {
-public:
-    static std::string PrintToString(testing::TestParamInfo<stride_matching_test_params> param_info) {
-        auto strides = param_info.param.test_desc.strides;
-        std::string res = " stride : {";
-        for (auto stride : strides) {
-            res += std::to_string(stride) + " ";
-        }
-        res += "} > " + format::traits(param_info.param.cldnn_format).str;
-
-        return res;
-    }
-};
-
-TEST_P(weight_format_test_with_stride, test_match_data_format) {
-    auto param = GetParam();
-
-    dnnl::memory::desc test_desc(param.test_desc.dims, param.test_desc.data_type, param.test_desc.strides);
-    test_desc.data.format_desc.blocking.inner_nblks = param.inner_nblks;
-    for (auto idx = 0; idx < param.inner_nblks; idx++) {
-        test_desc.data.format_desc.blocking.inner_idxs[idx] = param.inner_idxs[idx];
-        test_desc.data.format_desc.blocking.inner_blks[idx] = param.inner_blks[idx];
-    }
-
-    auto result = onednn::find_format(test_desc, false);
-    ASSERT_TRUE(result == param.cldnn_format);
-}
-
-INSTANTIATE_TEST_SUITE_P(smoke, weight_format_test_with_stride,
-    testing::ValuesIn(std::vector<stride_matching_test_params>{
-        {{{16, 16, 1, 1}, dnnl::memory::data_type::f16, {16, 256, 1, 1}}, 2, {1, 0}, {16, 16}, cldnn::format::is_os_yx_isv16_osv16},
-        {{{16, 16, 1, 1}, dnnl::memory::data_type::f16, {256, 16, 1, 1}}, 2, {1, 0}, {16, 16}, cldnn::format::os_is_yx_isv16_osv16},
-    }),
-    weight_format_test_with_stride::PrintToString);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -24,8 +24,8 @@ add_reorders optimization pass.
 //concatenation of incompatible convolutions
 TEST(add_reorders_gpu, two_convolutions_and_concatenation) {
     auto& engine = get_test_engine();
-    build_options build_opt;
-    build_opt.set_option(build_option::optimize_data(false));
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(false));
 
     auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 2, 2 } });
     auto weights1 = engine.allocate_memory({ data_types::f32, format::yxio,{ 1, 1, 1, 2 } });
@@ -46,7 +46,7 @@ TEST(add_reorders_gpu, two_convolutions_and_concatenation) {
 
     topology.add(cldnn::concatenation("concat", { input_info("conv1"), input_info("conv2") }, 1));
 
-    network network(engine, topology, build_opt);
+    network network(engine, topology, config);
     network.set_input_data("input", input);
 
     //concatenation accepts inputs in different formats, so no reorders should be added here
@@ -123,24 +123,7 @@ void test_add_reorders_gpu_basic_reshape_and_tile(bool is_caching_test) {
     set_values(input, input_vec);
     tile_ref<T>(input, output_ref, 2, 4);
 
-    cldnn::network::ptr network;
-
-    if (is_caching_test) {
-        membuf mem_buf;
-        {
-            cldnn::network _network(engine, topology);
-            std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-            _network.save(ob);
-        }
-        {
-            std::istream in_mem(&mem_buf);
-            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-        }
-    } else {
-        network = std::make_shared<cldnn::network>(engine, topology);
-    }
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input);
 

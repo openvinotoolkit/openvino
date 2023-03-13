@@ -1,20 +1,15 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include <vector>
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
+#include "intel_gpu/graph/serialization/vector_serializer.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief reorder mean operation modes
 enum class reorder_mean_mode {
@@ -30,6 +25,10 @@ enum class reorder_mean_mode {
 /// NOTE THAT THIS WILL SUBTRACT THE SAME VALUES FROM EACH BATCH.
 struct reorder : public primitive_base<reorder> {
     CLDNN_DECLARE_PRIMITIVE(reorder)
+
+    reorder() : primitive_base("", {}), output_format(format::any) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
 
     /// @brief reorder memory types
     enum class memory_type {
@@ -74,18 +73,21 @@ struct reorder : public primitive_base<reorder> {
     /// @param input Input primitive id.
     /// @param output_layout Requested memory layout.
     /// @param values_to_subtract Array of mean subtract values.
+    /// @param truncate Convert truncation mode.
     reorder(const primitive_id& id,
             const input_info& input,
             format output_format,
             data_types output_data_type,
             const std::vector<float>& values_to_subtract = {},
             const reorder_mean_mode mode = reorder_mean_mode::subtract,
-            const padding& output_padding = padding())
+            const padding& output_padding = padding(),
+            const bool truncate = false)
         : primitive_base(id, {input}, {output_padding}, {optional_data_type{output_data_type}}),
           output_format(output_format),
           mean(""),
           subtract_per_feature(values_to_subtract),
-          mean_mode(mode) {}
+          mean_mode(mode),
+          truncate(truncate) {}
 
     /// @brief Constructs reorder primitive which takes mean subtract values from another primitive.
     /// @param id This primitive id.
@@ -156,6 +158,50 @@ struct reorder : public primitive_base<reorder> {
                input_mem_type == memory_type::surface;
     }
 
+    /// @brief Convert truncation Mode
+    bool truncate = false;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, mean_mode);
+        seed = hash_combine(seed, input_mem_type);
+        seed = hash_combine(seed, truncate);
+        seed = hash_range(seed, subtract_per_feature.begin(), subtract_per_feature.end());
+        seed = hash_combine(seed, mean.empty());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const reorder>(rhs);
+
+        return subtract_per_feature == rhs_casted.subtract_per_feature &&
+               mean_mode == rhs_casted.mean_mode &&
+               input_mem_type == rhs_casted.input_mem_type &&
+               truncate == rhs_casted.truncate &&
+               mean.empty() == rhs_casted.mean.empty();
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        ob << make_data(&output_format, sizeof(format));
+        ob << mean;
+        ob << subtract_per_feature;
+        ob << make_data(&mean_mode, sizeof(reorder_mean_mode));
+        ob << make_data(&input_mem_type, sizeof(memory_type));
+        ob << truncate;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        ib >> make_data(&output_format, sizeof(format));
+        ib >> mean;
+        ib >> subtract_per_feature;
+        ib >> make_data(&mean_mode, sizeof(reorder_mean_mode));
+        ib >> make_data(&input_mem_type, sizeof(memory_type));
+        ib >> truncate;
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         if (mean.empty())
@@ -164,7 +210,4 @@ protected:
     }
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

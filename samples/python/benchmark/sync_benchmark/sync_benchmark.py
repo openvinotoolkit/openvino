@@ -33,7 +33,7 @@ def main():
         log.info(f'Usage: {sys.argv[0]} <path_to_model>')
         return 1
     # Optimize for latency. Most of the devices are configured for latency by default,
-    # but there are exceptions like MYRIAD
+    # but there are exceptions like GNA
     latency = {'PERFORMANCE_HINT': 'LATENCY'}
 
     # Create Core and use it to compile a model.

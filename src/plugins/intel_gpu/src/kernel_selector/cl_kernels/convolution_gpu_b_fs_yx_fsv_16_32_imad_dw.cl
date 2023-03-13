@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -153,23 +153,22 @@ __attribute__((reqd_work_group_size(LWS0, LWS1, SIMD)))
 KERNEL(convolution)(
     const __global  INPUT0_TYPE  *input,
     __global        OUTPUT_TYPE  *output,
-    const __global  FILTER_TYPE  *weights,
+    const __global  FILTER_TYPE  *weights
 #if BIAS_TERM
-    const __global BIAS_TYPE     *biases,
+    , const __global BIAS_TYPE     *biases
 #endif
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
-    const __global WEIGHTS_ZERO_POINTS_TYPE *weights_zp,
+    , const __global WEIGHTS_ZERO_POINTS_TYPE *weights_zp
 #endif
 #if ASYMMETRIC_DATA_QUANTIZATION
-    const __global ACTIVATIONS_ZERO_POINTS_TYPE *activations_zp,
+    , const __global ACTIVATIONS_ZERO_POINTS_TYPE *activations_zp
 #endif
 #if COMPENSATION_TERM
-    const __global COMPENSATION_TYPE *compensation,
+    , const __global COMPENSATION_TYPE *compensation
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx
 ) {
 #if LWS0 == 1
     uint x = (uint)get_group_id(0) * TILE_X;

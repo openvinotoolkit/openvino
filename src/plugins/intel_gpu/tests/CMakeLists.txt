@@ -1,10 +1,10 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 # TODO: fix in tests
 if(SUGGEST_OVERRIDE_SUPPORTED)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -57,7 +57,7 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph
                                              inference_engine
-                                             OpenCL
+                                             OpenCL::OpenCL
                                              gtest
                                              gtest_main
                                              gflags
@@ -71,18 +71,16 @@ target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
                                                   $<TARGET_PROPERTY:openvino_intel_gpu_runtime,INTERFACE_INCLUDE_DIRECTORIES>
                                                   ${CMAKE_HOME_DIRECTORY}/src/core/reference/include/)
 
-if(ENABLE_ONEDNN_FOR_GPU)
-    target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
-endif()
-
 if(WIN32)
   target_link_libraries(${TARGET_NAME} PRIVATE setupapi)
 elseif((NOT ANDROID) AND (UNIX))
   target_link_libraries(${TARGET_NAME} PRIVATE pthread)
 endif()
 
-ie_sse42_optimization_flags(sse4_2_flags)
-set_source_files_properties(${SOURCES_ALL} PROPERTIES COMPILE_FLAGS "${sse4_2_flags}")
+if(ENABLE_SSE42)
+  ie_sse42_optimization_flags(sse4_2_flags)
+  set_source_files_properties(${SOURCES_ALL} PROPERTIES COMPILE_FLAGS "${sse4_2_flags}")
+endif()
 
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION tests

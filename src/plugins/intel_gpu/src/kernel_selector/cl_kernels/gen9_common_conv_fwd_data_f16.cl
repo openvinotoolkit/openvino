@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,17 +36,17 @@ KERNEL(gen9_common_conv_fwd_f16_kernel)(
         const __global half *src,
         __global half *dst,
 #if USE_IMAGE == 1
-        __read_only image2d_t wei,
+        __read_only image2d_t wei
 #else
-        const __global half *wei,
+        const __global half *wei
 #endif
 #if WITH_BIAS
-        const __global half *bias,
+        , const __global half *bias
 #endif
 #if HAS_FUSED_OPS_DECLS
-    FUSED_OPS_DECLS,
+    , FUSED_OPS_DECLS
 #endif
-    uint split_idx)
+)
 {
     const half eltwise_alpha = 0;
     const half eltwise_beta = 0;

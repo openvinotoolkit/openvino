@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "primitive_base.hpp"
+
+#include "experimental_detectron_detection_output_inst.hpp"
 #include "ed_do/detection_output_kernel_ref.h"
 #include "ed_do/detection_output_kernel_selector.h"
-#include "experimental_detectron_detection_output_inst.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
-#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -26,9 +25,8 @@ struct experimental_detectron_detection_output_impl
     }
 
 protected:
-    kernel_arguments_data get_arguments(const typed_primitive_inst<experimental_detectron_detection_output>& instance,
-                                        int32_t unused) const override {
-        kernel_arguments_data args = parent::get_arguments(instance, unused);
+    kernel_arguments_data get_arguments(const typed_primitive_inst<experimental_detectron_detection_output>& instance) const override {
+        kernel_arguments_data args = parent::get_arguments(instance);
         args.inputs.push_back(instance.output_classes_memory());
         args.inputs.push_back(instance.output_scores_memory());
 

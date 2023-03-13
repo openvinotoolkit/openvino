@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include "openvino/core/strides.hpp"
@@ -10,12 +9,6 @@
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief Performs forward spatial convolution with weight sharing.
 /// Also supports built-in Relu @CLDNN_PRIMITIVE_DESC{activation} available by setting it in arguments.
@@ -757,6 +750,9 @@ struct convolution : public primitive_base<convolution> {
     /// If bilinear_interpolation_pad is false and the sampling location is within one pixel outside of the feature map boundary,
     /// then the sampling location shifts to the inner boundary of the feature map.
     bool bilinear_interpolation_pad {false};
+
+    bool transposed {false};
+
     /// @param grouped_weights_shape Defines if weights tensor has explicit group dimension.
     bool grouped_weights_shape;
     /// @brief List of primitive ids containing weights data.
@@ -770,8 +766,50 @@ struct convolution : public primitive_base<convolution> {
     /// @brief List of primitive ids containing compensation.
     primitive_id_arr compensation;
 
-    /// @brief On how many cards split the computation to.
-    int32_t split() const { return static_cast<int32_t>(weights.size()); }
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_range(seed, pad.begin(), pad.end());
+        seed = hash_range(seed, stride.begin(), stride.end());
+        seed = hash_range(seed, dilation.begin(), dilation.end());
+        seed = hash_combine(seed, groups);
+        seed = hash_combine(seed, deformable_groups);
+        seed = hash_combine(seed, deformable_mode);
+        seed = hash_combine(seed, bilinear_interpolation_pad);
+        seed = hash_combine(seed, transposed);
+        seed = hash_combine(seed, grouped_weights_shape);
+        seed = hash_combine(seed, weights.size());
+        seed = hash_combine(seed, bias.size());
+        seed = hash_combine(seed, weights_zero_points.size());
+        seed = hash_combine(seed, activations_zero_points.size());
+        seed = hash_combine(seed, compensation.size());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const convolution>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(pad) &&
+               cmp_fields(stride) &&
+               cmp_fields(dilation) &&
+               cmp_fields(groups) &&
+               cmp_fields(deformable_groups) &&
+               cmp_fields(padding_above) &&
+               cmp_fields(padding_below) &&
+               cmp_fields(deformable_mode) &&
+               cmp_fields(bilinear_interpolation_pad) &&
+               cmp_fields(transposed) &&
+               cmp_fields(grouped_weights_shape) &&
+               cmp_fields(weights.size()) &&
+               cmp_fields(bias.size()) &&
+               cmp_fields(weights_zero_points.size()) &&
+               cmp_fields(activations_zero_points.size()) &&
+               cmp_fields(compensation.size());
+        #undef cmp_fields
+    }
 
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
@@ -836,6 +874,39 @@ struct deformable_interp : public primitive_base<deformable_interp> {
     /// @brief if bilinear_interpolation_pad is true and the sampling location is within one pixel outside
     /// of the feature map boundary, then bilinear interpolation is performed on the zero padded feature map.
     bool bilinear_interpolation_pad {false};
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = cldnn::hash_range(seed, pad.begin(), pad.end());
+        seed = cldnn::hash_range(seed, stride.begin(), stride.end());
+        seed = cldnn::hash_range(seed, dilation.begin(), dilation.end());
+        seed = cldnn::hash_combine(seed, kernel_size.hash());
+        seed = cldnn::hash_combine(seed, groups);
+        seed = cldnn::hash_combine(seed, deformable_groups);
+        seed = cldnn::hash_range(seed, padding_above.begin(), padding_above.end());
+        seed = cldnn::hash_range(seed, padding_below.begin(), padding_below.end());
+        seed = cldnn::hash_combine(seed, bilinear_interpolation_pad);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const deformable_interp>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(pad) &&
+               cmp_fields(stride) &&
+               cmp_fields(dilation) &&
+               cmp_fields(kernel_size) &&
+               cmp_fields(groups) &&
+               cmp_fields(deformable_groups) &&
+               cmp_fields(padding_above) &&
+               cmp_fields(padding_below) &&
+               cmp_fields(bilinear_interpolation_pad);
+        #undef cmp_fields
+    }
 };
 
 struct deformable_conv : public primitive_base<deformable_conv> {
@@ -863,8 +934,24 @@ struct deformable_conv : public primitive_base<deformable_conv> {
     /// @brief List of primitive ids containing bias data.
     const primitive_id_arr bias;
 
-    /// @brief On how many cards split the computation to.
-    int32_t split() const { return static_cast<int32_t>(weights.size()); }
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, groups);
+        seed = hash_combine(seed, weights.size());
+        seed = hash_combine(seed, bias.size());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const deformable_conv>(rhs);
+
+        return groups == rhs_casted.groups &&
+               weights.size() == rhs_casted.weights.size() &&
+               bias.size() == rhs_casted.bias.size();
+    }
 
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
@@ -875,7 +962,4 @@ struct deformable_conv : public primitive_base<deformable_conv> {
     }
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

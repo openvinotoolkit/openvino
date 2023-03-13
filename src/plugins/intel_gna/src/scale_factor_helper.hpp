@@ -12,16 +12,15 @@
 namespace ov {
 namespace intel_gna {
 
-class Config;
+struct Config;
 
 /**
  * @namespace helpers contains helpers tools for gna plugin.
  */
 namespace helpers {
 
-void ApplyInputScaleFactors(const Config& config,
-                            const header_latest::ModelHeader& header,
-                            GnaInputs& inputs);
+void ApplyInputScaleFactors(GnaInputs& inputs, const Config& config, const header_latest::ModelHeader& header);
+void ApplyInputScaleFactors(GnaInputs& inputs, const Config& config);
 
 }  // namespace helpers
 }  // namespace intel_gna

@@ -33,7 +33,7 @@ def load_hardware_config(config):
         raise ValueError('Unsupported target_device : {}'.format(config['target_device']))
 
     hardware_config_path = __HARDWARE_CONFIG_DIR / __HARDWARE_CONFIGS_MAP.get(config['target_device'], "cpu.json")
-    return HardwareConfig.from_json(hardware_config_path.as_posix())
+    return HardwareConfig.from_json(hardware_config_path.as_posix(), config['target_device'])
 
 
 def append_estimator_configs(quantization_configs, is_weights, config, opt_conf=None):
@@ -323,7 +323,7 @@ def get_input_shape_for_bias(activations_statistics, input_node_name):
 
 def get_ignored_operations(model):
     operation = {"transformer": [{"type": "Add"}, {"type": "Power"},
-                                 {"type": "Squeeze"}, {"type": "Multiply"},
+                                 {"type": "Squeeze"},
                                  {"type": "Subtract"}, {"type": "ReduceMean"},
                                  {"type": "SquaredDifference"}, {"type": "MVN"}]}
     return operation[model]

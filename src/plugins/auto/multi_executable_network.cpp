@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -136,10 +136,16 @@ IE::Parameter MultiExecutableNetwork::GetMetric(const std::string& name) const {
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (name == ov::execution_devices) {
         std::vector<std::string> exeDevices = {};
-        for (auto n : _multiSContext->_devicePriorities) {
-            exeDevices.push_back(n.deviceName);
+        std::vector<std::string> exeDevicesUnsort = {};
+        for (const auto & n : _multiSContext->_networksPerDevice) {
+            exeDevicesUnsort.push_back(n.first);
         }
-        return decltype(ov::available_devices)::value_type {exeDevices};
+        for (const auto & n : _multiSContext->_devicePriorities) {
+            if (std::find(exeDevicesUnsort.begin(), exeDevicesUnsort.end(), n.deviceName) != exeDevicesUnsort.end()) {
+                exeDevices.push_back(n.deviceName);
+            }
+        }
+        return decltype(ov::execution_devices)::value_type {exeDevices};
     } else {
         IE_THROW() << "Unsupported ExecutableNetwork metric key: " << name;
     }

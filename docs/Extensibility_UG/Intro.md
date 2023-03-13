@@ -9,7 +9,6 @@
    openvino_docs_Extensibility_UG_add_openvino_ops
    openvino_docs_Extensibility_UG_Frontend_Extensions
    openvino_docs_Extensibility_UG_GPU
-   openvino_docs_Extensibility_UG_VPU_Kernel
    openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer
    
 .. toctree::
@@ -36,7 +35,7 @@ Importing models with such operations requires additional steps. This guide illu
 
 Defining a new custom operation basically consists of two parts:
 
-1. Definition of operation semantics in OpenVINO, the code that describes how this operation should be inferred consuming input tensor(s) and producing output tensor(s). The implementation of execution kernels for [GPU](./GPU_Extensibility.md) and [VPU](./VPU_Extensibility.md) is described in separate guides.
+1. Definition of operation semantics in OpenVINO, the code that describes how this operation should be inferred consuming input tensor(s) and producing output tensor(s). The implementation of execution kernels for [GPU](./GPU_Extensibility.md) is described in separate guides.
 
 2. Mapping rule that facilitates conversion of framework operation representation to OpenVINO defined operation semantics.
 
@@ -54,13 +53,13 @@ You might prefer implementing a custom operation class if you already have a gen
 
 Mapping of custom operation is implemented differently, depending on model format used for import. You may choose one of the following:
 
-1. If a model is represented in the ONNX (including models exported from Pytorch in ONNX) or PaddlePaddle formats, then one of the classes from [Frontend Extension API](frontend_extensions.md) should be used. It consists of several classes available in C++ which can be used with the `--extensions` option in Model Optimizer or when a model is imported directly to OpenVINO runtime using the `read_model` method. Python API is also available for runtime model import.
+1. If a model is represented in the ONNX (including models exported from Pytorch in ONNX), PaddlePaddle or TensorFlow formats, then one of the classes from [Frontend Extension API](frontend_extensions.md) should be used. It consists of several classes available in C++ which can be used with the `--extensions` option in Model Optimizer or when a model is imported directly to OpenVINO runtime using the `read_model` method. Python API is also available for runtime model import.
 
-2. If a model is represented in the TensorFlow, Caffe, Kaldi or MXNet formats, then [Model Optimizer Extensions](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) should be used. This approach is available for model conversion in Model Optimizer only.
+2. If a model is represented in the Caffe, Kaldi or MXNet formats, then [Model Optimizer Extensions](../MO_DG/prepare_model/customize_model_optimizer/Customize_Model_Optimizer.md) should be used. This approach is available for model conversion in Model Optimizer only.
 
-Existing of two approaches simultaneously is explained by two different types of frontends used for model conversion in OpenVINO: new frontends (ONNX, PaddlePaddle) and legacy frontends (TensorFlow, Caffe, Kaldi and Apache MXNet). Model Optimizer can use both front-ends in contrast to the direct import of model with `read_model` method which can use new frontends only. Follow one of the appropriate guides referenced above to implement mappings depending on framework frontend.
+Existing of two approaches simultaneously is explained by two different types of frontends used for model conversion in OpenVINO: new frontends (ONNX, PaddlePaddle and TensorFlow) and legacy frontends (Caffe, Kaldi and Apache MXNet). Model Optimizer can use both front-ends in contrast to the direct import of model with `read_model` method which can use new frontends only. Follow one of the appropriate guides referenced above to implement mappings depending on framework frontend.
 
-If you are implementing extensions for new ONNX or PaddlePaddle frontends and plan to use the `--extensions` option in Model Optimizer for model conversion, then the extensions should be:
+If you are implementing extensions for new ONNX, PaddlePaddle or TensorFlow frontends and plan to use the `--extensions` option in Model Optimizer for model conversion, then the extensions should be:
 
 1. Implemented in C++ only.
 

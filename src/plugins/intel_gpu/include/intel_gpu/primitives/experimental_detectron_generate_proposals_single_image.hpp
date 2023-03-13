@@ -2,18 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 #include <vector>
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief experimental detectron generate proposals single image
 struct experimental_detectron_generate_proposals_single_image
@@ -55,6 +48,29 @@ struct experimental_detectron_generate_proposals_single_image
     int64_t pre_nms_count;
     int64_t post_nms_count;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, min_size);
+        seed = hash_combine(seed, nms_threshold);
+        seed = hash_combine(seed, pre_nms_count);
+        seed = hash_combine(seed, post_nms_count);
+        seed = hash_combine(seed, output_roi_scores.empty());
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const experimental_detectron_generate_proposals_single_image>(rhs);
+
+        return min_size == rhs_casted.min_size &&
+               nms_threshold == rhs_casted.nms_threshold &&
+               pre_nms_count == rhs_casted.pre_nms_count &&
+               post_nms_count == rhs_casted.post_nms_count &&
+               output_roi_scores.empty() == rhs_casted.output_roi_scores.empty();
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
@@ -63,7 +79,4 @@ protected:
         return ret;
     }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

@@ -39,8 +39,6 @@ Based on the `ov::available_devices` read-only property, OpenVINO Core collects 
 The function returns a list of available devices, for example:
 
 ```
-MYRIAD.1.2-ma2480
-MYRIAD.1.4-ma2480
 CPU
 GPU.0
 GPU.1
@@ -177,24 +175,6 @@ The `ov::CompiledModel::get_property` method is used to get property values the 
 @sphinxtab{Python}
 
 @snippet  docs/snippets/ov_properties_api.py optimal_number_of_infer_requests
-
-@endsphinxtab
-
-@endsphinxtabset
-
-Or the current temperature of the `MYRIAD` device:
-
-@sphinxtabset
-
-@sphinxtab{C++}
-
-@snippet docs/snippets/ov_properties_api.cpp device_thermal
-
-@endsphinxtab
-
-@sphinxtab{Python}
-
-@snippet  docs/snippets/ov_properties_api.py device_thermal
 
 @endsphinxtab
 

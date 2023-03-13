@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -76,7 +76,7 @@ inline std::vector<float> simplifyToScale(const std::shared_ptr<ov::opset8::Fake
                     }) &&
         std::all_of(osc.cbegin(),
                     osc.cend(),
-                    [&threshold](float val) {
+                    [](float val) {
                         return val == 1.f;
                     }) &&
         std::all_of(osh.cbegin(), osh.cend(), [&threshold](float val) {

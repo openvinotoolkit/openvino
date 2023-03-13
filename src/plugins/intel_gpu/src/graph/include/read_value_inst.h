@@ -7,7 +7,6 @@
 #include "assign_inst.h"
 #include "intel_gpu/primitives/read_value.hpp"
 #include "primitive_inst.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 
 namespace cldnn {
 
@@ -24,6 +23,9 @@ public:
 
     typed_primitive_inst(network& network, const read_value_node& desc);
     typed_primitive_inst(network& network) : parent(network), memory_state::variable("") {}
+
+    void save(cldnn::BinaryOutputBuffer& ob) const override;
+    void load(cldnn::BinaryInputBuffer& ib) override;
 };
 
 using read_value_inst = typed_primitive_inst<read_value>;

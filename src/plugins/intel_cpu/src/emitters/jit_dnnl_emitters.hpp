@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,9 +18,7 @@ public:
 
     void emit_data() const override;
 
-    void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                   const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                   const emitter_context *emit_context = nullptr) const override {};
+    void emit_impl(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs) const override {};
 
 protected:
     jit_dnnl_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa,

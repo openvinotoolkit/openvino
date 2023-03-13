@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,9 +44,9 @@ AnyMap RemoteTensor::get_params() const {
         }
         return paramMap;
     } catch (const std::exception& ex) {
-        throw ov::Exception(ex.what());
+        OPENVINO_THROW(ex.what());
     } catch (...) {
-        OPENVINO_ASSERT(false, "Unexpected exception");
+        OPENVINO_THROW("Unexpected exception");
     }
 }
 
@@ -57,9 +57,9 @@ std::string RemoteTensor::get_device_name() const {
     try {
         return remote_impl->getDeviceName();
     } catch (const std::exception& ex) {
-        throw ov::Exception(ex.what());
+        OPENVINO_THROW(ex.what());
     } catch (...) {
-        OPENVINO_ASSERT(false, "Unexpected exception");
+        OPENVINO_THROW("Unexpected exception");
     }
 }
 }  // namespace ov

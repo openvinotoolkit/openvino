@@ -1,17 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/graph/network.hpp"
-#include "kernel_selector_helper.h"
-#include "meta_utils.h"
+#include "intel_gpu/runtime/utils.hpp"
 #include "program_node.h"
 #include "primitive_type.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
@@ -22,6 +19,9 @@
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "runtime/kernels_cache.hpp"
+
+// TODO: add generic interface for weights_reorder_params and get rid of this dependency
+#include "impls/ocl/kernel_selector_helper.h"
 
 #include <memory>
 #include <vector>
@@ -44,16 +44,16 @@ struct primitive_impl {
     primitive_impl() = default;
     explicit primitive_impl(const kernel_selector::weights_reorder_params& params, std::string kernel_name = "", bool is_dynamic = false)
         : _weights_reorder_params(params), _kernel_name(kernel_name), _is_dynamic(is_dynamic) {}
+    explicit primitive_impl(std::string kernel_name, bool is_dynamic = false) :
+        primitive_impl(kernel_selector::weights_reorder_params{}, kernel_name, is_dynamic) {}
     virtual ~primitive_impl() = default;
 
     virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
     virtual void set_node_params(const program_node&) {}
     virtual std::string get_type() const = 0;
     virtual void set_arguments(primitive_inst& instance) = 0;
-    virtual void set_arguments(kernel_arguments_data_idx& args_idx) = 0;
     virtual kernel_arguments_data get_arguments(const primitive_inst& instance) const = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
-    virtual bool validate(const primitive_inst& instance) const = 0;
     std::string get_kernel_name() const { return _kernel_name; }
     // TODO: added a derived class for weights reordering (maybe for all static data reordering)
     kernel_selector::weights_reorder_params _weights_reorder_params;
@@ -66,7 +66,6 @@ struct primitive_impl {
     }
     virtual std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() { return {}; }
     virtual void reset_kernels_source() {}
-    virtual void set_kernels(std::vector<kernel::ptr>) {}
     virtual std::vector<kernel::ptr> get_kernels() const { return {}; }
     virtual void set_kernel_ids(std::vector<kernel_id> kernel_ids) {}
     virtual void save(cldnn::BinaryOutputBuffer& ob) const {}
@@ -82,6 +81,8 @@ struct primitive_impl {
         OPENVINO_ASSERT(_is_dynamic, "[GPU] update_dispatch_data is called for static shape implementation ", _kernel_name);
         OPENVINO_ASSERT(false, "[GPU] update_dispatch_data is not implemented for dynamic implemenation ", _kernel_name);
     }
+
+    virtual void set_kernels(std::map<const std::string, kernel::ptr>& kernels) {}
 
 protected:
     std::string _kernel_name;
@@ -160,12 +161,8 @@ public:
     }
     void set_arguments();
 
-    bool validate() const {
+    void validate() const {
         OPENVINO_ASSERT(_impl != nullptr || is_dynamic(), "[GPU] Invalid impl object for ", id(), " primitive");
-        if (_impl)
-            return _impl->validate(*this);
-
-        return true;
     }
     bool output_changed() const { return _output_changed; }
     void reset_output_change() { _output_changed = false; }
@@ -191,7 +188,7 @@ public:
     bool is_dynamic() const { return _is_dynamic; }
     bool can_share_buffer() const { return _can_share_buffer; }
     bool is_constant() const { return _is_constant; }
-
+    bool is_output_event() const { return _is_output_event; }
 
     void allocate_internal_buffers();
     static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node,
@@ -204,7 +201,7 @@ public:
     void rebuild_deps(
         std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> const& primitives);
     void rebuild_exec_deps(
-        std::list<std::shared_ptr<primitive_inst>> const& primitives);
+        std::unordered_map<primitive_id, std::shared_ptr<primitive_inst>> const& primitives);
     std::string get_implementation_name() const;
 
     void add_profiling_data(instrumentation::pipeline_stage stage, bool cache_hit, int64_t time);
@@ -217,6 +214,8 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::vector<cldnn::fused_primitive_desc_onednn>& get_fused_primitives_onednn() const { return _impl_params->fused_desc_onednn; }
 #endif // ENABLE_ONEDNN_FOR_GPU
+    template <class PType>
+    std::shared_ptr<const PType> get_typed_desc() const { return _impl_params->typed_desc<PType>(); }
 
     virtual void update_output_memory() {}
 
@@ -234,7 +233,7 @@ protected:
     // this is a set of dependencies in terms of memory, if execution of this primitive requires data from another one,
     // it should be added to this set
     std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> _deps;
-    std::vector<cldnn::primitive_id> _dep_ids;
+    std::vector<std::pair<cldnn::primitive_id, int32_t>> _dep_ids;
 
     // this is a set of dependencies in terms of execution
     // execution of all primitives from this set should be enough to guarantee that all memory deps (see _deps)
@@ -280,13 +279,15 @@ protected:
     bool _can_be_optimized = false;
     bool _can_share_buffer = true;
     bool _is_constant = false;
+    bool _is_output_event = false;
 
     size_t max_output_layout_size = 0;
+    std::vector<size_t> max_intermediates_memory_sizes;
 
     std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr);
+    memory::ptr allocate_internal_buffer(size_t idx);
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
         std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> const& mem_deps);
-    void convert_args(const kernel_arguments_data& args, kernel_arguments_data_idx& args_idx) const;
     int32_t get_index_in_deps(memory::cptr arg) const;
 
     // event function called by primitive_inst::execute after checking if primitive should rerun and before calling
@@ -295,7 +296,8 @@ protected:
 
     virtual void update_shape();
     virtual event::ptr update_weights();
-    void update_impl();
+    // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
+    bool update_impl();
     void realloc_if_needed();
 
     cldnn::network::ptr get_unfused_subgraph();
@@ -379,33 +381,16 @@ private:
         return set_arguments_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
 
-    void set_arguments(kernel_arguments_data_idx& args_idx) override {
-        return set_arguments_impl(args_idx);
-    }
-
     kernel_arguments_data get_arguments(const primitive_inst& instance) const override {
         return get_arguments_impl(reinterpret_cast<const typed_primitive_inst<PType>&>(instance));
     }
 
     virtual void set_arguments_impl(typed_primitive_inst<PType>& /*instance*/) {}
-    virtual void set_arguments_impl(kernel_arguments_data_idx& /*args_idx*/) {}
     virtual kernel_arguments_data get_arguments_impl(const typed_primitive_inst<PType>& /*instance*/) const {
         kernel_arguments_data args;
         return args;
     }
-    virtual event::ptr execute_impl(const std::vector<event::ptr>& event,
-                                         typed_primitive_inst<PType>& instance) = 0;
-
-    bool validate(const primitive_inst& instance) const override {
-        if (instance.type() != PType::type_id())
-            throw std::invalid_argument("Implementation type does not match primitive type");
-        if (instance.get_impl() != this)
-            throw std::invalid_argument(
-                "Trying to validate primitive implementation with mismatching primitive instance");
-
-        return validate_impl(reinterpret_cast<const typed_primitive_inst<PType>&>(instance));
-    }
-    virtual bool validate_impl(const typed_primitive_inst<PType>&) const { return true; }
+    virtual event::ptr execute_impl(const std::vector<event::ptr>& event, typed_primitive_inst<PType>& instance) = 0;
 };
 
 template <class PType>
@@ -422,6 +407,26 @@ public:
 
     static kernel_impl_params get_fake_aligned_params(kernel_impl_params const& orig_impl_param) {
         return std::move(orig_impl_param);
+    }
+
+    static std::vector<size_t> extend_input_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t input_idx) {
+        ov::PartialShape ps = orig_impl_param.get_input_layout(input_idx).get_partial_shape();
+
+        if (ps.size() < 4) {
+            ps.insert(ps.end(), 4 - ps.size(), ov::Dimension(1));
+        }
+        layout l(ps, data_types::i32, format::get_default_format(ps.size()));
+        return l.transform(format::bfwzyx).to_shape();
+    }
+
+    static std::vector<size_t> extend_output_shape_to_6d(kernel_impl_params const& orig_impl_param, int32_t output_idx) {
+        ov::PartialShape ps = orig_impl_param.get_output_layout(output_idx).get_partial_shape();
+
+        if (ps.size() < 4) {
+            ps.insert(ps.end(), 4 - ps.size(), ov::Dimension(1));
+        }
+        layout l(ps, data_types::i32, format::get_default_format(ps.size()));
+        return l.transform(format::bfwzyx).to_shape();
     }
 
     typed_primitive_inst_base(network& network, typed_node const& node)
@@ -441,8 +446,9 @@ protected:
 
 private:
     bool do_allocate_memory(typed_node const& typ_node) {
-        if (typ_node.get_output_layout().is_dynamic())
-            return false;
+        if (typ_node.get_output_layout().is_dynamic() && !typ_node.get_output_layout().has_upper_bound()) {
+                return false;
+        }
 
         if (typ_node.template have_user_with_type<concatenation>() && typ_node.get_users().size() == 1 &&
             typ_node.get_users().front()->can_be_optimized()) {  // check if the only user is concat

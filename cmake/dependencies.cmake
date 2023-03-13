@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -22,10 +22,6 @@ endif()
 message(STATUS "MODELS_PATH=" ${MODELS_PATH})
 
 fetch_models_and_validation_set()
-
-if(ENABLE_INTEL_MYRIAD)
-    include(${OpenVINO_SOURCE_DIR}/src/plugins/intel_myriad/myriad_dependencies.cmake)
-endif()
 
 ## Intel OMP package
 if(THREADING STREQUAL "OMP")
@@ -302,8 +298,8 @@ if(ENABLE_INTEL_GNA)
             GNA_LIB_DIR
             libGNA_INCLUDE_DIRS
             libGNA_LIBRARIES_BASE_PATH)
-        set(GNA_VERSION "03.00.00.1910")
-        set(GNA_HASH "894ddbc0ae3459f04513b853b0cabc32890dd4ea37228a022b6a32101bdbb7f8")
+        set(GNA_VERSION "03.05.00.1906")
+        set(GNA_HASH "4a5be86d9c026b0e10afac2a57fc7c99d762b30e3d506abb3a3380fbcfe2726e")
 
         set(FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/include)
         if(WIN32)

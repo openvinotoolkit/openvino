@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,6 +16,7 @@
 #include "openvino/c/ov_model.h"
 #include "openvino/c/ov_node.h"
 #include "openvino/c/ov_property.h"
+#include "openvino/c/ov_remote_context.h"
 
 /**
  * @struct ov_compiled_model_t
@@ -78,8 +79,7 @@ ov_compiled_model_input_by_name(const ov_compiled_model_t* compiled_model,
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_compiled_model_outputs_size(const ov_compiled_model_t* compiled_model,
-                               size_t* size);
+ov_compiled_model_outputs_size(const ov_compiled_model_t* compiled_model, size_t* size);
 
 /**
  * @brief Get the single const output port of ov_compiled_model_t, which only support single output model.
@@ -89,8 +89,7 @@ ov_compiled_model_outputs_size(const ov_compiled_model_t* compiled_model,
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_compiled_model_output(const ov_compiled_model_t* compiled_model,
-                         ov_output_const_port_t** output_port);
+ov_compiled_model_output(const ov_compiled_model_t* compiled_model, ov_output_const_port_t** output_port);
 
 /**
  * @brief Get a const output port of ov_compiled_model_t by port index.
@@ -126,8 +125,7 @@ ov_compiled_model_output_by_name(const ov_compiled_model_t* compiled_model,
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_compiled_model_get_runtime_model(const ov_compiled_model_t* compiled_model,
-                                    ov_model_t** model);
+ov_compiled_model_get_runtime_model(const ov_compiled_model_t* compiled_model, ov_model_t** model);
 
 /**
  * @brief Creates an inference request object used to infer the compiled model.
@@ -137,8 +135,7 @@ ov_compiled_model_get_runtime_model(const ov_compiled_model_t* compiled_model,
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_compiled_model_create_infer_request(const ov_compiled_model_t* compiled_model,
-                                       ov_infer_request_t** infer_request);
+ov_compiled_model_create_infer_request(const ov_compiled_model_t* compiled_model, ov_infer_request_t** infer_request);
 
 /**
  * @brief Sets properties for a device, acceptable keys can be found in ov_property_key_xxx.
@@ -173,8 +170,7 @@ ov_compiled_model_get_property(const ov_compiled_model_t* compiled_model,
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_compiled_model_export_model(const ov_compiled_model_t* compiled_model,
-                               const char* export_model_path);
+ov_compiled_model_export_model(const ov_compiled_model_t* compiled_model, const char* export_model_path);
 
 /**
  * @brief Release the memory allocated by ov_compiled_model_t.
@@ -183,3 +179,15 @@ ov_compiled_model_export_model(const ov_compiled_model_t* compiled_model,
  */
 OPENVINO_C_API(void)
 ov_compiled_model_free(ov_compiled_model_t* compiled_model);
+
+/**
+ * @brief Returns pointer to device-specific shared context
+ * on a remote accelerator device that was used to create this CompiledModel.
+ * @ingroup ov_compiled_model_c_api
+ * @param compiled_model A pointer to the ov_compiled_model_t.
+ * @param context Return context.
+ * @return Status code of the operation: OK(0) for success.
+ *
+ */
+OPENVINO_C_API(ov_status_e)
+ov_compiled_model_get_context(const ov_compiled_model_t* compiled_model, ov_remote_context_t** context);

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -93,13 +93,6 @@ DECLARE_CONFIG_KEY(SMALL_CORE_OFFSET);
 DECLARE_CONFIG_KEY(CPU_RUNTIME_CACHE_CAPACITY);
 
 /**
- * @brief This key should be used to force disable export while loading network even if global cache dir is defined
- *        Used by HETERO plugin to disable automatic caching of subnetworks (set value to YES)
- * @ingroup ie_dev_api_plugin_api
- */
-DECLARE_CONFIG_KEY(FORCE_DISABLE_CACHE);
-
-/**
  * @brief Internal device id for particular device (like GPU.0, GPU.1 etc)
  */
 DECLARE_CONFIG_KEY(CONFIG_DEVICE_ID);
@@ -108,6 +101,19 @@ DECLARE_CONFIG_KEY(CONFIG_DEVICE_ID);
  * @brief enable hyper thread
  */
 DECLARE_CONFIG_KEY(ENABLE_HYPER_THREAD);
+
+/**
+ * @brief Defines Snippets tokenization mode
+ *      @param ENABLE - default pipeline
+ *      @param IGNORE_CALLBACK - disable the Snippets markup transformation and tokenization callback
+ *      @param DISABLE - turn off the Snippets
+ * @ingroup ie_dev_api_plugin_api
+ */
+DECLARE_CONFIG_KEY(SNIPPETS_MODE);
+DECLARE_CONFIG_VALUE(ENABLE);
+DECLARE_CONFIG_VALUE(IGNORE_CALLBACK);
+DECLARE_CONFIG_VALUE(DISABLE);
+
 }  // namespace PluginConfigInternalParams
 
 }  // namespace InferenceEngine

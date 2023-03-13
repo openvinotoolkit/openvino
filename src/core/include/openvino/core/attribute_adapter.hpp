@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,7 +36,7 @@ public:
     virtual const DiscreteTypeInfo& get_type_info() const = 0;
     virtual ~ValueAccessor() = default;
     virtual void set_as_any(const ov::Any& x) {
-        throw ov::Exception("set_as_any is not implemented");
+        OPENVINO_NOT_IMPLEMENTED;
     }
 };
 
@@ -62,7 +62,7 @@ public:
         if (x.is<VAT>()) {
             set(*static_cast<const VAT*>(data));
         } else {
-            OPENVINO_UNREACHABLE("Bad cast from: ", x.type_info().name(), " to: ", typeid(VAT).name());
+            OPENVINO_THROW("Bad cast from: ", x.type_info().name(), " to: ", typeid(VAT).name());
         }
     }
 };
@@ -119,7 +119,7 @@ public:
             m_ref = *static_cast<const AT*>(data);
             m_buffer_valid = false;
         } else {
-            OPENVINO_UNREACHABLE("Bad cast from: ", x.type_info().name(), " to: ", typeid(AT).name());
+            OPENVINO_THROW("Bad cast from: ", x.type_info().name(), " to: ", typeid(AT).name());
         }
     }
 
@@ -168,7 +168,7 @@ public:
             m_ref = *static_cast<const AT*>(data);
             m_buffer_valid = false;
         } else {
-            OPENVINO_UNREACHABLE("Bad cast from: ", x.type_info().name(), " to: ", typeid(AT).name());
+            OPENVINO_THROW("Bad cast from: ", x.type_info().name(), " to: ", typeid(AT).name());
         }
     }
     operator AT&() {
@@ -214,7 +214,7 @@ public:
             // instead reimplement logic from set.
             m_ref = *static_cast<const AT*>(data);
         } else {
-            OPENVINO_UNREACHABLE("Bad cast from: ", x.type_info().name(), " to: ", typeid(AT).name());
+            OPENVINO_THROW("Bad cast from: ", x.type_info().name(), " to: ", typeid(AT).name());
         }
     }
 
@@ -335,7 +335,7 @@ public:
     OPENVINO_RTTI("AttributeAdapter<uint64_t>");
 };
 
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__EMSCRIPTEN__)
 // size_t is one of the uint types on _WIN32
 template <>
 class OPENVINO_API AttributeAdapter<size_t> : public IndirectScalarValueAccessor<size_t, int64_t> {

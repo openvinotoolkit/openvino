@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import json
@@ -36,7 +36,8 @@ def load_symbol_nodes(model_name, input_symbol: str = None, legacy_mxnet_model: 
         model_nodes = json.loads(sym.tojson())
     else:
         if os.path.isfile(json_name):
-            model_nodes = json.load(open(json_name))
+            with open(json_name, 'r') as fd:
+                model_nodes = json.load(fd)
         else:
             raise Error('Specified input json {} does not exist. ' +
                         refer_to_faq_msg(84), json_name)

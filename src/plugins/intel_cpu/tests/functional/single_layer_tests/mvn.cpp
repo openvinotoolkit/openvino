@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -413,6 +413,29 @@ const auto Mvn2DTrans = ::testing::Combine(
        ::testing::ValuesIn(outPrc));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_Mvn2DTrans, MvnLayerCPUTest, Mvn2DTrans, MvnLayerCPUTest::getTestCaseName);
+
+// no transformed with small spatial dim and i8 data and no fusion to cover model use case
+const std::vector<InputShape> inputShapesSmallSpatial = {
+       { {}, {{4, 1}}},
+       { {}, {{2, 2}}},
+       { {}, {{1, 2, 1}}},
+       { {}, {{3, 1, 1, 1}}},
+};
+
+const auto MvnSmallSpatial = ::testing::Combine(
+       ::testing::Combine(
+               ::testing::ValuesIn(inputShapesSmallSpatial),
+               ::testing::Values(ElementType::i8),
+               ::testing::ValuesIn(emptyReductionAxes),
+               ::testing::Values(false),
+               ::testing::Values(false),
+               ::testing::ValuesIn(epsilon)),
+       ::testing::Values(emptyCPUSpec),
+       ::testing::Values(emptyFusingSpec),
+       ::testing::Values(ElementType::i8),
+       ::testing::Values(ElementType::f32));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_MvnSmallSpatial, MvnLayerCPUTest, MvnSmallSpatial, MvnLayerCPUTest::getTestCaseName);
 
 // Static shape test for some specific fusing parameters in fusingParamsSetStaticShape
 

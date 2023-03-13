@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 
@@ -30,7 +30,7 @@ def test_graph_function_api():
     assert parameter_a.partial_shape == PartialShape([2, 2])
     parameter_a.layout = ov.Layout("NC")
     assert parameter_a.layout == ov.Layout("NC")
-    function = Model(model, [parameter_a, parameter_b, parameter_c], "TestFunction")
+    function = Model(model, [parameter_a, parameter_b, parameter_c], "TestModel")
 
     function.get_parameters()[1].set_partial_shape(PartialShape([3, 4, 5]))
 
@@ -56,7 +56,7 @@ def test_graph_function_api():
     assert results[0].get_output_partial_shape(0) == PartialShape([2, 2])
     results[0].layout = ov.Layout("NC")
     assert results[0].layout.to_string() == ov.Layout("NC")
-    assert function.get_friendly_name() == "TestFunction"
+    assert function.get_friendly_name() == "TestModel"
 
 
 @pytest.mark.parametrize(
@@ -274,6 +274,7 @@ def test_set_argument():
 
 
 def test_clone_model():
+    from copy import deepcopy
     # Create an original model
     shape = [2, 2]
     parameter_a = ops.parameter(shape, dtype=np.float32, name="A")
@@ -283,18 +284,24 @@ def test_clone_model():
     # Make copies of it
     model_copy1 = ov.utils.clone_model(model_original)
     model_copy2 = model_original.clone()
+    model_copy3 = deepcopy(model_original)
 
     # Make changes to the copied models' inputs
     model_copy1.reshape({"A": [3, 3], "B": [3, 3]})
     model_copy2.reshape({"A": [3, 3], "B": [3, 3]})
+    model_copy3.reshape({"A": [3, 3], "B": [3, 3]})
 
     original_model_shapes = [single_input.get_shape() for single_input in model_original.inputs]
     model_copy1_shapes = [single_input.get_shape() for single_input in model_copy1.inputs]
     model_copy2_shapes = [single_input.get_shape() for single_input in model_copy2.inputs]
+    model_copy3_shapes = [single_input.get_shape() for single_input in model_copy3.inputs]
 
     assert original_model_shapes != model_copy1_shapes
     assert original_model_shapes != model_copy2_shapes
+    assert original_model_shapes != model_copy3_shapes
     assert model_copy1_shapes == model_copy2_shapes
+    assert model_copy1_shapes == model_copy3_shapes
+    assert model_copy2_shapes == model_copy3_shapes
 
 
 def test_result():
@@ -514,7 +521,7 @@ def test_sink_function_ctor():
     add = ops.add(rv, input_data, name="MemoryAdd")
     node = ops.assign(add, "var_id_667")
     res = ops.result(add, "res")
-    function = Model(results=[res], sinks=[node], parameters=[input_data], name="TestFunction")
+    function = Model(results=[res], sinks=[node], parameters=[input_data], name="TestModel")
 
     ordered_ops = function.get_ordered_ops()
     op_types = [op.get_type_name() for op in ordered_ops]
@@ -527,7 +534,7 @@ def test_sink_function_ctor():
     assert (function.get_parameters()[0].get_partial_shape()) == PartialShape([2, 2])
     assert len(function.get_parameters()) == 1
     assert len(function.get_results()) == 1
-    assert function.get_friendly_name() == "TestFunction"
+    assert function.get_friendly_name() == "TestModel"
 
 
 def test_node_version():

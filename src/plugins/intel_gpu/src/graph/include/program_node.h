@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,9 +9,9 @@
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "intel_gpu/graph/program.hpp"
 
-#include "kernel_selector_helper.h"
-#include "fused_primitive_desc.h"
-#include "meta_utils.h"
+#include "intel_gpu/graph/fused_primitive_desc.hpp"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/runtime/utils.hpp"
 
 #include <set>
 #include <array>
@@ -71,7 +71,7 @@ struct program_node {
 public:
     virtual const primitive_id& id() const { return desc->id; }
     virtual primitive_type_id type() const { return desc->type; }
-    virtual std::shared_ptr<kernel_selector::fuse_params> get_fuse_params() const { return nullptr; }
+    virtual std::shared_ptr<NodeFuseParams> get_fuse_params() const { return nullptr; }
     virtual bool generates_dynamic_output() const { return false; }
 
     virtual std::vector<size_t> get_shape_infer_dependencies() const {
@@ -83,6 +83,22 @@ public:
         return res;
     }
 
+    bool is_shape_infer_dep(void) const {
+        if (!myprog.get_config().get_property(ov::intel_gpu::allow_new_shape_infer))
+            return false;
+        for (auto u : users) {
+            for (auto dep_idx : u->get_shape_infer_dependencies()) {
+                if (u->get_dependencies().size() <= dep_idx) {
+                    continue;
+                }
+                if (u->get_dependency(dep_idx).get_unique_id() == unique_id) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     std::map<size_t, memory::ptr> get_const_memory_deps() const;
 
     virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params() const {
@@ -91,8 +107,7 @@ public:
 
     virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const {
         auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_primitive(), get_unique_id(), in_layouts, out_layouts,
-                                                                                 get_fused_primitives(),
-                                                                                 get_fused_activations_funcs(), get_fused_activations_params()));
+                                                                                 get_fused_primitives()));
         params->memory_deps = get_const_memory_deps();
 
         auto deps = get_dependencies();
@@ -245,33 +260,6 @@ public:
     void unmark() { user_mark = 0; }
     bool is_marked() const { return user_mark != 0; }
 
-    void add_fused_activation(activation_func activation_func,
-                              activation_additional_params additional_params) {
-        fused_activations.emplace_back(activation_func, additional_params);
-    }
-
-    std::vector<activation_func> get_fused_activations_funcs() const {
-        std::vector<activation_func> funcs;
-        std::transform(fused_activations.begin(),
-                       fused_activations.end(),
-                       std::back_inserter(funcs),
-                       [](fused_activation_params const& p) { return p.func; });
-        return funcs;
-    }
-
-    std::vector<activation_additional_params> get_fused_activations_params() const {
-        std::vector<activation_additional_params> params;
-        std::transform(fused_activations.begin(),
-                       fused_activations.end(),
-                       std::back_inserter(params),
-                       [](fused_activation_params const& p) { return p.params; });
-        return params;
-    }
-
-    void copy_fused_activation(const program_node& rhs) {
-        fused_activations = rhs.fused_activations;
-    }
-
     // check/set if the node can be optimized out (removed from the network)
     bool can_be_optimized() const { return optimized; }
     void can_be_optimized(bool opt) { optimized = opt; }
@@ -398,7 +386,6 @@ public:
     void set_preferred_input_fmt(size_t idx, format::type type);
     void set_preferred_output_fmt(size_t idx, format::type type);
 
-
 protected:
     size_t unique_id = 0;
     static thread_local size_t cur_id;
@@ -435,18 +422,6 @@ protected:
 
     const primitive_id org_id;
 
-    struct fused_activation_params {
-        activation_func func = activation_func::none;
-        activation_additional_params params = {0.0f, 0.0f};
-
-        fused_activation_params() {}
-
-        fused_activation_params(activation_func _func, activation_additional_params _params) :
-                func(_func),
-                params(_params) {}
-    };
-
-    std::vector<fused_activation_params> fused_activations;
     std::vector<fused_primitive_desc> fused_prims;
 
     void invalidate_users() const;
@@ -465,8 +440,8 @@ private:
         onednn_attrs = attrs;
     }
 
-    bool has_out_scales(const std::shared_ptr<dnnl::primitive_attr>& attr);
     dnnl::post_ops try_optimize_post_ops(dnnl::post_ops& p_ops, const std::shared_ptr<dnnl::primitive_attr>& attr, bool& optimization_is_completed);
+
 #endif // ENABLE_ONEDNN_FOR_GPU
     size_t num_outputs = 1;
 };

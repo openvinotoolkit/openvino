@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -19,7 +19,7 @@ void regclass_graph_Any(py::module m) {
                    "into C++ based core of the project.";
 
     ov_any.def(py::init([](py::object& input_value) {
-        return ov::Any(py_object_to_any(input_value));
+        return ov::Any(Common::utils::py_object_to_any(input_value));
     }));
 
     ov_any.def("__repr__", [](const ov::Any& self) {
@@ -60,7 +60,7 @@ void regclass_graph_Any(py::module m) {
         return a == b;
     });
     ov_any.def("__eq__", [](const ov::Any& a, py::object& b) -> bool {
-        return a == ov::Any(py_object_to_any(b));
+        return a == ov::Any(Common::utils::py_object_to_any(b));
     });
     ov_any.def(
         "get",
@@ -74,7 +74,7 @@ void regclass_graph_Any(py::module m) {
     ov_any.def(
         "set",
         [](ov::Any& self, py::object& value) {
-            self = ov::Any(py_object_to_any(value));
+            self = ov::Any(Common::utils::py_object_to_any(value));
         },
         R"(
             :param: Value to be set in OVAny.

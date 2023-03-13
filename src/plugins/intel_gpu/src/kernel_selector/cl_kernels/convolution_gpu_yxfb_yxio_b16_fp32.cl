@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,11 +11,11 @@
 KERNEL(convolution_gpu_yxfb_yxio_b16)(
     const __global float* input,
     __global UNIT_TYPE* output,
-    const __global float* filter,
+    const __global float* filter
 #if BIAS_TERM
-    const __global float* bias,
+    , const __global float* bias
 #endif
-    uint split_idx)
+)
 {
     // get_global_size(0) -> Number of work items needed to compute all features and all batches for single output spatial position
     //                       (single (x, y) point in output).
@@ -41,7 +41,7 @@ KERNEL(convolution_gpu_yxfb_yxio_b16)(
     const uint g = of / (FILTER_OFM_NUM / OFM_PER_WORK_ITEM);
     const uint f = of % (FILTER_OFM_NUM / OFM_PER_WORK_ITEM);
 #else
-    const uint g = split_idx;
+    const uint g = 0;
     const uint f = of;
 #endif
 

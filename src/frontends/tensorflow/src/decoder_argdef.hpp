@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -37,6 +37,11 @@ public:
     void get_input_node(size_t input_port_idx,
                         std::string& producer_name,
                         size_t& producer_output_port_index) const override;
+
+    void get_input_node(size_t input_port_idx,
+                        std::string& producer_name,
+                        size_t& producer_output_port_index,
+                        const OpTypeByName& op_type_by_name) const override;
 
     const std::string& get_op_type() const override;
 

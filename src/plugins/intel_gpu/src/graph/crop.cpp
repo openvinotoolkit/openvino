@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -145,23 +145,22 @@ std::string crop_inst::to_string(crop_node const& node) {
     auto ref_in_sizes = desc->reference_input;
     const auto& offsets = desc->offsets;
     const auto in_layout = node.input().get_output_layout();
-    const auto& in_sizes = in_layout.get_tensor();
-
     auto node_info = node.desc_to_json();
-
-    // Check for borders variant of crop.
-    if (ref_in_sizes.batch[0] < 0 || ref_in_sizes.feature[0] < 0 || ref_in_sizes.spatial[0] < 0 ||
-        ref_in_sizes.spatial[1] < 0 || ref_in_sizes.spatial[2] < 0) {
-        // Ignore not supported dimensions.
-        const auto rb_sizes = ref_in_sizes.negate().sub({0, 0, 0, 0, 0});
-        const auto lt_sizes = offsets.sub({0, 0, 0, 0, 0});
-
-        ref_in_sizes = in_sizes - (rb_sizes + lt_sizes);
-    }
-
     std::stringstream primitive_description;
-
     json_composite crop_info;
+
+    if (!in_layout.is_dynamic()) {
+        const auto& in_sizes = in_layout.get_tensor();
+
+        // Check for borders variant of crop.
+        if (ref_in_sizes.batch[0] < 0 || ref_in_sizes.feature[0] < 0 || ref_in_sizes.spatial[0] < 0 ||
+            ref_in_sizes.spatial[1] < 0 || ref_in_sizes.spatial[2] < 0) {
+            // Ignore not supported dimensions.
+            const auto rb_sizes = ref_in_sizes.negate().sub({0, 0, 0, 0, 0});
+            const auto lt_sizes = offsets.sub({0, 0, 0, 0, 0});
+            ref_in_sizes = in_sizes - (rb_sizes + lt_sizes);
+        }
+    }
     crop_info.add("reference input size", ref_in_sizes.to_string());
     crop_info.add("offset", offsets.to_string());
 

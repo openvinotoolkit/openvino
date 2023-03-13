@@ -1,8 +1,7 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
 #include "kernel_selector_common.h"
@@ -73,6 +72,17 @@ inline std::string GetTypeName<double>() {
 std::string toCLType(WeightsType wType);
 std::string toCLType(Datatype dType);
 std::string getMeanOpString(MeanOp op);
+inline std::string toVectorMulString(const std::vector<std::string>& vec) {
+    std::stringstream ss;
+    ss << "(";
+    for (size_t i = 0; i < vec.size(); i++) {
+        ss << vec[i];
+        if (i != vec.size() - 1)
+            ss << "*";
+    }
+    ss << ")";
+    return ss.str();
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ToCodeString functions
@@ -95,6 +105,7 @@ std::string toCodeString(size_t val);
 std::string toCodeString(uint8_t val);
 std::string toCodeString(int8_t val);
 std::string toCodeString(const Tensor::Dim& dim, size_t offset, bool padded = false);
+std::string toShapeInfoString(size_t arg_idx, size_t data_idx_at_6d, bool is_output = false, size_t num_of_inputs = 0);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // JitConstant

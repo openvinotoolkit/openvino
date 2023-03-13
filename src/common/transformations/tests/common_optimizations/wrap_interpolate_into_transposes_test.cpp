@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -41,7 +41,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DScales) {
             std::make_shared<ngraph::opset8::Interpolate>(input, sizes_node, scales_node, axis_node, attrs);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{interpolate}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
+        manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
     }
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
@@ -88,7 +88,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DSizes) {
             std::make_shared<ngraph::opset8::Interpolate>(input, sizes_node, scales_node, axis_node, attrs);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{interpolate}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
+        manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
     }
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
@@ -135,7 +135,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes5DScales) {
             std::make_shared<ngraph::opset8::Interpolate>(input, sizes_node, scales_node, axis_node, attrs);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{interpolate}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
+        manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
     }
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
@@ -182,7 +182,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes5DSizes) {
             std::make_shared<ngraph::opset8::Interpolate>(input, sizes_node, scales_node, axis_node, attrs);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{interpolate}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
+        manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
     }
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
@@ -229,7 +229,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DScalesDynamic) {
             std::make_shared<ngraph::opset8::Interpolate>(input, sizes_node, scales_node, axis_node, attrs);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{interpolate}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
+        manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
     }
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
@@ -276,7 +276,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DSizesDynamic) {
             std::make_shared<ngraph::opset8::Interpolate>(input, sizes_node, scales_node, axis_node, attrs);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{interpolate}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
+        manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
     }
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
@@ -327,7 +327,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes5DScalesDynamic) {
             std::make_shared<ngraph::opset8::Interpolate>(input, sizes_node, scales_node, axis_node, attrs);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{interpolate}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
+        manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
     }
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
@@ -378,7 +378,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes5DSizesDynamic) {
             std::make_shared<ngraph::opset8::Interpolate>(input, sizes_node, scales_node, axis_node, attrs);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{interpolate}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
+        manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
     }
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
@@ -433,7 +433,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DScalesNotApplicable)
             std::make_shared<ngraph::opset8::Interpolate>(input, sizes_node, scales_node, gather_node, attrs);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{interpolate}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
+        manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
     }
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
@@ -488,7 +488,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes4DSizesNotApplicable) 
             std::make_shared<ngraph::opset8::Interpolate>(input, sizes_node, scales_node, gather_node, attrs);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{interpolate}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
+        manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
     }
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
@@ -543,7 +543,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes5DScalesNotApplicable)
             std::make_shared<ngraph::opset8::Interpolate>(input, sizes_node, scales_node, gather_node, attrs);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{interpolate}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
+        manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
     }
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);
@@ -598,7 +598,7 @@ TEST_F(TransformationTestsF, WrapInterpolateIntoTransposes5DSizesNotApplicable) 
             std::make_shared<ngraph::opset8::Interpolate>(input, sizes_node, scales_node, gather_node, attrs);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{interpolate}, ngraph::ParameterVector{input});
-        manager.register_pass<ngraph::pass::WrapInterpolateIntoTransposes>();
+        manager.register_pass<ov::pass::WrapInterpolateIntoTransposes>();
     }
     {
         auto input = std::make_shared<ngraph::opset8::Parameter>(ngraph::element::f32, input_shape);

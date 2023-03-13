@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -314,16 +314,21 @@ public:
             native_order = RNN::testNativeOrder(op);
         }
 
-    std::vector<VectorDims> infer(
+    Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        auto originOutputShapes = NgraphShapeInfer::infer(input_shapes, data_dependency);
+        auto result = NgraphShapeInfer::infer(input_shapes, data_dependency);
+        if (ShapeInferStatus::success != result.status) {
+            IE_THROW(Unexpected) << "Unexpected shape inference result status";
+        }
+
+        auto& originOutputShapes = result.dims;
 
         // Graph optimizer makes the same optimization. So this is required to make shapes compatible.
         if (is_sequence && !native_order && originOutputShapes[0].size() == 4lu && originOutputShapes[0][1] == 1lu) {
             originOutputShapes[0].erase(originOutputShapes[0].begin() + 1);
         }
-        return originOutputShapes;
+        return {std::move(originOutputShapes), result.status};
     }
 
 private:
@@ -342,8 +347,8 @@ private:
 
 } // namespace
 
-RNN::RNN(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache) :
-        Node(op, eng, cache, RnnShapeInferFactory(op)) {
+RNN::RNN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context) :
+        Node(op, context, RnnShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -569,9 +574,9 @@ void RNN::initSequence() {
         THROW_ERROR << "has incorrect input/output shapes. Input data shape: " << inDataShape.toString() <<
                 " Output shape: " << outDataShape.toString();
 
-    if (!one_of(getOriginalInputsNumber(), 6, 7))
+    if (!one_of(getOriginalInputsNumber(), 6u, 7u))
         THROW_ERROR << "has incorrect number of input ports: " << getOriginalInputsNumber();
-    if (!one_of(getOriginalOutputsNumber(), 2, 3))
+    if (!one_of(getOriginalOutputsNumber(), 2u, 3u))
         THROW_ERROR << "has incorrect number of output ports: " << getOriginalOutputsNumber();
 
     T = {inDataShape.getMinDims()[1], inDataShape.getMaxDims()[1]};
@@ -717,7 +722,7 @@ void RNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t rIdx)
             }
 
             Prec *l_r_ptr = r_ptr + gate_map[g] * SC + out_i;
-            for (int in_i = 0; in_i < SC; in_i++) {
+            for (size_t in_i = 0; in_i < SC; in_i++) {
                 *l_r_ptr = *ie_r_ptr;
                 ie_r_ptr++;
                 l_r_ptr += step;
@@ -1035,33 +1040,33 @@ void RNN::prepareParams() {
 
     const auto attr = initPrimitiveAttr();
 
-    auto builder = [this, attr](const RNNKey& key) -> std::shared_ptr<dnnl::primitive> {
+    auto builder = [this, attr](const RNNKey& key) -> dnnl::primitive {
         fillDescs();
 
         if (key.cellType == dnnl::algorithm::vanilla_rnn) {
             std::shared_ptr<vanilla_rnn_forward::desc> desc = descs[0];
-            return std::make_shared<vanilla_rnn_forward>(vanilla_rnn_forward::primitive_desc(*desc, *attr, getEngine()));
+            return vanilla_rnn_forward(vanilla_rnn_forward::primitive_desc(*desc, *attr, getEngine()));
         } else if (key.cellType == dnnl::algorithm::vanilla_gru) {
             std::shared_ptr<gru_forward::desc> desc = descs[0];
-            return std::make_shared<gru_forward>(gru_forward::primitive_desc(*desc, *attr, getEngine()));
+            return gru_forward(gru_forward::primitive_desc(*desc, *attr, getEngine()));
         } else if (key.cellType == dnnl::algorithm::lbr_gru) {
             std::shared_ptr<lbr_gru_forward::desc> desc = descs[0];
-            return std::make_shared<lbr_gru_forward>(lbr_gru_forward::primitive_desc(*desc, *attr, getEngine()));
+            return lbr_gru_forward(lbr_gru_forward::primitive_desc(*desc, *attr, getEngine()));
         } else if (key.cellType == dnnl::algorithm::vanilla_lstm) {
             std::shared_ptr<lstm_forward::desc> desc = descs[0];
-            return std::make_shared<lstm_forward>(lstm_forward::primitive_desc(*desc, *attr, getEngine()));
+            return lstm_forward(lstm_forward::primitive_desc(*desc, *attr, getEngine()));
         } else if (key.cellType == dnnl::algorithm::vanilla_augru) {
             std::shared_ptr<augru_forward::desc> desc = descs[0];
-            return std::make_shared<augru_forward>(augru_forward::primitive_desc(*desc, *attr, getEngine()));
+            return augru_forward(augru_forward::primitive_desc(*desc, *attr, getEngine()));
         } else if (key.cellType == dnnl::algorithm::lbr_augru) {
             std::shared_ptr<lbr_augru_forward::desc> desc = descs[0];
-            return std::make_shared<lbr_augru_forward>(lbr_augru_forward::primitive_desc(*desc, *attr, getEngine()));
+            return lbr_augru_forward(lbr_augru_forward::primitive_desc(*desc, *attr, getEngine()));
         } else {
-            return nullptr;
+            return dnnl::primitive();
         }
     };
 
-    auto cache = getRuntimeCache();
+    auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
     if (!result.first) {
@@ -1070,11 +1075,11 @@ void RNN::prepareParams() {
 
     prim = result.first;
 
-    auto pd = (*prim).get_primitive_desc();
+    auto pd = prim.get_primitive_desc();
     scratchpadMem = getScratchPadMem(pd);
 
     if (!wasMemoryPrepared || wFormatWasChanged) {
-        auto pd = (*prim).get_primitive_desc();
+        auto pd = prim.get_primitive_desc();
         auto query_weights_md = [&](int idx = 0) -> dnnl::memory::desc {
             auto what = dnnl::convert_to_c(dnnl::query::weights_md);
             const dnnl_memory_desc_t *cdesc = dnnl_primitive_desc_query_md(pd, what, idx);
@@ -1143,7 +1148,7 @@ void RNN::execute(dnnl::stream strm) {
         }
     }
 
-    (*prim).execute(strm, args);
+    prim.execute(strm, args);
 }
 
 void RNN::executeDynamicImpl(dnnl::stream strm) {

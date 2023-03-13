@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <scatter_elements_update_shape_inference.hpp>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
@@ -42,25 +43,18 @@ void op::v3::ScatterElementsUpdate::validate_and_infer_types() {
 
     NODE_VALIDATION_CHECK(this, axis_et.is_integral(), "Axis element type must be integral_number, but is: ", axis_et);
 
+    element::Type merged_type;
     NODE_VALIDATION_CHECK(this,
-                          data_et == updates_et,
+                          element::Type::merge(merged_type, data_et, updates_et),
                           "Data type and updates type are required to be the same. ",
                           "Got: ",
                           data_et,
                           " and: ",
                           updates_et);
 
-    const auto& data = get_input_partial_shape(0);
-    const auto& indices = get_input_partial_shape(1);
-    const auto& updates = get_input_partial_shape(2);
-    const auto& axis = get_input_partial_shape(3);
-
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
-    std::vector<ov::PartialShape> input_shapes = {data, indices, updates, axis};
-
-    shape_infer(this, input_shapes, output_shapes);
-    set_output_type(0, data_et, output_shapes[0]);
-    if (output_shapes[0].is_dynamic())
+    const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
+    set_output_type(0, data_et, output_shape);
+    if (output_shape.is_dynamic())
         set_input_is_relevant_to_shape(0);
 }
 
@@ -252,4 +246,20 @@ bool op::v3::ScatterElementsUpdate::has_evaluate() const {
         return false;
     }
     return true;
+}
+
+bool op::v3::ScatterElementsUpdate::evaluate_lower(ov::TensorVector& output_values) const {
+    OV_OP_SCOPE(v3_ScatterNDUpdate_evaluate_lower);
+    return get_input_tensor(1).has_and_set_bound() && ov::default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v3::ScatterElementsUpdate::evaluate_upper(ov::TensorVector& output_values) const {
+    OV_OP_SCOPE(v3_ScatterNDUpdate_evaluate_upper);
+    return get_input_tensor(1).has_and_set_bound() && ov::default_upper_bound_evaluator(this, output_values);
+}
+
+bool op::v3::ScatterElementsUpdate::evaluate_label(TensorLabelVector& output_labels) const {
+    OV_OP_SCOPE(v3_ScatterNDUpdate_evaluate_label);
+
+    return ov::default_label_evaluator(this, {0, 2}, output_labels);
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -29,14 +29,14 @@ namespace {
 class PriorBoxClusteredShapeInfer : public ShapeInferEmptyPads {
 public:
     explicit PriorBoxClusteredShapeInfer(size_t number_of_priors) : m_number_of_priors(number_of_priors) {}
-    std::vector<VectorDims> infer(
+    Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         const int* in_data = reinterpret_cast<const int*>(data_dependency.at(0)->GetPtr());
         const int H = in_data[0];
         const int W = in_data[1];
         const auto output = static_cast<size_t>(4 * H * W * m_number_of_priors);
-        return {{2, output}};
+        return {{{2, output}}, ShapeInferStatus::success};
     }
 
     port_mask_t get_port_mask() const override {
@@ -79,10 +79,8 @@ bool PriorBoxClustered::isSupportedOperation(const std::shared_ptr<const ngraph:
     return true;
 }
 
-PriorBoxClustered::PriorBoxClustered(
-    const std::shared_ptr<ngraph::Node>& op,
-    const dnnl::engine& eng,
-    WeightsSharing::Ptr &cache) : Node(op, eng, cache, PriorBoxClusteredShapeInferFactory(op)) {
+PriorBoxClustered::PriorBoxClustered(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, PriorBoxClusteredShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;

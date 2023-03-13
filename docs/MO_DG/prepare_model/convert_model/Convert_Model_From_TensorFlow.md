@@ -4,7 +4,7 @@ This page provides general instructions on how to convert a model from a TensorF
 
 To use Model Optimizer, install OpenVINO Development Tools by following the [installation instructions](@ref openvino_docs_install_guides_install_dev_tools).
 
-## Converting TensorFlow 1 Models <a name="Convert_From_TF2X"></a>
+## Converting TensorFlow 1 Models <a name="Convert_From_TF1X"></a>
 
 ### Converting Frozen Model Format <a name="Convert_From_TF"></a>
 To convert a TensorFlow model, use the *`mo`* script to simply convert a model with a path to the input model *`.pb`* file:

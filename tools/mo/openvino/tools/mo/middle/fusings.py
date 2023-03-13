@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.front.div import Div
@@ -46,9 +46,6 @@ class Fusing(MiddleReplacementPattern):
         for_graph_and_each_sub_graph_recursively(graph, fuse_pad)
         for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
-        # Mark nodes with attr 'can_be_fused': False to disable fusing for specified nodes
-        for_graph_and_each_sub_graph_recursively(graph, lambda graph: mark_unfused_nodes(graph, argv.finegrain_fusing))
-
         # Converting FusedBatchNorm layer to Mul->Add->Mul->Add sequence
         # IE doesn't support batchNormInference with 4 inputs, so we have to split it to two ScaleShift
         for_graph_and_each_sub_graph_recursively(graph, convert_batch_norm)
@@ -61,42 +58,40 @@ class Fusing(MiddleReplacementPattern):
         for_graph_and_each_sub_graph_recursively(graph, Sub().find_and_replace_pattern)
         for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
-        if not argv.disable_fusing:
-            if fw != 'caffe':
-                # Converting ScaleShift layer to Mul->Add
-                for_graph_and_each_sub_graph_recursively(graph, convert_scale_shift_to_mul_add)
-                for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
-
-            # Fusing the sequences of Mul/Add operations
-            for_graph_and_each_sub_graph_recursively(graph, fuse_mul_add_sequence)
+        if fw != 'caffe':
+            # Converting ScaleShift layer to Mul->Add
+            for_graph_and_each_sub_graph_recursively(graph, convert_scale_shift_to_mul_add)
             for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
-            normalize_eltwise_inputs(graph)
-            for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
+        # Fusing the sequences of Mul/Add operations
+        for_graph_and_each_sub_graph_recursively(graph, fuse_mul_add_sequence)
+        for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
-            # Fusing linear operation to Convolution
-            for_graph_and_each_sub_graph_recursively(graph, fuse_linear_ops)
-            for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
+        normalize_eltwise_inputs(graph)
+        for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
+
+        # Fusing linear operation to Convolution
+        for_graph_and_each_sub_graph_recursively(graph, fuse_linear_ops)
+        for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
         for_graph_and_each_sub_graph_recursively(graph, grouped_convolutions_fusing)
         for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
-        if not argv.disable_fusing:
-            for_graph_and_each_sub_graph_recursively(graph, fuse_linear_ops)
-            for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
+
+        for_graph_and_each_sub_graph_recursively(graph, fuse_linear_ops)
+        for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
         for_graph_and_each_sub_graph_recursively(graph, normalize_eltwise_inputs)
         for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
-        if not argv.disable_fusing:
-            MarkNodesToFuseUpToFakeQuantize().find_and_replace_pattern(graph)
-            FakeQuantizeFuse().find_and_replace_pattern(graph)
-            AddFakeQuantizeFuse().find_and_replace_pattern(graph)
-            MulFakeQuantizeFuse().find_and_replace_pattern(graph)
-            for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
+        MarkNodesToFuseUpToFakeQuantize().find_and_replace_pattern(graph)
+        FakeQuantizeFuse().find_and_replace_pattern(graph)
+        AddFakeQuantizeFuse().find_and_replace_pattern(graph)
+        MulFakeQuantizeFuse().find_and_replace_pattern(graph)
+        for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
         mark_shape_of_sugraph_as_unfusable(graph)
         for_graph_and_each_sub_graph_recursively(graph, fuse_pad)
         for_graph_and_each_sub_graph_recursively(graph, lambda G: G.clean_up())
 
-        if layout != 'NHWC' and not argv.disable_resnet_optimization:
+        if layout != 'NHWC':
             stride_optimization(graph)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <iterator>
 #include <ngraph/validation_util.hpp>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/util/op_types.hpp"
@@ -66,7 +67,10 @@ void op::v0::NormalizeL2::validate_and_infer_types() {
 AxisSet op::v0::NormalizeL2::get_reduction_axes() const {
     AxisSet axes;
     if (auto const_op = get_constant_from_source(input_value(1))) {
-        axes = const_op->get_axis_set_val();
+        const auto const_data = const_op->cast_vector<int64_t>();
+        const auto input_data_rank = get_input_partial_shape(0).rank();
+        const auto normalized_axes = ov::normalize_axes(get_friendly_name(), const_data, input_data_rank);
+        axes = AxisSet{normalized_axes};
     }
     return axes;
 }

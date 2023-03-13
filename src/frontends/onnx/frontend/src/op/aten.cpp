@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -81,7 +81,7 @@ OutputVector aten(const Node& node) {
                                                                                 per_sample_weights_in);
 
     } else {
-        OPENVINO_UNREACHABLE("Unsupported inputs configuration for ATen `embedding_bag` operation.");
+        OPENVINO_THROW("Unsupported inputs configuration for ATen `embedding_bag` operation.");
     }
     // Enable import onnx Node with duplicated outputs
     return OutputVector(node.get_outputs_size(), embedding_bag);

@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "pass_manager.h"
 #include "border_inst.h"
@@ -99,7 +97,8 @@ void handle_input_padding::run(program& p) {
                 }
 
                 auto b_prim = std::make_shared<border>(border_id,
-                                                       input_id,
+                                                       std::vector<input_info>({input_id}),
+                                                       0,
                                                        pad_above,
                                                        pad_below,
                                                        ov::op::PadMode::CONSTANT,

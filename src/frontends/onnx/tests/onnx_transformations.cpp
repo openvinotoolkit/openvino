@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,7 +38,7 @@ bool after_func_expand_name_comp(std::string lhs, std::string rhs) {
         auto cut_length = -1;
 
         auto founded_hex = 0;
-        for (int i = 0; i < name.size(); ++i) {
+        for (size_t i = 0; i < name.size(); ++i) {
             if (is_hex_symbol(name[i])) {
                 ++founded_hex;
                 if (cut_begin == -1) {

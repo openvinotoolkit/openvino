@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
 #include "pyopenvino/core/infer_request.hpp"
@@ -344,7 +344,7 @@ void regclass_InferRequest(py::module m) {
                         std::rethrow_exception(exception_ptr);
                     }
                 } catch (const std::exception& e) {
-                    throw ov::Exception("Caught exception: " + std::string(e.what()));
+                    OPENVINO_THROW("Caught exception: ", e.what());
                 }
                 // Acquire GIL, execute Python function
                 py::gil_scoped_acquire acquire;

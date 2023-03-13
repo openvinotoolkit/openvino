@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -145,7 +145,7 @@ bool evaluate(ov::TensorVector& outputs,
     } else if (inputs[1].get_element_type() == element::i32) {
         reduction_axes = runtime::reference::mvn_6_reduction_axes<int32_t>(inputs[1], rank);
     } else {
-        throw ov::Exception("Unexpected indices type");
+        OPENVINO_THROW("Unexpected indices type");
     }
     runtime::reference::mvn_6<T>(inputs[0].data<T>(),
                                  outputs[0].data<T>(),

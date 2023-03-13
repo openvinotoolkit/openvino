@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -78,7 +78,7 @@ bool BinaryConvolutionKernel1x1::Validate(const Params& p, const optional_params
     const bool bOutputSizes = output.X().v != input.X().v || output.Y().v != input.Y().v;
     const bool bFilterSize = params.filterSize.x != 1 || params.filterSize.y != 1;
     const bool bStride = params.stride.x != 1 || params.stride.y != 1;
-    const bool bGroups = params.split > 1 || params.groups > 1 || params.depthwise_separable_opt;
+    const bool bGroups = params.groups > 1;
 
     if (bOutputSizes || bFilterSize || bStride || bGroups)
         return false;

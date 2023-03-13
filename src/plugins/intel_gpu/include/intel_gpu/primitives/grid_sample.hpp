@@ -10,12 +10,7 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
 
 using GridSampleOp = ov::op::v9::GridSample;
 
@@ -35,9 +30,25 @@ struct grid_sample : primitive_base<grid_sample> {
           attributes(attributes) {}
 
     GridSampleOp::Attributes attributes;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, attributes.align_corners);
+        seed = hash_combine(seed, attributes.mode);
+        seed = hash_combine(seed, attributes.padding_mode);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const grid_sample>(rhs);
+
+        return attributes.align_corners == rhs_casted.attributes.align_corners &&
+               attributes.mode == rhs_casted.attributes.mode &&
+               attributes.padding_mode == rhs_casted.attributes.padding_mode;
+    }
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,11 +25,11 @@ namespace {
 class GenericShapeInfer : public ShapeInferEmptyPads {
 public:
     GenericShapeInfer() = default;
-    std::vector<VectorDims> infer(
+    Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         IE_THROW(Unexpected) << "Generic operations doesn't support shape inference.";
-        return {};
+        return {{}, ShapeInferStatus::skip};
     }
 
     port_mask_t get_port_mask() const override { return EMPTY_PORT_MASK; }
@@ -43,8 +43,8 @@ public:
 };
 } // namespace
 
-Generic::Generic(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache)
-    : Node(op, eng, cache, GenericShapeInferFactory()), ngraphOp(op) {
+Generic::Generic(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, GenericShapeInferFactory()), ngraphOp(op) {
 }
 
 void Generic::getSupportedDescriptors() {

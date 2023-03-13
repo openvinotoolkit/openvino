@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -52,13 +52,6 @@ DECLARE_GNA_CONFIG_KEY(PRECISION);
  * @brief if turned on, dump GNA firmware model into specified file
  */
 DECLARE_GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE);
-
-/**
- * @brief Generation of GNA embedded device to export the model.
- * @deprecated Key is deprecated and will be removed in a future release.
- */
-INFERENCE_ENGINE_DEPRECATED("The config key will be removed")
-DECLARE_GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION);
 
 /**
  * @brief GNA proc_type setting that should be one of GNA_AUTO, GNA_HW, GNA_HW_WITH_SW_FBACK, GNA_SW_EXACT

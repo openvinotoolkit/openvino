@@ -61,7 +61,7 @@ public:
         results << "ellipsis_m=" << (params.ellipsisAxisMask.empty() ? "def" : CommonTestUtils::vec2str(params.ellipsisAxisMask)) << "_";
         results << "restInputType=" << restInputType << "_";
         results << "config=(";
-        for (const auto configEntry : additionalConfig) {
+        for (const auto& configEntry : additionalConfig) {
             results << configEntry.first << ", " << configEntry.second << ":";
         }
         results << ")";

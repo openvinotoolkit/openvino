@@ -5,13 +5,13 @@
 .. _notebook tutorials:
 
 .. meta::
-   :description: A collection of Python tutorials run on Jupyter notebooks. The 
-                 tutorials explain how to use OpenVINO™ toolkit for optimized 
+   :description: A collection of Python tutorials run on Jupyter notebooks. The
+                 tutorials explain how to use OpenVINO™ toolkit for optimized
                  deep learning inference.
-   :keywords: OpenVINO™ toolkit, Jupyter, Jupyter notebooks, tutorials, Python 
-              API, Python, deep learning, inference, model inference, infer a 
-              model, Binder, object detection, quantization, image 
-              classification, speech recognition, OCR, OpenVINO IR, deep 
+   :keywords: OpenVINO™ toolkit, Jupyter, Jupyter notebooks, tutorials, Python
+              API, Python, deep learning, inference, model inference, infer a
+              model, Binder, object detection, quantization, image
+              classification, speech recognition, OCR, OpenVINO IR, deep
               learning model, AI, neural networks
 
 .. toctree::
@@ -22,21 +22,21 @@
    notebooks-installation
    notebooks/notebooks
 
-This collection of Python tutorials are written for running on Jupyter notebooks. 
-The tutorials provide an introduction to the OpenVINO™ toolkit and explain how to 
-use the Python API and tools for optimized deep learning inference. You can run the 
-code one section at a time to see how to integrate your application with OpenVINO 
+This collection of Python tutorials are written for running on Jupyter notebooks.
+The tutorials provide an introduction to the OpenVINO™ toolkit and explain how to
+use the Python API and tools for optimized deep learning inference. You can run the
+code one section at a time to see how to integrate your application with OpenVINO
 libraries.
 
-Notebooks with a |binder logo| button can be run without installing anything. 
-Once you have found the tutorial of your interest, just click the button next to 
+Notebooks with a |binder logo| button can be run without installing anything.
+Once you have found the tutorial of your interest, just click the button next to
 the name of it and `Binder <https://mybinder.org/>`__ will start it in a new tab of a browser.
 Binder is a free online service with limited resources (for more information about it,  
 see the `Additional Resources <#-additional-resources>`__ section).
 
 .. note::
-   For the best performance, more control and resources, you should run the notebooks locally. 
-   Follow the `Installation Guide <notebooks-installation.html>`__ in order to get information 
+   For the best performance, more control and resources, you should run the notebooks locally.
+   Follow the `Installation Guide <notebooks-installation.html>`__ in order to get information
    on how to run and manage the notebooks on your machine.
 
 
@@ -118,7 +118,7 @@ Tutorials that explain how to optimize and quantize models with OpenVINO tools.
    | `105-language-quantize-bert <notebooks/105-language-quantize-bert-with-output.html>`__                                       | Optimize and quantize a pre-trained BERT model                                                                                   |
    +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
    | `106-auto-device <notebooks/106-auto-device-with-output.html>`__                                                             | Demonstrates how to use AUTO Device                                                                                              |
-   +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+ 
+   +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
    | `107-speech-recognition-quantization <notebooks/107-speech-recognition-quantization-with-output.html>`__                     | Optimize and quantize a pre-trained Wav2Vec2 speech model                                                                        |
    +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
    | `110-ct-segmentation-quantize <notebooks/110-ct-segmentation-quantize-with-output.html>`__                                   | Quantize a kidney segmentation model and show live inference                                                                     |
@@ -133,6 +133,11 @@ Tutorials that explain how to optimize and quantize models with OpenVINO tools.
    +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
    | `115-async-api <notebooks/115-async-api-with-output.html>`__                                                                 | Use Asynchronous Execution to Improve Data Pipelining                                                                            |
    +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+   | `116-sparsity-optimization <notebooks/116-sparsity-optimization-with-output.html>`__                                         | Improve performance of sparse Transformer models                                                                                 |
+   +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+   | `118-optimize-preprocessing <notebooks/118-optimize-preprocessing-with-output.html>`__                                       | Improve performance of image preprocessing step                                                                                  |
+   +------------------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------+
+
 
 .. raw:: html
 
@@ -210,6 +215,23 @@ Demos that demonstrate inference on a particular model.
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
    | `228-clip-zero-shot-image-classification <notebooks/228-clip-zero-shot-image-classification-with-output.html>`__              | Perform Zero-shot Image Classification with CLIP and OpenVINO                                                                              | |n228-img1|                               |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+   | `229-distilbert-sequence-classification <notebooks/229-distilbert-sequence-classification-with-output.html>`__                | Sequence Classification with OpenVINO                                                                                                      | |n229-img1|                               |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+   | `230-yolov8-optimization <notebooks/230-yolov8-optimization-with-output.html>`__                                              | Optimize YOLOv8 using NNCF PTQ API                                                                                                         | |n230-img1|                               |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+   | `231-instruct-pix2pix-image-editing <notebooks/231-instruct-pix2pix-image-editing-with-output.html>`__                        | Image editing with InstructPix2Pix                                                                                                         | |n231-img1|                               |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+   | `232-clip-language-saliency-map <notebooks/232-clip-language-saliency-map-with-output.html>`__                                | Language-Visual Saliency with CLIP and OpenVINO™                                                                                           | |n232-img1|                               |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+   | `233-blip-visual-language-processing <notebooks/233-blip-visual-language-processing-with-output.html>`__                      | Visual Question Answering and Image Captioning using BLIP and OpenVINO™                                                                    | |n233-img1|                               |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+   | `234-encodec-audio-compression <notebooks/234-encodec-audio-compression-with-output.html>`__                                  | Audio compression with EnCodec and OpenVINO™                                                                                               | |n234-img1|                               |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+
+
+
+
+
 
 
 .. raw:: html
@@ -219,7 +241,7 @@ Demos that demonstrate inference on a particular model.
 `Model Training`_
 ------------------
 
-Tutorials that include code to train neural networks. 
+Tutorials that include code to train neural networks.
 
 
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
@@ -258,6 +280,8 @@ Live inference demos that run on a webcam or video files.
 | `405-paddle-ocr-webcam <notebooks/405-paddle-ocr-webcam-with-output.html>`__ |br| |n405|                                      | OCR with a webcam or video file                                                                                                            | |n405-img1|                               |
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 | `406-3D-pose-estimation-webcam <notebooks/406-3D-pose-estimation-with-output.html>`__ |br| |n406|                             | 3D display of human pose estimation with a webcam or video file                                                                            | |n406-img1|                               |
++-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+| `407-person-tracking-webcam <notebooks/407-person-tracking-with-output.html>`__ |br| |n407|                                   | Person tracking with a webcam or video file                                                                                                | |n407-img1|                               |
 +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 
 
@@ -409,6 +433,18 @@ Made with `contributors-img <https://contrib.rocks>`__.
    :target: https://user-images.githubusercontent.com/29454499/204548693-1304ef33-c790-490d-8a8b-d5766acb6254.png
 .. |n228-img1| image:: https://user-images.githubusercontent.com/29454499/207795060-437b42f9-e801-4332-a91f-cc26471e5ba2.png
    :target: https://user-images.githubusercontent.com/29454499/207795060-437b42f9-e801-4332-a91f-cc26471e5ba2.png
+.. |n229-img1| image:: https://user-images.githubusercontent.com/95271966/206130638-d9847414-357a-4c79-9ca7-76f4ae5a6d7f.png
+   :target: https://user-images.githubusercontent.com/95271966/206130638-d9847414-357a-4c79-9ca7-76f4ae5a6d7f.png
+.. |n230-img1| image:: https://user-images.githubusercontent.com/29454499/212105105-f61c8aab-c1ff-40af-a33f-d0ed1fccc72e.png
+   :target: https://user-images.githubusercontent.com/29454499/212105105-f61c8aab-c1ff-40af-a33f-d0ed1fccc72e.png
+.. |n231-img1| image:: https://user-images.githubusercontent.com/29454499/219943222-d46a2e2d-d348-4259-8431-37cf14727eda.png
+   :target: https://user-images.githubusercontent.com/29454499/219943222-d46a2e2d-d348-4259-8431-37cf14727eda.png
+.. |n232-img1| image:: https://user-images.githubusercontent.com/29454499/218967961-9858efd5-fff2-4eb0-bde9-60852f4b31cb.JPG
+   :target: https://user-images.githubusercontent.com/29454499/218967961-9858efd5-fff2-4eb0-bde9-60852f4b31cb.JPG
+.. |n233-img1| image:: https://user-images.githubusercontent.com/29454499/221933762-4ff32ecb-5e5d-4484-80e1-e9396cb3c511.png
+   :target: https://user-images.githubusercontent.com/29454499/221933762-4ff32ecb-5e5d-4484-80e1-e9396cb3c511.png
+.. |n234-img1| image:: https://github.com/facebookresearch/encodec/raw/main/thumbnail.png
+   :target: https://github.com/facebookresearch/encodec/raw/main/thumbnail.png
 .. |n301-img1| image:: https://user-images.githubusercontent.com/15709723/127779607-8fa34947-1c35-4260-8d04-981c41a2a2cc.png
    :target: https://user-images.githubusercontent.com/15709723/127779607-8fa34947-1c35-4260-8d04-981c41a2a2cc.png
 .. |n401-img1| image:: https://user-images.githubusercontent.com/4547501/141471665-82b28c86-cf64-4bfe-98b3-c314658f2d96.gif
@@ -423,6 +459,8 @@ Made with `contributors-img <https://contrib.rocks>`__.
    :target: https://raw.githubusercontent.com/yoyowz/classification/master/images/paddleocr.gif
 .. |n406-img1| image:: https://user-images.githubusercontent.com/42672437/183292131-576cc05a-a724-472c-8dc9-f6bc092190bf.gif
    :target: https://user-images.githubusercontent.com/42672437/183292131-576cc05a-a724-472c-8dc9-f6bc092190bf.gif
+.. |n407-img1| image:: https://user-images.githubusercontent.com/91237924/210479548-b70dbbaa-5948-4e49-b48e-6cb6613226da.gif
+   :target: https://user-images.githubusercontent.com/91237924/210479548-b70dbbaa-5948-4e49-b48e-6cb6613226da.gif
 .. |launch-jupyter| image:: https://user-images.githubusercontent.com/15709723/120527271-006fd200-c38f-11eb-9935-2d36d50bab9f.gif
    :target: https://user-images.githubusercontent.com/15709723/120527271-006fd200-c38f-11eb-9935-2d36d50bab9f.gif
 
@@ -491,10 +529,12 @@ Made with `contributors-img <https://contrib.rocks>`__.
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F405-paddle-ocr-webcam%2F405-paddle-ocr-webcam.ipynb
 .. |n406| image:: https://mybinder.org/badge_logo.svg
    :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks.git/main?labpath=notebooks%2F406-3D-pose-estimation-webcam%2F406-3D-pose-estimation.ipynb
+.. |n407| image:: https://mybinder.org/badge_logo.svg
+   :target: https://mybinder.org/v2/gh/openvinotoolkit/openvino_notebooks/HEAD?filepath=notebooks%2F407-person-tracking-webcam%2F407-person-tracking.ipynb
+
 
 .. |binder logo| image:: https://mybinder.org/badge_logo.svg
    :alt: Binder button
 
 
 @endsphinxdirective
-

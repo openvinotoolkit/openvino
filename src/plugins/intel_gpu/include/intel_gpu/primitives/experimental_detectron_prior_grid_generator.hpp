@@ -8,12 +8,7 @@
 
 namespace cldnn {
 
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
 
 /// @brief Constructs experimental_detectron_prior_grid_generator primitive.
 struct experimental_detectron_prior_grid_generator
@@ -51,6 +46,37 @@ struct experimental_detectron_prior_grid_generator
     uint64_t featmap_width;
     uint64_t image_height;
     uint64_t image_width;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, flatten);
+        seed = hash_combine(seed, h);
+        seed = hash_combine(seed, w);
+        seed = hash_combine(seed, stride_x);
+        seed = hash_combine(seed, stride_y);
+        seed = hash_combine(seed, featmap_height);
+        seed = hash_combine(seed, featmap_width);
+        seed = hash_combine(seed, image_height);
+        seed = hash_combine(seed, image_width);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const experimental_detectron_prior_grid_generator>(rhs);
+
+        return flatten == rhs_casted.flatten &&
+               h == rhs_casted.h &&
+               w == rhs_casted.w &&
+               stride_x == rhs_casted.stride_x &&
+               stride_y == rhs_casted.stride_y &&
+               featmap_height == rhs_casted.featmap_height &&
+               featmap_width == rhs_casted.featmap_width &&
+               image_height == rhs_casted.image_height &&
+               image_width == rhs_casted.image_width;
+    }
 };
 
 }  // namespace cldnn

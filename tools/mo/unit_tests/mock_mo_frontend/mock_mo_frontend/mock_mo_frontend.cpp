@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,12 +21,12 @@ int MockSetup::m_max_output_port_index = 0;
 
 PartialShape InputModelMockPy::m_returnShape = {};
 
-extern "C" MOCK_API FrontEndVersion GetAPIVersion()
+extern "C" MOCK_API FrontEndVersion get_api_version()
 {
     return OV_FRONTEND_API_VERSION;
 }
 
-extern "C" MOCK_API void* GetFrontEndData()
+extern "C" MOCK_API void* get_front_end_data()
 {
     FrontEndPluginInfo* res = new FrontEndPluginInfo();
     res->m_name = "openvino_mock_mo_frontend";

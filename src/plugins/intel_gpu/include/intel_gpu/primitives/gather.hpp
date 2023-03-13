@@ -1,20 +1,13 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "primitive.hpp"
 
 #include "openvino/core/shape.hpp"
 
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
 
 /// @brief
 /// @details
@@ -51,8 +44,24 @@ struct gather : public primitive_base<gather> {
     int64_t batch_dim;
     /// @brief Support negative indexes
     bool support_neg_ind;
+
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, axis);
+        seed = hash_combine(seed, batch_dim);
+        seed = hash_combine(seed, support_neg_ind);
+        return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const gather>(rhs);
+
+        return axis == rhs_casted.axis &&
+               batch_dim == rhs_casted.batch_dim &&
+               support_neg_ind == rhs_casted.support_neg_ind;
+    }
 };
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

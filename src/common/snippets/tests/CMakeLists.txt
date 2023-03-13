@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -23,3 +23,8 @@ ie_faster_build(${TARGET_NAME}
     UNITY
     PCH PRIVATE "src/precomp.hpp"
 )
+
+add_library(snippets_test_utils STATIC ${CMAKE_CURRENT_SOURCE_DIR}/include/lowering_utils.hpp
+                                       ${CMAKE_CURRENT_SOURCE_DIR}/src/lowering_utils.cpp)
+target_include_directories(snippets_test_utils PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(snippets_test_utils PRIVATE commonTestUtils snippetsNgraphFunctions)

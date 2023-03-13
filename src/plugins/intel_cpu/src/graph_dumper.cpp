@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,7 +9,6 @@
 #include "exec_graph_info.hpp"
 #include "ie_common.h"
 #include <dnnl_debug.h>
-#include <ngraph/variant.hpp>
 #include "ngraph/ngraph.hpp"
 #include <ngraph/pass/manager.hpp>
 #include <openvino/pass/serialize.hpp>

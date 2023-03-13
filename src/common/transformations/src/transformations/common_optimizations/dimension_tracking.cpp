@@ -16,7 +16,7 @@
 
 void ov::batch_util::mark_with_unique_dimension_labels(const std::shared_ptr<ov::Model>& f,
                                                        const ov::DimensionTracker& dt) {
-    size_t i = 1;
+    ov::label_t i = 1;
     for (auto& parameter : f->get_parameters()) {
         ov::PartialShape new_shape = ov::PartialShape::dynamic(parameter->get_partial_shape().rank());
         for (auto& dim : new_shape)
@@ -27,10 +27,10 @@ void ov::batch_util::mark_with_unique_dimension_labels(const std::shared_ptr<ov:
 
 void ov::batch_util::mark_batch(const std::shared_ptr<ov::opset1::Parameter>& parameter,
                                 P2Btype& map,
-                                const std::unordered_set<size_t>& batches) {
+                                const std::unordered_set<label_t>& batches) {
     auto& shape = parameter->get_partial_shape();
     if (map.count(parameter)) {  // we already marked this parameter as having a batch
-        std::unordered_set<size_t> intersection_in_all_three_sources_of_batch;
+        std::unordered_set<ov::label_t> intersection_in_all_three_sources_of_batch;
         auto mapped_batches = map[parameter];
         for (auto& dim : shape) {
             const auto& dim_label = ov::DimensionTracker::get_label(dim);
@@ -60,7 +60,7 @@ void ov::batch_util::mark_batch(const std::shared_ptr<ov::opset1::Parameter>& pa
 void ov::batch_util::mark_layout_independent_batch(const std::shared_ptr<ov::opset1::Parameter>& parameter,
                                                    const std::shared_ptr<ov::Node>& result,
                                                    P2Btype& map) {
-    std::vector<size_t> p_labels, r_labels;
+    TensorLabel p_labels, r_labels;
 
     for (const auto& dim : result->get_output_partial_shape(0))
         if (const auto& label = ov::DimensionTracker::get_label(dim))
@@ -68,7 +68,7 @@ void ov::batch_util::mark_layout_independent_batch(const std::shared_ptr<ov::ops
     for (const auto& dim : parameter->get_partial_shape()) {
         if (const auto& label = ov::DimensionTracker::get_label(dim)) {
             if (std::find(r_labels.begin(), r_labels.end(), label) != r_labels.end()) {
-                mark_batch(parameter, map, std::unordered_set<size_t>{label});
+                mark_batch(parameter, map, std::unordered_set<label_t>{label});
                 return;
             }
         }

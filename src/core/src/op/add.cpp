@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -76,6 +76,17 @@ shared_ptr<Node> op::v1::Add::clone_with_new_inputs(const OutputVector& new_args
 bool op::v1::Add::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_Add_evaluate);
     return add::evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
+}
+
+bool op::v1::Add::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
+    OV_OP_SCOPE(v1_Add_evaluate);
+    if (std::none_of(inputs.cbegin(), inputs.cend(), [](const ov::Tensor& t) {
+            return is_vector(t.get_shape()) && t.get_shape().front() == 0;
+        })) {
+        return BinaryElementwiseArithmetic::evaluate(outputs, inputs);
+    } else {
+        return true;
+    }
 }
 
 bool op::v1::Add::has_evaluate() const {

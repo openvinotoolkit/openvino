@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -674,8 +674,8 @@ bool ROIAlign::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& o
     return true;
 }
 
-ROIAlign::ROIAlign(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-                                       WeightsSharing::Ptr &cache) : Node(op, eng, cache, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
+ROIAlign::ROIAlign(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, EMPTY_PORT_MASK)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
@@ -1018,13 +1018,13 @@ void ROIAlign::executeSpecified() {
                         auto sampleXLow = static_cast<unsigned int>(sampleX);
                         unsigned int sampleYHigh;
                         unsigned int sampleXHigh;
-                        if (sampleYLow >= H - 1) {
+                        if (static_cast<int>(sampleYLow) >= H - 1) {
                             sampleYHigh = sampleYLow = H - 1;
                             sampleY = static_cast<float>(sampleYLow);
                         } else {
                             sampleYHigh = sampleYLow + 1;
                         }
-                        if (sampleXLow >= W - 1) {
+                        if (static_cast<int>(sampleXLow) >= W - 1) {
                             sampleXHigh = sampleXLow = W - 1;
                             sampleX = static_cast<float>(sampleXLow);
                         } else {
@@ -1132,7 +1132,7 @@ void ROIAlign::executeSpecified() {
             float numSamplesInBinInvert = 1.f / numSamplesROI;
 
             float pooledValue = 0;
-            for (unsigned int binSampleInd = 0; binSampleInd < numSamplesROI; binSampleInd++) {
+            for (auto binSampleInd = 0; binSampleInd < numSamplesROI; binSampleInd++) {
                 float src0 = srcData[channelSrcOffset + srcIndexTbl[n][paramOffset]];
                 float src1 = srcData[channelSrcOffset + srcIndexTbl[n][paramOffset + 1]];
                 float src2 = srcData[channelSrcOffset + srcIndexTbl[n][paramOffset + 2]];

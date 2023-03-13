@@ -1,14 +1,14 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "gna_layer_info.hpp"
-#include "gna_layer_helpers.hpp"
-#include "frontend/weights_converter.hpp"
-
 #include <ie_algorithm.hpp>
+
+#include "frontend/weights_converter.hpp"
+#include "gna_layer_helpers.hpp"
+#include "gna_layer_info.hpp"
 
 using ov::intel_gna::frontend::make_fp32_blob;
 

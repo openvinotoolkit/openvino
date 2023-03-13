@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -84,7 +84,7 @@ std::tuple<Shape, Shape, Shape> calculate_static_output_shapes(const Tensor& inp
         unique_elements = call_unique<double>(input_data, std::move(axis), op.get_sorted());
         break;
     default:
-        OPENVINO_UNREACHABLE("Operator `Unique-10` doesn't support element type: ", op.get_input_element_type(0));
+        OPENVINO_THROW("Operator `Unique-10` doesn't support element type: ", op.get_input_element_type(0));
     }
 
     return ngraph::runtime::reference::make_tensor_shapes(unique_elements,

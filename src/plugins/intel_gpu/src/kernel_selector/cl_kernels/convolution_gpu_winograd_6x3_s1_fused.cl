@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -69,14 +69,14 @@ KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 	__global INPUT0_TYPE* I,
 	__global OUTPUT_TYPE* O,
 #if FILTER_LAYOUT_IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_FBXYB || FILTER_LAYOUT_IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_XFBYB
-    __read_only image2d_t  U,
+    __read_only image2d_t U
 #else
-	__global FILTER_TYPE* U,
+	__global FILTER_TYPE* U
 #endif
 #if BIAS_TERM
-	const __global UNIT_TYPE * bias,
+	, const __global UNIT_TYPE * bias
 #endif
-	uint split_idx)
+)
 {
 	//               (DxC2)x(UxWx8c)
 	const uint slmSize = (2 * 8)*(16 * 4);
@@ -297,7 +297,7 @@ KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 
 							// Fetch 8 channels of Winograd components from f(k,s)
 #if FILTER_LAYOUT_IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_FBXYB || FILTER_LAYOUT_IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_XFBYB
-							const UNIT_TYPE_8 f00 = as_half8(_sub_group_block_read_us8(U, (int2)(coordU0.x, coordU0.y)));
+							const UNIT_TYPE_8 f00 = as_half8(intel_sub_group_block_read_us8(U, (int2)(coordU0.x, coordU0.y)));
 #else
 							const UNIT_TYPE_8 f00 = (UNIT_TYPE_8)(
 								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 0 * WEIGHTWIDTH])),
@@ -467,7 +467,7 @@ KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 							DOT8i_7(M6.s1, f00, V8, 10 + c8);
 
 #if FILTER_LAYOUT_IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_FBXYB || FILTER_LAYOUT_IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_XFBYB
-							const UNIT_TYPE_8 f01 = as_half8(_sub_group_block_read_us8(U, (int2)(coordU0.x + 16 * sizeof(UNIT_TYPE), coordU0.y)));
+							const UNIT_TYPE_8 f01 = as_half8(intel_sub_group_block_read_us8(U, (int2)(coordU0.x + 16 * sizeof(UNIT_TYPE), coordU0.y)));
 #else
 							const UNIT_TYPE_8 f01 = (UNIT_TYPE_8)(
 								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 16 + 0 * WEIGHTWIDTH])),
@@ -637,7 +637,7 @@ KERNEL(convolution_gpu_winograd_6x3_s1_fused)
 							DOT8i_7(M6.s1, f01, V8, 12 + c8);
 
 #if FILTER_LAYOUT_IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_FBXYB || FILTER_LAYOUT_IMAGE_2D_WEIGHTS_WINOGRAD_6x3_S1_XFBYB
-							const UNIT_TYPE_8 f02 = as_half8(_sub_group_block_read_us8(U, (int2)(coordU0.x + 32 * sizeof(UNIT_TYPE), coordU0.y)));
+							const UNIT_TYPE_8 f02 = as_half8(intel_sub_group_block_read_us8(U, (int2)(coordU0.x + 32 * sizeof(UNIT_TYPE), coordU0.y)));
 #else
 							const UNIT_TYPE_8 f02 = (UNIT_TYPE_8)(
 								as_half(_sub_group_block_read_us((__global unsigned short *)&U[flatA + 32 + 0 * WEIGHTWIDTH])),

@@ -1,6 +1,7 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+
 set(TARGET_NAME "ie_samples_utils")
 
 file(GLOB_RECURSE SOURCES "*.cpp" "*.hpp" "*.h")
