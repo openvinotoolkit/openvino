@@ -662,7 +662,7 @@ void XmlDeserializer::read_legacy_meta_data(const std::shared_ptr<ov::Model>& mo
                 } else if (!data.attribute("value").empty()) {
                     rt_info[data.name()] = XMLParseUtils::GetStrAttr(data, "value");
                 } else {
-                    throw ov::Exception(std::string("Unsupported legacy argument: ") + data.name());
+                    OPENVINO_THROW("Unsupported legacy argument: ", data.name());
                 }
             }
         } else if (name == "quantization_parameters") {
