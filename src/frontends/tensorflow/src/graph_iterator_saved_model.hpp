@@ -121,19 +121,35 @@ public:
     }
 
 private:
-    // Internal implementation of saved model reading
+    /// \brief Reads block structure of .index file
+    /// \param[in,out] fs Filestream of .index file, position in file will be updated
+    /// \param[in] index Variables index block which stores information about block
+    /// \param[out] data Block data will be readed
+    /// \param[out] offset Offset of block start
+    /// \param[out] offset_end Offset of block end
     void read_variables_index_block(std::ifstream& fs,
-                                    const VIBlock* index,
+                                    const VIBlock& index,
                                     std::vector<char>& data,
                                     uint32_t& offset,
                                     uint32_t& offset_end);
+    /// \brief Reads key=value pair from provided pointer
+    /// \param[in,out] ptr Actual pointer, will be moved to the end of readed pair (to read next)
+    /// \param[in] ptr_end End of memory which shouldn't be passed in case of broken structure
+    /// \param[out] key Key name
+    /// \param[out] value Stored value for key (isn't a pure string, data block)
+    /// \param[out] val_lenght Length of readed value
     void read_variables_index_pair(char*& ptr,
                                    const char* ptr_end,
                                    std::string& key,
                                    char*& value,
                                    uint32_t& val_length);
+    /// \brief Reads .index file and stores key=value map in provided varIndex
+    /// \param[in,out] fs Filestream should be parsed. Position in file will be updated
+    /// \param[out] varIndex Variables indx (key=value) from given filestream
     void read_variables_index(std::ifstream& fs, std::map<std::string, std::vector<char>>& varIndex);
+    /// \brief Reads bundle header if it is available. Checks version and saves info about amount of shards
     void read_bundle_header();
+    /// \brief Reads key=value map from storef _CHECKPOINTABLE_OBJECT_GRAPH variable
     void read_checkpointable_object_graph();
 };
 
@@ -238,8 +254,15 @@ private:
 
         return false;
     }
+
+    /// \brief Reads relationship between VarHandleOp - RestoreV2 - AssignVariableOp and
+    /// stores this information in a provided key=value map. Where key - name of VarHandleOp,
+    /// value - long variable name which is stored in RestoreV2.
+    /// It needs to map VarHandleOp to right place in .index file.
+    /// \param[in] graph_def GraphDef object for analysis
+    /// \param[out] variables_map Map of variables found in graph_def
     void map_assignvariable(const std::shared_ptr<::tensorflow::GraphDef> graph_def,
-                            std::map<std::string, std::string>& map_variables);
+                            std::map<std::string, std::string>& variables_map) const;
 };  // GraphIteratorSavedModel
 
 }  // namespace tensorflow

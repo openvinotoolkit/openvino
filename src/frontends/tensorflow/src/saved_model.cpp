@@ -81,19 +81,19 @@ struct VIFooter {
 };
 
 void SavedModelVariablesIndex::read_variables_index_block(std::ifstream& fs,
-                                                          const VIBlock* index,
+                                                          const VIBlock& index,
                                                           std::vector<char>& data,
                                                           uint32_t& offset,
                                                           uint32_t& offset_end) {
     data.clear();
-    data.resize(index->m_size + 5 /*kBlockTrailerSize*/);
-    fs.seekg(index->m_offset, std::ios::beg);
+    data.resize(index.m_size + 5 /*kBlockTrailerSize*/);
+    fs.seekg(index.m_offset, std::ios::beg);
     fs.read(data.data(), data.size());
-    FRONT_END_GENERAL_CHECK(data[index->m_size] == 0, "Compressed files aren't supported");
-    uint32_t numRestarts = smReadFixed<uint32_t>(data.data() + index->m_size - sizeof(uint32_t));
-    size_t maxRestarts = (index->m_size - sizeof(uint32_t)) / sizeof(uint32_t);
+    FRONT_END_GENERAL_CHECK(data[index.m_size] == 0, "Compressed files aren't supported");
+    uint32_t numRestarts = smReadFixed<uint32_t>(data.data() + index.m_size - sizeof(uint32_t));
+    size_t maxRestarts = (index.m_size - sizeof(uint32_t)) / sizeof(uint32_t);
     FRONT_END_GENERAL_CHECK(maxRestarts >= numRestarts, "Wrong restarts value");
-    offset_end = static_cast<uint32_t>(index->m_size) - ((numRestarts + 1) * sizeof(uint32_t));
+    offset_end = static_cast<uint32_t>(index.m_size) - ((numRestarts + 1) * sizeof(uint32_t));
     offset = smReadFixed<uint32_t>(data.data() + offset_end);
 }
 
@@ -131,7 +131,7 @@ void SavedModelVariablesIndex::read_variables_index(std::ifstream& fs,
 
     uint32_t offset = 0, offset_end = 0;
 
-    read_variables_index_block(fs, &footer.m_index, blockData, offset, offset_end);
+    read_variables_index_block(fs, footer.m_index, blockData, offset, offset_end);
     char *ptr = blockData.data() + offset, *ptr_end = blockData.data() + offset_end, *value = nullptr;
     std::string key = "";
     uint32_t valLength;
@@ -146,7 +146,7 @@ void SavedModelVariablesIndex::read_variables_index(std::ifstream& fs,
     }
 
     for (auto& block : secondLevel) {
-        read_variables_index_block(fs, &block, blockData, offset, offset_end);
+        read_variables_index_block(fs, block, blockData, offset, offset_end);
 
         key = "";
         ptr = blockData.data() + offset;
@@ -298,7 +298,7 @@ struct pNode {
         }
     }
 
-    void find_parent_by_op(const std::string& op, std::vector<pNode*>& result) {
+    void find_parent_by_op(const std::string& op, std::vector<pNode*>& result) const {
         for (auto input : inputs) {
             if (input->op() == op) {
                 result.push_back(input);
@@ -323,7 +323,7 @@ struct pNode {
         result.push_back(name.substr(left_pos, name.length() - left_pos));
     }
 
-    const std::string& op() {
+    const std::string& op() const {
         return node->op();
     }
 };
@@ -348,7 +348,7 @@ static void read_stateful_partitioned_call(const std::shared_ptr<::tensorflow::G
 
     std::map<std::string, pNode*> nodes;
 
-    // Fill temporary input nodes for exact function
+    // Filling temporary input nodes for exact function
     for (int i = 0; i < func_def->signature().input_arg_size(); ++i) {
         const auto& input_arg = func_def->signature().input_arg(i).name();
         const auto& parent_input = partCall.input(i);
@@ -384,7 +384,7 @@ static void read_stateful_partitioned_call(const std::shared_ptr<::tensorflow::G
 }
 
 void GraphIteratorSavedModel::map_assignvariable(const std::shared_ptr<::tensorflow::GraphDef> graph_def,
-                                                 std::map<std::string, std::string>& map_variables) {
+                                                 std::map<std::string, std::string>& variables_map) const {
     std::map<std::string, pNode*> nodes;
 
     for (const auto& node : graph_def->node()) {
@@ -419,7 +419,7 @@ void GraphIteratorSavedModel::map_assignvariable(const std::shared_ptr<::tensorf
         const auto& variable_name =
             restorev2_nodes[0]->inputs[1]->node->attr().at("value").tensor().string_val(output_index);
 
-        map_variables[varhandle_nodes[0]->node->name()] = variable_name;
+        variables_map[varhandle_nodes[0]->node->name()] = variable_name;
     }
 
     nodes.clear();
