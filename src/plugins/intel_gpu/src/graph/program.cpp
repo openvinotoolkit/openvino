@@ -150,7 +150,7 @@ program::program(engine& engine)
       processing_order() {
     init_primitives();
     _config.apply_user_properties(_engine.get_device_info());
-      }
+}
 
 program::~program() {
 }

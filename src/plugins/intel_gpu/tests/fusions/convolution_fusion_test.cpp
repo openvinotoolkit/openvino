@@ -208,7 +208,7 @@ class ConvFusingForceKernelTest : public BaseFusingTest<bc_force_kernel_params> 
     public:
     void execute(bc_force_kernel_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
         ov::intel_gpu::ImplementationDesc conv_impl = { p.input_format, p.kernel_name };
         config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));

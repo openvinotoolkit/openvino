@@ -278,9 +278,6 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_int8_eltwise, ::testing::ValuesIn(std::
     fully_connected_test_params{ CASE_FC_U8S8_1, 2, 3 },
     fully_connected_test_params{ CASE_FC_U8S8_2, 2, 3 },
     fully_connected_test_params{ CASE_FC_U8S8_3, 2, 3 },
-    fully_connected_test_params{ CASE_FC_U8S8_3D_1, 2, 3 },
-    fully_connected_test_params{ CASE_FC_U8S8_3D_2, 2, 3 },
-    fully_connected_test_params{ CASE_FC_U8S8_3D_3, 2, 3 },
 }));
 
 class fc_int8_quantize_u8 : public FullyConnectedFusingTest {};

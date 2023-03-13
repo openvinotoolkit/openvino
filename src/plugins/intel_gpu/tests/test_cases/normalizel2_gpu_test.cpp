@@ -83,7 +83,7 @@ struct normalize_basic : public testing::Test {
         topology.add(normalize("normalize2", input_info("reordered_Input0"), "reordered_Input1", this->across_spatial));
         topology.add(reorder("plane_normalize2", input_info("normalize2"), format::bfyx, this->output_data_type));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input0", input);
 
