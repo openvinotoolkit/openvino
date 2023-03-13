@@ -21,7 +21,6 @@ if(CMAKE_COMPILER_IS_GNUCC)
     ie_add_compiler_flags(-Wno-int-in-bool-context)
 elseif(OV_COMPILER_IS_CLANG)
     ie_add_compiler_flags(-Wno-int-in-bool-context)
-    ie_add_compiler_flags(-Wno-implicit-const-int-float-conversion)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # C4267, 4244 issues from mkl-dnn headers conversion from 'XXX' to 'YYY', possible loss of data
     ie_add_compiler_flags(/wd4267)

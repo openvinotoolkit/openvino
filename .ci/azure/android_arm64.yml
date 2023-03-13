@@ -158,6 +158,7 @@ jobs:
         -DENABLE_TESTS=ON
         -DBUILD_java_api=ON
         -DBUILD_nvidia_plugin=OFF
+        -DBUILD_custom_operations=OFF
         -DENABLE_INTEL_GPU=ON
         -DOPENVINO_EXTRA_MODULES=$(OPENVINO_CONTRIB_REPO_DIR)/modules
         -DCMAKE_CXX_LINKER_LAUNCHER=ccache

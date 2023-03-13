@@ -5,6 +5,7 @@
 #include "include/fetch_utils.cl"
 
 KERNEL(border_gpu_ref)(
+    OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
 #ifdef BEGIN_TYPE
     const __global BEGIN_TYPE* begin,
@@ -154,7 +155,7 @@ KERNEL(border_gpu_ref)(
         const uint in_f = out_f - blt_sf;
         const uint in_b = out_b - blt_sb;
 
-        const uint in_pos = FUNC_CALL(get_input_index)(in_b, in_f, in_w, in_z, in_y, in_x);
+        const uint in_pos = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR in_b, in_f, in_w, in_z, in_y, in_x);
         in_val = input[in_pos];
     }
 #elif defined BORDER_TYPE_EDGE
@@ -165,7 +166,7 @@ KERNEL(border_gpu_ref)(
     const uint in_f = (out_f >= blt_sf & out_f < in_lf) ? out_f - blt_sf : (out_f < blt_sf ? 0 : in_sf - 1);
     const uint in_b = (out_b >= blt_sb & out_b < in_lb) ? out_b - blt_sb : (out_b < blt_sb ? 0 : in_sb - 1);
 
-    const uint in_pos = FUNC_CALL(get_input_index)(in_b, in_f, in_w, in_z, in_y, in_x);
+    const uint in_pos = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR in_b, in_f, in_w, in_z, in_y, in_x);
     INPUT0_TYPE in_val = input[in_pos];
 #elif defined BORDER_TYPE_MIRROR
     const uint in_x = (out_x >= blt_sx & out_x < in_lx) ? out_x - blt_sx : (out_x < blt_sx ? blt_sx - 1 - out_x : in_sx + in_lx - 1 - out_x);
@@ -175,7 +176,7 @@ KERNEL(border_gpu_ref)(
     const uint in_f = (out_f >= blt_sf & out_f < in_lf) ? out_f - blt_sf : (out_f < blt_sf ? blt_sf - 1 - out_f : in_sf + in_lf - 1 - out_f);
     const uint in_b = (out_b >= blt_sb & out_b < in_lb) ? out_b - blt_sb : (out_b < blt_sb ? blt_sb - 1 - out_b : in_sb + in_lb - 1 - out_b);
 
-    const uint in_pos = FUNC_CALL(get_input_index)(in_b, in_f, in_w, in_z, in_y, in_x);
+    const uint in_pos = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR in_b, in_f, in_w, in_z, in_y, in_x);
     INPUT0_TYPE in_val = input[in_pos];
 #elif defined BORDER_TYPE_MIRROR_101
     const uint in_x = (out_x >= blt_sx & out_x < in_lx) ? out_x - blt_sx : (out_x < blt_sx ? blt_sx - out_x : in_sx + in_lx - 2 - out_x);
@@ -185,12 +186,12 @@ KERNEL(border_gpu_ref)(
     const uint in_f = (out_f >= blt_sf & out_f < in_lf) ? out_f - blt_sf : (out_f < blt_sf ? blt_sf - out_f : in_sf + in_lf - 2 - out_f);
     const uint in_b = (out_b >= blt_sb & out_b < in_lb) ? out_b - blt_sb : (out_b < blt_sb ? blt_sb - out_b : in_sb + in_lb - 2 - out_b);
 
-    const uint in_pos = FUNC_CALL(get_input_index)(in_b, in_f, in_w, in_z, in_y, in_x);
+    const uint in_pos = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR in_b, in_f, in_w, in_z, in_y, in_x);
     INPUT0_TYPE in_val = input[in_pos];
 #else
     #error Unsupported border type.
 #endif
 
-    const uint out_pos = FUNC_CALL(get_output_index)(out_b, out_f, out_w, out_z, out_y, out_x);
+    const uint out_pos = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR out_b, out_f, out_w, out_z, out_y, out_x);
     output[out_pos] = in_val;
 }
