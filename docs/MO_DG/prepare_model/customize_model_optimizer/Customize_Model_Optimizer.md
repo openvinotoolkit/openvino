@@ -17,7 +17,8 @@ This article describes Model Optimizer internals. Altering them may result in ap
 
 .. _model-optimizer-extensibility:
 
-Model Optimizer extensibility mechanism enables support of new operations and custom transformations to generate the optimized intermediate representation (IR) as described :doc:`here <openvino_docs_MO_DG_IR_and_opsets>`. This mechanism is a core part of Model Optimizer, as a huge set of examples showing how to add custom logic to support your model.
+Model Optimizer extensibility mechanism enables support of new operations and custom transformations to generate the optimized intermediate representation (IR) as described :doc:`here <openvino_docs_MO_DG_IR_and_opsets>`.
+This mechanism is a core part of Model Optimizer, as a huge set of examples showing how to add custom logic to support your model.
 
 There are several cases when the customization is needed:
 
