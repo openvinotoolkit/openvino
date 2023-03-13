@@ -82,13 +82,22 @@ class TaskManager:
         thread.start()
         return thread
 
+    @staticmethod
+    def __normilize_path_in_args(command: str):
+        args = shlex.split(command)
+        for arg in args:
+            path = Path(arg)
+            if path.exists():
+                arg = path.expanduser().resolve()
+        return args
+
     def init_worker(self):
         if len(self._command_list) <= self._idx:
             logger.warning(f"Skip worker initialiazation. Command list lenght <= worker index")
             return
         log_file_name = self._log_filename.replace(LOG_NAME_REPLACE_STR, str(self._idx + self._prev_run_cmd_length))
         with open(log_file_name, "w") as log_file:
-            args = shlex.split(self._command_list[self._idx])
+            args = self.__normilize_path_in_args(self._command_list[self._idx])
             worker = self.__create_thread(
                 self._process_list.append(Popen(args, stdout=log_file, stderr=log_file)))
             self._workers.append(worker)
@@ -112,7 +121,7 @@ class TaskManager:
                     continue
 
     def __update_process(self, pid:int, log_file):
-        args = shlex.split(self._command_list[self._idx])
+        args = self.__normilize_path_in_args(self._command_list[self._idx])
         self._process_list[pid] = Popen(args, stdout=log_file, stderr=log_file)
 
     def update_worker(self):
@@ -162,7 +171,6 @@ class TestParallelRunner:
         self._disabled_tests = list()
         self._total_test_cnt = 0
 
-
     def __init_basic_command_line_for_exec_file(self, test_command_line: list):
         command = f'{self._exec_file_path}'
         is_input_folder = False
@@ -192,7 +200,6 @@ class TestParallelRunner:
         for symbol in restricted_symbols:
             input_string = input_string.replace(symbol, '*')
         return input_string
-
 
     def __get_test_list_by_runtime(self):
         test_list_file_name = os.path.join(self._working_dir, "test_list.lst")
@@ -230,7 +237,6 @@ class TestParallelRunner:
             exit(0)
         return test_list
 
-
     def __get_test_list_by_cache(self):
         test_list_cache = list()
         if os.path.isfile(self._cache_path):
@@ -244,7 +250,6 @@ class TestParallelRunner:
                         test_list_cache.append(TestStructure(test_name.replace("\n", ""), time))
         logger.info(f"Len test_list_cache: {len(test_list_cache)}")
         return test_list_cache
-
 
     def __generate_test_lists(self, test_list_cache: list, test_list_runtime:list):
         cached_test_list = list()
@@ -264,7 +269,6 @@ class TestParallelRunner:
             logger.info(f'Test count from cache: {len(cached_test_list)}')
             logger.info(f'Test count from runtime: {len(runtime_test_test)}')
         return cached_test_list, runtime_test_test
-
 
     def __prepare_smart_filters(self, proved_test_list:list):
         res_test_filters = list()
@@ -356,7 +360,6 @@ class TestParallelRunner:
                 break
         return task_manager.compelete_all_processes()
 
-
     def run(self):
         if TaskManager.process_timeout == -1:
             TaskManager.process_timeout = DEFAULT_PROCESS_TIMEOUT
@@ -376,14 +379,12 @@ class TestParallelRunner:
             logger.info(f"Execute jobs taken from cache")
             self.__execute_tests(filters_cache, worker_cnt)
 
-
         t_end = datetime.datetime.now()
         total_seconds = (t_end - t_start).total_seconds()
         sec = round(total_seconds % 60, 2)
         min = int(total_seconds / 60) % 60
         h = int(total_seconds / 3600) % 60
         logger.info(f"Run test parallel is finished successfully. Total time is {h}h:{min}m:{sec}s")
-
 
     def postprocess_logs(self):
         test_results = dict()
@@ -507,7 +508,6 @@ class TestParallelRunner:
                 for priority, name in fix_priority:
                     csv_writer.writerow([name, priority])
                 logger.info(f"Fix priorities list is saved to: {fix_priority_path}")
-
 
         disabled_tests_path = os.path.join(logs_dir, "disabled_tests.log")
         with open(disabled_tests_path, "w") as disabled_tests_file:
