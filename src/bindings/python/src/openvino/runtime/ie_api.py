@@ -2,7 +2,6 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-from functools import singledispatch
 from typing import Any, Iterable, Union, Dict, Optional
 from pathlib import Path
 
@@ -16,6 +15,7 @@ from openvino._pyopenvino import ConstOutput
 from openvino._pyopenvino import Tensor
 
 from openvino.runtime.utils.data_helpers import (
+    OVDict,
     _InferRequestWrapper,
     _data_dispatch,
     tensor_from_file,
@@ -24,6 +24,13 @@ from openvino.runtime.utils.data_helpers import (
 
 class InferRequest(_InferRequestWrapper):
     """InferRequest class represents infer request which can be run in asynchronous or synchronous manners."""
+
+    def old_infer(self, inputs: Any = None, shared_memory: bool = False) -> dict:
+        return super().infer(_data_dispatch(
+            self,
+            inputs,
+            is_shared=shared_memory,
+        ))
 
     def infer(self, inputs: Any = None, shared_memory: bool = False) -> dict:
         """Infers specified input(s) in synchronous mode.
@@ -71,11 +78,11 @@ class InferRequest(_InferRequestWrapper):
         :return: Dictionary of results from output tensors with ports as keys.
         :rtype: Dict[openvino.runtime.ConstOutput, numpy.ndarray]
         """
-        return super().infer(_data_dispatch(
+        return OVDict(super().infer(_data_dispatch(
             self,
             inputs,
             is_shared=shared_memory,
-        ))
+        )))
 
     def start_async(
         self,
@@ -138,6 +145,15 @@ class InferRequest(_InferRequestWrapper):
             userdata,
         )
 
+    @property
+    def results(self):
+        """Gets all outputs tensors of this InferRequest.
+
+        :return: Dictionary of results from output tensors with ports as keys.
+        :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
+        """
+        return OVDict(super().results)
+
 
 class CompiledModel(CompiledModelBase):
     """CompiledModel class.
@@ -192,7 +208,7 @@ class CompiledModel(CompiledModelBase):
         """
         # It returns wrapped python InferReqeust and then call upon
         # overloaded functions of InferRequest class
-        return self.create_infer_request().infer(inputs)
+        return OVDict(self.create_infer_request().infer(inputs))
 
     def __call__(self,
                  inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None,
@@ -254,10 +270,10 @@ class CompiledModel(CompiledModelBase):
         if self._infer_request is None:
             self._infer_request = self.create_infer_request()
 
-        return self._infer_request.infer(
+        return OVDict(self._infer_request.infer(
             inputs,
             shared_memory=shared_memory,
-        )
+        ))
 
 
 class AsyncInferQueue(AsyncInferQueueBase):
