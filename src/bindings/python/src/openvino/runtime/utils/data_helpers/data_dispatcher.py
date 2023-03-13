@@ -229,20 +229,20 @@ def _(
     request: _InferRequestWrapper,
     key: Optional[ValidKeys] = None,
 ) -> None:
-    # If shape is "empty", assume this is a scalar value
-    if not inputs.shape:
+    if inputs.ndim != 0:
+        tensor = get_request_tensor(request, key)
+        # Update shape if there is a mismatch
+        if tuple(tensor.shape) != inputs.shape:
+            tensor.shape = inputs.shape
+        # When copying, type should be up/down-casted automatically.
+        tensor.data[:] = inputs[:]
+    else:
+        # If shape is "empty", assume this is a scalar value
         set_request_tensor(
             request,
             value_to_tensor(inputs, request=request, is_shared=False, key=key),
             key,
         )
-    else:
-        tensor = get_request_tensor(request, key)
-        # Update shape if there is a mismatch
-        if tensor.shape != inputs.shape:
-            tensor.shape = inputs.shape
-        # When copying, type should be up/down-casted automatically.
-        tensor.data[:] = inputs[:]
 
 
 @update_tensor.register(np.number)  # type: ignore
