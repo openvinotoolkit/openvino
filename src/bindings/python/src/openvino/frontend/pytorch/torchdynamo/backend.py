@@ -9,13 +9,16 @@ from torch._dynamo.backends.registry import register_backend
 from openvino.runtime import Core, Type, PartialShape
 from openvino.frontend import FrontEndManager
 from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+from openvino.frontend.pytorch.torchdynamo.partition import Partitioner
+from openvino.frontend.pytorch.torchdynamo.execute import execute 
+from torch.fx.experimental.proxy_tensor import make_fx
 
 log = logging.getLogger(__name__)
 
 @register_backend
 @fake_tensor_unsupported
 def openvino(subgraph, example_inputs):
-    return ts_openvino(subgraph, example_inputs)
+    return fx_openvino(subgraph, example_inputs)
 
 def ts_openvino(subgraph, example_inputs):
     try:
@@ -55,6 +58,22 @@ def ts_openvino(subgraph, example_inputs):
                 return subgraph.model.forward(*args)
             result = [torch.from_numpy(res[out]) for out in compiled_model.outputs]
             return result
+        return _call
+    except Exception as e:
+        return subgraph
+
+
+def fx_openvino(subgraph, example_inputs):
+    try:
+        model = make_fx(subgraph)(*example_inputs)
+        with torch.no_grad():
+            model.eval()
+        partitioner = Partitioner()
+        compiled_model = partitioner.make_partitions(model)
+    
+        def _call(*args):
+            res = execute(compiled_model, *example_inputs, executor="openvino")
+            return res
         return _call
     except Exception as e:
         return subgraph
