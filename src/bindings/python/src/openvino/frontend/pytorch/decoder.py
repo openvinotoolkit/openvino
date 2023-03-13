@@ -39,8 +39,8 @@ def ivalue_to_constant(ivalue):
         return op.Constant(ov_type, Shape([len(ivalue)]), ivalue).outputs()
 
     if isinstance(ivalue, torch.Tensor):
-        if ivalue.ndim == 0:
-            assert str(ivalue.dtype()) in pt_to_ov_type_map, f"Type is not known {ivalue.dtype()}"
+        if ivalue.dim() == 0:
+            assert str(ivalue.dtype) in pt_to_ov_type_map, f"Type is not known {ivalue.dtype}"
             ov_type = pt_to_ov_type_map[str(ivalue.dtype)]
             ov_const = op.Constant(ov_type, Shape([]), [ivalue.item()])
         else:
@@ -187,7 +187,10 @@ class TorchScriptPythonDecoder (Decoder):
         return []
 
     def get_subgraph_size(self) -> int:
-        return len(self.get_subgraphs()) if hasattr(self.graph_element, "blocks") else 1
+        if isinstance(self.graph_element, torch.Node):
+            return len(self.get_subgraphs()) 
+        else:
+            return 1
 
     def visit_subgraph(self, node_visitor) -> None:
         # make sure topological order is satisfied
@@ -197,6 +200,14 @@ class TorchScriptPythonDecoder (Decoder):
             node_visitor(decoder)
 
     def get_subgraphs(self) -> list:
+        if self.graph_element.kind() == "prim::PythonOp":
+            if "Subgraph" in self.graph_element.attributeNames():
+                assert isinstance(self.graph_element, torch.Node), "Graph element must be of type torch.Node."
+                return [getattr(self.graph_element, self.graph_element.kindOf("Subgraph"))("Subgraph")]
+            else:
+                # Attribute "Subgraph" is only available if Graph was created using tracing.
+                # TODO Find way to extract subgraph for scripted Graph.
+                return []
         return list(self.graph_element.blocks())
 
     def get_subgraph_decoder(self, index: int):
@@ -243,7 +254,7 @@ class TorchScriptPythonDecoder (Decoder):
 
         pt_type = pt_value.type()
         if isinstance(pt_type, torch.TensorType):
-            return self._as_constant_tensor(pt_value)
+            return ivalue_to_constant(pt_value.toIValue())
         if isinstance(pt_type, torch.ListType):
             return self._as_constant_list(pt_value)
         return ivalue_to_constant(pt_value.toIValue())
@@ -257,28 +268,6 @@ class TorchScriptPythonDecoder (Decoder):
                 return pt_value.toIValue().type
         elif self.get_op_type() == "prim::device":
             return self._get_device_string()
-        return None
-
-    @staticmethod
-    def _as_constant_tensor(pt_value: torch.Value):
-        ivalue = pt_value.toIValue()
-        if pt_value.isCompleteTensor():
-            if ivalue.ndim == 0:
-                assert str(ivalue.dtype) in pt_to_ov_type_map, f"Type is not known {ivalue.dtype}"
-                ov_type = pt_to_ov_type_map[str(ivalue.dtype)]
-                ov_const = op.Constant(ov_type, Shape([]), [ivalue.item()])
-            else:
-                ivalue = ivalue.to(memory_format=torch.contiguous_format)
-                narr = ivalue.numpy(force=True)
-                if not narr.flags['C_CONTIGUOUS']:
-                    narr = np.ascontiguousarray(narr)
-                # Constant interpretation doesn't respect new-full type of PT
-                # It recognizes only tensors, and give lists as 1D tensors, and scalars as Tensor scalars
-                # So only tensor-type constants are supported
-                ov_const = op.Constant(narr, shared_memory=True)
-            return ov_const.outputs()
-        else:
-            return ivalue_to_constant(ivalue)
         return None
 
     @staticmethod

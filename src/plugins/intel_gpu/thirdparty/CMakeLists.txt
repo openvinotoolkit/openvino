@@ -22,10 +22,16 @@ if(ENABLE_ONEDNN_FOR_GPU)
         set(ONEDNN_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_root")
         set(ONEDNN_ENABLED_PRIMITIVES "CONCAT;CONVOLUTION;DECONVOLUTION;INNER_PRODUCT;MATMUL;REORDER;POOLING;REDUCTION")
         set(ONEDNN_ENABLED_ISA "XEHP;XEHPG;XEHPC")
+
         if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-            ie_add_compiler_flags(-Wno-undef -Wno-missing-declarations)
+            ie_add_compiler_flags(-Wno-undef)
+            ie_add_compiler_flags(-Wno-missing-declarations)
             if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)
-                ie_add_compiler_flags(-Wno-error=array-bounds -Wno-error=stringop-overflow= -Wno-error=unused-result)
+                ie_add_compiler_flags(-Wno-array-bounds)
+                ie_add_compiler_flags(-Wno-stringop-overflow)
+                if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12)
+                    ie_add_compiler_flags(-Wno-restrict)
+                endif()
             endif()
         endif()
         if(SUGGEST_OVERRIDE_SUPPORTED)
@@ -36,6 +42,15 @@ if(ENABLE_ONEDNN_FOR_GPU)
                                    CMAKE_SYSTEM_PROCESSOR CMAKE_TOOLCHAIN_FILE)
             list(APPEND cmake_extra_args "-D${cmake_var}=${${cmake_var}}")
         endforeach()
+
+        if(OV_GENERATOR_MULTI_CONFIG)
+            if(CMAKE_GENERATOR MATCHES "^Ninja Multi-Config$")
+                list(APPEND cmake_extra_args "-DCMAKE_CONFIGURATION_TYPES=${CMAKE_DEFAULT_BUILD_TYPE}")
+                list(APPEND cmake_extra_args "-DCMAKE_DEFAULT_BUILD_TYPE=${CMAKE_DEFAULT_BUILD_TYPE}")
+            endif()
+        else()
+            list(APPEND cmake_extra_args "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}")
+        endif()
 
         ExternalProject_Add(onednn_gpu_build
             SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu"
@@ -67,7 +82,6 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 "-DDNNL_LIBRARY_NAME=onednn_gpu"
                 "-DCMAKE_INSTALL_PREFIX=${ONEDNN_INSTALL_DIR}"
                 "-DCMAKE_INSTALL_LIBDIR=lib/$<CONFIG>"
-                "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
                 "-DDNNL_ENABLE_CONCURRENT_EXEC=ON"
                 "-DDNNL_ENABLE_PRIMITIVE_CACHE=ON"
                 "-DDNNL_ENABLE_WORKLOAD=INFERENCE"

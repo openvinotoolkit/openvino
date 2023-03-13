@@ -32,7 +32,7 @@ Allocator::Allocator(const std::shared_ptr<AllocatorImpl>& impl) : _impl{impl} {
     try {                                                                \
         __VA_ARGS__;                                                     \
     } catch (const std::exception& ex) {                                 \
-        throw ov::Exception(ex.what());                                  \
+        OPENVINO_THROW(ex.what());                                       \
     } catch (...) {                                                      \
         OPENVINO_ASSERT(false, "Unexpected exception");                  \
     }

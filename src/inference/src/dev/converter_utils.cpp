@@ -314,7 +314,7 @@ public:
     }
 
     void SetCore(std::weak_ptr<InferenceEngine::ICore> core) override {
-        return m_plugin->set_core(std::dynamic_pointer_cast<ov::ICore>(core));
+        return m_plugin->set_core(std::dynamic_pointer_cast<ov::ICore>(core.lock()));
     }
 
     std::shared_ptr<InferenceEngine::ICore> GetCore() const noexcept override {
@@ -641,9 +641,9 @@ public:
         } catch (const InferenceEngine::InferCancelled& e) {
             throw ov::Cancelled{e.what()};
         } catch (const std::exception& ex) {
-            throw ov::Exception(ex.what());
+            OPENVINO_THROW(ex.what());
         } catch (...) {
-            OPENVINO_UNREACHABLE("Unexpected exception");
+            OPENVINO_THROW("Unexpected exception");
         }
     }
     bool wait_for(const std::chrono::milliseconds& timeout) override {
@@ -652,9 +652,9 @@ public:
         } catch (const InferenceEngine::InferCancelled& e) {
             throw ov::Cancelled{e.what()};
         } catch (const std::exception& ex) {
-            throw Exception(ex.what());
+            OPENVINO_THROW(ex.what());
         } catch (...) {
-            OPENVINO_UNREACHABLE("Unexpected exception");
+            OPENVINO_THROW("Unexpected exception");
         }
     }
 
