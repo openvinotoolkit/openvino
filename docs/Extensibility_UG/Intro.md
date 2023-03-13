@@ -92,7 +92,7 @@ Extensions can be loaded from a code with the  ``:ref:`ov::Core::add_extension <
          :language: cpp
          :fragment: [add_extension]
    
-   .. tab:: Python
+   .. tab-item:: Python
       :sync: py
  
       .. doxygensnippet:: docs/snippets/ov_extensions.py

@@ -13,17 +13,17 @@ There are two options for using the custom operation configuration file:
 
 .. tab-set::
 
-   .. tab:: C++
+   .. tab-item:: C++
  
       .. doxygensnippet:: docs/snippets/gpu/custom_kernels_api.cpp
-         :language: cpp
-         :fragment: [part0]
+        :language: cpp
+        :fragment: [part0]
 
-   .. tab:: Python
+   .. tab-item:: Python
  
-       .. doxygensnippet:: docs/snippets/gpu/custom_kernels_api.py
-         :language: python
-         :fragment: [part0]
+      .. doxygensnippet:: docs/snippets/gpu/custom_kernels_api.py
+        :language: python
+        :fragment: [part0]
 
 
 All OpenVINO samples, except the trivial ``hello_classification``, and most Open Model Zoo demos
@@ -188,7 +188,7 @@ The ``Tensor`` node configures a single input or output tensor.
       - 0-based index in the operation input/output ports in the OpenVINO IR
     * - ``format``
       - (0/1)
-      - Data layout declaration for the tensor. Accepted values: ``BFYX`` , ``BYXF`` , ``YXFB`` , ``FYXB`` , and same values in all lowercase. Default value: ``BFYX``
+      - Data layout declaration for the tensor. Accepted values: ``BFYX`` , ``BYXF`` , ``YXFB`` , ``FYXB`` , and same values in all lowercase. Default value: ``BFYX``.
 
 CompilerOptions Node and Sub-Node Structure
 +++++++++++++++++++++++++++++++++++++++++++
@@ -235,7 +235,7 @@ Example Configuration File
 The following code sample provides an example configuration file in XML
 format. For information on the configuration file structure, see the `Configuration File Format <#config-file-format>`__.
 
-.. code-block:: xml
+.. code-block:: sh
 
    <CustomLayer name="ReLU" type="SimpleGPU" version="1">
      <Kernel entry="example_relu_kernel">
@@ -351,5 +351,3 @@ execution ends.
 For more information, refer to the `printf Function <https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/printfFunction.html>`__.
 
 @endsphinxdirective
-
-
