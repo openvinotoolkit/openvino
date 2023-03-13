@@ -73,9 +73,9 @@ Or by it's index.
 
 C++ references:
 
-  * `ov::preprocess::InputTensorInfo <classov_1_1preprocess_1_1InputTensorInfo.html#doxid-classov-1-1preprocess-1-1-input-tensor-info>`__
-  * `ov::preprocess::OutputTensorInfo <classov_1_1preprocess_1_1OutputTensorInfo.html#doxid-classov-1-1preprocess-1-1-output-tensor-info>`__
-  * `ov::preprocess::PrePostProcessor <classov_1_1preprocess_1_1PrePostProcessor.html#doxid-classov-1-1preprocess-1-1-pre-post-processor>`__
+* `ov::preprocess::InputTensorInfo <classov_1_1preprocess_1_1InputTensorInfo.html#doxid-classov-1-1preprocess-1-1-input-tensor-info>`__
+* `ov::preprocess::OutputTensorInfo <classov_1_1preprocess_1_1OutputTensorInfo.html#doxid-classov-1-1preprocess-1-1-output-tensor-info>`__
+* `ov::preprocess::PrePostProcessor <classov_1_1preprocess_1_1PrePostProcessor.html#doxid-classov-1-1preprocess-1-1-pre-post-processor>`__
 
 Supported Pre-processing Operations
 +++++++++++++++++++++++++++++++++++
@@ -160,8 +160,8 @@ To integrate precision conversion into an execution graph as a pre-processing st
 
 C++ references:
 
-  * `ov::preprocess::InputTensorInfo::set_element_type() <classov_1_1preprocess_1_1InputTensorInfo.html#doxid-classov-1-1preprocess-1-1-input-tensor-info-1a98fb73ff9178c8c71d809ddf8927faf5>`__
-  * `ov::preprocess::PreProcessSteps::convert_element_type() <classov_1_1preprocess_1_1PreProcessSteps.html#doxid-classov-1-1preprocess-1-1-pre-process-steps-1aac6316155a1690609eb320637c193d50>`__
+* `ov::preprocess::InputTensorInfo::set_element_type() <classov_1_1preprocess_1_1InputTensorInfo.html#doxid-classov-1-1preprocess-1-1-input-tensor-info-1a98fb73ff9178c8c71d809ddf8927faf5>`__
+* `ov::preprocess::PreProcessSteps::convert_element_type() <classov_1_1preprocess_1_1PreProcessSteps.html#doxid-classov-1-1preprocess-1-1-pre-process-steps-1aac6316155a1690609eb320637c193d50>`__
 
 
 Converting layout (transposing)
@@ -213,10 +213,10 @@ It performs the same transpose. However, the approach where source and destinati
 
 C++ references:
 
-  * `ov::preprocess::PreProcessSteps::convert_layout() <classov_1_1preprocess_1_1PreProcessSteps.html#doxid-classov-1-1preprocess-1-1-pre-process-steps-1a0f65fdadca32e90f5ef3a323b640b978>`__
-  * `ov::preprocess::InputTensorInfo::set_layout() <classov_1_1preprocess_1_1InputTensorInfo.html#doxid-classov-1-1preprocess-1-1-input-tensor-info-1a6f70eb97d02e90a30cd748573abd7b4b>`__
-  * `ov::preprocess::InputModelInfo::set_layout() <classov_1_1preprocess_1_1InputModelInfo.html#doxid-classov-1-1preprocess-1-1-input-model-info-1af309bac02af20d048e349a2d421c1169>`__
-  * `ov::Layout <classov_1_1Layout.html#doxid-classov-1-1-layout>`__
+* `ov::preprocess::PreProcessSteps::convert_layout() <classov_1_1preprocess_1_1PreProcessSteps.html#doxid-classov-1-1preprocess-1-1-pre-process-steps-1a0f65fdadca32e90f5ef3a323b640b978>`__
+* `ov::preprocess::InputTensorInfo::set_layout() <classov_1_1preprocess_1_1InputTensorInfo.html#doxid-classov-1-1preprocess-1-1-input-tensor-info-1a6f70eb97d02e90a30cd748573abd7b4b>`__
+* `ov::preprocess::InputModelInfo::set_layout() <classov_1_1preprocess_1_1InputModelInfo.html#doxid-classov-1-1preprocess-1-1-input-model-info-1af309bac02af20d048e349a2d421c1169>`__
+* `ov::Layout <classov_1_1Layout.html#doxid-classov-1-1-layout>`__
 
 Resizing Image
 --------------------
