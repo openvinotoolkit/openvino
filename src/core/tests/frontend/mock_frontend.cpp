@@ -150,7 +150,7 @@ public:
         if (variants.size() == 1 && variants[0].is<std::string>()) {
             std::string command = variants[0].as<std::string>();
             if (command == "throw_now") {
-                OPENVINO_UNREACHABLE("Test throw load input model");
+                OPENVINO_THROW("Test throw load input model");
             } else if (command == "throw_next") {
                 m_throw_next = true;
             } else if (command == "throw_model") {
