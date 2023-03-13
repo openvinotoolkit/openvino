@@ -222,8 +222,7 @@ TEST_F(TransformationTestsF, InjectedBodyAndIf) {
     }
 }
 
-// Ticket 101756
-TEST_F(TransformationTestsF, DISABLED_ModelWithDilatedGroupConvolution) {
+TEST_F(TransformationTestsF, ModelWithDilatedGroupConvolution) {
     {
         model = convert_model("dilated_gconv_model/dilated_gconv_model.pb");
         // need to call MOC to fuse BatchToSpace/SpaceToBatch with GroupConvolution
