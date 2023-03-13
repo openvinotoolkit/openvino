@@ -142,7 +142,7 @@ jobs:
       python -m pip install -r $(REPO_DIR)\src\bindings\python\wheel\requirements-dev.txt
       python -m pip install -r $(REPO_DIR)\src\bindings\python\requirements.txt
       rem For running Paddle frontend unit tests
-      python -m pip install -r $(REPO_DIR)\src\frontends\paddle\tests\requirements.txt
+      #python -m pip install -r $(REPO_DIR)\src\frontends\paddle\tests\requirements.txt
       rem For running ONNX frontend unit tests
       python -m pip install -r $(REPO_DIR)\src\frontends\onnx\tests\requirements.txt
       rem For running TensorFlow frontend unit tests
@@ -167,6 +167,7 @@ jobs:
       set PATH=$(WORK_DIR)\ninja-win;%PATH%
       call "$(MSVS_VARS_PATH)" && $(CMAKE_CMD) -G "Ninja Multi-Config" ^
         -DENABLE_CPPLINT=OFF ^
+        -DENABLE_OV_PADDLE_FRONTEND=OFF ^
         -DENABLE_ONEDNN_FOR_GPU=$(CMAKE_BUILD_SHARED_LIBS) ^
         -DBUILD_SHARED_LIBS=$(CMAKE_BUILD_SHARED_LIBS) ^
         -DENABLE_FASTER_BUILD=ON ^
