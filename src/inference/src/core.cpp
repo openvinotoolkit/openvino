@@ -27,80 +27,6 @@ std::string resolve_extension_path(const std::string& path) {
     return retvalue;
 }
 
-ov::AnyMap flatten_sub_properties(const std::string& device, const ov::AnyMap& properties) {
-    ov::AnyMap result = properties;
-    auto is_virtual_device = [&](const std::string& name) -> bool {
-        return (device.find("AUTO") != std::string::npos || device.find("MULTI") != std::string::npos ||
-                device.find("HETERO") != std::string::npos);
-    };
-    auto update_device_property = [&](const ov::AnyMap& sub_properties) -> void {
-        for (auto&& sub_property : sub_properties) {
-            // 1st level property overides 2nd level property
-            // so check original config
-            if (properties.find(sub_property.first) != properties.end())
-                continue;
-            // 2nd level properties in form ov::device::properties(DEVICE, ...) overrides
-            // 2nd level properties in form ov::device::properties(ov::AnyMap{...})
-            // they have been applied in right order
-            result[sub_property.first] = sub_property.second;
-        }
-    };
-    // First search for ov::device::properties(ov::AnyMap{...})
-    ov::AnyMap::iterator it = result.find(ov::device::properties.name());
-    if (it != result.end()) {
-        // 1. device properties are found
-        auto secondary_properties = it->second.as<ov::AnyMap>();
-        for (auto item2 = secondary_properties.begin(); item2 != secondary_properties.end();) {
-            auto parsed = ov::parseDeviceNameIntoConfig(item2->first);
-            // flattening is performed only in case of full device name match
-            if (device == parsed._deviceName) {
-                // 1.2 flatten the secondary property for target device
-                update_device_property(item2->second.as<ov::AnyMap>());
-                item2 = secondary_properties.erase(item2);
-            } else if (is_virtual_device(parsed._deviceName)) {
-                // 1.2 keep the secondary property for the other virtual devices
-                item2++;
-                continue;
-            } else {
-                // 1.3. remove the secondary property setting for other hardware device
-                item2 = secondary_properties.erase(item2);
-            }
-        }
-        if (0 == secondary_properties.size()) {
-            it = result.erase(it);
-        }
-    }
-    // Second search for ov::device::properties(DEVICE, ...)
-    for (auto item = result.begin(); item != result.end();) {
-        if ((item->first.find(ov::device::properties.name()) != std::string::npos) &&
-            (item->first.length() > std::string(ov::device::properties.name()).length())) {
-            // 2. device properties DEVICE_PROPERTIES_<device_name_with_id> are found
-            auto parsed_name = item->first.substr(item->first.find(ov::device::properties.name()) +
-                                                  std::string(ov::device::properties.name()).length() + 1);
-            auto parsed = ov::parseDeviceNameIntoConfig(parsed_name);
-            // flattening is performed only in case of full device name match
-            if (device == parsed._deviceName) {
-                // 2.1 flatten the secondary property for target device
-                update_device_property(item->second.as<ov::AnyMap>());
-            } else if (is_virtual_device(parsed._deviceName)) {
-                // 2.1 keep the secondary property for the other virtual devices but repack them
-                if (!result.count(ov::device::properties.name())) {
-                    result[ov::device::properties.name()] = ov::AnyMap{};
-                }
-                // 2.2 device properties with device name overrides device properties
-                auto& secondary_properties = result.at(ov::device::properties.name()).as<ov::AnyMap>();
-                auto p = secondary_properties.insert({parsed_name, item->second});
-                if (!p.second)
-                    p.first->second = item->second;
-            }
-            item = result.erase(item);
-        } else {
-            // 3. Skip other properties
-            item++;
-        }
-    }
-    return result;
-}
 }  // namespace
 
 namespace ov {
@@ -195,7 +121,7 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& device_name,
                                   const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->compile_model(model, device_name, flatten_sub_properties(device_name, config));
+        auto exec = _impl->compile_model(model, device_name, config);
         return {exec._ptr, exec._so};
     });
 }
@@ -206,7 +132,7 @@ CompiledModel Core::compile_model(const std::string& model_path, const AnyMap& c
 
 CompiledModel Core::compile_model(const std::string& model_path, const std::string& device_name, const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->compile_model(model_path, device_name, flatten_sub_properties(device_name, config));
+        auto exec = _impl->compile_model(model_path, device_name, config);
         return {exec._ptr, exec._so};
     });
 }
@@ -216,7 +142,7 @@ CompiledModel Core::compile_model(const std::string& model,
                                   const std::string& device_name,
                                   const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->compile_model(model, weights, device_name, flatten_sub_properties(device_name, config));
+        auto exec = _impl->compile_model(model, weights, device_name, config);
         return {exec._ptr, exec._so};
     });
 }
@@ -225,7 +151,7 @@ CompiledModel Core::compile_model(const std::shared_ptr<const ov::Model>& model,
                                   const RemoteContext& context,
                                   const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->compile_model(model, context, flatten_sub_properties(context.get_device_name(), config));
+        auto exec = _impl->compile_model(model, context, config);
         return {exec._ptr, exec._so};
     });
 }
@@ -279,7 +205,7 @@ void Core::add_extension(const std::vector<std::shared_ptr<ov::Extension>>& exte
 CompiledModel Core::import_model(std::istream& modelStream, const std::string& device_name, const AnyMap& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     OV_CORE_CALL_STATEMENT({
-        auto exec = _impl->import_model(modelStream, device_name, flatten_sub_properties(device_name, config));
+        auto exec = _impl->import_model(modelStream, device_name, config);
         return {exec._ptr, exec._so};
     });
 }
@@ -297,7 +223,7 @@ CompiledModel Core::import_model(std::istream& modelStream, const RemoteContext&
 SupportedOpsMap Core::query_model(const std::shared_ptr<const ov::Model>& model,
                                   const std::string& device_name,
                                   const AnyMap& config) const {
-    OV_CORE_CALL_STATEMENT(return _impl->query_model(model, device_name, flatten_sub_properties(device_name, config)););
+    OV_CORE_CALL_STATEMENT(return _impl->query_model(model, device_name, config););
 }
 
 void Core::set_property(const AnyMap& properties) {
@@ -344,7 +270,7 @@ RemoteContext Core::create_context(const std::string& device_name, const AnyMap&
     OPENVINO_ASSERT(device_name.find("BATCH") != 0, "BATCH device does not support remote context");
 
     OV_CORE_CALL_STATEMENT({
-        auto parsed = parseDeviceNameIntoConfig(device_name, flatten_sub_properties(device_name, params));
+        auto parsed = parseDeviceNameIntoConfig(device_name, params);
         auto remoteContext = _impl->get_plugin(parsed._deviceName).create_context(parsed._config);
         return {remoteContext._impl, {remoteContext._so}};
     });

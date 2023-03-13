@@ -19,6 +19,40 @@
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/util/common_util.hpp"
 
+template <>
+ov::Parsed<std::string> ov::parseDeviceNameIntoConfig(const std::string& deviceName, const std::map<std::string, std::string>& config) {
+    auto config_ = config;
+    auto deviceName_ = deviceName;
+    if (deviceName_.find("HETERO:") == 0) {
+        deviceName_ = "HETERO";
+        config_["TARGET_FALLBACK"] = deviceName.substr(7);
+    } else if (deviceName_.find("MULTI:") == 0) {
+        deviceName_ = "MULTI";
+        config_[InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = deviceName.substr(6);
+    } else if (deviceName.find("AUTO:") == 0) {
+        deviceName_ = "AUTO";
+        config_[InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = deviceName.substr(5);
+    } else if (deviceName_.find("BATCH:") == 0) {
+        deviceName_ = "BATCH";
+        config_[CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)] = deviceName.substr(6);
+    } else {
+        InferenceEngine::DeviceIDParser parser(deviceName_);
+        deviceName_ = parser.getDeviceName();
+        std::string deviceIDLocal = parser.getDeviceID();
+
+        if (!deviceIDLocal.empty()) {
+            auto it = config_.find(InferenceEngine::PluginConfigParams::KEY_DEVICE_ID);
+            if (it == config_.end() || it->second == deviceIDLocal)
+                config_[InferenceEngine::PluginConfigParams::KEY_DEVICE_ID] = deviceIDLocal;
+            else {
+                IE_THROW() << "Device ID mismatch: " << deviceIDLocal << " (from " << deviceName << ") vs " <<
+                    it->second << " (from config)";
+            }
+        }
+    }
+    return {deviceName_, config_};
+}
+
 bool ov::CoreImpl::isNewAPI() const {
     return is_new_api();
 }
@@ -71,9 +105,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::LoadNetwork
     }
     // have to deduce the device name/config from the context first
     auto parsed = parseDeviceNameIntoConfig(context->getDeviceName(), config);
-
     auto plugin = get_plugin(parsed._deviceName);
-
     auto res = LoadNetworkImpl(network, plugin, parsed._config, context);
     return res;
 }
@@ -181,16 +213,12 @@ ov::Any ov::CoreImpl::GetMetric(const std::string& deviceName,
         }
     }
 
-    auto parsed = parseDeviceNameIntoConfig(deviceName);
-    for (auto o : options) {
-        parsed._config.insert(o);
-    }
-
+    auto parsed = parseDeviceNameIntoConfig(deviceName, options);
     return get_plugin(parsed._deviceName).get_property(name, parsed._config);
 }
 
 ov::Any ov::CoreImpl::GetConfig(const std::string& deviceName, const std::string& name) const {
-    auto parsed = parseDeviceNameIntoConfig(deviceName);
+    auto parsed = parseDeviceNameIntoConfig<ov::Any>(deviceName);
     return get_plugin(parsed._deviceName).get_property(name, parsed._config);
 }
 
@@ -238,7 +266,7 @@ std::map<std::string, std::string> ov::CoreImpl::GetSupportedConfig(const std::s
     // 3. Secondary properties with key DEVICE_PROPERTIES
     std::map<std::string, std::string> supportedConfig;
     auto updateSupportedConfig = [&](const std::string& deviceNameToParse, const std::string& string_value) {
-        auto parsed = parseDeviceNameIntoConfig(deviceNameToParse);
+        auto parsed = parseDeviceNameIntoConfig<std::string>(deviceNameToParse);
         if (ov::isConfigApplicable(deviceName, parsed._deviceName)) {
             std::stringstream strm(string_value);
             std::map<std::string, std::string> device_configs;
@@ -249,7 +277,7 @@ std::map<std::string, std::string> ov::CoreImpl::GetSupportedConfig(const std::s
                 }
             }
             for (auto&& parsed_config : parsed._config) {
-                supportedConfig[parsed_config.first] = parsed_config.second.as<std::string>();
+                supportedConfig[parsed_config.first] = parsed_config.second;
             }
         }
     };
