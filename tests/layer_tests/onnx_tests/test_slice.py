@@ -395,15 +395,17 @@ class TestSlice(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data_no_steps + test_data_with_steps)
     @pytest.mark.nightly
-    @pytest.mark.xfail(reason='Mark as xfailed all failed onnx layer tests')
     def test_slice_const_opset10(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+        if ie_device == 'GPU':
+            pytest.xfail('Mark as xfailed all failed onnx layer tests')
         self._test(*self.create_net_const(**params, opset=10, ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
 
     @pytest.mark.parametrize("params", test_data_no_steps + test_data_with_steps)
     @pytest.mark.nightly
-    @pytest.mark.xfail(reason='Mark as xfailed all failed onnx layer tests')
     def test_slice_opset11(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
+        if ie_device == 'GPU':
+            pytest.xfail('Mark as xfailed all failed onnx layer tests')
         self._test(
             *self.create_net(**params, opset=11, ir_version=ir_version), ie_device, precision,
             ir_version,
