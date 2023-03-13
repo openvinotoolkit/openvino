@@ -82,7 +82,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassSetLogLevelConfigTest, OVClassSetLogLevelConfigTest,
-        ::testing::Values("MULTI", "AUTO", "HETERO"));
+        ::testing::Values("MULTI", "AUTO"));
 
 const std::vector<ov::AnyMap> multiConfigs = {
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}

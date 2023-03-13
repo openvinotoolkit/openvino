@@ -108,8 +108,7 @@ ov::AnyMap flatten_sub_properties(const std::string& user_device_name, const ov:
             if (ov::isConfigApplicable(user_device_name, subprop_device_name)) {
                 // 2.1 flatten the secondary property for target device
                 update_result_properties(secondary_property->second.as<ov::AnyMap>());
-            } else if (is_virtual_device(parsed_subprop._deviceName) ||
-                       is_virtual_device(user_device_name)) {
+            } else if (is_virtual_device(user_device_name)) {
                 // keep the secondary property for the other virtual devices, but repack them
                 // 2.1 ov::device::properties(<device_name>) overrides ov::device::properties(ov::AnyMap{})
                 auto& secondary_properties = result_properties[ov::device::properties.name()].as<ov::AnyMap>();
@@ -145,24 +144,7 @@ ov::AnyMap flatten_sub_properties(const std::string& user_device_name, const ov:
                 // example: core.compile_model("GPU.1", ov::device::properties("GPU", ov::prop1));
                 update_result_properties(secondary_property->second.as<ov::AnyMap>());
                 secondary_property = secondary_properties.erase(secondary_property);
-            } else if (/* is_virtual_device(parsed_subprop._deviceName) || */
-                       is_virtual_device(user_device_name)) {
-                // TODO: considerations about which device should be virtual here
-                // Example 1: for is_virtual_device(parsed_subprop._deviceName)
-                // compile_model("GPU", ov::device::properties("BATCH", ov::auto_batch_timeout(400)));
-                // ! compile_model("GPU", ov::allow_hetero("CPU"), 
-                //                        ov::device::properties("HETERO", ov::log_level(4)));
-                // ! compile_model("GPU", ov::allow_hetero("CPU")); => HETERO:GPU,CPU
-                // ! compile_model("AUTO", ov::device::properties("GPU", ov::allow_hetero("CPU")));
-                // ! compile_model("GPU", ov::performance_mode(ov::cumulative)); => MULTI:GPU.0,GPU.1
-                // !! compile_model("GPU", ov::device::properties("HETERO", ov::prop1));
-                // !! compile_model("GPU", ov::device::properties("MULTI", ov::prop2));
-                // !! compile_model("GPU", ov::device::properties("AUTO", ov::prop3));
-                // Example 2: for is_virtual_device(user_device_name)
-                // compile_model("AUTO", ov::device::properties("GPU", ov::cache_dir("/tmp")));
-                // Example 3:
-                // 
-
+            } else if (is_virtual_device(user_device_name)) {
                 // 1.2 keep the secondary property for the other virtual devices
                 secondary_property++;
                 continue;
@@ -207,7 +189,7 @@ bool ov::isConfigApplicable(const std::string& user_device_name, const std::stri
                 // additional information is present in both configs, compare
                 return match_type == MatchType::EXACT ?
                     (user_value == subprop_value) :
-                    (user_value.find(subprop_value) != std::string::npos);
+                    (user_value.find(subprop_value) == 0);
             } else {
                 // property without additional limitation can be applied
                 return true;
@@ -237,17 +219,14 @@ ov::Parsed<ov::Any> ov::parseDeviceNameIntoConfig(const std::string& deviceName,
     auto updated_device_name = deviceName;
 
     // Note: auto-batching is already applied by this time, so the call:
-    // ov::parseDeviceNameIntoConfig("GPU", ov::device::properties("BATCH", ov::auto_batch_timeout(400)));
-    // means AB has not been applied, but BATCH-related properties are not removed
-
-    // // handle: compile_model("GPU", ov::hint::allow_hetero("CPU"));
-    // if(updated_config.find(ov::allow_hetero.name()) != updated_config.end()) {
-    //     updated_device_name = "HETERO";
-    //     updated_config.insert(ov::device::priorities(deviceName,
-    //         updated_config[ov::allow_hetero.name()].as<std::string>()));
-    //     // TODO: erase allow_hetero since it's processed
-    //     // updated_config.erase();
-    // }
+    // core.compile_model("GPU", ov::device::properties("BATCH", ov::auto_batch_timeout(400)));
+    // is transformed and we have here:
+    // ov::parseDeviceNameIntoConfig("BATCH", ov::device::priorities("GPU"), ov::device::properties("BATCH", ov::auto_batch_timeout(400)));
+    // so, after 'flatten_sub_properties' we will have:
+    // core.compile_model("BATCH", ov::auto_batch_timeout(400), ov::device::priorities("GPU"));
+    // 
+    // So, if one day, we want to add more options in form of ov::allow_<hetero, etc>, we need to apply it before
+    // 'flatten_sub_properties' call to have proper behavior
 
     updated_config = flatten_sub_properties(updated_device_name, updated_config);
 
@@ -700,6 +679,8 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& device_name, 
     // TODO: fill 'options' from 'user_properties' (ov::device::priorities or TARGET_FALLBACK / etc), 
     // so the HETERO can return more supported properties based on 
     // TARGET_FALLBACK -> GPU / CPU. E.g. HETERO can return ov::hint::performance_mode as supported
+    // TODO 2: make the same changes in  ov::CoreImpl::GetSupportedConfig, because it's currently used in Plugin API calls
+    //         or alternatively, re-use this function in ov::CoreImpl::GetSupportedConfig to avoid logic duplication
     ov::AnyMap options;
 
     // try to search against IE API 1.0' SUPPORTED_CONFIG_KEYS

@@ -131,17 +131,16 @@ TEST(CoreTests_get_plugin_path, Use_filename_as_is_if_not_exist_in_workdir) {
     EXPECT_STREQ(abs_path.c_str(), ref_path.c_str());
 }
 
-
 TEST(CoreTests_check_device_name, is_config_applicable) {
     // Single device
     ASSERT_EQ(ov::isConfigApplicable("DEVICE", "DEVICE"), true);
     ASSERT_EQ(ov::isConfigApplicable("DEVICE.x", "DEVICE"), true);
     ASSERT_EQ(ov::isConfigApplicable("DEVICE.x.y", "DEVICE"), true);
     ASSERT_EQ(ov::isConfigApplicable("DEVICE.x", "DEVICE.x"), true);
+    ASSERT_EQ(ov::isConfigApplicable("DEVICE.x.y", "DEVICE.x"), true); // sub-device and device
     ASSERT_EQ(ov::isConfigApplicable("DEVICE", "DEVICE.x"), false);
     ASSERT_EQ(ov::isConfigApplicable("DEVICE.x", "DEVICE.y"), false);
     ASSERT_EQ(ov::isConfigApplicable("DEVICE.x.y", "DEVICE.y"), false);
-    ASSERT_EQ(ov::isConfigApplicable("DEVICE.x.y", "DEVICE.x"), false); // sub-device and device
     // HETERO
     ASSERT_EQ(ov::isConfigApplicable("HETERO", "HETERO"), true);
     ASSERT_EQ(ov::isConfigApplicable("HETERO:DEVICE", "HETERO:DEVICE"), true);

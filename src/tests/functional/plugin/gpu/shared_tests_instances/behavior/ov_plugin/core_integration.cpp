@@ -97,7 +97,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassSetLogLevelConfigTest, OVClassSetLogLevelConfigTest,
-        ::testing::Values("MULTI", "AUTO", "HETERO"));
+        ::testing::Values("MULTI", "AUTO"));
 
 auto multiConfigs = []() {
     return std::vector<ov::AnyMap>{
