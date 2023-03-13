@@ -106,7 +106,7 @@ TEST_P(ConvWithPaddingTestNeg, CompareWithRefImpl) {
     } catch (...) {
         what.assign("Unknown failure occurred.");
     }
-    EXPECT_HAS_SUBSTRING(what, std::string("Unsupported convolution input padding"));
+    EXPECT_HAS_SUBSTRING(what, std::string("Convolution's input padding is not supported"));
 };
 
 const InferenceEngine::Precision net_precisions{InferenceEngine::Precision::FP32};
