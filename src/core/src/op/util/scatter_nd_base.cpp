@@ -35,7 +35,7 @@ void ov::op::util::ScatterNDBase::validate_and_infer_types() {
     element::Type updates_et = get_input_element_type(UPDATES);
 
     NODE_VALIDATION_CHECK(this,
-                          indices_et == element::i32 || indices_et == element::i64 || indices_et == element::dynamic,
+                          indices_et.compatible(element::i32) || indices_et.compatible(element::i64),
                           "Indices element type must be i64 or i32");
 
     auto outputs_et = element::dynamic;
