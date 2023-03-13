@@ -61,6 +61,11 @@ struct Config {
 
     DenormalsOptMode denormalsOptMode = DenormalsOptMode::DO_Keep;
 
+    // The denormals-are-zeros flag was introduced in the Pentium 4 and Intel Xeon processor
+    // In earlier IA-32 processors and in some models of the Pentium 4 processor, this flag (bit 6)
+    // is reserved.
+    bool DAZOn = false;
+
     void readProperties(const std::map<std::string, std::string> &config);
     void updateProperties();
 
