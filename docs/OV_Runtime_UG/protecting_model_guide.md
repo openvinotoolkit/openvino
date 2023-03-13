@@ -20,7 +20,7 @@ Encrypting and optimizing model before deploying it to the edge device can be us
 Loading Encrypted Models
 ########################
 
-The OpenVINO Runtime requires model decryption before loading. Allocate a temporary memory block for model decryption and use the  ``ov::Core::read_model`` method to load the model from a memory buffer. For more information, see the `ov::Core` Class Reference Documentation.
+The OpenVINO Runtime requires model decryption before loading. Allocate a temporary memory block for model decryption and use the ``ov::Core::read_model`` method to load the model from a memory buffer. For more information, see the ``ov::Core`` Class Reference Documentation.
 
 .. doxygensnippet:: docs/snippets/protecting_model_guide.cpp
     :language: cpp
@@ -44,7 +44,7 @@ Additional Resources
 - :doc:`OpenVINO™ Runtime User Guide <openvino_docs_OV_UG_OV_Runtime_User_Guide>`.
 - For more information on Sample Applications, see the :doc:`OpenVINO Samples Overview <openvino_docs_OV_UG_Samples_Overview>`
 - For information on a set of pre-trained models, see the :ref:`Overview of OpenVINO™ Toolkit Pre-Trained Models <omz_models_group_intel>`.
-- For IoT Libraries and Code Samples, see the `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`.
+- For IoT Libraries and Code Samples, see the `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`__.
 
 @endsphinxdirective
 
