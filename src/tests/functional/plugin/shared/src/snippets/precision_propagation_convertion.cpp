@@ -35,7 +35,7 @@ void PrecisionPropagationConvertion::SetUp() {
     std::tie(input_shapes, fake_quantize_intervals, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
     init_input_shapes(static_partial_shapes_to_test_representation(input_shapes));
 
-    function = ov::test::snippets::PrecisionPropagationConvertionFunction::get(input_shapes, ov::element::f32, fake_quantize_intervals);
+    function = PrecisionPropagationConvertionFunction(input_shapes, ov::element::f32, fake_quantize_intervals).getOriginal();
 }
 
 TEST_P(PrecisionPropagationConvertion, CompareWithRefImpl) {

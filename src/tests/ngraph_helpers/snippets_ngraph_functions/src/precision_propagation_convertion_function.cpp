@@ -43,6 +43,14 @@ std::shared_ptr<ngraph::op::FakeQuantize> make_fake_quantize(
 }
 } // namespace
 
+PrecisionPropagationConvertionFunction::PrecisionPropagationConvertionFunction(
+    const std::vector<ov::PartialShape>& input_shapes,
+    const element::Type input_type,
+    const std::vector<float>& fake_quantize_intervals) :
+    SnippetsFunctionBase(input_shapes, input_type),
+    fake_quantize_intervals(fake_quantize_intervals) {
+}
+
 std::shared_ptr<ov::Model> PrecisionPropagationConvertionFunction::get(
     const std::vector<ov::PartialShape>& input_shapes,
     const element::Type input_type,
@@ -73,6 +81,10 @@ std::shared_ptr<ov::Model> PrecisionPropagationConvertionFunction::get(
         ParameterVector{ parameter1, parameter2 },
         "PrecisionPropagationConvertionFunction");
     return function;
+}
+
+std::shared_ptr<Model> PrecisionPropagationConvertionFunction::initOriginal() const {
+    return get(input_shapes, precision, fake_quantize_intervals);
 }
 
 }  // namespace snippets
