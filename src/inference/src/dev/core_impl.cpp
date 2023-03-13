@@ -285,7 +285,7 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
 
     pugi::xml_document& xmlDoc = *parse_result.xml;
 
-    using namespace XMLParseUtils;
+    using namespace pugixml::utils;
     pugi::xml_node ieNode = xmlDoc.document_element();
     pugi::xml_node devicesNode = ieNode.child("plugins");
 
@@ -847,9 +847,7 @@ ov::Any ov::CoreImpl::get_property_for_core(const std::string& name) const {
         return decltype(ov::hint::allow_auto_batching)::value_type(flag);
     }
 
-    OPENVINO_UNREACHABLE("Exception is thrown while trying to call get_property with unsupported property: '",
-                         name,
-                         "'");
+    OPENVINO_THROW("Exception is thrown while trying to call get_property with unsupported property: '", name, "'");
 }
 
 ov::Any ov::CoreImpl::get_property(const std::string& device_name,
@@ -1288,7 +1286,7 @@ std::mutex& ov::CoreImpl::get_mutex(const std::string& dev_name) const {
     try {
         return dev_mutexes.at(dev_name);
     } catch (const std::out_of_range&) {
-        throw ov::Exception("Cannot get mutex for device: " + dev_name);
+        OPENVINO_THROW("Cannot get mutex for device: ", dev_name);
     }
 }
 

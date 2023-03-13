@@ -75,9 +75,7 @@ private:
         const auto& s_opsets = ov::get_available_opsets();
 
         auto it = s_opsets.find(opset_ver);
-        if (it == s_opsets.end()) {
-            throw ov::Exception("Unsupported opset version requested.");
-        }
+        OPENVINO_ASSERT(it != s_opsets.end(), "Unsupported opset version requested.");
         return it->second();
     }
 
