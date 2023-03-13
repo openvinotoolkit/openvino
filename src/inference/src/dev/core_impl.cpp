@@ -54,7 +54,213 @@ void stripDeviceName(std::string& device, const std::string& substr) {
     }
 }
 
+/**
+ * @brief Converts / flattens ov::device::properties from
+ * @code
+ * core.compile_model(model, "GPU", ov::device::properties("GPU", ov::cache_dir("/tmp")));
+ * // or
+ * core.compile_model(model, "GPU", ov::device::properties({
+ *   { "GPU", ov::cache_dir("/tmp") },
+ *   { "CPU", ov::cache_dir("") }
+ * }));
+ * @endcode
+ * To the form:
+ * @code
+ * core.compile_model(model, "GPU", ov::cache_dir("/tmp"));
+ * @endcode
+ * 
+ * @param device A device name for which properties flattening is performed
+ * @param properties Original set of properties
+ * @return ov::AnyMap Flattened ov::AnyMap with properties
+ */
+ov::AnyMap flatten_sub_properties(const std::string& user_device_name, const ov::AnyMap& user_properties) {
+    ov::AnyMap result_properties = user_properties;
+
+    auto is_virtual_device = [](const std::string& device_name) -> bool {
+        return (device_name.find("AUTO") != std::string::npos || device_name.find("MULTI") != std::string::npos ||
+                device_name.find("HETERO") != std::string::npos);
+    };
+
+    // puts sub-property to result_properties if it's not there yet
+    auto update_result_properties = [&result_properties](const ov::AnyMap& sub_properties) -> void {
+        for (auto&& sub_property : sub_properties) {
+            // 1st level property overrides 2nd level property
+            // so check original config
+            if (result_properties.find(sub_property.first) == result_properties.end()) {
+                // 2nd level properties in form ov::device::properties(DEVICE, ...) overrides
+                // 2nd level properties in form ov::device::properties(ov::AnyMap{...})
+                // they have been applied in right order
+                result_properties[sub_property.first] = sub_property.second;
+            }
+        }
+    };
+
+    // First search for ov::device::properties(DEVICE, ...), which has meduim priority
+    for (auto secondary_property = result_properties.begin(); secondary_property != result_properties.end();) {
+        if ((secondary_property->first.find(ov::device::properties.name()) != std::string::npos) &&
+            (secondary_property->first.length() > std::string(ov::device::properties.name()).length())) {
+            // 2. device properties DEVICE_PROPERTIES_<device_name_with_id> are found
+            auto subprop_device_name = secondary_property->first.substr(secondary_property->first.find(ov::device::properties.name()) +
+                                                  std::string(ov::device::properties.name()).length() + 1);
+            auto parsed_subprop = ov::parseDeviceNameIntoConfig<ov::Any>(subprop_device_name);
+
+            // flattening is performed only in case of full device name match
+            if (ov::isConfigApplicable(user_device_name, subprop_device_name)) {
+                // 2.1 flatten the secondary property for target device
+                update_result_properties(secondary_property->second.as<ov::AnyMap>());
+            } else if (is_virtual_device(user_device_name)) {
+                // keep the secondary property for the other virtual devices, but repack them
+                // 2.1 ov::device::properties(<device_name>) overrides ov::device::properties(ov::AnyMap{})
+                auto& secondary_properties = result_properties[ov::device::properties.name()].as<ov::AnyMap>();
+
+                // TODO: ilya: what if ov::device::properties(<device_name>) and ov::device::properties(ov::AnyMap{})
+                // provide different set of settings?
+                // e.g. <device_name> gives log_level, while <ov::AnyMap> gives ov::perf::hint
+                // we need to perform merning with priorities
+                auto p = secondary_properties.insert({subprop_device_name, secondary_property->second});
+                if (!p.second)
+                    p.first->second = secondary_property->second;
+            }
+
+            // since the sub-property is flattened, we need to drop it
+            secondary_property = result_properties.erase(secondary_property);
+        } else {
+            // 3. Skip other properties
+            secondary_property++;
+        }
+    }
+
+    // Second search for ov::device::properties(ov::AnyMap{...}), which has low priority
+    ov::AnyMap::iterator it = result_properties.find(ov::device::properties.name());
+    if (it != result_properties.end()) {
+        // 1. device properties are found
+        auto secondary_properties = it->second.as<ov::AnyMap>();
+        for (auto secondary_property = secondary_properties.begin(); secondary_property != secondary_properties.end();) {
+            auto parsed_subprop = ov::parseDeviceNameIntoConfig<ov::Any>(secondary_property->first);
+            // flattening is performed only in case of full device name match
+            if (ov::isConfigApplicable(user_device_name, secondary_property->first)) {
+                // 1.2 flatten the secondary property for target device
+                // example: core.compile_model("GPU", ov::device::properties("GPU", ov::prop1));
+                // example: core.compile_model("GPU.1", ov::device::properties("GPU", ov::prop1));
+                update_result_properties(secondary_property->second.as<ov::AnyMap>());
+                secondary_property = secondary_properties.erase(secondary_property);
+            } else if (is_virtual_device(user_device_name)) {
+                // 1.2 keep the secondary property for the other virtual devices
+                secondary_property++;
+                continue;
+            } else {
+                // 1.3. remove the secondary property setting for other hardware device
+                // example: core.compile_model("GPU", ov::device::properties("CPU", ov::prop1));
+                secondary_property = secondary_properties.erase(secondary_property);
+            }
+        }
+
+        // since the sub-property is flattened, we need to drop it
+        if (secondary_properties.empty()) {
+            it = result_properties.erase(it);
+        }
+    }
+
+    return result_properties;
+}
+
 }  // namespace
+
+bool ov::isConfigApplicable(const std::string& user_device_name, const std::string& subprop_device_name) {
+    // full match
+    if (user_device_name == subprop_device_name)
+        return true;
+
+    enum class MatchType {
+        EXACT = 0,
+        SUBSTR
+    };
+
+    auto parsed_user_device_name = ov::parseDeviceNameIntoConfig<std::string>(user_device_name);
+    auto parsed_subprop_device_name = ov::parseDeviceNameIntoConfig<std::string>(subprop_device_name);
+
+    // if device name is matched, check additional condition
+    auto is_matched = [&](const std::string& key, MatchType match_type) -> bool {
+        if (parsed_user_device_name._config.count(key)) {
+            if (parsed_subprop_device_name._config.count(key)) {
+                auto& user_value = parsed_user_device_name._config[key];
+                auto& subprop_value = parsed_subprop_device_name._config[key];
+
+                // additional information is present in both configs, compare
+                return match_type == MatchType::EXACT ?
+                    (user_value == subprop_value) :
+                    (user_value.find(subprop_value) == 0);
+            } else {
+                // property without additional limitation can be applied
+                return true;
+            }
+        }
+        return false;
+    };
+
+    if (parsed_user_device_name._deviceName == parsed_subprop_device_name._deviceName) {
+        if ("HETERO" == parsed_user_device_name._deviceName) {
+            return is_matched("TARGET_FALLBACK", MatchType::EXACT);
+        } else if ("MULTI" == parsed_user_device_name._deviceName || "AUTO" == parsed_user_device_name._deviceName) {
+            return is_matched(MULTI_CONFIG_KEY(DEVICE_PRIORITIES), MatchType::EXACT);
+        } else if ("BATCH" == parsed_user_device_name._deviceName ) {
+            return is_matched(CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG), MatchType::EXACT);
+        } else {
+            // ov::device::properties(GPU.0) can be applied for GPU tile identified by GPU.0.0
+            return is_matched(InferenceEngine::PluginConfigParams::KEY_DEVICE_ID, MatchType::SUBSTR);
+        }
+    }
+    return false;
+}
+
+template <>
+ov::Parsed<ov::Any> ov::parseDeviceNameIntoConfig(const std::string& deviceName, const std::map<std::string, ov::Any>& config) {
+    auto updated_config = config;
+    auto updated_device_name = deviceName;
+
+    // Note: auto-batching is already applied by this time, so the call:
+    // core.compile_model("GPU", ov::device::properties("BATCH", ov::auto_batch_timeout(400)));
+    // is transformed and we have here:
+    // ov::parseDeviceNameIntoConfig("BATCH", ov::device::priorities("GPU"), ov::device::properties("BATCH", ov::auto_batch_timeout(400)));
+    // so, after 'flatten_sub_properties' we will have:
+    // core.compile_model("BATCH", ov::auto_batch_timeout(400), ov::device::priorities("GPU"));
+    // 
+    // So, if one day, we want to add more options in form of ov::allow_<hetero, etc>, we need to apply it before
+    // 'flatten_sub_properties' call to have proper behavior
+
+    updated_config = flatten_sub_properties(updated_device_name, updated_config);
+
+    if (updated_device_name.find("HETERO:") == 0) {
+        updated_device_name = "HETERO";
+        updated_config["TARGET_FALLBACK"] = updated_device_name.substr(7);
+    } else if (updated_device_name.find("MULTI:") == 0) {
+        updated_device_name = "MULTI";
+        updated_config[MULTI_CONFIG_KEY(DEVICE_PRIORITIES)] = updated_device_name.substr(6);
+    } else if (updated_device_name.find("AUTO:") == 0) {
+        updated_device_name = "AUTO";
+        updated_config[MULTI_CONFIG_KEY(DEVICE_PRIORITIES)] = updated_device_name.substr(5);
+    } else if (updated_device_name.find("BATCH:") == 0) {
+        updated_device_name = "BATCH";
+        updated_config[CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)] = updated_device_name.substr(6);
+    } else {
+        InferenceEngine::DeviceIDParser parser(updated_device_name);
+        updated_device_name = parser.getDeviceName();
+        std::string device_id_local = parser.getDeviceID();
+
+        if (!device_id_local.empty()) {
+            auto it = updated_config.find(CONFIG_KEY(DEVICE_ID));
+            if (it == updated_config.end())
+                updated_config[CONFIG_KEY(DEVICE_ID)] = device_id_local;
+            else if (it->second == device_id_local) {
+                // do nothing
+            } else {
+                IE_THROW() << "Device ID mismatch: " << device_id_local << " (from " << deviceName << ") vs " <<
+                    it->second.as<std::string>() << " (from config)";
+            }
+        }
+    }
+    return {updated_device_name, updated_config};
+}
 
 ov::CoreImpl::CoreImpl(bool _newAPI) : m_new_api(_newAPI) {
     add_mutex("");  // Register global mutex
@@ -302,15 +508,13 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     if (context._impl == nullptr) {
         IE_THROW() << "Remote context is null";
     }
-    // have to deduce the device name/config from the context first
-    auto parsed = parseDeviceNameIntoConfig(context.get_device_name(), config);
-    std::string& deviceName = parsed._deviceName;
-    auto& config_with_batch = parsed._config;
+    std::string deviceName = context.get_device_name();
+    ov::AnyMap config_with_batch = config;
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
     apply_auto_batching(model, deviceName, config_with_batch);
     clean_properties(deviceName, config_with_batch, ov::auto_batch_timeout);
-    parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
 
+    auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
     auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<ov::ICompiledModel> res;
     auto cacheManager = coreConfig.get_cache_config_for_device(plugin, parsed._config)._cacheManager;
@@ -392,7 +596,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         auto lock = cacheGuard.get_hash_lock(cacheContent.blobId);
         compiled_model = load_model_from_cache(cacheContent, plugin, parsed._config, ov::RemoteContext{}, [&]() {
             auto cnnNetwork = read_model(model_str, weights);
-            return compile_model_and_cache(cnnNetwork, plugin, parsed._config, {}, cacheContent);
+            return compile_model_and_cache(cnnNetwork, plugin, parsed._config, ov::RemoteContext{}, cacheContent);
         });
     } else {
         auto model = read_model(model_str, weights);
@@ -406,7 +610,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& model,
                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
-    auto compiled_model = get_plugin(parsed._deviceName).import_model(model, config);
+    auto compiled_model = get_plugin(parsed._deviceName).import_model(model, parsed._config);
 
     return compiled_model;
 }
@@ -416,8 +620,7 @@ ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Mo
                                               const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::query_model");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
-    auto ret = get_plugin(parsed._deviceName).query_model(model, parsed._config);
-    return ret;
+    return get_plugin(parsed._deviceName).query_model(model, parsed._config);
 }
 
 std::vector<std::string> ov::CoreImpl::get_available_devices() const {
@@ -455,71 +658,53 @@ std::vector<std::string> ov::CoreImpl::get_available_devices() const {
     return devices;
 }
 
-ov::RemoteContext ov::CoreImpl::create_context(const std::string& device_name, const AnyMap& args) const {
-    auto parsed = ov::parseDeviceNameIntoConfig(device_name, args);
+ov::RemoteContext ov::CoreImpl::create_context(const std::string& device_name, const AnyMap& params) const {
+    auto parsed = ov::parseDeviceNameIntoConfig(device_name, params);
     return get_plugin(parsed._deviceName).create_context(parsed._config);
 }
 
-ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& device_name, const ov::AnyMap& configs) const {
-    std::vector<std::string> supported_config_keys;
+ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& device_name, const ov::AnyMap& user_properties) const {
+    static const std::vector<std::string> core_level_properties = {
+        ov::cache_dir.name(),
+        ov::force_tbb_terminate.name(),
+        // auto-batch properties are also treat as core-level
+        ov::auto_batch_timeout.name(),
+        ov::hint::allow_auto_batching.name(),
+    };
+
+    // virtual plugins should bypass core-level properties to HW plugins
+    // so, we need to report them as supported
+    std::vector<std::string> supported_config_keys = core_level_properties;
+
+    // TODO: fill 'options' from 'user_properties' (ov::device::priorities or TARGET_FALLBACK / etc), 
+    // so the HETERO can return more supported properties based on 
+    // TARGET_FALLBACK -> GPU / CPU. E.g. HETERO can return ov::hint::performance_mode as supported
+    // TODO 2: make the same changes in  ov::CoreImpl::GetSupportedConfig, because it's currently used in Plugin API calls
+    //         or alternatively, re-use this function in ov::CoreImpl::GetSupportedConfig to avoid logic duplication
+    ov::AnyMap options;
 
     // try to search against IE API 1.0' SUPPORTED_CONFIG_KEYS
     try {
-        supported_config_keys =
-            GetMetric(device_name, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
+        for (auto&& config_key : GetMetric(device_name, METRIC_KEY(SUPPORTED_CONFIG_KEYS), options).as<std::vector<std::string>>()) {
+            supported_config_keys.emplace_back(config_key);
+        }
     } catch (ov::Exception&) {
     }
 
     // try to search against OV API 2.0' supported_properties
     try {
-        for (auto&& property : ICore::get_property(device_name, ov::supported_properties)) {
+        for (auto&& property : ICore::get_property(device_name, ov::supported_properties, options)) {
             if (property.is_mutable()) {
                 supported_config_keys.emplace_back(std::move(property));
             }
         }
     } catch (ov::Exception&) {
     }
-    // If device properties for the same device are present several times in different format
-    // they are applied with the following priorities:
-    // 1. Properties of the 1st level
-    // 2. Secondary properties with key ov::device::properties.name() + _<DEVICE_NAME>
-    // 3. Secondary properties with key ov::device::properties.name()
-    ov::AnyMap supported_config;
-    auto update_supported_config = [&](const std::string& device_name_to_parse, const ov::AnyMap& device_config) {
-        auto parsed = parseDeviceNameIntoConfig(device_name_to_parse);
-        if (ov::isConfigApplicable(device_name, device_name_to_parse)) {
-            for (auto&& device_property : device_config) {
-                if (util::contains(supported_config_keys, device_property.first)) {
-                    supported_config[device_property.first] = device_property.second;
-                }
-            }
-            for (auto&& parsed_config : parsed._config) {
-                supported_config[parsed_config.first] = parsed_config.second;
-            }
-        }
-    };
-    // First search for ov::device::properties(ov::AnyMap{...})
-    auto it = configs.find(ov::device::properties.name());
-    if (it != configs.end()) {
-        for (auto& secondary_property : it->second.as<ov::AnyMap>()) {
-            // here key is device name, value is device config
-            update_supported_config(secondary_property.first, secondary_property.second.as<ov::AnyMap>());
-        }
-    }
-    // Second search for ov::device::properties(DEVICE, ...)
-    for (auto&& config : configs) {
-        if ((config.first.find(ov::device::properties.name()) != std::string::npos) &&
-            config.first != ov::device::properties.name()) {
-            auto parsed_device_name = config.first.substr(config.first.find(ov::device::properties.name()) +
-                                                          std::string(ov::device::properties.name()).length() + 1);
-            update_supported_config(parsed_device_name, config.second.as<ov::AnyMap>());
-        }
-    }
-    // Third apply properties of the 1st level
-    for (auto&& key : supported_config_keys) {
-        auto itKey = configs.find(key);
-        if (configs.end() != itKey) {
-            supported_config[key] = itKey->second;
+
+    ov::AnyMap flattened_properties = flatten_sub_properties(device_name, user_properties), supported_config;
+    for (auto&& kvp : flattened_properties) {
+        if (util::contains(supported_config_keys, kvp.first)) {
+            supported_config[kvp.first] = kvp.second;
         }
     }
     return supported_config;
@@ -530,7 +715,7 @@ bool ov::CoreImpl::is_new_api() const {
 }
 
 ov::RemoteContext ov::CoreImpl::get_default_context(const std::string& device_name) const {
-    auto parsed = ov::parseDeviceNameIntoConfig(device_name, ov::AnyMap{});
+    auto parsed = ov::parseDeviceNameIntoConfig<ov::Any>(device_name);
     return get_plugin(parsed._deviceName).get_default_context(parsed._config);
 }
 
@@ -573,17 +758,16 @@ void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& m
         }
 
         // check whether if the Auto-Batching is applicable to the device
-        auto device = ov::parseDeviceNameIntoConfig(deviceName);
+        auto parsed = ov::parseDeviceNameIntoConfig<ov::Any>(deviceName);
         deviceNameWithoutBatch = deviceName;
-        auto d = device._deviceName;
         std::vector<std::string> metrics =
-            get_plugin(d).get_property(METRIC_KEY(SUPPORTED_METRICS), {}).as<std::vector<std::string>>();
+            get_plugin(parsed._deviceName).get_property(METRIC_KEY(SUPPORTED_METRICS), parsed._config).as<std::vector<std::string>>();
         auto it = std::find(metrics.begin(), metrics.end(), METRIC_KEY(OPTIMAL_BATCH_SIZE));
         if (metrics.end() == it)
             return;
 
         // if applicable, the Auto-Batching is implicitly enabled via the performance hints
-        bool bTputInPlg = GetConfig(d, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
+        bool bTputInPlg = GetConfig(parsed._deviceName, CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
         const auto& mode = config.find(CONFIG_KEY(PERFORMANCE_HINT));
         bool bTputInLoadCfg = (mode != config.end() && mode->second.as<std::string>() == CONFIG_VALUE(THROUGHPUT));
         const auto& excl = config.find(CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS));
@@ -660,7 +844,7 @@ ov::Any ov::CoreImpl::get_property_for_core(const std::string& name) const {
 
 ov::Any ov::CoreImpl::get_property(const std::string& device_name,
                                    const std::string& name,
-                                   const AnyMap& arguments) const {
+                                   const AnyMap& options) const {
     OPENVINO_ASSERT(device_name.find("HETERO:") != 0,
                     "You can only get_property of the HETERO itself (without devices). "
                     "get_property is also possible for the individual devices before creating the HETERO on top.");
@@ -674,7 +858,7 @@ ov::Any ov::CoreImpl::get_property(const std::string& device_name,
                     "You can only get_property of the BATCH itself (without devices). "
                     "get_property is also possible for the individual devices before creating the BATCH on top.");
 
-    auto parsed = parseDeviceNameIntoConfig(device_name, arguments);
+    auto parsed = parseDeviceNameIntoConfig(device_name, options);
 
     if (parsed._deviceName.empty()) {
         return get_property_for_core(name);
@@ -850,9 +1034,8 @@ const std::vector<InferenceEngine::IExtensionPtr>& ov::CoreImpl::GetExtensions()
 }
 
 bool ov::CoreImpl::device_supports_import_export(const std::string& deviceName) const {
-    auto parsed = parseDeviceNameIntoConfig(deviceName);
-    auto plugin = get_plugin(parsed._deviceName);
-    return device_supports_import_export(plugin);
+    auto parsed = parseDeviceNameIntoConfig<std::string>(deviceName);
+    return device_supports_import_export(get_plugin(parsed._deviceName));
 }
 
 bool ov::CoreImpl::device_supports_property(const ov::Plugin& plugin, const std::string& key) const {
@@ -952,22 +1135,22 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
     return compiled_model;
 }
 
-ov::AnyMap ov::CoreImpl::create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& origConfig) const {
+ov::AnyMap ov::CoreImpl::create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& user_config) const {
     ov::AnyMap property_config;
-    ov::AnyMap compileConfig;
+    ov::AnyMap compile_config;
 
     // 0. Move TARGET_FALLBACK key to property_config
-    auto targetFallbackIt = origConfig.find("TARGET_FALLBACK");
-    if (targetFallbackIt == origConfig.end()) {
-        targetFallbackIt = origConfig.find(ov::device::priorities.name());
+    auto targetFallbackIt = user_config.find("TARGET_FALLBACK");
+    if (targetFallbackIt == user_config.end()) {
+        targetFallbackIt = user_config.find(ov::device::priorities.name());
     }
-    if (targetFallbackIt != origConfig.end()) {
+    if (targetFallbackIt != user_config.end()) {
         property_config[targetFallbackIt->first] = targetFallbackIt->second.as<std::string>();
     }
 
     // 1. Move DEVICE_ID key to property_config
-    auto deviceIt = origConfig.find(ov::device::id.name());
-    if (deviceIt != origConfig.end()) {
+    auto deviceIt = user_config.find(ov::device::id.name());
+    if (deviceIt != user_config.end()) {
         property_config[deviceIt->first] = deviceIt->second.as<std::string>();
     } else {
         // we likely need to extract default device_id from the plugin,
@@ -977,22 +1160,22 @@ ov::AnyMap ov::CoreImpl::create_compile_config(const ov::Plugin& plugin, const o
 
     // 2. Replace DEVICE_ID with DEVICE_ARCHITECTURE value to identify device
     if (device_supports_property(plugin, ov::device::architecture.name())) {
-        compileConfig[ov::device::architecture.name()] = plugin.get_property(ov::device::architecture, property_config);
+        compile_config[ov::device::architecture.name()] = plugin.get_property(ov::device::architecture, property_config);
     } else {
         // Take device name if device does not support DEVICE_ARCHITECTURE metric
-        compileConfig[ov::device::architecture.name()] = plugin.get_name();
+        compile_config[ov::device::architecture.name()] = plugin.get_name();
     }
 
     // 3. Extract config keys which affect compilation process
     if (device_supports_property(plugin, ov::caching_properties.name())) {
         auto cachingProps = plugin.get_property(ov::caching_properties);
         for (const auto& prop : cachingProps) {
-            // origConfig values have higher priority than plugin parameters
-            auto it = origConfig.find(prop);
-            compileConfig[prop] = it == origConfig.end() ? plugin.get_property(prop, property_config) : it->second;
+            // user_config values have higher priority than plugin parameters
+            auto it = user_config.find(prop);
+            compile_config[prop] = it == user_config.end() ? plugin.get_property(prop, property_config) : it->second;
         }
     }
-    return compileConfig;
+    return compile_config;
 }
 
 void ov::CoreImpl::AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& extension) const {

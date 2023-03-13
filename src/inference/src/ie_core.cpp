@@ -329,7 +329,7 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
         return flag ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO);
     }
 
-    auto parsed = ov::parseDeviceNameIntoConfig(deviceName);
+    auto parsed = ov::parseDeviceNameIntoConfig<ov::Any>(deviceName);
     return _impl->get_plugin(parsed._deviceName).get_property(name, parsed._config);
 }
 
