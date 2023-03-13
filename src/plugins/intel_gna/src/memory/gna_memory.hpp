@@ -44,6 +44,7 @@ public:
     virtual void commit(bool isCompact = false) = 0;
     virtual std::pair<bool, uint32_t> getOffsetForMerged(void* ptr) = 0;
     virtual size_t getRegionBytes(rRegion region) = 0;
+    virtual size_t getDataMemAlignment() const = 0;
     virtual ~GNAMemoryInterface() = default;
 };
 
@@ -58,25 +59,31 @@ protected:
     std::map<rRegion, std::unique_ptr<GNAMemRequestsQueue>> _mem_queues;
     size_t _total = 0;
     Allocator _allocator;
-    size_t _page_alignment = 1;
+    size_t _data_alignment;
+    size_t _page_alignment;
     bool _is_compact_mode = false;
 
 private:
     void initMemQueses() {
-        _mem_queues[REGION_RO] = tools::make_unique<GNAMemRequestsReadOnlyQueue>();
-        _mem_queues[REGION_INPUTS] = tools::make_unique<GNAMemRequestsInputsQueue>();
-        _mem_queues[REGION_OUTPUTS] = tools::make_unique<GNAMemRequestsOutputsQueue>();
-        _mem_queues[REGION_SCRATCH] = tools::make_unique<GNAMemRequestsScratchQueue>();
-        _mem_queues[REGION_STATES] = tools::make_unique<GNAMemRequestsStatesQueue>();
-        _mem_queues[REGION_AUTO] = tools::make_unique<GNAMemRequestsBindingsQueue>();
+        _mem_queues[REGION_RO] = tools::make_unique<GNAMemRequestsReadOnlyQueue>(_data_alignment);
+        _mem_queues[REGION_INPUTS] = tools::make_unique<GNAMemRequestsInputsQueue>(_data_alignment);
+        _mem_queues[REGION_OUTPUTS] = tools::make_unique<GNAMemRequestsOutputsQueue>(_data_alignment);
+        _mem_queues[REGION_SCRATCH] = tools::make_unique<GNAMemRequestsScratchQueue>(_data_alignment);
+        _mem_queues[REGION_STATES] = tools::make_unique<GNAMemRequestsStatesQueue>(_data_alignment);
+        _mem_queues[REGION_AUTO] = tools::make_unique<GNAMemRequestsBindingsQueue>(_data_alignment);
     }
 
 public:
-    explicit GNAMemory(size_t pageAlignment = 1) : _page_alignment(pageAlignment) {
+    explicit GNAMemory(size_t dataAlignment = 1, size_t pageAlignment = 1)
+        : _data_alignment(dataAlignment),
+          _page_alignment(pageAlignment) {
         initMemQueses();
     }
 
-    explicit GNAMemory(const Allocator& a, size_t pageAlignment = 1) : _allocator(a), _page_alignment(pageAlignment) {
+    explicit GNAMemory(const Allocator& a, size_t dataAlignment = 1, size_t pageAlignment = 1)
+        : _allocator(a),
+          _data_alignment(dataAlignment),
+          _page_alignment(pageAlignment) {
         initMemQueses();
     }
 
@@ -146,7 +153,7 @@ public:
                 return {true, curOffset};
             }
             const auto size = queuePair.second->getSize();
-            curOffset += ALIGN64(size);
+            curOffset += ALIGN(size, _data_alignment);
         }
         return {false, 0};
     }
@@ -171,6 +178,10 @@ public:
 #ifdef GNA_MEMORY_DUMP
         memoryDump();
 #endif
+    }
+
+    size_t getDataMemAlignment() const override {
+        return _data_alignment;
     }
 
 protected:

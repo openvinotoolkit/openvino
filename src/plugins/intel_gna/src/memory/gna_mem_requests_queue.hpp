@@ -38,7 +38,9 @@ inline uint16_t getCNNLayerId(InferenceEngine::CNNLayerPtr layer) {
  */
 class GNAMemRequestsQueue {
 public:
-    explicit GNAMemRequestsQueue(rRegion region) : _region_type(region) {}
+    explicit GNAMemRequestsQueue(rRegion region, size_t mem_alignment)
+        : _region_type(region),
+          m_alignment(mem_alignment) {}
     virtual ~GNAMemRequestsQueue() {}
 
     rRegion _region_type;
@@ -46,31 +48,27 @@ public:
     std::vector<MemRequest> _mem_requests;
     std::list<std::vector<char>> _local_storage;
     std::shared_ptr<uint8_t> _basePtr = nullptr;
+    size_t m_alignment;
 
     /**
      * @brief register initialiser to access memory once it is actually allocated
      * @param ptr_out
      * @param ptr_in
      * @param num_bytes
-     * @param alignment
+     * @param initializer
      */
     void push_initializer(InferenceEngine::CNNLayerPtr layer,
                           void* ptr_out,
                           size_t num_bytes,
-                          std::function<void(void* data, size_t size)> initializer,
-                          size_t alignment = 1) {
-        futureHeap().push_back({regionType(), ptr_out, num_bytes, initializer, REQUEST_INITIALIZER, alignment});
+                          std::function<void(void* data, size_t size)> initializer) {
+        futureHeap().push_back({regionType(), ptr_out, num_bytes, initializer, REQUEST_INITIALIZER, m_alignment});
         if (layer != nullptr) {
             futureHeap().back()._life_limits = {0, getCNNLayerId(layer)};
         }
     }
 
-    void push_ptr(InferenceEngine::CNNLayerPtr layer,
-                  void* ptr_out,
-                  const void* ptr_in,
-                  size_t num_bytes,
-                  size_t alignment = 1) {
-        futureHeap().push_back({regionType(), REQUEST_STORE, ptr_out, ptr_in, 1, num_bytes, alignment});
+    void push_ptr(InferenceEngine::CNNLayerPtr layer, void* ptr_out, const void* ptr_in, size_t num_bytes) {
+        futureHeap().push_back({regionType(), REQUEST_STORE, ptr_out, ptr_in, 1, num_bytes, m_alignment});
         if (layer != nullptr) {
             futureHeap().back()._life_limits = {0, getCNNLayerId(layer)};
         }
@@ -82,15 +80,11 @@ public:
      * @param ptr_in
      * @param num_bytes
      */
-    void push_local_ptr(InferenceEngine::CNNLayerPtr layer,
-                        void* ptr_out,
-                        const void* ptr_in,
-                        size_t num_bytes,
-                        size_t alignment = 1) {
+    void push_local_ptr(InferenceEngine::CNNLayerPtr layer, void* ptr_out, const void* ptr_in, size_t num_bytes) {
         localStorage().emplace_back(reinterpret_cast<const uint8_t*>(ptr_in),
                                     reinterpret_cast<const uint8_t*>(ptr_in) + num_bytes);
         futureHeap().push_back(
-            {regionType(), REQUEST_STORE, ptr_out, &localStorage().back().front(), 1, num_bytes, alignment});
+            {regionType(), REQUEST_STORE, ptr_out, &localStorage().back().front(), 1, num_bytes, m_alignment});
         if (layer != nullptr) {
             futureHeap().back()._life_limits = {0, getCNNLayerId(layer)};
         }
@@ -100,9 +94,16 @@ public:
      *
      * @param ptr_out
      * @param num_bytes
+     * @param align_num_bytes
      */
-    void reserve_ptr(InferenceEngine::CNNLayerPtr layer, void* ptr_out, size_t num_bytes, size_t alignment = 1) {
-        futureHeap().push_back({regionType(), REQUEST_ALLOCATE, ptr_out, nullptr, 1, num_bytes, alignment});
+    void reserve_ptr(InferenceEngine::CNNLayerPtr layer, void* ptr_out, size_t num_bytes, bool align_num_bytes = true) {
+        futureHeap().push_back({regionType(),
+                                REQUEST_ALLOCATE,
+                                ptr_out,
+                                nullptr,
+                                1,
+                                align_num_bytes ? ALIGN(num_bytes, m_alignment) : num_bytes,
+                                m_alignment});
         if (layer != nullptr) {
             futureHeap().back()._life_limits = {getCNNLayerId(layer), getCNNLayerId(layer)};
         }
@@ -114,14 +115,22 @@ public:
      * @param dest - source is binded to dest pointer after allocation
      * @param offset - offset in bytes in source that will be set in dest
      * @param num_bytes - bind can request for bigger buffer that originally allocated via reserve(),
-     *      if that happens - reserved request parameters will be updated before committing memory
+     * @param align_num_bytes - when true then align memory size to the alignment predefined for the queue
      */
     void bind_ptr(InferenceEngine::CNNLayerPtr layer,
                   void* source,
                   const void* dest,
                   size_t offset = 0,
-                  size_t num_bytes = 0) {
-        futureHeap().push_back({regionType(), REQUEST_BIND, source, dest, 1, num_bytes, 1, offset});
+                  size_t num_bytes = 0,
+                  bool align_num_bytes = true) {
+        futureHeap().push_back({regionType(),
+                                REQUEST_BIND,
+                                source,
+                                dest,
+                                1,
+                                align_num_bytes ? ALIGN(num_bytes, m_alignment) : num_bytes,
+                                1,
+                                offset});
         if (layer != nullptr) {
             futureHeap().back()._life_limits = {getCNNLayerId(layer), getCNNLayerId(layer)};
         }
@@ -145,12 +154,8 @@ public:
      * @brief allocates buffer and set all its values to T value
      */
     template <class T>
-    void push_value(InferenceEngine::CNNLayerPtr layer,
-                    void* ptr_out,
-                    T value,
-                    size_t num_elements,
-                    size_t alignment = 1) {
-        futureHeap().push_back({regionType(), ptr_out, value, num_elements, alignment});
+    void push_value(InferenceEngine::CNNLayerPtr layer, void* ptr_out, T value, size_t num_elements) {
+        futureHeap().push_back({regionType(), ptr_out, value, num_elements, m_alignment});
         if (layer != nullptr) {
             futureHeap().back()._life_limits = {0, getCNNLayerId(layer)};
         }
@@ -217,17 +222,17 @@ public:
 
 class GNAMemRequestsInputsQueue : public GNAMemRequestsQueue {
 public:
-    explicit GNAMemRequestsInputsQueue() : GNAMemRequestsQueue(REGION_INPUTS) {}
+    explicit GNAMemRequestsInputsQueue(size_t alignment) : GNAMemRequestsQueue(REGION_INPUTS, alignment) {}
 };
 
 class GNAMemRequestsOutputsQueue : public GNAMemRequestsQueue {
 public:
-    explicit GNAMemRequestsOutputsQueue() : GNAMemRequestsQueue(REGION_OUTPUTS) {}
+    explicit GNAMemRequestsOutputsQueue(size_t alignment) : GNAMemRequestsQueue(REGION_OUTPUTS, alignment) {}
 };
 
 class GNAMemRequestsScratchQueue : public GNAMemRequestsQueue {
 public:
-    explicit GNAMemRequestsScratchQueue() : GNAMemRequestsQueue(REGION_SCRATCH) {}
+    explicit GNAMemRequestsScratchQueue(size_t alignment) : GNAMemRequestsQueue(REGION_SCRATCH, alignment) {}
     /**
      * @brief optimize memory region by reusing buffers
      */
@@ -266,17 +271,17 @@ public:
 
 class GNAMemRequestsReadOnlyQueue : public GNAMemRequestsQueue {
 public:
-    explicit GNAMemRequestsReadOnlyQueue() : GNAMemRequestsQueue(REGION_RO) {}
+    explicit GNAMemRequestsReadOnlyQueue(size_t alignment) : GNAMemRequestsQueue(REGION_RO, alignment) {}
 };
 
 class GNAMemRequestsStatesQueue : public GNAMemRequestsQueue {
 public:
-    explicit GNAMemRequestsStatesQueue() : GNAMemRequestsQueue(REGION_STATES) {}
+    explicit GNAMemRequestsStatesQueue(size_t alignment) : GNAMemRequestsQueue(REGION_STATES, alignment) {}
 };
 
 class GNAMemRequestsBindingsQueue : public GNAMemRequestsQueue {
 public:
-    explicit GNAMemRequestsBindingsQueue() : GNAMemRequestsQueue(REGION_AUTO) {}
+    explicit GNAMemRequestsBindingsQueue(size_t alignment) : GNAMemRequestsQueue(REGION_AUTO, alignment) {}
 };
 
 }  // namespace memory

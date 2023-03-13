@@ -19,7 +19,8 @@ const std::vector<ShapeRelatedParams> shapeRelatedParams = {{{{5, 1}, true}, {{5
 
 std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {ngraph::helpers::InputLayerType::CONSTANT};
 
-std::map<std::string, std::string> additional_config = {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}};
+std::vector<std::map<std::string, std::string>> additional_config = {{{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}},
+                                                                     {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMul,
                          MatMulTest,
@@ -30,7 +31,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMul,
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::ValuesIn(secondaryInputTypes),
                                             ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                            ::testing::Values(additional_config)),
+                                            ::testing::ValuesIn(additional_config)),
                          MatMulTest::getTestCaseName);
 
 }  // namespace

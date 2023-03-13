@@ -48,6 +48,8 @@ GNADeviceHelper::GNADeviceHelper(std::shared_ptr<Target> targetIn, bool isPerfor
     GetGnaLibraryVersion();
 
     maxLayersCount_ = retrieveMaxLayersCount();
+
+    m_mem_alignment = limitations::kMemoryAlignmentBytes;
 }
 
 GNADeviceHelper::~GNADeviceHelper() {
@@ -583,6 +585,5 @@ uint32_t GNADeviceHelper::retrieveMaxLayersCount() {
         return kMaxLayersCountGNA3_X;
     }
 }
-
 }  // namespace intel_gna
 }  // namespace ov

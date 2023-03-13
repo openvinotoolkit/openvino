@@ -55,6 +55,8 @@ constexpr uint32_t bytesPerSplitElement = 2;
 // In fp32 mode this is not necessary but is useful for testing
 constexpr uint32_t bytesPerCropElement = 2;
 
+constexpr uint32_t kMemoryAlignmentBytes = 64;
+
 inline bool isCropAffinedOffset(size_t numberOfElements) {
     const auto cropOffset = numberOfElements * bytesPerCropElement;
     return (ALIGN64(cropOffset) != cropOffset);
