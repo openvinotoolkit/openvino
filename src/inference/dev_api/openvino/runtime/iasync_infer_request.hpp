@@ -4,7 +4,7 @@
 
 /**
  * @brief OpenVINO Runtime AsyncInferRequest interface
- * @file openvino/runtime/iasync_nfer_request.hpp
+ * @file openvino/runtime/iasync_infer_request.hpp
  */
 
 #pragma once
