@@ -61,10 +61,10 @@ static const char custom_cpu_library_message[] = "Required for CPU plugin custom
                                                  "Absolute path to a shared library with the kernels implementations.";
 
 /// @brief message for score output argument
-static const char output_message[] =
-    "Optional. Output file name(s) to save scores (inference results). "
-    "Usage for a single file/layer: <output_file.ark> or <output_file.npz>. "
-    "Example of usage for several files/layers: <layer1>:<port_num1>=<output_file1.ark>,<layer2>:<port_num2>=<output_file2.ark>.";
+static const char output_message[] = "Optional. Output file name(s) to save scores (inference results). "
+                                     "Usage for a single file/layer: <output_file.ark> or <output_file.npz>. "
+                                     "Example of usage for several files/layers: "
+                                     "<layer1>:<port_num1>=<output_file1.ark>,<layer2>:<port_num2>=<output_file2.ark>.";
 
 /// @brief message for reference score file argument
 static const char reference_score_message[] =
