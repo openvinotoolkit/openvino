@@ -25,10 +25,6 @@ public:
     void* data(const element::Type& type = {}) const final {
         OPENVINO_NOT_IMPLEMENTED;
     }
-    template <typename T = bool>
-    void* data(const element::Type& type = {}) {
-        static_assert(fail<T>::value, "Do not use data() for remote tensor!");
-    }
 
     ~IRemoteTensor() override;
 
