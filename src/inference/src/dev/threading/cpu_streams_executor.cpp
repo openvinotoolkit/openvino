@@ -124,6 +124,7 @@ struct CPUStreamsExecutor::Impl {
 #endif
         }
 
+#if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
         void init_stream() {
             std::lock_guard<std::mutex> lock{_impl->_cpumap_mutex};
             const auto stream_id = _streamId >= _impl->_config._streams ? _impl->_config._streams - 1 : _streamId;
@@ -144,9 +145,13 @@ struct CPUStreamsExecutor::Impl {
             } else if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{_numaNodeId, concurrency}});
             } else if (ThreadBindingType::HYBRID_AWARE == _impl->_config._threadBindingType) {
+#    ifdef _WIN32
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                             .set_core_type(selected_core_type)
                                                             .set_max_concurrency(concurrency)});
+#    else
+                _taskArena.reset(new custom::task_arena{concurrency});
+#    endif
             }
             if (_impl->bind_cores && _streamId < _impl->_config._streams) {
                 const auto cpu_core_type =
@@ -240,9 +245,13 @@ struct CPUStreamsExecutor::Impl {
                             // Prevent conflicts with system scheduling, so default cpu id on big core starts from 1
                             ? (small_core ? small_core_offset : (logic_core ? 0 : 1))
                             : 0;
+#    ifdef _WIN32
                     _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                                 .set_core_type(selected_core_type)
                                                                 .set_max_concurrency(max_concurrency)});
+#    else
+                    _taskArena.reset(new custom::task_arena{max_concurrency});
+#    endif
                     CpuSet processMask;
                     int ncpus = 0;
                     std::tie(processMask, ncpus) = get_process_mask();
@@ -280,6 +289,7 @@ struct CPUStreamsExecutor::Impl {
                 }
             }
         }
+#endif
 
         Impl* _impl = nullptr;
         int _streamId = 0;

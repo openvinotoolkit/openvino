@@ -35,13 +35,13 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
             ((limit_threads == 0) || (limit_threads > proc_type_table[0][MAIN_CORE_PROC]))) {
             stream_info[PROC_TYPE] = ALL_PROC;
             int n_threads = std::accumulate(proc_type_table[0].begin() + MAIN_CORE_PROC,
-                                            proc_type_table[0].begin() + HYPER_THREADING_PROC,
+                                            proc_type_table[0].begin() + THIRD_CORE_PROC,
                                             0);
             stream_info[THREADS_PER_STREAM] = (limit_threads == 0) ? n_threads : std::min(n_threads, limit_threads);
             streams_info_table.push_back(stream_info);
             stream_info[NUMBER_OF_STREAMS] = 0;
             n_threads = stream_info[THREADS_PER_STREAM];
-            for (int n = MAIN_CORE_PROC; n < HYPER_THREADING_PROC; n++) {
+            for (int n = MAIN_CORE_PROC; n < THIRD_CORE_PROC; n++) {
                 if (0 != proc_type_table[0][n]) {
                     stream_info[PROC_TYPE] = n;
                     if (n_threads <= proc_type_table[0][n]) {
@@ -70,8 +70,10 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         int n_threads_per_stream = 0;
 
         if (proc_type_table.size() == 1) {
-            n_threads = (0 == input_threads) ? proc_type_table[0][ALL_PROC]
-                                             : std::min(proc_type_table[0][ALL_PROC], input_threads);
+            n_threads =
+                (0 == input_threads)
+                    ? (proc_type_table[0][ALL_PROC] - proc_type_table[0][THIRD_CORE_PROC])
+                    : std::min((proc_type_table[0][ALL_PROC] - proc_type_table[0][THIRD_CORE_PROC]), input_threads);
         } else {
             n_threads = (0 == input_threads) ? proc_type_table[0][MAIN_CORE_PROC]
                                              : std::min(proc_type_table[0][MAIN_CORE_PROC], input_threads);
@@ -134,7 +136,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
         if (proc_type_table.size() == 1) {
             while (1) {
                 for (int n = MAIN_CORE_PROC; n < PROC_TYPE_TABLE_SIZE; n++) {
-                    if (0 != proc_type_table[0][n]) {
+                    if ((n != THIRD_CORE_PROC) && (0 != proc_type_table[0][n])) {
                         stream_info[PROC_TYPE] = n;
                         stream_info[NUMBER_OF_STREAMS] =
                             static_cast<int>(proc_type_table[0][n] / stream_info[THREADS_PER_STREAM]);
