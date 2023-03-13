@@ -41,12 +41,35 @@ constexpr auto dilated(const TDim& dim, const typename TDim::value_type dilation
 /**
  * @brief Calculate padded dimension size as dim size + padding size
  *
+ * @tparam TDim    Dimension type as dimension class value type or any arithmetic value.
  * @param dim      Dimension size value.
- * @param pad_num  Number of padded dimension.
+ * @param pad_num  Number of padding to add.
  * @return         Padded dimension value or infinite bound.
  */
-constexpr auto padded(const int64_t dim, const int64_t pad_num) -> int64_t {
+template <class TDim>
+constexpr typename std::enable_if<std::is_arithmetic<TDim>::value, TDim>::type padded(const TDim dim,
+                                                                                      const int64_t pad_num) {
     return ((dim == inf_bound) || (dim + pad_num < 0)) ? inf_bound : dim + pad_num;
+}
+
+/**
+ * @brief Calculate padded dimension size as dim + padding size
+ *
+ * @note the Dimension + operator cannot be used if padding is '-1' which result add dynamic dimension.
+ *
+ * @tparam TDim    Dimension type as dimension class.
+ * @param dim      Dimension.
+ * @param pad_num  Number padding to add.
+ * @return         Padded dimension.
+ */
+template <class TDim>
+typename std::enable_if<std::is_class<TDim>::value, TDim>::type padded(const TDim& dim, const int64_t pad_num) {
+    auto ub = padded(dim.get_max_length(), pad_num);
+    if (dim.is_static()) {
+        return {ub};
+    } else {
+        return {padded(dim.get_min_length(), pad_num), ub};
+    }
 }
 
 /**

@@ -18,6 +18,7 @@
 #include "broadcast_shape_inference.hpp"
 #include "bucketize_shape_inference.hpp"
 #include "concat_shape_inference.hpp"
+#include "convolution_backprop_shape_inference.hpp"
 #include "convolution_shape_inference.hpp"
 #include "ctc_greedy_decoder_seq_len_shape_inference.hpp"
 #include "ctc_greedy_decoder_shape_inference.hpp"
@@ -400,7 +401,7 @@ public:
 
     IShapeInferCommon::Result infer(const std::vector<StaticShape>& input_shapes,
                                     const std::map<size_t, ov::HostTensorPtr>& constant_data) override {
-        auto out_shapes = shape_infer(static_cast<TOp*>(node.get()), input_shapes);
+        auto out_shapes = shape_infer(static_cast<TOp*>(node.get()), input_shapes, constant_data);
         return {std::move(out_shapes), ShapeInferStatus::success};
     }
 
@@ -574,6 +575,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(Bucketize, entryIO),
     _OV_OP_SHAPE_INFER_REG(Concat, entryIO),
     _OV_OP_SHAPE_INFER_REG(Convolution, ShapeInferConvolution),
+    _OV_OP_SHAPE_INFER_REG(ConvolutionBackpropData, ShapeInferConvolution),
     _OV_OP_SHAPE_INFER_REG(CTCGreedyDecoder, entryIO),
     _OV_OP_SHAPE_INFER_REG(CTCGreedyDecoderSeqLen, entryIO),
     _OV_OP_SHAPE_INFER_REG(CTCLoss, entryIO),
@@ -636,7 +638,6 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(Transpose, entryIOC),
     _OV_OP_SHAPE_INFER_REG(Unsqueeze, entryIOC),
     _OV_OP_SHAPE_INFER_REG(VariadicSplit, entryIOC),
-    _OV_OP_SHAPE_INFER_VA_REG(ConvolutionBackpropData, entryConvBackprop, ConvolutionBackpropData, false),
     _OV_OP_SHAPE_INFER_VA_REG(Gather, entryIOC, ov::op::util::GatherBase),
     _OV_OP_SHAPE_INFER_VA_REG(GroupConvolutionBackpropData, entryConvBackprop, GroupConvolutionBackpropData, true),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceL1, entryIOC, op::util::ArithmeticReductionKeepDims),

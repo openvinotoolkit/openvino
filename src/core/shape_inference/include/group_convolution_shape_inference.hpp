@@ -23,7 +23,9 @@ constexpr size_t filter_non_spatial_dims_count<v1::GroupConvolution>() {
 
 namespace v1 {
 template <class TShape>
-std::vector<TShape> shape_infer(const GroupConvolution* op, const std::vector<TShape>& input_shapes) {
+std::vector<TShape> shape_infer(const GroupConvolution* op,
+                                const std::vector<TShape>& input_shapes,
+                                const std::map<size_t, HostTensorPtr>& constant_data = {}) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 2);
     using namespace ov::util;
 

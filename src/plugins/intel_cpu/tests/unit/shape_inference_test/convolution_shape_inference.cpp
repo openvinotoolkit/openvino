@@ -10,36 +10,6 @@ using namespace ov;
 using namespace ov::intel_cpu;
 using namespace testing;
 
-TEST(StaticShapeInferenceTest, ConvolutionBackPropDataTest) {
-    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-    auto filters = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
-
-    const Strides strides{2, 2};
-    const Strides dilations{1, 1};
-    const CoordinateDiff padding_begin{1, 1};
-    const CoordinateDiff padding_end{1, 1};
-    const CoordinateDiff output_padding{1, 1};
-    const op::PadType auto_pad = op::PadType::SAME_LOWER;
-
-    auto output_shape = std::make_shared<op::v0::Constant>(
-            ov::element::i64, ov::Shape{2}, std::vector<int64_t>({3, 3}));
-    auto conv = std::make_shared<op::v1::ConvolutionBackpropData>(data,
-                                                                  filters,
-                                                                  output_shape,
-                                                                  strides,
-                                                                  padding_begin,
-                                                                  padding_end,
-                                                                  dilations,
-                                                                  auto_pad,
-                                                                  output_padding);
-
-    std::vector<StaticShape> static_input_shapes = {StaticShape{1, 16, 2, 2}, StaticShape{16, 6, 3, 3}, StaticShape{2}},
-                             static_output_shapes = {StaticShape{}};
-    shape_inference(conv.get(), static_input_shapes, static_output_shapes);
-
-    ASSERT_EQ(static_output_shapes[0], StaticShape({1, 6, 3, 3}));
-}
-
 TEST(StaticShapeInferenceTest, GroupConvolutionBackPropDataTest) {
     auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
     auto filters = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1, -1});

@@ -240,6 +240,7 @@ public:
     /// \param      output_spatial_shape  The placeholder for computed output spatial partial
     /// shape.
     ///
+    OPENVINO_DEPRECATED("This member function is deprecated and will be removed soon.")
     void infer_conv_backprop_output_spatial_shape(const std::vector<Dimension>& input_data_shape,
                                                   const std::vector<Dimension>& filters_shape,
                                                   const Strides& strides,
@@ -260,45 +261,13 @@ protected:
     int64_t m_num_spatial = -1;
 
 private:
-    template <class ConvType>
-    friend int64_t calculate_num_spatial(const ConvType* op,
-                                         const PartialShape& input_shape,
-                                         const PartialShape& filters_shape,
-                                         const PartialShape& output_shapes_shape,
-                                         const int64_t& num_non_spatial_data_dims,
-                                         const int64_t& num_non_spatial_filter_dims);
-
-    template <class ConvType>
-    friend int64_t calculate_num_spatial(const ConvType* op,
-                                         const PartialShape& input_shape,
-                                         const PartialShape& filters_shape,
-                                         const int64_t& num_non_spatial_data_dims,
-                                         const int64_t& num_non_spatial_filter_dims);
-
-    template <class ConvType>
-    friend void update_and_validate_attributes(ConvType* op, int64_t num_spatial);
-    template <class ConvType>
-    friend void update_and_validate_attributes_back_prop(ConvType* op, int64_t num_spatial);
-
-    template <class ConvType, class ShapeType>
-    friend bool resolve_auto_pad_for_shape_back_prop(const ConvType* op,
-                                                     CoordinateDiff& pads_begin,
-                                                     CoordinateDiff& pads_end,
-                                                     const std::vector<ShapeType>& input_shapes,
-                                                     ShapeType& output_spatial_shape,
-                                                     const int64_t& num_non_spatial_data_dims,
-                                                     const int64_t& num_non_spatial_filter_dims);
-
-    template <class T>
-    friend void shape_infer(const ConvolutionBackpropData* op,
-                            const CoordinateDiff& pads_begin,
-                            const CoordinateDiff& pads_end,
-                            const T& output_shape_from_input,
-                            const std::vector<T>& input_shapes,
-                            std::vector<T>& output_shapes);
-
     template <class TConv, class TShape>
     friend int64_t convolution::get_num_spatial(const TConv* op, const std::vector<TShape>& input_shapes);
+
+    template <class ConvType, class TShape>
+    friend void update_and_validate_attributes(ConvType* op,
+                                               const std::vector<TShape>& input_shapes,
+                                               const TShape& out_spatial_shape);
 };
 }  // namespace v1
 }  // namespace op

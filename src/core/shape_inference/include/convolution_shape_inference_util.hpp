@@ -17,7 +17,7 @@ constexpr size_t spatial_dim_offset = 2;  //!< Spatial dimension offset for data
 /**
  * @brief Provides convolution filter non spatial dimension count.
  *
- * @note If Specific convolution operator requires different value provide specialization for this operator.
+ * @note If specific convolution operator requires different value provide specialization for this operator.
  * @tparam TConv  Type of convolution operator.
  * @return Default value for convolution operators (2).
  */
@@ -42,17 +42,29 @@ int64_t get_num_spatial(const TConv* op, const std::vector<TShape>& input_shapes
     const auto& data_rank = input_shapes[0].rank();
     const auto& filters_rank = input_shapes[1].rank();
 
-    auto result = op->m_num_spatial;
+    auto num_spatial = op->m_num_spatial;
 
-    if (result == ov::util::dim::inf_bound) {
+    if (num_spatial == ov::util::dim::inf_bound) {
         if (data_rank.is_static()) {
-            result = data_rank.get_length() - spatial_dim_offset;
+            num_spatial = data_rank.get_length() - spatial_dim_offset;
         } else if (filters_rank.is_static()) {
-            result = filters_rank.get_length() - filter_non_spatial_dims_count<TConv>();
+            num_spatial = filters_rank.get_length() - filter_non_spatial_dims_count<TConv>();
         }
     }
 
-    return result;
+    return num_spatial;
+}
+
+template <class TConv, class TShape>
+int64_t get_num_spatial(const TConv* op, const std::vector<TShape>& input_shapes, const TShape& out_spatial_shape) {
+    auto num_spatial = convolution::get_num_spatial(op, input_shapes);
+
+    if (num_spatial == ov::util::dim::inf_bound && out_spatial_shape.rank().is_static() &&
+        out_spatial_shape.size() > 0) {
+        num_spatial = out_spatial_shape.size();
+    }
+
+    return num_spatial;
 }
 
 /**
@@ -75,19 +87,58 @@ void apply_auto_pad(const TOp* op, const std::vector<TShape>& input_shapes, T pa
     const auto& dilations = op->get_dilations();
     const auto& strides = op->get_strides();
 
-    const auto same_upper_padding = op->get_auto_pad() == PadType::SAME_UPPER;
-    auto& pad_left = same_upper_padding ? pads_begin : pads_end;
-    auto& pad_right = same_upper_padding ? pads_end : pads_begin;
+    const auto padding_swap = op->get_auto_pad() == PadType::SAME_UPPER;
+    auto& pad_b = padding_swap ? pads_begin : pads_end;
+    auto& pad_e = padding_swap ? pads_end : pads_begin;
 
-    for (int64_t i = 0; i < num_spatial; ++i, ++pad_left, ++pad_right, ++data_dim, ++kernel_dim) {
+    for (int64_t i = 0; i < num_spatial; ++i, ++pad_b, ++pad_e, ++data_dim, ++kernel_dim) {
         using namespace ov::util;
         if (kernel_dim->is_static()) {
-            std::tie(*pad_left, *pad_right) =
-                dim::padding(*data_dim, kernel_dim->get_length(), dilations[i], strides[i]);
+            std::tie(*pad_b, *pad_e) = dim::padding(*data_dim, kernel_dim->get_length(), dilations[i], strides[i]);
         } else {
-            *pad_left = 0;
-            *pad_right = 0;
+            *pad_b = 0;
+            *pad_e = 0;
         }
+    }
+}
+
+template <class TOp, class TShape, class TIter>
+void apply_auto_pad(const TOp* op,
+                    const std::vector<TShape>& input_shapes,
+                    const TShape& out_spatial_shape,
+                    TIter pads_begin,
+                    TIter pads_end) {
+    const auto num_spatial = get_num_spatial(op, input_shapes, out_spatial_shape);
+    auto data_dim = input_shapes[0].cend() - num_spatial;
+    auto kernel_dim = input_shapes[1].cend() - num_spatial;
+    const auto& dilations = op->get_dilations();
+    const auto& strides = op->get_strides();
+    const auto& out_padding = op->get_output_padding();
+
+    const auto padding_swap = op->get_auto_pad() == PadType::SAME_UPPER;
+    auto& pad_b = padding_swap ? pads_end : pads_begin;
+    auto& pad_e = padding_swap ? pads_begin : pads_end;
+
+    if (input_shapes.size() == 3) {
+        for (int64_t i = 0; i < num_spatial; ++i, ++pad_b, ++pad_e, ++data_dim, ++kernel_dim) {
+            using namespace ov::util;
+            if (data_dim->is_static() && kernel_dim->is_static() && out_spatial_shape[i].is_static()) {
+                const auto dilated_kernel = dim::dilated(*kernel_dim, dilations[i]);
+                const auto dim_len = static_cast<int64_t>(data_dim->get_length() - 1);
+                const auto padding = std::max<int64_t>(dim_len * strides[i] + dilated_kernel.get_length() -
+                                                           out_spatial_shape[i].get_length() + out_padding[i],
+                                                       0);
+
+                *pad_b = padding / 2;
+                *pad_e = padding - *pad_b;
+            } else {
+                *pad_b = 0;
+                *pad_e = 0;
+            }
+        }
+    } else {
+        std::fill_n(pad_b, num_spatial, 0);
+        std::fill_n(pad_e, num_spatial, 0);
     }
 }
 
@@ -140,6 +191,37 @@ void append_spatial_shape(const TOp* op, const std::vector<TShape>& input_shapes
         }
     }
 }
+
+namespace backprop {
+template <class TOp, class TShape>
+void append_spatial_shape(const TOp* op, const std::vector<TShape>& input_shapes, TShape& out_shape) {
+    using namespace ov::util;
+
+    const auto& strides = op->get_strides();
+    const auto& dilations = op->get_dilations();
+    const auto& output_padding = op->get_output_padding();
+    const auto& pads_begin = op->get_pads_begin();
+    const auto& pads_end = op->get_pads_end();
+
+    const auto spatial_num = strides.size();
+
+    const auto& data_shape = input_shapes[0].rank().is_static() ? input_shapes[0] : PartialShape::dynamic(spatial_num);
+    auto data_dim = data_shape.cend() - spatial_num;
+
+    const auto& filters_shape =
+        input_shapes[1].rank().is_static() ? input_shapes[1] : PartialShape::dynamic(spatial_num);
+    auto filters_dim = filters_shape.cend() - spatial_num;
+
+    for (size_t i = 0; i < spatial_num; ++i, ++data_dim, ++filters_dim) {
+        auto dim = (*data_dim - 1) * strides[i];
+        dim += dim::dilated(*filters_dim, dilations[i]);
+        out_shape.push_back(dim::padded(dim, output_padding[i] - pads_begin[i] - pads_end[i]));
+    }
+}
+
+}  // namespace backprop
 }  // namespace convolution
+
+namespace convolution_backprop {}
 }  // namespace op
 }  // namespace ov
