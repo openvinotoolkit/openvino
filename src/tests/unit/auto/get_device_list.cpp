@@ -88,10 +88,9 @@ TEST_P(GetDeviceListTest, GetDeviceListTestWithExcludeList) {
     EXPECT_EQ(result, metaDevices);
 }
 
-
 // ConfigParams details
 // example
-// ConfigParams {devicePriority, expect metaDevices, ifThrowException}
+// ConfigParams {devicePriority, expect metaDevices}
 
 const std::vector<ConfigParams> testConfigs = {
     ConfigParams{" ", " "},
