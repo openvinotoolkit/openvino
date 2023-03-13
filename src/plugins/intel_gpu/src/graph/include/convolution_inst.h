@@ -20,15 +20,13 @@ struct typed_program_node<convolution> : public typed_program_node_base<convolut
 public:
     typed_program_node(std::shared_ptr<primitive> prim, program& prog)
         : parent(prim, prog),
-          transposed(false),
           groups(this->get_primitive()->groups),
           deformable_groups(this->get_primitive()->deformable_groups),
           deformable_mode(this->get_primitive()->deformable_mode) {
         support_padding_all(true);
     }
 
-    void set_transposed(bool node_transposed) { transposed = node_transposed; }
-    bool get_transposed() const { return transposed; }
+    bool get_transposed() const { return get_primitive()->transposed; }
 
     uint32_t get_groups() const { return groups; }
 
@@ -110,13 +108,7 @@ public:
         return params;
     }
 
-    void calculate_hash() override {
-        parent::calculate_hash();
-        seed = hash_combine(seed, transposed);
-    }
-
 private:
-    bool transposed;
     uint32_t groups;
     uint32_t deformable_groups;
     bool deformable_mode;

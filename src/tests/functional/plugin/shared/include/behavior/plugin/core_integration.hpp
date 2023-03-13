@@ -714,7 +714,7 @@ TEST_P(IEClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS, GetMetricAndPrintNoT
     std::cout << std::endl;
 
     ASSERT_LE(start, end);
-    ASSERT_GE(step, 1);
+    ASSERT_GE(step, 1u);
     ASSERT_METRIC_SUPPORTED_IE(METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS));
 }
 
