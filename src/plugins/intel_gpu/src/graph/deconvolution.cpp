@@ -230,7 +230,7 @@ std::string deconvolution_inst::to_string(deconvolution_node const& node) {
 
     ss_weights << node.weights().id();
     ss_weights << ", count: " << node.weights().get_output_layout().count();
-    if (node.get_dependencies().size() == 3) {  // W.A: convolutionbackpropdata:conv3d_transpose in unet3d_mlperf doesn't have bias(). Test code, need to check.
+    if (node.get_dependencies().size() == 3) {
         ss_biases << node.bias().id();
         ss_biases << ", count: " << node.bias().get_output_layout().count();
     }
