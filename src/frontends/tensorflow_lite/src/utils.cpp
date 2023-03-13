@@ -52,9 +52,7 @@ ov::element::Type ov::frontend::tensorflow_lite::get_ov_type(const tflite::Tenso
         //          {TensorType_VARIANT,        element::variant},
     };
     auto it = type_map.find(tf_type);
-    FRONT_END_GENERAL_CHECK(it != type_map.end(),
-                            "Unexpected type: ",
-                            tflite::EnumNameTensorType(tf_type));
+    FRONT_END_GENERAL_CHECK(it != type_map.end(), "Unexpected type: ", tflite::EnumNameTensorType(tf_type));
     return it->second;
 }
 

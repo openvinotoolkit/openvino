@@ -156,8 +156,8 @@ InferenceEngine::Precision pugixml::utils::GetPrecisionAttr(const pugi::xml_node
 }
 
 InferenceEngine::Precision pugixml::utils::GetPrecisionAttr(const pugi::xml_node& node,
-                                                           const char* str,
-                                                           InferenceEngine::Precision def) {
+                                                            const char* str,
+                                                            InferenceEngine::Precision def) {
     auto attr = node.attribute(str);
     if (attr.empty())
         return InferenceEngine::Precision(def);
