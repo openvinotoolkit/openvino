@@ -8,5 +8,5 @@
 #endif
 
 #define _OPENVINO_OP_REG NGRAPH_OP
-#include "openvino/opsets/opset11_tbl.hpp"
+#include "openvino/opsets/opset10_tbl.hpp"
 #undef _OPENVINO_OP_REG
