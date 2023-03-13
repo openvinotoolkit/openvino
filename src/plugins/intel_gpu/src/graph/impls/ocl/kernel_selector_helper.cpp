@@ -63,6 +63,16 @@ kernel_selector::dev_type get_device_type(cldnn::device_type type) {
     }
 }
 
+class dummy_impl_params : public kernel_impl_params {
+    size_t hash() const override {
+        return 1;
+    }
+
+    bool operator==(const kernel_impl_params& rhs) const override {
+        return false;
+    }
+};
+
 bool query_local_block_io_supported(engine& e, const ExecutionConfig& config) {
     auto device = e.get_device().get();
     auto device_info = device->get_info();
@@ -102,10 +112,10 @@ bool query_local_block_io_supported(engine& e, const ExecutionConfig& config) {
 
     try {
         auto _kernels_cache_device_query = std::unique_ptr<kernels_cache>(new kernels_cache(e, config, 0));
-        auto id = _kernels_cache_device_query->set_kernel_source(kernel_string, false);
+        auto kernel_ids = _kernels_cache_device_query->add_kernels_source({kernel_string}, false);
         _kernels_cache_device_query->build_all();
 
-        auto kernel = _kernels_cache_device_query->get_kernel(id);
+        auto kernel = _kernels_cache_device_query->get_kernel(kernel_ids[0]);
         cache[device] = _kernels_cache_device_query->validate_simple_kernel_execution(kernel);
     } catch (std::exception& /*ex*/) {
         cache[device] = false;
@@ -1202,7 +1212,7 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     const auto& config = program->get_config();
     const auto& device_info = engine.get_device_info();
 
-    params.uniqueID = std::to_string(param_info.unique_id);
+    params.uniqueID = std::to_string(param_info.hash());
     params.engineInfo.supports_fp16 = device_info.supports_fp16;
     params.engineInfo.supports_fp64 = device_info.supports_fp64;
     params.engineInfo.supports_fp16_denorms = device_info.supports_fp16_denorms;

@@ -54,7 +54,6 @@ std::string reorder_options(const std::string& org_options) {
 }  // namespace
 
 namespace cldnn {
-std::atomic<size_t> kernels_cache::_kernel_idx{0};
 std::mutex kernels_cache::_mutex;
 
 std::string kernels_cache::get_cache_path() const {
@@ -90,7 +89,8 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildAll::GetProgramSource");
     std::map<std::string, std::tuple<int32_t, std::vector<batch_program>>> program_buckets;
 
-    for (const auto& code : kernels_source_code) {
+    for (const auto& k : kernels_source_code) {
+        auto& code = k.second;
         std::string full_code = code.kernel_strings->jit + code.kernel_strings->str + code.kernel_strings->undefs;
         std::string entry_point = code.kernel_strings->entry_point;
         std::string options = code.kernel_strings->options;
@@ -164,13 +164,6 @@ kernels_cache::kernels_cache(engine& engine,
     , _config(config)
     , _prog_id(prog_id)
     , batch_header_str(std::move(batch_header_str)) { }
-
-kernel_id kernels_cache::set_kernel_source(
-    const std::shared_ptr<kernel_string>& kernel_string,
-    bool dump_custom_program) {
-    auto kernel_ids = add_kernels_source({kernel_string}, dump_custom_program);
-    return kernel_ids[0];
-}
 
 static std::vector<unsigned char> getProgramBinaries(cl::Program program) {
     // Get the size of the program binary in bytes.
@@ -436,12 +429,16 @@ std::vector<kernel_id> kernels_cache::add_kernels_source(std::vector<std::shared
     for (size_t i = 0; i < kernel_sources.size(); ++i) {
         std::lock_guard<std::mutex> lock(_mutex);
         auto kernel_string = kernel_sources[i];
-        kernel_id id = gen_kernel_id(kernel_string->entry_point);
-        auto res = _kernels_code.emplace(kernel_string, id, dump_custom_program);
+        kernel_id id = kernel_string->entry_point;
 
-        assert(_kernels.find(id) == _kernels.end());
-        if (res.second) {
-            _pending_compilation = true;
+        // Add kernels_code when the id is not existed in kernels_code
+        if (_kernels_code.find(id) == _kernels_code.end()) {
+            auto res = _kernels_code.insert({id, {kernel_string, id, dump_custom_program}});
+
+            assert(_kernels.find(id) == _kernels.end());
+            if (res.second) {
+                _pending_compilation = true;
+            }
         }
         kernel_ids.emplace_back(id);
     }
@@ -454,7 +451,6 @@ void kernels_cache::add_kernels(const std::vector<std::string>& kernel_ids, cons
     for (size_t i = 0; i < kernel_ids.size(); i++) {
         const auto& kmap = std::make_pair(kernel_ids[i], kernels[i]);
         _kernels.insert(kmap);
-        _kernel_idx++;
     }
 }
 
@@ -540,7 +536,6 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
                     cl_context cl_context = build_engine->get_cl_context().get();
                     kernel::ptr kernel = kernels_factory::create(_engine, cl_context, cl_kernel, entry_point);
                     _kernels.insert({k_id->second, kernel});
-                    _kernel_idx++;
                 }
             }
         }
@@ -554,15 +549,15 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
 }
 
 std::map<const std::string, kernel::ptr> kernels_cache::compile(std::vector<std::shared_ptr<kernel_string>> kernel_sources,
-                                                                                        bool dump_custom_program) {
+                                                                    bool dump_custom_program) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::Compile_ThreadSafe");
     kernels_code t_kernels_code;
 
     // Get kernels code from kernel sources
     for (size_t idx = 0; idx < kernel_sources.size(); ++idx) {
         auto kernel_string = kernel_sources[idx];
-        kernel_id id = gen_kernel_id(kernel_string->entry_point);
-        t_kernels_code.emplace(kernel_string, id, dump_custom_program);
+        kernel_id id = kernel_string->entry_point;
+        t_kernels_code.insert({id, {kernel_string, id, dump_custom_program}});
     }
 
     ocl::ocl_engine& _build_engine = downcast<ocl::ocl_engine>(_engine);

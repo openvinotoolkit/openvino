@@ -117,7 +117,6 @@ program::program(engine& engine_ref,
     GPU_DEBUG_INFO << "Program config\n" << config.to_string();
     init_program();
     prepare_nodes(topology);
-    program_node::reset_unique_id();
 
     if (no_optimizations) {
         init_graph();
@@ -230,7 +229,8 @@ std::shared_ptr<InferenceEngine::CPUStreamsExecutor> program::make_task_executor
 }
 
 kernel_id program::add_kernel(const std::shared_ptr<kernel_string>& kernelSring) {
-    return _kernels_cache->set_kernel_source(kernelSring, false);
+    auto kernel_ids = _kernels_cache->add_kernels_source({kernelSring}, false);
+    return kernel_ids[0];
 }
 
 kernel::ptr program::get_kernel(kernel_id id) {
@@ -1638,10 +1638,6 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
     }
 
     return std::make_pair(const_sum, get_engine().get_used_device_memory(allocation_type::usm_device));
-}
-
-void program::remove_kernel(kernel_id id) {
-    _kernels_cache->remove_kernel(id);
 }
 
 void program::cancel_compilation_context() {

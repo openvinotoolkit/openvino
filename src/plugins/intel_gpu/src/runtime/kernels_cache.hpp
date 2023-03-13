@@ -52,28 +52,16 @@ public:
         std::shared_ptr<kernel_string> kernel_strings;
         std::string id;
         bool dump_custom_program;
-        size_t hash_value;
 
         kernel_code(const std::shared_ptr<kernel_string>& _kernel_strings,
                     const std::string& _id,
                     bool _dump_custom_program)
             : kernel_strings(_kernel_strings),
               id(_id),
-              dump_custom_program(_dump_custom_program),
-              hash_value(_kernel_strings->get_hash()) {}
-
-        bool operator == (const kernel_code& rhs) const {
-            return (hash_value == rhs.hash_value);
-        }
+              dump_custom_program(_dump_custom_program) {}
     };
 
-    struct cmp_kernel_code {
-        bool operator()(const kernel_code& x1, const kernel_code& x2) const {
-            return (x1.hash_value < x2.hash_value);
-        }
-    };
-
-    using kernels_code = std::set<kernel_code, cmp_kernel_code>;
+    using kernels_code = std::map<kernel_id, kernel_code>;
 
 private:
     static std::mutex _mutex;
@@ -82,7 +70,6 @@ private:
     ExecutionConfig _config;
     uint32_t _prog_id = 0;
     kernels_code _kernels_code;
-    static std::atomic<size_t> _kernel_idx;
     std::atomic<bool> _pending_compilation{false};
     std::map<const std::string, kernel::ptr> _kernels;
     std::vector<std::string> batch_header_str;
@@ -94,19 +81,12 @@ private:
     bool is_cache_enabled() const;
     size_t get_max_kernels_per_batch() const;
 
-    inline std::string gen_kernel_id(std::string entry_point) {
-        // we need unique id in order to avoid conflict across topologies.
-        return entry_point + "_" + std::to_string((_kernel_idx++));
-    }
-
 public:
     explicit kernels_cache(engine& engine,
                            const ExecutionConfig& config,
                            uint32_t prog_id,
                            InferenceEngine::CPUStreamsExecutor::Ptr task_executor = nullptr,
                            const std::vector<std::string>& batch_header_str = {});
-    kernel_id set_kernel_source(const std::shared_ptr<kernel_string>& kernel_string,
-                                bool dump_custom_program);
     kernel::ptr get_kernel(kernel_id id) const;
     void set_batch_header_str(const std::vector<std::string> &batch_headers) {
         batch_header_str = std::move(batch_headers);
@@ -117,14 +97,13 @@ public:
     // forces compilation of all pending kernels/programs
     void build_all();
     void reset();
-    void remove_kernel(kernel_id id) {
-        _kernels.erase(id);
-    }
+
     std::vector<kernel_id> add_kernels_source(std::vector<std::shared_ptr<kernel_string>> kernel_sources, bool dump_custom_program = false);
+    std::map<const std::string, kernel::ptr> compile(std::vector<std::shared_ptr<kernel_string>> kernel_sources, bool dump_custom_program = false);
+
     void add_kernels(const std::vector<std::string>& kernel_ids, const std::vector<kernel::ptr>& kernels);
     void save(BinaryOutputBuffer& ob) const;
     void load(BinaryInputBuffer& ib);
-    std::map<const std::string, kernel::ptr> compile(std::vector<std::shared_ptr<kernel_string>> kernel_sources, bool dump_custom_program = false);
 };
 
 }  // namespace cldnn
