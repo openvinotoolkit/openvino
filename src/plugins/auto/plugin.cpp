@@ -854,7 +854,7 @@ void MultiDeviceInferencePlugin::RegisterPriority(const unsigned int& priority,
 std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string, std::string>& config) const {
     std::string allDevices;
     auto deviceList = GetCore()->GetAvailableDevices();
-    auto deviceListConfig = config.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
+    auto deviceListConfig = config.find(ov::device::priorities.name());
     for (auto&& device : deviceList) {
         // filter out the supported devices
         if (!_pluginConfig.isSupportedDevice(device))
@@ -899,7 +899,7 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
                     // Add user specified device into candidate list
                     devicesMerged.push_back(device);
                 } else {
-                    // Update device name if supported device with id existd
+                    // Update device name if supported device with id existed
                     for (auto&& item : deviceList) {
                         if (isAnyDev(item, devicesToBeDeleted) || item.find(device) == std::string::npos)
                             continue;
