@@ -111,8 +111,8 @@ public:
     }
 
     virtual std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const {
-        auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_primitive(), get_unique_id(), in_layouts, out_layouts,
-                                                                                 get_fused_primitives()));
+        auto params = std::unique_ptr<kernel_impl_params>(new kernel_impl_params(get_program(), get_primitive(),
+                                                                in_layouts, out_layouts, get_fused_primitives()));
         params->memory_deps = get_const_memory_deps();
 
         auto deps = get_dependencies();
@@ -368,16 +368,6 @@ public:
 
     bool need_lockable_memory() const;
 
-    size_t get_unique_id() const { return unique_id; }
-
-    void set_unique_id() {
-        unique_id = cur_id++;
-    }
-
-    static void reset_unique_id() {
-        cur_id = 0;
-    }
-
     std::vector<format::type> get_preferred_input_fmts() const { return preferred_input_fmts; }
     std::vector<format::type> get_preferred_output_fmts() const { return preferred_output_fmts; }
     format::type get_preferred_input_fmt(size_t idx = 0) const {
@@ -392,9 +382,6 @@ public:
     void set_preferred_output_fmt(size_t idx, format::type type);
 
 protected:
-    size_t unique_id = 0;
-    static thread_local size_t cur_id;
-
     std::shared_ptr<primitive> desc;
     program& myprog;
 
