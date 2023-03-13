@@ -213,7 +213,7 @@ TensorPlace::TensorPlace(const ov::frontend::InputModel& input_model,
     const auto& var_type = var_desc.type();
     if (var_type.type() == ::paddle::framework::proto::VarType::LOD_TENSOR) {
         const auto& tensor_desc = var_type.lod_tensor().tensor();
-        m_type = TYPE_MAP[tensor_desc.data_type()];
+        m_type = get_ov_type(tensor_desc.data_type());
         m_pshape = PartialShape(std::vector<Dimension>(tensor_desc.dims().begin(), tensor_desc.dims().end()));
     }
 }

@@ -16,7 +16,7 @@
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
-using namespace XMLParseUtils;
+using namespace pugixml::utils;
 using namespace std;
 
 void LayerParseParameters::addOutputPort(const LayerPortData& port) {
@@ -72,7 +72,7 @@ void FormatParser::ParseGenericParams(pugi::xml_node& node, LayerParseParameters
     layerParsePrms.underIRVersion = _version;
 
     InferenceEngine::LayerParams& prms = layerParsePrms.prms;
-    prms.type = XMLParseUtils::GetStrAttr(node, "type");
+    prms.type = pugixml::utils::GetStrAttr(node, "type");
     prms.precision = _defPrecision;
 
     prms.name = GetStrAttr(node, "name");
