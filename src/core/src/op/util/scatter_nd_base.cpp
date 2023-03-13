@@ -39,7 +39,9 @@ void ov::op::util::ScatterNDBase::validate_and_infer_types() {
                           "Indices element type must be i64 or i32");
 
     auto outputs_et = element::dynamic;
-    NODE_VALIDATION_CHECK(this, element::Type::merge(outputs_et, inputs_et, updates_et), "Updates element type must be the same as inputs");
+    NODE_VALIDATION_CHECK(this,
+                                                 element::Type::merge(outputs_et, inputs_et, updates_et),
+                                                 "Updates element type must be the same as inputs");
 
     const auto& inputs = get_input_partial_shape(0);
     const auto& indices = get_input_partial_shape(1);
