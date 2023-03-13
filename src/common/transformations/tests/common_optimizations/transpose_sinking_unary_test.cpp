@@ -1,122 +1,29 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations//transpose_sinking_unary.hpp"
+#include "transformations/common_optimizations/transpose_sinking_unary.hpp"
 
 #include <openvino/frontend/manager.hpp>
-#include <openvino/opsets/opset9.hpp>
+#include <openvino/opsets/opset10.hpp>
 #include <openvino/pass/manager.hpp>
-#include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
+#include "transpose_sinking_test_utils.hpp"
 
 using namespace ov;
-using namespace ov::opset9;
+using namespace ov::opset10;
+using namespace transpose_sinking::testing;
 
-namespace {
-std::string to_string(const Shape& shape) {
-    std::ostringstream result;
-    result << "{";
-    for (size_t idx = 0; idx < shape.size(); ++idx) {
-        if (idx)
-            result << ",";
-        result << shape[idx];
-    }
-    result << "}";
-    return result.str();
-}
-}  // namespace
+namespace transpose_sinking {
+namespace testing {
+namespace unary {
 
-using NodePtr = std::shared_ptr<ov::Node>;
+using CreateGraphF = std::function<std::shared_ptr<
+    ov::Model>(FactoryPtr unary_factory, size_t num_unary_ops, const Shape& input_shape, element::Type input_type)>;
 
-class IUnaryFactory {
-public:
-    IUnaryFactory(const std::string& type_name) : type_name_(type_name) {}
-    virtual ~IUnaryFactory() = default;
-    virtual NodePtr create(NodePtr parent_node) const = 0;
-
-    const std::string& getTypeName() const {
-        return type_name_;
-    }
-
-private:
-    const std::string type_name_;
-};
-
-using UnaryFactoryPtr = std::shared_ptr<IUnaryFactory>;
-
-template <typename UnaryT>
-class UnaryFactory : public IUnaryFactory {
-public:
-    UnaryFactory(const std::string& type_name) : IUnaryFactory(type_name) {}
-    NodePtr create(NodePtr parent_node) const override {
-        return std::make_shared<UnaryT>(parent_node);
-    }
-};
-
-template <>
-NodePtr UnaryFactory<Elu>::create(NodePtr parent_node) const {
-    return std::make_shared<Elu>(parent_node, 0.1);
-}
-
-template <>
-NodePtr UnaryFactory<Clamp>::create(NodePtr parent_node) const {
-    return std::make_shared<Clamp>(parent_node, 0.1, 0.2);
-}
-
-template <>
-NodePtr UnaryFactory<Convert>::create(NodePtr parent_node) const {
-    return std::make_shared<Convert>(parent_node, element::f64);
-}
-
-template <typename UnaryT>
-UnaryFactoryPtr CreateUnaryFactory(const std::string& type_name) {
-    return std::make_shared<UnaryFactory<UnaryT>>(type_name);
-}
-
-// ----------------------------------------------------------------------------
-
-class IPassFactory {
-public:
-    IPassFactory(const std::string& type_name) : type_name_(type_name) {}
-    virtual ~IPassFactory() = default;
-    virtual void registerPass(ov::pass::Manager& pass_manager) const = 0;
-    const std::string& getTypeName() const {
-        return type_name_;
-    }
-
-private:
-    const std::string type_name_;
-};
-
-using PassFactoryPtr = std::shared_ptr<IPassFactory>;
-
-template <typename PassT>
-class PassFactory : public IPassFactory {
-public:
-    PassFactory(const std::string& type_name) : IPassFactory(type_name) {}
-    void registerPass(ov::pass::Manager& pass_manager) const override {
-        pass_manager.register_pass<PassT>();
-    }
-};
-
-#define CREATE_PASS_FACTORY(pass_name) std::make_shared<PassFactory<ov::pass::pass_name>>(#pass_name)
-
-#undef CREATE_UNARY_FACTORY
-#define CREATE_UNARY_FACTORY(type_name) CreateUnaryFactory<type_name>(#type_name)
-
-// ----------------------------------------------------------------------------
-
-using FloatPtr = std::unique_ptr<float[]>;
-
-using CreateGraphF = std::function<std::shared_ptr<ov::Model>(UnaryFactoryPtr unary_factory,
-                                                              size_t num_unary_ops,
-                                                              const Shape& input_shape,
-                                                              element::Type input_type)>;
-
-using TestParams = std::tuple<UnaryFactoryPtr,
+using TestParams = std::tuple<FactoryPtr,
                               PassFactoryPtr,
                               size_t,         /* num_unary_ops */
                               CreateGraphF,   /* model_factory */
@@ -126,8 +33,8 @@ using TestParams = std::tuple<UnaryFactoryPtr,
 
 class TransposeSinkingUnaryTestFixture : public ::testing::WithParamInterface<TestParams>, public TransformationTestsF {
 public:
-    static std::string get_test_name(const testing::TestParamInfo<TestParams>& obj) {
-        UnaryFactoryPtr unary_factory;
+    static std::string get_test_name(const ::testing::TestParamInfo<TestParams>& obj) {
+        FactoryPtr unary_factory;
         PassFactoryPtr pass_factory;
         size_t num_unary_ops;
         CreateGraphF model_factory;
@@ -154,9 +61,41 @@ public:
     }
 };
 
-namespace {
+template <typename UnaryT>
+class UnaryFactory : public IFactory {
+public:
+    explicit UnaryFactory(const std::string& type_name) : IFactory(type_name) {}
+    NodePtr create(const OutputVector& inputs) const override {
+        return std::make_shared<UnaryT>(inputs[0]);
+    }
+};
 
-std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(UnaryFactoryPtr unary_factory,
+template <>
+NodePtr UnaryFactory<Elu>::create(const OutputVector& inputs) const {
+    return std::make_shared<Elu>(inputs[0], 0.1);
+}
+
+template <>
+NodePtr UnaryFactory<Clamp>::create(const OutputVector& inputs) const {
+    return std::make_shared<Clamp>(inputs[0], 0.1, 0.2);
+}
+
+template <>
+NodePtr UnaryFactory<Convert>::create(const OutputVector& inputs) const {
+    return std::make_shared<Convert>(inputs[0], element::f64);
+}
+
+template <typename UnaryT>
+FactoryPtr CreateUnaryFactory(const std::string& type_name) {
+    return std::make_shared<UnaryFactory<UnaryT>>(type_name);
+}
+
+#undef CREATE_UNARY_FACTORY
+#define CREATE_UNARY_FACTORY(type_name) CreateUnaryFactory<type_name>(#type_name)
+
+// ----------------------------------------------------------------------------
+
+std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(const FactoryPtr& unary_factory,
                                                          size_t num_unary_ops,
                                                          const Shape& input_shape,
                                                          element::Type input_type) {
@@ -167,13 +106,13 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(UnaryFactoryPtr unary_f
 
     NodePtr in_op = transpose0;
     for (size_t i = 0; i < num_unary_ops; ++i) {
-        in_op = unary_factory->create(in_op);
+        in_op = unary_factory->create({in_op});
     }
 
     return std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
 }
 
-std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(UnaryFactoryPtr unary_factory,
+std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(const FactoryPtr& unary_factory,
                                                         size_t num_unary_ops,
                                                         const Shape& input_shape,
                                                         element::Type input_type) {
@@ -181,7 +120,7 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(UnaryFactoryPtr unary_fa
 
     NodePtr in_op = X;
     for (size_t i = 0; i < num_unary_ops; ++i) {
-        in_op = unary_factory->create(in_op);
+        in_op = unary_factory->create({in_op});
     }
 
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
@@ -190,7 +129,7 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(UnaryFactoryPtr unary_fa
     return std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
 }
 
-static NodePtr CreateReshape(NodePtr parent_node, const Shape& input_shape) {
+NodePtr CreateReshape(const NodePtr& parent_node, const Shape& input_shape) {
     const size_t mul = std::accumulate(input_shape.begin(), input_shape.end(), (size_t)1, std::multiplies<size_t>());
     auto reshape_const = std::make_shared<Constant>(element::u64, Shape{1}, Shape{mul});
     return std::make_shared<Reshape>(parent_node, reshape_const, false);
@@ -199,7 +138,7 @@ static NodePtr CreateReshape(NodePtr parent_node, const Shape& input_shape) {
 namespace mult_consumers_last_node {
 namespace with_reshape {
 
-std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(UnaryFactoryPtr unary_factory,
+std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(const FactoryPtr& unary_factory,
                                                         size_t num_unary_ops,
                                                         const Shape& input_shape,
                                                         element::Type input_type) {
@@ -207,7 +146,7 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(UnaryFactoryPtr unary_fa
 
     NodePtr in_op = X;
     for (size_t i = 0; i < num_unary_ops; ++i) {
-        in_op = unary_factory->create(in_op);
+        in_op = unary_factory->create({in_op});
     }
 
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
@@ -219,7 +158,7 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(UnaryFactoryPtr unary_fa
     return std::make_shared<ov::Model>(ov::OutputVector{reshape1, reshape2}, ov::ParameterVector{X});
 }
 
-std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(UnaryFactoryPtr unary_factory,
+std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(const FactoryPtr& unary_factory,
                                                          size_t num_unary_ops,
                                                          const Shape& input_shape,
                                                          element::Type input_type) {
@@ -230,7 +169,7 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(UnaryFactoryPtr unary_f
 
     NodePtr in_op = transpose0;
     for (size_t i = 0; i < num_unary_ops; ++i) {
-        in_op = unary_factory->create(in_op);
+        in_op = unary_factory->create({in_op});
     }
 
     auto reshape1 = CreateReshape(in_op, input_shape);
@@ -242,7 +181,7 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(UnaryFactoryPtr unary_f
 
 namespace with_eltwise {
 
-std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(UnaryFactoryPtr unary_factory,
+std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(FactoryPtr unary_factory,
                                                         size_t num_unary_ops,
                                                         const Shape& input_shape,
                                                         element::Type input_type) {
@@ -250,7 +189,7 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(UnaryFactoryPtr unary_fa
 
     NodePtr in_op = X;
     for (size_t i = 0; i < num_unary_ops; ++i) {
-        in_op = unary_factory->create(in_op);
+        in_op = unary_factory->create({in_op});
     }
 
     auto sinh = std::make_shared<Sinh>(in_op);
@@ -266,7 +205,7 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeAfter(UnaryFactoryPtr unary_fa
     return std::make_shared<ov::Model>(ov::OutputVector{transpose0, transpose1}, ov::ParameterVector{X});
 }
 
-std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(UnaryFactoryPtr unary_factory,
+std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(const FactoryPtr& unary_factory,
                                                          size_t num_unary_ops,
                                                          const Shape& input_shape,
                                                          element::Type input_type) {
@@ -277,7 +216,7 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(UnaryFactoryPtr unary_f
 
     NodePtr in_op = transpose0;
     for (size_t i = 0; i < num_unary_ops; ++i) {
-        in_op = unary_factory->create(in_op);
+        in_op = unary_factory->create({in_op});
     }
 
     auto sinh = std::make_shared<Sinh>(in_op);
@@ -292,7 +231,7 @@ std::shared_ptr<ov::Model> CreateFunctionTransposeBefore(UnaryFactoryPtr unary_f
 namespace mult_consumers_first_node {
 namespace backward {
 
-std::shared_ptr<ov::Model> CreateFunction(UnaryFactoryPtr unary_factory,
+std::shared_ptr<ov::Model> CreateFunction(const FactoryPtr& unary_factory,
                                           size_t num_unary_ops,
                                           const Shape& input_shape,
                                           element::Type input_type) {
@@ -301,7 +240,7 @@ std::shared_ptr<ov::Model> CreateFunction(UnaryFactoryPtr unary_factory,
 
     NodePtr in_op = X;
     for (size_t i = 0; i < num_unary_ops; ++i) {
-        in_op = unary_factory->create(in_op);
+        in_op = unary_factory->create({in_op});
         auto cosh = std::make_shared<Cosh>(in_op);
         outputs.push_back(cosh);
     }
@@ -317,7 +256,7 @@ std::shared_ptr<ov::Model> CreateFunction(UnaryFactoryPtr unary_factory,
 
 namespace backward_mult_transposes {
 
-std::shared_ptr<ov::Model> CreateFunction(UnaryFactoryPtr unary_factory,
+std::shared_ptr<ov::Model> CreateFunction(const FactoryPtr& unary_factory,
                                           size_t num_unary_ops,
                                           const Shape& input_shape,
                                           element::Type input_type) {
@@ -325,7 +264,7 @@ std::shared_ptr<ov::Model> CreateFunction(UnaryFactoryPtr unary_factory,
 
     NodePtr in_op = X;
     for (size_t i = 0; i < num_unary_ops; ++i) {
-        in_op = unary_factory->create(in_op);
+        in_op = unary_factory->create({in_op});
     }
 
     auto ng_order0 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
@@ -341,7 +280,7 @@ std::shared_ptr<ov::Model> CreateFunction(UnaryFactoryPtr unary_factory,
     return std::make_shared<ov::Model>(ov::OutputVector{tanh0, tanh1}, ov::ParameterVector{X});
 }
 
-std::shared_ptr<ov::Model> CreateReferenceFunction(UnaryFactoryPtr unary_factory,
+std::shared_ptr<ov::Model> CreateReferenceFunction(const FactoryPtr& unary_factory,
                                                    size_t num_unary_ops,
                                                    const Shape& input_shape,
                                                    element::Type input_type) {
@@ -352,7 +291,7 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(UnaryFactoryPtr unary_factory
 
     NodePtr in_op = transpose0;
     for (size_t i = 0; i < num_unary_ops; ++i) {
-        in_op = unary_factory->create(in_op);
+        in_op = unary_factory->create({in_op});
     }
 
     auto tanh0 = std::make_shared<Tanh>(in_op);
@@ -365,7 +304,7 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(UnaryFactoryPtr unary_factory
 
 namespace forward {
 
-std::shared_ptr<ov::Model> CreateFunction(UnaryFactoryPtr unary_factory,
+std::shared_ptr<ov::Model> CreateFunction(const FactoryPtr& unary_factory,
                                           size_t num_unary_ops,
                                           const Shape& input_shape,
                                           element::Type input_type) {
@@ -380,13 +319,13 @@ std::shared_ptr<ov::Model> CreateFunction(UnaryFactoryPtr unary_factory,
 
     NodePtr in_op = transpose0;
     for (size_t i = 0; i < num_unary_ops; ++i) {
-        in_op = unary_factory->create(in_op);
+        in_op = unary_factory->create({in_op});
     }
 
     return std::make_shared<ov::Model>(ov::OutputVector{in_op, reshape}, ov::ParameterVector{X});
 }
 
-std::shared_ptr<ov::Model> CreateReferenceFunction(UnaryFactoryPtr unary_factory,
+std::shared_ptr<ov::Model> CreateReferenceFunction(const FactoryPtr& unary_factory,
                                                    size_t num_unary_ops,
                                                    const Shape& input_shape,
                                                    element::Type input_type) {
@@ -400,7 +339,7 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(UnaryFactoryPtr unary_factory
 
     NodePtr in_op = sinh;
     for (size_t i = 0; i < num_unary_ops; ++i) {
-        in_op = unary_factory->create(in_op);
+        in_op = unary_factory->create({in_op});
     }
 
     auto ng_order1 = std::make_shared<Constant>(element::u64, Shape{4}, Shape{0, 2, 3, 1});
@@ -412,7 +351,7 @@ std::shared_ptr<ov::Model> CreateReferenceFunction(UnaryFactoryPtr unary_factory
 }  // namespace forward
 }  // namespace mult_consumers_first_node
 
-std::vector<UnaryFactoryPtr> unary_factories = {
+std::vector<FactoryPtr> unary_factories = {
     CREATE_UNARY_FACTORY(Clamp),      CREATE_UNARY_FACTORY(Elu),      CREATE_UNARY_FACTORY(SoftPlus),
     CREATE_UNARY_FACTORY(LogicalNot), CREATE_UNARY_FACTORY(Convert),  CREATE_UNARY_FACTORY(Abs),
     CREATE_UNARY_FACTORY(Acos),       CREATE_UNARY_FACTORY(Asin),     CREATE_UNARY_FACTORY(Asinh),
@@ -424,12 +363,8 @@ std::vector<UnaryFactoryPtr> unary_factories = {
     CREATE_UNARY_FACTORY(Sinh),       CREATE_UNARY_FACTORY(SoftSign), CREATE_UNARY_FACTORY(Sqrt),
     CREATE_UNARY_FACTORY(Tan),        CREATE_UNARY_FACTORY(Tanh)};
 
-std::vector<size_t> unary_operations_numbers = {1, 10};
-
-}  // namespace
-
 TEST_P(TransposeSinkingUnaryTestFixture, CompareFunctions) {
-    UnaryFactoryPtr unary_factory;
+    FactoryPtr unary_factory;
     PassFactoryPtr pass_factory;
     size_t num_unary_ops;
     CreateGraphF model_factory;
@@ -449,95 +384,180 @@ TEST_P(TransposeSinkingUnaryTestFixture, CompareFunctions) {
     pass_factory->registerPass(manager);
 }
 
+struct TestCase {
+    std::vector<FactoryPtr> main_node;
+    PassFactoryPtr transformation;
+    std::vector<size_t> num_main_ops;
+    CreateGraphF test_model;
+    CreateGraphF ref_model;
+    Shape input_shape;
+    element::Type type;
+};
+
+auto wrapper = [](const TestCase& test_case) {
+    return ::testing::Combine(::testing::ValuesIn(test_case.main_node),
+                              ::testing::Values(test_case.transformation),
+                              ::testing::ValuesIn(test_case.num_main_ops),
+                              ::testing::Values(test_case.test_model),
+                              ::testing::Values(test_case.ref_model),
+                              ::testing::Values(test_case.input_shape),
+                              ::testing::Values(test_case.type));
+};
+
+auto test_forward = []() {
+    TestCase test_case;
+    test_case.main_node = unary_factories;
+    test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingUnaryForward);
+    test_case.num_main_ops = {1, 10};
+    test_case.test_model = CreateFunctionTransposeBefore;
+    test_case.ref_model = CreateFunctionTransposeAfter;
+    test_case.input_shape = {1, 96, 55, 55};
+    test_case.type = element::f32;
+    return wrapper(test_case);
+};
+
+auto test_backward = []() {
+    TestCase test_case;
+    test_case.main_node = unary_factories;
+    test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingUnaryBackward);
+    test_case.num_main_ops = {1, 10};
+    test_case.test_model = CreateFunctionTransposeAfter;
+    test_case.ref_model = CreateFunctionTransposeBefore;
+    test_case.input_shape = {1, 96, 55, 55};
+    test_case.type = element::f32;
+    return wrapper(test_case);
+};
+
+auto test_forward_multiple_consumers_reshape = []() {
+    TestCase test_case;
+    test_case.main_node = unary_factories;
+    test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingUnaryForward);
+    test_case.num_main_ops = {1, 10};
+    test_case.test_model = mult_consumers_last_node::with_reshape::CreateFunctionTransposeBefore;
+    test_case.ref_model = mult_consumers_last_node::with_reshape::CreateFunctionTransposeAfter;
+    test_case.input_shape = {1, 96, 55, 55};
+    test_case.type = element::f32;
+    return wrapper(test_case);
+};
+
+auto test_backward_multiple_consumers_reshape = []() {
+    TestCase test_case;
+    test_case.main_node = unary_factories;
+    test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingUnaryBackward);
+    test_case.num_main_ops = {1, 10};
+    test_case.test_model = mult_consumers_last_node::with_reshape::CreateFunctionTransposeAfter;
+    test_case.ref_model = mult_consumers_last_node::with_reshape::CreateFunctionTransposeBefore;
+    ;
+    test_case.input_shape = {1, 96, 55, 55};
+    test_case.type = element::f32;
+    return wrapper(test_case);
+};
+
+auto test_forward_multiple_consumers_eltwise = []() {
+    TestCase test_case;
+    test_case.main_node = unary_factories;
+    test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingUnaryForward);
+    test_case.num_main_ops = {1, 10};
+    test_case.test_model = mult_consumers_last_node::with_eltwise::CreateFunctionTransposeBefore;
+    test_case.ref_model = mult_consumers_last_node::with_eltwise::CreateFunctionTransposeAfter;
+    test_case.input_shape = {1, 96, 55, 55};
+    test_case.type = element::f32;
+    return wrapper(test_case);
+};
+
+auto test_backward_multiple_consumers_eltwise = []() {
+    TestCase test_case;
+    test_case.main_node = unary_factories;
+    test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingUnaryBackward);
+    test_case.num_main_ops = {1, 10};
+    test_case.test_model = mult_consumers_last_node::with_eltwise::CreateFunctionTransposeAfter;
+    test_case.ref_model = mult_consumers_last_node::with_eltwise::CreateFunctionTransposeBefore;
+    test_case.input_shape = {1, 96, 55, 55};
+    test_case.type = element::f32;
+    return wrapper(test_case);
+};
+
+auto test_backward_multiple_consumers_first_node = []() {
+    TestCase test_case;
+    test_case.main_node = unary_factories;
+    test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingUnaryBackward);
+    test_case.num_main_ops = {1, 10};
+    test_case.test_model = mult_consumers_first_node::backward::CreateFunction;
+    test_case.ref_model = mult_consumers_first_node::backward::CreateFunction;
+    test_case.input_shape = {1, 96, 55, 55};
+    test_case.type = element::f32;
+    return wrapper(test_case);
+};
+
+auto test_backward_multiple_transposes_first_node = []() {
+    TestCase test_case;
+    test_case.main_node = unary_factories;
+    test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingUnaryBackward);
+    test_case.num_main_ops = {1, 10};
+    test_case.test_model = mult_consumers_first_node::backward_mult_transposes::CreateFunction;
+    test_case.ref_model = mult_consumers_first_node::backward_mult_transposes::CreateReferenceFunction;
+    test_case.input_shape = {1, 96, 55, 55};
+    test_case.type = element::f32;
+    return wrapper(test_case);
+};
+
+auto test_forward_multiple_consumers_first_node = []() {
+    TestCase test_case;
+    test_case.main_node = unary_factories;
+    test_case.transformation = CREATE_PASS_FACTORY(TransposeSinkingUnaryForward);
+    test_case.num_main_ops = {1, 10};
+    test_case.test_model = mult_consumers_first_node::forward::CreateFunction;
+    test_case.ref_model = mult_consumers_first_node::forward::CreateReferenceFunction;
+    test_case.input_shape = {1, 96, 55, 55};
+    test_case.type = element::f32;
+    return wrapper(test_case);
+};
+
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryForwardTestSuite,
                          TransposeSinkingUnaryTestFixture,
-                         ::testing::Combine(::testing::ValuesIn(unary_factories),
-                                            ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingUnaryForward)),
-                                            ::testing::ValuesIn(unary_operations_numbers),
-                                            ::testing::Values(CreateFunctionTransposeBefore),
-                                            ::testing::Values(CreateFunctionTransposeAfter),
-                                            ::testing::Values(Shape{1, 96, 55, 55}),
-                                            ::testing::Values(element::f32)),
+                         transpose_sinking::testing::unary::test_forward(),
                          TransposeSinkingUnaryTestFixture::get_test_name);
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryBackwardTestSuite,
                          TransposeSinkingUnaryTestFixture,
-                         ::testing::Combine(::testing::ValuesIn(unary_factories),
-                                            ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingUnaryBackward)),
-                                            ::testing::ValuesIn(unary_operations_numbers),
-                                            ::testing::Values(CreateFunctionTransposeAfter),
-                                            ::testing::Values(CreateFunctionTransposeBefore),
-                                            ::testing::Values(Shape{1, 96, 55, 55}),
-                                            ::testing::Values(element::f32)),
+                         transpose_sinking::testing::unary::test_backward(),
                          TransposeSinkingUnaryTestFixture::get_test_name);
 
-INSTANTIATE_TEST_SUITE_P(
-    TransposeSinkingUnaryForwardMultConsumersTestSuiteLastNodeReshape,
-    TransposeSinkingUnaryTestFixture,
-    ::testing::Combine(::testing::ValuesIn(unary_factories),
-                       ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingUnaryForward)),
-                       ::testing::ValuesIn(unary_operations_numbers),
-                       ::testing::Values(mult_consumers_last_node::with_reshape::CreateFunctionTransposeBefore),
-                       ::testing::Values(mult_consumers_last_node::with_reshape::CreateFunctionTransposeAfter),
-                       ::testing::Values(Shape{1, 96, 55, 55}),
-                       ::testing::Values(element::f32)),
-    TransposeSinkingUnaryTestFixture::get_test_name);
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryForwardMultConsumersTestSuiteLastNodeReshape,
+                         TransposeSinkingUnaryTestFixture,
+                         transpose_sinking::testing::unary::test_forward_multiple_consumers_reshape(),
+                         TransposeSinkingUnaryTestFixture::get_test_name);
 
-INSTANTIATE_TEST_SUITE_P(
-    TransposeSinkingUnaryBackwardMultConsumersTestSuiteLastNodeReshape,
-    TransposeSinkingUnaryTestFixture,
-    ::testing::Combine(::testing::ValuesIn(unary_factories),
-                       ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingUnaryBackward)),
-                       ::testing::ValuesIn(unary_operations_numbers),
-                       ::testing::Values(mult_consumers_last_node::with_reshape::CreateFunctionTransposeAfter),
-                       ::testing::Values(mult_consumers_last_node::with_reshape::CreateFunctionTransposeBefore),
-                       ::testing::Values(Shape{1, 96, 55, 55}),
-                       ::testing::Values(element::f32)),
-    TransposeSinkingUnaryTestFixture::get_test_name);
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryBackwardMultConsumersTestSuiteLastNodeReshape,
+                         TransposeSinkingUnaryTestFixture,
+                         transpose_sinking::testing::unary::test_backward_multiple_consumers_reshape(),
+                         TransposeSinkingUnaryTestFixture::get_test_name);
 
-INSTANTIATE_TEST_SUITE_P(
-    TransposeSinkingUnaryForwardMultConsumersTestSuiteLastNodeEltwise,
-    TransposeSinkingUnaryTestFixture,
-    ::testing::Combine(::testing::ValuesIn(unary_factories),
-                       ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingUnaryForward)),
-                       ::testing::ValuesIn(unary_operations_numbers),
-                       ::testing::Values(mult_consumers_last_node::with_eltwise::CreateFunctionTransposeBefore),
-                       ::testing::Values(mult_consumers_last_node::with_eltwise::CreateFunctionTransposeAfter),
-                       ::testing::Values(Shape{1, 96, 55, 55}),
-                       ::testing::Values(element::f32)),
-    TransposeSinkingUnaryTestFixture::get_test_name);
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryForwardMultConsumersTestSuiteLastNodeEltwise,
+                         TransposeSinkingUnaryTestFixture,
+                         transpose_sinking::testing::unary::test_forward_multiple_consumers_eltwise(),
+                         TransposeSinkingUnaryTestFixture::get_test_name);
 
-INSTANTIATE_TEST_SUITE_P(
-    TransposeSinkingUnaryForwardMultConsumersTestSuiteFirstNode,
-    TransposeSinkingUnaryTestFixture,
-    ::testing::Combine(::testing::ValuesIn(unary_factories),
-                       ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingUnaryForward)),
-                       ::testing::ValuesIn(unary_operations_numbers),
-                       ::testing::Values(mult_consumers_first_node::forward::CreateFunction),
-                       ::testing::Values(mult_consumers_first_node::forward::CreateReferenceFunction),
-                       ::testing::Values(Shape{1, 96, 55, 55}),
-                       ::testing::Values(element::f32)),
-    TransposeSinkingUnaryTestFixture::get_test_name);
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryBackwardMultConsumersTestSuiteEltwise,
+                         TransposeSinkingUnaryTestFixture,
+                         transpose_sinking::testing::unary::test_backward_multiple_consumers_eltwise(),
+                         TransposeSinkingUnaryTestFixture::get_test_name);
 
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryBackwardMultConsumersTestSuiteFirstNode,
                          TransposeSinkingUnaryTestFixture,
-                         ::testing::Combine(::testing::ValuesIn(unary_factories),
-                                            ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingUnaryBackward)),
-                                            ::testing::ValuesIn(unary_operations_numbers),
-                                            ::testing::Values(mult_consumers_first_node::backward::CreateFunction),
-                                            ::testing::Values(mult_consumers_first_node::backward::CreateFunction),
-                                            ::testing::Values(Shape{1, 96, 55, 55}),
-                                            ::testing::Values(element::f32)),
+                         transpose_sinking::testing::unary::test_backward_multiple_consumers_first_node(),
                          TransposeSinkingUnaryTestFixture::get_test_name);
 
-INSTANTIATE_TEST_SUITE_P(
-    TransposeSinkingUnaryBackwardMultTransposeConsumersTestSuiteFirstNode,
-    TransposeSinkingUnaryTestFixture,
-    ::testing::Combine(::testing::ValuesIn(unary_factories),
-                       ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingUnaryBackward)),
-                       ::testing::ValuesIn(unary_operations_numbers),
-                       ::testing::Values(mult_consumers_first_node::backward_mult_transposes::CreateFunction),
-                       ::testing::Values(mult_consumers_first_node::backward_mult_transposes::CreateReferenceFunction),
-                       ::testing::Values(Shape{1, 96, 55, 55}),
-                       ::testing::Values(element::f32)),
-    TransposeSinkingUnaryTestFixture::get_test_name);
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryBackwardMultTransposeConsumersTestSuiteFirstNode,
+                         TransposeSinkingUnaryTestFixture,
+                         transpose_sinking::testing::unary::test_backward_multiple_transposes_first_node(),
+                         TransposeSinkingUnaryTestFixture::get_test_name);
+
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingUnaryForwardMultTransposeConsumersTestSuiteFirstNode,
+                         TransposeSinkingUnaryTestFixture,
+                         transpose_sinking::testing::unary::test_forward_multiple_consumers_first_node(),
+                         TransposeSinkingUnaryTestFixture::get_test_name);
+
+}  // namespace unary
+}  // namespace testing
+}  // namespace transpose_sinking
