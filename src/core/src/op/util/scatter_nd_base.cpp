@@ -38,15 +38,8 @@ void ov::op::util::ScatterNDBase::validate_and_infer_types() {
                           indices_et == element::i32 || indices_et == element::i64 || indices_et == element::dynamic,
                           "Indices element type must be i64 or i32");
 
-    element::Type outputs_et = element::dynamic;
-    if (inputs_et.is_static() && updates_et.is_static()) {
-        NODE_VALIDATION_CHECK(this, updates_et == inputs_et, "Updates element type must be the same as inputs");
-        outputs_et = inputs_et;
-    } else if (inputs_et.is_static()) {
-        outputs_et = inputs_et;
-    } else if (updates_et.is_static()) {
-        outputs_et = updates_et;
-    }
+    auto outputs_et = element::dynamic;
+    NODE_VALIDATION_CHECK(this, element::Type::merge(outputs_et, inputs_et, updates_et), "Updates element type must be the same as inputs");
 
     const auto& inputs = get_input_partial_shape(0);
     const auto& indices = get_input_partial_shape(1);
