@@ -2,15 +2,20 @@
 
 @sphinxdirective 
 
-OpenVINO™ Extension API allows you to register custom operations to support models with operations which OpenVINO™ does not support out-of-the-box. This capability requires writing code in C++, so if you are using Python to develop your application you need to build a separate shared library implemented in C++ first and load it in Python using `add_extension` API. Please refer to [Create library with extensions](Intro.md#create-library-with-extensions) for more details on library creation and usage. The remining part of this document describes how to implement an operation class.
+OpenVINO™ Extension API allows you to register custom operations to support models with operations which OpenVINO™ does not support out-of-the-box. This capability requires writing code in C++, so if you are using Python to develop your application you need to build a separate shared library implemented in C++ first and load it in Python using ``add_extension`` API. Please refer to :ref:`Create library with extensions <create library with extensions>` for more details on library creation and usage. The remining part of this document describes how to implement an operation class.
 
 Operation Class
 ###############
 
 To add your custom operation, create a new class that extends ``ov::Op``, which is in turn derived from ``:ref:`ov::Node <doxid-classov_1_1_node>```, the base class for all graph operations in OpenVINO™. To add ``ov::Op``, include the next file:
 
-.. code-block:: cpp
-   template_extension/new/identity.hpp op:common_include
+.. doxygensnippet:: template_extension/new/ov_extension.cpp
+   :language: cpp
+   :fragment: [ov_extension:entry_point]
+
+.. doxygensnippet:: template_extension/new/identity.hpp
+   :language: hpp
+   :fragment: [op:common_include]
 
 Follow the steps below to add a custom operation:
 
@@ -36,46 +41,44 @@ OpenVINO™ operation contains two constructors:
 * Default constructor, which enables you to create an operation without attributes 
 * Constructor that creates and validates an operation with specified inputs and attributes
 
-.. code-block:: cpp
-   
-   template_extension/new/identity.cpp op:ctor
+.. doxygensnippet:: template_extension/new/identity.cpp
+   :language: cpp
+   :fragment: [op:ctor]
 
-`validate_and_infer_types()`
-++++++++++++++++++++++++++++
+``validate_and_infer_types()``
+++++++++++++++++++++++++++++++
 
 ``:ref:`ov::Node::validate_and_infer_types <doxid-classov_1_1_node_1ac5224b5be848ec670d2078d9816d12e7>``` method validates operation attributes and calculates output shapes using attributes of the operation.
 
-.. code-block:: cpp
-   
-   template_extension/new/identity.cpp op:validate
+.. doxygensnippet:: template_extension/new/identity.cpp
+   :language: cpp
+   :fragment: [op:validate]
 
-`clone_with_new_inputs()`
-+++++++++++++++++++++++++
+``clone_with_new_inputs()``
++++++++++++++++++++++++++++
 
 ``:ref:`ov::Node::clone_with_new_inputs <doxid-classov_1_1_node_1a04cb103fa069c3b7944ab7c44d94f5ff>``` method creates a copy of the operation with new inputs.
 
-.. code-block:: cpp
-   
-   template_extension/new/identity.cpp op:copy
+.. doxygensnippet:: template_extension/new/identity.cpp
+   :language: cpp
+   :fragment: [op:copy]
 
-`visit_attributes()`
-++++++++++++++++++++
+``visit_attributes()``
+++++++++++++++++++++++
 
 ``:ref:`ov::Node::visit_attributes <doxid-classov_1_1_node_1a9743b56d352970486d17dae2416d958e>``` method enables you to visit all operation attributes.
 
-.. code-block:: cpp
-   
-   template_extension/new/identity.cpp op:visit_attributes
+.. doxygensnippet:: template_extension/new/identity.cpp
+   :language: cpp
+   :fragment: [op:visit_attributes]
 
-evaluate() and has_evaluate()
-+++++++++++++++++++++++++++++
+``evaluate() and has_evaluate()``
++++++++++++++++++++++++++++++++++
 
 ``:ref:`ov::Node::evaluate <doxid-classov_1_1_node_1acfb82acc8349d7138aeaa05217c7014e>``` method enables you to apply constant folding to an operation.
 
-.. code-block:: cpp
-   
-   template_extension/new/identity.cpp op:evaluate
-
+.. doxygensnippet:: template_extension/new/identity.cpp
+   :language: cpp
+   :fragment: [op:evaluate]
 
 @endsphinxdirective
-

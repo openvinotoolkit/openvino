@@ -31,8 +31,8 @@ feature a dedicated command-line option ``-c`` to load custom kernels. For examp
 
 .. code-block:: sh
 
-$ ./classification_sample -m <path_to_model>/bvlc_alexnet_fp16.xml -i ./validation_set/daily/227x227/apron.bmp -d GPU
- -c <absolute_path_to_config>/custom_layer_example.xml
+   $ ./classification_sample -m <path_to_model>/bvlc_alexnet_fp16.xml -i ./validation_set/daily/227x227/apron.bmp -d GPU
+   -c <absolute_path_to_config>/custom_layer_example.xml
 
 .. _config-file-format: 
 
@@ -237,18 +237,18 @@ format. For information on the configuration file structure, see the `Configurat
 
 .. code-block:: xml
 
-  <CustomLayer name="ReLU" type="SimpleGPU" version="1">
-    <Kernel entry="example_relu_kernel">
-      <Source filename="custom_layer_kernel.cl"/>
-      <Define name="neg_slope" type="float" param="negative_slope" default="0.0"/>
-    </Kernel>
-    <Buffers>
-      <Tensor arg-index="0" type="input" port-index="0" format="BFYX"/>
-      <Tensor arg-index="1" type="output" port-index="0" format="BFYX"/>
-    </Buffers>
-    <CompilerOptions options="-cl-mad-enable"/>
-    <WorkSizes global="X,Y,B*F"/>
-</CustomLayer>
+   <CustomLayer name="ReLU" type="SimpleGPU" version="1">
+     <Kernel entry="example_relu_kernel">
+       <Source filename="custom_layer_kernel.cl"/>
+       <Define name="neg_slope" type="float" param="negative_slope" default="0.0"/>
+     </Kernel>
+     <Buffers>
+       <Tensor arg-index="0" type="input" port-index="0" format="BFYX"/>
+       <Tensor arg-index="1" type="output" port-index="0" format="BFYX"/>
+     </Buffers>
+     <CompilerOptions options="-cl-mad-enable"/>
+     <WorkSizes global="X,Y,B*F"/>
+   </CustomLayer>
 
 
 Built-In Definitions for Custom Layers
@@ -302,6 +302,7 @@ bound to this operation, such as ``INPUT0``, ``INPUT1``, and ``OUTPUT0``, as sho
 in the following example:
 
 .. code-block:: c
+
    #define INPUT0_DIMS_SIZE 4
    #define INPUT0_DIMS (int []){ 1,96,55,55, }
 

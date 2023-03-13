@@ -18,10 +18,9 @@
    openvino_docs_transformations
    OpenVINO Plugin Developer Guide <openvino_docs_ie_plugin_dg_overview>
 
-
 The Intel® Distribution of OpenVINO™ toolkit supports neural network models trained with various frameworks, including
 TensorFlow, PyTorch, ONNX, PaddlePaddle, Apache MXNet, Caffe, and Kaldi. The list of supported operations is different for
-each of the supported frameworks. To see the operations supported by your framework, refer to :ref:`Supported Framework Operations <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>`.
+each of the supported frameworks. To see the operations supported by your framework, refer to :doc:`Supported Framework Operations <openvino_docs_MO_DG_prepare_model_Supported_Frameworks_Layers>`.
 
 Custom operations, which are not included in the list, are not recognized by OpenVINO out-of-the-box. The need for custom operation may appear in two cases:
 
@@ -57,9 +56,9 @@ Mapping of custom operation is implemented differently, depending on model forma
 
 2. If a model is represented in the Caffe, Kaldi or MXNet formats, then :doc:`Model Optimizer Extensions <openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer>` should be used. This approach is available for model conversion in Model Optimizer only.
 
-Existing of two approaches simultaneously is explained by two different types of frontends used for model conversion in OpenVINO: new frontends (ONNX, PaddlePaddle and TensorFlow) and legacy frontends (Caffe, Kaldi and Apache MXNet). Model Optimizer can use both front-ends in contrast to the direct import of model with `read_model` method which can use new frontends only. Follow one of the appropriate guides referenced above to implement mappings depending on framework frontend.
+Existing of two approaches simultaneously is explained by two different types of frontends used for model conversion in OpenVINO: new frontends (ONNX, PaddlePaddle and TensorFlow) and legacy frontends (Caffe, Kaldi and Apache MXNet). Model Optimizer can use both front-ends in contrast to the direct import of model with ``read_model`` method which can use new frontends only. Follow one of the appropriate guides referenced above to implement mappings depending on framework frontend.
 
-If you are implementing extensions for new ONNX, PaddlePaddle or TensorFlow frontends and plan to use the `--extensions` option in Model Optimizer for model conversion, then the extensions should be:
+If you are implementing extensions for new ONNX, PaddlePaddle or TensorFlow frontends and plan to use the ``--extensions`` option in Model Optimizer for model conversion, then the extensions should be:
 
 1. Implemented in C++ only.
 
@@ -74,9 +73,10 @@ Registering Extensions
 
 A custom operation class and a new mapping frontend extension class object should be registered to be usable in OpenVINO runtime.
 
-.. note:: This documentation is derived from the `Template extension <https://github.com/openvinotoolkit/openvino/tree/master/docs/template_extension/new>`__, which demonstrates the details of extension development. It is based on minimalistic ``Identity`` operation that is a placeholder for your real custom operation. Review the complete, fully compilable code to see how it works.
+.. note:: 
+   This documentation is derived from the `Template extension <https://github.com/openvinotoolkit/openvino/tree/master/docs/template_extension/new>`__, which demonstrates the details of extension development. It is based on minimalistic ``Identity`` operation that is a placeholder for your real custom operation. Review the complete, fully compilable code to see how it works.
 
-Use the  ``:ref:`ov::Core::add_extension <doxid-classov_1_1_core_1a68d0dea1cbcd42a67bea32780e32acea>``` method to load the extensions to the ``:ref:`ov::Core <doxid-classov_1_1_core>``` object. This method allows loading library with extensions or extensions from the code.
+Use the ``:ref:`ov::Core::add_extension <doxid-classov_1_1_core_1a68d0dea1cbcd42a67bea32780e32acea>``` method to load the extensions to the ``:ref:`ov::Core <doxid-classov_1_1_core>``` object. This method allows loading library with extensions or extensions from the code.
 
 Load Extensions to Core
 +++++++++++++++++++++++
@@ -84,13 +84,16 @@ Load Extensions to Core
 Extensions can be loaded from a code with the  ``:ref:`ov::Core::add_extension <doxid-classov_1_1_core_1a68d0dea1cbcd42a67bea32780e32acea>``` method:
 
 .. tab-set::
-   .. tab:: C++
+
+   .. tab-item:: C++
+      :sync: cpp
  
       .. doxygensnippet:: docs/snippets/ov_extensions.cpp
          :language: cpp
          :fragment: [add_extension]
    
    .. tab:: Python
+      :sync: py
  
       .. doxygensnippet:: docs/snippets/ov_extensions.py
          :language: python
@@ -99,17 +102,21 @@ Extensions can be loaded from a code with the  ``:ref:`ov::Core::add_extension <
 
 The ``Identity`` is a custom operation class defined in :doc:`Custom Operation Guide <openvino_docs_Extensibility_UG_add_openvino_ops>`. This is sufficient to enable reading OpenVINO IR which uses the ``Identity`` extension operation emitted by Model Optimizer. In order to load original model directly to the runtime, add a mapping extension:
 
-.. tab:: C++
+.. tab-set::
 
-    .. doxygensnippet:: docs/snippets/ov_extensions.cpp
-       :language: cpp
-       :fragment: [add_frontend_extension]
+   .. tab-item:: C++
+      :sync: cpp
 
-.. tab:: Python
+      .. doxygensnippet:: docs/snippets/ov_extensions.cpp
+         :language: cpp
+         :fragment: [add_frontend_extension]
 
-    .. doxygensnippet:: docs/snippets/ov_extensions.py
-       :language: python
-       :fragment: [add_frontend_extension]
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/snippets/ov_extensions.py
+         :language: python
+         :fragment: [add_frontend_extension]
 
 
  
@@ -117,14 +124,16 @@ When Python API is used, there is no way to implement a custom OpenVINO operatio
 
 Python can still be used to map and decompose operations when only operations from the standard OpenVINO operation set are used.
 
+.. _create library with extensions:: 
+
 Create a Library with Extensions
 ++++++++++++++++++++++++++++++++
 
 An extension library should be created in the following cases:
 
- - Conversion of a model with custom operations in Model Optimizer.
- - Loading a model with custom operations in a Python application. This applies to both framework model and OpenVINO IR.
- - Loading models with custom operations in tools that support loading extensions from a library, for example the ``benchmark_app``.
+ * Conversion of a model with custom operations in Model Optimizer.
+ * Loading a model with custom operations in a Python application. This applies to both framework model and OpenVINO IR.
+ * Loading models with custom operations in tools that support loading extensions from a library, for example the ``benchmark_app``.
 
 To create an extension library, for example, to load the extensions into Model Optimizer, perform the following:
 
@@ -133,15 +142,15 @@ This macro should have a vector of all OpenVINO Extensions as an argument.
 
 Based on that, the declaration of an extension class might look like the following:
 
-.. code-block:: cpp
-   
-   template_extension/new/ov_extension.cpp ov_extension:entry_point
+.. doxygensnippet:: template_extension/new/ov_extension.cpp
+   :language: cpp
+   :fragment: [ov_extension:entry_point]
 
 2. Configure the build of your extension library, using the following CMake script:
 
-.. code-block:: cpp
-   
-   template_extension/new/CMakeLists.txt cmake:extension
+.. doxygensnippet:: template_extension/new/CMakeLists.txt
+   :language: cpp
+   :fragment: [cmake:extension]
 
 This CMake script finds OpenVINO, using the ``find_package`` CMake command.
 
@@ -158,17 +167,21 @@ This CMake script finds OpenVINO, using the ``find_package`` CMake command.
 
 4. After the build, you may use the path to your extension library to load your extensions to OpenVINO Runtime:
 
-.. tab:: C++
- 
-   .. doxygensnippet:: docs/snippets/ov_extensions.cpp
-      :language: cpp
-      :fragment: [add_extension_lib]
+.. tab-set::
+   
+   .. tab-item:: C++
+      :sync: cpp 
 
-.. tab:: Python
+      .. doxygensnippet:: docs/snippets/ov_extensions.cpp
+         :language: cpp
+         :fragment: [add_extension_lib]
+
+   .. tab-item:: Python
+      :sync: py
  
-   .. doxygensnippet:: docs/snippets/ov_extensions.py
-      :language: python
-      :fragment: [add_extension_lib]
+      .. doxygensnippet:: docs/snippets/ov_extensions.py
+         :language: python
+         :fragment: [add_extension_lib]
 
 
 See Also
@@ -177,7 +190,5 @@ See Also
 * :doc:`OpenVINO Transformations <openvino_docs_transformations>`
 * :doc:`Using OpenVINO Runtime Samples <openvino_docs_OV_UG_Samples_Overview>`
 * :doc:`Hello Shape Infer SSD sample <openvino_inference_engine_samples_hello_reshape_ssd_README>`
-
-
 
 @endsphinxdirective
