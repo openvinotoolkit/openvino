@@ -37,7 +37,6 @@ public:
           m_capacity{shape},
           m_ptr{ptr} {
         OPENVINO_ASSERT(m_ptr != nullptr);
-        m_offsets = {m_shape.size(), 0};
         update_strides();
     }
 
@@ -63,12 +62,7 @@ public:
     void set_shape(ov::Shape new_shape) override {
         OPENVINO_ASSERT(shape_size(new_shape) <= ov::shape_size(m_capacity), "Could set new shape: ", new_shape);
         m_shape = std::move(new_shape);
-        m_offsets = {m_shape.size(), 0};
         update_strides();
-    }
-
-    const Coordinate& get_offsets() const override {
-        return m_offsets;
     }
 
     const Strides& get_strides() const override {
@@ -83,20 +77,18 @@ protected:
         if (m_element_type.bitwidth() < 8)
             return;
         auto& shape = get_shape();
-        Strides strides;
+        m_strides.clear();
         if (!shape.empty()) {
-            strides.resize(shape.size());
-            strides.back() = m_element_type.size();
-            std::copy(shape.rbegin(), shape.rend() - 1, strides.rbegin() + 1);
-            std::partial_sum(strides.rbegin(), strides.rend(), strides.rbegin(), std::multiplies<size_t>());
+            m_strides.resize(shape.size());
+            m_strides.back() = m_element_type.size();
+            std::copy(shape.rbegin(), shape.rend() - 1, m_strides.rbegin() + 1);
+            std::partial_sum(m_strides.rbegin(), m_strides.rend(), m_strides.rbegin(), std::multiplies<size_t>());
         }
-        m_strides = strides;
     }
 
     element::Type m_element_type;
     Shape m_shape;
     Shape m_capacity;
-    Coordinate m_offsets;
     Strides m_strides;
     void* m_ptr;
 };
@@ -116,7 +108,7 @@ public:
         auto shape_strides = m_strides;
         // Change strides
         m_strides = strides;
-        OPENVINO_ASSERT(get_shape().size() == m_strides.size());
+        OPENVINO_ASSERT(m_shape.size() == m_strides.size());
 
         for (size_t i = 0; i < m_strides.size(); ++i) {
             OPENVINO_ASSERT(shape_strides[i] <= m_strides[i],
@@ -129,6 +121,13 @@ public:
                             shape_strides[i],
                             ", stride: ",
                             m_strides[i]);
+            if (i) {
+                OPENVINO_ASSERT(m_strides[i - 1] >= m_strides[i] * shape[i],
+                                "Strides: ",
+                                m_strides,
+                                " are incompatible with shapes: ",
+                                m_shape);
+            }
         }
     }
 
@@ -146,10 +145,6 @@ public:
                             " is not compatible.");
         }
         m_shape = std::move(new_shape);
-    }
-
-    const Strides& get_strides() const override {
-        return m_strides;
     }
 };
 
@@ -245,10 +240,6 @@ public:
         return m_owner->get_element_type();
     }
 
-    const Coordinate& get_offsets() const override {
-        return m_offsets;
-    }
-
     const Strides& get_strides() const override {
         return m_owner->get_strides();
     }
@@ -258,7 +249,7 @@ public:
     }
 
     void set_shape(ov::Shape new_shape) override {
-        OPENVINO_UNREACHABLE("Shapes cannot be changed for ROI Tensor");
+        OPENVINO_THROW("Shapes cannot be changed for ROI Tensor");
     }
 
     void* data(const element::Type& element_type) const override {
@@ -298,14 +289,12 @@ class BlobTensor : public ITensor {
     mutable element::Type m_type;
     mutable Shape m_shape;
     mutable Strides m_strides;
-    Coordinate m_offsets;
 
 public:
     std::shared_ptr<ie::Blob> blob;
 
     BlobTensor(const InferenceEngine::Blob::Ptr& blob) : blob{blob} {
         m_shape = blob->getTensorDesc().getBlockingDesc().getBlockDims();
-        m_offsets = {m_shape.size(), 0};
     }
 
     const element::Type& get_element_type() const override {
@@ -315,16 +304,11 @@ public:
 
     void set_shape(ov::Shape shape) override {
         blob->setShape({shape.begin(), shape.end()});
-        m_offsets = {shape.size(), 0};
     }
 
     const Shape& get_shape() const override {
         m_shape = blob->getTensorDesc().getBlockingDesc().getBlockDims();
         return m_shape;
-    }
-
-    const Coordinate& get_offsets() const override {
-        return m_offsets;
     }
 
     const Strides& get_strides() const override {
@@ -553,7 +537,7 @@ ie::Blob::Ptr tensor_to_blob(const std::shared_ptr<ITensor>& tensor) {
         case element::bf16:
             return std::make_shared<TensorMemoryBlob<int16_t>>(tensor);
         default:
-            OPENVINO_UNREACHABLE("Unsupported element type");
+            OPENVINO_THROW("Unsupported element type");
         }
 #undef CASE
     } else {

@@ -207,7 +207,7 @@ public:
     }
 
     void SetState(const InferenceEngine::Blob::Ptr& newState) override {
-        m_state->set_state(ov::Tensor(newState, {}));
+        m_state->set_state(ov::Tensor(ov::make_tensor(newState), {}));
     }
 
     InferenceEngine::Blob::CPtr GetState() const override {
@@ -500,7 +500,7 @@ public:
 
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) override {
         try {
-            m_request->set_tensor(find_port(name), ov::Tensor{data, {}});
+            m_request->set_tensor(find_port(name), ov::Tensor{ov::make_tensor(data), {}});
         } catch (const ov::Exception& ex) {
             const std::string what = ex.what();
             if (what.find("Failed to set tensor") != std::string::npos) {
@@ -514,7 +514,7 @@ public:
         try {
             std::vector<ov::Tensor> tensors;
             for (const auto& blob : blobs) {
-                tensors.emplace_back(ov::Tensor{blob, {}});
+                tensors.emplace_back(ov::Tensor{ov::make_tensor(blob), {}});
             }
             m_request->set_tensors(find_port(name), tensors);
         } catch (const ov::Exception& ex) {
@@ -609,7 +609,8 @@ public:
     }
 
     const ov::Tensor& get_state() const override {
-        m_converted_state = ov::Tensor(std::const_pointer_cast<InferenceEngine::Blob>(m_state->GetState()), {});
+        m_converted_state =
+            ov::Tensor(ov::make_tensor(std::const_pointer_cast<InferenceEngine::Blob>(m_state->GetState())), {});
         return m_converted_state;
     }
 };
@@ -707,7 +708,7 @@ public:
                         name,
                         "'");
         auto blob = m_request->GetBlob(name);
-        ov::Tensor tensor = {blob, {m_request->getPointerToSo()}};
+        ov::Tensor tensor = {ov::make_tensor(blob), {m_request->getPointerToSo()}};
         return tensor;
     }
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override {
@@ -720,7 +721,7 @@ public:
         if (!blobs)
             return ret;
         for (size_t i = 0; i < blobs->size(); i++) {
-            ret.emplace_back(ov::Tensor{blobs->getBlob(i), {m_request->getPointerToSo()}});
+            ret.emplace_back(ov::Tensor{ov::make_tensor(blobs->getBlob(i)), {m_request->getPointerToSo()}});
         }
         return ret;
     }

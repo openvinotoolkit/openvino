@@ -4,15 +4,13 @@
 
 #include <numeric>
 
-#include "blob_factory.hpp"     // IE private header
-#include "ie_ngraph_utils.hpp"  // IE private header
 #include "openvino/core/except.hpp"
+#include "openvino/core/node_output.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/strides.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "runtime/blob_allocator.hpp"
 #include "shape_util.hpp"
 
 namespace ov {
@@ -35,12 +33,6 @@ Tensor::~Tensor() {
 
 Tensor::Tensor(const std::shared_ptr<ITensor>& impl, const std::vector<std::shared_ptr<void>>& so)
     : _impl{impl},
-      _so{so} {
-    OPENVINO_ASSERT(_impl != nullptr, "Tensor was not initialized.");
-}
-
-Tensor::Tensor(const std::shared_ptr<ie::Blob>& impl, const std::vector<std::shared_ptr<void>>& so)
-    : _impl{make_tensor(impl)},
       _so{so} {
     OPENVINO_ASSERT(_impl != nullptr, "Tensor was not initialized.");
 }

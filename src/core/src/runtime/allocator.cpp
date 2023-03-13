@@ -24,7 +24,7 @@ struct DefaultAllocator {
 #else
             void* result = nullptr;
             if (posix_memalign(&result, std::max(sizeof(void*), alignment), bytes) != 0) {
-                OPENVINO_UNREACHABLE("posix_memalign failed");
+                OPENVINO_THROW("posix_memalign failed");
             }
             return result;
 #endif

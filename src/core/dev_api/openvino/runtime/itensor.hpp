@@ -5,7 +5,6 @@
 #pragma once
 
 #include <memory>
-#include <openvino/runtime/common.hpp>
 
 #include "openvino/core/coordinate.hpp"
 #include "openvino/core/core_visibility.hpp"
@@ -21,7 +20,7 @@ class Blob;
 
 namespace ov {
 
-class OPENVINO_RUNTIME_API ITensor : public std::enable_shared_from_this<ITensor> {
+class OPENVINO_API ITensor : public std::enable_shared_from_this<ITensor> {
 public:
     /**
      * @brief Set new shape for tensor
@@ -51,11 +50,6 @@ public:
      * @return Tensor's size in bytes
      */
     virtual size_t get_byte_size() const;
-
-    /**
-     * @return Tensor's offseta in elements
-     */
-    virtual const Coordinate& get_offsets() const = 0;
 
     /**
      * @return Tensor's strides in bytes
@@ -97,9 +91,9 @@ protected:
  * @param shape Tensor shape
  * @param allocator allocates memory for internal tensor storage
  */
-OPENVINO_RUNTIME_API std::shared_ptr<ITensor> make_tensor(const element::Type type,
-                                                          const Shape& shape,
-                                                          const Allocator& allocator = {});
+OPENVINO_API std::shared_ptr<ITensor> make_tensor(const element::Type type,
+                                                  const Shape& shape,
+                                                  const Allocator& allocator = {});
 
 /**
  * @brief Constructs Tensor using element type and shape. Wraps allocated host memory.
@@ -110,10 +104,10 @@ OPENVINO_RUNTIME_API std::shared_ptr<ITensor> make_tensor(const element::Type ty
  * @param strides Optional strides parameters in bytes. Strides are supposed to be computed automatically based
  * on shape and element size
  */
-OPENVINO_RUNTIME_API std::shared_ptr<ITensor> make_tensor(const element::Type type,
-                                                          const Shape& shape,
-                                                          void* host_ptr,
-                                                          const Strides& strides = {});
+OPENVINO_API std::shared_ptr<ITensor> make_tensor(const element::Type type,
+                                                  const Shape& shape,
+                                                  void* host_ptr,
+                                                  const Strides& strides = {});
 
 /**
  * @brief Constructs region of interest (ROI) tensor form another tensor.
@@ -123,14 +117,14 @@ OPENVINO_RUNTIME_API std::shared_ptr<ITensor> make_tensor(const element::Type ty
  * @param end end coordinate of ROI object inside of the original object.
  * @note A Number of dimensions in `begin` and `end` must match number of dimensions in `other.get_shape()`
  */
-OPENVINO_RUNTIME_API std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<ITensor>& other,
-                                                          const Coordinate& begin,
-                                                          const Coordinate& end);
+OPENVINO_API std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<ITensor>& other,
+                                                  const Coordinate& begin,
+                                                  const Coordinate& end);
 
 /** @cond INTERNAL */
-OPENVINO_RUNTIME_API std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<InferenceEngine::Blob>& tensor);
+OPENVINO_API std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<InferenceEngine::Blob>& tensor);
 
-OPENVINO_RUNTIME_API std::shared_ptr<InferenceEngine::Blob> tensor_to_blob(const std::shared_ptr<ITensor>& tensor);
+OPENVINO_API std::shared_ptr<InferenceEngine::Blob> tensor_to_blob(const std::shared_ptr<ITensor>& tensor);
 /** @endcond */
 
 }  // namespace ov
