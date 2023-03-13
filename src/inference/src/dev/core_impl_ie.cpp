@@ -20,7 +20,8 @@
 #include "openvino/util/common_util.hpp"
 
 template <>
-ov::Parsed<std::string> ov::parseDeviceNameIntoConfig(const std::string& deviceName, const std::map<std::string, std::string>& config) {
+ov::Parsed<std::string> ov::parseDeviceNameIntoConfig(const std::string& deviceName,
+                                                      const std::map<std::string, std::string>& config) {
     auto config_ = config;
     auto deviceName_ = deviceName;
     if (deviceName_.find("HETERO:") == 0) {
@@ -45,8 +46,8 @@ ov::Parsed<std::string> ov::parseDeviceNameIntoConfig(const std::string& deviceN
             if (it == config_.end() || it->second == deviceIDLocal)
                 config_[InferenceEngine::PluginConfigParams::KEY_DEVICE_ID] = deviceIDLocal;
             else {
-                IE_THROW() << "Device ID mismatch: " << deviceIDLocal << " (from " << deviceName << ") vs " <<
-                    it->second << " (from config)";
+                IE_THROW() << "Device ID mismatch: " << deviceIDLocal << " (from " << deviceName << ") vs "
+                           << it->second << " (from config)";
             }
         }
     }
