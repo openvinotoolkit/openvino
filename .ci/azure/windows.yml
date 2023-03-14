@@ -63,6 +63,7 @@ jobs:
     BUILD_TYPE: Release
     REPO_DIR: $(Build.Repository.LocalPath)
     OPENVINO_CONTRIB_REPO_DIR: $(REPO_DIR)\..\openvino_contrib
+    MODELS_PATH: $(REPO_DIR)\..\testdata
     WORK_DIR: $(Pipeline.Workspace)\_w
     BUILD_DIR: $(WORK_DIR)\build
     BUILD_SAMPLES_DIR: $(WORK_DIR)\build_samples
@@ -318,7 +319,6 @@ jobs:
 
   - script: |
       call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_capi_test --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_capi_test.xml
-    env:
     displayName: 'OV CAPITests'
 
   - task: PublishTestResults@2
