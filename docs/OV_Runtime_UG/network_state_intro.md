@@ -229,8 +229,7 @@ TensorIterator/Loop operations
 
 You can get the TensorIterator/Loop operations from different frameworks via Model Optimizer.
 
-* **ONNX and frameworks supported via ONNX format** - ``LSTM``, ``RNN``, and ``GRU`` original layers are converted to the ``TensorIterator`` operation. The ``TensorIterator`` 
-body contains ``LSTM``/``RNN``/``GRU Cell``. The ``Peepholes`` and ``InputForget`` modifications are not supported, while the ``sequence_lengths`` optional input is.
+* **ONNX and frameworks supported via ONNX format** - ``LSTM``, ``RNN``, and ``GRU`` original layers are converted to the ``TensorIterator`` operation. The ``TensorIterator`` body contains ``LSTM``/``RNN``/``GRU Cell``. The ``Peepholes`` and ``InputForget`` modifications are not supported, while the ``sequence_lengths`` optional input is.
 ``ONNX Loop`` layer is converted to the OpenVINO :doc:`Loop <openvino_docs_ops_infrastructure_Loop_5>` operation.
 
 * **Apache MXNet** - ``LSTM``, ``RNN``, ``GRU`` original layers are converted to ``TensorIterator`` operation, which body contains ``LSTM``/``RNN``/``GRU Cell`` operations.
