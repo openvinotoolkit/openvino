@@ -269,7 +269,6 @@ TEST_P(ie_c_api_test, ie_core_export_network_to_file) {
     ie_config_t config = {nullptr, nullptr, nullptr};
     ie_executable_network_t *exe_network = nullptr;
 
-    std::cout << "xml_file_name: " << xml_file_name << std::endl;
     IE_EXPECT_OK(ie_core_load_network_from_file(core, xml_file_name.c_str(), "HETERO:CPU", &config, &exe_network));
     EXPECT_NE(nullptr, exe_network);
 

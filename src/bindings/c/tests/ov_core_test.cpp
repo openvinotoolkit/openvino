@@ -22,7 +22,7 @@ TEST(ov_util, ov_get_error_info_check) {
     EXPECT_STREQ(res, str);
 }
 
-class ov_core : public ov_capi_test_base {
+class ov_core_test : public ov_capi_test_base {
 public:
     void SetUp() override {
         ov_capi_test_base::SetUp();
@@ -32,9 +32,9 @@ public:
         ov_capi_test_base::TearDown();
     }
 };
-INSTANTIATE_TEST_SUITE_P(device_name, ov_core, ::testing::Values("CPU"));
+INSTANTIATE_TEST_SUITE_P(device_name, ov_core_test, ::testing::Values("CPU"));
 
-TEST_P(ov_core, ov_core_create_with_config) {
+TEST_P(ov_core_test, ov_core_create_with_config) {
     std::string plugins_xml = TestDataHelpers::generate_test_xml_file();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create_with_config(plugins_xml.c_str(), &core));
@@ -43,14 +43,14 @@ TEST_P(ov_core, ov_core_create_with_config) {
     TestDataHelpers::delete_test_xml_file();
 }
 
-TEST_P(ov_core, ov_core_create_with_no_config) {
+TEST_P(ov_core_test, ov_core_create_with_no_config) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_read_model) {
+TEST_P(ov_core_test, ov_core_read_model) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -63,7 +63,7 @@ TEST_P(ov_core, ov_core_read_model) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_read_model_no_bin) {
+TEST_P(ov_core_test, ov_core_read_model_no_bin) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -76,7 +76,7 @@ TEST_P(ov_core, ov_core_read_model_no_bin) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_read_model_from_memory) {
+TEST_P(ov_core_test, ov_core_read_model_from_memory) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -102,7 +102,7 @@ TEST_P(ov_core, ov_core_read_model_from_memory) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_compile_model) {
+TEST_P(ov_core_test, ov_core_compile_model) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -121,7 +121,7 @@ TEST_P(ov_core, ov_core_compile_model) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_compile_model_with_property) {
+TEST_P(ov_core_test, ov_core_compile_model_with_property) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -147,7 +147,7 @@ TEST_P(ov_core, ov_core_compile_model_with_property) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_compile_model_with_property_invalid) {
+TEST_P(ov_core_test, ov_core_compile_model_with_property_invalid) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -168,7 +168,7 @@ TEST_P(ov_core, ov_core_compile_model_with_property_invalid) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_compile_model_from_file) {
+TEST_P(ov_core_test, ov_core_compile_model_from_file) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -182,7 +182,7 @@ TEST_P(ov_core, ov_core_compile_model_from_file) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_set_property_enum) {
+TEST_P(ov_core_test, ov_core_set_property_enum) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -195,7 +195,7 @@ TEST_P(ov_core, ov_core_set_property_enum) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_set_property_invalid_number_property_arguments) {
+TEST_P(ov_core_test, ov_core_set_property_invalid_number_property_arguments) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -218,7 +218,7 @@ TEST_P(ov_core, ov_core_set_property_invalid_number_property_arguments) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_set_property_enum_invalid) {
+TEST_P(ov_core_test, ov_core_set_property_enum_invalid) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -241,7 +241,7 @@ TEST_P(ov_core, ov_core_set_property_enum_invalid) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_set_and_get_property_enum) {
+TEST_P(ov_core_test, ov_core_set_and_get_property_enum) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -258,7 +258,7 @@ TEST_P(ov_core, ov_core_set_and_get_property_enum) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_set_and_get_property_bool) {
+TEST_P(ov_core_test, ov_core_set_and_get_property_bool) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -275,7 +275,7 @@ TEST_P(ov_core, ov_core_set_and_get_property_bool) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_set_and_get_property_bool_invalid) {
+TEST_P(ov_core_test, ov_core_set_and_get_property_bool_invalid) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -293,7 +293,7 @@ TEST_P(ov_core, ov_core_set_and_get_property_bool_invalid) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_get_property) {
+TEST_P(ov_core_test, ov_core_get_property) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -306,7 +306,7 @@ TEST_P(ov_core, ov_core_get_property) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_set_get_property_str) {
+TEST_P(ov_core_test, ov_core_set_get_property_str) {
 #ifdef __aarch64__
     GTEST_SKIP() << "Skip this test for ARM CPU for now, cause no string property supported";
 #endif
@@ -328,7 +328,7 @@ TEST_P(ov_core, ov_core_set_get_property_str) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_set_get_property_int) {
+TEST_P(ov_core_test, ov_core_set_get_property_int) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -346,7 +346,7 @@ TEST_P(ov_core, ov_core_set_get_property_int) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_set_property_int_invalid) {
+TEST_P(ov_core_test, ov_core_set_property_int_invalid) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -362,7 +362,7 @@ TEST_P(ov_core, ov_core_set_property_int_invalid) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_set_multiple_common_properties) {
+TEST_P(ov_core_test, ov_core_set_multiple_common_properties) {
 #ifdef __aarch64__
     GTEST_SKIP() << "Skip this test for ARM CPU for now, cause no string property supported";
 #endif
@@ -413,7 +413,7 @@ TEST_P(ov_core, ov_core_set_multiple_common_properties) {
     ov_core_free(core);
 }
 
-TEST(ov_core, ov_core_get_available_devices) {
+TEST_P(ov_core_test, ov_core_get_available_devices) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -425,7 +425,7 @@ TEST(ov_core, ov_core_get_available_devices) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_compiled_model_export_model) {
+TEST_P(ov_core_test, ov_compiled_model_export_model) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -448,7 +448,7 @@ TEST_P(ov_core, ov_compiled_model_export_model) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_import_model) {
+TEST_P(ov_core_test, ov_core_import_model) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
 
@@ -481,7 +481,7 @@ TEST_P(ov_core, ov_core_import_model) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_get_versions_by_device_name) {
+TEST_P(ov_core_test, ov_core_get_versions_by_device_name) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -504,7 +504,7 @@ const std::vector<std::wstring> test_unicode_postfix_vector = {L"unicode_Яㅎ�
                                                                L"그것이정당하다",
                                                                L"АБВГДЕЁЖЗИЙ",
                                                                L"СТУФХЦЧШЩЬЮЯ"};
-TEST_P(ov_core, ov_core_create_with_config_unicode) {
+TEST_P(ov_core_test, ov_core_create_with_config_unicode) {
     std::string plugins_xml = TestDataHelpers::generate_test_xml_file();
     ov_core_t* core = nullptr;
 
@@ -521,7 +521,7 @@ TEST_P(ov_core, ov_core_create_with_config_unicode) {
     TestDataHelpers::delete_test_xml_file();
 }
 
-TEST_P(ov_core, ov_core_read_model_unicode) {
+TEST_P(ov_core_test, ov_core_read_model_unicode) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -546,7 +546,7 @@ TEST_P(ov_core, ov_core_read_model_unicode) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_compile_model_from_file_unicode) {
+TEST_P(ov_core_test, ov_core_compile_model_from_file_unicode) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));

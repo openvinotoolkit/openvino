@@ -3,7 +3,7 @@
 //
 #include "ov_test.hpp"
 
-class ov_model : public ov_capi_test_base {
+class ov_model_test : public ov_capi_test_base {
     void SetUp() override {
         ov_capi_test_base::SetUp();
     }
@@ -13,9 +13,9 @@ class ov_model : public ov_capi_test_base {
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(device_name, ov_model, ::testing::Values(""));
+INSTANTIATE_TEST_SUITE_P(device_name, ov_model_test, ::testing::Values(""));
 
-TEST_P(ov_model, ov_model_const_input) {
+TEST_P(ov_model_test, ov_model_const_input) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -33,7 +33,7 @@ TEST_P(ov_model, ov_model_const_input) {
     ov_core_free(core);
 }
 
-TEST_P(ov_model, ov_model_const_input_by_name) {
+TEST_P(ov_model_test, ov_model_const_input_by_name) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -55,7 +55,7 @@ TEST_P(ov_model, ov_model_const_input_by_name) {
     ov_core_free(core);
 }
 
-TEST_P(ov_model, ov_model_const_input_by_index) {
+TEST_P(ov_model_test, ov_model_const_input_by_index) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -77,7 +77,7 @@ TEST_P(ov_model, ov_model_const_input_by_index) {
     ov_core_free(core);
 }
 
-TEST_P(ov_model, ov_model_input) {
+TEST_P(ov_model_test, ov_model_input) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -95,7 +95,7 @@ TEST_P(ov_model, ov_model_input) {
     ov_core_free(core);
 }
 
-TEST_P(ov_model, ov_model_input_by_name) {
+TEST_P(ov_model_test, ov_model_input_by_name) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -117,7 +117,7 @@ TEST_P(ov_model, ov_model_input_by_name) {
     ov_core_free(core);
 }
 
-TEST_P(ov_model, ov_model_input_by_index) {
+TEST_P(ov_model_test, ov_model_input_by_index) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -139,7 +139,7 @@ TEST_P(ov_model, ov_model_input_by_index) {
     ov_core_free(core);
 }
 
-TEST_P(ov_model, ov_model_const_output) {
+TEST_P(ov_model_test, ov_model_const_output) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -157,7 +157,7 @@ TEST_P(ov_model, ov_model_const_output) {
     ov_core_free(core);
 }
 
-TEST_P(ov_model, ov_model_const_output_by_index) {
+TEST_P(ov_model_test, ov_model_const_output_by_index) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -179,7 +179,7 @@ TEST_P(ov_model, ov_model_const_output_by_index) {
     ov_core_free(core);
 }
 
-TEST_P(ov_model, ov_model_const_output_by_name) {
+TEST_P(ov_model_test, ov_model_const_output_by_name) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -201,7 +201,7 @@ TEST_P(ov_model, ov_model_const_output_by_name) {
     ov_core_free(core);
 }
 
-TEST_P(ov_model, ov_model_output) {
+TEST_P(ov_model_test, ov_model_output) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -219,7 +219,7 @@ TEST_P(ov_model, ov_model_output) {
     ov_core_free(core);
 }
 
-TEST_P(ov_model, ov_model_output_by_index) {
+TEST_P(ov_model_test, ov_model_output_by_index) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -241,7 +241,7 @@ TEST_P(ov_model, ov_model_output_by_index) {
     ov_core_free(core);
 }
 
-TEST_P(ov_model, ov_model_output_by_name) {
+TEST_P(ov_model_test, ov_model_output_by_name) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -263,7 +263,7 @@ TEST_P(ov_model, ov_model_output_by_name) {
     ov_core_free(core);
 }
 
-TEST_P(ov_model, ov_model_inputs_size) {
+TEST_P(ov_model_test, ov_model_inputs_size) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -280,7 +280,7 @@ TEST_P(ov_model, ov_model_inputs_size) {
     ov_core_free(core);
 }
 
-TEST_P(ov_model, ov_model_outputs_size) {
+TEST_P(ov_model_test, ov_model_outputs_size) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -297,7 +297,7 @@ TEST_P(ov_model, ov_model_outputs_size) {
     ov_core_free(core);
 }
 
-TEST_P(ov_model, ov_model_is_dynamic) {
+TEST_P(ov_model_test, ov_model_is_dynamic) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -312,7 +312,7 @@ TEST_P(ov_model, ov_model_is_dynamic) {
     ov_core_free(core);
 }
 
-TEST_P(ov_model, ov_model_reshape_input_by_name) {
+TEST_P(ov_model_test, ov_model_reshape_input_by_name) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -351,7 +351,7 @@ TEST_P(ov_model, ov_model_reshape_input_by_name) {
     ov_core_free(core);
 }
 
-TEST_P(ov_model, ov_model_reshape) {
+TEST_P(ov_model_test, ov_model_reshape) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -391,7 +391,7 @@ TEST_P(ov_model, ov_model_reshape) {
     ov_core_free(core);
 }
 
-TEST_P(ov_model, ov_model_reshape_by_port_indexes) {
+TEST_P(ov_model_test, ov_model_reshape_by_port_indexes) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -421,7 +421,7 @@ TEST_P(ov_model, ov_model_reshape_by_port_indexes) {
     ov_core_free(core);
 }
 
-TEST_P(ov_model, ov_model_reshape_single_input) {
+TEST_P(ov_model_test, ov_model_reshape_single_input) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -449,7 +449,7 @@ TEST_P(ov_model, ov_model_reshape_single_input) {
     ov_core_free(core);
 }
 
-TEST_P(ov_model, ov_model_reshape_by_ports) {
+TEST_P(ov_model_test, ov_model_reshape_by_ports) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -483,7 +483,7 @@ TEST_P(ov_model, ov_model_reshape_by_ports) {
     ov_core_free(core);
 }
 
-TEST_P(ov_model, ov_model_get_friendly_name) {
+TEST_P(ov_model_test, ov_model_get_friendly_name) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
