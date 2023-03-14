@@ -246,8 +246,8 @@ protected:
 
 /// yolo-v3 subgraph to cover edge replacement.
 //                subgraph
-//                /     \
-//         subgraph   subgraph
+//                /     |
+//           subgraph  subgraph
 //                \     /
 //              eltwise node
 class EdgeReplaceFunction : public SnippetsFunctionBase {
