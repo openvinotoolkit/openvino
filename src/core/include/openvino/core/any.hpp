@@ -185,9 +185,9 @@ template <typename T>
 auto from_string(const std::string& val) ->
     typename std::enable_if<!Readable<T>::value && !Istreamable<T>::value && !std::is_same<T, std::string>::value,
                             T>::type {
-    OPENVINO_UNREACHABLE("Could read type without std::istream& operator>>(std::istream&, T)",
-                         " defined or ov::util::Read<T> class specialization, T: ",
-                         typeid(T).name());
+    OPENVINO_THROW("Could read type without std::istream& operator>>(std::istream&, T)",
+                   " defined or ov::util::Read<T> class specialization, T: ",
+                   typeid(T).name());
 }
 
 template <typename T, typename A>
@@ -294,9 +294,9 @@ template <typename T>
 auto to_string(const T&) ->
     typename std::enable_if<!Writable<T>::value && !Ostreamable<T>::value && !std::is_same<T, std::string>::value,
                             std::string>::type {
-    OPENVINO_UNREACHABLE("Could convert to string from type without std::ostream& operator>>(std::ostream&, const T&)",
-                         " defined or ov::util::Write<T> class specialization, T: ",
-                         typeid(T).name());
+    OPENVINO_THROW("Could convert to string from type without std::ostream& operator>>(std::ostream&, const T&)",
+                   " defined or ov::util::Write<T> class specialization, T: ",
+                   typeid(T).name());
 }
 
 template <typename T, typename A>
@@ -390,7 +390,7 @@ class OPENVINO_API Any {
     template <class U>
     [[noreturn]] static typename std::enable_if<!EqualityComparable<U>::value, bool>::type equal_impl(const U&,
                                                                                                       const U&) {
-        OPENVINO_UNREACHABLE("Could not compare types without equality operator");
+        OPENVINO_THROW("Could not compare types without equality operator");
     }
 
     template <typename T>
@@ -526,7 +526,7 @@ class OPENVINO_API Any {
         }
 
         void read(std::istream&) override {
-            OPENVINO_UNREACHABLE("Pointer to runtime attribute is not readable from std::istream");
+            OPENVINO_THROW("Pointer to runtime attribute is not readable from std::istream");
         }
 
         T runtime_attribute;
@@ -613,9 +613,9 @@ class OPENVINO_API Any {
         static typename std::enable_if<!util::Readable<U>::value && !util::Istreamable<U>::value>::type read_impl(
             std::istream&,
             U&) {
-            OPENVINO_UNREACHABLE("Could read type without std::istream& operator>>(std::istream&, T)",
-                                 " defined or ov::util::Read<T> class specialization, T: ",
-                                 typeid(T).name());
+            OPENVINO_THROW("Could read type without std::istream& operator>>(std::istream&, T)",
+                           " defined or ov::util::Read<T> class specialization, T: ",
+                           typeid(T).name());
         }
 
         void read(std::istream& is) override {
@@ -755,20 +755,20 @@ public:
             } else {
                 auto runtime_attribute = _impl->as_runtime_attribute();
                 if (runtime_attribute == nullptr) {
-                    OPENVINO_UNREACHABLE("Any does not contains pointer to runtime_attribute. It contains ",
-                                         _impl->type_info().name());
+                    OPENVINO_THROW("Any does not contains pointer to runtime_attribute. It contains ",
+                                   _impl->type_info().name());
                 }
                 auto vptr = std::dynamic_pointer_cast<typename T::element_type>(runtime_attribute);
                 if (vptr == nullptr && T::element_type::get_type_info_static() != runtime_attribute->get_type_info() &&
                     T::element_type::get_type_info_static() != RuntimeAttribute::get_type_info_static()) {
-                    OPENVINO_UNREACHABLE("Could not cast Any runtime_attribute to ",
-                                         typeid(T).name(),
-                                         " from ",
-                                         _impl->type_info().name(),
-                                         "; from ",
-                                         static_cast<std::string>(runtime_attribute->get_type_info()),
-                                         " to ",
-                                         static_cast<std::string>(T::element_type::get_type_info_static()));
+                    OPENVINO_THROW("Could not cast Any runtime_attribute to ",
+                                   typeid(T).name(),
+                                   " from ",
+                                   _impl->type_info().name(),
+                                   "; from ",
+                                   static_cast<std::string>(runtime_attribute->get_type_info()),
+                                   " to ",
+                                   static_cast<std::string>(T::element_type::get_type_info_static()));
                 }
                 _temp = std::make_shared<Impl<decay_t<T>>>(
                     std::static_pointer_cast<typename T::element_type>(runtime_attribute));
@@ -801,7 +801,7 @@ public:
                 return *static_cast<decay_t<T>*>(_impl->addressof());
             }
         }
-        OPENVINO_UNREACHABLE("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
+        OPENVINO_THROW("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
     }
 
     /**
@@ -824,7 +824,7 @@ public:
                 return *static_cast<decay_t<T>*>(_impl->addressof());
             }
         }
-        OPENVINO_UNREACHABLE("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
+        OPENVINO_THROW("Bad cast from: ", _impl->type_info().name(), " to: ", typeid(T).name());
     }
 
     /**

@@ -61,7 +61,7 @@ public:
     }
 
     void on_adapter(const std::string& name, ov::ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
-        throw ov::Exception("Model type is unsupported for rt info deserialization");
+        OPENVINO_THROW("Model type is unsupported for rt info deserialization");
     }
 
     void on_adapter(const std::string& name, ov::ValueAccessor<std::vector<int32_t>>& adapter) override {
@@ -115,9 +115,10 @@ public:
     }
 
     void check_attribute_name(const std::string& name) const {
-        if (name == "name" || name == "version") {
-            throw ov::Exception("Attribute key with name: " + name + " is not allowed. Please use another name");
-        }
+        OPENVINO_ASSERT(name != "name" && name != "version",
+                        "Attribute key with name: ",
+                        name,
+                        " is not allowed. Please use another name");
     }
 
 private:
