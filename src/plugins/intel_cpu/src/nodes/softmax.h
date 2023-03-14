@@ -27,6 +27,9 @@ public:
     AttrPtr initPrimitiveAttr() override;
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
+    bool canBeInPlace() const override {
+        return true;
+    }
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
 

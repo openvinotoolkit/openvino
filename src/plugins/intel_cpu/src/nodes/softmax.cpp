@@ -9,6 +9,7 @@
 #include <dnnl_extension_utils.h>
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include <ngraph/opsets/opset1.hpp>
+#include "cpu_types.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <common/primitive_hashing_utils.hpp>
 #include <utils/shape_inference/shape_inference_pass_through.hpp>
@@ -23,6 +24,7 @@ namespace {
 
 struct SoftmaxKey {
     DnnlMemoryDescCPtr inp0;
+    DnnlMemoryDescCPtr out0;
     impl_desc_type implType;
     size_t axis;
     dnnl::primitive_attr attr;
@@ -84,6 +86,7 @@ void SoftMax::getSupportedDescriptors() {
     if (precision != InferenceEngine::Precision::FP32 && precision != InferenceEngine::Precision::BF16)
         precision = InferenceEngine::Precision::FP32;
     auto inputDataType = DnnlExtensionUtils::IEPrecisionToDataType(precision);
+    auto outputDataType = inputDataType;
 
     if (getParentEdges().size() != 1)
         IE_THROW() << "Incorrect number of input edges for layer " << getName();
@@ -91,18 +94,21 @@ void SoftMax::getSupportedDescriptors() {
         IE_THROW() << "Incorrect number of output edges for layer " << getName();
 
     const auto &inShape = getInputShapeAtPort(0);
+    const auto &outShape = getOutputShapeAtPort(0);
     if (inShape.getRank() == 3) {
         auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inShape, inputDataType, memory::format_tag::abc);
-        createDescriptor({in_candidate}, {});
+        auto out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outShape, outputDataType, memory::format_tag::abc);
+        createDescriptor({in_candidate}, {out_candidate});
     }
 
     for (auto format : getAvailableFormatsForDims(inShape)) {
         auto in_candidate = std::make_shared<DnnlBlockedMemoryDesc>(inShape, inputDataType, format);
+        auto out_candidate = std::make_shared<DnnlBlockedMemoryDesc>(outShape, outputDataType, format);
 
         if (in_candidate->blocksExtended())
             continue;
 
-        createDescriptor({in_candidate}, {});
+        createDescriptor({in_candidate}, {out_candidate});
     }
 }
 
@@ -141,7 +147,17 @@ void SoftMax::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
                                const std::vector<MemoryDescPtr> &outputDesc) {
     auto inpDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
     DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
-    auto in_candidate = definedInpMemDesc->getDnnlDesc();
+    DnnlMemoryDescPtr definedOutMemDesc;
+
+    if (outputDesc[0]->isDefined()) {
+        definedOutMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(outputDesc[0]);
+    } else {
+        definedOutMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(
+            outputDesc[0]->cloneWithNewDims(definedInpMemDesc->getShape().getStaticDims()));
+    }
+
+    auto in_candidate  = definedInpMemDesc->getDnnlDesc();
+    auto out_candidate = definedOutMemDesc->getDnnlDesc();
 
     auto attr = initPrimitiveAttr();
 
@@ -150,8 +166,8 @@ void SoftMax::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
         prop_kind::forward_inference,
         algorithm::softmax_accurate,
         in_candidate,
-        in_candidate,
-        axis,
+        out_candidate,
+        static_cast<int>(axis),
         *attr,
         true);
 
@@ -160,6 +176,7 @@ void SoftMax::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
 
 void SoftMax::prepareParams() {
     auto inpDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<DnnlMemoryDesc>();
+    auto outDesc = getChildEdgeAt(0)->getMemory().GetDescWithType<DnnlMemoryDesc>();
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
 
     if (selected_pd == nullptr)
@@ -167,7 +184,7 @@ void SoftMax::prepareParams() {
 
     auto attr = initPrimitiveAttr();
 
-    SoftmaxKey key = {inpDesc, selected_pd->getImplementationType(), axis, *attr};
+    SoftmaxKey key = {inpDesc, outDesc, selected_pd->getImplementationType(), axis, *attr};
     auto engine = getEngine();
 
     auto builder = [&engine](const SoftmaxKey& key) -> dnnl::primitive {
@@ -177,7 +194,7 @@ void SoftMax::prepareParams() {
             prop_kind::forward_inference,
             algorithm::softmax_accurate,
             key.inp0->getDnnlDesc(),
-            key.inp0->getDnnlDesc(),
+            key.out0->getDnnlDesc(),
             key.axis,
             key.attr,
             true);
@@ -215,6 +232,9 @@ void SoftMax::prepareParams() {
 
     auto src = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
     auto dst = getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetPrimitive();
+
+    std::cout << getName() << ":" << NameFromType(getType()) << " " << src.get() << " <-> " << dst.get() << "\n";
+
     primArgs = {{DNNL_ARG_SRC, src}, {DNNL_ARG_DST, dst}, {DNNL_ARG_SCRATCHPAD, scratchpadMem->GetPrimitive()}};
 }
 
