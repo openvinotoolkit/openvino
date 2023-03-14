@@ -33,11 +33,12 @@ public:
           m_capacity{shape},
           m_ptr{ptr} {
         OPENVINO_ASSERT(m_ptr != nullptr);
+        OPENVINO_ASSERT(m_element_type != element::undefined && m_element_type != element::dynamic);
         update_strides();
     }
 
     void* data(const element::Type& element_type) const override {
-        if (element_type != element::undefined) {
+        if (element_type != element::undefined && element_type != element::dynamic) {
             OPENVINO_ASSERT(element_type == get_element_type(),
                             "Tensor data with element type ",
                             get_element_type(),
