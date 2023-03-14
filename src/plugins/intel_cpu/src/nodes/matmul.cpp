@@ -322,9 +322,11 @@ void MatMul::getSupportedDescriptors() {
     if (canBeExecutedInInt8(firstInPortPrec, secondInPortPrec)) {
         // INT8 mode support wide range of output precisions
         outPortPrec = postOpsPrec;
+    } else if (postOpsPrec == Precision::FP32) {
+        // all non-INT8 modes support fp32 output precision
+        outPortPrec = postOpsPrec;
     } else {
-        // non-INT8 mode only support limited precision
-        // we ignore postOpsPrec and stay with getOriginalOutputPrecisionAtPort(0)
+        // otherwise we ignore postOpsPrec and stay with getOriginalOutputPrecisionAtPort(0)
     }
 
     const auto& inputShape0 = getInputShapeAtPort(0);
