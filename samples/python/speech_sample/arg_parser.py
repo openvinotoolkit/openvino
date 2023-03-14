@@ -24,7 +24,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
                       'Example of usage for several files/layers: <layer1>:<port_num1>=<input_file1.ark>,<layer2>:<port_num2>=<input_file2.ark>.')
     args.add_argument('-o', '--output', type=str,
                       help='Optional. Output file name(s) to save scores (inference results). '
-                      'Usage for a single file/layer: <output_file.ark> or <output+file.npz>. '
+                      'Usage for a single file/layer: <output_file.ark> or <output_file.npz>. '
                       'Example of usage for several files/layers: <layer1>:<port_num1>=<output_file1.ark>,<layer2>:<port_num2>=<output_file2.ark>.')
     args.add_argument('-r', '--reference', type=str,
                       help='Optional. Read reference score file(s) and compare inference results with reference scores. '
