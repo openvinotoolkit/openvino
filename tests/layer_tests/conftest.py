@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2022 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+#Regression tests to compare the results
 import re
 from pathlib import Path
 import tempfile
