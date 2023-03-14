@@ -1172,8 +1172,8 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
 }
 
 bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
-    auto in_dt = node.get_dependency(0).get_output_layout().data_type;
-    auto out_dt = node.get_output_layout().data_type;
+    auto in_dt = node.get_dependency(0).get_output_layout(false).data_type;
+    auto out_dt = node.get_output_layout(false).data_type;
 
     if (in_dt == data_types::f32 && (!node.is_type<fully_connected>() && !node.is_type<convolution>()))
         return false;
