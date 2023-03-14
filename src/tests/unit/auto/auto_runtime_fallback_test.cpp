@@ -27,7 +27,7 @@ using ::testing::NiceMock;
 
 using namespace MockMultiDevice;
 using Config = std::map<std::string, std::string>;
-using ConfigParams = std::tuple<std::vector<std::tuple<std::string, bool>>, int, bool>;
+using ConfigParams = std::tuple<std::vector<std::tuple<std::string, bool>>, int, bool, bool>;
 
 class AutoRuntimeFallback : public ::testing::TestWithParam<ConfigParams> {
 public:
@@ -71,7 +71,8 @@ public:
         std::vector<std::tuple<std::string, bool>> targetDevices;
         int loadNetworkNum;
         bool enableRumtimeFallback;
-        std::tie(targetDevices, loadNetworkNum, enableRumtimeFallback) = obj.param;
+        bool expectThrow;
+        std::tie(targetDevices, loadNetworkNum, enableRumtimeFallback, expectThrow) = obj.param;
         std::ostringstream result;
         result << "auto_runtime_fallback_";
         for (auto deviceInfo : targetDevices) {
@@ -224,7 +225,8 @@ TEST_P(AutoRuntimeFallback, releaseResource) {
     std::vector<std::tuple<std::string, bool>> targetDevices;
     int loadNetworkNum;
     bool enableRumtimeFallback;
-    std::tie(targetDevices, loadNetworkNum, enableRumtimeFallback) = this->GetParam();
+    bool expectThrow;
+    std::tie(targetDevices, loadNetworkNum, enableRumtimeFallback, expectThrow) = this->GetParam();
     for (auto& deviceInfo : targetDevices) {
         std::string deviceName;
         bool ifThrow;
@@ -274,57 +276,61 @@ TEST_P(AutoRuntimeFallback, releaseResource) {
 
     ASSERT_NO_THROW(exeNetwork = plugin->LoadExeNetworkImpl(cnnNet, config));
     ASSERT_NO_THROW(infer_request = exeNetwork->CreateInferRequest());
-    ASSERT_NO_THROW(infer_request->StartAsync());
+    if (expectThrow) {
+        EXPECT_THROW(infer_request->Infer(), IE::Exception);
+    } else {
+        ASSERT_NO_THROW(infer_request->Infer());
+    }
 }
 
 const std::vector<ConfigParams> testConfigs = {
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}}, 2, true},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}}, 2, true},
-    ConfigParams{{{"GPU.0", false}, {"GPU.1", true}}, 1, true},
-    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}}, 1, true},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}}, 2, true, true},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}}, 2, true, false},
+    ConfigParams{{{"GPU.0", false}, {"GPU.1", true}}, 1, true, false},
+    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}}, 1, true, false},
     //CPU_HELP does not throw
-    ConfigParams{{{"GPU.0", false}, {"CPU", false}}, 2, true},
-    ConfigParams{{{"GPU.0", true}, {"CPU", false}}, 2, true},
+    ConfigParams{{{"GPU.0", false}, {"CPU", false}}, 2, true, false},
+    ConfigParams{{{"GPU.0", true}, {"CPU", false}}, 2, true, false},
     //CPU_HELP throw
-    ConfigParams{{{"GPU.0", false}, {"CPU", true}}, 2, true},
-    ConfigParams{{{"GPU.0", true}, {"CPU", true}}, 2, true},
+    ConfigParams{{{"GPU.0", false}, {"CPU", true}}, 2, true, false},
+    ConfigParams{{{"GPU.0", true}, {"CPU", true}}, 2, true, true},
 
-    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"VPUX", false}}, 1, true},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"VPUX", false}}, 2, true},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"VPUX", false}}, 3, true},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"VPUX", true}}, 3, true},
+    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"VPUX", false}}, 1, true, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"VPUX", false}}, 2, true, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"VPUX", false}}, 3, true, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"VPUX", true}}, 3, true, true},
     //CPU_HELP does not throw
-    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"CPU", false}}, 2, true},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"CPU", false}}, 2, true},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"CPU", false}}, 2, true},
+    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"CPU", false}}, 2, true, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"CPU", false}}, 2, true, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"CPU", false}}, 2, true, false},
     //CPU_HELP throw
-    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"CPU", true}}, 2, true},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"CPU", true}}, 3, true},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"CPU", true}}, 3, true},
+    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"CPU", true}}, 2, true, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"CPU", true}}, 3, true, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"CPU", true}}, 3, true, true},
 
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}}, 1, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}}, 1, false},
-    ConfigParams{{{"GPU.0", false}, {"GPU.1", true}}, 1, false},
-    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}}, 1, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}}, 1, false, true},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}}, 1, false, true},
+    ConfigParams{{{"GPU.0", false}, {"GPU.1", true}}, 1, false, false},
+    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}}, 1, false, false},
     //CPU_HELP does not throw
-    ConfigParams{{{"GPU.0", false}, {"CPU", false}}, 2, false},
-    ConfigParams{{{"GPU.0", true}, {"CPU", false}}, 2, false},
+    ConfigParams{{{"GPU.0", false}, {"CPU", false}}, 2, false, false},
+    ConfigParams{{{"GPU.0", true}, {"CPU", false}}, 2, false, false},
     //CPU_HELP throw
-    ConfigParams{{{"GPU.0", false}, {"CPU", true}}, 2, false},
-    ConfigParams{{{"GPU.0", true}, {"CPU", true}}, 2, false},
+    ConfigParams{{{"GPU.0", false}, {"CPU", true}}, 2, false, true},
+    ConfigParams{{{"GPU.0", true}, {"CPU", true}}, 2, false, true},
 
-    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"VPUX", false}}, 1, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"VPUX", false}}, 1, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"VPUX", false}}, 1, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"VPUX", true}}, 1, false},
+    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"VPUX", false}}, 1, false, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"VPUX", false}}, 1, false, true},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"VPUX", false}}, 1, false, true},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"VPUX", true}}, 1, false, true},
     //CPU_HELP does not throw
-    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"CPU", false}}, 2, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"CPU", false}}, 2, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"CPU", false}}, 2, false},
+    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"CPU", false}}, 2, false, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"CPU", false}}, 2, false, false},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"CPU", false}}, 2, false, false},
     //CPU_HELP throw
-    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"CPU", true}}, 2, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"CPU", true}}, 2, false},
-    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"CPU", true}}, 2, false},
+    ConfigParams{{{"GPU.0", false}, {"GPU.1", false}, {"CPU", true}}, 2, false, true},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", false}, {"CPU", true}}, 2, false, true},
+    ConfigParams{{{"GPU.0", true}, {"GPU.1", true}, {"CPU", true}}, 2, false, true},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoRuntimeFallback, AutoRuntimeFallback,

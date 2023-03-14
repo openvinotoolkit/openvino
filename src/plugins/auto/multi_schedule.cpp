@@ -109,15 +109,7 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInf
                 [this, &syncInferRequest, workerInferRequest]() {
                     std::exception_ptr eptr = (*workerInferRequest)->_exceptionPtr;
                     if (nullptr != eptr) {
-                        if (_multiSContext->_runtimeFallback) {
-                            try {
-                                std::rethrow_exception(eptr);
-                            } catch(const std::exception& e) {
-                                LOG_DEBUG_TAG("Pipeline caught exception with error: %s", e.what());
-                            }
-                        } else {
-                            std::rethrow_exception(eptr);
-                        }
+                        std::rethrow_exception(eptr);
                     }
                     if (_multiSContext->_needPerfCounters) {
                         auto multiSyncInferRequest = std::dynamic_pointer_cast<MultiDeviceInferRequest>
