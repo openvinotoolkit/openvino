@@ -4,6 +4,7 @@
 
 #include "openvino/runtime/itensor.hpp"
 
+#include "dev/make_tensor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/properties.hpp"
