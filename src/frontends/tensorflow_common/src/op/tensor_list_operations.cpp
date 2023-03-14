@@ -14,7 +14,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 OutputVector translate_tensor_list_reserve_op(const NodeContext& node) {
-    default_op_checks(node, 2, {"TensorListReserve"});
+    default_op_checks(node, 2, {"TensorListReserve", "EmptyTensorList"});
     auto element_dtype = node.get_attribute<element::Type>("element_dtype");
 
     // always reserve an empty constant of rank equal to two
@@ -120,6 +120,38 @@ OutputVector translate_tensor_list_set_item_op(const NodeContext& node) {
 
     set_node_name(node.get_name(), scatter_update);
     return {scatter_update};
+}
+
+OutputVector translate_tensor_list_push_back_op(const NodeContext& node) {
+    default_op_checks(node, 2, {"TensorListPushBack"});
+    auto input_handle = node.get_input(0);
+    auto tensor = node.get_input(1);
+
+    // flatten item to be inserted since
+    // the tensor list saves elements in the flatten form
+    // because we want to cover a case of dynamic rank tensor list
+    // the real shape of the tensor elements will be restored by TensorListStack operations
+    auto new_tensor_shape = make_shared<Constant>(element::i32, Shape{1}, -1);
+    tensor = make_shared<Reshape>(tensor, new_tensor_shape, false);
+    auto tensor_shape = make_shared<ShapeOf>(tensor, element::i32);
+
+    // reshape the tensor list to the shape [num_elements, -1]
+    // that is because in the first iteration we have empty constant of a shape [0,0]
+    Output<Node> num_elements = make_shared<ShapeOf>(input_handle, element::i32);
+    auto zero_const = make_shared<Constant>(element::i32, Shape{1}, 0);
+    auto one_const = make_shared<Constant>(element::i32, Shape{1}, 1);
+    num_elements = make_shared<Slice>(num_elements, zero_const, one_const, one_const);
+    auto new_input_handle_shape = make_shared<Concat>(OutputVector{num_elements, tensor_shape}, 0);
+    input_handle = make_shared<Reshape>(input_handle, new_input_handle_shape, false);
+
+    // unsqueeze tensor to be inserted into the list
+    tensor = make_shared<Unsqueeze>(tensor, zero_const);
+
+    // insert the tensor into the end
+    auto updated_list = make_shared<Concat>(OutputVector{input_handle, tensor}, 0);
+
+    set_node_name(node.get_name(), updated_list);
+    return {updated_list};
 }
 
 }  // namespace op

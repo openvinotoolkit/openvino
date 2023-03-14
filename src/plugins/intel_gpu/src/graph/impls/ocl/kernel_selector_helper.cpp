@@ -463,6 +463,7 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::os_is_yx_osv32_isv4;
         case format::os_is_zyx_osv32_isv4:
             return kernel_selector::weights_layout::os_is_zyx_osv32_isv4;
+        case format::b_fs_yx_32fp:
         case format::os_is_yx_osv32_isv32p:
             return kernel_selector::weights_layout::os_is_yx_osv32_isv32p;
         case format::os_is_yx_isv16_osv16:
