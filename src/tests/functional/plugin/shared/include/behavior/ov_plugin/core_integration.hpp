@@ -1234,19 +1234,18 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkMULTIwithHETERONoThrow) {
     ov::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, target_device) && supportsAvailableDevices(ie, target_device)) {
-        std::string devices;
-        auto availableDevices = ie.get_property(target_device, ov::available_devices);
-        for (auto&& device : availableDevices) {
-            devices += CommonTestUtils::DEVICE_HETERO + std::string(".") + device;
-            if (&device != &(availableDevices.back())) {
-                devices += ',';
-            }
+        std::string hetero_devices;
+        auto device_ids = ie.get_property(target_device, ov::available_devices);
+        for (auto&& device_id : device_ids) {
+            hetero_devices += target_device + std::string(".") + device_id;
+            if (&device_id != &device_ids.back())
+                hetero_devices += ',';
         }
         OV_ASSERT_NO_THROW(ie.compile_model(
             actualNetwork,
             CommonTestUtils::DEVICE_MULTI,
-            ov::device::properties(CommonTestUtils::DEVICE_MULTI, ov::device::priorities(devices)),
-            ov::device::properties(CommonTestUtils::DEVICE_HETERO, ov::device::priorities(target_device, target_device))));
+            ov::device::properties(CommonTestUtils::DEVICE_MULTI, ov::device::priorities(CommonTestUtils::DEVICE_HETERO)),
+            ov::device::properties(CommonTestUtils::DEVICE_HETERO, ov::device::priorities(hetero_devices))));
     } else {
         GTEST_FAIL() << "Device does not support DeviceID property" << std::endl;
     }

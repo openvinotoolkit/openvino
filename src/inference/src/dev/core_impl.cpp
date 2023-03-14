@@ -61,6 +61,17 @@ bool is_virtual_device(const std::string& device_name) {
             device_name.find("BATCH") != std::string::npos);
 };
 
+ov::AnyMap clone_map(const ov::AnyMap& m) {
+    ov::AnyMap rm;
+    for (auto && kvp : m) {
+        rm[kvp.first] = kvp.second.is<ov::AnyMap>() ?
+            ov::Any(clone_map(kvp.second.as<ov::AnyMap>())) :
+            kvp.second.as<std::string>();
+    }
+
+    return rm;
+}
+
 /**
  * @brief Converts / flattens ov::device::properties from
  * @code
@@ -81,93 +92,98 @@ bool is_virtual_device(const std::string& device_name) {
  * @return ov::AnyMap Flattened ov::AnyMap with properties
  */
 ov::AnyMap flatten_sub_properties(const std::string& user_device_name, const ov::AnyMap& user_properties) {
-    ov::AnyMap result_properties = user_properties;
+    ov::AnyMap result_properties = clone_map(user_properties);
 
     // puts sub-property to result_properties if it's not there yet
     auto update_result_properties = [&result_properties](const ov::AnyMap& sub_properties) -> void {
-        for (auto&& sub_property : sub_properties) {
-            // 1st level property overrides 2nd level property
-            // so check original config
-            if (result_properties.find(sub_property.first) == result_properties.end()) {
-                // 2nd level properties in form ov::device::properties(DEVICE, ...) overrides
-                // 2nd level properties in form ov::device::properties(ov::AnyMap{...})
-                // they have been applied in right order
-                result_properties[sub_property.first] = sub_property.second;
-            }
-        }
+        for (auto&& sub_property : sub_properties)
+            result_properties[sub_property.first] = sub_property.second;
     };
 
-    // First search for ov::device::properties(DEVICE, ...), which has meduim priority
+    // First search for ov::device::properties(DEVICE, ...), which has higher
     for (auto secondary_property = result_properties.begin(); secondary_property != result_properties.end();) {
-        if ((secondary_property->first.find(ov::device::properties.name()) != std::string::npos) &&
-            (secondary_property->first.length() > std::string(ov::device::properties.name()).length())) {
-            // 2. device properties DEVICE_PROPERTIES_<device_name_with_id> are found
-            auto subprop_device_name =
-                secondary_property->first.substr(secondary_property->first.find(ov::device::properties.name()) +
-                                                 std::string(ov::device::properties.name()).length() + 1);
-            auto parsed_subprop = ov::parseDeviceNameIntoConfig(subprop_device_name);
-            // flattening is performed only when config is applicable (see docs for ov::isConfigApplicable)
-            if (ov::isConfigApplicable(user_device_name, subprop_device_name)) {
-                // 2.1 flatten the secondary property for target device
-                update_result_properties(secondary_property->second.as<ov::AnyMap>());
-            } else if (is_virtual_device(user_device_name)) {
-                // keep the secondary property for the other virtual devices, but repack them
-                // 2.1 ov::device::properties(<device_name>) overrides ov::device::properties(ov::AnyMap{})
-                if (!result_properties.count(ov::device::properties.name())) {
-                    result_properties[ov::device::properties.name()] = ov::AnyMap{};
+        const auto subprop_device_name_pos = secondary_property->first.find(ov::device::properties.name() + std::string("_"));
+        if (subprop_device_name_pos == std::string::npos) {
+            // 1. Skip non-matching properties
+            secondary_property++;
+            continue;
+        }
+
+        // 2. device properties DEVICE_PROPERTIES_<device_name_with_id> are found
+        auto subprop_device_name = secondary_property->first.substr(subprop_device_name_pos +
+            std::strlen(ov::device::properties.name()) + 1);
+        // flattening is performed only when config is applicable (see docs for ov::isConfigApplicable)
+        if (ov::isConfigApplicable(user_device_name, subprop_device_name) || is_virtual_device(user_device_name)) {
+            // 2.1. keep the secondary property for the other virtual devices, but repack them
+            auto device_properties = result_properties.find(ov::device::properties.name());
+            if (device_properties == result_properties.end()) {
+                result_properties[ov::device::properties.name()] = ov::AnyMap{};
+            } else if (device_properties->second.is<std::string>()) { // because of legacy API 1.0
+                device_properties->second = device_properties->second.as<ov::AnyMap>();
+            }
+            auto& secondary_properties = result_properties[ov::device::properties.name()].as<ov::AnyMap>();
+            auto secondary_properties_it = secondary_properties.find(subprop_device_name);
+            if (secondary_properties_it == secondary_properties.end()) {
+                // 2.1.1. No device name in map yet, insert all config as is
+                secondary_properties[subprop_device_name] = secondary_property->second;
+            } else {
+                if (secondary_properties_it->second.is<std::string>()) {  // because of legacy API 1.0
+                    secondary_properties_it->second = secondary_properties_it->second.as<ov::AnyMap>();
                 }
-                auto& secondary_properties = result_properties[ov::device::properties.name()].as<ov::AnyMap>();
-                if (!secondary_properties.count(subprop_device_name)) {
-                    // 2.1.1 No device name in map yet, insert all config
-                    secondary_properties.insert({subprop_device_name, secondary_property->second});
-                } else {
-                    // 2.1.2 Device name is present in config file, merge properties
-                    auto& secondary_device_properties = secondary_properties[subprop_device_name].as<ov::AnyMap>();
-                    for (auto& item : secondary_property->second.as<ov::AnyMap>()) {
-                        auto p = secondary_device_properties.insert({item.first, item.second});
-                        if (!p.second) {
-                            p.first->second = item.second;
-                        }
-                    }
+                // 2.1.2. Device name is present in config file, merge properties according to:
+                // ov::device::properties(<device_name>) overrides ov::device::properties(ov::AnyMap{})
+                auto& secondary_device_properties = secondary_properties_it->second.as<ov::AnyMap>();
+                for (auto& item : secondary_property->second.as<ov::AnyMap>()) {
+                    secondary_device_properties[item.first] = item.second;
                 }
             }
-            // since the sub-property is flattened, we need to drop it
-            secondary_property = result_properties.erase(secondary_property);
-        } else {
-            // 3. Skip other properties
-            secondary_property++;
         }
+
+        // 3. since the sub-property is flattened, we need to drop it
+        secondary_property = result_properties.erase(secondary_property);
     }
 
-    // Second search for ov::device::properties(ov::AnyMap{...}), which has low priority
-    ov::AnyMap::iterator it = result_properties.find(ov::device::properties.name());
-    if (it != result_properties.end()) {
-        // 1. device properties are found
-        auto secondary_properties = it->second.as<ov::AnyMap>();
-        for (auto secondary_property = secondary_properties.begin();
-             secondary_property != secondary_properties.end();) {
-            auto parsed_subprop = ov::parseDeviceNameIntoConfig(secondary_property->first);
-            // flattening is performed only in case of full device name match
+    // Second search for ov::device::properties(ov::AnyMap{...})
+    for (auto property = result_properties.begin(); property != result_properties.end();) {
+        if (property->first != ov::device::properties.name()) {
+            // 1. Skip non-matching properties
+            property++;
+            continue;
+        }
+
+        // 2. device properties DEVICE_PROPERTIES are found
+        if (property->second.is<std::string>()) {  // because of legacy API 1.0
+            property->second = property->second.as<ov::AnyMap>();
+        }
+        auto& secondary_properties = property->second.as<ov::AnyMap>();
+
+        for (auto secondary_property = secondary_properties.begin(); secondary_property != secondary_properties.end();) {
+            // flattening is performed only when config is applicable (see docs for ov::isConfigApplicable)
             if (ov::isConfigApplicable(user_device_name, secondary_property->first)) {
-                // 1.2 flatten the secondary property for target device
+                // 2.1. flatten the secondary property for target device
                 // example: core.compile_model("GPU", ov::device::properties("GPU", ov::prop1));
                 // example: core.compile_model("GPU.1", ov::device::properties("GPU", ov::prop1));
                 update_result_properties(secondary_property->second.as<ov::AnyMap>());
                 secondary_property = secondary_properties.erase(secondary_property);
             } else if (is_virtual_device(user_device_name)) {
-                // 1.2 keep the secondary property for the other virtual devices
+                // 2.2. keep the secondary property for the other virtual devices
                 secondary_property++;
                 continue;
             } else {
-                // 1.3. remove the secondary property setting for other hardware device
+                // 2.3. remove the secondary property setting for other hardware device
                 // example: core.compile_model("GPU", ov::device::properties("CPU", ov::prop1));
                 secondary_property = secondary_properties.erase(secondary_property);
             }
         }
 
-        // since the sub-property is flattened, we need to drop it
+        // 3. go to the next property
         if (secondary_properties.empty()) {
-            it = result_properties.erase(it);
+            // 3.1. since the sub-property is flattened, we need to drop it
+            property = result_properties.erase(property);
+        }
+        else {
+            // 3.2. some properties are still in ov::device::properties(ov::AnyMap{}), abort loop
+            break;
         }
     }
 
