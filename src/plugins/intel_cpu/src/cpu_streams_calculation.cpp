@@ -270,6 +270,11 @@ std::pair<std::string, StreamCfg> get_num_streams(
         get_streams_info_table(streams, streamExecutorConfig._threads, model_prefer, proc_type_table);
     StreamCfg streams_info = parse_streams_table(stream_info_table);
 
+    std::cout << "[ p_e_core_info ] streams (threads): " << streams_info.num_streams << "(" << streams_info.num_threads
+              << ") -- PCore: " << streams_info.big_core_streams << "(" << streams_info.threads_per_stream_big
+              << ") PLogicCore: " << streams_info.big_core_logic_streams << "(" << streams_info.threads_per_stream_big
+              << ")  ECore: " << streams_info.small_core_streams << "(" << streams_info.threads_per_stream_small << ")\n";
+
     DEBUG_LOG(
         "[ p_e_core_info ] streams (threads): ",
         streams_info.num_streams,
