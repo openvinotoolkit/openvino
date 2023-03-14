@@ -54,13 +54,6 @@ const std::unordered_map<std::string, std::string> translate_type_name_translato
                                                                                      {"Relu", "ReLU"},
                                                                                      {"Softmax", "SoftMax"}};
 
-const std::set<ov::op::PadType> pad_agnostic_types = {
-    ov::op::PadType::SAME_LOWER,
-    ov::op::PadType::SAME_UPPER,
-    ov::op::PadType::VALID,
-    ov::op::PadType::AUTO,
-};
-
 std::string translate_type_name(const std::string& name) {
     auto found = translate_type_name_translator.find(name);
     if (found != end(translate_type_name_translator)) {
@@ -735,128 +728,75 @@ bool is_exec_graph(const ov::Model& model) {
     return false;
 }
 
-void restore_auto_pad(ov::Node* node, const std::pair<ov::CoordinateDiff, ov::CoordinateDiff>& pads) {
-    if (pads.first.empty() && pads.second.empty())
-        return;
-    const auto diff_to_shape = [](const ov::CoordinateDiff& diff) {
-        ov::Shape shape;
-        for (const auto& dim : diff) {
-            shape.emplace_back(dim);
-        }
-        return shape;
-    };
-    std::pair<ov::CoordinateDiff, ov::CoordinateDiff> res;
-    if (auto op = ov::as_type<ov::opset1::Convolution>(node)) {
-        if (pad_agnostic_types.count(op->get_auto_pad())) {
-            op->set_pads_begin(pads.first);
-            op->set_pads_end(pads.second);
-        }
-    } else if (auto op = ov::as_type<ov::opset1::GroupConvolution>(node)) {
-        if (pad_agnostic_types.count(op->get_auto_pad())) {
-            op->set_pads_begin(pads.first);
-            op->set_pads_end(pads.second);
-        }
-    } else if (auto op = ov::as_type<ov::opset1::ConvolutionBackpropData>(node)) {
-        if (pad_agnostic_types.count(op->get_auto_pad())) {
-            op->set_pads_begin(pads.first);
-            op->set_pads_end(pads.second);
-        }
-    } else if (auto op = ov::as_type<ov::opset1::GroupConvolutionBackpropData>(node)) {
-        if (pad_agnostic_types.count(op->get_auto_pad())) {
-            op->set_pads_begin(pads.first);
-            op->set_pads_end(pads.second);
-        }
-    } else if (auto op = ov::as_type<ov::op::util::DeformableConvolutionBase>(node)) {
-        if (pad_agnostic_types.count(op->get_auto_pad())) {
-            op->set_pads_begin(pads.first);
-            op->set_pads_end(pads.second);
-        }
-    } else if (auto op = ov::as_type<ov::opset1::BinaryConvolution>(node)) {
-        if (pad_agnostic_types.count(op->get_auto_pad())) {
-            op->set_pads_begin(pads.first);
-            op->set_pads_end(pads.second);
-        }
-    } else if (auto op = ov::as_type<ov::opset1::AvgPool>(node)) {
-        if (pad_agnostic_types.count(op->get_auto_pad())) {
-            op->set_pads_begin(diff_to_shape(pads.first));
-            op->set_pads_end(diff_to_shape(pads.second));
-        }
-    } else if (auto op = ov::as_type<ov::op::util::MaxPoolBase>(node)) {
-        if (pad_agnostic_types.count(op->get_auto_pad())) {
-            op->set_pads_begin(diff_to_shape(pads.first));
-            op->set_pads_end(diff_to_shape(pads.second));
-        }
-    }
-}
+class PaddingsFixer {
+private:
+    ov::Node* m_node;
 
-std::pair<ov::CoordinateDiff, ov::CoordinateDiff> auto_pad_resolving(ov::Node* node) {
-    const auto shape_to_diff = [](const ov::Shape& shape) {
-        ov::CoordinateDiff diff;
-        for (const auto& dim : shape) {
-            diff.emplace_back(dim);
-        }
-        return diff;
+    std::vector<ov::Output<ov::Node>> m_parameters;
+    std::shared_ptr<ov::Node> m_cloned_node;
+
+    const std::set<ov::op::PadType> pad_agnostic_types = {
+        ov::op::PadType::SAME_LOWER,
+        ov::op::PadType::SAME_UPPER,
+        ov::op::PadType::VALID,
+        ov::op::PadType::AUTO,
     };
-    std::pair<ov::CoordinateDiff, ov::CoordinateDiff> res;
-    if (auto op = ov::as_type<ov::opset1::Convolution>(node)) {
-        if (pad_agnostic_types.count(op->get_auto_pad())) {
-            res.first = op->get_pads_begin();
-            res.second = op->get_pads_end();
-            op->set_pads_begin(ov::CoordinateDiff(op->get_pads_begin().size(), 0));
-            op->set_pads_end(ov::CoordinateDiff(op->get_pads_end().size(), 0));
+
+    template <class T, class P>
+    void clone_op_and_fix_paddings(const T* op) {
+        for (const auto& input : op->inputs()) {
+            m_parameters.emplace_back(
+                std::make_shared<ov::opset1::Parameter>(input.get_element_type(), input.get_partial_shape()));
         }
-    } else if (auto op = ov::as_type<ov::opset1::GroupConvolution>(node)) {
-        if (pad_agnostic_types.count(op->get_auto_pad())) {
-            res.first = op->get_pads_begin();
-            res.second = op->get_pads_end();
-            op->set_pads_begin(ov::CoordinateDiff(op->get_pads_begin().size(), 0));
-            op->set_pads_end(ov::CoordinateDiff(op->get_pads_end().size(), 0));
-        }
-    } else if (auto op = ov::as_type<ov::opset1::ConvolutionBackpropData>(node)) {
-        if (pad_agnostic_types.count(op->get_auto_pad())) {
-            res.first = op->get_pads_begin();
-            res.second = op->get_pads_end();
-            op->set_pads_begin(ov::CoordinateDiff(op->get_pads_begin().size(), 0));
-            op->set_pads_end(ov::CoordinateDiff(op->get_pads_end().size(), 0));
-        }
-    } else if (auto op = ov::as_type<ov::opset1::GroupConvolutionBackpropData>(node)) {
-        if (pad_agnostic_types.count(op->get_auto_pad())) {
-            res.first = op->get_pads_begin();
-            res.second = op->get_pads_end();
-            op->set_pads_begin(ov::CoordinateDiff(op->get_pads_begin().size(), 0));
-            op->set_pads_end(ov::CoordinateDiff(op->get_pads_end().size(), 0));
-        }
-    } else if (auto op = ov::as_type<ov::op::util::DeformableConvolutionBase>(node)) {
-        if (pad_agnostic_types.count(op->get_auto_pad())) {
-            res.first = op->get_pads_begin();
-            res.second = op->get_pads_end();
-            op->set_pads_begin(ov::CoordinateDiff(op->get_pads_begin().size(), 0));
-            op->set_pads_end(ov::CoordinateDiff(op->get_pads_end().size(), 0));
-        }
-    } else if (auto op = ov::as_type<ov::opset1::BinaryConvolution>(node)) {
-        if (pad_agnostic_types.count(op->get_auto_pad())) {
-            res.first = op->get_pads_begin();
-            res.second = op->get_pads_end();
-            op->set_pads_begin(ov::CoordinateDiff(op->get_pads_begin().size(), 0));
-            op->set_pads_end(ov::CoordinateDiff(op->get_pads_end().size(), 0));
-        }
-    } else if (auto op = ov::as_type<ov::opset1::AvgPool>(node)) {
-        if (pad_agnostic_types.count(op->get_auto_pad())) {
-            res.first = shape_to_diff(op->get_pads_begin());
-            res.second = shape_to_diff(op->get_pads_end());
-            op->set_pads_begin(ov::Shape(op->get_pads_begin().size(), 0));
-            op->set_pads_end(ov::Shape(op->get_pads_end().size(), 0));
-        }
-    } else if (auto op = ov::as_type<ov::op::util::MaxPoolBase>(node)) {
-        if (pad_agnostic_types.count(op->get_auto_pad())) {
-            res.first = shape_to_diff(op->get_pads_begin());
-            res.second = shape_to_diff(op->get_pads_end());
-            op->set_pads_begin(ov::Shape(op->get_pads_begin().size(), 0));
-            op->set_pads_end(ov::Shape(op->get_pads_end().size(), 0));
+        m_cloned_node = op->clone_with_new_inputs(m_parameters);
+        auto typed_cloned_node = std::dynamic_pointer_cast<T>(m_cloned_node);
+        OPENVINO_ASSERT(typed_cloned_node);
+        typed_cloned_node->set_pads_begin(P(op->get_pads_begin().size(), 0));
+        typed_cloned_node->set_pads_end(P(op->get_pads_end().size(), 0));
+        m_node = m_cloned_node.get();
+    }
+
+public:
+    ov::Node* get_node() {
+        return m_node;
+    }
+
+    explicit PaddingsFixer(ov::Node* node) : m_node(node) {
+        if (auto op = ov::as_type<ov::opset1::Convolution>(node)) {
+            if (pad_agnostic_types.count(op->get_auto_pad())) {
+                clone_op_and_fix_paddings<ov::opset1::Convolution, ov::CoordinateDiff>(op);
+            }
+        } else if (auto op = ov::as_type<ov::opset1::GroupConvolution>(node)) {
+            if (pad_agnostic_types.count(op->get_auto_pad())) {
+                clone_op_and_fix_paddings<ov::opset1::GroupConvolution, ov::CoordinateDiff>(op);
+            }
+        } else if (auto op = ov::as_type<ov::opset1::ConvolutionBackpropData>(node)) {
+            if (pad_agnostic_types.count(op->get_auto_pad())) {
+                clone_op_and_fix_paddings<ov::opset1::ConvolutionBackpropData, ov::CoordinateDiff>(op);
+            }
+        } else if (auto op = ov::as_type<ov::opset1::GroupConvolutionBackpropData>(node)) {
+            if (pad_agnostic_types.count(op->get_auto_pad())) {
+                clone_op_and_fix_paddings<ov::opset1::GroupConvolutionBackpropData, ov::CoordinateDiff>(op);
+            }
+        } else if (auto op = ov::as_type<ov::op::util::DeformableConvolutionBase>(node)) {
+            if (pad_agnostic_types.count(op->get_auto_pad())) {
+                clone_op_and_fix_paddings<ov::op::util::DeformableConvolutionBase, ov::CoordinateDiff>(op);
+            }
+        } else if (auto op = ov::as_type<ov::opset1::BinaryConvolution>(node)) {
+            if (pad_agnostic_types.count(op->get_auto_pad())) {
+                clone_op_and_fix_paddings<ov::opset1::BinaryConvolution, ov::CoordinateDiff>(op);
+            }
+        } else if (auto op = ov::as_type<ov::opset1::AvgPool>(node)) {
+            if (pad_agnostic_types.count(op->get_auto_pad())) {
+                clone_op_and_fix_paddings<ov::opset1::AvgPool, ov::Shape>(op);
+            }
+        } else if (auto op = ov::as_type<ov::op::util::MaxPoolBase>(node)) {
+            if (pad_agnostic_types.count(op->get_auto_pad())) {
+                clone_op_and_fix_paddings<ov::op::util::MaxPoolBase, ov::Shape>(op);
+            }
         }
     }
-    return res;
-}
+};
 
 void serialize_rt_info(pugi::xml_node& root, const std::string& name, const ov::Any& data) {
     auto child = root.append_child(name.c_str());
@@ -1034,12 +974,18 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         }
 
         // fill <data> general attributes
-        auto old_pads =
-            auto_pad_resolving(node);  // Backward compatibility: clear padding values for nodes with auto_pad
-        XmlSerializer visitor(data, node_type_name, custom_opsets, constant_node_write_handler, version, deterministic);
-        OPENVINO_ASSERT(node->visit_attributes(visitor), "Visitor API is not supported in ", node);
+        {
+            // Backward compatibility: clear padding values for nodes with auto_pad
+            PaddingsFixer fixed_node(node);
+            XmlSerializer visitor(data,
+                                  node_type_name,
+                                  custom_opsets,
+                                  constant_node_write_handler,
+                                  version,
+                                  deterministic);
+            OPENVINO_ASSERT(fixed_node.get_node()->visit_attributes(visitor), "Visitor API is not supported in ", node);
+        }
         rt_info::XmlSerializer{data}.serialize(node->get_rt_info());
-        restore_auto_pad(node, old_pads);
 
         if (exec_graph) {
             visit_exec_graph_node(layer, node);
