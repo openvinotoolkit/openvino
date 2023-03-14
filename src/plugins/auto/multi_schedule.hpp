@@ -56,7 +56,6 @@ protected:
     DeviceMap<std::unique_ptr<IE::ThreadSafeQueue<IE::Task>>> _inferPipelineTasksDeviceSpecific;
     DeviceMap<NotBusyWorkerRequests>                          _idleWorkerRequests;
     DeviceMap<std::vector<WorkerInferRequest>>                _workerRequests;
-    mutable std::mutex                                        _mutex;
     std::atomic_size_t                                        _numRequestsCreated = {0};
     MultiScheduleContext::Ptr                                 _multiSContext;
     SoExecNetwork                                             _passthroughExeNet;
@@ -65,7 +64,6 @@ protected:
     double                                                    _cpuHelpFps = 0.0;
     std::string                                               _LogTag;
     MultiImmediateExecutor::Ptr                               _FirstExecutor;
-    std::condition_variable                                   _cond;
 };
 
 }  // namespace MultiDevicePlugin

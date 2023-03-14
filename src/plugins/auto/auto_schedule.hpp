@@ -56,14 +56,14 @@ protected:
     void GenerateWorkers(const std::string& device, const SoExecNetwork& executableNetwork) override;
     bool ScheduleToWorkerInferRequest(IE::Task, DeviceName preferred_device = "") override;
     static bool RunPipelineTask(IE::Task& inferPipelineTask, NotBusyPriorityWorkerRequests& idleWorkerRequests,
-                                const DeviceName& preferred_device, const std::string select_device);
+                                const DeviceName& preferred_device);
     DeviceMap<NotBusyPriorityWorkerRequests> _idleWorkerRequests;
 
 private:
     void WaitFirstNetworkReady();
     void TryToLoadNetWork(AutoLoadContext& context, const std::string& modelPath, const IE::CNNNetwork& network);
     bool selectOtherDevice(std::string currentDeviceName);
-    void releaseActualdevice(std::string currentDeviceName);
+    IE::Task releaseActualdeviceTask;
 
 private:
     IE::IStreamsExecutor::Ptr                _executor;
