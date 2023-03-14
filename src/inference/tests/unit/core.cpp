@@ -223,7 +223,7 @@ TEST(CoreTests_parse_device_config, get_device_config) {
                    ov::device::properties("DEVICE", ov::log::level(ov::log::Level::ERR)),
                    ov::device::properties(ov::AnyMap{{"DEVICE", ov::AnyMap{ov::log::level(ov::log::Level::WARNING)}}})},
         "DEVICE",
-        ov::AnyMap{ov::log::level(ov::log::Level::DEBUG)});
+        ov::AnyMap{ov::log::level(ov::log::Level::ERR)});
     // DEVICE.X is not applicable for DEVICE
     check_parsed_config(
         "DEVICE",

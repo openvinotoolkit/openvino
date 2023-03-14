@@ -28,6 +28,9 @@ namespace ov {
 class Plugin;
 /** @cond INTERNAL */
 class Any;
+
+using AnyMap = std::map<std::string, Any>;
+
 namespace util {
 template <typename T, typename = void>
 struct Read;
@@ -121,6 +124,11 @@ struct OPENVINO_API Read<std::tuple<unsigned int, unsigned int, unsigned int>> {
 template <>
 struct OPENVINO_API Read<std::tuple<unsigned int, unsigned int>> {
     void operator()(std::istream& is, std::tuple<unsigned int, unsigned int>& tuple) const;
+};
+
+template <>
+struct OPENVINO_API Read<AnyMap> {
+    void operator()(std::istream& is, AnyMap& map) const;
 };
 
 template <typename T>
@@ -927,8 +935,6 @@ public:
      */
     const void* addressof() const;
 };
-
-using AnyMap = std::map<std::string, Any>;
 
 using RTMap = AnyMap;
 

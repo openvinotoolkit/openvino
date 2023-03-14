@@ -57,12 +57,11 @@ const std::vector<std::string>& getSupportedConfigKeys() {
 }  // namespace
 
 std::string Engine::GetTargetFallback(const Engine::Configs& config, bool raise_exception) const {
-    auto supported_config = GetCore()->GetSupportedConfig(GetName(), config);
-    auto it = supported_config.find("TARGET_FALLBACK");
-    if (it == supported_config.end()) {
-        it = supported_config.find(ov::device::priorities.name());
+    auto it = config.find("TARGET_FALLBACK");
+    if (it == config.end()) {
+        it = config.find(ov::device::priorities.name());
     }
-    if (it == supported_config.end()) {
+    if (it == config.end()) {
         if (raise_exception)
             IE_THROW() << "The '" << ov::device::priorities.name()
                        << "' option was not defined for heterogeneous plugin";
