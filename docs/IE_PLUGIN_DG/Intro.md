@@ -1,4 +1,4 @@
-# Overview of Inference Engine Plugin Library {#openvino_docs_ie_plugin_dg_overview}
+# Overview of OpenVINO Plugin Library {#openvino_docs_ie_plugin_dg_overview}
 
 @sphinxdirective
 
@@ -18,23 +18,23 @@
 
 @endsphinxdirective
 
-The plugin architecture of the Inference Engine allows to develop and plug independent inference 
+The plugin architecture of the OpenVINO allows to develop and plug independent inference 
 solutions dedicated to different devices. Physically, a plugin is represented as a dynamic library 
 exporting the single `CreatePluginEngine` function that allows to create a new plugin instance.
 
-Inference Engine Plugin Library
+OpenVINO Plugin Library
 -----------------------
 
-Inference Engine plugin dynamic library consists of several main components:
+OpenVINO plugin dynamic library consists of several main components:
 
 1. [Plugin class](@ref openvino_docs_ie_plugin_dg_plugin):
 	- Provides information about devices of a specific type.
-	- Can create an [executable network](@ref openvino_docs_ie_plugin_dg_executable_network) instance which represents a Neural 
-	Network backend specific graph structure for a particular device in opposite to the InferenceEngine::ICNNNetwork 
-	interface which is backend-independent.
+	- Can create an [compiled model](@ref openvino_docs_ie_plugin_dg_executable_network) instance which represents a Neural 
+	Network backend specific graph structure for a particular device in opposite to the ov::Model 
+	which is backend-independent.
 	- Can import an already compiled graph structure from an input stream to an 
-	[executable network](@ref openvino_docs_ie_plugin_dg_executable_network) object.
-2. [Executable Network class](@ref openvino_docs_ie_plugin_dg_executable_network):
+	[compiled model](@ref openvino_docs_ie_plugin_dg_executable_network) object.
+2. [Compiled Modek class](@ref openvino_docs_ie_plugin_dg_executable_network):
 	- Is an execution configuration compiled for a particular device and takes into account its capabilities.
 	- Holds a reference to a particular device and a task executor for this device.
 	- Can create several instances of [Inference Request](@ref openvino_docs_ie_plugin_dg_infer_request).
@@ -64,5 +64,5 @@ Detailed guides
 API References
 -----------------------
 
-* [Inference Engine Plugin API](@ref ie_dev_api)
-* [Inference Engine Transformation API](@ref ie_transformation_api)
+* [OpenVINO Plugin API](@ref ov_dev_api)
+* [OpenVINO Transformation API](@ref ie_transformation_api)

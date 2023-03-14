@@ -33,7 +33,11 @@ OpenVINO™ Runtime enables you to use different approaches to work with model i
         @endsphinxtabset
 
 
-For details on how to build a model in OpenVINO™ Runtime, see the [Build a Model in OpenVINO™ Runtime](@ref ov_ug_build_model) section.
+@sphinxdirective 
+
+For details on how to build a model in OpenVINO™ Runtime, see the :ref:`Build a Model in OpenVINO Runtime <ov_ug_build_model>`  section.
+
+@endsphinxdirective 
 
 OpenVINO™ Runtime model representation uses special classes to work with model data types and shapes. The `ov::element::Type` is used for data types. See the section below for representation of shapes.
 
@@ -78,7 +82,13 @@ Each OpenVINO™ Release introduces new operations and adds them to new operatio
 For a complete list of operation sets supported in OpenVINO™ toolkit, see the [Available Operations Sets](../ops/opset.md).
 To add the support for custom operations, see [OpenVINO Extensibility Mechanism](../Extensibility_UG/Intro.md).
 
-## Building a Model in OpenVINO™ Runtime {#ov_ug_build_model}
+@sphinxdirective 
+
+.. _ov_ug_build_model:
+
+@endsphinxdirective
+
+## Building a Model in OpenVINO™ Runtime
 
 You can create a model from source. This section illustrates how to construct a model composed of operations from an available operation set.
 

@@ -43,6 +43,9 @@
 #include "kernel_selector/kernels/quantize/quantize_kernel_params.h"
 #include "kernel_selector/kernels/reorder/reorder_kernel_base.h"
 
+#include "runtime/kernels_cache.hpp"
+#include "kernel_base.h"
+
 #include <string>
 #include <vector>
 
@@ -59,6 +62,58 @@ kernel_selector::dev_type get_device_type(cldnn::device_type type) {
             return kernel_selector::dev_type::integrated_gpu;
     }
 }
+
+bool query_local_block_io_supported(engine& e, const ExecutionConfig& config) {
+    auto device = e.get_device().get();
+    auto device_info = device->get_info();
+    if (!device_info.supports_local_block_io)
+        return false;
+
+    // We assume that new uarch which don't have simd8 support are not affected by driver bug and we can safely return flag value
+    auto simd_sizes = device_info.supported_simd_sizes;
+    if (std::find(simd_sizes.begin(), simd_sizes.end(), 8) == simd_sizes.end())
+        return device_info.supports_local_block_io;
+
+    static std::mutex m;
+    std::lock_guard<std::mutex> lock(m);
+    static std::map<cldnn::device*, bool> cache;
+    if (cache.find(device) != cache.end()) {
+        return cache.at(device);
+    }
+
+    std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
+    std::string kernel_code =
+        "__attribute__((intel_reqd_sub_group_size(8)))"
+        "__attribute__((reqd_work_group_size(8, 1, 1)))"
+        "void kernel is_local_block_io_supported(global uchar* dst) {"
+        "    uint lid = get_sub_group_local_id();"
+        "    uchar val = (uchar)lid * 2;"
+        "    __local uchar tmp_slm[8];"
+        "    intel_sub_group_block_write_uc2(tmp_slm, (uchar2)(val));"
+        "    barrier(CLK_LOCAL_MEM_FENCE);"
+        "    uchar2 read = intel_sub_group_block_read_uc2(tmp_slm);"
+        "    dst[lid] = read.s0 + 1;"
+        "}";
+
+    kernel_string->str = kernel_code;
+    kernel_string->options = "-Dcl_intel_subgroup_local_block_io -DLOCAL_BLOCK_IO_SUPPORTED=1";
+    kernel_string->entry_point = "is_local_block_io_supported";
+    kernel_string->batch_compilation = true;
+
+    try {
+        auto _kernels_cache_device_query = std::unique_ptr<kernels_cache>(new kernels_cache(e, config, 0));
+        auto id = _kernels_cache_device_query->set_kernel_source(kernel_string, false);
+        _kernels_cache_device_query->build_all();
+
+        auto kernel = _kernels_cache_device_query->get_kernel(id);
+        cache[device] = _kernels_cache_device_query->validate_simple_kernel_execution(kernel);
+    } catch (std::exception& /*ex*/) {
+        cache[device] = false;
+    }
+
+    return cache.at(device);
+}
+
 }  // namespace
 
 namespace cldnn {
@@ -408,6 +463,7 @@ kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
             return kernel_selector::weights_layout::os_is_yx_osv32_isv4;
         case format::os_is_zyx_osv32_isv4:
             return kernel_selector::weights_layout::os_is_zyx_osv32_isv4;
+        case format::b_fs_yx_32fp:
         case format::os_is_yx_osv32_isv32p:
             return kernel_selector::weights_layout::os_is_yx_osv32_isv32p;
         case format::os_is_yx_isv16_osv16:
@@ -1142,7 +1198,9 @@ bool use_legacy_fused_ops(const kernel_impl_params& param_info) {
 
 void set_params(const kernel_impl_params& param_info, kernel_selector::params& params) {
     const auto& program = param_info.prog;
-    const auto& device_info = program->get_engine().get_device_info();
+    auto& engine = program->get_engine();
+    const auto& config = program->get_config();
+    const auto& device_info = engine.get_device_info();
 
     params.uniqueID = std::to_string(param_info.unique_id);
     params.engineInfo.supports_fp16 = device_info.supports_fp16;
@@ -1160,7 +1218,7 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.enable_sub_groups_emulation = true;
     params.engineInfo.bOptHintsSupport = false;
 
-    params.engineInfo.bLocalBlockIOSupport = device_info.supports_local_block_io && program->is_local_block_io_supported();
+    params.engineInfo.bLocalBlockIOSupport = query_local_block_io_supported(engine, config);
     params.engineInfo.deviceType = get_device_type(device_info.dev_type);
     params.engineInfo.maxWorkGroupSize = device_info.max_work_group_size;
     params.engineInfo.maxLocalMemSize = device_info.max_local_mem_size;
@@ -1173,7 +1231,7 @@ void set_params(const kernel_impl_params& param_info, kernel_selector::params& p
     params.engineInfo.supportedSimdSizes = device_info.supported_simd_sizes;
     params.engineInfo.vendor_id = device_info.vendor_id;
 
-    auto impl_forcing = program->get_config().get_property(ov::intel_gpu::force_implementations);
+    auto impl_forcing = config.get_property(ov::intel_gpu::force_implementations);
 
     if (impl_forcing.count(param_info.desc->id) != 0) {
         params.forceImplementation = impl_forcing.at(param_info.desc->id).kernel_name;

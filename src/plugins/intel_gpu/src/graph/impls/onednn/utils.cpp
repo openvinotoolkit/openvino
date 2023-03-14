@@ -216,13 +216,10 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
     dnnl::memory::data_type dt = convert_data_type(l.data_type);
     dnnl::memory::format_tag fmt = target_fmt == dnnl::memory::format_tag::undef ? convert_data_format(l.format) : target_fmt;
 
-    if (fmt == dnnl::memory::format_tag::undef) {
-        throw ov::Exception("[GPU] Unexpected fmt: " + convert_data_format_string(l.format));
-    } else {
-        dnnl::memory::desc res(dims, dt, fmt);
+    OPENVINO_ASSERT(fmt != dnnl::memory::format_tag::undef, "[GPU] Unexpected fmt: ", convert_data_format_string(l.format));
+    dnnl::memory::desc res(dims, dt, fmt);
 
-        return res;
-    }
+    return res;
 }
 static void get_identical_order(std::vector<std::vector<size_t>>& orders, std::vector<size_t> order,
                             size_t first, size_t depth) {

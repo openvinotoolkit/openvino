@@ -12,15 +12,13 @@
 
 using namespace InferenceEngine;
 using namespace ov::intel_gna;
-using namespace ov::intel_gna::common;
+using namespace ov::intel_gna::target;
 
 IE_SUPPRESS_DEPRECATED_START
 const std::map<std::string, std::string> supportedConfigKeysWithDefaults = {
-    {CONFIG_KEY(CACHE_DIR), ""},
     {GNA_CONFIG_KEY(SCALE_FACTOR), "1.000000"},
     {GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_0"), "1.000000"},
     {GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE), ""},
-    {GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION), ""},
     {GNA_CONFIG_KEY(EXEC_TARGET), ""},
     {GNA_CONFIG_KEY(COMPILE_TARGET), ""},
     {GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW_EXACT},
@@ -183,15 +181,25 @@ TEST_F(GNAPluginConfigTest, GnaConfigSingleThreadTest) {
 IE_SUPPRESS_DEPRECATED_END
 
 TEST_F(GNAPluginConfigTest, GnaConfigGnaExecTargetTest) {
+    SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_1_0");
+    EXPECT_EQ(config.target->get_user_set_execution_target(), DeviceVersion::GNA1_0);
     SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_2_0");
     EXPECT_EQ(config.target->get_user_set_execution_target(), DeviceVersion::GNA2_0);
     SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_0");
     EXPECT_EQ(config.target->get_user_set_execution_target(), DeviceVersion::GNA3_0);
+    SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_1");
+    EXPECT_EQ(config.target->get_user_set_execution_target(), DeviceVersion::GNA3_1);
 
     ExpectThrow(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_7");
 
     SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_5");
     EXPECT_EQ(config.target->get_user_set_execution_target(), DeviceVersion::GNA3_5);
+    SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_5_E");
+    EXPECT_EQ(config.target->get_user_set_execution_target(), DeviceVersion::GNAEmbedded3_5);
+    SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_3_6");
+    EXPECT_EQ(config.target->get_user_set_execution_target(), DeviceVersion::GNA3_6);
+    SetAndCompare(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_4_0");
+    EXPECT_EQ(config.target->get_user_set_execution_target(), DeviceVersion::GNA4_0);
 
     ExpectThrow(GNA_CONFIG_KEY(EXEC_TARGET), "0");
     ExpectThrow(GNA_CONFIG_KEY(EXEC_TARGET), "GNA_TARGET_1_5");

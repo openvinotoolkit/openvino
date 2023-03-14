@@ -4,6 +4,7 @@
 
 #include "openvino/runtime/compiled_model.hpp"
 
+#include "openvino/core/except.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 
 #define OV_COMPILED_MODEL_CALL_STATEMENT(...)                                \
@@ -11,9 +12,9 @@
     try {                                                                    \
         __VA_ARGS__;                                                         \
     } catch (const std::exception& ex) {                                     \
-        throw ov::Exception(ex.what());                                      \
+        OPENVINO_THROW(ex.what());                                           \
     } catch (...) {                                                          \
-        OPENVINO_ASSERT(false, "Unexpected exception");                      \
+        OPENVINO_THROW("Unexpected exception");                              \
     }
 
 namespace ov {
@@ -63,7 +64,7 @@ const ov::Output<const ov::Node>& CompiledModel::input(const std::string& tensor
                 return input;
             }
         }
-        throw ov::Exception("Input for tensor name '" + tensor_name + "' is not found.");
+        OPENVINO_THROW("Input for tensor name '", tensor_name, "' is not found.");
     });
 }
 
@@ -96,7 +97,7 @@ const ov::Output<const ov::Node>& CompiledModel::output(const std::string& tenso
                 return output;
             }
         }
-        throw ov::Exception("Output for tensor name '" + tensor_name + "' is not found.");
+        OPENVINO_THROW("Output for tensor name '", tensor_name, "' is not found.");
     });
 }
 
