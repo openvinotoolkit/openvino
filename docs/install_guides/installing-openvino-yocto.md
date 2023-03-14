@@ -101,6 +101,7 @@ Verify that OpenVINO packages were built successfully. Run the following command
 If the image build is successful, it will return the list of packages as below:
 
 .. code-block:: sh
+   
    openvino-inference-engine
    openvino-inference-engine-dbg
    openvino-inference-engine-dev
