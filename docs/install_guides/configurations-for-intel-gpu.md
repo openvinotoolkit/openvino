@@ -53,12 +53,15 @@ Additional info
 
 In the internal OpenVINO validation the following versions of Intel Graphics Driver were used:
 
-Operation System | Driver version
---- |-------------------------
-Ubuntu 20.04 | `22.35.24055 <https://github.com/intel/compute-runtime/releases/tag/22.35.24055>`__
-Ubuntu 18.04 | `21.38.21026 <https://github.com/intel/compute-runtime/releases/tag/21.38.21026>`__
-CentOS 7 | `19.41.14441 <https://github.com/intel/compute-runtime/releases/tag/19.41.14441>`__
-RHEL 8 | `22.28.23726 <https://github.com/intel/compute-runtime/releases/tag/22.28.23726>`__
++------------------+-------------------------------------------------------------------------------------+
+| Operation System | Driver version                                                                      |
++==================+=====================================================================================+
+| Ubuntu 20.04     | `22.35.24055 <https://github.com/intel/compute-runtime/releases/tag/22.35.24055>`__ |
+| Ubuntu 18.04     | `21.38.21026 <https://github.com/intel/compute-runtime/releases/tag/21.38.21026>`__ |
+| CentOS 7         | `19.41.14441 <https://github.com/intel/compute-runtime/releases/tag/19.41.14441>`__ |
+| RHEL 8           | `22.28.23726 <https://github.com/intel/compute-runtime/releases/tag/22.28.23726>`__ |
++------------------+-------------------------------------------------------------------------------------+
+
 
 What’s Next?
 ############
