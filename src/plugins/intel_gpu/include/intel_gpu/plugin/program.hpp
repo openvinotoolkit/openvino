@@ -82,7 +82,8 @@ public:
 class Program {
 public:
     Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, const ExecutionConfig& config,
-            bool createTopologyOnly = false, bool partialBuild = false);
+            bool createTopologyOnly = false, bool partialBuild = false,
+            InferenceEngine::InputsDataMap* inputs = nullptr, InferenceEngine::OutputsDataMap* outputs = nullptr);
     Program(cldnn::engine& engine, const ExecutionConfig& config)
         : m_max_batch(1)
         , m_curBatch(-1)

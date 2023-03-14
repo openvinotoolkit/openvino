@@ -29,6 +29,7 @@
 #include "transformations/einsum_decomposition.hpp"
 #include "transformations/convert_pooling_to_reduce.hpp"
 #include "transformations/decompose_reduce_for_false_keepdims.hpp"
+#include "transformations/convert_shapeof.hpp"
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
 #include <transformations/opset_conversions/convert_opset2_to_opset1.hpp>
@@ -87,6 +88,7 @@
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
+#include <transformations/op_conversions/convert_shapeof3.hpp>
 
 #include <transformations/low_precision/mark_dequantization_subgraph.hpp>
 #include <low_precision/pull_reshape_through_dequantization.hpp>
@@ -216,6 +218,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::pass::BidirectionalRNNSequenceDecomposition>();
         }
 
+        manager.register_pass<ConvertShapeOf1To3>();
         manager.register_pass<ov::pass::ConvertNMS1ToNMS9>();
         manager.register_pass<ov::pass::ConvertNMS3ToNMS9>();
         manager.register_pass<ov::pass::ConvertNMS4ToNMS9>();
@@ -419,7 +422,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::SimplifyCTCGreedyDecoderSeqLen>();
         pass_config->disable<ov::pass::ConvertSoftMax8ToSoftMax1>();
         pass_config->enable<ov::pass::ConvertGather8ToGather7>();
-
+        pass_config->disable<ov::pass::ConvertShapeOf3>();
         pass_config->enable<ov::pass::ConvertInterpolate1ToInterpolate4>();
 
         if (enableInt8) {
