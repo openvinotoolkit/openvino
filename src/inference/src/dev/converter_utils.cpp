@@ -314,7 +314,7 @@ public:
     }
 
     void SetCore(std::weak_ptr<InferenceEngine::ICore> core) override {
-        return m_plugin->set_core(std::dynamic_pointer_cast<ov::ICore>(core));
+        return m_plugin->set_core(std::dynamic_pointer_cast<ov::ICore>(core.lock()));
     }
 
     std::shared_ptr<InferenceEngine::ICore> GetCore() const noexcept override {
@@ -471,9 +471,11 @@ public:
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override {
         auto res = m_request->get_profiling_info();
         std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> ret;
-        for (const auto& info : res) {
+        for (size_t i = 0; i < res.size(); i++) {
+            const auto& info = res[i];
             InferenceEngine::InferenceEngineProfileInfo old_info;
             old_info.cpu_uSec = info.cpu_time.count();
+            old_info.execution_index = static_cast<unsigned>(i);
             old_info.realTime_uSec = info.real_time.count();
             strncpy(old_info.exec_type, info.exec_type.c_str(), sizeof(old_info.exec_type));
             old_info.exec_type[sizeof(old_info.exec_type) - 1] = 0;
@@ -639,9 +641,9 @@ public:
         } catch (const InferenceEngine::InferCancelled& e) {
             throw ov::Cancelled{e.what()};
         } catch (const std::exception& ex) {
-            throw ov::Exception(ex.what());
+            OPENVINO_THROW(ex.what());
         } catch (...) {
-            OPENVINO_UNREACHABLE("Unexpected exception");
+            OPENVINO_THROW("Unexpected exception");
         }
     }
     bool wait_for(const std::chrono::milliseconds& timeout) override {
@@ -650,9 +652,9 @@ public:
         } catch (const InferenceEngine::InferCancelled& e) {
             throw ov::Cancelled{e.what()};
         } catch (const std::exception& ex) {
-            throw Exception(ex.what());
+            OPENVINO_THROW(ex.what());
         } catch (...) {
-            OPENVINO_UNREACHABLE("Unexpected exception");
+            OPENVINO_THROW("Unexpected exception");
         }
     }
 

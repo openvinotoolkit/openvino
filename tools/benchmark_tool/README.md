@@ -244,6 +244,9 @@ Statistics dumping options:
   -report_folder REPORT_FOLDER, --report_folder REPORT_FOLDER
                         Optional. Path to a folder where statistics report is stored.
 
+   -json_stats [JSON_STATS], --json_stats [JSON_STATS]
+                        Optional. Enables JSON-based statistics output (by default reporting system will use CSV format). Should be used together with -report_folder option.
+
   -pc [PERF_COUNTS], --perf_counts [PERF_COUNTS]
                         Optional. Report performance counters.
 

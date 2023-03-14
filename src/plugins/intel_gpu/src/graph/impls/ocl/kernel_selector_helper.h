@@ -5,6 +5,8 @@
 #pragma once
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/graph/fused_primitive_desc.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "intel_gpu/runtime/tensor.hpp"
@@ -15,9 +17,7 @@
 
 #include "kernel_selector_params.h"
 #include "kernel_selector_common.h"
-#include "kernel_impl_params.hpp"
 #include "tensor_type.h"
-#include "fused_primitive_desc.h"
 
 #include <cstdint>
 #include <string>
@@ -112,6 +112,7 @@ kernel_selector::dim_tensor<T> convert_dim_vector(const tensor& t) {
             static_cast<T>(sizes[5])};
 }
 
+std::shared_ptr<kernel_selector::fuse_params> convert_fuse_params(std::shared_ptr<NodeFuseParams> p);
 void convert_fused_ops_to_legacy_activations(const kernel_impl_params& param_info, std::vector<kernel_selector::base_activation_params>& activations);
 bool use_legacy_fused_ops(const kernel_impl_params& param_info);
 
@@ -140,7 +141,7 @@ inline params_t get_default_params(const kernel_impl_params& param_info, bool is
         size_t op_id = 0;
         for (auto& fused_prim : param_info.fused_desc) {
             kernel_selector::fused_operation_desc desc;
-            desc.op_params = std::move(fused_prim.f_param);
+            desc.op_params = convert_fuse_params(fused_prim.f_param);
 
             OPENVINO_ASSERT(desc.op_params != nullptr, "[GPU] Invalid fused operation (", param_info.desc->id , ") of type ", param_info.desc->type_string());
 

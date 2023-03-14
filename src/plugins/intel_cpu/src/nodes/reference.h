@@ -25,6 +25,10 @@ public:
     void executeDynamicImpl(dnnl::stream strm) override;
 
 private:
+    ov::TensorVector prepareInputs() const;
+    ov::TensorVector prepareOutputs() const;
+
+private:
     const std::shared_ptr<ngraph::Node> ngraphOp;
     const std::string additionalErrorMessage;
 };
