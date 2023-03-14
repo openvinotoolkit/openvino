@@ -12,7 +12,6 @@
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/itensor.hpp"
-#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 

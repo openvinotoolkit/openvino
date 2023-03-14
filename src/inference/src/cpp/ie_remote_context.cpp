@@ -7,6 +7,7 @@
 #include <exception>
 
 #include "any_copy.hpp"
+#include "dev/make_tensor.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_remote_blob.hpp"
 #include "openvino/core/except.hpp"

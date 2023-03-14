@@ -16,8 +16,8 @@ void RemoteTensor::type_check(const Tensor& tensor, const std::map<std::string, 
     OPENVINO_ASSERT(tensor, "Could not check empty tensor type");
     auto remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor._impl);
     OPENVINO_ASSERT(remote_tensor, "Tensor is not remote.");
-    auto remote_properties = remote_tensor->get_properties();
     if (!type_info.empty()) {
+        auto remote_properties = remote_tensor->get_properties();
         for (auto&& type_info_value : type_info) {
             auto it_param = remote_properties.find(type_info_value.first);
             OPENVINO_ASSERT(it_param != remote_properties.end(),
@@ -39,9 +39,8 @@ void RemoteTensor::type_check(const Tensor& tensor, const std::map<std::string, 
 
 AnyMap RemoteTensor::get_params() const {
     OPENVINO_ASSERT(_impl != nullptr, "Tensor was not initialized.");
-    auto remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(_impl);
-    OPENVINO_ASSERT(remote_tensor, "Tensor is not remote.");
     type_check(*this);
+    auto remote_tensor = std::dynamic_pointer_cast<ov::IRemoteTensor>(_impl);
     try {
         AnyMap paramMap;
         for (auto&& param : remote_tensor->get_properties()) {
@@ -61,7 +60,7 @@ std::string RemoteTensor::get_device_name() const {
     OPENVINO_ASSERT(remote_tensor, "Tensor is not remote.");
     type_check(*this);
     try {
-        return remote_tensor->get_properties().at(ov::device::id.name()).as<std::string>();
+        return remote_tensor->get_device_name();
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {

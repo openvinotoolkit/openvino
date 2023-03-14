@@ -4,6 +4,7 @@
 
 #include <numeric>
 
+#include "dev/make_tensor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/shape.hpp"
