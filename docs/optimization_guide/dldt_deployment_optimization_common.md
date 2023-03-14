@@ -57,4 +57,8 @@ To sum it up:
    * For example, for the GPU device, the **input/output tensors** are mapped to the host (which is fast) only when the `get_tensor` is used, while for the `set_tensor` a copy into the internal GPU structures may happen.
 * In contrast, when the input tensors are already in the **on-device memory** (e.g. as a result of the video-decoding), prefer the `set_tensor` as a zero-copy way to proceed. For more details, see the [GPU device Remote tensors API](../OV_Runtime_UG//supported_plugins/GPU_RemoteTensor_API.md).
 
-Consider the [API examples](@ref in_out_tensors) for the `get_tensor` and `set_tensor`.
+@sphinxdirective
+
+Consider the :ref:`API examples <in_out_tensors>` for the `get_tensor` and `set_tensor`.
+
+@endsphinxdirective

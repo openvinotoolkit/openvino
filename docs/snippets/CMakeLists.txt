@@ -61,6 +61,7 @@ target_include_directories(${TARGET_NAME} PRIVATE "${OpenVINO_SOURCE_DIR}/src/in
                                                   "${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/frontends/common/include"
                                                   "${OpenVINO_SOURCE_DIR}/src/core/template_extension/new/")
+ov_mark_target_as_cc(${TARGET_NAME})
 
 if(TARGET OpenCL::OpenCL)
     target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::OpenCL)
@@ -82,7 +83,7 @@ if(OpenCV_FOUND)
 endif()
 
 # ov_ncc_naming_style(FOR_TARGET "${TARGET_NAME}"
-#                     SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+#                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}"
 #                     ADDITIONAL_INCLUDE_DIRECTORIES
 #                         $<TARGET_PROPERTY:openvino::runtime,INTERFACE_INCLUDE_DIRECTORIES>)
 

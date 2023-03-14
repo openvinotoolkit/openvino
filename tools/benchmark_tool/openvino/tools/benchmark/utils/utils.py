@@ -426,8 +426,8 @@ def print_detail_result(result_list):
                 f"{str(layerStatus):<20} "
                 f"layerType: {layerType[:max_print_length - 4] + '...' if (len(layerType) >= max_print_length) else layerType:<20} "
                 f"execType: {execType:<20} "
-                f"realTime (ms): {real_time / timedelta(milliseconds=1):<10.3f} "
-                f"cpuTime (ms): {cpu_time / timedelta(milliseconds=1):<10.3f}"
+                f"realTime (ms): {real_time / 1000:<10.3f} "
+                f"cpuTime (ms): {cpu_time / 1000:<10.3f}"
                 f"proportion: {str(real_proportion +'%'):<8}")
 
 def print_perf_counters(perf_counts_list):

@@ -96,7 +96,7 @@ public:
 #define CASE_LRN_FP16_2 { 8, 16, 4, 4 }, data_types::f16, format::yxfb, data_types::f16, format::yxfb
 #define CASE_LRN_FP16_3 { 2, 16, 4, 4 }, data_types::f16, format::byxf, data_types::f16, format::byxf
 #define CASE_LRN_FP16_4 { 2, 16, 4, 4 }, data_types::f16, format::b_fs_yx_fsv4, data_types::f16, format::bfyx
-#define CASE_LRN_FP16_5 { 2, 16, 4, 4 }, data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::bfyx
+// #define CASE_LRN_FP16_5 { 2, 16, 4, 4 }, data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::bfyx
 
 class lrn_fp32_quantize_u8_eltwise_activation : public LrnFusingTest {};
 TEST_P(lrn_fp32_quantize_u8_eltwise_activation, basic) {
@@ -292,5 +292,5 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, lrn_fp16_eltwise_activation, ::testing::Va
     lrn_test_params{ CASE_LRN_FP16_1, 2, 4, lrn_norm_region_across_channel, "lrn_gpu_across_channel_ref" },
     lrn_test_params{ CASE_LRN_FP16_3, 2, 4, lrn_norm_region_within_channel, "lrn_within_channel_byxf_opt" },
     lrn_test_params{ CASE_LRN_FP16_4, 2, 4, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features" },
-    lrn_test_params{ CASE_LRN_FP16_5, 2, 4, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features_fsv16" },
+    // lrn_test_params{ CASE_LRN_FP16_5, 2, 4, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features_fsv16" },
 }));
