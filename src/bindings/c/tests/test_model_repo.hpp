@@ -1,6 +1,9 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#pragma once
+
 #include <fstream>
 #include <random>
 
@@ -22,7 +25,6 @@ inline void generate_test_model() {
 }
 
 inline std::string get_model_xml_file_name() {
-    generate_test_model();
     return model_xml_name;
 }
 
@@ -32,6 +34,11 @@ inline std::string get_model_bin_file_name() {
 
 inline std::string get_exported_blob_file_name() {
     return model_exported_name;
+}
+
+inline void release_test_model() {
+    std::remove(model_xml_name.c_str());
+    std::remove(model_bin_name.c_str());
 }
 
 inline void fill_random_input_nv12_data(uint8_t* data, const size_t w, const size_t h) {

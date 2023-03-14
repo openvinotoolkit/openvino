@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// clang-format off
 #include <gtest/gtest.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,64 +12,23 @@
 #include "test_model_repo.hpp"
 #include <fstream>
 
-std::string xml_std = TestDataHelpers::get_model_xml_file_name(),
-            bin_std = TestDataHelpers::get_model_bin_file_name();
-const char* input_port_name = "Param_1";
-const char* output_port_name = "Relu_1";
-
-const char* xml = xml_std.c_str();
-const char* bin = bin_std.c_str();
-
-std::mutex m;
-bool ready = false;
-std::condition_variable condVar;
-
 #define IE_EXPECT_OK(...) EXPECT_EQ(IEStatusCode::OK, __VA_ARGS__)
 #define IE_ASSERT_OK(...) ASSERT_EQ(IEStatusCode::OK, __VA_ARGS__)
 #define IE_EXPECT_NOT_OK(...) EXPECT_NE(IEStatusCode::OK, __VA_ARGS__)
 
-inline size_t read_image_from_file(const char* img_path, unsigned char *img_data, size_t size) {
-    FILE *fp = fopen(img_path, "rb+");
-    size_t read_size = 0;
+static std::mutex m;
+static bool ready = false;
+static std::condition_variable condVar;
 
-    if (fp) {
-        fseek(fp, 0, SEEK_END);
-        if (ftell(fp) >= static_cast<long int>(size)) {
-            fseek(fp, 0, SEEK_SET);
-            read_size = fread(img_data, 1, size, fp);
-        }
-        fclose(fp);
-    }
-    return read_size;
-}
+static void completion_callback(void* args) {
+    ie_infer_request_t* infer_request = (ie_infer_request_t*)args;
+    ie_blob_t* output_blob = nullptr;
 
-inline size_t find_device(ie_available_devices_t avai_devices, const char *device_name) {
-    for (size_t i = 0; i < avai_devices.num_devices; ++i) {
-        if (strstr(avai_devices.devices[i], device_name))
-            return i;
-    }
-
-    return -1;
-}
-
-TEST(ie_c_api_version, apiVersion) {
-    ie_version_t version = ie_c_api_version();
-    auto ver = InferenceEngine::GetInferenceEngineVersion();
-    std::string ver_str = ver->buildNumber;
-
-    EXPECT_EQ(strcmp(version.api_version, ver_str.c_str()), 0);
-    ie_version_free(&version);
-}
-
-static void completion_callback(void *args) {
-    ie_infer_request_t *infer_request = (ie_infer_request_t *)args;
-    ie_blob_t *output_blob = nullptr;
-
-    IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, output_port_name, &output_blob));
+    IE_EXPECT_OK(ie_infer_request_get_blob(infer_request, "Relu_1", &output_blob));
 
     ie_blob_buffer_t buffer;
     IE_EXPECT_OK(ie_blob_get_buffer(output_blob, &buffer));
-    float *output_data = (float *)(buffer.buffer);
+    float* output_data = (float*)(buffer.buffer);
     EXPECT_NEAR(output_data[9], 0.f, 1.e-5);
 
     ie_blob_free(&output_blob);
@@ -80,7 +38,61 @@ static void completion_callback(void *args) {
     condVar.notify_one();
 }
 
-TEST(ie_core_create, coreCreatewithConfig) {
+class ie_c_api_test : public ::testing::TestWithParam<std::string> {
+public:
+    void SetUp() override {
+        TestDataHelpers::generate_test_model();
+        xml_file_name = TestDataHelpers::get_model_xml_file_name();
+        bin_file_name = TestDataHelpers::get_model_bin_file_name();
+    }
+
+    void TearDown() override {
+        TestDataHelpers::release_test_model();
+    }
+
+public:
+    size_t find_device(ie_available_devices_t avai_devices, const char* device_name) {
+        for (size_t i = 0; i < avai_devices.num_devices; ++i) {
+            if (strstr(avai_devices.devices[i], device_name))
+                return i;
+        }
+
+        return -1;
+    }
+
+    std::vector<uint8_t> content_from_file(const char* filename, bool is_binary) {
+        std::vector<uint8_t> result;
+        {
+            std::ifstream is(filename, is_binary ? std::ifstream::binary | std::ifstream::in : std::ifstream::in);
+            if (is) {
+                is.seekg(0, std::ifstream::end);
+                result.resize(is.tellg());
+                if (result.size() > 0) {
+                    is.seekg(0, std::ifstream::beg);
+                    is.read(reinterpret_cast<char*>(&result[0]), result.size());
+                }
+            }
+        }
+        return result;
+    }
+
+    std::string xml_file_name, bin_file_name;
+    const char* input_port_name = "Param_1";
+    const char* output_port_name = "Relu_1";
+};
+
+INSTANTIATE_TEST_SUITE_P(ie_c_api, ie_c_api_test, ::testing::Values(""));
+
+TEST_P(ie_c_api_test, ie_c_api_version) {
+    ie_version_t version = ie_c_api_version();
+    auto ver = InferenceEngine::GetInferenceEngineVersion();
+    std::string ver_str = ver->buildNumber;
+
+    EXPECT_EQ(strcmp(version.api_version, ver_str.c_str()), 0);
+    ie_version_free(&version);
+}
+
+TEST_P(ie_c_api_test, ie_core_create_coreCreatewithConfig) {
     std::string plugins_xml = TestDataHelpers::generate_test_xml_file();
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create(plugins_xml.c_str(), &core));
@@ -90,7 +102,7 @@ TEST(ie_core_create, coreCreatewithConfig) {
     TestDataHelpers::delete_test_xml_file();
 }
 
-TEST(ie_core_create, coreCreateNoConfig) {
+TEST_P(ie_c_api_test, ie_core_create_coreCreateNoConfig) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -98,7 +110,7 @@ TEST(ie_core_create, coreCreateNoConfig) {
     ie_core_free(&core);
 }
 
-TEST(ie_core_get_available_devices, getAvailableDevices) {
+TEST_P(ie_c_api_test, ie_core_get_available_devices) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
 
@@ -112,7 +124,7 @@ TEST(ie_core_get_available_devices, getAvailableDevices) {
 // TODO: CVS-68982
 #ifndef OPENVINO_STATIC_LIBRARY
 
-TEST(ie_core_register_plugin, registerPlugin) {
+TEST_P(ie_c_api_test, ie_core_register_plugin) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -124,7 +136,7 @@ TEST(ie_core_register_plugin, registerPlugin) {
     ie_core_free(&core);
 }
 
-TEST(ie_core_register_plugins, registerPlugins) {
+TEST_P(ie_c_api_test, ie_core_register_plugins) {
     std::string plugins_xml = TestDataHelpers::generate_test_xml_file();
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
@@ -136,7 +148,7 @@ TEST(ie_core_register_plugins, registerPlugins) {
     TestDataHelpers::delete_test_xml_file();
 }
 
-TEST(ie_core_unload_plugin, unloadPlugin) {
+TEST_P(ie_c_api_test, ie_core_unload_plugin) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -154,7 +166,7 @@ TEST(ie_core_unload_plugin, unloadPlugin) {
 
 #endif // !OPENVINO_STATIC_LIBRARY
 
-TEST(ie_core_set_config, setConfig) {
+TEST_P(ie_c_api_test, ie_core_set_config) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -166,7 +178,7 @@ TEST(ie_core_set_config, setConfig) {
     ie_core_free(&core);
 }
 
-TEST(ie_core_get_metric, getMetric) {
+TEST_P(ie_c_api_test, ie_core_get_metric) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -181,7 +193,7 @@ TEST(ie_core_get_metric, getMetric) {
     ie_core_free(&core);
 }
 
-TEST(ie_core_get_config, getConfig) {
+TEST_P(ie_c_api_test, ie_core_get_config) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -197,7 +209,7 @@ TEST(ie_core_get_config, getConfig) {
     ie_core_free(&core);
 }
 
-TEST(ie_core_get_versions, getVersions) {
+TEST_P(ie_c_api_test, ie_core_get_versions) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -210,41 +222,25 @@ TEST(ie_core_get_versions, getVersions) {
     ie_core_free(&core);
 }
 
-TEST(ie_core_read_network, networkRead) {
+TEST_P(ie_c_api_test, ie_core_read_network) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     ie_network_free(&network);
     ie_core_free(&core);
 }
 
-static std::vector<uint8_t> content_from_file(const char * filename, bool is_binary) {
-    std::vector<uint8_t> result;
-    {
-        std::ifstream is(filename, is_binary ? std::ifstream::binary | std::ifstream::in : std::ifstream::in);
-        if (is) {
-            is.seekg(0, std::ifstream::end);
-            result.resize(is.tellg());
-            if (result.size() > 0) {
-                is.seekg(0, std::ifstream::beg);
-                is.read(reinterpret_cast<char *>(&result[0]), result.size());
-            }
-        }
-    }
-    return result;
-}
-
-TEST(ie_core_read_network_from_memory, networkReadFromMemory) {
+TEST_P(ie_c_api_test, ie_core_read_network_from_memory) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    std::vector<uint8_t> weights_content(content_from_file(bin, true));
+    std::vector<uint8_t> weights_content(content_from_file(bin_file_name.c_str(), true));
 
     tensor_desc_t weights_desc { ANY, { 1, { weights_content.size() } }, U8 };
     ie_blob_t *weights_blob = nullptr;
@@ -252,7 +248,7 @@ TEST(ie_core_read_network_from_memory, networkReadFromMemory) {
     EXPECT_NE(nullptr, weights_blob);
 
     if (weights_blob != nullptr) {
-        std::vector<uint8_t> xml_content(content_from_file(xml, false));
+        std::vector<uint8_t> xml_content(content_from_file(xml_file_name.c_str(), false));
 
         ie_network_t *network = nullptr;
         IE_EXPECT_OK(ie_core_read_network_from_memory(core, xml_content.data(), xml_content.size(), weights_blob, &network));
@@ -265,7 +261,7 @@ TEST(ie_core_read_network_from_memory, networkReadFromMemory) {
     ie_core_free(&core);
 }
 
-TEST(ie_core_export_network_to_file, exportNetworktoFile) {
+TEST_P(ie_c_api_test, ie_core_export_network_to_file) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -273,7 +269,8 @@ TEST(ie_core_export_network_to_file, exportNetworktoFile) {
     ie_config_t config = {nullptr, nullptr, nullptr};
     ie_executable_network_t *exe_network = nullptr;
 
-    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "HETERO:CPU", &config, &exe_network));
+    std::cout << "xml_file_name: " << xml_file_name << std::endl;
+    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml_file_name.c_str(), "HETERO:CPU", &config, &exe_network));
     EXPECT_NE(nullptr, exe_network);
 
     std::string export_path = TestDataHelpers::get_exported_blob_file_name();
@@ -286,14 +283,14 @@ TEST(ie_core_export_network_to_file, exportNetworktoFile) {
     ie_core_free(&core);
 }
 
-TEST(ie_core_import_network_from_memory, importNetworkFromMem) {
+TEST_P(ie_c_api_test, ie_core_import_network_from_memory) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_executable_network_t *exe_network = nullptr;
 
-    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "HETERO:CPU", nullptr, &exe_network));
+    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml_file_name.c_str(), "HETERO:CPU", nullptr, &exe_network));
     EXPECT_NE(nullptr, exe_network);
 
     std::string export_path = TestDataHelpers::get_exported_blob_file_name();
@@ -310,7 +307,7 @@ TEST(ie_core_import_network_from_memory, importNetworkFromMem) {
     ie_core_free(&core);
 }
 
-TEST(ie_core_import_network_from_file, importNetworkFromFile) {
+TEST_P(ie_c_api_test, ie_core_import_network_from_file) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -318,7 +315,7 @@ TEST(ie_core_import_network_from_file, importNetworkFromFile) {
     ie_config_t conf = {nullptr, nullptr, nullptr};
 
     ie_executable_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "HETERO:CPU", &conf, &network));
+    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml_file_name.c_str(), "HETERO:CPU", &conf, &network));
     EXPECT_NE(nullptr, network);
 
     std::string exported_model = TestDataHelpers::get_exported_blob_file_name();
@@ -335,7 +332,7 @@ TEST(ie_core_import_network_from_file, importNetworkFromFile) {
     ie_core_free(&core);
 }
 
-TEST(ie_core_import_network_from_file, importNetwork_errorHandling) {
+TEST_P(ie_c_api_test, ie_core_import_network_from_file_errorHandling) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -343,7 +340,7 @@ TEST(ie_core_import_network_from_file, importNetwork_errorHandling) {
     ie_config_t config = {nullptr, nullptr, nullptr};
 
     ie_executable_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "HETERO:CPU", &config, &network));
+    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml_file_name.c_str(), "HETERO:CPU", &config, &network));
     EXPECT_NE(nullptr, network);
 
     std::string exported_model = TestDataHelpers::get_exported_blob_file_name();
@@ -370,13 +367,13 @@ TEST(ie_core_import_network_from_file, importNetwork_errorHandling) {
     ie_core_free(&core);
 }
 
-TEST(ie_core_load_network, loadNetwork) {
+TEST_P(ie_c_api_test, ie_core_load_network_with_config) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     IE_EXPECT_OK(ie_network_set_input_layout(network, input_port_name, layout_e::NHWC));
@@ -392,13 +389,13 @@ TEST(ie_core_load_network, loadNetwork) {
     ie_core_free(&core);
 }
 
-TEST(ie_core_load_network, loadNetworkNoConfig) {
+TEST_P(ie_c_api_test, ie_core_load_network_no_config) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     ie_config_t config = {nullptr, nullptr, nullptr};
@@ -411,13 +408,13 @@ TEST(ie_core_load_network, loadNetworkNoConfig) {
     ie_core_free(&core);
 }
 
-TEST(ie_core_load_network, loadNetworkNullConfig) {
+TEST_P(ie_c_api_test, ie_core_load_network_null_Config) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     ie_executable_network_t *exe_network = nullptr;
@@ -429,27 +426,27 @@ TEST(ie_core_load_network, loadNetworkNullConfig) {
     ie_core_free(&core);
 }
 
-TEST(ie_core_load_network_from_file, loadNetworkNoConfig) {
+TEST_P(ie_c_api_test, ie_core_load_network_from_file_no_config) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_config_t config = {nullptr, nullptr, nullptr};
     ie_executable_network_t *exe_network = nullptr;
-    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "CPU", &config, &exe_network));
+    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml_file_name.c_str(), "CPU", &config, &exe_network));
     EXPECT_NE(nullptr, exe_network);
 
     ie_exec_network_free(&exe_network);
     ie_core_free(&core);
 }
 
-TEST(ie_core_load_network_from_file, loadNetworkNullConfig) {
+TEST_P(ie_c_api_test, ie_core_load_network_from_file_null_config) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_executable_network_t *exe_network = nullptr;
-    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml, "CPU", nullptr, &exe_network));
+    IE_EXPECT_OK(ie_core_load_network_from_file(core, xml_file_name.c_str(), "CPU", nullptr, &exe_network));
     EXPECT_NE(nullptr, exe_network);
 
     ie_exec_network_free(&exe_network);
@@ -457,57 +454,57 @@ TEST(ie_core_load_network_from_file, loadNetworkNullConfig) {
 }
 
 
-TEST(ie_core_load_network_from_file, loadNetwork_errorHandling) {
+TEST_P(ie_c_api_test, ie_core_load_network_from_file_errorHandling) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_config_t config = {nullptr, nullptr, nullptr};
     ie_executable_network_t *exe_network = nullptr;
-    IE_EXPECT_NOT_OK(ie_core_load_network_from_file(nullptr, xml, "CPU", &config, &exe_network));
+    IE_EXPECT_NOT_OK(ie_core_load_network_from_file(nullptr, xml_file_name.c_str(), "CPU", &config, &exe_network));
     EXPECT_EQ(nullptr, exe_network);
 
     IE_EXPECT_NOT_OK(ie_core_load_network_from_file(core, nullptr, "CPU", &config, &exe_network));
     EXPECT_EQ(nullptr, exe_network);
 
-    IE_EXPECT_NOT_OK(ie_core_load_network_from_file(core, xml, nullptr, &config, &exe_network));
+    IE_EXPECT_NOT_OK(ie_core_load_network_from_file(core, xml_file_name.c_str(), nullptr, &config, &exe_network));
     EXPECT_EQ(nullptr, exe_network);
 
-    IE_EXPECT_NOT_OK(ie_core_load_network_from_file(core, xml, "CPU", &config, nullptr));
+    IE_EXPECT_NOT_OK(ie_core_load_network_from_file(core, xml_file_name.c_str(), "CPU", &config, nullptr));
     EXPECT_EQ(nullptr, exe_network);
 
-    IE_EXPECT_NOT_OK(ie_core_load_network_from_file(core, xml, "UnregisteredDevice", &config, &exe_network));
+    IE_EXPECT_NOT_OK(ie_core_load_network_from_file(core, xml_file_name.c_str(), "UnregisteredDevice", &config, &exe_network));
     EXPECT_EQ(nullptr, exe_network);
 
     ie_core_free(&core);
 }
 
-TEST(ie_network_get_name, networkName) {
+TEST_P(ie_c_api_test, ie_network_get_name) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     char *network_name = nullptr;
     IE_EXPECT_OK(ie_network_get_name(network, &network_name));
 
-    EXPECT_STREQ(network_name, "Model0");
+    EXPECT_NE(network_name, nullptr);
 
     ie_network_name_free(&network_name);
     ie_network_free(&network);
     ie_core_free(&core);
 }
 
-TEST(ie_network_get_inputs_number, inputNumer) {
+TEST_P(ie_c_api_test, ie_network_get_inputs_number) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     size_t size;
@@ -519,13 +516,13 @@ TEST(ie_network_get_inputs_number, inputNumer) {
     ie_core_free(&core);
 }
 
-TEST(ie_network_get_input_name, inputName) {
+TEST_P(ie_c_api_test, ie_network_get_input_name) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     char *input_name = nullptr;
@@ -538,13 +535,13 @@ TEST(ie_network_get_input_name, inputName) {
     ie_core_free(&core);
 }
 
-TEST(ie_network_get_input_precision, getPrecision) {
+TEST_P(ie_c_api_test, ie_network_get_input_precision) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     precision_e p;
@@ -555,13 +552,13 @@ TEST(ie_network_get_input_precision, getPrecision) {
     ie_core_free(&core);
 }
 
-TEST(ie_network_get_input_precision, incorrectName) {
+TEST_P(ie_c_api_test, ie_network_get_input_precision_incorrectName) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     const char *name = "model";
@@ -572,13 +569,13 @@ TEST(ie_network_get_input_precision, incorrectName) {
     ie_core_free(&core);
 }
 
-TEST(ie_network_set_input_precision, setPrecision) {
+TEST_P(ie_c_api_test, ie_network_set_input_precision) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     const precision_e p = precision_e::FP16;
@@ -591,13 +588,13 @@ TEST(ie_network_set_input_precision, setPrecision) {
     ie_core_free(&core);
 }
 
-TEST(ie_network_get_input_layout, getLayout) {
+TEST_P(ie_c_api_test, ie_network_get_input_layout) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     layout_e l;
@@ -608,13 +605,13 @@ TEST(ie_network_get_input_layout, getLayout) {
     ie_core_free(&core);
 }
 
-TEST(ie_network_set_input_layout, setLayout) {
+TEST_P(ie_c_api_test, ie_network_set_input_layout) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     const layout_e l = layout_e ::NHWC;
@@ -627,13 +624,13 @@ TEST(ie_network_set_input_layout, setLayout) {
     ie_core_free(&core);
 }
 
-TEST(ie_network_get_input_dims, getDims) {
+TEST_P(ie_c_api_test, ie_network_get_input_dims) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     dimensions_t dims_res;
@@ -647,13 +644,13 @@ TEST(ie_network_get_input_dims, getDims) {
     ie_core_free(&core);
 }
 
-TEST(ie_network_get_input_resize_algorithm, getResizeAlgo) {
+TEST_P(ie_c_api_test, ie_network_get_input_resize_algorithm_resize_algo) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     resize_alg_e resizeAlg;
@@ -664,13 +661,13 @@ TEST(ie_network_get_input_resize_algorithm, getResizeAlgo) {
     ie_core_free(&core);
 }
 
-TEST(ie_network_set_input_resize_algorithm, setResizeAlgo) {
+TEST_P(ie_c_api_test, ie_network_set_input_resize_algorithm_resize_algo) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     resize_alg_e resizeAlg = resize_alg_e::RESIZE_BILINEAR;
@@ -684,13 +681,13 @@ TEST(ie_network_set_input_resize_algorithm, setResizeAlgo) {
     ie_core_free(&core);
 }
 
-TEST(ie_network_get_color_format, getColorFormat) {
+TEST_P(ie_c_api_test, ie_network_get_color_format) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     colorformat_e color;
@@ -701,13 +698,13 @@ TEST(ie_network_get_color_format, getColorFormat) {
     ie_core_free(&core);
 }
 
-TEST(ie_network_set_color_format, setColorFormat) {
+TEST_P(ie_c_api_test, ie_network_set_color_format) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     const colorformat_e color = colorformat_e::BGR;
@@ -721,13 +718,13 @@ TEST(ie_network_set_color_format, setColorFormat) {
     ie_core_free(&core);
 }
 
-TEST(ie_network_get_input_shapes, getInputShapes) {
+TEST_P(ie_c_api_test, ie_network_get_input_shapes) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     input_shapes_t shapes;
@@ -739,13 +736,13 @@ TEST(ie_network_get_input_shapes, getInputShapes) {
     ie_core_free(&core);
 }
 
-TEST(ie_network_reshape, reshape) {
+TEST_P(ie_c_api_test, ie_network_reshape) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     input_shapes_t inputShapes;
@@ -765,13 +762,13 @@ TEST(ie_network_reshape, reshape) {
     ie_core_free(&core);
 }
 
-TEST(ie_network_get_outputs_number, getNumber) {
+TEST_P(ie_c_api_test, ie_network_get_outputs_number) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     size_t size;
@@ -782,13 +779,13 @@ TEST(ie_network_get_outputs_number, getNumber) {
     ie_core_free(&core);
 }
 
-TEST(ie_network_get_output_name, getName) {
+TEST_P(ie_c_api_test, ie_network_get_output_name) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     char *output_name = nullptr;
@@ -800,13 +797,13 @@ TEST(ie_network_get_output_name, getName) {
     ie_core_free(&core);
 }
 
-TEST(ie_network_get_output_name, incorrectNumber) {
+TEST_P(ie_c_api_test, ie_network_get_output_name_incorrectNumber) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     char *output_name = nullptr;
@@ -817,13 +814,13 @@ TEST(ie_network_get_output_name, incorrectNumber) {
     ie_core_free(&core);
 }
 
-TEST(ie_network_get_output_precision, getPrecision) {
+TEST_P(ie_c_api_test, ie_network_get_output_precision) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     precision_e p;
@@ -834,13 +831,13 @@ TEST(ie_network_get_output_precision, getPrecision) {
     ie_core_free(&core);
 }
 
-TEST(ie_network_set_output_precision, setPrecision) {
+TEST_P(ie_c_api_test, ie_network_set_output_precision) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     precision_e p = precision_e::FP16;
@@ -854,13 +851,13 @@ TEST(ie_network_set_output_precision, setPrecision) {
     ie_core_free(&core);
 }
 
-TEST(ie_network_get_output_layout, getLayout) {
+TEST_P(ie_c_api_test, ie_network_get_output_layout) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     layout_e l;
@@ -871,13 +868,13 @@ TEST(ie_network_get_output_layout, getLayout) {
     ie_core_free(&core);
 }
 
-TEST(ie_network_set_output_layout, setLayout) {
+TEST_P(ie_c_api_test, ie_network_set_output_layout) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     layout_e l = layout_e::NCHW;
@@ -890,13 +887,13 @@ TEST(ie_network_set_output_layout, setLayout) {
     ie_core_free(&core);
 }
 
-TEST(ie_network_get_output_dims, getDims) {
+TEST_P(ie_c_api_test, ie_network_get_output_dims) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     dimensions_t dims_res;
@@ -908,13 +905,13 @@ TEST(ie_network_get_output_dims, getDims) {
     ie_core_free(&core);
 }
 
-TEST(ie_exec_network_create_infer_request, createInferRquest) {
+TEST_P(ie_c_api_test, ie_exec_network_create_infer_request) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     const char *device_name = "CPU";
@@ -933,13 +930,13 @@ TEST(ie_exec_network_create_infer_request, createInferRquest) {
     ie_core_free(&core);
 }
 
-TEST(ie_exec_network_get_config, getConfig) {
+TEST_P(ie_c_api_test, ie_exec_network_get_config) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     const char *device_name = "CPU";
@@ -958,7 +955,7 @@ TEST(ie_exec_network_get_config, getConfig) {
     ie_core_free(&core);
 }
 
-TEST(ie_exec_network_set_config, setConfig) {
+TEST_P(ie_c_api_test, ie_exec_network_set_config) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -970,7 +967,7 @@ TEST(ie_exec_network_set_config, setConfig) {
     }
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     const char *device_name = "MULTI:GPU,CPU";
@@ -988,13 +985,13 @@ TEST(ie_exec_network_set_config, setConfig) {
     ie_param_free(&param);
 }
 
-TEST(ie_exec_network_get_metric, getMetric) {
+TEST_P(ie_c_api_test, ie_exec_network_get_metric) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     const char *device_name = "CPU";
@@ -1013,13 +1010,13 @@ TEST(ie_exec_network_get_metric, getMetric) {
     ie_core_free(&core);
 }
 
-TEST(ie_infer_request_get_blob, getBlob) {
+TEST_P(ie_c_api_test, ie_infer_request_get_blob) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     char *input_name = nullptr;
@@ -1045,13 +1042,13 @@ TEST(ie_infer_request_get_blob, getBlob) {
     ie_core_free(&core);
 }
 
-TEST(ie_infer_request_set_blob, setBlob) {
+TEST_P(ie_c_api_test, ie_infer_request_set_blob) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     dimensions_t dim_t;
@@ -1087,13 +1084,13 @@ TEST(ie_infer_request_set_blob, setBlob) {
     ie_core_free(&core);
 }
 
-TEST(ie_infer_request_infer, infer) {
+TEST_P(ie_c_api_test, ie_infer_request_infer) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     IE_EXPECT_OK(ie_network_set_input_precision(network, input_port_name, precision_e::U8));
@@ -1142,13 +1139,13 @@ TEST(ie_infer_request_infer, infer) {
     ie_core_free(&core);
 }
 
-TEST(ie_infer_request_infer_async, inferAsyncWaitFinish) {
+TEST_P(ie_c_api_test, ie_infer_request_infer_async_wait_finish) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     IE_EXPECT_OK(ie_network_set_input_precision(network, input_port_name, precision_e::U8));
@@ -1198,13 +1195,13 @@ TEST(ie_infer_request_infer_async, inferAsyncWaitFinish) {
     ie_core_free(&core);
 }
 
-TEST(ie_infer_request_infer_async, inferAsyncWaitTime) {
+TEST_P(ie_c_api_test, ie_infer_request_infer_async_wait_time) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     IE_EXPECT_OK(ie_network_set_input_precision(network, input_port_name, precision_e::U8));
@@ -1260,7 +1257,7 @@ TEST(ie_infer_request_infer_async, inferAsyncWaitTime) {
 
 // For ARM plugin, no "Batch" related operations support for now, so skip related APIs
 #ifndef __aarch64__
-TEST(ie_infer_request_set_batch, setBatch) {
+TEST_P(ie_c_api_test, ie_infer_request_set_batch) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -1270,7 +1267,7 @@ TEST(ie_infer_request_set_batch, setBatch) {
     IE_EXPECT_OK(ie_core_set_config(core, &config, device_name));
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     ie_executable_network_t *exe_network = nullptr;
@@ -1289,7 +1286,7 @@ TEST(ie_infer_request_set_batch, setBatch) {
     ie_core_free(&core);
 }
 
-TEST(ie_infer_request_set_batch, setZeroBatch) {
+TEST_P(ie_c_api_test, ie_infer_request_set_zero_batch) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -1299,7 +1296,7 @@ TEST(ie_infer_request_set_batch, setZeroBatch) {
     IE_EXPECT_OK(ie_core_set_config(core, &config, device_name));
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     ie_executable_network_t *exe_network = nullptr;
@@ -1318,7 +1315,7 @@ TEST(ie_infer_request_set_batch, setZeroBatch) {
     ie_core_free(&core);
 }
 
-TEST(ie_infer_request_set_batch, setNegativeBatch) {
+TEST_P(ie_c_api_test, ie_infer_request_set_negative_batch) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
@@ -1328,7 +1325,7 @@ TEST(ie_infer_request_set_batch, setNegativeBatch) {
     IE_EXPECT_OK(ie_core_set_config(core, &config, device_name));
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     ie_executable_network_t *exe_network = nullptr;
@@ -1348,7 +1345,7 @@ TEST(ie_infer_request_set_batch, setNegativeBatch) {
 }
 #endif
 
-TEST(ie_blob_make_memory, makeMemory) {
+TEST_P(ie_c_api_test, ie_blob_make_memory) {
 
     dimensions_t dim_t;
     dim_t.ranks = 4 ;
@@ -1365,7 +1362,7 @@ TEST(ie_blob_make_memory, makeMemory) {
     ie_blob_deallocate(&blob);
 }
 
-TEST(ie_blob_make_memory_from_preallocated, makeMemoryfromPreallocated) {
+TEST_P(ie_c_api_test, ie_blob_make_memory_from_preallocated) {
 
     dimensions_t dim_t;
     dim_t.ranks = 4 ;
@@ -1384,7 +1381,7 @@ TEST(ie_blob_make_memory_from_preallocated, makeMemoryfromPreallocated) {
     ie_blob_free(&blob);
 }
 
-TEST(ie_blob_make_memory_with_roi, makeMemorywithROI) {
+TEST_P(ie_c_api_test, ie_blob_make_memory_with_roi) {
 
     dimensions_t dim_t;
     dim_t.ranks = 4 ;
@@ -1407,7 +1404,7 @@ TEST(ie_blob_make_memory_with_roi, makeMemorywithROI) {
     ie_blob_free(&input_blob);
 }
 
-TEST(ie_blob_deallocate, blobDeallocate) {
+TEST_P(ie_c_api_test, ie_blob_deallocate) {
     dimensions_t dim_t;
     dim_t.ranks = 4 ;
     dim_t.dims[0] = 1, dim_t.dims[1] = 3, dim_t.dims[2] = 4, dim_t.dims[3] = 4;
@@ -1423,7 +1420,7 @@ TEST(ie_blob_deallocate, blobDeallocate) {
     ie_blob_deallocate(&blob);
 }
 
-TEST(ie_blob_get_dims, getDims) {
+TEST_P(ie_c_api_test, ie_blob_get_dims) {
     dimensions_t dim_t;
     dim_t.ranks = 4 ;
     dim_t.dims[0] = 1, dim_t.dims[1] = 3, dim_t.dims[2] = 4, dim_t.dims[3] = 4;
@@ -1443,7 +1440,7 @@ TEST(ie_blob_get_dims, getDims) {
     ie_blob_deallocate(&blob);
 }
 
-TEST(ie_blob_get_layout, getLayout) {
+TEST_P(ie_c_api_test, ie_blob_get_layout) {
 
     dimensions_t dim_t;
     dim_t.ranks = 4 ;
@@ -1464,7 +1461,7 @@ TEST(ie_blob_get_layout, getLayout) {
     ie_blob_deallocate(&blob);
 }
 
-TEST(ie_blob_get_precision, getPrecision) {
+TEST_P(ie_c_api_test, ie_blob_get_precision) {
 
     dimensions_t dim_t;
     dim_t.ranks = 4 ;
@@ -1486,7 +1483,7 @@ TEST(ie_blob_get_precision, getPrecision) {
     ie_blob_deallocate(&blob);
 }
 
-TEST(ie_blob_size, getSize) {
+TEST_P(ie_c_api_test, ie_blob_size) {
 
     dimensions_t dim_t;
     dim_t.ranks = 4 ;
@@ -1507,7 +1504,7 @@ TEST(ie_blob_size, getSize) {
     ie_blob_deallocate(&blob);
 }
 
-TEST(ie_blob_byte_size, getByteSize) {
+TEST_P(ie_c_api_test, ie_blob_byte_size) {
 
     dimensions_t dim_t;
     dim_t.ranks = 4 ;
@@ -1528,7 +1525,7 @@ TEST(ie_blob_byte_size, getByteSize) {
     ie_blob_deallocate(&blob);
 }
 
-TEST(ie_blob_get_buffer, getBuffer) {
+TEST_P(ie_c_api_test, ie_blob_get_buffer) {
 
     dimensions_t dim_t;
     dim_t.ranks = 4 ;
@@ -1549,7 +1546,7 @@ TEST(ie_blob_get_buffer, getBuffer) {
     ie_blob_deallocate(&blob);
 }
 
-TEST(ie_blob_get_cbuffer, getBuffer) {
+TEST_P(ie_c_api_test, ie_blob_get_cbuffer) {
 
     dimensions_t dim_t;
     dim_t.ranks = 4 ;
@@ -1570,13 +1567,13 @@ TEST(ie_blob_get_cbuffer, getBuffer) {
     ie_blob_deallocate(&blob);
 }
 
-TEST(ie_infer_set_completion_callback, setCallback) {
+TEST_P(ie_c_api_test, ie_infer_set_completion_callback) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     IE_EXPECT_OK(ie_network_set_input_precision(network, input_port_name, precision_e::U8));
@@ -1623,7 +1620,7 @@ TEST(ie_infer_set_completion_callback, setCallback) {
     ie_core_free(&core);
 }
 
-TEST(ie_blob_make_memory_nv12, makeNV12Blob) {
+TEST_P(ie_c_api_test, ie_blob_make_memory_nv12) {
     dimensions_t dim_y = {4, {1, 1, 8, 12}}, dim_uv = {4, {1, 2, 4, 6}};
     tensor_desc tensor_y, tensor_uv;
     tensor_y.dims = dim_y;
@@ -1641,7 +1638,7 @@ TEST(ie_blob_make_memory_nv12, makeNV12Blob) {
     ie_blob_deallocate(&blob_uv);
 }
 
-TEST(ie_blob_make_memory_nv12, cannotMakeNV12BlobFromNullptrBlobs) {
+TEST_P(ie_c_api_test, ie_blob_make_memory_nv12_cannotMakeNV12BlobFromNullptrBlobs) {
     dimensions_t dim_y = {4, {1, 1, 8, 12}}, dim_uv = {4, {1, 2, 4, 6}};
     tensor_desc tensor_y, tensor_uv;
     tensor_y.dims = dim_y;
@@ -1658,7 +1655,7 @@ TEST(ie_blob_make_memory_nv12, cannotMakeNV12BlobFromNullptrBlobs) {
     IE_EXPECT_NOT_OK(ie_blob_make_memory_nv12(blob_y, blob_uv, &blob_nv12));
 }
 
-TEST(ie_blob_make_memory_nv12, cannotMakeNV12BlobFromPlanesWithDifferentElementSize) {
+TEST_P(ie_c_api_test, ie_blob_make_memory_nv12_cannotMakeNV12BlobFromPlanesWithDifferentElementSize) {
     dimensions_t dim_y = {4, {1, 1, 8, 12}}, dim_uv = {4, {1, 2, 4, 6}};
     tensor_desc tensor_y, tensor_uv;
     tensor_y.dims = dim_y;
@@ -1677,7 +1674,7 @@ TEST(ie_blob_make_memory_nv12, cannotMakeNV12BlobFromPlanesWithDifferentElementS
     ie_blob_deallocate(&blob_uv);
 }
 
-TEST(ie_blob_make_memory_nv12, cannotMakeNV12BlobFromPlanesWithNonU8Precision) {
+TEST_P(ie_c_api_test, ie_blob_make_memory_nv12_cannotMakeNV12BlobFromPlanesWithNonU8Precision) {
     dimensions_t dim_y = {4, {1, 1, 8, 12}}, dim_uv = {4, {1, 2, 4, 6}};
     tensor_desc tensor_y, tensor_uv;
     tensor_y.dims = dim_y;
@@ -1695,7 +1692,7 @@ TEST(ie_blob_make_memory_nv12, cannotMakeNV12BlobFromPlanesWithNonU8Precision) {
     ie_blob_deallocate(&blob_uv);
 }
 
-TEST(ie_blob_make_memory_nv12, cannotMakeNV12BlobWithInconsistentBatchSize) {
+TEST_P(ie_c_api_test, ie_blob_make_memory_nv12_cannotMakeNV12BlobWithInconsistentBatchSize) {
     dimensions_t dim_y = {4, {1, 1, 8, 12}}, dim_uv = {4, {2, 2, 4, 6}};
     tensor_desc tensor_y, tensor_uv;
     tensor_y.dims = dim_y;
@@ -1713,7 +1710,7 @@ TEST(ie_blob_make_memory_nv12, cannotMakeNV12BlobWithInconsistentBatchSize) {
     ie_blob_deallocate(&blob_uv);
 }
 
-TEST(ie_blob_make_memory_nv12, cannotMakeNV12BlobWithWrongChannelNumber) {
+TEST_P(ie_c_api_test, ie_blob_make_memory_nv12_cannotMakeNV12BlobWithWrongChannelNumber) {
     dimensions_t dim_y = {4, {1, 1, 8, 12}}, dim_uv = {4, {1, 2, 4, 6}};
     tensor_desc tensor_y, tensor_uv;
     tensor_y.dims = dim_y;
@@ -1733,7 +1730,7 @@ TEST(ie_blob_make_memory_nv12, cannotMakeNV12BlobWithWrongChannelNumber) {
     ie_blob_deallocate(&blob_uv);
 }
 
-TEST(ie_blob_make_memory_nv12, cannotMakeNV12BlobWithWrongHeightRation) {
+TEST_P(ie_c_api_test, ie_blob_make_memory_nv12_cannotMakeNV12BlobWithWrongHeightRation) {
     dimensions_t dim_y = {4, {1, 1, 8, 12}}, dim_uv = {4, {1, 2, 2, 6}};
     tensor_desc tensor_y, tensor_uv;
     tensor_y.dims = dim_y;
@@ -1752,7 +1749,7 @@ TEST(ie_blob_make_memory_nv12, cannotMakeNV12BlobWithWrongHeightRation) {
 }
 
 
-TEST(ie_blob_make_memory_nv12, cannotMakeNV12BlobWithWrongWidthRation) {
+TEST_P(ie_c_api_test, ie_blob_make_memory_nv12_cannotMakeNV12BlobWithWrongWidthRation) {
     dimensions_t dim_y = {4, {1, 1, 8, 12}}, dim_uv = {4, {1, 2, 4, 4}};
     tensor_desc tensor_y, tensor_uv;
     tensor_y.dims = dim_y;
@@ -1770,7 +1767,7 @@ TEST(ie_blob_make_memory_nv12, cannotMakeNV12BlobWithWrongWidthRation) {
     ie_blob_deallocate(&blob_uv);
 }
 
-TEST(ie_blob_make_memory_nv12, NV12BlobInvalidAfterDeallocateYPlane) {
+TEST_P(ie_c_api_test, ie_blob_make_memory_nv12_NV12BlobInvalidAfterDeallocateYPlane) {
     dimensions_t dim_y = {4, {1, 1, 8, 12}}, dim_uv = {4, {1, 2, 4, 6}};
     tensor_desc tensor_y, tensor_uv;
     tensor_y.dims = dim_y;
@@ -1792,7 +1789,7 @@ TEST(ie_blob_make_memory_nv12, NV12BlobInvalidAfterDeallocateYPlane) {
     ie_blob_free(&blob_nv12);
 }
 
-TEST(ie_blob_make_memory_nv12, NV12BlobInvalidAfterDeallocateUVPlane) {
+TEST_P(ie_c_api_test, ie_blob_make_memory_nv12_NV12BlobInvalidAfterDeallocateUVPlane) {
     dimensions_t dim_y = {4, {1, 1, 8, 12}}, dim_uv = {4, {1, 2, 4, 6}};
     tensor_desc tensor_y, tensor_uv;
     tensor_y.dims = dim_y;
@@ -1816,13 +1813,13 @@ TEST(ie_blob_make_memory_nv12, NV12BlobInvalidAfterDeallocateUVPlane) {
 
 #ifdef ENABLE_GAPI_PREPROCESSING
 
-TEST(ie_blob_make_memory_nv12, inferRequestWithNV12Blob) {
+TEST_P(ie_c_api_test, ie_blob_make_memory_nv12_inferRequestWithNV12Blob) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     IE_EXPECT_OK(ie_network_set_input_precision(network, input_port_name, precision_e::U8));
@@ -1885,7 +1882,7 @@ TEST(ie_blob_make_memory_nv12, inferRequestWithNV12Blob) {
 
 #endif // ENABLE_GAPI_PREPROCESSING
 
-TEST(ie_blob_make_memory_i420, makeI420Blob) {
+TEST_P(ie_c_api_test, ie_blob_make_memory_i420) {
     dimensions_t dim_y = {4, {1, 1, 8, 12}}, dim_u = {4, {1, 1, 4, 6}}, dim_v = {4, {1, 1, 4, 6}};
     tensor_desc tensor_y, tensor_u, tensor_v;
     tensor_y.dims = dim_y;
@@ -1906,7 +1903,7 @@ TEST(ie_blob_make_memory_i420, makeI420Blob) {
     ie_blob_deallocate(&blob_v);
 }
 
-TEST(ie_blob_make_memory_i420, cannotMakeI420BlobFromNullptrBlobs) {
+TEST_P(ie_c_api_test, ie_blob_make_memory_i420_cannotMakeI420BlobFromNullptrBlobs) {
     dimensions_t dim = {4, {1, 1, 8, 12}};
     tensor_desc tensor;
     tensor.dims = dim;
@@ -1921,7 +1918,7 @@ TEST(ie_blob_make_memory_i420, cannotMakeI420BlobFromNullptrBlobs) {
     ie_blob_deallocate(&blob);
 }
 
-TEST(ie_blob_make_memory_i420, cannotMakeI420BlobFromPlanesWithDifferentElementSize) {
+TEST_P(ie_c_api_test, ie_blob_make_memory_i420_cannotMakeI420BlobFromPlanesWithDifferentElementSize) {
     dimensions_t dim_y = {4, {1, 1, 8, 12}}, dim_u = {4, {1, 1, 4, 6}}, dim_v = {4, {1, 1, 4, 6}};
     tensor_desc tensor_y, tensor_u, tensor_v;
     tensor_y.dims = dim_y;
@@ -1942,7 +1939,7 @@ TEST(ie_blob_make_memory_i420, cannotMakeI420BlobFromPlanesWithDifferentElementS
     ie_blob_deallocate(&blob_v);
 }
 
-TEST(ie_blob_make_memory_i420, cannotMakeI420BlobFromPlanesWithNonU8Precision) {
+TEST_P(ie_c_api_test, ie_blob_make_memory_i420_cannotMakeI420BlobFromPlanesWithNonU8Precision) {
     dimensions_t dim_y = {4, {1, 1, 8, 12}}, dim_u = {4, {1, 1, 4, 6}}, dim_v = {4, {1, 1, 4, 6}};
     tensor_desc tensor_y, tensor_u, tensor_v;
     tensor_y.dims = dim_y;
@@ -1962,7 +1959,7 @@ TEST(ie_blob_make_memory_i420, cannotMakeI420BlobFromPlanesWithNonU8Precision) {
     ie_blob_deallocate(&blob_v);
 }
 
-TEST(ie_blob_make_memory_i420, cannotMakeI420BlobFromPlanesWithInconsistentBatchSize) {
+TEST_P(ie_c_api_test, ie_blob_make_memory_i420_cannotMakeI420BlobFromPlanesWithInconsistentBatchSize) {
     dimensions_t dim_y = {4, {1, 1, 8, 12}}, dim_u = {4, {2, 1, 4, 6}}, dim_v = {4, {1, 1, 4, 6}};
     tensor_desc tensor_y, tensor_u, tensor_v;
     tensor_y.dims = dim_y;
@@ -1982,7 +1979,7 @@ TEST(ie_blob_make_memory_i420, cannotMakeI420BlobFromPlanesWithInconsistentBatch
     ie_blob_deallocate(&blob_v);
 }
 
-TEST(ie_blob_make_memory_i420, cannotMakeI420BlobFromPlanesWithWrongChannelNumber) {
+TEST_P(ie_c_api_test, ie_blob_make_memory_i420_cannotMakeI420BlobFromPlanesWithWrongChannelNumber) {
     dimensions_t dim_y = {4, {1, 1, 8, 12}}, dim_u = {4, {1, 2, 4, 6}}, dim_v = {4, {1, 1, 4, 6}};
     tensor_desc tensor_y, tensor_u, tensor_v;
     tensor_y.dims = dim_y;
@@ -2002,7 +1999,7 @@ TEST(ie_blob_make_memory_i420, cannotMakeI420BlobFromPlanesWithWrongChannelNumbe
     ie_blob_deallocate(&blob_v);
 }
 
-TEST(ie_blob_make_memory_i420, cannotMakeI420BlobFromPlanesWithWrongWidthRatio) {
+TEST_P(ie_c_api_test, ie_blob_make_memory_i420_cannotMakeI420BlobFromPlanesWithWrongWidthRatio) {
     dimensions_t dim_y = {4, {1, 1, 8, 12}}, dim_u = {4, {1, 1, 4, 4}}, dim_v = {4, {1, 1, 4, 6}};
     tensor_desc tensor_y, tensor_u, tensor_v;
     tensor_y.dims = dim_y;
@@ -2022,7 +2019,7 @@ TEST(ie_blob_make_memory_i420, cannotMakeI420BlobFromPlanesWithWrongWidthRatio) 
     ie_blob_deallocate(&blob_v);
 }
 
-TEST(ie_blob_make_memory_i420, cannotMakeI420BlobFromPlanesWithWrongHeightRatio) {
+TEST_P(ie_c_api_test, ie_blob_make_memory_i420_cannotMakeI420BlobFromPlanesWithWrongHeightRatio) {
     dimensions_t dim_y = {4, {1, 1, 8, 12}}, dim_u = {4, {1, 1, 2, 6}}, dim_v = {4, {1, 1, 4, 6}};
     tensor_desc tensor_y, tensor_u, tensor_v;
     tensor_y.dims = dim_y;
@@ -2042,7 +2039,7 @@ TEST(ie_blob_make_memory_i420, cannotMakeI420BlobFromPlanesWithWrongHeightRatio)
     ie_blob_deallocate(&blob_v);
 }
 
-TEST(ie_blob_make_memory_i420, I420BlobInvalidAfterDeallocateYPlane) {
+TEST_P(ie_c_api_test, ie_blob_make_memory_i420_I420BlobInvalidAfterDeallocateYPlane) {
     dimensions_t dim_y = {4, {1, 1, 8, 12}}, dim_u = {4, {1, 1, 4, 6}}, dim_v = {4, {1, 1, 4, 6}};
     tensor_desc tensor_y, tensor_u, tensor_v;
     tensor_y.dims = dim_y;
@@ -2067,7 +2064,7 @@ TEST(ie_blob_make_memory_i420, I420BlobInvalidAfterDeallocateYPlane) {
     ie_blob_free(&blob_i420);
 }
 
-TEST(ie_blob_make_memory_i420, I420BlobInvalidAfterDeallocateUPlane) {
+TEST_P(ie_c_api_test, ie_blob_make_memory_i420_I420BlobInvalidAfterDeallocateUPlane) {
     dimensions_t dim_y = {4, {1, 1, 8, 12}}, dim_u = {4, {1, 1, 4, 6}}, dim_v = {4, {1, 1, 4, 6}};
     tensor_desc tensor_y, tensor_u, tensor_v;
     tensor_y.dims = dim_y;
@@ -2092,7 +2089,7 @@ TEST(ie_blob_make_memory_i420, I420BlobInvalidAfterDeallocateUPlane) {
     ie_blob_free(&blob_i420);
 }
 
-TEST(ie_blob_make_memory_i420, I420BlobInvalidAfterDeallocateVPlane) {
+TEST_P(ie_c_api_test, ie_blob_make_memory_i420_I420BlobInvalidAfterDeallocateVPlane) {
     dimensions_t dim_y = {4, {1, 1, 8, 12}}, dim_u = {4, {1, 1, 4, 6}}, dim_v = {4, {1, 1, 4, 6}};
     tensor_desc tensor_y, tensor_u, tensor_v;
     tensor_y.dims = dim_y;
@@ -2119,13 +2116,13 @@ TEST(ie_blob_make_memory_i420, I420BlobInvalidAfterDeallocateVPlane) {
 
 #ifdef ENABLE_GAPI_PREPROCESSING
 
-TEST(ie_blob_make_memory_i420, inferRequestWithI420) {
+TEST_P(ie_c_api_test, ie_blob_make_memory_i420_inferRequestWithI420) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
     ie_network_t *network = nullptr;
-    IE_EXPECT_OK(ie_core_read_network(core, xml, bin, &network));
+    IE_EXPECT_OK(ie_core_read_network(core, xml_file_name.c_str(), bin_file_name.c_str(), &network));
     EXPECT_NE(nullptr, network);
 
     IE_EXPECT_OK(ie_network_set_input_precision(network, input_port_name, precision_e::U8));

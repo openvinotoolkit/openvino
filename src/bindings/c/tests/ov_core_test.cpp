@@ -22,10 +22,19 @@ TEST(ov_util, ov_get_error_info_check) {
     EXPECT_STREQ(res, str);
 }
 
-class ov_core : public ::testing::TestWithParam<std::string> {};
+class ov_core : public ov_capi_test_base {
+public:
+    void SetUp() override {
+        ov_capi_test_base::SetUp();
+    }
+
+    void TearDown() override {
+        ov_capi_test_base::TearDown();
+    }
+};
 INSTANTIATE_TEST_SUITE_P(device_name, ov_core, ::testing::Values("CPU"));
 
-TEST(ov_core, ov_core_create_with_config) {
+TEST_P(ov_core, ov_core_create_with_config) {
     std::string plugins_xml = TestDataHelpers::generate_test_xml_file();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create_with_config(plugins_xml.c_str(), &core));
@@ -34,45 +43,45 @@ TEST(ov_core, ov_core_create_with_config) {
     TestDataHelpers::delete_test_xml_file();
 }
 
-TEST(ov_core, ov_core_create_with_no_config) {
+TEST_P(ov_core, ov_core_create_with_no_config) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
     ov_core_free(core);
 }
 
-TEST(ov_core, ov_core_read_model) {
+TEST_P(ov_core, ov_core_read_model) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
     EXPECT_NE(nullptr, model);
 
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST(ov_core, ov_core_read_model_no_bin) {
+TEST_P(ov_core, ov_core_read_model_no_bin) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, nullptr, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), nullptr, &model));
     EXPECT_NE(nullptr, model);
 
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST(ov_core, ov_core_read_model_from_memory) {
+TEST_P(ov_core, ov_core_read_model_from_memory) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
-    std::vector<uint8_t> weights_content(content_from_file(bin, true));
+    std::vector<uint8_t> weights_content(content_from_file(bin_file_name.c_str(), true));
 
     ov_tensor_t* tensor = nullptr;
     ov_shape_t shape;
@@ -81,7 +90,7 @@ TEST(ov_core, ov_core_read_model_from_memory) {
     OV_EXPECT_OK(ov_tensor_create_from_host_ptr(ov_element_type_e::U8, shape, weights_content.data(), &tensor));
     EXPECT_NE(nullptr, tensor);
 
-    std::vector<uint8_t> xml_content(content_from_file(xml, false));
+    std::vector<uint8_t> xml_content(content_from_file(xml_file_name.c_str(), false));
     ov_model_t* model = nullptr;
     OV_EXPECT_OK(
         ov_core_read_model_from_memory(core, reinterpret_cast<const char*>(xml_content.data()), tensor, &model));
@@ -100,7 +109,7 @@ TEST_P(ov_core, ov_core_compile_model) {
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, nullptr, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), nullptr, &model));
     EXPECT_NE(nullptr, model);
 
     ov_compiled_model_t* compiled_model = nullptr;
@@ -119,7 +128,7 @@ TEST_P(ov_core, ov_core_compile_model_with_property) {
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, nullptr, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), nullptr, &model));
     EXPECT_NE(nullptr, model);
 
     ov_compiled_model_t* compiled_model = nullptr;
@@ -145,7 +154,7 @@ TEST_P(ov_core, ov_core_compile_model_with_property_invalid) {
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, nullptr, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), nullptr, &model));
     EXPECT_NE(nullptr, model);
 
     ov_compiled_model_t* compiled_model = nullptr;
@@ -166,7 +175,7 @@ TEST_P(ov_core, ov_core_compile_model_from_file) {
     EXPECT_NE(nullptr, core);
 
     ov_compiled_model_t* compiled_model = nullptr;
-    OV_EXPECT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), 0, &compiled_model));
+    OV_EXPECT_OK(ov_core_compile_model_from_file(core, xml_file_name.c_str(), device_name.c_str(), 0, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
     ov_compiled_model_free(compiled_model);
@@ -429,7 +438,7 @@ TEST_P(ov_core, ov_compiled_model_export_model) {
     }
 
     ov_compiled_model_t* compiled_model = nullptr;
-    OV_EXPECT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), 0, &compiled_model));
+    OV_EXPECT_OK(ov_core_compile_model_from_file(core, xml_file_name.c_str(), device_name.c_str(), 0, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
     std::string export_path = TestDataHelpers::get_exported_blob_file_name();
@@ -453,7 +462,7 @@ TEST_P(ov_core, ov_core_import_model) {
     }
 
     ov_compiled_model_t* compiled_model = nullptr;
-    OV_EXPECT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), 0, &compiled_model));
+    OV_EXPECT_OK(ov_core_compile_model_from_file(core, xml_file_name.c_str(), device_name.c_str(), 0, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
     std::string export_path = TestDataHelpers::get_exported_blob_file_name();
@@ -495,14 +504,14 @@ const std::vector<std::wstring> test_unicode_postfix_vector = {L"unicode_Яㅎ�
                                                                L"그것이정당하다",
                                                                L"АБВГДЕЁЖЗИЙ",
                                                                L"СТУФХЦЧШЩЬЮЯ"};
-TEST(ov_core, ov_core_create_with_config_unicode) {
+TEST_P(ov_core, ov_core_create_with_config_unicode) {
     std::string plugins_xml = TestDataHelpers::generate_test_xml_file();
     ov_core_t* core = nullptr;
 
     for (std::size_t index = 0; index < test_unicode_postfix_vector.size(); index++) {
         std::wstring postfix = L"_" + test_unicode_postfix_vector[index];
-        std::wstring plugins_xml_ws = add_unicode_postfix_to_path(plugins_xml, postfix);
-        ASSERT_EQ(true, copy_file(plugins_xml, plugins_xml_ws));
+        std::wstring plugins_xml_ws = add_unicode_postfix_to_path(plugins_xml.c_str(), postfix);
+        ASSERT_EQ(true, copy_file(plugins_xml.c_str(), plugins_xml_ws));
 
         OV_EXPECT_OK(ov_core_create_with_config_unicode(plugins_xml_ws.c_str(), &core));
         EXPECT_NE(nullptr, core);
@@ -512,7 +521,7 @@ TEST(ov_core, ov_core_create_with_config_unicode) {
     TestDataHelpers::delete_test_xml_file();
 }
 
-TEST(ov_core, ov_core_read_model_unicode) {
+TEST_P(ov_core, ov_core_read_model_unicode) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -520,11 +529,11 @@ TEST(ov_core, ov_core_read_model_unicode) {
     ov_model_t* model = nullptr;
     for (std::size_t index = 0; index < test_unicode_postfix_vector.size(); index++) {
         std::wstring postfix = L"_" + test_unicode_postfix_vector[index];
-        std::wstring xml_ws = add_unicode_postfix_to_path(xml, postfix);
-        std::wstring bin_ws = add_unicode_postfix_to_path(bin, postfix);
+        std::wstring xml_ws = add_unicode_postfix_to_path(xml_file_name.c_str(), postfix);
+        std::wstring bin_ws = add_unicode_postfix_to_path(bin_file_name.c_str(), postfix);
 
-        ASSERT_EQ(true, copy_file(xml, xml_ws));
-        ASSERT_EQ(true, copy_file(bin, bin_ws));
+        ASSERT_EQ(true, copy_file(xml_file_name.c_str(), xml_ws));
+        ASSERT_EQ(true, copy_file(bin_file_name.c_str(), bin_ws));
 
         OV_EXPECT_OK(ov_core_read_model_unicode(core, xml_ws.c_str(), bin_ws.c_str(), &model));
         EXPECT_NE(nullptr, model);
@@ -546,10 +555,10 @@ TEST_P(ov_core, ov_core_compile_model_from_file_unicode) {
     ov_compiled_model_t* compiled_model = nullptr;
     for (std::size_t index = 0; index < test_unicode_postfix_vector.size(); index++) {
         std::wstring postfix = L"_" + test_unicode_postfix_vector[index];
-        std::wstring xml_ws = add_unicode_postfix_to_path(xml, postfix);
-        std::wstring bin_ws = add_unicode_postfix_to_path(bin, postfix);
-        ASSERT_EQ(true, copy_file(xml, xml_ws));
-        ASSERT_EQ(true, copy_file(bin, bin_ws));
+        std::wstring xml_ws = add_unicode_postfix_to_path(xml_file_name.c_str(), postfix);
+        std::wstring bin_ws = add_unicode_postfix_to_path(bin_file_name.c_str(), postfix);
+        ASSERT_EQ(true, copy_file(xml_file_name.c_str(), xml_ws));
+        ASSERT_EQ(true, copy_file(bin_file_name.c_str(), bin_ws));
 
         OV_EXPECT_OK(
             ov_core_compile_model_from_file_unicode(core, xml_ws.c_str(), device_name.c_str(), 0, &compiled_model));

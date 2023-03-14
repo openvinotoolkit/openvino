@@ -17,10 +17,14 @@ protected:
         output_tensor_info = nullptr;
         input_model = nullptr;
 
+        TestDataHelpers::generate_test_model();
+        xml_file_name = TestDataHelpers::get_model_xml_file_name();
+        bin_file_name = TestDataHelpers::get_model_bin_file_name();
+
         OV_EXPECT_OK(ov_core_create(&core));
         EXPECT_NE(nullptr, core);
 
-        OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+        OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
         EXPECT_NE(nullptr, model);
     }
     void TearDown() override {
@@ -34,6 +38,7 @@ protected:
         ov_preprocess_prepostprocessor_free(preprocess);
         ov_model_free(model);
         ov_core_free(core);
+        TestDataHelpers::release_test_model();
     }
 
 public:
@@ -47,6 +52,7 @@ public:
     ov_preprocess_output_info_t* output_info;
     ov_preprocess_output_tensor_info_t* output_tensor_info;
     ov_preprocess_input_model_info_t* input_model;
+    std::string xml_file_name, bin_file_name;
 };
 
 TEST_F(ov_preprocess, ov_preprocess_prepostprocessor_create) {

@@ -3,14 +3,6 @@
 //
 #include "ov_test.hpp"
 
-#include "test_model_repo.hpp"
-
-std::string xml_std = TestDataHelpers::get_model_xml_file_name();
-std::string bin_std = TestDataHelpers::get_model_bin_file_name();
-
-const char* xml = xml_std.c_str();
-const char* bin = bin_std.c_str();
-
 std::map<ov_element_type_e, size_t> element_type_size_map = {{ov_element_type_e::BOOLEAN, 8},
                                                              {ov_element_type_e::BF16, 16},
                                                              {ov_element_type_e::F16, 16},

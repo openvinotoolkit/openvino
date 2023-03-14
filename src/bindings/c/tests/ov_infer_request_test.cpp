@@ -30,7 +30,7 @@ inline void get_tensor_info(ov_model_t* model, bool input, char** name, ov_shape
     ov_output_const_port_free(port);
 }
 
-class ov_infer_request : public ::testing::TestWithParam<std::string> {
+class ov_infer_request : public ov_capi_test_base {
 protected:
     void SetUp() override {
         auto device_name = GetParam();
@@ -43,11 +43,12 @@ protected:
         infer_request = nullptr;
         input_const_port = nullptr;
         input_port = nullptr;
+        ov_capi_test_base::SetUp();
 
         OV_EXPECT_OK(ov_core_create(&core));
         EXPECT_NE(nullptr, core);
 
-        OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+        OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
         EXPECT_NE(nullptr, model);
 
         OV_EXPECT_OK(ov_model_const_input(model, &input_const_port));
@@ -81,6 +82,7 @@ protected:
         ov_compiled_model_free(compiled_model);
         ov_model_free(model);
         ov_core_free(core);
+        ov_capi_test_base::TearDown();
     }
 
 public:
@@ -101,7 +103,7 @@ bool ov_infer_request::ready = false;
 std::mutex ov_infer_request::m;
 std::condition_variable ov_infer_request::condVar;
 
-class ov_infer_request_ppp : public ::testing::TestWithParam<std::string> {
+class ov_infer_request_ppp : public ov_capi_test_base {
 protected:
     void SetUp() override {
         auto device_name = GetParam();
@@ -118,11 +120,12 @@ protected:
         ov_layout_t* model_layout = nullptr;
         compiled_model = nullptr;
         infer_request = nullptr;
+        ov_capi_test_base::SetUp();
 
         OV_EXPECT_OK(ov_core_create(&core));
         EXPECT_NE(nullptr, core);
 
-        OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+        OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
         EXPECT_NE(nullptr, model);
 
         OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
@@ -182,6 +185,7 @@ protected:
         ov_preprocess_prepostprocessor_free(preprocess);
         ov_model_free(model);
         ov_core_free(core);
+        ov_capi_test_base::TearDown();
     }
 
 public:
