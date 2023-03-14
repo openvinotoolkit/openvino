@@ -81,18 +81,23 @@ ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
         if (concat_axis < 0) {
             return false;
         }
-        for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node, transpose_const)) {
-            register_new_node(new_node);
-        }
+
         const auto transpose_axis_order = transpose_const->get_axis_vector_val();
         const auto reversed_transpose_axis_order = ReverseTransposeOrder(transpose_axis_order);
+        if (static_cast<int64_t>(reversed_transpose_axis_order.size()) <= concat_axis) {
+            return false;
+        }
+
         const auto transposed_concat_axis = reversed_transpose_axis_order[concat_axis];
         concat_node->set_axis(static_cast<int64_t>(transposed_concat_axis));
         concat_node->set_concatenation_axis(-1);
-        concat_node->validate_and_infer_types();
-        // remove output transposes
-        RemoveSingleOutputConsumers(main_node);
 
+        for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node, transpose_const)) {
+            register_new_node(new_node);
+        }
+        concat_node->validate_and_infer_types();
+
+        RemoveSingleOutputConsumers(main_node);
         SwapNames(transpose, main_node);
         return true;
     };
