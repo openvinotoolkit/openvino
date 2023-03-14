@@ -133,7 +133,6 @@ TEST(nop_elimination, reshape_v1_1D) {
         make_model( 7,  7),
         make_model( 7, -1),
         make_model(-1, -1),
-        make_model(-1,  7),
     };
     // clang-format on
 

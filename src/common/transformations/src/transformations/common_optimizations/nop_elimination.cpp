@@ -92,7 +92,7 @@ static bool eliminate_reshape_v1(const shared_ptr<Node>& node) {
     auto input = node->input_value(0);
 
     if (input.get_partial_shape().rank().is_static() && input.get_partial_shape().rank().same_scheme(1)) {
-        if (input.get_partial_shape().compatible(node->get_output_partial_shape(0)))
+        if (input.get_partial_shape().same_scheme(node->get_output_partial_shape(0)))
             return replace_output_update_name(node->output(0), input);
     }
 
