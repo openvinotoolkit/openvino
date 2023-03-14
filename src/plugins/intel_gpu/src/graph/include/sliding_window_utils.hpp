@@ -105,7 +105,7 @@ inline tensor calc_sliding_window_output_range<swor_mode::all>(const tensor& inp
     auto stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
 
     tensor::value_type dilation_z = dilation.size() >= 3 ? static_cast<int32_t>(dilation[dilation.size() - 3]) : 1;
-    tensor::value_type dilation_y = dilation.size() >= 2 ? static_cast<int32_t>(static_cast<int32_t>(dilation[dilation.size() - 2])) : 1;
+    tensor::value_type dilation_y = dilation.size() >= 2 ? static_cast<int32_t>(dilation[dilation.size() - 2]) : 1;
     tensor::value_type dilation_x = dilation.size() >= 1 ? static_cast<int32_t>(dilation[dilation.size() - 1]) : 1;
 
     auto pad_z = pad.size() >= 3 ? pad[pad.size() - 3] : 0;
