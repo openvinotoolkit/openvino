@@ -71,7 +71,7 @@ inline TypeInfo get_type_info(ov::element::Type_t type) {
     case ov::element::Type_t::u64:
         return {64, false, false, false, "uint64_t", "u64"};
     default:
-        OPENVINO_UNREACHABLE("ov::element::Type_t not supported: ", type);
+        OPENVINO_THROW("ov::element::Type_t not supported: ", type);
     }
 };
 }  // namespace
@@ -243,7 +243,7 @@ Type fundamental_type_for(const Type& type) {
     case Type_t::u64:
         return from<element_type_traits<Type_t::u64>::value_type>();
     default:
-        OPENVINO_UNREACHABLE("Unsupported Data type: ", type);
+        OPENVINO_THROW("Unsupported Data type: ", type);
     }
 }
 
@@ -360,8 +360,7 @@ inline size_t compiler_byte_size(ov::element::Type_t et) {
         return 0;
     }
 
-    throw ov::Exception("compiler_byte_size: Unsupported value of ov::element::Type_t: " +
-                        std::to_string(static_cast<int>(et)));
+    OPENVINO_THROW("compiler_byte_size: Unsupported value of ov::element::Type_t: ", static_cast<int>(et));
 }
 
 namespace ov {
