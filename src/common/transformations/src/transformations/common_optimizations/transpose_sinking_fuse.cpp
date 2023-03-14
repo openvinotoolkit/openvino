@@ -41,7 +41,7 @@ ov::pass::TransposeSinkingFuse::TransposeSinkingFuse() {
 
         bool is_ordered = true;
         for (size_t i = 0; i < order1.size(); i++) {
-            if (order1.size() <= order2[i]) {
+            if (static_cast<int64_t>(order1.size()) <= order2[i]) {
                 return false;
             }
             order2[i] = order1[order2[i]];
