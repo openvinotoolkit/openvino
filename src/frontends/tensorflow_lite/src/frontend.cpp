@@ -17,7 +17,7 @@
 #include "tflite_transformations/rfft2d_complex_abs.h"
 #include "tflite_transformations/tflite_quantize_resolver.hpp"
 #include "transformations/common_optimizations/transpose_sinking.hpp"
-#include "transformations/common_optimizations/transpose_sinking_general.hpp"
+#include "transformations/transpose_sinking/transpose_sinking_general.hpp"
 
 using namespace ov;
 using namespace ov::frontend::tensorflow_lite;

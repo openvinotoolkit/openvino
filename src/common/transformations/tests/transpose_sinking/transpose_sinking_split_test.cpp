@@ -1,13 +1,13 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <functional>
-#include <openvino/frontend/manager.hpp>
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/pass/manager.hpp>
-#include <transformations/common_optimizations/transpose_sinking_split.hpp>
-#include <transformations/init_node_info.hpp>
+#include "openvino/frontend/manager.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/transpose_sinking/transpose_sinking_split.hpp"
+#include "transformations/init_node_info.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
@@ -15,6 +15,7 @@
 
 using namespace ov;
 using namespace ov::opset10;
+using namespace transpose_sinking::testing::utils;
 
 namespace transpose_sinking {
 namespace testing {

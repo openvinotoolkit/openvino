@@ -14,7 +14,6 @@
 #include <vector>
 
 #include "itt.hpp"
-#include "transformations/common_optimizations/transpose_sinking_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
@@ -318,8 +317,6 @@ ov::pass::TransposeFuse::TransposeFuse() {
             new_transpose->set_friendly_name(m.get_match_root()->get_friendly_name());
             ngraph::copy_runtime_info({transpose1, transpose2}, new_transpose);
             ngraph::replace_node(m.get_match_root(), new_transpose);
-
-            transpose_sinking::UpdateForwardSinkingAbility(new_transpose);
         }
 
         return true;

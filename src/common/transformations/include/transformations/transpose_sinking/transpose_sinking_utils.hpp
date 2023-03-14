@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <transformations/utils/utils.hpp>
+#include "transformations/utils/utils.hpp"
 #include <utility>
 
 #include "openvino/op/util/op_types.hpp"

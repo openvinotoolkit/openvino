@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/transpose_sinking_unary.hpp"
+#include "transformations/transpose_sinking/transpose_sinking_unary.hpp"
 
-#include <openvino/frontend/manager.hpp>
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/pass/manager.hpp>
+#include "openvino/frontend/manager.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/manager.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
@@ -14,7 +14,7 @@
 
 using namespace ov;
 using namespace ov::opset10;
-using namespace transpose_sinking::testing;
+using namespace transpose_sinking::testing::utils;
 
 namespace transpose_sinking {
 namespace testing {

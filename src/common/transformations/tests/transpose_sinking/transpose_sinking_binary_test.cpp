@@ -1,13 +1,12 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <functional>
-#include <openvino/frontend/manager.hpp>
-#include <openvino/opsets/opset9.hpp>
-#include <openvino/pass/manager.hpp>
-#include <transformations/common_optimizations/transpose_sinking_binary.hpp>
-#include <transformations/init_node_info.hpp>
+#include "openvino/frontend/manager.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/transpose_sinking/transpose_sinking_binary.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
@@ -15,26 +14,9 @@
 
 using namespace ov;
 using namespace ov::opset10;
-using namespace transpose_sinking::testing;
-
-namespace transpose_sinking_binary_eltwise {
+using namespace transpose_sinking::testing::utils;
 
 namespace {
-namespace {
-std::string to_string(const Shape& shape) {
-    std::ostringstream result;
-    result << "{";
-    for (size_t idx = 0; idx < shape.size(); ++idx) {
-        if (idx)
-            result << ",";
-        result << shape[idx];
-    }
-    result << "}";
-    return result.str();
-}
-}  // namespace
-
-// ----------------------------------------------------------------------------
 
 template <typename BinaryT>
 class BinaryFactory : public IFactory {
@@ -86,6 +68,10 @@ std::vector<size_t> binary_operations_numbers = {1, 10};
 std::vector<size_t> binary_transpose_input_indexes = {0, 1};
 
 }  // namespace
+
+namespace transpose_sinking {
+namespace testing {
+namespace binary {
 
 namespace single_consumer {
 namespace forward {
@@ -207,7 +193,7 @@ class TransposeSinkingBinaryTwoTransposeInputsTestFixture
     : public ::testing::WithParamInterface<TestBinaryTwoTransposeInputsParams>,
       public TransformationTestsF {
 public:
-    static std::string get_test_name(const testing::TestParamInfo<TestBinaryTwoTransposeInputsParams>& obj) {
+    static std::string get_test_name(const ::testing::TestParamInfo<TestBinaryTwoTransposeInputsParams>& obj) {
         FactoryPtr binary_factory;
         PassFactoryPtr pass_factory;
         size_t num_binary_ops;
@@ -327,7 +313,7 @@ using TestBinaryParams = std::tuple<FactoryPtr,
 class TransposeSinkingBinaryTestFixture : public ::testing::WithParamInterface<TestBinaryParams>,
                                           public TransformationTestsF {
 public:
-    static std::string get_test_name(const testing::TestParamInfo<TestBinaryParams>& obj) {
+    static std::string get_test_name(const ::testing::TestParamInfo<TestBinaryParams>& obj) {
         FactoryPtr binary_factory;
         PassFactoryPtr pass_factory;
         size_t num_binary_ops;
@@ -421,7 +407,7 @@ class TransposeSinkingBinaryIncompatShapesTestFixture
     : public ::testing::WithParamInterface<TestBinaryIncompatShapesParams>,
       public TransformationTestsF {
 public:
-    static std::string get_test_name(const testing::TestParamInfo<TestBinaryIncompatShapesParams>& obj) {
+    static std::string get_test_name(const ::testing::TestParamInfo<TestBinaryIncompatShapesParams>& obj) {
         FactoryPtr binary_factory;
         PassFactoryPtr pass_factory;
         Shape input_shape;
@@ -1090,7 +1076,7 @@ using TestBinaryParams = std::tuple<FactoryPtr,
 class TransposeBinaryMultiSinkingFixture : public ::testing::WithParamInterface<TestBinaryParams>,
                                            public TransformationTestsF {
 public:
-    static std::string get_test_name(const testing::TestParamInfo<TestBinaryParams>& obj) {
+    static std::string get_test_name(const ::testing::TestParamInfo<TestBinaryParams>& obj) {
         FactoryPtr binary_factory;
         PassFactoryPtr pass_factory;
         CreateGraphFunctionDesc function_desc;
@@ -1177,7 +1163,7 @@ using TestBinaryParams = std::tuple<FactoryPtr,
 class TransposeBinaryMultiSinkingBinaryMultiConsumersFixture : public ::testing::WithParamInterface<TestBinaryParams>,
                                                                public TransformationTestsF {
 public:
-    static std::string get_test_name(const testing::TestParamInfo<TestBinaryParams>& obj) {
+    static std::string get_test_name(const ::testing::TestParamInfo<TestBinaryParams>& obj) {
         FactoryPtr binary_factory;
         PassFactoryPtr pass_factory;
         CreateGraphFunctionDesc function_desc;
@@ -1233,3 +1219,5 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingBinaryBackwardBinaryMultiConsumersTestS
 }  // namespace mult_consumers
 
 }  // namespace transpose_sinking_binary_eltwise
+}
+}

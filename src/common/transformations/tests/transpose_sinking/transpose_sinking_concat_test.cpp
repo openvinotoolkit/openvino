@@ -1,14 +1,14 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <functional>
-#include <openvino/frontend/manager.hpp>
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/pass/manager.hpp>
-#include <transformations/common_optimizations/transpose_sinking_concat.hpp>
-#include <transformations/common_optimizations/transpose_sinking_utils.hpp>
-#include <transformations/init_node_info.hpp>
+#include "openvino/frontend/manager.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/transpose_sinking/transpose_sinking_concat.hpp"
+#include "transformations/transpose_sinking/transpose_sinking_utils.hpp"
+#include "transformations/init_node_info.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
@@ -16,12 +16,11 @@
 
 using namespace ov;
 using namespace ov::opset10;
-using namespace transpose_sinking::testing;
+using namespace transpose_sinking::testing::utils;
 
 namespace {
 
 std::vector<size_t> concat_operations_numbers = {1, 10};
-
 std::vector<size_t> concat_transpose_input_indexes = {0, 2};
 
 NodePtr CreateConcatChain(NodePtr input_node,

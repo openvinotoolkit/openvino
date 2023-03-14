@@ -2,22 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/transpose_sinking_general.hpp"
+#include "transformations/transpose_sinking/transpose_sinking_general.hpp"
 
-#include <openvino/pass/constant_folding.hpp>
-#include <openvino/pass/graph_rewrite.hpp>
-#include <openvino/pass/manager.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
+#include "openvino/pass/constant_folding.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 #include "itt.hpp"
-#include "transformations/common_optimizations/transpose_sinking_binary.hpp"
-#include "transformations/common_optimizations/transpose_sinking_concat.hpp"
-#include "transformations/common_optimizations/transpose_sinking_data_movement.hpp"
-#include "transformations/common_optimizations/transpose_sinking_fuse.hpp"
-#include "transformations/common_optimizations/transpose_sinking_interpolate.hpp"
-#include "transformations/common_optimizations/transpose_sinking_reduction.hpp"
-#include "transformations/common_optimizations/transpose_sinking_split.hpp"
-#include "transformations/common_optimizations/transpose_sinking_unary.hpp"
+#include "transformations/transpose_sinking/transpose_sinking_binary.hpp"
+#include "transformations/transpose_sinking/transpose_sinking_concat.hpp"
+#include "transformations/transpose_sinking/transpose_sinking_data_movement.hpp"
+#include "transformations/transpose_sinking/transpose_sinking_fuse.hpp"
+#include "transformations/transpose_sinking/transpose_sinking_interpolate.hpp"
+#include "transformations/transpose_sinking/transpose_sinking_reduction.hpp"
+#include "transformations/transpose_sinking/transpose_sinking_split.hpp"
+#include "transformations/transpose_sinking/transpose_sinking_unary.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::pass::TransposeSinkingGeneralForward::TransposeSinkingGeneralForward() {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/transpose_sinking_fuse.hpp"
+#include "transformations/transpose_sinking/transpose_sinking_fuse.hpp"
 
 #include <memory>
 #include <vector>
@@ -11,7 +11,7 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/common_optimizations/transpose_sinking_utils.hpp"
+#include "transformations/transpose_sinking/transpose_sinking_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;

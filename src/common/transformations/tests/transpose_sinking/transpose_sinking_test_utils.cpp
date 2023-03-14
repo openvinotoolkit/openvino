@@ -4,9 +4,9 @@
 
 #include "transpose_sinking_test_utils.hpp"
 
-#include <openvino/frontend/manager.hpp>
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/pass/manager.hpp>
+#include "openvino/frontend/manager.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/manager.hpp"
 
 #include "gtest/gtest.h"
 
@@ -16,6 +16,7 @@ using namespace ov::opset10;
 
 namespace transpose_sinking {
 namespace testing {
+namespace utils {
 
 shared_ptr<Node> create_main_node(const OutputVector& inputs, size_t num_ops, const FactoryPtr& creator) {
     OutputVector current_inputs = inputs;
@@ -83,5 +84,6 @@ std::shared_ptr<ov::Node> parameter(ov::element::Type el_type, const PartialShap
     return std::make_shared<Parameter>(el_type, ps);
 }
 
+}  // utils
 }  // namespace testing
 }  // namespace transpose_sinking
