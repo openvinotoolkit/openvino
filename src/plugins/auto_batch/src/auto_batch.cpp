@@ -765,8 +765,7 @@ void AutoBatchInferencePlugin::CheckConfig(const std::map<std::string, std::stri
         const auto val = kvp.second;
         if (supported_configKeys.end() == std::find(supported_configKeys.begin(), supported_configKeys.end(), name))
             IE_THROW() << "Unsupported config key: " << name;
-        if (name == CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) ||
-            name == ov::device::priorities.name()) {
+        if (name == CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) || name == ov::device::priorities.name()) {
             ParseBatchDevice(val);
         } else if (name == CONFIG_KEY(AUTO_BATCH_TIMEOUT)) {
             try {
@@ -1003,8 +1002,7 @@ InferenceEngine::QueryNetworkResult AutoBatchInferencePlugin::QueryNetwork(
         return InferenceEngine::QueryNetworkResult();
     auto cfg = config;
     for (auto c : cfg) {
-        if (c.first == CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) ||
-            c.first == ov::device::priorities.name()) {
+        if (c.first == CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG) || c.first == ov::device::priorities.name()) {
             auto val = c.second;
             cfg.erase(c.first);
             auto metaDevice = ParseMetaDevice(val, cfg);

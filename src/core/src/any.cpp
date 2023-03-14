@@ -216,9 +216,7 @@ void Read<std::tuple<unsigned int, unsigned int, unsigned int>>::operator()(
     Read<unsigned int>{}(is, std::get<2>(tuple));
 }
 
-void Read<AnyMap>::operator()(
-    std::istream& is,
-    AnyMap& map) const {
+void Read<AnyMap>::operator()(std::istream& is, AnyMap& map) const {
     std::string key, value;
     char c;
 
@@ -231,19 +229,19 @@ void Read<AnyMap>::operator()(
 
         while (is.good()) {
             is >> c;
-            if (c == ',') { // delimiter between map's pairs
-                if (enclosed_container_level == 0) // we should interrupt after delimiter
+            if (c == ',') {                         // delimiter between map's pairs
+                if (enclosed_container_level == 0)  // we should interrupt after delimiter
                     break;
             }
-            if (c == '{' || c == '[') // case of enclosed maps / arrays
+            if (c == '{' || c == '[')  // case of enclosed maps / arrays
                 ++enclosed_container_level;
             if (c == '}' || c == ']') {
                 if (enclosed_container_level == 0)
-                    break; // end of map
+                    break;  // end of map
                 --enclosed_container_level;
             }
 
-            value += c; // accumulate current value
+            value += c;  // accumulate current value
         }
         map.emplace(std::move(key), std::move(value));
     }

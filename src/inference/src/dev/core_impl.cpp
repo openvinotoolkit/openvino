@@ -55,18 +55,15 @@ void stripDeviceName(std::string& device, const std::string& substr) {
 }
 
 bool is_virtual_device(const std::string& device_name) {
-    return (device_name.find("AUTO") != std::string::npos ||
-            device_name.find("MULTI") != std::string::npos ||
-            device_name.find("HETERO") != std::string::npos ||
-            device_name.find("BATCH") != std::string::npos);
+    return (device_name.find("AUTO") != std::string::npos || device_name.find("MULTI") != std::string::npos ||
+            device_name.find("HETERO") != std::string::npos || device_name.find("BATCH") != std::string::npos);
 };
 
 ov::AnyMap clone_map(const ov::AnyMap& m) {
     ov::AnyMap rm;
-    for (auto && kvp : m) {
-        rm[kvp.first] = kvp.second.is<ov::AnyMap>() ?
-            ov::Any(clone_map(kvp.second.as<ov::AnyMap>())) :
-            kvp.second.as<std::string>();
+    for (auto&& kvp : m) {
+        rm[kvp.first] = kvp.second.is<ov::AnyMap>() ? ov::Any(clone_map(kvp.second.as<ov::AnyMap>()))
+                                                    : kvp.second.as<std::string>();
     }
 
     return rm;
@@ -102,7 +99,8 @@ ov::AnyMap flatten_sub_properties(const std::string& user_device_name, const ov:
 
     // First search for ov::device::properties(DEVICE, ...), which has higher
     for (auto secondary_property = result_properties.begin(); secondary_property != result_properties.end();) {
-        const auto subprop_device_name_pos = secondary_property->first.find(ov::device::properties.name() + std::string("_"));
+        const auto subprop_device_name_pos =
+            secondary_property->first.find(ov::device::properties.name() + std::string("_"));
         if (subprop_device_name_pos == std::string::npos) {
             // 1. Skip non-matching properties
             secondary_property++;
@@ -110,15 +108,15 @@ ov::AnyMap flatten_sub_properties(const std::string& user_device_name, const ov:
         }
 
         // 2. device properties DEVICE_PROPERTIES_<device_name_with_id> are found
-        auto subprop_device_name = secondary_property->first.substr(subprop_device_name_pos +
-            std::strlen(ov::device::properties.name()) + 1);
+        auto subprop_device_name =
+            secondary_property->first.substr(subprop_device_name_pos + std::strlen(ov::device::properties.name()) + 1);
         // flattening is performed only when config is applicable (see docs for ov::isConfigApplicable)
         if (ov::isConfigApplicable(user_device_name, subprop_device_name) || is_virtual_device(user_device_name)) {
             // 2.1. keep the secondary property for the other virtual devices, but repack them
             auto device_properties = result_properties.find(ov::device::properties.name());
             if (device_properties == result_properties.end()) {
                 result_properties[ov::device::properties.name()] = ov::AnyMap{};
-            } else if (device_properties->second.is<std::string>()) { // because of legacy API 1.0
+            } else if (device_properties->second.is<std::string>()) {  // because of legacy API 1.0
                 device_properties->second = device_properties->second.as<ov::AnyMap>();
             }
             auto& secondary_properties = result_properties[ov::device::properties.name()].as<ov::AnyMap>();
@@ -157,7 +155,8 @@ ov::AnyMap flatten_sub_properties(const std::string& user_device_name, const ov:
         }
         auto& secondary_properties = property->second.as<ov::AnyMap>();
 
-        for (auto secondary_property = secondary_properties.begin(); secondary_property != secondary_properties.end();) {
+        for (auto secondary_property = secondary_properties.begin();
+             secondary_property != secondary_properties.end();) {
             // flattening is performed only when config is applicable (see docs for ov::isConfigApplicable)
             if (ov::isConfigApplicable(user_device_name, secondary_property->first)) {
                 // 2.1. flatten the secondary property for target device
@@ -180,8 +179,7 @@ ov::AnyMap flatten_sub_properties(const std::string& user_device_name, const ov:
         if (secondary_properties.empty()) {
             // 3.1. since the sub-property is flattened, we need to drop it
             property = result_properties.erase(property);
-        }
-        else {
+        } else {
             // 3.2. some properties are still in ov::device::properties(ov::AnyMap{}), abort loop
             break;
         }
@@ -198,10 +196,11 @@ struct DevicePriority {
 };
 
 DevicePriority get_device_priority_property(const std::string& device_name) {
-    return is_virtual_device(device_name) ?
-        DevicePriority{ ov::device::priorities.name(), MatchType::EXACT } :
-        // ov::device::properties(GPU.0) can be applied for GPU tile identified by GPU.0.0
-        DevicePriority{ ov::device::id.name(), MatchType::SUBSTR };
+    return is_virtual_device(device_name)
+               ? DevicePriority{ov::device::priorities.name(), MatchType::EXACT}
+               :
+               // ov::device::properties(GPU.0) can be applied for GPU tile identified by GPU.0.0
+               DevicePriority{ov::device::id.name(), MatchType::SUBSTR};
 }
 
 }  // namespace
@@ -281,8 +280,8 @@ ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName, const An
         else if (it->second == parsed_device_priority) {
             // do nothing
         } else {
-            IE_THROW() << "Device priority / ID mismatch: " << parsed_device_priority << " (from " << deviceName << ") vs "
-                        << it->second.as<std::string>() << " (from config)";
+            IE_THROW() << "Device priority / ID mismatch: " << parsed_device_priority << " (from " << deviceName
+                       << ") vs " << it->second.as<std::string>() << " (from config)";
         }
     };
 
@@ -701,8 +700,8 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
     };
 
     const auto flattened = ov::parseDeviceNameIntoConfig(full_device_name, user_properties);
-    const std::string & device_name = flattened._deviceName;
-    const auto & flattened_config = flattened._config;
+    const std::string& device_name = flattened._deviceName;
+    const auto& flattened_config = flattened._config;
     ov::AnyMap supported_config, options;
 
     // fill 'options' to provide more information to ICore::get_property calls
@@ -732,7 +731,8 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
 
     // try to search against IE API 1.0' SUPPORTED_CONFIG_KEYS
     try {
-        const auto supported_keys = GetMetric(device_name, METRIC_KEY(SUPPORTED_CONFIG_KEYS), options).as<std::vector<std::string>>();
+        const auto supported_keys =
+            GetMetric(device_name, METRIC_KEY(SUPPORTED_CONFIG_KEYS), options).as<std::vector<std::string>>();
         for (auto&& config_key : supported_keys) {
             supported_config_keys.emplace_back(config_key);
         }

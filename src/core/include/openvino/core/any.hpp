@@ -221,25 +221,25 @@ struct Read<
         OPENVINO_ASSERT(c == '{', "Failed to parse std::map<K, T>. Starting symbols is not '{', it's ", c);
 
         while (c != '}') {
+            std::string key, value;
             std::getline(is, key, ':');
             size_t enclosed_container_level = 0;
 
-            std::string key, value;
             while (is.good()) {
                 is >> c;
-                if (c == ',') { // delimiter between map's pairs
-                    if (enclosed_container_level == 0) // we should interrupt after delimiter
+                if (c == ',') {                         // delimiter between map's pairs
+                    if (enclosed_container_level == 0)  // we should interrupt after delimiter
                         break;
                 }
-                if (c == '{' || c == '[') // case of enclosed maps / arrays
+                if (c == '{' || c == '[')  // case of enclosed maps / arrays
                     ++enclosed_container_level;
                 if (c == '}' || c == ']') {
                     if (enclosed_container_level == 0)
-                        break; // end of map
+                        break;  // end of map
                     --enclosed_container_level;
                 }
 
-                value += c; // accumulate current value
+                value += c;  // accumulate current value
             }
             map.emplace(from_string<K>(key), from_string<T>(value));
         }
