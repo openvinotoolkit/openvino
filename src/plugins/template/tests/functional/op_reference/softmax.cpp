@@ -87,7 +87,7 @@ std::vector<SoftmaxParams> generateSoftmaxFloatParams() {
     auto d1_a0 = expf(-20) + expf(-50);
     auto d2_a0 = expf(-30) + expf(-60);
 
-    auto low = static_cast<float>(std::numeric_limits<T>::lowest());
+    auto low = static_cast<bool>(std::numeric_limits<T>::lowest());
     auto high = static_cast<float>(std::numeric_limits<T>::max());
 
     auto d0_uf = expf(low) + expf(3);
@@ -146,8 +146,8 @@ std::vector<SoftmaxParams> generateSoftmaxFloatParams() {
                     "trivial"),
         SoftmaxParams(ov::PartialShape {2, 3},
                     IN_ET,
-                    std::vector<T>{low, 1, 2, 3, 4, 5},
-                    std::vector<T>{expf(low) / d0_uf,
+                    std::vector<T>{static_cast<float>(low), 1, 2, 3, 4, 5},
+                      std::vector<T>{expf(static_cast<float>(low)) / d0_uf,
                                    expf(1) / d1_uf,
                                    expf(2) / d2_uf,
                                    expf(3) / d0_uf,
