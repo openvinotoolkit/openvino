@@ -138,7 +138,8 @@ std::string resample_inst::to_string(resample_node const& node) {
             axesAndScalesDump += delim;
             delim = ", ";
             axesAndScalesDump += std::to_string(desc->axes[i]) + ": ";
-            axesAndScalesDump += std::to_string(desc->scales[i]);
+            if (desc->scales.size() > i)
+                axesAndScalesDump += std::to_string(desc->scales[i]);
         }
         resample_info.add("scales:", axesAndScalesDump);
     }
