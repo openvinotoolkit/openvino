@@ -193,7 +193,7 @@ void primitive_inst::update_shape() {
         // Events may be not created for in-order queue, so take them for OOO queue only
         if (_network.has_event(dep.id()) && queue_type == QueueTypes::out_of_order) {
             dependencies_events.push_back(_network.get_primitive_event(dep_id));
-            GPU_DEBUG_TRACE_DETAIL << id() << ": shape infer waits for " << i << " dependency\n";
+            GPU_DEBUG_TRACE_DETAIL << id() << ": shape infer waits for " << i << " dependency: " << dep_id << std::endl;
         }
         auto dep_mem = _network.get_output_memory(dep_id);
         memory_deps.insert({i, dep_mem});
