@@ -106,25 +106,25 @@ Known Limitations
    **Current solution:**
 
    * Trim non-reshapable layers via :doc:`ModelOptimizer CLI <openvino_docs_MO_DG_prepare_model_convert_model_Converting_Model>`: the ``--input`` and ``--output`` parameters. For example, the parameter and the problematic constant in the picture above can be trimmed using the ``--input Reshape_layer_name`` command-line option.
-   The problematic constant can also be replaced using ngraph, as shown in the example below.
+   * The problematic constant can also be replaced using ngraph, as shown in the example below.
 
-   .. code-block:: cpp
+     .. code-block:: cpp
 
-      // nGraph example. How to replace a Constant with hardcoded values of shapes in the network with another one with the new values.
-      // Assume we know which Constant (const_with_hardcoded_shape) prevents the reshape from being applied.
-      // Then we can find this Constant by name on the network and replace it with a new one with the correct shape.
-      auto func = cnnNetwork.getFunction();
-      // Creating the new Constant with a correct shape.
-      // For the example shown in the picture above, the new values of the Constant should be 1, 1, 10 instead of 1, 49, 10
-      auto new_const = std::make_shared<ngraph::opset6::Constant>( /*type, shape, value_with_correct_shape*/ );
-      for (const auto& node : func->get_ops()) {
-         // Trying to find the problematic Constant by name.
-         if (node->get_friendly_name() == "name_of_non_reshapable_const") {
-            auto const_with_hardcoded_shape = std::dynamic_pointer_cast<ngraph::opset6::Constant>(node);
-            // Replacing the problematic Constant with a new one. Do this for all the problematic Constants in the network, then 
-            // you can apply the reshape feature.
-            ngraph::replace_node(const_with_hardcoded_shape, new_const);
-         }
-      }
+        // nGraph example. How to replace a Constant with hardcoded values of shapes in the network with another one with the new values.
+        // Assume we know which Constant (const_with_hardcoded_shape) prevents the reshape from being applied.
+        // Then we can find this Constant by name on the network and replace it with a new one with the correct shape.
+        auto func = cnnNetwork.getFunction();
+        // Creating the new Constant with a correct shape.
+        // For the example shown in the picture above, the new values of the Constant should be 1, 1, 10 instead of 1, 49, 10
+        auto new_const = std::make_shared<ngraph::opset6::Constant>( /*type, shape, value_with_correct_shape*/ );
+        for (const auto& node : func->get_ops()) {
+           // Trying to find the problematic Constant by name.
+           if (node->get_friendly_name() == "name_of_non_reshapable_const") {
+              auto const_with_hardcoded_shape = std::dynamic_pointer_cast<ngraph::opset6::Constant>(node);
+              // Replacing the problematic Constant with a new one. Do this for all the problematic Constants in the network, then 
+              // you can apply the reshape feature.
+              ngraph::replace_node(const_with_hardcoded_shape, new_const);
+           }
+        }
 
 @endsphinxdirective
