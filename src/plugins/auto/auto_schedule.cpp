@@ -406,7 +406,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
             }
         };
         _executor->run(std::move(recycleTask));
-    } else if (_autoSContext->_devicePriorities.size() != 1 && _autoSContext->_runtimeFallback) {
+    } else if (_autoSContext->_devicePriorities.size() != 1 && !isCumulative && _autoSContext->_runtimeFallback) {
         _firstLoadFuture = _firstLoadPromise.get_future();
         // will not wait for loading accelerator network,
         // so the executor can't be destroyed before finished the task,
