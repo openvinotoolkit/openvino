@@ -54,11 +54,12 @@ TEST_F(GNAMemoryTest, canStore2Blobs) {
 }
 
 TEST_F(GNAMemoryTest, canStoreBlobsALIGNED) {
+    GNAMemory<memory::GNAFloatAllocator> dataAlignedMem(16);
     float input[] = {1, 2, 3, 4, 5, 6, 7, 8};
     float* pFuture = nullptr;
-    auto queue = mem.getQueue(REGION_SCRATCH);
-    queue->push_ptr(nullptr, &pFuture, input, 3 * 4, 8);
-    mem.commit();
+    auto queue = dataAlignedMem.getQueue(REGION_SCRATCH);
+    queue->push_ptr(nullptr, &pFuture, input, 3 * 4);
+    dataAlignedMem.commit();
 
     ASSERT_EQ(16, queue->getSize());
 
@@ -73,15 +74,16 @@ TEST_F(GNAMemoryTest, canStoreBlobsALIGNED) {
 }
 
 TEST_F(GNAMemoryTest, canStore2BlobsALIGNED) {
+    GNAMemory<memory::GNAFloatAllocator> dataAlignedMem(8);
     float input[] = {1, 2, 3, 4, 5, 6, 7, 8};
     float* pFuture = nullptr;
     float* pFuture2 = nullptr;
-    auto queue = mem.getQueue(REGION_SCRATCH);
-    queue->push_ptr(nullptr, &pFuture, input, 3 * 4, 8);
-    queue->push_ptr(nullptr, &pFuture2, input, 3 * 4, 16);
-    mem.commit();
+    auto queue = dataAlignedMem.getQueue(REGION_SCRATCH);
+    queue->push_ptr(nullptr, &pFuture, input, 3 * 4);
+    queue->push_ptr(nullptr, &pFuture2, input, 1 * 4);
+    dataAlignedMem.commit();
 
-    ASSERT_EQ(32, queue->getSize());
+    ASSERT_EQ(24, queue->getSize());
 
     ASSERT_NE(pFuture, nullptr);
 
@@ -90,8 +92,6 @@ TEST_F(GNAMemoryTest, canStore2BlobsALIGNED) {
     ASSERT_EQ(pFuture[2], 3);
     // least probability for next element to be equal if not copied
     ASSERT_EQ(pFuture[4], 1);
-    ASSERT_EQ(pFuture[5], 2);
-    ASSERT_EQ(pFuture[6], 3);
 }
 
 TEST_F(GNAMemoryTest, canReserveData) {
@@ -232,7 +232,7 @@ TEST_F(GNAMemoryTest, canPushLocal) {
 
     {
         std::vector<float> input = {1.0f, 2.0f, 3.0f, 4.0f};
-        mem.getQueue(REGION_SCRATCH)->push_local_ptr(nullptr, pFuture, &*input.begin(), 4 * 4, 1);
+        mem.getQueue(REGION_SCRATCH)->push_local_ptr(nullptr, pFuture, &*input.begin(), 4 * 4);
     }
 
     // poison stack
@@ -316,7 +316,7 @@ TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSize) {
 }
 
 TEST_F(GNAMemoryTest, canCalculateReadWriteSectionSizeWithAlignment) {
-    GNAMemory<memory::GNAFloatAllocator> memAligned(64);
+    GNAMemory<memory::GNAFloatAllocator> memAligned(1, 64);
     float* pFuture1 = reinterpret_cast<float*>(&pFuture1);
     float* pFuture2 = reinterpret_cast<float*>(&pFuture2);
 

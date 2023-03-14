@@ -27,30 +27,32 @@ namespace frontend {
 namespace pytorch {
 namespace pass {
 
+using namespace ov::op;
+
 namespace {
-std::shared_ptr<Node> create_padding(std::shared_ptr<Node> input_rank,
-                                     std::shared_ptr<Node> padding,
-                                     std::shared_ptr<Node> start_id,
-                                     std::shared_ptr<Node> end_id) {
+Output<Node> create_padding(const Output<Node>& input_rank,
+                            const Output<Node>& padding,
+                            const Output<Node>& start_id,
+                            const Output<Node>& end_id) {
     // PyTorch paddings represented as [N_pad_begins, N_pad_ends, N-1_pad_begins, N-1_pad_ends, ... ]
     // if len of paddings not equal to input rank * 2, zero padding added to first rank - N  dimensions
     // OV expects paddings separated on begins and ends for each dimension from first to last
-    auto minus_two = ov::op::v0::Constant::create(element::i32, Shape{}, {-2});
-    auto zero = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
-    auto pad_id_range = std::make_shared<ov::op::v4::Range>(start_id, end_id, minus_two, element::i32);
-    auto pads = std::make_shared<ov::op::v8::Gather>(padding, pad_id_range, zero);
+    auto minus_two = v0::Constant::create(element::i32, Shape{}, {-2});
+    auto zero = v0::Constant::create(element::i32, Shape{}, {0});
+    auto pad_id_range = std::make_shared<v4::Range>(start_id, end_id, minus_two, element::i32);
+    auto pads = std::make_shared<v8::Gather>(padding, pad_id_range, zero);
     // add left side zero padding for difference between padding size and input rank
-    auto pads_short_len = std::make_shared<ov::op::v3::ShapeOf>(pads, element::i32);
-    auto pads_diff = std::make_shared<ov::op::v1::Subtract>(input_rank, pads_short_len);
-    auto pads_remaining = std::make_shared<ov::op::v3::Broadcast>(zero, pads_diff);
-    auto pads_remaining_c = std::make_shared<ov::op::v1::ConvertLike>(pads_remaining, pads);
-    auto pads_full = std::make_shared<ov::op::v0::Concat>(OutputVector{pads_remaining_c, pads}, 0);
+    auto pads_short_len = std::make_shared<v3::ShapeOf>(pads, element::i32);
+    auto pads_diff = std::make_shared<v1::Subtract>(input_rank, pads_short_len);
+    auto pads_remaining = std::make_shared<v3::Broadcast>(zero, pads_diff);
+    auto pads_remaining_c = std::make_shared<v1::ConvertLike>(pads_remaining, pads);
+    auto pads_full = std::make_shared<v0::Concat>(OutputVector{pads_remaining_c, pads}, 0);
     return pads_full;
 }
 
-const std::unordered_map<std::string, ov::op::PadMode> PAD_MODES = {{"constant", ov::op::PadMode::CONSTANT},
-                                                                    {"reflect", ov::op::PadMode::REFLECT},
-                                                                    {"replicate", ov::op::PadMode::EDGE}};
+const std::unordered_map<std::string, PadMode> PAD_MODES = {{"constant", PadMode::CONSTANT},
+                                                            {"reflect", PadMode::REFLECT},
+                                                            {"replicate", PadMode::EDGE}};
 
 };  // namespace
 
@@ -62,26 +64,26 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
         if (!pad_op) {
             return false;
         }
-        auto minus_two = ov::op::v0::Constant::create(element::i32, Shape{}, {-2});
-        auto minus_one = ov::op::v0::Constant::create(element::i32, Shape{}, {-1});
-        auto zero = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
-        auto input_node = pad_op->input_value(0).get_node_shared_ptr();
+        auto minus_two = v0::Constant::create(element::i32, Shape{}, {-2});
+        auto minus_one = v0::Constant::create(element::i32, Shape{}, {-1});
+        auto zero = v0::Constant::create(element::i32, Shape{}, {0});
+        auto input_node = pad_op->input_value(0);
         auto padding = pad_op->input_value(1).get_node_shared_ptr();
         // for case. when padding is list of scalars, concatenate them into one tensor
         auto pad_values = concat_list_construct(padding);
         std::string mode = "constant";
-        auto zero_f = ov::op::v0::Constant::create(element::f32, Shape{}, {0});
-        auto input_shape = std::make_shared<ov::op::v3::ShapeOf>(input_node, element::i32);
-        auto input_rank = std::make_shared<ov::op::v3::ShapeOf>(input_shape, element::i32);
-        auto pad_size_1d = std::make_shared<ov::op::v3::ShapeOf>(pad_values, element::i32);
-        auto pad_size = std::make_shared<ov::op::v0::Squeeze>(pad_size_1d, zero);
+        auto zero_f = v0::Constant::create(element::f32, Shape{}, {0});
+        auto input_shape = std::make_shared<v3::ShapeOf>(input_node, element::i32);
+        auto input_rank = std::make_shared<v3::ShapeOf>(input_shape, element::i32);
+        auto pad_size_1d = std::make_shared<v3::ShapeOf>(pad_values, element::i32);
+        auto pad_size = std::make_shared<v0::Squeeze>(pad_size_1d, zero);
         // get pad_begins and pad_ends indexes starting for end of paddings
-        auto start_pad_begins = std::make_shared<ov::op::v1::Add>(pad_size, minus_two);
-        auto start_pad_ends = std::make_shared<ov::op::v1::Add>(pad_size, minus_one);
+        auto start_pad_begins = std::make_shared<v1::Add>(pad_size, minus_two);
+        auto start_pad_ends = std::make_shared<v1::Add>(pad_size, minus_one);
         auto pad_begins_full = create_padding(input_rank, pad_values, start_pad_begins, minus_one);
         auto pad_ends_full = create_padding(input_rank, pad_values, start_pad_ends, zero);
         auto mode_const = pad_op->input_value(2).get_node_shared_ptr();
-        auto pad_value = pad_op->input_value(3).get_node_shared_ptr();
+        auto pad_value = pad_op->input_value(3);
         if (const auto& fw_node_mode = cast_fw_node(mode_const, "prim::Constant")) {
             const auto& attrs = fw_node_mode->get_attrs();
             if (attrs.find("string_value") != attrs.end()) {
@@ -89,27 +91,23 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
             }
         }
         if (mode == "constant") {
-            if (const auto& fw_node_value = cast_fw_node(pad_value, "prim::Constant")) {
+            if (const auto& fw_node_value = cast_fw_node(pad_value.get_node_shared_ptr(), "prim::Constant")) {
                 const auto& attrs = fw_node_value->get_attrs();
                 if (attrs.find("none_value") != attrs.end()) {
                     pad_value = zero_f;
                 }
             }
-            pad_value = std::make_shared<ov::op::v1::ConvertLike>(pad_value, input_node);
+            pad_value = std::make_shared<v1::ConvertLike>(pad_value, input_node);
         }
         FRONT_END_OP_CONVERSION_CHECK(PAD_MODES.find(mode) != PAD_MODES.end(),
                                       "Unsupported mode: ",
                                       mode,
                                       "for aten::pad");
         auto pad_mode = PAD_MODES.at(mode);
-        auto pad = std::make_shared<ov::op::v1::Pad>(input_node, pad_begins_full, pad_ends_full, pad_value, pad_mode);
+        auto pad = std::make_shared<v1::Pad>(input_node, pad_begins_full, pad_ends_full, pad_value, pad_mode);
         replace_node(pad_op, pad);
-        copy_runtime_info({pad_op,
-                           input_node,
-                           padding,
-                           pad_op->input_value(2).get_node_shared_ptr(),
-                           pad_op->input_value(3).get_node_shared_ptr()},
-                          pad);
+        copy_runtime_info({pad_op, padding, mode_const, pad_op->input_value(3).get_node_shared_ptr()}, pad);
+        pad->set_friendly_name(pad_op->get_friendly_name());
         return true;
     };
 

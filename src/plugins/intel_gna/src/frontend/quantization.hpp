@@ -46,6 +46,17 @@ extern void QuantizeWeights(const QuantizationData& data,
 template <typename T>
 extern void QuantizeBiases(const QuantizationData& data, float* ptr_float_biases, T* ptr_int_biases);
 
+#ifdef __clang__
+#    pragma clang diagnostic push
+#    ifdef __has_warning
+#        if __has_warning("-Wimplicit-const-int-float-conversion")
+#            pragma clang diagnostic ignored "-Wimplicit-const-int-float-conversion"
+#        elif __has_warning("-Wimplicit-int-float-conversion")
+#            pragma clang diagnostic ignored "-Wimplicit-int-float-conversion"
+#        endif
+#    endif
+#endif
+
 template <class T>
 inline T SaturationCast(float value, uint32_t* saturation_counter = nullptr) {
     if (value > std::numeric_limits<T>::max()) {
@@ -62,6 +73,10 @@ inline T SaturationCast(float value, uint32_t* saturation_counter = nullptr) {
         return static_cast<T>(value);
     }
 }
+
+#if defined(__clang__)
+#    pragma clang diagnostic pop
+#endif
 
 /**
  * @brief Apply FQ levels onto a value

@@ -87,7 +87,7 @@ inline std::ostream& operator<<(std::ostream& os, const ExecutionMode& execution
     case ExecutionMode::SW_FP32:
         return os << "GNA_SW_FP32";
     default:
-        throw ov::Exception{"Unsupported execution mode!"};
+        OPENVINO_THROW("Unsupported execution mode!");
     }
 }
 
@@ -105,7 +105,7 @@ inline std::istream& operator>>(std::istream& is, ExecutionMode& execution_mode)
     } else if (str == "GNA_SW_FP32") {
         execution_mode = ExecutionMode::SW_FP32;
     } else {
-        throw ov::Exception{"Unsupported execution mode: " + str};
+        OPENVINO_THROW("Unsupported execution mode: ", str);
     }
     return is;
 }
@@ -149,7 +149,7 @@ inline std::ostream& operator<<(std::ostream& os, const HWGeneration& hw_generat
     case HWGeneration::GNA_4_0:
         return os << "GNA_4_0";
     default:
-        throw ov::Exception{"Unsupported HW generation!"};
+        OPENVINO_THROW("Unsupported HW generation!");
     }
 }
 
@@ -175,7 +175,7 @@ inline std::istream& operator>>(std::istream& is, HWGeneration& hw_generation) {
     } else if (str == "GNA_4_0") {
         hw_generation = HWGeneration::GNA_4_0;
     } else {
-        throw ov::Exception{"Unsupported HW generation: " + str};
+        OPENVINO_THROW("Unsupported HW generation: ", str);
     }
     return is;
 }
@@ -232,7 +232,7 @@ inline std::ostream& operator<<(std::ostream& os, const PWLDesignAlgorithm& pwl_
     case PWLDesignAlgorithm::UNIFORM_DISTRIBUTION:
         return os << "UNIFORM_DISTRIBUTION";
     default:
-        throw ov::Exception{"Unsupported PWL design algorithm!"};
+        OPENVINO_THROW("Unsupported PWL design algorithm!");
     }
 }
 
@@ -246,7 +246,7 @@ inline std::istream& operator>>(std::istream& is, PWLDesignAlgorithm& pwl_design
     } else if (str == "UNIFORM_DISTRIBUTION") {
         pwl_design_algo = PWLDesignAlgorithm::UNIFORM_DISTRIBUTION;
     } else {
-        throw ov::Exception{"Unsupported PWL design algorithm: " + str};
+        OPENVINO_THROW("Unsupported PWL design algorithm: ", str);
     }
     return is;
 }
