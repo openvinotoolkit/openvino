@@ -6,7 +6,6 @@
 
 #include <limits>
 #include <string>
-#include <iostream>
 
 namespace ov {
 
@@ -81,9 +80,7 @@ Any::Any(const char* str) : Any(std::string{str}) {}
 Any::Any(const std::nullptr_t) : Any() {}
 
 void Any::impl_check() const {
-    if (_impl == nullptr) {
-        OPENVINO_UNREACHABLE("Any was not initialized.");
-    }
+    OPENVINO_ASSERT(_impl != nullptr, "Any was not initialized.");
 }
 
 const std::type_info& Any::type_info() const {
@@ -142,7 +139,7 @@ void Read<bool>::operator()(std::istream& is, bool& value) const {
     } else if (str == "NO") {
         value = false;
     } else {
-        OPENVINO_UNREACHABLE("Could not convert to bool from string " + str);
+        OPENVINO_THROW("Could not convert to bool from string " + str);
     }
 }
 
@@ -153,9 +150,9 @@ static auto stream_to(std::istream& is, F&& f) -> decltype(f(std::declval<const 
     try {
         return f(str);
     } catch (std::exception& e) {
-        OPENVINO_UNREACHABLE(std::string{"Could not convert to: "} +
-                             typeid(decltype(f(std::declval<const std::string&>()))).name() + " from string \"" + str +
-                             "\": " + e.what());
+        OPENVINO_THROW(std::string{"Could not convert to: "} +
+                       typeid(decltype(f(std::declval<const std::string&>()))).name() + " from string \"" + str +
+                       "\": " + e.what());
     }
 }
 
@@ -246,7 +243,7 @@ void Read<AnyMap>::operator()(
                 --enclosed_container_level;
             }
 
-            value += c; // accumulare current value
+            value += c; // accumulate current value
         }
         map.emplace(std::move(key), std::move(value));
     }
