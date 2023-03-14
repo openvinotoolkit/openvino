@@ -74,7 +74,6 @@ OutputVector roi_align(const Node& node) {
                                                spatial_scale,
                                                pooling_mode,
                                                aligned_mode)};
-    //return {};
 }
 }  // namespace set_16
 
