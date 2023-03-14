@@ -43,8 +43,6 @@ public:
         return (opts->*member)();
     }
 
-
-
     ov::Any get_attribute(const std::string& name) const override {
         return {};
     }
@@ -67,9 +65,11 @@ public:
     const std::string& get_op_type() const override;
     const std::string& get_op_name() const override;
 
-    std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> decode_input_tensor(size_t idx, const InputModel& model) const;
+    std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> decode_input_tensor(size_t idx,
+            const ov::frontend::InputModel& model) const;
 
-    std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> decode_output_tensor(size_t idx, const InputModel& model) const;
+    std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> decode_output_tensor(size_t idx,
+            const ov::frontend::InputModel& model) const;
 
 private:
     std::shared_ptr<ov::frontend::tensorflow_lite::TensorLitePlace> decode_tensor(
