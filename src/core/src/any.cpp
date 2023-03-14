@@ -9,7 +9,7 @@
 
 namespace ov {
 
-bool Any::equal(std::type_index lhs, std::type_index rhs) {
+bool util::equal(std::type_index lhs, std::type_index rhs) {
     auto result = lhs == rhs;
 #if (defined(__ANDROID__) || defined(__APPLE__)) && defined(__clang__)
     if (!result) {
@@ -20,7 +20,7 @@ bool Any::equal(std::type_index lhs, std::type_index rhs) {
 }
 
 bool Any::Base::is(const std::type_info& other) const {
-    return Any::equal(type_info(), other);
+    return util::equal(type_info(), other);
 }
 
 void Any::Base::type_check(const std::type_info& type_info_) const {
