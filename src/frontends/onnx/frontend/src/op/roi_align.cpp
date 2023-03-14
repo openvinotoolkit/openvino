@@ -68,12 +68,13 @@ OutputVector roi_align(const Node& node) {
     return {std::make_shared<opset9::ROIAlign>(data,
                                                rois,
                                                num_rois,
-                                               pooled_h,
-                                               pooled_w,
-                                               sampling_ratio,
+                                               static_cast<int>(pooled_h),
+                                               static_cast<int>(pooled_w),
+                                               static_cast<int>(sampling_ratio),
                                                spatial_scale,
                                                pooling_mode,
                                                aligned_mode)};
+    //return {};
 }
 }  // namespace set_16
 
