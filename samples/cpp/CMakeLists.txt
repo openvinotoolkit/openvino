@@ -88,12 +88,6 @@ if(ARM AND NOT (CMAKE_CROSSCOMPILING OR CMAKE_CXX_COMPILER_ID STREQUAL "MSVC"))
     add_compile_options(-march=armv7-a+fp)
 endif()
 
-set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-set(CMAKE_CXX_VISIBILITY_PRESET hidden)
-set(CMAKE_C_VISIBILITY_PRESET hidden)
-set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
-
 ####################################
 ## to use C++11; can overwritten via cmake command line
 if(NOT DEFINED CMAKE_CXX_STANDARD)
@@ -242,7 +236,7 @@ macro(ie_add_sample)
     endif()
     if(COMMAND ov_ncc_naming_style AND NOT c_sample)
         ov_ncc_naming_style(FOR_TARGET "${IE_SAMPLE_NAME}"
-                            SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+                            SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}")
     endif()
 endmacro()
 

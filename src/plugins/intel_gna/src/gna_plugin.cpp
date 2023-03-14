@@ -376,7 +376,8 @@ void GNAPlugin::InitGNADevice() {
                                                       gnaFlags->performance_counting,
                                                       !config.embedded_export_path.empty());
         size_t page_size_bytes = 4096;
-        gnamem = std::make_shared<gna_memory_device>(memory::GNAAllocator(gnadevice), page_size_bytes);
+        size_t mem_alignment = gnadevice->getMemAlignment();
+        gnamem = std::make_shared<gna_memory_device>(memory::GNAAllocator(gnadevice), mem_alignment, page_size_bytes);
     }
     graphCompiler.setGNAMemoryPtr(gnamem);
 }
@@ -852,10 +853,6 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
         }
         portId++;
     }
-    // TODO: how active list will work in multioutput case
-    // make room for active list
-    gnamem->getQueue(REGION_OUTPUTS)
-        ->reserve_ptr(nullptr, nullptr, ALIGN64(outputs_.Get().begin()->get_required_size()), 64);
 
     void* pParallelExecutionData = nullptr;
 
@@ -866,7 +863,7 @@ void GNAPlugin::LoadNetwork(const CNNNetwork& _network) {
     rwSegmentSize += gnamem->getRegionBytes(REGION_OUTPUTS);
     if (gnaFlags->num_requests > 1) {
         gnamem->getQueue(REGION_SCRATCH)
-            ->reserve_ptr(nullptr, &pParallelExecutionData, rwSegmentSize * (gnaFlags->num_requests - 1), 64);
+            ->reserve_ptr(nullptr, &pParallelExecutionData, rwSegmentSize * (gnaFlags->num_requests - 1));
     }
 
     gnamem->commit(gnaFlags->compact_mode);
@@ -1447,7 +1444,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr GNAPlugin::ImportNetwork(std::i
     void* basePtr = nullptr;
     std::string modelLibVersion;  //!< OpenVINO and GNA Library versions read from GNA model file
 
-    gnamem->getQueue(REGION_SCRATCH)->reserve_ptr(nullptr, &basePtr, header.gnaMemSize);
+    gnamem->getQueue(REGION_SCRATCH)->reserve_ptr(nullptr, &basePtr, header.gnaMemSize, false);
 
     gnamem->commit();
 
