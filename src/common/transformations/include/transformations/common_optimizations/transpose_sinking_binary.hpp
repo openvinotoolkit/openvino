@@ -17,12 +17,22 @@ class TRANSFORMATIONS_API TransposeSinkingBinaryBackward;
 }  // namespace pass
 }  // namespace ov
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief TransposeSinkingBinaryForward transformation sinks Transpose through BinaryElementwiseArithmetic,
+ * BinaryElementwiseComparison, BinaryElementwiseLogical and PRelu operations in the forward direction.
+ */
 class ov::pass::TransposeSinkingBinaryForward : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ov::pass::TransposeSinkingBinaryForward", "0");
     TransposeSinkingBinaryForward();
 };
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief TransposeSinkingBinaryBackward transformation sinks Transpose through BinaryElementwiseArithmetic,
+ * BinaryElementwiseComparison, BinaryElementwiseLogical and PRelu operations in the backward direction.
+ */
 class ov::pass::TransposeSinkingBinaryBackward : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ov::pass::TransposeSinkingBinaryBackward", "0");

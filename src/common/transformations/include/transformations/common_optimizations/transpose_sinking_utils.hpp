@@ -4,23 +4,18 @@
 
 #pragma once
 
-#include <openvino/pass/pattern/op/or.hpp>
 #include <transformations/utils/utils.hpp>
 #include <utility>
 
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/opsets/opset9.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/pattern/op/label.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/util/common_util.hpp"
-#include "openvino/util/log.hpp"
 
 namespace transpose_sinking {
 
 struct TransposeInputsInfo {
-    std::shared_ptr<ov::opset9::Transpose> transpose;
-    std::shared_ptr<ov::opset9::Constant> transpose_const;
+    std::shared_ptr<ov::opset10::Transpose> transpose;
+    std::shared_ptr<ov::opset10::Constant> transpose_const;
     size_t input_idx;
 
     bool isEmpty() const {
@@ -87,7 +82,7 @@ namespace sink_backward {
  * transposes for all inputs.
  */
 ov::NodeVector InsertTransposeBeforeNode(const std::shared_ptr<ov::Node>& main_node,
-                                         const std::shared_ptr<ov::opset9::Constant>& transpose_const,
+                                         const std::shared_ptr<ov::opset10::Constant>& transpose_const,
                                          std::vector<int> input_indexes = {});
 }  // namespace sink_backward
 
@@ -109,6 +104,6 @@ void RemoveSingleOutputConsumers(const std::shared_ptr<ov::Node>&);
  */
 ov::Output<ov::Node> ChangeValuesOrder(const ov::Output<ov::Node>& input,
                                        const ov::AxisVector& transpose_axis_order,
-                                       const std::shared_ptr<ov::opset9::Constant>& axis);
+                                       const std::shared_ptr<ov::opset10::Constant>& axis);
 
 }  // namespace transpose_sinking
