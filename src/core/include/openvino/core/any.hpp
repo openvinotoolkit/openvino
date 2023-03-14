@@ -215,29 +215,36 @@ struct Read<
     std::map<K, T, C, A>,
     typename std::enable_if<std::is_default_constructible<K>::value && std::is_default_constructible<T>::value>::type> {
     void operator()(std::istream& is, std::map<K, T, C, A>& map) const {
-        char ch;
-        std::string key;
-        std::string value;
-        std::string str;
-        while (std::getline(is, str, '}')) {
-            std::istringstream iss(str);
-            iss >> ch;
-            while (iss.good()) {
-                std::getline(iss, key, ':');
-                auto k = from_string<K>(key);
-                std::getline(iss, value, ',');
-                if (value.front() == '{' && value.back() != '}') {
-                    std::string tmp;
-                    if (iss.good()) {
-                        std::getline(iss, tmp);
-                        value += ',' + tmp;
-                    }
-                    value += '}';
+        char c;
+
+        is >> c;
+        OPENVINO_ASSERT(c == '{', "Failed to parse std::map<K, T>. Starting symbols is not '{', it's ", c);
+
+        while (c != '}') {
+            std::getline(is, key, ':');
+            size_t enclosed_container_level = 0;
+
+            std::string key, value;
+            while (is.good()) {
+                is >> c;
+                if (c == ',') { // delimiter between map's pairs
+                    if (enclosed_container_level == 0) // we should interrupt after delimiter
+                        break;
                 }
-                auto v = from_string<T>(value);
-                map.emplace(std::move(k), std::move(v));
+                if (c == '{' || c == '[') // case of enclosed maps / arrays
+                    ++enclosed_container_level;
+                if (c == '}' || c == ']') {
+                    if (enclosed_container_level == 0)
+                        break; // end of map
+                    --enclosed_container_level;
+                }
+
+                value += c; // accumulate current value
             }
+            map.emplace(from_string<K>(key), from_string<T>(value));
         }
+
+        OPENVINO_ASSERT(c == '}', "Failed to parse std::map<K, T>. Ending symbols is not '}', it's ", c);
     }
 };
 

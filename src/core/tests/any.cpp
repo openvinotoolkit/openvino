@@ -213,24 +213,18 @@ TEST_F(AnyTests, AnyAsMapOfMapOfAnysFromString) {
     ASSERT_EQ(string_props, ov::Any(map).as<std::string>());
 
     // check map1
-    ov::AnyMap map1;
+    using MapStrDouble = std::map<std::string, double>;
+    MapStrDouble map1;
     ASSERT_TRUE(map["map1"].is<std::string>());
     ASSERT_FALSE(map["map1"].is<ov::AnyMap>());
-    ASSERT_NO_THROW(map1 = map["map1"].as<ov::AnyMap>());
+    ASSERT_FALSE(map["map1"].is<MapStrDouble>());
+    ASSERT_NO_THROW(map1 = map["map1"].as<MapStrDouble>());
     ASSERT_EQ(2, map1.size());
 
     // check map1:prop1
-    ASSERT_TRUE(map1["prop1"].is<std::string>());
-    ASSERT_FALSE(map1["prop1"].is<int>());
-    ASSERT_EQ("1", map1["prop1"].as<std::string>());
-    ASSERT_EQ(1, map1["prop1"].as<int>());
-
+    ASSERT_EQ(1.0, map1["prop1"]);
     // check map1:prop2
-    ASSERT_TRUE(map1["prop2"].is<std::string>());
-    ASSERT_FALSE(map1["prop2"].is<int>());
-    ASSERT_FALSE(map1["prop2"].is<double>());
-    ASSERT_EQ("2.0", map1["prop2"].as<std::string>());
-    ASSERT_EQ(2.0, map1["prop2"].as<int>());
+    ASSERT_EQ(2.0, map1["prop2"]);
 
     // check map2
     ov::AnyMap map2;
