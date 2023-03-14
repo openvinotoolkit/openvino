@@ -11,11 +11,7 @@
 
 #include "openvino/c/openvino.h"
 #include "openvino/openvino.hpp"
-
-extern const char* xml;
-extern const char* bin;
-extern const char* input_image;
-extern const char* input_image_nv12;
+#include "test_model_repo.hpp"
 
 #define OV_EXPECT_OK(...)           EXPECT_EQ(ov_status_e::OK, __VA_ARGS__)
 #define OV_ASSERT_OK(...)           ASSERT_EQ(ov_status_e::OK, __VA_ARGS__)
@@ -39,6 +35,22 @@ extern const char* input_image_nv12;
 
 extern std::map<ov_element_type_e, size_t> element_type_size_map;
 #define GET_ELEMENT_TYPE_SIZE(a) element_type_size_map[a]
+
+class ov_capi_test_base : public ::testing::TestWithParam<std::string> {
+public:
+    void SetUp() override {
+        TestDataHelpers::generate_test_model();
+        xml_file_name = TestDataHelpers::get_model_xml_file_name();
+        bin_file_name = TestDataHelpers::get_model_bin_file_name();
+    }
+
+    void TearDown() override {
+        TestDataHelpers::release_test_model();
+    }
+
+public:
+    std::string xml_file_name, bin_file_name;
+};
 
 inline size_t find_device(ov_available_devices_t avai_devices, const char* device_name) {
     for (size_t i = 0; i < avai_devices.size; ++i) {

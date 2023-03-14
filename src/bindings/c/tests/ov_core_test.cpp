@@ -22,10 +22,19 @@ TEST(ov_util, ov_get_error_info_check) {
     EXPECT_STREQ(res, str);
 }
 
-class ov_core : public ::testing::TestWithParam<std::string> {};
-INSTANTIATE_TEST_SUITE_P(device_name, ov_core, ::testing::Values("CPU"));
+class ov_core_test : public ov_capi_test_base {
+public:
+    void SetUp() override {
+        ov_capi_test_base::SetUp();
+    }
 
-TEST(ov_core, ov_core_create_with_config) {
+    void TearDown() override {
+        ov_capi_test_base::TearDown();
+    }
+};
+INSTANTIATE_TEST_SUITE_P(device_name, ov_core_test, ::testing::Values("CPU"));
+
+TEST_P(ov_core_test, ov_core_create_with_config) {
     std::string plugins_xml = TestDataHelpers::generate_test_xml_file();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create_with_config(plugins_xml.c_str(), &core));
@@ -34,45 +43,45 @@ TEST(ov_core, ov_core_create_with_config) {
     TestDataHelpers::delete_test_xml_file();
 }
 
-TEST(ov_core, ov_core_create_with_no_config) {
+TEST_P(ov_core_test, ov_core_create_with_no_config) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
     ov_core_free(core);
 }
 
-TEST(ov_core, ov_core_read_model) {
+TEST_P(ov_core_test, ov_core_read_model) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
     EXPECT_NE(nullptr, model);
 
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST(ov_core, ov_core_read_model_no_bin) {
+TEST_P(ov_core_test, ov_core_read_model_no_bin) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, nullptr, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), nullptr, &model));
     EXPECT_NE(nullptr, model);
 
     ov_model_free(model);
     ov_core_free(core);
 }
 
-TEST(ov_core, ov_core_read_model_from_memory) {
+TEST_P(ov_core_test, ov_core_read_model_from_memory) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
-    std::vector<uint8_t> weights_content(content_from_file(bin, true));
+    std::vector<uint8_t> weights_content(content_from_file(bin_file_name.c_str(), true));
 
     ov_tensor_t* tensor = nullptr;
     ov_shape_t shape;
@@ -81,7 +90,7 @@ TEST(ov_core, ov_core_read_model_from_memory) {
     OV_EXPECT_OK(ov_tensor_create_from_host_ptr(ov_element_type_e::U8, shape, weights_content.data(), &tensor));
     EXPECT_NE(nullptr, tensor);
 
-    std::vector<uint8_t> xml_content(content_from_file(xml, false));
+    std::vector<uint8_t> xml_content(content_from_file(xml_file_name.c_str(), false));
     ov_model_t* model = nullptr;
     OV_EXPECT_OK(
         ov_core_read_model_from_memory(core, reinterpret_cast<const char*>(xml_content.data()), tensor, &model));
@@ -93,14 +102,14 @@ TEST(ov_core, ov_core_read_model_from_memory) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_compile_model) {
+TEST_P(ov_core_test, ov_core_compile_model) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, nullptr, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), nullptr, &model));
     EXPECT_NE(nullptr, model);
 
     ov_compiled_model_t* compiled_model = nullptr;
@@ -112,14 +121,14 @@ TEST_P(ov_core, ov_core_compile_model) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_compile_model_with_property) {
+TEST_P(ov_core_test, ov_core_compile_model_with_property) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, nullptr, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), nullptr, &model));
     EXPECT_NE(nullptr, model);
 
     ov_compiled_model_t* compiled_model = nullptr;
@@ -138,14 +147,14 @@ TEST_P(ov_core, ov_core_compile_model_with_property) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_compile_model_with_property_invalid) {
+TEST_P(ov_core_test, ov_core_compile_model_with_property_invalid) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_model_t* model = nullptr;
-    OV_EXPECT_OK(ov_core_read_model(core, xml, nullptr, &model));
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), nullptr, &model));
     EXPECT_NE(nullptr, model);
 
     ov_compiled_model_t* compiled_model = nullptr;
@@ -159,21 +168,21 @@ TEST_P(ov_core, ov_core_compile_model_with_property_invalid) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_compile_model_from_file) {
+TEST_P(ov_core_test, ov_core_compile_model_from_file) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
 
     ov_compiled_model_t* compiled_model = nullptr;
-    OV_EXPECT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), 0, &compiled_model));
+    OV_EXPECT_OK(ov_core_compile_model_from_file(core, xml_file_name.c_str(), device_name.c_str(), 0, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
     ov_compiled_model_free(compiled_model);
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_set_property_enum) {
+TEST_P(ov_core_test, ov_core_set_property_enum) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -186,7 +195,7 @@ TEST_P(ov_core, ov_core_set_property_enum) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_set_property_invalid_number_property_arguments) {
+TEST_P(ov_core_test, ov_core_set_property_invalid_number_property_arguments) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -209,7 +218,7 @@ TEST_P(ov_core, ov_core_set_property_invalid_number_property_arguments) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_set_property_enum_invalid) {
+TEST_P(ov_core_test, ov_core_set_property_enum_invalid) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -232,7 +241,7 @@ TEST_P(ov_core, ov_core_set_property_enum_invalid) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_set_and_get_property_enum) {
+TEST_P(ov_core_test, ov_core_set_and_get_property_enum) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -249,7 +258,7 @@ TEST_P(ov_core, ov_core_set_and_get_property_enum) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_set_and_get_property_bool) {
+TEST_P(ov_core_test, ov_core_set_and_get_property_bool) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -266,7 +275,7 @@ TEST_P(ov_core, ov_core_set_and_get_property_bool) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_set_and_get_property_bool_invalid) {
+TEST_P(ov_core_test, ov_core_set_and_get_property_bool_invalid) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -284,7 +293,7 @@ TEST_P(ov_core, ov_core_set_and_get_property_bool_invalid) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_get_property) {
+TEST_P(ov_core_test, ov_core_get_property) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -297,7 +306,7 @@ TEST_P(ov_core, ov_core_get_property) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_set_get_property_str) {
+TEST_P(ov_core_test, ov_core_set_get_property_str) {
 #ifdef __aarch64__
     GTEST_SKIP() << "Skip this test for ARM CPU for now, cause no string property supported";
 #endif
@@ -319,7 +328,7 @@ TEST_P(ov_core, ov_core_set_get_property_str) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_set_get_property_int) {
+TEST_P(ov_core_test, ov_core_set_get_property_int) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -337,7 +346,7 @@ TEST_P(ov_core, ov_core_set_get_property_int) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_set_property_int_invalid) {
+TEST_P(ov_core_test, ov_core_set_property_int_invalid) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -353,7 +362,7 @@ TEST_P(ov_core, ov_core_set_property_int_invalid) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_set_multiple_common_properties) {
+TEST_P(ov_core_test, ov_core_set_multiple_common_properties) {
 #ifdef __aarch64__
     GTEST_SKIP() << "Skip this test for ARM CPU for now, cause no string property supported";
 #endif
@@ -404,7 +413,7 @@ TEST_P(ov_core, ov_core_set_multiple_common_properties) {
     ov_core_free(core);
 }
 
-TEST(ov_core, ov_core_get_available_devices) {
+TEST_P(ov_core_test, ov_core_get_available_devices) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -416,7 +425,7 @@ TEST(ov_core, ov_core_get_available_devices) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_compiled_model_export_model) {
+TEST_P(ov_core_test, ov_compiled_model_export_model) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -429,17 +438,17 @@ TEST_P(ov_core, ov_compiled_model_export_model) {
     }
 
     ov_compiled_model_t* compiled_model = nullptr;
-    OV_EXPECT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), 0, &compiled_model));
+    OV_EXPECT_OK(ov_core_compile_model_from_file(core, xml_file_name.c_str(), device_name.c_str(), 0, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
-    std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
+    std::string export_path = TestDataHelpers::get_exported_blob_file_name();
     OV_EXPECT_OK(ov_compiled_model_export_model(compiled_model, export_path.c_str()));
 
     ov_compiled_model_free(compiled_model);
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_import_model) {
+TEST_P(ov_core_test, ov_core_import_model) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
 
@@ -453,10 +462,10 @@ TEST_P(ov_core, ov_core_import_model) {
     }
 
     ov_compiled_model_t* compiled_model = nullptr;
-    OV_EXPECT_OK(ov_core_compile_model_from_file(core, xml, device_name.c_str(), 0, &compiled_model));
+    OV_EXPECT_OK(ov_core_compile_model_from_file(core, xml_file_name.c_str(), device_name.c_str(), 0, &compiled_model));
     EXPECT_NE(nullptr, compiled_model);
 
-    std::string export_path = TestDataHelpers::generate_model_path("test_model", "exported_model.blob");
+    std::string export_path = TestDataHelpers::get_exported_blob_file_name();
     OV_EXPECT_OK(ov_compiled_model_export_model(compiled_model, export_path.c_str()));
     ov_compiled_model_free(compiled_model);
 
@@ -472,7 +481,7 @@ TEST_P(ov_core, ov_core_import_model) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_get_versions_by_device_name) {
+TEST_P(ov_core_test, ov_core_get_versions_by_device_name) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -495,14 +504,14 @@ const std::vector<std::wstring> test_unicode_postfix_vector = {L"unicode_Яㅎ�
                                                                L"그것이정당하다",
                                                                L"АБВГДЕЁЖЗИЙ",
                                                                L"СТУФХЦЧШЩЬЮЯ"};
-TEST(ov_core, ov_core_create_with_config_unicode) {
+TEST_P(ov_core_test, ov_core_create_with_config_unicode) {
     std::string plugins_xml = TestDataHelpers::generate_test_xml_file();
     ov_core_t* core = nullptr;
 
     for (std::size_t index = 0; index < test_unicode_postfix_vector.size(); index++) {
         std::wstring postfix = L"_" + test_unicode_postfix_vector[index];
-        std::wstring plugins_xml_ws = add_unicode_postfix_to_path(plugins_xml, postfix);
-        ASSERT_EQ(true, copy_file(plugins_xml, plugins_xml_ws));
+        std::wstring plugins_xml_ws = add_unicode_postfix_to_path(plugins_xml.c_str(), postfix);
+        ASSERT_EQ(true, copy_file(plugins_xml.c_str(), plugins_xml_ws));
 
         OV_EXPECT_OK(ov_core_create_with_config_unicode(plugins_xml_ws.c_str(), &core));
         EXPECT_NE(nullptr, core);
@@ -512,7 +521,7 @@ TEST(ov_core, ov_core_create_with_config_unicode) {
     TestDataHelpers::delete_test_xml_file();
 }
 
-TEST(ov_core, ov_core_read_model_unicode) {
+TEST_P(ov_core_test, ov_core_read_model_unicode) {
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
     EXPECT_NE(nullptr, core);
@@ -520,11 +529,11 @@ TEST(ov_core, ov_core_read_model_unicode) {
     ov_model_t* model = nullptr;
     for (std::size_t index = 0; index < test_unicode_postfix_vector.size(); index++) {
         std::wstring postfix = L"_" + test_unicode_postfix_vector[index];
-        std::wstring xml_ws = add_unicode_postfix_to_path(xml, postfix);
-        std::wstring bin_ws = add_unicode_postfix_to_path(bin, postfix);
+        std::wstring xml_ws = add_unicode_postfix_to_path(xml_file_name.c_str(), postfix);
+        std::wstring bin_ws = add_unicode_postfix_to_path(bin_file_name.c_str(), postfix);
 
-        ASSERT_EQ(true, copy_file(xml, xml_ws));
-        ASSERT_EQ(true, copy_file(bin, bin_ws));
+        ASSERT_EQ(true, copy_file(xml_file_name.c_str(), xml_ws));
+        ASSERT_EQ(true, copy_file(bin_file_name.c_str(), bin_ws));
 
         OV_EXPECT_OK(ov_core_read_model_unicode(core, xml_ws.c_str(), bin_ws.c_str(), &model));
         EXPECT_NE(nullptr, model);
@@ -537,7 +546,7 @@ TEST(ov_core, ov_core_read_model_unicode) {
     ov_core_free(core);
 }
 
-TEST_P(ov_core, ov_core_compile_model_from_file_unicode) {
+TEST_P(ov_core_test, ov_core_compile_model_from_file_unicode) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
     OV_EXPECT_OK(ov_core_create(&core));
@@ -546,10 +555,10 @@ TEST_P(ov_core, ov_core_compile_model_from_file_unicode) {
     ov_compiled_model_t* compiled_model = nullptr;
     for (std::size_t index = 0; index < test_unicode_postfix_vector.size(); index++) {
         std::wstring postfix = L"_" + test_unicode_postfix_vector[index];
-        std::wstring xml_ws = add_unicode_postfix_to_path(xml, postfix);
-        std::wstring bin_ws = add_unicode_postfix_to_path(bin, postfix);
-        ASSERT_EQ(true, copy_file(xml, xml_ws));
-        ASSERT_EQ(true, copy_file(bin, bin_ws));
+        std::wstring xml_ws = add_unicode_postfix_to_path(xml_file_name.c_str(), postfix);
+        std::wstring bin_ws = add_unicode_postfix_to_path(bin_file_name.c_str(), postfix);
+        ASSERT_EQ(true, copy_file(xml_file_name.c_str(), xml_ws));
+        ASSERT_EQ(true, copy_file(bin_file_name.c_str(), bin_ws));
 
         OV_EXPECT_OK(
             ov_core_compile_model_from_file_unicode(core, xml_ws.c_str(), device_name.c_str(), 0, &compiled_model));
