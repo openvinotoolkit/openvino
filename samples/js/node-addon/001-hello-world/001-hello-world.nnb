@@ -1,0 +1,116 @@
+{
+    "cells": [
+        {
+            "language": "markdown",
+            "source": [
+                "## Hello Image Classification"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Imports"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "shellscript",
+            "source": [
+                "npm install jimp"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "const cv = require('../lib/opencv.js');\nconst Jimp = require('jimp');\nconst fs = require('fs');"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "var ov = require('../lib/ov_node_addon.node');  // Later user would be able to download ov_node_addon using npm"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Load and compile the Model"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "const model = new ov.Model().read_model(\"../../assets/models/v3-small_224_1.0_float.xml\").compile(\"CPU\");"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Load an Image"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "const img_path = \"../../assets/images/coco224x224.jpg\";\nconst jimpSrc = await Jimp.read(img_path);"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "const src = cv.matFromImageData(jimpSrc.bitmap);\n\n// The MobileNet model expects images in RGB format.\ncv.cvtColor(src, src, cv.COLOR_RGBA2RGB);\n// Resize to MobileNet image shape.\ncv.resize(src, src, new cv.Size(224, 224));"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Create a tensor"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "const tensor_data = new Float32Array(src.data);\nconst tensor = new ov.Tensor(ov.element.f32, Int32Array.from([1, 224, 224, 3]), tensor_data);"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Perform inference"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "const output = model.infer(tensor);"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Results"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "javascript",
+            "source": [
+                "// Convert the inference result to a class name.\nconst imagenet_classes = fs.readFileSync('../imagenet_2012_labels.txt').toString().split(\"\\n\");\n \nconsole.log(\"Result: \" + imagenet_classes[output.data.indexOf(Math.max(...output.data)) - 1]);"
+            ],
+            "outputs": []
+        }
+    ]
+}
