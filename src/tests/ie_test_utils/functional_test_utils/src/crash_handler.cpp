@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "functional_test_utils/include/functional_test_utils/summary/op_summary.hpp"
+#include "functional_test_utils/summary/op_summary.hpp"
 
-#include "crash_handler.hpp"
+#include "functional_test_utils/crash_handler.hpp"
 #include <limits.h>
 
 namespace CommonTestUtils {

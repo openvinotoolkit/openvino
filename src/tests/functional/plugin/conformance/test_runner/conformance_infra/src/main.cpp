@@ -17,7 +17,7 @@
 #include "gflag_config.hpp"
 #include "conformance.hpp"
 
-#include "common_test_utils/crash_handler.hpp"
+#include "functional_test_utils/crash_handler.hpp"
 
 using namespace ov::test::conformance;
 

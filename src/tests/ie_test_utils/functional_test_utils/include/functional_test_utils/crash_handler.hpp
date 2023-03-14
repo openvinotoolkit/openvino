@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include "common_utils.hpp"
+#include "common_test_utils/common_utils.hpp"
 
 #include <signal.h>
 #include <setjmp.h>
