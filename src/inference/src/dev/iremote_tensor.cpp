@@ -284,6 +284,8 @@ std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<ie::Blob>& blob) {
         return {};
     } else if (auto tblob = dynamic_cast<const TensorRemoteBlob*>(blob.get())) {
         return tblob->tensor;
+    } else if (auto remote_blob = std::dynamic_pointer_cast<InferenceEngine::RemoteBlob>(blob)) {
+        return std::make_shared<RemoteBlobTensor>(remote_blob);
     }
     ELSE_IF(float)
     ELSE_IF(double)
@@ -299,11 +301,7 @@ std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<ie::Blob>& blob) {
     ELSE_IF(uint64_t)
     ELSE_IF(int8_t)
     ELSE_IF(bool) else {
-        if (auto remote_blob = std::dynamic_pointer_cast<InferenceEngine::RemoteBlob>(blob)) {
-            return std::make_shared<RemoteBlobTensor>(remote_blob);
-        } else {
-            return std::make_shared<BlobTensor>(blob);
-        }
+        return std::make_shared<BlobTensor>(blob);
     }
 #undef IF
 }
