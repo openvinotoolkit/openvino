@@ -8,6 +8,13 @@
             "outputs": []
         },
         {
+            "language": "shellscript",
+            "source": [
+                "npm install jimp@^0.16.13\nnpm install opencv.js@^1.2.1"
+            ],
+            "outputs": []
+        },
+        {
             "language": "markdown",
             "source": [
                 "## Imports"
@@ -15,16 +22,9 @@
             "outputs": []
         },
         {
-            "language": "shellscript",
-            "source": [
-                "npm install jimp"
-            ],
-            "outputs": []
-        },
-        {
             "language": "javascript",
             "source": [
-                "const cv = require('../lib/opencv.js');\nconst Jimp = require('jimp');\nconst fs = require('fs');"
+                "const cv = require('opencv.js');\nconst Jimp = require('jimp');\nconst fs = require('fs');"
             ],
             "outputs": []
         },
