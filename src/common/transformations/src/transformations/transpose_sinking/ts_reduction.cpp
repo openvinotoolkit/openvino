@@ -168,7 +168,7 @@ TSReductionBackward::TSReductionBackward() {
     auto reduce_or_squeeze_label = pattern::
         wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims, Squeeze, Unsqueeze>(
             {pattern::any_input(), pattern::wrap_type<Constant>()},
-             HasSameOutputTransposeNodes);
+            HasSameOutputTransposeNodes);
     auto transpose_label = pattern::wrap_type<Transpose>({reduce_or_squeeze_label, pattern::wrap_type<Constant>()});
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();

@@ -8,8 +8,8 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/transpose_sinking/ts_utils.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
+#include "transformations/transpose_sinking/ts_utils.hpp"
 
 using namespace ov;
 using namespace ov::opset10;

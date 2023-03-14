@@ -4,12 +4,11 @@
 
 #include "transformations/transpose_sinking/ts_general.hpp"
 
+#include "itt.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-
-#include "itt.hpp"
 #include "transformations/transpose_sinking/ts_binary.hpp"
 #include "transformations/transpose_sinking/ts_concat.hpp"
 #include "transformations/transpose_sinking/ts_data_movement.hpp"

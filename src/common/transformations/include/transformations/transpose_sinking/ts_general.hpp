@@ -15,9 +15,9 @@ class TRANSFORMATIONS_API TSGeneralForward;
 class TRANSFORMATIONS_API TSGeneralBackward;
 class TRANSFORMATIONS_API TSGeneral;
 
+}  // namespace transpose_sinking
 }  // namespace pass
 }  // namespace ov
-}
 
 /**
  * @ingroup ie_transformation_common_api

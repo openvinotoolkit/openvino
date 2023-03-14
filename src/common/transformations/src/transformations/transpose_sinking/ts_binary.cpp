@@ -5,8 +5,8 @@
 #include "transformations/transpose_sinking/ts_binary.hpp"
 
 #include "itt.hpp"
-#include "openvino/opsets/opset10.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"

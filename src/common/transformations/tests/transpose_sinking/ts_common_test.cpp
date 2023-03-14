@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/opsets/opset10.hpp"
-#include "openvino/pass/manager.hpp"
-
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/manager.hpp"
 #include "transformations/transpose_sinking/ts_binary.hpp"
 #include "transformations/transpose_sinking/ts_concat.hpp"
 #include "transformations/transpose_sinking/ts_data_movement.hpp"

@@ -15,7 +15,7 @@ namespace transpose_sinking {
 class TRANSFORMATIONS_API TSBinaryForward;
 class TRANSFORMATIONS_API TSBinaryBackward;
 
-}
+}  // namespace transpose_sinking
 }  // namespace pass
 }  // namespace ov
 

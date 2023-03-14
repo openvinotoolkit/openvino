@@ -379,7 +379,7 @@ void RemoveSingleOutputConsumers(const NodePtr& node) {
     }
 }
 
+}  // namespace utils
 }  // namespace transpose_sinking
-}
-}
-}
+}  // namespace pass
+}  // namespace ov

@@ -4,12 +4,11 @@
 
 #pragma once
 
+#include "common_test_utils/ngraph_test_utils.hpp"
+#include "gtest/gtest.h"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/manager.hpp"
-
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "gtest/gtest.h"
 
 namespace transpose_sinking {
 namespace testing {
@@ -68,6 +67,6 @@ std::shared_ptr<ov::Node> constant(ov::element::Type el_type, const ov::Shape& s
     return ov::opset10::Constant::create<T>(el_type, shape, value);
 }
 
-}  // utils
+}  // namespace utils
 }  // namespace testing
 }  // namespace transpose_sinking

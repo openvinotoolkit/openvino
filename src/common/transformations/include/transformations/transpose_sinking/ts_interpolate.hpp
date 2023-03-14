@@ -15,9 +15,9 @@ namespace transpose_sinking {
 class TRANSFORMATIONS_API TSInterpolateForward;
 class TRANSFORMATIONS_API TSInterpolateBackward;
 
+}  // namespace transpose_sinking
 }  // namespace pass
 }  // namespace ov
-}
 
 /**
  * @ingroup ie_transformation_common_api

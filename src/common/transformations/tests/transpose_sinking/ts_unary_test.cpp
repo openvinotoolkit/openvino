@@ -4,12 +4,11 @@
 
 #include "transformations/transpose_sinking/ts_unary.hpp"
 
+#include "common_test_utils/ngraph_test_utils.hpp"
+#include "gtest/gtest.h"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/manager.hpp"
-
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "gtest/gtest.h"
 #include "ts_test_utils.hpp"
 
 using namespace ov;

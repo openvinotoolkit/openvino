@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <functional>
-#include "openvino/frontend/manager.hpp"
-#include "openvino/opsets/opset10.hpp"
-#include "openvino/pass/manager.hpp"
 #include "transformations/transpose_sinking/ts_binary.hpp"
+
+#include <functional>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
+#include "openvino/frontend/manager.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/manager.hpp"
 #include "ts_test_utils.hpp"
 
 using namespace ov;
@@ -1219,6 +1220,6 @@ INSTANTIATE_TEST_SUITE_P(TSBinaryBackwardBinaryMultiConsumersTestSuite,
 
 }  // namespace mult_consumers
 
-}  // namespace transpose_sinking_binary_eltwise
-}
-}
+}  // namespace binary
+}  // namespace testing
+}  // namespace transpose_sinking

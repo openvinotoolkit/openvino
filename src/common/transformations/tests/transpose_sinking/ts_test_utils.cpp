@@ -4,11 +4,10 @@
 
 #include "ts_test_utils.hpp"
 
+#include "gtest/gtest.h"
 #include "openvino/frontend/manager.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/manager.hpp"
-
-#include "gtest/gtest.h"
 
 using namespace std;
 using namespace ov;
@@ -84,6 +83,6 @@ std::shared_ptr<ov::Node> parameter(ov::element::Type el_type, const PartialShap
     return std::make_shared<Parameter>(el_type, ps);
 }
 
-}  // utils
+}  // namespace utils
 }  // namespace testing
 }  // namespace transpose_sinking
