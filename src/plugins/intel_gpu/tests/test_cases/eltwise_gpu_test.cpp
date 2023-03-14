@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/runtime/layout.hpp"
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -1094,6 +1095,149 @@ TEST(eltwise_gpu_f32, logicalXOR_in2_float_out1_int) {
                                     0, 0, 0, 0,
                                     0, 0, 0, 0 };
 
+    for (size_t i = 0; i < answers.size(); ++i) {
+        ASSERT_EQ(answers[i], output_ptr[i]);
+    }
+}
+
+TEST(eltwise_gpu_f32, isfinite_in1_float_out1_int) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {2, 2, 2, 2}});
+    set_values(input,
+               {
+                   1.f,
+                   2.5f,
+                   5.f,
+                   std::numeric_limits<float>::infinity(),
+                   2.f,
+                   0.f,
+                   6.f,
+                   -std::numeric_limits<float>::infinity(),
+                   3.f,
+                   0.5f,
+                   7.f,
+                   std::numeric_limits<float>::quiet_NaN(),
+                   4.f,
+                   0.f,
+                   8.f,
+                   -std::numeric_limits<float>::quiet_NaN(),
+               });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(eltwise("eltwise", {input_info("input")}, eltwise_mode::is_finite));
+
+    network network(engine, topology);
+    network.set_input_data("input", input);
+
+    const auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
+
+    const auto output = outputs.at("eltwise").get_memory();
+    const cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+
+    const std::vector<int8_t> answers = {1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0};
+    for (size_t i = 0; i < answers.size(); ++i) {
+        ASSERT_EQ(answers[i], output_ptr[i]);
+    }
+}
+
+TEST(eltwise_gpu_f32, isinf_in1_float_out1_int) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {2, 2, 2, 2}});
+    set_values(input,
+               {
+                   1.f,
+                   2.5f,
+                   5.f,
+                   std::numeric_limits<float>::infinity(),
+                   2.f,
+                   0.f,
+                   6.f,
+                   -std::numeric_limits<float>::infinity(),
+                   3.f,
+                   0.5f,
+                   7.f,
+                   std::numeric_limits<float>::quiet_NaN(),
+                   4.f,
+                   0.f,
+                   8.f,
+                   -std::numeric_limits<float>::quiet_NaN(),
+               });
+
+    const std::vector<std::pair<std::vector<float>, std::vector<int8_t>>> params = {
+        {{0.f, 0.f}, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+        {{0.f, 1.f}, {0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+        {{1.f, 0.f}, {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0}},
+        {{1.f, 1.f}, {0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0}},
+    };
+
+    for (const auto& param : params) {
+        const auto& coefficients = param.first;
+        const auto& answers = param.second;
+
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(eltwise("eltwise", {input_info("input")}, eltwise_mode::is_inf, coefficients, data_types::i8));
+
+        network network(engine, topology);
+        network.set_input_data("input", input);
+
+        const auto outputs = network.execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "eltwise");
+
+        const auto output = outputs.at("eltwise").get_memory();
+        const cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+
+        for (size_t i = 0; i < answers.size(); ++i) {
+            ASSERT_EQ(answers[i], output_ptr[i]);
+        }
+    }
+}
+
+TEST(eltwise_gpu_f32, isnan_in1_float_out1_int) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {2, 2, 2, 2}});
+    set_values(input,
+               {
+                   1.f,
+                   2.5f,
+                   5.f,
+                   std::numeric_limits<float>::infinity(),
+                   2.f,
+                   0.f,
+                   6.f,
+                   -std::numeric_limits<float>::infinity(),
+                   3.f,
+                   0.5f,
+                   7.f,
+                   std::numeric_limits<float>::quiet_NaN(),
+                   4.f,
+                   0.f,
+                   8.f,
+                   -std::numeric_limits<float>::quiet_NaN(),
+               });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(eltwise("eltwise", {input_info("input")}, eltwise_mode::is_nan));
+
+    network network(engine, topology);
+    network.set_input_data("input", input);
+
+    const auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
+
+    const auto output = outputs.at("eltwise").get_memory();
+    const cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+
+    const std::vector<int8_t> answers = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1};
     for (size_t i = 0; i < answers.size(); ++i) {
         ASSERT_EQ(answers[i], output_ptr[i]);
     }
@@ -3922,9 +4066,9 @@ struct eltwise_layout_test_params {
 };
 
 #define CASE_ELTWISE_TEST1  eltwise_mode::sum, {1, 2, 1, 1}, {4, 2, 4, 4}, format::b_fs_yx_fsv16, format::bfyx, "generic_eltwise_ref"
-#define CASE_ELTWISE_TEST2  eltwise_mode::sum, {4, 1, 4, 4}, {1, 5, 1, 1}, format::b_fs_yx_fsv16, format::bfyx, "eltwise_b_fs_yx_fsv16"
+#define CASE_ELTWISE_TEST2  eltwise_mode::sum, {4, 1, 4, 4}, {1, 5, 1, 1}, format::b_fs_yx_fsv16, format::bfyx, "eltwise_blocked_opt"
 #define CASE_ELTWISE_TEST3  eltwise_mode::sum, {4, 5, 4, 1}, {4, 1, 4, 1}, format::b_fs_yx_fsv16, format::bfyx, "generic_eltwise_ref"
-#define CASE_ELTWISE_TEST4  eltwise_mode::sum, {4, 2, 4, 4}, {1, 1, 1, 1}, format::b_fs_yx_fsv16, format::bfyx, "eltwise_b_fs_yx_fsv16"
+#define CASE_ELTWISE_TEST4  eltwise_mode::sum, {4, 2, 4, 4}, {1, 1, 1, 1}, format::b_fs_yx_fsv16, format::bfyx, "eltwise_blocked_opt"
 #define CASE_ELTWISE_TEST5  eltwise_mode::sum, {1, 2, 1, 1}, {4, 2, 4, 4}, format::bfyx, format::b_fs_yx_fsv16, "generic_eltwise_ref"
 #define CASE_ELTWISE_TEST6  eltwise_mode::sum, {4, 1, 4, 4}, {1, 5, 1, 1}, format::bfyx, format::b_fs_yx_fsv16, "generic_eltwise_ref"
 #define CASE_ELTWISE_TEST7  eltwise_mode::sum, {4, 5, 4, 1}, {4, 1, 4, 1}, format::bfyx, format::b_fs_yx_fsv16, "generic_eltwise_ref"
@@ -3932,6 +4076,14 @@ struct eltwise_layout_test_params {
 #define CASE_ELTWISE_TEST9  eltwise_mode::eq,  {4, 2, 4, 4}, {1, 1, 1, 1}, format::b_fs_yx_fsv16, format::bfyx, "generic_eltwise_ref"
 
 class eltwise_layout_test : public BaseEltwiseTest<eltwise_layout_test_params> {
+public:
+    std::string PrintToString(const eltwise_layout_test_params& params) {
+        std::string res;
+        res += " format1 (" + format::traits(params.input0_format).str + ")";
+        res += " format2 (" + format::traits(params.input1_format).str + ")";
+
+        return res;
+    }
 };
 
 class eltwise_test_mixed_layout : public eltwise_layout_test {};
@@ -4027,6 +4179,15 @@ struct eltwise_random_test_params {
 
 struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
 {
+    static std::string PrintToString(const eltwise_random_test_params& params) {
+        std::string res = " data (" + cldnn::data_type_traits::name(params.input_type) + "), ";
+        res += " format (" + format::traits(params.in_format).str + ") input1 : ";
+        res += params.first_input_size.to_string() + " / input2 : ";
+        res += params.second_input_size.to_string() + "\n";
+
+        return res;
+    }
+
     template <typename T>
     void fill_random_typed(memory::ptr mem, int min, int max, int k) {
         auto l = mem->get_layout();
@@ -4137,24 +4298,7 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
         ExecutionConfig config_opt;
         config_opt.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"eltwise_opt"}));
 
-        std::shared_ptr<cldnn::network> net_opt;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topo_opt, config_opt);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                net_opt = std::make_shared<cldnn::network>(ib, config_opt, get_test_stream_ptr(), engine);
-            }
-        } else {
-            net_opt = std::make_shared<cldnn::network>(engine, topo_opt, config_opt);
-        }
+        cldnn::network::ptr net_opt = get_network(engine, topo_opt, config_opt, get_test_stream_ptr(), is_caching_test);
 
         net_opt->set_input_data("input1", input1);
         net_opt->set_input_data("input2", input2);
@@ -4187,16 +4331,46 @@ struct eltwise_random_test_param_generator : std::vector<eltwise_random_test_par
 
     eltwise_random_test_param_generator& broadcast_params(data_types type, format::type input_format, format::type output_format) {
         push_back(eltwise_random_test_params{ type, {1, 1, 48, 64},  {1, 10, 48, 64}, input_format, input_format, output_format, eltwise_mode::sum, false });
-        push_back(eltwise_random_test_params{ type, {1, 16, 48, 64}, {1, 1, 48, 64},  input_format, input_format, output_format, eltwise_mode::sum, false });
-        push_back(eltwise_random_test_params{ type, {1, 5, 4, 4},    {1, 1, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 16, 8, 8},   {1, 1, 8, 8},  input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 36, 8, 16},  {1, 36, 1, 1},  input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 36, 4, 4},   {1, 1, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum, false });
         push_back(eltwise_random_test_params{ type, {1, 8, 4, 4},    {1, 1, 1, 1},    input_format, format::bfyx, output_format, eltwise_mode::sum, false });
         return *this;
     }
 
     eltwise_random_test_param_generator& simple_params(data_types type, format::type input_format, format::type output_format) {
         push_back(eltwise_random_test_params{ type, {1, 10, 10, 10}, {1, 10, 10, 10}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 20, 10, 10}, {1, 20, 10, 10}, input_format, input_format, output_format, eltwise_mode::sum, false });
         push_back(eltwise_random_test_params{ type, {1, 5, 4, 4},    {1, 5, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum, false });
-        push_back(eltwise_random_test_params{ type, {1, 20, 16, 16}, {1, 20, 16, 16}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 32, 16, 16}, {1, 32, 16, 16}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        return *this;
+    }
+
+    eltwise_random_test_param_generator& simple_params_bsv(data_types type, format::type input_format, format::type output_format) {
+        push_back(eltwise_random_test_params{ type, {16, 32, 4, 4}, {16, 32, 4, 4}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {20, 16, 4, 1}, {20, 16, 4, 1}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        return *this;
+    }
+
+    eltwise_random_test_param_generator& simple_params_zyx(data_types type, format::type input_format, format::type output_format) {
+        push_back(eltwise_random_test_params{ type, {1, 32, 4, 4, 4}, {1, 32, 4, 4, 4}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        return *this;
+    }
+
+    eltwise_random_test_param_generator& broadcast_params_zyx(data_types type, format::type input_format, format::type output_format) {
+        push_back(eltwise_random_test_params{ type, {1, 1,  4, 4, 8},  {1, 10, 4, 4, 8}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 36, 8, 8, 16}, {1, 36, 1, 1, 1}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        return *this;
+    }
+
+    eltwise_random_test_param_generator& simple_params_bsv_zyx(data_types type, format::type input_format, format::type output_format) {
+        push_back(eltwise_random_test_params{ type, {48, 32, 4, 4, 4}, {48, 32, 4, 4, 4}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        return *this;
+    }
+
+    eltwise_random_test_param_generator& broadcast_params_bsv_zyx(data_types type, format::type input_format, format::type output_format) {
+        push_back(eltwise_random_test_params{ type, {32, 1,  4, 4, 8}, {32, 10, 4, 4, 8}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {32, 36, 4, 4, 4}, {32, 36, 1, 1, 1}, input_format, input_format, output_format, eltwise_mode::sum, false });
         return *this;
     }
 };
@@ -4220,10 +4394,88 @@ INSTANTIATE_TEST_SUITE_P(eltwise_smoke_fsv4,
                             .simple_params(data_types::u8, format::b_fs_yx_fsv4, format::b_fs_yx_fsv4)
                         ));
 
-INSTANTIATE_TEST_SUITE_P(export_import,
+INSTANTIATE_TEST_SUITE_P(eltwise_smoke_export_import,
                          eltwise_random_test,
                          testing::ValuesIn(
                             eltwise_random_test_param_generator()
                             .add(eltwise_random_test_params{ data_types::f16, {1, 1, 48, 64}, {1, 10, 48, 64}, format::b_fs_yx_fsv4,
                                                              format::b_fs_yx_fsv4, format::b_fs_yx_fsv4, eltwise_mode::sum, true })
                          ));
+
+INSTANTIATE_TEST_SUITE_P(eltwise_smoke_fsv16,
+                        eltwise_random_test,
+                        testing::ValuesIn(
+                            eltwise_random_test_param_generator()
+                            .broadcast_params(data_types::f32, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .broadcast_params(data_types::f16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .broadcast_params(data_types::i8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .broadcast_params(data_types::u8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .simple_params(data_types::f32, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .simple_params(data_types::f16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .simple_params(data_types::i8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .simple_params(data_types::u8, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                        ));
+
+INSTANTIATE_TEST_SUITE_P(eltwise_smoke_fsv32,
+                        eltwise_random_test,
+                        testing::ValuesIn(
+                            eltwise_random_test_param_generator()
+                            .broadcast_params(data_types::f32, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                            .broadcast_params(data_types::f16, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                            .broadcast_params(data_types::i8, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                            .broadcast_params(data_types::u8, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                            .simple_params(data_types::f32, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                            .simple_params(data_types::f16, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                            .simple_params(data_types::i8, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                            .simple_params(data_types::u8, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                        ));
+
+INSTANTIATE_TEST_SUITE_P(eltwise_smoke_bsv_fsv,
+                        eltwise_random_test,
+                        testing::ValuesIn(
+                            eltwise_random_test_param_generator()
+                            .broadcast_params(data_types::f32, format::bs_fs_yx_bsv16_fsv16, format::bs_fs_yx_bsv16_fsv16)
+                            .broadcast_params(data_types::f16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16)
+                            .broadcast_params(data_types::i8, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32)
+                            .broadcast_params(data_types::u8, format::bs_fs_yx_bsv16_fsv32, format::bs_fs_yx_bsv16_fsv32)
+                            .simple_params(data_types::f32, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16)
+                            .simple_params(data_types::f16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16)
+                            .simple_params(data_types::i8, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32)
+                            .simple_params(data_types::u8, format::bs_fs_yx_bsv16_fsv32, format::bs_fs_yx_bsv16_fsv32)
+                        ));
+
+INSTANTIATE_TEST_SUITE_P(eltwise_smoke_batch_case_neg,
+                        eltwise_random_test,
+                        testing::ValuesIn(
+                            eltwise_random_test_param_generator()
+                            .simple_params(data_types::f16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .simple_params_bsv(data_types::f16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .simple_params(data_types::u8, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                            .simple_params_bsv(data_types::u8, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                        ));
+
+INSTANTIATE_TEST_SUITE_P(eltwise_smoke_batch_case_pos,
+                        eltwise_random_test,
+                        testing::ValuesIn(
+                            eltwise_random_test_param_generator()
+                            .simple_params(data_types::f16, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32)
+                            .simple_params_bsv(data_types::f16, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32)
+                            .simple_params_bsv(data_types::u8, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32)
+                            .simple_params_bsv(data_types::f16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16)
+                        ));
+
+INSTANTIATE_TEST_SUITE_P(eltwise_smoke_zyx,
+                        eltwise_random_test,
+                        testing::ValuesIn(
+                            eltwise_random_test_param_generator()
+                            .simple_params_zyx(data_types::f16, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16)
+                            .simple_params_zyx(data_types::u8, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32)
+                            .broadcast_params_zyx(data_types::f16, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16)
+                            .broadcast_params_zyx(data_types::u8, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32)
+                            .simple_params_bsv_zyx(data_types::f16, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32)
+                            .simple_params_bsv_zyx(data_types::u8, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32)
+                            .simple_params_bsv_zyx(data_types::f16, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16)
+                            .broadcast_params_bsv_zyx(data_types::f16, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32)
+                            .broadcast_params_bsv_zyx(data_types::u8, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32)
+                            .broadcast_params_bsv_zyx(data_types::f16, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16)
+                        ));

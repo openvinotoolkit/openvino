@@ -37,8 +37,6 @@ target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/"
 target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime::dev
                                              inference_engine_legacy openvino::pugixml openvino::itt)
 
-ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
-
 if(WIN32)
     set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 endif()
@@ -47,9 +45,12 @@ if(BUILD_SHARED_LIBS)
     target_link_libraries(${TARGET_NAME} PRIVATE inference_engine)
 endif()
 
+# must be called after all target_link_libraries
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
 # code style
 
-add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
+add_clang_format_target(${TARGET_NAME}_clang_format FOR_TARGETS ${TARGET_NAME})
 
 # Install rules
 

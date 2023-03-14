@@ -46,7 +46,6 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/function.hpp>
-#include <ngraph/variant.hpp>
 #include <ngraph/ops.hpp>
 #include <transformations/utils/utils.hpp>
 #include <low_precision/low_precision.hpp>
@@ -140,7 +139,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
         return -1;
     };
 
-    for (const auto op : subgraph->get_ordered_ops()) {
+    for (const auto& op : subgraph->get_ordered_ops()) {
         const NodePtr node {Node::factory().create(op, context)};
 
         graphNodes.push_back(node);
@@ -880,7 +879,7 @@ void Graph::CreatePrimitives() {
         node->createPrimitive();
 #ifdef CPU_DEBUG_CAPS
         if (node->prim) {
-            auto pd_c = (*node->prim).get_primitive_desc();
+            auto pd_c = node->prim.get_primitive_desc();
             auto* pd = reinterpret_cast<const dnnl_primitive_desc*>(pd_c);
             DEBUG_LOG("verbose##", node->getName(), "##", pd->info(), "\n");
         }
@@ -1078,11 +1077,12 @@ void Graph::InferDynamic(InferRequestBase* request) {
     std::function<void(size_t, size_t)> updateDynParams;
 
     updateShapes = [&](size_t node_indx, size_t stop_indx) {
-        const auto& node = executableGraphNodes[node_indx];
         prepareCounter.store(node_indx);
         if (node_indx >= stop_indx) {
             return;
         }
+
+        const auto& node = executableGraphNodes[node_indx];
         if (node->isDynamicNode()) {
             node->updateShapes();
         }
@@ -1093,11 +1093,12 @@ void Graph::InferDynamic(InferRequestBase* request) {
     };
 
     updateDynParams = [&](size_t node_indx, size_t stop_indx) {
-        const auto& node = executableGraphNodes[node_indx];
         if (node_indx >= stop_indx) {
             prepareCounter.store(node_indx);
             return;
         }
+
+        const auto& node = executableGraphNodes[node_indx];
         if (node->isDynamicNode()) {
             node->updateDynamicParams();
         }
@@ -1534,6 +1535,8 @@ void Graph::EnforceBF16() {
     // starting from output nodes
     for (const auto& entry : outputNodesMap) {
         const auto& node = entry.second;
+        if (node->getOriginalInputPrecisionAtPort(0) == Precision::BF16)
+            continue;
         searchForNodesToSkip(node, nodesToSkip);
     }
 

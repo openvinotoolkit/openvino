@@ -1334,6 +1334,63 @@ bool all_ops_have_same_info(const std::shared_ptr<ov::Model>& f) {
 }
 }  // namespace
 
+TEST(model, topological_sort_throws_if_loop_with_one_node) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
+    auto result = std::make_shared<ov::opset8::Result>(relu1);
+
+    // Loop relu2->relu2
+    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1->output(0));
+    ov::replace_node(relu1, relu2);
+    ASSERT_THROW(std::ignore = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{arg0}),
+                 ov::Exception);
+}
+
+TEST(model, topological_sort_throws_if_loop_with_several_nodes) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
+    auto result = std::make_shared<ov::opset8::Result>(relu1);
+
+    // Loop relu2->relu3->relu2
+    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1->output(0));
+    auto relu3 = std::make_shared<ov::opset8::Relu>(relu2);
+    ov::replace_node(relu1, relu3);
+
+    ASSERT_THROW(std::ignore = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{arg0}),
+                 ov::Exception);
+}
+
+TEST(model, topological_sort_throws_if_loop_with_control_dependency) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
+    auto relu2 = std::make_shared<ov::opset8::Relu>(relu1);
+    auto result = std::make_shared<ov::opset8::Result>(relu2);
+
+    // Loop relu1->relu2->relu1
+    relu1->add_control_dependency(relu2);
+
+    ASSERT_THROW(std::ignore = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{arg0}),
+                 ov::Exception);
+}
+
+TEST(model, topological_sort_throws_if_loop_with_control_dependency_only) {
+    auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto relu0 = std::make_shared<ov::opset8::Relu>(arg0);
+    auto result0 = std::make_shared<ov::opset8::Result>(relu0);
+
+    auto arg1 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
+    auto relu1 = std::make_shared<ov::opset8::Relu>(arg1);
+    auto result1 = std::make_shared<ov::opset8::Result>(relu1);
+
+    // Loop relu0->relu1->relu0
+    relu0->add_control_dependency(relu1);
+    relu1->add_control_dependency(relu0);
+
+    ASSERT_THROW(
+        std::ignore = std::make_shared<ov::Model>(ov::ResultVector{result0, result1}, ov::ParameterVector{arg0, arg1}),
+        ov::Exception);
+}
+
 TEST(model, topological_sort_caching_basic) {
     auto arg0 = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::PartialShape{1});
     auto relu1 = std::make_shared<ov::opset8::Relu>(arg0);
@@ -1892,7 +1949,7 @@ TEST(model, clone_model_function) {
     auto input1 = model->input(0);
     auto input2 = model->input("data1");
 
-    auto cloned_model = ov::clone_model(*model);
+    auto cloned_model = model->clone();
 
     const auto fc = FunctionsComparator::with_default()
                         .enable(FunctionsComparator::ATTRIBUTES)
@@ -2039,4 +2096,17 @@ TEST(model, set_complex_meta_information) {
     f->set_rt_info(std::vector<float>{22.3f, 33.11f, 44.f}, "config", "model_parameters", "mean_values");
 
     check_rt_info(f);
+}
+
+TEST(model, create_model) {
+    EXPECT_NO_THROW(ov::Model({}, ""));
+    EXPECT_THROW(ov::Model(ov::ResultVector{nullptr}, {}, ""), ov::Exception);
+    EXPECT_THROW(ov::Model(nullptr, {}, ""), ov::Exception);
+    EXPECT_NO_THROW(ov::Model(ov::ResultVector{}, ov::ParameterVector{}, ""));
+    EXPECT_THROW(ov::Model({nullptr}, {nullptr}, {nullptr}, {nullptr}, ""), ov::Exception);
+    EXPECT_THROW(ov::Model({nullptr}, {}, {}, {}, ""), ov::Exception);
+    EXPECT_THROW(ov::Model(ov::ResultVector{}, {nullptr}, {}, {}, ""), ov::Exception);
+    EXPECT_THROW(ov::Model(ov::ResultVector{}, {}, {nullptr}, {}, ""), ov::Exception);
+    EXPECT_THROW(ov::Model(ov::ResultVector{}, {}, {}, {nullptr}, ""), ov::Exception);
+    EXPECT_THROW(ov::Model(ov::OutputVector{ov::Output<ov::Node>{nullptr, 0}}, {}, {}, {}, ""), ov::Exception);
 }

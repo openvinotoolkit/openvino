@@ -48,10 +48,8 @@ public:
     // TODO: Update to use new evaluate with TensorVector
     bool evaluate(const HostTensorVector&, const HostTensorVector&) const override;
     OPENVINO_SUPPRESS_DEPRECATED_END
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    bool evaluate_lower(const HostTensorVector& outputs) const override;
-    bool evaluate_upper(const HostTensorVector& outputs) const override;
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    bool evaluate_lower(TensorVector& outputs) const override;
+    bool evaluate_upper(TensorVector& outputs) const override;
     bool evaluate_label(TensorLabelVector& output_labels) const override;
 
     std::shared_ptr<v0::Constant> get_default_const_axes(const Output<Node>& start) const;

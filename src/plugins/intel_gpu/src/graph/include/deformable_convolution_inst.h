@@ -23,7 +23,6 @@ public:
         support_padding_all(true);
     }
 
-    void set_transposed(bool node_transposed) { transposed = node_transposed; }
     bool get_transposed() const { return transposed; }
 
     uint32_t get_groups() const { return groups; }
@@ -41,6 +40,8 @@ public:
             params->bias_layout = optional_layout(bias().get_output_layout());
         return params;
     }
+
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 
 private:
     bool transposed;
@@ -81,7 +82,6 @@ public:
         support_padding_all(true);
     }
 
-    void set_transposed(bool node_transposed) { transposed = node_transposed; }
     bool get_transposed() const { return transposed; }
 
     uint32_t get_groups() const { return groups; }

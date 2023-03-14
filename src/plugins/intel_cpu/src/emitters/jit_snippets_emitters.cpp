@@ -3,7 +3,6 @@
 //
 
 #include <ngraph/rt_info.hpp>
-#include <ngraph/variant.hpp>
 #include <cpu/x64/jit_generator.hpp>
 
 #include "jit_snippets_emitters.hpp"
@@ -66,25 +65,25 @@ void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  
                 if (std::dynamic_pointer_cast<LoopBeginEmitter>(emitter) ||
                     std::dynamic_pointer_cast<LoopEndEmitter>(emitter) ||
                     std::dynamic_pointer_cast<BrgemmEmitter>(emitter))
-                    in_physical_regs = std::move(map_regs(in_abstract_regs, gpr_map_pool));
+                    in_physical_regs = map_regs(in_abstract_regs, gpr_map_pool);
                 else
                     in_physical_regs = std::move(in_abstract_regs);
-                out_physical_regs = std::move(map_regs(out_abstract_regs, gpr_map_pool));
+                out_physical_regs = map_regs(out_abstract_regs, gpr_map_pool);
                 break;
             case gpr_to_vec:
                 // Load Emitters
-                in_physical_regs = std::move(map_regs(in_abstract_regs, gpr_map_pool));
-                out_physical_regs = std::move(map_regs(out_abstract_regs, vec_map_pool));
+                in_physical_regs = map_regs(in_abstract_regs, gpr_map_pool);
+                out_physical_regs = map_regs(out_abstract_regs, vec_map_pool);
                 break;
             case vec_to_gpr:
                 // Store Emitters
-                in_physical_regs = std::move(map_regs(in_abstract_regs, vec_map_pool));
-                out_physical_regs = std::move(map_regs(out_abstract_regs, gpr_map_pool));
+                in_physical_regs = map_regs(in_abstract_regs, vec_map_pool);
+                out_physical_regs = map_regs(out_abstract_regs, gpr_map_pool);
                 break;
             case vec_to_vec:
                 // Regular operations
-                in_physical_regs = std::move(map_regs(in_abstract_regs, vec_map_pool));
-                out_physical_regs = std::move(map_regs(out_abstract_regs, vec_map_pool));
+                in_physical_regs = map_regs(in_abstract_regs, vec_map_pool);
+                out_physical_regs = map_regs(out_abstract_regs, vec_map_pool);
                 break;
             default:
                 IE_THROW() << "Unhandled in_out type";
@@ -192,17 +191,13 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
 }
 
 void KernelEmitter::emit_code(const std::vector<size_t> &in,
-                              const std::vector<size_t> &out,
-                              const std::vector<size_t> &pool,
-                              const std::vector<size_t> &gpr) const {
-    validate_arguments(in, out, pool, gpr);
-    emit_impl(in, out, pool, gpr, nullptr);
+                              const std::vector<size_t> &out) const {
+    validate_arguments(in, out);
+    emit_impl(in, out);
 }
 
 void KernelEmitter::validate_arguments(const std::vector<size_t> &in,
-                                       const std::vector<size_t> &out,
-                                       const std::vector<size_t> &pool,
-                                       const std::vector<size_t> &gpr) const {
+                                       const std::vector<size_t> &out) const {
     if (!in.empty())
         IE_THROW() << "KernelEmitter got invalid number of inputs. Expected 0, got " << in.size();
     if (!out.empty())
@@ -302,10 +297,7 @@ void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, boo
     }
 }
 void KernelEmitter::emit_impl(const std::vector<size_t>& in,
-                              const std::vector<size_t>& out,
-                              const std::vector<size_t>& vec_pool,
-                              const std::vector<size_t>& gpr_pool,
-                              const ov::intel_cpu::emitter_context *emit_context) const {
+                              const std::vector<size_t>& out) const {
     h->preamble();
 
     Reg64 reg_indexes = Reg64(static_cast<int>(reg_indexes_idx));
@@ -343,17 +335,13 @@ LoopBeginEmitter::LoopBeginEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl:
 }
 
 void LoopBeginEmitter::emit_code(const std::vector<size_t> &in,
-                                 const std::vector<size_t> &out,
-                                 const std::vector<size_t> &pool,
-                                 const std::vector<size_t> &gpr) const {
-    validate_arguments(in, out, pool, gpr);
-    emit_impl(in, out, pool, gpr, nullptr);
+                                 const std::vector<size_t> &out) const {
+    validate_arguments(in, out);
+    emit_impl(in, out);
 }
 
 void LoopBeginEmitter::validate_arguments(const std::vector<size_t> &in,
-                                        const std::vector<size_t> &out,
-                                        const std::vector<size_t> &pool,
-                                        const std::vector<size_t> &gpr) const {
+                                        const std::vector<size_t> &out) const {
     if (in.size() != num_inputs)
         IE_THROW() << "Invalid inputs size: expected " << num_inputs << " got " << in.size();
     if (out.size() != num_inputs + 1)
@@ -361,10 +349,7 @@ void LoopBeginEmitter::validate_arguments(const std::vector<size_t> &in,
 }
 
 void LoopBeginEmitter::emit_impl(const std::vector<size_t>& in,
-                                 const std::vector<size_t>& out,
-                                 const std::vector<size_t>& pool,
-                                 const std::vector<size_t>& gpr,
-                                 const ov::intel_cpu::emitter_context *emit_context) const {
+                                 const std::vector<size_t>& out) const {
     // todo: In dynamic case we will also need to set broadcasting info here
     Reg64 reg_work_amount = Reg64(out.back());
     Label for_body;
@@ -404,18 +389,14 @@ LoopEndEmitter::LoopEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::imp
 }
 
 void LoopEndEmitter::emit_code(const std::vector<size_t> &in,
-                                 const std::vector<size_t> &out,
-                                 const std::vector<size_t> &pool,
-                                 const std::vector<size_t> &gpr) const {
-    validate_arguments(in, out, pool, gpr);
-    emit_impl(in, out, pool, gpr, nullptr);
+                                 const std::vector<size_t> &out) const {
+    validate_arguments(in, out);
+    emit_impl(in, out);
 }
 
 
 void LoopEndEmitter::validate_arguments(const std::vector<size_t> &in,
-                                       const std::vector<size_t> &out,
-                                       const std::vector<size_t> &pool,
-                                       const std::vector<size_t> &gpr) const {
+                                       const std::vector<size_t> &out) const {
     if (loop_begin->input_regs.size() != num_inputs)
         IE_THROW() << "Invalid loop_begin->input_regs size: expected " << num_inputs << " got " << loop_begin->input_regs.size();
     if (out.size() != num_outputs)
@@ -430,10 +411,7 @@ void LoopEndEmitter::validate_arguments(const std::vector<size_t> &in,
 }
 
 void LoopEndEmitter::emit_impl(const std::vector<size_t>& in,
-                                 const std::vector<size_t>& out,
-                                 const std::vector<size_t>& pool,
-                                 const std::vector<size_t>& gpr,
-                                 const ov::intel_cpu::emitter_context *emit_context) const {
+                                 const std::vector<size_t>& out) const {
     std::vector<size_t> data_ptr_reg_idxs(loop_begin->input_regs);
     data_ptr_reg_idxs.reserve(num_inputs + num_outputs);
     std::copy(out.begin(), out.end(), std::back_inserter(data_ptr_reg_idxs));
@@ -465,10 +443,7 @@ BroadcastMoveEmitter::BroadcastMoveEmitter(dnnl::impl::cpu::x64::jit_generator* 
 }
 
 void BroadcastMoveEmitter::emit_impl(const std::vector<size_t>& in,
-          const std::vector<size_t>& out,
-          const std::vector<size_t>& pool,
-          const std::vector<size_t>& gpr,
-          const ov::intel_cpu::emitter_context *emit_context) const {
+          const std::vector<size_t>& out) const {
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -503,10 +478,7 @@ ScalarEmitter::ScalarEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
 }
 
 void ScalarEmitter::emit_impl(const std::vector<size_t>& in,
-                              const std::vector<size_t>& out,
-                              const std::vector<size_t>& pool,
-                              const std::vector<size_t>& gpr,
-                              const ov::intel_cpu::emitter_context *emit_context) const {
+                              const std::vector<size_t>& out) const {
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -546,10 +518,7 @@ StoreEmitter::StoreEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::c
 }
 
 void StoreEmitter::emit_impl(const std::vector<size_t>& in,
-                             const std::vector<size_t>& out,
-                             const std::vector<size_t>& pool,
-                             const std::vector<size_t>& gpr,
-                             const ov::intel_cpu::emitter_context *emit_context) const {
+                             const std::vector<size_t>& out) const {
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -563,8 +532,6 @@ void StoreEmitter::emit_impl(const std::vector<size_t>& in,
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void StoreEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-    using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
-            Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
     if (!store_emitter)
         IE_THROW() << "Store CPU emitter isn't initialized for StoreEmitter!";
     store_emitter->emit_code({in[0], byte_offset}, {out[0]}, aux_vec_idxs, aux_gpr_idxs);
@@ -590,10 +557,7 @@ LoadEmitter::LoadEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu
 }
 
 void LoadEmitter::emit_impl(const std::vector<size_t>& in,
-                            const std::vector<size_t>& out,
-                            const std::vector<size_t>& pool,
-                            const std::vector<size_t>& gpr,
-                            const ov::intel_cpu::emitter_context *emit_context) const {
+                            const std::vector<size_t>& out) const {
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -607,8 +571,6 @@ void LoadEmitter::emit_impl(const std::vector<size_t>& in,
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void LoadEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-    using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41,
-            Xmm, isa == dnnl::impl::cpu::x64::avx2, Ymm, Zmm>::type;
     if (!load_emitter)
         IE_THROW() << "Load CPU emitter isn't initialized for LoadEmitter!";
     load_emitter->emit_code({in[0], byte_offset}, {out[0]}, aux_vec_idxs, aux_gpr_idxs);
@@ -632,10 +594,7 @@ BroadcastLoadEmitter::BroadcastLoadEmitter(dnnl::impl::cpu::x64::jit_generator* 
 }
 
 void BroadcastLoadEmitter::emit_impl(const std::vector<size_t>& in,
-                                     const std::vector<size_t>& out,
-                                     const std::vector<size_t>& pool,
-                                     const std::vector<size_t>& gpr,
-                                     const ov::intel_cpu::emitter_context *emit_context) const {
+                                     const std::vector<size_t>& out) const {
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -674,10 +633,7 @@ LoadConvertEmitter::LoadConvertEmitter(dnnl::impl::cpu::x64::jit_generator* h, d
 }
 
 void LoadConvertEmitter::emit_impl(const std::vector<size_t>& in,
-                                   const std::vector<size_t>& out,
-                                   const std::vector<size_t>& pool,
-                                   const std::vector<size_t>& gpr,
-                                   const ov::intel_cpu::emitter_context *emit_context) const {
+                                   const std::vector<size_t>& out) const {
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -715,10 +671,7 @@ StoreConvertEmitter::StoreConvertEmitter(dnnl::impl::cpu::x64::jit_generator* h,
 }
 
 void StoreConvertEmitter::emit_impl(const std::vector<size_t>& in,
-                                    const std::vector<size_t>& out,
-                                    const std::vector<size_t>& pool,
-                                    const std::vector<size_t>& gpr,
-                                    const ov::intel_cpu::emitter_context *emit_context) const {
+                                    const std::vector<size_t>& out) const {
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -863,10 +816,7 @@ void BrgemmEmitter::initBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>&
 }
 
 void BrgemmEmitter::emit_impl(const std::vector<size_t>& in,
-                              const std::vector<size_t>& out,
-                              const std::vector<size_t>& pool,
-                              const std::vector<size_t>& gpr,
-                              const ov::intel_cpu::emitter_context *emit_context) const {
+                              const std::vector<size_t>& out) const {
     if (host_isa_ == cpu::x64::sse41 || host_isa_ == cpu::x64::avx2) {
         IE_THROW() << "BrgemmEmitter requires at least avx512_core instruction set";
     } else if (host_isa_ == cpu::x64::avx512_core) {
@@ -987,7 +937,6 @@ void BrgemmEmitter::kernel_execute(const brgemm_kernel_t *brg_kernel, const void
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 void BrgemmEmitter::emit_isa(const std::vector<size_t> &in, const std::vector<size_t> &out) const {
-    using Vmm = typename dnnl::impl::utils::conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
     Reg64 input_0(static_cast<int>(in[0]));
     Reg64 input_1(static_cast<int>(in[1]));
     Reg64 output_0(static_cast<int>(out[0]));
@@ -1030,10 +979,7 @@ HorizonMaxEmitter::HorizonMaxEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnn
     jit_emitter(h, isa, n, Precision::FP32, emitter_in_out_map::vec_to_vec) {}
 
 void HorizonMaxEmitter::emit_impl(const std::vector<size_t>& in,
-                                    const std::vector<size_t>& out,
-                                    const std::vector<size_t>& pool,
-                                    const std::vector<size_t>& gpr,
-                                    const ov::intel_cpu::emitter_context *emit_context) const {
+                                    const std::vector<size_t>& out) const {
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -1075,10 +1021,7 @@ HorizonSumEmitter::HorizonSumEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnn
     jit_emitter(h, isa, n, Precision::FP32, emitter_in_out_map::vec_to_vec) {}
 
 void HorizonSumEmitter::emit_impl(const std::vector<size_t>& in,
-                                    const std::vector<size_t>& out,
-                                    const std::vector<size_t>& pool,
-                                    const std::vector<size_t>& gpr,
-                                    const ov::intel_cpu::emitter_context *emit_context) const {
+                                  const std::vector<size_t>& out) const {
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -1118,10 +1061,7 @@ VectorBufferEmitter::VectorBufferEmitter(dnnl::impl::cpu::x64::jit_generator* h,
     jit_emitter(h, isa, n, Precision::FP32, emitter_in_out_map::vec_to_vec) {}
 
 void VectorBufferEmitter::emit_impl(const std::vector<size_t>& in,
-                                    const std::vector<size_t>& out,
-                                    const std::vector<size_t>& pool,
-                                    const std::vector<size_t>& gpr,
-                                    const ov::intel_cpu::emitter_context *emit_context) const {
+                                    const std::vector<size_t>& out) const {
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {
@@ -1160,10 +1100,7 @@ size_t FillEmitter::aux_gprs_count() const {
 }
 
 void FillEmitter::emit_impl(const std::vector<size_t>& in,
-                            const std::vector<size_t>& out,
-                            const std::vector<size_t>& pool,
-                            const std::vector<size_t>& gpr,
-                            const ov::intel_cpu::emitter_context *emit_context) const {
+                            const std::vector<size_t>& out) const {
     if (host_isa_ == dnnl::impl::cpu::x64::sse41) {
         emit_isa<dnnl::impl::cpu::x64::sse41>(in, out);
     } else if (host_isa_ == dnnl::impl::cpu::x64::avx2) {

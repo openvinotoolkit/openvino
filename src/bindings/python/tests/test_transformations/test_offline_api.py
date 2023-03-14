@@ -6,7 +6,7 @@ import os
 import pytest
 import numpy as np
 from openvino.runtime import serialize
-from openvino.offline_transformations import (
+from openvino._offline_transformations import (
     apply_moc_transformations,
     apply_pot_transformations,
     apply_low_latency_transformation,
@@ -174,9 +174,10 @@ def test_fused_names_cleanup():
     (False, False),
 ],
 )
-def test_serialize_pass_v2(request, is_path_xml, is_path_bin):
+def test_serialize_pass_v2(request, tmp_path, is_path_xml, is_path_bin):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name,
+                                                  tmp_path,
                                                   is_path_xml,
                                                   is_path_bin)
     shape = [100, 100, 2]
@@ -219,9 +220,10 @@ def test_compress_model_transformation():
     (False, False),
 ],
 )
-def test_version_default(request, is_path_xml, is_path_bin):
+def test_version_default(request, tmp_path, is_path_xml, is_path_bin):
     core = Core()
     xml_path, bin_path = create_filename_for_test(request.node.name,
+                                                  tmp_path,
                                                   is_path_xml,
                                                   is_path_bin)
     shape = [100, 100, 2]
@@ -248,8 +250,9 @@ def test_version_default(request, is_path_xml, is_path_bin):
     (False, False),
 ],
 )
-def test_serialize_default_bin(request, is_path_xml, is_path_bin):
+def test_serialize_default_bin(request, tmp_path, is_path_xml, is_path_bin):
     xml_path, bin_path = create_filename_for_test(request.node.name,
+                                                  tmp_path,
                                                   is_path_xml,
                                                   is_path_bin)
     model = get_relu_model()
@@ -260,9 +263,9 @@ def test_serialize_default_bin(request, is_path_xml, is_path_bin):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_version_ir_v10(request):
+def test_version_ir_v10(request, tmp_path):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name)
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
@@ -280,9 +283,9 @@ def test_version_ir_v10(request):
 
 
 # request - https://docs.pytest.org/en/7.1.x/reference/reference.html#request
-def test_version_ir_v11(request):
+def test_version_ir_v11(request, tmp_path):
     core = Core()
-    xml_path, bin_path = create_filename_for_test(request.node.name)
+    xml_path, bin_path = create_filename_for_test(request.node.name, tmp_path)
     shape = [100, 100, 2]
     parameter_a = ov.opset8.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ov.opset8.parameter(shape, dtype=np.float32, name="B")
@@ -336,3 +339,20 @@ def test_convert_gru_to_tensor_iterator():
     # assert that GRU sequence got transformed into TensorIterator
     assert "GRUSequence" not in ops_types
     assert "TensorIterator" in ops_types
+
+
+def test_flush_fp32_subnormals_to_zero():
+    parameter = ov.opset10.parameter([1, 8], name="X")
+    subnorm_val = -2.0e-45
+
+    weights = ov.opset10.constant(np.array([0.0, 1.0, 2.0, 3.0, subnorm_val, subnorm_val, subnorm_val, subnorm_val]),
+                                  dtype=np.float32)
+    add_node = ov.opset10.add(parameter, weights)
+
+    result = ov.opset10.result(add_node)
+    model = Model([result], [parameter])
+
+    apply_moc_transformations(model, cf=False, smart_reshape=True)  # apply_flush_fp32_subnormals_to_zero is called inside
+
+    assert np.all(weights.data[4:8] != subnorm_val)
+    assert np.all(weights.data[4:8] == 0.0)

@@ -1,23 +1,24 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 #include "transformations/common_optimizations/transpose_sinking_split.hpp"
 
-#include <openvino/opsets/opset9.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <transformations/utils/utils.hpp>
 #include <utility>
 
 #include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/opsets/opset9.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/common_util.hpp"
-#include "openvino/util/log.hpp"
 #include "transformations/common_optimizations/transpose_sinking_utils.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 
 using namespace ov::pass::pattern;
 using namespace ov;
-using namespace ov::opset9;
+using namespace ov::opset10;
 using namespace transpose_sinking;
 
 namespace {
@@ -30,7 +31,7 @@ struct OutputTranspose {
     Constant* transpose_const;
 };
 
-OutputTranspose GetOutputTransposes(NodePtr node) {
+OutputTranspose GetOutputTransposes(const NodePtr& node) {
     for (size_t output_idx = 0; output_idx < node->get_output_size(); ++output_idx) {
         for (auto& input : node->get_output_target_inputs(output_idx)) {
             auto transpose_node = dynamic_cast<Transpose*>(input.get_node());
@@ -49,7 +50,7 @@ OutputTranspose GetOutputTransposes(NodePtr node) {
         }
     }
 
-    return OutputTranspose();
+    return {};
 }
 
 template <typename NodeT>
@@ -76,6 +77,22 @@ bool IsSplitSinked(const Output<Node>& output) {
     return HasInputSplitAndTransposeSiblings(output) && is_sinking_node(output);
 }
 
+bool GetSplitAxis(const std::shared_ptr<Constant>& split_axis, const ov::Rank& rank, int64_t& axis) {
+    auto split_axis_val = split_axis->cast_vector<int64_t>();
+    if (split_axis_val.empty()) {
+        return false;
+    }
+    axis = split_axis_val[0];
+    if (axis < 0) {
+        if (rank.is_static()) {
+            const auto rank_val = rank.get_length();
+            axis += rank_val;
+        } else {
+            return false;
+        }
+    }
+    return true;
+}
 }  // namespace
 
 /*
@@ -100,7 +117,7 @@ bool IsSplitSinked(const Output<Node>& output) {
  * We sink Transpose through Split operation in a backward way only if all the output
  * nodes are the same Transpose. We can:
  * - clone Split with all outputs except Transpose
- *   causes perfomance problems
+ *   causes performance problems
  * - add reversed Transpose operations on all outputs except sinking Transpose
  *   nothing to do with new added output Transposes
  */
@@ -115,7 +132,22 @@ ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
         auto transpose_label_node = pattern_to_output.at(transpose_label).get_node();
 
         NodePtr split = FindInputNode<Split>(transpose_label_node);
+        if (!split) {
+            split = FindInputNode<VariadicSplit>(transpose_label_node);
+        }
+
+        if (!split) {
+            return false;
+        }
         auto split_axis_constant = as_type_ptr<Constant>(split->input_value(1).get_node_shared_ptr());
+        if (!split_axis_constant) {
+            return false;
+        }
+
+        int64_t split_axis;
+        if (!GetSplitAxis(split_axis_constant, split->input_value(0).get_partial_shape().rank(), split_axis)) {
+            return false;
+        }
         OutputTranspose output_transpose = GetOutputTransposes(split);
 
         const auto transpose_axis_order = output_transpose.transpose_const->get_axis_vector_val();
@@ -123,7 +155,6 @@ ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
 
         const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
 
-        const size_t split_axis = split_axis_constant->get_axis_vector_val()[0];
         const size_t reversed_transposed_split_axis = reversed_traspose_axis_order[split_axis];
 
         // insert transpose before split
@@ -152,8 +183,8 @@ ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
                           new_split_axis_const);
 
         // remove split output transposes
+        split->validate_and_infer_types();
         RemoveSingleOutputConsumers(split);
-
         return true;
     };
 
@@ -164,32 +195,38 @@ ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
 ov::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
     MATCHER_SCOPE(TransposeSinkingSplitForward);
 
-    auto main_node_label = wrap_type<Split>(IfNodeHasTransposeInputs);
+    auto main_node_label = wrap_type<Split, VariadicSplit>(IfNodeHasTransposeInputs);
 
     matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
 
         auto& main_node_output = pattern_to_output.at(main_node_label);
         auto main_node = main_node_output.get_node_shared_ptr();
+        auto split_axis_constant = as_type_ptr<Constant>(main_node->input_value(1).get_node_shared_ptr());
+        if (!split_axis_constant) {
+            return false;
+        }
 
+        int64_t split_axis;
+        if (!GetSplitAxis(split_axis_constant, main_node->input_value(0).get_partial_shape().rank(), split_axis)) {
+            return false;
+        }
         TransposeInputsInfo transpose_input_info = GetFirstTransposeInput(main_node);
 
         sink_forward::RemoveInputNode(main_node, /* input_idx */ 0);
+        const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
+        const size_t transposed_split_axis = transpose_axis_order[split_axis];
+        auto new_split_axis_const =
+            std::make_shared<Constant>(split_axis_constant->get_element_type(), Shape{}, transposed_split_axis);
+        main_node->input(1).replace_source_output(new_split_axis_const);
+        copy_runtime_info({split_axis_constant, transpose_input_info.transpose, transpose_input_info.transpose_const},
+                          new_split_axis_const);
+        main_node->validate_and_infer_types();
+
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
             register_new_node(new_node);
             transpose_sinking::UpdateForwardSinkingAbility(new_node);
         }
-
-        const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
-        auto split_node = as_type_ptr<Split>(main_node);
-        auto split_axis_constant = as_type_ptr<Constant>(split_node->input_value(1).get_node_shared_ptr());
-        const size_t split_axis = split_axis_constant->get_axis_vector_val()[0];
-        const size_t transposed_split_axis = transpose_axis_order[split_axis];
-        auto new_split_axis_const =
-            std::make_shared<Constant>(split_axis_constant->get_element_type(), Shape{}, transposed_split_axis);
-        split_node->input(1).replace_source_output(new_split_axis_const);
-        copy_runtime_info({split_axis_constant, transpose_input_info.transpose, transpose_input_info.transpose_const},
-                          new_split_axis_const);
 
         return true;
     };

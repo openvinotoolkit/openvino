@@ -86,7 +86,7 @@ cv::gapi::own::Mat to_own(test::Mat mat) {
 std::vector<cv::gapi::own::Mat> to_own(std::vector<test::Mat> mats)
 {
     std::vector<cv::gapi::own::Mat> own_mats(mats.size());
-    for (int i = 0; i < mats.size(); i++) {
+    for (size_t i = 0; i < mats.size(); i++) {
         own_mats[i] = to_own(mats[i]);
     }
     return own_mats;

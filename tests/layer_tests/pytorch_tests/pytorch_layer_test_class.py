@@ -3,6 +3,7 @@
 
 import itertools
 import warnings
+from copy import deepcopy
 
 import numpy as np
 from common.constants import test_device, test_precision
@@ -51,8 +52,9 @@ class PytorchLayerTest:
                 model = torch.jit.script(model)
             else:
                 torch_inputs = [torch.from_numpy(inp) for inp in inputs]
-                model = torch.jit.trace(model, torch_inputs)
-            model = torch.jit.freeze(model)
+                model = torch.jit.trace(model, deepcopy(torch_inputs))
+            if kwargs.get('freeze_model', True):
+                model = torch.jit.freeze(model)
             graph = model.inlined_graph
             print(graph)
 
@@ -70,10 +72,17 @@ class PytorchLayerTest:
             im = fe.load(decoder)
             om = fe.convert(im)
 
+        torch_inps = [torch.from_numpy(inp) if isinstance(inp, np.ndarray) else inp for inp in inputs]
+        
         params = om.get_parameters()
         # todo: support lists and dicts
         for i in range(len(inputs)):
             inp = inputs[i]
+            if isinstance(inp, list):
+                inputs[i] = np.array(inp)
+                if inputs[i].dtype == np.int64:
+                    inputs[i] = inputs[i].astype(np.int32)
+                inp = inputs[i]
             assert inp.dtype.name in self._type_map, f"Unknown type {inp.dtype}."
             params[i].set_element_type(self._type_map[inp.dtype.name])
             shape = [-1] * len(inp.shape) if dynamic_shapes else inp.shape
@@ -83,15 +92,14 @@ class PytorchLayerTest:
         # OV infer:
         core = Core()
         compiled = core.compile_model(om, ie_device)
-        infer_res = compiled(inputs)
+        infer_res = compiled(deepcopy(inputs))
 
         if hasattr(self, 'skip_framework') and self.skip_framework:
             warnings.warn('Framework is skipped')
             return
 
         # Framework infer:
-        torch_inps = [torch.from_numpy(inp) for inp in inputs]
-        fw_res = model(*torch_inps)
+        fw_res = model(*deepcopy(torch_inps))
 
         if not isinstance(fw_res, (tuple)):
             fw_res = (fw_res,)
@@ -99,11 +107,22 @@ class PytorchLayerTest:
         output_list = list(infer_res.values())
 
         flatten_fw_res = []
-        for res_item in fw_res:
-            # if None is at output we skip it
-            if res_item is None:
-                continue
-            flatten_fw_res.append(res_item)
+
+        def flattenize_list_outputs(res):
+            results = []
+            for res_item in res:
+                # if None is at output we skip it
+                if res_item is None:
+                    continue
+                # If input is list or tuple flattenize it
+                if isinstance(res_item, (list, tuple)):
+                    decomposed_res = flattenize_list_outputs(res_item)
+                    results.extend(decomposed_res)
+                    continue
+                results.append(res_item)
+            return results 
+       
+        flatten_fw_res = flattenize_list_outputs(fw_res)
 
         assert len(flatten_fw_res) == len(
             output_list), f'number of outputs not equal, {len(flatten_fw_res)} != {len(output_list)}'
@@ -111,7 +130,7 @@ class PytorchLayerTest:
         for fw_tensor, ov_tensor in zip(flatten_fw_res, output_list):
             if not isinstance(fw_tensor, torch.Tensor):
                 if np.isscalar(fw_tensor):
-                    assert fw_tensor == np.array(ov_tensor).item()
+                    assert fw_tensor == np.array(ov_tensor).item(), f"{fw_tensor} != {np.array(ov_tensor).item()}"
                 else:
                     if isinstance(fw_tensor, list):
                         ov_tensor = ov_tensor.tolist()

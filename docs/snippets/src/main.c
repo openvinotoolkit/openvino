@@ -30,14 +30,26 @@ ov_compiled_model_t* compiled_model = NULL;
 ov_core_compile_model_from_file(core, "model.pdmodel", "AUTO", 0, &compiled_model);
 //! [part2_3]
 }
-
+{
 //! [part2_4]
+ov_compiled_model_t* compiled_model = NULL;
+ov_core_compile_model_from_file(core, "model.pb", "AUTO", 0, &compiled_model);
+//! [part2_4]
+}
+{
+//! [part2_5]
+ov_compiled_model_t* compiled_model = NULL;
+ov_core_compile_model_from_file(core, "model.tflite", "AUTO", 0, &compiled_model);
+//! [part2_5]
+}
+
+//! [part2_6]
 // Construct a model
 ov_model_t* model = NULL;
 ov_core_read_model(core, "model.xml", NULL, &model);
 ov_compiled_model_t* compiled_model = NULL;
 ov_core_compile_model(core, model, "AUTO", 0, &compiled_model);
-//! [part2_4]
+//! [part2_6]
 
 
 //! [part3]

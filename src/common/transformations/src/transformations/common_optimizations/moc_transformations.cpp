@@ -67,7 +67,6 @@
 #include <transformations/common_optimizations/subtract_fusion.hpp>
 #include <transformations/common_optimizations/swish_fusion.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
-#include <transformations/common_optimizations/transpose_sinking_general.hpp>
 #include <transformations/common_optimizations/transpose_to_reshape.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/low_precision/mark_dequantization_subgraph.hpp>
@@ -105,21 +104,21 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     if (!m_use_shapes) {
         manager.register_pass<ov::pass::DisableShapeOfConstantFolding>();
     }
-    // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParams
+    // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParamsResults
     // should be performed before first ConstantFolding call.
     // The passes can deteach graph branches where zero dimesion is calculated.
     // Zero dimensions in shape causes creation empty tensors, which are incorrect during CF.
     // In particular, if zero dim tensor is consumed in body of MultiSubGraphOp
-    // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParams should be called together.
+    // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParamsResults should be called together.
     using namespace ov::pass;
     REGISTER_PASS(manager, EliminateScatterUpdate)
     REGISTER_PASS(manager, RemoveConcatZeroDimInput)
     REGISTER_PASS(manager, Validate)
     // todo: ticket 96960
-    // the order EliminateDuplicateTIInputs and RemoveMultiSubGraphOpDanglingParams is important
+    // the order EliminateDuplicateTIInputs and RemoveMultiSubGraphOpDanglingParamsResults is important
     // it looks like we need to combine these transformations into one.
     REGISTER_PASS(manager, EliminateDuplicateTIInputs);
-    REGISTER_PASS(manager, RemoveMultiSubGraphOpDanglingParams)
+    REGISTER_PASS(manager, RemoveMultiSubGraphOpDanglingParamsResults)
     REGISTER_PASS(manager, FoldSubgraphEmptyInputs)
     REGISTER_PASS(manager, DisableRandomUniformConstantFolding)
     REGISTER_PASS(manager, PushConstantToSubgraph)

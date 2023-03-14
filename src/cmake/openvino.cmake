@@ -29,7 +29,6 @@ add_library(openvino::runtime ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME runtime)
 
 ie_add_vs_version_file(NAME ${TARGET_NAME} FILEDESCRIPTION "OpenVINO runtime library")
-ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/include>
@@ -65,6 +64,9 @@ endif()
 set_ie_threading_interface_for(${TARGET_NAME})
 ie_mark_target_as_cc(${TARGET_NAME})
 
+# must be called after all target_link_libraries
+ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME} EXTRA ${TBB_IMPORTED_TARGETS})
+
 # LTO
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
@@ -93,8 +95,6 @@ add_library(${TARGET_NAME}_dev INTERFACE)
 add_library(openvino::runtime::dev ALIAS ${TARGET_NAME}_dev)
 
 target_include_directories(${TARGET_NAME}_dev INTERFACE
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/transformations/include>
-    $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/core/dev_api>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/inference/dev_api>
     $<BUILD_INTERFACE:${OpenVINO_SOURCE_DIR}/src/common/low_precision_transformations/include>
     $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -102,7 +102,7 @@ target_include_directories(${TARGET_NAME}_dev INTERFACE
 target_compile_definitions(${TARGET_NAME}_dev INTERFACE
     $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_COMPILE_DEFINITIONS>)
 
-target_link_libraries(${TARGET_NAME}_dev INTERFACE ${TARGET_NAME} openvino::itt openvino::util)
+target_link_libraries(${TARGET_NAME}_dev INTERFACE ${TARGET_NAME} openvino::core::dev)
 
 set_ie_threading_interface_for(${TARGET_NAME}_dev)
 set_target_properties(${TARGET_NAME}_dev PROPERTIES EXPORT_NAME runtime::dev)

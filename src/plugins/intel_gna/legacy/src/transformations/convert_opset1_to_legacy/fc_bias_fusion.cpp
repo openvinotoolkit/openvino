@@ -5,23 +5,21 @@
 #include "legacy/transformations/convert_opset1_to_legacy/fc_bias_fusion.hpp"
 
 #include <memory>
+#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 #include <numeric>
 #include <vector>
 
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
-
 ngraph::pass::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
     auto m_fc = ngraph::pattern::wrap_type<op::FullyConnected>([](Output<Node> output) {
-        return pattern::consumers_count(1)(output) &&
-               pattern::has_static_shape()(output);
+        return pattern::consumers_count(1)(output) && pattern::has_static_shape()(output);
     });
     auto m_bias = pattern::any_input();
     auto m_add = ngraph::pattern::wrap_type<opset1::Add>({m_fc, m_bias});
 
-    ngraph::matcher_pass_callback callback = [=](pattern::Matcher &m) {
-        const auto & pattern_to_output = m.get_pattern_value_map();
+    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
+        const auto& pattern_to_output = m.get_pattern_value_map();
 
         auto add = pattern_to_output.at(m_add).get_node_shared_ptr();
         auto bias = pattern_to_output.at(m_bias).get_node_shared_ptr();
@@ -41,8 +39,7 @@ ngraph::pass::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
         Shape bias_shape(bias->get_shape());
         Shape output_shape(fc->get_shape());
         size_t bias_size = std::accumulate(bias_shape.begin(), bias_shape.end(), size_t{1}, std::multiplies<int64_t>());
-        if (bias_shape.empty() ||
-            (bias_shape.back() != output_shape.back() && bias_shape.back() != 1) ||
+        if (bias_shape.empty() || (bias_shape.back() != output_shape.back() && bias_shape.back() != 1) ||
             bias_shape.back() != bias_size) {
             return false;
         }
@@ -53,7 +50,9 @@ ngraph::pass::FullyConnectedBiasFusion::FullyConnectedBiasFusion() {
         new_ops.push_back(new_bias);
         std::shared_ptr<Node> final_bias = new_bias;
         if (new_bias->get_shape().size() >= 2) {
-            final_bias = std::make_shared<opset1::Reshape>(final_bias, opset1::Constant::create(element::i64, Shape{1}, {-1}), true);
+            final_bias = std::make_shared<opset1::Reshape>(final_bias,
+                                                           opset1::Constant::create(element::i64, Shape{1}, {-1}),
+                                                           true);
             new_ops.push_back(final_bias);
         }
 

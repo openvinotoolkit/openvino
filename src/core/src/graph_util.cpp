@@ -214,21 +214,22 @@ bool ngraph::is_post_dominated(Node* X, Node* Y) {
     return true;
 }
 
-std::vector<std::shared_ptr<ngraph::Node>> ngraph::clone_nodes(const std::vector<std::shared_ptr<ngraph::Node>>& nodes,
-                                                               NodeMap& node_map) {
+namespace {
+
+void clone_ov_nodes(const std::vector<std::shared_ptr<ov::Node>>& nodes,
+                    std::unordered_map<ov::Node*, std::shared_ptr<ov::Node>>& node_map) {
     // for each node in topological order
-    auto sorted_nodes = topological_sort(nodes);
-    for (const auto& node : sorted_nodes) {
-        if (node_map.count(node.get()) == 0) {
+    for (const auto& node : nodes) {
+        if (!node_map.count(node.get())) {
             // get (already) cloned arguments and clone the node
-            OutputVector cloned_args;
-            for (auto input : node->inputs()) {
-                Output<Node> output = input.get_source_output();
+            ov::OutputVector cloned_args;
+            for (const auto& input : node->inputs()) {
+                ov::Output<ov::Node> output = input.get_source_output();
                 cloned_args.push_back(output.for_node(node_map.at(output.get_node())));
             }
-            std::vector<std::shared_ptr<Node>> cloned_dependencies;
-            for (auto& dependency : node->get_control_dependencies()) {
-                shared_ptr<Node>& dependent = node_map.at(dependency.get());
+            std::vector<std::shared_ptr<ov::Node>> cloned_dependencies;
+            for (const auto& dependency : node->get_control_dependencies()) {
+                shared_ptr<ov::Node>& dependent = node_map.at(dependency.get());
                 if (find(cloned_dependencies.begin(), cloned_dependencies.end(), dependent) ==
                     cloned_dependencies.end()) {
                     cloned_dependencies.push_back(dependent);
@@ -237,89 +238,28 @@ std::vector<std::shared_ptr<ngraph::Node>> ngraph::clone_nodes(const std::vector
             auto cloned_node = node->copy_with_new_inputs(cloned_args, cloned_dependencies);
             // There is a friendly name for this node so copy it
             cloned_node->set_friendly_name(node->get_friendly_name());
-            auto rt_info = node->get_rt_info();
-            cloned_node->get_rt_info() = rt_info;
+            cloned_node->get_rt_info() = node->get_rt_info();
 
-            for (auto output : node->outputs()) {
-                const auto& output_rt_info = output.get_rt_info();
-                auto new_output = output.for_node(cloned_node);
-                new_output.get_rt_info() = output_rt_info;
+            for (const auto& output : node->outputs()) {
+                cloned_node->output(output.get_index()).get_tensor().clone_from(output.get_tensor());
             }
 
-            for (auto input : node->inputs()) {
-                const auto& output_rt_info = input.get_rt_info();
-                auto new_input = cloned_node->input(input.get_index());
-                new_input.get_rt_info() = output_rt_info;
+            for (const auto& input : node->inputs()) {
+                cloned_node->input(input.get_index()).get_rt_info() = input.get_rt_info();
             }
-
-            cloned_node->set_op_annotations(node->get_op_annotations());
 
             node_map[node.get()] = cloned_node;
         }
     }
-
-    // create and return vector of cloned nodes
-    // order matches input vector (not necessarily topological)
-    std::vector<std::shared_ptr<ngraph::Node>> cloned_nodes;
-    for (const auto& node : nodes) {
-        cloned_nodes.push_back(node_map.at(node.get()));
-    }
-    return cloned_nodes;
 }
 
-std::list<std::shared_ptr<ngraph::Node>> ngraph::clone_nodes(const std::vector<std::shared_ptr<ngraph::Node>>& nodes,
-                                                             RawNodeOutputMap& output_map) {
-    // for each node in topological order
-    auto sorted_nodes = topological_sort(nodes);
-    std::list<shared_ptr<Node>> cloned_nodes;
-    for (const auto& node : sorted_nodes) {
-        auto node_outputs = node->outputs();
-        for (const auto& value : node_outputs) {
-            if (output_map.count(value) == 0) {
-                // We need this node cloned
-                // get (already) cloned arguments and clone the node
-                OutputVector cloned_args;
-                for (const auto& value : node->input_values()) {
-                    cloned_args.push_back(output_map.at(value));
-                }
-                NodeVector cloned_dependencies;
-                for (auto& dependency : node->get_control_dependencies()) {
-                    for (const auto& dependency_value : dependency->outputs()) {
-                        shared_ptr<Node> dependent = output_map.at(dependency_value).get_node_shared_ptr();
-                        if (find(cloned_dependencies.begin(), cloned_dependencies.end(), dependent) ==
-                            cloned_dependencies.end()) {
-                            cloned_dependencies.push_back(dependent);
-                        }
-                    }
-                }
-                auto cloned_node = node->copy_with_new_inputs(cloned_args, cloned_dependencies);
-                cloned_nodes.push_back(cloned_node);
-                // There is a friendly name for this node so copy it
-                cloned_node->set_friendly_name(node->get_friendly_name());
-                auto rt_info = node->get_rt_info();
-                cloned_node->get_rt_info() = rt_info;
-                cloned_node->set_op_annotations(node->get_op_annotations());
-                for (const auto& cloned_value : cloned_node->outputs()) {
-                    auto original_value = node_outputs.at(cloned_value.get_index());
-                    if (output_map.count(original_value) == 0) {
-                        output_map[original_value] = cloned_value;
-                    }
-                }
-                break;
-            }
-        }
-    }
-    return cloned_nodes;
-}
+}  // namespace
 
-std::shared_ptr<ov::Model> ov::clone_model(const ov::Model& func) {
-    ngraph::NodeMap nm;
-    return clone_model(func, nm);
-}
+namespace ov {
 
-std::shared_ptr<ov::Model> ov::clone_model(const ov::Model& func, ngraph::NodeMap& node_map) {
+std::shared_ptr<Model> clone_ov_model(const Model& func, std::unordered_map<Node*, std::shared_ptr<Node>>& node_map) {
     // clone model operations
-    ngraph::clone_nodes(func.get_ops(), node_map);
+    clone_ov_nodes(func.get_ordered_ops(), node_map);
 
     // clone variables
     auto variables = func.get_variables();
@@ -365,6 +305,113 @@ std::shared_ptr<ov::Model> ov::clone_model(const ov::Model& func, ngraph::NodeMa
     result->get_rt_info() = func.get_rt_info();
     result->m_shared_object = func.m_shared_object;
     return result;
+}
+
+}  // namespace ov
+
+std::vector<std::shared_ptr<ngraph::Node>> ngraph::clone_nodes(const std::vector<std::shared_ptr<ngraph::Node>>& nodes,
+                                                               NodeMap& node_map) {
+    // for each node in topological order
+    auto sorted_nodes = topological_sort(nodes);
+    for (const auto& node : sorted_nodes) {
+        if (node_map.count(node.get()) == 0) {
+            // get (already) cloned arguments and clone the node
+            OutputVector cloned_args;
+            for (auto input : node->inputs()) {
+                Output<Node> output = input.get_source_output();
+                cloned_args.push_back(output.for_node(node_map.at(output.get_node())));
+            }
+            std::vector<std::shared_ptr<Node>> cloned_dependencies;
+            for (auto& dependency : node->get_control_dependencies()) {
+                shared_ptr<Node>& dependent = node_map.at(dependency.get());
+                if (find(cloned_dependencies.begin(), cloned_dependencies.end(), dependent) ==
+                    cloned_dependencies.end()) {
+                    cloned_dependencies.push_back(dependent);
+                }
+            }
+            auto cloned_node = node->copy_with_new_inputs(cloned_args, cloned_dependencies);
+            // There is a friendly name for this node so copy it
+            cloned_node->set_friendly_name(node->get_friendly_name());
+            auto rt_info = node->get_rt_info();
+            cloned_node->get_rt_info() = rt_info;
+
+            for (auto output : node->outputs()) {
+                const auto& output_rt_info = output.get_rt_info();
+                auto new_output = output.for_node(cloned_node);
+                new_output.get_rt_info() = output_rt_info;
+            }
+
+            for (auto input : node->inputs()) {
+                const auto& output_rt_info = input.get_rt_info();
+                auto new_input = cloned_node->input(input.get_index());
+                new_input.get_rt_info() = output_rt_info;
+            }
+
+            node_map[node.get()] = cloned_node;
+        }
+    }
+
+    // create and return vector of cloned nodes
+    // order matches input vector (not necessarily topological)
+    std::vector<std::shared_ptr<ngraph::Node>> cloned_nodes;
+    for (const auto& node : nodes) {
+        cloned_nodes.push_back(node_map.at(node.get()));
+    }
+    return cloned_nodes;
+}
+
+std::list<std::shared_ptr<ngraph::Node>> ngraph::clone_nodes(const std::vector<std::shared_ptr<ngraph::Node>>& nodes,
+                                                             RawNodeOutputMap& output_map) {
+    // for each node in topological order
+    auto sorted_nodes = topological_sort(nodes);
+    std::list<shared_ptr<Node>> cloned_nodes;
+    for (const auto& node : sorted_nodes) {
+        auto node_outputs = node->outputs();
+        for (const auto& value : node_outputs) {
+            if (output_map.count(value) == 0) {
+                // We need this node cloned
+                // get (already) cloned arguments and clone the node
+                OutputVector cloned_args;
+                for (const auto& value : node->input_values()) {
+                    cloned_args.push_back(output_map.at(value));
+                }
+                NodeVector cloned_dependencies;
+                for (auto& dependency : node->get_control_dependencies()) {
+                    for (const auto& dependency_value : dependency->outputs()) {
+                        shared_ptr<Node> dependent = output_map.at(dependency_value).get_node_shared_ptr();
+                        if (find(cloned_dependencies.begin(), cloned_dependencies.end(), dependent) ==
+                            cloned_dependencies.end()) {
+                            cloned_dependencies.push_back(dependent);
+                        }
+                    }
+                }
+                auto cloned_node = node->copy_with_new_inputs(cloned_args, cloned_dependencies);
+                cloned_nodes.push_back(cloned_node);
+                // There is a friendly name for this node so copy it
+                cloned_node->set_friendly_name(node->get_friendly_name());
+                auto rt_info = node->get_rt_info();
+                cloned_node->get_rt_info() = rt_info;
+                for (const auto& cloned_value : cloned_node->outputs()) {
+                    auto original_value = node_outputs.at(cloned_value.get_index());
+                    if (output_map.count(original_value) == 0) {
+                        output_map[original_value] = cloned_value;
+                    }
+                }
+                break;
+            }
+        }
+    }
+    return cloned_nodes;
+}
+
+std::shared_ptr<ov::Model> ov::clone_model(const ov::Model& func) {
+    ngraph::NodeMap nm;
+    return clone_model(func, nm);
+}
+
+std::shared_ptr<ov::Model> ov::clone_model(const ov::Model& func,
+                                           std::unordered_map<Node*, std::shared_ptr<Node>>& node_map) {
+    return ov::clone_ov_model(func, node_map);
 }
 
 bool ngraph::is_equal_to_const_value(const std::string& const_value, const Output<Node>& reduce_constant) {
@@ -577,24 +624,6 @@ size_t ngraph::get_user_count(Node* node) {
         count += is_used(node_user.get());
     }
     return count;
-}
-
-bool ngraph::possibly_overwritten(Node* node) {
-    for (auto& output : node->outputs()) {
-        for (auto& input : output.get_target_inputs()) {
-            if (op::is_op(input.get_node())) {
-                auto op = static_cast<ngraph::op::Op*>(input.get_node());
-                if (auto op_annotations = op->get_op_annotations()) {
-                    for (auto oi_pair : op_annotations->get_in_place_oi_pairs()) {
-                        if (input.get_index() == oi_pair.input && oi_pair.destructive) {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return false;
 }
 
 bool ngraph::is_strided(const Strides& strides) {

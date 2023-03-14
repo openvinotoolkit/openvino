@@ -38,20 +38,14 @@ size_t range_search(const T& arg, const A* knots, size_t knots_number) {
 }
 
 template <typename T, typename A>
-void pwl(const T* args,
-         T* out,
-         size_t count,
-         const A* m,
-         const A* b,
-         const A* knots,
-         size_t segments_number) {
+void pwl(const T* args, T* out, size_t count, const A* m, const A* b, const A* knots, size_t segments_number) {
     for (size_t i = 0; i < count; i++) {
         // knots is one more than segments
         size_t segment_index = range_search(args[i], knots, segments_number + 1);
         out[i] = m[segment_index] * args[i] + b[segment_index];
     }
 }
-} // namespace reference
-} // namespace op
-} // namespace intel_gna
-} // namespace ov
+}  // namespace reference
+}  // namespace op
+}  // namespace intel_gna
+}  // namespace ov

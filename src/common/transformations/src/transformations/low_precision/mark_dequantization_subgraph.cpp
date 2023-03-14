@@ -4,14 +4,32 @@
 
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
-#include <ngraph/validation_util.hpp>
 #include <openvino/opsets/opset10.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <transformations/rt_info/dequantization_node.hpp>
 #include <transformations/rt_info/disable_constant_folding.hpp>
 
-using namespace ngraph;
+static bool is_constfoldable(const ov::Output<ov::Node>& output) {
+    auto status = true;
+    std::deque<ov::Node*> nodes_to_calculate = {output.get_node()};
+
+    while (status && !nodes_to_calculate.empty()) {
+        auto current_node = nodes_to_calculate.front();
+        nodes_to_calculate.pop_front();
+
+        if (current_node->get_input_size() == 0 && !ov::is_type<ov::op::v0::Constant>(current_node)) {
+            status = false;
+        } else {
+            // not a leaf, not a shape_of -- continue to search
+            for (const auto& input_value : current_node->input_values()) {
+                const auto& input_node = input_value.get_node();
+                nodes_to_calculate.push_front(input_node);
+            }
+        }
+    }
+    return status;
+}
 
 ov::pass::MarkDequantizationSubgraph::MarkDequantizationSubgraph(const element::TypeVector& precisions) {
     // Dequantization subgraph may have two forms: with and without Subtract
@@ -50,14 +68,13 @@ ov::pass::MarkDequantizationSubgraph::MarkDequantizationSubgraph(const element::
             }
         }
 
-        // validation by Convert operation input precisions
         const auto& input_precision = input->get_output_element_type(0);
+        // validation by Convert operation input precisions
         if (std::find(precisions.begin(), precisions.end(), input_precision) == precisions.end()) {
             return false;
         }
 
-        std::vector<Node*> tmp;
-        if (ngraph::could_propagate(input, tmp)) {
+        if (is_constfoldable(input)) {
             // disable ConstantFolding if dequantization subgraph is on constant data
             ov::disable_constant_folding(convert);
         }

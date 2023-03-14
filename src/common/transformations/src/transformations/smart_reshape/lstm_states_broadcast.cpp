@@ -20,12 +20,12 @@ ov::Input<ov::Node> get_outer_input_of_ti_by_parameter(const shared_ptr<Paramete
                                                        const shared_ptr<TensorIterator>& ti) {
     int64_t parameter_index = ti->get_body()->get_parameter_index(parameter);
     for (const auto& input_descriptor : ti->get_input_descriptions())
-        if (input_descriptor->m_body_parameter_index == parameter_index)
+        if (static_cast<int64_t>(input_descriptor->m_body_parameter_index) == parameter_index)
             return ti->input(input_descriptor->m_input_index);
-    OPENVINO_UNREACHABLE("LSTMStatesBroadcast failed to get outer input of TI by its inner Parameter. TI ",
-                         ti,
-                         " Parameter ",
-                         parameter);
+    OPENVINO_THROW("LSTMStatesBroadcast failed to get outer input of TI by its inner Parameter. TI ",
+                   ti,
+                   " Parameter ",
+                   parameter);
 }
 
 shared_ptr<ov::Node> deduce_outer_source_of_batch_for_inner_lstm_cell(const shared_ptr<TensorIterator>& ti,

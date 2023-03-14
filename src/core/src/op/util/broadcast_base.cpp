@@ -7,6 +7,7 @@
 #include <ngraph/validation_util.hpp>
 #include <numeric>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/concat.hpp"
@@ -233,7 +234,7 @@ void ov::op::util::BroadcastBase::validate_and_infer_types() {
                                   " doesn't match rank of input tensor ",
                                   input_rank);
 
-            if (output_shape_defined && ngraph::has_and_set_equal_bounds(input_value(2))) {
+            if (output_shape_defined && has_and_set_equal_bounds(input_value(2))) {
                 auto axes_mapping_val = get_constant_from_source(input_value(2))->get_axis_vector_val();
                 validate_target_shape_none(arg_shape, axes_mapping_val, output_shape);
             }
@@ -305,7 +306,7 @@ std::pair<bool, ov::AxisSet> ov::op::util::BroadcastBase::get_broadcast_axes() c
             return get_broadcast_axes_numpy_pdpd(arg_shape, result_shape, m_mode);
         }
     } else {
-        throw ov::Exception("Unknown autobroadcast type");
+        OPENVINO_THROW("Unknown autobroadcast type");
     }
 
     return std::make_pair(axes_known, broadcast_axes);
@@ -364,7 +365,7 @@ void get_axis_vector_from_ht(const ngraph::HostTensorPtr& arg,
         break;
     default:
         // other types are not supported and would have thrown in ctor
-        throw ov::Exception("get_axis_vector_from_ht: type is not integral");
+        OPENVINO_THROW("get_axis_vector_from_ht: type is not integral");
     }
     // Rank(arg_shape) == shape_size(axes_mapping)
     NGRAPH_CHECK(axis_vector.size() == arg_shape.size(),
@@ -408,7 +409,7 @@ ov::Shape get_target_shape_from_ht(const ngraph::HostTensorPtr& input1) {
         break;
     default:
         // other types are not supported and would have thrown in ctor
-        throw ov::Exception("get_target_shape_from_ht: type is not integral");
+        OPENVINO_THROW("get_target_shape_from_ht: type is not integral");
     }
     return target_shape;
 }
@@ -472,22 +473,22 @@ bool ov::op::util::BroadcastBase::evaluate(const HostTensorVector& outputs, cons
         validate_target_shape_numpy(arg_shape, target_shape);
         pair_broadcast_axes = get_broadcast_axes_numpy_pdpd(arg_shape, result_shape.to_shape(), m_mode);
     } else {
-        throw ov::Exception("Unsupported BroadcastType ");
+        OPENVINO_THROW("Unsupported BroadcastType ");
     }
 
     return evaluate_broadcast(inputs[0], outputs[0], pair_broadcast_axes, result_shape.to_shape());
 }
 
-bool ov::op::util::BroadcastBase::evaluate_lower(const HostTensorVector& output_values) const {
+bool ov::op::util::BroadcastBase::evaluate_lower(ov::TensorVector& output_values) const {
     if (!input_value(1).get_tensor().has_and_set_bound() ||
         (get_input_size() > 2 && !input_value(2).get_tensor().has_and_set_bound()))
         return false;
-    return ngraph::default_lower_bound_evaluator(this, output_values);
+    return default_lower_bound_evaluator(this, output_values);
 }
 
-bool ov::op::util::BroadcastBase::evaluate_upper(const HostTensorVector& output_values) const {
+bool ov::op::util::BroadcastBase::evaluate_upper(ov::TensorVector& output_values) const {
     if (!input_value(1).get_tensor().has_and_set_bound() ||
         (get_input_size() > 2 && !input_value(2).get_tensor().has_and_set_bound()))
         return false;
-    return ngraph::default_upper_bound_evaluator(this, output_values);
+    return default_upper_bound_evaluator(this, output_values);
 }
