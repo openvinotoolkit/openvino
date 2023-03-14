@@ -505,11 +505,11 @@ void Convolution::getSupportedDescriptors() {
         // this WA can be removed after brdgmm_dw is enabled.
         //    GroupConv([N, GROUPS * C_IN, D, H, W], [GROUPS, C_OUT=1, C_IN=1, kd, kh, kw])
         // TODO when kd=1, and src layout is ndhwc, N & D can be combined so it can be done as a 2D depthwise
-        bool is_dw3DConv = (isDepthWise() && ndims == 5);
+        bool isDW3DConv = (isDepthWise() && ndims == 5);
         inputDataType = memory::data_type::f32;
         outputDataType = memory::data_type::f32;
         if (getOriginalInputPrecisionAtPort(0) == Precision::BF16) {
-            if (is_dw3DConv) {
+            if (isDW3DConv) {
                 DEBUG_LOG(getName(),
                           " inputDataType fallback from BF16 to F32 due to un-optimized depthwise 3D convolution");
             } else {
@@ -518,7 +518,7 @@ void Convolution::getSupportedDescriptors() {
         }
 
         if (getOriginalOutputPrecisionAtPort(0) == Precision::BF16) {
-            if (is_dw3DConv) {
+            if (isDW3DConv) {
                 DEBUG_LOG(getName(),
                           " outputDataType fallback from BF16 to F32 due to un-optimized depthwise 3D convolution");
             } else {
