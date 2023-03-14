@@ -15,8 +15,8 @@ namespace ngraph {
 namespace runtime {
 namespace reference {
 // This used to be lambda expressions but MSVC had difficulty compiling it. This way is more explicit.
-template <bool ValueDesc, bool IndexDesc, typename T, typename U>
-inline bool compare_by_value_and_index(const std::tuple<T, U>& a, const std::tuple<T, U>& b) {
+template <bool D, typename T, typename U>
+inline bool compare_max(const std::tuple<T, U>& a, const std::tuple<T, U>& b) {
 // this is intentional to be able to compare floats directly
 // without using relative or absolute tolerance
 #if defined(__GNUC__)
@@ -24,16 +24,13 @@ inline bool compare_by_value_and_index(const std::tuple<T, U>& a, const std::tup
 #    pragma GCC diagnostic ignored "-Wfloat-equal"
 #endif
     if (std::get<0>(a) == std::get<0>(b)) {
-        if (IndexDesc)
-            return std::get<1>(a) > std::get<1>(b);
-        else
-            return std::get<1>(a) < std::get<1>(b);
+        return std::get<1>(a) < std::get<1>(b);
     }
 #if defined(__GNUC__)
 #    pragma GCC diagnostic pop
 #endif
 
-    if (ValueDesc)
+    if (D)
         return std::get<0>(a) > std::get<0>(b);
     else
         return std::get<0>(a) < std::get<0>(b);
@@ -42,11 +39,6 @@ inline bool compare_by_value_and_index(const std::tuple<T, U>& a, const std::tup
 template <typename T, typename U>
 inline bool compare_indices_ascending(const std::tuple<T, U>& a, const std::tuple<T, U>& b) {
     return std::get<1>(a) < std::get<1>(b);
-}
-
-template <typename T, typename U>
-inline bool compare_indices_descending(const std::tuple<T, U>& a, const std::tuple<T, U>& b) {
-    return std::get<1>(a) > std::get<1>(b);
 }
 
 // TopK reference implementation provides stable indices output
@@ -62,8 +54,6 @@ void topk(const T* arg,
           op::TopKSortType sort = op::TopKSortType::NONE) {
     NGRAPH_SUPPRESS_DEPRECATED_START
     using namespace std;
-    static constexpr bool ascending = false;
-    static constexpr bool descending = true;
     // reorder source axis visit order and make "axis" inner most
     size_t ndim = static_cast<size_t>(in_shape.size());
     Coordinate start_corner(ndim, 0);
@@ -96,41 +86,22 @@ void topk(const T* arg,
         }
         // Sort the temp vector
         if (compute_max) {
-            if (sort == op::TopKSortType::SORT_INDICES)
-                nth_element(workspace.begin(),
-                            workspace.begin() + k,
-                            workspace.end(),
-                            compare_by_value_and_index<descending, descending, T, U>);
-            else
-                nth_element(workspace.begin(),
-                            workspace.begin() + k,
-                            workspace.end(),
-                            compare_by_value_and_index<descending, ascending, T, U>);
+            nth_element(workspace.begin(), workspace.begin() + k, workspace.end(), compare_max<true, T, U>);
         } else {
-            nth_element(workspace.begin(),
-                        workspace.begin() + k,
-                        workspace.end(),
-                        compare_by_value_and_index<ascending, ascending, T, U>);
+            nth_element(workspace.begin(), workspace.begin() + k, workspace.end(), compare_max<false, T, U>);
         }
         // Write temp vector to output
         switch (sort) {
         case op::TopKSortType::NONE:
             break;
         case op::TopKSortType::SORT_INDICES:
-            if (compute_max)
-                std::sort(workspace.begin(), workspace.begin() + k, compare_indices_descending<T, U>);
-            else
-                std::sort(workspace.begin(), workspace.begin() + k, compare_indices_ascending<T, U>);
+            std::sort(workspace.begin(), workspace.begin() + k, compare_indices_ascending<T, U>);
             break;
         case op::TopKSortType::SORT_VALUES:
             if (compute_max)
-                std::sort(workspace.begin(),
-                          workspace.begin() + k,
-                          compare_by_value_and_index<descending, ascending, T, U>);
+                std::sort(workspace.begin(), workspace.begin() + k, compare_max<true, T, U>);
             else
-                std::sort(workspace.begin(),
-                          workspace.begin() + k,
-                          compare_by_value_and_index<ascending, ascending, T, U>);
+                std::sort(workspace.begin(), workspace.begin() + k, compare_max<false, T, U>);
         }
         for (size_t j = 0; j < k; j++) {
             const auto& entry = workspace[j];
