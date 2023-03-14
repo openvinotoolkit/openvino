@@ -6,16 +6,17 @@
 #include "openvino/frontend/manager.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/transpose_sinking/transpose_sinking_concat.hpp"
-#include "transformations/transpose_sinking/transpose_sinking_utils.hpp"
+#include "transformations/transpose_sinking/ts_concat.hpp"
+#include "transformations/transpose_sinking/ts_utils.hpp"
 #include "transformations/init_node_info.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
-#include "transpose_sinking_test_utils.hpp"
+#include "ts_test_utils.hpp"
 
 using namespace ov;
 using namespace ov::opset10;
+using namespace ov::pass::transpose_sinking;
 using namespace transpose_sinking::testing::utils;
 
 namespace {
@@ -330,9 +331,9 @@ TEST_P(TransposeSinkingConcatTestFixture, CompareFunctions) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    TransposeSinkingConcatForwardTestSuite,
+    TSConcatForwardTestSuite,
     TransposeSinkingConcatTestFixture,
-    ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingConcatForward)),
+    ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TSConcatForward)),
                        ::testing::ValuesIn(concat_operations_numbers),
                        ::testing::Values(single_consumer::forward::one_input_transpose::CreateFunction),
                        ::testing::Values(single_consumer::forward::one_input_transpose::CreateReferenceFunction),
@@ -341,9 +342,9 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(5)),
     TransposeSinkingConcatTestFixture::get_test_name);
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatBackwardTestSuite,
+INSTANTIATE_TEST_SUITE_P(TSConcatBackwardTestSuite,
                          TransposeSinkingConcatTestFixture,
-                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingConcatBackward)),
+                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TSConcatBackward)),
                                             ::testing::ValuesIn(concat_operations_numbers),
                                             ::testing::Values(single_consumer::backward::CreateFunction),
                                             ::testing::Values(single_consumer::backward::CreateReferenceFunction),
@@ -407,9 +408,9 @@ TEST_P(TransposeSinkingConcatAllTransposesInputTestFixture, CompareFunctions) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    TransposeSinkingConcatForwardAllTransposesTestSuite,
+    TSConcatForwardAllTransposesTestSuite,
     TransposeSinkingConcatAllTransposesInputTestFixture,
-    ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingConcatForward)),
+    ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TSConcatForward)),
                        ::testing::ValuesIn(concat_operations_numbers),
                        ::testing::Values(single_consumer::forward::double_transpose::CreateFunction),
                        ::testing::Values(single_consumer::forward::double_transpose::CreateReferenceFunction),
@@ -936,9 +937,9 @@ std::vector<CreateGraphFunctionDesc> backward_subtests = {
 
 #undef SUBTEST
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatForwardMultiConsumersTestSuite,
+INSTANTIATE_TEST_SUITE_P(TSConcatForwardMultiConsumersTestSuite,
                          TransposeConcatMultiSinkingFixture,
-                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingConcatForward)),
+                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TSConcatForward)),
                                             ::testing::ValuesIn(concat_operations_numbers),
                                             ::testing::ValuesIn(forward_subtests),
                                             ::testing::Values(element::f32),
@@ -946,9 +947,9 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatForwardMultiConsumersTestSuite,
                                             ::testing::Values(5)),
                          TransposeConcatMultiSinkingFixture::get_test_name);
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatBackwardMultiConsumersTestSuite,
+INSTANTIATE_TEST_SUITE_P(TSConcatBackwardMultiConsumersTestSuite,
                          TransposeConcatMultiSinkingFixture,
-                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingConcatBackward)),
+                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TSConcatBackward)),
                                             ::testing::ValuesIn(concat_operations_numbers),
                                             ::testing::ValuesIn(backward_subtests),
                                             ::testing::Values(element::f32),
@@ -1028,9 +1029,9 @@ std::vector<CreateGraphFunctionNoSinkingDesc> backward_subtests_no_sinking = {
 
 #undef SUBTEST
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingConcatBackwardMultiConsumersTestSuite,
+INSTANTIATE_TEST_SUITE_P(TSConcatBackwardMultiConsumersTestSuite,
                          TransposeConcatMultiSinkingConcatConsumersFixture,
-                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingConcatBackward)),
+                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TSConcatBackward)),
                                             ::testing::ValuesIn(concat_operations_numbers),
                                             ::testing::ValuesIn(backward_subtests_no_sinking),
                                             ::testing::Values(element::f32),

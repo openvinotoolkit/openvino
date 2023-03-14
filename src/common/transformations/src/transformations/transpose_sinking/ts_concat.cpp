@@ -2,22 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/transpose_sinking/transpose_sinking_concat.hpp"
+#include "transformations/transpose_sinking/ts_concat.hpp"
 
 #include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/transpose_sinking/transpose_sinking_utils.hpp"
+#include "transformations/transpose_sinking/ts_utils.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 
-using namespace ov::pass::pattern;
 using namespace ov;
 using namespace ov::opset10;
-using namespace transpose_sinking;
+using namespace ov::pass::pattern;
+using namespace ov::pass::transpose_sinking;
+using namespace ov::pass::transpose_sinking::utils;
 
-ov::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
-    MATCHER_SCOPE(TransposeSinkingConcatForward);
+TSConcatForward::TSConcatForward() {
+    MATCHER_SCOPE(TSConcatForward);
 
     auto main_node_label = wrap_type<Concat>(IfNodeHasTransposeInputs);
 
@@ -47,7 +48,7 @@ ov::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
         main_node->validate_and_infer_types();
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
             register_new_node(new_node);
-            transpose_sinking::UpdateForwardSinkingAbility(new_node);
+            UpdateForwardSinkingAbility(new_node);
         }
 
         return true;
@@ -57,8 +58,8 @@ ov::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
     register_matcher(m, matcher_pass_callback);
 }
 
-ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
-    MATCHER_SCOPE(TransposeSinkingConcatBackward);
+TSConcatBackward::TSConcatBackward() {
+    MATCHER_SCOPE(TSConcatBackward);
 
     auto main_node_label = wrap_type<Concat>([](const Output<Node>& output) -> bool {
         return has_static_rank()(output) && HasSameOutputTransposeNodes(output);

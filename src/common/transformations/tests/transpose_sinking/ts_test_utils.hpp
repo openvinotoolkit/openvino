@@ -54,7 +54,7 @@ public:
     }
 };
 using PassFactoryPtr = std::shared_ptr<IPassFactory>;
-#define CREATE_PASS_FACTORY(pass_name) std::make_shared<PassFactory<ov::pass::pass_name>>(#pass_name)
+#define CREATE_PASS_FACTORY(pass_name) std::make_shared<PassFactory<ov::pass::transpose_sinking::pass_name>>(#pass_name)
 
 std::string to_string(const ov::Shape& shape);
 ov::OutputVector set_transpose_for(const std::vector<size_t>& idxs, const ov::OutputVector& out_vec);

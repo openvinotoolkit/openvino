@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/transpose_sinking/transpose_sinking_unary.hpp"
+#include "transformations/transpose_sinking/ts_unary.hpp"
 
 #include <utility>
 
 #include "itt.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/transpose_sinking/transpose_sinking_utils.hpp"
+#include "transformations/transpose_sinking/ts_utils.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -17,7 +17,8 @@ using namespace ov;
 using namespace ov::opset10;
 using namespace ov::pass::pattern;
 using namespace ov::op::util;
-using namespace transpose_sinking;
+using namespace ov::pass::transpose_sinking;
+using namespace ov::pass::transpose_sinking::utils;
 
 namespace {
 
@@ -51,8 +52,8 @@ NodePair SwapNodes(const NodePtr& first_node, const NodePtr& second_node) {
 
 }  // namespace
 
-ov::pass::TransposeSinkingUnaryForward::TransposeSinkingUnaryForward() {
-    MATCHER_SCOPE(TransposeSinkingUnaryForward);
+TSUnaryForward::TSUnaryForward() {
+    MATCHER_SCOPE(TSUnaryForward);
 
     auto transpose_label = wrap_type<Transpose>({any_input(), any_input()});
     auto unary_label =
@@ -73,7 +74,7 @@ ov::pass::TransposeSinkingUnaryForward::TransposeSinkingUnaryForward() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(unary_label, "ov::pass::TransposeSinkingUnaryForward");
+    auto m = std::make_shared<Matcher>(unary_label, "ov::pass::TSUnaryForward");
     register_matcher(m, matcher_pass_callback);
 }
 
@@ -83,8 +84,8 @@ bool IfSinkingEnabled(const Output<Node>& output) {
 }
 }  // namespace
 
-ov::pass::TransposeSinkingUnaryBackward::TransposeSinkingUnaryBackward() {
-    MATCHER_SCOPE(TransposeSinkingUnaryBackwardMultiConsumers);
+TSUnaryBackward::TSUnaryBackward() {
+    MATCHER_SCOPE(TSUnaryBackwardMultiConsumers);
 
     auto unary_restrictions = [](const Output<Node>& output) -> bool {
         return HasSameOutputTransposeNodes(output);
@@ -115,6 +116,6 @@ ov::pass::TransposeSinkingUnaryBackward::TransposeSinkingUnaryBackward() {
         return true;
     };
 
-    auto m = std::make_shared<Matcher>(transpose_label, "ov::pass::TransposeSinkingUnaryBackward");
+    auto m = std::make_shared<Matcher>(transpose_label, "ov::pass::TSUnaryBackward");
     register_matcher(m, matcher_pass_callback);
 }

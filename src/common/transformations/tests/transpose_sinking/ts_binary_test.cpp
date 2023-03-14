@@ -6,14 +6,15 @@
 #include "openvino/frontend/manager.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/manager.hpp"
-#include "transformations/transpose_sinking/transpose_sinking_binary.hpp"
+#include "transformations/transpose_sinking/ts_binary.hpp"
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
-#include "transpose_sinking_test_utils.hpp"
+#include "ts_test_utils.hpp"
 
 using namespace ov;
 using namespace ov::opset10;
+using namespace ov::pass::transpose_sinking;
 using namespace transpose_sinking::testing::utils;
 
 namespace {
@@ -233,7 +234,7 @@ TEST_P(TransposeSinkingBinaryTwoTransposeInputsTestFixture, CompareFunctions) {
 INSTANTIATE_TEST_SUITE_P(TransposeSinkingBinaryTwoTransposeInputsForwardTestSuite,
                          TransposeSinkingBinaryTwoTransposeInputsTestFixture,
                          ::testing::Combine(::testing::ValuesIn(binary_factories),
-                                            ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryForward)),
+                                            ::testing::Values(CREATE_PASS_FACTORY(TSBinaryForward)),
                                             ::testing::ValuesIn(binary_operations_numbers),
                                             ::testing::Values(CreateFunction),
                                             ::testing::Values(CreateReferenceFunction),
@@ -363,10 +364,10 @@ TEST_P(TransposeSinkingBinaryTestFixture, CompareFunctions) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    TransposeSinkingBinaryForwardTestSuite,
+    TSBinaryForwardTestSuite,
     TransposeSinkingBinaryTestFixture,
     ::testing::Combine(::testing::ValuesIn(binary_factories),
-                       ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryForward)),
+                       ::testing::Values(CREATE_PASS_FACTORY(TSBinaryForward)),
                        ::testing::ValuesIn(binary_operations_numbers),
                        ::testing::Values(single_consumer::forward::one_input_transpose::CreateFunction),
                        ::testing::Values(single_consumer::forward::one_input_transpose::CreateReferenceFunction),
@@ -375,10 +376,10 @@ INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingBinaryTestFixture::get_test_name);
 
 INSTANTIATE_TEST_SUITE_P(
-    TransposeSinkingBinaryBackwardTestSuite,
+    TSBinaryBackwardTestSuite,
     TransposeSinkingBinaryTestFixture,
     ::testing::Combine(::testing::ValuesIn(binary_factories),
-                       ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryBackward)),
+                       ::testing::Values(CREATE_PASS_FACTORY(TSBinaryBackward)),
                        ::testing::ValuesIn(binary_operations_numbers),
                        ::testing::Values(single_consumer::backward::one_input_transpose::CreateFunction),
                        ::testing::Values(single_consumer::backward::one_input_transpose::CreateReferenceFunction),
@@ -586,7 +587,7 @@ INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingBinaryIncompatShapesBackwardTestSuite,
     TransposeSinkingBinaryIncompatShapesTestFixture,
     ::testing::Combine(::testing::ValuesIn(binary_elementwise_factories),
-                       ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryBackward)),
+                       ::testing::Values(CREATE_PASS_FACTORY(TSBinaryBackward)),
                        ::testing::Values(Shape{1, 96, 55, 55}),
                        ::testing::ValuesIn(binary::single_consumer::backward::incompat_shapes::constant_shapes),
                        ::testing::Values(binary::single_consumer::backward::incompat_shapes::CreateFunction),
@@ -599,7 +600,7 @@ INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingBinaryIncompatShapesForwardTestSuite,
     TransposeSinkingBinaryIncompatShapesTestFixture,
     ::testing::Combine(::testing::ValuesIn(binary_elementwise_factories),
-                       ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryForward)),
+                       ::testing::Values(CREATE_PASS_FACTORY(TSBinaryForward)),
                        ::testing::Values(Shape{1, 96, 55, 55}),
                        ::testing::ValuesIn(binary::single_consumer::forward::incompat_shapes::constant_shapes),
                        ::testing::Values(binary::single_consumer::forward::incompat_shapes::CreateFunction),
@@ -612,7 +613,7 @@ INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingPReluIncompatShapesBackwardTestSuite,
     TransposeSinkingBinaryIncompatShapesTestFixture,
     ::testing::Combine(::testing::Values(CREATE_BINARY_FACTORY(PRelu)),
-                       ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryBackward)),
+                       ::testing::Values(CREATE_PASS_FACTORY(TSBinaryBackward)),
                        ::testing::Values(Shape{1, 3, 16, 16}),
                        ::testing::ValuesIn(std::vector<Shape>{Shape{3}}),
                        ::testing::Values(binary::single_consumer::backward::incompat_shapes::CreateFunction),
@@ -625,7 +626,7 @@ INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingPReluIncompatShapesForwardTestSuite,
     TransposeSinkingBinaryIncompatShapesTestFixture,
     ::testing::Combine(::testing::Values(CREATE_BINARY_FACTORY(PRelu)),
-                       ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryForward)),
+                       ::testing::Values(CREATE_PASS_FACTORY(TSBinaryForward)),
                        ::testing::Values(Shape{1, 3, 16, 16}),
                        ::testing::ValuesIn(std::vector<Shape>{Shape{3}}),
                        ::testing::Values(binary::single_consumer::forward::incompat_shapes::CreateFunction),
@@ -1125,19 +1126,19 @@ std::vector<CreateGraphFunctionDesc> backward_subtests = {
 
 #undef SUBTEST
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingBinaryForwardMultiConsumersTestSuite,
+INSTANTIATE_TEST_SUITE_P(TSBinaryForwardMultiConsumersTestSuite,
                          TransposeBinaryMultiSinkingFixture,
                          ::testing::Combine(::testing::ValuesIn(binary_factories),
-                                            ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryForward)),
+                                            ::testing::Values(CREATE_PASS_FACTORY(TSBinaryForward)),
                                             ::testing::ValuesIn(forward_subtests),
                                             ::testing::Values(element::f32),
                                             ::testing::ValuesIn(binary_transpose_input_indexes)),
                          TransposeBinaryMultiSinkingFixture::get_test_name);
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingBinaryBackwardMultiConsumersTestSuite,
+INSTANTIATE_TEST_SUITE_P(TSBinaryBackwardMultiConsumersTestSuite,
                          TransposeBinaryMultiSinkingFixture,
                          ::testing::Combine(::testing::ValuesIn(binary_factories),
-                                            ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryBackward)),
+                                            ::testing::Values(CREATE_PASS_FACTORY(TSBinaryBackward)),
                                             ::testing::ValuesIn(backward_subtests),
                                             ::testing::Values(element::f32),
                                             ::testing::ValuesIn(binary_transpose_input_indexes)),
@@ -1205,10 +1206,10 @@ std::vector<CreateGraphFunctionDesc> backward_subtests_binary_consumers = {
 };
 #undef SUBTEST
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingBinaryBackwardBinaryMultiConsumersTestSuite,
+INSTANTIATE_TEST_SUITE_P(TSBinaryBackwardBinaryMultiConsumersTestSuite,
                          TransposeBinaryMultiSinkingBinaryMultiConsumersFixture,
                          ::testing::Combine(::testing::ValuesIn(binary_factories),
-                                            ::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingBinaryBackward)),
+                                            ::testing::Values(CREATE_PASS_FACTORY(TSBinaryBackward)),
                                             ::testing::ValuesIn(backward_subtests_binary_consumers),
                                             ::testing::Values(element::f32),
                                             ::testing::ValuesIn(binary_transpose_input_indexes)),

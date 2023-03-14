@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/transpose_sinking/transpose_sinking_utils.hpp"
+#include "transformations/transpose_sinking/ts_utils.hpp"
 
 #include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -11,7 +11,10 @@
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/utils/utils.hpp"
 
+namespace ov {
+namespace pass {
 namespace transpose_sinking {
+namespace utils {
 
 using namespace ov;
 using namespace ov::opset10;
@@ -377,3 +380,6 @@ void RemoveSingleOutputConsumers(const NodePtr& node) {
 }
 
 }  // namespace transpose_sinking
+}
+}
+}

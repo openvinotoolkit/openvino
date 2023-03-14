@@ -11,7 +11,10 @@
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/util/common_util.hpp"
 
+namespace ov {
+namespace pass {
 namespace transpose_sinking {
+namespace utils {
 
 struct TransposeInputsInfo {
     std::shared_ptr<ov::opset10::Transpose> transpose;
@@ -107,3 +110,6 @@ ov::Output<ov::Node> ChangeValuesOrder(const ov::Output<ov::Node>& input,
                                        const std::shared_ptr<ov::opset10::Constant>& axis);
 
 }  // namespace transpose_sinking
+}
+}
+}

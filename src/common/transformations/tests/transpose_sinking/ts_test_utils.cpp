@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transpose_sinking_test_utils.hpp"
+#include "ts_test_utils.hpp"
 
 #include "openvino/frontend/manager.hpp"
 #include "openvino/opsets/opset10.hpp"
