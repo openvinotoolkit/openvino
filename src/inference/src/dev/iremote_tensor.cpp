@@ -276,15 +276,20 @@ public:
 };
 
 std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<ie::Blob>& blob) {
+    std::cout << "BBBB 1" << std::endl;
 #define ELSE_IF(type)                                                                \
     else if (auto tblob = dynamic_cast<const TensorMemoryBlob<type>*>(blob.get())) { \
+        std::cout << "BBBB 5" << std::endl;                                          \
         return tblob->tensor;                                                        \
     }
     if (blob == nullptr) {
+        std::cout << "BBBB 2" << std::endl;
         return {};
-    } else if (auto tblob = dynamic_cast<const TensorRemoteBlob*>(blob.get())) {
-        return tblob->tensor;
+    } else if (auto remote_blob = std::dynamic_pointer_cast<TensorRemoteBlob>(blob)) {
+        std::cout << "BBBB 3" << std::endl;
+        return remote_blob->tensor;
     } else if (auto remote_blob = std::dynamic_pointer_cast<InferenceEngine::RemoteBlob>(blob)) {
+        std::cout << "BBBB 4" << std::endl;
         return std::make_shared<RemoteBlobTensor>(remote_blob);
     }
     ELSE_IF(float)
@@ -301,17 +306,25 @@ std::shared_ptr<ITensor> make_tensor(const std::shared_ptr<ie::Blob>& blob) {
     ELSE_IF(uint64_t)
     ELSE_IF(int8_t)
     ELSE_IF(bool) else {
+        std::cout << "BBBB 6" << std::endl;
         return std::make_shared<BlobTensor>(blob);
     }
 #undef IF
 }
 
 ie::Blob::Ptr tensor_to_blob(const std::shared_ptr<ITensor>& tensor) {
+    std::cout << "AAAAAA 1" << std::endl;
     if (tensor == nullptr) {
+        std::cout << "AAAAAA 2" << std::endl;
         return {};
     } else if (auto blob_tensor = dynamic_cast<const BlobTensor*>(tensor.get())) {
+        std::cout << "AAAAAA 3" << std::endl;
         return blob_tensor->blob;
-    } else if (!std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor)) {
+    } else if (std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor)) {
+        std::cout << "AAAAAA 4" << std::endl;
+        return std::make_shared<TensorRemoteBlob>(tensor);
+    } else {
+        std::cout << "AAAAAA 5" << std::endl;
 #define CASE(precision, T)   \
     case element::precision: \
         return std::make_shared<TensorMemoryBlob<T>>(tensor);
@@ -338,8 +351,8 @@ ie::Blob::Ptr tensor_to_blob(const std::shared_ptr<ITensor>& tensor) {
             OPENVINO_THROW("Unsupported element type");
         }
 #undef CASE
-    } else {
-        return std::make_shared<TensorRemoteBlob>(tensor);
     }
+    std::cout << "AAAAAA 6" << std::endl;
+    OPENVINO_THROW("Cannot convert tensor to blob!");
 }
 }  // namespace ov
