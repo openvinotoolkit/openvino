@@ -6,6 +6,7 @@
 
 #include "base/ov_behavior_test_utils.hpp"
 #include <openvino/runtime/properties.hpp>
+#include "openvino/pass/manager.hpp"
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/file_utils.hpp"
@@ -188,6 +189,15 @@ inline std::string getPluginFile() {
     return filename;
 }
 
+const std::string model_xml_name = "test_model.xml";
+const std::string model_bin_name = "test_model.bin";
+inline void generateModelFile() {
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::Serialize>(model_xml_name, model_bin_name);
+    auto function = ngraph::builder::subgraph::makeConvPoolReluNoReshapes({1, 3, 227, 227});
+    manager.run_passes(function);
+}
+
 TEST(OVClassBasicTest, smoke_createMockEngineConfigNoThrows) {
     const std::string filename = getPluginFile();
     OV_ASSERT_NO_THROW(ov::Core ie(filename));
@@ -241,6 +251,49 @@ TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
         }
     }
     CommonTestUtils::removeFile(pluginXML);
+}
+
+TEST_P(OVClassBasicTestP, compile_model_no_property_unicode) {
+    generateModelFile();
+    for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
+        GTEST_COUT << testIndex;
+        std::wstring postfix = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
+        std::wstring modelXmlPathW = CommonTestUtils::addUnicodePostfixToPath(model_xml_name, postfix);
+        std::wstring modelBinPathW = CommonTestUtils::addUnicodePostfixToPath(model_bin_name, postfix);
+
+        try {
+            bool is_copy_successfully;
+            is_copy_successfully = CommonTestUtils::copyFile(model_xml_name, modelXmlPathW);
+            if (!is_copy_successfully) {
+                FAIL() << "Unable to copy from '" << model_xml_name << "' to '"
+                       << ::ov::util::wstring_to_string(modelXmlPathW) << "'";
+            }
+
+            is_copy_successfully = CommonTestUtils::copyFile(model_bin_name, modelBinPathW);
+            if (!is_copy_successfully) {
+                FAIL() << "Unable to copy from '" << model_bin_name << "' to '"
+                       << ::ov::util::wstring_to_string(modelBinPathW) << "'";
+            }
+
+            GTEST_COUT << "Test " << testIndex << std::endl;
+
+            ov::Core core = createCoreWithTemplate();
+            GTEST_COUT << "Core created " << testIndex << std::endl;
+
+            OV_ASSERT_NO_THROW(core.compile_model(modelXmlPathW));
+            CommonTestUtils::removeFile(modelXmlPathW);
+            CommonTestUtils::removeFile(modelBinPathW);
+            GTEST_COUT << "OK" << std::endl;
+        } catch (const ov::Exception& e_next) {
+            CommonTestUtils::removeFile(modelXmlPathW);
+            CommonTestUtils::removeFile(modelBinPathW);
+            CommonTestUtils::removeFile(model_xml_name);
+            CommonTestUtils::removeFile(model_bin_name);
+            FAIL() << e_next.what();
+        }
+    }
+    CommonTestUtils::removeFile(model_xml_name);
+    CommonTestUtils::removeFile(model_bin_name);
 }
 
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
