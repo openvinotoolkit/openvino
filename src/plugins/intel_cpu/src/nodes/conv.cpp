@@ -960,17 +960,6 @@ void Convolution::addLegacyZeroPoints(dnnl::primitive_attr& attr) {
     }
 }
 
-static bool attrContainsAnyOfPostOps(const dnnl::primitive_attr& attr, std::initializer_list<dnnl::impl::primitive_kind_t> kinds) {
-    const auto ops = attr.get_post_ops();
-
-    for (const auto& kind : kinds) {
-        if (ops.get()->find(kind) != -1)
-            return true;
-    }
-
-    return false;
-}
-
 static bool attrContainsPostOp(const dnnl::primitive_attr& attr, const dnnl::impl::primitive_kind_t kind) {
     const auto ops = attr.get_post_ops();
     return ops.get()->find(kind) != -1;
@@ -1650,26 +1639,13 @@ void Convolution::appendZeroPointsArgs() {
 
 // Due to performance issue, brgconv will only be enabled by default:
 // 1, static shape(dynamic shape may change weights layout if the input shape changes and cause performance issue: 86948)
-// 2, support amx except having input zero point.
-// 3, support avx512 without legacy postops/per channel zero point when avx512
+// 2, hw supports avx512+
 void Convolution::initTryBrgconvFlag() {
     if (isDynamicNode())
         return;
 
-    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
         shouldTryBrgconv = true;
-    } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
-        shouldTryBrgconv = true;
-        // should remove after binary postops performance issue resolved
-        // heuristics: if it's  avx512 ISA model && it doesn't have binary post ops or per channel zero point.
-        dnnl::primitive_attr attr;
-        DEBUG_LOG("setPostOps, useLegacyPostOps=false");
-        setPostOps(attr, outputStaticShape(), false);
-
-        if (attrContainsPostOp(attr, dnnl::impl::primitive_kind::binary) &&
-            attrContainsAnyOfPostOps(attr, {dnnl::impl::primitive_kind::eltwise})) {
-            shouldTryBrgconv = false;
-        }
     }
 
     // Temporary debug functionality to be able to force brgconv for any model
