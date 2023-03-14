@@ -143,12 +143,8 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                     return d.deviceName.find("CPU") != std::string::npos;
                 });
             if (CPUIter != validDevices.end()) {
-                if (CPUIter->config.find(ov::affinity.name()) == CPUIter->config.end()) {
-                    LOG_DEBUG_TAG("set affinity to CORE for CPU");
-                    // no user set affinity then set CORE to CPU
-                    CPUIter->config.insert(
-                        {ov::affinity.name(), ov::affinity(ov::Affinity::CORE).second.as<std::string>()});
-                }
+                // no user set affinity then set CORE to CPU
+                CPUIter->config.insert({ov::affinity.name(), ov::Any(ov::Affinity::CORE).as<std::string>()});
                 cpuDeviceInformation = *CPUIter;
                 validDevices.erase(CPUIter);
             }
@@ -557,13 +553,26 @@ bool AutoSchedule::ScheduleToWorkerInferRequest(IE::Task inferPipelineTask, Devi
     std::vector<DeviceInformation> devices;
     // AUTO work mode
     if (!preferred_device.empty()) {
-        // if the device needed by customer is not ready, need to wait for it
-        WaitActualNetworkReady();
-        // the preferred_device should be the selected device in AUTO work mode
-        if (preferred_device != _loadContext[ACTUALDEVICE].deviceInfo.deviceName) {
-            IE_THROW(NotFound) << "The preferred device should be the selected device";
+        if (_pCTPUTLoadContext) {
+            auto itPriorityDevice = std::find_if(_autoSContext->_devicePriorities.cbegin(),
+                                                 _autoSContext->_devicePriorities.cend(),
+                                                 [&preferred_device](const DeviceInformation& d) {
+                                                     return d.deviceName == preferred_device;
+                                                 });
+            if (itPriorityDevice != _autoSContext->_devicePriorities.end()) {
+                devices.push_back(*itPriorityDevice);
+            } else {
+                IE_THROW(NotFound) << "The preferred device should be the selected device";
+            }
+        } else {
+            // if the device needed by customer is not ready, need to wait for it
+            WaitActualNetworkReady();
+            // the preferred_device should be the selected device in AUTO work mode
+            if (preferred_device != _loadContext[ACTUALDEVICE].deviceInfo.deviceName) {
+                IE_THROW(NotFound) << "The preferred device should be the selected device";
+            }
+            devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
         }
-        devices.push_back(_loadContext[ACTUALDEVICE].deviceInfo);
     } else {
         if (_pCTPUTLoadContext) {
             for (size_t i = 0; i < _autoSContext->_devicePriorities.size(); i++) {
