@@ -19,7 +19,8 @@ namespace op {
 OutputVector translate_const_op(const NodeContext& node) {
     auto ov_type = node.get_attribute_as_any("dtype");
     std::shared_ptr<Node> const_node;
-    if (!ov_type.is<ov::element::Type>()) {
+    if (!ov_type.is<ov::element::Type>() || ov_type.as<ov::element::Type>() == ov::element::dynamic ||
+        ov_type.as<ov::element::Type>() == ov::element::undefined) {
         if (ov_type.is<std::string>() && ov_type.as<std::string>() == "DT_STRING") {
             const_node = std::make_shared<StringConstant>(node.get_attribute_as_any("value"));
         } else {

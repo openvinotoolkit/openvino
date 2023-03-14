@@ -156,7 +156,7 @@ void InputModel::InputModelTFImpl::load_places() {
             }
             auto dtype_any = node_decoder->get_attribute("dtype");
             auto placeholder_name = node_decoder->get_op_name();
-            ov::element::Type type = ov::element::undefined;
+            ov::element::Type type = ov::element::dynamic;
             if (dtype_any.is<ov::element::Type>()) {
                 type = dtype_any.as<ov::element::Type>();
             }
