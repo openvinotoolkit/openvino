@@ -424,7 +424,7 @@ void Graph::set_friendly_names(const Node& onnx_node, const OutputVector& ng_sub
     for (int i = 0; i < ng_subgraph_output_size; ++i) {
         // Trailing optional outputs may not be specified in the ONNX model.
         // Other optional outputs should have name set to an empty string.
-        if (i >= onnx_node.get_outputs_size()) {
+        if (i >= static_cast<int>(onnx_node.get_outputs_size())) {
             break;
         }
 
