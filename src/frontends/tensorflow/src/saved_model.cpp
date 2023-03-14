@@ -12,6 +12,10 @@
 #include "tensor_bundle.pb.h"
 #include "trackable_object_graph.pb.h"
 
+#ifdef ENABLE_SNAPPY_COMPRESSION
+#    include "snappy.h"
+#endif
+
 namespace ov {
 namespace frontend {
 namespace tensorflow {
@@ -85,15 +89,31 @@ void SavedModelVariablesIndex::read_variables_index_block(std::ifstream& fs,
                                                           std::vector<char>& data,
                                                           uint32_t& offset,
                                                           uint32_t& offset_end) {
+    size_t block_size = index.m_size;
     data.clear();
-    data.resize(index.m_size + 5 /*kBlockTrailerSize*/);
+    data.resize(block_size + 5 /*kBlockTrailerSize*/);
     fs.seekg(index.m_offset, std::ios::beg);
     fs.read(data.data(), data.size());
-    FRONT_END_GENERAL_CHECK(data[index.m_size] == 0, "Compressed files aren't supported");
-    uint32_t numRestarts = smReadFixed<uint32_t>(data.data() + index.m_size - sizeof(uint32_t));
-    size_t maxRestarts = (index.m_size - sizeof(uint32_t)) / sizeof(uint32_t);
+#ifndef ENABLE_SNAPPY_COMPRESSION
+    FRONT_END_GENERAL_CHECK(data[block_size] == 0, "Compressed files aren't supported");
+#else
+    FRONT_END_GENERAL_CHECK(data[block_size] == 0 || data[block_size] == 1, "Compression method isn't supported");
+    if (data[block_size] == 1) {
+        size_t uncompressed_length = 0;
+        FRONT_END_GENERAL_CHECK(snappy::GetUncompressedLength(data.data(), data.size(), &uncompressed_length),
+                                "Cannot retrieve uncompressed block length");
+        std::string uncompressed_string;
+        uncompressed_string.reserve(uncompressed_length);
+        snappy::Uncompress(data.data(), data.size(), &uncompressed_string);
+        data.resize(uncompressed_length);
+        std::copy(uncompressed_string.begin(), uncompressed_string.end(), data.begin());
+        block_size = uncompressed_length;
+    }
+#endif
+    uint32_t numRestarts = smReadFixed<uint32_t>(data.data() + block_size - sizeof(uint32_t));
+    size_t maxRestarts = (block_size - sizeof(uint32_t)) / sizeof(uint32_t);
     FRONT_END_GENERAL_CHECK(maxRestarts >= numRestarts, "Wrong restarts value");
-    offset_end = static_cast<uint32_t>(index.m_size) - ((numRestarts + 1) * sizeof(uint32_t));
+    offset_end = static_cast<uint32_t>(block_size) - ((numRestarts + 1) * sizeof(uint32_t));
     offset = smReadFixed<uint32_t>(data.data() + offset_end);
 }
 
