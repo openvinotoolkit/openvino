@@ -94,7 +94,7 @@ class TestWhere(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
-    @pytest.mark.xfail(reason='Mark as xfailed all failed onnx layer tests')
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_where(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
