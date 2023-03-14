@@ -455,7 +455,7 @@ TEST(type_prop, ess_num_segment_const) {
     EXPECT_EQ(segment_ids->get_partial_shape().rank().get_length(), 1);
 }
 
-TEST(type_prop, ess_num_segment_interval_label_popagation) {
+TEST(type_prop, ess_num_segment_interval_label_propagation) {
     auto emb_shape = PartialShape{{5, 10}, {2, 4}, {1, 3}};
     set_shape_labels(emb_shape, 10);
     auto num_segm_shape = PartialShape{{6, 8}};

@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/embeddingbag_offsets_sum.hpp>
-
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/embedding_segments_sum.hpp"
 #include "utils.hpp"
+
 namespace ov {
 namespace op {
 namespace v3 {
@@ -57,20 +57,16 @@ std::vector<TShape> shape_infer(
                               input_shapes[INDICES].compatible(input_shapes[PER_SAMPLE_WEIGHTS]),
                               "INDICES and PER_SAMPLE_WEIGHTS shape must be same.");
     }
-
-    TShape result_shape;
     const auto& emb_table_shape = input_shapes[EMB_TABLE];
+    TShape result_shape = emb_table_shape;
     if (emb_table_shape.rank().is_static()) {
         NODE_VALIDATION_CHECK(op, emb_table_shape.size() > 0, "EMB_TABLE can't be a scalar.");
-        result_shape = emb_table_shape;
         TShape segments_value;
         if (get_data_as_shape<TShape>(NUM_SEGMENTS, op, segments_value, constant_data)) {
             result_shape[0] = segments_value[0];
         } else {
             result_shape[0] = Dimension::dynamic();
         }
-    } else {
-        result_shape = ov::PartialShape::dynamic();
     }
     return {result_shape};
 }
