@@ -62,7 +62,7 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, TypeRelaxedEltwise) {
         auto transpose = std::make_shared<ngraph::opset8::Transpose>(intermediate_op, transpose_const);
 
         auto mul_const = ngraph::opset8::Constant::create(ngraph::element::f32, {}, {2.f});
-        auto multiply = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset8::Multiply>>(transpose, mul_const);
+        auto multiply = std::make_shared<ov::op::TypeRelaxed<ngraph::opset8::Multiply>>(transpose, mul_const);
 
         function = std::make_shared<ngraph::Function>(ngraph::NodeVector{multiply}, ngraph::ParameterVector{input});
         manager.register_pass<ov::intel_cpu::MoveEltwiseUpThroughDataMov>();
@@ -72,7 +72,7 @@ TEST_F(MoveEltwiseUpThroughDataMovTest, TypeRelaxedEltwise) {
         auto intermediate_op = std::make_shared<ngraph::opset8::Clamp>(input, 0, 6);
 
         auto mul_const = ngraph::opset8::Constant::create(ngraph::element::f32, {}, {2.f});
-        auto multiply = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset8::Multiply>>(intermediate_op, mul_const);
+        auto multiply = std::make_shared<ov::op::TypeRelaxed<ngraph::opset8::Multiply>>(intermediate_op, mul_const);
 
         auto transpose_const = ngraph::opset8::Constant::create(ngraph::element::i64, ngraph::Shape{input_order.size()}, input_order);
         auto transpose = std::make_shared<ngraph::opset8::Transpose>(multiply, transpose_const);

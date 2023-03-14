@@ -9,7 +9,6 @@
 #include "exec_graph_info.hpp"
 #include "ie_common.h"
 #include <dnnl_debug.h>
-#include <ngraph/variant.hpp>
 #include "ngraph/ngraph.hpp"
 #include <ngraph/pass/manager.hpp>
 #include <openvino/pass/serialize.hpp>
@@ -257,6 +256,9 @@ void serializeToCout(const Graph &graph) {
 }
 
 void summary_perf(const Graph &graph) {
+    if (!graph.getGraphContext()) {
+        return;
+    }
     const std::string& summaryPerf = graph.getConfig().debugCaps.summaryPerf;
 
     if (summaryPerf.empty())

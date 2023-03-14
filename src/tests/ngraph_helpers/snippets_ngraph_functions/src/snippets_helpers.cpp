@@ -15,11 +15,11 @@ void SnippetsFunctionBase::validate_function(const std::shared_ptr<Model> &f) co
     NGRAPH_CHECK(params.size() == input_shapes.size(),
                  "Passed input shapes and produced function are inconsistent.");
     for (size_t i = 0; i < input_shapes.size(); i++)
-        NGRAPH_CHECK(std::equal(input_shapes[i].begin(), input_shapes[i].end(), params[i]->get_shape().begin()),
+        NGRAPH_CHECK(std::equal(input_shapes[i].begin(), input_shapes[i].end(), params[i]->get_partial_shape().begin()),
                      "Passed input shapes and produced function are inconsistent.");
 }
 
-SnippetsFunctionCustomizable::SnippetsFunctionCustomizable(const std::vector<Shape>& inputShapes,
+SnippetsFunctionCustomizable::SnippetsFunctionCustomizable(const std::vector<PartialShape>& inputShapes,
                                                            const std::vector<std::shared_ptr<Node>>& customOps,
                                                            const std::vector<size_t>&& customOpsNumInputs)
         : SnippetsFunctionBase(inputShapes), custom_ops{customOps}, custom_ops_num_inputs{customOpsNumInputs} {

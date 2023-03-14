@@ -85,9 +85,7 @@ private:
         m_handle = HandleHolder(h);
         SYSTEM_INFO SystemInfo;
         GetSystemInfo(&SystemInfo);
-        const int64_t page_size = SystemInfo.dwAllocationGranularity;
 
-        DWORD file_mode = GENERIC_READ;
         DWORD map_mode = FILE_MAP_READ;
         DWORD access = PAGE_READONLY;
 
@@ -107,12 +105,12 @@ private:
                                      m_size);
             OPENVINO_ASSERT(m_data, "Can not create map view for ", path);
         } else {
-            m_data = NULL;
+            m_data = nullptr;
         }
     }
 
 private:
-    void* m_data = NULL;
+    void* m_data = nullptr;
     size_t m_size = 0;
     HandleHolder m_handle;
     HandleHolder m_mapping;

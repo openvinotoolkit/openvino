@@ -19,6 +19,7 @@ from openvino.tools.mo.moc_frontend.analysis import json_model_analysis_dump
 from openvino.tools.mo.moc_frontend.extractor import fe_user_data_repack
 from openvino.tools.mo.utils.class_registration import get_enabled_and_disabled_transforms
 from openvino.tools.mo.utils.error import Error
+from openvino.tools.mo.moc_frontend.pytorch_frontend_utils import pytorch_process_after_convert
 
 
 def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
@@ -157,9 +158,9 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                 except NotImplementedFailure:
                     raise Error("Please specify type for value freezing {} node explicitly "
                                 "because the frontend does not support automatic type detection.".format(name))
-                # in case of cutting graph (or using custom inputs) and unspecified type,
+                # in case of cutting graph (or using custom inputs) and unspecified or dynamic type,
                 # the default type is fp32
-                if ov_type == Type.undefined:
+                if ov_type == Type.undefined or ov_type == Type.dynamic:
                     ov_type = Type.f32
                 dtype = get_numpy_ctype(ov_type)
 
@@ -213,4 +214,8 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
             input_model.set_partial_shape(place, new_partial_shape)
 
     ngraph_function = moc_front_end.convert(input_model)
+
+    # TO DO: remove as part of PyTorch frontend productization CVS-103615
+    if argv.framework == "pytorch":
+        pytorch_process_after_convert(argv, ngraph_function)
     return ngraph_function

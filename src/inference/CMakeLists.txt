@@ -13,24 +13,26 @@ file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dev/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dev/preprocessing/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dev/threading/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/threading/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp_interfaces/interface/*.cpp
       )
 
 # TODO: WA for OneHot pass usage in reshape
-set(LEGACY_SRC_ROOT "${OpenVINO_SOURCE_DIR}/src/common/legacy/src")
+set(LEGACY_ROOT "${OpenVINO_SOURCE_DIR}/src/plugins/intel_gna/legacy")
 set(LEGACY_LIBRARY_SHARED_SRCS
-    "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.cpp"
-    "${LEGACY_SRC_ROOT}/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.cpp"
-    "${LEGACY_SRC_ROOT}/ngraph_ops/nms_ie.cpp"
-    "${LEGACY_SRC_ROOT}/ngraph_ops/onehot_ie.cpp")
+    "${LEGACY_ROOT}/src/transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.cpp"
+    "${LEGACY_ROOT}/src/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.cpp"
+    "${LEGACY_ROOT}/src/ngraph_ops/nms_ie.cpp"
+    "${LEGACY_ROOT}/src/ngraph_ops/onehot_ie.cpp")
 
 set_source_files_properties(${LEGACY_LIBRARY_SHARED_SRCS} PROPERTIES
     COMPILE_DEFINITIONS "USE_STATIC_IE"
-    INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
+    INCLUDE_DIRECTORIES "${LEGACY_ROOT}/include")
 set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/cnn_network_ngraph_impl.cpp" PROPERTIES
-    INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
+    INCLUDE_DIRECTORIES "${LEGACY_ROOT}/include")
 
 set(IE_STATIC_DEPENDENT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/file_utils.cpp)
 list(REMOVE_ITEM LIBRARY_SRC ${IE_STATIC_DEPENDENT_FILES})
@@ -115,7 +117,7 @@ file(GLOB_RECURSE plugin_api_src "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/*.hpp"
 add_clang_format_target(${TARGET_NAME}_plugin_api_clang FOR_SOURCES ${plugin_api_src})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_plugin_api
-                    SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/openvino"
+                    SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/openvino"
                     ADDITIONAL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Create object library
@@ -153,7 +155,7 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE
     "${CMAKE_CURRENT_BINARY_DIR}"
     # for ie_ir_version.hpp
     $<$<TARGET_EXISTS:inference_engine_ir_v7_reader>:$<TARGET_PROPERTY:inference_engine_ir_v7_reader,SOURCE_DIR>>
-    $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>
+    "${LEGACY_ROOT}/include"
     $<TARGET_PROPERTY:${TARGET_NAME}_transformations,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
@@ -175,19 +177,12 @@ target_include_directories(${TARGET_NAME} INTERFACE $<BUILD_INTERFACE:${PUBLIC_H
 add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${IE_STATIC_DEPENDENT_FILES} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
-                    SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/openvino"
+                    SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/openvino"
                     ADDITIONAL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Static library used for unit tests which are always built
 
-file(GLOB_RECURSE legacy_src "${LEGACY_SRC_ROOT}/*.cpp"
-                             "${LEGACY_SRC_ROOT}/*.hpp")
-
-set_source_files_properties(${legacy_src} PROPERTIES
-    INCLUDE_DIRECTORIES $<TARGET_PROPERTY:${TARGET_NAME}_legacy,INTERFACE_INCLUDE_DIRECTORIES>)
-
 add_library(${TARGET_NAME}_s STATIC EXCLUDE_FROM_ALL
-            ${legacy_src}
             $<TARGET_OBJECTS:${TARGET_NAME}_obj>)
 
 set_ie_threading_interface_for(${TARGET_NAME}_s)
@@ -197,8 +192,7 @@ endif()
 
 target_include_directories(${TARGET_NAME}_s PUBLIC
     $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-    $<BUILD_INTERFACE:$<TARGET_PROPERTY:${TARGET_NAME}_legacy,SOURCE_DIR>/src>)
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
 
 if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
@@ -231,5 +225,5 @@ install(DIRECTORY "${PUBLIC_HEADERS_DIR}/"
         COMPONENT ${OV_CPACK_COMP_CORE_DEV})
 
 if(ENABLE_TESTS)
-add_subdirectory(tests)
+    add_subdirectory(tests)
 endif()

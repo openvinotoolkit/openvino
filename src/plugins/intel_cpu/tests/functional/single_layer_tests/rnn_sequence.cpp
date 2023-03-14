@@ -132,8 +132,8 @@ protected:
         if (seqMode != ngraph::helpers::SequenceTestsMode::PURE_SEQ) {
             ngraph::pass::Manager manager;
             if (direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL)
-                manager.register_pass<ngraph::pass::BidirectionalRNNSequenceDecomposition>();
-            manager.register_pass<ngraph::pass::ConvertRNNSequenceToTensorIterator>();
+                manager.register_pass<ov::pass::BidirectionalRNNSequenceDecomposition>();
+            manager.register_pass<ov::pass::ConvertRNNSequenceToTensorIterator>();
             manager.run_passes(function);
             bool ti_found = ngraph::helpers::is_tensor_iterator_exist(function);
             EXPECT_EQ(ti_found, true);

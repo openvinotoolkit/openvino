@@ -88,14 +88,3 @@ public:
     OPENVINO_RTTI("SimplifySecondInputOfReshape", "0");
     SimplifySecondInputOfReshape();
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::GatherNopElimination;
-using ov::pass::GroupedGatherElimination;
-using ov::pass::SharedShapeOf;
-using ov::pass::SimplifyGatherShapeOf;
-using ov::pass::SimplifySecondInputOfReshape;
-using ov::pass::SimplifyShapeOfSubGraph;
-}  // namespace pass
-}  // namespace ngraph

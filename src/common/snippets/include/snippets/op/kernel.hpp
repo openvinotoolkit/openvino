@@ -20,13 +20,14 @@ class Kernel : public ngraph::op::Op {
 public:
     OPENVINO_OP("Kernel", "SnippetsOpset");
 
-    Kernel(const std::vector<std::pair<std::shared_ptr<ngraph::snippets::Emitter>, ngraph::snippets::RegInfo>>& region);
+    Kernel(std::vector<AllocatedEmitter> region, std::shared_ptr<const ov::Model> m);
     Kernel() = default;
 
-    std::vector<std::pair<std::shared_ptr<ngraph::snippets::Emitter>, ngraph::snippets::RegInfo>> region;
+    std::vector<AllocatedEmitter> region;
+    const std::shared_ptr<const ov::Model> model;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override {
-        return std::make_shared<Kernel>(region);
+        return std::make_shared<Kernel>(region, model);
     }
     const void *compile_params = nullptr;
 };

@@ -16,7 +16,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "plugin/mock_auto_device_plugin.hpp"
-#include "cpp/ie_plugin.hpp"
 #include "mock_common.hpp"
 
 using ::testing::MatcherCast;
@@ -46,7 +45,7 @@ using ConfigParams = std::tuple<
 const DeviceInformation CPU_INFO = {CommonTestUtils::DEVICE_CPU, {}, 2, "01", "CPU_01"};
 const DeviceInformation IGPU_INFO = {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "iGPU_01"};
 const DeviceInformation DGPU_INFO = {CommonTestUtils::DEVICE_GPU, {}, 2, "01", "dGPU_01"};
-const DeviceInformation MYRIAD_INFO = {CommonTestUtils::DEVICE_MYRIAD, {}, 2, "01", "MYRIAD_01" };
+const DeviceInformation MYRIAD_INFO = {"MYRIAD", {}, 2, "01", "MYRIAD_01" };
 const DeviceInformation KEEMBAY_INFO = {CommonTestUtils::DEVICE_KEEMBAY, {}, 2, "01", "VPUX_01" };
 const std::vector<DeviceInformation>  fp32DeviceVector = {DGPU_INFO, IGPU_INFO, CPU_INFO, MYRIAD_INFO};
 const std::vector<DeviceInformation>  fp16DeviceVector = {DGPU_INFO, IGPU_INFO, MYRIAD_INFO, CPU_INFO};
@@ -245,7 +244,7 @@ public:
                    StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(cpuCability));
        ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_GPU),
                    StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(gpuCability));
-       ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_MYRIAD),
+       ON_CALL(*core, GetMetric(StrEq("MYRIAD"),
                    StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(myriadCability));
        ON_CALL(*core, GetMetric(StrEq(CommonTestUtils::DEVICE_KEEMBAY),
                    StrEq(METRIC_KEY(OPTIMIZATION_CAPABILITIES)), _)).WillByDefault(RETURN_MOCK_VALUE(vpuxCability));
@@ -253,6 +252,10 @@ public:
                    const std::string& netPrecision, unsigned int priority) {
                return plugin->MultiDeviceInferencePlugin::SelectDevice(metaDevices, netPrecision, priority);
                });
+       ON_CALL(*plugin, GetValidDevice)
+           .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
+               return plugin->MultiDeviceInferencePlugin::GetValidDevice(metaDevices, netPrecision);
+           });
     }
 };
 

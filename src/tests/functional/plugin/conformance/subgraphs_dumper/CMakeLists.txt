@@ -28,6 +28,11 @@ if(TARGET openvino_paddle_frontend)
     list(APPEND DEFINITIONS ENABLE_OV_PADDLE_FRONTEND)
 endif()
 
+if(TARGET openvino_pytorch_frontend)
+    list(APPEND DEPENDENCIES openvino_pytorch_frontend)
+    list(APPEND DEFINITIONS ENABLE_OV_PYTORCH_FRONTEND)
+endif()
+
 if(TARGET openvino_tensorflow_frontend)
     list(APPEND DEPENDENCIES openvino_tensorflow_frontend)
     list(APPEND DEFINITIONS ENABLE_OV_TF_FRONTEND)

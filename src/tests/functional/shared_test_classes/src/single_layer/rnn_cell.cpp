@@ -57,7 +57,7 @@ void RNNCellTest::SetUp() {
     function = std::make_shared<ngraph::Function>(results, params, "rnn_cell");
     if (should_decompose) {
         ngraph::pass::Manager m;
-        m.register_pass<ngraph::pass::RNNCellDecomposition>();
+        m.register_pass<ov::pass::RNNCellDecomposition>();
         m.run_passes(function);
     }
 }

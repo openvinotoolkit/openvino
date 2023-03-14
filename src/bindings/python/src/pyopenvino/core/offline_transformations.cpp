@@ -17,6 +17,7 @@
 #include <transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp>
 #include <transformations/common_optimizations/moc_legacy_transformations.hpp>
 #include <transformations/common_optimizations/moc_transformations.hpp>
+#include <transformations/flush_fp32_subnormals_to_zero.hpp>
 #include <transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp>
 #include <transformations/smart_reshape/smart_reshape.hpp>
 
@@ -36,8 +37,9 @@ void regmodule_offline_transformations(py::module m) {
         [](std::shared_ptr<ov::Model> model, bool cf, bool smart_reshape) {
             ov::pass::Manager manager;
             if (smart_reshape)
-                manager.register_pass<ngraph::pass::SmartReshape>();
-            manager.register_pass<ngraph::pass::MOCTransformations>(cf);
+                manager.register_pass<ov::pass::SmartReshape>();
+            manager.register_pass<ov::pass::MOCTransformations>(cf);
+            manager.register_pass<ov::pass::FlushFP32SubnormalsToZero>();
             manager.run_passes(model);
         },
         py::arg("model"),
@@ -128,7 +130,7 @@ void regmodule_offline_transformations(py::module m) {
         "convert_sequence_to_tensor_iterator_transformation",
         [](std::shared_ptr<ov::Model> model) {
             ov::pass::Manager manager;
-            manager.register_pass<ngraph::pass::ConvertSequenceToTensorIterator>();
+            manager.register_pass<ov::pass::ConvertSequenceToTensorIterator>();
             manager.run_passes(model);
         },
         py::arg("model"));

@@ -19,7 +19,7 @@ auto model = core.read_model("sample.xml");
 //! [compile_model_with_property]
 auto compiled_model = core.compile_model(model, "CPU",
     ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
-    ov::hint::inference_precision(ov::element::f32));
+    ov::inference_precision(ov::element::f32));
 //! [compile_model_with_property]
 }
 
@@ -39,13 +39,6 @@ auto compiled_model_latency = core.compile_model(model, "CPU");
 auto compiled_model_thrp = core.compile_model(model, "CPU",
     ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT));
 //! [core_set_property_then_compile]
-}
-
-{
-//! [device_thermal]
-auto compiled_model = core.compile_model(model, "MYRIAD");
-float temperature = compiled_model.get_property(ov::device::thermal);
-//! [device_thermal]
 }
 
 {

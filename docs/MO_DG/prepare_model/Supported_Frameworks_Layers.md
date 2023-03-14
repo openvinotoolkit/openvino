@@ -165,6 +165,7 @@ Some of TensorFlow operations do not match any OpenVINO operations. Yet, they ar
 | AddV2 |  |
 | AddN |  |
 | All |  |
+| Any |  |
 | ArgMax |  |
 | ArgMin |  |
 | Asinh |  |

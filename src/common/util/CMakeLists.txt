@@ -33,6 +33,9 @@ add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 add_library(openvino::util ALIAS ${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE ${CMAKE_DL_LIBS})
+if (WIN32)
+    target_link_libraries(${TARGET_NAME} PRIVATE Shlwapi)
+endif()
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${UTIL_INCLUDE_DIR}>)
 
@@ -40,6 +43,6 @@ ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
-                    SOURCE_DIRECTORY ${UTIL_INCLUDE_DIR})
+                    SOURCE_DIRECTORIES ${UTIL_INCLUDE_DIR})
 
 openvino_developer_export_targets(COMPONENT core TARGETS ${TARGET_NAME})

@@ -4,9 +4,6 @@
 
 #include <string>
 #include <vector>
-#ifndef OV_GPU_USE_OPENCL_HPP
-# define OV_GPU_USE_OPENCL_HPP
-#endif
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -38,10 +35,12 @@ TEST_P(MultiDeviceMultipleGPU_Test, canCreateRemoteTensorThenInferWithAffinity) 
     inf_req_regular.infer();
     auto output_tensor_regular = inf_req_regular.get_tensor(output);
     auto imSize = ov::shape_size(input->get_shape());
+    std::vector<ov::intel_gpu::ocl::ClContext> contexts = {};
     std::vector<ov::intel_gpu::ocl::ClBufferTensor> cldnn_tensor = {};
     for (auto& iter : device_lists) {
         try {
             auto cldnn_context = ie.get_default_context(iter).as<ov::intel_gpu::ocl::ClContext>();
+            contexts.push_back(cldnn_context);
             cl_context ctx = cldnn_context;
             auto ocl_instance = std::make_shared<OpenCL>(ctx);
             cl_int err;

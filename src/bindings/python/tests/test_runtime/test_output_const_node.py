@@ -21,8 +21,7 @@ from openvino.runtime import (
 import pytest
 
 
-is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
-test_net_xml, test_net_bin = model_path(is_myriad)
+test_net_xml, test_net_bin = model_path()
 
 
 def test_const_output_type(device):

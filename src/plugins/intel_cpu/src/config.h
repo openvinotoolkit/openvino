@@ -32,28 +32,39 @@ struct Config {
         DO_On,
     };
 
+    enum SnippetsMode {
+        Enable,
+        IgnoreCallback,
+        Disable,
+    };
+
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
     bool enableDynamicBatch = false;
+    SnippetsMode snippetsMode = SnippetsMode::Enable;
     std::string dumpToDot = "";
     int batchLimit = 0;
     float fcSparseWeiDecompressionRate = 1.0f;
     size_t rtCacheCapacity = 5000ul;
     InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
     InferenceEngine::PerfHintsConfig  perfHintsConfig;
-#if defined(__arm__) || defined(__aarch64__)
-    // Currently INT8 mode is not optimized on ARM, fallback to FP32 mode.
-    LPTransformsMode lpTransformsMode = LPTransformsMode::Off;
-    bool enforceBF16 = false;
-#else
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
     bool enforceBF16 = true;
     bool manualEnforceBF16 = false;
+#else
+    // Currently INT8 mode is not optimized on ARM / RISCV or other non-x86 platforms, fallback to FP32 mode.
+    LPTransformsMode lpTransformsMode = LPTransformsMode::Off;
+    bool enforceBF16 = false;
+    bool manualEnforceBF16 = false;
 #endif
 
-    std::string cache_dir{};
-
     DenormalsOptMode denormalsOptMode = DenormalsOptMode::DO_Keep;
+
+    // The denormals-are-zeros flag was introduced in the Pentium 4 and Intel Xeon processor
+    // In earlier IA-32 processors and in some models of the Pentium 4 processor, this flag (bit 6)
+    // is reserved.
+    bool DAZOn = false;
 
     void readProperties(const std::map<std::string, std::string> &config);
     void updateProperties();

@@ -87,14 +87,3 @@ public:
         add_matcher<ov::pass::HSigmoidFusionWithClampDiv>();
     }
 };
-
-namespace ngraph {
-namespace pass {
-using ov::pass::HSigmoidFusion;
-using ov::pass::HSigmoidFusionWithClampDiv;
-using ov::pass::HSigmoidFusionWithClampMul;
-using ov::pass::HSigmoidFusionWithoutRelu;
-using ov::pass::HSigmoidFusionWithReluDiv;
-using ov::pass::HSigmoidFusionWithReluMul;
-}  // namespace pass
-}  // namespace ngraph

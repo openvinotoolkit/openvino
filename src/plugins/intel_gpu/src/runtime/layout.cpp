@@ -239,6 +239,8 @@ static format to_weights_format(format f, bool is_grouped) {
             return format::o_is_yx_isv16;
         case format::bs_xs_xsv8_bsv8:
             return format::os_i_osv8__ai8;
+        case format::b_fs_yx_32fp:
+            return format::os_is_yx_osv32_isv32p;
         default:
             throw std::invalid_argument("Unable to convert data format " + f.to_string() + " to weights format");
     }
@@ -277,10 +279,14 @@ std::string layout::to_string() const {
 std::string layout::to_short_string() const {
     std::stringstream s;
     auto dump_shape = [](std::stringstream& stream, const ov::PartialShape& shape) {
-        for (size_t i = 0; i < shape.size(); i++) {
-            stream << shape[i];
-            if (i != shape.size() - 1)
-                stream << "x";
+        if (shape.rank().is_dynamic()) {
+            stream << "...";
+        } else {
+            for (size_t i = 0; i < shape.size(); i++) {
+                stream << shape[i];
+                if (i != shape.size() - 1)
+                    stream << "x";
+            }
         }
     };
 
@@ -317,10 +323,16 @@ ov::Shape layout::get_shape() const {
 }
 
 tensor layout::get_tensor() const {
-    if (is_dynamic())
-        throw std::runtime_error("[GPU] get_tensor() is called for dynamic shape");
+    OPENVINO_ASSERT(!is_dynamic() || has_upper_bound(), "[GPU] get_tensor() is called for dynamic shape without upper bound");
+    ov::Shape shape;
+    if (is_dynamic() && has_upper_bound()) {
+        for (auto dim : size) {
+                shape.push_back(dim.get_max_length());
+        }
+    } else {
+        shape = size.to_shape();
+    }
 
-    auto shape = size.to_shape();
     std::vector<tensor::value_type> dims(shape.begin(), shape.end());
 
     auto rank = std::max(format.dimension(), dims.size());
@@ -360,8 +372,9 @@ void layout::set_partial_shape(const ov::PartialShape& size) {
 }
 
 tensor layout::get_buffer_size() const {
-    if (is_dynamic())
-        throw std::runtime_error("[GPU] get_buffer_size() is called for dynamic shape");
+    if (is_dynamic() && !has_upper_bound()) {
+            throw std::runtime_error("[GPU] get_buffer_size() is called for dynamic shape");
+    }
 
     auto t = get_tensor();
 

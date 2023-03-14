@@ -24,7 +24,6 @@ using namespace InferenceEngine;
 
 namespace {
 
-const char str_device_input_unsupported_blob[] = "Device input is of an unsupported blob type.";
 const char str_device_output_unsupported_blob[] = "Device output is of an unsupported blob type.";
 const char str_input_not_allocated[] = "Input data was not allocated.";
 const char str_output_not_allocated[] = "Output data was not allocated.";
@@ -181,10 +180,6 @@ void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
     if (!data)
         IE_THROW(NotAllocated) << "Failed to set empty blob with name: \'" << name << "\'";
 
-    size_t dataSize = data->size();
-    if (0 == dataSize) {
-        IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
-    }
     if (inputTensorsMap.find(name) != inputTensorsMap.end()) {
         inputTensorsMap.erase(name);
     }
@@ -203,13 +198,18 @@ void InferRequest::SetBlob(const std::string& name, const Blob::Ptr& data) {
                                     << (is_input ? "input" : "output") << " precision";
     }
 
-    size_t dataBinSize = dataSize * data->element_size();
     size_t netReqBinSize = std::accumulate(desc.getDims().begin(), desc.getDims().end(),
                                            desc.getPrecision().size(),
                                            std::multiplies<size_t>());
     auto node = is_input ? findInputByNodeName(name) : findOutputByNodeName(name);
     bool isDynamic = (node && node->get_output_partial_shape(0).is_dynamic());
 
+    size_t dataSize = data->size();
+    if (0 == dataSize && !isDynamic) {
+        IE_THROW() << "Input data is empty. Input name: \'" << name << "\'";
+    }
+
+    size_t dataBinSize = dataSize * data->element_size();
     if (!isDynamic && dataBinSize != netReqBinSize) {
         IE_THROW() << "Incorrect binary data size for " << (is_input ? "input" : "output") <<
                       " blob with name: \'" << name <<  "\' " <<
@@ -512,20 +512,26 @@ void InferRequest::wait() {
     if (internal_outputs.empty()) {
         IE_THROW() << "Inference was not started!\n";
     }
-
     // wait for completion & collect outputs as requested by the model
     for (auto& no : _networkOutputs) {
         // In dynamic case, graph API must be used to retrieve outputID
         // because it does not create outputsMap during SetGraph
         std::string outputID = outputsMap.empty() ? m_graph->MapOutputName(no.first) : outputsMap.at(no.first);
         auto outputMemory = internal_outputs.at(outputID).get_memory();
+        auto outputLayout = internal_outputs.at(outputID).get_layout();
+        if (outputMemory)
+            outputMemory = m_graph->get_engine().reinterpret_buffer(*outputMemory, outputLayout);
 
-        bool need_output_update = _outputs.find(no.first) == _outputs.end() || _outputs.at(no.first)->byteSize() != outputMemory->size();
+        bool need_output_update = false;
+
+        if (outputLayout.bytes_count() == 0 || _outputs.find(no.first) == _outputs.end() || _outputs.at(no.first)->byteSize() != outputMemory->size()) {
+            need_output_update = true;
+        }
 
         if (need_output_update) {
             auto node = findOutputByNodeName(no.first);
             auto out_partial_shape = node->get_output_partial_shape(0);
-            auto mem_dims = outputMemory->get_layout().get_shape();
+            auto mem_dims = outputLayout.get_shape();
             size_t out_rank =  out_partial_shape.size();
             auto precision = InferenceEngine::Precision::FP32;
             auto dims = SizeVector(mem_dims.begin(), mem_dims.end());
@@ -559,14 +565,14 @@ void InferRequest::wait() {
 
         // mapping remote blobs not needed -
         // let the user take care of them explicitly
-        if (!bptr->is<gpu::ClBlob>()) {
+        if (!bptr->is<gpu::ClBlob>() && outputMemory) {
             bool same_mem = false;
             {
                 auto dst_lock = bptr->cbuffer();
                 auto dst_ptr = dst_lock.as<uint8_t*>();
                 same_mem = same_host_mem(outputMemory, dst_ptr);
             }
-            if (!same_mem) {
+            if (!same_mem && outputMemory->size()) {
                 copy_output_data(outputMemory, bptr);
             }
         }
@@ -960,7 +966,7 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
 
             auto input_layout = m_graph->GetInputLayouts().find(inputName);
             if (input_layout != m_graph->GetInputLayouts().end()) {
-                if (input_layout->second.format != inputMem->get_layout().format && input_layout->second.is_static()) {
+                if (input_layout->second != inputMem->get_layout() && input_layout->second.is_static()) {
                     inputMem = m_graph->GetNetwork()->get_engine().reinterpret_buffer(*inputMem, input_layout->second);
                 }
             }
@@ -1041,10 +1047,19 @@ InferenceEngine::Blob::Ptr InferRequest::create_device_blob(const InferenceEngin
     auto dt = DataTypeFromPrecision(desc.getPrecision());
     ov::PartialShape shape(desc.getDims());
 
+    // Currently, clDeviceMemAllocINTEL returns memory address allocated to other input blob if the current blob is empty
+    // W/A for this issue:
+    // Allocate with non-empty shape and then reinterprete with original shape
+    for (auto &i : shape) {
+        if (i == 0)
+            i = 1;
+    }
+
     auto l = cldnn::layout(shape, dt, format);
 
     if (m_graph->get_engine().use_unified_shared_memory()) {
-        return create_remote_blob<RemoteUSMbuffer>(desc, l, BlobType::BT_USM_DEVICE_INTERNAL);
+        auto blob = create_remote_blob<RemoteUSMbuffer>(desc, l, BlobType::BT_USM_DEVICE_INTERNAL);
+        return reinterpret_device_blob(blob, desc);
     } else {
         return create_remote_blob<RemoteCLbuffer>(desc, l, BlobType::BT_BUF_INTERNAL);
     }

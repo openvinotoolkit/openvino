@@ -8,8 +8,9 @@
 #include <cpp/ie_executable_network.hpp>
 #include <cpp/ie_infer_async_request_base.hpp>
 #include <cpp/ie_infer_request.hpp>
-#include <cpp/ie_plugin.hpp>
 
+#include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
+#include "so_ptr.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinfer_request_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
@@ -175,7 +176,7 @@ protected:
     std::shared_ptr<MockIExecutableNetworkInternal> mockIExeNet;
     InferenceEngine::SoExecutableNetworkInternal exeNetwork;
     MockIInferencePlugin* mockIPlugin;
-    InferencePlugin plugin;
+    std::shared_ptr<InferenceEngine::IInferencePlugin> plugin;
     shared_ptr<MockIInferRequestInternal> mockInferRequestInternal;
     MockNotEmptyICNNNetwork mockNotEmptyNet;
     std::string _incorrectName;
@@ -196,8 +197,8 @@ protected:
         ON_CALL(*mockIExeNet, CreateInferRequest()).WillByDefault(Return(mock_request));
         auto mockIPluginPtr = std::make_shared<MockIInferencePlugin>();
         ON_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(mockIExeNet));
-        plugin = InferenceEngine::InferencePlugin{mockIPluginPtr, {}};
-        exeNetwork = plugin.LoadNetwork(CNNNetwork{}, {});
+        plugin = mockIPluginPtr;
+        exeNetwork = ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(plugin->LoadNetwork(CNNNetwork{}, {}), {});
         request = exeNetwork->CreateInferRequest();
         _incorrectName = "incorrect_name";
         _inputName = MockNotEmptyICNNNetwork::INPUT_BLOB_NAME;
@@ -218,8 +219,8 @@ protected:
         ON_CALL(*mockIExeNet, CreateInferRequest()).WillByDefault(Return(mockInferRequestInternal));
         auto mockIPluginPtr = std::make_shared<MockIInferencePlugin>();
         ON_CALL(*mockIPluginPtr, LoadNetwork(MatcherCast<const CNNNetwork&>(_), _)).WillByDefault(Return(mockIExeNet));
-        auto plugin = InferenceEngine::InferencePlugin{mockIPluginPtr, {}};
-        auto exeNetwork = plugin.LoadNetwork(CNNNetwork{}, {});
+        plugin = mockIPluginPtr;
+        exeNetwork = ov::SoPtr<InferenceEngine::IExecutableNetworkInternal>(plugin->LoadNetwork(CNNNetwork{}, {}), {});
         return exeNetwork->CreateInferRequest();
     }
 
