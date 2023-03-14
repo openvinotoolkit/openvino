@@ -11,10 +11,7 @@
 #include <openvino/opsets/opset3.hpp>
 #include <vector>
 
-#include "itt.hpp"
-
 ov::intel_gpu::ConvertShapeOf1To3::ConvertShapeOf1To3() {
-    MATCHER_SCOPE(ConvertShapeOf1To3);
     auto shapeof1 = ov::pass::pattern::wrap_type<ov::opset1::ShapeOf>();
 
     matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
@@ -30,6 +27,6 @@ ov::intel_gpu::ConvertShapeOf1To3::ConvertShapeOf1To3() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(shapeof1, matcher_name);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(shapeof1, "ConvertShapeOf1To3");
     register_matcher(m, callback);
 }
