@@ -28,9 +28,11 @@ std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo
     InputfloatVar inFloatVar;
     InputboolVar inboolVar;
 
+    bool outputStatic;
+
     std::string targetDevice;
 
-    std::tie(shapes, inPrecisions, nmsTopK, inFloatVar, backgroundClass, keepTopK, outType, sortResultType, inboolVar, targetDevice) = obj.param;
+    std::tie(shapes, inPrecisions, nmsTopK, inFloatVar, backgroundClass, keepTopK, outType, sortResultType, inboolVar, outputStatic, targetDevice) = obj.param;
 
     ElementType paramsPrec, roisnumPrec, maxBoxPrec, thrPrec;
     std::tie(paramsPrec, roisnumPrec, maxBoxPrec, thrPrec) = inPrecisions;
@@ -58,6 +60,7 @@ std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo
     result << "iouThr=" << iouThr << "_scoreThr=" << scoreThr << "_backgroundClass=" << backgroundClass << "_";
     result << "keepTopK=" << keepTopK << "_outType=" << outType << "_";
     result << "sortResultType=" << sortResultType << "_sortResCrossBatch=" << sortResCB << "_nmsEta=" << nmsEta << "_normalized=" << normalized << "_";
+    result << "outputStatic=" << outputStatic;
     result << "TargetDevice=" << targetDevice;
     return result.str();
 }
@@ -348,7 +351,9 @@ void MulticlassNmsLayerTest::SetUp() {
     InputfloatVar inFloatVar;
     InputboolVar inboolVar;
 
-    std::tie(shapes, inPrecisions, maxOutBoxesPerClass, inFloatVar, backgroundClass, keepTopK, outType, sortResultType, inboolVar, targetDevice) =
+    bool outputStatic;
+
+    std::tie(shapes, inPrecisions, maxOutBoxesPerClass, inFloatVar, backgroundClass, keepTopK, outType, sortResultType, inboolVar, m_outStaticShape, targetDevice) =
         this->GetParam();
 
     init_input_shapes(shapes);

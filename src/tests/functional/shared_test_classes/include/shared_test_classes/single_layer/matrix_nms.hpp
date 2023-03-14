@@ -36,6 +36,7 @@ using NmsParams = std::tuple<std::vector<InputShape>,                           
                              int,                                                // Background class id
                              bool,                                               // If boxes are normalized
                              ngraph::op::v8::MatrixNms::DecayFunction,           // Decay function
+                             bool,                                               // make output shape static
                              std::string>;                                       // Device name
 
 class MatrixNmsLayerTest : public testing::WithParamInterface<NmsParams>,
@@ -51,7 +52,7 @@ protected:
 private:
     void GetOutputParams(size_t& numBatches, size_t& maxOutputBoxesPerBatch);
     ngraph::op::v8::MatrixNms::Attributes m_attrs;
-    bool m_outStaticShape = false;
+    bool m_outStaticShape;
 };
 
 } // namespace subgraph

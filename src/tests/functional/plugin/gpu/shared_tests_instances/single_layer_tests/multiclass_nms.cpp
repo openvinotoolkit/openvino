@@ -41,6 +41,8 @@ const std::vector<bool> sortResDesc = {true, false};
 const std::vector<float> nmsEta = {0.6f, 1.0f};
 const std::vector<bool> normalized = {true, false};
 
+const std::vector<bool> outStaticShape = {true};   // only be true as gpu plugin not support nms with internal dynamic yet.
+
 const auto params_v9_2Inputs = ::testing::Combine(
     ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(shapes2Inputs)),
     ::testing::Combine(::testing::Values(ov::element::f32),
@@ -54,6 +56,7 @@ const auto params_v9_2Inputs = ::testing::Combine(
     ::testing::ValuesIn(outType),
     ::testing::ValuesIn(sortResultType),
     ::testing::Combine(::testing::ValuesIn(sortResDesc), ::testing::ValuesIn(normalized)),
+    ::testing::ValuesIn(outStaticShape),
     ::testing::Values(CommonTestUtils::DEVICE_GPU));
 
 
@@ -75,6 +78,7 @@ const auto params_v9_3Inputs = ::testing::Combine(
     ::testing::ValuesIn(outType),
     ::testing::ValuesIn(sortResultType),
     ::testing::Combine(::testing::ValuesIn(sortResDesc), ::testing::ValuesIn(normalized)),
+    ::testing::ValuesIn(outStaticShape),
     ::testing::Values(CommonTestUtils::DEVICE_GPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MulticlassNmsLayerTest_v9_3inputs,
@@ -95,6 +99,7 @@ const auto params_v8 = ::testing::Combine(
     ::testing::ValuesIn(outType),
     ::testing::ValuesIn(sortResultType),
     ::testing::Combine(::testing::ValuesIn(sortResDesc), ::testing::ValuesIn(normalized)),
+    ::testing::ValuesIn(outStaticShape),
     ::testing::Values(CommonTestUtils::DEVICE_GPU));
 
 

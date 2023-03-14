@@ -38,6 +38,7 @@ using MulticlassNmsParams = std::tuple<std::vector<InputShape>,                 
                                        ngraph::element::Type,                      // Output type
                                        ngraph::op::util::MulticlassNmsBase::SortResultType,  // SortResultType
                                        InputboolVar,                               // Sort result across batch, normalized
+                                       bool,                                       // make output shape static
                                        std::string>;
 
 class MulticlassNmsLayerTest : public testing::WithParamInterface<MulticlassNmsParams>,
@@ -62,7 +63,7 @@ protected:
 
 private:
     void GetOutputParams(size_t& numBatches, size_t& maxOutputBoxesPerBatch);
-    bool m_outStaticShape = false;
+    bool m_outStaticShape;
 };
 
 class MulticlassNmsLayerTest8 : public MulticlassNmsLayerTest {

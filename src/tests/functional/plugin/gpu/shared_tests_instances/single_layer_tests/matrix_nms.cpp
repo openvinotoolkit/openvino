@@ -30,6 +30,8 @@ const std::vector<bool> normalized = {true, false};
 const std::vector<op::v8::MatrixNms::DecayFunction> decayFunction = {op::v8::MatrixNms::DecayFunction::GAUSSIAN,
                                                                      op::v8::MatrixNms::DecayFunction::LINEAR};
 
+const std::vector<bool> outStaticShape = {true};   // only be true as gpu plugin not support nms with internal dynamic yet.
+
 const auto nmsParamsStatic =
     ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inStaticShapeParams)),
                        ::testing::Values(inputPrecisions),
@@ -40,6 +42,7 @@ const auto nmsParamsStatic =
                        ::testing::ValuesIn(backgroudClass),
                        ::testing::ValuesIn(normalized),
                        ::testing::ValuesIn(decayFunction),
+                       ::testing::ValuesIn(outStaticShape),
                        ::testing::Values(CommonTestUtils::DEVICE_GPU));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatrixNmsLayerTest_static,
