@@ -21,7 +21,7 @@ namespace ov {
     try {                                                             \
         __VA_ARGS__;                                                  \
     } catch (const std::exception& ex) {                              \
-        throw ov::Exception(ex.what());                               \
+        OPENVINO_UNREACHABLE(ex.what());                              \
     } catch (...) {                                                   \
         OPENVINO_ASSERT(false, "Unexpected exception");               \
     }
@@ -78,7 +78,7 @@ Tensor::Tensor(const element::Type element_type, const Shape& shape, void* host_
                                                         ie::BlockingDesc{shape, blk_order, 0, dim_offset, blk_strides}},
                                          host_ptr);
     } catch (const std::exception& ex) {
-        throw ov::Exception(ex.what());
+        OPENVINO_UNREACHABLE(ex.what());
     } catch (...) {
         OPENVINO_ASSERT(false, "Unexpected exception");
     }
@@ -91,7 +91,7 @@ Tensor::Tensor(const Tensor& owner, const Coordinate& begin, const Coordinate& e
     try {
         _impl = owner._impl->createROI(begin, end);
     } catch (const std::exception& ex) {
-        throw ov::Exception(ex.what());
+        OPENVINO_UNREACHABLE(ex.what());
     } catch (...) {
         OPENVINO_ASSERT(false, "Unexpected exception");
     }
@@ -128,6 +128,13 @@ Shape Tensor::get_shape() const {
 }
 
 void Tensor::copy_to(ov::Tensor& dst) const {
+    const auto& is_scalar = [](const ov::Shape& shape) {
+        return shape.empty() || (shape.size() == 1 && shape[0] == 1);
+    };
+    const auto shapes_equal = [is_scalar](const ov::Shape& src, const ov::Shape& dst) {
+        // WA for scalar tensors to copy {1} to {} or otherwise
+        return src == dst || (is_scalar(src) && is_scalar(dst));
+    };
     OV_TENSOR_STATEMENT({
         OPENVINO_ASSERT(dst, "Destination tensor was not initialized.");
         OPENVINO_ASSERT(!is<ov::RemoteTensor>(), "Default copy to doesn't support copy from remote tensor.");
@@ -140,7 +147,7 @@ void Tensor::copy_to(ov::Tensor& dst) const {
                         ")");
         if (dst.get_shape() == ov::Shape{0})
             dst.set_shape(get_shape());
-        OPENVINO_ASSERT(dst.get_shape() == get_shape(),
+        OPENVINO_ASSERT(shapes_equal(get_shape(), dst.get_shape()),
                         "Tensor shapes are not equal. (src: ",
                         get_shape(),
                         " != dst: ",
@@ -154,7 +161,8 @@ void Tensor::copy_to(ov::Tensor& dst) const {
         ov::Shape cur_pos{0};
         ov::Shape max_pos{1};
 
-        if (get_element_type().bitwidth() < 8 || (get_strides() == dst.get_strides() && is_continuous())) {
+        if (get_element_type().bitwidth() < 8 || (get_strides() == dst.get_strides() && is_continuous()) ||
+            (is_scalar(get_shape()) && is_scalar(dst.get_shape()))) {
             // OpenVINO doesn't support strides for LP types
             // or both tensors have default strides
             // Strides and positions already initialized

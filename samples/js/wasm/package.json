@@ -1,0 +1,16 @@
+{
+  "name": "openvinojs-demo",
+  "version": "1.0.0",
+  "description": "Demo of using openvinojs from nodejs environment",
+  "main": "nodejs/index.js",
+  "scripts": {
+    "nodejs": "cd nodejs && node index.mjs",
+    "browser": "http-server -p8081 -c-1 ./browser/",
+    "postinstall": "./create_symlinks.sh"
+  },
+  "author": "vishniakov-nikolai",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}

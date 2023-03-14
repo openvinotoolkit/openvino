@@ -47,10 +47,11 @@
 #include <string>
 #include <utility>
 #include <deque>
-#include "intel_gpu/runtime/error_handler.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <impls/onednn/utils.hpp>
 #endif
+
+using namespace cldnn;
 
 void prepare_primitive_fusing::run(program& p) {
     fuse_reorders(p);
@@ -69,7 +70,7 @@ void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
             for (auto prev : node.get_dependencies()) {
                 if (!prev.first->is_type<reshape>())
                     return;
-                if (prev.first->get_users().size() > 1)
+                if (prev.first->get_users().size() > 1 || prev.first->get_dependencies().size() > 1)
                     return;
                 if (prev.first->as<reshape>().input().get_output_layout() == node.get_output_layout()) {
                     p.add_optimized_primitive_info(prev.first->id());
@@ -403,9 +404,9 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             conv_with_bias_prim->activations_zero_points = desc->activations_zero_points;
             conv_with_bias_prim->weights_zero_points = desc->weights_zero_points;
             conv_with_bias_prim->compensation = desc->compensation;
-            auto& new_conv_node = p.get_or_create(conv_with_bias_prim);
             // Copy transposed flag to new prim as convolution node might be produced by deconv -> conv replacement before this pass
-            new_conv_node.as<convolution>().set_transposed(conv.get_transposed());
+            conv_with_bias_prim->transposed = conv.get_transposed();
+            auto& new_conv_node = p.get_or_create(conv_with_bias_prim);
 
             fuse_bias_f(conv, new_conv_node, bias_node, eltw_node);
         } else if (replace_candidate.is_type<deconvolution>()) {
@@ -789,6 +790,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             if (!should_fuse)
                 return;
+
+            // Onednn reorder does not support eltwise nor binary post operation
+            if (_lo.get_optimization_attributes().use_onednn_impls && input.is_type<reorder>()) {
+                return;
+            }
 
             p.fuse_nodes(input, activation_node, &fusing_history);
         };
@@ -1186,11 +1192,11 @@ void prepare_primitive_fusing::optimize_fused_ops(program& p) {
             auto& fp_next = *fp_itr;
             if (fp.is_type<activation>() && fp_next.is_type<quantize>()) {
                 const auto& act_prim = fp.typed_desc<activation>();;
-                const auto& quant_param = fp_next.get_typed_fuse_params<kernel_selector::quantize_fuse_params>();
+                const auto& quant_param = fp_next.get_typed_fuse_params<QuantizeFuseParams>();
 
                 bool can_skip = fp.deps.empty() && data_type_traits::is_i8_u8(fp_next.output_layout.data_type);
                 can_skip &= ((act_prim->activation_function == activation_func::relu) && (act_prim->additional_params.a == 0.0f));
-                can_skip &= (quant_param->scale_shift_opt && !quant_param->has_pre_shift);
+                can_skip &= (quant_param->_scale_shift_opt && !quant_param->_need_pre_shift);
 
                 if (can_skip) {
                     remove_deps_of_node(fp);

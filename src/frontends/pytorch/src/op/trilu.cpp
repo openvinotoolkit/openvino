@@ -27,23 +27,23 @@ namespace {
 OutputVector translate_base_triu_tril(const NodeContext& context, bool upper) {
     num_inputs_check(context, 1, 2);
     auto input_tensor = context.get_input(0);
-    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input_tensor));
-    auto zero = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
-    auto one = context.mark_node(v0::Constant::create(element::i64, Shape{}, {1}));
-    auto minus_one = context.mark_node(v0::Constant::create(element::i64, Shape{}, {-1}));
-    auto minus_two = context.mark_node(v0::Constant::create(element::i64, Shape{}, {-2}));
+    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input_tensor, element::i32));
+    auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
+    auto one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
+    auto minus_one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-1}));
+    auto minus_two = context.mark_node(v0::Constant::create(element::i32, Shape{}, {-2}));
     const auto m = context.mark_node(std::make_shared<v7::Gather>(input_shape, minus_one, zero));
     const auto n = context.mark_node(std::make_shared<v7::Gather>(input_shape, minus_two, zero));
-    auto horizontal_range = context.mark_node(std::make_shared<v4::Range>(zero, m, one, element::i64));
+    auto horizontal_range = context.mark_node(std::make_shared<v4::Range>(zero, m, one, element::i32));
     horizontal_range = context.mark_node(std::make_shared<v0::Unsqueeze>(horizontal_range, zero));
     Output<Node> vertical_range;
     if (!context.input_is_none(1)) {
         auto diagonal = context.get_input(1);
-        diagonal = context.mark_node(std::make_shared<v0::Convert>(diagonal, element::i64));
+        diagonal = context.mark_node(std::make_shared<v0::Convert>(diagonal, element::i32));
         auto stop = context.mark_node(std::make_shared<v1::Add>(n, diagonal));
-        vertical_range = context.mark_node(std::make_shared<v4::Range>(diagonal, stop, one, element::i64));
+        vertical_range = context.mark_node(std::make_shared<v4::Range>(diagonal, stop, one, element::i32));
     } else {
-        vertical_range = context.mark_node(std::make_shared<v4::Range>(zero, n, one, element::i64));
+        vertical_range = context.mark_node(std::make_shared<v4::Range>(zero, n, one, element::i32));
     }
     vertical_range = context.mark_node(std::make_shared<v0::Unsqueeze>(vertical_range, one));
 

@@ -7,7 +7,7 @@
 #include <memory>
 #include <tuple>
 
-#include "ie_api.h"
+#include "dev/threading/thread_affinity.hpp"
 
 #if !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
 #    include <sched.h>
@@ -15,7 +15,7 @@
 
 namespace InferenceEngine {
 #if (defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
-using cpu_set_t = void;
+using cpu_set_t = ov::threading::cpu_set_t;
 #endif  // (defined(__APPLE__) || defined(_WIN32))
 
 /**
@@ -26,26 +26,9 @@ using cpu_set_t = void;
  */
 void ReleaseProcessMask(cpu_set_t* mask);
 
-/**
- * @brief      Deleter for process mask
- * @ingroup    ie_dev_api_threading
- */
-struct ReleaseProcessMaskDeleter {
-    /**
-     * @brief      A callable operator to release object
-     *
-     * @param      mask  The mask to release
-     */
-    void operator()(cpu_set_t* mask) const {
-        ReleaseProcessMask(mask);
-    }
-};
+using ReleaseProcessMaskDeleter = ov::threading::ReleaseProcessMaskDeleter;
 
-/**
- * @brief A unique pointer to CPU set structure with the ReleaseProcessMaskDeleter deleter
- * @ingroup ie_dev_api_threading
- */
-using CpuSet = std::unique_ptr<cpu_set_t, ReleaseProcessMaskDeleter>;
+using CpuSet = ov::threading::CpuSet;
 
 /**
  * @brief Get the cores affinity mask for the current process

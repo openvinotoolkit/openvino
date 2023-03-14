@@ -141,6 +141,23 @@ macro(ov_find_package_tbb)
                     list(APPEND TBB_IMPORTED_TARGETS ${target})
                 endif()
             endforeach()
+
+            if(WIN32 AND TARGET TBB::tbbbind_2_5)
+                # Add HWLOC::hwloc_2_5 target to check via Apivalidator
+                get_target_property(TBB_location TBB::tbb IMPORTED_LOCATION_RELEASE)
+                get_filename_component(TBB_dir "${TBB_location}" DIRECTORY)
+                set(hwloc_dll_name "${CMAKE_SHARED_LIBRARY_PREFIX}hwloc${CMAKE_SHARED_LIBRARY_SUFFIX}")
+                find_file(HWLOC_DLL NAMES ${hwloc_dll_name} PATHS "${TBB_dir}" DOC "Path to hwloc.dll")
+                
+                if(NOT HWLOC_DLL)
+                    message(FATAL_ERROR "Failed to find ${hwloc_dll_name} in ${TBB_dir}")
+                endif()
+
+                add_library(HWLOC::hwloc_2_5 SHARED IMPORTED)
+                set_property(TARGET HWLOC::hwloc_2_5 APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
+                set_target_properties(HWLOC::hwloc_2_5 PROPERTIES
+                    IMPORTED_LOCATION_RELEASE "${HWLOC_DLL}")
+            endif()
         endif()
 
         if(NOT TBB_FOUND)
@@ -245,6 +262,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
         endif ()
 
         if (NOT OpenVINO_SOURCE_DIR)
+            # TODO: dead code since ie_parallel.cmake is not used outside of OpenVINO build
             if (WIN32)
                 set(lib_rel_path ${IE_LIB_REL_DIR})
                 set(lib_dbg_path ${IE_LIB_DBG_DIR})
@@ -290,6 +308,7 @@ function(set_ie_threading_interface_for TARGET_NAME)
                 if (WIN32)
                     ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} "$<$<CONFIG:DEBUG>:${OMP_LIBRARIES_DEBUG}>;$<$<NOT:$<CONFIG:DEBUG>>:${OMP_LIBRARIES_RELEASE}>")
                 else()
+                    # TODO: handle multi-config generators case
                     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
                         ie_target_link_libraries(${TARGET_NAME} ${LINK_TYPE} ${OMP_LIBRARIES_DEBUG})
                     else()
