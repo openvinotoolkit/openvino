@@ -43,7 +43,7 @@ std::vector<TShape> shape_infer(const ov::op::util::EmbeddingBagOffsetsBase* op,
                               "INDICES and PER_SAMPLE_WEIGHTS shape must be same.");
     }
 
-    return {embedding::copy_shape_and_update_dim(op, input_shapes[EMB_TABLE], input_shapes[OFFSETS])};
+    return {embedding::out_shape_infer(op, input_shapes[EMB_TABLE], input_shapes[OFFSETS])};
 }
 
 template <class TShape>
