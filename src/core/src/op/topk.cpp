@@ -103,6 +103,37 @@ bool evaluate_topk(const HostTensorPtr& arg,
     }
     return rc;
 }
+bool TopK_evaluate(const ov::op::util::TopKBase* const node,
+                   const HostTensorVector& outputs,
+                   const HostTensorVector& inputs) {
+    const auto& arg_shape = inputs[0]->get_shape();
+    const auto axis = normalize_axis(node, node->get_provided_axis(), arg_shape.size());
+    const auto compute_max = node->get_mode() == ov::op::TopKMode::MAX;
+    const auto sort_type = node->get_sort_type();
+
+    const auto input_shapes = vector<PartialShape>{inputs[0]->get_partial_shape(), inputs[1]->get_partial_shape()};
+    const auto constant_data = map<size_t, HostTensorPtr>{{1, inputs[1]}};
+    auto output_shape = shape_infer(node, input_shapes, constant_data).front().to_shape();
+
+    if (output_shape[axis] == 0) {
+        // the kernel can't handle K (output_shape[axis]) equal 0, use arg_shape[axis] instead.
+        output_shape[axis] = arg_shape[axis];
+    }
+
+    const size_t k = output_shape[axis];
+    OPENVINO_ASSERT(k <= arg_shape[axis], "'K' exceeds the dimension of top_k_axis");
+
+    // TopK reference implementation provides stable indices output so this parameter is not passed on
+    return evaluate_topk(inputs[0],
+                         outputs[1],
+                         outputs[0],
+                         output_shape,
+                         axis,
+                         k,
+                         compute_max,
+                         sort_type,
+                         node->get_index_element_type());
+}
 }  // namespace
 }  // namespace topk
 
@@ -145,34 +176,7 @@ shared_ptr<Node> op::v1::TopK::clone_with_new_inputs(const OutputVector& new_arg
 
 bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v1_TopK_evaluate);
-    const auto& arg_shape = inputs[0]->get_shape();
-    // 1. get axis, mode (max/min), sort_type
-    auto axis = ngraph::normalize_axis(this, m_axis, arg_shape.size());
-    auto compute_max = get_mode() == TopKMode::MAX;
-    auto sort_type = get_sort_type();
-
-    const auto input_shapes = std::vector<PartialShape>{inputs[0]->get_partial_shape(), inputs[1]->get_partial_shape()};
-    const auto constant_data = std::map<size_t, HostTensorPtr>{{1, inputs[1]}};
-    auto output_shape = shape_infer(this, input_shapes, constant_data).front().to_shape();
-
-    if (output_shape[axis] == 0) {
-        // the kernel can't handle K (output_shape[axis]) equal 0, use arg_shape[axis] instead.
-        output_shape[axis] = arg_shape[axis];
-    }
-
-    // 2. get value of k
-    size_t k = output_shape[axis];
-    OPENVINO_ASSERT(k <= arg_shape[axis], "'K' exceeds the dimension of top_k_axis");
-
-    return topk::evaluate_topk(inputs[0],
-                               outputs[1],
-                               outputs[0],
-                               output_shape,
-                               axis,
-                               k,
-                               compute_max,
-                               sort_type,
-                               get_index_element_type());
+    return topk::TopK_evaluate(this, outputs, inputs);
 }
 
 bool op::v1::TopK::has_evaluate() const {
@@ -245,34 +249,7 @@ shared_ptr<Node> op::v3::TopK::clone_with_new_inputs(const OutputVector& new_arg
 
 bool op::v3::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     OV_OP_SCOPE(v3_TopK_evaluate);
-    const auto& arg_shape = inputs[0]->get_shape();
-    // 1. get axis, mode (max/min), sort_type
-    auto axis = ngraph::normalize_axis(this, m_axis, arg_shape.size());
-    auto compute_max = get_mode() == TopKMode::MAX;
-    auto sort_type = get_sort_type();
-
-    const auto input_shapes = std::vector<PartialShape>{inputs[0]->get_partial_shape(), inputs[1]->get_partial_shape()};
-    const auto constant_data = std::map<size_t, HostTensorPtr>{{1, inputs[1]}};
-    auto output_shape = shape_infer(this, input_shapes, constant_data).front().to_shape();
-
-    if (output_shape[axis] == 0) {
-        // the kernel can't handle K (output_shape[axis]) equal 0, use arg_shape[axis] instead.
-        output_shape[axis] = arg_shape[axis];
-    }
-
-    // 2. get value of k
-    size_t k = output_shape[axis];
-    OPENVINO_ASSERT(k <= arg_shape[axis], "'K' exceeds the dimension of top_k_axis");
-
-    return topk::evaluate_topk(inputs[0],
-                               outputs[1],
-                               outputs[0],
-                               output_shape,
-                               axis,
-                               k,
-                               compute_max,
-                               sort_type,
-                               get_index_element_type());
+    return topk::TopK_evaluate(this, outputs, inputs);
 }
 
 bool op::v3::TopK::has_evaluate() const {
@@ -371,4 +348,26 @@ std::shared_ptr<Node> ov::op::v11::TopK::clone_with_new_inputs(const OutputVecto
                                           m_sort,
                                           m_index_element_type,
                                           m_stable);
+}
+
+bool ov::op::v11::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    OV_OP_SCOPE(v11_TopK_evaluate);
+    return topk::TopK_evaluate(this, outputs, inputs);
+}
+
+bool ov::op::v11::TopK::has_evaluate() const {
+    OV_OP_SCOPE(v11_TopK_has_evaluate);
+
+    switch (get_input_element_type(0)) {
+    case ngraph::element::i32:
+    case ngraph::element::i64:
+    case ngraph::element::u32:
+    case ngraph::element::u64:
+    case ngraph::element::f16:
+    case ngraph::element::f32:
+        break;
+    default:
+        return false;
+    }
+    return true;
 }
