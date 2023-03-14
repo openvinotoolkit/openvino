@@ -20,6 +20,9 @@ function(_ov_get_tbb_location tbb_target _tbb_lib_location_var)
                     if(tbb_lib MATCHES "${CMAKE_SHARED_LIBRARY_PREFIX}tbb${CMAKE_SHARED_LIBRARY_SUFFIX}")
                         set(${_tbb_lib_location_var} "${tbb_lib}" PARENT_SCOPE)
                         return()
+                    elseif(tbb_lib MATCHES "CONAN_LIB::onetbb")
+                        get_filename_component(_tbb_lib_location_var tbb_lib ABSOLUTE)
+                        return()
                     endif()
                 endforeach()
             else()
@@ -34,7 +37,11 @@ endfunction()
 
 macro(ov_find_package_tbb)
     if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO" AND NOT TBB_FOUND)
-        set(_ov_minimal_tbb_version 2017.0)
+        if (CONAN_EXPORTED)
+            set(_ov_minimal_tbb_version 2020.1)
+        else()
+            set(_ov_minimal_tbb_version 2017.0)
+        endif()
 
         if(NOT ENABLE_SYSTEM_TBB)
             if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
@@ -54,8 +61,8 @@ macro(ov_find_package_tbb)
             unset(_no_cmake_install_prefix)
         endif()
 
-        find_package(TBB ${_ov_minimal_tbb_version} QUIET COMPONENTS tbb tbbmalloc
-                     ${_find_package_no_args})
+        find_package(TBB ${_ov_minimal_tbb_version} QUIET COMPONENTS tbb tbbmalloc 
+                    ${_find_package_no_args})
 
         if(NOT TBB_FOUND)
             # remove invalid TBB_DIR=TBB_DIR-NOTFOUND from cache
