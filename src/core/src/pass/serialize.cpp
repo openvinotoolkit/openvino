@@ -732,7 +732,7 @@ class PaddingsFixer {
 private:
     ov::Node* m_node;
 
-    std::vector<ov::Output<ov::Node>> m_parameters;
+    ov::OutputVector m_parameters;
     std::shared_ptr<ov::Node> m_cloned_node;
 
     const std::set<ov::op::PadType> pad_agnostic_types = {
@@ -1003,7 +1003,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
     for (auto e : edge_mapping) {
         // WA for LSTMCellv0, peephole input shall not be serialized
         if (e.to_port == 6) {
-            auto type_info = ordered_ops[e.to_layer]->get_type_info();
+            const auto& type_info = ordered_ops[e.to_layer]->get_type_info();
             OPENVINO_SUPPRESS_DEPRECATED_START
             if (!strcmp(type_info.name, "LSTMCell") && type_info.version == 0) {
                 continue;
