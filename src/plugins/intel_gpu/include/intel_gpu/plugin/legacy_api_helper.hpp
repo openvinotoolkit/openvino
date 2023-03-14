@@ -16,7 +16,7 @@ public:
     static bool is_legacy_property(const std::pair<std::string, ov::Any>& property, bool is_new_api);
     static bool is_new_api_property(const std::pair<std::string, ov::Any>& property);
     static std::vector<std::string> get_supported_configs();
-    static std::vector<std::string> get_supported_metrics(bool model_caching_enabled);
+    static std::vector<std::string> get_supported_metrics();
 };
 
 }  // namespace intel_gpu

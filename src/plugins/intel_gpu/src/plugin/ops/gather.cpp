@@ -29,7 +29,7 @@ void CreateGatherOpBase(Program& p, const std::shared_ptr<T>& op, const int64_t 
             // GPU primitive does not support i64 inputs,
             // so we need additional reorders to convert them to i32
             auto reorderPrimName = inputs[portIndex].pid + "_" + op->get_friendly_name() + Program::m_preProcessTag;
-            auto targetFormat = cldnn::format::get_default_format(op->get_input_shape(portIndex).size());
+            auto targetFormat = cldnn::format::get_default_format(op->get_input_partial_shape(portIndex).size());
             auto preprocessPrim = cldnn::reorder(reorderPrimName,
                                                  inputs[portIndex],
                                                  targetFormat,

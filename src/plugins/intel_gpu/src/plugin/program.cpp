@@ -120,14 +120,15 @@ bool Program::IsDynBatchModel(const std::shared_ptr<ov::Model>& model,
 }
 
 Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, const ExecutionConfig& config,
-    bool createTopologyOnly, bool partialBuild)
+    bool createTopologyOnly, bool partialBuild,
+    InferenceEngine::InputsDataMap* inputs, InferenceEngine::OutputsDataMap* outputs)
     : m_curBatch(-1)
     , m_config(config)
     , m_engine(engine)
     , queryMode(false) {
     // Extract inputs/outputs info from CNNNetwork
-    auto networkInputs = network.getInputsInfo();
-    auto networkOutputs = network.getOutputsInfo();
+    auto networkInputs = (inputs != nullptr) ? *inputs : network.getInputsInfo();
+    auto networkOutputs = (outputs != nullptr) ? *outputs : network.getOutputsInfo();
 
     auto func = network.getFunction();
     if (!func) {

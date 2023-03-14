@@ -244,7 +244,7 @@ std::vector<std::string> LegacyAPIHelper::get_supported_configs() {
     return supported_config;
 }
 
-std::vector<std::string> LegacyAPIHelper::get_supported_metrics(bool model_caching_enabled) {
+std::vector<std::string> LegacyAPIHelper::get_supported_metrics() {
     std::vector<std::string> supported_metrics = {
         METRIC_KEY(AVAILABLE_DEVICES),
         METRIC_KEY(SUPPORTED_METRICS),
@@ -257,13 +257,12 @@ std::vector<std::string> LegacyAPIHelper::get_supported_metrics(bool model_cachi
         METRIC_KEY(DEVICE_GOPS),
         METRIC_KEY(OPTIMAL_BATCH_SIZE),
         METRIC_KEY(MAX_BATCH_SIZE),
+        METRIC_KEY(IMPORT_EXPORT_SUPPORT),
         GPU_METRIC_KEY(DEVICE_TOTAL_MEM_SIZE),
         GPU_METRIC_KEY(UARCH_VERSION),
         GPU_METRIC_KEY(EXECUTION_UNITS_COUNT),
         GPU_METRIC_KEY(MEMORY_STATISTICS),
     };
-    if (model_caching_enabled)
-        supported_metrics.push_back(METRIC_KEY(IMPORT_EXPORT_SUPPORT));
 
     return supported_metrics;
 }
