@@ -11,10 +11,10 @@
 #include <utility>
 
 #include "itt.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "plugin.hpp"
+#include "template/remote_tensor.hpp"
 
 using Time = std::chrono::high_resolution_clock;
 
@@ -112,7 +112,19 @@ void ov::template_plugin::InferRequest::infer_preprocess() {
     OPENVINO_ASSERT(get_inputs().size() == m_backend_input_tensors.size());
     for (size_t i = 0; i < get_inputs().size(); i++) {
         auto tensor = get_tensor(get_inputs()[i]);
-        if (tensor.is_continuous()) {
+        if (tensor.is<ov::RemoteTensor>()) {
+            OPENVINO_ASSERT(tensor.is<ov::template_plugin::VectorTensor>(),
+                            "Template plugin supports only VectorTensor with remote context.");
+            auto vector_tensor = tensor.as<ov::template_plugin::VectorTensor>();
+            auto element_type = vector_tensor.get_element_type();
+            void* data = vector_tensor.get_data_ptr();
+            OPENVINO_ASSERT(data != nullptr);
+            // Create backend tenor
+            m_backend_input_tensors[i] =
+                get_template_model()->get_template_plugin()->m_backend->create_tensor(element_type,
+                                                                                      vector_tensor.get_shape(),
+                                                                                      data);
+        } else if (tensor.is_continuous()) {
             // No ROI extraction is needed
             m_backend_input_tensors[i] =
                 get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor.get_element_type(),
@@ -130,7 +142,6 @@ void ov::template_plugin::InferRequest::infer_preprocess() {
             m_backend_input_tensors[i] =
                 get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor.get_element_type(),
                                                                                       tensor.get_shape());
-            auto* src_data = static_cast<uint8_t*>(tensor.data());
             tensor.copy_to(m_backend_input_tensors[i]);
         }
     }
@@ -143,10 +154,15 @@ void ov::template_plugin::InferRequest::infer_preprocess() {
             continue;
         }
         auto tensor = get_tensor(get_outputs()[i]);
-        m_backend_output_tensors[i] =
-            get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor.get_element_type(),
-                                                                                  tensor.get_shape(),
-                                                                                  tensor.data());
+        if (tensor.is_continuous() && !tensor.is<ov::RemoteTensor>())
+            m_backend_output_tensors[i] =
+                get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor.get_element_type(),
+                                                                                      tensor.get_shape(),
+                                                                                      tensor.data());
+        else
+            m_backend_output_tensors[i] =
+                get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor.get_element_type(),
+                                                                                      tensor.get_shape());
     }
     m_durations[Preprocess] = Time::now() - start;
 }
@@ -176,13 +192,23 @@ void ov::template_plugin::InferRequest::infer_postprocess() {
     OPENVINO_ASSERT(get_outputs().size() == m_backend_output_tensors.size());
     for (size_t i = 0; i < get_outputs().size(); i++) {
         const auto& result = get_template_model()->m_model->get_results()[i];
+        auto host_tensor = m_backend_output_tensors[i];
+        auto tensor = get_tensor(get_outputs()[i]);
         if (result->get_output_partial_shape(0).is_dynamic()) {
-            auto host_tensor = m_backend_output_tensors[i];
             ov::Output<const ov::Node> output{result->output(0).get_node(), result->output(0).get_index()};
             allocate_tensor(output, [host_tensor](ov::Tensor& tensor) {
                 allocate_tensor_impl(tensor, host_tensor.get_element_type(), host_tensor.get_shape());
                 host_tensor.copy_to(tensor);
             });
+        } else if (!tensor.is_continuous()) {
+            host_tensor.copy_to(tensor);
+        } else if (tensor.is<ov::RemoteTensor>()) {
+            OPENVINO_ASSERT(tensor.is<ov::template_plugin::VectorTensor>(),
+                            "Template plugin supports only VectorTensor with remote context.");
+            auto vector_tensor = tensor.as<ov::template_plugin::VectorTensor>();
+            void* data = vector_tensor.get_data_ptr();
+            // Copy to vector
+            std::memcpy(data, host_tensor.data(), tensor.get_byte_size());
         }
     }
     m_durations[Postprocess] = Time::now() - start;

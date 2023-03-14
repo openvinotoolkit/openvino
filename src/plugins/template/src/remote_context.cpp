@@ -43,8 +43,15 @@ public:
         return;
     }
 
-    std::vector<T> get() {
+    const std::vector<T>& get() const {
         return m_data;
+    }
+
+    std::vector<T>& get() {
+        return m_data;
+    }
+    void* get_data_ptr() const {
+        return const_cast<void*>(static_cast<const void*>(m_data.data()));
     }
 
 protected:
@@ -56,10 +63,7 @@ protected:
 
 }  // namespace
 
-namespace ov {
-namespace template_plugin {
-
-class VectorTensor::VectorImpl : public ov::IRemoteTensor {
+class VectorImpl : public ov::IRemoteTensor {
 private:
     std::shared_ptr<ov::IRemoteTensor> m_tensor;
 
@@ -67,7 +71,7 @@ public:
     VectorImpl(const std::shared_ptr<ov::IRemoteTensor>& tensor) : m_tensor(tensor) {}
 
     template <class T>
-    operator const std::vector<T>&() {
+    operator std::vector<T>&() const {
         auto impl = std::dynamic_pointer_cast<VectorTensorImpl<T>>(m_tensor);
         OPENVINO_ASSERT(impl, "Cannot get vector. Type is incorrect!");
         return impl->get();
@@ -77,11 +81,11 @@ public:
         m_tensor->set_shape(std::move(shape));
     }
 
-    const element::Type& get_element_type() const override {
+    const ov::element::Type& get_element_type() const override {
         return m_tensor->get_element_type();
     }
 
-    const Shape& get_shape() const override {
+    const ov::Shape& get_shape() const override {
         return m_tensor->get_shape();
     }
 
@@ -93,27 +97,28 @@ public:
         return m_tensor->get_byte_size();
     }
 
-    const Strides& get_strides() const override {
+    const ov::Strides& get_strides() const override {
         return m_tensor->get_strides();
     }
-
-    template <typename T, typename datatype = typename std::decay<T>::type>
-    T* data() const {
-        return static_cast<T*>(data(element::from<datatype>()));
+    void* get_data_ptr() const {
+        return m_tensor->data();
     }
 
-    const AnyMap& get_properties() const override {
+    const ov::AnyMap& get_properties() const override {
         return m_tensor->get_properties();
     }
 };
 
-}  // namespace template_plugin
-}  // namespace ov
-
-std::shared_ptr<ov::template_plugin::VectorTensor::VectorImpl> ov::template_plugin::VectorTensor::get_impl() const {
-    auto impl = std::dynamic_pointer_cast<ov::template_plugin::VectorTensor::VectorImpl>(_impl);
+const void* ov::template_plugin::VectorTensor::get_data_ptr() const {
+    auto impl = std::dynamic_pointer_cast<VectorImpl>(_impl);
     OPENVINO_ASSERT(impl);
-    return impl;
+    return impl->get_data_ptr();
+}
+
+void* ov::template_plugin::VectorTensor::get_data_ptr() {
+    auto impl = std::dynamic_pointer_cast<VectorImpl>(_impl);
+    OPENVINO_ASSERT(impl);
+    return impl->get_data_ptr();
 }
 
 ov::template_plugin::RemoteContext::RemoteContext() : m_name("TEMPLATE") {}
@@ -175,5 +180,5 @@ std::shared_ptr<ov::IRemoteTensor> ov::template_plugin::RemoteContext::create_te
     default:
         OPENVINO_THROW("Cannot create remote tensor for unsupported type: ", type);
     }
-    return std::make_shared<ov::template_plugin::VectorTensor::VectorImpl>(tensor);
+    return std::make_shared<VectorImpl>(tensor);
 }
