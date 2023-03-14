@@ -71,8 +71,8 @@ std::shared_ptr<ov::ISyncInferRequest> ov::template_plugin::CompiledModel::creat
 void ov::template_plugin::CompiledModel::set_property(const ov::AnyMap& properties) {
     OPENVINO_NOT_IMPLEMENTED;
 }
-ov::RemoteContext ov::template_plugin::CompiledModel::get_context() const {
-    OPENVINO_NOT_IMPLEMENTED;
+std::shared_ptr<ov::IRemoteContext> ov::template_plugin::CompiledModel::get_context() const {
+    return get_template_plugin()->get_default_context({});
 }
 
 std::shared_ptr<const ov::Model> ov::template_plugin::CompiledModel::get_runtime_model() const {

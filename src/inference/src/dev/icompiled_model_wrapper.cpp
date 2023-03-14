@@ -77,8 +77,8 @@ ov::Any InferenceEngine::ICompiledModelWrapper::get_property(const std::string& 
     }
 }
 
-ov::RemoteContext InferenceEngine::ICompiledModelWrapper::get_context() const {
-    return {ov::legacy_convert::convert_remote_context(m_model->GetContext()), {}};
+std::shared_ptr<ov::IRemoteContext> InferenceEngine::ICompiledModelWrapper::get_context() const {
+    return ov::legacy_convert::convert_remote_context(m_model->GetContext());
 }
 
 std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>

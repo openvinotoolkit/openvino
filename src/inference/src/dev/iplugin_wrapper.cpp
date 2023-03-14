@@ -64,15 +64,12 @@ ov::Any IPluginWrapper::get_property(const std::string& name, const ov::AnyMap& 
     }
 }
 
-ov::RemoteContext IPluginWrapper::create_context(const ov::AnyMap& remote_properties) const {
-    return ov::RemoteContext{ov::legacy_convert::convert_remote_context(m_old_plugin->CreateContext(remote_properties)),
-                             {nullptr}};
+std::shared_ptr<ov::IRemoteContext> IPluginWrapper::create_context(const ov::AnyMap& remote_properties) const {
+    return ov::legacy_convert::convert_remote_context(m_old_plugin->CreateContext(remote_properties));
 }
 
-ov::RemoteContext IPluginWrapper::get_default_context(const ov::AnyMap& remote_properties) const {
-    return ov::RemoteContext{
-        ov::legacy_convert::convert_remote_context(m_old_plugin->GetDefaultContext(remote_properties)),
-        {nullptr}};
+std::shared_ptr<ov::IRemoteContext> IPluginWrapper::get_default_context(const ov::AnyMap& remote_properties) const {
+    return ov::legacy_convert::convert_remote_context(m_old_plugin->GetDefaultContext(remote_properties));
 }
 
 std::shared_ptr<ov::ICompiledModel> IPluginWrapper::import_model(std::istream& model,
