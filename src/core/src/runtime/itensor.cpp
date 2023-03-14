@@ -215,7 +215,9 @@ std::shared_ptr<ITensor> make_tensor(const element::Type element_type, const Sha
  */
 class RoiTensor : public ITensor {
 public:
-    RoiTensor(const std::shared_ptr<ITensor>& owner, const Coordinate& begin, const Coordinate& end) : m_owner{owner} {
+    RoiTensor(const std::shared_ptr<ITensor>& owner, const Coordinate& begin, const Coordinate& end)
+        : m_owner{owner},
+          m_offsets{begin} {
         OPENVINO_ASSERT(owner->get_element_type().bitwidth() >= 8,
                         "ROI Tensor for types with bitwidths less then 8 bit is not implemented. Tensor type: ",
                         owner->get_element_type());
@@ -229,8 +231,6 @@ public:
             m_shape[i] = end[i] - begin[i];
             OPENVINO_ASSERT(m_shape[i] <= owner_shape[i]);
         }
-        auto& strides = get_strides();
-        m_offset = std::inner_product(begin.begin(), begin.end(), strides.begin(), static_cast<size_t>(0));
     }
 
     const element::Type& get_element_type() const override {
@@ -251,12 +251,15 @@ public:
 
     void* data(const element::Type& element_type) const override {
         auto owner_data = m_owner->data(element_type);
-        return static_cast<uint8_t*>(owner_data) + m_offset;
+        auto& strides = get_strides();
+        size_t byte_offset =
+            std::inner_product(m_offsets.begin(), m_offsets.end(), strides.begin(), static_cast<size_t>(0));
+        return static_cast<uint8_t*>(owner_data) + byte_offset;
     }
 
 private:
     std::shared_ptr<ITensor> m_owner;
-    size_t m_offset;
+    Coordinate m_offsets;
     Shape m_shape;
 };
 
