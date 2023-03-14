@@ -492,7 +492,7 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v11::Interpola
     using ShapeCalcMode = op::v11::Interpolate::ShapeCalcMode;
     using TransformMode = op::v11::Interpolate::CoordinateTransformMode;
     using NearestMode = op::v11::Interpolate::NearestMode;
-    const auto params = ngraph::builder::makeDynamicParams({ov::element::f32, ov::element::i32}, {{2, 2, 30, 60}});
+    const auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{2, 2, 30, 60});
     const auto scales = ngraph::builder::makeConstant<float>(ov::element::f32, {2}, {0.5f, 0.5f});
     const auto axes = ngraph::builder::makeConstant<int64_t>(ov::element::i64, {2}, {2, 3});
     const InterpolateAttrs attrs{InterpolateMode::BILINEAR_PILLOW,
@@ -503,9 +503,9 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v11::Interpola
                                  NearestMode::ROUND_PREFER_FLOOR,
                                  false,
                                  -0.75};
-    const auto interpolate = std::make_shared<ov::op::v11::Interpolate>(params[0], scales, axes, attrs);
+    const auto interpolate = std::make_shared<ov::op::v11::Interpolate>(data, scales, axes, attrs);
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(interpolate)};
-    return std::make_shared<ov::Model>(results, params, "Interpolate-11");
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{{data}}, "Interpolate-11");
 }
 
 std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v3::Assign> &node) {
