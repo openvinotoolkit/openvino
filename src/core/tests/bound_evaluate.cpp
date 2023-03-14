@@ -51,3 +51,29 @@ TEST_F(EvaluateBoundTest, no_exception_when_node_has_output_with_dynamic_element
 
     EXPECT_NO_THROW(evaluate_both_bounds(fn_op));
 }
+
+using BoundEvaluatorTest = ::testing::Test;
+TEST(BoundEvaluatorTest, no_exception_on_single_bound) {
+    constexpr auto et = element::i32;
+    const auto s = Shape{1, 1};
+    const auto a = std::make_shared<Parameter>(et, PartialShape{s});
+    const auto b = Constant::create(et, s, {1});
+    const auto sub = std::make_shared<Subtract>(a, b);
+
+    int32_t a_l[1] = {1};
+    a->get_output_tensor(0).set_lower_value(Tensor{et, s, a_l});
+
+    int32_t o_[1] = {1000};
+    TensorVector output{{et, s, o_}};
+    ASSERT_NO_THROW(sub->evaluate_lower(output));
+    EXPECT_EQ(o_[0], 1000);
+    ASSERT_NO_THROW(sub->evaluate_upper(output));
+    EXPECT_EQ(o_[0], 1000);
+
+    int32_t a_u[1] = {11};
+    a->get_output_tensor(0).set_upper_value(Tensor{et, s, a_u});
+    ASSERT_NO_THROW(sub->evaluate_lower(output));
+    EXPECT_EQ(o_[0], 0);
+    ASSERT_NO_THROW(sub->evaluate_upper(output));
+    EXPECT_EQ(o_[0], 10);
+}
