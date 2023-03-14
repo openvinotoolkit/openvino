@@ -65,7 +65,7 @@ OutputVector translate_full_like(NodeContext& context) {
     auto input = context.get_input(0);
     auto value = context.get_input(1);
     auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
-    if (context.get_input_size() == 7) {
+    if (context.get_input_size() == 7 && !context.input_is_none(2)) {
         return {base_translate_full_with_convert(context, sizes, value, 2)};
     }
     auto out = context.input_is_none(3) ? input : context.get_input(3);
@@ -113,7 +113,7 @@ OutputVector translate_zeros_like(NodeContext& context) {
     auto input = context.get_input(0);
     auto value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
     auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
-    if (context.get_input_size() == 6) {
+    if (context.get_input_size() == 6 && !context.input_is_none(1)) {
         return {base_translate_full_with_convert(context, sizes, value, 1)};
     }
     auto out = context.input_is_none(2) ? input : context.get_input(2);
@@ -153,7 +153,7 @@ OutputVector translate_ones_like(NodeContext& context) {
     auto input = context.get_input(0);
     auto value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {1}));
     auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
-    if (context.get_input_size() == 6) {
+    if (context.get_input_size() == 6 && !context.input_is_none(1)) {
         return {base_translate_full_with_convert(context, sizes, value, 1)};
     }
     auto out = context.input_is_none(2) ? input : context.get_input(2);
@@ -172,7 +172,7 @@ OutputVector translate_new_ones(NodeContext& context) {
 };
 
 OutputVector translate_empty(NodeContext& context) {
-    num_inputs_check(context, 1, 2);
+    num_inputs_check(context, 1, 5);
     auto sizes = context.get_input(0);
     // In OV uninitialised data is not supported, so we create a tensor filled with zeros with a given shape and type.
     auto value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
@@ -186,6 +186,22 @@ OutputVector translate_empty(NodeContext& context) {
     return {empty};
 };
 
+OutputVector translate_new_empty(NodeContext& context) {
+    // aten::new_empty(Tensor self, SymInt[] size, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None,
+    // bool? pin_memory=None) -> Tensor
+    num_inputs_check(context, 2, 6);
+    auto input = context.get_input(0);
+    auto sizes = context.get_input(1);
+    auto value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
+    int dtype_id = 2;
+    Output<Node> empty;
+    if (!context.input_is_none(dtype_id)) {
+        empty = base_translate_full_with_convert(context, sizes, value, dtype_id);
+    } else {
+        empty = base_translate_full_with_convertlike(context, sizes, value, input);
+    }
+    return {empty};
+};
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend
