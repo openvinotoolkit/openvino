@@ -19,7 +19,6 @@ struct AutoLoadContext {
     std::atomic<bool> isAlready = {false};
     std::atomic<bool> isLoadSuccess = {false};
     std::atomic<bool> isReloadSuccess = {false};
-    std::atomic<bool> ableReload = {false};
     std::future<void> future;
     std::promise<void> promise;
     SoExecNetwork executableNetwork;
