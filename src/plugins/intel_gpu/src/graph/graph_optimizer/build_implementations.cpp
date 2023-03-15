@@ -19,7 +19,8 @@ void build_implementations::run(program& p) {
     cache.build_all();
     for (auto& n : p.get_processing_order()) {
         if (n->get_selected_impl()) {
-            n->get_selected_impl()->init_kernels(cache);
+            auto params = n->get_kernel_impl_params();
+            n->get_selected_impl()->init_kernels(cache, *params);
             n->get_selected_impl()->reset_kernels_source();
         }
     }

@@ -239,8 +239,7 @@ public:
                              std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
                              bool is_internal);
     static void init_primitives();
-    kernel_id add_kernel(const std::shared_ptr<kernel_string>& kernel_sring);
-    kernel::ptr get_kernel(kernel_id id);
+    void add_kernel(kernel_impl_params& params, const std::shared_ptr<kernel_string>& kernel_sring);
     kernels_cache& get_kernels_cache() const;
 
     // returns {-1, -1} if it failed to estimate by allocating given batch size

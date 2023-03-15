@@ -22,6 +22,7 @@ using namespace cldnn;
 void compile_graph::run(program& p) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::CompileGraph");
     for (auto& node : p.get_processing_order()) {
+        node->set_unique_id();
         if (!node->is_type<data>()) {
             node->get_output_layout();
         }
@@ -68,8 +69,8 @@ void compile_graph::run(program& p) {
                 try {
                     node->selected_impl = node->type()->choose_impl(*node);
                     if (node->selected_impl) {
-                        auto kernel_ids = p.get_kernels_cache().add_kernels_source(node->selected_impl->get_kernels_source());
-                        node->selected_impl->set_kernel_ids(kernel_ids);
+                        auto& params = *node->get_kernel_impl_params();
+                        p.get_kernels_cache().add_kernels_source(params, node->selected_impl->get_kernels_source());
                     }
                 } catch(...) {
                     exception = std::current_exception();

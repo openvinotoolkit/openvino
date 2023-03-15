@@ -516,10 +516,11 @@ network::~network() {
 //     [ memory reuse information ]
 void network::save(cldnn::BinaryOutputBuffer& ob) {
     kernels_cache kernels_cache(get_engine(), _config, 0, nullptr, {""});
-    for (const auto& p_inst : _exec_order) {
-        if (p_inst->get_impl() != nullptr)
-            kernels_cache.add_kernels(p_inst->get_impl()->get_kernel_ids(), p_inst->get_impl()->get_kernels());
-    }
+    // TODO fix issue
+    // for (const auto& p_inst : _exec_order) {
+    //     if (p_inst->get_impl() != nullptr)
+    //         kernels_cache.add_kernels(p_inst->get_impl()->get_kernel_ids(), p_inst->get_impl()->get_kernels());
+    // }
     ob << kernels_cache;
 
     int num_data_nodes = 0;

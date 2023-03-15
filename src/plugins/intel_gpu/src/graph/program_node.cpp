@@ -29,6 +29,8 @@
 
 using namespace cldnn;
 
+thread_local size_t program_node::cur_id = 0;
+
 program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
     : desc(prim), myprog(prog), preferred_input_fmts({}), preferred_output_fmts({}), org_id(prim ? (prim->id) : 0) {
     if (prim) {
