@@ -6,7 +6,6 @@
 
 #include "base/ov_behavior_test_utils.hpp"
 #include <openvino/runtime/properties.hpp>
-#include "openvino/pass/manager.hpp"
 
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/file_utils.hpp"
@@ -18,6 +17,7 @@
 #    define GTEST_COUT std::cerr << "[          ] [ INFO ] "
 #    include <codecvt>
 #    include <functional_test_utils/skip_tests_config.hpp>
+#    include "openvino/pass/manager.hpp"
 #endif
 
 namespace ov {
@@ -189,15 +189,6 @@ inline std::string getPluginFile() {
     return filename;
 }
 
-const std::string model_xml_name = "test_model.xml";
-const std::string model_bin_name = "test_model.bin";
-inline void generateModelFile() {
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::Serialize>(model_xml_name, model_bin_name);
-    auto function = ngraph::builder::subgraph::makeConvPoolReluNoReshapes({1, 3, 227, 227});
-    manager.run_passes(function);
-}
-
 TEST(OVClassBasicTest, smoke_createMockEngineConfigNoThrows) {
     const std::string filename = getPluginFile();
     OV_ASSERT_NO_THROW(ov::Core ie(filename));
@@ -212,48 +203,17 @@ TEST(OVClassBasicTest, smoke_createMockEngineConfigThrows) {
     CommonTestUtils::removeFile(filename.c_str());
 }
 
-#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPOR
-TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
-    const std::string pluginXML = getPluginFile();
-
-    for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
-        GTEST_COUT << testIndex;
-        std::wstring postfix = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
-        std::wstring pluginsXmlW = CommonTestUtils::addUnicodePostfixToPath(pluginXML, postfix);
-
-        try {
-            bool is_copy_successfully;
-            is_copy_successfully = CommonTestUtils::copyFile(pluginXML, pluginsXmlW);
-            if (!is_copy_successfully) {
-                FAIL() << "Unable to copy from '" << pluginXML << "' to '"
-                       << ::ov::util::wstring_to_string(pluginsXmlW) << "'";
-            }
-
-            GTEST_COUT << "Test " << testIndex << std::endl;
-
-            ov::Core ie = createCoreWithTemplate();
-            GTEST_COUT << "Core created " << testIndex << std::endl;
-            OV_ASSERT_NO_THROW(ie.register_plugins(::ov::util::wstring_to_string(pluginsXmlW)));
-            CommonTestUtils::removeFile(pluginsXmlW);
-            OV_ASSERT_NO_THROW(ie.get_versions("mock"));  // from pluginXML
-            OV_ASSERT_NO_THROW(ie.get_versions(target_device));
-            GTEST_COUT << "Plugin created " << testIndex << std::endl;
-
-            OV_ASSERT_NO_THROW(ie.register_plugin(pluginName, "TEST_DEVICE"));
-            OV_ASSERT_NO_THROW(ie.get_versions("TEST_DEVICE"));
-            GTEST_COUT << "Plugin registered and created " << testIndex << std::endl;
-
-            GTEST_COUT << "OK" << std::endl;
-        } catch (const ov::Exception& e_next) {
-            CommonTestUtils::removeFile(pluginsXmlW);
-            std::remove(pluginXML.c_str());
-            FAIL() << e_next.what();
-        }
-    }
-    CommonTestUtils::removeFile(pluginXML);
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+inline void generateModelFile() {
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::Serialize>("test_model.xml", "test_model.bin");
+    auto function = ngraph::builder::subgraph::makeConvPoolReluNoReshapes({1, 3, 227, 227});
+    manager.run_passes(function);
 }
 
-TEST_P(OVClassBasicTestP, compile_model_no_property_unicode) {
+TEST(OVClassBasicTest, compile_model_no_property_unicode) {
+    std::string model_xml_name = "test_model.xml";
+    std::string model_bin_name = "test_model.bin";
     generateModelFile();
     for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
         GTEST_COUT << testIndex;
@@ -294,6 +254,49 @@ TEST_P(OVClassBasicTestP, compile_model_no_property_unicode) {
     }
     CommonTestUtils::removeFile(model_xml_name);
     CommonTestUtils::removeFile(model_bin_name);
+}
+
+#endif
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPOR
+TEST_P(OVClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
+    const std::string pluginXML = getPluginFile();
+
+    for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
+        GTEST_COUT << testIndex;
+        std::wstring postfix = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
+        std::wstring pluginsXmlW = CommonTestUtils::addUnicodePostfixToPath(pluginXML, postfix);
+
+        try {
+            bool is_copy_successfully;
+            is_copy_successfully = CommonTestUtils::copyFile(pluginXML, pluginsXmlW);
+            if (!is_copy_successfully) {
+                FAIL() << "Unable to copy from '" << pluginXML << "' to '"
+                       << ::ov::util::wstring_to_string(pluginsXmlW) << "'";
+            }
+
+            GTEST_COUT << "Test " << testIndex << std::endl;
+
+            ov::Core ie = createCoreWithTemplate();
+            GTEST_COUT << "Core created " << testIndex << std::endl;
+            OV_ASSERT_NO_THROW(ie.register_plugins(::ov::util::wstring_to_string(pluginsXmlW)));
+            CommonTestUtils::removeFile(pluginsXmlW);
+            OV_ASSERT_NO_THROW(ie.get_versions("mock"));  // from pluginXML
+            OV_ASSERT_NO_THROW(ie.get_versions(target_device));
+            GTEST_COUT << "Plugin created " << testIndex << std::endl;
+
+            OV_ASSERT_NO_THROW(ie.register_plugin(pluginName, "TEST_DEVICE"));
+            OV_ASSERT_NO_THROW(ie.get_versions("TEST_DEVICE"));
+            GTEST_COUT << "Plugin registered and created " << testIndex << std::endl;
+
+            GTEST_COUT << "OK" << std::endl;
+        } catch (const ov::Exception& e_next) {
+            CommonTestUtils::removeFile(pluginsXmlW);
+            std::remove(pluginXML.c_str());
+            FAIL() << e_next.what();
+        }
+    }
+    CommonTestUtils::removeFile(pluginXML);
 }
 
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
