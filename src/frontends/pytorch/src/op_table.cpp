@@ -25,7 +25,6 @@ OP_CONVERTER(translate_avg_poolnd);
 OP_CONVERTER(translate_bool);
 OP_CONVERTER(translate_batch_norm);
 OP_CONVERTER(translate_cat);
-OP_CONVERTER(translate_chunk);
 OP_CONVERTER(translate_clamp);
 OP_CONVERTER(translate_constant);
 OP_CONVERTER(translate_conv_transposend);
@@ -165,7 +164,6 @@ const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
         {"aten::cat", op::translate_cat},
         {"aten::ceil", op::translate_1to1_match_1_inputs<opset10::Ceiling>},
         {"aten::ceil_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Ceiling>>},
-        {"aten::chunk", op::translate_chunk},
         {"aten::clamp", op::translate_clamp},
         {"aten::clamp_max", op::translate_1to1_match_2_inputs<opset10::Minimum>},
         {"aten::clamp_min", op::translate_1to1_match_2_inputs<opset10::Maximum>},
