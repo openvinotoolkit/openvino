@@ -11,8 +11,7 @@
 #include "intel_gpu/runtime/tensor.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
 
-#include "tensor_type.h"
-#include "fused_primitive_desc.h"
+#include "intel_gpu/graph/fused_primitive_desc.hpp"
 
 #include <cstdint>
 #include <string>
@@ -25,6 +24,12 @@ struct program;
 
 
 struct kernel_impl_params {
+    struct Hasher {
+        size_t operator()(const kernel_impl_params &k) const {
+            return k.hash();
+        }
+    };
+
     bool has_runtime_layouts = false;
     const program *prog;
     std::shared_ptr<const primitive> desc;
@@ -49,7 +54,7 @@ struct kernel_impl_params {
 
     memory::ptr reordered_weights = nullptr;
 
-    kernel_impl_params() {}
+    kernel_impl_params() : prog(nullptr), desc(nullptr), unique_id(0) {}
 
     kernel_impl_params(program& _prog,
                        std::shared_ptr<const primitive> _desc,
@@ -116,6 +121,9 @@ struct kernel_impl_params {
         OPENVINO_ASSERT(prog != nullptr, "[GPU] Program pointer in kernel_impl_params in not initialized");
         return *prog;
     }
+
+    size_t hash() const;
+    bool operator==(const kernel_impl_params& rhs) const;
 };
 
 }  // namespace cldnn

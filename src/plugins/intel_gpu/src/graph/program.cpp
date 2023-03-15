@@ -124,7 +124,6 @@ program::program(engine& engine_ref,
     } else {
         build_program(is_internal);
     }
-    calc_nodes_hash();
 }
 
 program::program(engine& engine_ref,
@@ -142,7 +141,6 @@ program::program(engine& engine_ref,
     init_program();
     prepare_nodes(nodes);
     build_program(is_internal);
-    calc_nodes_hash();
 }
 
 program::program(engine& engine)
@@ -150,6 +148,7 @@ program::program(engine& engine)
       _stream(_engine.create_stream({})),
       _config(),
       processing_order() {
+    init_primitives();
     _config.apply_user_properties(_engine.get_device_info());
 }
 
@@ -171,8 +170,8 @@ void program::init_program() {
     _impls_cache = cldnn::make_unique<ImplementationsCache>(_impls_cache_capacity);
     // Remove items of compilation context's internal queue when some impl is popped in kernels_cache
     // compilation context's queue check duplication of inserted task
-    _impls_cache->set_remove_item_callback([this](std::pair<size_t, std::shared_ptr<cldnn::primitive_impl>>& item) {
-        get_compilation_context().remove_keys({item.first});
+    _impls_cache->set_remove_item_callback([this](ImplementationsCache::ItemType& item) {
+        get_compilation_context().remove_keys({item.first.hash()});
     });
 }
 
@@ -228,21 +227,6 @@ InferenceEngine::CPUStreamsExecutor::Config program::make_task_executor_config(c
 std::shared_ptr<InferenceEngine::CPUStreamsExecutor> program::make_task_executor(const ExecutionConfig& config) const {
     InferenceEngine::CPUStreamsExecutor::Config task_executor_config = make_task_executor_config(config, "CPU Tasks executor for GPU plugin");
     return std::make_shared<InferenceEngine::CPUStreamsExecutor>(task_executor_config);
-}
-
-void program::compile() {
-    GPU_DEBUG_DEFINE_MEM_LOGGER("compile");
-    _kernels_cache->build_all();
-}
-
-void program::init_kernels() {
-    GPU_DEBUG_DEFINE_MEM_LOGGER("init_kernels");
-    for (auto& n : get_processing_order()) {
-        if (n->get_selected_impl()) {
-            n->get_selected_impl()->init_kernels(*_kernels_cache);
-            n->get_selected_impl()->reset_kernels_source();
-        }
-    }
 }
 
 kernel_id program::add_kernel(const std::shared_ptr<kernel_string>& kernelSring) {
@@ -504,12 +488,6 @@ void program::set_options() {
     }
 }
 
-void program::calc_nodes_hash() {
-    for (auto& node : processing_order) {
-        node->calculate_hash();
-    }
-}
-
 void program::build_program(bool is_internal) {
     init_graph();
     { pre_optimize_graph(is_internal); }
@@ -523,13 +501,7 @@ void program::build_program(bool is_internal) {
     {
 #endif
         prepare_memory_dependencies();
-
-        if (_config.get_property(ov::intel_gpu::partial_build_program)) {
-            return;
-        }
-
-        compile();
-        init_kernels();
+        apply_opt_pass<build_implementations>();
     }
 
     if (!is_internal) {
@@ -537,12 +509,10 @@ void program::build_program(bool is_internal) {
         if (get_engine().get_device_info().dev_type == device_type::discrete_gpu)
             transfer_memory_to_device();
     }
-
-    cleanup();
 }
 
 void program::init_graph() {
-    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::InitGraph");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "Program::init_graph");
     apply_opt_pass<graph_initializations>();
 
     apply_opt_pass<calculate_prior_boxes>();
@@ -553,7 +523,7 @@ void program::init_graph() {
 void program::run_graph_compilation() { apply_opt_pass<compile_graph>(); }
 
 void program::pre_optimize_graph(bool is_internal) {
-    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::PreOptimizeGraph");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "Program::pre_optimize_graph");
 
     // trim to outputs
     apply_opt_pass<trim_to_outputs>();  // ToDo remove hidden dependencies from trimm pass
@@ -633,7 +603,7 @@ void program::pre_optimize_graph(bool is_internal) {
 }
 
 void program::post_optimize_graph(bool is_internal) {
-    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::PostOptimizeGraph");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "Program::post_optimize_graph");
     // input reorder for fully connected if necessary
     apply_opt_pass<post_input_reorder>();
 
@@ -696,7 +666,7 @@ void program::mark_if_data_flow(program_node& node) {
 
 void program::transfer_memory_to_device() {
     GPU_DEBUG_DEFINE_MEM_LOGGER("transfer_memory_to_device");
-    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "ProgramImpl::TransferMemory");
+    OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "Program::transfer_memory_to_device");
     if (!get_engine().supports_allocation(allocation_type::usm_device))
         return;
 
@@ -729,14 +699,6 @@ void program::transfer_memory_to_device() {
             }
         }
     }
-}
-
-void program::cleanup() {
-    GPU_DEBUG_DEFINE_MEM_LOGGER("cleanup");
-    for (auto& node : processing_order)
-        node->get_output_layout();
-
-    _kernels_cache->reset();
 }
 
 void program::add_split_outputs() {
