@@ -86,20 +86,20 @@ std::string findPluginXML(const std::string& xmlFile) {
         if (FileUtils::fileExist(xmlConfigFileDefault))
             return xmlConfigFile_ = ov::util::from_file_path(xmlConfigFileDefault);
 
-        throw ov::Exception("Failed to find plugins.xml file");
+        OPENVINO_THROW("Failed to find plugins.xml file");
     }
     return xmlConfigFile_;
 }
 
 #endif  // OPENVINO_STATIC_LIBRARY
 
-#define OV_CORE_CALL_STATEMENT(...)                     \
-    try {                                               \
-        __VA_ARGS__;                                    \
-    } catch (const std::exception& ex) {                \
-        throw ov::Exception(ex.what());                 \
-    } catch (...) {                                     \
-        OPENVINO_ASSERT(false, "Unexpected exception"); \
+#define OV_CORE_CALL_STATEMENT(...)             \
+    try {                                       \
+        __VA_ARGS__;                            \
+    } catch (const std::exception& ex) {        \
+        OPENVINO_THROW(ex.what());              \
+    } catch (...) {                             \
+        OPENVINO_THROW("Unexpected exception"); \
     }
 
 class Core::Impl : public CoreImpl {
@@ -202,7 +202,7 @@ void Core::add_extension(const std::string& library_path) {
             add_extension(extension_ptr);
             OPENVINO_SUPPRESS_DEPRECATED_END
         } catch (const std::runtime_error&) {
-            throw ov::Exception("Cannot add extension. Cannot find entry point to the extension library");
+            OPENVINO_THROW("Cannot add extension. Cannot find entry point to the extension library");
         }
     }
 }
@@ -219,7 +219,7 @@ void Core::add_extension(const std::wstring& library_path) {
             add_extension(extension_ptr);
             OPENVINO_SUPPRESS_DEPRECATED_END
         } catch (const std::runtime_error&) {
-            throw ov::Exception("Cannot add extension. Cannot find entry point to the extension library");
+            OPENVINO_THROW("Cannot add extension. Cannot find entry point to the extension library");
         }
     }
 }

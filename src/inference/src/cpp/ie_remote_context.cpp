@@ -7,9 +7,11 @@
 #include <exception>
 
 #include "any_copy.hpp"
+#include "dev/make_tensor.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_remote_blob.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/remote_context.hpp"
 
 #define OV_REMOTE_CONTEXT_STATEMENT(...)                                     \
@@ -18,9 +20,9 @@
     try {                                                                    \
         __VA_ARGS__;                                                         \
     } catch (const std::exception& ex) {                                     \
-        throw ov::Exception(ex.what());                                      \
+        OPENVINO_THROW(ex.what());                                           \
     } catch (...) {                                                          \
-        OPENVINO_ASSERT(false, "Unexpected exception");                      \
+        OPENVINO_THROW("Unexpected exception");                              \
     }
 
 namespace ov {
@@ -67,7 +69,7 @@ RemoteTensor RemoteContext::create_tensor(const element::Type& type, const Shape
             {ie::details::convertPrecision(type), shape, ie::TensorDesc::getLayoutByRank(shape.size())},
             params);
         blob->allocate();
-        return {blob, {_so}};
+        return {ov::make_tensor(blob), {_so}};
     });
 }
 
@@ -76,7 +78,7 @@ Tensor RemoteContext::create_host_tensor(const element::Type element_type, const
         auto blob = _impl->CreateHostBlob(
             {ie::details::convertPrecision(element_type), shape, ie::TensorDesc::getLayoutByRank(shape.size())});
         blob->allocate();
-        return {blob, {_so}};
+        return {ov::make_tensor(blob), {_so}};
     });
 }
 
