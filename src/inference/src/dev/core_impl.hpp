@@ -218,7 +218,7 @@ public:
                              std::string& deviceName,
                              ov::AnyMap& config) const;
 
-    void clean_properties(std::string& deviceName, ov::AnyMap& config, ov::Any property) const;
+    void clean_properties(std::string& deviceName, ov::AnyMap& config, const std::string& property_name) const;
 
 #ifdef OPENVINO_STATIC_LIBRARY
 
