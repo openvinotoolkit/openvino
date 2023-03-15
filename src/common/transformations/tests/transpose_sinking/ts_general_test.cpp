@@ -1,26 +1,28 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/transpose_sinking/ts_general.hpp"
+
 #include <functional>
-#include <openvino/frontend/manager.hpp>
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/pass/manager.hpp>
-#include <transformations/common_optimizations/transpose_sinking_general.hpp>
-#include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
+#include "openvino/frontend/manager.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
 
 using namespace testing;
 using namespace ov::opset10;
+using namespace ov::pass::transpose_sinking;
 using NodePtr = std::shared_ptr<ov::Node>;
 
 namespace transpose_sinking {
 namespace testing {
 namespace general {
 
-TEST_F(TransformationTestsF, TransposeSinkingGeneralTestUnariesTransposesForward) {
+TEST_F(TransformationTestsF, TSGeneralTestUnariesTransposesForward) {
     ov::Shape input_shape = {1, 96, 55, 55};
     ov::element::Type input_type = ov::element::f32;
     size_t num_unary_ops = 10;
@@ -53,10 +55,10 @@ TEST_F(TransformationTestsF, TransposeSinkingGeneralTestUnariesTransposesForward
         function_ref = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
     }
 
-    manager.register_pass<ov::pass::TransposeSinkingGeneralForward>();
+    manager.register_pass<TSGeneralForward>();
 }
 
-TEST_F(TransformationTestsF, TransposeSinkingGeneralTestUnariesTransposesBackward) {
+TEST_F(TransformationTestsF, TSGeneralTestUnariesTransposesBackward) {
     ov::Shape input_shape = {1, 96, 55, 55};
     ov::element::Type input_type = ov::element::f32;
     size_t num_unary_ops = 10;
@@ -88,10 +90,10 @@ TEST_F(TransformationTestsF, TransposeSinkingGeneralTestUnariesTransposesBackwar
 
         function_ref = std::make_shared<ov::Model>(in_op, ov::ParameterVector{X});
     }
-    manager.register_pass<ov::pass::TransposeSinkingGeneralBackward>();
+    manager.register_pass<TSGeneralBackward>();
 }
 
-TEST_F(TransformationTestsF, TransposeSinkingGeneralTestUnariesTransposesGeneral) {
+TEST_F(TransformationTestsF, TSGeneralTestUnariesTransposesGeneral) {
     ov::Shape input_shape = {1, 96, 55, 55};
     ov::element::Type input_type = ov::element::f32;
     size_t num_unary_ops = 10;
@@ -130,10 +132,10 @@ TEST_F(TransformationTestsF, TransposeSinkingGeneralTestUnariesTransposesGeneral
         function_ref = std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
     }
 
-    manager.register_pass<ov::pass::TransposeSinkingGeneral>();
+    manager.register_pass<TSGeneral>();
 }
 
-TEST_F(TransformationTestsF, TransposeSinkingGeneralTestBinaryGeneral) {
+TEST_F(TransformationTestsF, TSGeneralTestBinaryGeneral) {
     ov::Shape input_shape = {1, 96, 55, 55};
     ov::element::Type input_type = ov::element::f32;
     size_t num_binary_ops = 10;
@@ -171,10 +173,10 @@ TEST_F(TransformationTestsF, TransposeSinkingGeneralTestBinaryGeneral) {
         function_ref = std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
     }
 
-    manager.register_pass<ov::pass::TransposeSinkingGeneral>();
+    manager.register_pass<TSGeneral>();
 }
 
-TEST_F(TransformationTestsF, TransposeSinkingGeneralTestConcatGeneral) {
+TEST_F(TransformationTestsF, TSGeneralTestConcatGeneral) {
     ov::Shape input_shape = {1, 96, 55, 55};
     ov::element::Type input_type = ov::element::f32;
     const size_t num_concat_ops = 3;
@@ -224,7 +226,7 @@ TEST_F(TransformationTestsF, TransposeSinkingGeneralTestConcatGeneral) {
         function_ref = std::make_shared<ov::Model>(transpose0, ov::ParameterVector{X});
     }
 
-    manager.register_pass<ov::pass::TransposeSinkingGeneral>();
+    manager.register_pass<TSGeneral>();
 }
 
 // ----------------------------------------------------------------------------------------------------------------------
@@ -364,7 +366,7 @@ NodePtr MakeAllNodesSubgraph(NodePtr parent, size_t split_axis, size_t concat_ax
     return in_op;
 }
 
-TEST_F(TransformationTestsF, TransposeSinkingGeneralTestMultipleTypes) {
+TEST_F(TransformationTestsF, TSGeneralTestMultipleTypes) {
     using namespace transpose_sinking::testing::general;
     ov::Shape input_shape = {1, 96, 40, 55};
     ov::element::Type input_type = ov::element::f32;
@@ -407,7 +409,7 @@ TEST_F(TransformationTestsF, TransposeSinkingGeneralTestMultipleTypes) {
         function_ref = std::make_shared<ov::Model>(transpose1, ov::ParameterVector{X});
     }
 
-    manager.register_pass<ov::pass::TransposeSinkingGeneral>();
+    manager.register_pass<TSGeneral>();
 }
 
 }  // namespace general

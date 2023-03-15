@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include <openvino/frontend/manager.hpp>
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/pass/manager.hpp>
-
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
+#include "openvino/frontend/manager.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/manager.hpp"
 
 namespace transpose_sinking {
 namespace testing {
+namespace utils {
 
 using NodePtr = std::shared_ptr<ov::Node>;
 
@@ -53,7 +53,7 @@ public:
     }
 };
 using PassFactoryPtr = std::shared_ptr<IPassFactory>;
-#define CREATE_PASS_FACTORY(pass_name) std::make_shared<PassFactory<ov::pass::pass_name>>(#pass_name)
+#define CREATE_PASS_FACTORY(pass_name) std::make_shared<PassFactory<ov::pass::transpose_sinking::pass_name>>(#pass_name)
 
 std::string to_string(const ov::Shape& shape);
 ov::OutputVector set_transpose_for(const std::vector<size_t>& idxs, const ov::OutputVector& out_vec);
@@ -67,5 +67,6 @@ std::shared_ptr<ov::Node> constant(ov::element::Type el_type, const ov::Shape& s
     return ov::opset10::Constant::create<T>(el_type, shape, value);
 }
 
+}  // namespace utils
 }  // namespace testing
 }  // namespace transpose_sinking
