@@ -9,10 +9,6 @@ Operation Class
 
 To add your custom operation, create a new class that extends ``ov::Op``, which is in turn derived from ``:ref:`ov::Node <doxid-classov_1_1_node>```, the base class for all graph operations in OpenVINO™. To add ``ov::Op``, include the next file:
 
-.. doxygensnippet:: ./src/core/template_extension/new/ov_extension.cpp 
-   :language: cpp
-   :fragment: [ov_extension:entry_point]
-
 .. doxygensnippet:: ./src/core/template_extension/new/identity.hpp
    :language: cpp
    :fragment: [op:common_include]
@@ -38,6 +34,7 @@ Operation Constructors
 ++++++++++++++++++++++
 
 OpenVINO™ operation contains two constructors: 
+
 * Default constructor, which enables you to create an operation without attributes 
 * Constructor that creates and validates an operation with specified inputs and attributes
 
