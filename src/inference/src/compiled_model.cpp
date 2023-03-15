@@ -119,7 +119,13 @@ Any CompiledModel::get_property(const std::string& name) const {
         if (name == ov::loaded_from_cache.name()) {
             return _impl->is_loaded_from_cache();
         }
-        return {_impl->get_property(name), {_so}};
+        auto property = _impl->get_property(name);
+        if (name == ov::supported_properties.name()) {
+            auto& supported_properties = property.as<std::vector<PropertyName>>();
+            // Add ov::loaded_from_cache
+            supported_properties.emplace_back(ov::loaded_from_cache);
+        }
+        return {property, {_so}};
     });
 }
 
