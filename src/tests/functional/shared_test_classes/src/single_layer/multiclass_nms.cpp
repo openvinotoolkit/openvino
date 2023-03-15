@@ -351,8 +351,6 @@ void MulticlassNmsLayerTest::SetUp() {
     InputfloatVar inFloatVar;
     InputboolVar inboolVar;
 
-    bool outputStatic;
-
     std::tie(shapes, inPrecisions, maxOutBoxesPerClass, inFloatVar, backgroundClass, keepTopK, outType, sortResultType, inboolVar,
              m_outStaticShape, targetDevice) = this->GetParam();
 
