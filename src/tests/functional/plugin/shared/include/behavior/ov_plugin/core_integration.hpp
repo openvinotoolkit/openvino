@@ -1222,13 +1222,12 @@ TEST_P(OVClassLoadNetworkTest, LoadNetworkHETEROwithMULTINoThrow) {
                 devices += ',';
             }
         }
-        OV_ASSERT_NO_THROW(
-            ie.compile_model(actualNetwork,
-                             CommonTestUtils::DEVICE_HETERO,
-                             ov::device::properties(CommonTestUtils::DEVICE_MULTI,
-                                               ov::device::priorities(devices)),
-                             ov::device::properties(CommonTestUtils::DEVICE_HETERO,
-                                               ov::device::priorities(CommonTestUtils::DEVICE_MULTI, target_device))));
+        ie.compile_model(actualNetwork,
+                            CommonTestUtils::DEVICE_HETERO,
+                            ov::device::properties(CommonTestUtils::DEVICE_MULTI,
+                                            ov::device::priorities(devices)),
+                            ov::device::properties(CommonTestUtils::DEVICE_HETERO,
+                                            ov::device::priorities(CommonTestUtils::DEVICE_MULTI, target_device)));
     } else {
         GTEST_FAIL() << "Device does not support DeviceID property" << std::endl;
     }
