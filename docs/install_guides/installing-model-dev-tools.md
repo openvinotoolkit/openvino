@@ -17,23 +17,23 @@ In both cases, Python 3.7 - 3.10 needs to be installed on your machine before st
 .. note:: 
    From the 2022.1 release, the OpenVINO™ Development Tools can only be installed via PyPI. 
 
-.. _python-developers
+.. _python_developers:
 
 For Python Developers
 #####################
 
-If you are a Python developer, follow the steps in the :ref:`Installing OpenVINO Development Tools <install-dev-tools>` section on this page to install it. Installing OpenVINO Development Tools will also install OpenVINO Runtime as a dependency, so you don’t need to install OpenVINO Runtime separately. This option is recommended for new users.
+If you are a Python developer, follow the steps in the :ref:`Installing OpenVINO Development Tools <install_dev_tools>` section on this page to install it. Installing OpenVINO Development Tools will also install OpenVINO Runtime as a dependency, so you don’t need to install OpenVINO Runtime separately. This option is recommended for new users.
    
-.. _cpp-developers
+.. _cpp_developers:
 
 For C++ Developers
 ##################
 
 If you are a C++ developer, you must first install OpenVINO Runtime separately to set up the C++ libraries, sample code, and dependencies for building applications with OpenVINO. These files are not included with the PyPI distribution. See the :doc:`Install OpenVINO Runtime <openvino_docs_install_guides_install_runtime>` page to install OpenVINO Runtime from an archive file for your operating system.
 
-Once OpenVINO Runtime is installed, you may install OpenVINO Development Tools for access to tools like Model Optimizer, Model Downloader, Benchmark Tool, and other utilities that will help you optimize your model and develop your application. Follow the steps in the :ref:`Installing OpenVINO Development Tools <install-dev-tools>` section on this page to install it.
+Once OpenVINO Runtime is installed, you may install OpenVINO Development Tools for access to tools like Model Optimizer, Model Downloader, Benchmark Tool, and other utilities that will help you optimize your model and develop your application. Follow the steps in the :ref:`Installing OpenVINO Development Tools <install_dev_tools>` section on this page to install it.
 
-.. _install-dev-tools
+.. _install_dev_tools:
 
 Installing OpenVINO™ Development Tools
 ######################################
@@ -45,7 +45,7 @@ for model training or creation; or installation into a new environment.
 Installation into an Existing Environment with the Source Deep Learning Framework
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-To install OpenVINO Development Tools (see the :ref:`Install the Package <install-the-package>` section of this article) into an existing environment
+To install OpenVINO Development Tools (see the :ref:`Install the Package <install_the_package>` section of this article) into an existing environment
 with the deep learning framework used for the model training or creation, run the following command:
 
 .. code-block:: sh
@@ -109,7 +109,8 @@ Make sure `pip` is installed in your environment and upgrade it to the latest ve
 
    python -m pip install --upgrade pip
 
-.. _install-the-package
+
+.. _install_the_package:
 
 Step 4. Install the Package
 ---------------------------
