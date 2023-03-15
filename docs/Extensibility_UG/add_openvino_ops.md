@@ -9,11 +9,11 @@ Operation Class
 
 To add your custom operation, create a new class that extends ``ov::Op``, which is in turn derived from ``:ref:`ov::Node <doxid-classov_1_1_node>```, the base class for all graph operations in OpenVINO™. To add ``ov::Op``, include the next file:
 
-.. doxygensnippet:: template_extension/new/ov_extension.cpp
+.. doxygensnippet:: ./src/core/template_extension/new/ov_extension.cpp 
    :language: cpp
    :fragment: [ov_extension:entry_point]
 
-.. doxygensnippet:: template_extension/new/identity.hpp
+.. doxygensnippet:: ./src/core/template_extension/new/identity.hpp
    :language: hpp
    :fragment: [op:common_include]
 
