@@ -193,7 +193,7 @@ TEST(CoreTests_parse_device_config, get_device_config) {
                                    const ov::AnyMap& expected_config) {
         auto parsed = ov::parseDeviceNameIntoConfig(device, config);
         ASSERT_EQ(parsed._deviceName, expected_device);
-        ASSERT_EQ(parsed._config, expected_config);
+        ASSERT_EQ(ov::Any(parsed._config).as<std::string>(), ov::Any(expected_config).as<std::string>());
     };
     // Single device
     check_parsed_config("DEVICE.0", ov::AnyMap{}, "DEVICE", ov::AnyMap{ov::device::id("0")});
