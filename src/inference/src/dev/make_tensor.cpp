@@ -605,4 +605,3 @@ ie::Blob::Ptr tensor_to_blob(const std::shared_ptr<ITensor>& tensor) {
     OPENVINO_THROW("Cannot convert tensor to blob!");
 }
 }  // namespace ov
-
