@@ -609,6 +609,23 @@ inline std::vector<float> get_output_values_to_float(cldnn::network& net, const 
     }
 }
 
+inline cldnn::memory::ptr get_generated_random_1d_mem(cldnn::engine& engine, cldnn::layout l) {
+    auto prim = engine.allocate_memory(l);
+    cldnn::tensor s = l.get_tensor();
+    if (l.data_type == cldnn::data_types::i8 || l.data_type == cldnn::data_types::u8) {
+        VF<uint8_t> rnd_vec = generate_random_1d<uint8_t>(s.count(), -200, 200);
+        set_values(prim, rnd_vec);
+    } else if (l.data_type == cldnn::data_types::f16) {
+        VF<FLOAT16> rnd_vec = generate_random_1d<FLOAT16>(s.count(), -1, 1);
+        set_values(prim, rnd_vec);
+    } else {
+        VF<float> rnd_vec = generate_random_1d<float>(s.count(), -1, 1);
+        set_values(prim, rnd_vec);
+    }
+
+    return prim;
+}
+
 double default_tolerance(cldnn::data_types dt);
 // inline void print_bin_blob(cldnn::memory& mem, std::string name)
 // {

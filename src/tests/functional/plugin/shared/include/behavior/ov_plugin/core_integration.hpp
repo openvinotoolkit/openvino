@@ -255,7 +255,6 @@ TEST(OVClassBasicTest, compile_model_no_property_unicode) {
     CommonTestUtils::removeFile(model_xml_name);
     CommonTestUtils::removeFile(model_bin_name);
 }
-
 #endif
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPOR
