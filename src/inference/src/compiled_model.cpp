@@ -6,6 +6,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/properties.hpp"
 
 #define OV_COMPILED_MODEL_CALL_STATEMENT(...)                                \
     OPENVINO_ASSERT(_impl != nullptr, "CompiledModel was not initialized."); \
@@ -114,7 +115,12 @@ void CompiledModel::set_property(const AnyMap& config) {
 }
 
 Any CompiledModel::get_property(const std::string& name) const {
-    OV_COMPILED_MODEL_CALL_STATEMENT(return {_impl->get_property(name), {_so}});
+    OV_COMPILED_MODEL_CALL_STATEMENT({
+        if (name == ov::loaded_from_cache.name()) {
+            return _impl->is_loaded_from_cache();
+        }
+        return {_impl->get_property(name), {_so}};
+    });
 }
 
 RemoteContext CompiledModel::get_context() const {

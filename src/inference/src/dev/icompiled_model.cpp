@@ -6,6 +6,7 @@
 
 #include "icompiled_model_wrapper.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "transformations/utils/utils.hpp"
 
 ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model,
@@ -95,7 +96,13 @@ const std::shared_ptr<ov::threading::ITaskExecutor> ov::ICompiledModel::get_call
 void ov::ICompiledModel::loaded_from_cache() {
     if (auto wrapper = dynamic_cast<InferenceEngine::ICompiledModelWrapper*>(this)) {
         wrapper->get_executable_network()->loadedFromCache();
-        return;
     }
-    // OPENVINO_NOT_IMPLEMENTED;
+    m_is_from_cache = true;
+}
+
+bool ov::ICompiledModel::is_loaded_from_cache() {
+    if (auto wrapper = dynamic_cast<InferenceEngine::ICompiledModelWrapper*>(this)) {
+        return wrapper->get_executable_network()->isLoadedFromCache();
+    }
+    return m_is_from_cache;
 }
