@@ -38,7 +38,7 @@ Tensor::Tensor(const std::shared_ptr<ITensor>& impl, const std::vector<std::shar
     OPENVINO_ASSERT(_impl != nullptr, "Tensor was not initialized.");
 }
 
-Tensor::Tensor(const element::Type element_type, const Shape& shape, const Allocator& allocator) {
+Tensor::Tensor(const element::Type& element_type, const Shape& shape, const Allocator& allocator) {
     OPENVINO_ASSERT(allocator, "Allocator was not initialized");
     auto allocator_impl = dynamic_cast<const BlobAllocator*>(allocator._impl.get());
     auto blob_allocator =
@@ -75,7 +75,7 @@ void Tensor::set_shape(const ov::Shape& shape) {
     OV_TENSOR_STATEMENT(_impl->set_shape(shape));
 }
 
-Shape Tensor::get_shape() const {
+const Shape& Tensor::get_shape() const {
     OV_TENSOR_STATEMENT({ return _impl->getTensorDesc().getDims(); });
 }
 
