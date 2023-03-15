@@ -13,16 +13,16 @@ In addition, GraphRewrite handles nodes that were registered by MatcherPasses du
 
 .. note:: 
 
-   When using `ov::pass::Manager` temporary GraphRewrite is used to execute single MatcherPass.
+   When using ``:ref:`ov::pass::Manager <doxid-classov_1_1pass_1_1_manager>``` temporary GraphRewrite is used to execute single MatcherPass.
 
 GraphRewrite has two algorithms for MatcherPasses execution. First algorithm is straightforward. It applies each MatcherPass in registration order to current node.
 
-.. image:: ./img/graph_rewrite_execution.png
+.. image:: docs/_static/images/graph_rewrite_execution.png  
 
 But it is not really efficient when you have a lot of registered passes. So first of all GraphRewrite checks that all MatcherPass patterns has type-based root node (it means that type of this node is not hidden into predicate).
 And then creates map from registered MatcherPasses. That helps to avoid additional cost of applying each MatcherPass for each node.
 
-.. image:: ./img/graph_rewrite_efficient_search.png
+.. image:: docs/_static/images/graph_rewrite_efficient_search.png
 
 .. note::
 

@@ -7,7 +7,7 @@
 Template for MatcherPass transformation class
 
 .. doxygensnippet:: docs/snippets/template_pattern_transformation.hpp
-   :language: hpp
+   :language: cpp
    :fragment: [graph_rewrite:template_transformation_hpp]
 
 .. doxygensnippet:: docs/snippets/template_pattern_transformation.cpp
@@ -16,6 +16,7 @@ Template for MatcherPass transformation class
 
 
 To use ``:ref:`ov::pass::MatcherPass <doxid-classov_1_1pass_1_1_matcher_pass>```, you need to complete these steps:
+
 1. Create a pattern
 2. Implement a callback
 3. Register the pattern and Matcher
@@ -38,7 +39,7 @@ Then you need to take the last created operation and put it as a root of the pat
 
 The ``Parameter`` operation in the example above has type and shape specified. These attributes are needed only to create Parameter operation class and will not be used in pattern matching.
 
-For more pattern examples, refer to the 'pattern matching <Pattern Matching>`__  section.
+For more pattern examples, refer to the `pattern matching <Pattern-Matching>`__  section.
 
 Implement callback
 ##################
