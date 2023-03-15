@@ -1,0 +1,110 @@
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/deformable_convolution.hpp"
+#include "openvino/op/add.hpp"
+#include "pt_framework_node.hpp"
+#include "utils.hpp"
+
+namespace ov {
+namespace frontend {
+namespace pytorch {
+namespace op {
+
+using namespace ov::op;
+
+OutputVector translate_deform_conv(NodeContext& context) {
+    // torchvision::deform_conv2d(const at::Tensor& input, const at::Tensor& weight, const at::Tensor& offset,
+    //                            const at::Tensor& mask, const at::Tensor& bias, int64_t stride_h, int64_t stride_w,
+    //                            int64_t pad_h, int64_t pad_w, int64_t dilation_h, int64_t dilation_w, int64_t n_weight_grps,
+    //                            int64_t n_offset_grps, bool use_mask)
+    // DeformableConvolution(const Output<Node>& arg,
+    //                     const Output<Node>& offsets,
+    //                     const Output<Node>& filters,
+    //                     const Strides& strides,
+    //                     const CoordinateDiff& pads_begin,
+    //                     const CoordinateDiff& pads_end,
+    //                     const Strides& dilations,
+    //                     const PadType& auto_pad = PadType::EXPLICIT,
+    //                     const int64_t group = 1,
+    //                     const int64_t deformable_group = 1,
+    //                     const bool bilinear_interpolation_pad = false);
+    // DeformableConvolution(const Output<Node>& arg,
+    //                         const Output<Node>& offsets,
+    //                         const Output<Node>& filters,
+    //                         const Output<Node>& mask,
+    //                         const Strides& strides,
+    //                         const CoordinateDiff& pads_begin,
+    //                         const CoordinateDiff& pads_end,
+    //                         const Strides& dilations,
+    //                         const PadType& auto_pad = PadType::EXPLICIT,
+    //                         const int64_t group = 1,
+    //                         const int64_t deformable_group = 1,
+    //                         const bool bilinear_interpolation_pad = false)
+    num_inputs_check(context, 14, 14);
+
+    auto pt_input = context.get_input(0);
+    auto pt_weight = context.get_input(1);
+    auto pt_offset = context.get_input(2);
+    auto pt_mask = context.get_input(3);
+    auto pt_bias = context.get_input(4);
+
+    uint64_t pt_stride_h = context.const_input<uint64_t>(5);
+    uint64_t pt_stride_w = context.const_input<uint64_t>(6);
+    int64_t pt_pad_h = context.const_input<int64_t>(7);
+    int64_t pt_pad_w = context.const_input<int64_t>(8);
+    uint64_t pt_dilation_h = context.const_input<uint64_t>(9);
+    uint64_t pt_dilation_w = context.const_input<uint64_t>(10);
+    uint64_t pt_n_weight_grps = context.const_input<int64_t>(11);
+    uint64_t pt_n_offset_grps = context.const_input<int64_t>(12);
+    bool pt_use_mask = context.const_input<bool>(13);
+    
+    auto strides = Strides({pt_stride_h, pt_stride_w});
+    auto pads = CoordinateDiff({pt_pad_h, pt_pad_w});
+    auto dilations = Strides({pt_dilation_w, pt_dilation_h});
+    auto group = pt_n_weight_grps;
+    auto deformable_group = pt_n_offset_grps;
+    std::shared_ptr<ov::Node> deformable_convolution;
+    if (!pt_use_mask) {
+        deformable_convolution = context.mark_node(std::make_shared<v8::DeformableConvolution>(pt_input, pt_offset, pt_weight, strides, pads, pads, dilations,PadType::EXPLICIT,group,deformable_group, false));
+    } else {
+        deformable_convolution = context.mark_node(std::make_shared<v8::DeformableConvolution>(pt_input, pt_offset, pt_weight, pt_mask, strides, pads, pads, dilations, PadType::EXPLICIT, group, deformable_group, false));
+    }
+    if (!context.input_is_none(4)) {
+        auto bias = context.get_input(4);
+        auto bias_rank = bias.get_partial_shape().rank();
+        if (bias_rank == 1) {
+            bias = reshape_channelwise(context, bias, deformable_convolution);
+        }
+        deformable_convolution = context.mark_node(std::make_shared<v1::Add>(deformable_convolution, bias));
+    }
+    return {context.mark_output(deformable_convolution)};
+    /*
+    Inputs:
+        input - pt_input
+        Offsets - pt_offsets
+        Filters - pt_weights
+        Mask - pt_mask
+    Attrs:
+        strides - int[pt_stride_h, pt_stride_w]
+        pads_begin - int[pt_pad_h, pt_pad_w]?
+        pads_end - int[pt_pad_h, pt_pad_w]?
+        dillations - int[pt_dilation_w, pt_dilation_h] - why different order? Verify!
+        auto_pad - None?
+        group - None?
+        deformable_group - None?
+        bilinear_interpolation_pad - None?
+    Unused:
+        pt_bias - handle like in regular conv
+        pt_n_weight_grps - group?
+        pt_n_offset_grps - deformable_group?
+        pt_use_mask - use different constructor
+    */
+}
+}
+}
+}
+}
