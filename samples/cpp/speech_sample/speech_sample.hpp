@@ -94,7 +94,8 @@ static const char quantization_message[] =
     "Optional. Input quantization mode for GNA: static (default) or user defined (use with -sf).";
 
 /// @brief message for quantization bits argument
-static const char quantization_bits_message[] = "Optional. Weight resolution in bits for GNA quantization: 8 or 16 (default)";
+static const char quantization_bits_message[] =
+    "Optional. Weight resolution in bits for GNA quantization: 8 or 16 (default)";
 
 /// @brief message for scale factor argument
 static const char scale_factor_message[] =
