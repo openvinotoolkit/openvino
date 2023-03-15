@@ -427,13 +427,16 @@ void AutoSchedule::WaitFirstNetworkReady() {
             }
         }
     }
+    std::ostringstream result;
     //print errMessage
+    result << "Load network failed.";
     for (int i = CONTEXTNUM - 1; i >= 0; i--) {
         if (_loadContext[i].isEnabled) {
-            LOG_ERROR_TAG("load failed, %s", _loadContext[i].errMessage.c_str());
+            result << _loadContext[i].errMessage.c_str();
+            result << "; ";
         }
     }
-    IE_THROW() << GetLogTag() << "load all devices failed";
+    IE_THROW() << "[" << GetLogTag() << "] " << result.str();
 }
 
 void AutoSchedule::WaitActualNetworkReady() const {
