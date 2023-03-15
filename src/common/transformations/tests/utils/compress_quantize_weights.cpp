@@ -31,8 +31,9 @@ struct CompressQuantizeWeightsParams {
     float zero_point_val;
 };
 
-class CompressQuantizeWeightsTests : public testing::WithParamInterface<std::tuple<CompressQuantizeWeightsParams, element::Type>>,
-                                     public TransformationTestsF {
+class CompressQuantizeWeightsTests
+    : public testing::WithParamInterface<std::tuple<CompressQuantizeWeightsParams, element::Type>>,
+      public TransformationTestsF {
     void SetUp() override {
         TransformationTestsF::SetUp();
         CompressQuantizeWeightsParams param;
