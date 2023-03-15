@@ -92,17 +92,3 @@ const std::shared_ptr<ov::threading::ITaskExecutor> ov::ICompiledModel::get_task
 const std::shared_ptr<ov::threading::ITaskExecutor> ov::ICompiledModel::get_callback_executor() const {
     return m_callback_executor;
 }
-
-void ov::ICompiledModel::loaded_from_cache() {
-    if (auto wrapper = dynamic_cast<InferenceEngine::ICompiledModelWrapper*>(this)) {
-        wrapper->get_executable_network()->loadedFromCache();
-    }
-    m_is_from_cache = true;
-}
-
-bool ov::ICompiledModel::is_loaded_from_cache() const {
-    if (auto wrapper = dynamic_cast<const InferenceEngine::ICompiledModelWrapper*>(this)) {
-        return wrapper->get_executable_network()->isLoadedFromCache();
-    }
-    return m_is_from_cache;
-}

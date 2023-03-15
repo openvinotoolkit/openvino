@@ -920,7 +920,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 
             compiled_model = context._impl ? plugin.import_model(networkStream, context, config)
                                            : plugin.import_model(networkStream, config);
-            compiled_model->loaded_from_cache();
         });
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work

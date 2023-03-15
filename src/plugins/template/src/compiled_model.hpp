@@ -53,6 +53,7 @@ private:
     mutable std::atomic<std::size_t> _requestId = {0};
     Configuration _cfg;
     std::shared_ptr<ov::Model> m_model;
+    bool m_loaded_from_cache = false;
 };
 // ! [executable_network:header]
 

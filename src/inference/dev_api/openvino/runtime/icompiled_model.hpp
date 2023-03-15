@@ -27,7 +27,6 @@ class ICompiledModelWrapper;
 namespace ov {
 
 class CoreImpl;
-class CompiledModel;
 class IPlugin;
 class IExecutableNetworkWrapper;
 class IAsyncInferRequest;
@@ -119,21 +118,13 @@ private:
     std::shared_ptr<const ov::IPlugin> m_plugin;
     std::vector<ov::Output<const ov::Node>> m_inputs;
     std::vector<ov::Output<const ov::Node>> m_outputs;
-    bool m_is_from_cache = false;
 
     std::shared_ptr<ov::threading::ITaskExecutor> m_task_executor = nullptr;      //!< Holds a task executor
     std::shared_ptr<ov::threading::ITaskExecutor> m_callback_executor = nullptr;  //!< Holds a callback executor
 
     friend ov::CoreImpl;
-    friend ov::CompiledModel;
     friend ov::IExecutableNetworkWrapper;
     friend InferenceEngine::ICompiledModelWrapper;
-
-    /**
-     * @brief function allows to mark that model was loaded from cache
-     */
-    void loaded_from_cache();
-    bool is_loaded_from_cache() const;
 
     // FIXME: Remove after removing IE API
     std::vector<std::shared_ptr<const ov::Node>> _parameters;

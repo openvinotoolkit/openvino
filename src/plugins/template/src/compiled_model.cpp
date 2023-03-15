@@ -95,6 +95,7 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
     const auto& default_ro_properties = []() {
         std::vector<ov::PropertyName> ro_properties{ov::model_name,
                                                     ov::supported_properties,
+                                                    ov::loaded_from_cache,
                                                     ov::optimal_number_of_infer_requests};
         return ro_properties;
     };
@@ -129,12 +130,12 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
     } else if (ov::model_name == name) {
         auto model_name = m_model->get_friendly_name();
         return decltype(ov::model_name)::value_type(model_name);
+    } else if (ov::loaded_from_cache == name) {
+        return m_loaded_from_cache;
     } else if (ov::optimal_number_of_infer_requests == name) {
         unsigned int value = _cfg.streams_executor_config._streams;
         return decltype(ov::optimal_number_of_infer_requests)::value_type(value);
-    }
-
-    if (ov::supported_properties == name) {
+    } else if (ov::supported_properties == name) {
         auto ro_properties = default_ro_properties();
         auto rw_properties = default_rw_properties();
 
