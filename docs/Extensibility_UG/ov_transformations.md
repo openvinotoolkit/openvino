@@ -16,13 +16,13 @@ This guide contains all necessary information that you need to start implementin
 Working with Model
 ##################
 
-Before the moving to transformation part it is needed to say several words about functions which allow to modify ``:doc:`ov::Model <doxid-classov_1_1_model>```.
+Before the moving to transformation part it is needed to say several words about functions which allow to modify ``:ref:`ov::Model <doxid-classov_1_1_model>```.
 This chapter extends the :doc:`model representation guide <openvino_docs_OV_UG_Model_Representation>` and shows an API that allows us to manipulate with ``:ref:`ov::Model <doxid-classov_1_1_model>```.
 
 Working with node input and output ports
 ++++++++++++++++++++++++++++++++++++++++
 
-First of all let's talk about `:ref:`ov::Node <doxid-classov_1_1_node>``` input/output ports. Each OpenVINO™ operation has input and output ports except cases when operation has ``Parameter`` or ``Constant`` type.
+First of all let's talk about ``:ref:`ov::Node <doxid-classov_1_1_node>``` input/output ports. Each OpenVINO™ operation has input and output ports except cases when operation has ``Parameter`` or ``Constant`` type.
 
 Every port belongs to its node, so using a port we can access parent node, get shape and type for particular input/output, get all consumers in case of output port, and get producer node in case of input port.
 With output port we can set inputs for newly created operations.
@@ -42,7 +42,7 @@ Let's start with OpenVINO™ helper functions. The most popular function is ``ov
 
 We will review real replacement case where Negative operation is replaced with Multiply.
 
-.. image:: ./img/ngraph_replace_node.png
+.. image:: docs/_static/images/ngraph_replace_node.png 
 
 .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
    :language: cpp
@@ -58,7 +58,7 @@ The alternative way to do the same replacement is the following:
 
 Another transformation example is insertion.
 
-.. image:: ./img/ngraph_replace_node.png
+.. image:: docs/_static/images/ngraph_replace_node.png
 
 .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
    :language: cpp
@@ -94,7 +94,7 @@ OpenVINO™ Runtime has three main transformation types:
 * :doc:`Matcher pass <Matcher pass](openvino_docs_Extensibility_UG_matcher_pass>` - pattern-based transformation approach
 * :doc:`Graph rewrite pass <openvino_docs_Extensibility_UG_graph_rewrite_pass>` - container for matcher passes needed for efficient execution
 
-.. image:: ./img/transformations_structure.png
+.. image:: docs/_static/images/transformations_structure.png
 
 Transformation conditional compilation
 ######################################
@@ -107,6 +107,7 @@ Transformation library has two internal macros to support conditional compilatio
 .. _transformation_writing_essentials:
 
 Transformation writing essentials 
+#################################
 
 When developing a transformation, you need to follow these transformation rules:
 
@@ -142,7 +143,7 @@ When transformation has multiple fusions or decompositions, ``:ref:`ov::copy_run
 3. Constant Folding
 +++++++++++++++++++
 
-If your transformation inserts constant sub-graphs that need to be folded, do not forget to use `ov::pass::ConstantFolding()` after your transformation or call constant folding directly for operation.
+If your transformation inserts constant sub-graphs that need to be folded, do not forget to use ``:ref:`ov::pass::ConstantFolding() <doxid-classov_1_1pass_1_1_constant_folding>``` after your transformation or call constant folding directly for operation.
 The example below shows how constant subgraph can be constructed.
 
 .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp

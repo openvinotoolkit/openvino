@@ -67,10 +67,6 @@ The example below shows how single MatcherPass can fuse sequence of operations u
    :language: cpp
    :fragment: [matcher_pass:relu_fusion]
 
-.. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
-   :language: cpp
-   :fragment: [pattern:callback_example]
-
 .. note:: 
    If you register multiple nodes, please add them in topological order. We do not topologically sort these nodes as it is a time-consuming operation.
 
@@ -93,23 +89,24 @@ Execute MatcherPass
 ###################
 
 MatcherPass has multiple ways to be executed:
+
 * Run on a single node - it can be useful if you want to run MatcherPass inside another transformation.
 
-.. doxygensnippet:: docs/snippets/template_pattern_transformation.cpp
-   :language: cpp
-   :fragment: [matcher_pass:run_on_node]
+   .. doxygensnippet:: docs/snippets/template_pattern_transformation.cpp
+      :language: cpp
+      :fragment: [matcher_pass:run_on_node]
 
 * Run on ``:ref:`ov::Model <doxid-classov_1_1_model>``` using GraphRewrite - this approach gives ability to run MatcherPass on whole ``:ref:`ov::Model <doxid-classov_1_1_model>```. Moreover, multiple MatcherPass transformation can be registered in a single GraphRewite to be executed in a single graph traversal.
 
-.. doxygensnippet:: docs/snippets/template_pattern_transformation.cpp
-   :language: cpp
-   :fragment: [matcher_pass:graph_rewrite]
+   .. doxygensnippet:: docs/snippets/template_pattern_transformation.cpp
+      :language: cpp
+      :fragment: [matcher_pass:graph_rewrite]
 
 * Run on ``:ref:`ov::Model <doxid-classov_1_1_model>``` using ``:ref:`ov::pass::Manager <doxid-classov_1_1pass_1_1_manager>``` - this approach helps you to register MatcherPass for execution on ``:ref:`ov::Model <doxid-classov_1_1_model>``` as another transformation types.
 
-.. doxygensnippet:: docs/snippets/template_pattern_transformation.cpp
-   :language: cpp
-   :fragment: [matcher_pass:manager]
+   .. doxygensnippet:: docs/snippets/template_pattern_transformation.cpp
+      :language: cpp
+      :fragment: [matcher_pass:manager]
 
 .. _pattern_matching:
 
