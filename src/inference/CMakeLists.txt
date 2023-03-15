@@ -118,7 +118,7 @@ add_clang_format_target(${TARGET_NAME}_plugin_api_clang FOR_SOURCES ${plugin_api
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_plugin_api
                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/openvino"
-                    ADDITIONAL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
+                    ADDITIONAL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::core,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Create object library
 
@@ -139,12 +139,12 @@ ie_faster_build(${TARGET_NAME}_obj
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE
     IMPLEMENT_INFERENCE_ENGINE_API
-    $<TARGET_PROPERTY:ngraph,INTERFACE_COMPILE_DEFINITIONS>
+    $<TARGET_PROPERTY:openvino::core,INTERFACE_COMPILE_DEFINITIONS>
     $<TARGET_PROPERTY:frontend_common::static,INTERFACE_COMPILE_DEFINITIONS>
     $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_COMPILE_DEFINITIONS>)
 
 target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE
-    $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_COMPILE_DEFINITIONS>
     $<TARGET_PROPERTY:openvino::pugixml,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:xbyak,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -178,7 +178,7 @@ add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${IE_STATIC_DEPENDENT_F
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/openvino"
-                    ADDITIONAL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
+                    ADDITIONAL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:openvino::core,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Static library used for unit tests which are always built
 
@@ -198,7 +198,7 @@ if(WIN32)
     set_target_properties(${TARGET_NAME}_s PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME}_s)
 endif()
 
-target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} ngraph
+target_link_libraries(${TARGET_NAME}_s PRIVATE openvino::itt ${CMAKE_DL_LIBS} openvino::core
     frontend_common::static inference_engine_transformations openvino::pugixml)
 
 target_compile_definitions(${TARGET_NAME}_s PUBLIC USE_STATIC_IE)
