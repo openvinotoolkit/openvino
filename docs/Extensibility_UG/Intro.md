@@ -118,8 +118,6 @@ The ``Identity`` is a custom operation class defined in :doc:`Custom Operation G
          :language: python
          :fragment: [add_frontend_extension]
 
-
- 
 When Python API is used, there is no way to implement a custom OpenVINO operation. Even if custom OpenVINO operation is implemented in C++ and loaded into the runtime by a shared library, there is still no way to add a frontend mapping extension that refers to this custom operation. In this case, use C++ shared library approach to implement both operations semantics and framework mapping.
 
 Python can still be used to map and decompose operations when only operations from the standard OpenVINO operation set are used.
@@ -131,9 +129,9 @@ Create a Library with Extensions
 
 An extension library should be created in the following cases:
 
- * Conversion of a model with custom operations in Model Optimizer.
- * Loading a model with custom operations in a Python application. This applies to both framework model and OpenVINO IR.
- * Loading models with custom operations in tools that support loading extensions from a library, for example the ``benchmark_app``.
+* Conversion of a model with custom operations in Model Optimizer.
+* Loading a model with custom operations in a Python application. This applies to both framework model and OpenVINO IR.
+* Loading models with custom operations in tools that support loading extensions from a library, for example the ``benchmark_app``.
 
 To create an extension library, for example, to load the extensions into Model Optimizer, perform the following:
 
