@@ -235,10 +235,7 @@ TEST(OVClassBasicTest, compile_model_no_property_unicode) {
                        << ::ov::util::wstring_to_string(modelBinPathW) << "'";
             }
 
-            GTEST_COUT << "Test " << testIndex << std::endl;
-
             ov::Core core = createCoreWithTemplate();
-            GTEST_COUT << "Core created " << testIndex << std::endl;
 
             OV_ASSERT_NO_THROW(core.compile_model(modelXmlPathW));
             CommonTestUtils::removeFile(modelXmlPathW);
@@ -280,10 +277,7 @@ TEST(OVClassBasicTest, compile_model_with_property_unicode) {
                        << ::ov::util::wstring_to_string(modelBinPathW) << "'";
             }
 
-            GTEST_COUT << "Test " << testIndex << std::endl;
-
             ov::Core core = createCoreWithTemplate();
-            GTEST_COUT << "Core created " << testIndex << std::endl;
 
             OV_ASSERT_NO_THROW(
                 core.compile_model(modelXmlPathW, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
@@ -326,10 +320,7 @@ TEST(OVClassBasicTest, compile_model_with_device_no_property_unicode) {
                        << ::ov::util::wstring_to_string(modelBinPathW) << "'";
             }
 
-            GTEST_COUT << "Test " << testIndex << std::endl;
-
             ov::Core core = createCoreWithTemplate();
-            GTEST_COUT << "Core created " << testIndex << std::endl;
 
             OV_ASSERT_NO_THROW(core.compile_model(modelXmlPathW, CommonTestUtils::DEVICE_CPU));
             CommonTestUtils::removeFile(modelXmlPathW);
@@ -371,10 +362,7 @@ TEST(OVClassBasicTest, compile_model_with_device_with_property_unicode) {
                        << ::ov::util::wstring_to_string(modelBinPathW) << "'";
             }
 
-            GTEST_COUT << "Test " << testIndex << std::endl;
-
             ov::Core core = createCoreWithTemplate();
-            GTEST_COUT << "Core created " << testIndex << std::endl;
 
             OV_ASSERT_NO_THROW(core.compile_model(modelXmlPathW, CommonTestUtils::DEVICE_CPU,
                                ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
