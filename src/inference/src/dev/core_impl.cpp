@@ -614,7 +614,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     // in case of compile_model(file_name), we need to clear-up core-level properties
     clean_properties(parsed._deviceName, parsed._config, ov::auto_batch_timeout);
     clean_properties(parsed._deviceName, parsed._config, ov::hint::allow_auto_batching);
-    clean_properties(parsed._deviceName, parsed._config, ov::cache_dir);
     auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<ov::ICompiledModel> compiled_model;
 
