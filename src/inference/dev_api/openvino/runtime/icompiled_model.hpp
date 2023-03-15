@@ -133,7 +133,7 @@ private:
      * @brief function allows to mark that model was loaded from cache
      */
     void loaded_from_cache();
-    bool is_loaded_from_cache();
+    bool is_loaded_from_cache() const;
 
     // FIXME: Remove after removing IE API
     std::vector<std::shared_ptr<const ov::Node>> _parameters;

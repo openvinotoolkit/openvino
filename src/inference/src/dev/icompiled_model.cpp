@@ -100,8 +100,8 @@ void ov::ICompiledModel::loaded_from_cache() {
     m_is_from_cache = true;
 }
 
-bool ov::ICompiledModel::is_loaded_from_cache() {
-    if (auto wrapper = dynamic_cast<InferenceEngine::ICompiledModelWrapper*>(this)) {
+bool ov::ICompiledModel::is_loaded_from_cache() const {
+    if (auto wrapper = dynamic_cast<const InferenceEngine::ICompiledModelWrapper*>(this)) {
         return wrapper->get_executable_network()->isLoadedFromCache();
     }
     return m_is_from_cache;
