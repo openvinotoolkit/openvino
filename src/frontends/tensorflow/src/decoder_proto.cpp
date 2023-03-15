@@ -173,7 +173,11 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         if (list.type_size()) {
             std::vector<ov::element::Type> res;
             for (int idx = 0; idx < list.type_size(); ++idx) {
-                res.emplace_back(get_ov_type(list.type(idx)));
+                if (list.type(idx) != ::tensorflow::DataType::DT_STRING) {
+                    res.emplace_back(get_ov_type(list.type(idx)));
+                } else {
+                    res.emplace_back(ov::element::undefined);
+                }
             }
             return res;
         }
@@ -208,21 +212,15 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
             pshape.resize(0);
             pshape.push_back(tensor_proto.string_val_size());
         }
+        if (tf_type == ::tensorflow::DataType::DT_STRING) {
+            auto data = std::vector<std::string>();
+            for (auto& item : tensor_proto.string_val()) {
+                data.push_back(item);
+            }
+            return data;
+        }
         ov::Tensor res(ov_type, pshape.get_shape());
         auto tensor_content = tensor_proto.tensor_content();
-        if (tf_type == ::tensorflow::DataType::DT_STRING) {
-            auto data = res.data<uint64_t>();
-            size_t i = 0;
-            std::string line;
-            for (auto& item : tensor_proto.string_val()) {
-                const char* src = item.c_str();
-                // MEMORY LEAK! ONLY FOR TEST PURPOSES!!!
-                char* dst = new char[item.length()];
-                std::copy(src, src + item.length(), dst);
-                data[i++] = reinterpret_cast<uint64_t>(dst);
-            }
-            return res;
-        }
         if (!tensor_content.empty() && tensor_proto.has_tensor_shape()) {
             switch (ov_type) {
             case ov::element::u8:
