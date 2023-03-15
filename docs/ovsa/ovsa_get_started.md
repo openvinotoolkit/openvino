@@ -19,9 +19,9 @@ The OpenVINO™ Security Add-on consists of three components that run in Kernel-
 
 
 .. raw:: html
-
+   
    <div class="collapsible-section" data-title="<strong>OpenVINO™ Security Add-on Tool</strong>: As a Model Developer or Independent Software Vendor, you use the OpenVINO™ Security Add-on Tool(`ovsatool`) to generate a access controlled model and master license.">
-
+   
 
 - The Model Developer generates a access controlled model from the OpenVINO™ toolkit output. The access controlled model uses the model's Intermediate Representation (IR) files to create a access controlled output file archive that are distributed to Model Users. The Developer can also put the archive file in long-term storage or back it up without additional security. 
 
@@ -31,12 +31,12 @@ The OpenVINO™ Security Add-on consists of three components that run in Kernel-
 
 
 .. raw:: html
-
+   
    </div>
 
 
 .. raw:: html
-
+   
    <div class="collapsible-section" data-title="<strong>OpenVINO™ Security Add-on License Service</strong>: Use the OpenVINO™ Security Add-on License Service to verify user parameters.">
 
 
@@ -45,12 +45,12 @@ The OpenVINO™ Security Add-on consists of three components that run in Kernel-
 - When a user loads the model, the OpenVINO™ Security Add-on Runtime contacts the License Service to make sure the license is valid and within the parameters that the Model Developer defined with the OpenVINO™ Security Add-on Tool (<code>ovsatool</code>). The user must be able to reach the Independent Software Vendor's License Service over the Internet. 
 
 .. raw:: html
-
+   
    </div>
 
 
 .. raw:: html
-
+   
    <div class="collapsible-section" data-title="<strong>OpenVINO™ Security Add-on Runtime</strong>: Users install and use the OpenVINO™ Security Add-on Runtime on a virtual machine. ">
 
 
@@ -62,7 +62,7 @@ After the license is successfully validated, the OpenVINO™ Model Server loads 
 
 
 .. raw:: html
-
+   
    </div>
 
 
@@ -94,7 +94,7 @@ For example:
 | Guest VM                           | The Model Developer uses the Guest VM to enable access control to the completed model. <br>The Independent Software Provider uses the Guest VM to host the License Service.<br>The User uses the Guest VM to contact the License Service and run the access controlled model. |
 +------------------------------------+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-.. _prerequisites-ovsa
+.. _prerequisites_ovsa:
 
 Prerequisites
 #############
@@ -114,28 +114,28 @@ Prerequisites
 * The Independent Software Vendor must have access to a Certificate Authority (CA) that implements the Online Certificate Status Protocol (OCSP), supporting Elliptic Curve Cryptography (ECC) certificates for deployment.
 * The example in this document uses self-signed certificates.
 
-.. _setup-host
+.. _setup_host:
 
 How to Prepare a Host Machine
 #############################
 
 This section is for the combined role of Model Developer and Independent Software Vendor, and the separate User role.
 
-.. _setup-packages
+.. _setup_packages:
 
 Step 1: Set up Packages on the Host Machine
 +++++++++++++++++++++++++++++++++++++++++++
 
-Begin this step on the Intel® Core™ or Xeon® processor machine that meets the :ref:`prerequisites <prerequisites-ovsa>`.
+Begin this step on the Intel® Core™ or Xeon® processor machine that meets the :ref:`prerequisites <prerequisites_ovsa>`.
 
 .. note:: 
-
+   
    As an alternative to manually following steps 1 - 11, you can run the script ``install_host_deps.sh`` in the ``Scripts/reference directory`` under the OpenVINO™ Security Add-on repository. The script stops with an error message if it identifies any issues. If the script halts due to an error, correct the issue that caused the error and restart the script. The script runs for several minutes and provides progress information.
 
 1. Test for Trusted Platform Module (TPM) support:
 
    .. code-block:: sh
-
+      
       dmesg | grep -i TPM 
    
    The output indicates TPM availability in the kernel boot logs. Look for presence of the following devices to indicate TPM support is available:
@@ -143,12 +143,12 @@ Begin this step on the Intel® Core™ or Xeon® processor machine that meets th
    * ``/dev/tpm0``
    * ``/dev/tpmrm0``
 
-   If you do not see this information, your system does not meet the :ref:`prerequisites <prerequisites-ovsa>` to use the OpenVINO™ Security Add-on.
+   If you do not see this information, your system does not meet the :ref:`prerequisites <prerequisites_ovsa>` to use the OpenVINO™ Security Add-on.
 
 2. Make sure hardware virtualization support is enabled in the BIOS:
    
    .. code-block:: sh
-
+      
       kvm-ok 
    
    The output should show: <br>
@@ -160,20 +160,20 @@ Begin this step on the Intel® Core™ or Xeon® processor machine that meets th
    If the ``kvm-ok`` command is not present, install it:
 
    .. code-block:: sh
-
+      
       sudo apt install -y cpu-checker
    
 3. Install the Kernel-based Virtual Machine (KVM) and QEMU packages. 
 
 	.. code-block:: sh
-
+      
 	   sudo apt install qemu qemu-kvm libvirt-bin  bridge-utils  virt-manager 
 	
 
 4. Check the QEMU version:
 
    .. code-block:: sh
-
+      
       qemu-system-x86_64 --version 
    
    If the response indicates a QEMU version lower than 2.12.0 download, compile and install the latest QEMU version from `QEMU website <https://www.qemu.org/download>`__.
@@ -200,7 +200,7 @@ The following are installed and ready to use:
 	
 You're ready to configure the Host Machine for networking. 
 
-.. _setup-networking
+.. _setup_networking:
 
 Step 2: Set up Networking on the Host Machine
 +++++++++++++++++++++++++++++++++++++++++++++
@@ -223,7 +223,7 @@ This example in this step uses the following names. Your configuration might use
 2. Look for these lines in the file:
    
    .. code-block:: sh
-
+      
       network:
         ethernets:
            eno1:
@@ -234,7 +234,7 @@ This example in this step uses the following names. Your configuration might use
 3. Change the existing lines and add the ``br0`` network bridge. These changes enable external network access:
    
    .. code-block:: sh
-
+      
       network:
         ethernets:
            eno1:
@@ -250,30 +250,30 @@ This example in this step uses the following names. Your configuration might use
 5. Run two commands to activate the updated network configuration file. If you use ssh, you might lose network connectivity when issuing these commands. If so, reconnect to the network.
 
 .. code-block:: sh
-
+   
    sudo netplan generate
 
 .. code-block:: sh
-
+   
    sudo netplan apply
 
    A bridge is created and an IP address is assigned to the new bridge.
 6. Verify the new bridge:
    
    .. code-block:: sh
-
+      
       ip a | grep br0
    
    The output looks similar to this and shows valid IP addresses:
 
    .. code-block:: sh
-
+      
       4: br0:<br><BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000<br>inet 123.123.123.123/<mask> brd 321.321.321.321 scope global dynamic br0
    
 7. Create a script named ``br0-qemu-ifup`` to bring up the ``br0`` interface. Add the following script contents:
 
    .. code-block:: sh
-
+      
       #!/bin/sh
       nic=$1
       if [ -f /etc/default/qemu-kvm ]; then
@@ -286,7 +286,7 @@ This example in this step uses the following names. Your configuration might use
 8. Create a script named ``br0-qemu-ifdown`` to bring down the ``br0`` interface. Add the following script contents:
 
    .. code-block:: sh
-
+      
       #!/bin/sh
       nic=$1
       if [ -f /etc/default/qemu-kvm ]; then
@@ -297,9 +297,9 @@ This example in this step uses the following names. Your configuration might use
       ifconfig $nic 0.0.0.0 down
    
 9. Create a script named ``virbr0-qemu-ifup`` to bring up the ``virbr0`` interface. Add the following script contents:
-   
+      
    .. code-block:: sh
-
+      
       #!/bin/sh
       nic=$1
       if [ -f /etc/default/qemu-kvm ]; then
@@ -310,9 +310,9 @@ This example in this step uses the following names. Your configuration might use
       brctl addif ${switch} $nic
    
 10. Create a script named ``virbr0-qemu-ifdown`` to bring down the ``virbr0`` interface. Add the following script contents:
-   
+      
    .. code-block:: sh
-
+      
       #!/bin/sh
       nic=$1
       if [ -f /etc/default/qemu-kvm ]; then
@@ -332,7 +332,7 @@ Step 3: Clone the OpenVINO™ Security Add-on
 
 Download the `OpenVINO™ Security Add-on <https://github.com/openvinotoolkit/security_addon>`__.
 
-.. _dev-isv-vm
+.. _dev_isv_vm:
 
 Step 4: Set Up one Guest VM for the combined roles of Model Developer and Independent Software Vendor
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -348,13 +348,13 @@ As an option, you can use ``virsh`` and the virtual machine manager to create an
 2. Create an empty virtual disk image to serve as the Guest VM for your role as Model Developer and Independent Software Vendor:
 
    .. code-block:: sh
-
+      
       sudo qemu-img create -f qcow2 <path>/ovsa_isv_dev_vm_disk.qcow2 20G
    
 3. Install Ubuntu 18.04 on the Guest VM. Name the Guest VM ``ovsa_isv``:
    
    .. code-block:: sh
-
+      
       sudo qemu-system-x86_64 -m 8192 -enable-kvm \
       -cpu host \
       -drive if=virtio,file=<path-to-disk-image>/ovsa_isv_dev_vm_disk.qcow2,cache=none \
@@ -369,7 +369,7 @@ As an option, you can use ``virsh`` and the virtual machine manager to create an
 7. Restart the Guest VM after removing the option of cdrom image:
    
    .. code-block:: sh
-
+      
       sudo qemu-system-x86_64 -m 8192 -enable-kvm \
       -cpu host \
       -drive if=virtio,file=<path-to-disk-image>/ovsa_isv_dev_vm_disk.qcow2,cache=none \
@@ -378,10 +378,12 @@ As an option, you can use ``virsh`` and the virtual machine manager to create an
       -vnc :1
    
 8. Choose ONE of these options to install additional required software:
+
    * **Option 1**: Use a script to install additional software
       1. Copy the script ``install_guest_deps.sh`` from the ``Scripts/reference directory`` of the OVSA repository to the Guest VM
       2. Run the script.
       3. Shut down the Guest VM.<br>
+
    * **Option 2** : Manually install additional software
       1. Install the software tool `tpm2-tss <https://github.com/tpm2-software/tpm2-tss/releases/download/2.4.4/tpm2-tss-2.4.4.tar.gz>`__. 
       For installation information follow `here <https://github.com/tpm2-software/tpm2-tss/blob/master/INSTALL.md>`__
@@ -391,10 +393,11 @@ As an option, you can use ``virsh`` and the virtual machine manager to create an
       For installation information follow `here <https://github.com/tpm2-software/tpm2-tools/blob/master/docs/INSTALL.md>`__
       4. Install the `Docker packages <https://docs.docker.com/engine/install/ubuntu/>`__
       5. Shut down the Guest VM.<br>
+
 9. On the host, create a directory to support the virtual TPM device and provision its certificates. Only ``root`` should have read/write permission to this directory:
    
    .. code-block:: sh
-
+      
       sudo mkdir -p /var/OVSA/
       sudo mkdir /var/OVSA/vtpm
       sudo mkdir /var/OVSA/vtpm/vtpm_isv_dev
@@ -411,7 +414,7 @@ As an option, you can use ``virsh`` and the virtual machine manager to create an
 10. Start the vTPM on Host, write the HW TPM data into its NVRAM and restart the vTPM for QEMU:
    
    .. code-block:: sh
-
+      
       sudo swtpm socket --tpm2 --server port=8280 \
                         --ctrl type=tcp,port=8281 \
                         --flags not-need-init --tpmstate dir=/var/OVSA/vtpm/vtpm_isv_dev &
@@ -428,9 +431,9 @@ As an option, you can use ``virsh`` and the virtual machine manager to create an
    
 	
 11. Start the Guest VM:
-   
+     
    .. code-block:: sh
-
+      
       sudo qemu-system-x86_64 \
        -cpu host \
        -enable-kvm \
@@ -457,24 +460,24 @@ Step 5: Set Up one Guest VM for the User role
 
    **Option 1: Copy and Rename the ovsa_isv_dev_vm_disk.qcow2 disk image**
 
-   1. Copy the ``ovsa_isv_dev_vm_disk.qcow2`` disk image to a new image named ``ovsa_runtime_vm_disk.qcow2``. You created the ``ovsa_isv_dev_vm_disk.qcow2`` disk image in :ref:`Step 4 <dev-isv-vm>`.
+   1. Copy the ``ovsa_isv_dev_vm_disk.qcow2`` disk image to a new image named ``ovsa_runtime_vm_disk.qcow2``. You created the ``ovsa_isv_dev_vm_disk.qcow2`` disk image in :ref:`Step 4 <dev_isv_vm>`.
    2. Boot the new image. 
    3. Change the hostname from ``ovsa_isv_dev`` to ``ovsa_runtime``.  
 
    .. code-block:: sh
-
+      
       sudo hostnamectl set-hostname ovsa_runtime
    
    4. Replace all instances of ``ovsa_isv_dev`` to ``ovsa_runtime`` in the new image.
    
    .. code-block:: sh
-
+      
       sudo nano /etc/hosts
    
    5. Change the ``/etc/machine-id``:
 
    .. code-block:: sh
-
+      
       sudo rm /etc/machine-id
       systemd-machine-id-setup
    
@@ -485,13 +488,13 @@ Step 5: Set Up one Guest VM for the User role
    1. Create an empty virtual disk image:
    
    .. code-block:: sh
-
+      
       sudo qemu-img create -f qcow2 <path>/ovsa_ovsa_runtime_vm_disk.qcow2 20G
    
    2. Install Ubuntu 18.04 on the Guest VM. Name the Guest VM ``ovsa_runtime``:
 
    .. code-block:: sh
-
+      
       sudo qemu-system-x86_64 -m 8192 -enable-kvm \
       -cpu host \
       -drive if=virtio,file=<path-to-disk-image>/ovsa_ovsa_runtime_vm_disk.qcow2,cache=none \
@@ -506,7 +509,7 @@ Step 5: Set Up one Guest VM for the User role
    6. Restart the Guest VM:
 
    .. code-block:: sh
-
+      
       sudo qemu-system-x86_64 -m 8192 -enable-kvm \
       -cpu host \
       -drive if=virtio,file=<path-to-disk-image>/ovsa_ovsa_runtime_vm_disk.qcow2,cache=none \
@@ -533,7 +536,7 @@ Step 5: Set Up one Guest VM for the User role
 2. Create a directory to support the virtual TPM device and provision its certificates. Only ``root`` should have read/write permission to this directory:
 
    .. code-block:: sh
-
+      
       sudo mkdir /var/OVSA/vtpm/vtpm_runtime
       
       export XDG_CONFIG_HOME=~/.config
@@ -542,13 +545,14 @@ Step 5: Set Up one Guest VM for the User role
    
 
     .. note:: 
+       
        For steps 3 and 4, you can copy and edit the script named ``start_ovsa_runtime_vm.sh`` in the ``Scripts/reference`` directory in the OpenVINO™ Security Add-on repository instead of manually running the commands. Edit the script to point to the correct directory locations and increment ``vnc`` for each Guest VM. This means that if you are creating a third Guest VM on the same Host Machine, change ``-vnc :2`` to ``-vnc :3``
 
 
 3. Start the vTPM, write the HW TPM data into its NVRAM and restart the vTPM for QEMU:
 
    .. code-block:: sh
-
+      
       sudo swtpm socket --tpm2 --server port=8380 \
                         --ctrl type=tcp,port=8381 \
                         --flags not-need-init --tpmstate dir=/var/OVSA/vtpm/vtpm_runtime &
@@ -566,7 +570,7 @@ Step 5: Set Up one Guest VM for the User role
 4. Start the Guest VM in a new terminal:
 
    .. code-block:: sh
-
+      
       sudo qemu-system-x86_64 \
        -cpu host \
        -enable-kvm \
@@ -586,7 +590,7 @@ Step 5: Set Up one Guest VM for the User role
    Use the QEMU runtime options in the command to change the memory amount or CPU assigned to this Guest VM.
 5. Use a VNC client to log on to the Guest VM at ``<host-ip-address>:<x>`` where ``<x>`` corresponds to the vnc number in the ``start_ovsa_isv_vm.sh`` or in step 8.
 
-.. _install-ovsa
+.. _install_ovsa:
 
 How to Build and Install the OpenVINO™ Security Add-on Software
 ###############################################################
@@ -603,7 +607,7 @@ Building OpenVINO™ Security Add-on depends on OpenVINO™ Model Server docker 
 2. Build the `OpenVINO™ Model Server Docker images <https://github.com/openvinotoolkit/model_server/blob/main/docs/docker_container.md>`__
 
    .. code-block:: sh
-
+      
       git clone https://github.com/openvinotoolkit/model_server.git
       cd model_server
       make docker_build
@@ -617,13 +621,13 @@ This step is for the combined role of Model Developer and Independent Software V
 1. Go to the top-level OpenVINO™ Security Add-on source directory cloned earlier.
 
    .. code-block:: sh
-
+      
       cd security_addon
    
 2. Build the OpenVINO™ Security Add-on:
 
    .. code-block:: sh
-
+      
       make clean all
       sudo -s make package
       ```
@@ -640,19 +644,19 @@ This step is for the combined role of Model Developer and Independent Software V
 1. Go to the ``release_files`` directory:
    
    .. code-block:: sh
-
+      
       cd release_files
    
 2. Set up the path:
    
    .. code-block:: sh
-
+      
       export OVSA_RELEASE_PATH=$PWD
    
 3. Install the OpenVINO™ Security Add-on Software on the Host Machine: 
 
    .. code-block:: sh
-
+      
       cd $OVSA_RELEASE_PATH
       tar xvfz ovsa-kvm-host.tar.gz
       cd ovsa-kvm-host
@@ -670,14 +674,14 @@ This step is for the combined role of Model Developer and Independent Software V
 2. Create the OpenVINO™ Security Add-on directory in the home directory
 
    .. code-block:: sh
-
+      
       mkdir -p ~/OVSA
    
 3. Go to the Host Machine, outside of the Guest VM.
 4. Copy ``ovsa-developer.tar.gz`` from ``release_files`` to the Guest VM:
 
    .. code-block:: sh
-
+      
       cd $OVSA_RELEASE_PATH
       scp ovsa-developer.tar.gz username@<isv-developer-vm-ip-address>:/<username-home-directory>/OVSA
    
@@ -685,14 +689,14 @@ This step is for the combined role of Model Developer and Independent Software V
 6. Create ``ovsa`` user
 
    .. code-block:: sh
-
+      
       sudo useradd -m ovsa
       sudo passwd ovsa
    
 7. Install the software to the Guest VM:
 
    .. code-block:: sh
-
+      
       cd ~/OVSA
       tar xvfz ovsa-developer.tar.gz
       cd ovsa-developer
@@ -701,13 +705,13 @@ This step is for the combined role of Model Developer and Independent Software V
 8. Start the license server on a separate terminal as ``ovsa`` user.
    
    .. code-block:: sh
-
+      
       source /opt/ovsa/scripts/setupvars.sh
       cd /opt/ovsa/bin
       ./license_server
    
    .. note:: 
-
+      
       If you are behind a firewall, check and set your proxy settings to ensure the license server is able to validate the certificates.
 
 Step 5: Install the OpenVINO™ Security Add-on Model Hosting Component
@@ -721,13 +725,13 @@ The Model Hosting components install the OpenVINO™ Security Add-on Runtime Doc
 2. Create the OpenVINO™ Security Add-on directory in the home directory
 
     .. code-block:: sh
-
+       
        mkdir -p ~/OVSA
     
 3. While on the Host Machine copy the ovsa-model-hosting.tar.gz from release_files to the Guest VM:
 
    .. code-block:: sh
-
+      
       cd $OVSA_RELEASE_PATH
       scp ovsa-model-hosting.tar.gz username@<runtime-vm-ip-address>:/<username-home-directory>/OVSA
    
@@ -735,7 +739,7 @@ The Model Hosting components install the OpenVINO™ Security Add-on Runtime Doc
 5. Create ``ovsa`` user
 
    .. code-block:: sh
-
+      
       sudo useradd -m ovsa
       sudo passwd ovsa
       sudo usermod -aG docker ovsa
@@ -743,7 +747,7 @@ The Model Hosting components install the OpenVINO™ Security Add-on Runtime Doc
 6. Install the software to the Guest VM:
 
    .. code-block:: sh
-
+      
       cd ~/OVSA
       tar xvfz ovsa-model-hosting.tar.gz
       cd ovsa-model-hosting
@@ -778,7 +782,7 @@ Step 1: Set up the artefacts directory
 Create a directory named artefacts. This directory will hold artefacts required to create licenses:
 
 .. code-block:: sh
-
+   
    mkdir -p ~/OVSA/artefacts
    cd ~/OVSA/artefacts
    export OVSA_DEV_ARTEFACTS=$PWD
@@ -792,7 +796,7 @@ Step 2: Create a key store and add a certificate to it
 This example uses a self-signed certificate for demonstration purposes. In a production environment, use CSR files to request for a CA-signed certificate.
 
    .. code-block:: sh
-
+      
       cd $OVSA_DEV_ARTEFACTS
       /opt/ovsa/bin/ovsatool keygen -storekey -t ECDSA -n Intel -k isv_keystore -r  isv_keystore.csr -e "/C=IN/CN=localhost"
    
@@ -805,7 +809,7 @@ This example uses a self-signed certificate for demonstration purposes. In a pro
 3. Add the certificate to the key store
 
    .. code-block:: sh
-
+      
       /opt/ovsa/bin/ovsatool keygen -storecert -c isv_keystore.csr.crt -k isv_keystore
    
 	
@@ -817,7 +821,7 @@ This example uses ``curl`` to download the ``face-detection-retail-004`` model f
 Download a model from the Model Zoo:
 
 .. code-block:: sh
-
+   
    curl --create-dirs https://download.01.org/opencv/2021/openvinotoolkit/2021.1/open_model_zoo/models_bin/1/face-detection-retail-0004/FP32/face-detection-retail-0004.xml https://download.01.org/opencv/2021/openvinotoolkit/2021.1/open_model_zoo/models_bin/1/face-detection-retail-0004/FP32/face-detection-retail-0004.bin -o model/face-detection-retail-0004.xml -o model/face-detection-retail-0004.bin
 
 The model is downloaded to the ``OVSA_DEV_ARTEFACTS/model`` directory
@@ -828,7 +832,7 @@ Step 4: Define access control for  the model and create a master license for it
 Define and enable the model access control and master license:
 
 .. code-block:: sh
-
+   
    uuid=$(uuidgen)
    /opt/ovsa/bin/ovsatool controlAccess -i model/face-detection-retail-0004.xml model/face-detection-retail-0004.bin -n "face detection" -d "face detection retail" -v 0004 -p face_detection_model.dat -m face_detection_model.masterlic -k isv_keystore -g $uuid
 
@@ -842,7 +846,7 @@ Use the runtime reference TCB to create a customer license for the access contro
 Generate the reference TCB for the runtime
 
 .. code-block:: sh
-
+   
    /opt/ovsa/bin/ovsaruntime gen-tcb-signature -n "Face Detect @ Runtime VM" -v "1.0" -f face_detect_runtime_vm.tcb -k isv_keystore
 
 	
@@ -855,17 +859,19 @@ Step 7: Receive a User Request
 ------------------------------
 
 1. Obtain artefacts from the User who needs access to a access controlled model:
+   
    * Customer certificate from the customer's key store.
    * Other information that apply to your licensing practices, such as the length of time the user needs access to the model
 
 2. Create a customer license configuration
 
    .. code-block:: sh
-
+      
       cd $OVSA_DEV_ARTEFACTS
       /opt/ovsa/bin/ovsatool licgen -t TimeLimit -l30 -n "Time Limit License Config" -v 1.0 -u "<isv-developer-vm-ip-address>:<license_server-port>" /opt/ovsa/certs/server.crt  -k isv_keystore -o 30daylicense.config
    
-    .. image:: 
+    .. note:: 
+
        The parameter /opt/ovsa/certs/server.crt  contains the certificate used by the License Server. The server certificate will be added to the customer license and validated during use. Refer to `OpenVINO™ Security Add-on License Server Certificate Pinning <https://github.com/openvinotoolkit/security_addon/blob/master/docs/ovsa_license_server_cert_pinning.md>`__
 
 3. Create the customer license
@@ -900,7 +906,7 @@ Step 1: Setup up the artefacts directory
 1. Create a directory named artefacts. This directory will hold artefacts required to create licenses:
 
    .. code-block:: sh
-
+      
       mkdir -p ~/OVSA/artefacts
       cd ~/OVSA/artefacts
       export OVSA_RUNTIME_ARTEFACTS=$PWD
@@ -913,20 +919,20 @@ Step 2: Add a CA-Signed Certificate to a Key Store
 1. Generate a Customer key store file:
 
    .. code-block:: sh
-
+      
       cd $OVSA_RUNTIME_ARTEFACTS
       /opt/ovsa/bin/ovsatool keygen -storekey -t ECDSA -n Intel -k custkeystore -r  custkeystore.csr -e "/C=IN/CN=localhost"
    
    Below two files are created along with the keystore file:
-   * `custkeystore.csr` - A Certificate Signing Request (CSR)
-   * `custkeystore.csr.crt` - A self-signed certificate
+   * ``custkeystore.csr`` - A Certificate Signing Request (CSR)
+   * ``custkeystore.csr.crt``` - A self-signed certificate
 
-3. Send  ``custkeystore.csr`` to the CA to request a CA-signed certificate.
+3. Send ``custkeystore.csr`` to the CA to request a CA-signed certificate.
 
 4. Add the certificate to the key store:
 
    .. code-block:: sh
-
+      
       /opt/ovsa/bin/ovsatool keygen -storecert -c custkeystore.csr.crt -k custkeystore
 
 Step 3: Request an access controlled Model from the Model Developer
@@ -938,7 +944,7 @@ This example uses scp to share data between the ovsa_runtime and ovsa_dev Guest 
 2. The model user's certificate needs to be provided to the Developer:
 
    .. code-block:: sh
-
+      
       cd $OVSA_RUNTIME_ARTEFACTS
       scp custkeystore.csr.crt username@<developer-vm-ip-address>:/<username-home-directory>/OVSA/artefacts
 
@@ -951,7 +957,7 @@ Step 4: Receive and load the access controlled model into the OpenVINO™ Model 
    * face_detection_model.lic
 
    .. code-block:: sh
-
+      
       cd $OVSA_RUNTIME_ARTEFACTS
       scp username@<developer-vm-ip-address>:/<username-home-directory>/OVSA/artefacts/face_detection_model.dat .
       scp username@<developer-vm-ip-address>:/<username-home-directory>/OVSA/artefacts/face_detection_model.lic .
@@ -959,16 +965,17 @@ Step 4: Receive and load the access controlled model into the OpenVINO™ Model 
 2. Prepare the environment:
 
    .. code-block:: sh
-
+      
       cd $OVSA_RUNTIME_ARTEFACTS/..
       cp /opt/ovsa/example_runtime ovms -r
       cd ovms
       mkdir -vp model/fd/1
+   
    The ``$OVSA_RUNTIME_ARTEFACTS/../ovms`` directory contains scripts and a sample configuration JSON file to start the model server. 
 3. Copy the artefacts from the Model Developer:
 
    .. code-block:: sh
-
+      
       cd $OVSA_RUNTIME_ARTEFACTS/../ovms
       cp $OVSA_RUNTIME_ARTEFACTS/face_detection_model.dat model/fd/1/.
       cp $OVSA_RUNTIME_ARTEFACTS/face_detection_model.lic model/fd/1/.
@@ -977,7 +984,7 @@ Step 4: Receive and load the access controlled model into the OpenVINO™ Model 
 4. Rename and edit ``sample.json`` to include the names of the access controlled model artefacts you received from the Model Developer. The file looks like this:
 
    .. code-block:: sh
-
+      
       {
       "custom_loader_config_list":[
       	{
@@ -1005,7 +1012,7 @@ Step 5: Start the NGINX Model Server
 The NGINX Model Server publishes the access controlled model.
 
    .. code-block:: sh
-
+      
       ./start_secure_ovsa_model_server.sh
    
 For information about the NGINX interface follow `here <https://github.com/openvinotoolkit/model_server/blob/main/extras/nginx-mtls-auth/README.md>`__.
@@ -1018,7 +1025,7 @@ Step 6: Prepare to run Inference
 2. Install the Python dependencies for your set up. For example:
 
    .. code-block:: sh
-
+      
       sudo apt install pip3
       pip3 install cmake
       pip3 install scikit-build
@@ -1029,14 +1036,14 @@ Step 6: Prepare to run Inference
 3. Copy the ``face_detection.py`` from the example_client in ``/opt/ovsa/example_client``
 
    .. code-block:: sh
-
+      
       cd ~/OVSA/ovms
       cp /opt/ovsa/example_client/* .
    
 4. Copy the sample images for inferencing. An image directory is created that includes a sample image for inferencing.
 
    .. code-block:: sh
-
+      
       curl --create-dirs https://raw.githubusercontent.com/openvinotoolkit/model_server/master/example_client/images/people/people1.jpeg -o images/people1.jpeg
    
 
