@@ -202,6 +202,17 @@ DevicePriority get_device_priority_property(const std::string& device_name) {
                DevicePriority{ov::device::id.name(), MatchType::SUBSTR};
 }
 
+void clean_batch_properties(std::string& deviceName, ov::AnyMap& config, const ov::PropertyName& property_name) {
+    // auto-batching is not applicable, if there is auto_batch_timeout, delete it
+    if (deviceName.find("BATCH") == std::string::npos) {
+        const auto& batch_timeout_mode = config.find(property_name);
+        if (batch_timeout_mode != config.end()) {
+            if (!is_virtual_device(deviceName))
+                config.erase(batch_timeout_mode);
+        }
+    }
+}
+
 }  // namespace
 
 bool ov::is_config_applicable(const std::string& user_device_name, const std::string& subprop_device_name) {
@@ -281,6 +292,10 @@ ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName, const An
                        << ") vs " << it->second.as<std::string>() << " (from config)";
         }
     };
+
+    // clean-up auto-batch related properties
+    clean_batch_properties(updated_device_name, updated_config, ov::hint::allow_auto_batching.name());
+    clean_batch_properties(updated_device_name, updated_config, ov::auto_batch_timeout.name());
 
     return {updated_device_name, updated_config};
 }
@@ -505,7 +520,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     ov::AnyMap config_with_batch = config;
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
     apply_auto_batching(model, deviceName, config_with_batch);
-    clean_properties(deviceName, config_with_batch, ov::auto_batch_timeout);
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
     auto plugin = get_plugin(parsed._deviceName);
@@ -535,7 +549,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     ov::AnyMap config_with_batch = config;
     // if auto-batching is applicable, the below function will patch the device name and config accordingly:
     apply_auto_batching(model, deviceName, config_with_batch);
-    clean_properties(deviceName, config_with_batch, ov::auto_batch_timeout);
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, config_with_batch);
     auto plugin = get_plugin(parsed._deviceName);
@@ -579,8 +592,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::Path");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
     // in case of compile_model(file_name), we need to clear-up core-level properties
-    clean_properties(parsed._deviceName, parsed._config, ov::auto_batch_timeout);
-    clean_properties(parsed._deviceName, parsed._config, ov::hint::allow_auto_batching);
     auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<ov::ICompiledModel> compiled_model;
 
@@ -612,8 +623,6 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::compile_model::from_memory");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
     // in case of compile_model(file_name), we need to clear-up core-level properties
-    clean_properties(parsed._deviceName, parsed._config, ov::auto_batch_timeout);
-    clean_properties(parsed._deviceName, parsed._config, ov::hint::allow_auto_batching);
     auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<ov::ICompiledModel> compiled_model;
 
@@ -843,17 +852,6 @@ void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& m
         deviceName = "HETERO:BATCH," + deviceNameWithoutBatch;
         config[CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)] = batchConfig;
         break;
-    }
-}
-
-void ov::CoreImpl::clean_properties(std::string& deviceName, ov::AnyMap& config, ov::Any property) const {
-    // auto-batching is not applicable, if there is auto_batch_timeout, delete it
-    if (deviceName.find("BATCH") == std::string::npos) {
-        const auto& batch_timeout_mode = config.find(property.as<std::string>());
-        if (batch_timeout_mode != config.end()) {
-            if (!is_virtual_device(deviceName))
-                config.erase(batch_timeout_mode);
-        }
     }
 }
 

@@ -24,8 +24,7 @@ void PluginConfig::set_default() {
         std::make_tuple(ov::hint::execution_mode, ov::hint::ExecutionMode::UNDEFINED),
         std::make_tuple(ov::hint::num_requests, 0, UnsignedTypeValidator()),
         std::make_tuple(ov::intel_auto::enable_startup_fallback, true),
-        // TODO 1) cache_dir 2) allow_auto_batch 3) auto_batch_timeout
-        std::make_tuple(ov::cache_dir, ""),
+        // TODO 1) allow_auto_batch 2) auto_batch_timeout
         std::make_tuple(ov::hint::allow_auto_batching, true),
         std::make_tuple(ov::auto_batch_timeout, 1000),
         // Legacy API properties

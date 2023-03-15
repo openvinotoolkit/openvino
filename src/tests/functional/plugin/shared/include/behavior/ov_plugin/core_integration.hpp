@@ -1308,10 +1308,10 @@ TEST_P(OVClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
         GTEST_FAIL() << "Device does not support AvailableDevices property" << std::endl;
     }
     std::string devices;
-    auto availableDevices = ie.get_property(target_device, ov::available_devices);
-    for (auto&& device : availableDevices) {
-        devices += std::string(CommonTestUtils::DEVICE_HETERO) + "." + device;
-        if (&device != &(availableDevices.back())) {
+    auto device_ids = ie.get_property(target_device, ov::available_devices);
+    for (auto&& device_id : device_ids) {
+        devices += target_device + "." + device_id;
+        if (&device_id != &(device_ids.back())) {
             devices += ',';
         }
     }
@@ -1325,9 +1325,9 @@ TEST_P(OVClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
     OV_ASSERT_NO_THROW(result = ie.query_model(multinputNetwork,
                                                 CommonTestUtils::DEVICE_MULTI,
                                                 ov::device::properties(CommonTestUtils::DEVICE_MULTI,
-                                                                ov::device::priorities(devices)),
+                                                                ov::device::priorities(CommonTestUtils::DEVICE_HETERO)),
                                                 ov::device::properties(CommonTestUtils::DEVICE_HETERO,
-                                                                ov::device::priorities(target_device, target_device))));
+                                                                ov::device::priorities(devices))));
 
     std::unordered_set<std::string> actualLayers;
     for (auto&& layer : result) {
@@ -1335,26 +1335,6 @@ TEST_P(OVClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
     }
     ASSERT_EQ(expectedLayers, actualLayers);
 }
-
-// TODO: Enable this test with pre-processing
-TEST_P(OVClassLoadNetworkAfterCoreRecreateTest, LoadAfterRecreateCoresAndPlugins) {
-    ov::Core ie = createCoreWithTemplate();
-    {
-        auto versions = ie.get_versions(std::string(CommonTestUtils::DEVICE_MULTI) + ":" + target_device + "," +
-                                        CommonTestUtils::DEVICE_CPU);
-        ASSERT_EQ(3, versions.size());
-    }
-    ov::AnyMap config;
-    if (target_device == CommonTestUtils::DEVICE_CPU) {
-        config.insert(ov::enable_profiling(true));
-    }
-    // OV_ASSERT_NO_THROW({
-    //     ov::Core ie = createCoreWithTemplate();
-    //     std::string name = actualNetwork.getInputsInfo().begin()->first;
-    //     actualNetwork.getInputsInfo().at(name)->setPrecision(Precision::U8);
-    //     auto executableNetwork = ie.compile_model(actualNetwork, target_device, config);
-    // });
-};
 
 TEST_P(OVClassSetDefaultDeviceIDTest, SetDefaultDeviceIDNoThrow) {
     ov::Core ie = createCoreWithTemplate();
