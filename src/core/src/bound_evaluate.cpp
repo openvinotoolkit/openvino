@@ -298,12 +298,17 @@ std::pair<ov::Tensor, ov::Tensor> ov::evaluate_both_bounds(const Output<Node>& o
             if (!node->evaluate_lower(outputs_lower) || !node->evaluate_upper(outputs_upper)) {
                 break;
             }
+            auto input_values = node->input_values();
+            bool same_inputs = std::all_of(input_values.begin(), input_values.end(), [](const Output<Node>& input) {
+                auto& t = input.get_tensor();
+                return t.has_and_set_bound() || are_equal(t.get_lower_value(), t.get_upper_value());
+            });
 
             for (size_t i = 0; i < node->get_output_size(); ++i) {
                 auto& out_tensor = node->get_output_tensor(i);
                 out_tensor.set_lower_value(outputs_lower[i]);
                 out_tensor.set_upper_value(outputs_upper[i]);
-                if (are_equal(outputs_lower[i], outputs_upper[i])) {
+                if (same_inputs || are_equal(outputs_lower[i], outputs_upper[i])) {
                     out_tensor.set_upper_value(outputs_lower[i]);
                 }
             }
@@ -314,7 +319,7 @@ std::pair<ov::Tensor, ov::Tensor> ov::evaluate_both_bounds(const Output<Node>& o
 
             for (const auto& input : node->input_values()) {
                 auto& tensor = input.get_tensor();
-                bool should_invalidate = true;
+                bool should_invalidate = false;
                 const auto& lower = tensor.get_lower_value();
                 const auto& upper = tensor.get_upper_value();
                 if (lower && shape_size(lower.get_shape()) > 10)

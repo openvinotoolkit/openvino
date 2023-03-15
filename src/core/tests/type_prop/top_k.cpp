@@ -411,12 +411,12 @@ TEST_F(TypePropTopKV3Test, k_is_u32) {
 }
 
 TEST(type_prop, top_k_partial_value) {
-    const auto data = std::make_shared<opset10::Parameter>(element::f32, PartialShape{{0, 16000}});
-    const auto shape = std::make_shared<opset10::ShapeOf>(data);
+    const auto data = std::make_shared<opset11::Parameter>(element::f32, PartialShape{{0, 16000}});
+    const auto shape = std::make_shared<opset11::ShapeOf>(data);
     const auto concat =
         std::make_shared<Concat>(ov::OutputVector{shape, Constant::create(element::i64, {1}, {200})}, 0);
-    const auto reduce_min = std::make_shared<opset10::ReduceMin>(concat, Constant::create(element::i64, {1}, {0}));
-    const auto op = std::make_shared<opset10::TopK>(data, reduce_min, 0, "max", "value");
+    const auto reduce_min = std::make_shared<opset11::ReduceMin>(concat, Constant::create(element::i64, {1}, {0}));
+    const auto op = std::make_shared<op::v3::TopK>(data, reduce_min, 0, "max", "value");
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{0, 200}}));
 }
 

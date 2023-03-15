@@ -101,7 +101,7 @@ bool op::v1::Equal::evaluate_upper(ov::TensorVector& output_values) const {
     auto size = ov::shape_size(output_values[0].get_shape());
     bool less_eq_data[size];
     const auto& less_eq_op = ov::op::v1::LessEqual();
-    auto outputs = std::vector<ov::Tensor>{ov::Tensor(element::boolean, output_values[0].get_shape(), less_eq_data)};
+    auto outputs = ov::TensorVector{ov::Tensor(element::boolean, output_values[0].get_shape(), less_eq_data)};
     auto inputs = std::vector<ov::Tensor>{lower, constant};
     if (!less_eq_op.evaluate(outputs, inputs))
         return false;
