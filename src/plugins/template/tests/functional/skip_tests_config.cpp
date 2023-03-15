@@ -126,6 +126,13 @@ std::vector<std::string> disabledTestPatterns() {
         // New plugin API doesn't support changes of pre-processing
         R"(.*InferRequestPreprocessTest.*SetPreProcessToInputInfo.*)",
         R"(.*InferRequestPreprocessTest.*SetPreProcessToInferRequest.*)",
+        // New plugin work with tensors, so it means that blob in old API can have different pointers
+        R"(.*InferRequestIOBBlobTest.*secondCallGetInputDoNotReAllocateData.*)",
+        R"(.*InferRequestIOBBlobTest.*secondCallGetOutputDoNotReAllocateData.*)",
+        R"(.*InferRequestIOBBlobTest.*secondCallGetInputAfterInferSync.*)",
+        R"(.*InferRequestIOBBlobTest.*secondCallGetOutputAfterInferSync.*)",
+        // Old API cannot deallocate tensor
+        R"(.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
     };
 
 #ifdef _WIN32

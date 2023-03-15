@@ -428,14 +428,14 @@ void FrontEndMockPy::clear_stat() {
 }  // namespace frontend
 }  // namespace ov
 
-MOCK_C_API ov::frontend::FrontEndVersion GetAPIVersion();
-MOCK_C_API void* GetFrontEndData();
+MOCK_C_API ov::frontend::FrontEndVersion get_api_version();
+MOCK_C_API void* get_front_end_data();
 
-MOCK_C_API ov::frontend::FrontEndVersion GetAPIVersion() {
+MOCK_C_API ov::frontend::FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;
 }
 
-MOCK_C_API void* GetFrontEndData() {
+MOCK_C_API void* get_front_end_data() {
     ov::frontend::FrontEndPluginInfo* res = new ov::frontend::FrontEndPluginInfo();
     res->m_name = "mock_py";
     res->m_creator = []() {
