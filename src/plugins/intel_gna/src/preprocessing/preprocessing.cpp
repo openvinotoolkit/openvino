@@ -7,56 +7,38 @@
 #include "gna_itt.hpp"
 #include "ie_precision.hpp"
 
-int16_t ov::intel_gna::ConvertFloatToInt16(float src) {
-    float rounding_value = (src > 0) ? 0.5f : -0.5f;
-    float value = src + rounding_value;
-    if (value > 32767.0) {
-        return 32767;
-    } else if (value < -32768.0) {
-        return -32768;
-    }
-    return (int16_t)value;
-}
+using InferenceEngine::Precision;
 
-int8_t ov::intel_gna::ConvertFloatToInt8(float src) {
-    float rounding_value = (src > 0) ? 0.5f : -0.5f;
-    float value = src + rounding_value;
-    if (value > 127.0) {
-        return 127;
-    } else if (value < -128.0) {
-        return -128;
-    }
-    return (int8_t)value;
-}
+namespace ov {
+namespace intel_gna {
+namespace preprocessing {
 
-void ov::intel_gna::ConvertToInt16(int16_t* ptr_dst,
-                                   const float* ptr_src,
-                                   const uint32_t num_rows,
-                                   const uint32_t num_columns,
-                                   const float scale_factor) {
+void ConvertToInt16(int16_t* ptr_dst,
+                    const float* ptr_src,
+                    const uint32_t num_rows,
+                    const uint32_t num_columns,
+                    const float scale_factor) {
     if (!ptr_dst || !ptr_src) {
         return;
     }
     for (uint32_t i = 0; i < num_rows * num_columns; i++) {
-        ptr_dst[i] = ConvertFloatToInt16(ptr_src[i] * scale_factor);
+        ptr_dst[i] = common::FloatToInt16WithClamp(ptr_src[i] * scale_factor);
     }
 }
 
-using InferenceEngine::Precision;
-
-void ov::intel_gna::ExportScores(void* ptr_dst,
-                                 const void* ptr_src,
-                                 intel_dnn_orientation_t orientation,
-                                 uint32_t num_frames,
-                                 uint32_t num_group,
-                                 uint32_t num_vector_elements,
-                                 uint32_t num_active_elements,
-                                 uint32_t num_vector_stride,
-                                 const InferenceEngine::Precision& precision_in,
-                                 const InferenceEngine::Precision& precision_out,
-                                 const float scale_factor,
-                                 bool scale,
-                                 bool isAvx2Supported) {
+void ExportScores(void* ptr_dst,
+                  const void* ptr_src,
+                  intel_dnn_orientation_t orientation,
+                  uint32_t num_frames,
+                  uint32_t num_group,
+                  uint32_t num_vector_elements,
+                  uint32_t num_active_elements,
+                  uint32_t num_vector_stride,
+                  const Precision& precision_in,
+                  const Precision& precision_out,
+                  const float scale_factor,
+                  bool scale,
+                  bool isAvx2Supported) {
     OV_ITT_SCOPED_TASK(itt::domains::GNAPlugin, "ExportScores");
 
     if (ptr_src == nullptr || ptr_dst == nullptr) {
@@ -76,13 +58,13 @@ void ov::intel_gna::ExportScores(void* ptr_dst,
         switch (precision_in) {
         case Precision::I8:
             if (isAvx2Supported && !needsZeroPadding) {
-                ConvertMatrixInt8ToFp32Avx(reinterpret_cast<float*>(ptr_dst),
-                                           reinterpret_cast<const int8_t*>(ptr_src),
-                                           num_vector_stride,
-                                           num_frames,
-                                           scale_factor,
-                                           scale,
-                                           transpose);
+                dequantize_output_avx2(reinterpret_cast<float*>(ptr_dst),
+                                       reinterpret_cast<const int8_t*>(ptr_src),
+                                       num_vector_stride,
+                                       num_frames,
+                                       scale_factor,
+                                       scale,
+                                       transpose);
                 break;
             }
             UnscaleTransposeAndCast(reinterpret_cast<float*>(ptr_dst),
@@ -98,13 +80,13 @@ void ov::intel_gna::ExportScores(void* ptr_dst,
             break;
         case Precision::I16:
             if (isAvx2Supported && !needsZeroPadding) {
-                ConvertMatrixInt16ToFp32Avx(reinterpret_cast<float*>(ptr_dst),
-                                            reinterpret_cast<const int16_t*>(ptr_src),
-                                            num_vector_stride,
-                                            num_frames,
-                                            scale_factor,
-                                            scale,
-                                            transpose);
+                dequantize_output_avx2(reinterpret_cast<float*>(ptr_dst),
+                                       reinterpret_cast<const int16_t*>(ptr_src),
+                                       num_vector_stride,
+                                       num_frames,
+                                       scale_factor,
+                                       scale,
+                                       transpose);
                 break;
             }
             UnscaleTransposeAndCast(reinterpret_cast<float*>(ptr_dst),
@@ -120,13 +102,13 @@ void ov::intel_gna::ExportScores(void* ptr_dst,
             break;
         case Precision::I32:
             if (isAvx2Supported && !needsZeroPadding) {
-                ConvertMatrixInt32ToFp32Avx(reinterpret_cast<float*>(ptr_dst),
-                                            reinterpret_cast<const int32_t*>(ptr_src),
-                                            num_vector_stride,
-                                            num_frames,
-                                            scale_factor,
-                                            scale,
-                                            transpose);
+                dequantize_output_avx2(reinterpret_cast<float*>(ptr_dst),
+                                       reinterpret_cast<const int32_t*>(ptr_src),
+                                       num_vector_stride,
+                                       num_frames,
+                                       scale_factor,
+                                       scale,
+                                       transpose);
                 break;
             }
             UnscaleTransposeAndCast(reinterpret_cast<float*>(ptr_dst),
@@ -192,18 +174,18 @@ void ov::intel_gna::ExportScores(void* ptr_dst,
     }
 }
 
-void ov::intel_gna::ImportFrames(void* ptr_dst,
-                                 const void* ptr_src,
-                                 const InferenceEngine::Precision& input_precision,
-                                 float scaleFactor,
-                                 intel_dnn_orientation_t orientation,
-                                 uint32_t num_frames,
-                                 uint32_t num_group,
-                                 uint32_t num_vector_elements,
-                                 uint32_t num_vector_stride,
-                                 bool input_low_precision,
-                                 bool isGnaDevice,
-                                 bool isAvx2Supported) {
+void ImportFrames(void* ptr_dst,
+                  const void* ptr_src,
+                  const Precision& input_precision,
+                  float scaleFactor,
+                  intel_dnn_orientation_t orientation,
+                  uint32_t num_frames,
+                  uint32_t num_group,
+                  uint32_t num_vector_elements,
+                  uint32_t num_vector_stride,
+                  bool input_low_precision,
+                  bool isGnaDevice,
+                  bool isAvx2Supported) {
     switch (input_precision) {
     case Precision::U8:
     case Precision::I8: {
@@ -283,7 +265,7 @@ void ov::intel_gna::ImportFrames(void* ptr_dst,
                 auto dst = reinterpret_cast<int16_t*>(ptr_dst);
 
                 if (isAvx2Supported && !needsZeroPadding) {
-                    ConvertMatrixFp32ToInt16(dst, src, num_group, num_vector_stride, scaleFactor, transpose);
+                    quantize_input_avx2(dst, src, num_group, num_vector_stride, scaleFactor, transpose);
                     break;
                 }
 
@@ -300,7 +282,7 @@ void ov::intel_gna::ImportFrames(void* ptr_dst,
                 auto dst = reinterpret_cast<int8_t*>(ptr_dst);
 
                 if (isAvx2Supported && !needsZeroPadding) {
-                    ConvertMatrixFp32ToInt8(dst, src, num_group, num_vector_stride, scaleFactor, transpose);
+                    quantize_input_avx2(dst, src, num_group, num_vector_stride, scaleFactor, transpose);
                     break;
                 }
 
@@ -361,3 +343,7 @@ void ov::intel_gna::ImportFrames(void* ptr_dst,
         break;
     }
 }
+
+}  // namespace preprocessing
+}  // namespace intel_gna
+}  // namespace ov

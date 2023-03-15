@@ -28,7 +28,6 @@
 #include <utility>
 #include <vector>
 
-#include "avx2.hpp"
 #include "backend/am_intel_dnn.hpp"
 #include "common/gna_target.hpp"
 #include "frontend/model_quantizer.hpp"
@@ -48,7 +47,8 @@
 #include "log/log.hpp"
 #include "memory/gna_memory_state.hpp"
 #include "orientation_helper.hpp"
-#include "preprocessing.hpp"
+#include "preprocessing/avx2.hpp"
+#include "preprocessing/preprocessing.hpp"
 #include "request/model_wrapper_factory.hpp"
 #include "request/worker_factory.hpp"
 #include "request/worker_pool_impl.hpp"
@@ -115,7 +115,11 @@ void GNAPlugin::Init() {
 
     requestWorkerPool_ = std::make_shared<request::WorkerPoolImpl>();
 
-    isAvx2Supported = ov::intel_gna::isAvx2Supported();
+#ifdef HAVE_AVX2
+    isAvx2Supported = InferenceEngine::with_cpu_x86_avx2();
+#else
+    isAvx2Supported = false;
+#endif
 }
 
 void GNAPlugin::InitGNADevice() {
@@ -881,18 +885,18 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap& inputs, Infer
                                 << ", but input blob size: " << importedBytes;
         }
 
-        ImportFrames(inputs_ptr_->at(input.first).ptrs[index],
-                     input.second->cbuffer().as<float*>(),
-                     input.second->getTensorDesc().getPrecision(),
-                     gnaFlags->sw_fp32 ? kScaleFactorDefault : inputs_ptr_->at(input.first).scale_factor,
-                     inputOrientation,
-                     importedFrames,
-                     targetGroups,
-                     importedElements,
-                     importedElements,
-                     gnaFlags->input_low_precision,
-                     gnadevice.get() != nullptr,
-                     isAvx2Supported);
+        preprocessing::ImportFrames(inputs_ptr_->at(input.first).ptrs[index],
+                                    input.second->cbuffer().as<float*>(),
+                                    input.second->getTensorDesc().getPrecision(),
+                                    gnaFlags->sw_fp32 ? kScaleFactorDefault : inputs_ptr_->at(input.first).scale_factor,
+                                    inputOrientation,
+                                    importedFrames,
+                                    targetGroups,
+                                    importedElements,
+                                    importedElements,
+                                    gnaFlags->input_low_precision,
+                                    gnadevice.get() != nullptr,
+                                    isAvx2Supported);
 
         auto transpose_info = transpose_inputs_info.find(input.first);
         if (transpose_info != std::end(transpose_inputs_info)) {
@@ -1025,34 +1029,34 @@ RequestStatus GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
         }
 
         if (!gnadevice) {
-            ExportScores(outputBlob->buffer(),
-                         outputDesc.ptrs[request_idx],
-                         outputDesc.orientation,
-                         batchSize,
-                         batchSize,
-                         elementsPerBatch,
-                         elementsPerBatch,
-                         elementsPerBatch,
-                         outputDesc.tensor_precision,
-                         Precision::I32,
-                         1.0f,   // scale factor
-                         false,  // don't perform scaling; this is necessary because division by 1.0f causes discrepancy
-                                 // on 6th decimal place in InferenceEngineUnitTests
-                         isAvx2Supported);
+            preprocessing::ExportScores(outputBlob->buffer(),
+                                        outputDesc.ptrs[request_idx],
+                                        outputDesc.orientation,
+                                        batchSize,
+                                        batchSize,
+                                        elementsPerBatch,
+                                        elementsPerBatch,
+                                        elementsPerBatch,
+                                        outputDesc.tensor_precision,
+                                        Precision::I32,
+                                        1.0f,   // scale factor
+                                        false,  // don't perform scaling; this is necessary because division by 1.0f
+                                                // causes discrepancy on 6th decimal place in InferenceEngineUnitTests
+                                        isAvx2Supported);
         } else {
-            ExportScores(outputBlob->buffer(),
-                         outputDesc.ptrs[request_idx],
-                         outputDesc.orientation,
-                         batchSize,
-                         batchSize,
-                         elementsPerBatch,
-                         elementsPerBatch,
-                         elementsPerBatch,
-                         outputDesc.tensor_precision,
-                         outputDesc.model_precision,
-                         outputDesc.scale_factor,
-                         true,  // perform scaling
-                         isAvx2Supported);
+            preprocessing::ExportScores(outputBlob->buffer(),
+                                        outputDesc.ptrs[request_idx],
+                                        outputDesc.orientation,
+                                        batchSize,
+                                        batchSize,
+                                        elementsPerBatch,
+                                        elementsPerBatch,
+                                        elementsPerBatch,
+                                        outputDesc.tensor_precision,
+                                        outputDesc.model_precision,
+                                        outputDesc.scale_factor,
+                                        true,  // perform scaling
+                                        isAvx2Supported);
 
 #ifdef PLOT
             FILE* f = nullptr;

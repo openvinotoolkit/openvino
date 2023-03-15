@@ -11,15 +11,13 @@
 
 namespace ov {
 namespace intel_gna {
+namespace preprocessing {
 
 void ConvertToInt16(int16_t* ptr_dst,
                     const float* ptr_src,
                     const uint32_t num_rows,
                     const uint32_t num_columns,
                     const float scale_factor);
-
-int16_t ConvertFloatToInt16(float src);
-int8_t ConvertFloatToInt8(float src);
 
 template <typename T, typename U>
 inline void UnscaleTransposeAndCast(T* ptr_dst,
@@ -78,9 +76,11 @@ void CopyInputData(T* dst,
             for (uint32_t j = 0; j < num_vector_elements; j++) {
                 if (!std::is_same<T, U>::value) {
                     if (!input_low_precision) {
-                        dst[j * num_group + i] = ConvertFloatToInt16(src[i * num_vector_elements + j] * scaleFactor);
+                        dst[j * num_group + i] =
+                            common::FloatToInt16WithClamp(src[i * num_vector_elements + j] * scaleFactor);
                     } else {
-                        dst[j * num_group + i] = ConvertFloatToInt8(src[i * num_vector_elements + j] * scaleFactor);
+                        dst[j * num_group + i] =
+                            common::FloatToInt8WithClamp(src[i * num_vector_elements + j] * scaleFactor);
                     }
                 } else {
                     dst[j * num_group + i] = src[i * num_vector_elements + j];
@@ -105,11 +105,11 @@ void CopyInputData(T* dst,
                 std::memset(ptr_dst_vec, 0, num_vector_stride * sizeof(T));
                 if (!input_low_precision) {
                     for (uint32_t j = 0; j < num_vector_elements; j++) {
-                        ptr_dst_vec[j] = ConvertFloatToInt16(ptr_src_vec[j] * scaleFactor);
+                        ptr_dst_vec[j] = common::FloatToInt16WithClamp(ptr_src_vec[j] * scaleFactor);
                     }
                 } else {
                     for (uint32_t j = 0; j < num_vector_elements; j++) {
-                        ptr_dst_vec[j] = ConvertFloatToInt8(ptr_src_vec[j] * scaleFactor);
+                        ptr_dst_vec[j] = common::FloatToInt8WithClamp(ptr_src_vec[j] * scaleFactor);
                     }
                 }
             }
@@ -155,5 +155,6 @@ void ExportScores(void* ptr_dst,
                   const float scale_factor,
                   bool scale,
                   bool isAvx2Supported);
+}  // namespace preprocessing
 }  // namespace intel_gna
 }  // namespace ov

@@ -29,6 +29,26 @@ inline int64_t FloatToInt64(float a) {
     return FloatToInteger<int64_t>(a);
 }
 
+template <typename T>
+inline T FloatToIntegerWithClamp(float a, T clamp_min, T clamp_max) {
+    float rounding_value = (a > 0) ? 0.5f : -0.5f;
+    float value = a + rounding_value;
+    if (value > clamp_max) {
+        return clamp_max;
+    } else if (value < clamp_min) {
+        return clamp_min;
+    }
+    return static_cast<T>(value);
+}
+
+inline int8_t FloatToInt8WithClamp(float a) {
+    return FloatToIntegerWithClamp<int8_t>(a, INT8_MIN, INT8_MAX);
+}
+
+inline int16_t FloatToInt16WithClamp(float a) {
+    return FloatToIntegerWithClamp<int16_t>(a, INT16_MIN, INT16_MAX);
+}
+
 /**
  * @brief Compare two floating point values and return true if they are equal with given accuracy
  * @param p1 First floating point value

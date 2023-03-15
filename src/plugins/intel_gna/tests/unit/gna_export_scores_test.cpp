@@ -13,7 +13,7 @@
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gna_data_types.hpp"
 #include "gna_plugin.hpp"
-#include "preprocessing.hpp"
+#include "preprocessing/preprocessing.hpp"
 
 using namespace InferenceEngine;
 
@@ -31,7 +31,11 @@ public:
     }
 
     void setAvx2Support(bool testAvx2) {
-        isAvx2Supported = testAvx2;
+#ifdef HAVE_AVX2
+        this->isAvx2Supported = testAvx2;
+#else  // don't set when GNA Plugin is compiled without AVX2, even though CPU might support it
+        this->isAvx2Supported = false;
+#endif
     }
 
     bool isAvx2Support() const {
@@ -75,19 +79,19 @@ public:
     void compare() {
         auto total_size = ov::shape_size(shape);
         std::vector<T> pluginOutputs(total_size);
-        ExportScores(&(pluginOutputs.front()),
-                     &(inputValues.front()),
-                     orientation,
-                     shape[0],
-                     shape[0],
-                     shape[1],
-                     shape[1],
-                     shape[1],
-                     precisionIn,
-                     precisionOut,
-                     sf,
-                     true,
-                     plugin->isAvx2Support());
+        preprocessing::ExportScores(&(pluginOutputs.front()),
+                                    &(inputValues.front()),
+                                    orientation,
+                                    shape[0],
+                                    shape[0],
+                                    shape[1],
+                                    shape[1],
+                                    shape[1],
+                                    precisionIn,
+                                    precisionOut,
+                                    sf,
+                                    true,
+                                    plugin->isAvx2Support());
         if (orientation == kDnnInterleavedOrientation) {
             for (int i = 0; i < shape[0]; ++i) {
                 for (int j = 0; j < shape[1]; j++) {
@@ -303,8 +307,8 @@ INSTANTIATE_TEST_SUITE_P(
                             ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 0.125f}}),
                             ov::hint::inference_precision(ngraph::element::i16)},
                        }),
-                       ::testing::Values(ov::intel_gna::isAvx2Supported()),  // use AVX2 version
-                       ::testing::Values(16)));                              // input range
+                       ::testing::Values(InferenceEngine::with_cpu_x86_avx2),  // use AVX2 version
+                       ::testing::Values(16)));                                // input range
 
 using GNAOutputPrecisionTestI16ToFp32Avx = GNAOutputPrecisionTest<int16_t, float>;
 TEST_P(GNAOutputPrecisionTestI16ToFp32Avx, GNAOutputPrecisionTestFp32Avx) {
@@ -329,8 +333,8 @@ INSTANTIATE_TEST_SUITE_P(
                             ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 0.125f}}),
                             ov::hint::inference_precision(ngraph::element::i16)},
                        }),
-                       ::testing::Values(ov::intel_gna::isAvx2Supported()),  // use AVX2 version
-                       ::testing::Values(4000)));                            // input range
+                       ::testing::Values(InferenceEngine::with_cpu_x86_avx2),  // use AVX2 version
+                       ::testing::Values(4000)));                              // input range
 
 using GNAOutputPrecisionTestI32ToFp32Avx = GNAOutputPrecisionTest<int32_t, float>;
 TEST_P(GNAOutputPrecisionTestI32ToFp32Avx, GNAOutputPrecisionTestFp32Avx) {
@@ -355,7 +359,7 @@ INSTANTIATE_TEST_SUITE_P(
                             ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 0.125f}}),
                             ov::hint::inference_precision(ngraph::element::i16)},
                        }),
-                       ::testing::Values(ov::intel_gna::isAvx2Supported()),  // use AVX2 version
-                       ::testing::Values(4000)));                            // input range
-#endif                                                                       // HAVE_AVX2
+                       ::testing::Values(InferenceEngine::with_cpu_x86_avx2),  // use AVX2 version
+                       ::testing::Values(4000)));                              // input range
+#endif                                                                         // HAVE_AVX2
 }  // namespace testing

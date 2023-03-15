@@ -12,7 +12,7 @@
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gna_plugin.hpp"
-#include "preprocessing.hpp"
+#include "preprocessing/preprocessing.hpp"
 
 using namespace InferenceEngine;
 
@@ -38,7 +38,11 @@ public:
     }
 
     void setAvx2Support(bool testAvx2) {
+#ifdef HAVE_AVX2
         this->isAvx2Supported = testAvx2;
+#else  // don't set when GNA Plugin is compiled without AVX2, even though CPU might support it
+        this->isAvx2Supported = false;
+#endif
     }
 
     bool isAvx2Support() const {
@@ -97,18 +101,18 @@ public:
     void compare() {
         auto total_size = ov::shape_size(shape);
         std::vector<T> plugin_inputs(total_size);
-        ImportFrames(&(plugin_inputs.front()),
-                     &(input_vals.front()),
-                     prc,
-                     sf,
-                     orientation,
-                     shape[0],
-                     shape[0],
-                     shape[1],
-                     shape[1],
-                     plugin->isLowPrc(),
-                     plugin->isGnaDevicePresent(),
-                     plugin->isAvx2Support());
+        preprocessing::ImportFrames(&(plugin_inputs.front()),
+                                    &(input_vals.front()),
+                                    prc,
+                                    sf,
+                                    orientation,
+                                    shape[0],
+                                    shape[0],
+                                    shape[1],
+                                    shape[1],
+                                    plugin->isLowPrc(),
+                                    plugin->isGnaDevicePresent(),
+                                    plugin->isAvx2Support());
         if (orientation == kDnnInterleavedOrientation) {
             for (int i = 0; i < shape[0]; ++i) {
                 for (int j = 0; j < shape[1]; j++) {
@@ -362,10 +366,10 @@ INSTANTIATE_TEST_SUITE_P(
                             ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 0.125f}}),
                             ov::hint::inference_precision(ngraph::element::i16)},
                        }),
-                       ::testing::Values(true),                              // gna device
-                       ::testing::Values(false),                             // use low precision
-                       ::testing::Values(ov::intel_gna::isAvx2Supported()),  // use AVX2 version
-                       ::testing::Values(16)));                              // input range
+                       ::testing::Values(true),                                // gna device
+                       ::testing::Values(false),                               // use low precision
+                       ::testing::Values(InferenceEngine::with_cpu_x86_avx2),  // use AVX2 version
+                       ::testing::Values(16)));                                // input range
 
 using GNAInputPrecisionTestFp32toI8Avx = GNAInputPrecisionTest<float, int8_t>;
 
@@ -391,8 +395,8 @@ INSTANTIATE_TEST_SUITE_P(
                             ov::intel_gna::scale_factors_per_input(std::map<std::string, float>{{"0", 0.25f}}),
                             ov::hint::inference_precision(ngraph::element::i8)},
                        }),
-                       ::testing::Values(true),                              // gna device
-                       ::testing::Values(true),                              // use low precision
-                       ::testing::Values(ov::intel_gna::isAvx2Supported()),  // use AVX2 version
-                       ::testing::Values(12)));                              // input range
+                       ::testing::Values(true),                                // gna device
+                       ::testing::Values(true),                                // use low precision
+                       ::testing::Values(InferenceEngine::with_cpu_x86_avx2),  // use AVX2 version
+                       ::testing::Values(12)));                                // input range
 }  // namespace testing

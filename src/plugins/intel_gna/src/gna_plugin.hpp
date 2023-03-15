@@ -18,7 +18,6 @@
 #include <utility>
 #include <vector>
 
-#include "avx2.hpp"
 #include "backend/am_intel_dnn.hpp"
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
 #include "descriptions/gna_desc.hpp"
@@ -28,6 +27,7 @@
 #include "gna_plugin_config.hpp"
 #include "log/debug.hpp"
 #include "log/log.hpp"
+#include "preprocessing/avx2.hpp"
 
 namespace ov {
 namespace intel_gna {
