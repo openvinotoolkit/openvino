@@ -13,6 +13,7 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "dev/converter_utils.hpp"
+#include "dev/icompiled_model_wrapper.hpp"
 #include "dev/make_tensor.hpp"
 #include "file_utils.h"
 #include "ie_itt.hpp"
@@ -920,6 +921,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 
             compiled_model = context._impl ? plugin.import_model(networkStream, context, config)
                                            : plugin.import_model(networkStream, config);
+            if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
+                wrapper->get_executable_network()->loadedFromCache();
+            }
         });
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work
