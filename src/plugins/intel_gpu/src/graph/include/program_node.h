@@ -91,6 +91,9 @@ public:
                 if (u->get_dependencies().size() <= dep_idx) {
                     continue;
                 }
+                if (u->is_fused_dep(dep_idx)) {
+                    continue;
+                }
                 if (u->get_dependency(dep_idx).get_unique_id() == unique_id) {
                     return true;
                 }
@@ -98,6 +101,8 @@ public:
         }
         return false;
     }
+
+    bool is_fused_dep(size_t dep_idx) const;
 
     std::map<size_t, memory::ptr> get_const_memory_deps() const;
 

@@ -7,6 +7,7 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/deconvolution.hpp>
 #include <intel_gpu/primitives/crop.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/data.hpp>
 
@@ -237,6 +238,78 @@ TYPED_TEST(deconvolution_basic, no_bias_basic_wsiz2x2_in2x2x1x1_nopad) {
 
     network network(engine, topology);
     network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "plane_output");
+
+    auto output_prim = outputs.begin()->second.get_memory();
+
+    cldnn::mem_lock<float> output_ptr (output_prim, get_test_stream());
+
+    std::vector<float> expected_output_vec = {
+        -16.f, 3.f, 0.25f,
+        16.f, -1.25f, 5.25f,
+        21.f, 40.5f, 13.5f
+    };
+
+    for (unsigned int i = 0; i < expected_output_vec.size(); i++)
+    {
+        ASSERT_FLOAT_EQ(expected_output_vec[i], output_ptr[i]);
+    }
+}
+
+
+TYPED_TEST(deconvolution_basic, no_bias_basic_wsiz2x2_in2x2x1x1_nopad_exclude_fused_mem_dep) {
+    //  Filter : 2x2
+    //  Input  : 2x2
+    //  Output : 3x3
+    //
+    //  Input:
+    //  8  0.5
+    //  6  9
+    //
+    //  Filter
+    //  -2   0.5
+    //   3.5 1.5
+    //
+    //  no bias
+    //
+    //
+    //  Output:
+    // -16.f, 3.f, 0.25f,
+    // 16.f, -1.25f, 5.25f,
+    // 21.f, 40.5f, 13.5f
+
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 1, 1, 2, 2 } });
+    auto weights = engine.allocate_memory({ data_types::f32, format::oiyx,{ 1, 1, 2, 2 } });
+    auto elt_input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 9, 1, 1, 1 } });
+    auto in_layout = layout(ov::PartialShape::dynamic(4), data_types::f32, format::yxfb);
+
+    set_values(input, { 8.f, 0.5f, 6.f, 9.f });
+    set_values(weights, { -2.0f, 0.5f, 3.5f, 1.5f });
+    set_values(elt_input, { 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f });
+
+    topology topology(
+        input_layout("input", in_layout),
+        input_layout("elt_input", elt_input->get_layout()),
+        reorder("reordered_input", input_info("input"), this->input_layout_format, data_types::f32),
+        reorder("reordered_elt_input", input_info("elt_input"), format::bfyx, data_types::f32),
+        data("weights", weights),
+        deconvolution("deconv", input_info("reordered_input"), { "weights" }),
+        eltwise("elt_scale", { input_info("deconv"), input_info("reordered_elt_input") }, eltwise_mode::prod),
+        reorder("plane_output", input_info("elt_scale"), format::bfyx, data_types::f32)
+    );
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    network.set_input_data("elt_input", elt_input);
 
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
