@@ -133,24 +133,20 @@ elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "debian10" ] || [ "$os" == "raspbi
      [ "$os" == "ubuntu21.10" ] || [ "$os" == "ubuntu22.04" ] || [ "$os" == "debian11" ] || [ "$os" == "raspbian11" ] ||
      [ "$os" == "ubuntu22.10" ] || [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ]; then
 
-    pkgs_core=(libpugixml1v5)
+    pkgs_core=(libpugixml1v5 libtbb2)
     pkgs_gpu=()
     pkgs_python=(python3 python3-venv python3-pip)
     pkgs_dev=(cmake pkg-config g++ gcc libc6-dev libgflags-dev zlib1g-dev nlohmann-json3-dev make curl sudo)
 
     if [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] ; then
-        pkgs_core=("${pkgs_core[@]}" libtbb2)
         pkgs_python=("${pkgs_python[@]}" libpython3.7)
     elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu20.10" ] || [ "$os" == "ubuntu21.04" ] ; then
-        pkgs_core=("${pkgs_core[@]}" libtbb2)
         pkgs_python=("${pkgs_python[@]}" libpython3.8)
     elif [ "$os" == "ubuntu21.10" ] ||
          [ "$os" == "debian11" ] || [ "$os" == "raspbian11" ] ; then
-        pkgs_core=("${pkgs_core[@]}" libtbb2)
         pkgs_python=("${pkgs_python[@]}" libpython3.9)
     elif [ "$os" == "ubuntu22.04" ] || [ "$os" == "ubuntu22.10" ] ||
          [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ] ; then
-        pkgs_core=("${pkgs_core[@]}" libtbb12)
         pkgs_python=("${pkgs_python[@]}" libpython3.10)
     fi
 

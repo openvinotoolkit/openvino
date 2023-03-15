@@ -9,19 +9,17 @@
 #include "async_infer_request.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
+#include "itt.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "plugin.hpp"
 #include "template/config.hpp"
-#include "template_itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace TemplatePlugin;
-
 // ! [executable_network:ctor_cnnnetwork]
-TemplatePlugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
-                                             const std::shared_ptr<const ov::IPlugin>& plugin,
-                                             const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
-                                             const Configuration& cfg)
+ov::template_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
+                                                  const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                  const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
+                                                  const Configuration& cfg)
     : ov::ICompiledModel(model, plugin, task_executor),  // Disable default threads creation
       _cfg(cfg),
       m_model(model) {
@@ -32,11 +30,11 @@ TemplatePlugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& m
         compile_model(m_model);
     } catch (const InferenceEngine::Exception& e) {
         // Some transformations can throw legacy exception
-        throw ov::Exception(e.what());
+        OPENVINO_THROW(e.what());
     } catch (const std::exception& e) {
-        OPENVINO_ASSERT(false, "Standard exception from compilation library: ", e.what());
+        OPENVINO_THROW("Standard exception from compilation library: ", e.what());
     } catch (...) {
-        throw ov::Exception("Generic exception is thrown");
+        OPENVINO_THROW("Generic exception is thrown");
     }
 }
 // ! [executable_network:ctor_cnnnetwork]
@@ -45,7 +43,7 @@ TemplatePlugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& m
 // forward declaration
 void transform_model(const std::shared_ptr<ov::Model>& model);
 
-void TemplatePlugin::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& model) {
+void ov::template_plugin::CompiledModel::compile_model(const std::shared_ptr<ov::Model>& model) {
     // apply plugins transformations
     transform_model(model);
     // Perform any other steps like allocation and filling backend specific memory handles and so on
@@ -53,44 +51,44 @@ void TemplatePlugin::CompiledModel::compile_model(const std::shared_ptr<ov::Mode
 // ! [executable_network:map_graph]
 
 // ! [executable_network:create_infer_request]
-std::shared_ptr<ov::IAsyncInferRequest> TemplatePlugin::CompiledModel::create_infer_request() const {
+std::shared_ptr<ov::IAsyncInferRequest> ov::template_plugin::CompiledModel::create_infer_request() const {
     auto internal_request = create_sync_infer_request();
-    auto async_infer_request =
-        std::make_shared<AsyncInferRequest>(std::static_pointer_cast<TemplatePlugin::InferRequest>(internal_request),
-                                            get_task_executor(),
-                                            get_template_plugin()->_waitExecutor,
-                                            get_callback_executor());
+    auto async_infer_request = std::make_shared<AsyncInferRequest>(
+        std::static_pointer_cast<ov::template_plugin::InferRequest>(internal_request),
+        get_task_executor(),
+        get_template_plugin()->m_waitExecutor,
+        get_callback_executor());
 
     return async_infer_request;
 }
 
-std::shared_ptr<ov::ISyncInferRequest> TemplatePlugin::CompiledModel::create_sync_infer_request() const {
+std::shared_ptr<ov::ISyncInferRequest> ov::template_plugin::CompiledModel::create_sync_infer_request() const {
     return std::make_shared<InferRequest>(
-        std::static_pointer_cast<const TemplatePlugin::CompiledModel>(shared_from_this()));
+        std::static_pointer_cast<const ov::template_plugin::CompiledModel>(shared_from_this()));
 }
 // ! [executable_network:create_infer_request]
 
-void TemplatePlugin::CompiledModel::set_property(const ov::AnyMap& properties) {
+void ov::template_plugin::CompiledModel::set_property(const ov::AnyMap& properties) {
     OPENVINO_NOT_IMPLEMENTED;
 }
-ov::RemoteContext TemplatePlugin::CompiledModel::get_context() const {
+ov::RemoteContext ov::template_plugin::CompiledModel::get_context() const {
     OPENVINO_NOT_IMPLEMENTED;
 }
 
-std::shared_ptr<const ov::Model> TemplatePlugin::CompiledModel::get_runtime_model() const {
+std::shared_ptr<const ov::Model> ov::template_plugin::CompiledModel::get_runtime_model() const {
     return m_model;
 }
 
-std::shared_ptr<const Plugin> TemplatePlugin::CompiledModel::get_template_plugin() const {
+std::shared_ptr<const ov::template_plugin::Plugin> ov::template_plugin::CompiledModel::get_template_plugin() const {
     auto plugin = get_plugin();
     OPENVINO_ASSERT(plugin);
-    auto template_plugin = std::static_pointer_cast<const TemplatePlugin::Plugin>(plugin);
+    auto template_plugin = std::static_pointer_cast<const ov::template_plugin::Plugin>(plugin);
     OPENVINO_ASSERT(template_plugin);
     return template_plugin;
 }
 
 // ! [executable_network:get_config]
-ov::Any TemplatePlugin::CompiledModel::get_property(const std::string& name) const {
+ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name) const {
     const auto& add_ro_properties = [](const std::string& name, std::vector<ov::PropertyName>& properties) {
         properties.emplace_back(ov::PropertyName{name, ov::PropertyMutability::RO});
     };
@@ -132,7 +130,7 @@ ov::Any TemplatePlugin::CompiledModel::get_property(const std::string& name) con
         auto model_name = m_model->get_friendly_name();
         return decltype(ov::model_name)::value_type(model_name);
     } else if (ov::optimal_number_of_infer_requests == name) {
-        unsigned int value = _cfg._streamsExecutorConfig._streams;
+        unsigned int value = _cfg.streams_executor_config._streams;
         return decltype(ov::optimal_number_of_infer_requests)::value_type(value);
     }
 
@@ -152,7 +150,7 @@ ov::Any TemplatePlugin::CompiledModel::get_property(const std::string& name) con
 // ! [executable_network:get_config]
 
 // ! [executable_network:export]
-void TemplatePlugin::CompiledModel::export_model(std::ostream& modelStream) const {
+void ov::template_plugin::CompiledModel::export_model(std::ostream& modelStream) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "ExecutableNetwork::Export");
 
     std::stringstream xmlFile, binFile;

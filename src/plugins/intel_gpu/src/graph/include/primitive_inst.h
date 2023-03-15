@@ -5,12 +5,10 @@
 #pragma once
 #include "intel_gpu/primitives/primitive.hpp"
 #include "intel_gpu/primitives/concatenation.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/graph/network.hpp"
-#include "kernel_selector_helper.h"
-#include "meta_utils.h"
+#include "intel_gpu/runtime/utils.hpp"
 #include "program_node.h"
 #include "primitive_type.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
@@ -21,6 +19,9 @@
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "runtime/kernels_cache.hpp"
+
+// TODO: add generic interface for weights_reorder_params and get rid of this dependency
+#include "impls/ocl/kernel_selector_helper.h"
 
 #include <memory>
 #include <vector>
@@ -43,6 +44,8 @@ struct primitive_impl {
     primitive_impl() = default;
     explicit primitive_impl(const kernel_selector::weights_reorder_params& params, std::string kernel_name = "", bool is_dynamic = false)
         : _weights_reorder_params(params), _kernel_name(kernel_name), _is_dynamic(is_dynamic) {}
+    explicit primitive_impl(std::string kernel_name, bool is_dynamic = false) :
+        primitive_impl(kernel_selector::weights_reorder_params{}, kernel_name, is_dynamic) {}
     virtual ~primitive_impl() = default;
 
     virtual std::vector<layout> get_internal_buffer_layouts() const = 0;
@@ -215,9 +218,6 @@ public:
     std::shared_ptr<const PType> get_typed_desc() const { return _impl_params->typed_desc<PType>(); }
 
     virtual void update_output_memory() {}
-
-    virtual size_t get_impl_key(const kernel_impl_params& params) const;
-    virtual size_t get_impl_key() const;
 
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);

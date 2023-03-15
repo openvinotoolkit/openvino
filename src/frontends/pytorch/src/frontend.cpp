@@ -18,6 +18,7 @@
 #include "transforms/append_list_unpack_replacer.hpp"
 #include "transforms/aten_cat_replacer.hpp"
 #include "transforms/aten_getitem_replacer.hpp"
+#include "transforms/aten_index_put_replacer.hpp"
 #include "transforms/aten_index_replacer.hpp"
 #include "transforms/aten_stack_list_construct_replacer.hpp"
 #include "transforms/einsum_list_construct.hpp"
@@ -26,6 +27,7 @@
 #include "transforms/prim_list_construct_pad.hpp"
 #include "transforms/prim_list_tuple_construct_replacer.hpp"
 #include "transforms/prim_list_unpack_replacer.hpp"
+#include "transforms/string_equality_replacer.hpp"
 #include "translate_session.hpp"
 
 namespace ov {
@@ -99,9 +101,11 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::AtenGetItemReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::ListConstructReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
+    manager.register_pass<ov::frontend::pytorch::pass::AtenIndexPutReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::PrimListConstructPadReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenEinsumListConstructReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::MinMaxPrimListConstructReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::StringEqualityReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::DecomposeListTupleResults>();
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();

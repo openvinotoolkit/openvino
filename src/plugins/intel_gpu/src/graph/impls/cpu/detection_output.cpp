@@ -3,7 +3,7 @@
 //
 
 #include "detection_output_inst.h"
-#include "impls/implementation_map.hpp"
+#include "implementation_map.hpp"
 #include "register.hpp"
 #include "cpu_impl_helpers.hpp"
 
@@ -11,23 +11,16 @@
 #include <stdexcept>
 #include <string>
 #include <type_traits>
-#include <immintrin.h>
-#include <xmmintrin.h>
 #include <vector>
 #include <utility>
 
-#ifdef FIX_OPENMP_RELEASE_ISSUE
-#ifdef OPENMP_FOUND
-#include <omp.h>
-#endif
-#endif
+#ifdef HAVE_SSE
+#include <immintrin.h>
+#include <xmmintrin.h>
+#endif // HAVE_SSE
 
 namespace cldnn {
 namespace cpu {
-
-namespace {
-    using bounding_box = cldnn::cpu::bounding_box;
-}  // namespace
 
 template <typename T>
 bool comp_score_descend(const std::pair<float, T>& pair1,
@@ -296,15 +289,6 @@ public:
             std::vector<std::vector<std::pair<float, int>>>& conf_per_image = confidences[image];
             std::map<int, std::vector<int>> indices;
             int num_det = 0;
-#ifdef FIX_OPENMP_RELEASE_ISSUE
-#ifdef OPENMP_FOUND
-            int num_available_threads = omp_get_max_threads();
-            // half available threads usage shows the best perf results for both SKL (4c8t) and APL (4c4t) for this part
-            // of detection output
-            int num_threads_to_use = (omp_in_parallel() == 0) ? num_available_threads / 2 : 1;
-#pragma omp parallel for num_threads(num_threads_to_use) reduction(+ : num_det)
-#endif
-#endif
             if (nms_type == NMSType::CAFFE) {
                 for (int cls = 0; cls < static_cast<int>(args->num_classes); ++cls) {
                     if (static_cast<int>(cls) == args->background_label_id) {
@@ -573,9 +557,12 @@ public:
             if (stride == 1 && std::is_same<dtype, float>::value) {
                 float const* confidence_ptr_float = (float const*)(&(*confidence_data));
                 confidence_ptr_float += idx;
+#ifdef HAVE_SSE
                 __m128 threshold = _mm_load_ps1(&confidence_threshold);
+#endif // HAVE_SSE
                 for (int prior = 0; prior < num_of_priors; ++prior) {
                     int cls = 0;
+#ifdef HAVE_SSE
                     for (; cls + 3 < num_classes; cls += 4) {
                         __m128 scores = _mm_loadu_ps(confidence_ptr_float);
                         confidence_ptr_float += 4;
@@ -603,6 +590,7 @@ public:
                             label_to_scores[cls + 3].emplace_back(s, prior);
                         }
                     }
+#endif // HAVE_SSE
                     for (; cls < num_classes; ++cls) {
                         float score = *confidence_ptr_float;
                         if (score > confidence_threshold) {
@@ -665,12 +653,15 @@ public:
             if (stride == 1 && std::is_same<dtype, float>::value) {
                 float const* confidence_ptr_float = (float const*)(&(*confidence_data));
                 confidence_ptr_float += idx;
+#ifdef HAVE_SSE
                 __m128 threshold = _mm_load_ps1(&confidence_threshold);
+#endif // HAVE_SSE
                 for (int prior = 0; prior < num_of_priors; ++prior) {
                     int idx_start = (background_label_id == 0 ? 1 : 0);
                     int cls = idx_start;
                     float max_score = 0;
                     int max_cls = 0;
+#ifdef HAVE_SSE
                     for (; cls + 3 < num_classes; cls += 4) {
                         if ((background_label_id == 0) && (cls == idx_start)) {
                             confidence_ptr_float += 1;
@@ -714,6 +705,7 @@ public:
                             }
                         }
                     }
+#endif // HAVE_SSE
                     for (; cls < num_classes; ++cls) {
                         float score = *confidence_ptr_float;
                         if (score > confidence_threshold) {

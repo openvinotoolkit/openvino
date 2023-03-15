@@ -55,6 +55,8 @@ constexpr uint32_t bytesPerSplitElement = 2;
 // In fp32 mode this is not necessary but is useful for testing
 constexpr uint32_t bytesPerCropElement = 2;
 
+constexpr uint32_t kMemoryAlignmentBytes = 64;
+
 inline bool isCropAffinedOffset(size_t numberOfElements) {
     const auto cropOffset = numberOfElements * bytesPerCropElement;
     return (ALIGN64(cropOffset) != cropOffset);
@@ -95,7 +97,7 @@ private:
  * @return true if supported
  */
 bool is_conv_supported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie,
-                       const ov::intel_gna::common::DeviceVersion& effective_compile_target,
+                       const target::DeviceVersion& effective_compile_target,
                        const InferenceEngine::Precision gna_precision,
                        bool is_exception_allowed = false);
 /**
@@ -107,7 +109,7 @@ bool is_conv_supported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie
  * @return true if precision is found in supported
  */
 bool is_pooling_supported(const std::shared_ptr<ngraph::opset7::MaxPool> max_pool,
-                          const ov::intel_gna::common::DeviceVersion& effective_compile_target,
+                          const target::DeviceVersion& effective_compile_target,
                           bool is_exception_allowed = false);
 
 /**
@@ -136,7 +138,7 @@ bool is_split_supported(const std::shared_ptr<ov::Node>& node, bool is_exception
  * @return true if supported
  */
 bool is_op_supported(const std::shared_ptr<ov::Node>& node,
-                     const ov::intel_gna::common::DeviceVersion& effective_compile_target,
+                     const target::DeviceVersion& effective_compile_target,
                      const InferenceEngine::Precision gna_precision,
                      bool is_exception_allowed = false);
 
@@ -147,7 +149,7 @@ bool is_op_supported(const std::shared_ptr<ov::Node>& node,
  * @param gna_precision GNA inference precision
  */
 void check_all_ops_supported(const std::shared_ptr<ov::Model>& model,
-                             const ov::intel_gna::common::DeviceVersion& effective_compile_target,
+                             const target::DeviceVersion& effective_compile_target,
                              const InferenceEngine::Precision gna_precision);
 
 namespace cnn2d {
@@ -279,7 +281,7 @@ public:
                                OvGnaType inPrecision,
                                bool exception = true) const = 0;
 
-    static std::unique_ptr<AbstractValidator> Create(const common::DeviceVersion& target);
+    static std::unique_ptr<AbstractValidator> Create(const target::DeviceVersion& target);
 };
 
 class Validator_30 : public AbstractValidator {
@@ -431,7 +433,7 @@ public:
                        bool exception = true) const override;
 };
 
-bool UseOnly16BitConvolutionWeights(const common::DeviceVersion& compile_target);
+bool UseOnly16BitConvolutionWeights(const target::DeviceVersion& compile_target);
 
 }  // namespace cnn2d
 

@@ -267,7 +267,8 @@ ov::frontend::Place::Ptr PlaceOp::get_output_port() const {
 
 ov::frontend::Place::Ptr PlaceOp::get_output_port(int output_port_index) const {
     check_if_valid();
-    if (output_port_index < m_editor->get_output_ports(m_node).size()) {
+    const int out_ports_number = static_cast<int>(m_editor->get_output_ports(m_node).size());
+    if (output_port_index < out_ports_number) {
         return std::make_shared<PlaceOutputEdge>(
             m_editor->find_output_edge(m_node, onnx_editor::EditorOutput{output_port_index}),
             m_editor);
@@ -295,7 +296,8 @@ ov::frontend::Place::Ptr PlaceOp::get_input_port() const {
 
 ov::frontend::Place::Ptr PlaceOp::get_input_port(int input_port_index) const {
     check_if_valid();
-    if (input_port_index < m_editor->get_input_ports(m_node).size()) {
+    const int in_ports_number = static_cast<int>(m_editor->get_input_ports(m_node).size());
+    if (input_port_index < in_ports_number) {
         return std::make_shared<PlaceInputEdge>(
             m_editor->find_input_edge(m_node, onnx_editor::EditorInput{input_port_index}),
             m_editor);
@@ -315,8 +317,8 @@ ov::frontend::Place::Ptr PlaceOp::get_input_port(const std::string& input_name) 
 
 std::vector<ov::frontend::Place::Ptr> PlaceOp::get_consuming_ports() const {
     std::vector<ov::frontend::Place::Ptr> consuming_ports;
-    const auto out_ports_size = m_editor->get_output_ports(m_node).size();
-    for (int out_idx = 0; out_idx < out_ports_size; ++out_idx) {
+    const auto out_ports_number = m_editor->get_output_ports(m_node).size();
+    for (size_t out_idx = 0; out_idx < out_ports_number; ++out_idx) {
         auto consuming_ops_out = get_output_port(out_idx)->get_consuming_ports();
         consuming_ports.insert(consuming_ports.end(), consuming_ops_out.begin(), consuming_ops_out.end());
     }
