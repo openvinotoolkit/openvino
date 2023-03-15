@@ -29,7 +29,7 @@ There are two options for using the custom operation configuration file:
 All OpenVINO samples, except the trivial ``hello_classification``, and most Open Model Zoo demos
 feature a dedicated command-line option ``-c`` to load custom kernels. For example, to load custom operations for the classification sample, run the command below:
 
-.. code-block:: sh
+.. code-block:: cpp
 
    $ ./classification_sample -m <path_to_model>/bvlc_alexnet_fp16.xml -i ./validation_set/daily/227x227/apron.bmp -d GPU
    -c <absolute_path_to_config>/custom_layer_example.xml
@@ -235,7 +235,7 @@ Example Configuration File
 The following code sample provides an example configuration file in XML
 format. For information on the configuration file structure, see the `Configuration File Format <#config-file-format>`__.
 
-.. code-block:: sh
+.. code-block:: cpp
 
    <CustomLayer name="ReLU" type="SimpleGPU" version="1">
      <Kernel entry="example_relu_kernel">

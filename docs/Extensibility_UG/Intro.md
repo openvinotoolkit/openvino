@@ -74,7 +74,7 @@ Registering Extensions
 A custom operation class and a new mapping frontend extension class object should be registered to be usable in OpenVINO runtime.
 
 .. note:: 
-   This documentation is derived from the `Template extension <https://github.com/openvinotoolkit/openvino/tree/master/docs/template_extension/new>`__, which demonstrates the details of extension development. It is based on minimalistic ``Identity`` operation that is a placeholder for your real custom operation. Review the complete, fully compilable code to see how it works.
+   This documentation is derived from the `Template extension <https://github.com/openvinotoolkit/openvino/tree/master/src/core/template_extension/new>`__, which demonstrates the details of extension development. It is based on minimalistic ``Identity`` operation that is a placeholder for your real custom operation. Review the complete, fully compilable code to see how it works.
 
 Use the ``:ref:`ov::Core::add_extension <doxid-classov_1_1_core_1a68d0dea1cbcd42a67bea32780e32acea>``` method to load the extensions to the ``:ref:`ov::Core <doxid-classov_1_1_core>``` object. This method allows loading library with extensions or extensions from the code.
 
