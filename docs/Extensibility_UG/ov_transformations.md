@@ -154,7 +154,7 @@ Manual constant folding is more preferable than ``:ref:`ov::pass::ConstantFoldin
 
 Below you can find an example of manual constant folding:
 
-.. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
+.. doxygensnippet:: docs/snippets/template_pattern_transformation.cpp
    :language: cpp
    :fragment: [manual_constant_folding]
 
