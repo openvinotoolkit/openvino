@@ -43,10 +43,11 @@ public:
         const auto result = *it;
         it++;
         if (is_value) {
-            auto res = Common::utils::from_ov_any(result.second);
+            auto res = Common::utils::from_ov_any_map_no_leaves(result.second);
             return res;
         } else {
-            std::pair<std::string, py::object> res = {result.first, Common::utils::from_ov_any(result.second)};
+            std::pair<std::string, py::object> res = {result.first,
+                                                      Common::utils::from_ov_any_map_no_leaves(result.second)};
             return py::cast(res);
         }
     }
@@ -76,7 +77,7 @@ void regclass_graph_PyRTMap(py::module m) {
         m[k] = v;
     });
     py_map.def("__getitem__", [](PyRTMap& m, const std::string& k) -> py::object {
-        return Common::utils::from_ov_any(m[k]);
+        return Common::utils::from_ov_any_map_no_leaves(m[k]);
     });
     py_map.def(
         "__bool__",

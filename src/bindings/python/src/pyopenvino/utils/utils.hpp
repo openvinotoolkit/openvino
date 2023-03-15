@@ -15,6 +15,10 @@ namespace py = pybind11;
 
 namespace Common {
 namespace utils {
+    struct EmptyList {};
+
+    py::object from_ov_any_map_no_leaves(const ov::Any& almost_map);
+
     py::object from_ov_any_map(const ov::AnyMap& map);
 
     py::object from_ov_any(const ov::Any& any);
