@@ -47,9 +47,9 @@ OutputVector translate_ctc_loss_op(const NodeContext& node) {
 
     auto logits_shape = make_shared<ShapeOf>(logits, ov::element::i64);
     auto dense_shape = make_shared<Slice>(logits_shape,
-                                          make_shared<Constant>(ov::element::i64, ov::Shape{}, 0),
-                                          make_shared<Constant>(ov::element::i64, ov::Shape{}, 2),
-                                          make_shared<Constant>(ov::element::i64, ov::Shape{}, 1));
+                                          make_shared<Constant>(ov::element::i64, ov::Shape{1}, 0),
+                                          make_shared<Constant>(ov::element::i64, ov::Shape{1}, 2),
+                                          make_shared<Constant>(ov::element::i64, ov::Shape{1}, 1));
     auto minus_one_value = make_shared<Constant>(decoded_values.get_element_type(), ov::Shape{}, -1);
     auto init_decoded_values = make_shared<Broadcast>(minus_one_value, dense_shape);
     auto decoded_values_dense = make_shared<ScatterNDUpdate>(init_decoded_values, decoded_indices, decoded_values);
