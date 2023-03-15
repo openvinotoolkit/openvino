@@ -95,26 +95,12 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
 
 Engine::DeviceMetaInformationMap Engine::GetDevicePlugins(const std::string& targetFallback,
                                                           const Configs& localConfig) const {
-    auto getDeviceConfig = [&](const std::string& deviceWithID) {
-        DeviceIDParser deviceParser(deviceWithID);
-        std::string deviceName = deviceParser.getDeviceName();
-        Configs tconfig = mergeConfigs(_config, localConfig);
-
-        // set device ID if any
-        std::string deviceIDLocal = deviceParser.getDeviceID();
-        if (!deviceIDLocal.empty()) {
-            tconfig[KEY_DEVICE_ID] = deviceIDLocal;
-        }
-
-        return GetCore()->GetSupportedConfig(deviceName, tconfig);
-    };
-
     auto fallbackDevices = InferenceEngine::DeviceIDParser::getHeteroDevices(targetFallback);
     Engine::DeviceMetaInformationMap metaDevices;
     for (auto&& deviceName : fallbackDevices) {
         auto itPlugin = metaDevices.find(deviceName);
         if (metaDevices.end() == itPlugin) {
-            metaDevices[deviceName] = getDeviceConfig(deviceName);
+            metaDevices[deviceName] = GetCore()->GetSupportedConfig(deviceName, mergeConfigs(_config, localConfig));
         }
     }
     return metaDevices;

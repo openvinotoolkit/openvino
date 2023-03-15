@@ -135,17 +135,8 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
     };
 
     auto getDeviceConfig = [&] (const DeviceName & deviceWithID) {
-        DeviceIDParser deviceParser(deviceWithID);
-        std::string deviceName = deviceParser.getDeviceName();
-        std::map<std::string, std::string> tconfig = config;
-
-        // set device ID if any
-        std::string deviceIDLocal = deviceParser.getDeviceID();
-        if (!deviceIDLocal.empty()) {
-            tconfig[PluginConfigParams::KEY_DEVICE_ID] = deviceIDLocal;
-        }
-        auto deviceConfig = GetCore()->GetSupportedConfig(deviceName, tconfig);
-        setDefaultHint(deviceName, deviceConfig, tconfig);
+        auto deviceConfig = GetCore()->GetSupportedConfig(deviceWithID, config);
+        setDefaultHint(deviceWithID, deviceConfig, config);
         return deviceConfig;
     };
 

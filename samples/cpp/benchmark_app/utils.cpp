@@ -174,9 +174,10 @@ void parse_value_for_virtual_device(const std::string& device, std::map<std::str
         ss << iter->first << ":" << iter->second;
         iter = values_string.erase(iter);
     }
-    if (!ss.str().empty())
+    if (!ss.str().empty()) {
         ss << '}';
-    values_string[device] = ss.str();
+        values_string[device] = ss.str();
+    }
     return;
 }
 

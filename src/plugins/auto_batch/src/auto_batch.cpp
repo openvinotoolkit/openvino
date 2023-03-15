@@ -695,14 +695,8 @@ DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(const std::string& d
         DeviceIDParser deviceParser(deviceWithID);
         std::string deviceName = deviceParser.getDeviceName();
         std::map<std::string, std::string> tconfig = mergeConfigs(_config, config);
-
-        // set device ID if any
-        std::string deviceIDLocal = deviceParser.getDeviceID();
-        if (!deviceIDLocal.empty()) {
-            tconfig[PluginConfigParams::KEY_DEVICE_ID] = deviceIDLocal;
-        }
         // passthrough the cache dir to core->loadnetwork when underlying device does not support cache dir
-        auto deviceConfig = GetCore()->GetSupportedConfig(deviceName, tconfig);
+        auto deviceConfig = GetCore()->GetSupportedConfig(deviceWithID, tconfig);
         if (tconfig.find(CONFIG_KEY(CACHE_DIR)) != tconfig.end() &&
             deviceConfig.find(CONFIG_KEY(CACHE_DIR)) == deviceConfig.end()) {
             auto tmpiter = tconfig.find(CONFIG_KEY(CACHE_DIR));
