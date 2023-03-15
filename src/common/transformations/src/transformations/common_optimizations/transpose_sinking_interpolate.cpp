@@ -40,7 +40,7 @@ ov::pass::TransposeSinkingInterpolateForward::TransposeSinkingInterpolateForward
         }
 
         // remove Transpose on 1st input:
-        auto transpose_parent = main_node->input_value(0).get_node()->input_value(0);
+        auto transpose_parent = transpose->input_value(0);
         main_node->input(0).replace_source_output(transpose_parent);
 
         const auto transpose_axis_order = transpose_const->get_axis_vector_val();
