@@ -22,7 +22,6 @@ class InputModel : public ov::frontend::InputModel {
     friend class TranslateSession;
     class InputModelTFImpl;
     std::shared_ptr<InputModelTFImpl> _impl;
-    std::shared_ptr<SavedModelVariablesIndex> m_variables_index;
 
     std::vector<std::string> get_input_names() const;
     std::vector<std::string> get_output_names() const;
@@ -48,7 +47,7 @@ public:
     void set_element_type(const ov::frontend::Place::Ptr& place, const ov::element::Type&) override;
     ov::element::Type get_element_type(const ov::frontend::Place::Ptr& place) const override;
     void set_tensor_value(const ov::frontend::Place::Ptr& place, const void* value) override;
-    std::shared_ptr<SavedModelVariablesIndex> get_variables_index(void);
+    std::shared_ptr<SavedModelVariablesIndex> get_variables_index();
 };
 
 }  // namespace tensorflow
