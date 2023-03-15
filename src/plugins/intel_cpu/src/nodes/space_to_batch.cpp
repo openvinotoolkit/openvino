@@ -26,12 +26,6 @@ bool SpaceToBatch::isSupportedOperation(const std::shared_ptr<const ngraph::Node
             errorMessage = "Only opset2 SpaceToBatch operation is supported";
             return false;
         }
-        if (std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1)) == nullptr ||
-            std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(2)) == nullptr ||
-            std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(3)) == nullptr) {
-            errorMessage = "Only constant 'block_shape', 'pads_begin', 'pads_end' are supported";
-            return false;
-        }
     } catch (...) {
         return false;
     }
@@ -56,8 +50,7 @@ SpaceToBatch::SpaceToBatch(const std::shared_ptr<ngraph::Node>& op, const GraphC
         IE_THROW() << errorPrefix << " has unsupported 'data' input rank: " << srcRank;
     if (srcRank != dstRank)
         IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions";
-    blockShapeIn = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(1))->cast_vector<size_t>();
-    padsBeginIn = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(op->get_input_node_shared_ptr(2))->cast_vector<size_t>();
+    this->op = op;
 }
 
 void SpaceToBatch::initSupportedPrimitiveDescriptors() {
@@ -112,6 +105,22 @@ static std::vector<size_t> getShape5D(const SizeVector &shape) {
 
 template<typename T>
 void SpaceToBatch::SpaceToBatchKernel() {
+    const auto *blockShapesPtr = reinterpret_cast<int *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
+    size_t typeSize = dnnl::memory::data_type_size(getParentEdgeAt(1)->getMemory().GetDataType());
+    size_t blockShapeSize = getParentEdgeAt(1)->getMemory().GetSize() / typeSize;
+    blockShapeIn.clear();
+    for (size_t i = 0; i < blockShapeSize; i++) {
+        blockShapeIn.push_back(*(blockShapesPtr + i));
+    }
+
+    const auto *padsBeginPtr = reinterpret_cast<int *>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
+    typeSize = dnnl::memory::data_type_size(getParentEdgeAt(2)->getMemory().GetDataType());
+    size_t padsBeginSize = getParentEdgeAt(2)->getMemory().GetSize() / typeSize;
+    padsBeginIn.clear();
+    for (size_t i = 0; i < padsBeginSize; i++) {
+        padsBeginIn.push_back(*(padsBeginPtr + i));
+    }
+
     const auto *srcData = reinterpret_cast<const T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     auto *dstData = reinterpret_cast<T *>(getChildEdgeAt(0)->getMemoryPtr()->GetPtr());
 
