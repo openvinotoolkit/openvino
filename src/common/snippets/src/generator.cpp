@@ -14,6 +14,7 @@
 #include "snippets/pass/lowered/move_scalar_to_consumer.hpp"
 #include "snippets/pass/lowered/buffer_propagate_offset_and_reset.hpp"
 #include "snippets/pass/lowered/propagate_layout.hpp"
+#include "snippets/pass/lowered/cleanup_loop_offsets.hpp"
 #include "snippets/pass/lowered/softmax_decomposition.hpp"
 #include "snippets/lowered_expr.hpp"
 #include "snippets/tensor_descriptor.hpp"
@@ -37,6 +38,7 @@ Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, con
             std::make_shared<pass::lowered::MoveScalarToConsumer>(),
             std::make_shared<pass::lowered::PropagateLayout>(),
             propagate_buffer_offsets,
+            std::make_shared<pass::lowered::CleanupLoopOffsets>(),
             std::make_shared<pass::lowered::AssignRegisters>(),
             std::make_shared<pass::lowered::InsertTailLoop>()
     };
