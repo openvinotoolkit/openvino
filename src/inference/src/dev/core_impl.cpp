@@ -62,8 +62,7 @@ bool is_virtual_device(const std::string& device_name) {
 ov::AnyMap clone_map(const ov::AnyMap& m) {
     ov::AnyMap rm;
     for (auto&& kvp : m) {
-        rm[kvp.first] = kvp.second.is<ov::AnyMap>() ? ov::Any(clone_map(kvp.second.as<ov::AnyMap>()))
-                                                    : kvp.second.as<std::string>();
+        rm[kvp.first] = kvp.second.is<ov::AnyMap>() ? ov::Any(clone_map(kvp.second.as<ov::AnyMap>())) : kvp.second;
     }
 
     return rm;
@@ -799,6 +798,9 @@ void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& m
             if (disabled)
                 return;
         } else if (!coreConfig.get_allow_auto_batch()) {
+            if (is_virtual_device(deviceName)) {
+                config[ov::hint::allow_auto_batching.name()] = coreConfig.get_allow_auto_batch();
+            }
             return;
         }
 
