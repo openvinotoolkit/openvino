@@ -887,6 +887,10 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
             });
             return iter != devices.end();
         };
+        auto deviceWithDefaultID = [](std::string& device) {
+            // AUTO assume the default device ID will be "0" for the single device.
+            return device.find(".") == std::string::npos ? device + ".0" : device;
+        };
         if (devicesToBeMerged.empty()) {
             for (auto&& device : deviceList) {
                 if (isAnyDev(device, devicesToBeDeleted) || !_pluginConfig.isSupportedDevice(device))
@@ -896,12 +900,28 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
         } else {
             for (auto&& device : devicesToBeMerged) {
                 if (!isAnyDev(device, deviceList)) {
+                    DeviceIDParser parsed{device};
+                    auto iter = std::find(devicesMerged.begin(), devicesMerged.end(), parsed.getDeviceName());
+                    if (iter != devicesMerged.end() && parsed.getDeviceName() != device && parsed.getDeviceID() == "0")
+                        // The device is the device with default device ID (eg. GPU.0) and
+                        // its wide name (eg. GPU) has been in device candidate list.
+                        continue;
                     // Add user specified device into candidate list
                     devicesMerged.push_back(device);
                 } else {
                     // Update device name if supported device with id existed
                     for (auto&& item : deviceList) {
-                        if (isAnyDev(item, devicesToBeDeleted) || item.find(device) == std::string::npos)
+                        auto realDevice = deviceWithDefaultID(item);
+                        if (isAnyDev(realDevice, devicesToBeDeleted) || item.find(device) == std::string::npos)
+                            continue;
+                        auto iter = std::find(devicesMerged.begin(), devicesMerged.end(), deviceWithDefaultID(item));
+                        // Remove the device with default device id from candidate device list (eg. GPU.0)
+                        // if its wide name is a single device (eg. GPU).
+                        DeviceIDParser parsed{item};
+                        if (parsed.getDeviceName() == item && iter != devicesMerged.end())
+                            devicesMerged.erase(iter);
+                        // continue if targe device has been in the candidate device list.
+                        if (std::find(devicesMerged.begin(), devicesMerged.end(), item) != devicesMerged.end())
                             continue;
                         devicesMerged.push_back(item);
                     }
