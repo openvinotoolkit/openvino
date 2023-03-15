@@ -39,7 +39,7 @@ Then you need to take the last created operation and put it as a root of the pat
 
 The ``Parameter`` operation in the example above has type and shape specified. These attributes are needed only to create Parameter operation class and will not be used in pattern matching.
 
-For more pattern examples, refer to the `pattern matching <Pattern-Matching>`__  section.
+For more pattern examples, refer to the `pattern matching <pattern_matching>`__  section.
 
 Implement callback
 ##################
@@ -107,6 +107,7 @@ MatcherPass has multiple ways to be executed:
    .. doxygensnippet:: docs/snippets/template_pattern_transformation.cpp
       :language: cpp
       :fragment: [matcher_pass:manager]
+
 
 .. _pattern_matching:
 
