@@ -114,11 +114,6 @@ ngraph::pass::low_precision::PullReshapeThroughDequantization::PullReshapeThroug
         const auto& opsMap = m.get_pattern_value_map();
         auto reshape = opsMap.at(reshapeWrapper).get_node_shared_ptr();
 
-        auto child = reshape->get_output_target_inputs(0).begin()->get_node();
-        if (ov::is_type<opset1::GroupConvolution>(child)) {
-            return false;
-        }
-
         while (reshape != nullptr) {
             const auto parent = reshape->get_input_node_shared_ptr(0);
             if (ov::is_type<opset1::Multiply>(parent) || ov::is_type<opset1::Subtract>(parent)) {
