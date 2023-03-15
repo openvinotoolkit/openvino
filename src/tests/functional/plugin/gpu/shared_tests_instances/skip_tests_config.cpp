@@ -9,8 +9,6 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
-            //TODO: Issue: 34748
-            R"(.*(ComparisonLayerTest).*)",
             // TODO: Issue: 39612
             R"(.*Interpolate.*cubic.*tf_half_pixel_for_nn.*FP16.*)",
             // TODO: Issue: 43794
@@ -118,7 +116,7 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*smoke_select_CompareWithRefsNumpy_dynamic_range.*)",
             R"(.*CachingSupportCase.*LoadNetworkCacheTestBase.*CompareWithRefImpl.*)",
 #if defined(_WIN32) || defined(_WIN64)
-            R"(.*Auto_KernelCachingSupportCase.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)",
+            R"(.*KernelCachingSupportCase.*CanCreateCacheDirAndDumpBinariesUnicodePath.*)",
 #endif
             R"(.*CachingSupportCase.*GPU.*CompileModelCacheTestBase.*CompareWithRefImpl.*)",
             // Currently 1D convolution has an issue

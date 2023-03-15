@@ -10,20 +10,12 @@ set(TARGET_NAME "openvino_intel_cpu_plugin")
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wno-sign-compare)
-    ie_add_compiler_flags(-Wno-sequence-point)
-    ie_add_compiler_flags(-Wno-strict-aliasing)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-class-memaccess")
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # C4267, 4244 issues from mkl-dnn headers conversion from 'XXX' to 'YYY', possible loss of data
     ie_add_compiler_flags(/wd4267)
     ie_add_compiler_flags(/wd4244)
     # mkldnn headers: '<<': result of 32-bit shift implicitly converted to 64 bits
     ie_add_compiler_flags(/wd4334)
-    # plugin: inherits 'XXX' via dominance
-    ie_add_compiler_flags(/wd4250)
-    # '<': signed/unsigned mismatch
-    ie_add_compiler_flags(/wd4018)
-    ie_add_compiler_flags(/wd4309)
 endif()
 
 if (WIN32)
@@ -78,6 +70,7 @@ cross_compiled_file(${TARGET_NAME}
         NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
 )
 
+# must be called after all target_link_libraries
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 #  add test object library

@@ -182,7 +182,7 @@ macro(ov_add_frontend)
         add_library(openvino::frontend::${OV_FRONTEND_NAME} ALIAS ${TARGET_NAME})
     endif()
 
-    # Shutdown protobuf when unloading the front dynamic library
+    # Shutdown protobuf when unloading the frontend dynamic library
     if(proto_files AND BUILD_SHARED_LIBS)
         target_link_libraries(${TARGET_NAME} PRIVATE ov_protobuf_shutdown)
     endif()
@@ -190,21 +190,8 @@ macro(ov_add_frontend)
     if(NOT BUILD_SHARED_LIBS)
         # override default function names
         target_compile_definitions(${TARGET_NAME} PRIVATE
-            "-DGetFrontEndData=GetFrontEndData${OV_FRONTEND_NAME}"
-            "-DGetAPIVersion=GetAPIVersion${OV_FRONTEND_NAME}")
-    endif()
-
-    # enable LTO
-    set_target_properties(${TARGET_NAME} PROPERTIES
-        INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
-
-    if(OV_FRONTEND_SKIP_NCC_STYLE)
-        # frontend's CMakeLists.txt must define its own custom 'ov_ncc_naming_style' step
-    else()
-        ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
-                            SOURCE_DIRECTORY "${frontend_root_dir}/include"
-                            ADDITIONAL_INCLUDE_DIRECTORIES
-                                $<TARGET_PROPERTY:frontend_common::static,INTERFACE_INCLUDE_DIRECTORIES>)
+            "-Dget_front_end_data=get_front_end_data_${OV_FRONTEND_NAME}"
+            "-Dget_api_version=get_api_version_${OV_FRONTEND_NAME}")
     endif()
 
     target_include_directories(${TARGET_NAME}
@@ -216,8 +203,6 @@ macro(ov_add_frontend)
 
     ie_add_vs_version_file(NAME ${TARGET_NAME}
                            FILEDESCRIPTION ${OV_FRONTEND_FILEDESCRIPTION})
-
-    ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
     target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime)
     target_link_libraries(${TARGET_NAME} PRIVATE ${OV_FRONTEND_LINK_LIBRARIES})
@@ -255,9 +240,29 @@ macro(ov_add_frontend)
     endif()
 
     add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
-                            EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS} ${flatbuffers_schema_files})
+                            EXCLUDE_PATTERNS ${PROTO_SRCS} ${PROTO_HDRS} ${proto_files} ${flatbuffers_schema_files})
+
+    # enable LTO
+    set_target_properties(${TARGET_NAME} PROPERTIES
+                          INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+    if(OV_FRONTEND_SKIP_NCC_STYLE)
+        # frontend's CMakeLists.txt must define its own custom 'ov_ncc_naming_style' step
+    else()
+        ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
+                            SOURCE_DIRECTORIES "${frontend_root_dir}/include"
+                                               "${frontend_root_dir}/src"
+                            ADDITIONAL_INCLUDE_DIRECTORIES
+                                $<TARGET_PROPERTY:${TARGET_NAME},INTERFACE_INCLUDE_DIRECTORIES>
+                                $<TARGET_PROPERTY:${TARGET_NAME},INCLUDE_DIRECTORIES>)
+    endif()
 
     add_dependencies(ov_frontends ${TARGET_NAME})
+
+    # must be called after all target_link_libraries
+    ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
+
+    # installation
 
     if(NOT OV_FRONTEND_SKIP_INSTALL)
         if(BUILD_SHARED_LIBS)

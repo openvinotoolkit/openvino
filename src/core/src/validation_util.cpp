@@ -893,7 +893,6 @@ std::vector<size_t> ov::normalize_axes(const std::string& node_description,
     for (const auto& axis : axes) {
         new_axes.push_back(normalize_axis(node_description, axis, tensor_rank));
     }
-
     return new_axes;
 }
 
@@ -938,8 +937,7 @@ int64_t ov::normalize_axis(const std::string& node_description,
     OPENVINO_ASSERT((axis_range_min <= axis) && (axis <= axis_range_max),
                     node_description,
                     normalize_axis_error_msg(axis, axis_range_min, axis_range_max));
-    normalize_axis_to(tensor_rank)(axis);
-    return axis;
+    return normalize(axis, tensor_rank);
 }
 
 void ngraph::opset1::infer_conv_backprop_auto_padding(const Shape& input_data_shape,

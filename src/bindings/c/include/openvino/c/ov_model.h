@@ -48,9 +48,7 @@ ov_model_const_input(const ov_model_t* model, ov_output_const_port_t** input_por
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_model_const_input_by_name(const ov_model_t* model,
-                                const char* tensor_name,
-                                ov_output_const_port_t** input_port);
+ov_model_const_input_by_name(const ov_model_t* model, const char* tensor_name, ov_output_const_port_t** input_port);
 
 /**
  * @brief Get a const input port of ov_model_t by port index.
@@ -61,9 +59,7 @@ ov_model_const_input_by_name(const ov_model_t* model,
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_model_const_input_by_index(const ov_model_t* model,
-                                const size_t index,
-                                ov_output_const_port_t** input_port);
+ov_model_const_input_by_index(const ov_model_t* model, const size_t index, ov_output_const_port_t** input_port);
 
 /**
  * @brief Get single input port of ov_model_t, which only support single input model.
@@ -84,9 +80,7 @@ ov_model_input(const ov_model_t* model, ov_output_port_t** input_port);
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_model_input_by_name(const ov_model_t* model,
-                       const char* tensor_name,
-                       ov_output_port_t** input_port);
+ov_model_input_by_name(const ov_model_t* model, const char* tensor_name, ov_output_port_t** input_port);
 
 /**
  * @brief Get an input port of ov_model_t by port index.
@@ -129,9 +123,7 @@ ov_model_const_output_by_index(const ov_model_t* model, const size_t index, ov_o
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_model_const_output_by_name(const ov_model_t* model,
-                              const char* tensor_name,
-                              ov_output_const_port_t** output_port);
+ov_model_const_output_by_name(const ov_model_t* model, const char* tensor_name, ov_output_const_port_t** output_port);
 
 /**
  * @brief Get an single output port of ov_model_t, which only support single output model.

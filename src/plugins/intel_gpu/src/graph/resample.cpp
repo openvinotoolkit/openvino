@@ -3,7 +3,6 @@
 //
 #include "resample_inst.h"
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include <string>
 #include "json_object.h"
 
@@ -139,7 +138,8 @@ std::string resample_inst::to_string(resample_node const& node) {
             axesAndScalesDump += delim;
             delim = ", ";
             axesAndScalesDump += std::to_string(desc->axes[i]) + ": ";
-            axesAndScalesDump += std::to_string(desc->scales[i]);
+            if (desc->scales.size() > i)
+                axesAndScalesDump += std::to_string(desc->scales[i]);
         }
         resample_info.add("scales:", axesAndScalesDump);
     }

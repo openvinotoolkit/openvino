@@ -44,13 +44,14 @@ using namespace InferenceEngine::details;
 namespace ov {
 namespace intel_gpu {
 
-Graph::Graph(InferenceEngine::CNNNetwork& network, RemoteContextImpl::Ptr context, const ExecutionConfig& config, uint16_t stream_id)
+Graph::Graph(InferenceEngine::CNNNetwork& network, RemoteContextImpl::Ptr context, const ExecutionConfig& config, uint16_t stream_id,
+             InferenceEngine::InputsDataMap* inputs, InferenceEngine::OutputsDataMap* outputs)
     : m_context(context)
     , m_networkName(network.getName())
     , m_config(config)
     , m_stream_id(stream_id)
     , m_state(0) {
-    m_program = std::make_shared<Program>(network, get_engine(), config);
+    m_program = std::make_shared<Program>(network, get_engine(), config, false, false, inputs, outputs);
     if (m_program->m_max_batch > 1)
         m_config.set_property(ov::intel_gpu::max_dynamic_batch(m_program->m_max_batch));
     Build();
@@ -82,9 +83,30 @@ Graph::Graph(cldnn::BinaryInputBuffer &ib, RemoteContextImpl::Ptr context, const
         m_program->AddVariableStateInfo(variablesStateInfo.first, *variablesStateInfo.second.begin());
     }
     ib >> primitiveIDs;
+    ib >> prevPrimitiveIDs;
+    ib >> profilingIDs;
+    {
+        size_t perfMap_size;
+        ib >> perfMap_size;
+        for (size_t i = 0; i < perfMap_size; ++i) {
+            cldnn::primitive_id prim_id;
+            ib >> prim_id;
+            perfMap[prim_id].first = prim_id;
+            auto& perfEntry = perfMap[prim_id].second;
+            ib >> perfEntry.layerType;
+            ib >> cldnn::make_data(&perfEntry.status, sizeof(InferenceEngine::InferenceEngineProfileInfo::LayerStatus));
+            perfEntry.cpu_uSec = perfEntry.realTime_uSec = 0;
+            ib >> perfEntry.isCPU;
+            ib >> perfEntry.parentPrimitive;
+        }
+    }
     ib >> outputDims;
 
-    m_networks.emplace_back(std::make_shared<cldnn::network>(ib, get_engine().create_stream(config), get_engine(), m_stream_id));
+    size_t num_networks;
+    ib >> num_networks;
+    for (size_t i = 0; i < num_networks; ++i) {
+        m_networks.emplace_back(std::make_shared<cldnn::network>(ib, get_engine().create_stream(config), get_engine(), m_stream_id));
+    }
 }
 
 Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
@@ -498,11 +520,24 @@ void Graph::Export(cldnn::BinaryOutputBuffer &ob) {
     ob << m_program->inputLayouts;
     ob << m_program->GetVariablesStatesInfo();
     ob << primitiveIDs;
+    ob << prevPrimitiveIDs;
+    ob << profilingIDs;
+    {
+        ob << perfMap.size();
+        for (auto& perf_item : perfMap) {
+            ob << perf_item.first;
+            ob << perf_item.second.second.layerType;
+            ob << cldnn::make_data(&perf_item.second.second.status, sizeof(InferenceEngine::InferenceEngineProfileInfo::LayerStatus));
+            ob << perf_item.second.second.isCPU;
+            ob << perf_item.second.second.parentPrimitive;
+        }
+    }
     ob << outputDims;
 
-    auto m_network = m_networks.back();
-
-    m_network->save(ob);
+    ob << m_networks.size();
+    for (auto net : m_networks) {
+        net->save(ob);
+    }
 }
 
 std::shared_ptr<ngraph::Function> Graph::GetExecGraphInfo() {
@@ -592,6 +627,13 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> Graph::GetPer
     auto executedPrimitives = GetNetwork()->get_executed_primitives();
     auto primitivesInfo = GetNetwork()->get_primitives_info();
     auto extIdMap = GetNetwork()->get_ext_id_mapping();
+    std::map<std::string, std::string> implementation_info;
+
+    if (GetNetwork()->get_program() == nullptr) {
+        for (auto& pi : primitivesInfo) {
+            implementation_info[pi.original_id] = pi.kernel_id;
+        }
+    }
 
     auto getUpperCaseName = [](std::string name) {
         std::vector<char> res;
@@ -636,7 +678,16 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> Graph::GetPer
             static const std::string cpuExecType("CPU");
             cpuExecType.copy(extPerfEntry.exec_type, cpuExecType.length());  // Override execType as CPU
         } else {
-            std::string impl = GetNetwork()->get_implementation_info(primId);
+            std::string impl;
+            if (GetNetwork()->get_program() != nullptr) {
+                impl = GetNetwork()->get_implementation_info(primId);
+            } else {
+                if (implementation_info.find(primId) != implementation_info.end()) {
+                    impl = implementation_info[primId];
+                } else {
+                    impl = "undef";
+                }
+            }
             impl.copy(extPerfEntry.exec_type, impl.length());
         }
 

@@ -189,7 +189,7 @@ void ov::ISyncInferRequest::set_tensor(const ov::Output<const ov::Node>& port, c
     try {
         check_tensor(port, tensor);
     } catch (const ov::Exception& ex) {
-        OPENVINO_UNREACHABLE("Failed to set tensor. ", ex.what());
+        OPENVINO_THROW("Failed to set tensor. ", ex.what());
     }
     if (found_port.is_input()) {
         m_tensors.at(get_inputs().at(found_port.idx).get_tensor_ptr()) = tensor;
@@ -247,16 +247,11 @@ void ov::ISyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
                     " tensor size is not equal to the model ",
                     tensor_type,
                     " type: got ",
-                    tensor.get_size(),
+                    tensor.get_shape(),
                     " expecting ",
                     port.get_shape(),
                     ".");
     OPENVINO_ASSERT(tensor.data() != nullptr, "Tensor data equal nullptr!");
-
-    // FIXME: SyncInferRequest is a friend only to check that blob is correct
-    OPENVINO_ASSERT(ov::shape_size(tensor._impl->getTensorDesc().getDims()) ==
-                        ov::shape_size(tensor._impl->getTensorDesc().getBlockingDesc().getBlockDims()),
-                    "Tensor is corrupted!");
 }
 
 void ov::ISyncInferRequest::allocate_tensor(const ov::Output<const ov::Node>& port,

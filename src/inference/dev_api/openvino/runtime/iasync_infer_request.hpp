@@ -4,7 +4,7 @@
 
 /**
  * @brief OpenVINO Runtime AsyncInferRequest interface
- * @file openvino/runtime/iasync_nfer_request.hpp
+ * @file openvino/runtime/iasync_infer_request.hpp
  */
 
 #pragma once
@@ -17,7 +17,7 @@
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "threading/ie_itask_executor.hpp"
+#include "openvino/runtime/threading/itask_executor.hpp"
 
 namespace ov {
 
@@ -33,12 +33,13 @@ namespace ov {
  * @par Example
  *        Here is an example of asynchronous inference request implementation for some accelerator device.
  *        It uses 5 different executors to run different stages of a synchronous inference request.
+ * @ingroup ov_dev_api_async_infer_request_api
  */
 class OPENVINO_RUNTIME_API IAsyncInferRequest : public IInferRequest {
 public:
     IAsyncInferRequest(const std::shared_ptr<IInferRequest>& request,
-                       const InferenceEngine::ITaskExecutor::Ptr& task_executor,
-                       const InferenceEngine::ITaskExecutor::Ptr& callback_executor);
+                       const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
+                       const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor);
     ~IAsyncInferRequest();
 
     /**
@@ -129,7 +130,7 @@ public:
      * State control essential for recurrent models.
      * @return Vector of Variable State objects.
      */
-    std::vector<ov::VariableState> query_state() const override;
+    std::vector<std::shared_ptr<ov::IVariableState>> query_state() const override;
 
     /**
      * @brief Gets pointer to compiled model (usually synchronous request holds the compiled model)
@@ -153,7 +154,7 @@ public:
     const std::vector<ov::Output<const ov::Node>>& get_outputs() const override;
 
 protected:
-    using Stage = std::pair<InferenceEngine::ITaskExecutor::Ptr, InferenceEngine::Task>;
+    using Stage = std::pair<std::shared_ptr<ov::threading::ITaskExecutor>, ov::threading::Task>;
     /**
      * @brief Pipeline is vector of stages
      */
@@ -212,11 +213,11 @@ private:
 
     void run_first_stage(const Pipeline::iterator itBeginStage,
                          const Pipeline::iterator itEndStage,
-                         const InferenceEngine::ITaskExecutor::Ptr callbackExecutor = {});
+                         const std::shared_ptr<ov::threading::ITaskExecutor> callbackExecutor = {});
 
-    InferenceEngine::Task make_next_stage_task(const Pipeline::iterator itStage,
-                                               const Pipeline::iterator itEndStage,
-                                               const InferenceEngine::ITaskExecutor::Ptr callbackExecutor);
+    ov::threading::Task make_next_stage_task(const Pipeline::iterator itStage,
+                                             const Pipeline::iterator itEndStage,
+                                             const std::shared_ptr<ov::threading::ITaskExecutor> callbackExecutor);
 
     template <typename F>
     void infer_impl(const F& f) {
@@ -264,10 +265,10 @@ private:
 
     std::shared_ptr<IInferRequest> m_sync_request;
 
-    InferenceEngine::ITaskExecutor::Ptr m_request_executor;  //!< Used to run inference CPU tasks.
-    InferenceEngine::ITaskExecutor::Ptr
+    std::shared_ptr<ov::threading::ITaskExecutor> m_request_executor;  //!< Used to run inference CPU tasks.
+    std::shared_ptr<ov::threading::ITaskExecutor>
         m_callback_executor;  //!< Used to run post inference callback in asynchronous pipline
-    InferenceEngine::ITaskExecutor::Ptr
+    std::shared_ptr<ov::threading::ITaskExecutor>
         m_sync_callback_executor;  //!< Used to run post inference callback in synchronous pipline
     mutable std::mutex m_mutex;
     std::function<void(std::exception_ptr)> m_callback;

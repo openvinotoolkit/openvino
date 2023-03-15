@@ -8,8 +8,10 @@ from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecode
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
 from openvino.runtime import op, PartialShape, Type as OVType, OVAny, Shape
 
+import typing
 import warnings
 import torch
+import numpy as np
 
 
 def get_type_from_py_type(value):
@@ -36,18 +38,17 @@ def ivalue_to_constant(ivalue):
         assert ov_type.is_static(), "Can't deduce type for list"
         return op.Constant(ov_type, Shape([len(ivalue)]), ivalue).outputs()
 
-    if isinstance(ivalue, torch.Tensor) and ivalue.type() in pt_to_ov_type_map:
-        try:
-            ovshape = PartialShape(ivalue.size())
-            ovtype = pt_to_ov_type_map[ivalue.type()]
-            ov_const = op.Constant(ovtype, ovshape.get_shape(), ivalue.data_ptr())
-        except Exception:
-            # old variant that makes a slow data copying
-            warnings.warn("[ WARNING ] Constant wasn't able to convert from data_ptr.")
-            nvalues = ivalue.numpy()
-            ovtype = np_to_ov_type_map[str(nvalues.dtype)]
-            ovshape = PartialShape(nvalues.shape)
-            ov_const = op.Constant(ovtype, ovshape.get_shape(), nvalues.flatten().tolist())
+    if isinstance(ivalue, torch.Tensor):
+        if ivalue.dim() == 0:
+            assert str(ivalue.dtype) in pt_to_ov_type_map, f"Type is not known {ivalue.dtype}"
+            ov_type = pt_to_ov_type_map[str(ivalue.dtype)]
+            ov_const = op.Constant(ov_type, Shape([]), [ivalue.item()])
+        else:
+            ivalue = ivalue.to(memory_format=torch.contiguous_format)
+            narr = ivalue.numpy(force=True)
+            if not narr.flags['C_CONTIGUOUS']:
+                narr = np.ascontiguousarray(narr)
+            ov_const = op.Constant(narr, shared_memory=True)
         return ov_const.outputs()
     return None
 
@@ -87,11 +88,6 @@ pt_to_ov_type_map = {
     "torch.IntTensor": OVType.i32,
     "torch.LongTensor": OVType.i64,
     "torch.BoolTensor": OVType.boolean,
-}
-
-np_to_ov_type_map = {
-    "float32": OVType.f32,
-    "int32": OVType.i32,
 }
 
 
@@ -151,7 +147,7 @@ class TorchScriptPythonDecoder (Decoder):
         elif isinstance(pt_type, torch.ListType):
             element_type = pt_type.getElementType()
             return OVAny(DecoderType.List(self._get_known_type_for_value(element_type)))
-        elif isinstance(pt_type, torch.StringType):
+        elif isinstance(pt_type, (torch.StringType, torch.DeviceObjType)):
             return OVAny(DecoderType.Str())
         elif isinstance(pt_type, torch.NoneType):
             return OVAny(DecoderType.PyNone())
@@ -191,7 +187,10 @@ class TorchScriptPythonDecoder (Decoder):
         return []
 
     def get_subgraph_size(self) -> int:
-        return len(self.get_subgraphs()) if hasattr(self.graph_element, "blocks") else 1
+        if isinstance(self.graph_element, torch.Node):
+            return len(self.get_subgraphs()) 
+        else:
+            return 1
 
     def visit_subgraph(self, node_visitor) -> None:
         # make sure topological order is satisfied
@@ -201,6 +200,14 @@ class TorchScriptPythonDecoder (Decoder):
             node_visitor(decoder)
 
     def get_subgraphs(self) -> list:
+        if self.graph_element.kind() == "prim::PythonOp":
+            if "Subgraph" in self.graph_element.attributeNames():
+                assert isinstance(self.graph_element, torch.Node), "Graph element must be of type torch.Node."
+                return [getattr(self.graph_element, self.graph_element.kindOf("Subgraph"))("Subgraph")]
+            else:
+                # Attribute "Subgraph" is only available if Graph was created using tracing.
+                # TODO Find way to extract subgraph for scripted Graph.
+                return []
         return list(self.graph_element.blocks())
 
     def get_subgraph_decoder(self, index: int):
@@ -247,49 +254,20 @@ class TorchScriptPythonDecoder (Decoder):
 
         pt_type = pt_value.type()
         if isinstance(pt_type, torch.TensorType):
-            return self._as_constant_tensor(pt_value)
+            return ivalue_to_constant(pt_value.toIValue())
         if isinstance(pt_type, torch.ListType):
             return self._as_constant_list(pt_value)
         return ivalue_to_constant(pt_value.toIValue())
 
     def as_string(self):
-        if not self.get_op_type() == "prim::Constant":
-            return None
-        pt_value = self._raw_output(0)
-
-        if str(pt_value.type()) in ["torch.StringType", "str"]:
-            return pt_value.toIValue()
-        return None
-
-    @staticmethod
-    def _as_constant_tensor(pt_value: torch.Value):
-        ivalue = pt_value.toIValue()
-        if pt_value.isCompleteTensor():
-            try:
-                ivalue = ivalue.to(memory_format=torch.contiguous_format).detach().cpu()
-            except Exception:
-                warnings.warn("[ WARNING ] Tensor couldn't detach")
-            if str(pt_value.type().dtype()) in pt_to_ov_type_map:
-                # Constant interpretation doesn't respect new-full type of PT
-                # It recognizes only tensors, and give lists as 1D tensors, and scalars as Tensor scalars
-                # So only tensor-type constants are supported
-                ovshape = PartialShape(pt_value.type().sizes())
-                ovtype = pt_to_ov_type_map[str(pt_value.type().dtype())]
-
-                # TODO: try-except here is a temporary WA for issues with data_ptr that we currently cannot predict; provide better solution
-                try:
-                    # this is only possible with adding a new ctor for Constant Python binding
-                    # TODO Check strides and pass them somehow
-                    values = ivalue.data_ptr()
-                    ov_const = op.Constant(ovtype, ovshape.get_shape(), values)
-                except Exception:
-                    # old variant that makes a slow data copying
-                    warnings.warn("[ WARNING ] Constant wasn't able to convert from data_ptr.")
-                    values = ivalue.flatten().tolist()
-                    ov_const = op.Constant(ovtype, ovshape.get_shape(), values)
-                return ov_const.outputs()
-        else:
-            return ivalue_to_constant(ivalue)
+        if self.get_op_type() == "prim::Constant":
+            pt_value = self._raw_output(0)
+            if str(pt_value.type()) in ["torch.StringType", "str"]:
+                return pt_value.toIValue()
+            elif str(pt_value.type()) == "Device":
+                return pt_value.toIValue().type
+        elif self.get_op_type() == "prim::device":
+            return self._get_device_string()
         return None
 
     @staticmethod
@@ -305,6 +283,17 @@ class TorchScriptPythonDecoder (Decoder):
             ovshape = PartialShape([len(ivalue)])
             ov_const = op.Constant(ovtype, ovshape.get_shape(), ivalue)
             return ov_const.outputs()
+
+    def _get_device_string(self) -> str:
+        assert self.graph_element.kind() == "prim::device", "This function can be called for prim::device node."
+        value = self.raw_inputs[0]
+        if value.type().isSubtypeOf(torch.TensorType.get()):
+            tensor = typing.cast(torch.TensorType, value.type())
+            device = tensor.device()
+            if device:
+                return str(device)
+        # Device cannot be statically determined.
+        return "cpu"
 
     def input_is_none(self, index: int) -> bool:
         if index >= len(self.inputs()) or self._raw_input(index) is None:

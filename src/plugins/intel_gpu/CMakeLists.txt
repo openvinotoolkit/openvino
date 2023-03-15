@@ -10,7 +10,6 @@ set (TARGET_NAME "openvino_intel_gpu_plugin")
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     ie_add_compiler_flags(-Wno-strict-aliasing)
-    ie_add_compiler_flags(-msse4.1 -msse4.2)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
@@ -70,4 +69,5 @@ if(ENABLE_TESTS)
 endif()
 
 # Failed because of OpenCL
+# must be called after all target_link_libraries
 # ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
