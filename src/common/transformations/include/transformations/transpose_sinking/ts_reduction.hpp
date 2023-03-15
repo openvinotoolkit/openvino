@@ -10,10 +10,12 @@
 
 namespace ov {
 namespace pass {
+namespace transpose_sinking {
 
-class TRANSFORMATIONS_API TransposeSinkingReductionForward;
-class TRANSFORMATIONS_API TransposeSinkingReductionBackward;
+class TRANSFORMATIONS_API TSReductionForward;
+class TRANSFORMATIONS_API TSReductionBackward;
 
+}  // namespace transpose_sinking
 }  // namespace pass
 }  // namespace ov
 
@@ -22,10 +24,10 @@ class TRANSFORMATIONS_API TransposeSinkingReductionBackward;
  * @brief TransposeReductionForward transformation sinks Transpose through Reduce, Squeeze, Unsqueeze operations
  * in the forward direction.
  */
-class ov::pass::TransposeSinkingReductionForward : public ov::pass::MatcherPass {
+class ov::pass::transpose_sinking::TSReductionForward : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::pass::TransposeSinkingReductionForward", "0");
-    TransposeSinkingReductionForward();
+    OPENVINO_RTTI("ov::pass::TSReductionForward", "0");
+    TSReductionForward();
 };
 
 /**
@@ -33,8 +35,8 @@ public:
  * @brief TransposeReductionBackward transformation sinks Transpose through Reduce, Squeeze, Unsqueeze operations
  * in the backward direction.
  */
-class ov::pass::TransposeSinkingReductionBackward : public ov::pass::MatcherPass {
+class ov::pass::transpose_sinking::TSReductionBackward : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("ov::pass::TransposeSinkingReductionBackward", "0");
-    TransposeSinkingReductionBackward();
+    OPENVINO_RTTI("ov::pass::TSReductionBackward", "0");
+    TSReductionBackward();
 };
