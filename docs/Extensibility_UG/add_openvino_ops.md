@@ -41,7 +41,7 @@ OpenVINO™ operation contains two constructors:
 * Default constructor, which enables you to create an operation without attributes 
 * Constructor that creates and validates an operation with specified inputs and attributes
 
-.. doxygensnippet:: template_extension/new/identity.cpp
+.. doxygensnippet:: ./src/core/template_extension/new/identity.cpp
    :language: cpp
    :fragment: [op:ctor]
 
@@ -50,7 +50,7 @@ OpenVINO™ operation contains two constructors:
 
 ``:ref:`ov::Node::validate_and_infer_types <doxid-classov_1_1_node_1ac5224b5be848ec670d2078d9816d12e7>``` method validates operation attributes and calculates output shapes using attributes of the operation.
 
-.. doxygensnippet:: template_extension/new/identity.cpp
+.. doxygensnippet:: ./src/core/template_extension/new/identity.cpp
    :language: cpp
    :fragment: [op:validate]
 
@@ -59,7 +59,7 @@ OpenVINO™ operation contains two constructors:
 
 ``:ref:`ov::Node::clone_with_new_inputs <doxid-classov_1_1_node_1a04cb103fa069c3b7944ab7c44d94f5ff>``` method creates a copy of the operation with new inputs.
 
-.. doxygensnippet:: template_extension/new/identity.cpp
+.. doxygensnippet:: ./src/core/template_extension/new/identity.cpp
    :language: cpp
    :fragment: [op:copy]
 
@@ -68,7 +68,7 @@ OpenVINO™ operation contains two constructors:
 
 ``:ref:`ov::Node::visit_attributes <doxid-classov_1_1_node_1a9743b56d352970486d17dae2416d958e>``` method enables you to visit all operation attributes.
 
-.. doxygensnippet:: template_extension/new/identity.cpp
+.. doxygensnippet:: ./src/core/template_extension/new/identity.cpp
    :language: cpp
    :fragment: [op:visit_attributes]
 
@@ -77,7 +77,7 @@ OpenVINO™ operation contains two constructors:
 
 ``:ref:`ov::Node::evaluate <doxid-classov_1_1_node_1acfb82acc8349d7138aeaa05217c7014e>``` method enables you to apply constant folding to an operation.
 
-.. doxygensnippet:: template_extension/new/identity.cpp
+.. doxygensnippet:: ./src/core/template_extension/new/identity.cpp
    :language: cpp
    :fragment: [op:evaluate]
 
