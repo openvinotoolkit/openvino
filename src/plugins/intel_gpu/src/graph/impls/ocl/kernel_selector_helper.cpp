@@ -63,16 +63,6 @@ kernel_selector::dev_type get_device_type(cldnn::device_type type) {
     }
 }
 
-class dummy_impl_params : public kernel_impl_params {
-    size_t hash() const override {
-        return 1;
-    }
-
-    bool operator==(const kernel_impl_params& rhs) const override {
-        return false;
-    }
-};
-
 bool query_local_block_io_supported(engine& e, const ExecutionConfig& config) {
     auto device = e.get_device().get();
     auto device_info = device->get_info();
@@ -111,11 +101,12 @@ bool query_local_block_io_supported(engine& e, const ExecutionConfig& config) {
     kernel_string->batch_compilation = true;
 
     try {
+        kernel_impl_params dummpy_params;
         auto _kernels_cache_device_query = std::unique_ptr<kernels_cache>(new kernels_cache(e, config, 0));
-        auto kernel_ids = _kernels_cache_device_query->add_kernels_source({kernel_string}, false);
+        _kernels_cache_device_query->add_kernels_source(dummpy_params, {kernel_string}, false);
         _kernels_cache_device_query->build_all();
 
-        auto kernel = _kernels_cache_device_query->get_kernel(kernel_ids[0]);
+        auto kernel = _kernels_cache_device_query->get_kernel(dummpy_params);
         cache[device] = _kernels_cache_device_query->validate_simple_kernel_execution(kernel);
     } catch (std::exception& /*ex*/) {
         cache[device] = false;

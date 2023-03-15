@@ -89,6 +89,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildAll::GetProgramSource");
     std::map<std::string, std::tuple<int32_t, std::vector<batch_program>>> program_buckets;
 
+    std::vector<std::string> entry_points;
     for (const auto& k : kernels_source_code) {
         auto& code = k.second;
         std::string full_code = code.kernel_strings->jit + code.kernel_strings->str + code.kernel_strings->undefs;
@@ -121,14 +122,19 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
         }
 
         // Create new kernels batch when the limit is reached
-        if (current_bucket.back().kernels_counter >= get_max_kernels_per_batch()) {
+        if (current_bucket.back().kernels_counter >= get_max_kernels_per_batch()
+            || std::find(entry_points.begin(), entry_points.end(), entry_point) != entry_points.end()) {
             const auto& batch_id = static_cast<int32_t>(current_bucket.size());
             current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
+            entry_points.clear();
         }
+
+        entry_points.push_back(entry_point);
 
         auto& current_batch = current_bucket.back();
         current_batch.dump_custom_program = dump_custom_program;
-        current_batch.entry_point_to_id[entry_point] = code.id;
+        // current_batch.entry_point_to_key[entry_point] = code.key;
+        current_batch.entry_point_to_key.emplace(entry_point, code.key);
 
         current_batch.source.push_back(std::move(full_code));
         current_batch.kernels_counter++;
@@ -182,7 +188,7 @@ static std::vector<unsigned char> getProgramBinaries(cl::Program program) {
 }
 
 // TODO: This build_batch method should be backend specific
-void kernels_cache::build_batch(const engine& build_engine, const batch_program& batch, std::map<const std::string, kernel::ptr>& compiled_kernels) {
+void kernels_cache::build_batch(const engine& build_engine, const batch_program& batch, compiled_kernels& compiled_kernels) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::build_batch");
 
     auto& cl_build_engine = dynamic_cast<const ocl::ocl_engine&>(build_engine);
@@ -273,12 +279,12 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
             std::lock_guard<std::mutex> lock(_mutex);
             for (auto& k : kernels) {
                 const auto& entry_point = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
-                const auto& k_id = batch.entry_point_to_id.find(entry_point);
-                if (k_id != batch.entry_point_to_id.end()) {
+                const auto& key_iter = batch.entry_point_to_key.find(entry_point);
+                if (key_iter != batch.entry_point_to_key.end()) {
                     cl_kernel kern = k.get();
                     cl_context context = cl_build_engine.get_cl_context().get();
                     kernel::ptr kernel = kernels_factory::create(_engine, context, kern, entry_point);
-                    const auto& kmap = std::make_pair(k_id->second, kernel);
+                    const auto& kmap = std::make_pair(key_iter->second, kernel);
                     compiled_kernels.insert(kmap);
                 } else {
                     throw std::runtime_error("Could not find entry point");
@@ -321,13 +327,13 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
     }
 }
 
-kernel::ptr kernels_cache::get_kernel(kernel_id id) const {
+kernel::ptr kernels_cache::get_kernel(kernel_impl_params params, size_t sub_kernel_idx) const {
     if (_pending_compilation)
         throw std::runtime_error("Kernel cache is not compiled, call build_all() first!");
 
-    auto res = _kernels.find(id);
+    auto res = _kernels.find({params, sub_kernel_idx});
     if (_kernels.end() == res)
-        throw std::runtime_error("Kernel " + id + " not found in the kernel cache!");
+        throw std::runtime_error("Kernel is not found in the kernel cache!");
     return res->second;
 }
 
@@ -423,141 +429,134 @@ void kernels_cache::reset() {
     _pending_compilation = false;
 }
 
-std::vector<kernel_id> kernels_cache::add_kernels_source(std::vector<std::shared_ptr<kernel_string>> kernel_sources, bool dump_custom_program) {
-    std::vector<kernel_id> kernel_ids;
-    kernel_ids.reserve(kernel_sources.size());
-    for (size_t i = 0; i < kernel_sources.size(); ++i) {
+void kernels_cache::add_kernels_source(kernel_impl_params& params,
+                                        std::vector<std::shared_ptr<kernel_string>> kernel_sources,
+                                        bool dump_custom_program) {
+    for (size_t sub_kernel_id = 0; sub_kernel_id < kernel_sources.size(); ++sub_kernel_id) {
         std::lock_guard<std::mutex> lock(_mutex);
-        auto kernel_string = kernel_sources[i];
-        kernel_id id = kernel_string->entry_point;
+        kernel_key key(params, sub_kernel_id);
+        auto res = _kernels_code.insert({key, {kernel_sources[sub_kernel_id], key, dump_custom_program}});
 
-        // Add kernels_code when the id is not existed in kernels_code
-        if (_kernels_code.find(id) == _kernels_code.end()) {
-            auto res = _kernels_code.insert({id, {kernel_string, id, dump_custom_program}});
-
-            assert(_kernels.find(id) == _kernels.end());
-            if (res.second) {
-                _pending_compilation = true;
-            }
+        assert(_kernels.find(key) == _kernels.end());
+        if (res.second) {
+            _pending_compilation = true;
         }
-        kernel_ids.emplace_back(id);
     }
-    return kernel_ids;
 }
 
 void kernels_cache::add_kernels(const std::vector<std::string>& kernel_ids, const std::vector<kernel::ptr>& kernels) {
-    OPENVINO_ASSERT(kernel_ids.size() == kernels.size(), "[GPU] The sizes of kernel_ids and kernels are different.");
+    // OPENVINO_ASSERT(kernel_ids.size() == kernels.size(), "[GPU] The sizes of kernel_ids and kernels are different.");
 
-    for (size_t i = 0; i < kernel_ids.size(); i++) {
-        const auto& kmap = std::make_pair(kernel_ids[i], kernels[i]);
-        _kernels.insert(kmap);
-    }
+    // for (size_t i = 0; i < kernel_ids.size(); i++) {
+    //     const auto& kmap = std::make_pair(kernel_ids[i], kernels[i]);
+    //     _kernels.insert(kmap);
+    // }
 }
 
 void kernels_cache::save(BinaryOutputBuffer& ob) const {
-    OPENVINO_ASSERT(_engine.type() == engine_types::ocl, "[GPU] Not supported engine type");
+    // OPENVINO_ASSERT(_engine.type() == engine_types::ocl, "[GPU] Not supported engine type");
 
-    std::map<std::string, std::string> entry_point_to_id;
-    for (auto iter = _kernels.begin(); iter != _kernels.end(); iter++) {
-        std::string k_id = iter->first;
-        kernel::ptr kernel = iter->second;
+    // std::map<std::string, std::string> entry_point_to_id;
+    // for (auto iter = _kernels.begin(); iter != _kernels.end(); iter++) {
+    //     std::string k_id = iter->first;
+    //     kernel::ptr kernel = iter->second;
 
-        auto ocl_kernel = std::static_pointer_cast<cldnn::ocl::ocl_kernel>(kernel);
-        const auto& entry_point = ocl_kernel->get_handle().getInfo<CL_KERNEL_FUNCTION_NAME>();
+    //     auto ocl_kernel = std::static_pointer_cast<cldnn::ocl::ocl_kernel>(kernel);
+    //     const auto& entry_point = ocl_kernel->get_handle().getInfo<CL_KERNEL_FUNCTION_NAME>();
 
-        entry_point_to_id[entry_point] = k_id;
-    }
-    ob << entry_point_to_id;
+    //     entry_point_to_id[entry_point] = k_id;
+    // }
+    // ob << entry_point_to_id;
 
-    std::unique_ptr<ocl::ocl_engine> build_engine = cldnn::make_unique<ocl::ocl_engine>(_engine.get_device(), runtime_types::ocl);
+    // std::unique_ptr<ocl::ocl_engine> build_engine = cldnn::make_unique<ocl::ocl_engine>(_engine.get_device(), runtime_types::ocl);
 
-    std::vector<std::vector<unsigned char>> precompiled_kernels;
+    // std::vector<std::vector<unsigned char>> precompiled_kernels;
 
-    for (auto iter = _kernels.begin(); iter != _kernels.end(); iter++) {
-        kernel::ptr kernel = iter->second;
-        auto ocl_kernel = std::static_pointer_cast<cldnn::ocl::ocl_kernel>(kernel);
-        auto program = ocl_kernel->get_handle().getInfo<CL_KERNEL_PROGRAM>();
-        const auto& entry_point = ocl_kernel->get_handle().getInfo<CL_KERNEL_FUNCTION_NAME>();
-        const auto& k_id = entry_point_to_id.find(entry_point);
+    // for (auto iter = _kernels.begin(); iter != _kernels.end(); iter++) {
+    //     kernel::ptr kernel = iter->second;
+    //     auto ocl_kernel = std::static_pointer_cast<cldnn::ocl::ocl_kernel>(kernel);
+    //     auto program = ocl_kernel->get_handle().getInfo<CL_KERNEL_PROGRAM>();
+    //     const auto& entry_point = ocl_kernel->get_handle().getInfo<CL_KERNEL_FUNCTION_NAME>();
+    //     const auto& k_id = entry_point_to_id.find(entry_point);
 
-        if (k_id != entry_point_to_id.end()) {
-            cl::Program::Binaries binary_kernels = {getProgramBinaries(program)};
+    //     if (k_id != entry_point_to_id.end()) {
+    //         cl::Program::Binaries binary_kernels = {getProgramBinaries(program)};
 
-            try {
-                cl::vector<cl::Kernel> kernels;
-                cl::Program programs(build_engine->get_cl_context(), {build_engine->get_cl_device()}, binary_kernels);
-                programs.build({build_engine->get_cl_device()});
-                programs.createKernels(&kernels);
+    //         try {
+    //             cl::vector<cl::Kernel> kernels;
+    //             cl::Program programs(build_engine->get_cl_context(), {build_engine->get_cl_device()}, binary_kernels);
+    //             programs.build({build_engine->get_cl_device()});
+    //             programs.createKernels(&kernels);
 
-                for (auto& k : kernels) {
-                    const auto& entry_point = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
-                    entry_point_to_id.erase(entry_point);
-                }
+    //             for (auto& k : kernels) {
+    //                 const auto& entry_point = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
+    //                 entry_point_to_id.erase(entry_point);
+    //             }
 
-                precompiled_kernels.push_back(std::move(binary_kernels[0]));
-            } catch (const cl::BuildError& err) {
-                std::string err_log = "";
-                for (auto& p : err.getBuildLog()) {
-                    err_log += p.second + '\n';
-                }
-                IE_THROW() << err_log;
-            }
-        }
-    }
-    ob << precompiled_kernels;
+    //             precompiled_kernels.push_back(std::move(binary_kernels[0]));
+    //         } catch (const cl::BuildError& err) {
+    //             std::string err_log = "";
+    //             for (auto& p : err.getBuildLog()) {
+    //                 err_log += p.second + '\n';
+    //             }
+    //             IE_THROW() << err_log;
+    //         }
+    //     }
+    // }
+    // ob << precompiled_kernels;
 }
 
 void kernels_cache::load(BinaryInputBuffer& ib) {
-    OPENVINO_ASSERT(_engine.type() == engine_types::ocl, "[GPU] Not supported engine type");
+    // OPENVINO_ASSERT(_engine.type() == engine_types::ocl, "[GPU] Not supported engine type");
 
-    std::unique_ptr<ocl::ocl_engine> build_engine =
-        cldnn::make_unique<ocl::ocl_engine>(_engine.get_device(), runtime_types::ocl);
+    // std::unique_ptr<ocl::ocl_engine> build_engine =
+    //     cldnn::make_unique<ocl::ocl_engine>(_engine.get_device(), runtime_types::ocl);
 
-    std::map<std::string, std::string> entry_point_to_id;
-    std::vector<std::vector<unsigned char>> precompiled_kernels;
-    ib >> entry_point_to_id;
-    ib >> precompiled_kernels;
+    // std::map<std::string, std::string> entry_point_to_id;
+    // std::vector<std::vector<unsigned char>> precompiled_kernels;
+    // ib >> entry_point_to_id;
+    // ib >> precompiled_kernels;
 
-    try {
-        std::lock_guard<std::mutex> lock(_mutex);
-        _kernels.clear();
+    // try {
+    //     std::lock_guard<std::mutex> lock(_mutex);
+    //     _kernels.clear();
 
-        for (auto& binary_kernels : precompiled_kernels) {
-            cl::vector<cl::Kernel> kernels;
-            cl::Program program(build_engine->get_cl_context(), {build_engine->get_cl_device()}, {binary_kernels});
-            program.build({build_engine->get_cl_device()});
-            program.createKernels(&kernels);
+    //     for (auto& binary_kernels : precompiled_kernels) {
+    //         cl::vector<cl::Kernel> kernels;
+    //         cl::Program program(build_engine->get_cl_context(), {build_engine->get_cl_device()}, {binary_kernels});
+    //         program.build({build_engine->get_cl_device()});
+    //         program.createKernels(&kernels);
 
-            for (auto& k : kernels) {
-                const auto& entry_point = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
-                const auto& k_id = entry_point_to_id.find(entry_point);
-                if (k_id != entry_point_to_id.end()) {
-                    cl_kernel cl_kernel = k.get();
-                    cl_context cl_context = build_engine->get_cl_context().get();
-                    kernel::ptr kernel = kernels_factory::create(_engine, cl_context, cl_kernel, entry_point);
-                    _kernels.insert({k_id->second, kernel});
-                }
-            }
-        }
-    } catch (const cl::BuildError& err) {
-        std::string err_log = "";
-        for (auto& p : err.getBuildLog()) {
-            err_log += p.second + '\n';
-        }
-        IE_THROW() << err_log;
-    }
+    //         for (auto& k : kernels) {
+    //             const auto& entry_point = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
+    //             const auto& k_id = entry_point_to_id.find(entry_point);
+    //             if (k_id != entry_point_to_id.end()) {
+    //                 cl_kernel cl_kernel = k.get();
+    //                 cl_context cl_context = build_engine->get_cl_context().get();
+    //                 kernel::ptr kernel = kernels_factory::create(_engine, cl_context, cl_kernel, entry_point);
+    //                 _kernels.insert({k_id->second, kernel});
+    //             }
+    //         }
+    //     }
+    // } catch (const cl::BuildError& err) {
+    //     std::string err_log = "";
+    //     for (auto& p : err.getBuildLog()) {
+    //         err_log += p.second + '\n';
+    //     }
+    //     IE_THROW() << err_log;
+    // }
 }
 
-std::map<const std::string, kernel::ptr> kernels_cache::compile(std::vector<std::shared_ptr<kernel_string>> kernel_sources,
-                                                                    bool dump_custom_program) {
+kernels_cache::compiled_kernels kernels_cache::compile(kernel_impl_params params,
+                                            std::vector<std::shared_ptr<kernel_string>> kernel_sources,
+                                            bool dump_custom_program) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::Compile_ThreadSafe");
     kernels_code t_kernels_code;
 
     // Get kernels code from kernel sources
-    for (size_t idx = 0; idx < kernel_sources.size(); ++idx) {
-        auto kernel_string = kernel_sources[idx];
-        kernel_id id = kernel_string->entry_point;
-        t_kernels_code.insert({id, {kernel_string, id, dump_custom_program}});
+    for (size_t k = 0; k < kernel_sources.size(); ++k) {
+        kernel_key key(params, k);
+        t_kernels_code.insert({key, {kernel_sources[k], key, dump_custom_program}});
     }
 
     ocl::ocl_engine& _build_engine = downcast<ocl::ocl_engine>(_engine);
@@ -566,7 +565,7 @@ std::map<const std::string, kernel::ptr> kernels_cache::compile(std::vector<std:
     std::vector<batch_program> batches;
     get_program_source(t_kernels_code, &batches);
 
-    std::map<const std::string, kernel::ptr> output_kernels;
+    compiled_kernels output_kernels;
     // Build batches
     for (size_t idx = 0; idx < batches.size(); ++idx) {
         build_batch(_build_engine, batches[idx], output_kernels);

@@ -117,6 +117,7 @@ program::program(engine& engine_ref,
     GPU_DEBUG_INFO << "Program config\n" << config.to_string();
     init_program();
     prepare_nodes(topology);
+    program_node::reset_unique_id();
 
     if (no_optimizations) {
         init_graph();
@@ -228,13 +229,8 @@ std::shared_ptr<InferenceEngine::CPUStreamsExecutor> program::make_task_executor
     return std::make_shared<InferenceEngine::CPUStreamsExecutor>(task_executor_config);
 }
 
-kernel_id program::add_kernel(const std::shared_ptr<kernel_string>& kernelSring) {
-    auto kernel_ids = _kernels_cache->add_kernels_source({kernelSring}, false);
-    return kernel_ids[0];
-}
-
-kernel::ptr program::get_kernel(kernel_id id) {
-    return _kernels_cache->get_kernel(id);
+void program::add_kernel(kernel_impl_params& params, const std::shared_ptr<kernel_string>& kernelSring) {
+    _kernels_cache->add_kernels_source(params, {kernelSring}, false);
 }
 
 kernels_cache& program::get_kernels_cache() const {

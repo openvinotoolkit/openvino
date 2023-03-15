@@ -32,10 +32,9 @@ For example, all gpu convolution implementations should derive from typed_primit
 template <class PType>
 struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     kernel_selector::kernel_data _kernel_data;
-    std::vector<kernel_id> _kernel_ids;
     std::vector<kernel::ptr> _kernels;
 
-    typed_primitive_impl_ocl() :  _kernel_data({}), _kernel_ids({}), _kernels({}) {
+    typed_primitive_impl_ocl() :  _kernel_data({}), _kernels({}) {
         _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
         _kernel_data.weightsReorderParams.cpuKernel = nullptr;
         _kernel_data.weightsReorderParams.clKernel = nullptr;
@@ -44,7 +43,6 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     typed_primitive_impl_ocl(const typed_primitive_impl_ocl<PType>& other)
     : typed_primitive_impl<PType>(other._weights_reorder_params, other._kernel_name, other._is_dynamic)
     , _kernel_data(other._kernel_data)
-    , _kernel_ids(other._kernel_ids)
     , _kernels({}) {
         _kernels.reserve(other._kernels.size());
         for (size_t k = 0; k < other._kernels.size(); ++k) {
@@ -74,14 +72,12 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         ob << make_data(&_kernel_data.internalBufferDataType, sizeof(kernel_selector::Datatype));
         ob << _kernel_data.internalBufferSizes;
         ob << _kernel_data.kernels;
-        ob << _kernel_ids;
     }
 
     void load(BinaryInputBuffer& ib) override {
         ib >> make_data(&_kernel_data.internalBufferDataType, sizeof(kernel_selector::Datatype));
         ib >> _kernel_data.internalBufferSizes;
         ib >> _kernel_data.kernels;
-        ib >> _kernel_ids;
     }
 
     template<typename ImplType>
@@ -134,21 +130,22 @@ protected:
         return stream.enqueue_marker(events, is_output);
     }
 
-    void init_kernels(const kernels_cache& kernels_cache) override {
+    void init_kernels(const kernels_cache& kernels_cache, kernel_impl_params& params) override {
         if (is_cpu()) {
             return;
         }
         _kernels.clear();
 
-        _kernels.reserve(_kernel_ids.size());
-        for (size_t k = 0; k < _kernel_ids.size(); ++k) {
-            _kernels.emplace_back(kernels_cache.get_kernel(_kernel_ids[k]));
+        const size_t num_kernels = _kernel_data.kernels.size();
+        _kernels.reserve(num_kernels);
+        for (size_t k = 0; k < num_kernels; ++k) {
+            _kernels.emplace_back(kernels_cache.get_kernel(params, k));
         }
     }
 
-    std::vector<std::string> get_kernel_ids() const override {
-        return _kernel_ids;
-    }
+    // std::vector<std::string> get_kernel_ids() const override {
+    //     return _kernel_ids;
+    // }
 
     std::vector<kernel::ptr> get_kernels() const override {
         return _kernels;
@@ -258,10 +255,6 @@ protected:
         return aggregate_events(all_events, stream, group_events);
     }
 
-    void set_kernel_ids(std::vector<kernel_id> kernel_ids) override {
-        _kernel_ids = kernel_ids;
-    }
-
     std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {
         std::vector<std::shared_ptr<cldnn::kernel_string>> kernel_strings;
         for (size_t i = 0; i < _kernel_data.kernels.size(); ++i) {
@@ -283,15 +276,13 @@ protected:
         }
     }
 
-    void set_kernels(std::map<const std::string, kernel::ptr>& kernels) override {
+    void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) override {
         if (is_cpu())
             return;
 
-        _kernel_ids.clear();
         _kernels.clear();
         _kernels.reserve(kernels.size());
         for (auto& k : kernels) {
-            _kernel_ids.push_back(k.first);
             _kernels.emplace_back(std::move(k.second));
         }
     }
