@@ -38,7 +38,7 @@ class TestChunk(PytorchLayerTest):
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
-    def test_argsort(self, input_tensor, chunks, ie_device, precision, ir_version):
+    def test_chunk(self, input_tensor, chunks, ie_device, precision, ir_version):
         self.input_tensor = input_tensor
         dims = len(input_tensor.shape)
         for dim in range(0, dims):
