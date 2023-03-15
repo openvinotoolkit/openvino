@@ -558,10 +558,13 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return false;
         };
 
-        auto fc_supports_fusings = [](fully_connected_node& node) -> bool {
-            auto in_dt = node.get_dependency(0).get_output_layout().data_type;
-
-            return data_type_traits::is_i8_u8(in_dt);
+        auto fc_supports_fusings = [&](fully_connected_node& node) -> bool {
+            if (_lo.get_optimization_attributes().use_onednn_impls) {
+                return true;
+            } else {
+                auto in_dt = node.get_dependency(0).get_output_layout().data_type;
+                return data_type_traits::is_i8_u8(in_dt);
+            }
         };
 
         auto gemm_supports_fusings = [](gemm_node& node) -> bool {
