@@ -122,7 +122,7 @@ When Python API is used, there is no way to implement a custom OpenVINO operatio
 
 Python can still be used to map and decompose operations when only operations from the standard OpenVINO operation set are used.
 
-.. _create-library-with-extensions:: 
+.. _create_library_with_extensions:: 
 
 Create a Library with Extensions
 ++++++++++++++++++++++++++++++++
