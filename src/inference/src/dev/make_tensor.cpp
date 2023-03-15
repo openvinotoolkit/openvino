@@ -27,7 +27,7 @@ public:
           m_capacity{shape},
           m_ptr{ptr} {
         OPENVINO_ASSERT(m_ptr != nullptr);
-        OPENVINO_ASSERT(m_element_type != element::undefined && m_element_type != element::dynamic);
+        OPENVINO_ASSERT(m_element_type != element::undefined && m_element_type.is_static());
         update_strides();
     }
 
@@ -209,9 +209,7 @@ std::shared_ptr<ITensor> make_tensor(const element::Type element_type, const Sha
  */
 class RoiTensor : public ITensor {
 public:
-    RoiTensor(const std::shared_ptr<ITensor>& owner, const Coordinate& begin, const Coordinate& end)
-        : m_owner{owner},
-          m_offsets{begin} {
+    RoiTensor(const std::shared_ptr<ITensor>& owner, const Coordinate& begin, const Coordinate& end) : m_owner{owner} {
         OPENVINO_ASSERT(owner->get_element_type().bitwidth() >= 8,
                         "ROI Tensor for types with bitwidths less then 8 bit is not implemented. Tensor type: ",
                         owner->get_element_type());
@@ -225,6 +223,8 @@ public:
             m_shape[i] = end[i] - begin[i];
             OPENVINO_ASSERT(m_shape[i] <= owner_shape[i]);
         }
+        auto& strides = get_strides();
+        m_offset = std::inner_product(begin.begin(), begin.end(), strides.begin(), static_cast<size_t>(0));
     }
 
     const element::Type& get_element_type() const override {
@@ -245,15 +245,12 @@ public:
 
     void* data(const element::Type& element_type) const override {
         auto owner_data = m_owner->data(element_type);
-        auto& strides = get_strides();
-        size_t byte_offset =
-            std::inner_product(m_offsets.begin(), m_offsets.end(), strides.begin(), static_cast<size_t>(0));
-        return static_cast<uint8_t*>(owner_data) + byte_offset;
+        return static_cast<uint8_t*>(owner_data) + m_offset;
     }
 
 private:
     std::shared_ptr<ITensor> m_owner;
-    Coordinate m_offsets;
+    size_t m_offset;
     Shape m_shape;
 };
 
@@ -281,6 +278,21 @@ class BlobTensor : public ITensor {
     mutable Shape m_shape;
     mutable Strides m_strides;
 
+    void update_strides() {
+        if (get_element_type().bitwidth() >= 8) {
+            const auto& element_strides = blob->getTensorDesc().getBlockingDesc().getStrides();
+            const size_t elem_size = get_element_type().size();
+            m_strides.clear();
+            m_strides.resize(element_strides.size());
+            std::transform(element_strides.begin(),
+                           element_strides.end(),
+                           m_strides.begin(),
+                           [&elem_size](size_t stride) {
+                               return stride * elem_size;
+                           });
+        }
+    }
+
 public:
     std::shared_ptr<ie::Blob> blob;
 
@@ -289,6 +301,7 @@ public:
         OPENVINO_ASSERT(!remote_impl);
         OPENVINO_ASSERT(blob);
         m_shape = blob->getTensorDesc().getBlockingDesc().getBlockDims();
+        update_strides();
     }
 
     const element::Type& get_element_type() const override {
@@ -298,6 +311,7 @@ public:
 
     void set_shape(ov::Shape shape) override {
         blob->setShape({shape.begin(), shape.end()});
+        update_strides();
     }
 
     const Shape& get_shape() const override {
@@ -309,13 +323,6 @@ public:
         OPENVINO_ASSERT(get_element_type().bitwidth() >= 8,
                         "Could not get strides for types with bitwidths less then 8 bit. Tensor type: ",
                         get_element_type());
-        const auto& element_strides = blob->getTensorDesc().getBlockingDesc().getStrides();
-        const size_t elem_size = get_element_type().size();
-        m_strides.clear();
-        m_strides.resize(element_strides.size());
-        std::transform(element_strides.begin(), element_strides.end(), m_strides.begin(), [&elem_size](size_t stride) {
-            return stride * elem_size;
-        });
         return m_strides;
     }
 
@@ -337,7 +344,7 @@ public:
 #undef TYPE_CHECK
         OPENVINO_ASSERT(host_accesable_implementation,
                         "Tensor implementation type dose not contains host accessable data");
-        if (element_type != element::undefined) {
+        if (element_type != element::undefined && element_type.is_static()) {
             OPENVINO_ASSERT(element_type == get_element_type(),
                             "Tensor data with element type ",
                             get_element_type(),
