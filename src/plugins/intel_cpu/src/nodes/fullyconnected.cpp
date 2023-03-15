@@ -311,7 +311,7 @@ void FullyConnected::prepareParams() {
                  implementationTypeIP,
                  useConv1x1};
 
-    auto engine = getEngine();
+    auto& engine = getEngine();
 
     auto builder = [&engine](const FCKey& key) -> executorPtr {
         executorPtr execPtr = nullptr;
@@ -404,23 +404,23 @@ void FullyConnected::prepareParams() {
     execPtr = result.first;
 
     if (execPtr) {
-        // no executor yet or shapes changed
-        if (!prevExecPtr || prevExecPtr->getSrcDesc() != execPtr->getSrcDesc()) {
-            auto oldMem = srcMemPtr->GetPrimitive();
-            // fast path: wanted is same with parent node output, typical is static shape with inner product
-            if (execPtr->getSrcDesc() == inDesc->getDnnlDesc()) {
-                primArgs[DNNL_ARG_SRC] = std::move(oldMem);
-            } else {
-                primArgs[DNNL_ARG_SRC] = dnnl::memory(execPtr->getSrcDesc(), oldMem.get_engine(), oldMem.get_data_handle());
-            }
+        if (execPtr->getSrcDesc()->isCompatible(*inDesc)) {
+            primArgs[DNNL_ARG_SRC] = srcMemPtr->GetPrimitive();
+        } else {
+            auto start = std::chrono::steady_clock::now();
+            primArgs[DNNL_ARG_SRC] = dnnl::memory(execPtr->getDnnlSrcDesc(), engine, srcMemPtr->GetData()); //385.681 [ms]
+            auto end = std::chrono::steady_clock::now();
+            g_counters[8] += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
         }
-        if (!prevExecPtr || prevExecPtr->getDstDesc() != execPtr->getDstDesc()) {
-            auto oldMem = dstMemPtr->GetPrimitive();
-            if (execPtr->getDstDesc() == outDesc->getDnnlDesc()) {
-                primArgs[DNNL_ARG_DST] = std::move(oldMem);
-            } else {
-                primArgs[DNNL_ARG_DST] = dnnl::memory(execPtr->getDstDesc(), oldMem.get_engine(), oldMem.get_data_handle());
-            }
+
+        if (execPtr->getDstDesc()->isCompatible(*outDesc)) {
+            primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();
+        } else {
+            primArgs[DNNL_ARG_DST] = dnnl::memory(execPtr->getDnnlDstDesc(), engine, dstMemPtr->GetData());
+        }
+
+        if (!prevExecPtr || !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
+            primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc())->GetPrimitive();
         }
         if (!prevExecPtr || prevExecPtr->getWeightDesc() != execPtr->getWeightDesc()) {
             primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(DnnlExtensionUtils::makeDescriptor(execPtr->getWeightDesc()))->GetPrimitive();
@@ -438,9 +438,10 @@ void FullyConnected::prepareParams() {
             primArgs[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
         }
 
-        auto pd = execPtr->getPrimitiveDesc();
-        auto scratchpadMem = getScratchPadMem(pd);
-        primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->GetPrimitive();
+        if (!scratchPad || !scratchPad->getDesc().isCompatible(*(execPtr->getScratchPadDesc()))) {
+            scratchPad = context->getScratchPad()->createScratchPadMem(execPtr->getScratchPadDesc());
+        }
+        primArgs[DNNL_ARG_SCRATCHPAD] = scratchPad->GetPrimitive();
 #ifdef CPU_DEBUG_CAPS
         if (result.second == CacheEntryBase::LookUpStatus::Miss) {
             DEBUG_LOG("verbose##", getName(), "##", pd->info(), "\n");

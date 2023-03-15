@@ -58,27 +58,6 @@ const_dnnl_primitive_desc_t DnnlExecutor::getPrimitiveDesc() const {
     return execPrim.get_primitive_desc();
 }
 
-dnnl::memory::desc DnnlExecutor::getSrcDesc() const {
-    auto pd = getPrimitiveDesc();
-    auto md = DnnlExtensionUtils::query_md(pd, dnnl::query::src_md);
-
-    return md->getDnnlDesc();
-}
-
-dnnl::memory::desc DnnlExecutor::getWeightDesc() const {
-    auto pd = getPrimitiveDesc();
-    auto md = DnnlExtensionUtils::query_md(pd, dnnl::query::weights_md);
-
-    return md->getDnnlDesc();
-}
-
-dnnl::memory::desc DnnlExecutor::getDstDesc() const {
-    auto pd = getPrimitiveDesc();
-    auto md = DnnlExtensionUtils::query_md(pd, dnnl::query::dst_md);
-
-    return md->getDnnlDesc();
-}
-
 impl_desc_type DnnlExecutor::getImplementationType() const {
     auto pd = getPrimitiveDesc();
     return parse_impl_name(DnnlExtensionUtils::query_impl_info_str(pd));
