@@ -915,10 +915,18 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
 }
 
 FullyConnected::ExecutorInnerProduct::ExecutorInnerProduct(const dnnl::inner_product_forward::primitive_desc& pd) {
+    src_md = DnnlExtensionUtils::makeDescriptor(pd.src_desc());
+    dst_md = DnnlExtensionUtils::makeDescriptor(pd.dst_desc());
+    wghts_md = DnnlExtensionUtils::makeDescriptor(pd.weights_desc());
+    scrch_md = DnnlExtensionUtils::makeDescriptor(pd.scratchpad_desc());
     execPrim = dnnl::inner_product_forward(pd);
 }
 
 FullyConnected::ExecutorConv1x1::ExecutorConv1x1(const dnnl::convolution_forward::primitive_desc& pd) {
+    src_md = DnnlExtensionUtils::makeDescriptor(pd.src_desc());
+    dst_md = DnnlExtensionUtils::makeDescriptor(pd.dst_desc());
+    wghts_md = DnnlExtensionUtils::makeDescriptor(pd.weights_desc());
+    scrch_md = DnnlExtensionUtils::makeDescriptor(pd.scratchpad_desc());
     execPrim = dnnl::convolution_forward(pd);
 }
 
