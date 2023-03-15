@@ -38,7 +38,7 @@ class IAsyncInferRequest;
 class OPENVINO_RUNTIME_API ICompiledModel : public std::enable_shared_from_this<ICompiledModel> {
 public:
     /**
-     * @brief Constructor for ICompiledModel interface with remote context
+     * @brief Constructor for ICompiledModel interface
      *
      * @param model OpenVINO model representation
      *
