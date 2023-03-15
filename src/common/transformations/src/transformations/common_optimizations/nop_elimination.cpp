@@ -90,6 +90,12 @@ static bool eliminate_nop(const shared_ptr<Node>& node) {
 
 static bool eliminate_reshape_v1(const shared_ptr<Node>& node) {
     auto input = node->input_value(0);
+
+    if (input.get_partial_shape().rank().is_static() && input.get_partial_shape().rank().same_scheme(1)) {
+        if (input.get_partial_shape().same_scheme(node->get_output_partial_shape(0)))
+            return replace_output_update_name(node->output(0), input);
+    }
+
     // check if reshape is not identity op
     if (input.get_partial_shape().is_dynamic() || node->get_output_partial_shape(0).is_dynamic()) {
         NGRAPH_DEBUG << node << " has dynamic shapes.";
