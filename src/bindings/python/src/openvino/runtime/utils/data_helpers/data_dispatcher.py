@@ -56,14 +56,21 @@ def _(
     is_shared: bool = False,
     key: Optional[ValidKeys] = None,
 ) -> Tensor:
-    tensor_type = get_request_tensor(request, key).get_element_type()
+    tensor = get_request_tensor(request, key)
+    tensor_type = tensor.get_element_type()
     tensor_dtype = tensor_type.to_dtype()
+    if value.ndim == 0:
+        tensor_shape = tuple(tensor.shape)
+        if tensor_dtype == value.dtype and tensor_shape == value.shape:
+            return Tensor(value, shared_memory=is_shared)
+        else:
+            return Tensor(value.astype(tensor_dtype).reshape(tensor_shape), shared_memory=False)
     # WA for FP16-->BF16 edge-case, always copy.
     if tensor_type == Type.bf16:
         tensor = Tensor(tensor_type, value.shape)
         tensor.data[:] = value.view(tensor_dtype)
         return tensor
-    # If types are misatched, convert and always copy.
+    # If types are mismatched, convert and always copy.
     if tensor_dtype != value.dtype:
         return Tensor(value.astype(tensor_dtype), shared_memory=False)
     # Otherwise, use mode defined in the call.
@@ -83,7 +90,7 @@ def _(
     tensor_type = get_request_tensor(request, key).get_element_type()
     tensor_dtype = tensor_type.to_dtype()
     tmp = np.array(value)
-    # If types are misatched, convert.
+    # If types are mismatched, convert.
     if tensor_dtype != tmp.dtype:
         return Tensor(tmp.astype(tensor_dtype), shared_memory=False)
     return Tensor(tmp, shared_memory=False)
