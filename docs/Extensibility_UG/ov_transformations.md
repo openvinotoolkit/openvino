@@ -58,7 +58,7 @@ The alternative way to do the same replacement is the following:
 
 Another transformation example is insertion.
 
-.. image:: ./_static/images/ngraph_replace_node.png
+.. image:: ./_static/images/ngraph_insert_node.png
 
 .. doxygensnippet:: docs/snippets/ov_model_snippets.cpp
    :language: cpp
@@ -91,7 +91,7 @@ Transformations types
 OpenVINO™ Runtime has three main transformation types:
 
 * :doc:`Model pass <openvino_docs_Extensibility_UG_model_pass>` - straightforward way to work with ``:ref:`ov::Model <doxid-classov_1_1_model>``` directly
-* :doc:`Matcher pass <Matcher pass](openvino_docs_Extensibility_UG_matcher_pass>` - pattern-based transformation approach
+* :doc:`Matcher pass <openvino_docs_Extensibility_UG_matcher_pass>` - pattern-based transformation approach
 * :doc:`Graph rewrite pass <openvino_docs_Extensibility_UG_graph_rewrite_pass>` - container for matcher passes needed for efficient execution
 
 .. image:: ./_static/images/transformations_structure.png

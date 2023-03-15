@@ -92,21 +92,21 @@ MatcherPass has multiple ways to be executed:
 
 * Run on a single node - it can be useful if you want to run MatcherPass inside another transformation.
 
-   .. doxygensnippet:: docs/snippets/template_pattern_transformation.cpp
-      :language: cpp
-      :fragment: [matcher_pass:run_on_node]
+.. doxygensnippet:: docs/snippets/template_pattern_transformation.cpp
+   :language: cpp
+   :fragment: [matcher_pass:run_on_node]
 
 * Run on ``:ref:`ov::Model <doxid-classov_1_1_model>``` using GraphRewrite - this approach gives ability to run MatcherPass on whole ``:ref:`ov::Model <doxid-classov_1_1_model>```. Moreover, multiple MatcherPass transformation can be registered in a single GraphRewite to be executed in a single graph traversal.
 
-   .. doxygensnippet:: docs/snippets/template_pattern_transformation.cpp
-      :language: cpp
-      :fragment: [matcher_pass:graph_rewrite]
+.. doxygensnippet:: docs/snippets/template_pattern_transformation.cpp
+   :language: cpp
+   :fragment: [matcher_pass:graph_rewrite]
 
 * Run on ``:ref:`ov::Model <doxid-classov_1_1_model>``` using ``:ref:`ov::pass::Manager <doxid-classov_1_1pass_1_1_manager>``` - this approach helps you to register MatcherPass for execution on ``:ref:`ov::Model <doxid-classov_1_1_model>``` as another transformation types.
 
-   .. doxygensnippet:: docs/snippets/template_pattern_transformation.cpp
-      :language: cpp
-      :fragment: [matcher_pass:manager]
+.. doxygensnippet:: docs/snippets/template_pattern_transformation.cpp
+   :language: cpp
+   :fragment: [matcher_pass:manager]
 
 
 .. _pattern_matching:
@@ -119,6 +119,7 @@ For example, if you want to detect **Convolution->Add** sub-graph without specif
 And for these cases OpenVINO™ provides additional helpers to construct patterns for GraphRewrite transformations.
 
 There are two main helpers:
+
 1. ``:ref:`ov::pass::pattern::any_input <doxid-namespaceov_1_1pass_1_1pattern_1a8ed84c3eed4610f117ee10d86d500e02>``` - helps to express inputs if their types are undefined.
 2. ``:ref:`ov::pass::pattern::wrap_type <doxid-namespaceov_1_1pass_1_1pattern_1adfcd6031c95d7bace5f084e2aa105af8>`<T>`` - helps to express nodes of pattern without specifying node attributes.
 
