@@ -17,6 +17,7 @@ AutoExecutableNetwork::AutoExecutableNetwork(AutoScheduleContext::Ptr& context, 
 }
 
 std::shared_ptr<IE::RemoteContext> AutoExecutableNetwork::GetContext() const {
+    std::lock_guard<std::mutex> lock(_autoSContext->_fallbackMutex);
     if (_autoSchedule->_loadContext[FALLBACKDEVICE].isAlready) {
         return _autoSchedule->_loadContext[FALLBACKDEVICE].executableNetwork->GetContext();
     } else {
