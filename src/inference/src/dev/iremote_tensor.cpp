@@ -25,6 +25,21 @@ class BlobTensor : public ITensor {
     mutable Shape m_shape;
     mutable Strides m_strides;
 
+    void update_strides() {
+        if (get_element_type().bitwidth() >= 8) {
+            const auto& element_strides = blob->getTensorDesc().getBlockingDesc().getStrides();
+            const size_t elem_size = get_element_type().size();
+            m_strides.clear();
+            m_strides.resize(element_strides.size());
+            std::transform(element_strides.begin(),
+                           element_strides.end(),
+                           m_strides.begin(),
+                           [&elem_size](size_t stride) {
+                               return stride * elem_size;
+                           });
+        }
+    }
+
 public:
     std::shared_ptr<ie::Blob> blob;
 
@@ -33,6 +48,7 @@ public:
         OPENVINO_ASSERT(!remote_impl);
         OPENVINO_ASSERT(blob);
         m_shape = blob->getTensorDesc().getBlockingDesc().getBlockDims();
+        update_strides();
     }
 
     const element::Type& get_element_type() const override {
@@ -42,6 +58,7 @@ public:
 
     void set_shape(ov::Shape shape) override {
         blob->setShape({shape.begin(), shape.end()});
+        update_strides();
     }
 
     const Shape& get_shape() const override {
@@ -53,13 +70,6 @@ public:
         OPENVINO_ASSERT(get_element_type().bitwidth() >= 8,
                         "Could not get strides for types with bitwidths less then 8 bit. Tensor type: ",
                         get_element_type());
-        const auto& element_strides = blob->getTensorDesc().getBlockingDesc().getStrides();
-        const size_t elem_size = get_element_type().size();
-        m_strides.clear();
-        m_strides.resize(element_strides.size());
-        std::transform(element_strides.begin(), element_strides.end(), m_strides.begin(), [&elem_size](size_t stride) {
-            return stride * elem_size;
-        });
         return m_strides;
     }
 
@@ -81,7 +91,7 @@ public:
 #undef TYPE_CHECK
         OPENVINO_ASSERT(host_accesable_implementation,
                         "Tensor implementation type dose not contains host accessable data");
-        if (element_type != element::undefined) {
+        if (element_type != element::undefined && element_type.is_static()) {
             OPENVINO_ASSERT(element_type == get_element_type(),
                             "Tensor data with element type ",
                             get_element_type(),
