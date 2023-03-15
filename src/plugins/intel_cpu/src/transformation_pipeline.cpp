@@ -97,7 +97,7 @@
 // Snippets
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/common_optimizations.hpp"
-
+#include "snippets/pass/softmax_reshape_elimination.hpp"
 // Misc
 #include "nodes/mvn.h"
 #include "nodes/normalize.h"
@@ -528,6 +528,8 @@ void Transformations::PostLpt() {
     });
 
     postLPTPassManager.register_pass<ov::pass::ConstantFolding>();
+    // Remove redundant reshape before after softmax
+    postLPTPassManager.register_pass<ngraph::snippets::pass::SoftmaxReshapeElimination>();
 
     // Snippets may brake MHA patterns so the fusion has to performed before
     postLPTPassManager.register_pass<MHAFusion>();
