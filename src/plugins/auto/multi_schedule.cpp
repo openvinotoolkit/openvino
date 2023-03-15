@@ -253,9 +253,9 @@ MultiSchedule::~MultiSchedule() {
             } else {
                 Time time;
                 // skip the first infer, Calculate fps using the time between the last infer and the second infer
+                // keep count as real count, don't count-- when skipping the first infer
                 if (!reqAllStartTimes.empty()) {
                     reqAllStartTimes.pop_front();
-                    count--;
                 }
                 while (!reqAllStartTimes.empty()) {
                     time = reqAllStartTimes.front();
@@ -270,7 +270,9 @@ MultiSchedule::~MultiSchedule() {
                 if (count >= 1) {
                     std::chrono::duration<double, std::milli> durtation = reqAllEndTimes.back() - time;
                     LOG_INFO_TAG("%s:duration:%lf", _workerRequest.first.c_str(), durtation.count());
-                    LOG_INFO_TAG("%s:fps:%lf", _workerRequest.first.c_str(), count * 1000 / durtation.count());
+                    // to count the fps of the device running at full speed, skip the first infer and use (count - 1) to
+                    // calculate fps
+                    LOG_INFO_TAG("%s:fps:%lf", _workerRequest.first.c_str(), (count - 1) * 1000 / durtation.count());
                 }
             }
         }
