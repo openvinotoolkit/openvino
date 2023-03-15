@@ -50,7 +50,7 @@ For optimal work with POT quantized models, which include 2D convolutions on GNA
 * Choose a compile target with priority on: cross-platform execution, performance, memory, or power optimization.
 * To check interoperability in your application use: ``ov::intel_gna::execution_target`` and ``ov::intel_gna::compile_target``.
 
-:doc:`Speech C++ Sample <openvino_inference_engine_samples_speech_sample_README>` can be used for experiments (see the `-exec_target` and `-compile_target` command line options).
+:doc:`Speech C++ Sample <openvino_inference_engine_samples_speech_sample_README>` can be used for experiments (see the ``-exec_target`` and ``-compile_target`` command line options).
 
 
 Software Emulation Mode
@@ -236,7 +236,7 @@ With the following methods, you can collect profiling information with various p
 The current GNA implementation calculates counters for the whole utterance scoring and does not provide per-layer information. 
 The API enables you to retrieve counter units in cycles. You can convert cycles to seconds as follows:
 
-.. code-block: sh
+.. code-block:: sh
 
    seconds = cycles / frequency
 
@@ -355,7 +355,7 @@ For POT to successfully work with the models including GNA3.0 2D convolutions, t
 
 * All convolution parameters are natively supported by HW (see tables above).
 * The runtime precision is explicitly set by the ``ov::inference_precision`` property as ``i8`` for the models produced by 
-  the ``performance mode`` of POT, and as ``i16`` for the models produced by the ```accuracy mode``` of POT.
+  the ``performance mode`` of POT, and as ``i16`` for the models produced by the ``accuracy mode`` of POT.
 
 
 Batch Size Limitation
@@ -414,7 +414,7 @@ Increasing batch size only improves efficiency of ``MatMul`` layers.
 
 .. note:: 
    
-   For models with ``Convolution``, ``LSTMCell``, ``GRUCell``, or ``ReadValue`` / ``Assign``` operations, the only supported batch size is 1.
+   For models with ``Convolution``, ``LSTMCell``, ``GRUCell``, or ``ReadValue`` / ``Assign`` operations, the only supported batch size is 1.
 
 
 Compatibility with Heterogeneous mode
