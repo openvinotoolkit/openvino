@@ -129,7 +129,12 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
     }
 
     case ::tensorflow::AttrValue::ValueCase::kType: {
-        return get_ov_type(attrs[0].type());
+        auto atype = attrs[0].type();
+        if (atype != ::tensorflow::DT_STRING) {
+            return get_ov_type(attrs[0].type());
+        } else {
+            return ov::Any("DT_STRING");
+        }
     }
 
     case ::tensorflow::AttrValue::ValueCase::kList: {
@@ -194,11 +199,30 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
         FRONT_END_GENERAL_CHECK(pshape.is_static(), "Dynamic shapes are not supported for Tensor attribute.");
         const auto& tf_type = tensor_proto.dtype();
         auto ov_type = get_ov_type(tf_type);
-        FRONT_END_GENERAL_CHECK(
-            ov_type.is_static(),
-            "Encountered unknown element type " + DataType_Name(tf_type) + " on an empty tensor_proto");
+        if (tf_type != ::tensorflow::DataType::DT_STRING) {
+            FRONT_END_GENERAL_CHECK(
+                ov_type.is_static(),
+                "Encountered unknown element type " + DataType_Name(tf_type) + " on an empty tensor_proto");
+        } else {
+            ov_type = ov::element::u64;
+            pshape.resize(0);
+            pshape.push_back(tensor_proto.string_val_size());
+        }
         ov::Tensor res(ov_type, pshape.get_shape());
         auto tensor_content = tensor_proto.tensor_content();
+        if (tf_type == ::tensorflow::DataType::DT_STRING) {
+            auto data = res.data<uint64_t>();
+            size_t i = 0;
+            std::string line;
+            for (auto& item : tensor_proto.string_val()) {
+                const char* src = item.c_str();
+                // MEMORY LEAK! ONLY FOR TEST PURPOSES!!!
+                char* dst = new char[item.length()];
+                std::copy(src, src + item.length(), dst);
+                data[i++] = reinterpret_cast<uint64_t>(dst);
+            }
+            return res;
+        }
         if (!tensor_content.empty() && tensor_proto.has_tensor_shape()) {
             switch (ov_type) {
             case ov::element::u8:

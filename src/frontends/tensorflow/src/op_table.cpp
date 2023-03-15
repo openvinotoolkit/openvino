@@ -36,6 +36,7 @@ TF_OP_CONVERTER(translate_sparse_segment_sum_op);
 TF_OP_CONVERTER(translate_varisinitialized_op);
 TF_OP_CONVERTER(translate_assignvariable_op);
 TF_OP_CONVERTER(translate_varhandle_op);
+TF_OP_CONVERTER(translate_restorev2_op);
 TF_OP_CONVERTER(translate_while_op);
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
@@ -254,6 +255,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"AssignVariableOp", translate_assignvariable_op},
         {"VarIsInitializedOp", translate_varisinitialized_op},
         {"VarHandleOp", translate_varhandle_op},
+        {"RestoreV2", translate_restorev2_op},
         {"Unpack", translate_unpack_op},
         {"While", translate_while_op},
         {"Where", translate_where_op},
