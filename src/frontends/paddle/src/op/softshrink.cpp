@@ -4,17 +4,25 @@
 
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
+
 namespace ov {
 namespace frontend {
 namespace paddle {
 namespace op {
 NamedOutputs softshrink(const NodeContext& node) {
     auto data = node.get_input("X");
-    auto lambda = node.get_attribute<float>("lambda");
+    const float lambda = node.get_attribute<float>("lambda", 0.5f);
 
     const auto input_element_type = data.get_element_type();
+    std::shared_ptr<default_opset::Constant> negative_lambd;
+    if (input_element_type.is_signed()) {
+        negative_lambd = default_opset::Constant::create(input_element_type, Shape{}, {-lambd});
+    } else {
+        // Passing -lambd to unsigned type constant will cause an overflow.
+        // For unsigned types the lowest possible value is 0.
+        negative_lambd = default_opset::Constant::create(input_element_type, Shape{}, {0});
+    }
     const auto positive_lambda = default_opset::Constant::create(input_element_type, Shape{}, {lambda});
-    const auto negative_lambda = default_opset::Constant::create(input_element_type, Shape{}, {-lambda});
 
     // Create masks for values below negative lambda and above positive lambda
     std::shared_ptr<ngraph::Node> values_below_neg_lambda =

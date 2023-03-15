@@ -15,7 +15,10 @@ def softshrink(name: str, x, threshold):
     paddle.enable_static()
 
     node_x = paddle.static.data(name="x", shape=x.shape, dtype="float32")
-    out = paddle.nn.functional.softshrink(node_x, threshold=threshold)
+    if threshold == None:
+        out = paddle.nn.functional.softshrink(node_x)
+    else:
+        out = paddle.nn.functional.softshrink(node_x, threshold)
 
     cpu = paddle.static.cpu_places(1)
     exe = paddle.static.Executor(cpu[0])
@@ -45,7 +48,8 @@ def main():
         ]
     ).astype(np.float32)
 
-    softshrink("softshrink_default_params", data, threshold=0.5)
+    softshrink("softshrink_default_params", data, threshold=None)
+    softshrink("softshrink_threshold_0.6", data, threshold=0.6)
 
 
 if __name__ == "__main__":
