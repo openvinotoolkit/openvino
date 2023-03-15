@@ -4,14 +4,17 @@
 
 #pragma once
 
-#include <transformations/utils/utils.hpp>
 #include <utility>
 
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/util/common_util.hpp"
+#include "transformations/utils/utils.hpp"
 
+namespace ov {
+namespace pass {
 namespace transpose_sinking {
+namespace utils {
 
 struct TransposeInputsInfo {
     std::shared_ptr<ov::opset10::Transpose> transpose;
@@ -106,4 +109,7 @@ ov::Output<ov::Node> ChangeValuesOrder(const ov::Output<ov::Node>& input,
                                        const ov::AxisVector& transpose_axis_order,
                                        const std::shared_ptr<ov::opset10::Constant>& axis);
 
+}  // namespace utils
 }  // namespace transpose_sinking
+}  // namespace pass
+}  // namespace ov

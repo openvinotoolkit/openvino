@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/transpose_sinking_fuse.hpp"
+#include "transformations/transpose_sinking/ts_fuse.hpp"
 
 #include <memory>
 #include <vector>
@@ -11,16 +11,18 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/common_optimizations/transpose_sinking_utils.hpp"
+#include "transformations/transpose_sinking/ts_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
 using namespace opset10;
+using namespace ov::pass::transpose_sinking;
+using namespace ov::pass::transpose_sinking::utils;
 
-ov::pass::TransposeSinkingFuse::TransposeSinkingFuse() {
+TSFuse::TSFuse() {
     MATCHER_SCOPE(TransposeFuse);
     auto transpose_1_label = pattern::wrap_type<Transpose>({pattern::any_input(), pattern::wrap_type<Constant>()},
-                                                           transpose_sinking::HasSameOutputTransposeNodes);
+                                                           HasSameOutputTransposeNodes);
     auto transpose_2_label = pattern::wrap_type<Transpose>({transpose_1_label, pattern::wrap_type<Constant>()});
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
@@ -62,11 +64,11 @@ ov::pass::TransposeSinkingFuse::TransposeSinkingFuse() {
             auto new_transpose = register_new_node<Transpose>(input, new_order);
 
             new_transpose->set_friendly_name(m.get_match_root()->get_friendly_name());
-            transpose_sinking::RemoveSingleOutputConsumers(transpose1);
+            RemoveSingleOutputConsumers(transpose1);
             copy_runtime_info(transpose1, new_transpose);
             ov::replace_node(transpose1, new_transpose);
 
-            transpose_sinking::UpdateForwardSinkingAbility(new_transpose);
+            UpdateForwardSinkingAbility(new_transpose);
         }
         return true;
     };

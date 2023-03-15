@@ -1,20 +1,23 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2022-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/transpose_sinking/ts_split.hpp"
+
 #include <functional>
-#include <openvino/frontend/manager.hpp>
-#include <openvino/opsets/opset10.hpp>
-#include <openvino/pass/manager.hpp>
-#include <transformations/common_optimizations/transpose_sinking_split.hpp>
-#include <transformations/init_node_info.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "gtest/gtest.h"
-#include "transpose_sinking_test_utils.hpp"
+#include "openvino/frontend/manager.hpp"
+#include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/manager.hpp"
+#include "transformations/init_node_info.hpp"
+#include "ts_test_utils.hpp"
 
 using namespace ov;
 using namespace ov::opset10;
+using namespace ov::pass::transpose_sinking;
+using namespace transpose_sinking::testing::utils;
 
 namespace transpose_sinking {
 namespace testing {
@@ -527,9 +530,9 @@ TEST_P(TransposeSinkingSplitTestFixture, CompareFunctions) {
     pass_factory->registerPass(manager);
 }
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingSplitForwardSingleConsumerTestSuite,
+INSTANTIATE_TEST_SUITE_P(TSSplitForwardSingleConsumerTestSuite,
                          TransposeSinkingSplitTestFixture,
-                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingSplitForward)),
+                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TSSplitForward)),
                                             ::testing::ValuesIn(split_operations_numbers),
                                             ::testing::ValuesIn(split_outputs_numbers),
                                             ::testing::Values(forward::single_consumer::CreateFunction),
@@ -538,9 +541,9 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingSplitForwardSingleConsumerTestSuite,
                          TransposeSinkingSplitTestFixture::get_test_name);
 
 INSTANTIATE_TEST_SUITE_P(
-    TransposeSinkingSplitForwardMultInputNodeConsumersTestSuite,
+    TSSplitForwardMultInputNodeConsumersTestSuite,
     TransposeSinkingSplitTestFixture,
-    ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingSplitForward)),
+    ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TSSplitForward)),
                        ::testing::ValuesIn(split_operations_numbers),
                        ::testing::ValuesIn(split_outputs_numbers),
                        ::testing::Values(forward::mult_consumers::input_node_consumers::CreateFunction),
@@ -549,9 +552,9 @@ INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingSplitTestFixture::get_test_name);
 
 INSTANTIATE_TEST_SUITE_P(
-    TransposeSinkingSplitForwardMultInputTransposeConsumersTestSuite,
+    TSSplitForwardMultInputTransposeConsumersTestSuite,
     TransposeSinkingSplitTestFixture,
-    ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingSplitForward)),
+    ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TSSplitForward)),
                        ::testing::ValuesIn(split_operations_numbers),
                        ::testing::ValuesIn(split_outputs_numbers),
                        ::testing::Values(forward::mult_consumers::input_transpose_consumers::CreateFunction),
@@ -560,9 +563,9 @@ INSTANTIATE_TEST_SUITE_P(
     TransposeSinkingSplitTestFixture::get_test_name);
 
 INSTANTIATE_TEST_SUITE_P(
-    TransposeSinkingSplitForwardMultOutputConsumersTestSuite,
+    TSSplitForwardMultOutputConsumersTestSuite,
     TransposeSinkingSplitTestFixture,
-    ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingSplitForward)),
+    ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TSSplitForward)),
                        ::testing::ValuesIn(split_operations_numbers),
                        ::testing::ValuesIn(split_outputs_numbers),
                        ::testing::Values(forward::mult_consumers::output_consumers::CreateFunction),
@@ -570,9 +573,9 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(element::f32)),
     TransposeSinkingSplitTestFixture::get_test_name);
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingSplitBackwardTestSuite,
+INSTANTIATE_TEST_SUITE_P(TSSplitBackwardTestSuite,
                          TransposeSinkingSplitTestFixture,
-                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingSplitBackward)),
+                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TSSplitBackward)),
                                             ::testing::ValuesIn(split_tree_depth_nums),
                                             ::testing::ValuesIn(split_outputs_numbers),
                                             ::testing::Values(backward::single_consumer::CreateFunction),
@@ -580,9 +583,9 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingSplitBackwardTestSuite,
                                             ::testing::Values(element::f32)),
                          TransposeSinkingSplitTestFixture::get_test_name);
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingSplitBackwardMultOutputConsumersTestSuite,
+INSTANTIATE_TEST_SUITE_P(TSSplitBackwardMultOutputConsumersTestSuite,
                          TransposeSinkingSplitTestFixture,
-                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingSplitBackward)),
+                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TSSplitBackward)),
                                             ::testing::ValuesIn(split_tree_depth_nums),
                                             ::testing::ValuesIn(split_outputs_numbers),
                                             ::testing::Values(backward::mult_output_consumers::CreateFunction),
@@ -590,9 +593,9 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingSplitBackwardMultOutputConsumersTestSui
                                             ::testing::Values(element::f32)),
                          TransposeSinkingSplitTestFixture::get_test_name);
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingSplitBackwardMultSplitConsumersTestSuite,
+INSTANTIATE_TEST_SUITE_P(TSSplitBackwardMultSplitConsumersTestSuite,
                          TransposeSinkingSplitTestFixture,
-                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingSplitBackward)),
+                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TSSplitBackward)),
                                             ::testing::ValuesIn(split_tree_depth_nums),
                                             ::testing::ValuesIn(split_outputs_numbers),
                                             ::testing::Values(backward::mult_split_consumers::CreateFunction),
@@ -764,9 +767,8 @@ using TestSplitBackwardRestrictParams = std::tuple<PassFactoryPtr,
                                                    element::Type,                     /* input type */
                                                    TransposeInsertFuncDesc>;          /* insert transpose function */
 
-class TransposeSinkingSplitBackwardRestrictTestFixture
-    : public ::testing::WithParamInterface<TestSplitBackwardRestrictParams>,
-      public TransformationTestsF {
+class TSSplitBackwardRestrictTestFixture : public ::testing::WithParamInterface<TestSplitBackwardRestrictParams>,
+                                           public TransformationTestsF {
 public:
     static std::string get_test_name(const ::testing::TestParamInfo<TestSplitBackwardRestrictParams>& obj) {
         PassFactoryPtr pass_factory;
@@ -794,7 +796,7 @@ public:
     }
 };
 
-TEST_P(TransposeSinkingSplitBackwardRestrictTestFixture, CompareFunctions) {
+TEST_P(TSSplitBackwardRestrictTestFixture, CompareFunctions) {
     PassFactoryPtr pass_factory;
     size_t split_tree_depth;
     size_t num_split_outputs;
@@ -821,15 +823,15 @@ std::vector<TransposeInsertFuncDesc> insertTransposeFactories = {FUNC(OnlyFirstT
 
 #undef FUNC
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingSplitBackwardRestrictTestSuite,
-                         TransposeSinkingSplitBackwardRestrictTestFixture,
-                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TransposeSinkingSplitBackward)),
+INSTANTIATE_TEST_SUITE_P(TSSplitBackwardRestrictTestSuite,
+                         TSSplitBackwardRestrictTestFixture,
+                         ::testing::Combine(::testing::Values(CREATE_PASS_FACTORY(TSSplitBackward)),
                                             ::testing::Values(1),
                                             ::testing::Values(5),
                                             ::testing::Values(backward::restrictions::CreateFunction),
                                             ::testing::Values(element::f32),
                                             ::testing::ValuesIn(insertTransposeFactories)),
-                         TransposeSinkingSplitBackwardRestrictTestFixture::get_test_name);
+                         TSSplitBackwardRestrictTestFixture::get_test_name);
 
 }  // namespace restrictions
 

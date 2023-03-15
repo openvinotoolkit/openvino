@@ -2,25 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/transpose_sinking_interpolate.hpp"
-
-#include <openvino/pass/pattern/op/or.hpp>
+#include "transformations/transpose_sinking/ts_interpolate.hpp"
 
 #include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
-#include "transformations/common_optimizations/transpose_sinking_utils.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
+#include "transformations/transpose_sinking/ts_utils.hpp"
 
 using namespace ov;
 using namespace ov::opset10;
 using namespace ov::pass::pattern;
-using namespace transpose_sinking;
+using namespace ov::pass::transpose_sinking;
+using namespace ov::pass::transpose_sinking::utils;
 
-ov::pass::TransposeSinkingInterpolateForward::TransposeSinkingInterpolateForward() {
-    MATCHER_SCOPE(TransposeSinkingInterpolateForward);
+TSInterpolateForward::TSInterpolateForward() {
+    MATCHER_SCOPE(TSInterpolateForward);
     auto const_label = wrap_type<Constant>();
     auto transpose_label = wrap_type<Transpose>({any_input(), const_label});
     auto main_node_label = wrap_type<Interpolate>({transpose_label, any_input(), any_input(), any_input()});
@@ -74,7 +74,7 @@ ov::pass::TransposeSinkingInterpolateForward::TransposeSinkingInterpolateForward
         TransposeInputsInfo transpose_input_info = {transpose, transpose_const, 0};
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
             register_new_node(new_node);
-            transpose_sinking::UpdateForwardSinkingAbility(new_node);
+            UpdateForwardSinkingAbility(new_node);
         }
         return true;
     };
@@ -83,8 +83,8 @@ ov::pass::TransposeSinkingInterpolateForward::TransposeSinkingInterpolateForward
     register_matcher(m, matcher_pass_callback);
 }
 
-ov::pass::TransposeSinkingInterpolateBackward::TransposeSinkingInterpolateBackward() {
-    MATCHER_SCOPE(TransposeSinkingInterpolateBackward);
+TSInterpolateBackward::TSInterpolateBackward() {
+    MATCHER_SCOPE(TSInterpolateBackward);
 
     auto main_node_label = wrap_type<Interpolate>([](const Output<Node>& output) -> bool {
         return has_static_rank()(output) && HasSameOutputTransposeNodes(output);

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/transpose_sinking_reduction.hpp"
+#include "transformations/transpose_sinking/ts_reduction.hpp"
 
 #include <memory>
 #include <vector>
@@ -13,11 +13,13 @@
 #include "openvino/op/util/logical_reduction_keep_dims.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/common_optimizations/transpose_sinking_utils.hpp"
+#include "transformations/transpose_sinking/ts_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov;
 using namespace opset10;
+using namespace ov::pass::transpose_sinking;
+using namespace ov::pass::transpose_sinking::utils;
 
 namespace {
 std::vector<size_t> get_updated_order_forward(const std::vector<size_t>& axes_values,
@@ -80,8 +82,8 @@ bool get_keep_dims(const std::shared_ptr<Node>& reduction) {
 }
 }  // namespace
 
-ov::pass::TransposeSinkingReductionForward::TransposeSinkingReductionForward() {
-    MATCHER_SCOPE(TransposeSinkingReductionForward);
+TSReductionForward::TSReductionForward() {
+    MATCHER_SCOPE(TSReductionForward);
 
     auto transpose_label = pattern::wrap_type<Transpose>({pattern::any_input(), pattern::wrap_type<Constant>()},
                                                          pattern::consumers_count(1));
@@ -150,7 +152,7 @@ ov::pass::TransposeSinkingReductionForward::TransposeSinkingReductionForward() {
         replace_node(reduction, new_transpose);
         new_reduction->set_friendly_name(transpose->get_friendly_name());
         new_transpose->set_friendly_name(reduction->get_friendly_name());
-        transpose_sinking::UpdateForwardSinkingAbility(new_transpose);
+        UpdateForwardSinkingAbility(new_transpose);
         register_new_node(new_transpose);
         copy_runtime_info({transpose, reduction}, {new_transpose, new_reduction});
         return true;
@@ -160,13 +162,13 @@ ov::pass::TransposeSinkingReductionForward::TransposeSinkingReductionForward() {
     register_matcher(m, matcher_pass_callback);
 }
 
-ov::pass::TransposeSinkingReductionBackward::TransposeSinkingReductionBackward() {
-    MATCHER_SCOPE(TransposeSinkingReductionBackward);
+TSReductionBackward::TSReductionBackward() {
+    MATCHER_SCOPE(TSReductionBackward);
 
     auto reduce_or_squeeze_label = pattern::
         wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims, Squeeze, Unsqueeze>(
             {pattern::any_input(), pattern::wrap_type<Constant>()},
-            transpose_sinking::HasSameOutputTransposeNodes);
+            HasSameOutputTransposeNodes);
     auto transpose_label = pattern::wrap_type<Transpose>({reduce_or_squeeze_label, pattern::wrap_type<Constant>()});
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_value_map();
@@ -225,7 +227,7 @@ ov::pass::TransposeSinkingReductionBackward::TransposeSinkingReductionBackward()
         }
 
         if (!unsqueeze) {
-            auto reversed_order_values = transpose_sinking::ReverseTransposeOrder(transpose_order_values);
+            auto reversed_order_values = ReverseTransposeOrder(transpose_order_values);
             for (const auto& axis : non_negative_axes) {
                 new_values.push_back(reversed_order_values[axis]);
             }
@@ -246,7 +248,7 @@ ov::pass::TransposeSinkingReductionBackward::TransposeSinkingReductionBackward()
         }
         replace_node(transpose, new_reduction);
         copy_runtime_info({transpose, reduction}, {new_transpose, new_reduction});
-        transpose_sinking::UpdateForwardSinkingAbility(new_transpose);
+        UpdateForwardSinkingAbility(new_transpose);
         new_reduction->set_friendly_name(transpose->get_friendly_name());
         register_new_node(new_transpose);
         return true;

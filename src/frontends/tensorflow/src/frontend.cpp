@@ -21,7 +21,7 @@
 #include "so_extension.hpp"
 #include "tf_framework_node.hpp"
 #include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
-#include "transformations/common_optimizations/transpose_sinking_general.hpp"
+#include "transformations/transpose_sinking/ts_general.hpp"
 #include "translate_session.hpp"
 #include "utils.hpp"
 
@@ -239,7 +239,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.run_passes(model);
     }
 
-    // TODO: TransposeSinkingGeneral can fail on models with Framework nodes (not converted to OV opset)
+    // TODO: TSGeneral can fail on models with Framework nodes (not converted to OV opset)
     auto unsupported_ops = get_unconverted_types_from_model(model);
     if (unsupported_ops.size() > 0) {
         return;
@@ -248,7 +248,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     {
         // perform transpose sinking and reverse infer if the model contains only OpenVINO operations
         ov::pass::Manager manager;
-        manager.register_pass<ov::pass::TransposeSinkingGeneral>();
+        manager.register_pass<ov::pass::transpose_sinking::TSGeneral>();
         manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
         manager.run_passes(model);
     }
