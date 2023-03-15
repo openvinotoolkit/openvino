@@ -14,31 +14,10 @@ namespace ov {
 namespace frontend {
 namespace tensorflow {
 
-namespace {
-const std::map<::tensorflow::DataType, ov::element::Type>& TYPE_MAP() {
-    static const std::map<::tensorflow::DataType, ov::element::Type> type_map{
-        {::tensorflow::DataType::DT_BOOL, ov::element::boolean},
-        {::tensorflow::DataType::DT_INT16, ov::element::i16},
-        {::tensorflow::DataType::DT_INT32, ov::element::i32},
-        {::tensorflow::DataType::DT_INT64, ov::element::i64},
-        {::tensorflow::DataType::DT_HALF, ov::element::f16},
-        {::tensorflow::DataType::DT_FLOAT, ov::element::f32},
-        {::tensorflow::DataType::DT_DOUBLE, ov::element::f64},
-        {::tensorflow::DataType::DT_UINT8, ov::element::u8},
-        {::tensorflow::DataType::DT_INT8, ov::element::i8},
-        {::tensorflow::DataType::DT_BFLOAT16, ov::element::bf16}};
-    return type_map;
-}
-}  // namespace
-
 size_t DecoderArgDef::get_input_size() const {
     FRONT_END_GENERAL_CHECK(m_op_type == "input_arg" || m_op_type == "output_arg",
                             "[TensorFlow Frontend] Internal error: Incorrect use of DecoderArgDef class.");
-    if (m_op_type == "input_arg") {
-        return 0;
-    } else {
-        return 1;
-    }
+    return m_op_type == "input_arg" ? 0 : 1;
 }
 
 const std::string& DecoderArgDef::get_op_type() const {
@@ -74,12 +53,7 @@ void DecoderArgDef::get_input_node(size_t input_port_idx,
 ov::Any DecoderArgDef::get_attribute(const std::string& name) const {
     FRONT_END_GENERAL_CHECK(name == "type",
                             "[TensorFlow Frontend] Internal error: DecoderArgDef supports only `type` attribute.");
-    if (TYPE_MAP().count(m_arg_def->type())) {
-        return TYPE_MAP().at(m_arg_def->type());
-    } else {
-        // for all unsupported types return undefined type
-        return ov::element::undefined;
-    }
+    return get_ov_type(m_arg_def->type());
 }
 
 }  // namespace tensorflow
