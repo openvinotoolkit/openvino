@@ -1113,23 +1113,24 @@ TEST_P(OVClassLoadNetworkAndCheckSecondaryPropertiesTest, LoadNetworkAndCheckSec
     ov::CompiledModel model;
     OV_ASSERT_NO_THROW(model = ie.compile_model(actualNetwork, target_device, configuration));
     ov::AnyMap property = configuration;
-    ov::AnyMap::iterator it = configuration.find(ov::num_streams.name());
-    if (it == configuration.end()) {
-        // device properties in form ov::device::properties(DEVICE, ...) has the first priority
-        for (it = configuration.begin(); it != configuration.end(); it++) {
-            if ((it->first.find(ov::device::properties.name()) != std::string::npos) &&
-                (it->first != ov::device::properties.name())) {
-                break;
-            }
+    ov::AnyMap::iterator it = configuration.end();
+    // device properties in form ov::device::properties(DEVICE, ...) has the first priority
+    for (it = configuration.begin(); it != configuration.end(); it++) {
+        if ((it->first.find(ov::device::properties.name()) != std::string::npos) &&
+            (it->first != ov::device::properties.name())) {
+            break;
         }
-        if (it != configuration.end()) {
-            // DEVICE_PROPERTIES_<DEVICE_NAME> found
-            property = it->second.as<ov::AnyMap>();
-        } else {
-            // search for DEVICE_PROPERTIES
-            it = configuration.find(ov::device::properties.name());
-            ASSERT_TRUE(it != configuration.end());
-            property = it->second.as<ov::AnyMap>().begin()->second.as<ov::AnyMap>();
+    }
+    if (it != configuration.end()) {
+        // DEVICE_PROPERTIES_<DEVICE_NAME> found
+        property = it->second.as<ov::AnyMap>();
+    } else {
+        // search for DEVICE_PROPERTIES
+        it = configuration.find(ov::device::properties.name());
+        ASSERT_TRUE(it != configuration.end());
+        property = it->second.as<ov::AnyMap>().begin()->second.as<ov::AnyMap>();
+        if (it == configuration.end()) {
+            it = configuration.find(ov::num_streams.name());
         }
     }
     ASSERT_TRUE(property.count(ov::num_streams.name()));

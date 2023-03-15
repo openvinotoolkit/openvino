@@ -45,12 +45,12 @@ Parsed parseDeviceNameIntoConfig(const std::string& deviceName, const AnyMap& co
  * @endcode
  * The common logic behind this is that 'device_name_to_parse' should match 'device_name' or be more
  * generic (e.g. GPU is more generic than GPU.x)
- * 
+ *
  * @param device_name Target device
  * @param device_name_to_parse Device ID of property
  * @return true if ov::device::properties(<device_name_to_parse>, ...) is applicable for device identified by 'device_name
  */
-bool isConfigApplicable(const std::string& device_name, const std::string& device_name_to_parse);
+bool is_config_applicable(const std::string& device_name, const std::string& device_name_to_parse);
 
 #ifndef OPENVINO_STATIC_LIBRARY
 

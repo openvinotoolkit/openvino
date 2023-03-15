@@ -110,8 +110,8 @@ ov::AnyMap flatten_sub_properties(const std::string& user_device_name, const ov:
         // 2. device properties DEVICE_PROPERTIES_<device_name_with_id> are found
         auto subprop_device_name =
             secondary_property->first.substr(subprop_device_name_pos + std::strlen(ov::device::properties.name()) + 1);
-        // flattening is performed only when config is applicable (see docs for ov::isConfigApplicable)
-        if (ov::isConfigApplicable(user_device_name, subprop_device_name) || is_virtual_device(user_device_name)) {
+        // flattening is performed only when config is applicable (see docs for ov::is_config_applicable)
+        if (ov::is_config_applicable(user_device_name, subprop_device_name) || is_virtual_device(user_device_name)) {
             // 2.1. keep the secondary property for the other virtual devices, but repack them
             auto device_properties = result_properties.find(ov::device::properties.name());
             if (device_properties == result_properties.end()) {
@@ -157,8 +157,8 @@ ov::AnyMap flatten_sub_properties(const std::string& user_device_name, const ov:
 
         for (auto secondary_property = secondary_properties.begin();
              secondary_property != secondary_properties.end();) {
-            // flattening is performed only when config is applicable (see docs for ov::isConfigApplicable)
-            if (ov::isConfigApplicable(user_device_name, secondary_property->first)) {
+            // flattening is performed only when config is applicable (see docs for ov::is_config_applicable)
+            if (ov::is_config_applicable(user_device_name, secondary_property->first)) {
                 // 2.1. flatten the secondary property for target device
                 // example: core.compile_model("GPU", ov::device::properties("GPU", ov::prop1));
                 // example: core.compile_model("GPU.1", ov::device::properties("GPU", ov::prop1));
@@ -205,7 +205,7 @@ DevicePriority get_device_priority_property(const std::string& device_name) {
 
 }  // namespace
 
-bool ov::isConfigApplicable(const std::string& user_device_name, const std::string& subprop_device_name) {
+bool ov::is_config_applicable(const std::string& user_device_name, const std::string& subprop_device_name) {
     // full match
     if (user_device_name == subprop_device_name)
         return true;
@@ -215,19 +215,17 @@ bool ov::isConfigApplicable(const std::string& user_device_name, const std::stri
 
     // if device name is matched, check additional condition
     auto is_matched = [&](const std::string& key, MatchType match_type) -> bool {
-        if (parsed_user_device_name._config.count(key)) {
-            if (parsed_subprop_device_name._config.count(key)) {
-                auto user_value = parsed_user_device_name._config[key].as<std::string>();
-                auto subprop_value = parsed_subprop_device_name._config[key].as<std::string>();
+        auto user_value =
+            parsed_user_device_name._config.count(key) ? parsed_user_device_name._config.at(key).as<std::string>() : "";
+        auto subprop_value = parsed_subprop_device_name._config.count(key)
+                                 ? parsed_subprop_device_name._config.at(key).as<std::string>()
+                                 : "";
 
-                // additional information is present in both configs, compare
-                return match_type == MatchType::EXACT ? (user_value == subprop_value)
-                                                      : (user_value.find(subprop_value) == 0);
-            } else {
-                // property without additional limitation can be applied
-                return true;
-            }
+        if (!user_value.empty() && subprop_value.empty()) {
+            // property without additional limitation can be applied
+            return true;
         }
+        return match_type == MatchType::EXACT ? (user_value == subprop_value) : (user_value.find(subprop_value) == 0);
         return false;
     };
 
