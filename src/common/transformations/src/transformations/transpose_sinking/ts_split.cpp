@@ -2,24 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/transpose_sinking_split.hpp"
-
-#include <openvino/pass/pattern/op/or.hpp>
-#include <transformations/utils/utils.hpp>
-#include <utility>
+#include "transformations/transpose_sinking/ts_split.hpp"
 
 #include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/common_optimizations/transpose_sinking_utils.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
+#include "transformations/transpose_sinking/ts_utils.hpp"
+#include "transformations/utils/utils.hpp"
 
 using namespace ov::pass::pattern;
 using namespace ov;
 using namespace ov::opset10;
-using namespace transpose_sinking;
+using namespace ov::pass::transpose_sinking;
+using namespace ov::pass::transpose_sinking::utils;
 
 namespace {
 
@@ -107,7 +105,7 @@ bool GetSplitAxis(const std::shared_ptr<Constant>& split_axis, const ov::Rank& r
  * Consider case Split (1) -> Split (2) -> Transpose
  * If specify Split as main searched node after first transformation work we will have
  * Split (1) -> Transpose -> Split(2)
- * Matcher pass will not call TransposeSinkingSplitBackward since
+ * Matcher pass will not call TSSplitBackward since
  * - matcher pattern has no Transpose label
  * - Split (1) has already been proceeded
  * Adding Split(2) into the working queue as register_new_node(split)
@@ -121,8 +119,8 @@ bool GetSplitAxis(const std::shared_ptr<Constant>& split_axis, const ov::Rank& r
  * - add reversed Transpose operations on all outputs except sinking Transpose
  *   nothing to do with new added output Transposes
  */
-ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
-    MATCHER_SCOPE(TransposeSinkingSplitBackward);
+TSSplitBackward::TSSplitBackward() {
+    MATCHER_SCOPE(TSSplitBackward);
 
     auto transpose_const_label = wrap_type<Constant>();
     auto transpose_label = wrap_type<Transpose>({any_input(), transpose_const_label}, IsSplitSinked);
@@ -192,8 +190,8 @@ ov::pass::TransposeSinkingSplitBackward::TransposeSinkingSplitBackward() {
     register_matcher(m, matcher_pass_callback);
 }
 
-ov::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
-    MATCHER_SCOPE(TransposeSinkingSplitForward);
+TSSplitForward::TSSplitForward() {
+    MATCHER_SCOPE(TSSplitForward);
 
     auto main_node_label = wrap_type<Split, VariadicSplit>(IfNodeHasTransposeInputs);
 
@@ -225,7 +223,7 @@ ov::pass::TransposeSinkingSplitForward::TransposeSinkingSplitForward() {
 
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
             register_new_node(new_node);
-            transpose_sinking::UpdateForwardSinkingAbility(new_node);
+            UpdateForwardSinkingAbility(new_node);
         }
 
         return true;
