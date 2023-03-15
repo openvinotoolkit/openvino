@@ -5,6 +5,7 @@
 #include "openvino/op/group_conv.hpp"
 
 #include "bound_evaluate.hpp"
+#include "group_convolution_backprop_shape_inference.hpp"
 #include "group_convolution_shape_inference.hpp"
 #include "itt.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
@@ -161,27 +162,23 @@ bool op::v1::GroupConvolutionBackpropData::visit_attributes(AttributeVisitor& vi
 }
 
 bool op::v1::GroupConvolutionBackpropData::is_dynamic() const {
-    bool is_dynamic = Node::is_dynamic();
-    if (inputs().size() == 3 && !is_dynamic) {
-        return !has_and_set_equal_bounds(input_value(2));
-    }
-    return is_dynamic;
+    return Node::is_dynamic() || (get_input_size() == 3 && !has_and_set_equal_bounds(input_value(2)));
 }
 
 const ov::PartialShape op::v1::GroupConvolutionBackpropData::get_convolution_output_shape() const {
-    ov::PartialShape shape;
-    if (get_input_size() == 3 && evaluate_as_partial_shape(input_value(2), shape))
-        return shape;
+    auto shape = PartialShape::dynamic();
 
-    auto data_pshape = get_input_partial_shape(0);
-    auto filter_pshape = get_input_partial_shape(1);
+    if (get_input_size() != 3 || !evaluate_as_partial_shape(input_value(2), shape)) {
+        const auto& data_pshape = get_input_partial_shape(0);
+        const auto& filter_pshape = get_input_partial_shape(1);
 
-    if (data_pshape.rank().is_static())
-        shape = ov::PartialShape::dynamic(data_pshape.rank().get_length() - 2);
-    else if (filter_pshape.rank().is_static())
-        shape = ov::PartialShape::dynamic(filter_pshape.rank().get_length() - 2);
-    else
-        shape = ov::PartialShape::dynamic();
+        if (data_pshape.rank().is_static()) {
+            shape.resize(data_pshape.rank().get_length() - convolution::spatial_dim_offset);
+        } else if (filter_pshape.rank().is_static()) {
+            shape.resize(filter_pshape.rank().get_length() - convolution::spatial_dim_offset);
+        }
+    }
+
     return shape;
 }
 
@@ -218,8 +215,8 @@ void op::v1::GroupConvolutionBackpropData::infer_conv_backprop_output_spatial_sh
 
 void op::v1::GroupConvolutionBackpropData::validate_and_infer_types() {
     OV_OP_SCOPE(v1_GroupConvolutionBackpropData_validate_and_infer_types);
-    element::Type data_et = get_input_element_type(0);
-    element::Type filters_et = get_input_element_type(1);
+    const auto& data_et = get_input_element_type(0);
+    const auto& filters_et = get_input_element_type(1);
 
     element::Type result_et;
     NODE_VALIDATION_CHECK(this,
@@ -246,25 +243,13 @@ void op::v1::GroupConvolutionBackpropData::validate_and_infer_types() {
                               ").");
     }
 
-    const auto& data_shape = get_input_partial_shape(0);
-    const auto& filter_shape = get_input_partial_shape(1);
-
-    auto& output_shapes_shape = output_shape_input_present ? get_input_partial_shape(2) : PartialShape::dynamic();
-
-    m_num_spatial = calculate_num_spatial(this, data_shape, filter_shape, output_shapes_shape, 2, 3);
-    update_and_validate_attributes_back_prop(this, m_num_spatial);
-
-    std::vector<ov::PartialShape> input_shapes = {data_shape, filter_shape};
-    if (output_shape_input_present)
-        input_shapes.push_back(get_input_partial_shape(2));
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape::dynamic()};
-
-    if (m_num_spatial != -1) {
-        ov::PartialShape output_spatial_shape = get_convolution_output_shape();
-        resolve_auto_pad_for_shape_back_prop(this, m_pads_begin, m_pads_end, input_shapes, output_spatial_shape, 2, 3);
-        shape_infer(this, m_pads_begin, m_pads_end, output_spatial_shape, input_shapes, output_shapes);
-    }
+    m_num_spatial = ov::util::dim::inf_bound;
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, result_et, output_shapes[0]);
+    if (input_shapes[0].rank().is_static() && input_shapes[1].rank().is_static()) {
+        m_num_spatial = convolution::get_num_spatial(this, input_shapes);
+    }
 
     set_input_is_relevant_to_shape(0);
     set_input_is_relevant_to_shape(1);

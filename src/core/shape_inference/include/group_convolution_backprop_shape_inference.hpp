@@ -4,14 +4,26 @@
 #pragma once
 
 #include "convolution_shape_inference.hpp"
-#include "openvino/op/convolution.hpp"
+#include "openvino/op/group_conv.hpp"
 #include "utils.hpp"
 
 namespace ov {
 namespace op {
+namespace convolution {
+
+/**
+ * @brief Defines non-spatial dimension for filters for group convolution back propagation operator.
+ * @return Value of non-spatial filter dimensions (3).
+ */
+template <>
+constexpr size_t filter_non_spatial_dims_count<v1::GroupConvolutionBackpropData>() {
+    return 3;
+}
+}  // namespace convolution
+
 namespace v1 {
 template <class TShape>
-std::vector<TShape> shape_infer(const ConvolutionBackpropData* op,
+std::vector<TShape> shape_infer(const GroupConvolutionBackpropData* op,
                                 const std::vector<TShape>& input_shapes,
                                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
     const auto inputs_count = input_shapes.size();
@@ -51,21 +63,12 @@ std::vector<TShape> shape_infer(const ConvolutionBackpropData* op,
         const auto filters_rank = filters_shape.rank();
 
         NODE_VALIDATION_CHECK(op,
-                              data_rank.compatible(filters_rank),
+                              data_rank.compatible(filters_rank - 1),
                               "Data and filters rank do not match (data batch shape: ",
                               data_shape,
                               ", filters shape: ",
                               filters_shape,
                               ").");
-
-        NODE_VALIDATION_CHECK(
-            op,
-            data_rank.is_dynamic() || filters_rank.is_dynamic() || data_shape[1].compatible(filters_shape[0]),
-            "Data batch channel count (",
-            data_shape[1],
-            ") does not match filter input channel count (",
-            filters_shape[0],
-            ").");
 
         if (out_spatial_shape.rank().is_static()) {
             NODE_VALIDATION_CHECK(op,
@@ -75,12 +78,29 @@ std::vector<TShape> shape_infer(const ConvolutionBackpropData* op,
             out_spatial_shape.resize(num_spatial);
         }
 
-        update_and_validate_attributes(const_cast<ConvolutionBackpropData*>(op), input_shapes, out_spatial_shape);
+        update_and_validate_attributes(const_cast<GroupConvolutionBackpropData*>(op), input_shapes, out_spatial_shape);
 
         output_shape.reserve(convolution::spatial_dim_offset + num_spatial);
         output_shape.emplace_back(data_rank.is_static() ? data_shape[0] : dim::inf_bound);
-        output_shape.emplace_back(filters_rank.is_static() ? filters_shape[1] : dim::inf_bound);
 
+        // add groups dimension
+        if (filters_rank.is_static()) {
+            auto groups = filters_shape[0];
+
+            if (data_rank.is_static() && filters_shape[1].is_static()) {
+                NODE_VALIDATION_CHECK(
+                    op,
+                    groups.merge(groups, groups, (data_shape[1] / filters_shape[1].get_length())),
+                    "Input channels dimension of data batch is incompatible with filter groups or input channels.");
+            }
+
+            groups *= filters_shape[2];
+            output_shape.push_back(std::move(groups));
+        } else {
+            output_shape.emplace_back(dim::inf_bound);
+        }
+
+        // add spatial dimensions
         if (has_spatial_shape) {
             output_shape.insert(output_shape.end(),
                                 std::make_move_iterator(out_spatial_shape.begin()),

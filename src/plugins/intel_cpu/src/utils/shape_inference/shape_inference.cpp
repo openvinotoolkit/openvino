@@ -44,6 +44,7 @@
 #include "gather_shape_inference.hpp"
 #include "gather_tree_shape_inference.hpp"
 #include "grid_sample_shape_inference.hpp"
+#include "group_convolution_backprop_shape_inference.hpp"
 #include "group_convolution_shape_inference.hpp"
 #include "gru_cell_shape_inference.hpp"
 #include "gru_sequence_shape_inference.hpp"
@@ -303,71 +304,13 @@ public:
     }
 };
 
-template <typename OP, bool is_grouped>
-class entryConv : public entryBase {
-public:
-    entryConv(std::shared_ptr<Node> node) : entryBase(std::move(node)) {}
-    const ov::CoordinateDiff& get_pads_begin() override {
-        return pads_begin;
-    }
-    const ov::CoordinateDiff& get_pads_end() override {
-        return pads_end;
-    }
-    IShapeInferCommon::Result
-    infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
-        auto op = static_cast<OP*>(node.get());
-        std::vector<StaticShape> output_shapes(op->get_output_size());
-        bool status = resolve_auto_pad_for_shape(op, pads_begin, pads_end, input_shapes, 2, is_grouped ? 3 : 2);
-        OPENVINO_ASSERT(status,
-                        "Convolution shape inference doesn't have enough information to calculate static shapes");
-        shape_infer(op, pads_begin, pads_end, input_shapes, output_shapes);
-        return {std::move(output_shapes), ShapeInferStatus::success};
-    }
-
-protected:
-    ov::CoordinateDiff pads_begin, pads_end;
-};
-
-template <typename OP, bool is_grouped>
-class entryConvBackprop : public entryBase {
-public:
-    entryConvBackprop(std::shared_ptr<Node> node) : entryBase{std::move(node)} {}
-
-    const ov::CoordinateDiff& get_pads_begin() override {
-        return pads_begin;
-    }
-    const ov::CoordinateDiff& get_pads_end() override {
-        return pads_end;
-    }
-    IShapeInferCommon::Result
-    infer(const std::vector<StaticShape>& input_shapes, const std::map<size_t, HostTensorPtr>& constant_data) override {
-        StaticShape output_shape_input;
-        auto op = static_cast<OP*>(node.get());
-        std::vector<StaticShape> output_shapes(op->get_output_size());
-        if (op->get_input_size() == 3)
-            get_data_as_shape<StaticShape>(2, op, output_shape_input, constant_data);
-        bool status = resolve_auto_pad_for_shape_back_prop(op,
-                                                           pads_begin,
-                                                           pads_end,
-                                                           input_shapes,
-                                                           output_shape_input,
-                                                           2,
-                                                           is_grouped ? 3 : 2);
-        OPENVINO_ASSERT(
-            status,
-            "ConvolutionBackpropData shape inference doesn't have enough information to calculate static shapes");
-        shape_infer(op, pads_begin, pads_end, output_shape_input, input_shapes, output_shapes);
-        return {std::move(output_shapes), ShapeInferStatus::success};
-    }
-
-protected:
-    ov::CoordinateDiff pads_begin, pads_end;
-};
-
 template <class TOp>
-class ShapeInferBaseWithPadding : public entryBase {
+class ShapeInferWithPaddingConvert : public entryBase {
 public:
-    ShapeInferBaseWithPadding(std::shared_ptr<Node> node) : entryBase{std::move(node)}, m_pads_begin{}, m_pads_end{} {}
+    ShapeInferWithPaddingConvert(std::shared_ptr<Node> node)
+        : entryBase{std::move(node)},
+          m_pads_begin{},
+          m_pads_end{} {}
 
     IShapeInferCommon::Result infer(const std::vector<StaticShape>& input_shapes,
                                     const std::map<size_t, ov::HostTensorPtr>& constant_data) override {
@@ -395,9 +338,9 @@ protected:
 };
 
 template <class TOp>
-class ShapeInferConvolution : public entryBase {
+class ShapeInferWithPadding : public entryBase {
 public:
-    ShapeInferConvolution(std::shared_ptr<Node> node) : entryBase{std::move(node)} {}
+    ShapeInferWithPadding(std::shared_ptr<Node> node) : entryBase{std::move(node)} {}
 
     IShapeInferCommon::Result infer(const std::vector<StaticShape>& input_shapes,
                                     const std::map<size_t, ov::HostTensorPtr>& constant_data) override {
@@ -569,13 +512,13 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(AdaptiveAvgPool, entryIOC),
     _OV_OP_SHAPE_INFER_REG(AdaptiveMaxPool, entryIOC),
     _OV_OP_SHAPE_INFER_REG(Assign, entryIO),
-    _OV_OP_SHAPE_INFER_REG(AvgPool, ShapeInferBaseWithPadding),
+    _OV_OP_SHAPE_INFER_REG(AvgPool, ShapeInferWithPaddingConvert),
     _OV_OP_SHAPE_INFER_REG(BatchToSpace, entryIOC),
     _OV_OP_SHAPE_INFER_REG(Broadcast, entryIOC),
     _OV_OP_SHAPE_INFER_REG(Bucketize, entryIO),
     _OV_OP_SHAPE_INFER_REG(Concat, entryIO),
-    _OV_OP_SHAPE_INFER_REG(Convolution, ShapeInferConvolution),
-    _OV_OP_SHAPE_INFER_REG(ConvolutionBackpropData, ShapeInferConvolution),
+    _OV_OP_SHAPE_INFER_REG(Convolution, ShapeInferWithPadding),
+    _OV_OP_SHAPE_INFER_REG(ConvolutionBackpropData, ShapeInferWithPadding),
     _OV_OP_SHAPE_INFER_REG(CTCGreedyDecoder, entryIO),
     _OV_OP_SHAPE_INFER_REG(CTCGreedyDecoderSeqLen, entryIO),
     _OV_OP_SHAPE_INFER_REG(CTCLoss, entryIO),
@@ -600,7 +543,8 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(GatherND, entryIO),
     _OV_OP_SHAPE_INFER_REG(GatherTree, entryIO),
     _OV_OP_SHAPE_INFER_REG(GridSample, entryIO),
-    _OV_OP_SHAPE_INFER_REG(GroupConvolution, ShapeInferConvolution),
+    _OV_OP_SHAPE_INFER_REG(GroupConvolution, ShapeInferWithPadding),
+    _OV_OP_SHAPE_INFER_REG(GroupConvolutionBackpropData, ShapeInferWithPadding),
     _OV_OP_SHAPE_INFER_REG(GRUCell, entryIO),
     _OV_OP_SHAPE_INFER_REG(GRUSequence, entryIO),
     _OV_OP_SHAPE_INFER_REG(IDFT, entryIOC),
@@ -608,7 +552,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(IRDFT, entryIOC),
     _OV_OP_SHAPE_INFER_REG(LSTMCell, entryIO),
     _OV_OP_SHAPE_INFER_REG(MatMul, entryIO),
-    _OV_OP_SHAPE_INFER_REG(MaxPool, ShapeInferBaseWithPadding),
+    _OV_OP_SHAPE_INFER_REG(MaxPool, ShapeInferWithPaddingConvert),
     _OV_OP_SHAPE_INFER_REG(OneHot, entryIOC),
     _OV_OP_SHAPE_INFER_REG(ov::op::internal::AUGRUCell, entryIO),
     _OV_OP_SHAPE_INFER_REG(ov::op::internal::AUGRUSequence, entryIO),
@@ -639,7 +583,6 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(Unsqueeze, entryIOC),
     _OV_OP_SHAPE_INFER_REG(VariadicSplit, entryIOC),
     _OV_OP_SHAPE_INFER_VA_REG(Gather, entryIOC, ov::op::util::GatherBase),
-    _OV_OP_SHAPE_INFER_VA_REG(GroupConvolutionBackpropData, entryConvBackprop, GroupConvolutionBackpropData, true),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceL1, entryIOC, op::util::ArithmeticReductionKeepDims),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceL2, entryIOC, op::util::ArithmeticReductionKeepDims),
     _OV_OP_SHAPE_INFER_VA_REG(ReduceLogicalAnd, entryIOC, op::util::LogicalReductionKeepDims),
@@ -667,7 +610,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(opset1::DetectionOutput, entryIO),
     _OV_OP_SHAPE_INFER_REG(opset1::Interpolate, entryIOC),
     _OV_OP_SHAPE_INFER_REG(opset1::LSTMCell, entryIO),
-    _OV_OP_SHAPE_INFER_REG(opset1::MaxPool, ShapeInferBaseWithPadding),
+    _OV_OP_SHAPE_INFER_REG(opset1::MaxPool, ShapeInferWithPaddingConvert),
     _OV_OP_SHAPE_INFER_REG(opset1::Proposal, entryIO),
     _OV_OP_SHAPE_INFER_REG(opset1::Range, entryIOC),
     _OV_OP_SHAPE_INFER_REG(opset1::ShapeOf, entryIO),
