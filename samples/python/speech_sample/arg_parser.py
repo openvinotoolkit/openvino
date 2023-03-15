@@ -19,7 +19,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
     args.add_argument('-h', '--help', action='help', help='Show this help message and exit.')
     args.add_argument('-i', '--input', required=True, type=str,
-                      help='Required. Path to input file(s). '
+                      help='Required. Path(s) to input file(s). '
                       'Usage for a single file/layer: <input_file.ark> or <input_file.npz>. '
                       'Example of usage for several files/layers: <layer1>:<port_num1>=<input_file1.ark>,<layer2>:<port_num2>=<input_file2.ark>.')
     args.add_argument('-o', '--output', type=str,
@@ -40,7 +40,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     args.add_argument('-layout', type=str,
                       help='Optional. Custom layout in format: "input0[value0],input1[value1]" or "[value]" (applied to all inputs)')
     args.add_argument('-qb', '--quantization_bits', default=16, type=int, choices=(8, 16), metavar='[8, 16]',
-                      help='Optional. Weight bits for GNA quantization: 8 or 16 (default 16).')
+                      help='Optional. Weight resolution in bits for GNA quantization: 8 or 16 (default 16).')
     args.add_argument('-sf', '--scale_factor', type=str,
                       help='Optional. User-specified input scale factor for GNA quantization. '
                       'If the model contains multiple inputs, provide scale factors by separating them with commas. '

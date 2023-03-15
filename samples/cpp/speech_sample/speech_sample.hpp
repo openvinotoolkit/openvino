@@ -14,7 +14,7 @@
 static const char help_message[] = "Print a usage message.";
 
 /// @brief message for input data argument
-static const char input_message[] = "Required. Paths to input file(s). "
+static const char input_message[] = "Required. Path(s) to input file(s). "
                                     "Usage for a single file/layer: <input_file.ark> or <input_file.npz>. "
                                     "Example of usage for several files/layers: "
                                     "<layer1>:<port_num1>=<input_file1.ark>,<layer2>:<port_num2>=<input_file2.ark>.";
@@ -91,10 +91,10 @@ static const char write_embedded_model_generation_message[] =
 
 /// @brief message for quantization argument
 static const char quantization_message[] =
-    "Optional. Input quantization mode for GNA: static (default), dynamic, or user defined (use with -sf).";
+    "Optional. Input quantization mode for GNA: static (default) or user defined (use with -sf).";
 
 /// @brief message for quantization bits argument
-static const char quantization_bits_message[] = "Optional. Weight bits for GNA quantization: 8 or 16 (default)";
+static const char quantization_bits_message[] = "Optional. Weight resolution in bits for GNA quantization: 8 or 16 (default)";
 
 /// @brief message for scale factor argument
 static const char scale_factor_message[] =
@@ -174,7 +174,7 @@ DEFINE_string(we, "", write_embedded_model_message);
 /// @brief Input quantization mode (default static)
 DEFINE_string(q, "static", quantization_message);
 
-/// @brief Input quantization bits (default 16)
+/// @brief Weight resolution in bits (default 16)
 DEFINE_int32(qb, 16, quantization_bits_message);
 
 /// @brief Scale factor for quantization
@@ -285,12 +285,8 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
     }
 
     /** default is a static quantization **/
-    if ((FLAGS_q.compare("static") != 0) && (FLAGS_q.compare("dynamic") != 0) && (FLAGS_q.compare("user") != 0)) {
-        throw std::logic_error("Quantization mode not supported (static, dynamic, user).");
-    }
-
-    if (FLAGS_q.compare("dynamic") == 0) {
-        throw std::logic_error("Dynamic quantization not yet supported.");
+    if ((FLAGS_q.compare("static") != 0) && (FLAGS_q.compare("user") != 0)) {
+        throw std::logic_error("Quantization mode not supported (static, user).");
     }
 
     if (FLAGS_qb != 16 && FLAGS_qb != 8) {

@@ -102,7 +102,7 @@ optional arguments:
 Options:
   -h, --help            Show this help message and exit.
   -i INPUT, --input INPUT
-                        Required. Path to input file(s).
+                        Required. Path(s) to input file(s).
                         Usage for a single file/layer: <input_file.ark> or <input_file.npz>.
                         Example of usage for several files/layers: <layer1>:<port_num1>=<input_file1.ark>,<layer2>:<port_num2>=<input_file2.ark>.
   -o OUTPUT, --output OUTPUT
@@ -123,7 +123,7 @@ Options:
   -layout LAYOUT        Optional. Custom layout in format: "input0[value0],input1[value1]" or "[value]" (applied to all      
                         inputs)
   -qb [8, 16], --quantization_bits [8, 16]
-                        Optional. Weight bits for GNA quantization: 8 or 16 (default 16).
+                        Optional. Weight resolution in bits for GNA quantization: 8 or 16 (default 16).
   -sf SCALE_FACTOR, --scale_factor SCALE_FACTOR
                         Optional. User-specified input scale factor for GNA quantization.
                         If the model contains multiple inputs, provide scale factors by separating them with commas.
