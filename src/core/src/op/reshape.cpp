@@ -77,9 +77,9 @@ void op::v1::Reshape::validate_and_infer_types() {
                           "Pattern shape must have rank 1 or be empty, got ",
                           shape_pattern_shape.rank(),
                           ".");
-    Rank output_rank = shape_pattern_shape.rank().is_dynamic()
-                           ? Rank::dynamic()
-                           : shape_pattern_shape.rank().get_length() == 0 ? 0 : shape_pattern_shape[0];
+    Rank output_rank = shape_pattern_shape.rank().is_dynamic()        ? Rank::dynamic()
+                       : shape_pattern_shape.rank().get_length() == 0 ? 0
+                                                                      : shape_pattern_shape[0];
     set_output_type(0, get_input_element_type(0), ov::PartialShape::dynamic(output_rank));
     set_input_is_relevant_to_shape(1);
 

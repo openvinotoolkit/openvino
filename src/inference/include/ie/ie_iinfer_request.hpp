@@ -98,8 +98,9 @@ public:
      * @param resp Optional: pointer to an already allocated object to contain information in case of failure
      * @return Status code of the operation: OK (0) for success
      */
-    virtual StatusCode GetPreProcess(const char* name, const PreProcessInfo** info, ResponseDesc* resp) const
-        noexcept = 0;
+    virtual StatusCode GetPreProcess(const char* name,
+                                     const PreProcessInfo** info,
+                                     ResponseDesc* resp) const noexcept = 0;
     /**
      * @brief Infers specified input(s) in synchronous mode
      *

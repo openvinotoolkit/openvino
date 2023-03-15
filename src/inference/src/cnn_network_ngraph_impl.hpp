@@ -80,15 +80,17 @@ public:
     StatusCode reshape(const std::map<std::string, ngraph::PartialShape>& inputShapes,
                        ResponseDesc* resp) noexcept override;
 
-    StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
-        noexcept override;
+    StatusCode serialize(const std::string& xmlPath,
+                         const std::string& binPath,
+                         ResponseDesc* resp) const noexcept override;
 
     StatusCode serialize(std::ostream& xmlBuf, std::ostream& binBuf, ResponseDesc* resp) const noexcept override;
 
     StatusCode serialize(std::ostream& xmlBuf, Blob::Ptr& binBlob, ResponseDesc* resp) const noexcept override;
 
-    StatusCode getOVNameForTensor(std::string& ov_name, const std::string& orig_name, ResponseDesc* resp) const
-        noexcept override;
+    StatusCode getOVNameForTensor(std::string& ov_name,
+                                  const std::string& orig_name,
+                                  ResponseDesc* resp) const noexcept override;
 
     const std::vector<IExtensionPtr> getExtensions() const {
         return _ie_extensions;

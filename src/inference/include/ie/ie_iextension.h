@@ -226,8 +226,8 @@ INFERENCE_EXTENSION_API(StatusCode)
 CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept;
 #else
 INFERENCE_EXTENSION_API(StatusCode)
-CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept INFERENCE_ENGINE_DEPRECATED(
-    "Use IE_DEFINE_EXTENSION_CREATE_FUNCTION macro");
+CreateExtension(IExtension*& ext, ResponseDesc* resp) noexcept
+    INFERENCE_ENGINE_DEPRECATED("Use IE_DEFINE_EXTENSION_CREATE_FUNCTION macro");
 #endif
 
 }  // namespace InferenceEngine

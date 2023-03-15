@@ -560,19 +560,18 @@ void shape_infer(const ConvolutionBackpropData* op,
     NODE_VALIDATION_CHECK(op, (input_size == 2 || input_size == 3) && output_shapes.size() == 1);
     auto input_shape = input_shapes[0], filters_shape = input_shapes[1];
 
-    const auto num_spatial = op->m_num_spatial != -1
-                                 ? op->m_num_spatial
-                                 : input_size == 3 ? calculate_num_spatial(op,
-                                                                           input_shape,
-                                                                           filters_shape,
-                                                                           input_shapes[2],
-                                                                           num_non_spatial_data_dims,
-                                                                           num_non_spatial_filter_dims)
-                                                   : calculate_num_spatial(op,
-                                                                           input_shape,
-                                                                           filters_shape,
-                                                                           num_non_spatial_data_dims,
-                                                                           num_non_spatial_filter_dims);
+    const auto num_spatial = op->m_num_spatial != -1 ? op->m_num_spatial
+                             : input_size == 3       ? calculate_num_spatial(op,
+                                                                       input_shape,
+                                                                       filters_shape,
+                                                                       input_shapes[2],
+                                                                       num_non_spatial_data_dims,
+                                                                       num_non_spatial_filter_dims)
+                                                     : calculate_num_spatial(op,
+                                                                       input_shape,
+                                                                       filters_shape,
+                                                                       num_non_spatial_data_dims,
+                                                                       num_non_spatial_filter_dims);
 
     NODE_VALIDATION_CHECK(op,
                           num_spatial != -1,
@@ -641,19 +640,18 @@ void shape_infer(const GroupConvolutionBackpropData* op,
     NODE_VALIDATION_CHECK(op, (input_size == 2 || input_size == 3) && output_shapes.size() == 1);
     auto input_shape = input_shapes[0], filters_shape = input_shapes[1];
 
-    const auto num_spatial = op->m_num_spatial != -1
-                                 ? op->m_num_spatial
-                                 : input_size == 3 ? calculate_num_spatial(op,
-                                                                           input_shape,
-                                                                           filters_shape,
-                                                                           input_shapes[2],
-                                                                           num_non_spatial_data_dims,
-                                                                           num_non_spatial_filter_dims)
-                                                   : calculate_num_spatial(op,
-                                                                           input_shape,
-                                                                           filters_shape,
-                                                                           num_non_spatial_data_dims,
-                                                                           num_non_spatial_filter_dims);
+    const auto num_spatial = op->m_num_spatial != -1 ? op->m_num_spatial
+                             : input_size == 3       ? calculate_num_spatial(op,
+                                                                       input_shape,
+                                                                       filters_shape,
+                                                                       input_shapes[2],
+                                                                       num_non_spatial_data_dims,
+                                                                       num_non_spatial_filter_dims)
+                                                     : calculate_num_spatial(op,
+                                                                       input_shape,
+                                                                       filters_shape,
+                                                                       num_non_spatial_data_dims,
+                                                                       num_non_spatial_filter_dims);
 
     NODE_VALIDATION_CHECK(
         op,
