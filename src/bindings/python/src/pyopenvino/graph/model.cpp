@@ -752,7 +752,7 @@ void regclass_graph_Model(py::module m) {
                 :type path: List[str]
 
                 :return: A runtime attribute.
-                :rtype: OVAny
+                :rtype: openvino.runtime.OVAny
              )");
     model.def(
         "get_rt_info",
@@ -767,7 +767,7 @@ void regclass_graph_Model(py::module m) {
                 :type path: str
 
                 :return: A runtime attribute.
-                :rtype: OVAny
+                :rtype: openvino.runtime.OVAny
              )");
     model.def(
         "has_rt_info",
