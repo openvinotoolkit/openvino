@@ -122,13 +122,13 @@ void AutoSchedule::GenerateWorkers(const std::string& device,
 bool AutoSchedule::selectOtherDevice(std::string currentDeviceName) {
     {
         std::lock_guard<std::mutex> lock(_autoSContext->_fallbackMutex);
-        bool isCPUHELP = false;
+        bool isCPUHelp = false;
         if (_autoSContext->_modelPath.empty())
             _loadContext[FALLBACKDEVICE].networkPrecision = GetNetworkPrecision(_autoSContext->_network);
         _loadContext[FALLBACKDEVICE].metaDevices = _autoSContext->_devicePriorities;
         if (currentDeviceName == "CPU_HELP") {
             currentDeviceName = "CPU";
-            isCPUHELP = true;
+            isCPUHelp = true;
             WaitActualNetworkReady();
         }
         const auto CurrentDeviceIter = std::find_if(_autoSContext->_devicePriorities.begin(), _autoSContext->_devicePriorities.end(),
@@ -140,7 +140,7 @@ bool AutoSchedule::selectOtherDevice(std::string currentDeviceName) {
                 return false;
             }
             _autoSContext->_devicePriorities.erase(CurrentDeviceIter);
-            if (isCPUHELP) {
+            if (isCPUHelp) {
                 return true;
             }
         } else {
