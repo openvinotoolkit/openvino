@@ -98,7 +98,7 @@ ov::AnyMap flatten_sub_properties(const std::string& user_device_name, const ov:
 
     // First search for ov::device::properties(DEVICE, ...), which has higher
     for (auto secondary_property = result_properties.begin(); secondary_property != result_properties.end();) {
-        const auto subprop_device_name_pos =
+        auto subprop_device_name_pos =
             secondary_property->first.find(ov::device::properties.name() + std::string("_"));
         if (subprop_device_name_pos == std::string::npos) {
             // 1. Skip non-matching properties
