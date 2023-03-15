@@ -769,8 +769,9 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_with_only_indentity_in_else_branch) {
 
     std::vector<float> x(shape_size(Shape{1, 5, 2, 2}));
     std::iota(x.begin(), x.end(), 0);
-    std::vector<float> expected{1.333333, 3,  4.666666, 6.333333, 8,  10, 12,       14, 16,        18,
-                                20,       22, 24,       26,       28, 30, 25.33333, 27, 28.666667, 30.33333};
+    std::vector<float> expected{1.333333f, 3.f,  4.666666f, 6.333333f, 8.f,        10.f,     12.f,
+                                14.f,      16.f, 18.f,      20.f,      22.f,       24.f,     26.f,
+                                28.f,      30.f, 25.33333f, 27.f,      28.666667f, 30.33333f};
     test_case.add_input<float>(x);
     test_case.add_expected_output<float>(expected);
     test_case.run();
