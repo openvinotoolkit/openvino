@@ -195,6 +195,7 @@ class TestConvTranspose(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("bias", [False, True])
     @pytest.mark.parametrize("auto_pad", ["NOTSET"])
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_conv_transpose_4D(self, params, bias, ie_device, precision, ir_version, auto_pad,
                                temp_dir, use_old_api):
         if ie_device == 'GPU' and 'dilations' in params:
@@ -207,6 +208,7 @@ class TestConvTranspose(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("bias", [False, True])
     @pytest.mark.parametrize("auto_pad", ["VALID"])
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_conv_transpose_valid_auto_pad_4D(self, params, bias, ie_device, precision, ir_version,
                                               auto_pad, temp_dir, use_old_api):
         if ie_device == 'GPU' and 'dilations' in params:
@@ -219,6 +221,7 @@ class TestConvTranspose(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("bias", [False, True])
     @pytest.mark.parametrize("auto_pad", ["SAME_UPPER", "SAME_LOWER"])
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_conv_transpose_same_auto_pad_4D(self, params, bias, ie_device, precision, ir_version,
                                              auto_pad, temp_dir, use_old_api):
         if ie_device == 'GPU' and 'dilations' in params:

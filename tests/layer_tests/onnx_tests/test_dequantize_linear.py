@@ -193,7 +193,6 @@ class TestDequantizeLinear(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data_def_zerop)
     @pytest.mark.nightly
-    @pytest.mark.xfail(reason='Defualt zero_point fails on onnxruntime')
     def test_quantize_linear_def_zerop_opset10(self, params, ie_device, precision, ir_version,
                                                temp_dir, use_old_api):
         self._test(*self.create_dequanize_linear(**params, ir_version=ir_version), ie_device,

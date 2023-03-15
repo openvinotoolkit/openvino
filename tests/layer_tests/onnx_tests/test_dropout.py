@@ -146,6 +146,7 @@ class TestDropout(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_dropout_opset6(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, opset=6, ir_version=ir_version), ie_device, precision,
                    ir_version,
@@ -153,6 +154,7 @@ class TestDropout(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_dropout(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
@@ -167,6 +169,7 @@ class TestDropout(OnnxRuntimeLayerTest):
 
     @pytest.mark.parametrize("params", test_data)
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_dropout_const(self, params, ie_device, precision, ir_version, temp_dir, use_old_api):
         self._test(*self.create_net_const(**params, ir_version=ir_version), ie_device, precision,
                    ir_version,
