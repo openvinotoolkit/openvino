@@ -79,16 +79,9 @@ void ov::op::util::EmbeddingBagOffsetsBase::validate_and_infer_types() {
                               ")");
     }
 
-    element::Type result_et = get_input_element_type(EMB_TABLE);
-
-    std::vector<PartialShape> result_shapes = {PartialShape::dynamic()};
-    std::vector<PartialShape> input_shapes;
-    for (size_t i = 0; i < get_input_size(); i++)
-        input_shapes.push_back(get_input_partial_shape(i));
-
-    shape_infer(this, input_shapes, result_shapes);
-
-    set_output_type(0, result_et, result_shapes[0]);
+    const auto& result_et = get_input_element_type(EMB_TABLE);
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    set_output_type(0, result_et, shape_infer(this, input_shapes)[0]);
 }
 
 bool ov::op::util::EmbeddingBagOffsetsBase::visit_attributes(AttributeVisitor& visitor) {
