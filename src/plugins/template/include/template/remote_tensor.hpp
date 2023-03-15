@@ -14,6 +14,9 @@
 namespace ov {
 namespace template_plugin {
 
+/**
+ * @brief Template plugin remote tensor which wraps memory from the vector
+ */
 class VectorTensor : public ov::RemoteTensor {
 public:
     /**
@@ -21,15 +24,64 @@ public:
      * @param tensor a tensor to check
      */
     static void type_check(const Tensor& tensor) {
-        RemoteTensor::type_check(tensor, {{ov::device::id.name(), {"TEMPLATE"}}});
+        RemoteTensor::type_check(
+            tensor,
+            {{ov::device::full_name.name(), {"TEMPLATE"}}, {"vector_data_ptr", {}}, {"vector_data", {}}});
     }
 
     /**
      * @brief Returns the underlying vector
-     * @return vector if T is compatible with element type
+     * @return const reference to vector if T is compatible with element type
      */
-    const void* get_data_ptr() const;
-    void* get_data_ptr();
+    template <class T>
+    const std::vector<T>& get_data() const {
+        auto params = get_params();
+        OPENVINO_ASSERT(params.count("vector_data"), "Cannot get data. Tensor is incorrect!");
+        try {
+            auto& vec = params.at("vector_data").as<const std::vector<T>>();
+            return vec;
+        } catch (const std::bad_cast&) {
+            OPENVINO_THROW("Cannot get data. Vector type is incorrect!");
+        }
+    }
+
+    /**
+     * @brief Returns the underlying vector
+     * @return reference to vector if T is compatible with element type
+     */
+    template <class T>
+    std::vector<T>& get_data() {
+        auto params = get_params();
+        OPENVINO_ASSERT(params.count("vector_data"), "Cannot get data. Tensor is incorrect!");
+        try {
+            auto& vec = params.at("vector_data").as<std::vector<T>>();
+            return vec;
+        } catch (const std::bad_cast&) {
+            OPENVINO_THROW("Cannot get data. Vector type is incorrect!");
+        }
+    }
+
+    const void* get_data() const {
+        auto params = get_params();
+        OPENVINO_ASSERT(params.count("vector_data"), "Cannot get data. Tensor is incorrect!");
+        try {
+            auto* data = params.at("vector_data_ptr").as<const void*>();
+            return data;
+        } catch (const std::bad_cast&) {
+            OPENVINO_THROW("Cannot get data. Tensor is incorrect!");
+        }
+    }
+
+    void* get_data() {
+        auto params = get_params();
+        OPENVINO_ASSERT(params.count("vector_data"), "Cannot get data. Tensor is incorrect!");
+        try {
+            auto* data = params.at("vector_data_ptr").as<void*>();
+            return data;
+        } catch (const std::bad_cast&) {
+            OPENVINO_THROW("Cannot get data. Tensor is incorrect!");
+        }
+    }
 };
 
 }  // namespace template_plugin

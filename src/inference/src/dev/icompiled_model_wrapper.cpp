@@ -77,11 +77,11 @@ ov::Any InferenceEngine::ICompiledModelWrapper::get_property(const std::string& 
     }
 }
 
-std::shared_ptr<ov::IRemoteContext> InferenceEngine::ICompiledModelWrapper::get_context() const {
-    return ov::legacy_convert::convert_remote_context(m_model->GetContext());
-}
-
 std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
 InferenceEngine::ICompiledModelWrapper::get_executable_network() {
+    return m_model;
+}
+std::shared_ptr<const InferenceEngine::IExecutableNetworkInternal>
+InferenceEngine::ICompiledModelWrapper::get_executable_network() const {
     return m_model;
 }

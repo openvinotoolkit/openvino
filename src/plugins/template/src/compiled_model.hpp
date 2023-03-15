@@ -17,14 +17,15 @@ class Plugin;
 class InferRequest;
 
 /**
- * @class ExecutableNetwork
- * @brief Interface of executable network
+ * @class CompiledModel
+ * @brief Interface of compiled model
  */
 // ! [executable_network:header]
 class CompiledModel : public ov::ICompiledModel {
 public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
+                  const ov::RemoteContext& context,
                   const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
                   const Configuration& cfg);
 
@@ -37,7 +38,6 @@ public:
 
     virtual ov::Any get_property(const std::string& name) const override;
 
-    std::shared_ptr<ov::IRemoteContext> get_context() const override;
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
 protected:

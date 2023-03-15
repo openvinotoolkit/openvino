@@ -18,9 +18,10 @@
 // ! [executable_network:ctor_cnnnetwork]
 ov::template_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                   const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                  const ov::RemoteContext& context,
                                                   const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
                                                   const Configuration& cfg)
-    : ov::ICompiledModel(model, plugin, task_executor),  // Disable default threads creation
+    : ov::ICompiledModel(model, plugin, context, task_executor),  // Disable default threads creation
       _cfg(cfg),
       m_model(model) {
     // TODO: if your plugin supports device ID (more that single instance of device can be on host machine)
@@ -70,9 +71,6 @@ std::shared_ptr<ov::ISyncInferRequest> ov::template_plugin::CompiledModel::creat
 
 void ov::template_plugin::CompiledModel::set_property(const ov::AnyMap& properties) {
     OPENVINO_NOT_IMPLEMENTED;
-}
-std::shared_ptr<ov::IRemoteContext> ov::template_plugin::CompiledModel::get_context() const {
-    return get_template_plugin()->get_default_context({});
 }
 
 std::shared_ptr<const ov::Model> ov::template_plugin::CompiledModel::get_runtime_model() const {

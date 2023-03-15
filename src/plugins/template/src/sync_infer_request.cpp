@@ -117,7 +117,7 @@ void ov::template_plugin::InferRequest::infer_preprocess() {
                             "Template plugin supports only VectorTensor with remote context.");
             auto vector_tensor = tensor.as<ov::template_plugin::VectorTensor>();
             auto element_type = vector_tensor.get_element_type();
-            void* data = vector_tensor.get_data_ptr();
+            void* data = vector_tensor.get_data();
             OPENVINO_ASSERT(data != nullptr);
             // Create backend tenor
             m_backend_input_tensors[i] =
@@ -206,7 +206,7 @@ void ov::template_plugin::InferRequest::infer_postprocess() {
             OPENVINO_ASSERT(tensor.is<ov::template_plugin::VectorTensor>(),
                             "Template plugin supports only VectorTensor with remote context.");
             auto vector_tensor = tensor.as<ov::template_plugin::VectorTensor>();
-            void* data = vector_tensor.get_data_ptr();
+            void* data = vector_tensor.get_data();
             // Copy to vector
             std::memcpy(data, host_tensor.data(), tensor.get_byte_size());
         }

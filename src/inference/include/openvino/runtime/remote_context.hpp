@@ -34,6 +34,7 @@ class IRemoteContext;
 class ISyncInferRequest;
 class IInferencePluginWrapper;
 class IExecutableNetworkWrapper;
+class ICompiledModel;
 class CompiledModel;
 
 /**
@@ -65,6 +66,7 @@ protected:
     friend class ov::ISyncInferRequest;
     friend class ov::IInferencePluginWrapper;
     friend class ov::IExecutableNetworkWrapper;
+    friend class ov::ICompiledModel;
     friend class ov::CompiledModel;
 
 public:

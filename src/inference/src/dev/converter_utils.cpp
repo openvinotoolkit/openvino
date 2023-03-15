@@ -811,11 +811,10 @@ public:
 
     InferenceEngine::RemoteBlob::Ptr CreateBlob(const InferenceEngine::TensorDesc& tensorDesc,
                                                 const InferenceEngine::ParamMap& params = {}) override {
-        OPENVINO_NOT_IMPLEMENTED;
-        // return ov::tensor_to_blob(
-        //     m_context->create_tensor(InferenceEngine::details::convertPrecision(tensorDesc.getPrecision()),
-        //                              tensorDesc.getBlockingDesc().getBlockDims(),
-        //                              params));
+        return std::dynamic_pointer_cast<InferenceEngine::RemoteBlob>(ov::tensor_to_blob(
+            m_context->create_tensor(InferenceEngine::details::convertPrecision(tensorDesc.getPrecision()),
+                                     tensorDesc.getBlockingDesc().getBlockDims(),
+                                     params)));
     }
 
     InferenceEngine::MemoryBlob::Ptr CreateHostBlob(const InferenceEngine::TensorDesc& tensorDesc) override {

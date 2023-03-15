@@ -16,12 +16,36 @@ namespace {
 
 template <class T>
 class VectorTensorImpl : public ov::IRemoteTensor {
+    void update_strides() {
+        if (m_element_type.bitwidth() < 8)
+            return;
+        auto& shape = get_shape();
+        m_strides.clear();
+        if (!shape.empty()) {
+            m_strides.resize(shape.size());
+            m_strides.back() = m_element_type.size();
+            std::copy(shape.rbegin(), shape.rend() - 1, m_strides.rbegin() + 1);
+            std::partial_sum(m_strides.rbegin(), m_strides.rend(), m_strides.rbegin(), std::multiplies<size_t>());
+        }
+    }
+    ov::element::Type m_element_type;
+    ov::Shape m_shape;
+    ov::Strides m_strides;
+    std::vector<T> m_data;
+    std::string m_dev_name;
+    ov::AnyMap m_properties;
+
 public:
     VectorTensorImpl(const ov::element::Type element_type, const ov::Shape& shape)
         : m_element_type{element_type},
           m_shape{shape},
           m_data(ov::shape_size(shape)),
-          m_properties{{ov::device::id.name(), "TEMPLATE"}} {}
+          m_dev_name("TEMPLATE"),
+          m_properties{{ov::device::full_name.name(), m_dev_name},
+                       {"vector_data", m_data},
+                       {"vector_data_ptr", static_cast<void*>(m_data.data())}} {
+        update_strides();
+    }
 
     const ov::element::Type& get_element_type() const override {
         return m_element_type;
@@ -30,6 +54,12 @@ public:
     const ov::Shape& get_shape() const override {
         return m_shape;
     }
+    const ov::Strides& get_strides() const override {
+        OPENVINO_ASSERT(m_element_type.bitwidth() >= 8,
+                        "Could not get strides for types with bitwidths less then 8 bit. Tensor type: ",
+                        m_element_type);
+        return m_strides;
+    }
 
     void set_shape(ov::Shape new_shape) override {
         auto old_byte_size = get_byte_size();
@@ -37,28 +67,16 @@ public:
                         "Could set new shape: ",
                         new_shape);
         m_shape = std::move(new_shape);
+        update_strides();
     }
 
     const ov::AnyMap& get_properties() const override {
-        return;
+        return m_properties;
     }
 
-    const std::vector<T>& get() const {
-        return m_data;
+    const std::string& get_device_name() const override {
+        return m_dev_name;
     }
-
-    std::vector<T>& get() {
-        return m_data;
-    }
-    void* get_data_ptr() const {
-        return const_cast<void*>(static_cast<const void*>(m_data.data()));
-    }
-
-protected:
-    ov::element::Type m_element_type;
-    ov::Shape m_shape;
-    std::vector<T> m_data;
-    ov::AnyMap m_properties;
 };
 
 }  // namespace
@@ -100,26 +118,15 @@ public:
     const ov::Strides& get_strides() const override {
         return m_tensor->get_strides();
     }
-    void* get_data_ptr() const {
-        return m_tensor->data();
-    }
 
     const ov::AnyMap& get_properties() const override {
         return m_tensor->get_properties();
     }
+
+    const std::string& get_device_name() const override {
+        return m_tensor->get_device_name();
+    }
 };
-
-const void* ov::template_plugin::VectorTensor::get_data_ptr() const {
-    auto impl = std::dynamic_pointer_cast<VectorImpl>(_impl);
-    OPENVINO_ASSERT(impl);
-    return impl->get_data_ptr();
-}
-
-void* ov::template_plugin::VectorTensor::get_data_ptr() {
-    auto impl = std::dynamic_pointer_cast<VectorImpl>(_impl);
-    OPENVINO_ASSERT(impl);
-    return impl->get_data_ptr();
-}
 
 ov::template_plugin::RemoteContext::RemoteContext() : m_name("TEMPLATE") {}
 
