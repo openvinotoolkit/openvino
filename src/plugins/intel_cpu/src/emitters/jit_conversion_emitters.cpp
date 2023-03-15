@@ -68,9 +68,7 @@ bool jit_convert_truncation_emitter::is_i8_and_u8_case() const {
            one_of(output_type, ov::element::i8, ov::element::u8);
 }
 
-void jit_convert_truncation_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                               const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                               const emitter_context *emit_context) const {
+void jit_convert_truncation_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     validate_types();
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);
@@ -185,9 +183,7 @@ jit_convert_saturation_emitter::jit_convert_saturation_emitter(jit_generator *ho
     : jit_convert_emitter(host, host_isa, node, exec_prc) {
 }
 
-void jit_convert_saturation_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs,
-                                               const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs,
-                                               const emitter_context *emit_context) const {
+void jit_convert_saturation_emitter::emit_impl(const std::vector<size_t> &in_vec_idxs, const std::vector<size_t> &out_vec_idxs) const {
     validate_types();
     if (host_isa_ == cpu::x64::sse41) {
         emit_isa<cpu::x64::sse41>(in_vec_idxs, out_vec_idxs);

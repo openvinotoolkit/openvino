@@ -16,6 +16,10 @@
 #include <ie_algorithm.hpp>
 
 #include "openvino/runtime/intel_gpu/properties.hpp"
+#include "intel_gpu/graph/serialization/layout_serializer.hpp"
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
+#include "intel_gpu/graph/serialization/utils.hpp"
+#include "intel_gpu/graph/serialization/vector_serializer.hpp"
 #include "intel_gpu/plugin/plugin.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
@@ -198,9 +202,6 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::LoadExeNetworkImpl::CreateExeNetwork");
         CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(transformedNetwork, context, config);
-        if (exeNetwork->m_graphs[0]->GetNetwork()->is_dynamic()) {
-            isModelCachingEnabled = false;
-        }
         update_memory_statistics(context->get_impl());
         return exeNetwork;
     }
@@ -369,8 +370,172 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istr
 
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::ImportNetwork::CreateExeNetwork");
-        CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(networkModel, context, config);
-        exeNetwork->SetPointerToPlugin(shared_from_this());
+        cldnn::BinaryInputBuffer ib(networkModel, context->get_impl()->get_engine());
+
+        InputsDataMap inputs;
+        OutputsDataMap outputs;
+        std::vector<std::shared_ptr<const ov::Node>> new_params;
+        std::vector<std::shared_ptr<const ov::Node>> new_results;
+
+        // InputsInfo and OutputsInfor for CNNNetwork
+        {
+            size_t inputSize;
+            ib >> inputSize;
+
+            for (size_t idx = 0; idx < inputSize; ++idx) {
+                std::string name;
+                std::string precision;
+                std::string layout;
+                InferenceEngine::SizeVector dims;
+                ib >> name;
+                ib >> precision;
+                ib >> layout;
+                ib >> dims;
+
+                DataPtr input = std::make_shared<Data>(name, Precision::FromStr(precision), cldnn::serial_util::layout_from_string(layout));
+                input->setDims(dims);
+                InputInfo::Ptr infoNew = std::make_shared<InputInfo>();
+                infoNew->setInputData(input);
+                inputs.emplace(std::make_pair(name, infoNew));
+            }
+
+            size_t outputSize;
+            ib >> outputSize;
+
+            for (size_t idx = 0; idx < outputSize; ++idx) {
+                std::string name;
+                std::string precision;
+                std::string layout;
+                InferenceEngine::SizeVector dims;
+                ib >> name;
+                ib >> precision;
+                ib >> layout;
+                ib >> dims;
+
+                DataPtr output = std::make_shared<Data>(name, Precision::FromStr(precision), cldnn::serial_util::layout_from_string(layout));
+                output->setDims(dims);
+                outputs.emplace(std::make_pair(name, output));
+            }
+        }
+
+        {
+            size_t num_params;
+            ib >> num_params;
+
+            for (size_t idx = 0; idx < num_params; ++idx) {
+                std::string param_name;
+                ib >> param_name;
+                ov::element::Type param_element_type;
+                std::string str_element_type;
+                ib >> str_element_type;
+                std::stringstream oss(str_element_type);
+                oss >> param_element_type;
+                ov::PartialShape param_shape;
+                ib >> param_shape;
+                std::string str_layout;
+                ib >> str_layout;
+                ov::Layout param_layout(str_layout);
+                std::unordered_set<std::string> param_names;
+                size_t num_names;
+                ib >> num_names;
+                for (size_t i = 0; i < num_names; ++i) {
+                    std::string name;
+                    ib >> name;
+                    param_names.emplace(name);
+                }
+
+                auto new_param = std::make_shared<ov::op::v0::Parameter>(param_element_type, param_shape);
+                new_param->set_friendly_name(param_name);
+                new_param->set_element_type(param_element_type);
+                new_param->set_layout(param_layout);
+                new_param->output(0).get_tensor().set_names(param_names);
+                new_param->validate_and_infer_types();
+                new_params.emplace_back(new_param);
+            }
+        }
+
+        {
+            size_t num_results;
+            ib >> num_results;
+
+            for (size_t idx = 0; idx < num_results; ++idx) {
+                ov::element::Type fake_element_type;
+                std::string str_element_type;
+                ib >> str_element_type;
+                std::stringstream oss(str_element_type);
+                oss >> fake_element_type;
+
+                ov::PartialShape fake_shape;
+                ib >> fake_shape;
+
+                std::string fake_name;
+                ib >> fake_name;
+
+                std::string param_name;
+                ib >> param_name;
+
+                std::string str_layout;
+                ib >> str_layout;
+                ov::Layout param_layout(str_layout);
+
+                std::unordered_set<std::string> param_names;
+                size_t num_names;
+                ib >> num_names;
+                for (size_t i = 0; i < num_names; ++i) {
+                    std::string name;
+                    ib >> name;
+                    param_names.emplace(name);
+                }
+
+                auto fake_param = std::make_shared<ov::op::v0::Parameter>(fake_element_type, fake_shape);
+                fake_param->set_friendly_name(fake_name);
+                fake_param->validate_and_infer_types();
+
+                auto new_result = std::make_shared<ov::op::v0::Result>(fake_param);
+                new_result->set_friendly_name(param_name);
+                new_result->set_layout(param_layout);
+                new_result->output(0).get_tensor().set_names(param_names);
+                new_result->validate_and_infer_types();
+                new_results.emplace_back(new_result);
+            }
+        }
+
+        CompiledModel::Ptr exeNetwork;
+        bool is_dynamic;
+        ib >> is_dynamic;
+
+        if (is_dynamic) {
+            std::string xmlString, xmlInOutString;
+            InferenceEngine::Blob::Ptr dataBlob;
+
+            ov::pass::StreamSerialize::DataHeader hdr = {};
+            networkModel.read(reinterpret_cast<char*>(&hdr), sizeof hdr);
+
+            // read blob content
+            networkModel.seekg(hdr.consts_offset);
+            if (hdr.consts_size) {
+                dataBlob = InferenceEngine::make_shared_blob<std::uint8_t>(
+                    InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {hdr.consts_size}, InferenceEngine::Layout::C));
+                dataBlob->allocate();
+                networkModel.read(dataBlob->buffer(), hdr.consts_size);
+            }
+
+            // read XML content
+            networkModel.seekg(hdr.model_offset);
+            xmlString.resize(hdr.model_size);
+            networkModel.read(const_cast<char*>(xmlString.c_str()), hdr.model_size);
+
+            auto transformedNetwork = GetCore()->ReadNetwork(xmlString, std::move(dataBlob), true);
+            exeNetwork = std::make_shared<CompiledModel>(transformedNetwork, context, config, &inputs, &outputs);
+        } else {
+            exeNetwork = std::make_shared<CompiledModel>(ib, context, config);
+            exeNetwork->SetPointerToPlugin(shared_from_this());
+        }
+
+        exeNetwork->setNetworkInputs(inputs);
+        exeNetwork->setNetworkOutputs(outputs);
+        exeNetwork->setInputs(new_params);
+        exeNetwork->setOutputs(new_results);
         update_memory_statistics(context->get_impl());
         return exeNetwork;
     }
@@ -420,7 +585,7 @@ auto StringRightTrim = [](std::string string, std::string substring, bool case_s
 Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::GetMetric");
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    std::string device_id = GetConfig(ov::device::id.name(), options);
+    auto device_id = GetConfig(ov::device::id.name(), options).as<std::string>();
 
     auto iter = device_map.find(std::to_string(cldnn::device_query::device_id));
     if (iter == device_map.end())
@@ -434,7 +599,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
     if (name == ov::supported_properties) {
         return decltype(ov::supported_properties)::value_type {get_supported_properties()};
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, LegacyAPIHelper::get_supported_metrics(isModelCachingEnabled));
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, LegacyAPIHelper::get_supported_metrics());
     } else if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
         std::vector<std::string> availableDevices = { };
         for (auto const& dev : device_map)
@@ -517,7 +682,7 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
     } else if (name == METRIC_KEY(MAX_BATCH_SIZE) ||
                name == ov::max_batch_size) {
         return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(get_max_batch_size(options))};
-    } else if (isModelCachingEnabled && name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
+    } else if (name == METRIC_KEY(IMPORT_EXPORT_SUPPORT)) {
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     } else if (name == ov::caching_properties) {
         std::vector<ov::PropertyName> cachingProperties;
@@ -603,15 +768,14 @@ std::vector<std::string> Plugin::get_device_capabilities(const cldnn::device_inf
         capabilities.push_back(ov::device::capability::INT8);
     if (info.supports_immad)
         capabilities.push_back(ov::intel_gpu::capability::HW_MATMUL);
-    if (isModelCachingEnabled)
-        capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
+    capabilities.push_back(ov::device::capability::EXPORT_IMPORT);
 
     return capabilities;
 }
 
 uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& options) const {
     GPU_DEBUG_GET_INSTANCE(debug_config);
-    std::string device_id = GetConfig(ov::device::id.name(), options);
+    auto device_id = GetConfig(ov::device::id.name(), options).as<std::string>();
     auto context = m_default_contexts.at(device_id)->get_impl();
     const auto& device_info = context->get_engine().get_device_info();
     const auto& config = m_configs_map.at(device_id);
@@ -643,7 +807,7 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
         } else if (it_streams->second.is<uint32_t>()) {
             n_streams = it_streams->second.as<uint32_t>();
         } else if (it_streams->second.is<std::string>()) {
-            std::string n_streams_str = it_streams->second.as<std::string>();
+            auto n_streams_str = it_streams->second.as<std::string>();
             if (n_streams_str != CONFIG_VALUE(GPU_THROUGHPUT_AUTO) &&
                 n_streams_str != util::to_string(ov::streams::AUTO)) {
                 IE_THROW() << "[GPU_MAX_BATCH_SIZE] bad casting: GPU_THROUGHPUT_STREAMS should be either of uint32_t type or \"GPU_THROUGHPUT_AUTO\"";
@@ -761,7 +925,7 @@ uint32_t Plugin::get_max_batch_size(const std::map<std::string, Parameter>& opti
 }
 
 uint32_t Plugin::get_optimal_batch_size(const std::map<std::string, Parameter>& options) const {
-    std::string device_id = GetConfig(ov::device::id.name(), options);
+    auto device_id = GetConfig(ov::device::id.name(), options).as<std::string>();
     auto context = m_default_contexts.at(device_id)->get_impl();
     const auto& device_info = context->get_engine().get_device_info();
     auto next_pow_of_2 = [] (float x) {

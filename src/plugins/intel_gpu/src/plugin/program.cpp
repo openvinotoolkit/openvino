@@ -120,14 +120,15 @@ bool Program::IsDynBatchModel(const std::shared_ptr<ov::Model>& model,
 }
 
 Program::Program(InferenceEngine::CNNNetwork& network, cldnn::engine& engine, const ExecutionConfig& config,
-    bool createTopologyOnly, bool partialBuild)
+    bool createTopologyOnly, bool partialBuild,
+    InferenceEngine::InputsDataMap* inputs, InferenceEngine::OutputsDataMap* outputs)
     : m_curBatch(-1)
     , m_config(config)
     , m_engine(engine)
     , queryMode(false) {
     // Extract inputs/outputs info from CNNNetwork
-    auto networkInputs = network.getInputsInfo();
-    auto networkOutputs = network.getOutputsInfo();
+    auto networkInputs = (inputs != nullptr) ? *inputs : network.getInputsInfo();
+    auto networkOutputs = (outputs != nullptr) ? *outputs : network.getOutputsInfo();
 
     auto func = network.getFunction();
     if (!func) {
@@ -380,7 +381,7 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
         try {
             program = cldnn::program::build_program(m_engine, *m_topology, m_config);
         } catch (std::exception& e) {
-            IE_THROW() << "cldnn program build failed! " << e.what();
+            OPENVINO_ASSERT(false, "GPU program build failed!\n", e.what());
         }
         CleanupBuild();
 

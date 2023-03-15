@@ -44,49 +44,7 @@ using namespace cldnn;
 static size_t get_post_ops_count(const program_node& node) {
     size_t onednn_post_ops_count = 0;
     for (auto& fo : node.get_fused_primitives()) {
-        if (fo.is_type<activation>() || fo.is_type<eltwise>()) {
-            onednn_post_ops_count++;
-        } else if (fo.is_type<quantize>()) {
-            // pre-scale, pre-shift
-            const auto& q_param = fo.get_typed_fuse_params<kernel_selector::quantize_fuse_params>();
-            if (q_param->per_tensor_input_scale && q_param->per_tensor_input_shift) {
-                onednn_post_ops_count++;
-            } else {
-                onednn_post_ops_count += 2;
-            }
-
-            // post-scale, post-shift
-            if (q_param->has_post_scale && q_param->has_post_shift && q_param->per_tensor_output_scale && q_param->per_tensor_output_shift) {
-                onednn_post_ops_count++;
-            } else {
-                onednn_post_ops_count += 2;
-            }
-
-            auto out_dt = fo.output_layout.data_type;
-            auto output_type_is_int8 = out_dt == data_types::u8 || out_dt == data_types::i8;
-            auto out_range_usage = q_param->per_tensor_output_range && (q_param->out_lo < q_param->out_hi);
-
-            if (out_range_usage) {
-                // round
-                if (!output_type_is_int8) {
-                    onednn_post_ops_count++;
-                }
-
-                // clamp
-                if (q_param->has_clamp) {
-                    onednn_post_ops_count++;
-                }
-            } else {
-                // clamp
-                if (q_param->has_clamp) {
-                    onednn_post_ops_count += 2;
-                }
-                // round
-                {
-                    onednn_post_ops_count++;
-                }
-            }
-        }
+       onednn_post_ops_count += fo.f_param->ops_count();
     }
 
     return onednn_post_ops_count;
@@ -1214,8 +1172,8 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
 }
 
 bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
-    auto in_dt = node.get_dependency(0).get_output_layout().data_type;
-    auto out_dt = node.get_output_layout().data_type;
+    auto in_dt = node.get_dependency(0).get_output_layout(false).data_type;
+    auto out_dt = node.get_output_layout(false).data_type;
 
     if (in_dt == data_types::f32 && (!node.is_type<fully_connected>() && !node.is_type<convolution>()))
         return false;
@@ -1573,10 +1531,6 @@ impl_types layout_optimizer::get_preferred_impl_type(program_node& node, format 
         if (node.is_type<fully_connected>()) {
             if (!is_node_for_onednn(node.as<fully_connected>()))
                 impl_candidate = impl_types::ocl;
-        } else {
-            if (node.is_dynamic()) {
-                impl_candidate = impl_types::ocl;
-            }
         }
 
         preferred_impl = impl_candidate;
@@ -1870,13 +1824,18 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
         for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
             if (node.get_dependency(idx).is_constant())
                 continue;
-            node.set_preferred_input_fmt(idx, cldnn::format::bfyx);
+
+            size_t out_rank = node.get_output_layout().get_rank();
+            auto target_format = format::get_default_format(out_rank);
+
+            node.set_preferred_input_fmt(idx, target_format);
 
             if (node.get_preferred_output_fmt() == format::any) {
-                for (size_t usr = 0; usr < std::max<size_t>(1, node.get_users().size()); usr++)
-                    node.set_preferred_output_fmt(usr, cldnn::format::bfyx);
+                for (size_t usr = 0; usr < std::max<size_t>(1, node.get_users().size()); usr++) {
+                    node.set_preferred_output_fmt(usr, target_format);
+                }
             }
-            GPU_DEBUG_LOG << "select_preferred_formats:" << node.id() << ": " << fmt_to_str(cldnn::format::bfyx) << " --> " << fmt_to_str(cldnn::format::bfyx)
+            GPU_DEBUG_LOG << "select_preferred_formats:" << node.id() << ": " << fmt_to_str(target_format) << " --> " << fmt_to_str(target_format)
                           << " For index : " << idx << std::endl;
         }
     }

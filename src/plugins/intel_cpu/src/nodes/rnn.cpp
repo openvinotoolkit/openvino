@@ -314,16 +314,21 @@ public:
             native_order = RNN::testNativeOrder(op);
         }
 
-    std::vector<VectorDims> infer(
+    Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
-        auto originOutputShapes = NgraphShapeInfer::infer(input_shapes, data_dependency);
+        auto result = NgraphShapeInfer::infer(input_shapes, data_dependency);
+        if (ShapeInferStatus::success != result.status) {
+            IE_THROW(Unexpected) << "Unexpected shape inference result status";
+        }
+
+        auto& originOutputShapes = result.dims;
 
         // Graph optimizer makes the same optimization. So this is required to make shapes compatible.
         if (is_sequence && !native_order && originOutputShapes[0].size() == 4lu && originOutputShapes[0][1] == 1lu) {
             originOutputShapes[0].erase(originOutputShapes[0].begin() + 1);
         }
-        return originOutputShapes;
+        return {std::move(originOutputShapes), result.status};
     }
 
 private:
@@ -569,9 +574,9 @@ void RNN::initSequence() {
         THROW_ERROR << "has incorrect input/output shapes. Input data shape: " << inDataShape.toString() <<
                 " Output shape: " << outDataShape.toString();
 
-    if (!one_of(getOriginalInputsNumber(), 6, 7))
+    if (!one_of(getOriginalInputsNumber(), 6u, 7u))
         THROW_ERROR << "has incorrect number of input ports: " << getOriginalInputsNumber();
-    if (!one_of(getOriginalOutputsNumber(), 2, 3))
+    if (!one_of(getOriginalOutputsNumber(), 2u, 3u))
         THROW_ERROR << "has incorrect number of output ports: " << getOriginalOutputsNumber();
 
     T = {inDataShape.getMinDims()[1], inDataShape.getMaxDims()[1]};
@@ -717,7 +722,7 @@ void RNN::fillWeights(const int *gate_map, const size_t wIdx, const size_t rIdx)
             }
 
             Prec *l_r_ptr = r_ptr + gate_map[g] * SC + out_i;
-            for (int in_i = 0; in_i < SC; in_i++) {
+            for (size_t in_i = 0; in_i < SC; in_i++) {
                 *l_r_ptr = *ie_r_ptr;
                 ie_r_ptr++;
                 l_r_ptr += step;

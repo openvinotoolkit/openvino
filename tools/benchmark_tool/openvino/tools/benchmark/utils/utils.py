@@ -282,7 +282,10 @@ def parse_devices(device_string):
     result.append(target_device)
     if device_string.find(":") != -1:
         hw_devices_str = device_string.partition(":")[-1]
-        result.extend(hw_devices_str.split(','))
+        for hw_device in hw_devices_str.split(','):
+            if hw_device[0] == '-':
+                hw_device = hw_device[1:]
+            result.append(hw_device)
     return result
 
 def parse_value_per_device(devices, values_string, value_type):
@@ -423,8 +426,8 @@ def print_detail_result(result_list):
                 f"{str(layerStatus):<20} "
                 f"layerType: {layerType[:max_print_length - 4] + '...' if (len(layerType) >= max_print_length) else layerType:<20} "
                 f"execType: {execType:<20} "
-                f"realTime (ms): {real_time / timedelta(milliseconds=1):<10.3f} "
-                f"cpuTime (ms): {cpu_time / timedelta(milliseconds=1):<10.3f}"
+                f"realTime (ms): {real_time / 1000:<10.3f} "
+                f"cpuTime (ms): {cpu_time / 1000:<10.3f}"
                 f"proportion: {str(real_proportion +'%'):<8}")
 
 def print_perf_counters(perf_counts_list):
