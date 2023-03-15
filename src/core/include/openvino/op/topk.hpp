@@ -112,7 +112,7 @@ namespace v11 {
 /// \ingroup ov_ops_cpp_api
 class OPENVINO_API TopK : public util::TopKBase {
 public:
-    OPENVINO_OP("TopK", "opset11", op::util::TopKBase, 11);
+    OPENVINO_OP("TopK", "opset11", op::util::TopKBase);
     /// \brief Constructs a TopK operation
     TopK() = default;
     /// \brief Constructs a TopK operation with two outputs: values and indices.
