@@ -866,7 +866,10 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkWithDeviceID) {
     if (!supportsDeviceID(ie, target_device)) {
         GTEST_FAIL() << "Device does not support DeviceID" << std::endl;
     }
-    ASSERT_NO_THROW(ie.QueryNetwork(simpleCnnNetwork,  target_device + ".0"));
+    auto deviceIDs = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
+    if (deviceIDs.empty())
+       GTEST_FAIL() << "Incorrect DeviceID number" << std::endl;
+    ASSERT_NO_THROW(ie.QueryNetwork(simpleCnnNetwork,  target_device + "." + deviceIDs[0]));
 }
 
 TEST_P(IEClassQueryNetworkTest, QueryNetworkWithBigDeviceIDThrows) {

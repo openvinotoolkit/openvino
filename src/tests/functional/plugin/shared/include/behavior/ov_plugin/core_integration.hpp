@@ -909,9 +909,9 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkHETEROWithDeviceIDNoThrow) {
         auto deviceIDs = ie.get_property(target_device, ov::available_devices);
         if (deviceIDs.empty())
             GTEST_FAIL();
-        OV_ASSERT_NO_THROW(ie.query_model(actualNetwork,
-                                          CommonTestUtils::DEVICE_HETERO,
-                                          ov::device::priorities(target_device + "." + deviceIDs[0], target_device)));
+        ie.query_model(actualNetwork,
+                       CommonTestUtils::DEVICE_HETERO,
+                       ov::device::priorities(target_device + "." + deviceIDs[0], target_device));
     } else {
         GTEST_FAIL() << "Device does not support DeviceID property" << std::endl;
     }
@@ -921,7 +921,10 @@ TEST_P(OVClassQueryNetworkTest, QueryNetworkWithDeviceID) {
     ov::Core ie = createCoreWithTemplate();
 
     if (supportsDeviceID(ie, target_device)) {
-        ie.query_model(simpleNetwork, target_device + ".0");
+        auto deviceIDs = ie.get_property(target_device, ov::available_devices);
+        if (deviceIDs.empty())
+            GTEST_FAIL();
+        ie.query_model(simpleNetwork, target_device + "." + deviceIDs[0]);
     } else {
         GTEST_FAIL() << "Device does not support DeviceID property" << std::endl;
     }
