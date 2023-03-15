@@ -41,6 +41,9 @@ ov::pass::TransposeSinkingFuse::TransposeSinkingFuse() {
 
         bool is_ordered = true;
         for (size_t i = 0; i < order1.size(); i++) {
+            if (static_cast<int64_t>(order1.size()) <= order2[i]) {
+                return false;
+            }
             order2[i] = order1[order2[i]];
             if (order2[i] != static_cast<int64_t>(i))
                 is_ordered = false;
@@ -61,7 +64,7 @@ ov::pass::TransposeSinkingFuse::TransposeSinkingFuse() {
             new_transpose->set_friendly_name(m.get_match_root()->get_friendly_name());
             transpose_sinking::RemoveSingleOutputConsumers(transpose1);
             copy_runtime_info(transpose1, new_transpose);
-            ngraph::replace_node(transpose1, new_transpose);
+            ov::replace_node(transpose1, new_transpose);
 
             transpose_sinking::UpdateForwardSinkingAbility(new_transpose);
         }
