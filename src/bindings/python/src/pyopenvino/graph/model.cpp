@@ -726,13 +726,10 @@ void regclass_graph_Model(py::module m) {
         :rtype: openvino.runtime.Model
     )");
 
-    model.def(
-        "get_rt_info",
-        [](const ov::Model& self) -> py::object {
-            return Common::utils::from_ov_any_map_no_leaves(self.get_rt_info());
-        },
-        py::return_value_policy::reference_internal,
-        R"(
+    model.def("get_rt_info",
+              (PyRTMap & (ov::Model::*)()) & ov::Model::get_rt_info,
+              py::return_value_policy::reference_internal,
+              R"(
                 Returns PyRTMap which is a dictionary of user defined runtime info.
 
                 :return: A dictionary of user defined data.
@@ -755,7 +752,7 @@ void regclass_graph_Model(py::module m) {
                 :type path: List[str]
 
                 :return: A runtime attribute.
-                :rtype: Any
+                :rtype: OVAny
              )");
     model.def(
         "get_rt_info",
@@ -770,7 +767,7 @@ void regclass_graph_Model(py::module m) {
                 :type path: str
 
                 :return: A runtime attribute.
-                :rtype: Any
+                :rtype: OVAny
              )");
     model.def(
         "has_rt_info",

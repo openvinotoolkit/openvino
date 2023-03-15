@@ -79,7 +79,9 @@ void regclass_graph_Any(py::module m) {
         } else if (check_key(dtype, py::dict())) {
             return Common::utils::from_ov_any_map_no_leaves(self);
         }
-        return py::cast(0);
+        std::stringstream str;
+        str << "Unsupported data type : '" << dtype << "' is passed as an argument.";
+        OPENVINO_THROW(str.str());
     });
     ov_any.def(
         "aslist",
@@ -102,6 +104,9 @@ void regclass_graph_Any(py::module m) {
             } else if (check_key(dtype, py::float_())) {
                 return py::cast(self.as<std::vector<double>>());
             }
+            std::stringstream str;
+            str << "Unsupported data type : '" << dtype << "' is passed as an argument.";
+            OPENVINO_THROW(str.str());
         },
         py::arg("dtype") = py::none());
     ov_any.def(

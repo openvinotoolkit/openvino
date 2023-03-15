@@ -10,6 +10,7 @@
 #include <pybind11/stl_bind.h>
 
 #include "dict_attribute_visitor.hpp"
+#include "meta_data.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/runtime_attribute.hpp"
 #include "openvino/op/add.hpp"
@@ -43,11 +44,10 @@ public:
         const auto result = *it;
         it++;
         if (is_value) {
-            auto res = Common::utils::from_ov_any_map_no_leaves(result.second);
-            return res;
+            return Common::utils::from_ov_any_no_leaves(result.second);
         } else {
             std::pair<std::string, py::object> res = {result.first,
-                                                      Common::utils::from_ov_any_map_no_leaves(result.second)};
+                                                      Common::utils::from_ov_any_no_leaves(result.second)};
             return py::cast(res);
         }
     }
@@ -77,7 +77,7 @@ void regclass_graph_PyRTMap(py::module m) {
         m[k] = v;
     });
     py_map.def("__getitem__", [](PyRTMap& m, const std::string& k) -> py::object {
-        return Common::utils::from_ov_any_map_no_leaves(m[k]);
+        return Common::utils::from_ov_any_no_leaves(m[k]);
     });
     py_map.def(
         "__bool__",

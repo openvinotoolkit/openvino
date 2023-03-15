@@ -539,7 +539,7 @@ def test_serialize_complex_rt_info(request, tmp_path):
         assert math.isclose(model.get_rt_info(["config", "model_parameters", "min"]).astype(float), -3.24543, rel_tol=0.0001)
         assert math.isclose(model.get_rt_info(["config", "model_parameters", "max"]).astype(float), 3.234223, rel_tol=0.0001)
         assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "type"]).astype(str) == "tree"
-        assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "directed"]).astype(bool) == True
+        assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "directed"]).astype(bool) is True
 
         assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "float_empty"]).aslist() == []
         assert model.get_rt_info(["config", "model_parameters", "labels", "label_tree", "nodes"]).aslist() == []
