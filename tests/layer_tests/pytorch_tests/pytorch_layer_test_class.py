@@ -55,7 +55,6 @@ class PytorchLayerTest:
             if kwargs.get('freeze_model', True):
                 model = torch.jit.freeze(model)
             graph = model.inlined_graph
-            print([*graph.nodes()])
             print(graph)
 
             if kind is not None and not isinstance(kind, (tuple, list)):
