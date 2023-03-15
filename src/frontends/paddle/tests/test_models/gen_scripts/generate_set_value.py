@@ -73,7 +73,7 @@ def main():
     value = np.random.random((3, 3, 1)).astype(dtype)
 
     def set_value2(x, value):
-        x[2:5, :] = value
+        x[2:5] = value
         return x
 
 
@@ -82,9 +82,9 @@ def main():
     shape = (10, 2, 5)
     dtype = "int32"
     data = np.random.randint(0, 5, shape).astype(dtype)
-    value = np.random.randint(0, 2, (3, 1, 1)).astype(dtype)
+    value = np.random.randint(0, 2, (10, 2, 3)).astype(dtype)
     def set_value3(x, value):
-        x[-4:-1] = value
+        x[:, :, -4:-1] = value
         return x
 
     paddle_set_value("set_value3", data, value, set_value3, dtype)
@@ -96,22 +96,24 @@ def main():
     starts = generate_data([-4, 0, 1], np.int64)
     ends = generate_data([-1, 1, 3], np.int64)
     steps = generate_data([1, 1, 1], np.int64)
-    def set_value4(x, value, *slice):
+    def set_value3(x, value, *slice):
         x[build_slice(*slice)] = value
         return x
 
-    paddle_set_value("set_value4", data, value, set_value4, dtype, starts, ends, steps)
+    paddle_set_value("set_value4", data, value, set_value3, dtype, starts, ends, steps)
 
     shape = (10, 5)
     dtype = "int32"
     data = np.random.randint(0, 5, shape).astype(dtype)
     value = np.random.randint(0, 2, (1, )).astype(dtype)
-    def set_value5(x, value):
-        x[-4:-1] = value
+    starts = generate_data([-4], np.int64)
+    ends = generate_data([-1], np.int64)
+    steps = generate_data([1], np.int64)
+    def set_value3(x, value, *slice):
+        x[build_slice(*slice)] = value
         return x
 
-    paddle_set_value("set_value5", data, value, set_value5, dtype)
-
+    paddle_set_value("set_value5", data, value, set_value3, dtype, starts, ends, steps)
 
 if __name__ == "__main__":
     main()

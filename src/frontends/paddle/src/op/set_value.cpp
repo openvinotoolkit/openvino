@@ -7,6 +7,21 @@
 
 #define MAX_VALUE(T) std::numeric_limits<T>::max()
 
+void printV(const std::string& name, std::vector<int64_t> input) {
+    std::cout << name << ": ";
+    for (size_t i = 0; i < input.size(); i++) {
+        std::cout << input[i] << " ";
+    }
+    std::cout << std::endl;
+}
+
+void printV(const std::string& name, ov::Shape input) {
+    std::cout << name << ": ";
+    for (size_t i = 0; i < input.size(); i++) {
+        std::cout << input[i] << " ";
+    }
+    std::cout << std::endl;
+}
 namespace ov {
 namespace frontend {
 namespace paddle {
@@ -39,17 +54,17 @@ NamedOutputs set_value(const NodeContext& node) {
     Shape value_shape(input_shape);
 
     if (node.has_input("StartsTensorList") && node.has_input("StepsTensorList") && node.has_input("EndsTensorList")) {
-        const auto dim_node = default_opset::Constant::create(element::i64, {input_shape.size()}, input_shape);
-        auto starts = handle_minus_index(node.get_ng_inputs("StartsTensorList"), dim_node);
-        auto ends = handle_minus_index(node.get_ng_inputs("EndsTensorList"), dim_node);
+        std::vector<int64_t> spec_input_shape;
+        for (size_t i =0; i < axes.size(); i++) {
+            spec_input_shape.push_back(input_shape[axes[i]]);
+        }
+        const auto spec_dim_node = default_opset::Constant::create(element::i64, {spec_input_shape.size()}, spec_input_shape);
+        auto starts = handle_minus_index(node.get_ng_inputs("StartsTensorList"), spec_dim_node);
+        auto ends = handle_minus_index(node.get_ng_inputs("EndsTensorList"), spec_dim_node);
         const auto steps = node.get_ng_inputs("StepsTensorList");
         std::vector<int64_t> needed_input_dim;
-        for (size_t i = 0; i < input_shape.size(); i++) {
-            if (axes[i] == static_cast<int64_t>(i))
-                needed_input_dim.push_back(input_shape[i]);
-        }
         const auto input_shape_node =
-            default_opset::Constant::create(element::i64, {needed_input_dim.size()}, needed_input_dim);
+            default_opset::Constant::create(element::i64, {spec_input_shape.size()}, spec_input_shape);
         const auto axes_node = default_opset::Constant::create(element::i64, {axes.size(), 1}, axes);
 
         // get padding starts
@@ -67,7 +82,7 @@ NamedOutputs set_value(const NodeContext& node) {
         // get target value shape
         Output<Node> value_target_shape =
             default_opset::Constant::create(element::i64, {value_shape.size()}, value_shape);
-        Output<Node> value_shape_update_node = std::make_shared<default_opset::Add>(padding_ends_node, starts);
+        Output<Node> value_shape_update_node = std::make_shared<default_opset::Add>(ends_update_node, starts);
         value_shape_update_node = std::make_shared<default_opset::Subtract>(input_shape_node, value_shape_update_node);
         value_target_shape =
             std::make_shared<default_opset::ScatterNDUpdate>(value_target_shape, axes_node, value_shape_update_node);
