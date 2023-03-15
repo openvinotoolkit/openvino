@@ -407,10 +407,7 @@ void FullyConnected::prepareParams() {
         if (execPtr->getSrcDesc()->isCompatible(*inDesc)) {
             primArgs[DNNL_ARG_SRC] = srcMemPtr->GetPrimitive();
         } else {
-            auto start = std::chrono::steady_clock::now();
-            primArgs[DNNL_ARG_SRC] = dnnl::memory(execPtr->getDnnlSrcDesc(), engine, srcMemPtr->GetData()); //385.681 [ms]
-            auto end = std::chrono::steady_clock::now();
-            g_counters[8] += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+            primArgs[DNNL_ARG_SRC] = dnnl::memory(execPtr->getDnnlSrcDesc(), engine, srcMemPtr->GetData());
         }
 
         if (execPtr->getDstDesc()->isCompatible(*outDesc)) {
@@ -421,9 +418,6 @@ void FullyConnected::prepareParams() {
 
         if (!prevExecPtr || !execPtr->getWeightDesc()->isCompatible(*(prevExecPtr->getWeightDesc()))) {
             primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(execPtr->getWeightDesc())->GetPrimitive();
-        }
-        if (!prevExecPtr || prevExecPtr->getWeightDesc() != execPtr->getWeightDesc()) {
-            primArgs[DNNL_ARG_WEIGHTS] = prepareWeightMemory(DnnlExtensionUtils::makeDescriptor(execPtr->getWeightDesc()))->GetPrimitive();
         }
         // changed shapes may also cause the kernel type changed
         selected_pd->setImplementationType(execPtr->getImplementationType());
