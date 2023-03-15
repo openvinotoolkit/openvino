@@ -537,7 +537,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_branches_with_same_inputs) {
     auto test_case = test::TestCase(function, s_device);
     std::vector<float> x(40, 2);
     std::vector<float> y(40);
-    std::iota(y.begin(), y.end(), -20);
+    std::iota(y.begin(), y.end(), -20.f);
 
     // condition
     test_case.add_input<bool>({true});
