@@ -1485,52 +1485,6 @@ void Convolution::prepareParams() {
     }
 }
 
-MemoryPtr Convolution::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
-    if (!getParentEdgeAt(1)->getParent()->isConstant())
-        IE_THROW() << "Weight input is not const for node " << getName() << ".";
-    auto blob = getParentEdgeAt(1)->getMemoryPtr();
-    if (!blob)
-        IE_THROW() << "Cannot get const weights blob for node " << getName() << ".";
-
-    auto constDnnlMemOutDesc = blob->GetDescWithType<DnnlMemoryDesc>();
-    auto weightSrcDesc = constDnnlMemOutDesc->getDnnlDesc();
-    weightSrcDesc = weightSrcDesc.reshape(weightDesc->getDnnlDesc().dims());
-    auto create = [&] () {
-        auto newSrcDesc = DnnlExtensionUtils::makeDescriptor(weightSrcDesc);
-
-        Memory srcMemory{ getEngine() };
-        srcMemory.Create(newSrcDesc, blob->GetData());
-
-        MemoryPtr _ptr = std::make_shared<Memory>(getEngine());
-        _ptr->Create(weightDesc);
-        node::Reorder::reorderData(srcMemory, *_ptr, context->getParamsCache());
-
-        DEBUG_LOG("Convolution::prepareWeightMemory", *newSrcDesc, " -> ", *weightDesc);
-        return _ptr;
-    };
-
-    MemoryPtr ptr;
-    const auto& format = weightDesc->serializeFormat();
-    auto itr = privateWeightCache.find(format);
-    if (privateWeightCache.end() != itr) {
-        ptr = itr->second;
-    } else {
-        auto weightCache = context->getWeightsCache();
-        if (weightCache != nullptr) {
-            const std::string string_hash = getName() + "_" + format
-                                            + "_" + std::to_string(blob->GetSize())
-                                            + "_" + std::to_string(reinterpret_cast<uint64_t>(blob->GetData()));
-
-            ptr = *weightCache->findOrCreate(string_hash, create);
-        } else {
-            ptr = create();
-        }
-        privateWeightCache[format] = ptr;
-    }
-
-    return ptr;
-}
-
 Convolution::ConvolutionExecutor::ConvolutionExecutor(const dnnl::convolution_forward::primitive_desc& pd,
                                                                 const dnnl::memory::desc& inMemDesc,
                                                                 const dnnl::memory::desc& weightMemDesc,

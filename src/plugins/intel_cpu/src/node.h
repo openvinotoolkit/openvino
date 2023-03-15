@@ -620,6 +620,15 @@ protected:
     void prepareMemory(const std::vector<DnnlMemoryDescPtr>& intDescs);
     void prepareMemory(dnnl::primitive_desc_iterator& itpd);
 
+    // we cannot account per-NUMA weightCache for caching weights because:
+    //   1.it may not exist(in single stream configuration)
+    //   2.it only holds weak references, the life-cycle of cached item
+    //     is still under control of strong references outside of cache.
+    // privateWeightCache is for holding strong references to weight copies
+    // of same raw data but with different layouts.
+    std::unordered_map<std::string, MemoryPtr> privateWeightCache;
+    MemoryPtr prepareWeightMemory(DnnlMemoryDescPtr weightDesc);
+
     bool isDynamic = false;
 
     bool isInputTensorAtPortEmpty(size_t port) const;
