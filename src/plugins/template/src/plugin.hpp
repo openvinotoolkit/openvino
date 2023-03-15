@@ -6,17 +6,17 @@
 
 #include "backend.hpp"
 #include "compiled_model.hpp"
+#include "config.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
-#include "template_config.hpp"
+#include "openvino/runtime/threading/itask_executor.hpp"
 
 //! [plugin:header]
-namespace TemplatePlugin {
+namespace ov {
+namespace template_plugin {
 
 class Plugin : public ov::IPlugin {
 public:
-    using Ptr = std::shared_ptr<Plugin>;
-
     Plugin();
     ~Plugin();
 
@@ -45,13 +45,14 @@ public:
                                     const ov::AnyMap& properties) const override;
 
 private:
-    friend class TemplatePlugin::CompiledModel;
+    friend class CompiledModel;
     friend class InferRequest;
 
-    std::shared_ptr<ngraph::runtime::Backend> _backend;
-    Configuration _cfg;
-    InferenceEngine::ITaskExecutor::Ptr _waitExecutor;
+    std::shared_ptr<ov::runtime::Backend> m_backend;
+    Configuration m_cfg;
+    std::shared_ptr<ov::threading::ITaskExecutor> m_waitExecutor;
 };
 
-}  // namespace TemplatePlugin
+}  // namespace template_plugin
+}  // namespace ov
    //! [plugin:header]

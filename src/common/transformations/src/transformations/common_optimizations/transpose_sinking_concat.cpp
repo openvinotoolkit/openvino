@@ -1,23 +1,19 @@
-#include "transformations/common_optimizations/transpose_sinking_concat.hpp"
+// Copyright (C) 2018-2023 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 
-#include <openvino/opsets/opset9.hpp>
-#include <openvino/pass/pattern/op/or.hpp>
-#include <transformations/utils/utils.hpp>
-#include <utility>
+#include "transformations/common_optimizations/transpose_sinking_concat.hpp"
 
 #include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include "openvino/opsets/opset9.hpp"
-#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/util/common_util.hpp"
-#include "openvino/util/log.hpp"
 #include "transformations/common_optimizations/transpose_sinking_utils.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 
 using namespace ov::pass::pattern;
 using namespace ov;
-using namespace ov::opset9;
+using namespace ov::opset10;
 using namespace transpose_sinking;
 
 ov::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
@@ -43,15 +39,17 @@ ov::pass::TransposeSinkingConcatForward::TransposeSinkingConcatForward() {
             return false;
         }
 
+        const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
+        const int64_t transposed_concat_axis = transpose_axis_order[concat_axis];
+        concat_node->set_axis(transposed_concat_axis);
+        concat_node->set_concatenation_axis(-1);
+
+        main_node->validate_and_infer_types();
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
             register_new_node(new_node);
             transpose_sinking::UpdateForwardSinkingAbility(new_node);
         }
 
-        const auto transpose_axis_order = transpose_input_info.transpose_const->get_axis_vector_val();
-        const int64_t transposed_concat_axis = transpose_axis_order[concat_axis];
-        concat_node->set_axis(transposed_concat_axis);
-        concat_node->set_concatenation_axis(-1);
         return true;
     };
 
@@ -83,19 +81,24 @@ ov::pass::TransposeSinkingConcatBackward::TransposeSinkingConcatBackward() {
         if (concat_axis < 0) {
             return false;
         }
+
+        const auto transpose_axis_order = transpose_const->get_axis_vector_val();
+        const auto reversed_transpose_axis_order = ReverseTransposeOrder(transpose_axis_order);
+        if (static_cast<int64_t>(reversed_transpose_axis_order.size()) <= concat_axis) {
+            return false;
+        }
+
+        const auto transposed_concat_axis = reversed_transpose_axis_order[concat_axis];
+        concat_node->set_axis(static_cast<int64_t>(transposed_concat_axis));
+        concat_node->set_concatenation_axis(-1);
+
         for (auto& new_node : sink_backward::InsertTransposeBeforeNode(main_node, transpose_const)) {
             register_new_node(new_node);
         }
+        concat_node->validate_and_infer_types();
 
-        // remove output transposes
         RemoveSingleOutputConsumers(main_node);
-
         SwapNames(transpose, main_node);
-        const auto transpose_axis_order = transpose_const->get_axis_vector_val();
-        const auto reversed_traspose_axis_order = ReverseTransposeOrder(transpose_axis_order);
-        const int64_t transposed_concat_axis = reversed_traspose_axis_order[concat_axis];
-        concat_node->set_axis(transposed_concat_axis);
-        concat_node->set_concatenation_axis(-1);
         return true;
     };
 

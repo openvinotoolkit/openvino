@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "arg_max_min_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
+
+#include "arg_max_min_inst.h"
 #include "arg_max_min/arg_max_min_kernel_selector.h"
 #include "arg_max_min/arg_max_min_kernel_base.h"
 
@@ -51,7 +49,7 @@ protected:
     kernel_arguments_data get_arguments(const typed_primitive_inst<arg_max_min>& instance) const override {
         kernel_arguments_data args = parent::get_arguments(instance);
 
-        if (instance.node->has_second_output()) {
+        if (instance.get_typed_desc<arg_max_min>()->has_second_output()) {
             if (args.inputs.size() > 1) {
                 args.inputs.erase(args.inputs.begin() + 1);  // erase constant input in case of TOP_K
             }
@@ -138,3 +136,4 @@ attach_arg_max_min_impl::attach_arg_max_min_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::arg_max_min_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::arg_max_min)

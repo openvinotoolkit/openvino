@@ -19,7 +19,8 @@ from openvino.tools.benchmark.utils.utils import next_step, get_number_iteration
     get_command_line_arguments, parse_value_per_device, parse_devices, get_inputs_info, \
     print_inputs_and_outputs_info, get_network_batch_size, load_config, dump_config, get_latency_groups, \
     check_for_static, can_measure_as_static, parse_value_for_virtual_device
-from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, averageCntReport, detailedCntReport
+from openvino.tools.benchmark.utils.statistics_report import StatisticsReport, JsonStatisticsReport, CsvStatisticsReport, \
+    averageCntReport, detailedCntReport
 
 def parse_and_check_command_line():
     def arg_not_empty(arg_value,empty_value):
@@ -60,8 +61,9 @@ def main():
 
         command_line_arguments = get_command_line_arguments(sys.argv)
         if args.report_type:
-          statistics = StatisticsReport(StatisticsReport.Config(args.report_type, args.report_folder))
-          statistics.add_parameters(StatisticsReport.Category.COMMAND_LINE_PARAMETERS, command_line_arguments)
+            _statistics_class = JsonStatisticsReport if args.json_stats else CsvStatisticsReport
+            statistics = _statistics_class(StatisticsReport.Config(args.report_type, args.report_folder))
+            statistics.add_parameters(StatisticsReport.Category.COMMAND_LINE_PARAMETERS, command_line_arguments)
 
         def is_flag_set_in_command_line(flag):
             return any(x.strip('-') == flag for x, y in command_line_arguments)
@@ -112,7 +114,7 @@ def main():
                 if is_flag_set_in_command_line('hint'):
                     if args.perf_hint=='none':
                         logger.warning(f"No device {device} performance hint is set.")
-                        args.perf_hint = ''
+                        args.perf_hint = 'UNDEFINED'
                 else:
                     args.perf_hint = "THROUGHPUT" if benchmark.api_type == "async" else "LATENCY"
                     logger.warning(f"Performance hint was not explicitly specified in command line. " +
@@ -276,6 +278,11 @@ def main():
                 return
 
             def set_nthreads_pin(property_name, property_value):
+                if property_name == "AFFINITY":
+                    if property_value == "YES":
+                        property_value = "CORE"
+                    elif property_value == "NO":
+                        property_value = "NONE"
                 if property_name in supported_properties or device_name == AUTO_DEVICE_NAME:
                     # create nthreads/pin primary property for HW device or AUTO if -d is AUTO directly.
                     config[device][property_name] = property_value
@@ -437,7 +444,7 @@ def main():
             next_step()
 
             start_time = datetime.utcnow()
-            compiled_model = benchmark.core.import_model(args.path_to_model)
+            compiled_model = benchmark.core.import_model(args.path_to_model, benchmark.device, device_config)
             duration_ms = f"{(datetime.utcnow() - start_time).total_seconds() * 1000:.2f}"
             logger.info(f"Import model took {duration_ms} ms")
             if statistics:

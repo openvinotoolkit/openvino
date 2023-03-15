@@ -33,7 +33,7 @@ def test_elu_operator_with_scalar():
 
 
 def test_fake_quantize():
-    levels = np.float32(4)
+    levels = np.int32(4)
 
     data_shape = [1, 2, 3, 4]
     bound_shape = []
@@ -60,7 +60,7 @@ def test_fake_quantize():
 def test_depth_to_space():
     data_shape = [1, 4, 2, 3]
     mode = "blocks_first"
-    block_size = np.float32(2)
+    block_size = np.int32(2)
 
     parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
 

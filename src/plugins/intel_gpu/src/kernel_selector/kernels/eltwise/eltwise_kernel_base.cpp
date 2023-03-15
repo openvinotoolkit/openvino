@@ -53,6 +53,9 @@ uint32_t GetNumberOfInputs(EltwiseMode m) {
         case EltwiseMode::SQRT:
         case EltwiseMode::RSQRT:
         case EltwiseMode::ASSIGN:
+        case EltwiseMode::IS_FINITE:
+        case EltwiseMode::IS_INF:
+        case EltwiseMode::IS_NAN:
             return 1;
         default:
             return 0;
@@ -146,6 +149,9 @@ bool EltwiseKernelBase::IsUnsupportedModeForVecCode(const eltwise_params& params
         EltwiseMode::LOGIC_OR,
         EltwiseMode::LOGIC_XOR,
         EltwiseMode::FLOOR_MOD,
+        EltwiseMode::IS_FINITE,
+        EltwiseMode::IS_INF,
+        EltwiseMode::IS_NAN,
     };
 
     for (size_t op_num = 0; op_num <  params.operations.size(); op_num++) {
@@ -297,6 +303,16 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
             case EltwiseMode::ASSIGN:
                 op += input0_str;
                 break;
+            case EltwiseMode::IS_FINITE:
+                op += "(isfinite(" + input0_str + "))";
+                break;
+            case EltwiseMode::IS_INF:
+                op += "(isinf(" + input0_str + ") && (" + toCodeString(coefficients.at(0)) + " && signbit(" +
+                      input0_str + ") || " + toCodeString(coefficients.at(1)) + " && !signbit(" + input0_str + ")))";
+                break;
+            case EltwiseMode::IS_NAN:
+                op += "(isnan(" + input0_str + "))";
+                break;
             default:
                 break;
         }
@@ -311,9 +327,13 @@ JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& param
                                                      bool useVload8) const {
     JitConstants jit = {};
     std::string vload_decls;
+
     for (size_t op_num = 0; op_num < params.operations.size(); op_num++) {
         const std::string op_num_str = toCodeString(op_num);
         const auto &ew = params.operations[op_num];
+        bool is_dynamic_crop_kernel = params.is_shape_agnostic && params.operations[op_num].mode == EltwiseMode::ASSIGN;
+        if (is_dynamic_crop_kernel)
+            jit.AddConstant(MakeJitConstant("IS_DYNAMIC_CROP", 1));
         for (size_t input_idx = 0; input_idx < ew.inputs.size(); input_idx++) {
             const auto &input = ew.inputs[input_idx];
             const std::string name = "INPUT_" + op_num_str + "_" + toCodeString(input_idx);
@@ -330,7 +350,7 @@ JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& param
                         jit.AddConstant(MakeJitConstant(name,
                                                         "input" + toCodeString(input.index) +
                                                         "[GET_INDEX(INPUT, " + toCodeString(input.index) +
-                                                        "," + idx_order + ")]"));
+                                                        "," + idx_order + ") " + (is_dynamic_crop_kernel ? "+ runtime_offset]" : "]")));
                     break;
                 case EltwiseInputMode::OUTPUT_BUFFER:
                     jit.AddConstant(MakeJitConstant(name, "output[GET_INDEX(OUTPUT,,OUTPUT_IDX_ORDER)]"));
@@ -711,7 +731,13 @@ KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params, const 
                                    GetFusedPrimitiveInputsCount(params),
                                    1,
                                    is_dynamic);
-
+    if (params.is_shape_agnostic && newParams.operations[0].mode == EltwiseMode::ASSIGN) {
+        kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
+        kernel_selector::ScalarDescriptor s;
+        s.t = kernel_selector::ScalarDescriptor::Types::UINT32;
+        s.v.u32 = 0;
+        kernel.params.scalars.push_back(s);
+    }
     return {kd};
 }
 }  // namespace kernel_selector

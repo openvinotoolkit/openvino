@@ -29,6 +29,7 @@ TF_OP_CONVERTER(translate_iterator_op);
 TF_OP_CONVERTER(translate_lookup_table_insert_op);
 TF_OP_CONVERTER(translate_partitioned_call_op);
 TF_OP_CONVERTER(translate_queue_dequeue_op);
+TF_OP_CONVERTER(translate_queue_dequeue_many_op);
 TF_OP_CONVERTER(translate_sparse_fill_empty_rows_op);
 TF_OP_CONVERTER(translate_sparse_reshape_op);
 TF_OP_CONVERTER(translate_sparse_segment_sum_op);
@@ -132,6 +133,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"DynamicPartition", translate_dynamic_partition_op},
         {"Einsum", translate_einsum_op},
         {"Elu", translate_elu_op},
+        {"EmptyTensorList", translate_tensor_list_reserve_op},
         {"ExpandDims", translate_expand_dims_op},
         {"ExtractImagePatches", translate_extract_image_patches_op},
         {"FakeQuantWithMinMaxVars", translate_fake_quant_op},
@@ -186,9 +188,9 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"PadV2", translate_padv2_op},
         {"QueueDequeue", translate_queue_dequeue_op},
         {"QueueDequeueV2", translate_queue_dequeue_op},
-        {"QueueDequeueUpTo", translate_queue_dequeue_op},
-        {"QueueDequeueUpToV2", translate_queue_dequeue_op},
-        {"QueueDequeueMany", translate_queue_dequeue_op},
+        {"QueueDequeueUpTo", translate_queue_dequeue_many_op},
+        {"QueueDequeueUpToV2", translate_queue_dequeue_many_op},
+        {"QueueDequeueMany", translate_queue_dequeue_many_op},
         {"DynamicStitch", translate_parallel_dynamic_stitch_op},
         {"ParallelDynamicStitch", translate_parallel_dynamic_stitch_op},
         {"PartitionedCall", translate_partitioned_call_op},
@@ -237,6 +239,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"StridedSlice", translate_strided_slice_op},
         {"TensorListFromTensor", translate_tensor_list_from_tensor_op},
         {"TensorListGetItem", translate_tensor_list_get_item_op},
+        {"TensorListPushBack", translate_tensor_list_push_back_op},
         {"TensorListSetItem", translate_tensor_list_set_item_op},
         {"TensorListStack", translate_tensor_list_stack_op},
         {"TensorListReserve", translate_tensor_list_reserve_op},
