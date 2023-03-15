@@ -38,8 +38,16 @@ Tensor::Tensor(const std::shared_ptr<ITensor>& impl, const std::vector<std::shar
     OPENVINO_ASSERT(_impl != nullptr, "Tensor was not initialized.");
 }
 
-Tensor::Tensor(const element::Type& element_type, const Shape& shape, const Allocator& allocator)
-    : _impl{make_tensor(element_type, shape, allocator)} {}
+Tensor::Tensor(const element::Type element_type, const Shape& shape, const Allocator& allocator) {
+    OPENVINO_ASSERT(allocator, "Allocator was not initialized");
+    auto allocator_impl = dynamic_cast<const BlobAllocator*>(allocator._impl.get());
+    auto blob_allocator =
+        (allocator_impl != nullptr) ? allocator_impl->_impl : std::make_shared<ie::BlobAllocator>(allocator._impl);
+    _impl = make_blob_with_precision(
+        {ie::details::convertPrecision(element_type), shape, ie::TensorDesc::getLayoutByRank(shape.size())},
+        blob_allocator);
+    _impl->allocate();
+}
 
 Tensor::Tensor(const element::Type& element_type, const Shape& shape, void* host_ptr, const Strides& byte_strides)
     : _impl{make_tensor(element_type, shape, host_ptr, byte_strides)} {}
@@ -67,8 +75,8 @@ void Tensor::set_shape(const ov::Shape& shape) {
     OV_TENSOR_STATEMENT(_impl->set_shape(shape));
 }
 
-const Shape& Tensor::get_shape() const {
-    OV_TENSOR_STATEMENT(return _impl->get_shape());
+Shape Tensor::get_shape() const {
+    OV_TENSOR_STATEMENT({ return _impl->getTensorDesc().getDims(); });
 }
 
 void Tensor::copy_to(ov::Tensor& dst) const {
