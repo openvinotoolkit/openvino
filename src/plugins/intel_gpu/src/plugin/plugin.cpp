@@ -54,6 +54,9 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::gpu;
 using namespace InferenceEngine::details;
 
+using ms = std::chrono::duration<double, std::ratio<1, 1000>>;
+using Time = std::chrono::high_resolution_clock;
+
 namespace ov {
 namespace intel_gpu {
 
@@ -109,7 +112,10 @@ void Plugin::transform_model(std::shared_ptr<ov::Model>& model, const ExecutionC
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::transform_model");
     auto deviceInfo = device_map.at(config.get_property(ov::device::id))->get_info();
     TransformationsPipeline transformations(config, deviceInfo);
+
+    auto start = Time::now();
     transformations.apply(model);
+    GPU_DEBUG_LOG << "Transformations time: " << std::chrono::duration_cast<ms>(Time::now() - start).count() << " ms" << std::endl;
 }
 
 InferenceEngine::CNNNetwork Plugin::clone_and_transform_model(const InferenceEngine::CNNNetwork& network,

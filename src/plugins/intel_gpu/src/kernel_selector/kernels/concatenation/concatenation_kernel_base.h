@@ -18,6 +18,9 @@ struct concatenation_params : public base_params {
     bool isAligned = true;
     size_t misalignment = 0;
 
+    size_t kernel_split_id = 0;
+    MultiDataTensor original_input_layouts;
+
     ParamsKey GetParamsKey() const override {
         auto k = base_params::GetParamsKey();
         k.EnableConcatAxis(axis);

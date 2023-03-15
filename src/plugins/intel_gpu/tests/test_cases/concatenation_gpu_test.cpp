@@ -89,6 +89,200 @@ TEST(concat_gpu, mixed_input_types) {
     }
 }
 
+TEST(concat_gpu, dynamic_4d_f) {
+    auto& engine = get_test_engine();
+
+    layout layout0_dyn = {{1, -1, -1, -1}, data_types::f32, format::bfyx};
+    layout layout1_dyn = {{1, -1,  3, -1}, data_types::f32, format::bfyx};
+    layout layout2_dyn = {{1,  3,  3, -1}, data_types::f32, format::bfyx};
+    layout layout3_dyn = {{1, -1, -1, -1}, data_types::f32, format::bfyx};
+
+    topology topology(
+            input_layout("input0", layout0_dyn),
+            input_layout("input1", layout1_dyn),
+            input_layout("input2", layout2_dyn),
+            input_layout("input3", layout3_dyn),
+            concatenation("concat",
+                          { input_info("input0"), input_info("input1"), input_info("input2"), input_info("input3") },
+                          1,
+                          data_types::f32,
+                          padding{ { 0,0,0,0 }, 0 })
+    );
+
+    ExecutionConfig config{ov::intel_gpu::allow_new_shape_infer(true)};
+
+    auto network = cldnn::network::build_network(engine, topology, config);
+
+    auto run_on_shapes = [&](layout layout0, layout layout1, layout layout2, layout layout3) {
+        auto input0 = engine.allocate_memory(layout0);
+        auto input1 = engine.allocate_memory(layout1);
+        auto input2 = engine.allocate_memory(layout2);
+        auto input3 = engine.allocate_memory(layout3);
+
+        int counter = 0;
+
+        {
+            cldnn::mem_lock<float> ptr0(input0, get_test_stream());
+            cldnn::mem_lock<float> ptr1(input1, get_test_stream());
+            cldnn::mem_lock<float> ptr2(input2, get_test_stream());
+            cldnn::mem_lock<float> ptr3(input3, get_test_stream());
+
+            for (size_t i = 0; i < input0->count(); i++) {
+                ptr0[i] = counter++;
+            }
+            for (size_t i = 0; i < input1->count(); i++) {
+                ptr1[i] = counter++;
+            }
+            for (size_t i = 0; i < input2->count(); i++) {
+                ptr2[i] = counter++;
+            }
+            for (size_t i = 0; i < input3->count(); i++) {
+                ptr3[i] = counter++;
+            }
+        }
+        std::vector<float> expected_out(input0->count() + input1->count() + input2->count() + input3->count());
+        std::iota(std::begin(expected_out), std::end(expected_out), 0);
+
+        network->set_input_data("input0", input0);
+        network->set_input_data("input1", input1);
+        network->set_input_data("input2", input2);
+        network->set_input_data("input3", input3);
+
+        auto outputs = network->execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "concat");
+
+        auto output_memory = outputs.at("concat").get_memory();
+        auto output_layout = output_memory->get_layout();
+        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+        ov::PartialShape expected_shape = layout0.get_partial_shape();
+        expected_shape[1] = layout0.get_partial_shape()[1] +
+                            layout1.get_partial_shape()[1] +
+                            layout2.get_partial_shape()[1] +
+                            layout3.get_partial_shape()[1];
+
+        ASSERT_EQ(output_layout.get_partial_shape(), expected_shape);
+
+        for (size_t i = 0; i < output_layout.count(); ++i) {
+            ASSERT_EQ(expected_out[i], output_ptr[i]) << " i = " << i;
+        }
+    };
+
+
+    run_on_shapes({{1, 3, 3, 2}, data_types::f32, format::bfyx},
+                  {{1, 5, 3, 2}, data_types::f32, format::bfyx},
+                  {{1, 3, 3, 2}, data_types::f32, format::bfyx},
+                  {{1, 1, 3, 2}, data_types::f32, format::bfyx});
+
+    run_on_shapes({{1, 2, 3, 2}, data_types::f32, format::bfyx},
+                  {{1, 5, 3, 2}, data_types::f32, format::bfyx},
+                  {{1, 3, 3, 2}, data_types::f32, format::bfyx},
+                  {{1, 2, 3, 2}, data_types::f32, format::bfyx});
+
+    run_on_shapes({{1, 2, 3, 4}, data_types::f32, format::bfyx},
+                  {{1, 5, 3, 4}, data_types::f32, format::bfyx},
+                  {{1, 3, 3, 4}, data_types::f32, format::bfyx},
+                  {{1, 2, 3, 4}, data_types::f32, format::bfyx});
+}
+
+TEST(concat_gpu, dynamic_6d_f) {
+    auto& engine = get_test_engine();
+
+    layout layout0_dyn = {{1, -1, -1, -1, -1, -1}, data_types::f32, format::bfwzyx};
+    layout layout1_dyn = {{1, -1,  3, -1, -1, -1}, data_types::f32, format::bfwzyx};
+    layout layout2_dyn = {{1,  3,  3, -1, -1, -1}, data_types::f32, format::bfwzyx};
+    layout layout3_dyn = {{1, -1, -1, -1, -1, -1}, data_types::f32, format::bfwzyx};
+
+    topology topology(
+            input_layout("input0", layout0_dyn),
+            input_layout("input1", layout1_dyn),
+            input_layout("input2", layout2_dyn),
+            input_layout("input3", layout3_dyn),
+            concatenation("concat",
+                          { input_info("input0"), input_info("input1"), input_info("input2"), input_info("input3") },
+                          1,
+                          data_types::f32,
+                          padding{ { 0,0,0,0 }, 0 })
+    );
+
+    ExecutionConfig config{ov::intel_gpu::allow_new_shape_infer(true)};
+
+    auto network = cldnn::network::build_network(engine, topology, config);
+
+    auto run_on_shapes = [&](layout layout0, layout layout1, layout layout2, layout layout3) {
+        auto input0 = engine.allocate_memory(layout0);
+        auto input1 = engine.allocate_memory(layout1);
+        auto input2 = engine.allocate_memory(layout2);
+        auto input3 = engine.allocate_memory(layout3);
+
+        int counter = 0;
+
+        {
+            cldnn::mem_lock<float> ptr0(input0, get_test_stream());
+            cldnn::mem_lock<float> ptr1(input1, get_test_stream());
+            cldnn::mem_lock<float> ptr2(input2, get_test_stream());
+            cldnn::mem_lock<float> ptr3(input3, get_test_stream());
+
+            for (size_t i = 0; i < input0->count(); i++) {
+                ptr0[i] = counter++;
+            }
+            for (size_t i = 0; i < input1->count(); i++) {
+                ptr1[i] = counter++;
+            }
+            for (size_t i = 0; i < input2->count(); i++) {
+                ptr2[i] = counter++;
+            }
+            for (size_t i = 0; i < input3->count(); i++) {
+                ptr3[i] = counter++;
+            }
+        }
+        std::vector<float> expected_out(input0->count() + input1->count() + input2->count() + input3->count());
+        std::iota(std::begin(expected_out), std::end(expected_out), 0);
+
+        network->set_input_data("input0", input0);
+        network->set_input_data("input1", input1);
+        network->set_input_data("input2", input2);
+        network->set_input_data("input3", input3);
+
+        auto outputs = network->execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "concat");
+
+        auto output_memory = outputs.at("concat").get_memory();
+        auto output_layout = output_memory->get_layout();
+        cldnn::mem_lock<float> output_ptr(output_memory, get_test_stream());
+
+        ov::PartialShape expected_shape = layout0.get_partial_shape();
+        expected_shape[1] = layout0.get_partial_shape()[1] +
+                            layout1.get_partial_shape()[1] +
+                            layout2.get_partial_shape()[1] +
+                            layout3.get_partial_shape()[1];
+
+        ASSERT_EQ(output_layout.get_partial_shape(), expected_shape);
+
+        for (size_t i = 0; i < output_layout.count(); ++i) {
+            ASSERT_EQ(expected_out[i], output_ptr[i]) << " i = " << i;
+        }
+    };
+
+
+    run_on_shapes({{1, 3, 3, 2, 3, 4}, data_types::f32, format::bfwzyx},
+                  {{1, 5, 3, 2, 3, 4}, data_types::f32, format::bfwzyx},
+                  {{1, 3, 3, 2, 3, 4}, data_types::f32, format::bfwzyx},
+                  {{1, 1, 3, 2, 3, 4}, data_types::f32, format::bfwzyx});
+
+    run_on_shapes({{1, 2, 3, 2, 2, 2}, data_types::f32, format::bfwzyx},
+                  {{1, 5, 3, 2, 2, 2}, data_types::f32, format::bfwzyx},
+                  {{1, 3, 3, 2, 2, 2}, data_types::f32, format::bfwzyx},
+                  {{1, 2, 3, 2, 2, 2}, data_types::f32, format::bfwzyx});
+
+    run_on_shapes({{1, 2, 3, 4, 1, 3}, data_types::f32, format::bfwzyx},
+                  {{1, 5, 3, 4, 1, 3}, data_types::f32, format::bfwzyx},
+                  {{1, 3, 3, 4, 1, 3}, data_types::f32, format::bfwzyx},
+                  {{1, 2, 3, 4, 1, 3}, data_types::f32, format::bfwzyx});
+}
+
 TEST(concat_gpu, mixed_input_types_5d) {
     auto& engine = get_test_engine();
 

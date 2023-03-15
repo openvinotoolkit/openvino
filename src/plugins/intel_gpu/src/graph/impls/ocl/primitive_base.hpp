@@ -174,8 +174,12 @@ protected:
             return;
         }
 
+        OPENVINO_ASSERT(_kernels.size() == _kernel_data.kernels.size(), "[GPU] Mismatch between compiled kernels count and expected kernels data\n",
+                                                                        "[GPU] Compiled kernels count: ", _kernels.size(), "\n",
+                                                                        "[GPU] KernelData count: ", _kernel_data.kernels.size(), "\n",
+                                                                        "[GPU] Likely some issue with empty tensors hanlding happened");
+
         stream& stream = instance.get_network().get_stream();
-        size_t k_idx = 0;
         for (size_t kd_idx = 0; kd_idx < _kernel_data.kernels.size(); ++kd_idx) {
             if (_kernel_data.kernels[kd_idx].skip_execution) {
                 continue;
@@ -188,7 +192,7 @@ protected:
                 args.intermediates.push_back(m);
             }
 
-            stream.set_arguments(*_kernels[k_idx++], _kernel_data.kernels[kd_idx].params, args);
+            stream.set_arguments(*_kernels[kd_idx], _kernel_data.kernels[kd_idx].params, args);
         }
     }
 
@@ -216,7 +220,10 @@ protected:
         }
         std::vector<event::ptr> tmp_events(events);
         std::vector<event::ptr> all_events;
-        size_t k_idx = 0;
+        OPENVINO_ASSERT(_kernels.size() == _kernel_data.kernels.size(), "[GPU] Mismatch between compiled kernels count and expected kernels data\n",
+                                                                        "[GPU] Compiled kernels count: ", _kernels.size(), "\n",
+                                                                        "[GPU] KernelData count: ", _kernel_data.kernels.size(), "\n",
+                                                                        "[GPU] Likely some issue with empty tensors hanlding happened");
         for (size_t kd_idx = 0; kd_idx < _kernel_data.kernels.size(); ++kd_idx) {
             if (_kernel_data.kernels[kd_idx].skip_execution)
                 continue;
@@ -237,7 +244,7 @@ protected:
                 args.intermediates.push_back(m);
             }
 
-            auto ev = stream.enqueue_kernel(*_kernels[k_idx++], _kernel_data.kernels[kd_idx].params, args, tmp_events, is_output_event);
+            auto ev = stream.enqueue_kernel(*_kernels[kd_idx], _kernel_data.kernels[kd_idx].params, args, tmp_events, is_output_event);
             new_events.push_back(ev);
             all_events.push_back(ev);
 
@@ -258,8 +265,7 @@ protected:
     std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {
         std::vector<std::shared_ptr<cldnn::kernel_string>> kernel_strings;
         for (size_t i = 0; i < _kernel_data.kernels.size(); ++i) {
-            if (!_kernel_data.kernels[i].skip_execution)
-                kernel_strings.push_back(_kernel_data.kernels[i].code.kernelString);
+            kernel_strings.push_back(_kernel_data.kernels[i].code.kernelString);
         }
         return kernel_strings;
     }
@@ -272,9 +278,8 @@ protected:
 
     void update_kernels_list_to_skip() {
         for (size_t i = 0; i < _kernel_data.kernels.size(); ++i) {
-            auto gws = _kernel_data.kernels[0].params.workGroups.global;
-            _kernel_data.kernels[0].skip_execution =
-                (std::accumulate(gws.begin(), gws.end(), 1, std::multiplies<size_t>()) == 0);
+            auto gws = _kernel_data.kernels[i].params.workGroups.global;
+            _kernel_data.kernels[i].skip_execution = (std::accumulate(gws.begin(), gws.end(), 1, std::multiplies<size_t>()) == 0);
         }
     }
 
