@@ -15,7 +15,7 @@ Step 1: Set Up Environment
 1. Clone the repositories.
    
    .. code-block:: sh
-
+      
       git clone https://git.yoctoproject.org/git/poky
       git clone https://git.yoctoproject.org/meta-intel
       git clone https://git.openembedded.org/meta-openembedded
@@ -25,14 +25,14 @@ Step 1: Set Up Environment
 2. Set up the OpenEmbedded build environment.
 
    .. code-block:: sh
-
+      
       source poky/oe-init-build-env
    
 
 3. Add BitBake layers.
 
    .. code-block:: sh
-
+      
       bitbake-layers add-layer ../meta-intel
       bitbake-layers add-layer ../meta-openembedded/meta-oe
       bitbake-layers add-layer ../meta-openembedded/meta-python
@@ -42,7 +42,7 @@ Step 1: Set Up Environment
 4. Verify if layers were added (optional step).
 
    .. code-block:: sh
-
+      
       bitbake-layers show-layers
    
 
@@ -50,7 +50,7 @@ Step 1: Set Up Environment
    Include extra configuration in the `conf/local.conf` file in your build directory as required.
 
    .. code-block:: sh
-
+      
       # Build with SSE4.2, AVX2 etc. extensions
       MACHINE = "intel-skylake-64"
    
@@ -82,19 +82,20 @@ Step 2: Build a Yocto Image with OpenVINO Packages
 Run BitBake to build your image with OpenVINO packages. For example, to build the minimal image, run the following command:
 
 .. code-block:: sh
-
+   
    bitbake core-image-minimal
 
 
 .. note:: 
    For validation/testing/reviewing purposes, you may consider using the ``nohup`` command and ensure that your vpn/ssh connection remains uninterrupted.
 
-## Step 3: Verify the Yocto Image
+Step 3: Verify the Yocto Image
+##############################
 
 Verify that OpenVINO packages were built successfully. Run the following command:
 
 .. code-block:: sh
-
+   
    oe-pkgdata-util list-pkgs | grep openvino
 
 
