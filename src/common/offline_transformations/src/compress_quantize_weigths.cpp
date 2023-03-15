@@ -4,8 +4,8 @@
 
 #include <compress_quantize_weights.hpp>
 #include <ngraph/opsets/opset8.hpp>
-#include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/pattern/op/or.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
 #include <openvino/pass/constant_folding.hpp>
