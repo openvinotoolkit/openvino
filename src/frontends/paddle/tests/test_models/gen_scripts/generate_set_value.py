@@ -10,18 +10,20 @@ import numpy as np
 import paddle
 from save_model import saveModel
 
+
 def concat(data):
-    data = [np.expand_dims(d, 0) for d in data] 
+    data = [np.expand_dims(d, 0) for d in data]
     return np.concatenate(data, axis=0)
 
 
-def paddle_set_value(name: str, x, value, callback, dtype, starts=None, ends=None, steps= None):
+def paddle_set_value(name: str, x, value, callback, dtype, starts=None, ends=None, steps=None, is_dynamic=False):
 
     paddle.enable_static()
 
     with paddle.static.program_guard(paddle.static.Program(), paddle.static.Program()):
         node_x = paddle.static.data(name="x", shape=x.shape, dtype=dtype)
         value_shape = (0,) if isinstance(value, (int, float)) else value.shape
+        value_shape = (-1,) * len(value_shape) if is_dynamic else value_shape
         node_v = paddle.static.data(name="v", shape=value_shape, dtype=dtype)
         cpu = paddle.static.cpu_places(1)
         exe = paddle.static.Executor(cpu[0])
@@ -76,13 +78,13 @@ def main():
         x[2:5] = value
         return x
 
-
     paddle_set_value("set_value2", data, value, set_value2, dtype)
 
     shape = (10, 2, 5)
     dtype = "int32"
     data = np.random.randint(0, 5, shape).astype(dtype)
     value = np.random.randint(0, 2, (10, 2, 3)).astype(dtype)
+
     def set_value3(x, value):
         x[:, :, -4:-1] = value
         return x
@@ -96,11 +98,12 @@ def main():
     starts = generate_data([-4, 0, 1], np.int64)
     ends = generate_data([-1, 1, 3], np.int64)
     steps = generate_data([1, 1, 1], np.int64)
-    def set_value3(x, value, *slice):
+
+    def set_value4(x, value, *slice):
         x[build_slice(*slice)] = value
         return x
 
-    paddle_set_value("set_value4", data, value, set_value3, dtype, starts, ends, steps)
+    paddle_set_value("set_value4", data, value, set_value4, dtype, starts, ends, steps)
 
     shape = (10, 5)
     dtype = "int32"
@@ -109,11 +112,37 @@ def main():
     starts = generate_data([-4], np.int64)
     ends = generate_data([-1], np.int64)
     steps = generate_data([1], np.int64)
-    def set_value3(x, value, *slice):
+
+    def set_value5(x, value, *slice):
         x[build_slice(*slice)] = value
         return x
 
-    paddle_set_value("set_value5", data, value, set_value3, dtype, starts, ends, steps)
+    paddle_set_value("set_value5", data, value, set_value5, dtype, starts, ends, steps)
+
+    shape = (10, 5)
+    dtype = "float32"
+    data = np.random.randint(0, 5, shape).astype(dtype)
+    value = np.random.randint(0, 2, (10, 3)).astype(dtype)
+
+    def set_value6(x, value):
+        x[:, -4:-1] = value
+        return x
+
+    paddle_set_value("set_value_dynamic1", data, value, set_value6, dtype, is_dynamic=True)
+
+    shape = (10, 5)
+    dtype = "int32"
+    data = np.random.randint(0, 5, shape).astype(dtype)
+    value = np.random.randint(0, 2, (1, )).astype(dtype)
+    starts = generate_data([-4], np.int64)
+    ends = generate_data([-1], np.int64)
+    steps = generate_data([1], np.int64)
+
+    def set_value7(x, value, *slice):
+        x[build_slice(*slice)] = value
+        return x
+
+    paddle_set_value("set_value_dynamic2", data, value, set_value7, dtype, starts, ends, steps, is_dynamic=True)
 
 if __name__ == "__main__":
     main()
