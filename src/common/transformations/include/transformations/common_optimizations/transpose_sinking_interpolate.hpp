@@ -17,12 +17,22 @@ class TRANSFORMATIONS_API TransposeSinkingInterpolateBackward;
 }  // namespace pass
 }  // namespace ov
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief TransposeSinkingInterpolateForward transformation sinks Transpose through Interpolate operation
+ * in the forward direction.
+ */
 class ov::pass::TransposeSinkingInterpolateForward : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ov::pass::TransposeSinkingInterpolateForward", "0");
     TransposeSinkingInterpolateForward();
 };
 
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief TransposeSinkingInterpolateBackward transformation sinks Transpose through Interpolate operation
+ * in the backward direction.
+ */
 class ov::pass::TransposeSinkingInterpolateBackward : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("ov::pass::TransposeSinkingInterpolateBackward", "0");
