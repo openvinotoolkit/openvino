@@ -578,6 +578,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
                                                           const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, ie::itt::domains::IE_LT, "Core::compile_model::Path");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
+    // in case of compile_model(file_name), we need to clear-up core-level properties
+    clean_properties(parsed._deviceName, parsed._config, ov::auto_batch_timeout);
+    clean_properties(parsed._deviceName, parsed._config, ov::hint::allow_auto_batching);
+    clean_properties(parsed._deviceName, parsed._config, ov::cache_dir);
     auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<ov::ICompiledModel> compiled_model;
 
@@ -608,6 +612,10 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
                                                           const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::compile_model::from_memory");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
+    // in case of compile_model(file_name), we need to clear-up core-level properties
+    clean_properties(parsed._deviceName, parsed._config, ov::auto_batch_timeout);
+    clean_properties(parsed._deviceName, parsed._config, ov::hint::allow_auto_batching);
+    clean_properties(parsed._deviceName, parsed._config, ov::cache_dir);
     auto plugin = get_plugin(parsed._deviceName);
     ov::SoPtr<ov::ICompiledModel> compiled_model;
 
@@ -786,6 +794,7 @@ void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& m
         } catch (const std::runtime_error&) {
             return;
         }
+
         // check whether the Auto-Batching is disabled explicitly
         const auto& batch_mode = config.find(ov::hint::allow_auto_batching.name());
         if (batch_mode != config.end()) {
@@ -793,7 +802,7 @@ void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& m
             // virtual plugins like AUTO/MULTI will need the config
             // e.g to deduce the #requests correctly
             // otherwise, no need for this config key in the rest of loading
-            if (deviceName.find("AUTO") == std::string::npos && deviceName.find("MULTI") == std::string::npos)
+            if (!is_virtual_device(deviceName))
                 config.erase(batch_mode);
             if (disabled)
                 return;
@@ -844,7 +853,7 @@ void ov::CoreImpl::clean_properties(std::string& deviceName, ov::AnyMap& config,
     if (deviceName.find("BATCH") == std::string::npos) {
         const auto& batch_timeout_mode = config.find(property.as<std::string>());
         if (batch_timeout_mode != config.end()) {
-            if (deviceName.find("AUTO") == std::string::npos && deviceName.find("MULTI") == std::string::npos)
+            if (!is_virtual_device(deviceName))
                 config.erase(batch_timeout_mode);
         }
     }
