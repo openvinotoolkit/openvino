@@ -36,11 +36,13 @@ std::shared_ptr<ov::Model> TranslateSession::get_converted_model() {
 std::shared_ptr<ov::Model> TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& input_model) {
     auto pytorch_model = std::dynamic_pointer_cast<pytorch::InputModel>(input_model);
     FRONT_END_GENERAL_CHECK(pytorch_model != nullptr, "Invalid input model");
-    return convert_pytorch_model(pytorch_model->m_model);
+    return convert_pytorch_model(pytorch_model->m_model_decoder, {}, pytorch_model->m_descriptors);
 }
 
-std::shared_ptr<Model> TranslateSession::convert_pytorch_model(std::shared_ptr<TorchDecoder> pytorch_model,
-                                                               const TensorMap& external_tensor_map) {
+std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
+    std::shared_ptr<TorchDecoder> pytorch_model,
+    const TensorMap& external_tensor_map,
+    const std::unordered_map<size_t, PlaceDesc>& external_descriptors) {
     std::shared_ptr<Model> resulting_model;  // define here to make a conversion in a nested scope
     {
         ParameterVector parameters;
@@ -50,28 +52,46 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(std::shared_ptr<T
         //  Go over all pytorch_model inputs and register them in the tensor map:
         auto inputs = pytorch_model->inputs();
         for (size_t i = 0; i < inputs.size(); ++i) {
-            PartialShape ps = pytorch_model->get_input_shape(i);
-            auto type = simplified_type_interpret(pytorch_model->get_input_type(i));
-            // TODO: Use special API to set custom type detalization
-            auto parameter = std::make_shared<v0::Parameter>(element::dynamic, ps);
-            encode_tensor_name(parameter->output(0), inputs.at(i), pytorch_model->get_input_debug_name(i));
-            parameters.push_back(parameter);
-            auto order = pytorch_model->get_input_transpose_order(i);
-            if (order.size() > 0 && !std::is_sorted(order.begin(), order.end())) {
-                FRONT_END_GENERAL_CHECK(ps.is_static(), "Shape must be static.");  // TODO: make dynamic
-                auto sh = ps.get_shape();
-                Shape new_shape(sh.size());
-                for (size_t i = 0; i < sh.size(); i++) {
-                    new_shape[order[i]] = sh[i];
+            std::shared_ptr<Node> input_node;
+            element::Type type = element::dynamic;
+            PartialShape pshape;
+            auto desc = external_descriptors.find(inputs[i]);
+            if (desc != external_descriptors.end()) {
+                if (desc->second.m_value) {
+                    input_node = desc->second.m_value;
+                } else {
+                    pshape = desc->second.m_pshape;
+                    type = desc->second.m_type;
                 }
-                auto shape_const = v0::Constant::create(element::i64, {new_shape.size()}, new_shape);
-                auto reshape = std::make_shared<v1::Reshape>(parameter, shape_const, false);
-                auto order_const = v0::Constant::create(element::i32, {order.size()}, order);
-                auto transpose = std::make_shared<v1::Transpose>(reshape, order_const);
-                tensor_map[inputs.at(i)] = transpose;
             } else {
-                tensor_map[inputs.at(i)] = parameter;
+                pshape = pytorch_model->get_input_shape(i);
+                auto type_any = simplified_type_interpret(pytorch_model->get_input_type(i));
+                // TODO: Use special API to set custom type specification
+                if (type_any.is<element::Type>()) {
+                    type = type_any.as<element::Type>();
+                }
             }
+            if (!input_node) {
+                auto parameter = std::make_shared<v0::Parameter>(type, pshape);
+                encode_tensor_name(parameter->output(0), inputs.at(i), pytorch_model->get_input_debug_name(i));
+                parameters.push_back(parameter);
+                input_node = parameter;
+                auto order = pytorch_model->get_input_transpose_order(i);
+                if (order.size() > 0 && !std::is_sorted(order.begin(), order.end())) {
+                    FRONT_END_GENERAL_CHECK(pshape.is_static(), "Shape must be static.");  // TODO: make dynamic
+                    auto sh = pshape.get_shape();
+                    Shape new_shape(sh.size());
+                    for (size_t i = 0; i < sh.size(); i++) {
+                        new_shape[order[i]] = sh[i];
+                    }
+                    auto shape_const = v0::Constant::create(element::i32, {new_shape.size()}, new_shape);
+                    auto reshape = std::make_shared<v1::Reshape>(parameter, shape_const, false);
+                    auto order_const = v0::Constant::create(element::i32, {order.size()}, order);
+                    auto transpose = std::make_shared<v1::Transpose>(reshape, order_const);
+                    input_node = transpose;
+                }
+            }
+            tensor_map[inputs.at(i)] = input_node;
         }
 
         auto node_visitor = [&](std::shared_ptr<TorchDecoder> node) {
@@ -88,7 +108,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(std::shared_ptr<T
                     // TODO: Eliminate duplication with the main code for Parameters creation
                     PartialShape ps = node->get_input_shape(i);
                     auto type = simplified_type_interpret(node->get_input_type(i));
-                    // TODO: Use special API to set custom type detalization
+                    // TODO: Use special API to set custom type specification
                     auto parameter = std::make_shared<v0::Parameter>(element::dynamic, ps);
                     // TODO: Missing get_input_transpose_order handling for not trivial layouts
                     tensor_map[input] = parameter;

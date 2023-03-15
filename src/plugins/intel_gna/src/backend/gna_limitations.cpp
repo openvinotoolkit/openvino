@@ -19,12 +19,8 @@
 #include "log/log.hpp"
 #include "ops/util/util.hpp"
 
-namespace ov {
-namespace intel_gna {
-using namespace common;
-namespace limitations {
-namespace {
-std::ostream& operator<<(std::ostream& os, const std::set<ov::element::Type>& t) {
+namespace std {
+inline std::ostream& operator<<(std::ostream& os, const std::set<ov::element::Type>& t) {
     for (auto it = t.begin(); it != t.end(); ++it) {
         if (it != t.begin()) {
             os << ", " << *it;
@@ -34,7 +30,12 @@ std::ostream& operator<<(std::ostream& os, const std::set<ov::element::Type>& t)
     }
     return os;
 }
-}  // namespace
+}  // namespace std
+
+namespace ov {
+namespace intel_gna {
+using namespace target;
+namespace limitations {
 
 const std::set<ov::element::Type> SupportedElementTypes::supported_parameter_types = {ov::element::u8,
                                                                                       ov::element::i16,
@@ -71,7 +72,7 @@ bool SupportedElementTypes::is_constant_type_supported(ov::element::Type elem_ty
 }
 
 bool is_conv_supported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie,
-                       const ov::intel_gna::common::DeviceVersion& effective_compile_target,
+                       const DeviceVersion& effective_compile_target,
                        const InferenceEngine::Precision gna_precision,
                        bool is_exception_allowed) {
     OPENVINO_ASSERT(conv_ie, "ConvolutionIE node is empty!");
@@ -129,7 +130,7 @@ bool is_conv_supported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie
 }
 
 bool is_pooling_supported(const std::shared_ptr<ngraph::opset7::MaxPool> max_pool,
-                          const ov::intel_gna::common::DeviceVersion& effective_compile_target,
+                          const DeviceVersion& effective_compile_target,
                           bool is_exception_allowed) {
     OPENVINO_ASSERT(max_pool, "MaxPool node is empty!");
     auto kernels = max_pool->get_kernel();
@@ -172,7 +173,7 @@ bool is_split_supported(const std::shared_ptr<ov::Node>& node, bool is_exception
 }
 
 bool is_op_supported(const std::shared_ptr<ov::Node>& node,
-                     const ov::intel_gna::common::DeviceVersion& effective_compile_target,
+                     const DeviceVersion& effective_compile_target,
                      const InferenceEngine::Precision gna_precision,
                      bool is_exception_allowed) {
     if (ov::op::util::is_parameter(node)) {
@@ -210,7 +211,7 @@ bool is_op_supported(const std::shared_ptr<ov::Node>& node,
 }
 
 void check_all_ops_supported(const std::shared_ptr<ov::Model>& model,
-                             const ov::intel_gna::common::DeviceVersion& effective_compile_target,
+                             const DeviceVersion& effective_compile_target,
                              const InferenceEngine::Precision gna_precision) {
     std::stringstream error;
     // Walk through the transformed model
@@ -627,13 +628,15 @@ bool Validator_35::ShouldUseOnlyConv2DGnaIface() const {
     return true;
 }
 
-std::unique_ptr<AbstractValidator> AbstractValidator::Create(const common::DeviceVersion& target) {
+std::unique_ptr<AbstractValidator> AbstractValidator::Create(const DeviceVersion& target) {
     switch (target) {
     case DeviceVersion::GNA3_0:
-    case DeviceVersion::GNAEmbedded3_1:
+    case DeviceVersion::GNA3_1:
         return tools::make_unique<Validator_30>();
     case DeviceVersion::GNA3_5:
     case DeviceVersion::GNAEmbedded3_5:
+    case DeviceVersion::GNA3_6:
+    case DeviceVersion::GNA4_0:
         return tools::make_unique<Validator_35>();
     default:
         return nullptr;
@@ -659,8 +662,8 @@ bool AbstractValidator::ValidationSuccesful(const bool throwOnError,
 }
 
 bool UseOnly16BitConvolutionWeights(const DeviceVersion& compile_target) {
-    return (compile_target == common::DeviceVersion::GNA2_0 || compile_target == common::DeviceVersion::GNA3_0) ||
-           compile_target == common::DeviceVersion::GNAEmbedded3_1;
+    return compile_target == DeviceVersion::GNA1_0 || compile_target == DeviceVersion::GNA2_0 ||
+           compile_target == DeviceVersion::GNA3_0 || compile_target == DeviceVersion::GNA3_1;
 }
 
 }  // namespace cnn2d

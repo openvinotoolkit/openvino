@@ -26,7 +26,8 @@ ParamsKey BorderKernelRef::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
-
+    k.EnableDifferentTypes();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 

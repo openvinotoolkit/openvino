@@ -34,12 +34,14 @@ auto configs = []() {
 };
 
 auto Multiconfigs = []() {
-    return std::vector<ov::AnyMap>{{ov::device::priorities(CommonTestUtils::DEVICE_GPU)},
+    return std::vector<ov::AnyMap>{
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU)},
 #ifdef ENABLE_INTEL_CPU
-                                   {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU),
-                                    ov::intel_auto::device_bind_buffer(false)},
-                                   {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU),
-                                    ov::intel_auto::device_bind_buffer(true)}
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU), ov::enable_profiling(true)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU),
+         ov::intel_auto::device_bind_buffer(false)},
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU),
+         ov::intel_auto::device_bind_buffer(true)}
 #endif
     };
 };
@@ -85,4 +87,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoBatch_BehaviorTests, OVInferRequestPerfCounte
                                  ::testing::Values(CommonTestUtils::DEVICE_BATCH),
                                  ::testing::ValuesIn(AutoBatchConfigs())),
                          OVInferRequestPerfCountersTest::getTestCaseName);
+
+auto MulticonfigsTest = []() {
+    return std::vector<ov::AnyMap>{
+#ifdef ENABLE_INTEL_CPU
+        {ov::device::priorities(CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_CPU),
+         ov::device::priorities(CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU)}
+#endif
+    };
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Multi_BehaviorTests,
+                         OVInferRequestPerfCountersExceptionTest,
+                         ::testing::Combine(::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                                            ::testing::ValuesIn(MulticonfigsTest())),
+                         OVInferRequestPerfCountersExceptionTest::getTestCaseName);
 }  // namespace

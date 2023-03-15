@@ -21,7 +21,7 @@ function(ie_add_onednn)
         set(DNNL_ENABLE_ITT_TASKS OFF CACHE BOOL "" FORCE)
     endif()
     set(DNNL_ENABLE_CONCURRENT_EXEC ON CACHE BOOL "" FORCE)
-    set(DNNL_ENABLE_PRIMITIVE_CACHE OFF CACHE BOOL "" FORCE) ## TODO: try it later
+    set(DNNL_ENABLE_PRIMITIVE_CACHE ON CACHE BOOL "" FORCE) # Enable primitive cache for global sharing
     set(DNNL_ENABLE_MAX_CPU_ISA ON CACHE BOOL "" FORCE)
     set(DNNL_LIBRARY_TYPE "STATIC" CACHE STRING "" FORCE)
     set(DNNL_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -44,26 +44,6 @@ function(ie_add_onednn)
         set(OpenMP_cmake_included ON) ## to skip "omp simd" inside a code. Lead to some crashes inside NDK LLVM..
     endif()
 
-    if(SUGGEST_OVERRIDE_SUPPORTED)
-        # xbyak compilation fails
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
-    endif()
-    if(CMAKE_OSX_ARCHITECTURES STREQUAL "x86_64")
-        set(DNNL_TARGET_ARCH "X64")
-    elseif(CMAKE_OSX_ARCHITECTURES STREQUAL "arm64")
-        set(DNNL_TARGET_ARCH "AARCH64")
-    endif()
-    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-        ie_add_compiler_flags(-Wno-undef)
-        ie_add_compiler_flags(-Wno-missing-declarations)
-        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)
-            ie_add_compiler_flags(-Wno-array-bounds)
-            ie_add_compiler_flags(-Wno-stringop-overflow)
-        endif()
-    elseif(UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable=10121")
-    endif()
-
     # WA for old TBBConfig.cmake like tbb2019_20180718oss
     # they don't check that imported target is already created
     if(TBB_FOUND)
@@ -75,7 +55,25 @@ function(ie_add_onednn)
         link_libraries(TBB::tbb)
     endif()
 
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    if(CMAKE_OSX_ARCHITECTURES STREQUAL "x86_64")
+        set(DNNL_TARGET_ARCH "X64")
+    elseif(CMAKE_OSX_ARCHITECTURES STREQUAL "arm64")
+        set(DNNL_TARGET_ARCH "AARCH64")
+    endif()
+
+    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+        ie_add_compiler_flags(-Wno-undef)
+        ie_add_compiler_flags(-Wno-missing-declarations)
+        if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 11 AND CMAKE_COMPILER_IS_GNUCXX)
+            ie_add_compiler_flags(-Wno-array-bounds)
+            ie_add_compiler_flags(-Wno-stringop-overflow)
+            if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12)
+                ie_add_compiler_flags(-Wno-restrict)
+            endif()
+        endif()
+    elseif(UNIX AND CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -diag-disable=10121")
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         # C4849 OpenMP 'reduction' clause ignored in 'simd' directive
         ie_add_compiler_flags(/wd4849)
         # C4661 no suitable definition provided for explicit template instantiation request
@@ -86,6 +84,11 @@ function(ie_add_onednn)
         # C4334 '<<': result of 32-bit shift implicitly converted to 64 bits
         ie_add_compiler_flags(/wd4334)
     endif()
+    if(SUGGEST_OVERRIDE_SUPPORTED)
+        # xbyak compilation fails
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-suggest-override")
+    endif()
+
     add_subdirectory(onednn EXCLUDE_FROM_ALL)
     ov_install_static_lib(dnnl cpu)
 endfunction()
