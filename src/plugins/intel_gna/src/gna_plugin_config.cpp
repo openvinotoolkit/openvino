@@ -24,7 +24,7 @@ using namespace InferenceEngine::details;
 
 namespace ov {
 namespace intel_gna {
-using namespace common;
+using namespace target;
 
 const uint8_t Config::max_num_requests;
 
@@ -52,7 +52,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
         auto value = item.second;
 
         auto check_scale_factor = [&](float scale_factor) {
-            if (AreFpEq(scale_factor, 0.0f) || std::isinf(scale_factor)) {
+            if (common::AreFpEq(scale_factor, 0.0f) || std::isinf(scale_factor)) {
                 THROW_GNA_EXCEPTION << "input scale factor of 0.0f or +-inf not supported";
             }
         };
@@ -127,8 +127,6 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
         } else if (key == GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE) || key == ov::intel_gna::firmware_model_image_path) {
             embedded_export_path = value;
             OPENVINO_SUPPRESS_DEPRECATED_START
-        } else if (key == GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION)) {
-            dumpXNNGeneration = value;
         } else if (key == GNA_CONFIG_KEY(DEVICE_MODE) || key == ov::intel_gna::execution_mode) {
             auto procType = supported_values.find(value);
             if (procType == supported_values.end()) {
@@ -256,8 +254,6 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
             OPENVINO_SUPPRESS_DEPRECATED_END
         } else if (key == CONFIG_KEY(LOG_LEVEL) || key == ov::log::level) {
             gnaFlags.log_level = ov::util::from_string(value, ov::log::level);
-        } else if (key == ov::cache_dir) {
-            cacheDir = value;
         } else {
             IE_THROW(NotFound) << "[GNAPlugin] in function " << __PRETTY_FUNCTION__ << ": "
                                << "Incorrect GNA Plugin config. Key " << item.first << " not supported";
@@ -292,9 +288,6 @@ void Config::AdjustKeyMapValues() {
         }
     }
     keyConfigMap[ov::intel_gna::firmware_model_image_path.name()] = embedded_export_path;
-    IE_SUPPRESS_DEPRECATED_START
-    keyConfigMap[GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION)] = dumpXNNGeneration;
-    IE_SUPPRESS_DEPRECATED_END
     std::string device_mode;
     if (gnaFlags.sw_fp32) {
         device_mode = ov::util::to_string(ov::intel_gna::ExecutionMode::SW_FP32);
@@ -336,7 +329,6 @@ void Config::AdjustKeyMapValues() {
     keyConfigMap[ov::enable_profiling.name()] =
         gnaFlags.performance_counting ? PluginConfigParams::YES : PluginConfigParams::NO;
     keyConfigMap[ov::log::level.name()] = ov::util::to_string(gnaFlags.log_level);
-    keyConfigMap[ov::cache_dir.name()] = cacheDir;
 }
 
 Parameter Config::GetParameter(const std::string& name) const {
@@ -391,11 +383,10 @@ const Parameter Config::GetSupportedProperties(bool compiled) {
         {ov::hint::performance_mode.name(), ov::PropertyMutability::RW},
         {ov::log::level.name(), ov::PropertyMutability::RW},
         {ov::execution_devices.name(), ov::PropertyMutability::RO},
-        {ov::cache_dir.name(), ov::PropertyMutability::RW},
     };
 
-    const std::vector<ov::PropertyName> impacting_model_compilation_properties =
-        GetImpactingModelCompilationProperties(compiled);
+    const auto impacting_model_compilation_properties =
+        GetImpactingModelCompilationProperties(compiled).as<std::vector<ov::PropertyName>>();
 
     supported_properties.insert(supported_properties.end(),
                                 impacting_model_compilation_properties.begin(),

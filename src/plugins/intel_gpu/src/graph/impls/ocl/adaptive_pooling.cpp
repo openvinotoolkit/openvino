@@ -2,14 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/primitives/adaptive_pooling.hpp"
+#include "primitive_base.hpp"
 
+#include "adaptive_pooling_inst.h"
 #include "adaptive_pooling/adaptive_pooling_kernel_ref.h"
 #include "adaptive_pooling/adaptive_pooling_kernel_selector.h"
-#include "adaptive_pooling_inst.h"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
-#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {

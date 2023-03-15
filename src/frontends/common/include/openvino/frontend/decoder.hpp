@@ -50,6 +50,7 @@ public:
 
 class FRONTEND_API DecoderBase {
 public:
+    using OpTypeByName = std::unordered_map<std::string, std::string>;
     /// \brief Get attribute value by name
     ///
     /// \param name Attribute name
@@ -67,6 +68,17 @@ public:
     virtual void get_input_node(size_t input_port_idx,
                                 std::string& producer_name,
                                 size_t& producer_output_port_index) const = 0;
+
+    /// \brief Get a producer name and its output port index
+    ///
+    /// \param input_port_idx              Input port index by which data is consumed
+    /// \param producer_name               A producer name
+    /// \param producer_output_port_index  Output port index from which data is generated
+    /// \param op_type_by_name             Map of operation name to their types
+    virtual void get_input_node(size_t input_port_idx,
+                                std::string& producer_name,
+                                size_t& producer_output_port_index,
+                                const OpTypeByName& op_type_by_name) const = 0;
 
     /// \brief Get operation type
     virtual const std::string& get_op_type() const = 0;

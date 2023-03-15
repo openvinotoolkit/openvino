@@ -87,22 +87,58 @@ TEST_F(OVTensorTest, operators) {
     ASSERT_TRUE(!t);
 }
 
-class OVMockAllocator : public ov::AllocatorImpl {
+OPENVINO_SUPPRESS_DEPRECATED_START
+class OVMockAllocatorImpl : public ov::AllocatorImpl {
 public:
     MOCK_METHOD(void*, allocate, (size_t, size_t), ());
     MOCK_METHOD(void, deallocate, (void*, size_t, size_t), ());                  // NOLINT(readability/casting)
     MOCK_METHOD(bool, is_equal, (const ov::AllocatorImpl&), (const, noexcept));  // NOLINT(readability/casting)
 };
 
-TEST_F(OVTensorTest, canCreateTensorUsingMockAllocator) {
+OPENVINO_SUPPRESS_DEPRECATED_START
+TEST_F(OVTensorTest, canCreateTensorUsingMockAllocatorImpl) {
     ov::Shape shape = {1, 2, 3};
-    auto allocator = std::make_shared<OVMockAllocator>();
+    auto allocator = std::make_shared<OVMockAllocatorImpl>();
 
     EXPECT_CALL(*allocator, allocate(::testing::_, ::testing::_))
         .WillRepeatedly(testing::Return(reinterpret_cast<void*>(1)));
     EXPECT_CALL(*allocator, deallocate(::testing::_, ::testing::_, ::testing::_)).Times(1);
 
     { ov::Tensor t{ov::element::f32, shape, ov::Allocator{allocator}}; }
+}
+OPENVINO_SUPPRESS_DEPRECATED_END
+
+struct OVMockAllocator {
+    struct Impl {
+        MOCK_METHOD(void*, allocate, (size_t, size_t), ());
+        MOCK_METHOD(void, deallocate, (void*, size_t, size_t), ());
+        MOCK_METHOD(bool, is_equal, (const Impl&), (const, noexcept));
+    };
+    OVMockAllocator() : impl{std::make_shared<Impl>()} {}
+
+    void* allocate(size_t b, size_t a) {
+        return impl->allocate(b, a);
+    }
+
+    void deallocate(void* ptr, size_t b, size_t a) {
+        impl->deallocate(ptr, b, a);
+    }
+    bool is_equal(const OVMockAllocator& other) const {
+        return impl->is_equal(*other.impl);
+    }
+
+    std::shared_ptr<Impl> impl;
+};
+
+TEST_F(OVTensorTest, canCreateTensorUsingMockAllocator) {
+    ov::Shape shape = {1, 2, 3};
+    OVMockAllocator allocator;
+
+    EXPECT_CALL(*allocator.impl, allocate(::testing::_, ::testing::_))
+        .WillRepeatedly(testing::Return(reinterpret_cast<void*>(1)));
+    EXPECT_CALL(*allocator.impl, deallocate(::testing::_, ::testing::_, ::testing::_)).Times(1);
+
+    { ov::Tensor t{ov::element::f32, shape, allocator}; }
 }
 
 TEST_F(OVTensorTest, canAccessExternalData) {
@@ -235,7 +271,7 @@ TEST_F(OVTensorTest, canSetShapeOfSameSizeOnPreallocatedMemory) {
     ASSERT_NO_THROW(t.set_shape(newShape));
 }
 
-TEST_F(OVTensorTest, DISABLED_canSetShapeOfOriginalSizeAfterDecreasingOnPreallocatedMemory) {
+TEST_F(OVTensorTest, canSetShapeOfOriginalSizeAfterDecreasingOnPreallocatedMemory) {
     float data[4 * 5 * 6 * 2];
     ov::Tensor t{ov::element::f32, {4, 5, 6}, data};
     const ov::Shape smallerShape({1, 2, 3});
@@ -243,6 +279,16 @@ TEST_F(OVTensorTest, DISABLED_canSetShapeOfOriginalSizeAfterDecreasingOnPrealloc
 
     ASSERT_NO_THROW(t.set_shape(smallerShape));
     ASSERT_NO_THROW(t.set_shape(originalShape));
+}
+
+TEST_F(OVTensorTest, canChangeShapeOnStridedTensor) {
+    float data[64 * 4];
+    ov::Tensor t{ov::element::f32, {4, 2, 2}, data, {64, 16, 4}};
+    const ov::Shape incorrect_shape({2, 4, 2});
+    const ov::Shape correct_shape({1, 1, 2});
+
+    ASSERT_THROW(t.set_shape(incorrect_shape), ov::Exception);
+    ASSERT_NO_THROW(t.set_shape(correct_shape));
 }
 
 TEST_F(OVTensorTest, makeRangeRoiTensor) {
@@ -323,8 +369,10 @@ std::vector<T> fill_data(const ov::Tensor& tensor) {
     const T* data = tensor.data<T>();
     auto strides = tensor.get_strides();
     for (auto&& c : ngraph::CoordinateTransformBasic{tensor.get_shape()}) {
-        actual.emplace_back(
-            *(data + (c[2] * strides[2] + c[1] * strides[1] + c[0] * strides[0]) / tensor.get_element_type().size()));
+        size_t offset = 0;
+        for (size_t i = 0; i < strides.size(); i++)
+            offset += c[i] * strides[i];
+        actual.emplace_back(*(data + offset / tensor.get_element_type().size()));
     }
     return actual;
 };
@@ -388,13 +436,13 @@ void init_tensor(const ov::Tensor& tensor, bool input) {
         init_tensor<ov::element_type_traits<ov::element::u64>::value_type>(tensor, input);
         break;
     default:
-        OPENVINO_UNREACHABLE("Unsupported data type");
+        OPENVINO_THROW("Unsupported data type");
     }
 }
 
 void compare_tensors(const ov::Tensor& src, const ov::Tensor& dst) {
     ASSERT_EQ(src.get_byte_size(), dst.get_byte_size());
-    ASSERT_EQ(src.get_shape(), dst.get_shape());
+    ASSERT_EQ(src.get_size(), dst.get_size());
     ASSERT_EQ(src.get_element_type(), dst.get_element_type());
     switch (src.get_element_type()) {
     case ov::element::bf16:
@@ -434,7 +482,7 @@ void compare_tensors(const ov::Tensor& src, const ov::Tensor& dst) {
         compare_data<ov::element_type_traits<ov::element::u64>::value_type>(src, dst);
         break;
     default:
-        OPENVINO_UNREACHABLE("Unsupported data type");
+        OPENVINO_THROW("Unsupported data type");
     }
 }
 }  // namespace
@@ -501,6 +549,18 @@ INSTANTIATE_TEST_SUITE_P(copy_tests,
                                                               TestParams {
                                                                   ov::Shape{3, 2, 2}, ov::Strides{64, 16, 8},
                                                                   ov::Shape{3, 2, 2}, ov::Strides{128, 24, 8}
+                                                              },
+                                                              TestParams {
+                                                                  ov::Shape{}, {}, 
+                                                                  {}, {}
+                                                              },
+                                                              TestParams {
+                                                                  ov::Shape{1}, {}, 
+                                                                  {}, {}
+                                                              },
+                                                              TestParams {
+                                                                  ov::Shape{}, {}, 
+                                                                  {1}, {}
                                                               }
                                            )));
 // clang-format on

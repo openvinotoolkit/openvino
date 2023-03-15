@@ -543,10 +543,6 @@ public:
         const std::vector<size_t> in_features = testing::get<1>(GetParam());
         const size_t input_y = testing::get<2>(GetParam());
         const size_t input_x = testing::get<3>(GetParam());
-        size_t output_f = 0;
-        for (auto& f : in_features)
-            output_f += f;
-
         topology topology;
 
         std::vector<VVVVF<Type>> in_data;
@@ -633,10 +629,6 @@ public:
         const size_t in_feature = testing::get<1>(GetParam());
         const size_t input_y = testing::get<2>(GetParam());
         const std::vector<size_t> input_x = testing::get<3>(GetParam());
-        size_t output_x = 0;
-        for (auto& x : input_x)
-            output_x += x;
-
         topology topology;
 
         std::vector<VVVVF<Type>> in_data;
@@ -1291,6 +1283,160 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                             TestParamType_concat(1, { 32, 32 }, 2, 2, false),
                             TestParamType_concat(1, { 32, 8 }, 2, 2, false),
                             TestParamType_concat(1, { 8, 32 }, 2, 2, false)
+                        ),
+                        concat_gpu::PrintToStringParamName);
+
+template <typename Type>
+struct concat_gpu_4d_explict : public concat_gpu {
+public:
+    cldnn::memory::ptr run_concat_network(std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> input, format::type fmt, ExecutionConfig config) {
+        auto data_type = type_to_data_type<Type>::value;
+        auto& engine = get_test_engine();
+        const size_t batch_num = testing::get<0>(GetParam());
+        const std::vector<size_t> in_features = testing::get<1>(GetParam()); // only use first element.
+        const size_t input_y = testing::get<2>(GetParam());
+        const size_t input_x = testing::get<3>(GetParam());
+        size_t output_f = in_features[0];
+
+        topology topology;
+
+        std::vector<memory::ptr> in_memory;
+        std::vector<primitive_id> input_ids;
+
+        // input0 --- eltwise1 --- concat --- reorder
+        //          /            /
+        // input1 --            /
+        //                     /
+        // input2 --- eltwise2 -------------- conv
+        //          /
+        // input3 --
+        for (size_t i = 0; i < 4; i++) {
+            auto size = tensor(static_cast<int32_t>(batch_num),
+                               static_cast<int32_t>(output_f),
+                               static_cast<int32_t>(input_x),
+                               static_cast<int32_t>(input_y));
+            auto data = input[i];
+            auto in_lay = layout(data_type, format::bfyx, size);
+            auto data_flat = std::vector<Type>(in_lay.get_linear_size(), 0);
+
+            for (size_t bi = 0; bi < batch_num; ++bi) {
+                for (size_t fi = 0; fi < output_f; ++fi) {
+                    for (size_t yi = 0; yi < input_y; ++yi) {
+                        for (size_t xi = 0; xi < input_x; ++xi) {
+                            auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                            auto in_offset = in_lay.get_linear_offset(coords);
+                            data_flat[in_offset] = data[bi][fi][yi][xi];
+                        }
+                    }
+                }
+            }
+
+            auto in_mem = engine.allocate_memory(in_lay);
+            set_values(in_mem, data_flat);
+            in_memory.push_back(in_mem);
+
+            topology.add(input_layout("input" + std::to_string(i), in_lay));
+            input_ids.push_back("input" + std::to_string(i));
+        }
+
+        topology.add(eltwise("eltwise1", {input_info(input_ids[0]), input_info(input_ids[1])}, eltwise_mode::sum));
+        topology.add(eltwise("eltwise2", {input_info(input_ids[2]), input_info(input_ids[3])}, eltwise_mode::sum));
+
+        auto weights_lay = cldnn::layout(data_type, cldnn::format::bfyx, tensor(batch(output_f), feature(output_f)));
+        auto weights_mem = engine.allocate_memory(weights_lay);
+        auto& stream = get_test_stream();
+        weights_mem->fill(stream);
+        stream.finish();
+        {
+            cldnn::mem_lock<Type> weights_ptr(weights_mem, stream);
+            for (size_t fi = 0; fi < output_f; ++fi) {
+                auto coords = tensor(batch(fi), feature(fi), spatial(0, 0, 0, 0));
+                auto offset = weights_lay.get_linear_offset(coords);
+                weights_ptr[offset] = static_cast<Type>(1.f);
+            }
+        }
+        topology.add(data("weights" , weights_mem));
+        topology.add(convolution("conv", input_info("eltwise2"), { "weights" }));
+        topology.add(concatenation("concat", {input_info("eltwise1"), input_info("eltwise2")}, 1));
+        topology.add(reorder("reorder", input_info("concat"), layout(data_types::f32, format::bfyx, {(int32_t)batch_num, (int32_t)(output_f * 2), (int32_t)input_y, (int32_t)input_x})));
+
+        network concat_network(engine, topology, config);
+        for (size_t i = 0; i < 4; i++) {
+            concat_network.set_input_data(input_ids[i], in_memory[i]);
+        }
+        concat_network.execute();
+
+        bool concat_opt_enabled = config.get_property(ov::intel_gpu::optimize_data);
+        bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network.get_primitive("concat"))->node->can_be_optimized();
+
+        // If sibling is using onednn impl and batch > 1, the onednn impl cannot process the implicit concat'ed buffer.
+        // Onednn impls can process implicit concat'ed buffer only through buffer pointer manipulation.
+        if (concat_opt_enabled && batch_num > 1) concat_opt_result = !concat_opt_result;
+        EXPECT_EQ(concat_opt_enabled, concat_opt_result);
+
+        return concat_network.get_output("reorder").get_memory();
+    }
+
+    std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> generate_input() {
+        const size_t batch_num = testing::get<0>(GetParam());
+        const std::vector<size_t> in_features = testing::get<1>(GetParam());
+        const size_t input_y = testing::get<2>(GetParam());
+        const size_t input_x = testing::get<3>(GetParam());
+
+        std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> inputs(4);
+        for (size_t i = 0; i < 4; ++i) {
+            inputs[i] = generate_random_4d<Type>(batch_num, in_features[0], input_y, input_x, -1, 1);
+        }
+        return inputs;
+    }
+
+    void test(format::type fmt) {
+        auto& engine = get_test_engine();
+        auto& stream = get_test_stream();
+        if (!engine.get_device_info().supports_immad) {
+            // This case is only for device that uses onednn.
+            return;
+        }
+        auto input = generate_input();
+
+        // implicit concat when batch size is 1.
+        ExecutionConfig config1;
+        config1.set_property(ov::intel_gpu::optimize_data(true));
+        ov::intel_gpu::ImplementationDesc impl = { fmt, std::string(""), impl_types::onednn };
+        config1.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", impl}}));
+        config1.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+
+        auto out_mem1 = run_concat_network(input, fmt, config1);
+        cldnn::mem_lock<Type> out_ptr1(out_mem1, stream);
+
+        // explicit concat
+        ExecutionConfig config2;
+        config2.set_property(ov::intel_gpu::optimize_data(false));
+        config2.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+        auto out_mem2 = run_concat_network(input, fmt, config2);
+        cldnn::mem_lock<Type> out_ptr2(out_mem2, stream);
+
+        ASSERT_EQ(out_ptr1.size(), out_ptr2.size());
+        size_t diff_count = 0;
+        for (size_t i = 0; i < out_ptr1.size(); ++i) {
+            if (out_ptr1[i] != out_ptr2[i]) diff_count++;
+        }
+        ASSERT_EQ(diff_count, 0);
+    }
+};
+
+
+using concat_no_implicit_gpu_onednn_4d_f16 = concat_gpu_4d_explict<FLOAT16>;
+
+TEST_P(concat_no_implicit_gpu_onednn_4d_f16, input_order_opt_b_fs_yx_fsv16) {
+    ASSERT_NO_FATAL_FAILURE(test(format::b_fs_yx_fsv16));
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                        concat_no_implicit_gpu_onednn_4d_f16,
+                        ::testing::Values(
+                            TestParamType_concat(1, { 16 }, 2, 2, false),
+                            TestParamType_concat(2, { 16 }, 2, 2, false)
                         ),
                         concat_gpu::PrintToStringParamName);
 #endif

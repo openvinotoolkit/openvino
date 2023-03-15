@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/graph/program.hpp"
 
 #include <ie_system_conf.h>
 
-#include "kernel_selector_helper.h"
 #include "auto_tuner.h"
 #include "layout_optimizer.h"
 #include "pass_manager.h"
@@ -66,8 +65,11 @@
 #include "loop_inst.h"
 #include "reverse_inst.h"
 #include "to_string_utils.h"
-#include "intel_gpu/runtime/itt.hpp"
+
+// TODO: Remove once we have interface for kernels cache
 #include "runtime/kernels_cache.hpp"
+
+// TODO: implement self-registration for impls
 #include "impls/ocl/register.hpp"
 #include "impls/cpu/register.hpp"
 #include "impls/common/register.hpp"
@@ -96,6 +98,7 @@
 #include <sys/resource.h>
 #endif
 
+using namespace cldnn;
 using namespace ov::intel_gpu;
 
 program::program(engine& engine_ref,
@@ -108,8 +111,7 @@ program::program(engine& engine_ref,
       _stream(_engine.create_stream(config)),
       _config(config),
       processing_order(),
-      is_body_program(is_body_program),
-      is_subgroup_local_block_io_supported(-1) {
+      is_body_program(is_body_program) {
     _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
     GPU_DEBUG_INFO << "Program config\n" << config.to_string();
@@ -122,7 +124,6 @@ program::program(engine& engine_ref,
     } else {
         build_program(is_internal);
     }
-    calc_nodes_hash();
 }
 
 program::program(engine& engine_ref,
@@ -134,32 +135,28 @@ program::program(engine& engine_ref,
       _stream(_engine.create_stream(config)),
       _config(config),
       _task_executor(task_executor),
-      processing_order(),
-      is_subgroup_local_block_io_supported(-1) {
+      processing_order() {
     _config.apply_user_properties(_engine.get_device_info());
     init_primitives();
     init_program();
     prepare_nodes(nodes);
     build_program(is_internal);
-    calc_nodes_hash();
 }
 
 program::program(engine& engine)
     : _engine(engine),
       _stream(_engine.create_stream({})),
       _config(),
-      processing_order(),
-      is_subgroup_local_block_io_supported(-1) {
-        _config.apply_user_properties(_engine.get_device_info());
-      }
+      processing_order() {
+    init_primitives();
+    _config.apply_user_properties(_engine.get_device_info());
+}
 
 program::~program() {
-    query_local_block_io_supported();
 }
 
 void program::init_program() {
     set_options();
-    query_local_block_io_supported();
 
     pm = std::unique_ptr<pass_manager>(new pass_manager(*this));
 
@@ -173,8 +170,8 @@ void program::init_program() {
     _impls_cache = cldnn::make_unique<ImplementationsCache>(_impls_cache_capacity);
     // Remove items of compilation context's internal queue when some impl is popped in kernels_cache
     // compilation context's queue check duplication of inserted task
-    _impls_cache->set_remove_item_callback([this](std::pair<size_t, std::shared_ptr<cldnn::primitive_impl>>& item) {
-        get_compilation_context().remove_keys({item.first});
+    _impls_cache->set_remove_item_callback([this](ImplementationsCache::ItemType& item) {
+        get_compilation_context().remove_keys({item.first.hash()});
     });
 }
 
@@ -503,65 +500,6 @@ void program::set_options() {
     assert(prog_id != 0);
     if (!_config.get_property(ov::intel_gpu::force_implementations).empty()) {
         _config.set_property(ov::intel_gpu::optimize_data(true));
-    }
-}
-
-bool program::is_local_block_io_supported() const {
-    if (is_subgroup_local_block_io_supported == -1)
-        throw std::invalid_argument("subgroup_local_block_io_supported has NOT been initialized!");
-
-    return  static_cast<bool>(is_subgroup_local_block_io_supported);
-}
-
-void program::query_local_block_io_supported() {
-    auto& device = _engine.get_device();
-    auto device_info = device->get_info();
-    if (device_info.supports_local_block_io == false)
-        is_subgroup_local_block_io_supported = static_cast<int8_t>(false);
-
-    if (is_subgroup_local_block_io_supported != -1)
-        return;
-
-    std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
-    std::string kernel_code =
-        "__attribute__((intel_reqd_sub_group_size(8)))"
-        "__attribute__((reqd_work_group_size(8, 1, 1)))"
-        "void kernel is_local_block_io_supported(global uchar* dst) {"
-        "    uint lid = get_sub_group_local_id();"
-        "    uchar val = (uchar)lid * 2;"
-        "    __local uchar tmp_slm[8];"
-        "    intel_sub_group_block_write_uc2(tmp_slm, (uchar2)(val));"
-        "    barrier(CLK_LOCAL_MEM_FENCE);"
-        "    uchar2 read = intel_sub_group_block_read_uc2(tmp_slm);"
-        "    dst[lid] = read.s0 + 1;"
-        "}";
-
-    kernel_string->str = kernel_code;
-    kernel_string->options = "-Dcl_intel_subgroup_local_block_io -DLOCAL_BLOCK_IO_SUPPORTED=1";
-    kernel_string->entry_point = "is_local_block_io_supported";
-    kernel_string->batch_compilation = true;
-
-    try {
-        auto _kernels_cache_device_query = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, nullptr,
-                                                                                            kernel_selector::KernelBase::get_db().get_batch_header_str()));
-        auto id = _kernels_cache_device_query->set_kernel_source(kernel_string, false);
-        _kernels_cache_device_query->build_all();
-
-        auto kernel = _kernels_cache_device_query->get_kernel(id);
-        bool is_valid = _kernels_cache_device_query->validate_simple_kernel_execution(kernel);
-        is_subgroup_local_block_io_supported = static_cast<int8_t>(is_valid);
-
-        _kernels_cache_device_query->remove_kernel(id);
-        return;
-    } catch (...) {
-        is_subgroup_local_block_io_supported = static_cast<int8_t>(false);
-        return;
-    }
-}
-
-void program::calc_nodes_hash() {
-    for (auto& node : processing_order) {
-        node->calculate_hash();
     }
 }
 

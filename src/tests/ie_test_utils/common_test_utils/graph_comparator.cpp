@@ -107,9 +107,7 @@ namespace detail {
 
 template <typename Ptr>
 Ptr not_null(Ptr&& p) {
-    if (!p) {
-        throw ov::Exception("empty pointer");
-    }
+    OPENVINO_ASSERT(p, "empty pointer");
     return std::forward<Ptr>(p);
 }
 
@@ -157,7 +155,7 @@ public:
 
         std::stringstream ss;
         ss << "Type is not supported: [" << lhs->get_type_info().name << "]";
-        throw ov::Exception(ss.str());
+        OPENVINO_THROW(ss.str());
     }
 
     bool parameter_and_input_match(size_t num_iterations) const {
@@ -198,7 +196,7 @@ public:
 
         std::stringstream ss;
         ss << "Type is not supported: [" << m_description->get_type_info().name << "]";
-        throw ov::Exception(ss.str());
+        OPENVINO_THROW(ss.str());
     }
 
     static bool equal_parameters(const Parameter* lhs, const Parameter* rhs) {
@@ -253,7 +251,7 @@ public:
 
         std::stringstream ss;
         ss << "Type is not supported: [" << lhs->get_type_info().name << "]";
-        throw ov::Exception(ss.str());
+        OPENVINO_THROW(ss.str());
     }
 
     bool result_and_output_match(size_t num_iterations) const {
@@ -288,7 +286,7 @@ public:
 
         std::stringstream ss;
         ss << "Type is not supported: [" << m_description->get_type_info().name << "]";
-        throw ov::Exception(ss.str());
+        OPENVINO_THROW(ss.str());
     }
 
     static bool equal_results(const Result* lhs, const Result* rhs) {
