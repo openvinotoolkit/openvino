@@ -84,11 +84,7 @@ class TaskManager:
 
     @staticmethod
     def __normilize_path_in_args(command: str):
-        args = shlex.split(command)
-        for arg in args:
-            path = Path(arg)
-            if path.exists():
-                arg = path.expanduser().resolve()
+        args = shlex.split(command, posix=platform.system() != "Windows")
         return args
 
     def init_worker(self):
