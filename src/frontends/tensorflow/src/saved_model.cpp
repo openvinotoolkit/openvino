@@ -196,11 +196,12 @@ void SavedModelVariablesIndex::read_checkpointable_object_graph() {
     shard->second->seekg(entry.offset() + chg);
     shard->second->read(data.data(), entry.size() - chg);
 
-    bool result = tog.ParseFromArray(data.data(), static_cast<int>(data.size()) - chg);
-
     // Might be need to remove this verification:
     // https://github.com/tensorflow/tensorflow/blob/d90f1947ebcf510b23c238f43c2191e5b3817cb3/tensorflow/cc/experimental/libexport/load.cc#L73
-    // FRONT_END_GENERAL_CHECK(result, "CMO: Trackable Object Graph couldn't be read");
+    // FRONT_END_GENERAL_CHECK(tog.ParseFromArray(data.data(), static_cast<int>(data.size()) - chg), "CMO: Trackable
+    // Object Graph couldn't be read");
+
+    tog.ParseFromArray(data.data(), static_cast<int>(data.size()) - chg);
 
     for (const auto& node : tog.nodes()) {
         for (const auto& attr : node.attributes()) {

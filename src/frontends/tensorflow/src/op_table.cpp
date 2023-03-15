@@ -37,6 +37,9 @@ TF_OP_CONVERTER(translate_varisinitialized_op);
 TF_OP_CONVERTER(translate_assignvariable_op);
 TF_OP_CONVERTER(translate_varhandle_op);
 TF_OP_CONVERTER(translate_restorev2_op);
+TF_OP_CONVERTER(translate_staticregexfullmatch_op);
+TF_OP_CONVERTER(translate_stringjoin_op);
+TF_OP_CONVERTER(translate_mergev2checkpoint_op);
 TF_OP_CONVERTER(translate_while_op);
 
 const std::map<std::string, CreatorFunction> get_supported_ops() {
@@ -256,6 +259,10 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"VarIsInitializedOp", translate_varisinitialized_op},
         {"VarHandleOp", translate_varhandle_op},
         {"RestoreV2", translate_restorev2_op},
+        {"StaticRegexFullMatch", translate_staticregexfullmatch_op},
+        {"StringJoin", translate_stringjoin_op},
+        {"ShardedFilename", translate_identity_op},
+        {"MergeV2Checkpoints", translate_identity_op},
         {"Unpack", translate_unpack_op},
         {"While", translate_while_op},
         {"Where", translate_where_op},

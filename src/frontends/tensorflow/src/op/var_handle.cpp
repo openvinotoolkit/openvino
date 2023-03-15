@@ -33,7 +33,7 @@ static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<SavedModelVariabl
     }
     var_data.resize(size);
     TENSORFLOW_OP_VALIDATION(node,
-                             size == (entry.size() / sizeof(T)),
+                             size == static_cast<google::protobuf::int64>(entry.size() / sizeof(T)),
                              "[TensorFlow Frontend] Internal error: Available data size isn't equal to calculated.");
     auto fs = var_index->get_data_file(entry.shard_id());
     if (!fs.get()) {
@@ -125,7 +125,8 @@ OutputVector translate_restorev2_op(const NodeContext& node) {
                              "[TensorFlow Frontend] Internal error: Translate session is nullptr.");
     auto model = reinterpret_cast<ov::frontend::tensorflow::InputModel*>(translate_session->get_input_model().get());
     auto var_index = model->get_variables_index();
-    auto tensor_names = reinterpret_cast<UnsupportedConstant*>(node.get_input(1).get_node())->get_data().as<ov::Tensor>();
+    auto tensor_names =
+        reinterpret_cast<UnsupportedConstant*>(node.get_input(1).get_node())->get_data().as<ov::Tensor>();
 
     OutputVector outs = {};
     auto data = tensor_names.data<uint64_t>();
@@ -138,8 +139,30 @@ OutputVector translate_restorev2_op(const NodeContext& node) {
             set_node_name(node.get_name() + ":" + std::to_string(i), const_node);
         outs.push_back(const_node);
     }
-    
+
     return outs;
+}
+
+OutputVector translate_staticregexfullmatch_op(const NodeContext& node) {
+    default_op_checks(node, 1, {"StaticRegexFullMatch"});
+    auto const_node = std::make_shared<Constant>(ov::element::boolean, Shape{}, true);
+    return {const_node};
+}
+
+OutputVector translate_stringjoin_op(const NodeContext& node) {
+    default_op_checks(node, 1, {"StringJoin"});
+    // MEMORY LEAK!!! ONLY FOR TEST PURPOSES!!!
+    const char* value = "joined_string";
+    auto const_node = std::make_shared<Constant>(ov::element::u64, Shape{}, reinterpret_cast<uint64_t>(value));
+    return {const_node};
+}
+
+OutputVector translate_mergev2checkpoint_op(const NodeContext& node) {
+    default_op_checks(node, 1, {"StringJoin"});
+    // MEMORY LEAK!!! ONLY FOR TEST PURPOSES!!!
+    const char* value = "joined_string";
+    auto const_node = std::make_shared<Constant>(ov::element::u64, Shape{}, reinterpret_cast<uint64_t>(value));
+    return {const_node};
 }
 
 }  // namespace op
