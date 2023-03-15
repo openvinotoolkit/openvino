@@ -7,7 +7,6 @@
 #include <unordered_map>
 
 #include "cpp_interfaces/plugin_itt.hpp"
-#include "ie_blob.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/layout.hpp"
 #include "openvino/core/parallel.hpp"
@@ -248,16 +247,11 @@ void ov::ISyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
                     " tensor size is not equal to the model ",
                     tensor_type,
                     " type: got ",
-                    tensor.get_size(),
+                    tensor.get_shape(),
                     " expecting ",
                     port.get_shape(),
                     ".");
     OPENVINO_ASSERT(tensor.data() != nullptr, "Tensor data equal nullptr!");
-
-    // FIXME: SyncInferRequest is a friend only to check that blob is correct
-    OPENVINO_ASSERT(ov::shape_size(tensor._impl->getTensorDesc().getDims()) ==
-                        ov::shape_size(tensor._impl->getTensorDesc().getBlockingDesc().getBlockDims()),
-                    "Tensor is corrupted!");
 }
 
 void ov::ISyncInferRequest::allocate_tensor(const ov::Output<const ov::Node>& port,
