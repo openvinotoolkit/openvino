@@ -122,7 +122,7 @@ When Python API is used, there is no way to implement a custom OpenVINO operatio
 
 Python can still be used to map and decompose operations when only operations from the standard OpenVINO operation set are used.
 
-.. _create library with extensions:: 
+.. _create-library-with-extensions:: 
 
 Create a Library with Extensions
 ++++++++++++++++++++++++++++++++
@@ -140,13 +140,13 @@ This macro should have a vector of all OpenVINO Extensions as an argument.
 
 Based on that, the declaration of an extension class might look like the following:
 
-.. doxygensnippet:: template_extension/new/ov_extension.cpp
+.. doxygensnippet:: ./src/core/template_extension/new/ov_extension.cpp
    :language: cpp
    :fragment: [ov_extension:entry_point]
 
 2. Configure the build of your extension library, using the following CMake script:
 
-.. doxygensnippet:: template_extension/new/CMakeLists.txt
+.. doxygensnippet:: ./src/core/template_extension/new/CMakeLists.txt
    :language: cpp
    :fragment: [cmake:extension]
 
