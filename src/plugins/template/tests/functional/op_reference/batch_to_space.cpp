@@ -33,7 +33,10 @@ public:
     void SetUp() override {
         auto params = GetParam();
         function = CreateFunction(params);
-        inputData = {params.dataTensor.data};
+        inputData = {params.dataTensor.data,
+                     params.blockShapeTensor.data,
+                     params.cropsBeginTensor.data,
+                     params.cropsEndTensor.data};
         refOutData = {params.expectedTensor.data};
     }
 
@@ -61,11 +64,12 @@ public:
 private:
     static std::shared_ptr<Model> CreateFunction(const BatchToSpaceParams& params) {
         const auto data = std::make_shared<opset1::Parameter>(params.dataTensor.type, params.dataTensor.shape);
-        const auto blockShape = std::make_shared<opset1::Constant>(element::i64, params.blockShapeTensor.shape, params.blockShapeTensor.data.data());
-        const auto cropsBegin = std::make_shared<opset1::Constant>(element::i64, params.cropsBeginTensor.shape, params.cropsBeginTensor.data.data());
-        const auto cropsEnd = std::make_shared<opset1::Constant>(element::i64, params.cropsEndTensor.shape, params.cropsEndTensor.data.data());
+        const auto blockShape = std::make_shared<opset1::Parameter>(element::i64, params.blockShapeTensor.shape);
+        const auto cropsBegin = std::make_shared<opset1::Parameter>(element::i64, params.cropsBeginTensor.shape);
+        const auto cropsEnd = std::make_shared<opset1::Parameter>(element::i64, params.cropsEndTensor.shape);
         const auto batchToSpace = std::make_shared<opset2::BatchToSpace>(data, blockShape, cropsBegin, cropsEnd);
-        return std::make_shared<Model>(NodeVector {batchToSpace}, ParameterVector {data});
+        return std::make_shared<Model>(NodeVector{batchToSpace},
+                                       ParameterVector{data, blockShape, cropsBegin, cropsEnd});
     }
 };
 
