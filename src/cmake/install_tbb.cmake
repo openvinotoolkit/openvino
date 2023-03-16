@@ -14,18 +14,20 @@ function(_ov_detect_dynamic_tbbbind_2_5 var)
         return()
     endif()
 
-    # try to select proper library directory
-    _ov_get_tbb_location(TBB::tbb _tbb_lib_location)
-    get_filename_component(_tbb_libs_dir "${_tbb_lib_location}" DIRECTORY)
-    # unset for cases if user specified different TBB_DIR / TBBROOT
-    unset(_ov_tbbbind_2_5 CACHE)
+    if (NOT CONAN_EXPORTED)
+        # try to select proper library directory
+        _ov_get_tbb_location(TBB::tbb _tbb_lib_location)
+        get_filename_component(_tbb_libs_dir "${_tbb_lib_location}" DIRECTORY)
+        # unset for cases if user specified different TBB_DIR / TBBROOT
+        unset(_ov_tbbbind_2_5 CACHE)
 
-    find_file(_ov_tbbbind_2_5
-              NAMES "${CMAKE_SHARED_LIBRARY_PREFIX}tbbbind_2_5${CMAKE_SHARED_LIBRARY_SUFFIX}"
-              HINTS "${_tbb_libs_dir}"
-              "Path to TBBBind 2.5+ library"
-              NO_DEFAULT_PATH
-              NO_CMAKE_FIND_ROOT_PATH)
+        find_file(_ov_tbbbind_2_5
+                  NAMES "${CMAKE_SHARED_LIBRARY_PREFIX}tbbbind_2_5${CMAKE_SHARED_LIBRARY_SUFFIX}"
+                  HINTS "${_tbb_libs_dir}"
+                "Path to TBBBind 2.5+ library"
+                NO_DEFAULT_PATH
+                NO_CMAKE_FIND_ROOT_PATH)
+    endif()
 
     if(_ov_tbbbind_2_5)
         set(${var} ON PARENT_SCOPE)
@@ -89,7 +91,11 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         set(tbb_downloaded ON)
     elseif(DEFINED ENV{TBBROOT} OR DEFINED ENV{TBB_DIR} OR
            DEFINED TBBROOT OR DEFINED TBB_DIR)
-        set(tbb_custom ON)
+        if (CONAN_EXPORTED)
+            set(tbb_conan ON)
+        else()
+            set(tbb_custom ON)
+        endif()
     endif()
 
     if(OV_GLIBC_VERSION VERSION_LESS_EQUAL 2.26)
@@ -222,10 +228,13 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
         endif()
 
         set(pkg_config_tbb_lib_dir "${IE_TBB_DIR_INSTALL}/lib")
+    elseif(tbb_conan)
+        message(STATUS "TBB from Conan package")
     else()
         message(WARNING "TBB of unknown origin. TBB files are not installed")
     endif()
 
+    unset(tbb_conan)
     unset(tbb_downloaded)
     unset(tbb_custom)
 endif()
