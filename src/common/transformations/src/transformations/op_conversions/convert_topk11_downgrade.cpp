@@ -18,7 +18,7 @@ ov::pass::ConvertTopk11ToTopk3::ConvertTopk11ToTopk3() {
 
     const matcher_pass_callback callback = [=](pattern::Matcher& m) {
         const auto topk_v11 = std::dynamic_pointer_cast<opset11::TopK>(m.get_match_root());
-        if (!topk_v11 || topk_v11->get_stable()) {
+        if (!topk_v11 || topk_v11->get_stable() || transformation_callback(topk_v11)) {
             return false;
         }
 
