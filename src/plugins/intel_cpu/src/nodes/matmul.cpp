@@ -624,6 +624,7 @@ void MatMul::prepareParams() {
         primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
         matmul::primitive_desc prim_desc;
 
+        auto itpd_first = itpd;
         while (static_cast<bool>(itpd))  {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
 
@@ -631,8 +632,14 @@ void MatMul::prepareParams() {
                 prim_desc = itpd.get();
                 break;
             }
-            if (!itpd.next_impl())
-                return matmul();
+            if (!itpd.next_impl()) {
+                // In case of dynamic shapes an implementation type chosen as optimal for a primitive_desc with
+                // undefined input shapes, is not necessarily available for the primitive_desc with defined shape.
+                // Example: brgemm_avx512_amx (Intel Sapphire Rapids Platform) is available for a primitive with
+                // undefined input shapes but not available for primitive_desc with input batch 1.
+                prim_desc = itpd_first.get();
+                break;
+            }
         }
         return matmul(prim_desc);
     };
