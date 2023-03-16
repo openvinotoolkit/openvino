@@ -20,12 +20,12 @@ TEST_F(TransformationTestsF, ConvertTopk11ToTopk3) {
         const auto input = std::make_shared<ov::opset11::Parameter>(ov::element::i32, ov::Shape{2, 3, 4});
         const auto k = std::make_shared<ov::opset11::Parameter>(ov::element::i8, ov::Shape{});
         const auto topk = std::make_shared<ov::opset11::TopK>(input,
-                                                        k,
-                                                        -2,
-                                                        ov::op::TopKMode::MAX,
-                                                        ov::op::TopKSortType::SORT_VALUES,
-                                                        ov::element::i64,
-                                                        false);
+                                                              k,
+                                                              -2,
+                                                              ov::op::TopKMode::MAX,
+                                                              ov::op::TopKSortType::SORT_VALUES,
+                                                              ov::element::i64,
+                                                              false);
         topk->set_friendly_name("topk11");
 
         function = std::make_shared<ov::Model>(topk->outputs(), ov::ParameterVector{input, k});
@@ -36,11 +36,11 @@ TEST_F(TransformationTestsF, ConvertTopk11ToTopk3) {
         const auto input = std::make_shared<ov::opset3::Parameter>(ov::element::i32, ov::Shape{2, 3, 4});
         const auto k = std::make_shared<ov::opset3::Parameter>(ov::element::i8, ov::Shape{});
         const auto topk = std::make_shared<ov::opset3::TopK>(input,
-                                                        k,
-                                                        -2,
-                                                        ov::op::TopKMode::MAX,
-                                                        ov::op::TopKSortType::SORT_VALUES,
-                                                        ov::element::i64);
+                                                             k,
+                                                             -2,
+                                                             ov::op::TopKMode::MAX,
+                                                             ov::op::TopKSortType::SORT_VALUES,
+                                                             ov::element::i64);
         topk->set_friendly_name("topk11");
 
         function = std::make_shared<ov::Model>(topk->outputs(), ov::ParameterVector{input, k});
