@@ -195,7 +195,7 @@ std::shared_ptr<ov::Model> SoftmaxLoweredFunction::initLowered() const {
     horizon_sum->add_control_dependency(loop_sum_end);
 
     const auto size_exp = std::make_shared<ngraph::opset1::Constant>(ov::element::i32, ov::Shape{2});
-    const auto buffer_exp = std::make_shared<ngraph::snippets::op::IntermediateBuffer>(loop_sum_end->output(0), size_exp);
+    const auto buffer_exp = std::make_shared<ngraph::snippets::op::Buffer>(loop_sum_end->output(0));
 
     loop_sum_begin->add_control_dependency(vector_buffer_sum);
     loop_sum_begin->add_control_dependency(horizon_max);
@@ -305,7 +305,7 @@ std::shared_ptr<ov::Model> AddSoftmaxLoweredFunction::initLowered() const {
     /* =========================================== */
 
     const auto size_add = std::make_shared<ngraph::opset1::Constant>(ov::element::i32, ov::Shape{2});
-    const auto buffer_add = std::make_shared<ngraph::snippets::op::IntermediateBuffer>(loop_max_end->output(0), size_add);
+    const auto buffer_add = std::make_shared<ngraph::snippets::op::Buffer>(loop_max_end->output(0));
 
     /* === Sub + Exp + ReduceSum decomposition === */
 
@@ -334,7 +334,7 @@ std::shared_ptr<ov::Model> AddSoftmaxLoweredFunction::initLowered() const {
     horizon_sum->add_control_dependency(loop_sum_end);
 
     const auto size_exp = std::make_shared<ngraph::opset1::Constant>(ov::element::i32, ov::Shape{2});
-    const auto buffer_exp = std::make_shared<ngraph::snippets::op::IntermediateBuffer>(loop_sum_end->output(0), size_exp);
+    const auto buffer_exp = std::make_shared<ngraph::snippets::op::Buffer>(loop_sum_end->output(0));
 
     loop_sum_begin->add_control_dependency(vector_buffer_sum);
     loop_sum_begin->add_control_dependency(horizon_max);

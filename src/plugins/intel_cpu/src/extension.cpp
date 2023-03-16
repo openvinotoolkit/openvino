@@ -135,8 +135,8 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         ngraph::OpSet opset;
 
 #define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
-        NGRAPH_OP(AllocationBuffer, ngraph::snippets::op)
         NGRAPH_OP(Brgemm, ngraph::snippets::op)
+        NGRAPH_OP(Buffer, ngraph::snippets::op)
         NGRAPH_OP(BroadcastLoad, ngraph::snippets::op)
         NGRAPH_OP(BroadcastMove, ngraph::snippets::op)
         NGRAPH_OP(ConvertSaturation, ngraph::snippets::op)
@@ -144,7 +144,6 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         NGRAPH_OP(Fill, ngraph::snippets::op)
         NGRAPH_OP(HorizonMax, ngraph::snippets::op)
         NGRAPH_OP(HorizonSum, ngraph::snippets::op)
-        NGRAPH_OP(IntermediateBuffer, ngraph::snippets::op)
         NGRAPH_OP(Kernel, ngraph::snippets::op)
         NGRAPH_OP(Load, ngraph::snippets::op)
         NGRAPH_OP(LoadReshape, ngraph::snippets::op)

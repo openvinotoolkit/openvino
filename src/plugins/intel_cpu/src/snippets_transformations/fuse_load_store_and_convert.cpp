@@ -15,14 +15,12 @@
 
 ov::intel_cpu::pass::FuseLoadConvert::FuseLoadConvert() {
     MATCHER_SCOPE(FuseLoadConvert);
-    auto param_pattern = ngraph::pattern::wrap_type<ngraph::opset1::Parameter>();
-    auto load_pattern = ngraph::pattern::wrap_type<ngraph::snippets::op::Load>({param_pattern});
+    auto load_pattern = ngraph::pattern::wrap_type<ngraph::snippets::op::Load>();
     auto convert_pattern = ngraph::pattern::wrap_type<ngraph::opset1::Convert>({load_pattern});
 
     auto callback = [=](ngraph::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseLoadConvert")
         auto& pm = m.get_pattern_value_map();
-        const auto param = pm.at(param_pattern).get_node_shared_ptr();
         const auto load_shared = pm.at(load_pattern).get_node_shared_ptr();
         if (!load_shared || load_shared->output(0).get_target_inputs().size() != 1) {
             return false;
@@ -39,12 +37,12 @@ ov::intel_cpu::pass::FuseLoadConvert::FuseLoadConvert() {
         std::shared_ptr<ngraph::Node> load_convert = nullptr;
         if (const auto convert_saturation =
                 std::dynamic_pointer_cast<ngraph::snippets::op::ConvertSaturation>(convert)) {
-            load_convert = std::make_shared<ov::intel_cpu::LoadConvertSaturation>(param,
+            load_convert = std::make_shared<ov::intel_cpu::LoadConvertSaturation>(load->input_value(0),
                                                                                   convert_saturation->get_destination_type(),
                                                                                   load->get_count(), load->get_offset());
         } else if (const auto convert_truncation =
                 std::dynamic_pointer_cast<ngraph::snippets::op::ConvertTruncation>(convert)) {
-            load_convert = std::make_shared<ov::intel_cpu::LoadConvertTruncation>(param,
+            load_convert = std::make_shared<ov::intel_cpu::LoadConvertTruncation>(load->input_value(0),
                                                                                   convert_truncation->get_destination_type(),
                                                                                   load->get_count(), load->get_offset());
         } else {
@@ -80,7 +78,6 @@ ov::intel_cpu::pass::FuseStoreConvert::FuseStoreConvert() {
         const auto store = std::dynamic_pointer_cast<ngraph::snippets::op::Store>(pm.at(store_pattern).get_node_shared_ptr());
         if (!store)
             return false;
-        const auto desc = store->get_output_port_descriptor(0);
 
         const auto convert = pm.at(convert_pattern).get_node_shared_ptr();
         if (convert->output(0).get_target_inputs().size() != 1 || transformation_callback(convert))
@@ -91,12 +88,12 @@ ov::intel_cpu::pass::FuseStoreConvert::FuseStoreConvert() {
                 std::dynamic_pointer_cast<ngraph::snippets::op::ConvertSaturation>(convert)) {
             store_convert = std::make_shared<ov::intel_cpu::StoreConvertSaturation>(input,
                                                                                     convert_saturation->get_destination_type(),
-                                                                                    desc.m_count, desc.m_offset);
+                                                                                    store->get_count(), store->get_offset());
         } else if (const auto convert_truncation =
                 std::dynamic_pointer_cast<ngraph::snippets::op::ConvertTruncation>(convert)) {
             store_convert = std::make_shared<ov::intel_cpu::StoreConvertTruncation>(input,
                                                                                     convert_truncation->get_destination_type(),
-                                                                                    desc.m_count, desc.m_offset);
+                                                                                    store->get_count(), store->get_offset());
         } else {
             throw ngraph::ngraph_error(
                 "Type of Convert op is undefined. Supports only fusing Store and ConvertTruncation or ConvertSaturation ops");

@@ -336,33 +336,34 @@ private:
         bool is_with_comp;
         float beta;
     };
-    void initBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, bool use_amx) const;
-    void callBrgemm(brgemmCtx& ctx, std::unique_ptr<brgemm_kernel_t>& brgKernel, const void* pin0, const void* pin1, void* pout, void* wsp) const;
+    void initBrgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel, bool use_amx) const;
+    void callBrgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
+                    const void* pin0, const void* pin1, void* pout, void* wsp) const;
     size_t getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) const;
 
-    void emit_brgemm_kernel_call(const brgemm_kernel_t *brg_kernel, const brgemmCtx& ctx,
-                                 Reg64 addr_A, Reg64 addr_B, Reg64 scratch, Reg64 addr_C,
+    void emit_brgemm_kernel_call(const dnnl::impl::cpu::x64::brgemm_kernel_t* brg_kernel, const brgemmCtx& ctx,
+                                 Xbyak::Reg64 addr_A, Xbyak::Reg64 addr_B, Xbyak::Reg64 scratch, Xbyak::Reg64 addr_C,
                                  const size_t in0_kernel_offset, const size_t in1_kernel_offset,
                                  const size_t in2_kernel_offset, const size_t out0_kernel_offset) const;
-    static void kernel_execute(const brgemm_kernel_t *brg_kernel, const void *A, const void *B, void *C, void *scratch, int with_comp);
+    static void kernel_execute(const dnnl::impl::cpu::x64::brgemm_kernel_t *brg_kernel, const void *A, const void *B, void *C, void *scratch, int with_comp);
 
     static constexpr size_t BRGEMM_KERNELS_NUM = 8;
     static constexpr size_t matmulOptimalM = 32;
-    brgemmCtx brgCtxs0[BRGEMM_KERNELS_NUM];
-    std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgKernels0[BRGEMM_KERNELS_NUM];
+    brgemmCtx m_brgCtxs0[BRGEMM_KERNELS_NUM];
+    std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> m_brgKernels0[BRGEMM_KERNELS_NUM];
 
-    size_t M, M_blk, M_tail;
-    size_t K, K_blk, K_tail;
-    size_t N, N_blk, N_tail;
-    size_t brg0VnniFactor;
+    size_t m_M, m_M_blk, m_M_tail;
+    size_t m_K, m_K_blk, m_K_tail;
+    size_t m_N, m_N_blk, m_N_tail;
+    size_t m_brg0VnniFactor;
 
-    bool with_scratch = false;
-    bool with_comp = false;
+    bool m_with_scratch = false;
+    bool m_with_comp = false;
 
-    size_t load_offset_a = 0lu;
-    size_t load_offset_b = 0lu;
-    size_t load_offset_scratch = 0lu;
-    size_t store_offset_c = 0lu;
+    size_t m_load_offset_a = 0lu;
+    size_t m_load_offset_b = 0lu;
+    size_t m_load_offset_scratch = 0lu;
+    size_t m_store_offset_c = 0lu;
 };
 
 class BrgemmCopyBEmitter : public jit_emitter {
@@ -378,25 +379,25 @@ private:
     void init_brgemm_copy(std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t>& kernel,
                           size_t N, size_t N_blk, size_t N_tail, size_t LDB, size_t K,
                           bool is_with_amx, dnnl_data_type_t dt_in0, dnnl_data_type_t dt_in1) const;
-    void emit_kernel_call(const matmul::jit_brgemm_matmul_copy_b_t* kernel,
-                          Reg64 src, Reg64 dst, Reg64 comp, size_t N, size_t K,
+    void emit_kernel_call(const dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t* kernel,
+                          Xbyak::Reg64 src, Xbyak::Reg64 dst, Xbyak::Reg64 comp, size_t N, size_t K,
                           size_t offset_in, size_t offset_out, size_t offset_comp) const;
 
     static void execute(dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t* kernel,
                         const void* src, const void* dst, const void* comp, size_t N, size_t K);
 
-    std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t> kernel;
+    std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t> m_kernel;
 
-    ov::element::Type brgemm_prc_in0, brgemm_prc_in1;
-    size_t N, N_blk, N_tail;
-    size_t K, K_blk, K_tail;
-    size_t LDB;
-    size_t brgemmVNNIFactor;
-    bool with_comp = false;
+    ov::element::Type m_brgemm_prc_in0, m_brgemm_prc_in1;
+    size_t m_N, m_N_blk, m_N_tail;
+    size_t m_K, m_K_blk, m_K_tail;
+    size_t m_LDB;
+    size_t m_brgemmVNNIFactor;
+    bool m_with_comp = false;
 
-    size_t in_offset = 0lu;
-    size_t out_offset = 0lu;
-    size_t comp_offset = 0lu;
+    size_t m_in_offset = 0lu;
+    size_t m_out_offset = 0lu;
+    size_t m_comp_offset = 0lu;
 };
 
 class HorizonMaxEmitter : public jit_emitter {

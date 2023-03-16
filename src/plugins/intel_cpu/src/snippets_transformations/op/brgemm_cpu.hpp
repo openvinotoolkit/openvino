@@ -19,22 +19,36 @@ namespace intel_cpu {
 class BrgemmCPU : public ngraph::snippets::op::Brgemm {
 public:
     OPENVINO_OP("BrgemmCPU", "SnippetsOpset", ngraph::snippets::op::Brgemm);
-    BrgemmCPU(const Output<Node>& A, const Output<Node>& B, bool transposed_a = false, bool transposed_b = false, const bool with_comp = false,
+
+    enum Type {
+        Floating,          // f32|f32
+        WithDataRepacking, // u8|i8 or bf16|bf16 (non-AMX system) - needs BrgemmCopyB on second input for data repacking
+        WithCompensations, // i8|i8 (non-AMX system) - needs BrgemmCopyB for data repacking and compensations
+        AMX,               // i8|i8 or bf16|bf16 on AMX system - needs BrgemmCopyB and scratchpad
+    };
+
+    BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Type type,
               const size_t offset_a = 0, const size_t offset_b = 0, const size_t offset_c = 0);
-    BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch,
-              bool transposed_a = false, bool transposed_b = false, const bool with_comp = false,
+    BrgemmCPU(const Output<Node>& A, const Output<Node>& B, const Output<Node>& scratch, const Type type,
               const size_t offset_a = 0, const size_t offset_b = 0, const size_t offset_scratch = 0, const size_t offset_c = 0);
     BrgemmCPU() = default;
 
-    bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    size_t get_offset_scratch() const { return get_input_port_descriptor(2).m_offset; }
+    Type get_type() const { return m_type; }
+    bool is_with_compensations() const { return m_type == Type::WithCompensations; }
+    bool is_with_data_repacking() const { return m_type != Type::Floating; }
+    bool is_amx() const { return m_type == Type::AMX; }
+    bool is_with_scratchpad() const { return is_with_compensations() || is_amx(); }
+
+    size_t get_offset_scratch() const;
     std::shared_ptr<BrgemmCopyB> get_brgemm_copy() const;
 
+    constexpr static size_t SCRATCH_BYTE_SIZE = 32 * 1024;
+
 private:
-    bool m_with_comp = false;  // compensations
+   Type m_type;
 };
 
 } // namespace intel_cpu

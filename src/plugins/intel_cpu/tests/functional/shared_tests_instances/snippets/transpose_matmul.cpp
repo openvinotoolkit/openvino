@@ -43,7 +43,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          TransposeMatMul::getTestCaseName);
 
-// TODO: FuseTransposeToBrgemm supports fusing only if Transpose is before Parameter in cases when Transpose is on input
+// TODO: FuseTransposeToBrgemm supports fusing only if Transpose is before Parameter in cases when Transpose is on input at the moment
+//       When we support the branch Parameter->FQ->Transpose->MatMul[0th input], uncomment this test case please
 // INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeMatMulFQ, TransposeMatMulFQ,
 //                          ::testing::Combine(
 //                                  ::testing::ValuesIn(transpose_input_shapes),
@@ -84,7 +85,6 @@ namespace transpose_output {
 std::vector<std::vector<ov::PartialShape>> transpose_input_shapes{
         {{2, 1, 49, 13}, {1, 2, 13, 39}}
 };
-// TODO: Propagate shape through Brgemm with Transpose down
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
                          ::testing::Combine(
                                  ::testing::ValuesIn(transpose_input_shapes),
@@ -95,7 +95,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                          TransposeMatMul::getTestCaseName);
 
-// TODO: Propagate shape through Brgemm with Transpose down
+// TODO: At the moment we doesn't support the branch MatMul[output]->Transpose->FQ.
+//      When we add support, uncomment this test case please
 // INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeMatMulFQ, TransposeMatMulFQ,
 //                          ::testing::Combine(
 //                                  ::testing::ValuesIn(transpose_input_shapes),
@@ -106,6 +107,45 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMult, TransposeMatMul,
 //                                  ::testing::Values(CommonTestUtils::DEVICE_CPU)),
 //                          TransposeMatMulFQ::getTestCaseName);
 } // namespace transpose_output
+
+namespace explicit_transpose {
+static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 = true) {
+    std::vector<std::vector<element::Type>> prc = {
+            {element::f32, element::f32},
+    };
+    if (!only_fp32) {
+        // In Snippets MatMul INT8 is supported only on VNNI/AMX platforms
+        if (InferenceEngine::with_cpu_x86_avx512_core_vnni() || InferenceEngine::with_cpu_x86_avx512_core_amx_int8()) {
+            prc.emplace_back(std::vector<element::Type>{element::i8, element::i8});
+            prc.emplace_back(std::vector<element::Type>{element::u8, element::i8});
+        }
+        // In Snippets MatMul BF16 is supported only on bf16/AMX platforms
+        if (InferenceEngine::with_cpu_x86_bfloat16() || InferenceEngine::with_cpu_x86_avx512_core_amx_bf16()) {
+            prc.emplace_back(std::vector<element::Type>{element::bf16, element::bf16});
+        }
+    }
+    return prc;
+}
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_ExplicitTransposeMatMul, ExplicitTransposeMatMul,
+                         ::testing::Combine(
+                                 ::testing::Values(std::vector<ov::PartialShape>{{1, 2, 69, 43}, {2, 49, 2, 43}}),
+                                 ::testing::Values(1), // Transpose on second input
+                                 ::testing::ValuesIn(precisions()),
+                                 ::testing::Values(1), // Subgraph;
+                                 ::testing::Values(1), // Tokenized MatMul+Bias
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         ExplicitTransposeMatMul::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_TransposeMatMulBias, ExplicitTransposeMatMulBias,
+                         ::testing::Combine(
+                                 ::testing::Values(std::vector<ov::PartialShape>{{1, 2, 69, 43}, {2, 49, 2, 43}, {1, 1, 69, 49}}),
+                                 ::testing::Values(1), // Transpose on second input
+                                 ::testing::ValuesIn(precisions()),
+                                 ::testing::Values(1), // Subgraph;
+                                 ::testing::Values(1), // Tokenized MatMul+Bias
+                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                         ExplicitTransposeMatMulBias::getTestCaseName);
+} // namespace explicit_transpose
 
 }  // namespace
 } // namespace snippets

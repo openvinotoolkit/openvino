@@ -92,9 +92,7 @@ ngraph::snippets::pass::ResetBufferState::ResetBufferState() {
                     port_idx = source_output.get_index();
                     loop_index++;
                 }
-                const auto pshape = buffer->get_allocation_shape();
-                NGRAPH_CHECK(pshape.is_static(), "Buffer must have static allocation shape to calculate finalization offsets");
-                const auto result_shape = pshape.get_shape();
+                const auto result_shape = buffer->get_allocation_shape();
                 NGRAPH_CHECK(loop_index < result_shape.size(), "Buffer has invalid Loop index and allocation shape rank");
                 const auto work_amount = std::accumulate(result_shape.rbegin(), result_shape.rbegin() + loop_index + 1, size_t(1), std::multiplies<size_t>());
                 finalization_offsets[i_size + i] =

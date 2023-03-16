@@ -14,14 +14,7 @@
 
 namespace {
 constexpr size_t reg_count = 16lu;
-
-auto filter_ops(const std::shared_ptr<ov::Node>& op) -> bool {
-    if (ov::is_type<ngraph::op::v0::Constant>(op) &&
-        ov::is_type<ngraph::snippets::op::Buffer>(op->get_output_target_inputs(0).begin()->get_node()))
-        return false;
-    return true;
-}
-
+using opRegType = ngraph::snippets::Generator::opRegType;
 }  // namespace
 
 bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr<ov::Model>& f) {
@@ -29,14 +22,11 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::AssignRegisters")
     using Reg = size_t;
     using tensor = std::shared_ptr<descriptor::Tensor>;
-    auto original_ops = f->get_ordered_ops();
-    ov::NodeVector ops;
-    ops.reserve(original_ops.size());
-    std::copy_if(original_ops.cbegin(), original_ops.cend(), std::back_inserter(ops), filter_ops);
+    auto ops = f->get_ordered_ops();
 
-    std::vector<std::pair<TargetMachine::opRegType, std::shared_ptr<Node>>> typed_ops;
+    std::vector<std::pair<opRegType, std::shared_ptr<Node>>> typed_ops;
     for (const auto& op : ops) {
-        typed_ops.emplace_back(std::make_pair(m_target_machine->get_op_reg_type(op), op));
+        typed_ops.emplace_back(std::make_pair(m_reg_type_mapper(op), op));
     }
 
     size_t counter_vec = 0;
@@ -56,9 +46,9 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
             // here we use the fact that Result input & output tensors are identical by construction
             manually_assigned_gprs[op->output(0).get_tensor_ptr()] =
                     static_cast<Reg>(f->get_result_index(result) + num_parameters);
-        } else if (ov::is_type<op::Buffer>(op)) {
+        } else if (const auto buffer = ov::as_type_ptr<op::Buffer>(op)) {
             // All buffers have one common data pointer
-            if (ov::is_type<op::IntermediateBuffer>(op)) {
+            if (buffer->is_intermediate_memory()) {
                 manually_assigned_gprs[op->input(0).get_tensor_ptr()] =
                         static_cast<Reg>(num_results + num_parameters);
             }
@@ -108,12 +98,12 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
     };
     for (const auto& t_op : typed_ops) {
         switch (t_op.first) {
-            case TargetMachine::opRegType::vec2vec:
-            case TargetMachine::opRegType::gpr2vec:
+            case opRegType::vec2vec:
+            case opRegType::gpr2vec:
                 enumerate_out_tensors(t_op.second, regs_vec, manually_assigned_vecs, counter_vec);
                 break;
-            case TargetMachine::opRegType::gpr2gpr:
-            case TargetMachine::opRegType::vec2gpr:
+            case opRegType::gpr2gpr:
+            case opRegType::vec2gpr:
                 enumerate_out_tensors(t_op.second, regs_gpr, manually_assigned_gprs, counter_gpr);
                 break;
         }
@@ -139,27 +129,24 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
         const auto& t_op = typed_ops[i];
         std::vector<tensor> used_tensors, defined_tensors;
         for (const auto& in : t_op.second->inputs()) {
-            if (ov::is_type<snippets::op::Buffer>(t_op.second) &&
-                ov::is_type<opset1::Constant>(t_op.second->get_input_node_shared_ptr(in.get_index())))
-                continue;
             used_tensors.push_back(in.get_tensor_ptr());
         }
         for (const auto& out : t_op.second->outputs())
             defined_tensors.push_back(out.get_tensor_ptr());
         switch (t_op.first) {
-            case TargetMachine::opRegType::vec2vec:
+            case opRegType::vec2vec:
                 used_vec[i] = tensor2reg(used_tensors, regs_vec);
                 defined_vec[i] = tensor2reg(defined_tensors, regs_vec);
                 break;
-            case TargetMachine::opRegType::gpr2gpr:
+            case opRegType::gpr2gpr:
                 used_gpr[i] = tensor2reg(used_tensors, regs_gpr);
                 defined_gpr[i] = tensor2reg(defined_tensors, regs_gpr);
                 break;
-            case TargetMachine::opRegType::gpr2vec:
+            case opRegType::gpr2vec:
                 used_gpr[i] = tensor2reg(used_tensors, regs_gpr);
                 defined_vec[i] = tensor2reg(defined_tensors, regs_vec);
                 break;
-            case TargetMachine::opRegType::vec2gpr:
+            case opRegType::vec2gpr:
                 used_vec[i] = tensor2reg(used_tensors, regs_vec);
                 defined_gpr[i] = tensor2reg(defined_tensors, regs_gpr);
                 break;
@@ -194,12 +181,12 @@ bool ngraph::snippets::pass::AssignRegisters::run_on_model(const std::shared_ptr
                     if (k == ops.size())
                         throw ngraph_error("assign registers can't find target op in the body");
                     switch (typed_ops[k].first) {
-                        case TargetMachine::opRegType::vec2vec:
-                        case TargetMachine::opRegType::vec2gpr:
+                        case opRegType::vec2vec:
+                        case opRegType::vec2gpr:
                             life_out_vec[n].insert(life_in_vec[k].begin(), life_in_vec[k].end());
                             break;
-                        case TargetMachine::opRegType::gpr2gpr:
-                        case TargetMachine::opRegType::gpr2vec:
+                        case opRegType::gpr2gpr:
+                        case opRegType::gpr2vec:
                             life_out_gpr[n].insert(life_in_gpr[k].begin(), life_in_gpr[k].end());
                             break;
                     }

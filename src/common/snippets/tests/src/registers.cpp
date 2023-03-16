@@ -39,7 +39,11 @@ TEST(TransformationTests, AssignRegisters) {
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
-        m.register_pass<snippets::pass::AssignRegisters>(generator->get_target_machine());
+        std::function<snippets::Generator::opRegType(const std::shared_ptr<Node>& op)> reg_type_mapper =
+            [=](const std::shared_ptr<Node>& op) -> snippets::Generator::opRegType {
+            return generator->get_op_reg_type(op);
+        };
+        m.register_pass<snippets::pass::AssignRegisters>(reg_type_mapper);
 
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
@@ -130,7 +134,11 @@ TEST(TransformationTests, AssignRegisters2) {
 
         pass::Manager m;
         m.register_pass<ov::pass::InitNodeInfo>();
-        m.register_pass<snippets::pass::AssignRegisters>(generator->get_target_machine());
+        std::function<snippets::Generator::opRegType(const std::shared_ptr<Node>& op)> reg_type_mapper =
+            [=](const std::shared_ptr<Node>& op) -> snippets::Generator::opRegType {
+            return generator->get_op_reg_type(op);
+        };
+        m.register_pass<snippets::pass::AssignRegisters>(reg_type_mapper);
         m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

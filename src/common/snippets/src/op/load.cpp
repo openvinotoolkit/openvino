@@ -18,6 +18,7 @@ Load::Load(const Output<Node>& x, const size_t count, const size_t offset) : Mem
 }
 
 void snippets::op::Load::validate_and_infer_types() {
+    MemoryAccess::validate_and_infer_types();
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
@@ -42,6 +43,7 @@ LoadReshape::LoadReshape(const Output<ov::Node>& x, const size_t count, const si
 }
 
 void snippets::op::LoadReshape::validate_and_infer_types() {
+    MemoryAccess::validate_and_infer_types();
     const auto& old_shape = get_input_partial_shape(0);
     ov::PartialShape new_shape;
     for (const auto idx : m_order)

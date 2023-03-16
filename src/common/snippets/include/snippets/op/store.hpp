@@ -25,8 +25,8 @@ public:
     Store(const Output<Node>& x, const size_t count = 1lu, const size_t offset = 0lu);
     Store() = default;
 
-    size_t get_offset() const { return get_output_port_descriptor(0).m_offset; }
-    size_t get_count() const { return get_output_port_descriptor(0).m_count; }
+    size_t get_offset() const { return get_output_offset(0); }
+    size_t get_count() const { return get_output_count(0); }
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;

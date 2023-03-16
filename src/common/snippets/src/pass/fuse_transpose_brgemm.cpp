@@ -58,13 +58,13 @@ FuseTransposeBrgemm::FuseTransposeBrgemm() {
             const auto& transpose_out = m.get_match_value();
             for (const auto& in : transpose_out.get_target_inputs())
                 in.replace_source_output(brgemm->output(0));
-            utils::set_output_layout(brgemm_out, as_type_ptr<opset1::Transpose>(transpose_out.get_node_shared_ptr()));
+            utils::set_transpose_output_layout(brgemm_out, as_type_ptr<opset1::Transpose>(transpose_out.get_node_shared_ptr()));
         }
         for (size_t i = 0; i < brgemm->get_input_size(); i++) {
             const auto& in_value = brgemm->input_value(i);
             if (transpose_matcher->match(in_value)) {
                 const auto& transpose = as_type_ptr<opset1::Transpose>(in_value.get_node_shared_ptr());
-                utils::set_output_layout(transpose->input_value(0), transpose);
+                utils::set_transpose_output_layout(transpose->input_value(0), transpose);
                 brgemm->set_argument(i, transpose->input_value(0));
             }
         }

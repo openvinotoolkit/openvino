@@ -28,5 +28,6 @@ std::shared_ptr<Node> snippets::op::BroadcastLoad::clone_with_new_inputs(const O
 }
 
 void snippets::op::BroadcastLoad::validate_and_infer_types() {
+    MemoryAccess::validate_and_infer_types();
     set_output_type(0, get_input_element_type(0), output_shape);
 }

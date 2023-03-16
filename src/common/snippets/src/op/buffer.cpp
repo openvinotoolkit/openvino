@@ -16,103 +16,64 @@ auto normalize_rank(int32_t allocation_rank, const size_t shape_rank) -> int32_t
     return allocation_rank < 0 ? allocation_rank + static_cast<int32_t>(shape_rank) : allocation_rank;
 }
 
-size_t ngraph::snippets::op::Buffer::get_byte_size() const {
-    const auto pshape = get_allocation_shape();
-    // TODO: Add support of dynamism
-    NGRAPH_CHECK(pshape.is_static(), "Buffer should have static shapes for memory allocation");
-    const auto shape = pshape.get_shape();
-    return ngraph::shape_size(shape) * get_element_type().size();
-}
-
-snippets::op::AllocationBuffer::AllocationBuffer(const Output<Node>& shape, const ov::element::Type element_type)
-    : Buffer(), m_element_type(element_type) {
-    set_arguments({shape});
+snippets::op::Buffer::Buffer(const ov::Shape& shape)
+    : Op(), m_type(Type::NewMemory), m_shape(shape) {
     constructor_validate_and_infer_types();
 }
 
-bool snippets::op::AllocationBuffer::visit_attributes(AttributeVisitor& visitor) {
-    INTERNAL_OP_SCOPE(AllocationBuffer_visit_attributes);
-    visitor.on_attribute("element_type", m_element_type);
+snippets::op::Buffer::Buffer(const ov::Output<ov::Node>& arg, const ov::Shape& shape)
+    : Op({arg}), m_type(Type::IntermediateMemory), m_shape(shape) {
+    constructor_validate_and_infer_types();
+}
+
+snippets::op::Buffer::Buffer(const ov::Output<ov::Node>& arg, int32_t allocation_rank)
+    : Op({arg}), m_type(Type::IntermediateMemory) {
+    const auto pshape = arg.get_partial_shape();
+    OPENVINO_ASSERT(pshape.is_static(), "Buffer supports only static input shape");
+    const auto shape = pshape.get_shape();
+    const auto normalize_rank = utils::normalize_rank(static_cast<int32_t>(allocation_rank), shape.size());
+    const auto offset = static_cast<int32_t>(shape.size()) - normalize_rank;
+    m_shape = {shape.begin() + offset, shape.end()};
+    constructor_validate_and_infer_types();
+}
+
+bool snippets::op::Buffer::visit_attributes(AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(Buffer_visit_attributes);
+    visitor.on_attribute("allocation_shape", m_shape);
     return true;
 }
 
-std::shared_ptr<Node> snippets::op::AllocationBuffer::clone_with_new_inputs(const OutputVector& new_args) const {
-    INTERNAL_OP_SCOPE(AllocationBuffer_clone_with_new_inputs);
+void snippets::op::Buffer::validate_and_infer_types() {
+    INTERNAL_OP_SCOPE(Buffer_validate_and_infer_types);
+    ov::element::Type output_type;
+    ov::Shape output_shape;
+    if (m_type == Type::NewMemory) {
+        OPENVINO_ASSERT(get_input_size() == 0, "Buffer with new allocated memory must to not have arguments!");
+        output_shape = m_shape;
+        output_type = ov::element::u8;  // 1Byte
+    } else if (m_type == Type::IntermediateMemory) {
+        const auto input_shape = get_input_partial_shape(0);
+        OPENVINO_ASSERT(input_shape.is_static(), "Buffer supports only static input shape");
+        output_type = get_input_element_type(0);
+        output_shape = input_shape.get_shape();
+    } else {
+        throw ov::Exception("Buffer supports only the following types: NewMemory and IntermediateMemory");
+    }
+    set_output_type(0, output_type, output_shape);
+}
+
+std::shared_ptr<Node> snippets::op::Buffer::clone_with_new_inputs(const OutputVector& new_args) const {
+    INTERNAL_OP_SCOPE(Buffer_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<AllocationBuffer>(new_args.at(0), m_element_type);
-}
-
-void snippets::op::AllocationBuffer::validate_and_infer_types() {
-    INTERNAL_OP_SCOPE(AllocationBuffer_validate_and_infer_types);
-    set_output_type(0, m_element_type, get_allocation_shape());
-}
-
-ov::PartialShape ngraph::snippets::op::AllocationBuffer::get_allocation_shape() const {
-    ov::PartialShape shape = ov::PartialShape::dynamic();
-    const auto shape_constant = ov::as_type_ptr<ngraph::op::v0::Constant>(get_input_node_shared_ptr(0));
-    if (shape_constant) {
-        NGRAPH_CHECK(shape_constant->get_element_type() == ov::element::i32,
-                     "The AllocationBuffer expects Constant with shape of I32 element type");
-        const auto dims = shape_constant->cast_vector<int32_t>();
-        NGRAPH_CHECK(!dims.empty(), "The AllocationBuffer got invalid shape Constant");
-        shape = ov::PartialShape(ov::Shape(std::vector<size_t>(dims.begin(), dims.end())));
+    if (m_type == Type::NewMemory) {
+         return std::make_shared<Buffer>(m_shape);
+    } else if (m_type == Type::IntermediateMemory) {
+        return std::make_shared<Buffer>(new_args.at(0), m_shape);
     }
-    return shape;
+    throw ov::Exception("Buffer supports only the following types: NewMemory and IntermediateMemory");
 }
 
-snippets::op::IntermediateBuffer::IntermediateBuffer(const ov::Output<ov::Node>& x) : Buffer() {
-    set_arguments({x});
-    constructor_validate_and_infer_types();
-}
-
-snippets::op::IntermediateBuffer::IntermediateBuffer(const ov::Output<ov::Node>& x, const ov::Output<ov::Node>& shape) : Buffer() {
-    set_arguments({x, shape});
-    constructor_validate_and_infer_types();
-}
-
-std::shared_ptr<Node> snippets::op::IntermediateBuffer::clone_with_new_inputs(const OutputVector& new_args) const {
-    INTERNAL_OP_SCOPE(IntermediateBuffer_clone_with_new_inputs);
-    check_new_args_count(this, new_args);
-    if (new_args.size() == 2) {
-        return std::make_shared<IntermediateBuffer>(new_args.at(0), new_args.at(1));
-    } else if (new_args.size() == 1) {
-        return std::make_shared<IntermediateBuffer>(new_args.at(0));
-    }
-
-    throw ngraph_error("The IntermediateBuffer op got invalid input count");
-}
-
-void snippets::op::IntermediateBuffer::validate_and_infer_types() {
-    INTERNAL_OP_SCOPE(IntermediateBuffer_validate_and_infer_types);
-    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
-}
-
-ov::PartialShape ngraph::snippets::op::IntermediateBuffer::get_allocation_shape() const {
-    if (get_input_size() == 1) {
-        return get_input_partial_shape(0);
-    }
-
-    const auto shape_constant = ov::as_type_ptr<ngraph::op::v0::Constant>(get_input_node_shared_ptr(1));
-    if (shape_constant) {
-        NGRAPH_CHECK(shape_constant->get_element_type() == ov::element::i32,
-                     "The AllocationBuffer expects Constant with shape of I32 element type");
-        const auto dims = shape_constant->cast_vector<int32_t>();
-        NGRAPH_CHECK(!dims.empty(), "The AllocationBuffer got invalid shape Constant");
-        return ov::PartialShape(ov::Shape(std::vector<size_t>(dims.begin(), dims.end())));
-    }
-    return ov::PartialShape::dynamic();
-}
-
-std::shared_ptr<ov::Node> ngraph::snippets::op::IntermediateBuffer::create_shape_constant(const ov::PartialShape& shape, size_t allocation_rank) {
-    if (shape.rank().is_dynamic())
-        return nullptr;
-    const auto normalize_rank = utils::normalize_rank(static_cast<int32_t>(allocation_rank), shape.size());
-    const auto offset = static_cast<int32_t>(shape.size()) - normalize_rank;
-    return create_shape_constant(ov::PartialShape(std::vector<ov::Dimension>{shape.begin() + offset, shape.end()}));
-}
-
-std::shared_ptr<ov::Node> ngraph::snippets::op::IntermediateBuffer::create_shape_constant(const ov::PartialShape& shape) {
-    if (shape.is_dynamic())
-        return nullptr;
-    return std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{shape.size()}, shape.get_shape());
+size_t ngraph::snippets::op::Buffer::get_byte_size() const {
+    const auto shape = get_allocation_shape();
+    return ngraph::shape_size(shape) * get_element_type().size();
 }

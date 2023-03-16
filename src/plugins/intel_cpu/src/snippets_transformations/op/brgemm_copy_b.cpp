@@ -12,30 +12,28 @@
 using namespace std;
 using namespace ov;
 
-intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x, const element::Type src_type, const bool with_comp,
-                                        const size_t offset_in, const size_t offset_out0, const size_t offset_out1)
-    : ngraph::snippets::op::MemoryAccess({x}), m_with_comp(with_comp), m_src_type(src_type) {
+intel_cpu::BrgemmCopyB::BrgemmCopyB(const Output<Node>& x, const element::Type src_type, const Type type,
+                                    const size_t offset_in, const size_t offset_out0, const size_t offset_out1)
+    : ngraph::snippets::op::MemoryAccess({x}), m_type(type), m_src_type(src_type) {
+    set_output_size(is_with_compensations() ? 2 : 1);
+    constructor_validate_and_infer_types();
     set_input_port_descriptor({0, offset_in}, 0);
     set_output_port_descriptor({0, offset_out0}, 0);
-    if (with_comp) {
+    if (is_with_compensations()) {
         set_output_port_descriptor({0, offset_out1}, 1);
-        set_output_size(2);
-    } else {
-        set_output_size(1);
     }
-    constructor_validate_and_infer_types();
 }
 
 bool intel_cpu::BrgemmCopyB::visit_attributes(AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(BrgemmRepack_visit_attributes);
     MemoryAccess::visit_attributes(visitor);
-    visitor.on_attribute("with_comp", m_with_comp);
     visitor.on_attribute("src_type", m_src_type);
     return true;
 }
 
 void intel_cpu::BrgemmCopyB::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(BrgemmRepack_validate_and_infer_types);
+    MemoryAccess::validate_and_infer_types();
 
     const auto element_type = get_input_element_type(0);
     NGRAPH_CHECK(one_of(element_type, element::bf16, element::i8),
@@ -44,7 +42,7 @@ void intel_cpu::BrgemmCopyB::validate_and_infer_types() {
     const auto pshape = ngraph::snippets::utils::get_port_planar_shape(input_value(0));
     if (pshape.is_dynamic()) {
         set_output_type(0, element_type, ov::PartialShape{ov::Dimension::dynamic()});
-        if (m_with_comp) {
+        if (is_with_compensations()) {
             set_output_type(1, ov::element::f32, ov::PartialShape{ov::Dimension::dynamic()});
         }
         return;
@@ -58,7 +56,7 @@ void intel_cpu::BrgemmCopyB::validate_and_infer_types() {
 
     set_output_type(0, element_type, ov::PartialShape{ov::Dimension(rnd_up(K, brgemmVNNIFactor)),
                                                       ov::Dimension(rnd_up(N, N_blk))});
-    if (m_with_comp) {
+    if (is_with_compensations()) {
         set_output_type(1, ov::element::f32, ov::PartialShape{ov::Dimension(rnd_up(N, N_blk))});
     }
 }
@@ -66,8 +64,14 @@ void intel_cpu::BrgemmCopyB::validate_and_infer_types() {
 std::shared_ptr<Node> intel_cpu::BrgemmCopyB::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(BrgemmRepack_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<BrgemmCopyB>(new_args.at(0), m_src_type, m_with_comp,
+    return std::make_shared<BrgemmCopyB>(new_args.at(0), m_src_type, m_type,
                                          get_offset_in(),
                                          get_offset_out(),
-                                         m_with_comp ? get_offset_comp() : 0);
+                                         is_with_compensations() ? get_offset_compensations() : 0);
+}
+
+size_t intel_cpu::BrgemmCopyB::get_offset_compensations() const {
+    OPENVINO_ASSERT(is_with_compensations() && get_output_size() == 2,
+                    "The offset for compensations must be in BrgemmCopyB only with compensations and 2 outputs!");
+    return get_output_offset(1);
 }

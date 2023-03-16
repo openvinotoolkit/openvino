@@ -13,25 +13,18 @@ namespace ngraph {
 namespace snippets {
 namespace op {
 
-Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B, bool transposed_a, bool transposed_b,
-               const size_t offset_a, const size_t offset_b, const size_t offset_c)
-    : MemoryAccess({A, B}), m_transposed_a(transposed_a), m_transposed_b(transposed_b) {
+Brgemm::Brgemm(const Output<Node>& A, const Output<Node>& B,
+               const size_t offset_a, const size_t offset_b, const size_t offset_c) : MemoryAccess({A, B}) {
     set_output_size(1);
-    set_input_port_descriptor({0, offset_a}, 0);
-    set_input_port_descriptor({0, offset_b}, 1);
-    set_output_port_descriptor({0, offset_c}, 0);
     constructor_validate_and_infer_types();
-}
-
-bool Brgemm::visit_attributes(AttributeVisitor& visitor) {
-    MemoryAccess::visit_attributes(visitor);
-    visitor.on_attribute("transposed_a", m_transposed_a);
-    visitor.on_attribute("transposed_b", m_transposed_b);
-    return true;
+    set_input_offset(offset_a, 0);
+    set_input_offset(offset_b, 1);
+    set_output_offset(offset_a, 0);
 }
 
 void Brgemm::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(Brgemm_validate_and_infer_types);
+    MemoryAccess::validate_and_infer_types();
     // If no leading dimensions are provided, assume dense row-major inputs-outputs
     NODE_VALIDATION_CHECK(this, get_input_partial_shape(0).is_static() && get_input_partial_shape(1).is_static(),
                           "Brgemm currently supports only static shapes.");
@@ -51,9 +44,7 @@ void Brgemm::validate_and_infer_types() {
 std::shared_ptr<Node> Brgemm::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(Brgemm_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<Brgemm>(new_args.at(0), new_args.at(1),
-                                    m_transposed_a, m_transposed_b,
-                                    get_offset_a(), get_offset_b(), get_offset_c());
+    return std::make_shared<Brgemm>(new_args.at(0), new_args.at(1), get_offset_a(), get_offset_b(), get_offset_c());
 }
 
 ov::element::Type Brgemm::get_output_type() const {
@@ -78,7 +69,7 @@ ov::PartialShape Brgemm::get_output_partial_shape(const std::vector<ov::PartialS
     NGRAPH_CHECK(input_shapes.size() == 2, "BRGEMM expects 2 input shapes for shape inference");
     auto matmul_in0 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shapes[0]);
     auto matmul_in1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shapes[1]);
-    auto matmul = std::make_shared<ngraph::opset1::MatMul>(matmul_in0, matmul_in1, m_transposed_a, m_transposed_b);
+    auto matmul = std::make_shared<ngraph::opset1::MatMul>(matmul_in0, matmul_in1);
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
     ov::op::v0::shape_infer(matmul.get(), input_shapes, output_shapes);

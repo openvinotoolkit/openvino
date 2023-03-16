@@ -18,6 +18,7 @@ snippets::op::Store::Store(const Output<Node>& x, const size_t count, const size
 }
 
 void snippets::op::Store::validate_and_infer_types() {
+    MemoryAccess::validate_and_infer_types();
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 

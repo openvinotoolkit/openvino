@@ -33,6 +33,16 @@ protected:
     void SetUp() override;
 };
 
+class ExplicitTransposeMatMul : public TransposeMatMul {
+protected:
+    void SetUp() override;
+};
+
+class ExplicitTransposeMatMulBias : public TransposeMatMul {
+protected:
+    void SetUp() override;
+};
+
 } // namespace snippets
 } // namespace test
 } // namespace ov

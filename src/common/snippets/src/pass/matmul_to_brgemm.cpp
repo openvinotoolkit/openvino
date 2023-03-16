@@ -29,8 +29,7 @@ MatMulToBrgemm::MatMulToBrgemm() {
         if (matmul->get_transpose_a() || matmul->get_transpose_b())
             return false;
 
-        auto brgemm = std::make_shared<op::Brgemm>(matmul->get_input_source_output(0), matmul->get_input_source_output(1),
-                                                   matmul->get_transpose_a(), matmul->get_transpose_b());
+        auto brgemm = std::make_shared<op::Brgemm>(matmul->get_input_source_output(0), matmul->get_input_source_output(1));
         ov::NodeVector nodes = { brgemm };
         if (brgemm->get_output_element_type(0) != matmul->get_output_element_type(0)) {
             nodes.emplace_back(std::make_shared<op::ConvertSaturation>(brgemm, matmul->get_output_element_type(0)));
