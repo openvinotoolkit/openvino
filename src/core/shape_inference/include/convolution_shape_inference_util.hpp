@@ -5,6 +5,8 @@
 #pragma once
 
 #include "dimension_util.hpp"
+#include "openvino/op/util/convolution_backprop_base.hpp"
+#include "openvino/op/util/convolution_base.hpp"
 #include "pooling_shape_inference_util.hpp"
 #include "utils.hpp"
 
@@ -12,7 +14,8 @@ namespace ov {
 namespace op {
 namespace convolution {
 
-constexpr size_t spatial_dim_offset = 2;  //!< Spatial dimension offset for data.
+constexpr size_t spatial_dim_offset = 2;
+constexpr size_t num_spatial_undefined = std::numeric_limits<size_t>::max();
 
 /**
  * @brief Provides convolution filter non spatial dimension count.
@@ -37,30 +40,43 @@ constexpr size_t filter_non_spatial_dims_count() {
  * @param input_shapes  Input shapes (must have two) to spatial dim number evaluation.
  * @return Value of spatial dimension number or infinite bound (-1) if cannot evaluate.
  */
-template <class TConv, class TShape>
-int64_t get_num_spatial(const TConv* op, const std::vector<TShape>& input_shapes) {
+template <class TShape>
+int64_t get_num_spatial(const std::vector<TShape>& input_shapes, const size_t filter_non_spatial_dims_count) {
     const auto& data_rank = input_shapes[0].rank();
     const auto& filters_rank = input_shapes[1].rank();
 
-    auto num_spatial = op->m_num_spatial;
+    size_t num_spatial;
 
-    if (num_spatial == ov::util::dim::inf_bound) {
-        if (data_rank.is_static()) {
-            num_spatial = data_rank.get_length() - spatial_dim_offset;
-        } else if (filters_rank.is_static()) {
-            num_spatial = filters_rank.get_length() - filter_non_spatial_dims_count<TConv>();
-        }
+    if (data_rank.is_static()) {
+        num_spatial = data_rank.get_length() - spatial_dim_offset;
+    } else if (filters_rank.is_static()) {
+        num_spatial = filters_rank.get_length() - filter_non_spatial_dims_count;
+    } else {
+        num_spatial = num_spatial_undefined;
     }
 
     return num_spatial;
 }
 
+/**
+ * @brief Get num of spatial form convolution operator.
+ *
+ * @tparam TConv        Convolution type.
+ * @tparam TShape       Shape type.
+ * @param op            Pointer to convolution operator.
+ * @param input_shapes  Input shapes (must have two) to spatial dim number evaluation.
+ * @return Value of spatial dimension number or `num_spatial_undefined` if cannot evaluate.
+ */
 template <class TConv, class TShape>
-int64_t get_num_spatial(const TConv* op, const std::vector<TShape>& input_shapes, const TShape& out_spatial_shape) {
-    auto num_spatial = convolution::get_num_spatial(op, input_shapes);
+size_t get_num_spatial(const TConv* op, const std::vector<TShape>& input_shapes) {
+    return get_num_spatial(input_shapes, filter_non_spatial_dims_count<TConv>());
+}
 
-    if (num_spatial == ov::util::dim::inf_bound && out_spatial_shape.rank().is_static() &&
-        out_spatial_shape.size() > 0) {
+template <class TConv, class TShape>
+size_t get_num_spatial(const TConv* op, const std::vector<TShape>& input_shapes, const TShape& out_spatial_shape) {
+    auto num_spatial = get_num_spatial(op, input_shapes);
+
+    if (num_spatial == num_spatial_undefined && out_spatial_shape.rank().is_static() && out_spatial_shape.size() > 0) {
         num_spatial = out_spatial_shape.size();
     }
 
@@ -79,19 +95,31 @@ bool is_auto_pad(const TOp* op) {
     return (op->get_auto_pad() == PadType::SAME_LOWER) || (op->get_auto_pad() == PadType::SAME_UPPER);
 }
 
-template <class T, class TOp, class TShape>
-void apply_auto_pad(const TOp* op, const std::vector<TShape>& input_shapes, T pads_begin, T pads_end) {
-    const auto num_spatial = get_num_spatial(op, input_shapes);
-    auto data_dim = input_shapes[0].cend() - num_spatial;
-    auto kernel_dim = input_shapes[1].cend() - num_spatial;
+/**
+ * @brief Apply auto padding for forward convolution.
+ *
+ * The auto padding can be applied only if inputs and attributes of operator are validated.
+ * The input shapes must have got static ranks.
+ *
+ * @param op            Pointer to convolution operator.
+ * @param input_shapes  Vector with input shapes.
+ * @param pads_begin    Iterator to begin of pads begin.
+ * @param pads_end      Iterator to begin of pads end.
+ */
+template <class TOp, class TShape, class TIter>
+void apply_auto_pad(const TOp* op, const std::vector<TShape>& input_shapes, TIter pads_begin, TIter pads_end) {
     const auto& dilations = op->get_dilations();
     const auto& strides = op->get_strides();
+
+    const auto num_spatial = strides.size();
+    auto data_dim = input_shapes[0].cend() - num_spatial;
+    auto kernel_dim = input_shapes[1].cend() - num_spatial;
 
     const auto padding_swap = op->get_auto_pad() == PadType::SAME_UPPER;
     auto& pad_b = padding_swap ? pads_begin : pads_end;
     auto& pad_e = padding_swap ? pads_end : pads_begin;
 
-    for (int64_t i = 0; i < num_spatial; ++i, ++pad_b, ++pad_e, ++data_dim, ++kernel_dim) {
+    for (size_t i = 0; i < num_spatial; ++i, ++pad_b, ++pad_e, ++data_dim, ++kernel_dim) {
         using namespace ov::util;
         if (kernel_dim->is_static()) {
             std::tie(*pad_b, *pad_e) = dim::padding(*data_dim, kernel_dim->get_length(), dilations[i], strides[i]);
@@ -102,25 +130,38 @@ void apply_auto_pad(const TOp* op, const std::vector<TShape>& input_shapes, T pa
     }
 }
 
+/**
+ * @brief Apply auto padding for backward convolution.
+ *
+ * The auto padding can be applied only if inputs and attributes of operator are validated.
+ * The input shapes must have got static ranks.
+ *
+ * @param op                 Pointer to convolution operator.
+ * @param input_shapes       Vector with input shapes.
+ * @param out_spatial_shape  Reference to input with out spatial shape.
+ * @param pads_begin         Iterator to begin of pads begin.
+ * @param pads_end           Iterator to begin of pads end.
+ */
 template <class TOp, class TShape, class TIter>
 void apply_auto_pad(const TOp* op,
                     const std::vector<TShape>& input_shapes,
                     const TShape& out_spatial_shape,
                     TIter pads_begin,
                     TIter pads_end) {
-    const auto num_spatial = get_num_spatial(op, input_shapes, out_spatial_shape);
+    const auto& strides = op->get_strides();
+    const auto& dilations = op->get_dilations();
+    const auto& out_padding = op->get_output_padding();
+
+    const auto num_spatial = strides.size();
     auto data_dim = input_shapes[0].cend() - num_spatial;
     auto kernel_dim = input_shapes[1].cend() - num_spatial;
-    const auto& dilations = op->get_dilations();
-    const auto& strides = op->get_strides();
-    const auto& out_padding = op->get_output_padding();
 
     const auto padding_swap = op->get_auto_pad() == PadType::SAME_UPPER;
     auto& pad_b = padding_swap ? pads_end : pads_begin;
     auto& pad_e = padding_swap ? pads_begin : pads_end;
 
     if (input_shapes.size() == 3) {
-        for (int64_t i = 0; i < num_spatial; ++i, ++pad_b, ++pad_e, ++data_dim, ++kernel_dim) {
+        for (size_t i = 0; i < num_spatial; ++i, ++pad_b, ++pad_e, ++data_dim, ++kernel_dim) {
             using namespace ov::util;
             if (data_dim->is_static() && kernel_dim->is_static() && out_spatial_shape[i].is_static()) {
                 const auto dilated_kernel = dim::dilated(*kernel_dim, dilations[i]);
@@ -143,15 +184,17 @@ void apply_auto_pad(const TOp* op,
 }
 
 /**
- * @brief Append convolution spatial dimension at end of output shape.
+ * @brief Append spatial dimension at end of output shape of forward propagation convolution.
  *
- * @tparam TOp          Convolution operator type.
+ * @tparam TOp          Forward propagation convolution operator type.
  * @tparam TShape       Type of shape.
  * @param op            Pointer to operator.
  * @param input_shapes  Input shape of convolution shape inference.
  * @param out_shape     Output shape to append spatial dimensions.
  */
-template <class TOp, class TShape>
+template <class TOp,
+          class TShape,
+          typename std::enable_if<!std::is_base_of<ov::op::util::ConvolutionBackPropBase, TOp>::value>::type* = nullptr>
 void append_spatial_shape(const TOp* op, const std::vector<TShape>& input_shapes, TShape& out_shape) {
     using namespace ov::util;
     using TDim = typename TShape::value_type;
@@ -192,8 +235,18 @@ void append_spatial_shape(const TOp* op, const std::vector<TShape>& input_shapes
     }
 }
 
-namespace backprop {
-template <class TOp, class TShape>
+/**
+ * @brief Append spatial dimension at end of output shape of back propagation convolution.
+ *
+ * @tparam TOp          Back propagation convolution operator type.
+ * @tparam TShape       Type of shape.
+ * @param op            Pointer to operator.
+ * @param input_shapes  Input shape of convolution shape inference.
+ * @param out_shape     Output shape to append spatial dimensions.
+ */
+template <class TOp,
+          class TShape,
+          typename std::enable_if<std::is_base_of<ov::op::util::ConvolutionBackPropBase, TOp>::value>::type* = nullptr>
 void append_spatial_shape(const TOp* op, const std::vector<TShape>& input_shapes, TShape& out_shape) {
     using namespace ov::util;
 
@@ -219,9 +272,191 @@ void append_spatial_shape(const TOp* op, const std::vector<TShape>& input_shapes
     }
 }
 
-}  // namespace backprop
+namespace validate {
+template <class TShape>
+void data_shape(const ov::op::util::ConvolutionBase* op, const TShape& data_shape) {
+    NODE_VALIDATION_CHECK(op,
+                          is_rank_compatible_any_of(data_shape.rank(), {3, 4, 5}),
+                          "Expected a 3D, 4D or 5D tensor for the input. Got: ",
+                          data_shape);
+}
+
+template <class TShape>
+void filter_shape(const ov::op::util::ConvolutionBase* op, const TShape& filters_shape, const TShape& data_shape) {
+    const auto& data_rank = data_shape.rank();
+    const auto& filters_rank = filters_shape.rank();
+
+    NODE_VALIDATION_CHECK(op,
+                          data_rank.compatible(filters_rank),
+                          "Data batch and filters rank do not match (data batch shape: ",
+                          data_shape,
+                          ", filters shape: ",
+                          filters_shape,
+                          ").");
+
+    NODE_VALIDATION_CHECK(
+        op,
+        data_rank.is_dynamic() || filters_rank.is_dynamic() || data_shape[1].compatible(filters_shape[1]),
+        "Data batch channel count (",
+        data_shape[1],
+        ") does not match filter input channel count (",
+        filters_shape[1],
+        ").");
+}
+
+template <class TShape>
+void filter_shape(const ov::op::util::ConvolutionBackPropBase* op,
+                  const TShape& filters_shape,
+                  const TShape& data_shape) {
+    const auto& data_rank = data_shape.rank();
+    const auto& filters_rank = filters_shape.rank();
+
+    NODE_VALIDATION_CHECK(op,
+                          data_rank.compatible(filters_rank),
+                          "Data batch and filters rank do not match (data batch shape: ",
+                          data_shape,
+                          ", filters shape: ",
+                          filters_shape,
+                          ").");
+
+    NODE_VALIDATION_CHECK(
+        op,
+        data_rank.is_dynamic() || filters_rank.is_dynamic() || data_shape[1].compatible(filters_shape[0]),
+        "Data batch channel count (",
+        data_shape[1],
+        ") does not match filter input channel count (",
+        filters_shape[0],
+        ").");
+}
+
+inline void common_attributes(const util::ConvolutionBase* op, const size_t num_spatial) {
+    auto& strides = op->get_strides();
+    auto& dilations = op->get_dilations();
+    auto& pads_begin = op->get_pads_begin();
+    auto& pads_end = op->get_pads_end();
+
+    NODE_VALIDATION_CHECK(op,
+                          strides.size() == num_spatial,
+                          "Strides should be defined for all and only spatial dimensions.");
+    NODE_VALIDATION_CHECK(op,
+                          dilations.size() == num_spatial,
+                          "Dilations should be defined for all and only spatial dimensions.");
+    NODE_VALIDATION_CHECK(op,
+                          pads_begin.size() == num_spatial && pads_end.size() == pads_begin.size(),
+                          "Pads begin and end should be defined for all and only spatial dimensions.");
+
+    constexpr auto is_zero = cmp::Equal<size_t>(0);
+    NODE_VALIDATION_CHECK(op,
+                          std::none_of(strides.cbegin(), strides.cend(), is_zero),
+                          "Strides has zero dimension(s). ",
+                          strides);
+    NODE_VALIDATION_CHECK(op,
+                          std::none_of(dilations.cbegin(), dilations.cend(), is_zero),
+                          "Filter dilations has zero dimension(s). ",
+                          dilations);
+}
+
+inline void common_attributes(const util::ConvolutionBackPropBase* op, const size_t num_spatial) {
+    common_attributes(static_cast<const util::ConvolutionBase*>(op), num_spatial);
+    NODE_VALIDATION_CHECK(op,
+                          op->get_output_padding().size() == num_spatial,
+                          "Output padding should be defined for all and only spatial dimensions.");
+}
+}  // namespace validate
 }  // namespace convolution
 
-namespace convolution_backprop {}
+namespace util {
+/**
+ * @brief Resize common attributes to number of spatial dimension.
+ *
+ * @param op           Pointer to convolution base for forward convolutions.
+ * @param num_spatial  Number of spatial dimensions
+ */
+inline void resize_attributes(ConvolutionBase* op, const size_t num_spatial) {
+    if (op->m_strides.empty()) {
+        op->m_strides.resize(num_spatial, 1);
+    }
+    if (op->m_dilations.empty()) {
+        op->m_dilations.resize(num_spatial, 1);
+    }
+    if (op->m_pads_begin.empty()) {
+        op->m_pads_begin.resize(num_spatial, 0);
+    }
+    if (op->m_pads_end.empty()) {
+        op->m_pads_end.resize(num_spatial, 0);
+    }
+}
+
+/**
+ * @brief  Apply auto padding for forward convolutions.
+ *
+ * @tparam TShape       Shape type.
+ * @param op            Pointer to forward propagation convolution operator.
+ * @param input_shapes  Shapes of inputs.
+ */
+template <class TShape>
+void apply_padding(ConvolutionBase* op, const std::vector<TShape>& input_shapes) {
+    const auto data_rank = input_shapes[0].rank();
+    const auto filters_rank = input_shapes[1].rank();
+
+    if (convolution::is_auto_pad(op) && data_rank.is_static() && filters_rank.is_static()) {
+        convolution::apply_auto_pad(op, input_shapes, op->m_pads_begin.begin(), op->m_pads_end.begin());
+    } else if (op->get_auto_pad() == op::PadType::VALID) {
+        std::fill(op->m_pads_begin.begin(), op->m_pads_begin.end(), 0);
+        std::fill(op->m_pads_end.begin(), op->m_pads_end.end(), 0);
+    }
+}
+
+/**
+ * @brief Checks if validation attributes is required.
+ *
+ * @param op  Pointer to convolution base operator.
+ * @return True if internal number of spatial dimension not defined otherwise false.
+ */
+inline bool is_attr_validation_required(const ConvolutionBase* op) {
+    return ov::op::convolution::num_spatial_undefined == op->m_num_spatial;
+}
+
+/**
+ * @brief Resize common attributes to number of spatial dimension.
+ *
+ * @param op           Pointer to convolution base for forward convolutions.
+ * @param num_spatial  Number of spatial dimensions
+ */
+inline void resize_attributes(ConvolutionBackPropBase* op, const size_t num_spatial) {
+    resize_attributes(static_cast<ConvolutionBase*>(op), num_spatial);
+
+    if (op->m_output_padding.empty()) {
+        op->m_output_padding.resize(num_spatial, 0);
+    }
+}
+
+/**
+ * @brief  Apply auto padding for back propagation convolutions.
+ *
+ * @tparam TShape       Shape type.
+ * @param op            Pointer to back propagation convolution operator.
+ * @param input_shapes  Shapes of inputs.
+ */
+template <class TShape>
+void apply_padding(ConvolutionBackPropBase* op,
+                   const std::vector<TShape>& input_shapes,
+                   const TShape& out_spatial_shape) {
+    const auto data_rank = input_shapes[0].rank();
+    const auto filters_rank = input_shapes[1].rank();
+
+    // apply padding if required
+    if (convolution::is_auto_pad(op) && data_rank.is_static() && filters_rank.is_static()) {
+        convolution::apply_auto_pad(op,
+                                    input_shapes,
+                                    out_spatial_shape,
+                                    op->m_pads_begin.begin(),
+                                    op->m_pads_end.begin());
+    } else if (op->get_auto_pad() == op::PadType::VALID) {
+        std::fill(op->m_pads_begin.begin(), op->m_pads_begin.end(), 0);
+        std::fill(op->m_pads_end.begin(), op->m_pads_end.end(), 0);
+    }
+}
+}  // namespace util
 }  // namespace op
 }  // namespace ov

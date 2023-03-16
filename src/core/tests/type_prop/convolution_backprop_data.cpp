@@ -556,7 +556,7 @@ TEST(type_prop, convolution_backprop_data_invalid_input_ranks) {
                                                                           Strides{});
         FAIL() << "Incompatible input ranks not detected";
     } catch (const NodeValidationFailure& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), "Data and filters rank do not match");
+        EXPECT_HAS_SUBSTRING(error.what(), "Data batch and filters rank do not match");
     } catch (...) {
         FAIL() << "Rank validation check of inputs failed for unexpected reason";
     }

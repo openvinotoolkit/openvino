@@ -31,7 +31,7 @@ std::vector<TShape> shape_infer(const GroupConvolutionBackpropData* op,
     NODE_VALIDATION_CHECK(op, inputs_count == 2 || has_spatial_shape);
     using namespace ov::util;
 
-    int64_t num_spatial;
+    size_t num_spatial;
     TShape out_spatial_shape;
 
     if (has_spatial_shape) {
@@ -50,35 +50,41 @@ std::vector<TShape> shape_infer(const GroupConvolutionBackpropData* op,
         num_spatial = convolution::get_num_spatial(op, input_shapes, out_spatial_shape);
     } else {
         num_spatial = convolution::get_num_spatial(op, input_shapes);
-        if (num_spatial > 0) {
+        if (num_spatial != convolution::num_spatial_undefined) {
             out_spatial_shape.resize(num_spatial);
         }
     }
 
     TShape output_shape;
-    if (num_spatial != dim::inf_bound) {
+    if (num_spatial != convolution::num_spatial_undefined) {
         const auto& data_shape = input_shapes[0];
         const auto& filters_shape = input_shapes[1];
         const auto data_rank = data_shape.rank();
         const auto filters_rank = filters_shape.rank();
 
-        NODE_VALIDATION_CHECK(op,
-                              data_rank.compatible(filters_rank - 1),
-                              "Data and filters rank do not match (data batch shape: ",
-                              data_shape,
-                              ", filters shape: ",
-                              filters_shape,
-                              ").");
-
         if (out_spatial_shape.rank().is_static()) {
             NODE_VALIDATION_CHECK(op,
-                                  static_cast<int64_t>(out_spatial_shape.size()) == num_spatial,
+                                  out_spatial_shape.size() == num_spatial,
                                   "Output shape should be defined for all and only spatial dimensions.");
         } else {
             out_spatial_shape.resize(num_spatial);
         }
 
-        update_and_validate_attributes(const_cast<GroupConvolutionBackpropData*>(op), input_shapes, out_spatial_shape);
+        resize_attributes(const_cast<GroupConvolutionBackpropData*>(op), num_spatial);
+        if (is_attr_validation_required(op)) {
+            convolution::validate::data_shape(op, data_shape);
+
+            NODE_VALIDATION_CHECK(op,
+                                  data_rank.compatible(filters_rank - 1),
+                                  "Data and filters rank do not match (data batch shape: ",
+                                  data_shape,
+                                  ", filters shape: ",
+                                  filters_shape,
+                                  ").");
+
+            convolution::validate::common_attributes(op, num_spatial);
+        }
+        apply_padding(const_cast<GroupConvolutionBackpropData*>(op), input_shapes, out_spatial_shape);
 
         output_shape.reserve(convolution::spatial_dim_offset + num_spatial);
         output_shape.emplace_back(data_rank.is_static() ? data_shape[0] : dim::inf_bound);
@@ -106,7 +112,7 @@ std::vector<TShape> shape_infer(const GroupConvolutionBackpropData* op,
                                 std::make_move_iterator(out_spatial_shape.begin()),
                                 std::make_move_iterator(out_spatial_shape.end()));
         } else {
-            convolution::backprop::append_spatial_shape(op, input_shapes, output_shape);
+            convolution::append_spatial_shape(op, input_shapes, output_shape);
         }
     } else {
         output_shape = PartialShape::dynamic();

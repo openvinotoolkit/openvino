@@ -23,12 +23,7 @@ op::v1::GroupConvolution::GroupConvolution(const Output<Node>& data_batch,
                                            const CoordinateDiff& pads_end,
                                            const Strides& dilations,
                                            const PadType& auto_pad)
-    : Op({data_batch, filters}),
-      m_strides(strides),
-      m_dilations(dilations),
-      m_pads_begin(pads_begin),
-      m_pads_end(pads_end),
-      m_auto_pad(auto_pad) {
+    : ConvolutionBase({data_batch, filters}, strides, pads_begin, pads_end, dilations, auto_pad) {
     constructor_validate_and_infer_types();
 }
 
@@ -86,14 +81,7 @@ shared_ptr<Node> op::v1::GroupConvolution::clone_with_new_inputs(const OutputVec
 //                        v1::GroupConvolutionBackpropData
 //------------------------------------------------------------------------------
 
-op::v1::GroupConvolutionBackpropData::GroupConvolutionBackpropData()
-    : Op(),
-      m_strides(),
-      m_dilations(),
-      m_pads_begin(),
-      m_pads_end(),
-      m_auto_pad(),
-      m_output_padding() {}
+op::v1::GroupConvolutionBackpropData::GroupConvolutionBackpropData() : ConvolutionBackPropBase() {}
 
 op::v1::GroupConvolutionBackpropData::GroupConvolutionBackpropData(const Output<Node>& data,
                                                                    const Output<Node>& filters,
@@ -104,13 +92,13 @@ op::v1::GroupConvolutionBackpropData::GroupConvolutionBackpropData(const Output<
                                                                    const Strides& dilations,
                                                                    const PadType& auto_pad,
                                                                    const CoordinateDiff& output_padding)
-    : Op({data, filters, output_shape}),
-      m_strides(strides),
-      m_dilations(dilations),
-      m_pads_begin(pads_begin),
-      m_pads_end(pads_end),
-      m_auto_pad(auto_pad),
-      m_output_padding(output_padding) {
+    : ConvolutionBackPropBase({data, filters, output_shape},
+                              strides,
+                              pads_begin,
+                              pads_end,
+                              dilations,
+                              auto_pad,
+                              output_padding) {
     ov::mark_as_precision_sensitive(input(2));
     constructor_validate_and_infer_types();
 }
@@ -140,13 +128,7 @@ op::v1::GroupConvolutionBackpropData::GroupConvolutionBackpropData(const Output<
                                                                    const Strides& dilations,
                                                                    const PadType& auto_pad,
                                                                    const CoordinateDiff& output_padding)
-    : Op({data, filters}),
-      m_strides(strides),
-      m_dilations(dilations),
-      m_pads_begin(pads_begin),
-      m_pads_end(pads_end),
-      m_auto_pad(auto_pad),
-      m_output_padding(output_padding) {
+    : ConvolutionBackPropBase({data, filters}, strides, pads_begin, pads_end, dilations, auto_pad, output_padding) {
     constructor_validate_and_infer_types();
 }
 

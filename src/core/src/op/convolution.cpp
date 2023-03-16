@@ -21,12 +21,7 @@ op::v1::Convolution::Convolution(const Output<Node>& data_batch,
                                  const CoordinateDiff& pads_end,
                                  const Strides& dilations,
                                  const PadType& auto_pad)
-    : Op({data_batch, filters}),
-      m_strides(strides),
-      m_dilations(dilations),
-      m_pads_begin(pads_begin),
-      m_pads_end(pads_end),
-      m_auto_pad(auto_pad) {
+    : ConvolutionBase({data_batch, filters}, strides, pads_begin, pads_end, dilations, auto_pad) {
     constructor_validate_and_infer_types();
 }
 
@@ -59,7 +54,7 @@ void op::v1::Convolution::validate_and_infer_types() {
                           "Element types must be numeric. Got: ",
                           result_et);
 
-    m_num_spatial = ov::util::dim::inf_bound;
+    m_num_spatial = convolution::num_spatial_undefined;
     const auto input_shapes = get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, result_et, output_shapes[0]);
@@ -90,13 +85,13 @@ op::v1::ConvolutionBackpropData::ConvolutionBackpropData(const Output<Node>& dat
                                                          const Strides& dilations,
                                                          const PadType& auto_pad,
                                                          const CoordinateDiff& output_padding)
-    : Op({data, filters, output_shape}),
-      m_strides(strides),
-      m_dilations(dilations),
-      m_pads_begin(pads_begin),
-      m_pads_end(pads_end),
-      m_auto_pad(auto_pad),
-      m_output_padding(output_padding) {
+    : ConvolutionBackPropBase({data, filters, output_shape},
+                              strides,
+                              pads_begin,
+                              pads_end,
+                              dilations,
+                              auto_pad,
+                              output_padding) {
     ov::mark_as_precision_sensitive(input(2));
     constructor_validate_and_infer_types();
 }
@@ -120,13 +115,7 @@ op::v1::ConvolutionBackpropData::ConvolutionBackpropData(const Output<Node>& dat
                                                          const Strides& dilations,
                                                          const PadType& auto_pad,
                                                          const CoordinateDiff& output_padding)
-    : Op({data, filters}),
-      m_strides(strides),
-      m_dilations(dilations),
-      m_pads_begin(pads_begin),
-      m_pads_end(pads_end),
-      m_auto_pad(auto_pad),
-      m_output_padding(output_padding) {
+    : ConvolutionBackPropBase({data, filters}, strides, pads_begin, pads_end, dilations, auto_pad, output_padding) {
     constructor_validate_and_infer_types();
 }
 
@@ -212,7 +201,7 @@ void op::v1::ConvolutionBackpropData::validate_and_infer_types() {
                               ").");
     }
 
-    m_num_spatial = ov::util::dim::inf_bound;
+    m_num_spatial = convolution::num_spatial_undefined;
     const auto input_shapes = get_node_input_partial_shapes(*this);
     const auto output_shapes = shape_infer(this, input_shapes);
     set_output_type(0, result_et, output_shapes[0]);

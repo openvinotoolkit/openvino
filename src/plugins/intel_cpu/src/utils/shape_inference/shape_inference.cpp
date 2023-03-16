@@ -15,6 +15,7 @@
 #include "augru_sequence_shape_inference.hpp"
 #include "avg_pool_shape_inference.hpp"
 #include "batch_to_space_shape_inference.hpp"
+#include "binary_convolution_shape_inference.hpp"
 #include "broadcast_shape_inference.hpp"
 #include "bucketize_shape_inference.hpp"
 #include "concat_shape_inference.hpp"
@@ -514,6 +515,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(Assign, entryIO),
     _OV_OP_SHAPE_INFER_REG(AvgPool, ShapeInferWithPaddingConvert),
     _OV_OP_SHAPE_INFER_REG(BatchToSpace, entryIOC),
+    _OV_OP_SHAPE_INFER_REG(BinaryConvolution, ShapeInferWithPadding),
     _OV_OP_SHAPE_INFER_REG(Broadcast, entryIOC),
     _OV_OP_SHAPE_INFER_REG(Bucketize, entryIO),
     _OV_OP_SHAPE_INFER_REG(Concat, entryIO),

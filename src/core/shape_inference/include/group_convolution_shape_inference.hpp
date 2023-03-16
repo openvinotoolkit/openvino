@@ -32,20 +32,27 @@ std::vector<TShape> shape_infer(const GroupConvolution* op,
     const auto num_spatial = convolution::get_num_spatial(op, input_shapes);
 
     TShape output_shape;
-    if (num_spatial != dim::inf_bound) {
+    if (num_spatial != convolution::num_spatial_undefined) {
         const auto& data_shape = input_shapes[0];
         const auto& filters_shape = input_shapes[1];
         const auto data_rank = data_shape.rank();
         const auto filters_rank = filters_shape.rank();
 
-        NODE_VALIDATION_CHECK(op,
-                              data_rank.compatible(filters_rank - 1),
-                              "Data batch and filters rank do not match (data batch shape: ",
-                              data_shape,
-                              ", filters shape: ",
-                              filters_shape,
-                              ").");
-        update_and_validate_attributes(const_cast<GroupConvolution*>(op), input_shapes);
+        resize_attributes(const_cast<GroupConvolution*>(op), num_spatial);
+        if (is_attr_validation_required(op)) {
+            convolution::validate::data_shape(op, data_shape);
+
+            NODE_VALIDATION_CHECK(op,
+                                  data_rank.compatible(filters_rank - 1),
+                                  "Data batch and filters rank do not match (data batch shape: ",
+                                  data_shape,
+                                  ", filters shape: ",
+                                  filters_shape,
+                                  ").");
+
+            convolution::validate::common_attributes(op, num_spatial);
+        }
+        apply_padding(const_cast<GroupConvolution*>(op), input_shapes);
 
         output_shape.reserve(convolution::spatial_dim_offset + num_spatial);
         output_shape.emplace_back(data_rank.is_static() ? data_shape[0] : dim::inf_bound);
