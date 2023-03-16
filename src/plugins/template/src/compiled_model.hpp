@@ -26,7 +26,8 @@ public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
-                  const Configuration& cfg);
+                  const Configuration& cfg,
+                  bool loaded_from_cache = false);
 
     // Methods from a base class ov::ICompiledModel
     void export_model(std::ostream& model) const override;
@@ -53,6 +54,7 @@ private:
     mutable std::atomic<std::size_t> m_request_id = {0};
     Configuration m_cfg;
     std::shared_ptr<ov::Model> m_model;
+    const bool m_loaded_from_cache;
 };
 // ! [compiled_model:header]
 
