@@ -13,6 +13,7 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "dev/converter_utils.hpp"
+#include "dev/make_tensor.hpp"
 #include "file_utils.h"
 #include "ie_itt.hpp"
 #include "ie_network_reader.hpp"
@@ -27,6 +28,7 @@
 #include "openvino/core/version.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/util/common_util.hpp"
@@ -74,7 +76,7 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
 
     pugi::xml_document& xmlDoc = *parse_result.xml;
 
-    using namespace XMLParseUtils;
+    using namespace pugixml::utils;
     pugi::xml_node ieNode = xmlDoc.document_element();
     pugi::xml_node devicesNode = ieNode.child("plugins");
 
@@ -1097,7 +1099,7 @@ std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& model,
                                                     bool frontendMode) const {
     InferenceEngine::Blob::Ptr blob;
     if (weights) {
-        blob = weights._impl;
+        blob = tensor_to_blob(weights._impl);
     }
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::read_model from memory");
     return ReadNetwork(model, blob, frontendMode).getFunction();
