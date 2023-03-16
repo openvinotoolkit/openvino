@@ -4586,7 +4586,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dropout12_not_const_training_mode) {
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_multiple_slices_last_layer) {
     std::vector<float> data(1 * 30 * 320 * 320);
-    std::fill(data.begin(), data.end(), 1);
+    std::fill(data.begin(), data.end(), 1.f);
 
     const auto function = onnx_import::import_onnx_model(file_util::path_join(CommonTestUtils::getExecutableDirectory(),
                                                                               SERIALIZED_ZOO,
