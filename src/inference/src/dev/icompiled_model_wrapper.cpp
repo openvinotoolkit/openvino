@@ -85,3 +85,8 @@ std::shared_ptr<InferenceEngine::IExecutableNetworkInternal>
 InferenceEngine::ICompiledModelWrapper::get_executable_network() {
     return m_model;
 }
+
+std::shared_ptr<const InferenceEngine::IExecutableNetworkInternal>
+InferenceEngine::ICompiledModelWrapper::get_executable_network() const {
+    return m_model;
+}

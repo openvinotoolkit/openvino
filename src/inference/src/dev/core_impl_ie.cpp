@@ -10,6 +10,7 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "dev/converter_utils.hpp"
+#include "dev/icompiled_model_wrapper.hpp"
 #include "dev/make_tensor.hpp"
 #include "ie_itt.hpp"
 #include "ie_network_reader.hpp"
@@ -128,6 +129,9 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::ImportNetwork(
     const std::string& deviceName,
     const std::map<std::string, std::string>& config) {
     auto compiled_model = import_model(networkModel, deviceName, any_copy(config));
+    if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
+        wrapper->get_executable_network()->loadedFromCache();
+    }
     return {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
 }
 
