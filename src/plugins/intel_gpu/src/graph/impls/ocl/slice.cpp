@@ -48,7 +48,11 @@ std::vector<std::int32_t> extractIntegerData(const data_node& node, const stream
 std::vector<std::int32_t> extractShape(kernel_selector::Tensor::DataTensor& tensor) {
     auto logical_dims = tensor.LogicalDims();
     // LogicalDims method returns dims in reversed order
-    return {logical_dims.rbegin(), logical_dims.rend()};
+    std::vector<int32_t> reverse_logical_dims;
+    for (auto it = logical_dims.rbegin(); it != logical_dims.rend(); ++it) {
+        reverse_logical_dims.push_back(static_cast<int32_t>(*it));
+    }
+    return reverse_logical_dims;
 }
 
 } // namespace
