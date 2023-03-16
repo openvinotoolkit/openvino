@@ -1,4 +1,4 @@
-# Executable Network {#openvino_docs_ie_plugin_dg_executable_network}
+# Executable Network {#openvino_docs_ov_plugin_dg_compiled_model}
 
 `ExecutableNetwork` class functionality:
 - Compile an InferenceEngine::ICNNNetwork instance to a backend specific graph representation
