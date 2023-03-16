@@ -22,7 +22,7 @@ static void CreateTopKOp(Program& p, const std::shared_ptr<ngraph::op::v1::TopK>
     ov::op::TopKMode mode = op->get_mode();
     ov::op::TopKSortType stype = op->get_sort_type();
 
-    uint32_t top_k = op->get_k();
+    uint32_t top_k = static_cast<uint32_t>(op->get_k());
     uint64_t chosen_axis = op->get_axis();
 
     if (p.use_new_shape_infer()) {

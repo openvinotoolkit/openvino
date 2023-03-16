@@ -17,7 +17,7 @@ using namespace ::tests;
 
 template <class T>
 int get_not_one_dim(const T& a) {
-    int ret = a.size();
+    int ret = static_cast<int>(a.size());
     while (ret - 1 >= 0 && a[ret - 1] == 1)
         ret--;
     return ret;
