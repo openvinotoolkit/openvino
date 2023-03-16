@@ -598,6 +598,7 @@ EdgePtr Edge::getBaseEdge(int look) {
 
             if (chch_conf.inConfs[ch_edge->getOutputNum()].inPlace() >= 0) {
                 next_ch_edge = ch_edge;
+                // To align with upstream-inplace, we stop searching once found the first inplace consumer
                 break;
             }
         }
@@ -616,6 +617,7 @@ EdgePtr Edge::getBaseEdge(int look) {
         for (auto edge : edges_for_same_port) {
             if (edge.get() != this) {
                 auto base = edge->getBaseEdge(LOOK_BOTH | LOOK_NO_RECURRENT);
+                // Return once found the first inplace consumer
                 if (base != edge && base != edges_for_same_port[0]) return base;
             }
         }
