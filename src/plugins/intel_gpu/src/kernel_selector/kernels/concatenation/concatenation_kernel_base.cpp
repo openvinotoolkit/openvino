@@ -47,11 +47,37 @@ bool ConcatenationKernelBase::Validate(const Params& p, const optional_params&) 
 }
 
 JitConstants ConcatenationKernelBase::GetJitConstants(const concatenation_params& params) const {
-    JitConstants jit = MakeBaseParamsJitConstants(params);
+    auto& inputs = params.original_input_layouts;
+    bool is_dynamic = std::any_of(inputs.begin(), inputs.end(), [](const DataTensor& t) { return t.is_dynamic(); }) ||
+                      std::any_of(params.outputs.begin(), params.outputs.end(), [](const DataTensor& t) { return t.is_dynamic(); });
+    JitConstants jit = MakeBaseParamsJitConstants(params, !is_dynamic);
 
     jit.AddConstants({
         MakeJitConstant("CONCAT_" + toString(params.axis), 1),
     });
+
+    if (is_dynamic) {
+        // shape info is supposed to contain shapes for
+        // in0, in1, ..., inN, out0
+        // So each dynamic kernel requires some custom offsets for shape_info access
+        size_t in_offset = 0;
+        for (size_t i = 0; i < params.kernel_split_id; i++) {
+            if (params.original_input_layouts[i].is_dynamic() || params.original_input_layouts[i].LogicalSize() == 0)
+                in_offset++;
+        }
+        size_t out_offset = 0;
+        for (size_t i = 0; i < params.original_input_layouts.size(); i++) {
+            if (params.original_input_layouts[i].is_dynamic() || params.original_input_layouts[i].LogicalSize() == 0)
+                out_offset++;
+        }
+
+        jit.AddConstant(MakeJitConstant("INPUT0", params.inputs[0], in_offset));
+        jit.AddConstant(MakeJitConstant("OUTPUT", params.outputs[0], out_offset));
+
+        jit.AddConstant(MakeJitConstant("IS_DYNAMIC", 1));
+        jit.AddConstant(MakeJitConstant("OPTIONAL_SHAPE_INFO_ARG", "__global const int* shape_info,"));
+        jit.AddConstant(MakeJitConstant("OPTIONAL_SHAPE_INFO_TENSOR", "shape_info,"));
+    }
 
     jit.AddConstant(MakeJitConstant("CONCAT_AXIS_INDEX", GetConcatChannelIndex(params)));
     return jit;
@@ -91,6 +117,38 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
     const concatenation_params& orgParams = static_cast<const concatenation_params&>(params);
     KernelData kd = KernelData::Default<concatenation_params>(params, orgParams.inputs.size());
 
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const concatenation_params&>(params);
+        uint32_t lastOffset = 0;
+        for (size_t i = 0; i < prim_params.inputs.size(); i++) {
+            size_t ifm_offset = 0;
+
+            const auto& input = prim_params.inputs[i];
+            auto newParams = prim_params;
+            newParams.inputs.resize(1);
+            newParams.inputs[0] = input;
+            size_t ifm = input.Feature().v;
+            newParams.isAligned = ifm_offset % GetAlignment(newParams) == 0;
+            newParams.misalignment = ifm_offset % GetAlignment(newParams);
+            ifm_offset += ifm;
+
+            auto& kernel = kd.kernels[i];
+            DispatchData dispatchData = SetDefault(newParams);
+            kernel.params.workGroups.global = dispatchData.gws;
+            kernel.params.workGroups.local = dispatchData.lws;
+
+            ScalarDescriptor s;
+            s.t = ScalarDescriptor::Types::UINT32;
+            s.v.u32 = lastOffset;
+            kernel.params.scalars.resize(1);
+            kernel.params.scalars[0] = s;
+
+            auto concatChannelIndex = DataTensor::Channelndex(input.GetLayout(), GetConcatChannel(prim_params));
+            lastOffset += (uint32_t)input.GetDims()[concatChannelIndex].v;
+        }
+    };
+
+    bool is_dynamic = orgParams.has_dynamic_tensors();
     uint32_t lastOffset = 0;
     size_t ifm_offset = 0;
     for (size_t i = 0; i < orgParams.inputs.size(); i++) {
@@ -103,6 +161,9 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
         newParams.misalignment = ifm_offset % GetAlignment(newParams);
         ifm_offset += ifm;
 
+        newParams.kernel_split_id = i;
+        newParams.original_input_layouts = orgParams.inputs;
+
         auto& kernel = kd.kernels[i];
         DispatchData dispatchData = SetDefault(newParams);
         auto cldnnJit = GetJitConstants(newParams);
@@ -112,6 +173,9 @@ KernelsData ConcatenationKernelBase::GetCommonKernelsData(const Params& params, 
         kernel.code.kernelString = GetKernelString(kernelName, jit, entryPoint, params.engineInfo);
         kernel.params.workGroups.global = dispatchData.gws;
         kernel.params.workGroups.local = dispatchData.lws;
+        if (is_dynamic) {
+            kernel.params.arguments.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+        }
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, (uint32_t) i});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
