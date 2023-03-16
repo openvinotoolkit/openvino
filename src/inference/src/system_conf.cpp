@@ -192,6 +192,7 @@ struct CPU {
     std::vector<std::vector<int>> _proc_type_table;
     std::vector<std::vector<int>> _cpu_mapping_table;
     std::mutex _cpu_mutex;
+    std::mutex _task_mutex;
     int _plugin_status = PLUGIN_USED_START;
     int _socket_idx = 0;
 
@@ -247,6 +248,7 @@ std::vector<std::vector<int>> get_num_available_cpu_cores() {
 }
 
 int get_task_flag() {
+    std::lock_guard<std::mutex> lock{cpu._task_mutex};
     return cpu._plugin_status++;
 }
 
