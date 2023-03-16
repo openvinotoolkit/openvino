@@ -99,15 +99,18 @@ bool op::v1::Equal::evaluate_upper(ov::TensorVector& output_values) const {
     ov::Tensor upper = lhs.has_and_set_bound() ? rhs.get_upper_value() : lhs.get_upper_value();
 
     auto size = ov::shape_size(output_values[0].get_shape());
-    bool less_eq_data[size];
+    bool* less_eq_data = new bool[size];
     const auto& less_eq_op = ov::op::v1::LessEqual();
     auto outputs = ov::TensorVector{ov::Tensor(element::boolean, output_values[0].get_shape(), less_eq_data)};
     auto inputs = std::vector<ov::Tensor>{lower, constant};
-    if (!less_eq_op.evaluate(outputs, inputs))
+    if (!less_eq_op.evaluate(outputs, inputs)) {
+        delete[] less_eq_data;
         return false;
+    }
     for (size_t i = 0; i < size; ++i) {
         if (!less_eq_data[i]) {
             std::memset(output_values[0].data(), 0, output_values[0].get_byte_size());
+            delete[] less_eq_data;
             return true;
         }
     }
@@ -118,10 +121,12 @@ bool op::v1::Equal::evaluate_upper(ov::TensorVector& output_values) const {
     for (size_t i = 0; i < size; ++i) {
         if (!less_eq_data[i]) {
             std::memset(output_values[0].data(), 0, output_values[0].get_byte_size());
+            delete[] less_eq_data;
             return true;
         }
     }
     std::memset(output_values[0].data(), 1, output_values[0].get_byte_size());
+    delete[] less_eq_data;
     return true;
 }
 
