@@ -288,7 +288,7 @@ TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedTargetDevice) {
 TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedPwlAlgorithm) {
     ov::Core core;
     auto pwl_algo = ov::intel_gna::PWLDesignAlgorithm::UNDEFINED;
-    float pwl_max_error = 0.0f;
+    auto pwl_approximation_mode = ov::intel_gna::PWLApproximationMode::ACCURACY;
 
     OV_ASSERT_NO_THROW(
         core.set_property("GNA",
@@ -304,13 +304,17 @@ TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedPwlAlgorithm) {
 
     ASSERT_THROW(core.set_property("GNA", {{ov::intel_gna::pwl_design_algorithm.name(), "ABC"}}), ov::Exception);
 
-    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::pwl_max_error_percent(0.05)));
-    OV_ASSERT_NO_THROW(pwl_max_error = core.get_property("GNA", ov::intel_gna::pwl_max_error_percent));
-    ASSERT_FLOAT_EQ(0.05, pwl_max_error);
+    OV_ASSERT_NO_THROW(
+        core.set_property("GNA",
+                          ov::intel_gna::pwl_approximation_mode(ov::intel_gna::PWLApproximationMode::PERFORMANCE)));
+    OV_ASSERT_NO_THROW(pwl_approximation_mode = core.get_property("GNA", ov::intel_gna::pwl_approximation_mode));
+    ASSERT_EQ(ov::intel_gna::PWLApproximationMode::PERFORMANCE, pwl_approximation_mode);
 
-    OV_ASSERT_NO_THROW(core.set_property("GNA", ov::intel_gna::pwl_max_error_percent(100.0f)));
-    OV_ASSERT_NO_THROW(pwl_max_error = core.get_property("GNA", ov::intel_gna::pwl_max_error_percent));
-    ASSERT_FLOAT_EQ(100.0f, pwl_max_error);
+    OV_ASSERT_NO_THROW(
+        core.set_property("GNA", ov::intel_gna::pwl_approximation_mode(ov::intel_gna::PWLApproximationMode::ACCURACY)));
+    OV_ASSERT_NO_THROW(pwl_approximation_mode = core.get_property("GNA", ov::intel_gna::pwl_approximation_mode));
+    ASSERT_EQ(ov::intel_gna::PWLApproximationMode::ACCURACY, pwl_approximation_mode);
+    ASSERT_THROW(core.set_property("GNA", {{ov::intel_gna::pwl_approximation_mode.name(), "ABC"}}), ov::Exception);
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     ASSERT_THROW(
@@ -319,8 +323,6 @@ TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedPwlAlgorithm) {
                            {GNA_CONFIG_KEY(PWL_UNIFORM_DESIGN), InferenceEngine::PluginConfigParams::YES}}),
         ov::Exception);
     OPENVINO_SUPPRESS_DEPRECATED_END
-    ASSERT_THROW(core.set_property("GNA", ov::intel_gna::pwl_max_error_percent(-1.0f)), ov::Exception);
-    ASSERT_THROW(core.set_property("GNA", ov::intel_gna::pwl_max_error_percent(146.0f)), ov::Exception);
 }
 
 TEST(OVClassBasicPropsTest, smoke_SetConfigAfterCreatedLogLevel) {

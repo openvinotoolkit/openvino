@@ -147,8 +147,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
     // Breaks fusing of layers before result
     manager.register_pass<ov::intel_gna::pass::BreakFusingOfOutputLayers>();
     if (!config.gnaFlags.sw_fp32 && !config.gnaFlags.uniformPwlDesign) {
-        manager.register_pass<ov::intel_gna::pass::PWLApproximationWithFq>(config.gnaFlags.pwlMaxErrorPercent);
-        manager.register_pass<ov::intel_gna::pass::PWLApproximation>(config.gnaFlags.pwlMaxErrorPercent);
+        manager.register_pass<ov::intel_gna::pass::PWLApproximation>(config.gnaFlags.pwl_approximation_mode);
     }
     manager.register_pass<ov::pass::UnrollTensorIterator>();
     manager.register_pass<ov::intel_gna::pass::InsertCopyBeforeAssignLayer>();

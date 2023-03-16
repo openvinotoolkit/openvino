@@ -81,9 +81,10 @@ protected:
         if (act == ngraph::helpers::ActivationTypes::Log) {
             // clamp not positive values
             inputDataMin = 1.0e-3;
-            // get error threshold value from PWL error
-            threshold = std::stof(configuration["GNA_PWL_MAX_ERROR_PERCENT"]);
+
+            threshold = kMaxErrorForLog;
         }
+
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
         const ngraph::Shape shape = {1, 128};
@@ -129,6 +130,7 @@ protected:
     const size_t levels32 = std::numeric_limits<uint32_t>::max();
     // to reproduce the problem with quite big distance between min int and min value from stats
     const size_t sf_reducer = 100;
+    const float kMaxErrorForLog = 0.025;
 };
 
 TEST_P(EltwiseActFqTest, CompareWithRefImpl) {
@@ -139,7 +141,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::
                                                                InferenceEngine::Precision::FP16};
 
 const std::vector<std::map<std::string, std::string>> configs = {
-    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PWL_MAX_ERROR_PERCENT", "0.025"}}};
+    {{"GNA_DEVICE_MODE", "GNA_SW_EXACT"}, {"GNA_PWL_APPROXIMATION_MODE", "ACCURACY"}}};
 
 const std::vector<std::pair<float, float>> inputValues = {{-10.0, 10.0}, {-5.0, 5.0}, {-1.0, 1.0}, {-0.04, 0.04}};
 

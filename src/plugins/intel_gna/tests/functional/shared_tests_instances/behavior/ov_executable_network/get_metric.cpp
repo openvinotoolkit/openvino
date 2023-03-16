@@ -203,7 +203,7 @@ INSTANTIATE_TEST_SUITE_P(
                           ov::hint::inference_precision(ngraph::element::i8),
                           ov::hint::num_requests(2),
                           ov::intel_gna::pwl_design_algorithm(ov::intel_gna::PWLDesignAlgorithm::UNIFORM_DISTRIBUTION),
-                          ov::intel_gna::pwl_max_error_percent(0.2),
+                          ov::intel_gna::pwl_approximation_mode(ov::intel_gna::PWLApproximationMode::ACCURACY),
                           ov::intel_gna::firmware_model_image_path(""),
                           ov::intel_gna::compile_target(ov::intel_gna::HWGeneration::GNA_3_0),
                           ov::intel_gna::execution_target(ov::intel_gna::HWGeneration::GNA_3_0))));
@@ -241,7 +241,7 @@ INSTANTIATE_TEST_SUITE_P(
                           ov::intel_gna::compile_target(ov::intel_gna::HWGeneration::UNDEFINED),
                           ov::intel_gna::pwl_design_algorithm(ov::intel_gna::PWLDesignAlgorithm::RECURSIVE_DESCENT),
                           ov::intel_gna::pwl_design_algorithm(ov::intel_gna::PWLDesignAlgorithm::UNIFORM_DISTRIBUTION),
-                          ov::intel_gna::pwl_max_error_percent(0.05),
+                          ov::intel_gna::pwl_approximation_mode(ov::intel_gna::PWLApproximationMode::PERFORMANCE),
                           ov::log::level(ov::log::Level::NO))));
 
 // IE Class Load network

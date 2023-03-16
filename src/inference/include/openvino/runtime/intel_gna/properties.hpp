@@ -264,12 +264,47 @@ inline std::istream& operator>>(std::istream& is, PWLDesignAlgorithm& pwl_design
 static constexpr Property<PWLDesignAlgorithm> pwl_design_algorithm{"GNA_PWL_DESIGN_ALGORITHM"};
 
 /**
- * @brief The option to allow to specify the maximum error percent that the optimized algorithm finding
- * will be used to find PWL functions.
- * By default (in case of NO value set), 1.0 value is used.
+ * @brief Enum to define pwl approximation mode.
  * @ingroup ov_runtime_gna_prop_cpp_api
  */
-static constexpr Property<float> pwl_max_error_percent{"GNA_PWL_MAX_ERROR_PERCENT"};
+enum class PWLApproximationMode {
+    PERFORMANCE = 1,  //!<  Optimize for max performance, may apply properties which slightly affect accuracy
+    ACCURACY = 2,     //!<  Optimize for max accuracy
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const PWLApproximationMode& mode) {
+    switch (mode) {
+    case PWLApproximationMode::PERFORMANCE:
+        return os << "PERFORMANCE";
+    case PWLApproximationMode::ACCURACY:
+        return os << "ACCURACY";
+    default:
+        OPENVINO_THROW("Unsupported pwl approximation mode!");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, PWLApproximationMode& mode) {
+    std::string str;
+    is >> str;
+    if (str == "PERFORMANCE") {
+        mode = PWLApproximationMode::PERFORMANCE;
+    } else if (str == "ACCURACY") {
+        mode = PWLApproximationMode::ACCURACY;
+    } else {
+        OPENVINO_THROW("Unsupported pwl approximation mode: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Option to set PWL approximation mode.
+ * By default ACCURACE mode is used. It tells how accurate should be approximation of
+ * "Recursive Descent Algorithm for Finding the Optimal Minimax Piecewise Linear Approximation of Convex Functions".
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<PWLApproximationMode> pwl_approximation_mode{"GNA_PWL_APPROXIMATION_MODE"};
 
 }  // namespace intel_gna
 }  // namespace ov

@@ -187,18 +187,18 @@ const PWLExtraSegmentsParamsWithConv kConvolution1DReluWithoutPoolParams_30 =
 const PWLExtraSegmentsParamsWithConv kConvolution1DReluWithPoolParams_30 =
     {kConvolutionParams1D, kPrecision32, ngraph::helpers::ActivationTypes::Relu, 2, true, configs_30};
 const PWLExtraSegmentsParamsWithConv kConvolution1DSigmoidWithoutPoolParams_30 =
-    {kConvolutionParams1D, kPrecision32, ngraph::helpers::ActivationTypes::Sigmoid, 12, false, configs_30};
+    {kConvolutionParams1D, kPrecision32, ngraph::helpers::ActivationTypes::Sigmoid, 32, false, configs_30};
 const PWLExtraSegmentsParamsWithConv kConvolution1DSigmoidWithPoolParams_30 =
-    {kConvolutionParams1D, kPrecision32, ngraph::helpers::ActivationTypes::Sigmoid, 12, true, configs_30};
+    {kConvolutionParams1D, kPrecision32, ngraph::helpers::ActivationTypes::Sigmoid, 32, true, configs_30};
 
 const PWLExtraSegmentsParamsWithConv kConvolution1DReluWithoutPoolParams_35 =
     {kConvolutionParams1D, kPrecision32, ngraph::helpers::ActivationTypes::Relu, 4, false, configs_35};
 const PWLExtraSegmentsParamsWithConv kConvolution1DReluWithPoolParams_35 =
     {kConvolutionParams1D, kPrecision32, ngraph::helpers::ActivationTypes::Relu, 4, true, configs_35};
 const PWLExtraSegmentsParamsWithConv kConvolution1DSigmoidWithoutPoolParams_35 =
-    {kConvolutionParams1D, kPrecision32, ngraph::helpers::ActivationTypes::Sigmoid, 12, false, configs_35};
+    {kConvolutionParams1D, kPrecision32, ngraph::helpers::ActivationTypes::Sigmoid, 32, false, configs_35};
 const PWLExtraSegmentsParamsWithConv kConvolution1DSigmoidWithPoolParams_35 =
-    {kConvolutionParams1D, kPrecision32, ngraph::helpers::ActivationTypes::Sigmoid, 12, true, configs_35};
+    {kConvolutionParams1D, kPrecision32, ngraph::helpers::ActivationTypes::Sigmoid, 32, true, configs_35};
 
 const ov::Shape kInput2D = {1, 8, 20, 16};
 const ov::Shape kKernel2D = {1, 1};
@@ -215,18 +215,18 @@ const PWLExtraSegmentsParamsWithConv kConvolution2DReluWithoutPoolParams_30 =
 const PWLExtraSegmentsParamsWithConv kConvolution2DReluWithPoolParams_30 =
     {kConvolutionParams2D, kPrecision32, ngraph::helpers::ActivationTypes::Relu, 4, true, configs_30};
 const PWLExtraSegmentsParamsWithConv kConvolution2DSigmoidWithoutPoolParams_30 =
-    {kConvolutionParams2D, kPrecision32, ngraph::helpers::ActivationTypes::Sigmoid, 12, false, configs_30};
+    {kConvolutionParams2D, kPrecision32, ngraph::helpers::ActivationTypes::Sigmoid, 32, false, configs_30};
 const PWLExtraSegmentsParamsWithConv kConvolution2DSigmoidWithPoolParams_30 =
-    {kConvolutionParams2D, kPrecision32, ngraph::helpers::ActivationTypes::Sigmoid, 12, true, configs_30};
+    {kConvolutionParams2D, kPrecision32, ngraph::helpers::ActivationTypes::Sigmoid, 32, true, configs_30};
 
 const PWLExtraSegmentsParamsWithConv kConvolution2DReluWithoutPoolParams_35 =
     {kConvolutionParams2D, kPrecision32, ngraph::helpers::ActivationTypes::Relu, 4, false, configs_35};
 const PWLExtraSegmentsParamsWithConv kConvolution2DReluWithPoolParams_35 =
     {kConvolutionParams2D, kPrecision32, ngraph::helpers::ActivationTypes::Relu, 4, true, configs_35};
 const PWLExtraSegmentsParamsWithConv kConvolution2DSigmoidWithoutPoolParams_35 =
-    {kConvolutionParams2D, kPrecision32, ngraph::helpers::ActivationTypes::Sigmoid, 12, false, configs_35};
+    {kConvolutionParams2D, kPrecision32, ngraph::helpers::ActivationTypes::Sigmoid, 32, false, configs_35};
 const PWLExtraSegmentsParamsWithConv kConvolution2DSigmoidWithPoolParams_35 =
-    {kConvolutionParams2D, kPrecision32, ngraph::helpers::ActivationTypes::Sigmoid, 12, true, configs_35};
+    {kConvolutionParams2D, kPrecision32, ngraph::helpers::ActivationTypes::Sigmoid, 32, true, configs_35};
 
 INSTANTIATE_TEST_CASE_P(GNAPWLExtraSegmentsConv1DTests,
                         GNAPWLExtraSegmentsTestFixture,

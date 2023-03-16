@@ -22,7 +22,6 @@ endif()
 if(ENABLE_TESTS)
     add_subdirectory(deprecated/readers)
     add_subdirectory(deprecated/helpers)
-
     add_subdirectory(unit)
     add_subdirectory(deprecated/unit)
 endif()

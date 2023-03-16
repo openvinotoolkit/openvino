@@ -125,8 +125,9 @@ static const char layout_message[] =
 ;
 
 /// @brief message for PWL max error percent
-static const char pwl_max_error_percent_message[] = "Optional. The maximum percent of error for PWL function."
-                                                    "The value must be in <0, 100> range. The default value is 1.0.";
+static const char pwl_approximation_mode_message[] =
+    "Optional. PWL Approximation mode. Tells how accurate should be approximation."
+    "The value must be ACCURACY or PERFORMANCE";
 
 /// \brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
@@ -193,8 +194,8 @@ DEFINE_int32(cw_l, 0, context_window_message_l);
 /// @brief Input layer name
 DEFINE_string(layout, "", layout_message);
 
-/// @brief PWL max error percent
-DEFINE_double(pwl_me, 1.0, pwl_max_error_percent_message);
+/// @brief PWL approximation mode.
+DEFINE_string(pwl_approximation_mode, "ACCURACY", pwl_approximation_mode_message);
 
 /**
  * \brief This function show a help message
@@ -204,27 +205,27 @@ static void show_usage() {
     std::cout << "speech_sample [OPTION]" << std::endl;
     std::cout << "Options:" << std::endl;
     std::cout << std::endl;
-    std::cout << "    -h                         " << help_message << std::endl;
-    std::cout << "    -i \"<path>\"                " << input_message << std::endl;
-    std::cout << "    -m \"<path>\"                " << model_message << std::endl;
-    std::cout << "    -o \"<path>\"                " << output_message << std::endl;
-    std::cout << "    -d \"<device>\"              " << target_device_message << std::endl;
-    std::cout << "    -pc                        " << performance_counter_message << std::endl;
-    std::cout << "    -q \"<mode>\"                " << quantization_message << std::endl;
-    std::cout << "    -qb \"<integer>\"            " << quantization_bits_message << std::endl;
-    std::cout << "    -sf \"<double>\"             " << scale_factor_message << std::endl;
-    std::cout << "    -bs \"<integer>\"            " << batch_size_message << std::endl;
-    std::cout << "    -r \"<path>\"                " << reference_score_message << std::endl;
-    std::cout << "    -rg \"<path>\"               " << read_gna_model_message << std::endl;
-    std::cout << "    -wg \"<path>\"               " << write_gna_model_message << std::endl;
-    std::cout << "    -we \"<path>\"               " << write_embedded_model_message << std::endl;
-    std::cout << "    -cw_l \"<integer>\"          " << context_window_message_l << std::endl;
-    std::cout << "    -cw_r \"<integer>\"          " << context_window_message_r << std::endl;
-    std::cout << "    -layout \"<string>\"         " << layout_message << std::endl;
-    std::cout << "    -pwl_me \"<double>\"         " << pwl_max_error_percent_message << std::endl;
-    std::cout << "    -exec_target \"<string>\"    " << execution_target_message << std::endl;
-    std::cout << "    -compile_target \"<string>\" " << compile_target_message << std::endl;
-    std::cout << "    -memory_reuse_off          " << memory_reuse_message << std::endl;
+    std::cout << "    -h                                    " << help_message << std::endl;
+    std::cout << "    -i \"<path>\"                         " << input_message << std::endl;
+    std::cout << "    -m \"<path>\"                         " << model_message << std::endl;
+    std::cout << "    -o \"<path>\"                         " << output_message << std::endl;
+    std::cout << "    -d \"<device>\"                       " << target_device_message << std::endl;
+    std::cout << "    -pc                                   " << performance_counter_message << std::endl;
+    std::cout << "    -q \"<mode>\"                         " << quantization_message << std::endl;
+    std::cout << "    -qb \"<integer>\"                     " << quantization_bits_message << std::endl;
+    std::cout << "    -sf \"<double>\"                      " << scale_factor_message << std::endl;
+    std::cout << "    -bs \"<integer>\"                     " << batch_size_message << std::endl;
+    std::cout << "    -r \"<path>\"                         " << reference_score_message << std::endl;
+    std::cout << "    -rg \"<path>\"                        " << read_gna_model_message << std::endl;
+    std::cout << "    -wg \"<path>\"                        " << write_gna_model_message << std::endl;
+    std::cout << "    -we \"<path>\"                        " << write_embedded_model_message << std::endl;
+    std::cout << "    -cw_l \"<integer>\"                   " << context_window_message_l << std::endl;
+    std::cout << "    -cw_r \"<integer>\"                   " << context_window_message_r << std::endl;
+    std::cout << "    -layout \"<string>\"                  " << layout_message << std::endl;
+    std::cout << "    -pwl_approximation_mode \"<string>\"  " << pwl_approximation_mode_message << std::endl;
+    std::cout << "    -exec_target \"<string>\"             " << execution_target_message << std::endl;
+    std::cout << "    -compile_target \"<string>\"          " << compile_target_message << std::endl;
+    std::cout << "    -memory_reuse_off                     " << memory_reuse_message << std::endl;
 }
 
 /**
@@ -302,8 +303,9 @@ bool parse_and_check_command_line(int argc, char* argv[]) {
         throw std::logic_error("Invalid value for 'cw_l' argument. It must be greater than or equal to 0");
     }
 
-    if (FLAGS_pwl_me < 0.0 || FLAGS_pwl_me > 100.0) {
-        throw std::logic_error("Invalid value for 'pwl_me' argument. It must be greater than 0.0 and less than 100.0");
+    if (FLAGS_pwl_approximation_mode != "ACCURACY" && FLAGS_pwl_approximation_mode != "PERFORMANCE") {
+        throw std::logic_error("Invalid value for 'FLAGS_pwl_approximation_mode' argument."
+                               "It must be greater ACCURACY or PERFORMANCE");
     }
 
     return true;
