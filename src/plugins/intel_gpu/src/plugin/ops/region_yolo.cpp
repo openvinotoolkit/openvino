@@ -17,11 +17,11 @@ static void CreateRegionYoloOp(Program& p, const std::shared_ptr<ngraph::op::v0:
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    uint32_t coords = op->get_num_coords();
-    uint32_t classes = op->get_num_classes();
-    uint32_t num = op->get_num_regions();
+    uint32_t coords = static_cast<uint32_t>(op->get_num_coords());
+    uint32_t classes = static_cast<uint32_t>(op->get_num_classes());
+    uint32_t num = static_cast<uint32_t>(op->get_num_regions());
     bool do_softmax = op->get_do_softmax();
-    uint32_t mask_size = op->get_mask().size();
+    uint32_t mask_size = static_cast<uint32_t>(op->get_mask().size());
 
     auto regionPrim = cldnn::region_yolo(layerName,
                                          inputs[0],

@@ -127,7 +127,7 @@ void checkInputBlob(const Blob::Ptr &blob,
             checkAlloc(nv12_ptr->uv(), str_input_not_allocated);
         } else if (auto batched_ptr = blob->as<BatchedBlob>()) {
             for (size_t i = 0; i < batched_ptr->size(); i++) {
-                auto nv12_ptr = getNV12BlobOrException(batched_ptr, i);
+                auto nv12_ptr = getNV12BlobOrException(batched_ptr, static_cast<int>(i));
                 checkAlloc(nv12_ptr->y(), str_input_not_allocated);
                 checkAlloc(nv12_ptr->uv(), str_input_not_allocated);
             }
@@ -289,7 +289,7 @@ void InferRequestLegacy::SetBlob(const std::string& name, const Blob::Ptr& data)
             auto batched_ptr = data->as<BatchedBlob>();
             bool is_batched = batched_ptr != nullptr;
             bool is_nv12 = nv12_ptr != nullptr;
-            int expected_batch = is_batched ? desc.getDims()[0] : 1;
+            auto expected_batch = is_batched ? static_cast<int>(desc.getDims()[0]) : 1;
             if (ColorFormat::NV12 == foundInput->getPreProcess().getColorFormat() &&
                 m_graph->get_config().get_property(ov::intel_gpu::nv12_two_inputs)) {
                 // try extracting Y and UV remote blobs from it
@@ -297,12 +297,12 @@ void InferRequestLegacy::SetBlob(const std::string& name, const Blob::Ptr& data)
                 // that should then go into biplanar NV12 reorder
 
                 if (is_nv12 || is_batched) {
-                    int num_blobs = is_batched ? batched_ptr->size() : 1;
+                    auto num_blobs = is_batched ? static_cast<int>(batched_ptr->size()) : 1;
                     for (auto i = 0; i < expected_batch; i++) {
                         std::string y_name = name + "_Y" + std::to_string(i);
                         std::string uv_name = name + "_UV" + std::to_string(i);
                         if (is_batched) {
-                            int idx = i < num_blobs ? i : num_blobs-1;
+                            int idx = i < num_blobs ? i : static_cast<int>(num_blobs)-1;
                             nv12_ptr = getNV12BlobOrException(batched_ptr, idx);
                         }
 
@@ -352,7 +352,7 @@ void InferRequestLegacy::SetBlob(const std::string& name, const Blob::Ptr& data)
                     if (m_graph->GetMaxDynamicBatchSize() > 1) {
                         const auto batch_idx = m_graph->GetInputDynBatchDims()[name].first;
                         if (batch_idx >= 0)
-                            SetBatch(blobDesc.getDims()[batch_idx]);
+                            SetBatch(static_cast<int>(blobDesc.getDims()[batch_idx]));
                     }
                 } else {
                     size_t blobSize = desc.getLayout() != SCALAR
@@ -531,7 +531,7 @@ void InferRequestLegacy::SetGraph(std::shared_ptr<Graph> graph) {
     }
 
     if (m_graph->GetMaxDynamicBatchSize() > 1) {
-        SetBatch(m_graph->GetMaxDynamicBatchSize());
+        SetBatch(static_cast<int>(m_graph->GetMaxDynamicBatchSize()));
         allocate_inputs_dynamic();
         allocate_outputs_dynamic();
     } else {
@@ -546,7 +546,7 @@ void InferRequestLegacy::SetBatch(int new_batch) {
     if (m_graph->GetMaxDynamicBatchSize() < 0)
         IE_THROW() << "Dynamic batch is not enabled.";
 
-    if (new_batch < 1 || new_batch > m_graph->GetMaxDynamicBatchSize()) {
+     if (new_batch < 1 || static_cast<size_t>(new_batch) > m_graph->GetMaxDynamicBatchSize()) {
         IE_THROW() << "Invalid dynamic batch size " << new_batch <<
             " for this request. Got: " << new_batch << ". Expected value in range [1;" << m_graph->GetMaxDynamicBatchSize() << "]";
     }
@@ -735,9 +735,9 @@ void InferRequestLegacy::enqueue() {
         bool is_nv12 = nv12_ptr != nullptr;
 
         if (is_nv12 || is_batched) {
-            int num_blobs = is_batched ? batched_ptr->size() : 1;
+            int num_blobs = is_batched ? static_cast<int>(batched_ptr->size()) : 1;
             int expected_batch = is_batched
-                ? _networkInputs.at(inputName)->getTensorDesc().getDims()[0]
+                ? static_cast<int>(_networkInputs.at(inputName)->getTensorDesc().getDims()[0])
                 : 1;
             for (auto i = 0; i < expected_batch; i++) {
                 std::string y_name = inputName + "_Y" + std::to_string(i);
@@ -890,7 +890,7 @@ void InferRequestLegacy::setup_stream_graph() {
     auto& streamGraphs = static_cast<CompiledModel*>(_exeNetwork.get())->m_graphs;
     if (nullptr != streamExecutor) {
         streamID = streamExecutor->GetStreamId();
-        int numGraphs = streamGraphs.size();
+        auto numGraphs = streamGraphs.size();
         streamID = streamID % numGraphs;
     }
     m_graph = streamGraphs[streamID];
@@ -904,7 +904,7 @@ void InferRequestLegacy::setup_stream_graph() {
             // extract new batch size from blob
             const auto batch_idx = m_graph->GetInputDynBatchDims()[input.first].first;
             if (batch_idx >= 0) {
-                SetBatch(_inputs[input.first]->getTensorDesc().getDims()[batch_idx]);
+                SetBatch(static_cast<int>(_inputs[input.first]->getTensorDesc().getDims()[batch_idx]));
                 break;
             }
         }
