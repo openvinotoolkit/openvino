@@ -43,6 +43,6 @@ TEST_F(TransformationTestsF, ConvertTopk11ToTopk3) {
                                                              ov::element::i64);
         topk->set_friendly_name("topk11");
 
-        function = std::make_shared<ov::Model>(topk->outputs(), ov::ParameterVector{input, k});
+        function_ref = std::make_shared<ov::Model>(topk->outputs(), ov::ParameterVector{input, k});
     }
 }
