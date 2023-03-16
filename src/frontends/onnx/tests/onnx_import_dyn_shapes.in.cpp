@@ -713,7 +713,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_transpose) {
     const auto elems_in_tensor = shape_size(shape);
 
     std::vector<float> input_values(elems_in_tensor);
-    std::iota(std::begin(input_values), std::end(input_values), 1);
+    std::iota(std::begin(input_values), std::end(input_values), 1.f);
 
     test_case.add_input<float>(shape, input_values);
 

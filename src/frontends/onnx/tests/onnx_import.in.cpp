@@ -797,7 +797,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_softmax_1D) {
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>({-1.0, 0.0, 1.0});
-    test_case.add_expected_output<float>({0.09003058, 0.24472848, 0.66524094});
+    test_case.add_expected_output<float>({0.09003058f, 0.24472848f, 0.66524094f});
     test_case.run();
 }
 namespace {
@@ -1786,7 +1786,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_down_sizes_cubic_half_pixel) {
     test_case.add_input<float>(input_data);
     test_case.add_expected_output<float>(
         expected_output_shape,
-        {1.6307871, 3.0046299, 4.3784733, 7.1261587, 8.5, 9.873844, 12.621532, 13.995373, 15.369216});
+        {1.6307871f, 3.0046299f, 4.3784733f, 7.1261587f, 8.5f, 9.873844f, 12.621532f, 13.995373f, 15.369216f});
 
     test_case.run_with_tolerance_as_fp(2.0e-5f);
 }
@@ -1848,18 +1848,18 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_cubic_half_pixel) {
     test_case.add_input<float>(input_data);
     test_case.add_expected_output<float>(
         expected_output_shape,
-        {0.45507922f,  0.64057922f,  0.97157922f,  1.42257922f,  1.90732922,   2.22332922f,  2.70807922f,  3.15907922f,
+        {0.45507922f,  0.64057922f,  0.97157922f,  1.42257922f,  1.90732922f,  2.22332922f,  2.70807922f,  3.15907922f,
          3.49007922f,  3.67557922,   1.39437963f,  1.57987963f,  1.91087963f,  2.36187963f,  2.84662963,   3.16262963f,
          3.64737963f,  4.09837963f,  4.42937963f,  4.61487963,   2.95130693f,  3.13680693f,  3.46780693f,  3.91880693f,
          4.40355693,   4.71955693f,  5.20430693f,  5.65530693f,  5.98630693f,  6.17180693,   5.20525069f,  5.39075069f,
          5.72175069f,  6.17275069f,  6.65750069,   6.97350069f,  7.45825069f,  7.90925069f,  8.24025069f,  8.42575069,
-         6.88975f,     7.07525f,     7.40625f,     7.85725f,     8.342,        8.658f,       9.14275f,     9.59375f,
+         6.88975f,     7.07525f,     7.40625f,     7.85725f,     8.342f,       8.658f,       9.14275f,     9.59375f,
          9.92475f,     10.11025f,    8.57424931f,  8.75974931f,  9.09074931f,  9.54174931f,  10.02649931,  10.34249931f,
          10.82724931f, 11.27824931f, 11.60924931f, 11.79474931,  10.82819307f, 11.01369307f, 11.34469307f, 11.79569307f,
          12.28044307,  12.59644307f, 13.08119307f, 13.53219307f, 13.86319307f, 14.04869307,  12.38512037f, 12.57062037f,
          12.90162037f, 13.35262037f, 13.83737037,  14.15337037f, 14.63812037f, 15.08912037f, 15.42012037f, 15.60562037,
-         13.32442078f, 13.50992078f, 13.84092078f, 14.29192078f, 14.77667078,  15.09267078f, 15.57742078f, 16.02842078f,
-         16.35942078f, 16.54492078});
+         13.32442078f, 13.50992078f, 13.84092078f, 14.29192078f, 14.77667078f, 15.09267078f, 15.57742078f, 16.02842078f,
+         16.35942078f, 16.54492078f});
     test_case.run_with_tolerance_as_fp(2.0e-5f);
 }
 
@@ -1891,18 +1891,18 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_up_sizes_cubic_half_pixel_dynamic_siz
     test_case.add_input<float>(std::vector<float>{1, 1, 9, 10});  // sizes
     test_case.add_expected_output<float>(
         expected_output_shape,
-        {0.45507922f,  0.64057922f,  0.97157922f,  1.42257922f,  1.90732922,   2.22332922f,  2.70807922f,  3.15907922f,
-         3.49007922f,  3.67557922,   1.39437963f,  1.57987963f,  1.91087963f,  2.36187963f,  2.84662963,   3.16262963f,
+        {0.45507922f,  0.64057922f,  0.97157922f,  1.42257922f,  1.90732922f,  2.22332922f,  2.70807922f,  3.15907922f,
+         3.49007922f,  3.67557922,   1.39437963f,  1.57987963f,  1.91087963f,  2.36187963f,  2.84662963f,  3.16262963f,
          3.64737963f,  4.09837963f,  4.42937963f,  4.61487963,   2.95130693f,  3.13680693f,  3.46780693f,  3.91880693f,
          4.40355693,   4.71955693f,  5.20430693f,  5.65530693f,  5.98630693f,  6.17180693,   5.20525069f,  5.39075069f,
-         5.72175069f,  6.17275069f,  6.65750069,   6.97350069f,  7.45825069f,  7.90925069f,  8.24025069f,  8.42575069,
-         6.88975f,     7.07525f,     7.40625f,     7.85725f,     8.342,        8.658f,       9.14275f,     9.59375f,
-         9.92475f,     10.11025f,    8.57424931f,  8.75974931f,  9.09074931f,  9.54174931f,  10.02649931,  10.34249931f,
+         5.72175069f,  6.17275069f,  6.65750069f,  6.97350069f,  7.45825069f,  7.90925069f,  8.24025069f,  8.42575069f,
+         6.88975f,     7.07525f,     7.40625f,     7.85725f,     8.342f,       8.658f,       9.14275f,     9.59375f,
+         9.92475f,     10.11025f,    8.57424931f,  8.75974931f,  9.09074931f,  9.54174931f,  10.02649931f, 10.34249931f,
          10.82724931f, 11.27824931f, 11.60924931f, 11.79474931,  10.82819307f, 11.01369307f, 11.34469307f, 11.79569307f,
-         12.28044307,  12.59644307f, 13.08119307f, 13.53219307f, 13.86319307f, 14.04869307,  12.38512037f, 12.57062037f,
-         12.90162037f, 13.35262037f, 13.83737037,  14.15337037f, 14.63812037f, 15.08912037f, 15.42012037f, 15.60562037,
-         13.32442078f, 13.50992078f, 13.84092078f, 14.29192078f, 14.77667078,  15.09267078f, 15.57742078f, 16.02842078f,
-         16.35942078f, 16.54492078});
+         12.28044307,  12.59644307f, 13.08119307f, 13.53219307f, 13.86319307f, 14.04869307f, 12.38512037f, 12.57062037f,
+         12.90162037f, 13.35262037f, 13.83737037f, 14.15337037f, 14.63812037f, 15.08912037f, 15.42012037f, 15.60562037f,
+         13.32442078f, 13.50992078f, 13.84092078f, 14.29192078f, 14.77667078f, 15.09267078f, 15.57742078f, 16.02842078f,
+         16.35942078f, 16.54492078f});
     test_case.run_with_tolerance_as_fp(2.0e-5f);
 }
 
@@ -2507,7 +2507,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmax_float) {
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/argmax_float.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
-    test_case.add_input<float>({4, 0.1, 2, 3, -3, 1, -0.9, 0, 1, 2, 3, 0});
+    test_case.add_input<float>({4.f, 0.1f, 2.f, 3.f, -3.f, 1.f, -0.9f, 0.f, 1.f, 2.f, 3.f, 0.f});
     test_case.add_expected_output<std::int64_t>({0, 3, 0});
     test_case.run();
 }
@@ -2517,7 +2517,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmin_float) {
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/argmin_float.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
-    test_case.add_input<float>({4, 0.1, 2, 3, -3, 1, -0.9, 0, 1, 2, 3, 0});
+    test_case.add_input<float>({4.f, 0.1f, 2.f, 3.f, -3.f, 1.f, -0.9f, 0.f, 1.f, 2.f, 3.f, 0.f});
     test_case.add_expected_output<std::int64_t>({1, 1, 0, 2});
     test_case.run();
 }
@@ -2528,7 +2528,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmax_select_last_index) {
                                                                         "onnx/argmax_select_last_index.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
-    test_case.add_input<float>(Shape{4, 3}, {1, 1, 1, 0.5, 3, 4, 0.5, 1, 1.1, 0, 3, 0});
+    test_case.add_input<float>(Shape{4, 3}, {1.f, 1.f, 1.f, 0.5f, 3.f, 4.f, 0.5f, 1.f, 1.1f, 0.f, 3.f, 0.f});
     test_case.add_expected_output<std::int64_t>(Shape{1, 3}, {0, 3, 1});
     test_case.run();
 }
@@ -2539,7 +2539,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmin_select_last_index) {
                                                                         "onnx/argmin_select_last_index.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
-    test_case.add_input<float>(Shape{4, 3}, {1, 1, 1, 2, 3, 4, 2, 1, 1.1, 3, 3, 8});
+    test_case.add_input<float>(Shape{4, 3}, {1.f, 1.f, 1.f, 2.f, 3.f, 4.f, 2.f, 1.f, 1.1f, 3.f, 3.f, 8.f});
     test_case.add_expected_output<std::int64_t>(Shape{4}, {2, 0, 1, 1});
     test_case.run();
 }
@@ -3122,8 +3122,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mod_sign_fmod_f32) {
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/mod_sign_fmod_f32.onnx"));
     auto test_case = test::TestCase(function, s_device);
 
-    test_case.add_input<float>({-4.3, 7.2, 5.0, 4.3, -7.2, 8.0});
-    test_case.add_input<float>({2.1, -3.4, 8.0, -2.1, 3.4, 5.0});
+    test_case.add_input<float>({-4.3f, 7.2f, 5.0f, 4.3f, -7.2f, 8.0f});
+    test_case.add_input<float>({2.1f, -3.4f, 8.0f, -2.1f, 3.4f, 5.0f});
     test_case.add_expected_output<float>(Shape{6}, {-0.10000038f, 0.39999962f, 5.f, 0.10000038f, -0.39999962f, 3.f});
 
     test_case.run();
@@ -5167,10 +5167,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_packed_sum_4in_two_none) {
                                                             "onnx/aten_embedding_sum_packed_4in_two_none.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
-    test_case.add_input<float>(Shape{5, 2}, {-0.2, -0.6, -0.1, -0.4, -1.9, -1.8, -1., 1.5, 0.8, -0.7});
+    test_case.add_input<float>(Shape{5, 2}, {-0.2f, -0.6f, -0.1f, -0.4f, -1.9f, -1.8f, -1.f, 1.5f, 0.8f, -0.7f});
     test_case.add_input<int32_t>(Shape{3, 2}, {0, 2, 1, 2, 3, 4});  // indices
 
-    test_case.add_expected_output<float>(Shape{3, 2}, {-2.1, -2.4, -2., -2.2, -0.19999999, 0.8});
+    test_case.add_expected_output<float>(Shape{3, 2}, {-2.1f, -2.4f, -2.f, -2.2f, -0.19999999f, 0.8f});
     test_case.run();
 }
 
@@ -5185,7 +5185,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_aten_embedding_bag_offsets_sum_3in) {
     test_case.add_input<int32_t>(Shape{4}, {0, 2, 3, 4});  // indices
     test_case.add_input<int32_t>(Shape{3}, {0, 2, 2});     // offsets
 
-    test_case.add_expected_output<float>(Shape{3, 2}, {-2.1, -2.4, 0, 0, -0.2, 0.8});
+    test_case.add_expected_output<float>(Shape{3, 2}, {-2.1f, -2.4f, 0.f, 0.f, -0.2f, 0.8f});
     test_case.run();
 }
 
@@ -5403,7 +5403,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_scan15_fib_like_input_rev) {
     test_case.add_expected_output<float>(Shape{}, {0.f});
     test_case.add_expected_output<float>(
         Shape{10},
-        {0.9, 1.52, 1.694, 1.9284, 1.8112, 1.4958401, 0.9921121, 0.49759045, 0.14897026, 0.});
+        {0.9f, 1.52f, 1.694f, 1.9284f, 1.8112f, 1.4958401f, 0.9921121f, 0.49759045f, 0.14897026f, 0.f});
     test_case.run();
 }
 
@@ -6245,7 +6245,7 @@ NGRAPH_TEST(${BACKEND_NAME}, castlike_float16_to_uint32) {
 
     auto test_case = test::TestCase(function, s_device);
 
-    test_case.add_input<ngraph::float16>(Shape{1, 1, 2, 2}, std::vector<ngraph::float16>{1.5, 2.3, 3, 4});
+    test_case.add_input<ngraph::float16>(Shape{1, 1, 2, 2}, std::vector<ngraph::float16>{1.5f, 2.3f, 3.f, 4.f});
     test_case.add_input<uint32_t>(Shape{4}, {1, 2, 3, 4});
     test_case.add_expected_output<uint32_t>(std::vector<uint32_t>{1, 2, 3, 4});
 
@@ -6259,7 +6259,7 @@ NGRAPH_TEST(${BACKEND_NAME}, castlike_float16_to_int64) {
 
     auto test_case = test::TestCase(function, s_device);
 
-    test_case.add_input<ngraph::float16>(Shape{1, 1, 2, 2}, std::vector<ngraph::float16>{1.5, 2.3, 3, 4});
+    test_case.add_input<ngraph::float16>(Shape{1, 1, 2, 2}, std::vector<ngraph::float16>{1.5f, 2.3f, 3.f, 4.f});
     test_case.add_input<int64_t>(Shape{4}, {1, 2, 3, 4});
     test_case.add_expected_output<int64_t>(std::vector<int64_t>{1, 2, 3, 4});
 
@@ -6346,8 +6346,10 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_castlike_float32_to_bfloat16) {
     test_case.add_input<float>(
         Shape{3, 4},
         std::vector<float>{121.5f, 122.7f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.8f, 9.f, 10.f, 11.f, 12.f});
-    test_case.add_input<bfloat16>(Shape{3, 4}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
-    test_case.add_expected_output<bfloat16>(std::vector<bfloat16>{121.5, 122.7, 3, 4, 5, 6, 7, 8.8, 9, 10, 11, 12});
+    test_case.add_input<bfloat16>(Shape{3, 4},
+                                  {1.5f, 2.5f, 3.5f, 4.5f, 5.5f, 6.5f, 7.5f, 8.5f, 9.5f, 10.5f, 11.5f, 12.5f});
+    test_case.add_expected_output<bfloat16>(
+        std::vector<bfloat16>{121.5f, 122.7f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.8f, 9.f, 10.f, 11.f, 12.f});
 
     test_case.run();
 }
@@ -6359,9 +6361,12 @@ NGRAPH_TEST(${BACKEND_NAME}, DISABLED_castlike_bfloat16_to_float32) {
 
     auto test_case = test::TestCase(function, s_device);
 
-    test_case.add_input<bfloat16>(Shape{3, 4}, std::vector<bfloat16>{121.5, 122.7, 3, 4, 5, 6, 7, 8.8, 9, 10, 11, 12});
+    test_case.add_input<bfloat16>(
+        Shape{3, 4},
+        std::vector<bfloat16>{121.5f, 122.7f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.8f, 9.f, 10.f, 11.f, 12.f});
     test_case.add_input<float>(Shape{3, 4}, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
-    test_case.add_expected_output<float>(std::vector<float>{121.5, 122.7, 3, 4, 5, 6, 7, 8.75, 9, 10, 11, 12});
+    test_case.add_expected_output<float>(
+        std::vector<float>{121.5f, 122.7f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.75f, 9.f, 10.f, 11.f, 12.f});
 
     test_case.run();
 }
