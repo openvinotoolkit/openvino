@@ -13,6 +13,8 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "dev/converter_utils.hpp"
+#include "dev/icompiled_model_wrapper.hpp"
+#include "dev/make_tensor.hpp"
 #include "file_utils.h"
 #include "ie_itt.hpp"
 #include "ie_network_reader.hpp"
@@ -27,6 +29,7 @@
 #include "openvino/core/version.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/util/common_util.hpp"
@@ -83,8 +86,8 @@ ov::AnyMap clone_map(const ov::AnyMap& m) {
  * core.compile_model(model, "GPU", ov::cache_dir("/tmp"));
  * @endcode
  *
- * @param device A device name for which properties flattening is performed
- * @param properties Original set of properties
+ * @param user_device_name A device name for which properties flattening is performed
+ * @param user_properties Original set of properties
  * @return ov::AnyMap Flattened ov::AnyMap with properties
  */
 ov::AnyMap flatten_sub_properties(const std::string& user_device_name, const ov::AnyMap& user_properties) {
@@ -648,6 +651,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& model,
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
     auto compiled_model = get_plugin(parsed._deviceName).import_model(model, parsed._config);
+    if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
+        wrapper->get_executable_network()->loadedFromCache();
+    }
 
     return compiled_model;
 }
@@ -1168,7 +1174,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 
             compiled_model = context._impl ? plugin.import_model(networkStream, context, config)
                                            : plugin.import_model(networkStream, config);
-            compiled_model->loaded_from_cache();
+            if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
+                wrapper->get_executable_network()->loadedFromCache();
+            }
         });
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work
@@ -1348,7 +1356,7 @@ std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& model,
                                                     bool frontendMode) const {
     InferenceEngine::Blob::Ptr blob;
     if (weights) {
-        blob = weights._impl;
+        blob = tensor_to_blob(weights._impl);
     }
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::read_model from memory");
     return ReadNetwork(model, blob, frontendMode).getFunction();
