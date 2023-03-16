@@ -198,7 +198,7 @@ public:
         if ((realEndPos = realDevName.find('(')) != std::string::npos) {
             realDevName = realDevName.substr(0, realEndPos);
         }
-        if (_deviceBlacklist.end() != std::find(_deviceBlacklist.begin(), _deviceBlacklist.end(), realDevName)) {
+        if (_deviceBlocklist.end() != std::find(_deviceBlocklist.begin(), _deviceBlocklist.end(), realDevName)) {
             return false;
         }
         return true;
@@ -228,6 +228,6 @@ private:
     std::map<std::string, BaseValidator::Ptr> property_validators;
     BaseValidator::Ptr device_property_validator;
     static const std::set<std::string> _availableDevices;
-    static const std::set<std::string> _deviceBlacklist;
+    static const std::set<std::string> _deviceBlocklist;
 };
 } // namespace MultiDevicePlugin
