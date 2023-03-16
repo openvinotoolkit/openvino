@@ -53,7 +53,7 @@ A common plugin consists of the following components:
 To build a plugin and its tests, run the following CMake scripts:
 
 - Root `CMakeLists.txt`, which finds the OpenVINO Developer Package using the `find_package` CMake command and adds the `src` and `tests` subdirectories with plugin sources and their tests respectively:
-@snippet template/src/CMakeLists.txt cmake:main
+@snippet template/CMakeLists.txt cmake:main
    > **NOTE**: The default values of the `ENABLE_TESTS`, `ENABLE_FUNCTIONAL_TESTS` options are shared via the OpenVINO Developer Package and they are the same as for the main OpenVINO build tree. You can override them during plugin build using the command below:
 ```bash
 $ cmake -DENABLE_FUNCTIONAL_TESTS=OFF -DOpenVINODeveloperPackage_DIR=../openvino-release-build ../template-plugin
