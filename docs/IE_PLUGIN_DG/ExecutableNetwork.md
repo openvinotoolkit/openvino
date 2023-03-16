@@ -1,6 +1,9 @@
 # Executable Network {#openvino_docs_ie_plugin_dg_executable_network}
 
+@sphinxdirective
+
 ``ExecutableNetwork`` class functionality:
+
 * Compile an InferenceEngine::ICNNNetwork instance to a backend specific graph representation
 * Create an arbitrary number of ``InferRequest`` objects
 * Hold some common resources shared between different instances of ``InferRequest``. For example:
@@ -13,7 +16,7 @@
 Inference Engine Plugin API provides the helper InferenceEngine::ExecutableNetworkThreadSafeDefault class recommended to use as a base class for an executable network. Based on that, a declaration of an executable network class can look as follows: 
 
 .. doxygensnippet:: src/compiled_model.hpp
-   :language: hpp
+   :language: cpp
    :fragment: [executable_network:header]
 
 Class Fields
@@ -34,7 +37,7 @@ The example class has several fields:
 This constructor accepts a generic representation of a neural network as an :ref:`InferenceEngine::ICNNNetwork <doxid-class_inference_engine_1_1_i_c_n_n_network>` reference and is compiled into a backend specific device graph:
 
 .. doxygensnippet:: src/compiled_model.cpp
-   :language: hpp
+   :language: cpp
    :fragment: [executable_network:ctor_cnnnetwork]
 
 The implementation ``CompileNetwork`` is fully device-specific.
@@ -49,7 +52,7 @@ The function accepts a const shared pointer to ``:ref:`ngraph::Function <doxid-c
 3. Allocates and fills memory for graph weights, backend specific memory handles and so on.
 
 .. doxygensnippet:: src/compiled_model.cpp
-   :language: hpp
+   :language: cpp
    :fragment: [executable_network:map_graph]
 
 .. note:: 
@@ -69,7 +72,7 @@ This constructor creates a backend specific graph by importing from a stream obj
 The implementation of the method should write all data to the ``model`` stream, which is required to import a backend specific graph later in the ``Plugin::Import`` method:
 
 .. doxygensnippet:: src/compiled_model.cpp
-   :language: hpp
+   :language: cpp
    :fragment: [executable_network:export]
 
 `CreateInferRequest()`
@@ -77,8 +80,8 @@ The implementation of the method should write all data to the ``model`` stream, 
 
 The method creates an asynchronous inference request and returns it. While the public Inference Engine API has a single interface for inference request, which can be executed in synchronous and asynchronous modes, a plugin library implementation has two separate classes:
 
-* :ref:`Synchronous inference request <openvino_docs_ie_plugin_dg_infer_request>`, which defines pipeline stages and runs them synchronously in the ``Infer`` method.
-* :ref:`Asynchronous inference request <openvino_docs_ie_plugin_dg_async_infer_request>`, which is a wrapper for a synchronous inference request and can run a pipeline asynchronously. Depending on a device pipeline structure, it can has one or several stages:
+* :doc:`Synchronous inference request <openvino_docs_ie_plugin_dg_infer_request>`, which defines pipeline stages and runs them synchronously in the ``Infer`` method.
+* :doc:`Asynchronous inference request <openvino_docs_ie_plugin_dg_async_infer_request>`, which is a wrapper for a synchronous inference request and can run a pipeline asynchronously. Depending on a device pipeline structure, it can has one or several stages:
    * For single-stage pipelines, there is no need to define this method and create a class derived from :ref:`InferenceEngine::AsyncInferRequestThreadSafeDefault <doxid-class_inference_engine_1_1_async_infer_request_thread_safe_default>`. For single stage pipelines, a default implementation of this method creates :ref:`InferenceEngine::AsyncInferRequestThreadSafeDefault <doxid-class_inference_engine_1_1_async_infer_request_thread_safe_default>` wrapping a synchronous inference request and runs it asynchronously in the ``_taskExecutor`` executor.
    * For pipelines with multiple stages, such as performing some preprocessing on host, uploading input data to a device, running inference on a device, or downloading and postprocessing output data, schedule stages on several task executors to achieve better device use and performance. You can do it by creating a sufficient number of inference requests running in parallel. In this case, device stages of different inference requests are overlapped with preprocessing and postprocessing stage giving better performance.
 
@@ -86,17 +89,18 @@ The method creates an asynchronous inference request and returns it. While the p
       It is up to you to decide how many task executors you need to optimally execute a device pipeline.
 
 .. doxygensnippet:: src/compiled_model.cpp
-   :language: hpp
+   :language: cpp
    :fragment: [executable_network:create_infer_request]
 
-### `GetMetric()`
-++++++++++++++++++++++
 
-Returns a metric value for a metric with the name `name`.  A metric is a static type of information about an executable network. Examples of metrics:
+`GetMetric()`
+++++++++++++++
 
-- EXEC_NETWORK_METRIC_KEY(NETWORK_NAME) - name of an executable network
-- EXEC_NETWORK_METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) - heuristic to denote an optimal (or at least sub-optimal) number of inference requests needed to run asynchronously to use the current device fully
-- Any other executable network metric specific for a particular device. Such metrics and possible values must be declared in a plugin configuration public header, for example, `template/config.hpp`
+Returns a metric value for a metric with the name ``name``.  A metric is a static type of information about an executable network. Examples of metrics:
+
+* EXEC_NETWORK_METRIC_KEY(NETWORK_NAME) - name of an executable network
+* EXEC_NETWORK_METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) - heuristic to denote an optimal (or at least sub-optimal) number of inference requests needed to run asynchronously to use the current device fully
+* Any other executable network metric specific for a particular device. Such metrics and possible values must be declared in a plugin configuration public header, for example, ``template/config.hpp``.
 
 The IE_SET_METRIC_RETURN helper macro sets metric value and checks that the actual metric type matches a type of the specified value.
 
@@ -104,8 +108,12 @@ The IE_SET_METRIC_RETURN helper macro sets metric value and checks that the actu
 
 Returns a current value for a configuration key with the name `name`. The method extracts configuration values an executable network is compiled with.
 
-@snippet src/compiled_model.cpp executable_network:get_config
+.. doxygensnippet:: src/compiled_model.cpp
+   :language: cpp
+   :fragment: [executable_network:get_config]
 
-This function is the only way to get configuration values when a network is imported and compiled by other developers and tools (for example, the [Compile tool](@ref openvino_inference_engine_tools_compile_tool_README).
+This function is the only way to get configuration values when a network is imported and compiled by other developers and tools (for example, the :doc:`Compile tool <openvino_inference_engine_tools_compile_tool_README>`.
 
-The next step in plugin library implementation is the [Synchronous Inference Request](@ref openvino_docs_ie_plugin_dg_infer_request) class.
+The next step in plugin library implementation is the :doc:`Synchronous Inference Request <openvino_docs_ie_plugin_dg_infer_request>` class.
+
+@endsphinxdirective
