@@ -313,7 +313,33 @@ TEST_F(AnyTests, AnyDoesNotShareValues) {
 
         a.as<AnyMap>()["2"] = 4;           // change Any
         ASSERT_EQ(2, map["2"].as<int>());  // map is not changed
+
+        // erase from Any's map
+        AnyMap from_any_map = a.as<AnyMap>();
+        from_any_map.erase(from_any_map.begin());
+        ASSERT_EQ(2, map.size());
+
+        // erase from map
+        map.erase(map.find("2"));
+        ASSERT_NE(from_any_map.end(), from_any_map.find("2"));
+        ASSERT_EQ(4, a.as<AnyMap>()["2"].as<int>());
     }
+}
+
+TEST_F(AnyTests, DISABLED_AnyMapSharesValues) {
+    AnyMap map{
+        {"1", 1},
+        {"2", 2},
+    };
+
+    AnyMap copy_map = map;
+
+    // check initial state
+    ASSERT_EQ(1, copy_map["1"].as<int>());
+    ASSERT_EQ(2, copy_map["2"].as<int>());
+
+    map["1"].as<int>() = 110;               // change map
+    EXPECT_EQ(1, copy_map["1"].as<int>());  // TODO: why value is changed here?
 }
 
 TEST_F(AnyTests, AnyNotEmpty) {
