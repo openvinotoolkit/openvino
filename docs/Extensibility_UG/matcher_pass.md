@@ -109,8 +109,6 @@ MatcherPass has multiple ways to be executed:
    :fragment: [matcher_pass:manager]
 
 
-.. _pattern_matching:
-
 Pattern Matching
 ################
 
