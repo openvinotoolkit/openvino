@@ -73,4 +73,3 @@ std::pair<std::string, StreamCfg> get_num_streams(const int streams,
 
 }  // namespace intel_cpu
 }  // namespace ov
-
