@@ -1121,15 +1121,14 @@ bool Convolution::isPossibleToSkipInitConfig(DnnlDesriptor &desc) const {
 }
 
 std::shared_ptr<MemoryDesc> Convolution::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+    auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : primitive_desc_it.src_desc(idx);
+
     if (idx == 1) {
-        // prefer original format for weight since we will reorder them
-        //  - at first execution if it's constant
-        //  - at every execution if it's non-constant
-        return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx),
+        // report original plain layout for weight since it needs to be reordered dynamically at runtime
+        return std::make_shared<CpuBlockedMemoryDesc>(DnnlExtensionUtils::DataTypeToIEPrecision(desc.data_type()),
                                                       Shape(getInputShapeAtPort(idx).getStaticDims()));
     }
 
-    auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : primitive_desc_it.src_desc(idx);
     if (getInputShapeAtPort(idx).isDynamic()) {
         return DnnlExtensionUtils::makeUndefinedDesc(desc, getInputShapeAtPort(idx));
     }
@@ -1343,6 +1342,12 @@ void Convolution::prepareParams() {
 
     auto engine = getEngine();
     auto builder = [&engine](const ConvKey& key) -> executorPtr {
+        // remove the requirement on weight memory layout to let primitive
+        // report the best layout for weight to be reordered dynamically at runtime
+        auto wghDescAny =
+            dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.inp1->getShape().getStaticDims()),
+                               key.inp1->getDataType(),
+                               memory::format_tag::any);
         auto createDnnlConvDesc = [](const dnnl::memory::desc& srcDesc,
                                      const dnnl::memory::desc& wghDesc,
                                      const dnnl::memory::desc& dstDesc,
@@ -1372,7 +1377,7 @@ void Convolution::prepareParams() {
 
         const auto alg = (key.implType & impl_desc_type::winograd) ? dnnl::algorithm::convolution_winograd : dnnl::algorithm::convolution_direct;
         std::shared_ptr<DnnlDesriptor> desc = createDnnlConvDesc(key.inp0->getDnnlDesc(),
-                                                                      key.inp1->getDnnlDesc(),
+                                                                      wghDescAny,
                                                                       key.out->getDnnlDesc(),
                                                                       key.bias,
                                                                       key.stride,
@@ -1407,15 +1412,12 @@ void Convolution::prepareParams() {
             auto inDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.inp0->getShape().getStaticDims()),
                                                                                            key.inp0->getDataType(),
                                                                                            memory::format_tag::any);
-            auto wghDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.inp1->getShape().getStaticDims()),
-                                                                                        key.inp1->getDataType(),
-                                                                                        memory::format_tag::any);
             auto outDesc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.out->getShape().getStaticDims()),
                                                                                         key.out->getDataType(),
                                                                                         memory::format_tag::any);
 
             std::shared_ptr<DnnlDesriptor> reorderConvDesc = createDnnlConvDesc(inDesc,
-                                                                                  wghDesc,
+                                                                                  wghDescAny,
                                                                                   outDesc,
                                                                                   key.bias,
                                                                                   key.stride,
