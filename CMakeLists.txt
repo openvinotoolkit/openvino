@@ -24,6 +24,8 @@ find_package(IEDevScripts REQUIRED
              NO_CMAKE_FIND_ROOT_PATH
              NO_DEFAULT_PATH)
 
+set(ENABLE_SYSTEM_TBB OFF)
+
 include(CTest)
 include(cmake/features.cmake)
 
