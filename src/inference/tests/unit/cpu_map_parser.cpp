@@ -25,8 +25,8 @@ struct LinuxCpuMapTestCase {
     std::vector<std::vector<std::string>> system_info_table;
 };
 
-class LinuxCpuMapCacheParserTests : public CommonTestUtils::TestsCommon,
-                                    public testing::WithParamInterface<std::tuple<LinuxCpuMapTestCase>> {
+class LinuxCpuMapParserTests : public CommonTestUtils::TestsCommon,
+                               public testing::WithParamInterface<std::tuple<LinuxCpuMapTestCase>> {
 public:
     void SetUp() override {
         const auto& test_data = std::get<0>(GetParam());
@@ -36,12 +36,12 @@ public:
         std::vector<std::vector<int>> test_proc_type_table;
         std::vector<std::vector<int>> test_cpu_mapping_table;
 
-        ov::parse_cache_info_linux(test_data._processors,
-                                   test_data.system_info_table,
-                                   test_sockets,
-                                   test_cores,
-                                   test_proc_type_table,
-                                   test_cpu_mapping_table);
+        ov::parse_processor_info_linux(test_data._processors,
+                                       test_data.system_info_table,
+                                       test_sockets,
+                                       test_cores,
+                                       test_proc_type_table,
+                                       test_cpu_mapping_table);
 
         ASSERT_EQ(test_data._sockets, test_sockets);
         ASSERT_EQ(test_data._cores, test_cores);
@@ -50,36 +50,11 @@ public:
     }
 };
 
-class LinuxCpuMapFreqParserTests : public CommonTestUtils::TestsCommon,
-                                   public testing::WithParamInterface<std::tuple<LinuxCpuMapTestCase>> {
-public:
-    void SetUp() override {
-        const auto& test_data = std::get<0>(GetParam());
-
-        int test_sockets = 0;
-        int test_cores = 0;
-        std::vector<std::vector<int>> test_proc_type_table;
-        std::vector<std::vector<int>> test_cpu_mapping_table;
-
-        ov::parse_freq_info_linux(test_data._processors,
-                                  test_data.system_info_table,
-                                  test_sockets,
-                                  test_cores,
-                                  test_proc_type_table,
-                                  test_cpu_mapping_table);
-
-        ASSERT_EQ(test_data._sockets, test_sockets);
-        ASSERT_EQ(test_data._cores, test_cores);
-        ASSERT_EQ(test_data._proc_type_table, test_proc_type_table);
-        ASSERT_EQ(test_data._cpu_mapping_table, test_cpu_mapping_table);
-    }
-};
-
-LinuxCpuMapTestCase cache_2sockets_104cores_hyperthreading = {
+LinuxCpuMapTestCase _2sockets_104cores_hyperthreading = {
     208,
     2,
     104,
-    {{208, 104, 0, 0, 104}, {104, 52, 0, 0, 52}, {104, 52, 0, 0, 52}},
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {
         {0, 0, 0, HYPER_THREADING_PROC, 0, -1},       {1, 0, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 2, HYPER_THREADING_PROC, 2, -1},       {3, 0, 3, HYPER_THREADING_PROC, 3, -1},
@@ -293,12 +268,11 @@ LinuxCpuMapTestCase cache_2sockets_104cores_hyperthreading = {
         {{"102,206"}, {"102,206"}, {"52-103,156-207"}}, {{"103,207"}, {"103,207"}, {"52-103,156-207"}},
     },
 };
-
-LinuxCpuMapTestCase cache_2sockets_24cores_hyperthreading = {
+LinuxCpuMapTestCase _2sockets_24cores_hyperthreading = {
     48,
     2,
     24,
-    {{48, 24, 0, 0, 24}, {24, 12, 0, 0, 12}, {24, 12, 0, 0, 12}},
+    {{48, 24, 0, 24}, {24, 12, 0, 12}, {24, 12, 0, 12}},
     {
         {0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 1, 12, HYPER_THREADING_PROC, 12, -1},
         {2, 0, 1, HYPER_THREADING_PROC, 1, -1},    {3, 1, 13, HYPER_THREADING_PROC, 13, -1},
@@ -376,12 +350,11 @@ LinuxCpuMapTestCase cache_2sockets_24cores_hyperthreading = {
         {{"23,47"}, {"23,47"}, {"1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47"}},
     },
 };
-
-LinuxCpuMapTestCase cache_2sockets_48cores = {
+LinuxCpuMapTestCase _2sockets_48cores = {
     48,
     2,
     48,
-    {{48, 48, 0, 0, 0}, {24, 24, 0, 0, 0}, {24, 24, 0, 0, 0}},
+    {{48, 48, 0, 0}, {24, 24, 0, 0}, {24, 24, 0, 0}},
     {
         {0, 0, 0, MAIN_CORE_PROC, 0, -1},    {1, 0, 1, MAIN_CORE_PROC, 1, -1},    {2, 0, 2, MAIN_CORE_PROC, 2, -1},
         {3, 0, 3, MAIN_CORE_PROC, 3, -1},    {4, 0, 4, MAIN_CORE_PROC, 4, -1},    {5, 0, 5, MAIN_CORE_PROC, 5, -1},
@@ -419,12 +392,11 @@ LinuxCpuMapTestCase cache_2sockets_48cores = {
         {{"45"}, {"45"}, {"24-47"}}, {{"46"}, {"46"}, {"24-47"}}, {{"47"}, {"47"}, {"24-47"}},
     },
 };
-
-LinuxCpuMapTestCase cache_2sockets_20cores_hyperthreading = {
+LinuxCpuMapTestCase _2sockets_20cores_hyperthreading = {
     40,
     2,
     20,
-    {{40, 20, 0, 0, 20}, {20, 10, 0, 0, 10}, {20, 10, 0, 0, 10}},
+    {{40, 20, 0, 20}, {20, 10, 0, 10}, {20, 10, 0, 10}},
     {
         {0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 1, HYPER_THREADING_PROC, 1, -1},
         {2, 0, 2, HYPER_THREADING_PROC, 2, -1},    {3, 0, 3, HYPER_THREADING_PROC, 3, -1},
@@ -470,12 +442,11 @@ LinuxCpuMapTestCase cache_2sockets_20cores_hyperthreading = {
         {{"18,38"}, {"18,38"}, {"10-19,30-39"}}, {{"19,39"}, {"19,39"}, {"10-19,30-39"}},
     },
 };
-
-LinuxCpuMapTestCase cache_1sockets_14cores_hyperthreading = {
+LinuxCpuMapTestCase _1sockets_14cores_hyperthreading = {
     20,
     1,
     14,
-    {{20, 6, 8, 0, 6}},
+    {{20, 6, 8, 6}},
     {
         {0, 0, 0, HYPER_THREADING_PROC, 0, -1},  {1, 0, 0, MAIN_CORE_PROC, 0, -1},
         {2, 0, 1, HYPER_THREADING_PROC, 1, -1},  {3, 0, 1, MAIN_CORE_PROC, 1, -1},
@@ -498,12 +469,11 @@ LinuxCpuMapTestCase cache_1sockets_14cores_hyperthreading = {
         {{"18"}, {"16-19"}, {"0-19"}}, {{"19"}, {"16-19"}, {"0-19"}},
     },
 };
-
-LinuxCpuMapTestCase cache_1sockets_10cores_hyperthreading{
+LinuxCpuMapTestCase _1sockets_10cores_hyperthreading{
     12,
     1,
     10,
-    {{12, 2, 8, 0, 2}},
+    {{12, 2, 8, 2}},
     {
         {0, 0, 0, HYPER_THREADING_PROC, 0, -1},
         {1, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -533,12 +503,11 @@ LinuxCpuMapTestCase cache_1sockets_10cores_hyperthreading{
         {{"11"}, {"8-11"}, {"0-11"}},
     },
 };
-
-LinuxCpuMapTestCase cache_1sockets_8cores_hyperthreading = {
+LinuxCpuMapTestCase _1sockets_8cores_hyperthreading = {
     12,
     1,
     8,
-    {{12, 4, 4, 0, 4}},
+    {{12, 4, 4, 4}},
     {
         {0, 0, 0, HYPER_THREADING_PROC, 0, -1},
         {1, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -568,12 +537,11 @@ LinuxCpuMapTestCase cache_1sockets_8cores_hyperthreading = {
         {{"11"}, {"8-11"}, {"0-11"}},
     },
 };
-
-LinuxCpuMapTestCase cache_1sockets_6cores_hyperthreading = {
+LinuxCpuMapTestCase _1sockets_6cores_hyperthreading = {
     12,
     1,
     6,
-    {{12, 6, 0, 0, 6}},
+    {{12, 6, 0, 6}},
     {
         {0, 0, 0, HYPER_THREADING_PROC, 0, -1},
         {1, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -604,416 +572,18 @@ LinuxCpuMapTestCase cache_1sockets_6cores_hyperthreading = {
     },
 };
 
-LinuxCpuMapTestCase freq_2sockets_104cores_hyperthreading = {
-    208,
-    2,
-    104,
-    {{208, 104, 0, 0, 104}, {104, 52, 0, 0, 52}, {104, 52, 0, 0, 52}},
-    {
-        {0, 0, 0, PCORE_MAIN_PROC, 0, -1},
-        {1, 0, 1, PCORE_MAIN_PROC, 1, -1},
-        {2, 0, 2, PCORE_MAIN_PROC, 2, -1},
-        {3, 0, 3, PCORE_MAIN_PROC, 3, -1},
-        {4, 0, 4, PCORE_MAIN_PROC, 4, -1},
-        {5, 0, 5, PCORE_MAIN_PROC, 5, -1},
-        {6, 0, 6, PCORE_MAIN_PROC, 6, -1},
-        {7, 0, 7, PCORE_MAIN_PROC, 7, -1},
-        {8, 0, 8, PCORE_MAIN_PROC, 8, -1},
-        {9, 0, 9, PCORE_MAIN_PROC, 9, -1},
-        {10, 0, 10, PCORE_MAIN_PROC, 10, -1},
-        {11, 0, 11, PCORE_MAIN_PROC, 11, -1},
-        {12, 0, 12, PCORE_MAIN_PROC, 12, -1},
-        {13, 0, 13, PCORE_MAIN_PROC, 13, -1},
-        {14, 0, 14, PCORE_MAIN_PROC, 14, -1},
-        {15, 0, 15, PCORE_MAIN_PROC, 15, -1},
-        {16, 0, 16, PCORE_MAIN_PROC, 16, -1},
-        {17, 0, 17, PCORE_MAIN_PROC, 17, -1},
-        {18, 0, 18, PCORE_MAIN_PROC, 18, -1},
-        {19, 0, 19, PCORE_MAIN_PROC, 19, -1},
-        {20, 0, 20, PCORE_MAIN_PROC, 20, -1},
-        {21, 0, 21, PCORE_MAIN_PROC, 21, -1},
-        {22, 0, 22, PCORE_MAIN_PROC, 22, -1},
-        {23, 0, 23, PCORE_MAIN_PROC, 23, -1},
-        {24, 0, 24, PCORE_MAIN_PROC, 24, -1},
-        {25, 0, 25, PCORE_MAIN_PROC, 25, -1},
-        {26, 0, 26, PCORE_MAIN_PROC, 26, -1},
-        {27, 0, 27, PCORE_MAIN_PROC, 27, -1},
-        {28, 0, 28, PCORE_MAIN_PROC, 28, -1},
-        {29, 0, 29, PCORE_MAIN_PROC, 29, -1},
-        {30, 0, 30, PCORE_MAIN_PROC, 30, -1},
-        {31, 0, 31, PCORE_MAIN_PROC, 31, -1},
-        {32, 0, 32, PCORE_MAIN_PROC, 32, -1},
-        {33, 0, 33, PCORE_MAIN_PROC, 33, -1},
-        {34, 0, 34, PCORE_MAIN_PROC, 34, -1},
-        {35, 0, 35, PCORE_MAIN_PROC, 35, -1},
-        {36, 0, 36, PCORE_MAIN_PROC, 36, -1},
-        {37, 0, 37, PCORE_MAIN_PROC, 37, -1},
-        {38, 0, 38, PCORE_MAIN_PROC, 38, -1},
-        {39, 0, 39, PCORE_MAIN_PROC, 39, -1},
-        {40, 0, 40, PCORE_MAIN_PROC, 40, -1},
-        {41, 0, 41, PCORE_MAIN_PROC, 41, -1},
-        {42, 0, 42, PCORE_MAIN_PROC, 42, -1},
-        {43, 0, 43, PCORE_MAIN_PROC, 43, -1},
-        {44, 0, 44, PCORE_MAIN_PROC, 44, -1},
-        {45, 0, 45, PCORE_MAIN_PROC, 45, -1},
-        {46, 0, 46, PCORE_MAIN_PROC, 46, -1},
-        {47, 0, 47, PCORE_MAIN_PROC, 47, -1},
-        {48, 0, 48, PCORE_MAIN_PROC, 48, -1},
-        {49, 0, 49, PCORE_MAIN_PROC, 49, -1},
-        {50, 0, 50, PCORE_MAIN_PROC, 50, -1},
-        {51, 0, 51, PCORE_MAIN_PROC, 51, -1},
-        {52, 1, 52, PCORE_MAIN_PROC, 52, -1},
-        {53, 1, 53, PCORE_MAIN_PROC, 53, -1},
-        {54, 1, 54, PCORE_MAIN_PROC, 54, -1},
-        {55, 1, 55, PCORE_MAIN_PROC, 55, -1},
-        {56, 1, 56, PCORE_MAIN_PROC, 56, -1},
-        {57, 1, 57, PCORE_MAIN_PROC, 57, -1},
-        {58, 1, 58, PCORE_MAIN_PROC, 58, -1},
-        {59, 1, 59, PCORE_MAIN_PROC, 59, -1},
-        {60, 1, 60, PCORE_MAIN_PROC, 60, -1},
-        {61, 1, 61, PCORE_MAIN_PROC, 61, -1},
-        {62, 1, 62, PCORE_MAIN_PROC, 62, -1},
-        {63, 1, 63, PCORE_MAIN_PROC, 63, -1},
-        {64, 1, 64, PCORE_MAIN_PROC, 64, -1},
-        {65, 1, 65, PCORE_MAIN_PROC, 65, -1},
-        {66, 1, 66, PCORE_MAIN_PROC, 66, -1},
-        {67, 1, 67, PCORE_MAIN_PROC, 67, -1},
-        {68, 1, 68, PCORE_MAIN_PROC, 68, -1},
-        {69, 1, 69, PCORE_MAIN_PROC, 69, -1},
-        {70, 1, 70, PCORE_MAIN_PROC, 70, -1},
-        {71, 1, 71, PCORE_MAIN_PROC, 71, -1},
-        {72, 1, 72, PCORE_MAIN_PROC, 72, -1},
-        {73, 1, 73, PCORE_MAIN_PROC, 73, -1},
-        {74, 1, 74, PCORE_MAIN_PROC, 74, -1},
-        {75, 1, 75, PCORE_MAIN_PROC, 75, -1},
-        {76, 1, 76, PCORE_MAIN_PROC, 76, -1},
-        {77, 1, 77, PCORE_MAIN_PROC, 77, -1},
-        {78, 1, 78, PCORE_MAIN_PROC, 78, -1},
-        {79, 1, 79, PCORE_MAIN_PROC, 79, -1},
-        {80, 1, 80, PCORE_MAIN_PROC, 80, -1},
-        {81, 1, 81, PCORE_MAIN_PROC, 81, -1},
-        {82, 1, 82, PCORE_MAIN_PROC, 82, -1},
-        {83, 1, 83, PCORE_MAIN_PROC, 83, -1},
-        {84, 1, 84, PCORE_MAIN_PROC, 84, -1},
-        {85, 1, 85, PCORE_MAIN_PROC, 85, -1},
-        {86, 1, 86, PCORE_MAIN_PROC, 86, -1},
-        {87, 1, 87, PCORE_MAIN_PROC, 87, -1},
-        {88, 1, 88, PCORE_MAIN_PROC, 88, -1},
-        {89, 1, 89, PCORE_MAIN_PROC, 89, -1},
-        {90, 1, 90, PCORE_MAIN_PROC, 90, -1},
-        {91, 1, 91, PCORE_MAIN_PROC, 91, -1},
-        {92, 1, 92, PCORE_MAIN_PROC, 92, -1},
-        {93, 1, 93, PCORE_MAIN_PROC, 93, -1},
-        {94, 1, 94, PCORE_MAIN_PROC, 94, -1},
-        {95, 1, 95, PCORE_MAIN_PROC, 95, -1},
-        {96, 1, 96, PCORE_MAIN_PROC, 96, -1},
-        {97, 1, 97, PCORE_MAIN_PROC, 97, -1},
-        {98, 1, 98, PCORE_MAIN_PROC, 98, -1},
-        {99, 1, 99, PCORE_MAIN_PROC, 99, -1},
-        {100, 1, 100, PCORE_MAIN_PROC, 100, -1},
-        {101, 1, 101, PCORE_MAIN_PROC, 101, -1},
-        {102, 1, 102, PCORE_MAIN_PROC, 102, -1},
-        {103, 1, 103, PCORE_MAIN_PROC, 103, -1},
-        {104, 0, 0, HYPER_THREADING_PROC, 0, -1},
-        {105, 0, 1, HYPER_THREADING_PROC, 1, -1},
-        {106, 0, 2, HYPER_THREADING_PROC, 2, -1},
-        {107, 0, 3, HYPER_THREADING_PROC, 3, -1},
-        {108, 0, 4, HYPER_THREADING_PROC, 4, -1},
-        {109, 0, 5, HYPER_THREADING_PROC, 5, -1},
-        {110, 0, 6, HYPER_THREADING_PROC, 6, -1},
-        {111, 0, 7, HYPER_THREADING_PROC, 7, -1},
-        {112, 0, 8, HYPER_THREADING_PROC, 8, -1},
-        {113, 0, 9, HYPER_THREADING_PROC, 9, -1},
-        {114, 0, 10, HYPER_THREADING_PROC, 10, -1},
-        {115, 0, 11, HYPER_THREADING_PROC, 11, -1},
-        {116, 0, 12, HYPER_THREADING_PROC, 12, -1},
-        {117, 0, 13, HYPER_THREADING_PROC, 13, -1},
-        {118, 0, 14, HYPER_THREADING_PROC, 14, -1},
-        {119, 0, 15, HYPER_THREADING_PROC, 15, -1},
-        {120, 0, 16, HYPER_THREADING_PROC, 16, -1},
-        {121, 0, 17, HYPER_THREADING_PROC, 17, -1},
-        {122, 0, 18, HYPER_THREADING_PROC, 18, -1},
-        {123, 0, 19, HYPER_THREADING_PROC, 19, -1},
-        {124, 0, 20, HYPER_THREADING_PROC, 20, -1},
-        {125, 0, 21, HYPER_THREADING_PROC, 21, -1},
-        {126, 0, 22, HYPER_THREADING_PROC, 22, -1},
-        {127, 0, 23, HYPER_THREADING_PROC, 23, -1},
-        {128, 0, 24, HYPER_THREADING_PROC, 24, -1},
-        {129, 0, 25, HYPER_THREADING_PROC, 25, -1},
-        {130, 0, 26, HYPER_THREADING_PROC, 26, -1},
-        {131, 0, 27, HYPER_THREADING_PROC, 27, -1},
-        {132, 0, 28, HYPER_THREADING_PROC, 28, -1},
-        {133, 0, 29, HYPER_THREADING_PROC, 29, -1},
-        {134, 0, 30, HYPER_THREADING_PROC, 30, -1},
-        {135, 0, 31, HYPER_THREADING_PROC, 31, -1},
-        {136, 0, 32, HYPER_THREADING_PROC, 32, -1},
-        {137, 0, 33, HYPER_THREADING_PROC, 33, -1},
-        {138, 0, 34, HYPER_THREADING_PROC, 34, -1},
-        {139, 0, 35, HYPER_THREADING_PROC, 35, -1},
-        {140, 0, 36, HYPER_THREADING_PROC, 36, -1},
-        {141, 0, 37, HYPER_THREADING_PROC, 37, -1},
-        {142, 0, 38, HYPER_THREADING_PROC, 38, -1},
-        {143, 0, 39, HYPER_THREADING_PROC, 39, -1},
-        {144, 0, 40, HYPER_THREADING_PROC, 40, -1},
-        {145, 0, 41, HYPER_THREADING_PROC, 41, -1},
-        {146, 0, 42, HYPER_THREADING_PROC, 42, -1},
-        {147, 0, 43, HYPER_THREADING_PROC, 43, -1},
-        {148, 0, 44, HYPER_THREADING_PROC, 44, -1},
-        {149, 0, 45, HYPER_THREADING_PROC, 45, -1},
-        {150, 0, 46, HYPER_THREADING_PROC, 46, -1},
-        {151, 0, 47, HYPER_THREADING_PROC, 47, -1},
-        {152, 0, 48, HYPER_THREADING_PROC, 48, -1},
-        {153, 0, 49, HYPER_THREADING_PROC, 49, -1},
-        {154, 0, 50, HYPER_THREADING_PROC, 50, -1},
-        {155, 0, 51, HYPER_THREADING_PROC, 51, -1},
-        {156, 1, 52, HYPER_THREADING_PROC, 52, -1},
-        {157, 1, 53, HYPER_THREADING_PROC, 53, -1},
-        {158, 1, 54, HYPER_THREADING_PROC, 54, -1},
-        {159, 1, 55, HYPER_THREADING_PROC, 55, -1},
-        {160, 1, 56, HYPER_THREADING_PROC, 56, -1},
-        {161, 1, 57, HYPER_THREADING_PROC, 57, -1},
-        {162, 1, 58, HYPER_THREADING_PROC, 58, -1},
-        {163, 1, 59, HYPER_THREADING_PROC, 59, -1},
-        {164, 1, 60, HYPER_THREADING_PROC, 60, -1},
-        {165, 1, 61, HYPER_THREADING_PROC, 61, -1},
-        {166, 1, 62, HYPER_THREADING_PROC, 62, -1},
-        {167, 1, 63, HYPER_THREADING_PROC, 63, -1},
-        {168, 1, 64, HYPER_THREADING_PROC, 64, -1},
-        {169, 1, 65, HYPER_THREADING_PROC, 65, -1},
-        {170, 1, 66, HYPER_THREADING_PROC, 66, -1},
-        {171, 1, 67, HYPER_THREADING_PROC, 67, -1},
-        {172, 1, 68, HYPER_THREADING_PROC, 68, -1},
-        {173, 1, 69, HYPER_THREADING_PROC, 69, -1},
-        {174, 1, 70, HYPER_THREADING_PROC, 70, -1},
-        {175, 1, 71, HYPER_THREADING_PROC, 71, -1},
-        {176, 1, 72, HYPER_THREADING_PROC, 72, -1},
-        {177, 1, 73, HYPER_THREADING_PROC, 73, -1},
-        {178, 1, 74, HYPER_THREADING_PROC, 74, -1},
-        {179, 1, 75, HYPER_THREADING_PROC, 75, -1},
-        {180, 1, 76, HYPER_THREADING_PROC, 76, -1},
-        {181, 1, 77, HYPER_THREADING_PROC, 77, -1},
-        {182, 1, 78, HYPER_THREADING_PROC, 78, -1},
-        {183, 1, 79, HYPER_THREADING_PROC, 79, -1},
-        {184, 1, 80, HYPER_THREADING_PROC, 80, -1},
-        {185, 1, 81, HYPER_THREADING_PROC, 81, -1},
-        {186, 1, 82, HYPER_THREADING_PROC, 82, -1},
-        {187, 1, 83, HYPER_THREADING_PROC, 83, -1},
-        {188, 1, 84, HYPER_THREADING_PROC, 84, -1},
-        {189, 1, 85, HYPER_THREADING_PROC, 85, -1},
-        {190, 1, 86, HYPER_THREADING_PROC, 86, -1},
-        {191, 1, 87, HYPER_THREADING_PROC, 87, -1},
-        {192, 1, 88, HYPER_THREADING_PROC, 88, -1},
-        {193, 1, 89, HYPER_THREADING_PROC, 89, -1},
-        {194, 1, 90, HYPER_THREADING_PROC, 90, -1},
-        {195, 1, 91, HYPER_THREADING_PROC, 91, -1},
-        {196, 1, 92, HYPER_THREADING_PROC, 92, -1},
-        {197, 1, 93, HYPER_THREADING_PROC, 93, -1},
-        {198, 1, 94, HYPER_THREADING_PROC, 94, -1},
-        {199, 1, 95, HYPER_THREADING_PROC, 95, -1},
-        {200, 1, 96, HYPER_THREADING_PROC, 96, -1},
-        {201, 1, 97, HYPER_THREADING_PROC, 97, -1},
-        {202, 1, 98, HYPER_THREADING_PROC, 98, -1},
-        {203, 1, 99, HYPER_THREADING_PROC, 99, -1},
-        {204, 1, 100, HYPER_THREADING_PROC, 100, -1},
-        {205, 1, 101, HYPER_THREADING_PROC, 101, -1},
-        {206, 1, 102, HYPER_THREADING_PROC, 102, -1},
-        {207, 1, 103, HYPER_THREADING_PROC, 103, -1},
-    },
-    {
-        {"0,104", "0", "3800000"},   {"1,105", "0", "3800000"},   {"2,106", "0", "3800000"},
-        {"3,107", "0", "3800000"},   {"4,108", "0", "3800000"},   {"5,109", "0", "3800000"},
-        {"6,110", "0", "3800000"},   {"7,111", "0", "3800000"},   {"8,112", "0", "3800000"},
-        {"9,113", "0", "3800000"},   {"10,114", "0", "3800000"},  {"11,115", "0", "3800000"},
-        {"12,116", "0", "3800000"},  {"13,117", "0", "3800000"},  {"14,118", "0", "3800000"},
-        {"15,119", "0", "3800000"},  {"16,120", "0", "3800000"},  {"17,121", "0", "3800000"},
-        {"18,122", "0", "3800000"},  {"19,123", "0", "3800000"},  {"20,124", "0", "3800000"},
-        {"21,125", "0", "3800000"},  {"22,126", "0", "3800000"},  {"23,127", "0", "3800000"},
-        {"24,128", "0", "3800000"},  {"25,129", "0", "3800000"},  {"26,130", "0", "3800000"},
-        {"27,131", "0", "3800000"},  {"28,132", "0", "3800000"},  {"29,133", "0", "3800000"},
-        {"30,134", "0", "3800000"},  {"31,135", "0", "3800000"},  {"32,136", "0", "3800000"},
-        {"33,137", "0", "3800000"},  {"34,138", "0", "3800000"},  {"35,139", "0", "3800000"},
-        {"36,140", "0", "3800000"},  {"37,141", "0", "3800000"},  {"38,142", "0", "3800000"},
-        {"39,143", "0", "3800000"},  {"40,144", "0", "3800000"},  {"41,145", "0", "3800000"},
-        {"42,146", "0", "3800000"},  {"43,147", "0", "3800000"},  {"44,148", "0", "3800000"},
-        {"45,149", "0", "3800000"},  {"46,150", "0", "3800000"},  {"47,151", "0", "3800000"},
-        {"48,152", "0", "3800000"},  {"49,153", "0", "3800000"},  {"50,154", "0", "3800000"},
-        {"51,155", "0", "3800000"},  {"52,156", "1", "3800000"},  {"53,157", "1", "3800000"},
-        {"54,158", "1", "3800000"},  {"55,159", "1", "3800000"},  {"56,160", "1", "3800000"},
-        {"57,161", "1", "3800000"},  {"58,162", "1", "3800000"},  {"59,163", "1", "3800000"},
-        {"60,164", "1", "3800000"},  {"61,165", "1", "3800000"},  {"62,166", "1", "3800000"},
-        {"63,167", "1", "3800000"},  {"64,168", "1", "3800000"},  {"65,169", "1", "3800000"},
-        {"66,170", "1", "3800000"},  {"67,171", "1", "3800000"},  {"68,172", "1", "3800000"},
-        {"69,173", "1", "3800000"},  {"70,174", "1", "3800000"},  {"71,175", "1", "3800000"},
-        {"72,176", "1", "3800000"},  {"73,177", "1", "3800000"},  {"74,178", "1", "3800000"},
-        {"75,179", "1", "3800000"},  {"76,180", "1", "3800000"},  {"77,181", "1", "3800000"},
-        {"78,182", "1", "3800000"},  {"79,183", "1", "3800000"},  {"80,184", "1", "3800000"},
-        {"81,185", "1", "3800000"},  {"82,186", "1", "3800000"},  {"83,187", "1", "3800000"},
-        {"84,188", "1", "3800000"},  {"85,189", "1", "3800000"},  {"86,190", "1", "3800000"},
-        {"87,191", "1", "3800000"},  {"88,192", "1", "3800000"},  {"89,193", "1", "3800000"},
-        {"90,194", "1", "3800000"},  {"91,195", "1", "3800000"},  {"92,196", "1", "3800000"},
-        {"93,197", "1", "3800000"},  {"94,198", "1", "3800000"},  {"95,199", "1", "3800000"},
-        {"96,200", "1", "3800000"},  {"97,201", "1", "3800000"},  {"98,202", "1", "3800000"},
-        {"99,203", "1", "3800000"},  {"100,204", "1", "3800000"}, {"101,205", "1", "3800000"},
-        {"102,206", "1", "3800000"}, {"103,207", "1", "3800000"}, {"0,104", "0", "3800000"},
-        {"1,105", "0", "3800000"},   {"2,106", "0", "3800000"},   {"3,107", "0", "3800000"},
-        {"4,108", "0", "3800000"},   {"5,109", "0", "3800000"},   {"6,110", "0", "3800000"},
-        {"7,111", "0", "3800000"},   {"8,112", "0", "3800000"},   {"9,113", "0", "3800000"},
-        {"10,114", "0", "3800000"},  {"11,115", "0", "3800000"},  {"12,116", "0", "3800000"},
-        {"13,117", "0", "3800000"},  {"14,118", "0", "3800000"},  {"15,119", "0", "3800000"},
-        {"16,120", "0", "3800000"},  {"17,121", "0", "3800000"},  {"18,122", "0", "3800000"},
-        {"19,123", "0", "3800000"},  {"20,124", "0", "3800000"},  {"21,125", "0", "3800000"},
-        {"22,126", "0", "3800000"},  {"23,127", "0", "3800000"},  {"24,128", "0", "3800000"},
-        {"25,129", "0", "3800000"},  {"26,130", "0", "3800000"},  {"27,131", "0", "3800000"},
-        {"28,132", "0", "3800000"},  {"29,133", "0", "3800000"},  {"30,134", "0", "3800000"},
-        {"31,135", "0", "3800000"},  {"32,136", "0", "3800000"},  {"33,137", "0", "3800000"},
-        {"34,138", "0", "3800000"},  {"35,139", "0", "3800000"},  {"36,140", "0", "3800000"},
-        {"37,141", "0", "3800000"},  {"38,142", "0", "3800000"},  {"39,143", "0", "3800000"},
-        {"40,144", "0", "3800000"},  {"41,145", "0", "3800000"},  {"42,146", "0", "3800000"},
-        {"43,147", "0", "3800000"},  {"44,148", "0", "3800000"},  {"45,149", "0", "3800000"},
-        {"46,150", "0", "3800000"},  {"47,151", "0", "3800000"},  {"48,152", "0", "3800000"},
-        {"49,153", "0", "3800000"},  {"50,154", "0", "3800000"},  {"51,155", "0", "3800000"},
-        {"52,156", "1", "3800000"},  {"53,157", "1", "3800000"},  {"54,158", "1", "3800000"},
-        {"55,159", "1", "3800000"},  {"56,160", "1", "3800000"},  {"57,161", "1", "3800000"},
-        {"58,162", "1", "3800000"},  {"59,163", "1", "3800000"},  {"60,164", "1", "3800000"},
-        {"61,165", "1", "3800000"},  {"62,166", "1", "3800000"},  {"63,167", "1", "3800000"},
-        {"64,168", "1", "3800000"},  {"65,169", "1", "3800000"},  {"66,170", "1", "3800000"},
-        {"67,171", "1", "3800000"},  {"68,172", "1", "3800000"},  {"69,173", "1", "3800000"},
-        {"70,174", "1", "3800000"},  {"71,175", "1", "3800000"},  {"72,176", "1", "3800000"},
-        {"73,177", "1", "3800000"},  {"74,178", "1", "3800000"},  {"75,179", "1", "3800000"},
-        {"76,180", "1", "3800000"},  {"77,181", "1", "3800000"},  {"78,182", "1", "3800000"},
-        {"79,183", "1", "3800000"},  {"80,184", "1", "3800000"},  {"81,185", "1", "3800000"},
-        {"82,186", "1", "3800000"},  {"83,187", "1", "3800000"},  {"84,188", "1", "3800000"},
-        {"85,189", "1", "3800000"},  {"86,190", "1", "3800000"},  {"87,191", "1", "3800000"},
-        {"88,192", "1", "3800000"},  {"89,193", "1", "3800000"},  {"90,194", "1", "3800000"},
-        {"91,195", "1", "3800000"},  {"92,196", "1", "3800000"},  {"93,197", "1", "3800000"},
-        {"94,198", "1", "3800000"},  {"95,199", "1", "3800000"},  {"96,200", "1", "3800000"},
-        {"97,201", "1", "3800000"},  {"98,202", "1", "3800000"},  {"99,203", "1", "3800000"},
-        {"100,204", "1", "3800000"}, {"101,205", "1", "3800000"}, {"102,206", "1", "3800000"},
-        {"103,207", "1", "3800000"},
-    },
-};
-
-LinuxCpuMapTestCase freq_2sockets_20cores_hyperthreading = {
-    40,
-    2,
-    20,
-    {{40, 20, 0, 0, 20}, {20, 10, 0, 0, 10}, {20, 10, 0, 0, 10}},
-    {
-        {0, 0, 0, PCORE_MAIN_PROC, 0, -1},         {1, 0, 1, PCORE_MAIN_PROC, 1, -1},
-        {2, 0, 2, PCORE_MAIN_PROC, 2, -1},         {3, 0, 3, PCORE_MAIN_PROC, 3, -1},
-        {4, 0, 4, PCORE_MAIN_PROC, 4, -1},         {5, 0, 5, PCORE_MAIN_PROC, 5, -1},
-        {6, 0, 6, PCORE_MAIN_PROC, 6, -1},         {7, 0, 7, PCORE_MAIN_PROC, 7, -1},
-        {8, 0, 8, PCORE_MAIN_PROC, 8, -1},         {9, 0, 9, PCORE_MAIN_PROC, 9, -1},
-        {10, 1, 10, PCORE_MAIN_PROC, 10, -1},      {11, 1, 11, PCORE_MAIN_PROC, 11, -1},
-        {12, 1, 12, PCORE_MAIN_PROC, 12, -1},      {13, 1, 13, PCORE_MAIN_PROC, 13, -1},
-        {14, 1, 14, PCORE_MAIN_PROC, 14, -1},      {15, 1, 15, PCORE_MAIN_PROC, 15, -1},
-        {16, 1, 16, PCORE_MAIN_PROC, 16, -1},      {17, 1, 17, PCORE_MAIN_PROC, 17, -1},
-        {18, 1, 18, PCORE_MAIN_PROC, 18, -1},      {19, 1, 19, PCORE_MAIN_PROC, 19, -1},
-        {20, 0, 0, HYPER_THREADING_PROC, 0, -1},   {21, 0, 1, HYPER_THREADING_PROC, 1, -1},
-        {22, 0, 2, HYPER_THREADING_PROC, 2, -1},   {23, 0, 3, HYPER_THREADING_PROC, 3, -1},
-        {24, 0, 4, HYPER_THREADING_PROC, 4, -1},   {25, 0, 5, HYPER_THREADING_PROC, 5, -1},
-        {26, 0, 6, HYPER_THREADING_PROC, 6, -1},   {27, 0, 7, HYPER_THREADING_PROC, 7, -1},
-        {28, 0, 8, HYPER_THREADING_PROC, 8, -1},   {29, 0, 9, HYPER_THREADING_PROC, 9, -1},
-        {30, 1, 10, HYPER_THREADING_PROC, 10, -1}, {31, 1, 11, HYPER_THREADING_PROC, 11, -1},
-        {32, 1, 12, HYPER_THREADING_PROC, 12, -1}, {33, 1, 13, HYPER_THREADING_PROC, 13, -1},
-        {34, 1, 14, HYPER_THREADING_PROC, 14, -1}, {35, 1, 15, HYPER_THREADING_PROC, 15, -1},
-        {36, 1, 16, HYPER_THREADING_PROC, 16, -1}, {37, 1, 17, HYPER_THREADING_PROC, 17, -1},
-        {38, 1, 18, HYPER_THREADING_PROC, 18, -1}, {39, 1, 19, HYPER_THREADING_PROC, 19, -1},
-    },
-    {
-        {"0,20", "0", "3000000"},  {"1,21", "0", "3000000"},  {"2,22", "0", "3000000"},  {"3,23", "0", "3000000"},
-        {"4,24", "0", "3000000"},  {"5,25", "0", "3000000"},  {"6,26", "0", "3000000"},  {"7,27", "0", "3000000"},
-        {"8,28", "0", "3000000"},  {"9,29", "0", "3000000"},  {"10,30", "1", "3000000"}, {"11,31", "1", "3000000"},
-        {"12,32", "1", "3000000"}, {"13,33", "1", "3000000"}, {"14,34", "1", "3000000"}, {"15,35", "1", "3000000"},
-        {"16,36", "1", "3000000"}, {"17,37", "1", "3000000"}, {"18,38", "1", "3000000"}, {"19,39", "1", "3000000"},
-        {"0,20", "0", "3000000"},  {"1,21", "0", "3000000"},  {"2,22", "0", "3000000"},  {"3,23", "0", "3000000"},
-        {"4,24", "0", "3000000"},  {"5,25", "0", "3000000"},  {"6,26", "0", "3000000"},  {"7,27", "0", "3000000"},
-        {"8,28", "0", "3000000"},  {"9,29", "0", "3000000"},  {"10,30", "1", "3000000"}, {"11,31", "1", "3000000"},
-        {"12,32", "1", "3000000"}, {"13,33", "1", "3000000"}, {"14,34", "1", "3000000"}, {"15,35", "1", "3000000"},
-        {"16,36", "1", "3000000"}, {"17,37", "1", "3000000"}, {"18,38", "1", "3000000"}, {"19,39", "1", "3000000"},
-    },
-};
-
-LinuxCpuMapTestCase freq_1sockets_16cores_hyperthreading = {
-    22,
-    1,
-    16,
-    {{22, 6, 8, 2, 6}},
-    {
-        {0, 0, 0, PCORE_MAIN_PROC, 0, -1},    {1, 0, 0, HYPER_THREADING_PROC, 0, -1},
-        {2, 0, 1, PCORE_MAIN_PROC, 1, -1},    {3, 0, 1, HYPER_THREADING_PROC, 1, -1},
-        {4, 0, 2, PCORE_MAIN_PROC, 2, -1},    {5, 0, 2, HYPER_THREADING_PROC, 2, -1},
-        {6, 0, 3, PCORE_MAIN_PROC, 3, -1},    {7, 0, 3, HYPER_THREADING_PROC, 3, -1},
-        {8, 0, 4, PCORE_MAIN_PROC, 4, -1},    {9, 0, 4, HYPER_THREADING_PROC, 4, -1},
-        {10, 0, 5, PCORE_MAIN_PROC, 5, -1},   {11, 0, 5, HYPER_THREADING_PROC, 5, -1},
-        {12, 0, 6, ECORE_PROC, 6, -1},        {13, 0, 7, ECORE_PROC, 7, -1},
-        {14, 0, 8, ECORE_PROC, 8, -1},        {15, 0, 9, ECORE_PROC, 9, -1},
-        {16, 0, 10, ECORE_PROC, 10, -1},      {17, 0, 11, ECORE_PROC, 11, -1},
-        {18, 0, 12, ECORE_PROC, 12, -1},      {19, 0, 13, ECORE_PROC, 13, -1},
-        {20, 0, 14, THIRD_CORE_PROC, 14, -1}, {21, 0, 15, THIRD_CORE_PROC, 15, -1},
-    },
-    {
-        {"0-1", "2", "4200000"}, {"0-1", "2", "4200000"}, {"2-3", "3", "4200000"},   {"2-3", "3", "4200000"},
-        {"4-5", "4", "4200000"}, {"4-5", "4", "4200000"}, {"6-7", "5", "4200000"},   {"6-7", "5", "4200000"},
-        {"8-9", "6", "4200000"}, {"8-9", "6", "4200000"}, {"10-11", "7", "4200000"}, {"10-11", "7", "4200000"},
-        {"12", "0", "3100000"},  {"13", "0", "3100000"},  {"14", "0", "3100000"},    {"15", "0", "3100000"},
-        {"16", "1", "3100000"},  {"17", "1", "3100000"},  {"18", "1", "3100000"},    {"19", "1", "3100000"},
-        {"20", "8", "2100000"},  {"21", "8", "2100000"},
-    },
-};
-
-LinuxCpuMapTestCase freq_1sockets_6cores_hyperthreading = {
-    10,
-    1,
-    6,
-    {{10, 4, 2, 0, 4}},
-    {
-        {0, 0, 0, PCORE_MAIN_PROC, 0, -1},
-        {1, 0, 0, HYPER_THREADING_PROC, 0, -1},
-        {2, 0, 1, PCORE_MAIN_PROC, 1, -1},
-        {3, 0, 1, HYPER_THREADING_PROC, 1, -1},
-        {4, 0, 2, PCORE_MAIN_PROC, 2, -1},
-        {5, 0, 2, HYPER_THREADING_PROC, 2, -1},
-        {6, 0, 3, PCORE_MAIN_PROC, 3, -1},
-        {7, 0, 3, HYPER_THREADING_PROC, 3, -1},
-        {8, 0, 4, ECORE_PROC, 4, -1},
-        {9, 0, 5, ECORE_PROC, 5, -1},
-    },
-    {
-        {"0-1", "2", "4200000"},
-        {"0-1", "2", "4200000"},
-        {"2-3", "3", "4200000"},
-        {"2-3", "3", "4200000"},
-        {"4-5", "4", "4200000"},
-        {"4-5", "4", "4200000"},
-        {"6-7", "5", "4200000"},
-        {"6-7", "5", "4200000"},
-        {"8", "8", "2100000"},
-        {"9", "8", "2100000"},
-    },
-};
-
-TEST_P(LinuxCpuMapCacheParserTests, LinuxCpuMapCache) {}
+TEST_P(LinuxCpuMapParserTests, LinuxCpuMap) {}
 
 INSTANTIATE_TEST_SUITE_P(CPUMap,
-                         LinuxCpuMapCacheParserTests,
-                         testing::Values(cache_2sockets_104cores_hyperthreading,
-                                         cache_2sockets_24cores_hyperthreading,
-                                         cache_2sockets_48cores,
-                                         cache_2sockets_20cores_hyperthreading,
-                                         cache_1sockets_14cores_hyperthreading,
-                                         cache_1sockets_10cores_hyperthreading,
-                                         cache_1sockets_8cores_hyperthreading,
-                                         cache_1sockets_6cores_hyperthreading));
-
-TEST_P(LinuxCpuMapFreqParserTests, LinuxCpuMapFreq) {}
-
-INSTANTIATE_TEST_SUITE_P(CPUMap,
-                         LinuxCpuMapFreqParserTests,
-                         testing::Values(freq_2sockets_104cores_hyperthreading,
-                                         freq_2sockets_20cores_hyperthreading,
-                                         freq_1sockets_16cores_hyperthreading,
-                                         freq_1sockets_6cores_hyperthreading));
+                         LinuxCpuMapParserTests,
+                         testing::Values(_2sockets_104cores_hyperthreading,
+                                         _2sockets_24cores_hyperthreading,
+                                         _2sockets_48cores,
+                                         _2sockets_20cores_hyperthreading,
+                                         _1sockets_14cores_hyperthreading,
+                                         _1sockets_10cores_hyperthreading,
+                                         _1sockets_8cores_hyperthreading,
+                                         _1sockets_6cores_hyperthreading));
 #endif
 
 #if (defined(_WIN32) || defined(_WIN64))
@@ -1074,11 +644,11 @@ public:
     }
 };
 
-WinCpuMapTestCase cache_2sockets_104cores_hyperthreading = {
+WinCpuMapTestCase _2sockets_104cores_hyperthreading = {
     208,
     2,
     104,
-    {{208, 104, 0, 0, 104}, {104, 52, 0, 0, 52}, {104, 52, 0, 0, 52}},
+    {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {
         {0, 0, 0, HYPER_THREADING_PROC, 0, -1},       {1, 0, 0, MAIN_CORE_PROC, 0, -1},
         {2, 0, 1, HYPER_THREADING_PROC, 1, -1},       {3, 0, 1, MAIN_CORE_PROC, 1, -1},
@@ -1685,11 +1255,11 @@ WinCpuMapTestCase cache_2sockets_104cores_hyperthreading = {
      "0"},
 };
 
-WinCpuMapTestCase cache_2sockets_48cores_hyperthreading = {
+WinCpuMapTestCase _2sockets_48cores_hyperthreading = {
     96,
     2,
     48,
-    {{96, 48, 0, 0, 48}, {48, 24, 0, 0, 24}, {48, 24, 0, 0, 24}},
+    {{96, 48, 0, 48}, {48, 24, 0, 24}, {48, 24, 0, 24}},
     {
         {0, 0, 0, HYPER_THREADING_PROC, 0, -1},    {1, 0, 0, MAIN_CORE_PROC, 0, -1},
         {2, 0, 1, HYPER_THREADING_PROC, 1, -1},    {3, 0, 1, MAIN_CORE_PROC, 1, -1},
@@ -1974,11 +1544,11 @@ WinCpuMapTestCase cache_2sockets_48cores_hyperthreading = {
      "fffff000030300000000000000000000000000000000000000000000000000000000000000000000000000000ffffffffffff0000"},
 };
 
-WinCpuMapTestCase cache_2sockets_48cores = {
+WinCpuMapTestCase _2sockets_48cores = {
     48,
     2,
     48,
-    {{48, 48, 0, 0, 0}, {24, 24, 0, 0, 0}, {24, 24, 0, 0, 0}},
+    {{48, 48, 0, 0}, {24, 24, 0, 0}, {24, 24, 0, 0}},
     {
         {0, 0, 0, MAIN_CORE_PROC, 0, -1},    {1, 0, 1, MAIN_CORE_PROC, 1, -1},    {2, 0, 2, MAIN_CORE_PROC, 2, -1},
         {3, 0, 3, MAIN_CORE_PROC, 3, -1},    {4, 0, 4, MAIN_CORE_PROC, 4, -1},    {5, 0, 5, MAIN_CORE_PROC, 5, -1},
@@ -2231,11 +1801,11 @@ WinCpuMapTestCase cache_2sockets_48cores = {
      "fffff0000"},
 };
 
-WinCpuMapTestCase cache_1sockets_24cores_hyperthreading_set1 = {
+WinCpuMapTestCase _1sockets_24cores_hyperthreading_set1 = {
     32,
     1,
     24,
-    {{32, 8, 16, 0, 8}},
+    {{32, 8, 16, 8}},
     {
         {0, 0, 0, HYPER_THREADING_PROC, 0, -1},   {1, 0, 0, MAIN_CORE_PROC, 0, -1},
         {2, 0, 1, HYPER_THREADING_PROC, 1, -1},   {3, 0, 1, MAIN_CORE_PROC, 1, -1},
@@ -2340,11 +1910,11 @@ WinCpuMapTestCase cache_1sockets_24cores_hyperthreading_set1 = {
      "000000000000020200000000000000000000000000000000000000000000000000000000000000000000000000000ffffffff00000000"},
 };
 
-WinCpuMapTestCase cache_1sockets_24cores_hyperthreading_set2 = {
+WinCpuMapTestCase _1sockets_24cores_hyperthreading_set2 = {
     32,
     1,
     24,
-    {{32, 8, 16, 0, 8}},
+    {{32, 8, 16, 8}},
     {
         {0, 0, 0, HYPER_THREADING_PROC, 0, -1},   {1, 0, 0, MAIN_CORE_PROC, 0, -1},
         {2, 0, 1, HYPER_THREADING_PROC, 1, -1},   {3, 0, 1, MAIN_CORE_PROC, 1, -1},
@@ -2460,108 +2030,11 @@ WinCpuMapTestCase cache_1sockets_24cores_hyperthreading_set2 = {
      "00ffffffff00000000"},
 };
 
-WinCpuMapTestCase cache_1sockets_16cores_hyperthreading_set1 = {
-    22,
-    1,
-    16,
-    {{22, 6, 8, 2, 6}},
-    {
-        {0, 0, 0, HYPER_THREADING_PROC, 0, -1},
-        {1, 0, 0, PCORE_MAIN_PROC, 0, -1},
-        {2, 0, 1, ECORE_PROC, 1, -1},
-        {3, 0, 2, ECORE_PROC, 1, -1},
-        {4, 0, 3, ECORE_PROC, 1, -1},
-        {5, 0, 4, ECORE_PROC, 1, -1},
-        {6, 0, 5, ECORE_PROC, 2, -1},
-        {7, 0, 6, ECORE_PROC, 2, -1},
-        {8, 0, 7, ECORE_PROC, 2, -1},
-        {9, 0, 8, ECORE_PROC, 2, -1},
-        {10, 0, 9, HYPER_THREADING_PROC, 3, -1},
-        {11, 0, 9, PCORE_MAIN_PROC, 3, -1},
-        {12, 0, 10, HYPER_THREADING_PROC, 4, -1},
-        {13, 0, 10, PCORE_MAIN_PROC, 4, -1},
-        {14, 0, 11, HYPER_THREADING_PROC, 5, -1},
-        {15, 0, 11, PCORE_MAIN_PROC, 5, -1},
-        {16, 0, 12, HYPER_THREADING_PROC, 6, -1},
-        {17, 0, 12, PCORE_MAIN_PROC, 6, -1},
-        {18, 0, 13, HYPER_THREADING_PROC, 7, -1},
-        {19, 0, 13, PCORE_MAIN_PROC, 7, -1},
-        {20, 0, 14, THIRD_CORE_PROC, 8, -1},
-        {21, 0, 15, THIRD_CORE_PROC, 8, -1},
-    },
-    {"0300000030000000000000000000000000000000000000000000000000000100ffff3f0000000000000000000000000000000000300000000"
-     "10100000000000000000000000000000000000000000100030000000000000000000000000000000700000030000000000000000000000000"
-     "000000000000000000000000000100030000000000000000000000000000000200000038000000010c400000c000000200000000000000000"
-     "00000000000000000000000000100030000000000000000000000000000000200000038000000011040000000010001000000000000000000"
-     "00000000000000000000000001000300000000000000000000000000000002000000380000000210400000002000000000000000000000000"
-     "000000000000000000000000100030000000000000000000000000000000200000038000000030c4000000080010000000000000000000000"
-     "00000000000000000000000100ffff0f000000000000000000000000000000000030000000000000000000000000000000000000000000000"
-     "0000001000400000000000000000000000000000007000000300000000000000000000000000000000000000000000000000001003c000000"
-     "00000000000000000000000002000000380000000108400000800000020000000000000000000000000000000000000000000100040000000"
-     "00000000000000000000000020000003800000001084000000001000100000000000000000000000000000000000000000001000400000000"
-     "0000000000000000000000020000003800000002104000000020000000000000000000000000000000000000000000000001003c000000000"
-     "00000000000000000000000000000300000000000000000000000000000000000000000000000000001000800000000000000000000000000"
-     "00000200000038000000010840000080000002000000000000000000000000000000000000000000010008000000000000000000000000000"
-     "00002000000380000000108400000000100010000000000000000000000000000000000000000000100080000000000000000000000000000"
-     "00000000003000000000000000000000000000000000000000000000000000010010000000000000000000000000000000020000003800000"
-     "00108400000800000020000000000000000000000000000000000000000000100100000000000000000000000000000000200000038000000"
-     "01084000000001000100000000000000000000000000000000000000000001001000000000000000000000000000000000000000300000000"
-     "00000000000000000000000000000000000000000000100200000000000000000000000000000000200000038000000010840000080000002"
-     "00000000000000000000000000000000000000000001002000000000000000000000000000000002000000380000000108400000000100010"
-     "00000000000000000000000000000000000000000010020000000000000000000000000000000000000003000000000000000000000000000"
-     "00000000000000000000000001004000000000000000000000000000000007000000300000000000000000000000000000000000000000000"
-     "00000000100c00300000000000000000000000000000200000038000000010840000080000002000000000000000000000000000000000000"
-     "00000001004000000000000000000000000000000002000000380000000108400000000100010000000000000000000000000000000000000"
-     "00000010040000000000000000000000000000000020000003800000002104000000020000000000000000000000000000000000000000000"
-     "00000100c00300000000000000000000000000000000000030000000000000000000000000000000000000000000000000000100800000000"
-     "00000000000000000000000020000003800000001084000008000000200000000000000000000000000000000000000000001008000000000"
-     "00000000000000000000000200000038000000010840000000010001000000000000000000000000000000000000000000010080000000000"
-     "00000000000000000000000000000300000000000000000000000000000000000000000000000000001000001000000000000000000000000"
-     "00000200000038000000010840000080000002000000000000000000000000000000000000000000010000010000000000000000000000000"
-     "00002000000380000000108400000000100010000000000000000000000000000000000000000000100000100000000000000000000000000"
-     "00000000003000000000000000000000000000000000000000000000000000010000020000000000000000000000000000020000003800000"
-     "00108400000800000020000000000000000000000000000000000000000000100000200000000000000000000000000000200000038000000"
-     "01084000000001000100000000000000000000000000000000000000000001000002000000000000000000000000000000000000300000000"
-     "10100000000000000000000000000000000000000000100000c00000000000000000000000000000700000030000000000000000000000000"
-     "000000000000000000000000000100000c00000000000000000000000000000200000038000000010c400000c000000200000000000000000"
-     "00000000000000000000000000100000c00000000000000000000000000000200000038000000011040000000010001000000000000000000"
-     "0000000000000000000000000100000c000000000000000000000000000002000000380000000210400000002000000000000000000000000"
-     "000000000000000000000000100000c0000000000000000000000000000000000003000000001010000000000000000000000000000000000"
-     "00000001000030000000000000000000000000000007000000300000000000000000000000000000000000000000000000000001000030000"
-     "00000000000000000000000000200000038000000010c400000c0000002000000000000000000000000000000000000000000010000300000"
-     "00000000000000000000000002000000380000000110400000000100010000000000000000000000000000000000000000000100003000000"
-     "00000000000000000000000020000003800000002104000000020000000000000000000000000000000000000000000000001000030000000"
-     "0000000000000000000000000000003000000001010000000000000000000000000000000000000000010000c000000000000000000000000"
-     "00000070000003000000000000000000000000000000000000000000000000000010000c00000000000000000000000000000020000003800"
-     "0000010c400000c0000002000000000000000000000000000000000000000000010000c000000000000000000000000000000200000038000"
-     "000011040000000010001000000000000000000000000000000000000000000010000c0000000000000000000000000000002000000380000"
-     "00021040000000200000000000000000000000000000000000000000000000010000c00000000000000000000000000000000000003000000"
-     "00101000000000000000000000000000000000000000001000000030000000000000000000000000007000000300000000000000000000000"
-     "00000000000000000000000000000100000003000000000000000000000000000200000038000000010c400000c0000002000000000000000"
-     "00000000000000000000000000001000000030000000000000000000000000002000000380000000110400000000100010000000000000000"
-     "00000000000000000000000000010000000300000000000000000000000000020000003800000002104000000020000000000000000000000"
-     "00000000000000000000000000100000003000000000000000000000000000000000030000000010100000000000000000000000000000000"
-     "00000000010000000c00000000000000000000000000070000003000000000000000000000000000000000000000000000000000010000000"
-     "c000000000000000000000000000200000038000000010c400000c0000002000000000000000000000000000000000000000000010000000c"
-     "000000000000000000000000000200000038000000011040000000010001000000000000000000000000000000000000000000010000000c0"
-     "00000000000000000000000000200000038000000021040000000200000000000000000000000000000000000000000000000010000000c00"
-     "00000000000000000000000000000000300000000000000000000000000000000000000000000000000001000000100000000000000000000"
-     "00000000700000030000000000000000000000000000000000000000000000000000100000030000000000000000000000000000200000038"
-     "00000001084000008000000200000000000000000000000000000000000000000001000000100000000000000000000000000002000000380"
-     "00000010840000000010001000000000000000000000000000000000000000000010000001000000000000000000000000000020000003800"
-     "00000210400000002000000000000000000000000000000000000000000000000100000030000000000000000000000000000000000030000"
-     "00000000000000000000000000000000000000000000000010000002000000000000000000000000000020000003800000001084000008000"
-     "00020000000000000000000000000000000000000000000100000020000000000000000000000000000200000038000000010840000000010"
-     "00100000000000000000000000000000000000000000001000000200000000000000000000000000001000000300000000000000000000000"
-     "00000000000000000000000000000100ffff3f000000000000000000000000000400000050000000010001000000000000000000000000000"
-     "00000000000000016160000000000000000000000000000000000000000000000000000000000000000000000000000ffff3f0000000000"},
-};
-
-WinCpuMapTestCase cache_1sockets_14cores_hyperthreading_set1 = {
+WinCpuMapTestCase _1sockets_14cores_hyperthreading_set1 = {
     20,
     1,
     14,
-    {{20, 6, 8, 0, 6}},
+    {{20, 6, 8, 6}},
     {
         {0, 0, 0, HYPER_THREADING_PROC, 0, -1},  {1, 0, 0, MAIN_CORE_PROC, 0, -1},
         {2, 0, 1, HYPER_THREADING_PROC, 1, -1},  {3, 0, 1, MAIN_CORE_PROC, 1, -1},
@@ -2628,11 +2101,11 @@ WinCpuMapTestCase cache_1sockets_14cores_hyperthreading_set1 = {
      "0000000000000000000000000000000000000000000000000000000000000ffff0f0000000000"},
 };
 
-WinCpuMapTestCase cache_1sockets_14cores_hyperthreading_set2 = {
+WinCpuMapTestCase _1sockets_14cores_hyperthreading_set2 = {
     20,
     1,
     14,
-    {{20, 6, 8, 0, 6}},
+    {{20, 6, 8, 6}},
     {
         {0, 0, 0, HYPER_THREADING_PROC, 0, -1},   {1, 0, 0, MAIN_CORE_PROC, 0, -1},
         {2, 0, 1, EFFICIENT_CORE_PROC, 1, -1},    {3, 0, 2, EFFICIENT_CORE_PROC, 1, -1},
@@ -2706,11 +2179,11 @@ WinCpuMapTestCase cache_1sockets_14cores_hyperthreading_set2 = {
      "00000000000000000000000000000000000000ffff0f0000000000"},
 };
 
-WinCpuMapTestCase cache_1sockets_14cores_hyperthreading_set3 = {
+WinCpuMapTestCase _1sockets_14cores_hyperthreading_set3 = {
     20,
     1,
     14,
-    {{20, 6, 8, 0, 6}},
+    {{20, 6, 8, 6}},
     {
         {0, 0, 0, HYPER_THREADING_PROC, 0, -1},  {1, 0, 0, MAIN_CORE_PROC, 0, -1},
         {2, 0, 1, HYPER_THREADING_PROC, 1, -1},  {3, 0, 1, MAIN_CORE_PROC, 1, -1},
@@ -2784,11 +2257,11 @@ WinCpuMapTestCase cache_1sockets_14cores_hyperthreading_set3 = {
      "00000000000000000000000000000000000000ffff0f0000000000"},
 };
 
-WinCpuMapTestCase cache_1sockets_10cores_hyperthreading = {
+WinCpuMapTestCase _1sockets_10cores_hyperthreading = {
     12,
     1,
     10,
-    {{12, 2, 8, 0, 2}},
+    {{12, 2, 8, 2}},
     {
         {0, 0, 0, HYPER_THREADING_PROC, 0, -1},
         {1, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -2845,11 +2318,11 @@ WinCpuMapTestCase cache_1sockets_10cores_hyperthreading = {
      "0000000000000000000000000000000000000000000000000000000000000000000000000ff0f000000000000"},
 };
 
-WinCpuMapTestCase cache_1sockets_4cores_hyperthreading = {
+WinCpuMapTestCase _1sockets_4cores_hyperthreading = {
     8,
     1,
     4,
-    {{8, 4, 0, 0, 4}},
+    {{8, 4, 0, 4}},
     {
         {0, 0, 0, HYPER_THREADING_PROC, 0, -1},
         {1, 0, 0, MAIN_CORE_PROC, 0, -1},
@@ -2886,17 +2359,16 @@ TEST_P(WinCpuMapParserTests, WinCpuMap) {}
 
 INSTANTIATE_TEST_SUITE_P(CPUMap,
                          WinCpuMapParserTests,
-                         testing::Values(cache_2sockets_104cores_hyperthreading,
-                                         cache_2sockets_48cores_hyperthreading,
-                                         cache_2sockets_48cores,
-                                         cache_1sockets_24cores_hyperthreading_set1,
-                                         cache_1sockets_24cores_hyperthreading_set2,
-                                         cache_1sockets_16cores_hyperthreading_set1,
-                                         cache_1sockets_14cores_hyperthreading_set1,
-                                         cache_1sockets_14cores_hyperthreading_set2,
-                                         cache_1sockets_14cores_hyperthreading_set3,
-                                         cache_1sockets_10cores_hyperthreading,
-                                         cache_1sockets_4cores_hyperthreading));
+                         testing::Values(_2sockets_104cores_hyperthreading,
+                                         _2sockets_48cores_hyperthreading,
+                                         _2sockets_48cores,
+                                         _1sockets_24cores_hyperthreading_set1,
+                                         _1sockets_24cores_hyperthreading_set2,
+                                         _1sockets_14cores_hyperthreading_set1,
+                                         _1sockets_14cores_hyperthreading_set2,
+                                         _1sockets_14cores_hyperthreading_set3,
+                                         _1sockets_10cores_hyperthreading,
+                                         _1sockets_4cores_hyperthreading));
 
 #endif
 

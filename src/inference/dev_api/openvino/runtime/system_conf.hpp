@@ -182,11 +182,8 @@ enum ColumnOfProcessorTypeTable {
     ALL_PROC = 0,              //!< All processors, regardless of backend cpu
     MAIN_CORE_PROC = 1,        //!< Processor based on physical core of Intel Performance-cores
     EFFICIENT_CORE_PROC = 2,   //!< Processor based on Intel Efficient-cores
-    PCORE_MAIN_PROC = 1,       //!< Processor based on physical core of performance cores
-    ECORE_PROC = 2,            //!< Processor based on efficient cores
-    THIRD_CORE_PROC = 3,       //!< Processor based on third cores
-    HYPER_THREADING_PROC = 4,  //!< Processor based on logical core of performance cores
-    PROC_TYPE_TABLE_SIZE = 5   //!< Size of processor type table
+    HYPER_THREADING_PROC = 3,  //!< Processor based on logical core of Intel Performance-cores
+    PROC_TYPE_TABLE_SIZE = 4   //!< Size of processor type table
 };
 
 /**
