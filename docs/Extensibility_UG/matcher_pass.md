@@ -39,7 +39,7 @@ Then you need to take the last created operation and put it as a root of the pat
 
 The ``Parameter`` operation in the example above has type and shape specified. These attributes are needed only to create Parameter operation class and will not be used in pattern matching.
 
-For more pattern examples, refer to the :ref:`pattern matching section <pattern_matching>`__.
+For more pattern examples, refer to the `pattern matching section <#pattern-matching>`__.
 
 Implement callback
 ##################
