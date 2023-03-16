@@ -1139,9 +1139,9 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
         std::ostringstream in_dims_oss;
         auto in_dims = concatLayer->insData[0].lock()->getDims();
         std::copy(in_dims.begin(), in_dims.end(), std::ostream_iterator<size_t>(in_dims_oss, ","));
-        log::warning() << "Topology with layer: " + layer->name + ", type: " + layer->type +
-                              ", and concatenation axis(" + std::to_string(concatLayer->_axis) +
-                              ") for input dimensions(" + in_dims_oss.str() + ") not supported\n";
+        THROW_GNA_EXCEPTION << "Topology with layer: " + layer->name + ", type: " + layer->type +
+                                   ", and concatenation axis(" + std::to_string(concatLayer->_axis) +
+                                   ") for input dimensions(" + in_dims_oss.str() + ") not supported\n";
     }
 
     auto& concatLayerInfo = concat_connection.find(concatLayer->name)->second;
