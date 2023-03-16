@@ -6,12 +6,12 @@ import xml.etree.ElementTree as ET
 from . import conformance_utils
 
 def update_rel_values(xml_node: ET.SubElement):
-    if xml_node is None:
+    if xml_node is None or len(xml_node.attrib) == 0:
         return
     if not "relative_all" in xml_node.attrib:
         test_cnt = int(xml_node.attrib.get("passed")) + int(xml_node.attrib.get("failed")) + int(xml_node.attrib.get("skipped")) + \
         int(xml_node.attrib.get("crashed")) + int(xml_node.attrib.get("hanged"))
-        xml_node.set("relative_all", test_cnt)
+        xml_node.set("relative_all", str(test_cnt))
     if not "relative_passed" in xml_node.attrib:
         xml_node.set("relative_passed", xml_node.attrib.get("passed"))
 
