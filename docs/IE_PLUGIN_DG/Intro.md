@@ -65,5 +65,3 @@ API References
 * :doc:`Inference Engine Transformation API <ie_transformation_api>`
 
 @endsphinxdirective
-
-

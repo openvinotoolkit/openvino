@@ -3,11 +3,13 @@
 @sphinxdirective
 
 Inference Engine Plugin usually represents a wrapper around a backend. Backends can be:
+
 * OpenCL-like backend (e.g. clDNN library) for GPU devices.
 * oneDNN backend for Intel CPU devices.
 * NVIDIA cuDNN for NVIDIA GPUs.
 
 The responsibility of Inference Engine Plugin:
+
 * Initializes a backend and throw exception in ``Engine`` constructor if backend cannot be initialized.
 * Provides information about devices enabled by a particular backend, e.g. how many devices, their properties and so on.
 * Loads or imports :doc:`executable network <openvino_docs_ie_plugin_dg_executable_network>` objects.
@@ -27,7 +29,7 @@ Inference Engine Plugin API provides the helper :ref:`InferenceEngine::IInferenc
 Based on that, declaration of a plugin class can look as follows:
 
 .. doxygensnippet:: template/src/plugin.hpp
-   :language: hpp
+   :language: cpp
    :fragment: [plugin:header]
 
 Class Fields
@@ -40,7 +42,7 @@ The provided plugin class also has several fields:
 * ``_cfg`` of type ``Configuration``:
 
 .. doxygensnippet:: template/src/plugin.hpp
-   :language: hpp
+   :language: cpp
    :fragment: [configuration:header]
 
 As an example, a plugin configuration has three value parameters:
@@ -74,7 +76,7 @@ This is the most important function of the `Plugin` class and creates an instanc
 which holds a backend-dependent compiled graph in an internal representation:
 
 .. doxygensnippet:: template/src/plugin.hpp
-   :language: hpp
+   :language: cpp
    :fragment: [plugin:load_exe_network_impl]
 
 Before a creation of an ``ExecutableNetwork`` instance via a constructor, a plugin may check if a provided 
@@ -98,7 +100,7 @@ The function accepts a const shared pointer to ``:ref:`ov::Model <doxid-classov_
     * [Quantized networks](@ref openvino_docs_ie_plugin_dg_quantized_networks).
 
 .. doxygensnippet:: template/src/plugin.hpp
-   :language: hpp
+   :language: cpp
    :fragment: [plugin:transform_network]
 
 .. note:: 
@@ -118,7 +120,7 @@ operations via the InferenceEngine::QueryNetworkResult structure. The ``QueryNet
 4. ``QueryNetworkResult.supportedLayersMap`` contains only operations which are fully supported by ``_backend``.
 
 .. doxygensnippet:: template/src/plugin.hpp
-   :language: hpp
+   :language: cpp
    :fragment: [plugin:query_network]
 
 `SetConfig()`
@@ -127,7 +129,7 @@ operations via the InferenceEngine::QueryNetworkResult structure. The ``QueryNet
 Sets new values for plugin configuration keys:
 
 .. doxygensnippet:: template/src/plugin.hpp
-   :language: hpp
+   :language: cpp
    :fragment: [plugin:set_config]
 
 In the snippet above, the ``Configuration`` class overrides previous configuration values with the new 
@@ -142,13 +144,14 @@ ones. All these values are used during backend specific graph compilation and ex
 Returns a current value for a specified configuration key:
 
 .. doxygensnippet:: template/src/plugin.hpp
-   :language: hpp
+   :language: cpp
    :fragment: [plugin:get_config]
 
 The function is implemented with the ``Configuration::Get`` method, which wraps an actual configuration 
 key value to the InferenceEngine::Parameter and returns it.
 
 .. note::
+
    The function must throw an exception if it receives an unsupported configuration key.
 
 `GetMetric()`
@@ -173,12 +176,13 @@ a plugin-specific public header file, for example, ``template/config.hpp``. The 
 demonstrates the definition of a new optimization capability value specific for a device:
 
 .. doxygensnippet:: template/config.hpp
-   :language: hpp
+   :language: cpp
    :fragment: [public_header:properties]
 
 The snippet below provides an example of the implementation for `GetMetric`:
 
 .. note:: 
+
    If an unsupported metric key is passed to the function, it must throw an exception.
 
 `ImportNetwork()`
@@ -198,11 +202,11 @@ For example, the export information may include:
 throw an exception if the ``model`` stream contains wrong data. For example, if devices have different 
 capabilities and a graph compiled for a particular device cannot be used for another, such type of 
 information must be stored and checked during the import. 
-* Compiled backend specific graph itself
-* Information about precisions and shapes set by the user
+* Compiled backend specific graph itself.
+* Information about precisions and shapes set by the user.
 
 .. doxygensnippet:: template/src/plugin.cpp
-   :language: hpp
+   :language: cpp
    :fragment: [plugin:import_network]
 
 Create Instance of Plugin Class
@@ -211,11 +215,9 @@ Create Instance of Plugin Class
 Inference Engine plugin library must export only one function creating a plugin instance using IE_DEFINE_PLUGIN_CREATE_FUNCTION macro:
 
 .. doxygensnippet:: template/src/plugin.cpp
-   :language: hpp
+   :language: cpp
    :fragment: [plugin:create_plugin_engine]
 
 Next step in a plugin library implementation is the :ref:`ExecutableNetwork <openvino_docs_ie_plugin_dg_executable_network>` class.
 
 @endsphinxdirective
-
-
