@@ -21,7 +21,7 @@ class TRANSFORMATIONS_API TSUnsqueezeBackward;
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief TSUnsqueezeForward transformation sinks Transpose through Unsqueeze operation
+ * @brief TSUnsqueezeForward transformation sinks Transpose through Unsqueeze, Reshape operations
  * in the forward direction.
  */
 class ov::pass::transpose_sinking::TSUnsqueezeForward : public ov::pass::MatcherPass {
@@ -32,7 +32,7 @@ public:
 
 /**
  * @ingroup ie_transformation_common_api
- * @brief TSUnsqueezeBackward transformation sinks Transpose through Unsqueeze operation
+ * @brief TSUnsqueezeBackward transformation sinks Transpose through Unsqueeze, Reshape operations
  * in the backward direction.
  */
 class ov::pass::transpose_sinking::TSUnsqueezeBackward : public ov::pass::MatcherPass {
