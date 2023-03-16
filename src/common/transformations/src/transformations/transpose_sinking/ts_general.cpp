@@ -15,10 +15,10 @@
 #include "transformations/transpose_sinking/ts_fuse.hpp"
 #include "transformations/transpose_sinking/ts_interpolate.hpp"
 #include "transformations/transpose_sinking/ts_reduction.hpp"
-#include "transformations/transpose_sinking/ts_squeeze.hpp"
-#include "transformations/transpose_sinking/ts_unsqueeze.hpp"
 #include "transformations/transpose_sinking/ts_split.hpp"
+#include "transformations/transpose_sinking/ts_squeeze.hpp"
 #include "transformations/transpose_sinking/ts_unary.hpp"
+#include "transformations/transpose_sinking/ts_unsqueeze.hpp"
 #include "transformations/utils/utils.hpp"
 
 using namespace ov::pass::transpose_sinking;

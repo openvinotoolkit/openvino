@@ -191,7 +191,11 @@ class SliceFactory : public IFactory {
 public:
     explicit SliceFactory(const std::string& type_name) : IFactory(type_name) {}
     NodePtr create(const OutputVector& parent_nodes) const override {
-        return std::make_shared<Slice>(parent_nodes[0], parent_nodes[1], parent_nodes[2], parent_nodes[3], parent_nodes[4]);
+        return std::make_shared<Slice>(parent_nodes[0],
+                                       parent_nodes[1],
+                                       parent_nodes[2],
+                                       parent_nodes[3],
+                                       parent_nodes[4]);
     }
 };
 
@@ -687,8 +691,8 @@ auto test_forward_squeeze = []() {
     test_case.transformation = CREATE_PASS_FACTORY(TSSqueezeForward);
     test_case.num_main_ops = {1};
     test_case.inputs_to_main = {
-            parameter(element::f32, {32, 1, 2, 1}),
-            constant<int64_t>(element::i32, {2}, {0, 2}),
+        parameter(element::f32, {32, 1, 2, 1}),
+        constant<int64_t>(element::i32, {2}, {0, 2}),
     };
 
     // Test model description:
@@ -701,7 +705,7 @@ auto test_forward_squeeze = []() {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
         new_out_vec[1] =
-                make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{3, 1});
+            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{3, 1});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{new_constant}, {{1}}};
@@ -721,8 +725,8 @@ auto test_forward_unsqueeze = []() {
     test_case.transformation = CREATE_PASS_FACTORY(TSUnsqueezeForward);
     test_case.num_main_ops = {1};
     test_case.inputs_to_main = {
-            parameter(element::f32, {32, 3, 2, 1}),
-            constant<int64_t>(element::i32, {2}, {0, 2}),
+        parameter(element::f32, {32, 3, 2, 1}),
+        constant<int64_t>(element::i32, {2}, {0, 2}),
     };
 
     // Test model description:
@@ -735,7 +739,7 @@ auto test_forward_unsqueeze = []() {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
         new_out_vec[1] =
-                make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{0, 2});
+            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{0, 2});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{new_constant}, {{1}}};
@@ -762,11 +766,11 @@ auto test_forward_slice = []() {
     test_case.transformation = CREATE_PASS_FACTORY(TSSliceForward);
     test_case.num_main_ops = {1};
     test_case.inputs_to_main = {
-            parameter(element::f32, {6, 4, 5, 3}),
-            constant<int64_t>(element::i32, {3}, {1, 2, 3}),
-            constant<int64_t>(element::i32, {3}, {0, 4, 11}),
-            constant<int64_t>(element::i32, {3}, {1, 2, -1}),
-            constant<int64_t>(element::i32, {3}, {0, 1, 2}),
+        parameter(element::f32, {6, 4, 5, 3}),
+        constant<int64_t>(element::i32, {3}, {1, 2, 3}),
+        constant<int64_t>(element::i32, {3}, {0, 4, 11}),
+        constant<int64_t>(element::i32, {3}, {1, 2, -1}),
+        constant<int64_t>(element::i32, {3}, {0, 1, 2}),
     };
 
     // Test model description:
@@ -806,8 +810,8 @@ auto test_forward_reshape_squeeze = []() {
     test_case.transformation = CREATE_PASS_FACTORY(TSSqueezeForward);
     test_case.num_main_ops = {1};
     test_case.inputs_to_main = {
-            parameter(element::f32, {6, 1, 5, 1, 4}),
-            constant<int64_t>(element::i32, {3}, {4, 5, 6}),
+        parameter(element::f32, {6, 1, 5, 1, 4}),
+        constant<int64_t>(element::i32, {3}, {4, 5, 6}),
     };
 
     // Test model description:
@@ -820,7 +824,7 @@ auto test_forward_reshape_squeeze = []() {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
         new_out_vec[1] =
-                make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{6, 5, 4});
+            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{6, 5, 4});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{new_constant}, {{1}}};
@@ -831,7 +835,9 @@ auto test_forward_reshape_squeeze = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReshapeSqueezeForward, TransposeSinkingTestFixture, test_forward_reshape_squeeze());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReshapeSqueezeForward,
+                         TransposeSinkingTestFixture,
+                         test_forward_reshape_squeeze());
 
 auto test_forward_reshape_unsqueeze = []() {
     TestCase test_case;
@@ -840,8 +846,8 @@ auto test_forward_reshape_unsqueeze = []() {
     test_case.transformation = CREATE_PASS_FACTORY(TSUnsqueezeForward);
     test_case.num_main_ops = {1};
     test_case.inputs_to_main = {
-            parameter(element::f32, {6, 5, 4}),
-            constant<int64_t>(element::i32, {5}, {4, 1, 5, 1, 6}),
+        parameter(element::f32, {6, 5, 4}),
+        constant<int64_t>(element::i32, {5}, {4, 1, 5, 1, 6}),
     };
 
     // Test model description:
@@ -863,7 +869,9 @@ auto test_forward_reshape_unsqueeze = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReshapeUnsqueezeForward, TransposeSinkingTestFixture, test_forward_reshape_unsqueeze());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReshapeUnsqueezeForward,
+                         TransposeSinkingTestFixture,
+                         test_forward_reshape_unsqueeze());
 // ------------------ BACKWARD --------------------
 
 auto test_backward_unary = []() {
@@ -1141,7 +1149,6 @@ INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonInterpolateBackward,
                          TransposeSinkingTestFixture,
                          test_backward_interpolate());
 
-
 auto test_backward_squeeze = []() {
     TestCase test_case;
 
@@ -1149,8 +1156,8 @@ auto test_backward_squeeze = []() {
     test_case.transformation = CREATE_PASS_FACTORY(TSSqueezeBackward);
     test_case.num_main_ops = {1};
     test_case.inputs_to_main = {
-            parameter(element::f32, {32, 1, 2, 1}),
-            constant<int64_t>(element::i32, {2}, {1, 3}),
+        parameter(element::f32, {32, 1, 2, 1}),
+        constant<int64_t>(element::i32, {2}, {1, 3}),
     };
 
     // Test model description:
@@ -1182,8 +1189,8 @@ auto test_backward_unsqueeze = []() {
     test_case.transformation = CREATE_PASS_FACTORY(TSUnsqueezeBackward);
     test_case.num_main_ops = {1};
     test_case.inputs_to_main = {
-            parameter(element::f32, {32, 3, 2, 1}),
-            constant<int64_t>(element::i32, {2}, {0, 2}),
+        parameter(element::f32, {32, 3, 2, 1}),
+        constant<int64_t>(element::i32, {2}, {0, 2}),
     };
 
     // Test model description:
@@ -1196,7 +1203,7 @@ auto test_backward_unsqueeze = []() {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
         new_out_vec[1] =
-                make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{5, 3});
+            make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{5, 3});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, new_constant}, {{0}, {1}}};
@@ -1206,7 +1213,9 @@ auto test_backward_unsqueeze = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonUnsqueezeBackward, TransposeSinkingTestFixture, test_backward_unsqueeze());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonUnsqueezeBackward,
+                         TransposeSinkingTestFixture,
+                         test_backward_unsqueeze());
 
 auto test_backward_slice = []() {
     TestCase test_case;
@@ -1215,11 +1224,11 @@ auto test_backward_slice = []() {
     test_case.transformation = CREATE_PASS_FACTORY(TSSliceBackward);
     test_case.num_main_ops = {1};
     test_case.inputs_to_main = {
-            parameter(element::f32, {6, 4, 5, 3}),
-            constant<int64_t>(element::i32, {3}, {1, 2, 3}),
-            constant<int64_t>(element::i32, {3}, {0, 4, 11}),
-            constant<int64_t>(element::i32, {3}, {1, 2, -1}),
-            constant<int64_t>(element::i32, {3}, {0, 1, 2}),
+        parameter(element::f32, {6, 4, 5, 3}),
+        constant<int64_t>(element::i32, {3}, {1, 2, 3}),
+        constant<int64_t>(element::i32, {3}, {0, 4, 11}),
+        constant<int64_t>(element::i32, {3}, {1, 2, -1}),
+        constant<int64_t>(element::i32, {3}, {0, 1, 2}),
     };
 
     // Test model description:
@@ -1257,8 +1266,8 @@ auto test_backward_reshape_squeeze = []() {
     test_case.transformation = CREATE_PASS_FACTORY(TSSqueezeBackward);
     test_case.num_main_ops = {1};
     test_case.inputs_to_main = {
-            parameter(element::f32, {4, 1, 5, 1, 6}),
-            constant<int64_t>(element::i32, {3}, {4, 5, 6}),
+        parameter(element::f32, {4, 1, 5, 1, 6}),
+        constant<int64_t>(element::i32, {3}, {4, 5, 6}),
     };
 
     // Test model description:
@@ -1281,7 +1290,9 @@ auto test_backward_reshape_squeeze = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReshapeSqueezeBackward, TransposeSinkingTestFixture, test_backward_reshape_squeeze());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReshapeSqueezeBackward,
+                         TransposeSinkingTestFixture,
+                         test_backward_reshape_squeeze());
 
 auto test_backward_reshape_unsqueeze = []() {
     TestCase test_case;
@@ -1290,8 +1301,8 @@ auto test_backward_reshape_unsqueeze = []() {
     test_case.transformation = CREATE_PASS_FACTORY(TSUnsqueezeBackward);
     test_case.num_main_ops = {1};
     test_case.inputs_to_main = {
-            parameter(element::f32, {4, 5, 6}),
-            constant<int64_t>(element::i32, {5}, {4, 1, 5, 1, 6}),
+        parameter(element::f32, {4, 5, 6}),
+        constant<int64_t>(element::i32, {5}, {4, 1, 5, 1, 6}),
     };
 
     // Test model description:
@@ -1303,8 +1314,9 @@ auto test_backward_reshape_unsqueeze = []() {
     auto new_constant = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
         OutputVector new_out_vec(out_vec.size());
         new_out_vec[0] = out_vec[0];
-        new_out_vec[1] =
-                make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{6, 1, 5, 1, 4});
+        new_out_vec[1] = make_shared<Constant>(out_vec[1].get_element_type(),
+                                               out_vec[1].get_shape(),
+                                               std::vector<int64_t>{6, 1, 5, 1, 4});
         return new_out_vec;
     };
     test_case.model_ref.preprocess_inputs_to_main = {{set_transpose_for, new_constant}, {{0}, {1}}};
@@ -1314,7 +1326,9 @@ auto test_backward_reshape_unsqueeze = []() {
     return wrapper(test_case);
 };
 
-INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReshapeUnsqueezeBackward, TransposeSinkingTestFixture, test_backward_reshape_unsqueeze());
+INSTANTIATE_TEST_SUITE_P(TransposeSinkingCommonReshapeUnsqueezeBackward,
+                         TransposeSinkingTestFixture,
+                         test_backward_reshape_unsqueeze());
 }  // namespace common
 }  // namespace testing
 }  // namespace transpose_sinking

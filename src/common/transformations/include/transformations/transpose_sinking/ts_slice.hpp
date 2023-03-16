@@ -4,9 +4,9 @@
 
 #pragma once
 
+#include "../../transformations_visibility.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
-#include "../../transformations_visibility.hpp"
 
 namespace ov {
 namespace pass {
@@ -15,7 +15,7 @@ namespace transpose_sinking {
 class TRANSFORMATIONS_API TSSliceForward;
 class TRANSFORMATIONS_API TSSliceBackward;
 
-}
+}  // namespace transpose_sinking
 }  // namespace pass
 }  // namespace ov
 
