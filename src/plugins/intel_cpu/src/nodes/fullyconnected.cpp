@@ -576,6 +576,7 @@ const std::vector<impl_desc_type>& FullyConnected::getPrimitivesPriority() {
             impl_desc_type::brgemm_sparse_avx512_amx,
             impl_desc_type::brgemm_avx512_amx,
             impl_desc_type::brgemm_avx512,
+            impl_desc_type::brgemm_avx2,
             impl_desc_type::gemm_blas,
             impl_desc_type::gemm_avx512,
             impl_desc_type::gemm_avx2,

@@ -217,7 +217,8 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
 
     if (!priority.empty()) {
         // Skip tests for brgconv convolution where kernel size = 1x1
-        if (priority[0] == "brgconv_avx512" || priority[0] == "brgconv_avx512_amx") {
+        if (priority[0] == "brgconv_avx512" || priority[0] == "brgconv_avx512_amx" ||
+            priority[0] == "brgconv_avx2") {
                 bool is_1x1 = true;
                 for (const auto &i : kernel) {
                 if (i != 1) {
@@ -806,6 +807,7 @@ const std::vector<CPUSpecificParams> CPUParams_1D = {
         conv_avx512_1D,
         conv_sse42_1D_nspc,
         conv_avx2_1D_nspc,
+        conv_avx2_1D_nspc_brgconv,
         conv_avx512_1D_nspc,
         conv_avx512_1D_nspc_brgconv
 };
@@ -914,6 +916,7 @@ const std::vector<CPUSpecificParams> CPUParams_2D = {
         conv_avx512_2D,
         conv_sse42_2D_nspc,
         conv_avx2_2D_nspc,
+        conv_avx2_2D_nspc_brgconv,
         conv_avx512_2D_nspc,
         conv_avx512_2D_nspc_brgconv
 };
@@ -1191,6 +1194,7 @@ const std::vector<CPUSpecificParams> CPUParams_3D = {
         conv_avx2_3D,
         conv_avx512_3D,
         conv_avx2_3D_nspc,
+        conv_avx2_3D_nspc_brgconv,
         conv_avx512_3D_nspc,
         conv_avx512_3D_nspc_brgconv
 };
@@ -1374,6 +1378,7 @@ const std::vector<CPUSpecificParams> CPUParams_1x1_1D = {
         conv_avx512_1D_1x1,
         conv_sse42_1D_1x1_nspc,
         conv_avx2_1D_1x1_nspc,
+        conv_avx2_1D_1x1_nspc_brgconv,
         conv_avx512_1D_1x1_nspc,
         conv_avx512_1D_1x1_nspc_brgconv
 };
@@ -1439,6 +1444,7 @@ const std::vector<CPUSpecificParams> CPUParams_1x1_2D = {
         conv_avx512_2D_1x1,
         conv_sse42_2D_1x1_nspc,
         conv_avx2_2D_1x1_nspc,
+        conv_avx2_2D_1x1_nspc_brgconv,
         conv_avx512_2D_1x1_nspc,
         conv_avx512_2D_1x1_nspc_brgconv
 };
