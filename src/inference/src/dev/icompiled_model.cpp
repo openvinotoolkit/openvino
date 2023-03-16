@@ -101,3 +101,12 @@ const std::shared_ptr<ov::threading::ITaskExecutor> ov::ICompiledModel::get_task
 const std::shared_ptr<ov::threading::ITaskExecutor> ov::ICompiledModel::get_callback_executor() const {
     return m_callback_executor;
 }
+
+std::shared_ptr<ov::IRemoteContext> ov::ICompiledModel::get_context() const {
+    if (auto wrapper = dynamic_cast<const InferenceEngine::ICompiledModelWrapper*>(this)) {
+        return ov::legacy_convert::convert_remote_context(wrapper->get_executable_network()->GetContext());
+    }
+    if (m_context._impl)
+        return m_context._impl;
+    return m_plugin->get_default_context({});
+}
