@@ -344,7 +344,7 @@ void regclass_InferRequest(py::module m) {
                         std::rethrow_exception(exception_ptr);
                     }
                 } catch (const std::exception& e) {
-                    throw ov::Exception("Caught exception: " + std::string(e.what()));
+                    OPENVINO_THROW("Caught exception: ", e.what());
                 }
                 // Acquire GIL, execute Python function
                 py::gil_scoped_acquire acquire;

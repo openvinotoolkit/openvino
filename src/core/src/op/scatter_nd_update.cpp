@@ -48,8 +48,9 @@ bool evaluate(const HostTensorPtr& arg0,
                                                         arg1->get_shape(),
                                                         arg2->get_shape());
     } else {
-        throw ov::Exception(std::string("Unexpected type ") + arg1->get_element_type().c_type_string() +
-                            " for ScatterNDUpdate evaluate method.");
+        OPENVINO_THROW("Unexpected type ",
+                       arg1->get_element_type().c_type_string(),
+                       " for ScatterNDUpdate evaluate method.");
     }
 
     return true;

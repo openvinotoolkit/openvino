@@ -1279,6 +1279,13 @@ INSTANTIATE_TEST_SUITE_P(nightly_MM_Brgemm_Amx_Static, MatMulLayerCPUTest, testB
 const std::vector<ShapeRelatedParams> IS_Brgemm_Dynamic = {
         {
                 {
+                        {{-1, 256}, {{1, 256}}},
+                        {{256, 384}, {{256, 384}}}
+                },
+                {false, false}
+        },
+        {
+                {
                         {{-1, -1}, {{55, 12}, {33, 7}}},
                         {{-1, -1}, {{12, 55}, {7, 33}}}
                 },

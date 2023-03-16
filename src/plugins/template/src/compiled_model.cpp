@@ -9,20 +9,22 @@
 #include "async_infer_request.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_plugin_config.hpp"
+#include "itt.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "plugin.hpp"
 #include "template/config.hpp"
-#include "template_itt.hpp"
 #include "transformations/utils/utils.hpp"
 
 // ! [executable_network:ctor_cnnnetwork]
 ov::template_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                   const std::shared_ptr<const ov::IPlugin>& plugin,
                                                   const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
-                                                  const Configuration& cfg)
+                                                  const Configuration& cfg,
+                                                  bool loaded_from_cache)
     : ov::ICompiledModel(model, plugin, task_executor),  // Disable default threads creation
       _cfg(cfg),
-      m_model(model) {
+      m_model(model),
+      m_loaded_from_cache(loaded_from_cache) {
     // TODO: if your plugin supports device ID (more that single instance of device can be on host machine)
     // you should select proper device based on KEY_DEVICE_ID or automatic behavior
     // In this case, _waitExecutor should also be created per device.
@@ -30,11 +32,11 @@ ov::template_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Mode
         compile_model(m_model);
     } catch (const InferenceEngine::Exception& e) {
         // Some transformations can throw legacy exception
-        throw ov::Exception(e.what());
+        OPENVINO_THROW(e.what());
     } catch (const std::exception& e) {
-        OPENVINO_ASSERT(false, "Standard exception from compilation library: ", e.what());
+        OPENVINO_THROW("Standard exception from compilation library: ", e.what());
     } catch (...) {
-        throw ov::Exception("Generic exception is thrown");
+        OPENVINO_THROW("Generic exception is thrown");
     }
 }
 // ! [executable_network:ctor_cnnnetwork]
@@ -56,7 +58,7 @@ std::shared_ptr<ov::IAsyncInferRequest> ov::template_plugin::CompiledModel::crea
     auto async_infer_request = std::make_shared<AsyncInferRequest>(
         std::static_pointer_cast<ov::template_plugin::InferRequest>(internal_request),
         get_task_executor(),
-        get_template_plugin()->_waitExecutor,
+        get_template_plugin()->m_waitExecutor,
         get_callback_executor());
 
     return async_infer_request;
@@ -95,6 +97,7 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
     const auto& default_ro_properties = []() {
         std::vector<ov::PropertyName> ro_properties{ov::model_name,
                                                     ov::supported_properties,
+                                                    ov::loaded_from_cache,
                                                     ov::optimal_number_of_infer_requests};
         return ro_properties;
     };
@@ -129,12 +132,12 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
     } else if (ov::model_name == name) {
         auto model_name = m_model->get_friendly_name();
         return decltype(ov::model_name)::value_type(model_name);
+    } else if (ov::loaded_from_cache == name) {
+        return m_loaded_from_cache;
     } else if (ov::optimal_number_of_infer_requests == name) {
-        unsigned int value = _cfg._streamsExecutorConfig._streams;
+        unsigned int value = _cfg.streams_executor_config._streams;
         return decltype(ov::optimal_number_of_infer_requests)::value_type(value);
-    }
-
-    if (ov::supported_properties == name) {
+    } else if (ov::supported_properties == name) {
         auto ro_properties = default_ro_properties();
         auto rw_properties = default_rw_properties();
 

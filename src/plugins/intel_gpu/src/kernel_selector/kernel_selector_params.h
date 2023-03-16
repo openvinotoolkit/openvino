@@ -522,13 +522,13 @@ struct FusedOpsConfiguration {
     FusedOpsConfiguration& SetShuffleVarName(std::string val) { shuffle_var_name = val; return *this; }
     bool IsPostReorderFused(void) const { return orig_output_layout != DataLayout::DataLayoutCount; }
     int GetDimIndexFromOrder(Tensor::DataChannelName val) const {
-        int dims_num = bfzyx_idx_order.size();
+        size_t dims_num = bfzyx_idx_order.size();
         if (val == Tensor::DataChannelName::BATCH && dims_num >= 1) {
             return 0;
         } else if (val == Tensor::DataChannelName::FEATURE && dims_num >= 2) {
             return 1;
         } else if (dims_num >= 3 && dims_num - static_cast<int>(val) - 1 >= 0) {
-            return bfzyx_idx_order.size() - static_cast<int>(val) - 1;
+            return static_cast<int>(bfzyx_idx_order.size()) - static_cast<int>(val) - 1;
         } else {
             return -1;
         }
@@ -626,6 +626,11 @@ struct fused_operation_desc {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct base_params : public Params {
     virtual ~base_params() {}
+
+    enum class ArgType {
+        Input,
+        Constant
+    };
 
     std::vector<base_activation_params> activations;
     std::vector<fused_operation_desc> fused_ops = {};

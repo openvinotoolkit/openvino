@@ -8,6 +8,7 @@
 #include "intel_gpu/runtime/stream.hpp"
 #include "intel_gpu/runtime/lru_cache.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
 
 #include <list>
 #include <string>
@@ -224,7 +225,6 @@ public:
 
     void add_optimized_primitive_info(primitive_id optimized_primitive_id, std::vector<primitive_id> replaced_with_ids = {});
 
-    void reset_program();
     uint32_t get_id() const { return prog_id; }
 
     static ptr build_program(engine& engine,
@@ -239,8 +239,6 @@ public:
                              std::shared_ptr<InferenceEngine::CPUStreamsExecutor> task_executor,
                              bool is_internal);
     static void init_primitives();
-    void compile();
-    void init_kernels();
     kernel_id add_kernel(const std::shared_ptr<kernel_string>& kernel_sring);
     kernel::ptr get_kernel(kernel_id id);
     kernels_cache& get_kernels_cache() const;
@@ -249,10 +247,8 @@ public:
     std::pair<int64_t/*const alloc*/, int64_t/*general alloc*/> get_estimated_device_mem_usage();
 
     void remove_kernel(kernel_id id);
-    bool is_local_block_io_supported() const;
-    void query_local_block_io_supported();
-    void calc_nodes_hash();
 
+    using ImplementationsCache = cldnn::LruCacheThreadSafe<kernel_impl_params, std::shared_ptr<primitive_impl>, kernel_impl_params::Hasher>;
     ImplementationsCache& get_implementations_cache() const { return *_impls_cache; }
     ICompilationContext& get_compilation_context() const { return *_compilation_context; }
     void cancel_compilation_context();
@@ -270,7 +266,6 @@ private:
     nodes_ordering processing_order;
     std::unique_ptr<pass_manager> pm;
     bool is_body_program;
-    int8_t is_subgroup_local_block_io_supported;
     std::unique_ptr<ImplementationsCache> _impls_cache;
     const size_t _impls_cache_capacity = 10000;
     std::unique_ptr<ICompilationContext> _compilation_context;
@@ -310,7 +305,6 @@ private:
     void run_graph_compilation();
     void pre_optimize_graph(bool is_internal);
     void post_optimize_graph(bool is_internal);
-    void cleanup();
     void transfer_memory_to_device();
 
     InferenceEngine::CPUStreamsExecutor::Config make_task_executor_config(const ExecutionConfig& config, std::string tags = "") const;

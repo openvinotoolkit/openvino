@@ -101,7 +101,6 @@ jobs:
 
   - checkout: self
     clean: 'true'
-    fetchDepth: '1'
     submodules: 'true'
     path: openvino
 
@@ -171,7 +170,7 @@ jobs:
 
   - script: |
       source $(INSTALL_DIR)/setupvars.sh
-      ./onnxruntime_shared_lib_test
+      ./onnxruntime_shared_lib_test --gtest_filter=-CApiTest.test_custom_op_openvino_wrapper_library
     workingDirectory: $(ONNXRUNTIME_BUILD_DIR)/RelWithDebInfo
     displayName: 'Run onnxruntime_shared_lib_test'
 

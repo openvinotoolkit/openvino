@@ -158,9 +158,9 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
                 except NotImplementedFailure:
                     raise Error("Please specify type for value freezing {} node explicitly "
                                 "because the frontend does not support automatic type detection.".format(name))
-                # in case of cutting graph (or using custom inputs) and unspecified type,
+                # in case of cutting graph (or using custom inputs) and unspecified or dynamic type,
                 # the default type is fp32
-                if ov_type == Type.undefined:
+                if ov_type == Type.undefined or ov_type == Type.dynamic:
                     ov_type = Type.f32
                 dtype = get_numpy_ctype(ov_type)
 

@@ -116,7 +116,7 @@ public:
         m_out_rank(out_rank), m_transpose_a(transpose_a), m_transpose_b(transpose_b) {
         m_shapeY = VectorDims(m_out_rank, 1); // for output and cache
     }
-    std::vector<VectorDims> infer(
+    Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         const VectorDims& shapeA = input_shapes[0].get();
@@ -132,7 +132,7 @@ public:
         // 5. Just support the same rank of matmul
         // 6. simplify the broadcast check
         if (rankA == 1 && rankB == 1 && shapeA[0] == shapeB[0]) {
-            return {m_shapeY};
+            return {{m_shapeY}, ShapeInferStatus::success};
         }
 
         m_shapeY[m_out_rank-2] = m_transpose_a ? shapeA[rankA-1] : shapeA[rankA-2];
@@ -151,7 +151,7 @@ public:
             m_shapeY[i] = shapeB[i];
         }
 
-        return {m_shapeY};
+        return {{m_shapeY}, ShapeInferStatus::success};
     }
 
     port_mask_t get_port_mask() const override {
@@ -624,6 +624,7 @@ void MatMul::prepareParams() {
         primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
         matmul::primitive_desc prim_desc;
 
+        auto itpd_first = itpd;
         while (static_cast<bool>(itpd))  {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
 
@@ -631,8 +632,14 @@ void MatMul::prepareParams() {
                 prim_desc = itpd.get();
                 break;
             }
-            if (!itpd.next_impl())
-                return matmul();
+            if (!itpd.next_impl()) {
+                // In case of dynamic shapes an implementation type chosen as optimal for a primitive_desc with
+                // undefined input shapes, is not necessarily available for the primitive_desc with defined shape.
+                // Example: brgemm_avx512_amx (Intel Sapphire Rapids Platform) is available for a primitive with
+                // undefined input shapes but not available for primitive_desc with input batch 1.
+                prim_desc = itpd_first.get();
+                break;
+            }
         }
         return matmul(prim_desc);
     };
