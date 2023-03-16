@@ -115,7 +115,7 @@ The resulting graph is a mixture of G-API's standard operations, user-defined op
 
 * A frame-oriented one is used to detect faces on the input frame.
 * An ROI-list oriented one is used to run landmarks inference on a list of faces – this version produces an array of landmarks per every face.
-More on this in "Face Analytics pipeline" (:doc:`Building a GComputation <openvino_docs_gapi_gapi_face_analytics_pipeline#gapi_ifd_gcomputation>` section).
+More on this in "Face Analytics pipeline" (:ref:`Building a GComputation <gapi_ifd_gcomputation>` section).
 
 Unsharp mask in G-API
 +++++++++++++++++++++
@@ -410,7 +410,7 @@ Network parameters are then wrapped in ``cv::gapi::NetworkPackage``:
    auto networks      = cv::gapi::networks(faceParams, landmParams);
 
 
-More details in "Face Analytics Pipeline" (:doc:`Configuring the Pipeline <openvino_docs_gapi_gapi_face_analytics_pipeline#gapi_ifd_configuration>` section).
+More details in "Face Analytics Pipeline" (:ref:`Configuring the Pipeline <gapi_ifd_configuration>` section).
 
 Kernel Packages
 +++++++++++++++
@@ -440,7 +440,7 @@ G-API optimizes execution for video streams when compiled in the "Streaming" mod
    
    cv::GStreamingCompiled stream = pipeline.compileStreaming(cv::compile_args(kernels, networks));
 
-More on this in "Face Analytics Pipeline" (:doc:`Configuring the Pipeline <openvino_docs_gapi_gapi_face_analytics_pipeline#gapi_ifd_configuration>` section).
+More on this in "Face Analytics Pipeline" (:ref:`Configuring the Pipeline <gapi_ifd_configuration>` section).
 
 Running the streaming pipeline
 ++++++++++++++++++++++++++++++
@@ -486,7 +486,7 @@ In order to run the G-API streaming pipeline, all we need is to specify the inpu
 
 Once results are ready and can be pulled from the pipeline we display it on the screen and handle GUI events.
 
-See :doc:`Running the pipeline <openvino_docs_gapi_gapi_face_analytics_pipeline#gapi_ifd_running>` section in the "Face Analytics Pipeline" tutorial for more details.
+See :ref:`Running the pipeline <gapi_ifd_running>` section in the "Face Analytics Pipeline" tutorial for more details.
 
 Conclusion
 ##########
