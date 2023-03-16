@@ -47,10 +47,10 @@ def generate_image(shape: Tuple = (1, 3, 32, 32), dtype: Union[str, np.dtype] = 
     return np.random.rand(*shape).astype(dtype)
 
 
-def get_relu_model(input_shape: List[int] = None) -> openvino.runtime.Model:
+def get_relu_model(input_shape: List[int] = None, input_dtype=np.float32) -> openvino.runtime.Model:
     if input_shape is None:
         input_shape = [1, 3, 32, 32]
-    param = ops.parameter(input_shape, np.float32, name="data")
+    param = ops.parameter(input_shape, input_dtype, name="data")
     relu = ops.relu(param, name="relu")
     model = Model([relu], [param], "test_model")
     model.get_ordered_ops()[2].friendly_name = "friendly"
@@ -59,10 +59,14 @@ def get_relu_model(input_shape: List[int] = None) -> openvino.runtime.Model:
     return model
 
 
-def generate_relu_compiled_model(device, input_shape: List[int] = None) -> openvino.runtime.CompiledModel:
+def generate_relu_compiled_model(
+    device,
+    input_shape: List[int] = None,
+    input_dtype=np.float32,
+) -> openvino.runtime.CompiledModel:
     if input_shape is None:
         input_shape = [1, 3, 32, 32]
-    model = get_relu_model(input_shape)
+    model = get_relu_model(input_shape, input_dtype)
     core = Core()
     return core.compile_model(model, device, {})
 
