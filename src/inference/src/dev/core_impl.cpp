@@ -410,6 +410,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& model,
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
     auto compiled_model = get_plugin(parsed._deviceName).import_model(model, config);
+    if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
+        wrapper->get_executable_network()->loadedFromCache();
+    }
 
     return compiled_model;
 }
