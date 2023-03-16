@@ -5,9 +5,9 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <ngraph/pass/manager.hpp>
 #include <openvino/opsets/opset11.hpp>
 #include <openvino/opsets/opset3.hpp>
+#include <openvino/pass/manager.hpp>
 #include <transformations/op_conversions/convert_topk11_downgrade.hpp>
 #include <transformations/utils/utils.hpp>
 
