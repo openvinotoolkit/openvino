@@ -76,8 +76,6 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
         sys.exit(0)
 
     model_inputs = input_model.get_inputs()
-    if moc_front_end.get_name() == "pytorch":
-        model_inputs = model_inputs[1:]
     inputs_equal = True
     if user_shapes:
         inputs_equal = check_places_are_same(model_inputs, user_shapes)

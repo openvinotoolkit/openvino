@@ -132,10 +132,9 @@ def decode_name_with_port(
     if len(found_places) == 0:
         raise_no_node(node_name)
 
-    if framework != "pytorch":
-        # Check that there is no collision, all found places shall point to same data
-        if not all([n.is_equal_data(found_places[0]) for n in found_places]):
-            raise_node_name_collision(node_name, found_place_names)
+    # Check that there is no collision, all found places shall point to same data
+    if not all([n.is_equal_data(found_places[0]) for n in found_places]):
+        raise_node_name_collision(node_name, found_place_names)
 
     # TODO: Add support for input/output group name and port index here (58562)
     # For new frontends logic shall be extended to additionally support input and output group names
@@ -189,8 +188,6 @@ def fe_input_user_data_repack(
     _input_shapes = []
     _input_names = []
     model_inputs = input_model.get_inputs()
-    if framework == "pytorch":
-        model_inputs = model_inputs[1:]
     
     if isinstance(input_user_shapes, list) and len(input_user_shapes) > 1 and isinstance(input_user_shapes[0],
                                                                                          PartialShape):

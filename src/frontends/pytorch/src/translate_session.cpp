@@ -73,7 +73,10 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             }
             if (!input_node) {
                 auto parameter = std::make_shared<v0::Parameter>(type, pshape);
-                encode_tensor_name(parameter->output(0), inputs.at(i), pytorch_model->get_input_debug_name(i));
+                encode_tensor_name(
+                    parameter->output(0),
+                    inputs.at(i),
+                    {pytorch_model->get_input_debug_name(i), pytorch_model->get_input_signature_name(i)});
                 parameters->push_back(parameter);
                 input_node = parameter;
                 auto order = pytorch_model->get_input_transpose_order(i);
@@ -135,7 +138,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                                         "Duplicated producer for PT value with unique ID: ",
                                         fw_tensor_id);
                 (*tensor_map)[fw_tensor_id] = converted_outputs[i];
-                encode_tensor_name(converted_outputs[i], fw_tensor_id, node->get_output_debug_name(i));
+                encode_tensor_name(converted_outputs[i], fw_tensor_id, {node->get_output_debug_name(i)});
             }
         };
 
@@ -208,32 +211,29 @@ OutputVector TranslateSession::convert_node(const NodeContext& context) {
     return make_framework_node(context);
 }
 
-void TranslateSession::encode_tensor_name(Output<Node> output, size_t tensor_idx, std::string debug_name) {
+void TranslateSession::encode_tensor_name(Output<Node> output,
+                                          size_t tensor_idx,
+                                          std::vector<std::string> additional_names) {
     if (!output.get_names().empty()) {
         OPENVINO_DEBUG << "Tensor names already exist: " << output.get_any_name() << ". Rewriting with " << tensor_idx;
     }
-    auto has_dname = !debug_name.empty();
     auto name = std::to_string(tensor_idx);
-    if (has_dname && name == debug_name)
-        has_dname = false;
+    std::unordered_set<std::string> names;
+    names.insert(name);
+    if (additional_names.size() > 0) {
+        names.insert(additional_names.begin(), additional_names.end());
+    }
 
     if (m_counter_map.count(tensor_idx)) {
         auto&& pair = m_counter_map[tensor_idx];
         auto new_name = name + '_' + std::to_string(++pair.first);
         pair.second.set_names({new_name});
         pair.second = output;
-        if (has_dname) {
-            output.set_names({name, debug_name});
-        } else {
-            output.set_names({name});
-        }
+        output.set_names(names);
+
     } else {
         m_counter_map[tensor_idx] = {0, output};
-        if (has_dname) {
-            output.set_names({name, debug_name});
-        } else {
-            output.set_names({name});
-        }
+        output.set_names(names);
     }
 }
 

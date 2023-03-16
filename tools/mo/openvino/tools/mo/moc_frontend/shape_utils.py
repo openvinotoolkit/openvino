@@ -1,12 +1,11 @@
 # Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+from collections import namedtuple
 import numpy as np
 from openvino.runtime import PartialShape, Dimension
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.cli_parser import get_placeholder_shapes, split_shapes, split_inputs, get_shape_from_input_value
-from openvino.tools.mo.utils.arg_wrappers import InputCutInfo
-
 
 def get_static_shape(shape: [PartialShape, list, tuple], dynamic_value=None):
     # Current function returns list with static dimensions with following logic.
@@ -117,7 +116,7 @@ def parse_input_shapes_from_input(input_info):
             if shape is not None:
                 shapes.append(shape)
         return shapes or None
-    if isinstance(input_info, InputCutInfo):
+    if isinstance(input_info, tuple) and len(input_info) == 4 and isinstance(input_info[0], str):
         if input_info.shape is not None:
             return [parse_single_shape(input_info.shape, False)]
     if isinstance(input_info, (list, tuple)):

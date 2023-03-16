@@ -6,8 +6,6 @@ import logging as log
 import numpy as np
 from openvino.tools.mo.moc_frontend.shape_utils import get_static_shape, get_dynamic_dims, parse_input_shapes
 from openvino.tools.mo.utils.error import Error
-from openvino.tools.mo.utils.arg_wrappers import InputCutInfo
-from openvino.tools.mo.utils.cli_parser import parse_input_value, split_inputs
 from openvino.runtime import Tensor
 
 def get_onnx_temp_filename(output_dir):
@@ -23,124 +21,16 @@ def remove_tmp_onnx_model(out_dir):
             os.remove(tmp_onnx_model)
 
 
-def get_pytorch_decoder(model, input_shape, example_inputs, args):
-    import torch
-    import inspect
+def get_pytorch_decoder(model, input_shape, example_inputs):
     try:
         from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
     except Exception as e:
         log.error("PyTorch frontend loading failed")
         raise e
     inputs = prepare_torch_inputs(example_inputs, input_shape, allow_none=True)
-    model.eval()
-    input_signature = None
-    if isinstance(model, torch.nn.Module) and not isinstance(model, torch.jit._trace.TopLevelTracedModule):
-        input_signature = list(inspect.signature(model.forward).parameters.keys())
-        try:
-            scripted = torch.jit.script(model)
-        except Exception as scripting_err:
-            if inputs is not None:
-                try:
-                    scripted = torch.jit.trace(model, inputs)
-                except Exception as tracing_e:
-                    log.error('Both traicing and scripting failed')
-                    raise tracing_e
-            else:
-                log.error("Model scripting failed")
-                raise scripting_err
-    else:
-        scripted = model
-    f_model = torch.jit.freeze(scripted)
-    decoder = TorchScriptPythonDecoder(f_model)
-    input_signature = align_input_parameters(f_model, input_signature, inputs, input_shape, args)
+    decoder = TorchScriptPythonDecoder(model, example_input=inputs)
         
-    return decoder, input_signature
-
-def align_input_parameters(f_model, input_signature, inputs, input_shape, args):
-    import torch
-    try:
-        from openvino.frontend.pytorch.decoder import pt_to_ov_type_map
-    except Exception as e:
-        log.error("PyTorch frontend loading failed")
-    input_names = [str(inp.unique()) for inp in f_model.inlined_graph.inputs()][1:]
-    input_debug_names = [inp.debugName() for inp in f_model.inlined_graph.inputs()][1:]
-    if inputs is not None:
-        if isinstance(inputs, dict):
-            if input_signature is not None:
-                ordered_inputs = []
-                used_sign = []
-                for key in input_signature:
-                    if key not in inputs:
-                        continue
-                    ordered_inputs.append(inputs[key])
-                    used_sign.append(key)
-                inputs = ordered_inputs
-                input_signature = used_sign
-            else:
-                inputs = list(inputs.values())
-                input_signature = input_signature[:len(inputs)]
-        if isinstance(inputs, torch.Tensor):
-            inputs = [inputs]
-        is_list_scalars = all([isinstance(inp, (float, int, bool)) for inp in inputs])
-        if is_list_scalars:
-            inputs = [inputs]
-        input_info = []
-        for idx, input_data in enumerate(inputs):
-            input_name = input_names[idx]
-            if hasattr(input_data, "ndim"):
-                input_data_rank = input_data.ndim
-            elif is_list_scalars:
-                input_data_rank = 1
-            else:
-                input_data_rank = 0
-            dynamic_input = [-1] * input_data_rank 
-            pt_dtype = input_data.dtype if isinstance(input_data, torch.Tensor) else type(input_data)
-            dtype = pt_to_ov_type_map.get(str(pt_dtype))
-            input_sh = input_shape[idx] if input_shape is not None else dynamic_input
-            input_info.append(InputCutInfo(input_name, input_sh, dtype, None))
-        
-        input_argv = args.get("input")
-        if input_argv is None:
-            if input_info:
-                args["input"] = input_info
-                args.pop("input_shape", None)
-            return input_signature
-        input_info_by_name = {
-            inp.name: inp for inp in input_info
-        }
-        debug_name_to_input_name = {debug_name: inp_name for debug_name, inp_name in zip(input_debug_names, input_names)}
-        user_input_info_by_name = {}
-        input_sign_to_input_name = {
-            input_s: input_idx for input_s, input_idx in 
-            zip(input_signature if input_signature is not None else input_debug_names, input_names)
-        }
-        if isinstance(input_argv, str):
-            input_argv = [parse_input_value(input_v) for input_v in split_inputs(input_argv)]
-            
-        for input_tuple in input_argv:
-            user_input_name = input_tuple[0]
-            if user_input_name not in input_names and user_input_name not in input_debug_names:
-                input_name = input_sign_to_input_name.get(user_input_name)
-                if input_name is None:
-                    raise Error(f"Unknown input name: {user_input_name}")
-                if input_name in debug_name_to_input_name:
-                    input_name = debug_name_to_input_name[input_name]
-                user_input_name = input_name
-            shape = input_tuple[1]
-            if shape is None and input_info_by_name:
-                shape = input_info_by_name[user_input_name][1]
-            dtype = input_tuple[2]
-            if dtype is None and input_info_by_name:
-                dtype = input_info_by_name[user_input_name][2]
-                
-            user_input_info_by_name[user_input_name] = InputCutInfo(user_input_name, shape, dtype, input_tuple[3])
-        
-        input_info_by_name.update(user_input_info_by_name)
-        updated_input_args = list(input_info_by_name.values())
-        args["input"] = updated_input_args
-        # avoid twise shape assignment
-        args.pop("input_shape", None)
-    return input_signature
+    return decoder
 
 
 def to_torch_tensor(tensor):
