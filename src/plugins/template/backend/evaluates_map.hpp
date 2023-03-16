@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include "backend.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/runtime/reference/abs.hpp"
@@ -16,7 +17,6 @@
 #include "ngraph/runtime/reference/convert.hpp"
 #include "ngraph/runtime/reference/convert_color_nv12.hpp"
 #include "ngraph/runtime/reference/convolution.hpp"
-// #include "ngraph/runtime/reference/convolution_backprop_data.hpp"
 #include "ngraph/runtime/reference/ctc_greedy_decoder.hpp"
 #include "ngraph/runtime/reference/ctc_greedy_decoder_seq_len.hpp"
 #include "ngraph/runtime/reference/ctc_loss.hpp"
@@ -93,7 +93,6 @@
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
 #include "tensor_conversion_util.hpp"
-#include "backend.hpp"
 
 namespace ngraph {
 namespace runtime {
