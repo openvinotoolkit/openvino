@@ -1108,14 +1108,14 @@ TEST_P(IEClassLoadNetworkTest, LoadNetworkMULTIwithHETERONoThrow) {
     std::string devices;
     auto availableDevices = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
     for (auto &&device : availableDevices) {
-        devices += CommonTestUtils::DEVICE_HETERO + std::string(".") + device;
+        devices += target_device + std::string(".") + device;
         if (&device != &(availableDevices.back())) {
             devices += ',';
         }
     }
     ASSERT_NO_THROW(ie.LoadNetwork(actualCnnNetwork, CommonTestUtils::DEVICE_MULTI, {
-            {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
-            {"TARGET_FALLBACK",                   target_device + "," + target_device}}));
+            {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), CommonTestUtils::DEVICE_HETERO},
+            {"TARGET_FALLBACK",                   devices}}));
 }
 
 //
@@ -1170,7 +1170,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
     std::string devices;
     auto availableDevices = ie.GetMetric(target_device, METRIC_KEY(AVAILABLE_DEVICES)).as<std::vector<std::string>>();
     for (auto &&device : availableDevices) {
-        devices += "HETERO." + device;
+        devices += target_device + "." + device;
         if (&device != &(availableDevices.back())) {
             devices += ',';
         }
@@ -1183,8 +1183,8 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
     }
     InferenceEngine::QueryNetworkResult result;
     ASSERT_NO_THROW(result = ie.QueryNetwork(multinputCnnNetwork, CommonTestUtils::DEVICE_MULTI, {
-            {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
-            {"TARGET_FALLBACK",                   target_device + "," + target_device}}));
+            {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), CommonTestUtils::DEVICE_HETERO},
+            {"TARGET_FALLBACK",                   devices}}));
 
     std::unordered_set<std::string> actualLayers;
     for (auto &&layer : result.supportedLayersMap) {
