@@ -42,7 +42,7 @@ The example class has several fields:
 
 The constructor initializes helper fields and calls methods which allocate blobs:
 
-.. doxygensnippet:: src/sync_infer_request.hpp
+.. doxygensnippet:: src/sync_infer_request.cpp
    :language: cpp
    :fragment: [infer_request:ctor]
 
@@ -55,49 +55,63 @@ The constructor initializes helper fields and calls methods which allocate blobs
 
 Decrements a number of created inference requests: 
 
-@snippet src/sync_infer_request.cpp infer_request:dtor
-
 .. doxygensnippet:: src/sync_infer_request.cpp
    :language: cpp
-   :fragment: [infer_request:ctor]
+   :fragment: [infer_request:dtor]
 
 ``InferImpl()``
 ###############
 
-**Implementation details:** Base IInferRequestInternal class implements the public InferenceEngine::IInferRequestInternal::Infer method as following:
-- Checks blobs set by users
-- Calls the `InferImpl` method defined in a derived class to call actual pipeline stages synchronously
+**Implementation details:** Base IInferRequestInternal class implements the public :ref:`InferenceEngine::IInferRequestInternal::Infer <doxid-class_inference_engine_1_1_i_infer_request_internal_1afb61e1de4ffb9927431085a91a40f352>` method as following:
 
-@snippet src/sync_infer_request.cpp infer_request:infer_impl
+* Checks blobs set by users
+* Calls the ``InferImpl`` method defined in a derived class to call actual pipeline stages synchronously
 
-#### 1. `inferPreprocess`
+.. doxygensnippet:: src/sync_infer_request.cpp
+   :language: cpp
+   :fragment: [infer_request:infer_impl]
 
-Below is the code of the `inferPreprocess` method to demonstrate Inference Engine common preprocessing step handling:
+1. `inferPreprocess`
+++++++++++++++++++++
 
-@snippet src/sync_infer_request.cpp infer_request:infer_preprocess
+Below is the code of the ``inferPreprocess`` method to demonstrate Inference Engine common preprocessing step handling:
+
+.. doxygensnippet:: src/sync_infer_request.cpp
+   :language: cpp
+   :fragment: [infer_request:infer_preprocess]
 
 **Details:**
-* `InferImpl` must call the InferenceEngine::IInferRequestInternal::execDataPreprocessing function, which executes common Inference Engine preprocessing step (for example, applies resize or color conversion operations) if it is set by the user. The output dimensions, layout and precision matches the input information set via InferenceEngine::CNNNetwork::getInputsInfo.
-* If `inputBlob` passed by user differs in terms of precisions from precision expected by plugin, `blobCopy` is performed which does actual precision conversion.
 
-#### 2. `startPipeline`
+* ``InferImpl`` must call the :ref:`InferenceEngine::IInferRequestInternal::execDataPreprocessing <doxid-class_inference_engine_1_1_i_infer_request_internal_1a1ca532a389eb95c12ff9c8d463e93268>` function, which executes common Inference Engine preprocessing step (for example, applies resize or color conversion operations) if it is set by the user. The output dimensions, layout and precision matches the input information set via :ref:`InferenceEngine::CNNNetwork::getInputsInfo <doxid-class_inference_engine_1_1_c_n_n_network_1a76de2a6101fe8276f56b0dc0f99c7ff7>`.
+* If ``inputBlob`` passed by user differs in terms of precisions from precision expected by plugin, ``blobCopy`` is performed which does actual precision conversion.
 
-Executes a pipeline synchronously using `_executable` object:
+2. `startPipeline`
+++++++++++++++++++
 
-@snippet src/sync_infer_request.cpp infer_request:start_pipeline
+Executes a pipeline synchronously using ``_executable`` object:
 
-#### 3. `inferPostprocess`
+.. doxygensnippet:: src/sync_infer_request.cpp
+   :language: cpp
+   :fragment: [infer_request:start_pipeline]
+
+3. `inferPostprocess`
++++++++++++++++++++++
 
 Converts output blobs if precisions of backend output blobs and blobs passed by user are different:
 
-@snippet src/sync_infer_request.cpp infer_request:infer_postprocess
+.. doxygensnippet:: src/sync_infer_request.cpp
+   :language: cpp
+   :fragment: [infer_request:infer_postprocess]
 
-### `GetPerformanceCounts()`
+`GetPerformanceCounts()`
+########################
 
 The method sets performance counters which were measured during pipeline stages execution:
 
-@snippet src/sync_infer_request.cpp infer_request:get_performance_counts
+.. doxygensnippet:: src/sync_infer_request.cpp
+   :language: cpp
+   :fragment: [infer_request:get_performance_counts]
 
-The next step in the plugin library implementation is the [Asynchronous Inference Request](@ref openvino_docs_ie_plugin_dg_async_infer_request) class.
+The next step in the plugin library implementation is the :doc:`Asynchronous Inference Request <openvino_docs_ie_plugin_dg_async_infer_request>` class.
 
 @endsphinxdirective
