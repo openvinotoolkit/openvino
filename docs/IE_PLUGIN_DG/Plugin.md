@@ -167,4 +167,4 @@ OpenVINO plugin library must export only one function creating a plugin instance
 
 @snippet template/src/plugin.cpp plugin:create_plugin_engine
 
-Next step in a plugin library implementation is the [CompiledModel](@ref openvino_docs_ov_plugin_dg_compiled_modelrk) class.
+Next step in a plugin library implementation is the [CompiledModel](@ref openvino_docs_ov_plugin_dg_compiled_model) class.
