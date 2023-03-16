@@ -78,7 +78,6 @@ struct WorkerInferRequest {
     std::list<Time>    _startTimes;
     std::list<Time>    _endTimes;
     int                _index = 0;
-    bool               _reload = {false};
     MultiImmediateExecutor::Ptr  _testExec;
 };
 

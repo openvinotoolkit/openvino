@@ -160,15 +160,19 @@ public:
 
         ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                     ::testing::Matcher<const std::string&>(StrEq("GPU.0")),
-                    ::testing::Matcher<const Config&>(_))).WillByDefault(Return(mockExeNetworkGPU_0));
-
+                    ::testing::Matcher<const Config&>(_))).WillByDefault(InvokeWithoutArgs([this]() {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                        return mockExeNetworkGPU_0; }));
         ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                     ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
-                    ::testing::Matcher<const Config&>(_))).WillByDefault(Return(mockExeNetworkGPU_1));
-
+                    ::testing::Matcher<const Config&>(_))).WillByDefault(InvokeWithoutArgs([this]() {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                        return mockExeNetworkGPU_1; }));
         ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                     ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_KEEMBAY)),
-                    ::testing::Matcher<const Config&>(_))).WillByDefault(Return(mockExeNetworkVPUX));
+                    ::testing::Matcher<const Config&>(_))).WillByDefault(InvokeWithoutArgs([this]() {
+                        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                        return mockExeNetworkVPUX; }));
 
         ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                     ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
@@ -254,7 +258,7 @@ TEST_P(AutoRuntimeFallback, releaseResource) {
             mockInferrequestGPU_0 = std::make_shared<mockAsyncInferRequest>(
                 inferReqInternalGPU_0, mockExecutorGPU_0, nullptr, ifThrow);
             ON_CALL(*mockIExeNetGPU_0.get(), CreateInferRequest()).WillByDefault(InvokeWithoutArgs([this]() {
-                        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                        std::this_thread::sleep_for(std::chrono::milliseconds(0));
                         return mockInferrequestGPU_0; }));
         } else if (deviceName == "GPU.1") {
             if (generateWorkersFail) {
@@ -265,14 +269,14 @@ TEST_P(AutoRuntimeFallback, releaseResource) {
                 mockInferrequestGPU_1 = std::make_shared<mockAsyncInferRequest>(
                     inferReqInternalGPU_1, mockExecutorGPU_1, nullptr, ifThrow);
                 ON_CALL(*mockIExeNetGPU_1.get(), CreateInferRequest()).WillByDefault(InvokeWithoutArgs([this]() {
-                            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                            std::this_thread::sleep_for(std::chrono::milliseconds(0));
                             return mockInferrequestGPU_1; }));
             }
         } else if (deviceName == "VPUX") {
             mockInferrequestVPUX = std::make_shared<mockAsyncInferRequest>(
                 inferReqInternalVPUX, mockExecutorVPUX, nullptr, ifThrow);
             ON_CALL(*mockIExeNetVPUX.get(), CreateInferRequest()).WillByDefault(InvokeWithoutArgs([this]() {
-                        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                        std::this_thread::sleep_for(std::chrono::milliseconds(0));
                         return mockInferrequestVPUX; }));
         } else {
             return;

@@ -61,14 +61,13 @@ protected:
 private:
     void WaitFirstNetworkReady();
     void TryToLoadNetWork(AutoLoadContext& context, const std::string& modelPath, const IE::CNNNetwork& network);
-    bool selectOtherDevice(std::string currentDeviceName);
+    bool selectOtherDevice(const std::string& currentDeviceName);
     IE::Task releaseActualdeviceTask;
 
 private:
     IE::IStreamsExecutor::Ptr                _executor;
     mutable std::once_flag                   _oc;
     std::once_flag                           _firstLoadOC;
-    std::once_flag                           _firstReleaseActualDevice;
     std::future<void>                        _firstLoadFuture;
     std::promise<void>                       _firstLoadPromise;
     bool                                     _exitFlag = {false};
