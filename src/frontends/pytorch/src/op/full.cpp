@@ -185,23 +185,6 @@ OutputVector translate_empty(NodeContext& context) {
     }
     return {empty};
 };
-
-OutputVector translate_new_empty(NodeContext& context) {
-    // aten::new_empty(Tensor self, SymInt[] size, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None,
-    // bool? pin_memory=None) -> Tensor
-    num_inputs_check(context, 2, 6);
-    auto input = context.get_input(0);
-    auto sizes = context.get_input(1);
-    auto value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
-    int dtype_id = 2;
-    Output<Node> empty;
-    if (!context.input_is_none(dtype_id)) {
-        empty = base_translate_full_with_convert(context, sizes, value, dtype_id);
-    } else {
-        empty = base_translate_full_with_convertlike(context, sizes, value, input);
-    }
-    return {empty};
-};
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend
