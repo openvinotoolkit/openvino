@@ -172,6 +172,7 @@ const std::vector<InputShape> inputShapesDynamic2D = {
 const std::vector<StridedSliceParams> paramsPlain2D = {
         StridedSliceParams{ { 2, 5 }, { 16, 8 }, { 1, 1 }, { 0, 0 }, { 0, 0 },  { },  { },  { } },
         StridedSliceParams{ { -10, -11 }, { -2, -3 }, { 1, 1 }, { 0, 0 }, { 0, 0 },  { },  { },  { } },
+        StridedSliceParams{ { -16, -17 }, { -2, -3 }, { 1, 1 }, { 0, 0 }, { 0, 0 },  { },  { },  { } },
         StridedSliceParams{ { 2, 44 }, { 55, -2 }, { 2, 3 }, { 0, 1 }, { 0, 0 },  { },  { },  { } },
         StridedSliceParams{ { 2, -7 }, { 1, -2 }, { 2, 3 }, { 1, 0 }, { 1, 0 },  { },  { },  { } },
         StridedSliceParams{ { 2 }, { 22 }, { 2 }, { 0 }, { 0 },  { },  { },  { } },
