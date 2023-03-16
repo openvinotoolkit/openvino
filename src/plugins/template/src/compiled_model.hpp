@@ -16,11 +16,11 @@ namespace template_plugin {
 class Plugin;
 class InferRequest;
 
+// ! [compiled_model:header]
 /**
- * @class ExecutableNetwork
- * @brief Interface of executable network
+ * @class CompiledModel
+ * @brief Implementation of compiled model
  */
-// ! [executable_network:header]
 class CompiledModel : public ov::ICompiledModel {
 public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -50,11 +50,11 @@ private:
     void compile_model(const std::shared_ptr<ov::Model>& model);
     std::shared_ptr<const Plugin> get_template_plugin() const;
 
-    mutable std::atomic<std::size_t> _requestId = {0};
-    Configuration _cfg;
+    mutable std::atomic<std::size_t> m_request_id = {0};
+    Configuration m_cfg;
     std::shared_ptr<ov::Model> m_model;
 };
-// ! [executable_network:header]
+// ! [compiled_model:header]
 
 }  // namespace template_plugin
 }  // namespace ov

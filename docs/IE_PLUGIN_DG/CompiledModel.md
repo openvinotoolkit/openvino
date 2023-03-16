@@ -1,90 +1,87 @@
-# Executable Network {#openvino_docs_ov_plugin_dg_compiled_model}
+# Compiled Model {#openvino_docs_ov_plugin_dg_compiled_model}
 
-`ExecutableNetwork` class functionality:
-- Compile an InferenceEngine::ICNNNetwork instance to a backend specific graph representation
+`CompiledModel` class functionality:
+- Compile an ov::Model instance to a backend specific graph representation
 - Create an arbitrary number of `InferRequest` objects
 - Hold some common resources shared between different instances of `InferRequest`. For example:
-	- InferenceEngine::IExecutableNetworkInternal::_taskExecutor task executor to implement asynchronous execution
-	- InferenceEngine::IExecutableNetworkInternal::_callbackExecutor task executor to run an asynchronous inference request callback in a separate thread
+	- ov::ICompiledModel::m_task_executor task executor to implement asynchronous execution
+	- ov::ICompiledModel::m_callback_executor task executor to run an asynchronous inference request callback in a separate thread
 
-`ExecutableNetwork` Class
+`CompiledModel` Class
 ------------------------
 
-Inference Engine Plugin API provides the helper InferenceEngine::ExecutableNetworkThreadSafeDefault class recommended to use as a base class for an executable network. Based on that, a declaration of an executable network class can look as follows: 
+OpenVINO Plugin API provides the interface ov::ICompiledModel which should be used as a base class for a compiled model. Based on that, a declaration of an compiled model class can look as follows: 
 
-@snippet src/compiled_model.hpp executable_network:header
+@snippet src/compiled_model.hpp compiled_model:header
 
-#### Class Fields
+### Class Fields
 
 The example class has several fields:
 
-- `_requestId` - Tracks a number of created inference requests, which is used to distinguish different inference requests during profiling via the Intel® Instrumentation and Tracing Technology (ITT) library.
-- `_cfg` - Defines a configuration an executable network was compiled with.
-- `_plugin` - Refers to a plugin instance.
-- `_function` - Keeps a reference to transformed `ngraph::Function` which is used in ngraph reference backend computations. Note, in case of other backends with backend specific graph representation `_function` has different type and represents backend specific graph or just a set of computational kernels to perform an inference.
-- `_inputIndex` - maps a name of input with its index among all network inputs.
-- `_outputIndex` - maps a name of output with its index among all network outputs.
+- `m_request_id` - Tracks a number of created inference requests, which is used to distinguish different inference requests during profiling via the Intel® Instrumentation and Tracing Technology (ITT) library.
+- `m_cfg` - Defines a configuration a compiled model was compiled with.
+- `m_model` - Keeps a reference to transformed `ov::Model` which is used in OpenVINO reference backend computations. Note, in case of other backends with backend specific graph representation `m_model` has different type and represents backend specific graph or just a set of computational kernels to perform an inference.
 
-### `ExecutableNetwork` Constructor with `ICNNNetwork`
+### CompiledModel Constructor
 
-This constructor accepts a generic representation of a neural network as an InferenceEngine::ICNNNetwork reference and is compiled into a backend specific device graph:
+This constructor accepts a generic representation of a model as an ov::Model and is compiled into a backend specific device graph:
 
-@snippet src/compiled_model.cpp executable_network:ctor_cnnnetwork
+@snippet src/compiled_model.cpp compiled_model:ctor
 
-The implementation `CompileNetwork` is fully device-specific.
+The implementation `compile_model()` is fully device-specific.
 
-### `CompileNetwork()`
+### compile_model()
 
-The function accepts a const shared pointer to `ngraph::Function` object and performs the following steps:
+The function accepts a const shared pointer to `ov::Model` object and applies OpenVINO passes using `transform_model()` function, which defines plugin-specific conversion pipeline. To support low precision inference, the pipeline can include Low Precision Transformations. These transformations are usually hardware specific. You can find how to use and configure Low Precisions Transformations in [Low Precision Transformations](@ref openvino_docs_OV_UG_lpt) guide.
 
-1. Applies nGraph passes using `TransformNetwork` function, which defines plugin-specific conversion pipeline. To support low precision inference, the pipeline can include Low Precision Transformations. These transformations are usually hardware specific. You can find how to use and configure Low Precisions Transformations in [Low Precision Transformations](@ref openvino_docs_OV_UG_lpt) guide.
-2. Maps the transformed graph to a backend specific graph representation (for example, to CPU plugin internal graph representation).
-3. Allocates and fills memory for graph weights, backend specific memory handles and so on.
-
-@snippet src/compiled_model.cpp executable_network:map_graph
+@snippet src/compiled_model.cpp compiled_model:compile_model
 
 > **NOTE**: After all these steps, the backend specific graph is ready to create inference requests and perform inference.
 
-### `ExecutableNetwork` Constructor Importing from Stream
+### export_model()
 
-This constructor creates a backend specific graph by importing from a stream object:
+The implementation of the method should write all data to the `model_stream`, which is required to import a backend specific graph later in the `Plugin::import_model` method:
 
-> **NOTE**: The export of backend specific graph is done in the `Export` method, and data formats must be the same for both import and export.
+@snippet src/compiled_model.cpp compiled_model:export_model
 
-### `Export()`
+### create_sync_infer_request()
 
-The implementation of the method should write all data to the `model` stream, which is required to import a backend specific graph later in the `Plugin::Import` method:
+The method creates an synchronous inference request and returns it.
 
-@snippet src/compiled_model.cpp executable_network:export
+@snippet src/compiled_model.cpp compiled_model:create_sync_infer_request
 
-### `CreateInferRequest()`
+While the public OpenVINO API has a single interface for inference request, which can be executed in synchronous and asynchronous modes, a plugin library implementation has two separate classes:
 
-The method creates an asynchronous inference request and returns it. While the public Inference Engine API has a single interface for inference request, which can be executed in synchronous and asynchronous modes, a plugin library implementation has two separate classes:
-
-- [Synchronous inference request](@ref openvino_docs_ie_plugin_dg_infer_request), which defines pipeline stages and runs them synchronously in the `Infer` method.
+- [Synchronous inference request](@ref openvino_docs_ie_plugin_dg_infer_request), which defines pipeline stages and runs them synchronously in the `infer` method.
 - [Asynchronous inference request](@ref openvino_docs_ie_plugin_dg_async_infer_request), which is a wrapper for a synchronous inference request and can run a pipeline asynchronously. Depending on a device pipeline structure, it can has one or several stages:
-   - For single-stage pipelines, there is no need to define this method and create a class derived from InferenceEngine::AsyncInferRequestThreadSafeDefault. For single stage pipelines, a default implementation of this method creates InferenceEngine::AsyncInferRequestThreadSafeDefault wrapping a synchronous inference request and runs it asynchronously in the `_taskExecutor` executor.
+   - For single-stage pipelines, there is no need to define this method and create a class derived from ov::IAsyncInferRequest. For single stage pipelines, a default implementation of this method creates ov::IAsyncInferRequest wrapping a synchronous inference request and runs it asynchronously in the `m_request_executor` executor.
    - For pipelines with multiple stages, such as performing some preprocessing on host, uploading input data to a device, running inference on a device, or downloading and postprocessing output data, schedule stages on several task executors to achieve better device use and performance. You can do it by creating a sufficient number of inference requests running in parallel. In this case, device stages of different inference requests are overlapped with preprocessing and postprocessing stage giving better performance.
    > **IMPORTANT**: It is up to you to decide how many task executors you need to optimally execute a device pipeline.
 
-@snippet src/compiled_model.cpp executable_network:create_infer_request
+### create_infer_request()
 
-### `GetMetric()`
+The method creates an asynchronous inference request and returns it.
 
-Returns a metric value for a metric with the name `name`.  A metric is a static type of information about an executable network. Examples of metrics:
+@snippet src/compiled_model.cpp compiled_model:create_infer_request
 
-- EXEC_NETWORK_METRIC_KEY(NETWORK_NAME) - name of an executable network
-- EXEC_NETWORK_METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS) - heuristic to denote an optimal (or at least sub-optimal) number of inference requests needed to run asynchronously to use the current device fully
-- Any other executable network metric specific for a particular device. Such metrics and possible values must be declared in a plugin configuration public header, for example, `template/config.hpp`
+### get_property()
 
-The IE_SET_METRIC_RETURN helper macro sets metric value and checks that the actual metric type matches a type of the specified value.
+Returns a current value for a property with the name `name`. The method extracts configuration values a compiled model is compiled with.
 
-### `GetConfig()`
+@snippet src/compiled_model.cpp compiled_model:get_property
 
-Returns a current value for a configuration key with the name `name`. The method extracts configuration values an executable network is compiled with.
+This function is the only way to get configuration values when a model is imported and compiled by other developers and tools.
 
-@snippet src/compiled_model.cpp executable_network:get_config
+### set_property()
 
-This function is the only way to get configuration values when a network is imported and compiled by other developers and tools (for example, the [Compile tool](@ref openvino_inference_engine_tools_compile_tool_README).
+The methods allows to set compiled model specific properties.
+
+@snippet src/compiled_model.cpp compiled_model:set_property
+
+### get_runtime_model()
+
+The methods returns the runtime model with backend specific information.
+
+@snippet src/compiled_model.cpp compiled_model:get_runtime_model
 
 The next step in plugin library implementation is the [Synchronous Inference Request](@ref openvino_docs_ie_plugin_dg_infer_request) class.
