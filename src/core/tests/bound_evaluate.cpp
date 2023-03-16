@@ -63,15 +63,17 @@ TEST(BoundEvaluatorTest, no_exception_on_single_bound) {
     int32_t a_l[1] = {1};
     a->get_output_tensor(0).set_lower_value(Tensor{et, s, a_l});
 
-    int32_t o_[1] = {1000};
+    int32_t o_[1] = {INT32_MIN};  // initial value of output tensor is not needed, it's set to check whether changed
     TensorVector output{{et, s, o_}};
+    // evaluations won't be performed due to missing upper bound tensor of parameter a
     ASSERT_NO_THROW(sub->evaluate_lower(output));
-    EXPECT_EQ(o_[0], 1000);
+    EXPECT_EQ(o_[0], INT32_MIN);
     ASSERT_NO_THROW(sub->evaluate_upper(output));
-    EXPECT_EQ(o_[0], 1000);
+    EXPECT_EQ(o_[0], INT32_MIN);
 
     int32_t a_u[1] = {11};
     a->get_output_tensor(0).set_upper_value(Tensor{et, s, a_u});
+    // now both bounds of sub node can be calculated
     ASSERT_NO_THROW(sub->evaluate_lower(output));
     EXPECT_EQ(o_[0], 0);
     ASSERT_NO_THROW(sub->evaluate_upper(output));
