@@ -859,14 +859,18 @@ public:
         InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(type),
                                          shape,
                                          InferenceEngine::TensorDesc::getLayoutByDims(shape));
-        return std::dynamic_pointer_cast<ov::IRemoteTensor>(ov::make_tensor(m_context->CreateBlob(desc, params)));
+        auto blob = m_context->CreateBlob(desc, params);
+        blob->allocate();
+        return std::dynamic_pointer_cast<ov::IRemoteTensor>(ov::make_tensor(blob));
     }
 
     std::shared_ptr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override {
         InferenceEngine::TensorDesc desc(InferenceEngine::details::convertPrecision(type),
                                          shape,
                                          InferenceEngine::TensorDesc::getLayoutByDims(shape));
-        return ov::make_tensor(m_context->CreateHostBlob(desc));
+        auto blob = m_context->CreateHostBlob(desc);
+        blob->allocate();
+        return ov::make_tensor(blob);
     }
 };
 
