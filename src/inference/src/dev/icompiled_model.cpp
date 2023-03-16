@@ -4,8 +4,6 @@
 
 #include "openvino/runtime/icompiled_model.hpp"
 
-#include <openvino/core/any.hpp>
-
 #include "dev/converter_utils.hpp"
 #include "icompiled_model_wrapper.hpp"
 #include "openvino/core/model.hpp"

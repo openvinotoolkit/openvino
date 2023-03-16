@@ -14,7 +14,6 @@
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iremote_context.hpp"
-#include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace {

@@ -61,6 +61,11 @@ public:
         }
     }
 
+    /**
+     * @brief Returns the const pointer to the data
+     *
+     * @return const pointer to the tensor data
+     */
     const void* get_data() const {
         auto params = get_params();
         OPENVINO_ASSERT(params.count("vector_data"), "Cannot get data. Tensor is incorrect!");
@@ -72,6 +77,11 @@ public:
         }
     }
 
+    /**
+     * @brief Returns the pointer to the data
+     *
+     * @return pointer to the tensor data
+     */
     void* get_data() {
         auto params = get_params();
         OPENVINO_ASSERT(params.count("vector_data"), "Cannot get data. Tensor is incorrect!");
