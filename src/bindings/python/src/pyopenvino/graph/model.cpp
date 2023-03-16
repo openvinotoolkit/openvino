@@ -746,7 +746,7 @@ void regclass_graph_Model(py::module m) {
         },
         py::arg("path"),
         R"(
-                Returns runtime attribute.
+                Returns runtime attribute as a OVAny object.
 
                 :param path: List of strings which defines a path to runtime info.
                 :type path: List[str]
@@ -761,7 +761,7 @@ void regclass_graph_Model(py::module m) {
         },
         py::arg("path"),
         R"(
-                Returns runtime attribute.
+                Returns runtime attribute as a OVAny object.
 
                 :param path: List of strings which defines a path to runtime info.
                 :type path: str

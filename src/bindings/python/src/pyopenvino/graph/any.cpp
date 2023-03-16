@@ -81,7 +81,16 @@ void regclass_graph_Any(py::module m) {
         }
         std::stringstream str;
         str << "Unsupported data type : '" << dtype << "' is passed as an argument.";
-        OPENVINO_THROW(str.str());
+        OPENVINO_THROW(str.str(),
+        R"(
+            Returns runtime attribute casted to defined data type.
+
+            :param dtype: Data type in which runtime attribute will be casted.
+            :type dtype: Union[bool, int, str, float, dict]
+
+            :return: A runtime attribute.
+            :rtype: Any
+    )");
     });
     ov_any.def(
         "aslist",
@@ -103,12 +112,23 @@ void regclass_graph_Any(py::module m) {
                 return py::cast(self.as<std::vector<int>>());
             } else if (check_key(dtype, py::float_())) {
                 return py::cast(self.as<std::vector<double>>());
+            } else if (check_key(dtype, py::bool_())) {
+                return py::cast(self.as<std::vector<bool>>());
             }
             std::stringstream str;
             str << "Unsupported data type : '" << dtype << "' is passed as an argument.";
             OPENVINO_THROW(str.str());
         },
-        py::arg("dtype") = py::none());
+        py::arg("dtype") = py::none(),
+        R"(
+            Returns runtime attribute as a list with specified data type.
+
+            :param dtype: Data type of a list in which runtime attribute will be casted.
+            :type dtype: Union[bool, int, str, float]
+
+            :return: A runtime attribute as a list.
+            :rtype: Union[List[float], List[int], List[str], List[bool]]
+    )");
     ov_any.def(
         "get",
         [](const ov::Any& self) -> py::object {
