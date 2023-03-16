@@ -97,9 +97,13 @@ def merge_xmls(xml_paths: list):
                             logger.warning(f'Test counter is different in {op_result.tag} for {device.tag}'\
                                            f'({total_tests_count_xml} vs {total_tests_count_xml})')
                             for attr_name in device_results.find(op_result.tag).attrib:
-                                if attr_name == "passrate" or attr_name == "implemented":
+                                if attr_name == "passrate" or attr_name == "implemented" or attr_name == "relative_passrate":
                                     continue
-                                xml_value = int(op_result.attrib.get(attr_name))
+                                xml_value = None
+                                if "relative_" in attr_name:
+                                    xml_value = float(op_result.attrib.get(attr_name))
+                                else:
+                                    xml_value = int(op_result.attrib.get(attr_name))
                                 device_results.find(current_op_res.tag).set(attr_name, str(xml_value))
                     else:
                         device_results.append(op_result)
