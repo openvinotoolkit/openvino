@@ -1121,14 +1121,12 @@ bool Convolution::isPossibleToSkipInitConfig(DnnlDesriptor &desc) const {
 }
 
 std::shared_ptr<MemoryDesc> Convolution::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : primitive_desc_it.src_desc(idx);
-
     if (idx == 1) {
         // report original plain layout for weight since it needs to be reordered dynamically at runtime
-        return std::make_shared<CpuBlockedMemoryDesc>(DnnlExtensionUtils::DataTypeToIEPrecision(desc.data_type()),
+        return std::make_shared<CpuBlockedMemoryDesc>(getOriginalInputPrecisionAtPort(idx),
                                                       Shape(getInputShapeAtPort(idx).getStaticDims()));
     }
-
+    auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1) : primitive_desc_it.src_desc(idx);
     if (getInputShapeAtPort(idx).isDynamic()) {
         return DnnlExtensionUtils::makeUndefinedDesc(desc, getInputShapeAtPort(idx));
     }
@@ -1344,9 +1342,14 @@ void Convolution::prepareParams() {
     auto builder = [&engine](const ConvKey& key) -> executorPtr {
         // remove the requirement on weight memory layout to let primitive
         // report the best layout for weight to be reordered dynamically at runtime
+        auto src_dt = key.inp0->getDataType();
+        auto wdt = src_dt;
+        if (src_dt == dnnl_s8 || src_dt == dnnl_u8) {
+            wdt = memory::data_type::s8;
+        }
         auto wghDescAny =
             dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(key.inp1->getShape().getStaticDims()),
-                               key.inp1->getDataType(),
+                               wdt,
                                memory::format_tag::any);
         auto createDnnlConvDesc = [](const dnnl::memory::desc& srcDesc,
                                      const dnnl::memory::desc& wghDesc,
