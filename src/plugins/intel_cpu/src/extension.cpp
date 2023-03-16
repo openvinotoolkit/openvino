@@ -61,7 +61,6 @@ std::map<std::string, ngraph::OpSet> Extension::getOpSets() {
         NGRAPH_OP(BrgemmWithCompensationsCPU, ov::intel_cpu)
         NGRAPH_OP(BrgemmAMXCPU, ov::intel_cpu)
         NGRAPH_OP(BrgemmCopyB, ov::intel_cpu)
-        NGRAPH_OP(BrgemmCopyBWithCompensations, ov::intel_cpu)
 #undef NGRAPH_OP
 
         return opset;

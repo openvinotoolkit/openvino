@@ -395,37 +395,29 @@ private:
     size_t load_offset_scratch = 0;
 };
 
-// Base class for BrgemmCopyB emitters with common interface
-class BrgemmCopyBBaseEmitter : public jit_emitter {
+
+class BrgemmCopyBEmitter : public jit_emitter {
 public:
-    BrgemmCopyBBaseEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
+    BrgemmCopyBEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
 
-    size_t get_inputs_num() const override {return 1;}
+    size_t get_inputs_num() const override {return 2;}
 
-protected:
+private:
     void emit_impl(const std::vector<size_t>& in,
                    const std::vector<size_t>& out) const override;
 
     void init_brgemm_copy(std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t>& kernel,
                           size_t N, size_t N_blk, size_t N_tail, size_t LDB, size_t K,
                           bool is_with_amx, dnnl_data_type_t dt_in0, dnnl_data_type_t dt_in1) const;
-<<<<<<< HEAD
-    void emit_kernel_call(const dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t* kernel, Xbyak::Reg64 src, Xbyak::Reg64 dst, Xbyak::Reg64 comp,
-                          size_t N, size_t K, size_t offset_in, size_t offset_out, size_t offset_comp) const;
-=======
     void emit_kernel_call(const matmul::jit_brgemm_matmul_copy_b_t* kernel,
                           const std::vector<Reg64>& regs, const std::vector<size_t>& offsets,
                           size_t N, size_t K) const;
 
     virtual void kernel_call(const matmul::jit_brgemm_matmul_copy_b_t* kernel, const std::vector<Reg64>& regs, const std::vector<size_t>& offsets) const = 0;
     virtual std::vector<size_t> init_kernel_offsets(size_t nb, size_t N_blk, size_t brgemmVNNIFactor, size_t data_size) const = 0;
->>>>>>> BrgemmCopyB: updated classes
 
     static void execute(dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t* kernel,
                         const void* src, const void* dst, const void* comp, size_t N, size_t K);
-
-    inline void data_ptr(Xmm xmm, Xbyak::Reg64 reg, size_t bytes_offset) const;
-    inline void push_value(size_t value, size_t index, size_t gpr_size) const;
 
     std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t> kernel;
 
@@ -438,26 +430,6 @@ protected:
 
     size_t in_offset = 0lu;
     size_t out_offset = 0lu;
-};
-
-class BrgemmCopyBEmitter : public BrgemmCopyBBaseEmitter {
-public:
-    BrgemmCopyBEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
-
-protected:
-    void kernel_call(const matmul::jit_brgemm_matmul_copy_b_t* kernel, const std::vector<Reg64>& regs, const std::vector<size_t>& offsets) const override;
-    std::vector<size_t> init_kernel_offsets(size_t nb, size_t N_blk, size_t brgemmVNNIFactor, size_t data_size) const override;
-};
-
-class BrgemmCopyBWithCompensationsEmitter : public BrgemmCopyBBaseEmitter {
-public:
-    BrgemmCopyBWithCompensationsEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa, const std::shared_ptr<ov::Node>& n);
-
-protected:
-    void kernel_call(const matmul::jit_brgemm_matmul_copy_b_t* kernel, const std::vector<Reg64>& regs, const std::vector<size_t>& offsets) const override;
-    std::vector<size_t> init_kernel_offsets(size_t nb, size_t N_blk, size_t brgemmVNNIFactor, size_t data_size) const override;
-
-private:
     size_t comp_offset = 0lu;
 };
 
