@@ -64,25 +64,25 @@ const std::vector<std::vector<size_t>> target5dShapes = {
 };
 
 const std::vector<ngraph::op::v4::Interpolate::InterpolateMode> modesWithoutNearest = {
-        ngraph::op::v4::Interpolate::InterpolateMode::linear,
-        ngraph::op::v4::Interpolate::InterpolateMode::cubic,
-        ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx,
+        ngraph::op::v4::Interpolate::InterpolateMode::LINEAR,
+        ngraph::op::v4::Interpolate::InterpolateMode::CUBIC,
+        ngraph::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX,
 };
 
 const std::vector<ngraph::op::v4::Interpolate::InterpolateMode> nearestMode = {
-        ngraph::op::v4::Interpolate::InterpolateMode::nearest,
+        ngraph::op::v4::Interpolate::InterpolateMode::NEAREST,
 };
 
 const std::vector<ngraph::op::v4::Interpolate::InterpolateMode> linearOnnxMode = {
-        ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx,
+        ngraph::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX,
 };
 
 const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModes = {
-        ngraph::op::v4::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn,
-        ngraph::op::v4::Interpolate::CoordinateTransformMode::pytorch_half_pixel,
-        ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel,
-        ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric,
-        ngraph::op::v4::Interpolate::CoordinateTransformMode::align_corners,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS,
 };
 
 const std::vector<ngraph::op::v4::Interpolate::ShapeCalcMode> shapeCalculationMode = {

@@ -302,6 +302,9 @@ public:
         case InterpolateMode::CUBIC:
             cubic_func(input_data, out);
             break;
+        default:
+            OPENVINO_THROW("Unsupported interpolation mode");
+            break;
         }
     }
 
