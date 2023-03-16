@@ -42,13 +42,13 @@ layout convolution_inst::calc_output_layout(convolution_node const& node, kernel
         output_type = data_types::f32;
     }
 
-    uint32_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
-    uint32_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
-    uint32_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
+    auto stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
+    auto stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
+    auto stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
 
-    uint32_t dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
-    uint32_t dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
-    uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
+    auto dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
+    auto dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
+    auto dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
 
     // TODO: Consider moving general parameter verification to arguments constructor.
     CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
@@ -249,13 +249,13 @@ std::vector<layout> convolution_inst::calc_output_layouts(convolution_node const
         output_type = data_types::f32;
     }
 
-    uint32_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
-    uint32_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
-    uint32_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
+    auto stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
+    auto stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
+    auto stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
 
-    uint32_t dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
-    uint32_t dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
-    uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
+    auto dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
+    auto dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
+    auto dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
 
     // TODO: Consider moving general parameter verification to arguments constructor.
     CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,

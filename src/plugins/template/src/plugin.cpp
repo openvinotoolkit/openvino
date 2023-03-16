@@ -153,7 +153,8 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(st
                                         shared_from_this(),
                                         context,
                                         get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig),
-                                        fullConfig);
+                                        fullConfig,
+                                        true);
     return compiled_model;
 }
 // ! [plugin:import_model_with_remote]
