@@ -1453,7 +1453,9 @@ void Convolution::prepareParams() {
         primArgs[DNNL_ARG_DST] = dstMemPtr->GetPrimitive();
 
         if (key.constWeight) {
-            // const weight will be reordered at first execution or fetched from private cache
+            // const weight preparation/reordering needs to be done once at next execution
+            // when the input weight data is guaranteed to be ready (considering possible const-folding
+            // subgraphs inserted between constant weight node and conv)
             auto it = primArgs.find(DNNL_ARG_WEIGHTS);
             if (it == primArgs.end() || it->second.get_desc() != execPtr->getWeightDesc()) {
                 pendingConstWeightReorder = true;
