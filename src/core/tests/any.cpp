@@ -282,6 +282,40 @@ TEST_F(AnyTests, AnyAsMapOfMapOfMapOfAnysFromString) {
     ASSERT_EQ("value", subprop_map["prop"].as<std::string>());
 }
 
+TEST_F(AnyTests, AnyDoesNotShareValues) {
+    // simple types
+    {
+        Any a = 1;
+        Any b = a;
+        a = 2;
+        ASSERT_EQ(1, b.as<int>());
+        ASSERT_EQ(2, a.as<int>());
+        b = 3;
+        ASSERT_EQ(2, a.as<int>());
+        ASSERT_EQ(3, b.as<int>());
+    }
+
+    // AnyMap's
+    {
+        AnyMap map {
+            { "1", ov::Any(1) },
+            { "2", ov::Any(2) },
+        };
+
+        Any a = map;
+
+        // check initial state
+        ASSERT_EQ(1, a.as<AnyMap>()["1"].as<int>());
+        ASSERT_EQ(2, a.as<AnyMap>()["2"].as<int>());
+
+        map["1"] = 3; // change map
+        ASSERT_EQ(1, a.as<AnyMap>()["1"].as<int>()); // Any is not changed
+
+        a.as<AnyMap>()["2"] = 4; // change Any
+        ASSERT_EQ(2, map["2"].as<int>()); // map is not changed
+    }
+}
+
 TEST_F(AnyTests, AnyNotEmpty) {
     Any p = 4;
     ASSERT_FALSE(p.empty());

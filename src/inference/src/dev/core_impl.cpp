@@ -62,15 +62,6 @@ bool is_virtual_device(const std::string& device_name) {
             device_name.find("HETERO") != std::string::npos || device_name.find("BATCH") != std::string::npos);
 };
 
-ov::AnyMap clone_map(const ov::AnyMap& m) {
-    ov::AnyMap rm;
-    for (auto&& kvp : m) {
-        rm[kvp.first] = kvp.second.is<ov::AnyMap>() ? ov::Any(clone_map(kvp.second.as<ov::AnyMap>())) : kvp.second;
-    }
-
-    return rm;
-}
-
 /**
  * @brief Converts / flattens ov::device::properties from
  * @code
@@ -91,7 +82,7 @@ ov::AnyMap clone_map(const ov::AnyMap& m) {
  * @return ov::AnyMap Flattened ov::AnyMap with properties
  */
 ov::AnyMap flatten_sub_properties(const std::string& user_device_name, const ov::AnyMap& user_properties) {
-    ov::AnyMap result_properties = clone_map(user_properties);
+    ov::AnyMap result_properties = user_properties;
 
     // puts sub-property to result_properties if it's not there yet
     auto update_result_properties = [&result_properties](const ov::AnyMap& sub_properties) -> void {
