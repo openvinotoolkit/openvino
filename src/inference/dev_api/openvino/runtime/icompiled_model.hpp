@@ -126,11 +126,6 @@ private:
     friend ov::IExecutableNetworkWrapper;
     friend InferenceEngine::ICompiledModelWrapper;
 
-    /**
-     * @brief function allows to mark that model was loaded from cache
-     */
-    void loaded_from_cache();
-
     // FIXME: Remove after removing IE API
     std::vector<std::shared_ptr<const ov::Node>> _parameters;
     std::vector<std::shared_ptr<const ov::Node>> _results;
