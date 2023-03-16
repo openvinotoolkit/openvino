@@ -165,9 +165,10 @@ private:
     std::shared_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16_;
     // below members are to keep original vector values
     // data_idx is active vec to store.
-    // For instructions that change src vec value, use aux_vec(aux_src_idx) as dest vec to keep src vec intact,
-    // then proceed with vec(data_idx) for continued procedure. Guarantee vec(original_data_idx) is not needed any more.
-    mutable int original_data_idx = 0;
+    // For instructions that change src vec value, use aux_vec(aux_src_idx) as dst vec to keep src vec intact,
+    // then proceed with new vec(data_idx) for continued procedure. Guarantee original vec is not needed any more.
+    // once updated, set data_reg_updated to true, and no more update needed.
+    mutable bool data_reg_updated = false;
     mutable int data_idx = 0;
     mutable int aux_src_idx = 0;
 };

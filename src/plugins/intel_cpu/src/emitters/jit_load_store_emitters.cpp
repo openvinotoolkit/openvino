@@ -15,6 +15,19 @@ using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 using namespace Xbyak::util;
 
+#define STORE_KEEP_SOURCE(is_updated, instruction, data_reg, data_reg_new, ...) \
+    if (is_updated) { \
+        h->instruction(data_reg, __VA_ARGS__); \
+    } else { \
+        h->instruction(data_reg_new, __VA_ARGS__); \
+        data_idx = aux_src_idx; \
+        xmm = Xbyak::Xmm(data_idx); \
+        ymm = Xbyak::Ymm(data_idx); \
+        zmm = Xbyak::Zmm(data_idx); \
+        vmm = Vmm(data_idx); \
+        data_reg_updated = true; \
+    }
+
 namespace ov {
 namespace intel_cpu {
 
@@ -640,25 +653,27 @@ void jit_store_emitter::emit_isa(const int in_vec_idx, const Xbyak::Reg64 &reg_d
     }
     using Vmm = typename conditional3<isa == cpu::x64::sse41, Xmm, isa == cpu::x64::avx2, Ymm, Zmm>::type;
 
-    original_data_idx = in_vec_idx;
     data_idx = in_vec_idx;
+    data_reg_updated = false;
     aux_src_idx = aux_vec_idxs.back(); // for avoid src pollution
     if (src_prc_ != dst_prc_) {
         switch (src_prc_) {
             case Precision::FP32:
                 if ((dst_prc_ != Precision::FP32) && (dst_prc_ != Precision::BF16)) {
                     if (is_saturation()) {
-                        h->uni_vcvtps2dq(Vmm(aux_src_idx), Vmm(original_data_idx));
+                        h->uni_vcvtps2dq(Vmm(aux_src_idx), Vmm(data_idx));
                     } else {
-                        h->uni_vcvttps2dq(Vmm(aux_src_idx), Vmm(original_data_idx));
+                        h->uni_vcvttps2dq(Vmm(aux_src_idx), Vmm(data_idx));
                     }
                     data_idx = aux_src_idx;
+                    data_reg_updated = true;
                 }
                 break;
             case Precision::I32:
                 if ((dst_prc_ == Precision::FP32) || (dst_prc_ == Precision::BF16)) {
-                    h->uni_vcvtdq2ps(Vmm(aux_src_idx), Vmm(original_data_idx));
+                    h->uni_vcvtdq2ps(Vmm(aux_src_idx), Vmm(data_idx));
                     data_idx = aux_src_idx;
+                    data_reg_updated = true;
                 }
                 break;
             default:
@@ -732,14 +747,6 @@ void jit_store_emitter::store_bytes(const Xbyak::Reg64 &reg, int offset, int sto
     auto zmm = Xbyak::Zmm(data_idx);
     auto vmm = Vmm(data_idx);
 
-    auto update_data_idx = [&] () {
-        data_idx = aux_src_idx;
-        xmm = Xbyak::Xmm(data_idx);
-        ymm = Xbyak::Ymm(data_idx);
-        zmm = Xbyak::Zmm(data_idx);
-        vmm = Vmm(data_idx);
-    };
-
     const auto addr = [&](int bytes_offset) {
         return ptr[reg + offset + bytes_offset * sizeof(int8_t)];
     };
@@ -753,12 +760,7 @@ void jit_store_emitter::store_bytes(const Xbyak::Reg64 &reg, int offset, int sto
             start_bytes += 32;
             bytes_to_store -= 32;
             // load upper bits from zmm into ymm
-            if (data_idx == original_data_idx) {
-                h->vextractf64x4(Ymm(aux_src_idx), zmm, 1);
-                update_data_idx();
-            } else {
-                h->vextractf64x4(ymm, zmm, 1);
-            }
+            STORE_KEEP_SOURCE(data_reg_updated, vextractf64x4, ymm, Ymm(aux_src_idx), zmm, 1);
         }
 
         if (bytes_to_store > 16) {
@@ -766,12 +768,7 @@ void jit_store_emitter::store_bytes(const Xbyak::Reg64 &reg, int offset, int sto
             start_bytes += 16;
             bytes_to_store -= 16;
             // load upper bits from ymm into xmm
-            if (data_idx == original_data_idx) {
-                h->vextractf128(Xmm(aux_src_idx), ymm, 1);
-                update_data_idx();
-            } else {
-                h->vextractf128(xmm, ymm, 1);
-            }
+            STORE_KEEP_SOURCE(data_reg_updated, vextractf128, xmm, Xmm(aux_src_idx), ymm, 1);
         }
 
         if (bytes_to_store >= 8 && bytes_to_store < 16)
@@ -898,14 +895,6 @@ void jit_store_emitter::store_dword_to_byte_extension(const Xbyak::Reg64 &reg, i
     auto ymm = Xbyak::Ymm(data_idx);
     auto xmm = Xbyak::Xmm(data_idx);
 
-    auto update_data_idx = [&] () {
-        data_idx = aux_src_idx;
-        xmm = Xbyak::Xmm(data_idx);
-        ymm = Xbyak::Ymm(data_idx);
-        zmm = Xbyak::Zmm(data_idx);
-        vmm = Vmm(data_idx);
-    };
-
     const auto addr = [&](int bytes_offset) {
         return ptr[reg + offset + bytes_offset * sizeof(int8_t)];
     };
@@ -914,104 +903,44 @@ void jit_store_emitter::store_dword_to_byte_extension(const Xbyak::Reg64 &reg, i
         if (is_zmm) {
             if (is_saturation()) {
                 if (is_signed) {
-                    if (data_idx == original_data_idx) {
-                        h->vpmovsdb(Xmm(aux_src_idx), vmm);
-                        update_data_idx();
-                    } else {
-                        h->vpmovsdb(xmm, vmm);
-                    }
+                    STORE_KEEP_SOURCE(data_reg_updated, vpmovsdb, xmm, Xmm(aux_src_idx), vmm);
                 } else {
                     Vmm zero(aux_vec_idxs[0]);
                     h->uni_vpxor(zero, zero, zero);
-                    if (data_idx == original_data_idx) {
-                        h->uni_vpmaxsd(Vmm(aux_src_idx), vmm, zero);
-                        update_data_idx();
-                    } else {
-                        h->uni_vpmaxsd(vmm, vmm, zero);
-                    }
+                    STORE_KEEP_SOURCE(data_reg_updated, uni_vpmaxsd, vmm, Vmm(aux_src_idx), vmm, zero);
                     h->vpmovusdb(xmm, vmm);
                 }
             } else {
-                if (data_idx == original_data_idx) {
-                    h->vpmovdb(Xmm(aux_src_idx), vmm);
-                    update_data_idx();
-                } else {
-                    h->vpmovdb(xmm, vmm);
-                }
+                STORE_KEEP_SOURCE(data_reg_updated, vpmovdb, xmm, Xmm(aux_src_idx), vmm);
             }
         } else {
             if (is_saturation()) {
                 // db only available on avx512, need dw+wb to emulate
                 if (is_signed) {
-                    if (data_idx == original_data_idx) {
-                        h->uni_vpackssdw(Vmm(aux_src_idx), vmm, vmm);
-                        update_data_idx();
-                    } else {
-                        h->uni_vpackssdw(vmm, vmm, vmm);
-                    }
+                    STORE_KEEP_SOURCE(data_reg_updated, uni_vpackssdw, vmm, Vmm(aux_src_idx), vmm, vmm);
                 } else {
-                    if (data_idx == original_data_idx) {
-                        h->uni_vpackusdw(Vmm(aux_src_idx), vmm, vmm);
-                        update_data_idx();
-                    } else {
-                        h->uni_vpackusdw(vmm, vmm, vmm);
-                    }
+                    STORE_KEEP_SOURCE(data_reg_updated, uni_vpackusdw, vmm, Vmm(aux_src_idx), vmm, vmm);
                 }
                 // gather 2(cross lane) 64 bits into lower vmm to store when store_num > 4.
                 // [y_3 y_2 y_1 y_0] |--> [y_0 y_0 y_2 y_0]
                 if (is_ymm && (store_num > 4)) {
-                    if (data_idx == original_data_idx) {
-                        h->vpermq(Ymm(aux_src_idx), ymm, 0x08);  // 00001000
-                        update_data_idx();
-                    } else {
-                        h->vpermq(ymm, ymm, 0x08);  // 00001000
-                    }
+                    // 0x08:00001000
+                    STORE_KEEP_SOURCE(data_reg_updated, vpermq, ymm, Ymm(aux_src_idx), ymm, 0x08);
                 }
 
                 if (is_signed) {
-                    if (data_idx == original_data_idx) {
-                        h->uni_vpacksswb(Vmm(aux_src_idx), vmm, vmm);
-                        update_data_idx();
-                    } else {
-                        h->uni_vpacksswb(vmm, vmm, vmm);
-                    }
+                    STORE_KEEP_SOURCE(data_reg_updated, uni_vpacksswb, vmm, Vmm(aux_src_idx), vmm, vmm);
                 } else {
-                    if (data_idx == original_data_idx) {
-                        h->uni_vpackuswb(Vmm(aux_src_idx), vmm, vmm);
-                        update_data_idx();
-                    } else {
-                        h->uni_vpackuswb(vmm, vmm, vmm);
-                    }
+                    STORE_KEEP_SOURCE(data_reg_updated, uni_vpackuswb, vmm, Vmm(aux_src_idx), vmm, vmm);
                 }
             } else {
                 // to avoid saturation
-                if (data_idx == original_data_idx) {
-                    h->vpand(Vmm(aux_src_idx), vmm, table_val("mask_truncation_byte"));
-                    update_data_idx();
-                } else {
-                    h->vpand(vmm, vmm, table_val("mask_truncation_byte"));
-                }
-
-                if (data_idx == original_data_idx) {
-                    h->uni_vpackssdw(Vmm(aux_src_idx), vmm, vmm);
-                    update_data_idx();
-                } else {
-                    h->uni_vpackssdw(vmm, vmm, vmm);
-                }
+                STORE_KEEP_SOURCE(data_reg_updated, vpand, vmm, Vmm(aux_src_idx), vmm, table_val("mask_truncation_byte"));
+                STORE_KEEP_SOURCE(data_reg_updated, uni_vpackssdw, vmm, Vmm(aux_src_idx), vmm, vmm);
                 if (is_ymm) {
-                    if (data_idx == original_data_idx) {
-                        h->vpermq(Ymm(aux_src_idx), ymm, 0x08);
-                        update_data_idx();
-                    } else {
-                        h->vpermq(ymm, ymm, 0x08);
-                    }
+                    STORE_KEEP_SOURCE(data_reg_updated, vpermq, ymm, Ymm(aux_src_idx), ymm, 0x08);
                 }
-                if (data_idx == original_data_idx) {
-                    h->uni_vpackuswb(Vmm(aux_src_idx), vmm, vmm);
-                    update_data_idx();
-                } else {
-                    h->uni_vpackuswb(vmm, vmm, vmm);
-                }
+                STORE_KEEP_SOURCE(data_reg_updated, uni_vpackuswb, vmm, Vmm(aux_src_idx), vmm, vmm);
             }
         }
 
@@ -1027,12 +956,7 @@ void jit_store_emitter::store_dword_to_byte_extension(const Xbyak::Reg64 &reg, i
             } else {
                 Vmm zero(aux_vec_idxs[0]);
                 h->uni_vpxor(zero, zero, zero);
-                if (data_idx == original_data_idx) {
-                    h->uni_vpmaxsd(Vmm(aux_src_idx), vmm, zero);
-                    update_data_idx();
-                } else {
-                    h->uni_vpmaxsd(vmm, vmm, zero);
-                }
+                STORE_KEEP_SOURCE(data_reg_updated, uni_vpmaxsd, vmm, Vmm(aux_src_idx), vmm, zero);
                 h->vpmovusdb(addr(0), vmm);
             }
         } else {
@@ -1047,12 +971,7 @@ void jit_store_emitter::store_dword_to_byte_extension(const Xbyak::Reg64 &reg, i
                 } else {
                     Vmm zero(aux_vec_idxs[0]);
                     h->uni_vpxor(zero, zero, zero);
-                    if (data_idx == original_data_idx) {
-                        h->uni_vpmaxsd(Ymm(aux_src_idx), ymm, zero);
-                        update_data_idx();
-                    } else {
-                        h->uni_vpmaxsd(ymm, ymm, zero);
-                    }
+                    STORE_KEEP_SOURCE(data_reg_updated, uni_vpmaxsd, ymm, Ymm(aux_src_idx), ymm, zero);
                     h->vpmovusdb(addr(0), ymm);
                 }
             } else {
@@ -1070,12 +989,7 @@ void jit_store_emitter::store_dword_to_byte_extension(const Xbyak::Reg64 &reg, i
                 } else {
                     Vmm zero(aux_vec_idxs[0]);
                     h->uni_vpxor(zero, zero, zero);
-                    if (data_idx == original_data_idx) {
-                        h->uni_vpmaxsd(Xmm(aux_src_idx), xmm, zero);
-                        update_data_idx();
-                    } else {
-                        h->uni_vpmaxsd(xmm, xmm, zero);
-                    }
+                    STORE_KEEP_SOURCE(data_reg_updated, uni_vpmaxsd, xmm, Xmm(aux_src_idx), xmm, zero);
                     h->vpmovusdb(addr(0), xmm);
                 }
             } else {
@@ -1097,12 +1011,7 @@ void jit_store_emitter::store_dword_to_byte_extension(const Xbyak::Reg64 &reg, i
                 } else {
                     Vmm zero(aux_vec_idxs[0]);
                     h->uni_vpxor(zero, zero, zero);
-                    if (data_idx == original_data_idx) {
-                        h->uni_vpmaxsd(Vmm(aux_src_idx), vmm, zero);
-                        update_data_idx();
-                    } else {
-                        h->uni_vpmaxsd(vmm, vmm, zero);
-                    }
+                    STORE_KEEP_SOURCE(data_reg_updated, uni_vpmaxsd, vmm, Vmm(aux_src_idx), vmm, zero);
                     h->vpmovusdb(addr(0), vmm | k_mask);
                 }
             } else {
@@ -1146,93 +1055,41 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64 &reg,
     auto zmm = Xbyak::Zmm(data_idx);
     auto vmm = Vmm(data_idx);
 
-    auto update_data_idx = [&] () {
-        data_idx = aux_src_idx;
-        xmm = Xbyak::Xmm(data_idx);
-        ymm = Xbyak::Ymm(data_idx);
-        zmm = Xbyak::Zmm(data_idx);
-        vmm = Vmm(data_idx);
-    };
-
     auto store_dword_to_word_base = [&]() {
         if (is_zmm) {
             if (is_saturation()) {
                 if (is_signed) {
                     // singed int32 saturate to signed int16.
-                    if (data_idx == original_data_idx) {
-                        h->vpmovsdw(Ymm(aux_src_idx), vmm);
-                        update_data_idx();
-                    } else {
-                        h->vpmovsdw(ymm, vmm);
-                    }
+                    STORE_KEEP_SOURCE(data_reg_updated, vpmovsdw, ymm, Ymm(aux_src_idx), vmm);
                 } else {
                     // unsinged int32 saturate to unsigned int16.
                     Vmm zero(aux_vec_idxs[0]);
                     h->uni_vpxor(zero, zero, zero);
-                    if (data_idx == original_data_idx) {
-                        h->uni_vpmaxsd(Vmm(aux_src_idx), vmm, zero);
-                        update_data_idx();
-                    } else {
-                        h->uni_vpmaxsd(vmm, vmm, zero);
-                    }
-                    if (data_idx == original_data_idx) {
-                        h->vpmovusdw(Ymm(aux_src_idx), vmm);
-                        update_data_idx();
-                    } else {
-                        h->vpmovusdw(ymm, vmm);
-                    }
+                    STORE_KEEP_SOURCE(data_reg_updated, uni_vpmaxsd, vmm, Vmm(aux_src_idx), vmm, zero);
+                    STORE_KEEP_SOURCE(data_reg_updated, vpmovusdw, ymm, Ymm(aux_src_idx), vmm);
                 }
             } else {
                 // by literally copy low 16 bit
-                if (data_idx == original_data_idx) {
-                    h->vpmovdw(Ymm(aux_src_idx), vmm);
-                    update_data_idx();
-                } else {
-                    h->vpmovdw(ymm, vmm);
-                }
+                STORE_KEEP_SOURCE(data_reg_updated, vpmovdw, ymm, Ymm(aux_src_idx), vmm);
             }
         } else {
             // direct mov_dw available only on avx512
             if (is_saturation()) {  // emulate with pack_dw + permute + pure store for saturation mode
                 if (is_signed) {
-                    if (data_idx == original_data_idx) {
-                        h->uni_vpackssdw(Vmm(aux_src_idx), vmm, vmm);
-                        update_data_idx();
-                    } else {
-                        h->uni_vpackssdw(vmm, vmm, vmm);
-                    }
+                    STORE_KEEP_SOURCE(data_reg_updated, uni_vpackssdw, vmm, Vmm(aux_src_idx), vmm, vmm);
                 } else {
-                    if (data_idx == original_data_idx) {
-                        h->uni_vpackusdw(Vmm(aux_src_idx), vmm, vmm);
-                        update_data_idx();
-                    } else {
-                        h->uni_vpackusdw(vmm, vmm, vmm);
-                    }
+                    STORE_KEEP_SOURCE(data_reg_updated, uni_vpackusdw, vmm, Vmm(aux_src_idx), vmm, vmm);
                 }
                 // gather 2/4(cross lane) 64 bits into lower vmm to store when store_num > 4
                 // [y_3 y_2 y_1 y_0] |--> [y_0 y_0 y_2 y_0]
                 // [  128  |  128  ] |--> [ 128   |  128  ]
                 if (is_ymm && (store_num > 4)) {
-                    if (data_idx == original_data_idx) {
-                        h->vpermq(Ymm(aux_src_idx), ymm, 0x08);  // 00001000
-                        update_data_idx();
-                    } else {
-                        h->vpermq(ymm, ymm, 0x08);  // 00001000
-                    }
+                    // 0x08:00001000
+                    STORE_KEEP_SOURCE(data_reg_updated, vpermq, ymm, Ymm(aux_src_idx), ymm, 0x08);
                 }
             } else {  // emulate with AND + pure store for truncation mode
-                if (data_idx == original_data_idx) {
-                    h->vpand(Vmm(aux_src_idx), vmm, table_val("mask_truncation_word"));
-                    update_data_idx();
-                } else {
-                    h->vpand(vmm, vmm, table_val("mask_truncation_word"));
-                }
-                if (data_idx == original_data_idx) {
-                    h->uni_vpackusdw(Vmm(aux_src_idx), vmm, vmm);
-                    update_data_idx();
-                } else {
-                    h->uni_vpackusdw(vmm, vmm, vmm);
-                }
+                STORE_KEEP_SOURCE(data_reg_updated, vpand, vmm, Vmm(aux_src_idx), vmm, table_val("mask_truncation_word"));
+                STORE_KEEP_SOURCE(data_reg_updated, uni_vpackusdw, vmm, Vmm(aux_src_idx), vmm, vmm);
             }
         }
 
@@ -1281,12 +1138,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64 &reg,
                 } else {
                     Vmm zero(aux_vec_idxs[0]);
                     h->uni_vpxor(zero, zero, zero);
-                    if (data_idx == original_data_idx) {
-                        h->uni_vpmaxsd(Vmm(aux_src_idx), vmm, zero);
-                        update_data_idx();
-                    } else {
-                        h->uni_vpmaxsd(vmm, vmm, zero);
-                    }
+                    STORE_KEEP_SOURCE(data_reg_updated, uni_vpmaxsd, vmm, Vmm(aux_src_idx), vmm, zero);
                     h->vpmovusdw(ptr[reg + offset], vmm); // unsinged int32 saturate to unsigned int16.
                 }
             } else {
@@ -1301,12 +1153,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64 &reg,
                     } else {
                         Vmm zero(aux_vec_idxs[0]);
                         h->uni_vpxor(zero, zero, zero);
-                        if (data_idx == original_data_idx) {
-                            h->uni_vpmaxsd(Ymm(aux_src_idx), ymm, zero);
-                            update_data_idx();
-                        } else {
-                            h->uni_vpmaxsd(ymm, ymm, zero);
-                        }
+                        STORE_KEEP_SOURCE(data_reg_updated, uni_vpmaxsd, ymm, Ymm(aux_src_idx), ymm, zero);
                         h->vpmovusdw(ptr[reg + offset], ymm);
                     }
                 } else {
@@ -1324,12 +1171,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64 &reg,
                     } else {
                         Vmm zero(aux_vec_idxs[0]);
                         h->uni_vpxor(zero, zero, zero);
-                        if (data_idx == original_data_idx) {
-                            h->uni_vpmaxsd(Xmm(aux_src_idx), xmm, zero);
-                            update_data_idx();
-                        } else {
-                            h->uni_vpmaxsd(xmm, xmm, zero);
-                        }
+                        STORE_KEEP_SOURCE(data_reg_updated, uni_vpmaxsd, xmm, Xmm(aux_src_idx), xmm, zero);
                         h->vpmovusdw(ptr[reg + offset], xmm);
                     }
                 } else {
@@ -1351,12 +1193,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64 &reg,
                     } else {
                         Vmm zero(aux_vec_idxs[0]);
                         h->uni_vpxor(zero, zero, zero);
-                        if (data_idx == original_data_idx) {
-                            h->uni_vpmaxsd(Vmm(aux_src_idx), vmm, zero);
-                            update_data_idx();
-                        } else {
-                            h->uni_vpmaxsd(vmm, vmm, zero);
-                        }
+                        STORE_KEEP_SOURCE(data_reg_updated, uni_vpmaxsd, vmm, Vmm(aux_src_idx), vmm, zero);
                         h->vpmovusdw(ptr[reg + offset], vmm | k_mask);
                     }
                 } else {
