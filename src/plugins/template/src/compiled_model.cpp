@@ -104,6 +104,7 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
     const auto& default_ro_properties = []() {
         std::vector<ov::PropertyName> ro_properties{ov::model_name,
                                                     ov::supported_properties,
+                                                    ov::execution_devices,
                                                     ov::loaded_from_cache,
                                                     ov::optimal_number_of_infer_requests};
         return ro_properties;
@@ -141,6 +142,8 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
         return decltype(ov::model_name)::value_type(model_name);
     } else if (ov::loaded_from_cache == name) {
         return m_loaded_from_cache;
+    } else if (ov::execution_devices == name) {
+        return decltype(ov::execution_devices)::value_type{get_plugin()->get_device_name()};
     } else if (ov::optimal_number_of_infer_requests == name) {
         unsigned int value = m_cfg.streams_executor_config._streams;
         return decltype(ov::optimal_number_of_infer_requests)::value_type(value);
@@ -161,7 +164,7 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
 
 // ! [compiled_model:export_model]
 void ov::template_plugin::CompiledModel::export_model(std::ostream& model_stream) const {
-    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "ExecutableNetwork::Export");
+    OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "CompiledModel::export_model");
 
     std::stringstream xmlFile, binFile;
     ov::pass::Serialize serializer(xmlFile, binFile);

@@ -1,13 +1,13 @@
 # Compiled Model {#openvino_docs_ov_plugin_dg_compiled_model}
 
-`CompiledModel` class functionality:
+ov::CompiledModel class functionality:
 - Compile an ov::Model instance to a backend specific graph representation
-- Create an arbitrary number of `InferRequest` objects
-- Hold some common resources shared between different instances of `InferRequest`. For example:
+- Create an arbitrary number of ov::InferRequest objects
+- Hold some common resources shared between different instances of ov::InferRequest. For example:
 	- ov::ICompiledModel::m_task_executor task executor to implement asynchronous execution
 	- ov::ICompiledModel::m_callback_executor task executor to run an asynchronous inference request callback in a separate thread
 
-`CompiledModel` Class
+CompiledModel Class
 ------------------------
 
 OpenVINO Plugin API provides the interface ov::ICompiledModel which should be used as a base class for a compiled model. Based on that, a declaration of an compiled model class can look as follows: 
@@ -21,6 +21,7 @@ The example class has several fields:
 - `m_request_id` - Tracks a number of created inference requests, which is used to distinguish different inference requests during profiling via the Intel® Instrumentation and Tracing Technology (ITT) library.
 - `m_cfg` - Defines a configuration a compiled model was compiled with.
 - `m_model` - Keeps a reference to transformed `ov::Model` which is used in OpenVINO reference backend computations. Note, in case of other backends with backend specific graph representation `m_model` has different type and represents backend specific graph or just a set of computational kernels to perform an inference.
+- `m_loaded_from_cache` - Allows to understand that model was loaded from cache.
 
 ### CompiledModel Constructor
 

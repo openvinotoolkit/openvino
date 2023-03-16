@@ -16,11 +16,11 @@ namespace template_plugin {
 class Plugin;
 class InferRequest;
 
-// ! [compiled_model:header]
 /**
  * @class CompiledModel
  * @brief Implementation of compiled model
  */
+// ! [compiled_model:header]
 class CompiledModel : public ov::ICompiledModel {
 public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
