@@ -2,25 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/transpose_sinking_slice.hpp"
+#include "transformations/transpose_sinking/ts_slice.hpp"
 
-#include <openvino/pass/pattern/op/or.hpp>
+#include "openvino/pass/pattern/op/or.hpp"
 
 #include "itt.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
-#include "transformations/common_optimizations/transpose_sinking_utils.hpp"
+#include "transformations/transpose_sinking/ts_utils.hpp"
 #include "transformations/rt_info/transpose_sinking_attr.hpp"
 
 using namespace ov;
 using namespace ov::opset10;
 using namespace ov::pass::pattern;
-using namespace transpose_sinking;
+using namespace ov::pass::transpose_sinking;
+using namespace ov::pass::transpose_sinking::utils;
 
-ov::pass::TransposeSinkingSliceForward::TransposeSinkingSliceForward() {
-    MATCHER_SCOPE(TransposeSinkingSliceForward);
+TSSliceForward::TSSliceForward() {
+    MATCHER_SCOPE(TSSliceForward);
     auto const_label = wrap_type<Constant>();
     auto transpose_label = wrap_type<Transpose>({any_input(), const_label});
     auto main_node_label = wrap_type<Slice>({transpose_label, any_input(), any_input(), any_input(), any_input()});
@@ -56,7 +57,7 @@ ov::pass::TransposeSinkingSliceForward::TransposeSinkingSliceForward() {
         TransposeInputsInfo transpose_input_info = {transpose, transpose_const, 0};
         for (auto& new_node : sink_forward::InsertOutputTransposes(main_node, transpose_input_info)) {
             register_new_node(new_node);
-            transpose_sinking::UpdateForwardSinkingAbility(new_node);
+            UpdateForwardSinkingAbility(new_node);
         }
         return true;
     };
@@ -65,8 +66,8 @@ ov::pass::TransposeSinkingSliceForward::TransposeSinkingSliceForward() {
     register_matcher(m, matcher_pass_callback);
 }
 
-ov::pass::TransposeSinkingSliceBackward::TransposeSinkingSliceBackward() {
-    MATCHER_SCOPE(TransposeSinkingSliceBackward);
+TSSliceBackward::TSSliceBackward() {
+    MATCHER_SCOPE(TSSliceBackward);
 
     auto main_node_label = wrap_type<Slice>([](const Output<Node>& output) -> bool {
         return has_static_rank()(output) && HasSameOutputTransposeNodes(output);
