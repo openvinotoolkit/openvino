@@ -83,9 +83,9 @@ static void CreateLSTMCellOp(Program& p, const std::shared_ptr<ngraph::op::v4::L
             op->get_input_shape(2).size() != 2)
             IE_THROW() << "Wrong input shapes for LSTMCell op " << op->get_friendly_name();
 
-        lstm_input_size = in_dims0.back();
-        lstm_batch_size = in_dims0.at(in_dims0.size()-2);
-        lstm_hidden_size = out_dims0.back();
+        lstm_input_size = static_cast<int>(in_dims0.back());
+        lstm_batch_size = static_cast<int>(in_dims0.at(in_dims0.size()-2));
+        lstm_hidden_size = static_cast<int>(out_dims0.back());
     }
 
     std::vector<cldnn::activation_func> activations;
@@ -179,10 +179,10 @@ static void CreateLSTMSequenceOp(Program& p, const std::shared_ptr<ngraph::op::v
             op->get_input_shape(2).size() != 3)
             IE_THROW() << "Wrong input shapes for LSTMSequence op " << op->get_friendly_name();
 
-        lstm_input_size = in_dims0.back();
-        lstm_sequence_len = in_dims0.at(in_dims0.size() - 2);
-        lstm_batch_size = in_dims0.at(in_dims0.size() - 3);
-        lstm_hidden_size = out_dims0.back();
+        lstm_input_size = static_cast<int>(in_dims0.back());
+        lstm_sequence_len = static_cast<int>(in_dims0.at(in_dims0.size() - 2));
+        lstm_batch_size = static_cast<int>(in_dims0.at(in_dims0.size() - 3));
+        lstm_hidden_size = static_cast<int>(out_dims0.back());
     }
 
     std::vector<cldnn::activation_func> activations;

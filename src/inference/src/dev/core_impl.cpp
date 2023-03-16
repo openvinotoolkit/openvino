@@ -13,6 +13,8 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "dev/converter_utils.hpp"
+#include "dev/icompiled_model_wrapper.hpp"
+#include "dev/make_tensor.hpp"
 #include "file_utils.h"
 #include "ie_itt.hpp"
 #include "ie_network_reader.hpp"
@@ -27,6 +29,7 @@
 #include "openvino/core/version.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/util/common_util.hpp"
@@ -74,7 +77,7 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
 
     pugi::xml_document& xmlDoc = *parse_result.xml;
 
-    using namespace XMLParseUtils;
+    using namespace pugixml::utils;
     pugi::xml_node ieNode = xmlDoc.document_element();
     pugi::xml_node devicesNode = ieNode.child("plugins");
 
@@ -407,6 +410,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& model,
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::import_model");
     auto parsed = parseDeviceNameIntoConfig(device_name, config);
     auto compiled_model = get_plugin(parsed._deviceName).import_model(model, config);
+    if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
+        wrapper->get_executable_network()->loadedFromCache();
+    }
 
     return compiled_model;
 }
@@ -639,9 +645,7 @@ ov::Any ov::CoreImpl::get_property_for_core(const std::string& name) const {
         return decltype(ov::hint::allow_auto_batching)::value_type(flag);
     }
 
-    OPENVINO_UNREACHABLE("Exception is thrown while trying to call get_property with unsupported property: '",
-                         name,
-                         "'");
+    OPENVINO_THROW("Exception is thrown while trying to call get_property with unsupported property: '", name, "'");
 }
 
 ov::Any ov::CoreImpl::get_property(const std::string& device_name,
@@ -920,7 +924,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
 
             compiled_model = context._impl ? plugin.import_model(networkStream, context, config)
                                            : plugin.import_model(networkStream, config);
-            compiled_model->loaded_from_cache();
+            if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
+                wrapper->get_executable_network()->loadedFromCache();
+            }
         });
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work
@@ -1080,7 +1086,7 @@ std::mutex& ov::CoreImpl::get_mutex(const std::string& dev_name) const {
     try {
         return dev_mutexes.at(dev_name);
     } catch (const std::out_of_range&) {
-        OPENVINO_UNREACHABLE("Cannot get mutex for device: ", dev_name);
+        OPENVINO_THROW("Cannot get mutex for device: ", dev_name);
     }
 }
 
@@ -1099,7 +1105,7 @@ std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::string& model,
                                                     bool frontendMode) const {
     InferenceEngine::Blob::Ptr blob;
     if (weights) {
-        blob = weights._impl;
+        blob = tensor_to_blob(weights._impl);
     }
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::IE_RT, "CoreImpl::read_model from memory");
     return ReadNetwork(model, blob, frontendMode).getFunction();
