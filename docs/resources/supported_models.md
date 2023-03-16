@@ -24,42 +24,28 @@ before every release. These models are considered officially supported.
 
 The following table summarizes the number of models supported by OpenVINO™ in different categories:
 
-+--------------------------------------------+-------------------+
-| Model Categories:                          | Number of Models: |
-+============================================+===================+
-| Object Detection                           | 149               |
-+--------------------------------------------+-------------------+
-| Instance Segmentation                      | 3                 |
-+--------------------------------------------+-------------------+
-| Semantic Segmentation                      | 19                |
-+--------------------------------------------+-------------------+
-| Image Processing, Enhancement              | 16                |
-+--------------------------------------------+-------------------+
-| Monodepth                                  | 2                 |
-+--------------------------------------------+-------------------+
-| Colorization                               | 2                 |
-+--------------------------------------------+-------------------+
-| Behavior / Decision Prediction             | 1                 |
-+--------------------------------------------+-------------------+
-| Action Recognition                         | 2                 |
-+--------------------------------------------+-------------------+
-| Time Series Forecasting                    | 1                 |
-+--------------------------------------------+-------------------+
-| Image Classification                       | 68                |
-+--------------------------------------------+-------------------+
-| Image Classification, Dual Path Network    | 1                 |
-+--------------------------------------------+-------------------+
-| Image Classification, Emotion              | 1                 |
-+--------------------------------------------+-------------------+
-| Image Translation                          | 1                 |
-+--------------------------------------------+-------------------+
-| Natural language Processing                | 35                |
-+--------------------------------------------+-------------------+
-| Text Detection                             | 18                |
-+--------------------------------------------+-------------------+
-| Audio Enhancement                          | 3                 |
-+--------------------------------------------+-------------------+
-| Sound Classification                       | 2                 |
-+--------------------------------------------+-------------------+
+===========================================  ====================
+ Model Categories:                            Number of Models:  
+===========================================  ====================
+ Object Detection                             149                
+ Instance Segmentation                        3                  
+ Semantic Segmentation                        19                 
+ Image Processing, Enhancement                16                 
+ Monodepth                                    2                  
+ Colorization                                 2                  
+ Behavior / Decision Prediction               1                  
+ Action Recognition                           2                  
+ Time Series Forecasting                      1                  
+ Image Classification                         68                 
+ Image Classification, Dual Path Network      1                  
+ Image Classification, Emotion                1                  
+ Image Translation                            1                  
+ Natural language Processing                  35                 
+ Text Detection                               18                 
+ Audio Enhancement                            3                  
+ Sound Classification                         2                  
+===========================================  ====================
 
 @endsphinxdirective
+
+
