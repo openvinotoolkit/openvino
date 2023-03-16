@@ -67,21 +67,24 @@ void regclass_graph_Any(py::module m) {
     ov_any.def("__eq__", [](const ov::Any& a, py::object& b) -> bool {
         return a == ov::Any(Common::utils::py_object_to_any(b));
     });
-    ov_any.def("astype", [](ov::Any& self, py::object dtype) {
-        if (check_key(dtype, py::bool_())) {
-            return py::cast(self.as<bool>());
-        } else if (check_key(dtype, py::str())) {
-            return py::cast(self.as<std::string>());
-        } else if (check_key(dtype, py::int_())) {
-            return py::cast(self.as<int>());
-        } else if (check_key(dtype, py::float_())) {
-            return py::cast(self.as<double>());
-        } else if (check_key(dtype, py::dict())) {
-            return Common::utils::from_ov_any_map_no_leaves(self);
-        }
-        std::stringstream str;
-        str << "Unsupported data type : '" << dtype << "' is passed as an argument.";
-        OPENVINO_THROW(str.str(),
+    ov_any.def(
+        "astype",
+        [](ov::Any& self, py::object dtype) {
+            if (check_key(dtype, py::bool_())) {
+                return py::cast(self.as<bool>());
+            } else if (check_key(dtype, py::str())) {
+                return py::cast(self.as<std::string>());
+            } else if (check_key(dtype, py::int_())) {
+                return py::cast(self.as<int64_t>());
+            } else if (check_key(dtype, py::float_())) {
+                return py::cast(self.as<double>());
+            } else if (check_key(dtype, py::dict())) {
+                return Common::utils::from_ov_any_map_no_leaves(self);
+            }
+            std::stringstream str;
+            str << "Unsupported data type : '" << dtype << "' is passed as an argument.";
+            OPENVINO_THROW(str.str());
+        },
         R"(
             Returns runtime attribute casted to defined data type.
 
@@ -91,7 +94,6 @@ void regclass_graph_Any(py::module m) {
             :return: A runtime attribute.
             :rtype: Any
     )");
-    });
     ov_any.def(
         "aslist",
         [](ov::Any& self, py::object dtype) {
@@ -99,17 +101,19 @@ void regclass_graph_Any(py::module m) {
             if (self.is<Common::utils::EmptyList>() || dtype.is_none()) {
                 return py::cast(std::vector<int>());
             } else if (self.is<std::vector<double>>()) {
-                auto v = self.as<std::vector<double>>();
-                return py::cast(v);
+                return py::cast(self.as<std::vector<double>>());
             } else if (self.is<std::vector<std::string>>()) {
-                auto v = self.as<std::vector<std::string>>();
-                return py::cast(v);
+                return py::cast(self.as<std::vector<std::string>>());
+            } else if (self.is<std::vector<bool>>()) {
+                return py::cast(self.as<std::vector<bool>>());
+            } else if (self.is<std::vector<int64_t>>()) {
+                return py::cast(self.as<std::vector<int64_t>>());
             }
             // after serialization
             if (check_key(dtype, py::str())) {
                 return py::cast(self.as<std::vector<std::string>>());
             } else if (check_key(dtype, py::int_())) {
-                return py::cast(self.as<std::vector<int>>());
+                return py::cast(self.as<std::vector<int64_t>>());
             } else if (check_key(dtype, py::float_())) {
                 return py::cast(self.as<std::vector<double>>());
             } else if (check_key(dtype, py::bool_())) {
