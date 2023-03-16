@@ -4,35 +4,6 @@
 
 #include "evaluates_map.hpp"
 
-std::vector<float> get_floats(const std::shared_ptr<ngraph::HostTensor>& input, const ngraph::Shape& shape) {
-    size_t input_size = ngraph::shape_size(shape);
-    std::vector<float> result(input_size);
-
-    switch (input->get_element_type()) {
-    case ngraph::element::Type_t::bf16: {
-        ngraph::bfloat16* p = input->get_data_ptr<ngraph::bfloat16>();
-        for (size_t i = 0; i < input_size; ++i) {
-            result[i] = float(p[i]);
-        }
-    } break;
-    case ngraph::element::Type_t::f16: {
-        ngraph::float16* p = input->get_data_ptr<ngraph::float16>();
-        for (size_t i = 0; i < input_size; ++i) {
-            result[i] = float(p[i]);
-        }
-    } break;
-    case ngraph::element::Type_t::f32: {
-        float* p = input->get_data_ptr<float>();
-        memcpy(result.data(), p, input_size * sizeof(float));
-    } break;
-    default:
-        throw std::runtime_error("Unsupported data type.");
-        break;
-    }
-
-    return result;
-}
-
 namespace experimental_roi_feature {
 struct InfoForEDROIFeature {
     ngraph::Shape output_rois_features_shape;

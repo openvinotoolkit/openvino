@@ -94,6 +94,10 @@
 #include "ov_ops/augru_sequence.hpp"
 #include "tensor_conversion_util.hpp"
 
+std::vector<float> get_floats(const std::shared_ptr<ngraph::HostTensor>& input, const ngraph::Shape& shape);
+
+std::vector<int64_t> get_integers(const std::shared_ptr<ngraph::HostTensor>& input, const ngraph::Shape& shape);
+
 namespace ngraph {
 namespace runtime {
 namespace interpreter {

@@ -10,7 +10,7 @@ file(GLOB SRC
     int_backend.cpp 
     int_executable.cpp 
     evaluates_map.cpp
-    "${CMAKE_CURRENT_SOURCE_DIR}/ops/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/ops/*.hpp"
     )
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
