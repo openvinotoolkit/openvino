@@ -12,7 +12,11 @@ namespace ov {
 namespace intel_cpu {
 
 DnnlMemoryDesc::DnnlMemoryDesc(const dnnl::memory::desc& desc) :
-    MemoryDesc(Shape(DnnlExtensionUtils::convertToVectorDims(desc.get_dims())), Dnnl), desc(desc) {
+    DnnlMemoryDesc(desc.get()) {}
+
+DnnlMemoryDesc::DnnlMemoryDesc(const_dnnl_memory_desc_t cdesc) :
+    MemoryDesc(Shape(DnnlExtensionUtils::convertToVectorDims(cdesc->dims, cdesc->ndims)), Dnnl),
+    desc(DnnlExtensionUtils::clone_desc(cdesc)) {
     if (getFormatKind() == dnnl::memory::format_kind::any)
         IE_THROW(Unexpected) << "Memory format any is prohibited!";
 }

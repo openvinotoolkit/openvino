@@ -94,6 +94,10 @@ VectorDims DnnlExtensionUtils::convertToVectorDims(const memory::dims& dims) {
     return vecResult;
 }
 
+VectorDims DnnlExtensionUtils::convertToVectorDims(const dnnl::impl::dims_t dims, const int ndims) {
+    return VectorDims(dims, dims + ndims);
+}
+
 memory::dims DnnlExtensionUtils::convertToDnnlDims(const VectorDims& dims) {
     memory::dims vecResult;
     vecResult.reserve(dims.size());
@@ -123,7 +127,11 @@ memory::format_tag DnnlExtensionUtils::GetPlainFormatByRank(size_t rank) {
 }
 
 DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const dnnl::memory::desc &desc) {
-    if (desc.get_format_kind() == memory::format_kind::blocked) {
+    return makeDescriptor(desc.get());
+}
+
+DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const_dnnl_memory_desc_t desc) {
+    if (desc->format_kind == dnnl::impl::format_kind_t::dnnl_blocked) {
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(desc));
     } else {
         return std::shared_ptr<DnnlMemoryDesc>(new DnnlMemoryDesc(desc));
@@ -159,12 +167,7 @@ DnnlMemoryDescPtr DnnlExtensionUtils::query_md(const const_dnnl_primitive_desc_t
     if (!cdesc)
         IE_THROW() << "query_md failed for query=" << query << " idx=" << idx << ".";
 
-    dnnl_memory_desc_t cloned_md = nullptr;
-    dnnl_memory_desc_clone(&cloned_md, cdesc);
-
-    auto desc = dnnl::memory::desc(cloned_md);
-
-    return DnnlExtensionUtils::makeDescriptor(desc);
+    return DnnlExtensionUtils::makeDescriptor(cdesc);
 }
 
 std::string DnnlExtensionUtils::query_impl_info_str(const const_dnnl_primitive_desc_t& pd) {
@@ -190,6 +193,12 @@ bool DnnlExtensionUtils::hasProperImplementationType(dnnl::primitive_desc& desc,
     }
 
     return false;
+}
+
+dnnl_memory_desc_t DnnlExtensionUtils::clone_desc(const_dnnl_memory_desc_t cdesc) {
+    dnnl_memory_desc_t cloned_md = nullptr;
+    dnnl_memory_desc_clone(&cloned_md, cdesc);
+    return cloned_md;
 }
 
 }   // namespace intel_cpu

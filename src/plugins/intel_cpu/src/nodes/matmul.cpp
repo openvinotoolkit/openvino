@@ -612,10 +612,10 @@ void MatMul::prepareParams() {
     auto engine = getEngine();
 
     auto builder = [&engine](const MatMulKey& key) -> dnnl::primitive {
-        std::shared_ptr<dnnl::matmul::primitive_desc> matmul_desc;
+        dnnl::matmul::primitive_desc matmul_desc;
 
         if (key.bias) {
-            matmul_desc = std::make_shared<matmul::primitive_desc>(
+            matmul_desc = matmul::primitive_desc(
                 engine,
                 key.inp0->getDnnlDesc(),
                 key.inp1->getDnnlDesc(),
@@ -623,7 +623,7 @@ void MatMul::prepareParams() {
                 key.out->getDnnlDesc(),
                 key.attr);
         } else {
-            matmul_desc = std::make_shared<matmul::primitive_desc>(
+            matmul_desc = matmul::primitive_desc(
                 engine,
                 key.inp0->getDnnlDesc(),
                 key.inp1->getDnnlDesc(),
@@ -631,7 +631,7 @@ void MatMul::prepareParams() {
                 key.attr);
         }
 
-        primitive_desc_iterator itpd = *matmul_desc;
+        primitive_desc_iterator itpd = matmul_desc;
         matmul::primitive_desc prim_desc;
 
         auto itpd_first = itpd;

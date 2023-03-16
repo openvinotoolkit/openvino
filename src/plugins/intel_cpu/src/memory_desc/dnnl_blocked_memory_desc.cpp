@@ -8,7 +8,9 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include <dnnl_types.h>
 #include "cpu_types.h"
+#include "dnnl_extension_utils.h"
 #include "ie_common.h"
+#include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/common/dnnl_executor.h"
 
 #include <algorithm>
@@ -327,8 +329,12 @@ static VectorDims extractOrder(const dnnl::memory::desc& desc) {
 }
 
 DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const dnnl::memory::desc& mdesc) :
-    MemoryDesc(DnnlExtensionUtils::convertToVectorDims(mdesc.get_dims()), DnnlBlocked) {
-    desc = mdesc;
+    DnnlBlockedMemoryDesc(mdesc.get()) {}
+
+DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const_dnnl_memory_desc_t cdesc) :
+    MemoryDesc(DnnlExtensionUtils::convertToVectorDims(cdesc->dims, cdesc->ndims), DnnlBlocked) {
+    desc = dnnl::memory::desc(DnnlExtensionUtils::clone_desc(cdesc));
+
     if (desc.get_format_kind() == dnnl::memory::format_kind::any)
         IE_THROW(Unexpected) << "Memory format any is prohibited!";
 

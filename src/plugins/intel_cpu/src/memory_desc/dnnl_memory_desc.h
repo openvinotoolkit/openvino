@@ -57,6 +57,7 @@ protected:
 
 private:
     explicit DnnlMemoryDesc(const dnnl::memory::desc& desc);
+    explicit DnnlMemoryDesc(const_dnnl_memory_desc_t cdesc);
 
     size_t getElementOffset(size_t elemNumber) const override;
 
@@ -66,6 +67,7 @@ private:
     MemoryDescPtr cloneWithNewDimsImp(const VectorDims& dims) const override;
 
     friend DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const dnnl::memory::desc &desc);
+    friend DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const_dnnl_memory_desc_t desc);
 };
 
 }   // namespace intel_cpu

@@ -69,12 +69,12 @@ public:
     using DnnlMemoryDesc::getPrecision;
 
     explicit DnnlBlockedMemoryDesc(const dnnl::memory::desc& mdesc);
+    explicit DnnlBlockedMemoryDesc(const_dnnl_memory_desc_t cdesc);
 
 private:
     DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& blockedDims,
                           const VectorDims& order, size_t offsetPadding = 0, const VectorDims& offsetPaddingToData = {},
                           const VectorDims& strides = {});
-
 
     // Creates DnnlBlockedMemoryDesc using the shape parameter as a true shape but all other params (layout, blocks, etc.) are used from the mdesc, but
     // the mdesc own shape is ignored. The main purpose of this constructor is making dynamic descriptor from some dummy mdesc, which stores info about
