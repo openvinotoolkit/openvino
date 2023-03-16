@@ -109,7 +109,9 @@ public:
         nearest OPENVINO_ENUM_DEPRECATED("Please use NEAREST instead") = NEAREST,
         linear OPENVINO_ENUM_DEPRECATED("Please use LINEAR instead") = LINEAR,
         linear_onnx OPENVINO_ENUM_DEPRECATED("Please use LINEAR_ONNX instead") = LINEAR_ONNX,
-        cubic OPENVINO_ENUM_DEPRECATED("Please use CUBIC instead") = CUBIC
+        cubic OPENVINO_ENUM_DEPRECATED("Please use CUBIC instead") = CUBIC,
+        BILINEAR_PILLOW,
+        BICUBIC_PILLOW
     };
 
     /// \brief Mode of the calculation of the source coordinate from resized one

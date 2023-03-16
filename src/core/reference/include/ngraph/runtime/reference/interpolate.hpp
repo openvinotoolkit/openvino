@@ -12,6 +12,7 @@
 #include <functional>
 #include <map>
 
+#include "interpolate_pil.hpp"
 #include "ngraph/coordinate_transform.hpp"
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/shape_util.hpp"
@@ -302,6 +303,12 @@ public:
         case InterpolateMode::CUBIC:
             cubic_func(input_data, out);
             break;
+        case InterpolateMode::BILINEAR_PILLOW:
+            bilinear_pil_func(input_data, out);
+            break;
+        case InterpolateMode::BICUBIC_PILLOW:
+            bicubic_pil_func(input_data, out);
+            break;
         }
     }
 
@@ -342,6 +349,9 @@ private:
     /// \param input_data pointer to input data
     /// \param out pointer to memory block for output data
     void nearest_func(const T* input_data, T* out);
+
+    void bilinear_pil_func(const T* input_data, T* out);
+    void bicubic_pil_func(const T* input_data, T* out);
 };
 
 template <typename T>
@@ -561,6 +571,35 @@ void InterpolateEval<T>::cubic_func(const T* input_data, T* out) {
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
+// // 2D
+template <typename T>
+void InterpolateEval<T>::bilinear_pil_func(const T* input_data, T* out) {
+    struct filter BILINEAR = {bilinear_filter, 1.0};
+    auto box = std::vector<float>{0.f, 0.f, (float)m_input_data_shape[1], (float)m_input_data_shape[0]};
+    ImagingResampleInner(input_data,
+                         m_input_data_shape[1],
+                         m_input_data_shape[0],
+                         m_out_shape[1],
+                         m_out_shape[0],
+                         &BILINEAR,
+                         box.data(),
+                         out);
+}
+
+// // 2D
+template <typename T>
+void InterpolateEval<T>::bicubic_pil_func(const T* input_data, T* out) {
+    struct filter BICUBIC = {bicubic_filter, 2.0};
+    auto box = std::vector<float>{0.f, 0.f, (float)m_input_data_shape[1], (float)m_input_data_shape[0]};
+    ImagingResampleInner(input_data,
+                         m_input_data_shape[1],
+                         m_input_data_shape[0],
+                         m_out_shape[1],
+                         m_out_shape[0],
+                         &BICUBIC,
+                         box.data(),
+                         out);
+}
 template <typename T>
 void InterpolateEval<T>::nearest_func(const T* input_data, T* out) {
     NGRAPH_SUPPRESS_DEPRECATED_START
