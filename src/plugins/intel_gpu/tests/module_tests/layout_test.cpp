@@ -34,8 +34,8 @@ TEST_P(data_layout_test, size_check) {
 
     auto l = layout(p.dt, p.fmt, tensor{default_fmt, p.size});
 
-    size_t expected_count = std::accumulate(p.size.begin(), p.size.end(), 1, std::multiplies<size_t>());
-    size_t expected_bytes_count = std::accumulate(p.expected_aligned_size.begin(), p.expected_aligned_size.end(), 1, std::multiplies<size_t>()) *
+    size_t expected_count = std::accumulate(p.size.begin(), p.size.end(), 1, std::multiplies<int>());
+    size_t expected_bytes_count = std::accumulate(p.expected_aligned_size.begin(), p.expected_aligned_size.end(), 1, std::multiplies<int>()) *
                                   data_type_traits::size_of(p.dt);
 
     ASSERT_EQ(l.bytes_count(), expected_bytes_count);
@@ -117,8 +117,11 @@ TEST_P(weights_layout_test, size_check) {
 
     auto l = layout(p.dt, p.fmt, tensor{default_fmt, p.size});
 
-    size_t expected_count = std::accumulate(p.size.begin(), p.size.end(), 1, std::multiplies<size_t>());
-    size_t expected_bytes_count = std::accumulate(p.expected_aligned_size.begin(), p.expected_aligned_size.end(), 1, std::multiplies<size_t>()) *
+    size_t expected_count = std::accumulate(p.size.begin(), p.size.end(), 1, std::multiplies<tensor::value_type>());
+    size_t expected_bytes_count = std::accumulate(p.expected_aligned_size.begin(),
+                                                  p.expected_aligned_size.end(),
+                                                  1,
+                                                  std::multiplies<tensor::value_type>()) *
                                   data_type_traits::size_of(p.dt);
 
     ASSERT_EQ(l.bytes_count(), expected_bytes_count);

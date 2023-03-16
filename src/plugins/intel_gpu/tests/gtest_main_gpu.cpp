@@ -47,7 +47,7 @@ GTEST_API_ int main(int argc, char** argv) {
         cldnn::device_query::device_id = FLAGS_device_suffix;
     //restore cmdline arg for gtest
     auto varg=gflags::GetArgvs();
-    int new_argc=varg.size();
+    int new_argc = static_cast<int>(varg.size());
     char** new_argv=new char*[new_argc];
     for(int i=0;i<new_argc;i++)
         new_argv[i]=&varg[i][0];

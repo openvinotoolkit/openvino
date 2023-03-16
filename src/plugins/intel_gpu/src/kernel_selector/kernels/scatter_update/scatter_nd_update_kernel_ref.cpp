@@ -130,7 +130,7 @@ static std::string GetInputBlockND(const scatter_nd_update_params& params, size_
     block_nd_s[rank] = "1";
     size_t input_offset = num * 6;
 
-    for (int32_t idx = (rank - 1); idx >= 0; --idx) {
+    for (int32_t idx = rank - 1; idx >= 0; --idx) {
         block_nd[idx] = input_dims[idx] * block_nd[idx + 1];
 
         size_t dim_offset = idx < 2 ? idx : idx + 6 - rank;

@@ -36,7 +36,7 @@ void test_basic(bool is_caching_test) {
     auto input_data = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, x, y } });
     auto output_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, x, y } });
 
-    const int inputSize = input_data->get_layout().count();
+    const auto inputSize = input_data->get_layout().count();
     auto inputVals = generateVector(inputSize);
     set_values(input_data, inputVals);
 
@@ -80,7 +80,7 @@ TEST(set_output_memory_gpu, basic_const) {
     auto output_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, x, y } });
     auto output_const_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, x, y } });
 
-    const int inputSize = input_data->get_layout().count();
+    const int inputSize = static_cast<int>(input_data->get_layout().count());
     auto inputVals = generateVector(inputSize);
     auto constVals = generateVector(inputSize);
     set_values(input_data, inputVals);
@@ -129,7 +129,7 @@ TEST(set_output_memory_gpu, basic_mutable) {
     auto md = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, x, y } });
     auto output_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, x, y } });
     auto output_mutable_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, x, y } });
-    const int inputSize = input_data->get_layout().count();
+    const auto inputSize = input_data->get_layout().count();
     auto inputVals = generateVector(inputSize);
     auto mutableVals = generateVector(inputSize);
     set_values(input_data, inputVals);

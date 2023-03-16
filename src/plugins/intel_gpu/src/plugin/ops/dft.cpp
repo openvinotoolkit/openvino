@@ -29,7 +29,7 @@ void createDft(Program& p,
         IE_THROW() << "Unsupported parameter nodes type in " << friendly_name << " (" << op->get_type_name() << ")";
     }
     auto axes = axes_constant->cast_vector<int64_t>();
-    uint8_t axis_correction = op->get_input_shape(0).size();
+    uint8_t axis_correction = static_cast<uint8_t>(op->get_input_shape(0).size());
     if (direction != cldnn::dft_direction::forward || mode != cldnn::dft_mode::real) {
         --axis_correction;
     }

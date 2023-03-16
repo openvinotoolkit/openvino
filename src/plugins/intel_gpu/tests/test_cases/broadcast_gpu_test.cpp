@@ -133,7 +133,10 @@ void start_broadcast_test_dynamic(format input_format,
         topology.add(
             broadcast("broadcast", input_info("reorder"), input_info("target_shape"), ov::AxisSet(broadcast_axes)));
         topology.add(reorder("output", input_info("broadcast"), fmt, input_data_type));
-        std::vector<int32_t> target_shape_data(output_shape.begin(), output_shape.end());
+        std::vector<int32_t> target_shape_data;
+        for (auto out_shape : output_shape) {
+            target_shape_data.push_back(static_cast<int32_t>(out_shape));
+        }
         set_values<int32_t>(target_shape_mem, target_shape_data);
     }
 

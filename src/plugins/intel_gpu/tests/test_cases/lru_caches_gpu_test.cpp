@@ -43,11 +43,11 @@ TEST(lru_cache, basic_data_type)
 
     std::vector<std::pair<int, int>> expected_value;
     for (size_t i = ca.size(); i > 0; i--) {  // 5, 1, 2, 4
-        int idx = input_values.size() - i;
+        auto idx = input_values.size() - i;
         expected_value.push_back(input_values[idx]);
     }
 
-    int idx = expected_value.size() - 1;
+    auto idx = expected_value.size() - 1;
     for (auto key : ca.get_all_keys()) {
         ASSERT_EQ(key, expected_value[idx--].first);
     }
@@ -118,7 +118,7 @@ TEST(lru_cache, custom_data_type) {
         expected_keys.push_back(inputs[inputs.size() - i]->key);
     }
 
-    int idx = expected_keys.size() - 1;
+    auto idx = expected_keys.size() - 1;
     for (auto key : ca.get_all_keys()) {
         ASSERT_EQ(key, expected_keys[idx--]);
     }

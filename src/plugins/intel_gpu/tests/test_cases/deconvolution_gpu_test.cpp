@@ -2408,7 +2408,7 @@ struct deconvolution_random_test_params {
 
     static std::string print_params(const testing::TestParamInfo<deconvolution_random_test_params>& param_info) {
         auto& param = param_info.param;
-        auto to_string_neg = [](int v) {
+        auto to_string_neg = [](int64_t v) {
             if (v >= 0) {
                 return std::to_string(v);
             } else {

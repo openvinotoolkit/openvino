@@ -102,7 +102,7 @@ void prepare_padding::run(program& p) {
                 // WA for this format. sliding window needs to be fixed --perf degradation for IncepctionV1 type models
                 tensor size(1);
                 for (size_t i = 0; i < prim->size.size(); i++) {
-                    size.spatial[i] = prim->size[prim->size.size() - i - 1];
+                    size.spatial[i] = static_cast<tensor::value_type>(prim->size[prim->size.size() - i - 1]);
                 }
 
                 if (node->get_output_layout().format == format::b_fs_yx_fsv16)
@@ -183,13 +183,13 @@ void prepare_padding::run(program& p) {
         auto pad = conv->pad;
         auto stride = conv->stride;
         auto dilation = conv->dilation;
-        uint32_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
-        uint32_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
-        uint32_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
+        uint32_t stride_z = stride.size() >= 3 ? static_cast<uint32_t>(stride[stride.size() - 3]) : 1;
+        uint32_t stride_y = stride.size() >= 2 ? static_cast<uint32_t>(stride[stride.size() - 2]) : 1;
+        uint32_t stride_x = stride.size() >= 1 ? static_cast<uint32_t>(stride[stride.size() - 1]) : 1;
 
-        uint32_t dilation_z = dilation.size() >= 3 ? dilation[dilation.size() - 3] : 1;
-        uint32_t dilation_y = dilation.size() >= 2 ? dilation[dilation.size() - 2] : 1;
-        uint32_t dilation_x = dilation.size() >= 1 ? dilation[dilation.size() - 1] : 1;
+        uint32_t dilation_z = dilation.size() >= 3 ? static_cast<uint32_t>(dilation[dilation.size() - 3]) : 1;
+        uint32_t dilation_y = dilation.size() >= 2 ? static_cast<uint32_t>(dilation[dilation.size() - 2]) : 1;
+        uint32_t dilation_x = dilation.size() >= 1 ? static_cast<uint32_t>(dilation[dilation.size() - 1]) : 1;
 
         tensor::value_type pad_z = pad.size() >= 3 ? pad[pad.size() - 3] : 0;
         tensor::value_type pad_y = pad.size() >= 2 ? pad[pad.size() - 2] : 0;
@@ -277,9 +277,15 @@ void prepare_padding::run(program& p) {
         auto padding_begin_x = std::max<tensor::value_type>(pad_x, 0);
         auto padding_begin_y = std::max<tensor::value_type>(pad_y, 0);
         auto padding_begin_z = std::max<tensor::value_type>(pad_z, 0);
-        auto padding_end_x = std::max<tensor::value_type>(input_limit_x - prev_prim_output_layout.spatial(0), 0);
-        auto padding_end_y = std::max<tensor::value_type>(input_limit_y - prev_prim_output_layout.spatial(1), 0);
-        auto padding_end_z = std::max<tensor::value_type>(input_limit_z - prev_prim_output_layout.spatial(2), 0);
+        auto padding_end_x = std::max<tensor::value_type>(
+            static_cast<tensor::value_type>(input_limit_x) - prev_prim_output_layout.spatial(0),
+            0);
+        auto padding_end_y = std::max<tensor::value_type>(
+            static_cast<tensor::value_type>(input_limit_y) - prev_prim_output_layout.spatial(1),
+            0);
+        auto padding_end_z = std::max<tensor::value_type>(
+            static_cast<tensor::value_type>(input_limit_z) - prev_prim_output_layout.spatial(2),
+            0);
 
         cldnn::padding needed_padding({0, 0, padding_begin_x, padding_begin_y, padding_begin_z}, {0, 0, padding_end_x, padding_end_y, padding_end_z}, 0);
         needed_padding = padding::max(prev_prim_output_layout.data_padding, needed_padding);

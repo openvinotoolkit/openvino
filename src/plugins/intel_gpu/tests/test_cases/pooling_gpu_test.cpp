@@ -1216,7 +1216,7 @@ static void generic_average_wo_padding_test(format fmt, tensor output, tensor in
 
     tensor off(0);
     for (size_t i = 0; i < offset.size(); i++) {
-        off.spatial[i] = offset[offset.size() - i - 1];
+        off.spatial[i] = static_cast<tensor::value_type>(offset[offset.size() - i - 1]);
     }
 
     auto pool_in = "in";
@@ -2081,15 +2081,15 @@ public:
             for (size_t fi = 0; fi < this->input_features(); ++fi) {
                 reference[bi][fi] = reference_pooling<InputT, Mode>(
                     this->_input[bi][fi],
-                    this->pool_x(),
-                    this->pool_y(),
-                    this->pool_z(),
-                    this->stride_x(),
-                    this->stride_y(),
-                    this->stride_z(),
-                    this->offset_x(),
-                    this->offset_y(),
-                    this->offset_z());
+                    static_cast<int>(this->pool_x()),
+                    static_cast<int>(this->pool_y()),
+                    static_cast<int>(this->pool_z()),
+                    static_cast<int>(this->stride_x()),
+                    static_cast<int>(this->stride_y()),
+                    static_cast<int>(this->stride_z()),
+                    static_cast<int>(this->offset_x()),
+                    static_cast<int>(this->offset_y()),
+                    static_cast<int>(this->offset_z()));
             }
         }
         return reference;
@@ -3008,14 +3008,14 @@ public:
 
         cldnn::pooling_mode pooling_mode = pooling->mode;
 
-        int pad_width = pooling->pads_begin[1];
-        int pad_height = pooling->pads_begin[0];
+        int pad_width = static_cast<int>(pooling->pads_begin[1]);
+        int pad_height = static_cast<int>(pooling->pads_begin[0]);
 
-        int kernel_width = pooling->size[1];
-        int kernel_height = pooling->size[0];
+        int kernel_width = static_cast<int>(pooling->size[1]);
+        int kernel_height = static_cast<int>(pooling->size[0]);
 
-        int stride_width = pooling->stride[1];
-        int stride_height = pooling->stride[0];
+        int stride_width = static_cast<int>(pooling->stride[1]);
+        int stride_height = static_cast<int>(pooling->stride[0]);
 
         auto output_tensor = get_expected_output_tensor();
 
@@ -3060,9 +3060,9 @@ public:
 
                                 const size_t output_index = get_linear_index(output->get_layout(), b, f, h, w, output_desc);
 
-                                for (int y = pad_y_start; y < pad_y_end; y++)
+                                for (auto y = pad_y_start; y < pad_y_end; y++)
                                 {
-                                    for (int x = pad_x_start; x < pad_x_end; x++)
+                                    for (auto x = pad_x_start; x < pad_x_end; x++)
                                     {
                                         const size_t input_index = get_linear_index(inputs[0]->get_layout(), b, f, y, x, input_desc);
 
@@ -3081,10 +3081,12 @@ public:
             case cldnn::pooling_mode::average:
             case cldnn::pooling_mode::average_no_padding:
             {
-                int pool_size_w = pooling->size[1];
-                int pool_size_h = pooling->size[0];
-                auto dynamic_mode = (((output_tensor.spatial[0] - 1) * stride_width) + pool_size_w) > -2 * pad_width + width ||
-                                    (((output_tensor.spatial[1] - 1) * stride_height) + pool_size_h) > -2 * pad_height + height;
+                auto pool_size_w = pooling->size[1];
+                auto pool_size_h = pooling->size[0];
+                auto dynamic_mode = static_cast<int>(((output_tensor.spatial[0] - 1) * stride_width) + pool_size_w) >
+                                        -2 * pad_width + width ||
+                                    static_cast<int>(((output_tensor.spatial[1] - 1) * stride_height) + pool_size_h) >
+                                        -2 * pad_height + height;
 
                 auto divider = [=](int actual_x, int actual_y) {
                     auto x = kernel_width;

@@ -225,7 +225,7 @@ void pre_replace_deconv::run(program& p) {
                 p.rename(deconv_node, rename_id);
 
                 // reshape weights
-                int pixel_shuffle_size = scale_factor * scale_factor;
+                auto pixel_shuffle_size = static_cast<tensor::value_type>(scale_factor * scale_factor);
                 int kernel_size = 5;
                 tensor target_weights_size = { pixel_shuffle_size, filter_layout.feature(), kernel_size, kernel_size };
                 auto target_weights_layout = layout{ weights_layout.data_type, weights_layout.format, target_weights_size };
@@ -252,7 +252,7 @@ void pre_replace_deconv::run(program& p) {
                          static_cast<int>(filter_layout.feature()),
                          static_cast<int>(filter_layout.spatial(0)),
                          static_cast<int>(filter_layout.spatial(1)),
-                         scale_factor,
+                         static_cast<int>(scale_factor),
                          subpixel_weights);
 
                      if (weights_data_type == data_types::f16) {

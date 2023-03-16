@@ -47,13 +47,13 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node, kernel_i
         }
     }
 
-    uint32_t stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
-    uint32_t stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
-    uint32_t stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
+    auto stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
+    auto stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
+    auto stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
 
-    uint32_t kernel_z = window_size.size() >= 3 ? window_size[window_size.size() - 3] : 1;
-    uint32_t kernel_y = window_size.size() >= 2 ? window_size[window_size.size() - 2] : 1;
-    uint32_t kernel_x = window_size.size() >= 1 ? window_size[window_size.size() - 1] : 1;
+    auto kernel_z = window_size.size() >= 3 ? window_size[window_size.size() - 3] : 1;
+    auto kernel_y = window_size.size() >= 2 ? window_size[window_size.size() - 2] : 1;
+    auto kernel_x = window_size.size() >= 1 ? window_size[window_size.size() - 1] : 1;
 
     // TODO: Consider moving general parameter verification to arguments constructor.
     CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
@@ -127,7 +127,7 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node, kernel_i
     // TODO: Check compatibility of output size calculation (with caffe).
     tensor size(1);
     for (size_t i = 0; i < window_size.size(); i++) {
-        size.spatial[i] = window_size[window_size.size() - i - 1];
+        size.spatial[i] = static_cast<tensor::value_type>(window_size[window_size.size() - i - 1]);
     }
     auto output_range = calc_sliding_window_output_range<swor_mode::exceed_once_data>(input_layout.get_tensor(),
                                                                                       size,

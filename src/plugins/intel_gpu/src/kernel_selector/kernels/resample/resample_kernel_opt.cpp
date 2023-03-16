@@ -90,7 +90,7 @@ static size_t get_vec_size(const resample_params &params) {
 }
 
 static int get_feature_slice_size(const resample_params &params) {
-    return 16 * get_vec_size(params);
+    return static_cast<int>(16 * get_vec_size(params));
 }
 
 ResampleKernelBase::DispatchData ResampleKernelOpt::SetDefault(const kernel_selector::resample_params &arg) const {

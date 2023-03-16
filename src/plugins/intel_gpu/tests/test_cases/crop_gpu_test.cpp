@@ -1460,7 +1460,7 @@ TEST(crop_gpu, static_split_batch) {
     topology.add(crop("crop3", { input_info("input") }, tensor(1, 4, 1, 1), { tensor(2, 0, 0, 0) }, op_mode, 2));
 
     std::vector<int32_t> input_vec(12);
-    for (size_t i = 0; i < 12; i++) {
+    for (int32_t i = 0; i < 12; i++) {
         input_vec[i] = i;
     }
 

@@ -88,7 +88,7 @@ std::vector<layout> broadcast_inst::calc_output_layouts(broadcast_node const& /*
         if (input1.is_static()) {
             output_rank = input1.get_dim(0);    // target shape rank is set as second input.
         }
-        output_shapes[0] = ShapeType::dynamic(std::max(output_rank, static_cast<int>(1)));
+        output_shapes[0] = ShapeType::dynamic(std::max(output_rank, 1));
     }
 
     format output_format = format::adjust_to_rank(input0_layout.format, output_shapes[0].size());
