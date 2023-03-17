@@ -285,6 +285,7 @@ class PrepareLibs(build_clib):
                                      "--config", "Release",
                                      "--strip",
                                      "--component", comp_data.get("name")])
+                self.announce(f"Installing {comp} finish", level=3)
                 install_dir = os.path.join(install_prefix, install_dir)
             # set rpath if applicable
             if sys.platform != "win32" and comp_data.get("rpath"):
@@ -294,6 +295,16 @@ class PrepareLibs(build_clib):
                 ):
                     set_rpath(comp_data["rpath"], os.path.realpath(path))
 
+    def get_reallink(self, link_file):
+        real_name = os.readlink(link_file)
+        if not os.path.isabs(real_name):
+            real_name = os.path.join(os.path.dirname(link_file), real_name)
+        while Path(real_name).is_symlink():
+            real_name = os.readlink(real_name)
+            if not os.path.isabs(real_name):
+                real_name = os.path.join(os.path.dirname(link_file), real_name)
+        return real_name
+
     def generate_package(self, src_dirs):
         """Collect package data files from preinstalled dirs and put all runtime libraries to the subpackage."""
         # additional blacklist filter, just to fix cmake install issues
@@ -302,27 +313,30 @@ class PrepareLibs(build_clib):
 
         for src_dir in src_dirs:
             local_base_dir = Path(src_dir)
-
-            # skip symlinks of higher level like libX.so or libX.dylib
+            # record real files and its symlinks, and skip symlinks for higher level like libX.so or libX.dylib
+            file_dict = dict()
             for symlink in local_base_dir.rglob("*"):
                 if symlink.is_symlink():
-                    file_name = os.readlink(symlink)
-                    if not os.path.isabs(file_name):
-                        file_name = os.path.join(os.path.dirname(symlink), file_name)
-                    if Path(file_name).is_symlink():
-                        self.announce(f"Unlink symlink {symlink}, use {file_name} instead", level=3)
-                        os.unlink(symlink)
+                    real_name = self.get_reallink(symlink)
+                    if real_name in file_dict:
+                        link_file_name_old = os.path.basename(file_dict[real_name])
+                        link_file_name_new = os.path.basename(symlink)
+                        if len(link_file_name_new) > len(link_file_name_old):
+                            # replace libX.so/libX.dylib with libX.so.Y/libX.Y.dylib
+                            self.announce(f"Unlink symlink {file_dict[real_name]}, use {symlink} instead", level=3)
+                            os.unlink(file_dict[real_name])
+                            file_dict[real_name] = symlink
+                        else:
+                            self.announce(f"Unlink symlink {symlink}, use {file_dict[real_name]} instead", level=3)
+                            os.unlink(symlink)
+                    else:
+                        file_dict[real_name] = symlink
 
             # transform libX.so.Y / libX.Y.dylib symlinks to real files
-            for symlink in local_base_dir.rglob("*"):
-                if symlink.is_symlink():
-                    file_name = os.readlink(symlink)
-                    if not os.path.isabs(file_name):
-                        file_name = os.path.join(os.path.dirname(symlink), file_name)
-
-                    os.unlink(symlink)
-                    os.rename(file_name, symlink)
-                    self.announce(f"Resolved symlink {symlink} as {file_name}", level=3)
+            for real_name in file_dict.keys():
+                os.unlink(file_dict[real_name])
+                os.rename(real_name, file_dict[real_name])
+                self.announce(f"Resolved symlink {file_dict[real_name]} as {real_name}", level=3)
 
             # copy so / dylib files to WHEEL_LIBS_INSTALL_DIR
             for file_path in local_base_dir.rglob("*"):
