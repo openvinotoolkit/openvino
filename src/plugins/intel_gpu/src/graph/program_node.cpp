@@ -3,46 +3,39 @@
 //
 
 #include "program_node.h"
-
-#include "intel_gpu/runtime/debug_configuration.hpp"
-#include "loop_inst.h"
-#include "primitive_inst.h"
 #include "program_helpers.h"
+#include "primitive_inst.h"
+#include "loop_inst.h"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #ifdef ENABLE_ONEDNN_FOR_GPU
-#    include <impls/onednn/utils.hpp>
+#include "convolution_inst.h"
+#include "gemm_inst.h"
+#include "fully_connected_inst.h"
+#include "deconvolution_inst.h"
+#include "quantize_inst.h"
+#include "reorder_inst.h"
+#include "pooling_inst.h"
+#include "reduce_inst.h"
+#include <impls/onednn/utils.hpp>
+#endif // ENABLE_ONEDNN_FOR_GPU
 
-#    include "convolution_inst.h"
-#    include "deconvolution_inst.h"
-#    include "fully_connected_inst.h"
-#    include "gemm_inst.h"
-#    include "pooling_inst.h"
-#    include "quantize_inst.h"
-#    include "reduce_inst.h"
-#    include "reorder_inst.h"
-#endif  // ENABLE_ONEDNN_FOR_GPU
-
-#include <memory>
-#include <set>
-#include <string>
-#include <utility>
-#include <vector>
-
-#include "json_object.h"
 #include "to_string_utils.h"
+#include "json_object.h"
+#include <vector>
+#include <memory>
+#include <utility>
+#include <string>
+#include <set>
 
 using namespace cldnn;
 
 thread_local size_t program_node::cur_id = 0;
 
 program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
-    : desc(prim),
-      myprog(prog),
-      preferred_input_fmts({}),
-      preferred_output_fmts({}),
-      org_id(prim ? (prim->id) : 0) {
+    : desc(prim), myprog(prog), preferred_input_fmts({}), preferred_output_fmts({}), org_id(prim ? (prim->id) : 0) {
     if (prim) {
         num_outputs = prim->num_outputs;
-        for (size_t i = 0; i < num_outputs; ++i) {
+        for (size_t i = 0 ; i < num_outputs; ++i) {
             layout output_layout = layout{ov::PartialShape{}, data_types::f32, format::bfyx};
             output_layout.data_padding = prim->output_paddings[i];
             output_layouts.push_back(output_layout);
@@ -82,8 +75,7 @@ void program_node::replace_dependency(program_node const& old_dep, program_node&
 
 std::vector<primitive_id> program_node::get_dependencies_ids() const {
     std::vector<primitive_id> dep_ids;
-    for (auto& dependency : dependencies)
-        dep_ids.push_back(dependency.first->get_primitive()->id);
+    for (auto& dependency : dependencies) dep_ids.push_back(dependency.first->get_primitive()->id);
     return dep_ids;
 }
 
@@ -96,13 +88,9 @@ void program_node::remove_dependency(size_t idx) {
     dependencies.erase(dependencies.begin() + idx);
 }
 
-std::set<primitive_id> program_node::get_memory_dependencies() const {
-    return memory_dependencies;
-}
+std::set<primitive_id> program_node::get_memory_dependencies() const { return memory_dependencies; }
 
-void program_node::add_memory_dependency(primitive_id prim) {
-    memory_dependencies.insert(prim);
-}
+void program_node::add_memory_dependency(primitive_id prim) { memory_dependencies.insert(prim); }
 
 void program_node::add_memory_dependency(std::vector<primitive_id> prim_list) {
     memory_dependencies.insert(prim_list.begin(), prim_list.end());
@@ -198,12 +186,12 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
         impls.push_back("null");
     } else {
 #ifdef __clang__
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wpotentially-evaluated-expression"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wpotentially-evaluated-expression"
 #endif
         impls.push_back(selected_impl->get_kernel_name());
 #ifdef __clang__
-#    pragma clang diagnostic pop
+#pragma clang diagnostic pop
 #endif
     }
     node_info->add("implementation", impls);
@@ -371,27 +359,23 @@ bool program_node::is_dynamic() {
 }
 
 bool program_node::is_dynamic_output_layout(size_t idx) const {
-    return (output_layouts[idx].is_dynamic()) || (output_layouts[idx].get_partial_shape().size() == 0);
+    return (output_layouts[idx].is_dynamic()) ||  (output_layouts[idx].get_partial_shape().size() == 0);
 }
 
 bool program_node::is_dynamic_output_layout(size_t idx) {
-    return (output_layouts[idx].is_dynamic()) || (output_layouts[idx].get_partial_shape().size() == 0);
+    return (output_layouts[idx].is_dynamic()) ||  (output_layouts[idx].get_partial_shape().size() == 0);
 }
 
 bool program_node::has_padded_dependency() {
-    return std::any_of(get_dependencies().begin(),
-                       get_dependencies().end(),
-                       [](const std::pair<program_node*, int32_t>& dep) {
-                           return dep.first->is_padded();
-                       });
+    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](const std::pair<program_node*, int32_t>& dep) {
+        return dep.first->is_padded();
+    });
 }
 
 bool program_node::has_padded_dependency() const {
-    return std::any_of(get_dependencies().begin(),
-                       get_dependencies().end(),
-                       [](const std::pair<program_node*, int32_t>& dep) {
-                           return dep.first->is_padded();
-                       });
+    return std::any_of(get_dependencies().begin(), get_dependencies().end(), [](const std::pair<program_node*, int32_t>& dep) {
+        return dep.first->is_padded();
+    });
 }
 
 std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
@@ -456,16 +440,15 @@ bool program_node::is_padding_supported(int axis, int padding) const {
     return true;
 }
 
-void program_node::set_selected_impl(std::unique_ptr<primitive_impl> impl) {
+ void program_node::set_selected_impl(std::unique_ptr<primitive_impl> impl) {
     selected_impl = std::move(impl);
 }
 
 bool program_node::need_lockable_memory() const {
-    bool need_lockable_mem =
-        get_users().empty() || std::any_of(get_users().begin(), get_users().end(), [](const program_node* n) {
-            auto impl = n->get_selected_impl();
-            return impl ? impl->is_cpu() : n->get_preferred_impl_type() == impl_types::cpu;
-        });
+    bool need_lockable_mem = get_users().empty() || std::any_of(get_users().begin(), get_users().end(), [](const program_node* n) {
+        auto impl = n->get_selected_impl();
+        return impl ? impl->is_cpu() : n->get_preferred_impl_type() == impl_types::cpu;
+    });
 
     return need_lockable_mem;
 }
@@ -477,39 +460,38 @@ void program_node::init_preferred_fmt(size_t dep_node, size_t user_node) {
 
 void program_node::set_preferred_input_fmt(size_t idx, format::type type) {
     if (idx >= preferred_input_fmts.size())
-        preferred_input_fmts.resize(idx + 1, format::any);
+        preferred_input_fmts.resize(idx+1, format::any);
 
     preferred_input_fmts.at(idx) = type;
 }
 
 void program_node::set_preferred_output_fmt(size_t idx, format::type type) {
     if (idx >= preferred_output_fmts.size())
-        preferred_output_fmts.resize(idx + 1, format::any);
+        preferred_output_fmts.resize(idx+1, format::any);
 
     preferred_output_fmts.at(idx) = type;
 }
 
-/* ----------------------------------------- */
-/* Onednn fused operations integration logic */
-/* ----------------------------------------- */
+    /* ----------------------------------------- */
+    /* Onednn fused operations integration logic */
+    /* ----------------------------------------- */
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 
-dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops,
-                                                   const std::shared_ptr<dnnl::primitive_attr>& attr,
+dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops, const std::shared_ptr<dnnl::primitive_attr>& attr,
                                                    bool& optimization_is_completed) {
     // Create new dnnl::post_ops object which will be filled inside the optimization process
     dnnl::post_ops optimized_p_ops;
 
     // Add new post-op into optimized_p_ops structure
-    auto add_post_op =
-        [&](onednn_post_op_type type, const dnnl::post_ops& cur_p_ops, dnnl::post_ops& new_p_ops, int idx) {
-            switch (type) {
+    auto add_post_op = [&](onednn_post_op_type type, const dnnl::post_ops& cur_p_ops, dnnl::post_ops& new_p_ops, int idx) {
+        switch (type) {
             case onednn_post_op_type::eltwise_act:
             case onednn_post_op_type::eltwise_clip:
             case onednn_post_op_type::eltwise_linear:
             case onednn_post_op_type::eltwise_round:
-            case onednn_post_op_type::eltwise_hardsigmoid: {
+            case onednn_post_op_type::eltwise_hardsigmoid:
+            {
                 dnnl::algorithm alg;
                 float alpha, beta;
                 cur_p_ops.get_params_eltwise(idx, alg, alpha, beta);
@@ -521,7 +503,8 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops,
             case onednn_post_op_type::binary_sub:
             case onednn_post_op_type::binary_mul:
             case onednn_post_op_type::binary_max:
-            case onednn_post_op_type::binary_min: {
+            case onednn_post_op_type::binary_min:
+            {
                 dnnl::algorithm alg;
                 dnnl::memory::desc desc;
                 cur_p_ops.get_params_binary(idx, alg, desc);
@@ -529,25 +512,27 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops,
                 break;
             }
 
-            case onednn_post_op_type::binary_relu: {
+            case onednn_post_op_type::binary_relu:
+            {
                 int mask;
                 cur_p_ops.get_params_prelu(idx, mask);
                 new_p_ops.append_prelu(mask);
                 break;
             }
 
-            case onednn_post_op_type::scale: {
+            case onednn_post_op_type::scale:
+            {
                 break;
             }
 
-            case onednn_post_op_type::sum: {
+            case onednn_post_op_type::sum:
+            {
                 float scale;
                 dnnl::memory::data_type data_type;
                 cur_p_ops.get_params_sum(idx, scale, data_type);
-                // Only conv supports data type specification in append_sum. Other primitives(deconv, fc) do not support
-                // it.
+                // Only conv supports data type specification in append_sum. Other primitives(deconv, fc) do not support it.
                 if (is_type<convolution>()) {
-                    new_p_ops.append_sum(scale, 0 /*zero_point*/, data_type);
+                    new_p_ops.append_sum(scale, 0/*zero_point*/, data_type);
                 } else {
                     new_p_ops.append_sum(scale);
                 }
@@ -559,19 +544,21 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops,
             case onednn_post_op_type::optimized_eltwise_act:
             case onednn_post_op_type::optimized_eltwise_linear:
             case onednn_post_op_type::optimized_eltwise_clip:
-            case onednn_post_op_type::optimized_eltwise_round: {
+            case onednn_post_op_type::optimized_eltwise_round:
+            {
                 // Current operation already has been optimized => don't need extra actions
                 break;
             }
 
             default:
                 throw std::runtime_error("Unsupported onednn post-operation type");
-            }
-        };
+        }
+    };
 
     // Check that post-op type is any optimized
     auto type_is_any_optimized = [](onednn_post_op_type type) -> bool {
-        return type == onednn_post_op_type::optimized || type == onednn_post_op_type::optimized_sum ||
+        return type == onednn_post_op_type::optimized ||
+               type == onednn_post_op_type::optimized_sum ||
                type == onednn_post_op_type::optimized_eltwise_act ||
                type == onednn_post_op_type::optimized_eltwise_linear ||
                type == onednn_post_op_type::optimized_eltwise_clip ||
@@ -581,7 +568,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops,
     // Check that post-op type is eltwise
     auto type_is_eltwise = [](onednn_post_op_type type) -> bool {
         return type == onednn_post_op_type::eltwise_round || type == onednn_post_op_type::eltwise_linear ||
-               type == onednn_post_op_type::eltwise_clip || type == onednn_post_op_type::eltwise_act;
+               type == onednn_post_op_type::eltwise_clip  || type == onednn_post_op_type::eltwise_act;
     };
 
     // Check that post-op type is binary_add or binary_mul
@@ -590,44 +577,26 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops,
     };
 
     // Simple post-op type checks
-    auto type_is_optimized = [](onednn_post_op_type type) -> bool {
-        return type == onednn_post_op_type::optimized;
-    };
-    auto type_is_eltwise_linear = [](onednn_post_op_type type) -> bool {
-        return type == onednn_post_op_type::eltwise_linear;
-    };
+    auto type_is_optimized         = [](onednn_post_op_type type) -> bool { return type == onednn_post_op_type::optimized; };
+    auto type_is_eltwise_linear    = [](onednn_post_op_type type) -> bool { return type == onednn_post_op_type::eltwise_linear; };
     auto type_is_optimized_eltwise = [](onednn_post_op_type type) -> bool {
-        return type == onednn_post_op_type::optimized_eltwise_act ||
-               type == onednn_post_op_type::optimized_eltwise_linear ||
-               type == onednn_post_op_type::optimized_eltwise_round ||
-               type == onednn_post_op_type::optimized_eltwise_clip;
+         return type == onednn_post_op_type::optimized_eltwise_act || type == onednn_post_op_type::optimized_eltwise_linear ||
+                type == onednn_post_op_type::optimized_eltwise_round || type == onednn_post_op_type::optimized_eltwise_clip;
     };
-    auto type_is_binary_add = [](onednn_post_op_type type) -> bool {
-        return type == onednn_post_op_type::binary_add;
-    };
-    auto type_is_binary_mul = [](onednn_post_op_type type) -> bool {
-        return type == onednn_post_op_type::binary_mul;
-    };
-    auto type_is_optimized_sum = [](onednn_post_op_type type) -> bool {
-        return type == onednn_post_op_type::optimized_sum;
-    };
-    auto type_is_scale = [](onednn_post_op_type type) -> bool {
-        return type == onednn_post_op_type::scale;
-    };
+    auto type_is_binary_add        = [](onednn_post_op_type type) -> bool { return type == onednn_post_op_type::binary_add; };
+    auto type_is_binary_mul        = [](onednn_post_op_type type) -> bool { return type == onednn_post_op_type::binary_mul; };
+    auto type_is_optimized_sum     = [](onednn_post_op_type type) -> bool { return type == onednn_post_op_type::optimized_sum; };
+    auto type_is_scale             = [](onednn_post_op_type type) -> bool { return type == onednn_post_op_type::scale; };
 
     auto get_eltwise_type = [](onednn_post_op_type type) {
         switch (type) {
-        case onednn_post_op_type::optimized_eltwise_act:
-            return onednn_post_op_type::eltwise_act;
-        case onednn_post_op_type::optimized_eltwise_clip:
-            return onednn_post_op_type::eltwise_clip;
-        case onednn_post_op_type::optimized_eltwise_linear:
-            return onednn_post_op_type::eltwise_linear;
-        case onednn_post_op_type::optimized_eltwise_round:
-            return onednn_post_op_type::eltwise_round;
-        default:
-            throw std::runtime_error("Unsupported optimized eltwise post-operation type");
-            break;
+            case onednn_post_op_type::optimized_eltwise_act: return onednn_post_op_type::eltwise_act;
+            case onednn_post_op_type::optimized_eltwise_clip: return onednn_post_op_type::eltwise_clip;
+            case onednn_post_op_type::optimized_eltwise_linear: return onednn_post_op_type::eltwise_linear;
+            case onednn_post_op_type::optimized_eltwise_round: return onednn_post_op_type::eltwise_round;
+            default:
+                throw std::runtime_error("Unsupported optimized eltwise post-operation type");
+                break;
         }
     };
 
@@ -673,17 +642,13 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops,
 
     auto get_optimized_eltwise_type = [](onednn_post_op_type type) {
         switch (type) {
-        case onednn_post_op_type::eltwise_linear:
-            return onednn_post_op_type::optimized_eltwise_linear;
-        case onednn_post_op_type::eltwise_act:
-            return onednn_post_op_type::optimized_eltwise_act;
-        case onednn_post_op_type::eltwise_round:
-            return onednn_post_op_type::optimized_eltwise_round;
-        case onednn_post_op_type::eltwise_clip:
-            return onednn_post_op_type::optimized_eltwise_clip;
-        default:
-            throw std::runtime_error("Unsupported optimized eltwise post-operation type");
-            break;
+            case onednn_post_op_type::eltwise_linear: return onednn_post_op_type::optimized_eltwise_linear;
+            case onednn_post_op_type::eltwise_act: return onednn_post_op_type::optimized_eltwise_act;
+            case onednn_post_op_type::eltwise_round: return onednn_post_op_type::optimized_eltwise_round;
+            case onednn_post_op_type::eltwise_clip: return onednn_post_op_type::optimized_eltwise_clip;
+            default:
+                throw std::runtime_error("Unsupported optimized eltwise post-operation type");
+                break;
         }
     };
 
@@ -692,8 +657,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops,
         auto cur_type = cur_post_ops[cur_post_op_idx].op_type;
         auto prev_type = cur_post_ops[prev_post_op_idx].op_type;
 
-        GPU_DEBUG_TRACE << "before prev_post_op_idx: " << prev_post_op_idx << ", cur_post_op_idx: " << cur_post_op_idx
-                        << std::endl;
+        GPU_DEBUG_TRACE << "before prev_post_op_idx: " << prev_post_op_idx << ", cur_post_op_idx: " << cur_post_op_idx << std::endl;
 
         // Ignore optimized operations for "previous" operation in our operation pair
         while (type_is_any_optimized(prev_type) && prev_post_op_idx < post_ops_size - 1) {
@@ -710,19 +674,16 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops,
             cur_type = cur_post_ops[cur_post_op_idx].op_type;
         }
 
-        GPU_DEBUG_TRACE << "after prev_post_op_idx: " << prev_post_op_idx << ", cur_post_op_idx: " << cur_post_op_idx
-                        << std::endl;
+        GPU_DEBUG_TRACE << "after prev_post_op_idx: " << prev_post_op_idx << ", cur_post_op_idx: " << cur_post_op_idx << std::endl;
 
         // If prev_post_op_idx and cur_idx are same, add the last post-op to dnnl::post_ops
-        if (prev_post_op_idx == post_ops_size - 1 && prev_post_op_idx == cur_post_op_idx &&
-            !type_is_any_optimized(prev_type)) {
+        if (prev_post_op_idx == post_ops_size - 1 && prev_post_op_idx == cur_post_op_idx && !type_is_any_optimized(prev_type)) {
             add_post_op(prev_type, p_ops, optimized_p_ops, prev_post_op_idx);
             break;
         }
 
         // If this is the last pair and it's optimized - add the last post-op and go out from the cycle
-        if (cur_post_op_idx == post_ops_size - 1 &&
-            (type_is_any_optimized(cur_type) || type_is_any_optimized(prev_type))) {
+        if (cur_post_op_idx == post_ops_size - 1 && (type_is_any_optimized(cur_type) || type_is_any_optimized(prev_type))) {
             if (!type_is_any_optimized(prev_type)) {
                 add_post_op(prev_type, p_ops, optimized_p_ops, prev_post_op_idx);
             }
@@ -733,12 +694,15 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops,
         }
 
         // Post-ops combinations which can be simplified
-        auto eltw_and_eltw = type_is_eltwise(cur_type) && type_is_eltwise(prev_type);
-        auto bin_and_eltw = type_is_binary_add_or_mul(cur_type) && type_is_eltwise_linear(prev_type);
-        auto eltw_and_bin = type_is_eltwise_linear(cur_type) && type_is_binary_add_or_mul(prev_type);
+        auto eltw_and_eltw  = type_is_eltwise(cur_type) && type_is_eltwise(prev_type);
+        auto bin_and_eltw   = type_is_binary_add_or_mul(cur_type) && type_is_eltwise_linear(prev_type);
+        auto eltw_and_bin   = type_is_eltwise_linear(cur_type) && type_is_binary_add_or_mul(prev_type);
         auto eltw_and_scale = type_is_eltwise_linear(cur_type) && type_is_scale(prev_type);
 
-        auto can_try_optimize = eltw_and_eltw || bin_and_eltw || eltw_and_bin || eltw_and_scale;
+        auto can_try_optimize = eltw_and_eltw ||
+                                bin_and_eltw ||
+                                eltw_and_bin ||
+                                eltw_and_scale;
 
         bool cur_ops_pair_is_optimized = false;
 
@@ -750,8 +714,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops,
                 p_ops.get_params_eltwise(prev_post_op_idx, prev_alg, prev_alpha, prev_beta);
                 p_ops.get_params_eltwise(cur_post_op_idx, cur_alg, cur_alpha, cur_beta);
 
-                auto eltw_linear_and_eltw_linear =
-                    type_is_eltwise_linear(cur_type) && type_is_eltwise_linear(prev_type);
+                auto eltw_linear_and_eltw_linear = type_is_eltwise_linear(cur_type) && type_is_eltwise_linear(prev_type);
 
                 // eltwise_linear + eltwise_linear combination can be optimized always
                 if (eltw_linear_and_eltw_linear) {
@@ -763,8 +726,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops,
                     // Combine 2 eltwises into one
                     add_post_op(cur_type, eltw_p_op, optimized_p_ops, 0);
 
-                    // Marked current and previous eltwise operations as 'optimized' (they will be ignored on the next
-                    // iteration of cycle)
+                    // Marked current and previous eltwise operations as 'optimized' (they will be ignored on the next iteration of cycle)
                     cur_post_ops[cur_post_op_idx].op_type = onednn_post_op_type::optimized;
                     cur_post_ops[prev_post_op_idx].op_type = get_optimized_eltwise_type(prev_type);
 
@@ -789,8 +751,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops,
                 p_ops.get_params_binary(cur_post_op_idx, alg, desc);
                 p_ops.get_params_eltwise(prev_post_op_idx, alg, alpha, beta);
 
-                // Eltwise operations can use runtime non-constant data buffers, so check that memory buffers consist of
-                // constant data only
+                // Eltwise operations can use runtime non-constant data buffers, so check that memory buffers consist of constant data only
                 auto bin_ops_can_be_optimized = cur_node.is_type<data>() && cur_node.is_constant() &&
                                                 cur_node.get_users().size() == 1 && desc.get_data_type() == dnnl_f32;
 
@@ -817,8 +778,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops,
                         }
                     }
 
-                    // Marked previous eltwise operation as 'optimized' (it will be ignored on the next iteration of
-                    // cycle)
+                    // Marked previous eltwise operation as 'optimized' (it will be ignored on the next iteration of cycle)
                     cur_post_ops[prev_post_op_idx].op_type = onednn_post_op_type::optimized;
 
                     cur_ops_pair_is_optimized = true;
@@ -833,8 +793,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops,
                 p_ops.get_params_eltwise(cur_post_op_idx, alg, alpha, beta);
                 p_ops.get_params_binary(prev_post_op_idx, alg, desc);
 
-                // Eltwise operations can use runtime non-constant data buffers, so check that memory buffers consist of
-                // constant data only
+                // Eltwise operations can use runtime non-constant data buffers, so check that memory buffers consist of constant data only
                 auto bin_ops_can_be_optimized = prev_node.is_type<data>() && prev_node.is_constant() &&
                                                 prev_node.get_users().size() == 1 && desc.get_data_type() == dnnl_f32;
 
@@ -861,8 +820,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops,
                         }
                     }
 
-                    // Marked current eltwise operation as 'optimized' (it will be ignored on the next iteration of
-                    // cycle)
+                    // Marked current eltwise operation as 'optimized' (it will be ignored on the next iteration of cycle)
                     cur_post_ops[cur_post_op_idx].op_type = onednn_post_op_type::optimized;
 
                     cur_ops_pair_is_optimized = true;
@@ -879,8 +837,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops,
                 if (beta == 0.f && prev_node.get_output_layout().data_type == data_types::f32) {
                     memory::ptr prev_scale_mem_ptr = prev_node.as<data>().get_attached_memory_ptr();
                     if (prev_scale_mem_ptr == nullptr)
-                        throw std::runtime_error(
-                            "OneDNN post-ops optimization error: nonexistent node for eltw + scale");
+                        throw std::runtime_error("OneDNN post-ops optimization error: nonexistent node for eltw + scale");
                     auto& stream = prev_scale_mem_ptr->get_engine()->get_service_stream();
                     mem_lock<float, mem_lock_type::read_write> eltw_and_scale_lock(prev_scale_mem_ptr, stream);
 
@@ -891,8 +848,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops,
                         eltw_and_scale_lock[data_idx] *= alpha;
                     }
 
-                    // Marked current eltwise operation as 'optimized' (it will be ignored on the next iteration of
-                    // cycle)
+                    // Marked current eltwise operation as 'optimized' (it will be ignored on the next iteration of cycle)
                     cur_post_ops[cur_post_op_idx].op_type = onednn_post_op_type::optimized;
 
                     cur_ops_pair_is_optimized = true;
@@ -908,8 +864,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops,
         if (cur_post_op_idx == post_ops_size - 1 && !cur_ops_pair_is_optimized) {
             add_post_op(cur_type, p_ops, optimized_p_ops, cur_post_op_idx);
             optimization_done = true;
-        } else if (cur_post_ops[cur_post_op_idx].op_type != onednn_post_op_type::optimized &&
-                   cur_post_op_idx < post_ops_size - 1) {
+        } else if (cur_post_ops[cur_post_op_idx].op_type != onednn_post_op_type::optimized && cur_post_op_idx < post_ops_size - 1) {
             cur_post_op_idx++;
             prev_post_op_idx++;
         }
@@ -931,6 +886,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(dnnl::post_ops& p_ops,
     return optimized_p_ops;
 }
 
+
 void program_node::init_onednn_primitive_attributes() {
     const std::vector<fused_primitive_desc>& cldnn_post_ops = get_fused_primitives();
     auto attrs = std::make_shared<dnnl::primitive_attr>();
@@ -944,17 +900,20 @@ void program_node::init_onednn_primitive_attributes() {
     size_t empty_mem = 0xff;
 
     // Add information about post-operation into the list, update indices
-    auto update_onednn_post_op_list = [&](onednn_post_op_type type,
-                                          size_t m_dep,
+    auto update_onednn_post_op_list = [&](onednn_post_op_type type, size_t m_dep,
                                           dnnl::memory::format_tag tag = dnnl::memory::format_tag::undef,
                                           bool flatten = false) {
-        fused_primitive_desc_onednn cur_op_desc = {type, memory_offset, m_dep, tag, flatten};
+        fused_primitive_desc_onednn cur_op_desc = { type, memory_offset, m_dep, tag, flatten };
         fused_ops.push_back(cur_op_desc);
 
-        auto has_memory_buffers = type == onednn_post_op_type::binary_add || type == onednn_post_op_type::binary_sub ||
-                                  type == onednn_post_op_type::binary_mul || type == onednn_post_op_type::binary_max ||
-                                  type == onednn_post_op_type::binary_min || type == onednn_post_op_type::binary_relu ||
-                                  type == onednn_post_op_type::scale || type == onednn_post_op_type::sum;
+        auto has_memory_buffers = type == onednn_post_op_type::binary_add ||
+                                  type == onednn_post_op_type::binary_sub ||
+                                  type == onednn_post_op_type::binary_mul ||
+                                  type == onednn_post_op_type::binary_max ||
+                                  type == onednn_post_op_type::binary_min ||
+                                  type == onednn_post_op_type::binary_relu ||
+                                  type == onednn_post_op_type::scale ||
+                                  type == onednn_post_op_type::sum;
 
         if (has_memory_buffers)
             memory_offset++;
@@ -965,16 +924,14 @@ void program_node::init_onednn_primitive_attributes() {
         auto& desc = cldnn_post_ops[idx];
         if (desc.is_type<activation>()) {
             auto fused_desc = desc.typed_desc<activation>();
-            if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope &&
-                !fused_desc->additional_params_input.empty()) {
+            if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope
+                && !fused_desc->additional_params_input.empty()) {
                 auto dep_idx = cldnn_post_ops[idx].dep_start_idx;
                 int oc_dim = static_cast<int>(desc.output_layout.get_tensor().feature.size());
                 post_ops.append_prelu(1 << oc_dim);
                 update_onednn_post_op_list(onednn_post_op_type::binary_relu, dep_idx);
             } else if (fused_desc->activation_function == cldnn::activation_func::hard_sigmoid) {
-                post_ops.append_eltwise(dnnl::algorithm::eltwise_hardsigmoid,
-                                        fused_desc->additional_params.a,
-                                        fused_desc->additional_params.b);
+                post_ops.append_eltwise(dnnl::algorithm::eltwise_hardsigmoid, fused_desc->additional_params.a, fused_desc->additional_params.b);
                 update_onednn_post_op_list(onednn_post_op_type::eltwise_hardsigmoid, empty_mem);
             } else if (fused_desc->activation_function == cldnn::activation_func::hsigmoid) {
                 // hard_sigmoid(x,a,b) = clamp(ax+b, 0, 1)
@@ -989,13 +946,11 @@ void program_node::init_onednn_primitive_attributes() {
                 if (alg == dnnl::algorithm::undef)
                     IE_THROW() << "Activations that are undef algorithms must be converted to other activations before "
                                   "pushing to post-op.";
-                // Usage of alpha and beta between cldnn::pow and dnnl::eltwise::pow is different : d = pow(src, a) / d
-                // = a * pow(src, b)
+                // Usage of alpha and beta between cldnn::pow and dnnl::eltwise::pow is different : d = pow(src, a) / d = a * pow(src, b)
                 if (alg == dnnl::algorithm::eltwise_pow)
                     post_ops.append_eltwise(alg, 1.0f, fused_desc->additional_params.a);
-                else if (alg == dnnl::algorithm::eltwise_hardswish)  // mapping val * min(max(0, val + 3), 6) / 6 to val
-                                                                     // * max(min(1, alpha * val + beta), 0)
-                    post_ops.append_eltwise(alg, 1 / 6.f, 0.5f);
+                else if (alg == dnnl::algorithm::eltwise_hardswish) // mapping val * min(max(0, val + 3), 6) / 6 to val * max(min(1, alpha * val + beta), 0)
+                    post_ops.append_eltwise(alg, 1/6.f, 0.5f);
                 else
                     post_ops.append_eltwise(alg, fused_desc->additional_params.a, fused_desc->additional_params.b);
 
@@ -1031,7 +986,7 @@ void program_node::init_onednn_primitive_attributes() {
                 auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*this, cldnn_post_ops[idx]);
                 if (fusing_type == add_fusing_type::sum && num_sum_post_ops == 0) {
                     if (is_type<convolution>()) {
-                        post_ops.append_sum(1.0f, 0 /*zero-point*/, onednn::convert_data_type(in.data_type));
+                        post_ops.append_sum(1.0f, 0/*zero-point*/, onednn::convert_data_type(in.data_type));
                     } else {
                         post_ops.append_sum(1.0f);
                     }
@@ -1053,16 +1008,13 @@ void program_node::init_onednn_primitive_attributes() {
         } else if (desc.is_type<quantize>()) {
             auto dep_idx = desc.dep_start_idx;
 
-            // ********************************* Common case with output range usage *********************************
-            // //
+            // ********************************* Common case with output range usage ********************************* //
             const auto& q_param = desc.get_typed_fuse_params<QuantizeFuseParams>();
             if (q_param->_per_tensor_output_range && q_param->_out_lo < q_param->_out_hi) {
                 // 1. pre-scale & pre-shift
                 {
                     if (q_param->_per_tensor_input_scale && q_param->_per_tensor_input_shift) {
-                        post_ops.append_eltwise(dnnl::algorithm::eltwise_linear,
-                                                q_param->_in_scale,
-                                                q_param->_in_shift);
+                        post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->_in_scale, q_param->_in_shift);
                         update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                     } else {
                         if (q_param->_per_tensor_input_scale) {
@@ -1070,13 +1022,9 @@ void program_node::init_onednn_primitive_attributes() {
                             update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                         } else {
                             auto in_scale = get_dependency(dep_idx++).get_output_layout();
-                            dnnl::memory::desc in_scale_desc =
-                                onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
+                            dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
                             post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
-                            update_onednn_post_op_list(onednn_post_op_type::binary_mul,
-                                                       dep_idx - 1,
-                                                       dnnl::memory::format_tag::ab,
-                                                       true);
+                            update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1, dnnl::memory::format_tag::ab, true);
                         }
 
                         if (q_param->_need_pre_shift) {
@@ -1085,13 +1033,9 @@ void program_node::init_onednn_primitive_attributes() {
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto in_shift = get_dependency(dep_idx++).get_output_layout();
-                                dnnl::memory::desc in_shift_desc =
-                                    onednn::layout_to_memory_desc(in_shift, dnnl::memory::format_tag::ab, true);
+                                dnnl::memory::desc in_shift_desc = onednn::layout_to_memory_desc(in_shift, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_add, in_shift_desc);
-                                update_onednn_post_op_list(onednn_post_op_type::binary_add,
-                                                           dep_idx - 1,
-                                                           dnnl::memory::format_tag::ab,
-                                                           true);
+                                update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1, dnnl::memory::format_tag::ab, true);
                             }
                         }
                     }
@@ -1109,11 +1053,9 @@ void program_node::init_onednn_primitive_attributes() {
 
                 // 3. post-scale & post-shift
                 {
-                    if (q_param->_need_post_scale && q_param->_need_post_shift && q_param->_per_tensor_output_scale &&
-                        q_param->_per_tensor_output_shift) {
-                        post_ops.append_eltwise(dnnl::algorithm::eltwise_linear,
-                                                q_param->_out_scale,
-                                                q_param->_out_shift);
+                    if (q_param->_need_post_scale && q_param->_need_post_shift &&
+                        q_param->_per_tensor_output_scale && q_param->_per_tensor_output_shift) {
+                        post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->_out_scale, q_param->_out_shift);
                         update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                     } else {
                         if (q_param->_need_post_scale) {
@@ -1122,13 +1064,9 @@ void program_node::init_onednn_primitive_attributes() {
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto out_scale = get_dependency(dep_idx++).get_output_layout();
-                                dnnl::memory::desc out_scale_desc =
-                                    onednn::layout_to_memory_desc(out_scale, dnnl::memory::format_tag::ab, true);
+                                dnnl::memory::desc out_scale_desc = onednn::layout_to_memory_desc(out_scale, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_mul, out_scale_desc);
-                                update_onednn_post_op_list(onednn_post_op_type::binary_mul,
-                                                           dep_idx - 1,
-                                                           dnnl::memory::format_tag::ab,
-                                                           true);
+                                update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1, dnnl::memory::format_tag::ab, true);
                             }
                         }
 
@@ -1138,13 +1076,9 @@ void program_node::init_onednn_primitive_attributes() {
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto out_shift = get_dependency(dep_idx++).get_output_layout();
-                                dnnl::memory::desc out_shift_desc =
-                                    onednn::layout_to_memory_desc(out_shift, dnnl::memory::format_tag::ab, true);
+                                dnnl::memory::desc out_shift_desc = onednn::layout_to_memory_desc(out_shift, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_add, out_shift_desc);
-                                update_onednn_post_op_list(onednn_post_op_type::binary_add,
-                                                           dep_idx - 1,
-                                                           dnnl::memory::format_tag::ab,
-                                                           true);
+                                update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1, dnnl::memory::format_tag::ab, true);
                             }
                         }
                     }
@@ -1153,16 +1087,13 @@ void program_node::init_onednn_primitive_attributes() {
                 // 4. clamp
                 {
                     if (q_param->_need_clamp || idx < cldnn_post_ops.size() - 1) {
-                        float out_lo =
-                            q_param->_need_min_clamp ? q_param->_out_lo : data_type_traits::min<float>(out_dt);
-                        float out_hi =
-                            q_param->_need_max_clamp ? q_param->_out_hi : data_type_traits::max<float>(out_dt);
+                        float out_lo = q_param->_need_min_clamp ? q_param->_out_lo : data_type_traits::min<float>(out_dt);
+                        float out_hi = q_param->_need_max_clamp ? q_param->_out_hi : data_type_traits::max<float>(out_dt);
                         post_ops.append_eltwise(dnnl::algorithm::eltwise_clip, out_lo, out_hi);
                         update_onednn_post_op_list(onednn_post_op_type::eltwise_clip, empty_mem);
                     }
                 }
-                // ********************************* Rare case with input range usage *********************************
-                // //
+            // ********************************* Rare case with input range usage ********************************* //
             } else {
                 // 1. clamp
                 {
@@ -1171,30 +1102,20 @@ void program_node::init_onednn_primitive_attributes() {
                         auto in_hi = get_dependency(dep_idx++).get_output_layout();
                         dnnl::algorithm clamp_max = dnnl::algorithm::binary_max;
                         dnnl::algorithm clamp_min = dnnl::algorithm::binary_min;
-                        dnnl::memory::desc in_lo_desc =
-                            onednn::layout_to_memory_desc(in_lo, dnnl::memory::format_tag::ab, true);
-                        dnnl::memory::desc in_hi_desc =
-                            onednn::layout_to_memory_desc(in_hi, dnnl::memory::format_tag::ab, true);
+                        dnnl::memory::desc in_lo_desc = onednn::layout_to_memory_desc(in_lo, dnnl::memory::format_tag::ab, true);
+                        dnnl::memory::desc in_hi_desc = onednn::layout_to_memory_desc(in_hi, dnnl::memory::format_tag::ab, true);
 
                         post_ops.append_binary(clamp_max, in_lo_desc);
-                        update_onednn_post_op_list(onednn_post_op_type::binary_max,
-                                                   dep_idx - 2,
-                                                   dnnl::memory::format_tag::ab,
-                                                   true);
+                        update_onednn_post_op_list(onednn_post_op_type::binary_max, dep_idx - 2, dnnl::memory::format_tag::ab, true);
                         post_ops.append_binary(clamp_min, in_hi_desc);
-                        update_onednn_post_op_list(onednn_post_op_type::binary_min,
-                                                   dep_idx - 1,
-                                                   dnnl::memory::format_tag::ab,
-                                                   true);
+                        update_onednn_post_op_list(onednn_post_op_type::binary_min, dep_idx - 1, dnnl::memory::format_tag::ab, true);
                     }
                 }
 
                 // 2. pre-scale & pre-shift
                 {
                     if (q_param->_per_tensor_input_scale && q_param->_per_tensor_input_shift) {
-                        post_ops.append_eltwise(dnnl::algorithm::eltwise_linear,
-                                                q_param->_in_scale,
-                                                q_param->_in_shift);
+                        post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->_in_scale, q_param->_in_shift);
                         update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                     } else {
                         if (q_param->_per_tensor_input_scale) {
@@ -1202,13 +1123,9 @@ void program_node::init_onednn_primitive_attributes() {
                             update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                         } else {
                             auto in_scale = get_dependency(dep_idx++).get_output_layout();
-                            dnnl::memory::desc in_scale_desc =
-                                onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
+                            dnnl::memory::desc in_scale_desc = onednn::layout_to_memory_desc(in_scale, dnnl::memory::format_tag::ab, true);
                             post_ops.append_binary(dnnl::algorithm::binary_mul, in_scale_desc);
-                            update_onednn_post_op_list(onednn_post_op_type::binary_mul,
-                                                       dep_idx - 1,
-                                                       dnnl::memory::format_tag::ab,
-                                                       true);
+                            update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1, dnnl::memory::format_tag::ab, true);
                         }
 
                         if (q_param->_need_pre_shift) {
@@ -1217,13 +1134,9 @@ void program_node::init_onednn_primitive_attributes() {
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto in_shift = get_dependency(dep_idx++).get_output_layout();
-                                dnnl::memory::desc in_shift_desc =
-                                    onednn::layout_to_memory_desc(in_shift, dnnl::memory::format_tag::ab, true);
+                                dnnl::memory::desc in_shift_desc = onednn::layout_to_memory_desc(in_shift, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_add, in_shift_desc);
-                                update_onednn_post_op_list(onednn_post_op_type::binary_add,
-                                                           dep_idx - 1,
-                                                           dnnl::memory::format_tag::ab,
-                                                           true);
+                                update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1, dnnl::memory::format_tag::ab, true);
                             }
                         }
                     }
@@ -1237,11 +1150,9 @@ void program_node::init_onednn_primitive_attributes() {
 
                 // 4. post-scale & post-shift
                 {
-                    if (q_param->_need_post_scale && q_param->_need_post_shift && q_param->_per_tensor_output_scale &&
-                        q_param->_per_tensor_output_shift) {
-                        post_ops.append_eltwise(dnnl::algorithm::eltwise_linear,
-                                                q_param->_out_scale,
-                                                q_param->_out_shift);
+                    if (q_param->_need_post_scale && q_param->_need_post_shift &&
+                        q_param->_per_tensor_output_scale && q_param->_per_tensor_output_shift) {
+                        post_ops.append_eltwise(dnnl::algorithm::eltwise_linear, q_param->_out_scale, q_param->_out_shift);
                         update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                     } else {
                         if (q_param->_need_post_scale) {
@@ -1250,13 +1161,9 @@ void program_node::init_onednn_primitive_attributes() {
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto out_scale = get_dependency(dep_idx++).get_output_layout();
-                                dnnl::memory::desc out_scale_desc =
-                                    onednn::layout_to_memory_desc(out_scale, dnnl::memory::format_tag::ab, true);
+                                dnnl::memory::desc out_scale_desc = onednn::layout_to_memory_desc(out_scale, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_mul, out_scale_desc);
-                                update_onednn_post_op_list(onednn_post_op_type::binary_mul,
-                                                           dep_idx - 1,
-                                                           dnnl::memory::format_tag::ab,
-                                                           true);
+                                update_onednn_post_op_list(onednn_post_op_type::binary_mul, dep_idx - 1, dnnl::memory::format_tag::ab, true);
                             }
                         }
 
@@ -1266,13 +1173,9 @@ void program_node::init_onednn_primitive_attributes() {
                                 update_onednn_post_op_list(onednn_post_op_type::eltwise_linear, empty_mem);
                             } else {
                                 auto out_shift = get_dependency(dep_idx++).get_output_layout();
-                                dnnl::memory::desc out_shift_desc =
-                                    onednn::layout_to_memory_desc(out_shift, dnnl::memory::format_tag::ab, true);
+                                dnnl::memory::desc out_shift_desc = onednn::layout_to_memory_desc(out_shift, dnnl::memory::format_tag::ab, true);
                                 post_ops.append_binary(dnnl::algorithm::binary_add, out_shift_desc);
-                                update_onednn_post_op_list(onednn_post_op_type::binary_add,
-                                                           dep_idx - 1,
-                                                           dnnl::memory::format_tag::ab,
-                                                           true);
+                                update_onednn_post_op_list(onednn_post_op_type::binary_add, dep_idx - 1, dnnl::memory::format_tag::ab, true);
                             }
                         }
                     }
@@ -1281,8 +1184,7 @@ void program_node::init_onednn_primitive_attributes() {
         } else if (desc.is_type<reorder>()) {
             continue;
         } else {
-            throw std::runtime_error("Unsupported fused op of " + desc.desc->type_string() +
-                                     " type for oneDNN primitive");
+            throw std::runtime_error("Unsupported fused op of " + desc.desc->type_string() + " type for oneDNN primitive");
         }
     }
 
@@ -1298,7 +1200,7 @@ void program_node::init_onednn_primitive_attributes() {
         do {
             GPU_DEBUG_GET_INSTANCE(debug_config);
             GPU_DEBUG_IF(debug_config->disable_onednn_opt_post_ops)
-            break;
+                break;
             optimized_post_ops = try_optimize_post_ops(optimized_post_ops, attrs, optimization_is_finished);
         } while (!optimization_is_finished);
 
@@ -1312,4 +1214,5 @@ void program_node::init_onednn_primitive_attributes() {
     add_onednn_attrs(attrs);
 }
 
-#endif  // ENABLE_ONEDNN_FOR_GPU
+
+#endif // ENABLE_ONEDNN_FOR_GPU
