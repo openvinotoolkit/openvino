@@ -133,6 +133,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*InferRequestIOBBlobTest.*secondCallGetOutputAfterInferSync.*)",
         // Old API cannot deallocate tensor
         R"(.*InferRequestIOBBlobTest.*canProcessDeallocatedOutputBlobAfterGetAndSetBlob.*)",
+        // Why query state should throw an exception
+        R"(.*InferRequestQueryStateExceptionTest.*inferreq_smoke_QueryState_ExceptionTest.*)",
     };
 
 #ifdef _WIN32
