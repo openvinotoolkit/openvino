@@ -25,13 +25,12 @@ G-API Concepts
 ##############
 
 * *Graphs* are built by applying operations to data objects.
-
    * API itself has no "graphs", it is expression-based instead.
 
 * *Data objects* do not hold actual data, only capture dependencies.
 * *Operations* consume and produce data objects.
-* A graph is defined by specifying its boundaries with data objects:
 
+* A graph is defined by specifying its boundaries with data objects:
    * What data objects are inputs to the graph?
    * What are its outputs?
 
@@ -40,7 +39,7 @@ The paragraphs below explain the G-API programming model and development workflo
 Programming Model
 #################
 
-Building graphs is easy with G-API. In fact, there is no notion of graphs exposed in the API, so the user doesn’t need to operate in terms of “nodes” and “edges” — instead, graphs are constructed implicitly via expressions in a "functional" way. Expression-based graphs are built using two major concepts: :doc:`*operations* <openvino_docs_gapi_kernel_api>` and `*data objects* <https://docs.opencv.org/4.2.0/db/df1/group__gapi__data__objects.html>`__ .
+Building graphs is easy with G-API. In fact, there is no notion of graphs exposed in the API, so the user doesn’t need to operate in terms of “nodes” and “edges” — instead, graphs are constructed implicitly via expressions in a "functional" way. Expression-based graphs are built using two major concepts: :doc:`operations <openvino_docs_gapi_kernel_api>` and `data objects <https://docs.opencv.org/4.2.0/db/df1/group__gapi__data__objects.html>`__ .
 
 In G-API, every graph begins and ends with data objects; data objects are passed to operations which produce (“return”) their results — new data objects, which are then passed to other operations, and so on. You can declare their own operations, G-API does not distinguish user-defined operations from its own predefined ones in any way.
 
