@@ -1,4 +1,4 @@
-# Build Plugin Using CMake {#openvino_docs_ie_plugin_dg_plugin_build}
+# Build Plugin Using CMake {#openvino_docs_ov_plugin_dg_plugin_build}
 
 OpenVINO build infrastructure provides the OpenVINO Developer Package for plugin development.
 
