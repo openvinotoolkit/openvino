@@ -117,24 +117,26 @@ bool ScatterNDUpdateKernelRef::Validate(const Params& p, const optional_params& 
     return true;
 }
 
-static std::string GetInputBlockND(const scatter_nd_update_params& params, size_t num, size_t rank) {
+static std::string GetInputBlockND(const scatter_nd_update_params& params, size_t num, size_t dyn_offset, size_t rank) {
     const auto& input = params.inputs[num];
 
     auto input_dims = input.LogicalDims();
     std::reverse(input_dims.begin(), input_dims.end());
+    auto dims = input.GetDims();
+    std::reverse(dims.begin(), dims.end());
 
     std::vector<size_t> block_nd(rank + 1);
     block_nd[rank] = 1;
 
     std::vector<std::string> block_nd_s(rank + 1);
     block_nd_s[rank] = "1";
-    size_t input_offset = num * 6;
+    size_t input_offset = dyn_offset * 6;
 
     for (int32_t idx = rank - 1; idx >= 0; --idx) {
         block_nd[idx] = input_dims[idx] * block_nd[idx + 1];
 
-        size_t dim_offset = idx < 2 ? idx : idx + 6 - rank;
-        block_nd_s[idx] = "(" + toCodeString(input.GetDims()[input.GetDims().size() - idx - 1], input_offset + dim_offset) + "*" + block_nd_s[idx + 1] + ")";
+        size_t dim_offset = idx < 2 ? idx : (6 - dims.size()) + idx; // convert to 6d bfwzyx idx
+        block_nd_s[idx] = "(" + toCodeString(dims[idx], input_offset + dim_offset) + "*" + block_nd_s[idx + 1] + ")";
     }
 
     std::string result;
@@ -180,18 +182,24 @@ KernelsData ScatterNDUpdateKernelRef::GetKernelsData(const Params& params, const
             size_t input0_rank = newParams.inputs[0].LogicalDims().size();
             size_t input2_rank = newParams.inputs[2].LogicalDims().size();
             cldnn_jit.AddConstant(MakeJitConstant("IS_SECOND_ITER", "true"));
-            cldnn_jit.AddConstant(MakeJitConstant("INPUT0_BLOCK_ND", GetInputBlockND(newParams, 0, input0_rank)));
-            cldnn_jit.AddConstant(MakeJitConstant("INPUT1_BLOCK_ND", GetInputBlockND(newParams, 1, newParams.indices_rank - 1)));
-            cldnn_jit.AddConstant(MakeJitConstant("INPUT2_BLOCK_ND", GetInputBlockND(newParams, 2, input2_rank)));
+            size_t shape_info_offset = 0;
+            cldnn_jit.AddConstant(MakeJitConstant("INPUT0_BLOCK_ND", GetInputBlockND(newParams, 0, shape_info_offset, input0_rank)));
+            if (newParams.inputs[0].is_dynamic())
+                shape_info_offset++;
+            cldnn_jit.AddConstant(MakeJitConstant("INPUT1_BLOCK_ND", GetInputBlockND(newParams, 1, shape_info_offset, newParams.indices_rank - 1)));
+            if (newParams.inputs[1].is_dynamic())
+                shape_info_offset++;
+            cldnn_jit.AddConstant(MakeJitConstant("INPUT2_BLOCK_ND", GetInputBlockND(newParams, 2, shape_info_offset, input2_rank)));
             cldnn_jit.AddConstant(MakeJitConstant("INDICES_RANK", newParams.indices_rank));
 
             const auto& ind_input = newParams.inputs[1];
             if (ind_input.is_dynamic()) {
-                size_t last_idx = newParams.indices_rank - 1;
-                size_t dim_offset = last_idx < 2 ? last_idx : 5;
-                size_t input_idx = last_idx < 2 ? ind_input.GetDims().size() - last_idx : 0;
+                auto dims = ind_input.GetDims();
+                std::reverse(dims.begin(), dims.end());
 
-                auto indices_last_dim = toCodeString(ind_input.GetDims()[input_idx], 6 + dim_offset);
+                size_t last_idx = newParams.indices_rank - 1;
+                size_t dim_offset = last_idx < 2 ? last_idx : last_idx + 6 - newParams.indices_rank;
+                auto indices_last_dim = toCodeString(dims[last_idx], dim_offset + (newParams.inputs[0].is_dynamic() ? 6 : 0));
                 cldnn_jit.AddConstant(MakeJitConstant("INDICES_LAST_DIM", indices_last_dim));
             } else {
                 cldnn_jit.AddConstant(MakeJitConstant("INDICES_LAST_DIM", dispatchData.indicesLastDim));
