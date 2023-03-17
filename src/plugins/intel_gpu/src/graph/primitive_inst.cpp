@@ -265,7 +265,7 @@ void primitive_inst::realloc_if_needed() {
         GPU_DEBUG_TRACE_DETAIL << id() << ": realloc output memory. "
                                <<  " Current buffer_size=" << max_output_layout_size
                                <<  " Requested buffer_size=" << actual_layout.count() << std::endl;
-        _outputs = allocate_outputs(&updated_params);
+        _outputs = allocate_outputs(&updated_params, false);
         // TODO : need to handle multiple outputs
         max_output_layout_size = updated_params.output_layouts[0].count();
     }
@@ -763,15 +763,15 @@ static bool user_requesting_mem_reuse_false(const program_node& node) {
 }
 
 memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, const program_node& _node, const kernel_impl_params& impl_params,
-                                            uint32_t net_id, bool is_internal, size_t idx) {
+                                            uint32_t net_id, bool is_internal, size_t idx, bool reset) {
     auto get_memory_from_pool = [&](engine& _engine, const layout& layout, const primitive_id id, std::set<primitive_id> dependencies,
-            allocation_type type, bool reusable) {
+            allocation_type type, bool reusable, bool reset = true) {
         OPENVINO_ASSERT(!layout.is_dynamic() || layout.has_upper_bound(), "[GPU] Can't allocate output for dynamic layout without upper bound");
         // Use layout with max tensor for dynamic shape with upper bound
         auto static_layout = cldnn::layout(layout.data_type, layout.format, layout.get_tensor(), layout.data_padding);
         if (_node.get_program().get_config().get_property(ov::intel_gpu::enable_memory_pool))
-            return pool.get_memory(static_layout, id, net_id, dependencies, type, reusable);
-        return pool.get_memory(static_layout, type);
+            return pool.get_memory(static_layout, id, net_id, dependencies, type, reusable, reset);
+        return pool.get_memory(static_layout, type, reset);
     };
 
 
@@ -817,7 +817,8 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
                 _node.id(),
                 _node.get_memory_dependencies(),
                 alloc_type,
-                false);
+                false,
+                reset);
     } else if (is_internal && _node.is_output() && _node.is_type<generic_layer>() &&
             _engine.supports_allocation(allocation_type::usm_device) && usm_device_allocatable) {
         GPU_DEBUG_LOG << "[" << _node.id() << ": output]" << std::endl;
@@ -829,23 +830,24 @@ memory::ptr primitive_inst::allocate_output(engine& _engine, memory_pool& pool, 
         return _engine.allocate_memory(layout, alloc_type, false);
     } else if (is_internal || (!_node.can_share_buffer()) || _node.can_be_optimized() || _node.is_output()) {
         GPU_DEBUG_LOG << "[" << _node.id() << ": output]" << std::endl;
-        return _engine.allocate_memory(layout, alloc_type);
+        return _engine.allocate_memory(layout, alloc_type, reset);
     } else {
         return get_memory_from_pool(_engine,
                 layout,
                 _node.id(),
                 _node.get_memory_dependencies(),
                 alloc_type,
-                true);
+                true,
+                reset);
     }
 }
 
-std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* updated_params) {
+std::vector<memory::ptr> primitive_inst::allocate_outputs(kernel_impl_params* updated_params, bool reset_mem) {
     std::vector<memory::ptr> outputs;
     for (size_t i = 0; i < get_node().get_outputs_count() ; ++i) {
         outputs.push_back(allocate_output(get_network().get_engine(), _network.get_memory_pool(),
                          *_node, (updated_params != nullptr) ? *updated_params : *_impl_params,
-                         get_network_id(), _network.is_internal(), i));
+                         get_network_id(), _network.is_internal(), i, reset_mem));
     }
     return outputs;
 }

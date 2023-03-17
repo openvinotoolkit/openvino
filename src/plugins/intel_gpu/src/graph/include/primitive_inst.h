@@ -192,7 +192,7 @@ public:
 
     void allocate_internal_buffers();
     static memory::ptr allocate_output(engine& engine, memory_pool& pool, const program_node& _node,
-                                       const kernel_impl_params& impl_params, uint32_t net_id, bool is_internal, size_t idx = 0);
+                                       const kernel_impl_params& impl_params, uint32_t net_id, bool is_internal, size_t idx = 0, bool reset_mem = false);
 
     std::vector<memory::cptr> get_intermediates_memories() const { return _intermediates_memory; }
 
@@ -284,7 +284,7 @@ protected:
     size_t max_output_layout_size = 0;
     std::vector<size_t> max_intermediates_memory_sizes;
 
-    std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr);
+    std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr, bool reset_mem = false);
     memory::ptr allocate_internal_buffer(size_t idx);
     static std::vector<std::shared_ptr<primitive_inst>> build_exec_deps(
         std::vector<std::pair<std::shared_ptr<primitive_inst>, int32_t>> const& mem_deps);
