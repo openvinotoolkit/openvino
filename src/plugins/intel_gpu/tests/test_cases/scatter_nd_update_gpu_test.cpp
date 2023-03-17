@@ -22,6 +22,18 @@
 using namespace cldnn;
 using namespace ::tests;
 
+namespace {
+template<typename T>
+T generate_random_val(int min, int max, int k = 8) {
+    static std::default_random_engine generator(random_seed);
+    // 1/k is the resolution of the floating point numbers
+    std::uniform_int_distribution<int> distribution(k * min, k * max);
+    T val = (T)distribution(generator);
+    val /= k;
+
+    return val;
+}
+}
 
 struct scatter_nd_update_basic_test_params
 {
@@ -49,17 +61,6 @@ struct scatter_nd_update_random_test : testing::TestWithParam<scatter_nd_update_
             return cldnn::format::bfzyx;
         else
             return cldnn::format::bfwzyx;
-    }
-
-    template<typename T>
-    T generate_random_val(int min, int max, int k = 8) {
-        static std::default_random_engine generator(random_seed);
-        // 1/k is the resolution of the floating point numbers
-        std::uniform_int_distribution<int> distribution(k * min, k * max);
-        T val = (T)distribution(generator);
-        val /= k;
-
-        return val;
     }
 
     template <typename T>
@@ -4457,6 +4458,111 @@ TEST(scatter_nd_update_gpu, dynamic) {
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
         ASSERT_EQ(expected_results[i], output_ptr[i]);
+    }
+}
+
+TEST(scatter_nd_update_gpu, dynamic_5d) {
+    auto& engine = get_test_engine();
+
+    auto input1_layout = layout{{ 8, -1, -1, 384}, data_types::f32, format::bfyx };
+    auto input2_layout = layout{{-1, -1, -1, -1, -1}, data_types::i32, format::bfzyx };
+    auto input3_layout = layout{{-1, -1, -1, 384}, data_types::f32, format::bfyx };
+
+    topology topology;
+    topology.add(input_layout("data", input1_layout));
+    topology.add(input_layout("indices", input2_layout));
+    topology.add(input_layout("updates", input3_layout));
+    topology.add(scatter_nd_update("scatter_nd_update", input_info("data"), input_info("indices"), input_info("updates"), 5));
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+
+    auto get_expected_res = [](const std::vector<float>& input,
+                               const std::vector<int32_t>& indices,
+                               const std::vector<float>& updates,
+                               ov::Shape input_shape,
+                               ov::Shape indices_shape,
+                               ov::Shape updates_shape) -> std::vector<float> {
+        size_t count = std::accumulate(input_shape.begin(), input_shape.end(), 1, std::multiplies<size_t>());
+        auto outputs_ref = std::vector<float>(count);
+        ngraph::runtime::reference::scatterNdUpdate<float, int32_t>(input.data(),
+                                                                    indices.data(),
+                                                                    updates.data(),
+                                                                    outputs_ref.data(),
+                                                                    input_shape,
+                                                                    indices_shape,
+                                                                    updates_shape);
+
+        return outputs_ref;
+    };
+
+
+    auto generate_unique_indices = [](ov::Shape data_shape, ov::Shape indices_shape) -> std::vector<int32_t>{
+        std::set<std::vector<int32_t>> unique_indices;
+        std::vector<int32_t> result;
+        size_t last_indices_dim = indices_shape.at(indices_shape.size() - 1);
+
+        size_t count = std::accumulate(indices_shape.begin(), indices_shape.end(), 1, std::multiplies<size_t>()) / last_indices_dim;
+
+        while (unique_indices.size() != count) {
+            std::vector<int32_t> indices;
+            for (size_t i = 0; i < last_indices_dim; i++) {
+                indices.push_back(static_cast<int32_t>(generate_random_val<int>(0, data_shape[i] - 1)));
+            }
+
+            unique_indices.insert(indices);
+        }
+
+        std::for_each(unique_indices.begin(),
+                      unique_indices.end(),
+                      [&](const std::vector<int32_t>& indices) {
+                          result.insert(result.end(), indices.begin(), indices.end());
+                      });
+
+        return result;
+    };
+
+    std::vector<std::vector<ov::Shape>> test_shapes = {
+        { { 8, 3, 1, 384 }, { 1, 3, 1, 384, 4 }, { 1, 3, 1, 384 } },
+        { { 8, 3, 2, 384 }, { 1, 3, 1, 384, 4 }, { 1, 3, 1, 384 } },
+    };
+
+    for (auto& shapes : test_shapes) {
+        ov::Shape in1_shape = shapes[0];
+        ov::Shape in2_shape = shapes[1];
+        ov::Shape in3_shape = shapes[2];
+        auto input1 = engine.allocate_memory({ in1_shape, data_types::f32, format::bfyx });  // Dictionary
+        auto input2 = engine.allocate_memory({ in2_shape, data_types::i32, format::bfzyx }); // Indexes
+        auto input3 = engine.allocate_memory({ in3_shape, data_types::f32, format::bfyx });  // Updates
+
+        std::vector<float> input_data = generate_random_1d<float>(input1->count(), 1, 100);
+        std::vector<int32_t> indices = generate_unique_indices(in1_shape, in2_shape);
+        std::vector<float> updates = generate_random_1d<float>(input3->count(), 100, 200);
+        auto expected_res = get_expected_res(input_data, indices, updates, in1_shape, in2_shape, in3_shape);
+
+        set_values<float>(input1, input_data);
+        set_values<int32_t>(input2, indices);
+        set_values<float>(input3, updates);
+
+        network.set_input_data("data", input1);
+        network.set_input_data("indices", input2);
+        network.set_input_data("updates", input3);
+
+        auto inst = network.get_primitive("scatter_nd_update");
+        auto impl = inst->get_impl();
+        ASSERT_TRUE(impl != nullptr);
+        ASSERT_TRUE(impl->is_dynamic());
+
+        auto outputs = network.execute();
+
+        auto output = outputs.at("scatter_nd_update").get_memory();
+        ASSERT_EQ(output->get_layout().get_partial_shape(), input1->get_layout().get_partial_shape());
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+        for (size_t i = 0; i < expected_res.size(); ++i) {
+            ASSERT_EQ(expected_res[i], output_ptr[i]) << " i = " << i;
+        }
     }
 }
 
