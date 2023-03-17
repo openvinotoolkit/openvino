@@ -134,18 +134,13 @@ protected:
         if (is_cpu()) {
             return;
         }
-        _kernels.clear();
 
-        const size_t num_kernels = _kernel_data.kernels.size();
-        _kernels.reserve(num_kernels);
-        for (size_t k = 0; k < num_kernels; ++k) {
-            _kernels.emplace_back(kernels_cache.get_kernel(params, k));
+        _kernels.clear();
+        if (!_kernel_data.kernels.empty()) {
+            auto compiled_kernels = kernels_cache.get_kernel(params);
+            _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
         }
     }
-
-    // std::vector<std::string> get_kernel_ids() const override {
-    //     return _kernel_ids;
-    // }
 
     std::vector<kernel::ptr> get_kernels() const override {
         return _kernels;
@@ -280,10 +275,16 @@ protected:
         if (is_cpu())
             return;
 
+        size_t total_kernels_num = std::accumulate(kernels.begin(), kernels.end(), 0,
+            [](size_t val, cldnn::kernels_cache::compiled_kernels::value_type& p) {
+                return (val + p.second.size());
+            });
+
         _kernels.clear();
-        _kernels.reserve(kernels.size());
+        _kernels.reserve(total_kernels_num);
+
         for (auto& k : kernels) {
-            _kernels.emplace_back(std::move(k.second));
+            _kernels.insert(_kernels.end(), k.second.begin(), k.second.end());
         }
     }
 };

@@ -92,52 +92,55 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
     std::vector<std::string> entry_points;
     for (const auto& k : kernels_source_code) {
         auto& code = k.second;
-        std::string full_code = code.kernel_strings->jit + code.kernel_strings->str + code.kernel_strings->undefs;
-        std::string entry_point = code.kernel_strings->entry_point;
-        std::string options = code.kernel_strings->options;
-        bool batch_compilation = code.kernel_strings->batch_compilation;
         bool dump_custom_program = code.dump_custom_program;
 
-        if (batch_compilation) {
-            options = reorder_options(options);
+        for (auto kernel_string : code.kernel_strings) {
+            std::string full_code = kernel_string->jit + kernel_string->str + kernel_string->undefs;
+            std::string entry_point = kernel_string->entry_point;
+            std::string options = kernel_string->options;
+            bool batch_compilation = kernel_string->batch_compilation;
+
+            if (batch_compilation) {
+                options = reorder_options(options);
+            }
+
+            std::string key = options;
+
+            if (batch_compilation == false) {
+                key += " __PROGRAM__" + std::to_string(program_buckets.size());
+            }
+
+            if (dump_custom_program) {
+                key += " __DUMP_CUSTOM_PROGRAM__";  // Adding label to key so it would be separated from other programs
+            }
+
+            auto& bucket_id = std::get<0>(program_buckets[key]);
+            auto& current_bucket = std::get<1>(program_buckets[key]);
+            if (current_bucket.empty()) { // new bucket
+                const auto& batch_id = 0;
+                // increase bucket id if and only if new bucket comes
+                bucket_id = static_cast<int32_t>(program_buckets.size() - 1);
+                current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
+            }
+
+            // Create new kernels batch when the limit is reached
+            // and current kernel's entry_point is duplicated in this kernels batch
+            if (current_bucket.back().kernels_counter >= get_max_kernels_per_batch()
+                || std::find(entry_points.begin(), entry_points.end(), entry_point) != entry_points.end()) {
+                const auto& batch_id = static_cast<int32_t>(current_bucket.size());
+                current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
+                entry_points.clear();
+            }
+
+            entry_points.push_back(entry_point);
+
+            auto& current_batch = current_bucket.back();
+            current_batch.dump_custom_program = dump_custom_program;
+            current_batch.entry_point_to_id.emplace(entry_point, code.params);
+
+            current_batch.source.push_back(std::move(full_code));
+            current_batch.kernels_counter++;
         }
-
-        std::string key = options;
-
-        if (batch_compilation == false) {
-            key += " __PROGRAM__" + std::to_string(program_buckets.size());
-        }
-
-        if (dump_custom_program) {
-            key += " __DUMP_CUSTOM_PROGRAM__";  // Adding label to key so it would be separated from other programs
-        }
-
-        auto& bucket_id = std::get<0>(program_buckets[key]);
-        auto& current_bucket = std::get<1>(program_buckets[key]);
-        if (current_bucket.empty()) { // new bucket
-            const auto& batch_id = 0;
-            // increase bucket id if and only if new bucket comes
-            bucket_id = static_cast<int32_t>(program_buckets.size() - 1);
-            current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
-        }
-
-        // Create new kernels batch when the limit is reached
-        if (current_bucket.back().kernels_counter >= get_max_kernels_per_batch()
-            || std::find(entry_points.begin(), entry_points.end(), entry_point) != entry_points.end()) {
-            const auto& batch_id = static_cast<int32_t>(current_bucket.size());
-            current_bucket.push_back(batch_program(bucket_id, batch_id, options, batch_header_str));
-            entry_points.clear();
-        }
-
-        entry_points.push_back(entry_point);
-
-        auto& current_batch = current_bucket.back();
-        current_batch.dump_custom_program = dump_custom_program;
-        // current_batch.entry_point_to_key[entry_point] = code.key;
-        current_batch.entry_point_to_key.emplace(entry_point, code.key);
-
-        current_batch.source.push_back(std::move(full_code));
-        current_batch.kernels_counter++;
     }
 
     // Compute hash value for each batch
@@ -279,13 +282,17 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
             std::lock_guard<std::mutex> lock(_mutex);
             for (auto& k : kernels) {
                 const auto& entry_point = k.getInfo<CL_KERNEL_FUNCTION_NAME>();
-                const auto& key_iter = batch.entry_point_to_key.find(entry_point);
-                if (key_iter != batch.entry_point_to_key.end()) {
+                const auto& iter = batch.entry_point_to_id.find(entry_point);
+                if (iter != batch.entry_point_to_id.end()) {
                     cl_kernel kern = k.get();
                     cl_context context = cl_build_engine.get_cl_context().get();
                     kernel::ptr kernel = kernels_factory::create(_engine, context, kern, entry_point);
-                    const auto& kmap = std::make_pair(key_iter->second, kernel);
-                    compiled_kernels.insert(kmap);
+                    auto& params = iter->second;
+                    if (compiled_kernels.find(params) != compiled_kernels.end()) {
+                        compiled_kernels[params].push_back(kernel);
+                    } else {
+                        compiled_kernels[params] = { kernel };
+                    }
                 } else {
                     throw std::runtime_error("Could not find entry point");
                 }
@@ -327,11 +334,11 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
     }
 }
 
-kernel::ptr kernels_cache::get_kernel(kernel_impl_params params, size_t sub_kernel_idx) const {
+std::vector<kernel::ptr> kernels_cache::get_kernel(kernel_impl_params params) const {
     if (_pending_compilation)
         throw std::runtime_error("Kernel cache is not compiled, call build_all() first!");
 
-    auto res = _kernels.find({params, sub_kernel_idx});
+    auto res = _kernels.find(params);
     if (_kernels.end() == res) {
         std::string issued_id;
         if (params.desc) {
@@ -437,12 +444,12 @@ void kernels_cache::reset() {
 void kernels_cache::add_kernels_source(kernel_impl_params& params,
                                         std::vector<std::shared_ptr<kernel_string>> kernel_sources,
                                         bool dump_custom_program) {
-    for (size_t sub_kernel_id = 0; sub_kernel_id < kernel_sources.size(); ++sub_kernel_id) {
-        std::lock_guard<std::mutex> lock(_mutex);
-        kernel_key key(params, sub_kernel_id);
-        auto res = _kernels_code.insert({key, {kernel_sources[sub_kernel_id], key, dump_custom_program}});
+    std::lock_guard<std::mutex> lock(_mutex);
 
-        assert(_kernels.find(key) == _kernels.end());
+    if (!kernel_sources.empty()) {
+        auto res = _kernels_code.insert({params, {kernel_sources, params, dump_custom_program}});
+
+        assert(_kernels.find(params) == _kernels.end());
         if (res.second) {
             _pending_compilation = true;
         }
@@ -560,8 +567,7 @@ kernels_cache::compiled_kernels kernels_cache::compile(kernel_impl_params params
 
     // Get kernels code from kernel sources
     for (size_t k = 0; k < kernel_sources.size(); ++k) {
-        kernel_key key(params, k);
-        t_kernels_code.insert({key, {kernel_sources[k], key, dump_custom_program}});
+        t_kernels_code.insert({params, {kernel_sources, params, dump_custom_program}});
     }
 
     ocl::ocl_engine& _build_engine = downcast<ocl::ocl_engine>(_engine);

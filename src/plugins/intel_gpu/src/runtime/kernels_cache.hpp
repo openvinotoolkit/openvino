@@ -26,47 +26,26 @@ namespace cldnn {
 
 class kernels_cache {
 public:
-    struct kernel_key {
-        kernel_impl_params params;
-        size_t sub_kernel_idx;
-
-        kernel_key(kernel_impl_params& _params,
-                        size_t _sub_kernel_idx)
-                : params(_params),
-                    sub_kernel_idx(_sub_kernel_idx) {}
-
-        size_t hash() const {
-            return cldnn::hash_combine(params.hash(), sub_kernel_idx);
-        }
-
-        bool operator==(const kernel_key& rhs) const {
-            if ((params == rhs.params)
-                    && (sub_kernel_idx == rhs.sub_kernel_idx))
-                return true;
-            return false;
-        }
-    };
-
     struct kernel_code {
-        std::shared_ptr<kernel_string> kernel_strings;
-        kernel_key key;
+        std::vector<std::shared_ptr<kernel_string>> kernel_strings;
+        kernel_impl_params params;
         bool dump_custom_program;
 
-        kernel_code(const std::shared_ptr<kernel_string>& _kernel_strings,
-                    const kernel_key& _key,
+        kernel_code(const std::vector<std::shared_ptr<kernel_string>>& _kernel_strings,
+                    const kernel_impl_params& _params,
                     bool _dump_custom_program)
             : kernel_strings(_kernel_strings),
-                key(_key),
+                params(_params),
                 dump_custom_program(_dump_custom_program) {}
     };
 
     struct impl_hasher {
-        size_t operator()(const kernel_key &k) const {
+        size_t operator()(const kernel_impl_params &k) const {
             return k.hash();
         }
     };
 
-    using kernels_code = std::unordered_map<kernel_key, kernel_code, impl_hasher>;
+    using kernels_code = std::unordered_map<kernel_impl_params, kernel_code, impl_hasher>;
 
     using source_code = std::vector<std::string>;
     struct batch_program {
@@ -77,7 +56,7 @@ public:
         source_code source;
         std::string options;
         bool dump_custom_program;
-        std::map<std::string, kernel_key> entry_point_to_key;
+        std::map<std::string, kernel_impl_params> entry_point_to_id;
 
         explicit batch_program(int32_t _bucket_id, int32_t _batch_id, std::string _options, const std::vector<std::string>& batch_header_str)
             : bucket_id(_bucket_id),
@@ -87,11 +66,11 @@ public:
               source(std::move(batch_header_str)),
               options(_options),
               dump_custom_program(false),
-              entry_point_to_key({}) {
+              entry_point_to_id({}) {
         }
     };
 
-    using compiled_kernels = std::unordered_map<kernel_key, kernel::ptr, impl_hasher>;
+    using compiled_kernels = std::unordered_map<kernel_impl_params, std::vector<kernel::ptr>, impl_hasher>;
 
 private:
     static std::mutex _mutex;
@@ -117,7 +96,7 @@ public:
                            uint32_t prog_id,
                            InferenceEngine::CPUStreamsExecutor::Ptr task_executor = nullptr,
                            const std::vector<std::string>& batch_header_str = {});
-    kernel::ptr get_kernel(kernel_impl_params params, size_t sub_kernel_idx = 0) const;
+    std::vector<kernel::ptr> get_kernel(kernel_impl_params params) const;
     void set_batch_header_str(const std::vector<std::string> &batch_headers) {
         batch_header_str = std::move(batch_headers);
     }
