@@ -7,7 +7,7 @@ import pytest
 import numpy as np
 
 from tests.conftest import model_path
-from tests.test_utils.test_utils import get_relu_model, generate_image, generate_model_and_image, generate_relu_compiled_model
+from tests.test_utils.test_utils import generate_relu_compiled_model
 from openvino.runtime import Model, ConstOutput, Type, Shape, Core, Tensor
 from openvino.runtime.utils.data_helpers import _data_dispatch
 
@@ -19,8 +19,8 @@ def _get_value(value):
     return value.data if isinstance(value, Tensor) else value
 
 
-def _run_dispatcher(device, input_data, input_shape, is_shared):
-    compiled_model = generate_relu_compiled_model(device, input_shape)
+def _run_dispatcher(device, input_data, is_shared, input_shape, input_dtype=np.float32):
+    compiled_model = generate_relu_compiled_model(device, input_shape, input_dtype)
     infer_request = compiled_model.create_infer_request()
     result = _data_dispatch(infer_request, input_data, is_shared)
 
@@ -30,16 +30,56 @@ def _run_dispatcher(device, input_data, input_shape, is_shared):
 @pytest.mark.parametrize("data_type", [np.float_, np.int_, int, float])
 @pytest.mark.parametrize("input_shape", [[], [1]])
 @pytest.mark.parametrize("is_shared", [True, False])
-def test_scalars_dispatcher(device, data_type, input_shape, is_shared):
+def test_scalars_dispatcher_old(device, data_type, input_shape, is_shared):
     test_data = data_type(2)
     expected = Tensor(np.ndarray([], data_type, np.array(test_data)))
 
-    result, _ = _run_dispatcher(device, test_data, input_shape, is_shared)
+    result, _ = _run_dispatcher(device, test_data, is_shared, input_shape)
 
     assert isinstance(result, Tensor)
     assert result.get_shape() == Shape([])
-    assert result.get_element_type() == Type(data_type)
+    assert result.get_element_type() == Type(np.float32)
     assert result.data == expected.data
+
+
+@pytest.mark.parametrize(("input_data", "input_dtype"), [
+    (np.float_(2), np.float_),
+    (np.int_(1), np.int_),
+    (int(3), np.int64),
+    (1, np.int64),
+    (float(7), np.float64),
+    (1.0, np.int64),
+])
+@pytest.mark.parametrize("input_shape", [[], [1]])
+@pytest.mark.parametrize("is_shared", [True, False])
+def test_scalars_dispatcher_new_0(device, input_data, input_dtype, input_shape, is_shared):
+    expected = Tensor(np.array(input_data, dtype=input_dtype))
+
+    result, _ = _run_dispatcher(device, input_data, is_shared, input_shape, input_dtype)
+
+    assert isinstance(result, Tensor)
+    assert result.get_shape() == Shape([])
+    assert result.get_element_type() == Type(input_dtype)
+    assert result.data == expected.data
+
+
+@pytest.mark.parametrize(("input_data", "is_shared", "expected"), [
+    (np.array(2.0, dtype=np.float32), False, {}),
+    (np.array(2.0, dtype=np.float32), True, Tensor(np.array(2.0, dtype=np.float32))),
+    (np.array(1, dtype=np.int8), False, {}),
+    (np.array(1, dtype=np.int8), True, Tensor(np.array(1, dtype=np.float32))),
+])
+@pytest.mark.parametrize("input_shape", [[], [1]])
+def test_scalars_dispatcher_new_1(device, input_data, is_shared, expected, input_shape):
+    result, _ = _run_dispatcher(device, input_data, is_shared, input_shape, np.float32)
+
+    assert isinstance(result, type(expected))
+    if isinstance(result, dict):
+        assert len(result) == 0
+    else:
+        assert result.get_shape() == Shape(input_shape)
+        assert result.get_element_type() == Type(np.float32)
+        assert result.data == expected.data
 
 
 @pytest.mark.parametrize("input_shape", [[1], [2, 2]])
@@ -49,7 +89,7 @@ def test_tensor_dispatcher(device, input_shape, is_shared):
 
     test_data = Tensor(array, is_shared)
 
-    result, _ = _run_dispatcher(device, test_data, input_shape, is_shared)
+    result, _ = _run_dispatcher(device, test_data, is_shared, input_shape)
 
     assert isinstance(result, Tensor)
     assert result.get_shape() == Shape(input_shape)
@@ -66,7 +106,7 @@ def test_tensor_dispatcher(device, input_shape, is_shared):
 def test_ndarray_shared_dispatcher(device, input_shape):
     test_data = np.ones(input_shape).astype(np.float32)
 
-    result, _ = _run_dispatcher(device, test_data, input_shape, True)
+    result, _ = _run_dispatcher(device, test_data, True, input_shape)
 
     assert isinstance(result, Tensor)
     assert result.get_shape() == Shape(test_data.shape)
@@ -82,7 +122,7 @@ def test_ndarray_shared_dispatcher(device, input_shape):
 def test_ndarray_shared_dispatcher_casting(device, input_shape):
     test_data = np.ones(input_shape)
 
-    result, infer_request = _run_dispatcher(device, test_data, input_shape, True)
+    result, infer_request = _run_dispatcher(device, test_data, True, input_shape)
 
     assert isinstance(result, Tensor)
     assert result.get_shape() == Shape(test_data.shape)
@@ -98,7 +138,7 @@ def test_ndarray_shared_dispatcher_casting(device, input_shape):
 def test_ndarray_shared_dispatcher_misalign(device, input_shape):
     test_data = np.asfortranarray(np.ones(input_shape).astype(np.float32))
 
-    result, _ = _run_dispatcher(device, test_data, input_shape, True)
+    result, _ = _run_dispatcher(device, test_data, True, input_shape)
 
     assert isinstance(result, Tensor)
     assert result.get_shape() == Shape(test_data.shape)
@@ -114,7 +154,7 @@ def test_ndarray_shared_dispatcher_misalign(device, input_shape):
 def test_ndarray_copied_dispatcher(device, input_shape):
     test_data = np.ones(input_shape)
 
-    result, infer_request = _run_dispatcher(device, test_data, input_shape, False)
+    result, infer_request = _run_dispatcher(device, test_data, False, input_shape)
 
     assert result == {}
     assert np.array_equal(infer_request.inputs[0].data, test_data)

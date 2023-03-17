@@ -144,6 +144,8 @@ protected:
 
     virtual void LoadNetwork();
 
+    virtual void ExpectLoadNetworkToThrow(const std::string& msg);
+
     virtual void GenerateInputs();
 
     virtual void ConfigureInferRequest();
