@@ -328,9 +328,6 @@ static VectorDims extractOrder(const dnnl::memory::desc& desc) {
     return blk_order;
 }
 
-DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const dnnl::memory::desc& mdesc) :
-    DnnlBlockedMemoryDesc(mdesc.get()) {}
-
 DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const_dnnl_memory_desc_t cdesc) :
     MemoryDesc(DnnlExtensionUtils::convertToVectorDims(cdesc->dims, cdesc->ndims), DnnlBlocked) {
     desc = dnnl::memory::desc(DnnlExtensionUtils::clone_desc(cdesc));
@@ -464,7 +461,7 @@ MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims)
             IE_THROW(NotImplemented) << "Can't clone desc with new dims for not dense tensor";
     }
 
-    return DnnlBlockedMemoryDescPtr(new DnnlBlockedMemoryDesc(cloneDescWithNewDims(desc, dims, order)));
+    return DnnlBlockedMemoryDescPtr(new DnnlBlockedMemoryDesc(cloneDescWithNewDims(desc, dims, order).get()));
 }
 
 bool DnnlBlockedMemoryDesc::isSame(dnnl::memory::format_tag fmt) const {

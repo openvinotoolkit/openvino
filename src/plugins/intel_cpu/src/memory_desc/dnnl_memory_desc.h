@@ -45,9 +45,7 @@ public:
 
     bool hasEmptyExtraData() const;
 
-    size_t getOffsetPadding() const override {
-        return DnnlExtensionUtils::convertToDim(desc.data.offset0);
-    }
+    size_t getOffsetPadding() const override;
 
 protected:
     DnnlMemoryDesc() {}
