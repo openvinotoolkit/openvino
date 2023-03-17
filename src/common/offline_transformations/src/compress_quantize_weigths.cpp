@@ -4,6 +4,7 @@
 
 #include <compress_quantize_weights.hpp>
 #include <ngraph/opsets/opset8.hpp>
+#include <ngraph/pattern/op/or.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
@@ -36,7 +37,10 @@ static bool has_dequantization_subgraph(const std::shared_ptr<ngraph::Node>& fir
 }
 
 ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
-    auto weights_pattern = pattern::wrap_type<opset8::Constant>();
+    auto weights_const_pattern = pattern::wrap_type<opset8::Constant>();
+    auto weigths_convert_pattern = pattern::wrap_type<opset8::Convert>({weights_const_pattern});
+    OutputVector weights_options{weights_const_pattern, weigths_convert_pattern};
+    auto weights_pattern = std::make_shared<pattern::op::Or>(weights_options);
     auto input_low_pattern = pattern::wrap_type<opset8::Constant>();
     auto input_high_pattern = pattern::wrap_type<opset8::Constant>();
     auto output_low_pattern = pattern::wrap_type<opset8::Constant>();
@@ -93,11 +97,14 @@ ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
             auto new_output_low = op::Constant::create(input_type, Shape{}, {-static_cast<float>(levels / 2)});
             auto new_output_high =
                 std::make_shared<opset8::Add>(new_output_low, op::Constant::create(input_type, Shape{}, {levels - 1}));
-            const auto& weights = pattern_value_map.at(weights_pattern);
+            const auto& weights_const = pattern_value_map.at(weights_const_pattern);
             const auto& input_low = pattern_value_map.at(input_low_pattern);
             const auto& input_high = pattern_value_map.at(input_high_pattern);
+            const auto& fq_data_input = pattern_value_map.count(weigths_convert_pattern)
+                                            ? pattern_value_map.at(weigths_convert_pattern)
+                                            : weights_const;
             auto quantize =
-                fq->clone_with_new_inputs({weights, input_low, input_high, new_output_low, new_output_high});
+                fq->clone_with_new_inputs({fq_data_input, input_low, input_high, new_output_low, new_output_high});
             // Convert quantized weights to low precision type
             std::shared_ptr<Node> new_weights = std::make_shared<opset8::Convert>(quantize, quantized_type);
             // Constant fold quantized weights
@@ -106,7 +113,7 @@ ngraph::pass::CompressQuantizeWeights::CompressQuantizeWeights() {
             } else {
                 return false;
             }
-            new_weights->set_friendly_name(weights.get_node()->get_friendly_name());
+            new_weights->set_friendly_name(weights_const.get_node()->get_friendly_name());
 
             /*
                Dequantize part is performed by Convert(from low to high precision)->Subtract->Multiply subgraph.
