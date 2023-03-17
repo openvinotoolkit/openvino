@@ -54,11 +54,11 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInf
             }
         });
     } else {
-        MultiImmediateExecutor::Ptr _FirstExecutor = std::make_shared<MultiImmediateExecutor>();
+        MultiImmediateExecutor::Ptr _firstExecutor = std::make_shared<MultiImmediateExecutor>();
         pipeline = {
             // if the request is coming with device-specific remote blobs make sure it is scheduled to the specific device only:
             Stage {
-                /*TaskExecutor*/ _FirstExecutor, /*task*/ [this, &syncInferRequest]() {
+                /*TaskExecutor*/ _firstExecutor, /*task*/ [this, &syncInferRequest]() {
                     // by default, no preferred device:
                     _thisPreferredDeviceName = "";
                     auto execNetwork = _multiSContext->_executableNetwork.lock();
@@ -101,7 +101,7 @@ Pipeline MultiSchedule::GetPipeline(const IInferPtr& syncInferRequest, WorkerInf
                 }},
             // final task in the pipeline:
             Stage {
-                /*TaskExecutor*/std::make_shared<ThisRequestExecutor>(workerInferRequest, _FirstExecutor), /*task*/
+                /*TaskExecutor*/std::make_shared<ThisRequestExecutor>(workerInferRequest, _firstExecutor), /*task*/
                 [this, &syncInferRequest, workerInferRequest]() {
                     INFO_RUN([workerInferRequest]() {
                         (*workerInferRequest)->_endTimes.push_back(std::chrono::steady_clock::now());

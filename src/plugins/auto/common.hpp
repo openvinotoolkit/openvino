@@ -78,7 +78,7 @@ struct WorkerInferRequest {
     std::list<Time>    _startTimes;
     std::list<Time>    _endTimes;
     int                _index = 0;
-    MultiImmediateExecutor::Ptr  _testExec;
+    MultiImmediateExecutor::Ptr  _fallbackExec;
 };
 
 using NotBusyPriorityWorkerRequests = IE::ThreadSafeBoundedPriorityQueue<std::pair<int, WorkerInferRequest*>>;

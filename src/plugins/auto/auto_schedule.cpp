@@ -89,13 +89,14 @@ void AutoSchedule::GenerateWorkers(const std::string& device,
                         // select other device
                         try {
                             selectOtherDeviceFlag = selectOtherDevice(device);
-                        } catch (const IE::Exception&) {
+                        } catch (const IE::Exception& iie) {
+                            LOG_DEBUG_TAG("select other devices with error: %s", iie.what());
                             selectOtherDeviceFlag = false;
                         }
                         if (selectOtherDeviceFlag) {
                             // Add end time to current workerRequest and restart the task in pipeline
                             workerRequestPtr->_endTimes.push_back(std::chrono::steady_clock::now());
-                            workerRequestPtr->_testExec->_task();
+                            workerRequestPtr->_fallbackExec->_task();
                         } else {
                             // continue to run the task in pipeline
                             stopRetryAndContinue();
@@ -131,7 +132,7 @@ bool AutoSchedule::selectOtherDevice(const std::string& currentDeviceName) {
             if (_autoSContext->_modelPath.empty())
                 _loadContext[FALLBACKDEVICE].networkPrecision = GetNetworkPrecision(_autoSContext->_network);
             if (deviceName == "CPU_HELP") {
-                // if infer faied in CPU_HELP, we will remove CPU from _devicePriorities
+                // if infer failed in CPU_HELP, we will remove CPU from _devicePriorities
                 // and re-run infer request when _loadContext[ACTUALDEVICE] is ready
                 realDeviceName = "CPU";
                 isCPUHelp = true;
@@ -152,7 +153,7 @@ bool AutoSchedule::selectOtherDevice(const std::string& currentDeviceName) {
                     return true;
                 }
             } else {
-                LOG_DEBUG_TAG("Alreay selected fallback device");
+                LOG_DEBUG_TAG("Already selected the fallback device");
                 return _loadContext[FALLBACKDEVICE].isReloadSuccess ? true : false;
             }
             _loadContext[FALLBACKDEVICE].metaDevices = _autoSContext->_devicePriorities;
@@ -165,7 +166,11 @@ bool AutoSchedule::selectOtherDevice(const std::string& currentDeviceName) {
                                                         _autoSContext->_modelPriority);
             try {
                 _loadContext[FALLBACKDEVICE].task();
-            } catch (const IE::Exception&) {
+                // FALLBACKDEVICE need to be load again if infer failed, so reset promise here
+                _loadContext[FALLBACKDEVICE].promise = {};
+                _loadContext[FALLBACKDEVICE].future = _loadContext[FALLBACKDEVICE].promise.get_future();
+            } catch (const IE::Exception& iie) {
+                LOG_DEBUG_TAG("Load context in FALLBACKDEVICE with error: %s", iie.what());
             }
             if (_loadContext[FALLBACKDEVICE].isReloadSuccess) {
                 _loadContext[ACTUALDEVICE].isEnabled = false;
@@ -266,10 +271,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
     // initialize the rest members of load context
     for (int i = 0; i < CONTEXTNUM; i++) {
         if (_loadContext[i].isEnabled) {
-            // FALLBACKDEVICE need to be load again if infer failed in FALLBACKDEVICE
-            // so can not set promise to FALLBACKDEVICE
-            if (i != AutoLoadContextIndex::FALLBACKDEVICE)
-                _loadContext[i].future = _loadContext[i].promise.get_future();
+            _loadContext[i].future = _loadContext[i].promise.get_future();
             auto* contextPtr = &_loadContext[i];
             auto modelPath = _autoSContext->_modelPath;
             auto network = _autoSContext->_network;
@@ -310,11 +312,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                         });
                     }
                 }
-                try {
-                    contextPtr->promise.set_value();
-                } catch (const std::exception&) {
-                    LOG_DEBUG_TAG("FALLBACKDEVICE do not need set promise");
-                }
+                contextPtr->promise.set_value();
                 // the first load network process finished
                 std::call_once(_firstLoadOC, [this]() {
                     _firstLoadPromise.set_value();
@@ -356,8 +354,8 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                     for (auto& iter : _workerRequests["CPU_HELP"]) {
                         try {
                             iter._inferRequest._ptr->Wait(IE::InferRequest::WaitMode::RESULT_READY);
-                        } catch (const InferenceEngine::GeneralError&) {
-                            LOG_DEBUG_TAG("Avoid infer in CPU_HELP throw some errors");
+                        } catch (const IE::Exception& iie) {
+                            LOG_DEBUG_TAG("No infer results expected, infer in CPU_HELP throw some errors: %s", iie.what());
                         }
                     }
                 }
