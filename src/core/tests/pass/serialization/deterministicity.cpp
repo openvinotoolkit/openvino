@@ -16,19 +16,18 @@
 
 class DeterministicityCommon {
 protected:
-    std::string m_out_xml_path_1 = {};
-    std::string m_out_bin_path_1 = {};
-    std::string m_out_xml_path_2 = {};
-    std::string m_out_bin_path_2 = {};
-    std::string xmlFileName;
+    std::string m_out_xml_path_1{};
+    std::string m_out_bin_path_1{};
+    std::string m_out_xml_path_2{};
+    std::string m_out_bin_path_2{};
+    std::string filePrefix{};
 
     void SetupFileNames() {
-        std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
+        filePrefix = CommonTestUtils::generateTestFilePrefix();
         m_out_xml_path_1 = filePrefix + "1" + ".xml";
         m_out_bin_path_1 = filePrefix + "1" + ".bin";
         m_out_xml_path_2 = filePrefix + "2" + ".xml";
         m_out_bin_path_2 = filePrefix + "2" + ".bin";
-        xmlFileName = filePrefix + "_TestModel.xml";
     }
 
     void RemoveFiles() {
@@ -36,7 +35,6 @@ protected:
         std::remove(m_out_xml_path_2.c_str());
         std::remove(m_out_bin_path_1.c_str());
         std::remove(m_out_bin_path_2.c_str());
-        std::remove(xmlFileName.c_str());
     }
 
     bool files_equal(std::ifstream& f1, std::ifstream& f2) {
@@ -153,6 +151,18 @@ protected:
     std::string input1Name{"input1"};
     std::string output0Name{"output0"};
     std::string output1Name{"output1"};
+
+    std::string xmlFileName{};
+
+    void SetupFileNames() {
+        DeterministicityCommon::SetupFileNames();
+        xmlFileName = filePrefix + "_TestModel.xml";
+    }
+
+    void RemoveFiles() {
+        DeterministicityCommon::RemoveFiles();
+        std::remove(xmlFileName.c_str());
+    }
 
     void SetUp() override {
         SetupFileNames();
