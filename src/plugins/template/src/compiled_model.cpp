@@ -143,7 +143,7 @@ ov::Any ov::template_plugin::CompiledModel::get_property(const std::string& name
     } else if (ov::loaded_from_cache == name) {
         return m_loaded_from_cache;
     } else if (ov::execution_devices == name) {
-        return decltype(ov::execution_devices)::value_type{get_plugin()->get_device_name() + "_" +
+        return decltype(ov::execution_devices)::value_type{get_plugin()->get_device_name() + "." +
                                                            std::to_string(m_cfg.device_id)};
     } else if (ov::optimal_number_of_infer_requests == name) {
         unsigned int value = m_cfg.streams_executor_config._streams;
