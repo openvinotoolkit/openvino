@@ -157,7 +157,8 @@ public:
                                      std::array<uint32_t, 2> poolingStrideXY,
                                      float output_scale_factor,
                                      A*& ptr_inputs,
-                                     B*& ptr_outputs) {
+                                     B*& ptr_outputs,
+                                     bool enforce_2D = false) {
         InitMaxpoolComponentPrivate(cmp,
                                     inCHW,
                                     outCHW,
@@ -168,7 +169,8 @@ public:
                                     output_scale_factor,
                                     (void*&)ptr_inputs,
                                     (void*&)ptr_outputs,
-                                    true);
+                                    true,
+                                    enforce_2D);
     }
 
     template <class A, class B>
@@ -281,7 +283,8 @@ public:
     template <class T>
     void AdvanceCnnOperationIfAllApplied(const std::vector<intel_dnn_component_t>& cmp, int i, T*& operation) {
         if (i == cmp.size() - 1 ||
-            ((cmp[i + 1].operation != kDnnMaxPoolOp) && (cmp[i + 1].operation != kDnnPiecewiselinearOp))) {
+            (((cmp[i + 1].operation != kDnnMaxPoolOp) && (cmp[i + 1].operation != kDnnMaxPool2dOp)) &&
+             (cmp[i + 1].operation != kDnnPiecewiselinearOp))) {
             operation++;
         }
     }
@@ -289,7 +292,8 @@ public:
     template <class T>
     void AdvancePwlOperationIfAllApplied(const std::vector<intel_dnn_component_t>& cmp, int i, T*& operation) {
         if (i == cmp.size() - 1 ||
-            ((cmp[i + 1].operation != kDnnMaxPoolOp) && (cmp[i + 1].operation != kDnnPiecewiselinearOp))) {
+            (((cmp[i + 1].operation != kDnnMaxPoolOp) && (cmp[i + 1].operation != kDnnMaxPool2dOp)) &&
+             (cmp[i + 1].operation != kDnnPiecewiselinearOp))) {
             operation++;
         }
     }
@@ -377,7 +381,8 @@ private:
                                             float output_scale_factor,
                                             void*& ptr_inputs,
                                             void*& ptr_outputs,
-                                            bool postInitMem);
+                                            bool postInitMem,
+                                            bool enforce_2D = false);
 
     static void InitPiecewiseLinearComponentPrivate(intel_dnn_component_t& cmp,
                                                     const DnnActivation& function_id,
