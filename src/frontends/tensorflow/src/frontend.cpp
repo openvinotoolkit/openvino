@@ -248,7 +248,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     {
         // perform transpose sinking and reverse infer if the model contains only OpenVINO operations
         ov::pass::Manager manager;
-        manager.register_pass<ov::pass::transpose_sinking::TSGeneral>();
+        manager.register_pass<ov::pass::TransposeSinkingGeneral>();
         manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
         manager.run_passes(model);
     }
