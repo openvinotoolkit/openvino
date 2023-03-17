@@ -341,13 +341,15 @@ class TorchScriptPythonDecoder (Decoder):
 
 class TorchFXPythonDecoder (Decoder):
 
-    def __init__(self, pt_module, fx_gm, nodes=None, mark_node_callback=None):
+    def __init__(self, pt_module, fx_gm, nodes=None, mark_node_callback=None, input_shapes=[], input_types=[]):
         Decoder.__init__(self)
         self.mark_node_callback = mark_node_callback
         # We store every decoder created by this decoder so that all them are not deleted until the first decoder is deleted
         self.m_decoders = []
         self.pt_module = pt_module
         self.fx_gm = fx_gm
+        self.input_types = input_types
+        self.input_shapes = input_shapes
 
         print(type(pt_module))
         if issubclass(type(pt_module), torch.fx.graph_module.GraphModule):
@@ -363,8 +365,11 @@ class TorchFXPythonDecoder (Decoder):
                 elif self._nodes[i].op == 'output':
                     # Instead of putting output index, refer to its target
                     #print(dir(self._nodes[i]))
-                    print(self._nodes[i].args[0])
-                    for output in self._nodes[i].args: #[0]:
+                    args = self._nodes[i].args
+                    if isinstance(args[0], tuple):
+                        args = args[0]
+                    print(args)
+                    for output in args:
                         self._outputs.append(self._nodes.index(output))
 
             print(f'[ FX DECODER DEBUG ] inputs: {self._inputs}')
@@ -406,13 +411,17 @@ class TorchFXPythonDecoder (Decoder):
 
     def get_input_shape(self, index):
         print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
-        input = self._raw_input(index)
-        return self.get_shape_for_value(input)
+        if index < len(self.input_shapes):
+            return PartialShape(self.input_shapes[index])
+        #TODO: return a proper shape if self.input_shapes is empty
+        return PartialShape([1])
 
     def get_input_type(self, index):
         print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
-        input = self._raw_input(index)
-        return self.get_type_for_value(input)
+        if index < len(self.input_types):
+            return OVAny(pt_to_ov_type_map[self.input_types[index]])
+        #TODO: return a proper type if self.input_types is empty
+        return OVAny(OVType.f32)
 
     def get_output_debug_name(self, index):
         return "output"+str(index)

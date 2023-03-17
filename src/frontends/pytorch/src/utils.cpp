@@ -275,7 +275,7 @@ std::shared_ptr<ov::op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> 
         return nullptr;
     }
     const auto& attrs = fw_node->get_attrs();
-    if (attrs.find("PtTypeName") == attrs.end() || attrs.at("PtTypeName") != type) {
+    if (attrs.find("PtTypeName") == attrs.end() || (attrs.at("PtTypeName") != type && attrs.at("PtTypeName") != "<built-in function getitem>")) {
         return nullptr;
     }
     return fw_node;
