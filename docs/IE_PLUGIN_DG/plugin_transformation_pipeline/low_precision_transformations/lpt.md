@@ -15,22 +15,26 @@
    Step 3. Main transformations <openvino_docs_OV_UG_lpt_step3_main>
    Step 4. Cleanup transformations <openvino_docs_OV_UG_lpt_step4_cleanup>
 
-@endsphinxdirective
 
-## Introduction
+Introduction
+############
+
 Low precision transformations (known as LPT) are a set of nGraph transformations, which are combined in one library. The library is mandatory part of OpenVINO to infer quantized model in low precision with the maximum performance on Intel CPU, GPU and ARM platforms. The library includes more than 45 transformations and supports more then 30 operations. Some transformations are mandatory, some of them are optional and developed for specific device.
 
 The goal of Low Precision Transformations (LPT) is to transform a quantized model from its original precision (FP16 or FP32) to a low precision (INT8: `signed int8` or `unsigned int8`), so that it is prepared for low precision inference in OpenVINO™ plugin. It is achieved by two main principles:
-1. `FakeQuantize` operation decomposition to two parts:  
-    - part #1: quantize operation - new `FakeQuantize` operation with output quantization intervals in low precision range (signed int8: [-128, 127] or [-127, 127], unsigned int8: [0, 255] or [0, 256]) and with low precision output (`signed int8` or `unsigned int8`), 
-    - part #2: dequantization operations with low precision input and original precision output.
+1. ``FakeQuantize`` operation decomposition to two parts:  
+
+    * part #1: quantize operation - new `FakeQuantize` operation with output quantization intervals in low precision range (signed int8: [-128, 127] or [-127, 127], unsigned int8: [0, 255] or [0, 256]) and with low precision output (``signed int8`` or ``unsigned int8``), 
+    * part #2: dequantization operations with low precision input and original precision output.
+
 2. Propagation of the dequantization operation through original model's operations. It is done to avoid dequantization operations before original model operations, thus the quantize operations with low precision output remain before the original model operations. 
 
 As result, operation input tensor precisions will be changed from original to low precision and operations can be inferred by OpenVINO™ plugin in low precision.
 
-For a more detailed description on how to quantize a model, see the [Low precision tools](#low-precision-tools) section below. For more information about model quantization, refer to **Brief History of Lower Precision in Deep Learning** section in [this whitepaper](https://software.intel.com/en-us/articles/lower-numerical-precision-deep-learning-inference-and-training).
+For a more detailed description on how to quantize a model, see the `Low precision tools <#low-precision-tools>`__ section below. For more information about model quantization, refer to **Brief History of Lower Precision in Deep Learning** section in [this whitepaper](https://software.intel.com/en-us/articles/lower-numerical-precision-deep-learning-inference-and-training).
 
-## Input model requirements
+Input model requirements
+########################
 
 LPT transformations propagate dequantization operations through the following operations:
 * [Add-1](@ref openvino_docs_ops_arithmetic_Add_1)
@@ -69,23 +73,33 @@ If operation is not supported by LPT then dequantization operation will not be p
 
 For example, if you would like to infer a model with `Convolution` operation in low precision then the model can look as on picture below:
 
-![Quantized Convolution](img/model_fq_and_convolution.common.png)
+.. image:: docs/_static/images/model_fq_and_convolution.common.svg
 
-> There are several supported quantization approaches on activations and on weights. All supported approaches are described in [Quantization approaches](#quantization-approaches) section below. In demonstrated model [FakeQuantize operation quantization](#fakequantize-operation) approach is used.
+There are several supported quantization approaches on activations and on weights. All supported approaches are described in `Quantization approaches <#quantization-approaches>`__ section below. In demonstrated model `FakeQuantize operation quantization <#fakequantize-operation>`__ approach is used.
 
-### <a name="low-precision-tools"></a> Low precision tools
-For more details on how to get a quantized model, refer to [Model Optimization](@ref openvino_docs_model_optimization_guide) document.
+Low precision tools
++++++++++++++++++++
 
-## <a name="quantization-approaches"></a> Quantization approaches
+For more details on how to get a quantized model, refer to :doc:`Model Optimization < openvino_docs_model_optimization_guide>` document.
+
+Quantization approaches
+#######################
+
 LPT transformations support two quantization approaches:
-1. `FakeQuantize` operation,
+
+1. ``FakeQuantize`` operation,
 2. Quantize and dequantization operations
 
-Let's explore both approaches in details on `Convolution` operation.
-### <a name="fakequantize-operation"></a> FakeQuantize operation  
-In this case `FakeQuantize` operation is used on activations and quantized constant on weights. Original input model:  
+Let's explore both approaches in details on ``Convolution`` operation.
 
-![Original model with FakeQuantize](img/model_fq_and_convolution.common.png)
+FakeQuantize operation
+++++++++++++++++++++++ 
+
+In this case ``FakeQuantize`` operation is used on activations and quantized constant on weights. Original input model:  
+
+.. image:: docs/_static/images/model_fq_and_convolution.common.svg
+   alt:: Original model with FakeQuantize
+
 
 ### Quantize and dequantization operations  
 In this case `FakeQuantize` operation and `Convert` are used as quantize operation and return quantized low precision tensor. After quantize operation on activations there are `Convert` and dequantization operations to compensate decomposition. Original input model:
@@ -316,3 +330,5 @@ This option defines if each LPT transformation updates precision or not. The opt
 Plugin specific customization can be implemented via nGraph transformation callbacks. For example: asymmetric quantization support can be easily customizable via `LayerTransformation::isAsymmetricQuantization` and `WeightableLayerTransformation::isAsymmetricOnWeights` methods usage in callbacks. For example:
 
 @snippet snippets/lpt_intel_cpu_plugin.cpp asymmetric_quantization
+
+@endsphinxdirective
