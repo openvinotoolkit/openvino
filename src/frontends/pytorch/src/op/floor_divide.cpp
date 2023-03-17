@@ -18,7 +18,11 @@ OutputVector translate_floor_divide(NodeContext& context) {
     num_inputs_check(context, 2, 2);
     auto x = context.get_input(0);
     auto y = context.get_input(1);
+    std::cout << "here" << std::endl;
+    align_eltwise_input_types(context, x, y, true);
+    std::cout << "here 2" << std::endl;
     auto div = context.mark_node(std::make_shared<v1::Divide>(x, y, true));
+    std::cout << "here 3" << std::endl;
     return {context.mark_node(std::make_shared<v0::Floor>(div))};
 };
 
