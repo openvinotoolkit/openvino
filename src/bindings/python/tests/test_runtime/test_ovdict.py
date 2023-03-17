@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from collections.abc import Mapping
-# from copy import deepcopy
 import numpy as np
 import pytest
 
@@ -38,7 +37,7 @@ def _get_ovdict(
         assert len(output_names) == split_num
     param = ops.parameter(input_shape, data_type, name=input_names[0])
     model = Model(
-        ops.split(param, 1, split_num) if multi_output else ops.abs(param), [param]
+        ops.split(param, 1, split_num) if multi_output else ops.abs(param), [param],
     )
     # Manually name outputs
     for i in range(len(output_names)):
@@ -53,7 +52,7 @@ def _get_ovdict(
         result = compiled_model(input_data)
         assert result is not None
         return result, compiled_model
-    
+
     request = compiled_model.create_infer_request()
     result = request.infer(input_data)
     assert result is not None
@@ -128,7 +127,7 @@ def test_ovdict_single_output_noname(device, is_direct):
     assert isinstance(result, OVDict)
 
     outs = obj.model_outputs if isinstance(obj, InferRequest) else obj.outputs
-    
+
     assert isinstance(result[outs[0]], np.ndarray)
     assert isinstance(result[0], np.ndarray)
 
@@ -153,7 +152,7 @@ def test_ovdict_single_output_wrongname(device, is_direct):
     assert isinstance(result, OVDict)
 
     outs = obj.model_outputs if isinstance(obj, InferRequest) else obj.outputs
-    
+
     assert isinstance(result[outs[0]], np.ndarray)
     assert isinstance(result[0], np.ndarray)
 
@@ -230,7 +229,8 @@ def test_ovdict_multi_output_tuple0(device, is_direct, use_function):
     else:
         out0, out1 = result.values()
 
-    assert out0 is not None and out1 is not None
+    assert out0 is not None
+    assert out1 is not None
     assert isinstance(out0, np.ndarray)
     assert isinstance(out1, np.ndarray)
 

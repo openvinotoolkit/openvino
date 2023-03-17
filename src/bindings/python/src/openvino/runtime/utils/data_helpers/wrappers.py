@@ -9,10 +9,10 @@ import numpy as np
 try:
     from functools import singledispatchmethod
 except ImportError:
-    from singledispatchmethod import singledispatchmethod
+    from singledispatchmethod import singledispatchmethod  # type: ignore[no-redef]
 
 from collections.abc import Mapping, KeysView, ItemsView, ValuesView
-from typing import Union, Dict, List, Tuple, Any
+from typing import Union, Dict, List, Iterator
 
 from openvino._pyopenvino import Tensor, ConstOutput
 from openvino._pyopenvino import InferRequest as InferRequestBase
@@ -56,21 +56,23 @@ class OVDict(Mapping):
     :Example:
 
     .. code-block:: python
+
         # Reverts to the previous behavior of the native dict
-        result = request.infer(...).to_dict()
-        # ... or alternatively:
-        result = dict(request.infer(...))
+        result = request.infer(inputs).to_dict()
+        # or alternatively:
+        result = dict(request.infer(inputs))
 
     .. code-block:: python
+
         # To dispatch outputs of multi-ouput inference:
-        out1, out2, out3, _ = request.infer(...).values()
-        # ... or alternatively:
-        out1, out2, out3, _ = request.infer(...).to_tuple()
+        out1, out2, out3, _ = request.infer(inputs).values()
+        # or alternatively:
+        out1, out2, out3, _ = request.infer(inputs).to_tuple()
     """
     def __init__(self, _dict: Dict[ConstOutput, np.ndarray]) -> None:
         self._dict = _dict
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator:
         return self._dict.__iter__()
 
     def __len__(self) -> int:
@@ -83,7 +85,7 @@ class OVDict(Mapping):
         return list(self._dict.keys())[index]
 
     @singledispatchmethod
-    def __getitem_impl(self, key: Union[ConstOutput, int, str]):
+    def __getitem_impl(self, key: Union[ConstOutput, int, str]) -> np.ndarray:
         raise TypeError("Unknown key type!")
 
     @__getitem_impl.register
@@ -104,21 +106,21 @@ class OVDict(Mapping):
         except ValueError:
             raise KeyError(key)
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: Union[ConstOutput, int, str]) -> np.ndarray:
         return self.__getitem_impl(key)
 
-    def keys(self) -> KeysView[Any, np.ndarray]:
+    def keys(self) -> KeysView[ConstOutput]:
         return self._dict.keys()
 
-    def values(self) -> ValuesView[Any, np.ndarray]:
+    def values(self) -> ValuesView[np.ndarray]:
         return self._dict.values()
 
-    def items(self) -> ItemsView[Any, np.ndarray]:
+    def items(self) -> ItemsView[ConstOutput, np.ndarray]:
         return self._dict.items()
 
     def names(self) -> List[str]:
         """Return a name of every output key.
-        
+
         Throws RuntimeError if any of ConstOutput keys has no name.
         """
         return [key.get_any_name() for key in self._dict.keys()]
@@ -131,6 +133,6 @@ class OVDict(Mapping):
         """
         return self._dict
 
-    def to_tuple(self) -> Tuple[np.ndarray]:
+    def to_tuple(self) -> tuple:
         """Convert values of this dictionary to a tuple."""
         return tuple(self._dict.values())

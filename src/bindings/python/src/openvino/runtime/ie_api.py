@@ -139,7 +139,7 @@ class InferRequest(_InferRequestWrapper):
         )
 
     @property
-    def results(self):
+    def results(self) -> OVDict:
         """Gets all outputs tensors of this InferRequest.
 
         :return: Dictionary of results from output tensors with ports as keys.
