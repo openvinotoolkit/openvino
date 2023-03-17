@@ -71,11 +71,10 @@ def test_any_class():
     ("some_value", str),
     (31.23456, float),
     (True, bool),
-    (42, int)
+    (42, int),
 ])
 def test_astype(value, dtype):
     ovany = OVAny(value)
-    print(value)
     assert ovany.astype(dtype) == value
 
 
@@ -84,9 +83,8 @@ def test_astype(value, dtype):
     ([31.23456, -31.3453], float),
     ([True, False], bool),
     ([42, 21], int),
-    ([], None)
+    ([], None),
 ])
 def test_aslist(value, dtype):
     ovany = OVAny(value)
-    print(value)
     assert ovany.aslist(dtype) == value
