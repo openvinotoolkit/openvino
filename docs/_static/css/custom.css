@@ -271,6 +271,20 @@ div.highlight {
     color: #fefefe;
 }
 
+.chart-wrap {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 4fr;
+    padding-left: 15px;
+    padding-right: 15px;
+}
+
+.graph-item {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
 .graph-chart-title-header {
     font-size: 1.4rem;
     line-height: 2rem;
@@ -293,16 +307,21 @@ div.highlight {
     padding: 12px 0;
 }
 
-.chart-column-header-container {
+.chart-graphs-container {
     padding-top: 8px;
     display: flex;
     flex-direction: row;
     width: 100%;
+    min-width: 0;
 }
 
 .chart-column-title {
     min-width: 20%;
     flex-grow: 0 1;
+    white-space: nowrap;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
 }
 
 .chart-column-title .icon {
@@ -328,17 +347,21 @@ div.highlight {
 }
 
 .chart-labels-container {
-    width: 18%;
+    padding-top: 8px;
 }
 
-.chart-labels-container .title {
-    text-align: right;
+.chart-labels-item {
+    width: 100%;
+}
+
+.chart-labels-item .title {
     text-overflow: ellipsis;
     overflow: hidden;
     white-space: nowrap;
     display: block;
     font-size: .8rem;
-    line-height: 3.42rem;
+    line-height: 55px;
+    height: 55px;
     color: gray;
 }
 
@@ -545,6 +568,7 @@ div.highlight {
 
 .graph-row {
     display: flex;
+    flex-direction: column;
     padding-top: 10px;
     padding-bottom: 20px;
 }
@@ -554,7 +578,12 @@ div.highlight {
 }
 
 .graph-row-column {
-    width: 20%;
+    width: 100%;
+}
+
+.graph-legend-container {
+    display: flex;
+    flex-direction: column;
 }
 
 @media screen and (max-width:768px) {
@@ -566,6 +595,12 @@ div.highlight {
 }
 
 @media screen and (max-width: 530px) {
+    .modal-content {
+        width: 100vw;
+        height: 100vh;
+        max-height: 100%;
+    }
+
     .buttons-nav {
         margin-top: 0.125rem;
         margin-bottom: 0.125rem;
