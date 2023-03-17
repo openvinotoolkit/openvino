@@ -24,7 +24,7 @@ using namespace ov::pass::transpose_sinking::utils;
 
 namespace {
 
-bool get_keep_dims(const std::shared_ptr<Node> &reduction) {
+bool get_keep_dims(const std::shared_ptr<Node>& reduction) {
     auto arithmetic_reduce = as_type_ptr<ov::op::util::ArithmeticReductionKeepDims>(reduction);
     auto logical_reduce = as_type_ptr<ov::op::util::LogicalReductionKeepDims>(reduction);
 
@@ -36,14 +36,14 @@ bool get_keep_dims(const std::shared_ptr<Node> &reduction) {
     return keep_dims;
 }
 
-}
+}  // namespace
 
 TSReductionForward::TSReductionForward() {
     MATCHER_SCOPE(TSReductionForward);
 
     auto transpose_label = wrap_type<Transpose>({any_input(), wrap_type<Constant>()});
     auto reduce_label = wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
-            {transpose_label, wrap_type<Constant>()});
+        {transpose_label, wrap_type<Constant>()});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
@@ -72,7 +72,8 @@ TSReductionForward::TSReductionForward() {
             transpose_order_values = GetOrderAfterReduction(non_negative_axes, transpose_order_values);
         }
 
-        auto new_transpose_order = Constant::create(transpose_order->get_element_type(), {transpose_order_values.size()},
+        auto new_transpose_order = Constant::create(transpose_order->get_element_type(),
+                                                    {transpose_order_values.size()},
                                                     transpose_order_values);
 
         auto new_const = Constant::create(reduction_axes->get_element_type(), reduction_axes->get_shape(), new_values);
@@ -96,7 +97,8 @@ TSReductionBackward::TSReductionBackward() {
     MATCHER_SCOPE(TSReductionBackward);
 
     auto reduce_label = wrap_type<op::util::ArithmeticReductionKeepDims, op::util::LogicalReductionKeepDims>(
-            {any_input(), wrap_type<Constant>()}, HasSameOutputTransposeNodes);
+        {any_input(), wrap_type<Constant>()},
+        HasSameOutputTransposeNodes);
     auto transpose_label = wrap_type<Transpose>({reduce_label, wrap_type<Constant>()});
 
     ov::matcher_pass_callback matcher_pass_callback = [=](pattern::Matcher& m) {
@@ -112,13 +114,14 @@ TSReductionBackward::TSReductionBackward() {
 
         auto rank = reduction->get_input_partial_shape(0).rank();
         auto non_negative_axes =
-                normalize_axes(reduction->get_friendly_name(), reduction_axes->cast_vector<int64_t>(), rank);
+            normalize_axes(reduction->get_friendly_name(), reduction_axes->cast_vector<int64_t>(), rank);
         auto transpose_order_values = transpose_order->cast_vector<size_t>();
         if (!keep_dims) {
             transpose_order_values = GetOrderBeforeReduction(non_negative_axes, transpose_order_values);
         }
         auto reversed_order_values = ReverseTransposeOrder(transpose_order_values);
-        auto new_transpose_order = Constant::create(transpose_order->get_element_type(), {transpose_order_values.size()},
+        auto new_transpose_order = Constant::create(transpose_order->get_element_type(),
+                                                    {transpose_order_values.size()},
                                                     transpose_order_values);
 
         std::vector<size_t> new_values;

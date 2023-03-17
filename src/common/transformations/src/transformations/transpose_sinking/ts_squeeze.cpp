@@ -28,8 +28,8 @@ bool shape_to_squeeze_axes(const std::shared_ptr<Node>& reshape,
     result_axes.clear();
     auto reduction_axes_values = reshape_to_shape->cast_vector<int64_t>();
     // supported the case if Reshape is equal to Squeeze
-    const auto &new_shape = reduction_axes_values;
-    const auto &input_pshape = reshape->get_input_partial_shape(0);
+    const auto& new_shape = reduction_axes_values;
+    const auto& input_pshape = reshape->get_input_partial_shape(0);
     // todo: support dynamic case
     if (input_pshape.is_dynamic()) {
         return false;
@@ -58,7 +58,7 @@ bool shape_to_squeeze_axes(const std::shared_ptr<Node>& reshape,
 std::vector<size_t> squeeze_axes_to_shape(const std::shared_ptr<Node>& input_node, std::vector<size_t> squeeze_axes) {
     std::vector<size_t> to_shape;
     std::sort(squeeze_axes.begin(), squeeze_axes.end());
-    const auto& input_shape = input_node->input(0).get_shape(); // check is static
+    const auto& input_shape = input_node->input(0).get_shape();  // check is static
     for (size_t i = 0, j = 0; i < input_shape.size(); ++i) {
         if (j < squeeze_axes.size() && i == squeeze_axes[j]) {
             ++j;
@@ -69,7 +69,7 @@ std::vector<size_t> squeeze_axes_to_shape(const std::shared_ptr<Node>& input_nod
     return to_shape;
 }
 
-}
+}  // namespace
 
 TSSqueezeForward::TSSqueezeForward() {
     MATCHER_SCOPE(TSSqueezeForward);
@@ -97,7 +97,8 @@ TSSqueezeForward::TSSqueezeForward() {
             }
         } else {
             auto rank = squeeze->get_input_partial_shape(0).rank();
-            non_negative_axes = normalize_axes(squeeze->get_friendly_name(), squeeze_axes->cast_vector<int64_t>(), rank);
+            non_negative_axes =
+                normalize_axes(squeeze->get_friendly_name(), squeeze_axes->cast_vector<int64_t>(), rank);
         }
 
         // if 2nd input to squeeze is empty then all '1' dims will be deleted.
@@ -173,7 +174,8 @@ TSSqueezeBackward::TSSqueezeBackward() {
             }
         } else {
             auto rank = squeeze->get_input_partial_shape(0).rank();
-            non_negative_axes = normalize_axes(squeeze->get_friendly_name(), squeeze_axes->cast_vector<int64_t>(), rank);
+            non_negative_axes =
+                normalize_axes(squeeze->get_friendly_name(), squeeze_axes->cast_vector<int64_t>(), rank);
         }
 
         bool squeeze_all_dims = false;
@@ -211,7 +213,8 @@ TSSqueezeBackward::TSSqueezeBackward() {
         if (squeeze_all_dims) {
             new_squeeze = squeeze->clone_with_new_inputs({new_transpose, squeeze->input_value(1)});
         } else {
-            auto new_const = std::make_shared<Constant>(squeeze_axes->get_element_type(), squeeze_axes->get_shape(), new_values);
+            auto new_const =
+                std::make_shared<Constant>(squeeze_axes->get_element_type(), squeeze_axes->get_shape(), new_values);
             new_squeeze = squeeze->clone_with_new_inputs({new_transpose, new_const});
         }
 
