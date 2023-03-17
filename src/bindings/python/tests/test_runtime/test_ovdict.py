@@ -105,6 +105,15 @@ def _check_dict(result, obj, output_names=None):
 
 
 @pytest.mark.parametrize("is_direct", [True, False])
+def test_ovdict_assign(device, is_direct):
+    result, _ = _get_ovdict(device, multi_output=False, direct_infer=is_direct)
+
+    with pytest.raises(TypeError) as e:
+        result["some_name"] = 99
+    assert "'OVDict' object does not support item assignment" in str(e.value)
+
+
+@pytest.mark.parametrize("is_direct", [True, False])
 def test_ovdict_single_output_basic(device, is_direct):
     result, obj = _get_ovdict(device, multi_output=False, direct_infer=is_direct)
 
