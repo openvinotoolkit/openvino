@@ -16,16 +16,8 @@ NamedOutputs one_hot_v2(const NodeContext& node) {
         auto depth_value = node.get_input("depth_tensor");
         depth = std::make_shared<default_opset::Squeeze>(depth_value);
     } else {
-        const auto depth_value = node.get_attribute<int>("depth", -1);
-        if (depth_value == -1) {
-            const auto axisNode = default_opset::Constant::create(ov::element::i32, {1}, {0});
-            const auto one = default_opset::Constant::create(ov::element::i32, {1}, {1});
-            depth = std::make_shared<default_opset::ReduceMax>(data, axisNode);
-            depth = std::make_shared<default_opset::Add>(depth, one);
-            depth = std::make_shared<default_opset::Squeeze>(depth);
-        } else {
-            depth = default_opset::Constant::create(element::i32, Shape{}, {depth_value});
-        }
+        const auto depth_value = node.get_attribute<int>("depth");
+        depth = default_opset::Constant::create(element::i32, Shape{}, {depth_value});
     }
     auto on_value = default_opset::Constant::create(element::f32, Shape{}, {1});
     auto off_value = default_opset::Constant::create(element::f32, Shape{}, {0});
