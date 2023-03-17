@@ -1263,7 +1263,9 @@ TEST_P(OVClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
                                                    ov::device::priorities(devices)),
                             ov::device::properties(CommonTestUtils::DEVICE_HETERO,
                                                    ov::device::priorities(CommonTestUtils::DEVICE_MULTI,
-                                                                          target_device))));
+                                                                          target_device)),
+                            ov::device::properties(target_device,
+                                                   ov::AnyMap{{ CONFIG_KEY(PERFORMANCE_HINT), CONFIG_VALUE(THROUGHPUT) }})));
 
         std::unordered_set<std::string> actualLayers;
         for (auto&& layer : result) {
