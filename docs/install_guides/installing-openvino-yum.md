@@ -37,7 +37,7 @@ Installing OpenVINO Runtime from YUM is recommended for C++ developers. If you a
 
    * `CMake 3.13 or higher, 64-bit <https://cmake.org/download/>`_
    * GCC 8.2.0
-   * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/>`_
+   * `Python 3.7 - 3.11, 64-bit <https://www.python.org/downloads/>`_
 
 @endsphinxdirective
 

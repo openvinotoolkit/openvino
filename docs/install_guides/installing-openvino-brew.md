@@ -36,7 +36,7 @@ Full requirement listing is available on the `System Requirements Page <https://
 
   * `Homebrew <https://brew.sh/>`_
   * `CMake 3.13 or higher <https://cmake.org/download/>`_ (choose "macOS 10.13 or later"). Add `/Applications/CMake.app/Contents/bin` to path (for default installation). 
-  * `Python 3.7 - 3.10 <https://www.python.org/downloads/mac-osx/>`_ (choose 3.7 - 3.10). Install and add it to path.
+  * `Python 3.7 - 3.11 <https://www.python.org/downloads/mac-osx/>`_ (choose 3.7 - 3.11). Install and add it to path.
   * Apple Xcode Command Line Tools. In the terminal, run `xcode-select --install` from any directory to install it.
   * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
 

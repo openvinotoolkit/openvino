@@ -27,7 +27,7 @@ See the [Release Notes](https://software.intel.com/en-us/articles/OpenVINO-RelNo
 
   * `Microsoft Visual Studio 2019 with MSBuild <https://visualstudio.microsoft.com/vs/older-downloads/>`_ or `Microsoft Visual Studio 2022 <http://visualstudio.microsoft.com/downloads/>`_
   * `CMake 3.14 or higher, 64-bit <https://cmake.org/download/>`_ (optional, only required for building sample applications)
-  * `Python 3.7 - 3.10, 64-bit <https://www.python.org/downloads/windows/>`_
+  * `Python 3.7 - 3.11, 64-bit <https://www.python.org/downloads/windows/>`_
 
   .. note::
      To install Microsoft Visual Studio 2019, follow the `Microsoft Visual Studio installation guide <https://docs.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2019>`_. You can choose to download the Community version. During installation in the **Workloads** tab, choose **Desktop development with C++**.

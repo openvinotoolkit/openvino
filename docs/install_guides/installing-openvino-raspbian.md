@@ -23,7 +23,7 @@
 .. tab:: Software Requirements
 
   * CMake 3.10 or higher
-  * Python 3.7 - 3.10
+  * Python 3.7 - 3.11
 
 
 .. _install-openvino:
