@@ -9,7 +9,7 @@
 
 using namespace reference_tests;
 using namespace ov;
-
+#pragma warning(disable : 4756)
 namespace {
 struct SoftmaxParams {
     template <class IT>
