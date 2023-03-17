@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
         auto res = std::make_shared<ov::opset11::Result>(add2);
 
         auto model =
-            std::make_shared<ov::Model>(ov::ResultVector({res}), ov::ParameterVector({arg}), ov::SinkVector({assign}));
+            std::make_shared<ov::Model>(ov::ResultVector({res}), ov::SinkVector({assign}), ov::ParameterVector({arg}));
         //! [model_create]
 
         // 2. Read a model in OpenVINO Intermediate Representation (.xml and .bin files) or ONNX (.onnx file) format
