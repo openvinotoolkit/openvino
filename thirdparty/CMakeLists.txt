@@ -420,10 +420,16 @@ endif()
 # Snappy Compression
 #
 if(ENABLE_SNAPPY_COMPRESSION)
-	set(SNAPPY_BUILD_BENCHMARKS OFF)
-	set(SNAPPY_BUILD_TESTS OFF)
-	set(INSTALL_GTEST OFF)
-	add_subdirectory(snappy EXCLUDE_FROM_ALL)
+    function(tf_build_snappy)
+        set(BUILD_SHARED_LIBS OFF)
+        set(SNAPPY_BUILD_BENCHMARKS OFF)
+        set(SNAPPY_BUILD_TESTS OFF)
+        set(INSTALL_GTEST OFF)
+        set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
+        add_subdirectory(snappy EXCLUDE_FROM_ALL)
+    endfunction()
+
+    tf_build_snappy()
 endif()
 
 #
