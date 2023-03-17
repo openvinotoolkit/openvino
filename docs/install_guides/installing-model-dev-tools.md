@@ -192,7 +192,7 @@ Learn OpenVINO Development Tools
 * Benchmark your model's inference speed with one simple command using the :doc:`Benchmark Tool <openvino_inference_engine_tools_benchmark_tool_README>`.
 
 Additional Resources
-====================
+####################
 
 - `Intel® Distribution of OpenVINO™ toolkit home page <https://software.intel.com/en-us/openvino-toolkit>`__
 - For IoT Libraries & Code Samples, see `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`__ .
