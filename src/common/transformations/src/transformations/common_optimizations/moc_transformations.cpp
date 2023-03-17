@@ -114,8 +114,6 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     using namespace ov::pass;
     REGISTER_PASS(manager, EliminateScatterUpdate)
     REGISTER_PASS(manager, TransposeSinkingGeneral)
-    manager.register_pass<Serialize>("/home/tikhonov/OpenVINO/tmp/test_model/ser_test.xml",
-                                     "/home/tikhonov/OpenVINO/tmp/test_model/ser_test.bin");
     REGISTER_PASS(manager, RemoveConcatZeroDimInput)
     REGISTER_PASS(manager, Validate)
     // todo: ticket 96960
