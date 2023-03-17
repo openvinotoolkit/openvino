@@ -103,7 +103,6 @@ TSSliceBackward::TSSliceBackward() {
         auto new_axis = std::make_shared<Gather>(data, indices, axis);
         main_node->input(4).replace_source_output(new_axis);
 
-        const auto& interpolate = std::dynamic_pointer_cast<Slice>(main_node);
         main_node->validate_and_infer_types();
         return true;
     };
