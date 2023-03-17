@@ -397,7 +397,7 @@ static void read_stateful_partitioned_call(const std::shared_ptr<::tensorflow::G
     }
 
     // Moving nodes to the global dictionary
-    for (auto node : nodes) {
+    for (const auto& node : nodes) {
         std::string global_name = partCall.name() + "/" + node.first;
         node_dictionary[global_name] = node.second;
     }
@@ -415,7 +415,7 @@ void GraphIteratorSavedModel::map_assignvariable(const std::shared_ptr<::tensorf
         }
     }
 
-    for (const auto node : nodes) {
+    for (const auto& node : nodes) {
         if (node.second->op() != "AssignVariableOp") {
             continue;
         }

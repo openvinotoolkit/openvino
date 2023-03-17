@@ -115,7 +115,6 @@ OutputVector translate_varisinitialized_op(const NodeContext& node) {
 
 OutputVector translate_readvariable_op(const NodeContext& node) {
     default_op_checks(node, 1, {"ReadVariableOp"});
-    auto ov_type = node.get_attribute<element::Type>("dtype");
     // Documentation says it should return only one tensor with dtype, but
     // _output_shapes in a vector of shapes and it means it could have multiple outputs
     // https://www.tensorflow.org/api_docs/python/tf/raw_ops/ReadVariableOp
