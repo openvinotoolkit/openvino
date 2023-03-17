@@ -137,7 +137,7 @@ public:
 
 protected:
     inline bool isValidIsa(dnnl::impl::cpu::x64::cpu_isa_t isa) {
-        return is_subset(isa, dnnl::impl::cpu::x64::isa_all) && dnnl::impl::cpu::x64::mayiuse(isa);
+        return dnnl::impl::cpu::x64::mayiuse(isa);
     }
 
     RegistersPool::Ptr registersPool;
