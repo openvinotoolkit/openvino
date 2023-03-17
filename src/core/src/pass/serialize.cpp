@@ -836,7 +836,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
     const bool exec_graph = is_exec_graph(model);
 
     auto sorted_ops = model.get_ordered_ops();
-    if (version >= 11) {
+    {
         std::vector<std::shared_ptr<ov::Node>> result;
         result.reserve(sorted_ops.size());
         for (const auto& param : model.get_parameters()) {
