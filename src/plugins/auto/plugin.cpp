@@ -372,6 +372,10 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     // updateFromMap will check config valid
     loadConfig.set_user_property(PreProcessConfig(config), workModeAuto? true : false);
     loadConfig.apply_user_properties();
+    auto perHint = _pluginConfig.get_property(ov::hint::performance_mode.name()).as<ov::hint::PerformanceMode>();
+    if (perHint == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT) {
+        loadConfig.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
+    }
     auto fullProperty = loadConfig.get_full_properties();
     // this can be updated when plugin switch to 2.0 API
     std::map<std::string, std::string> fullConfig = ConvertToStringMap(fullProperty);
