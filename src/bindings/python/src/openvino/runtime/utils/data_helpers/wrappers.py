@@ -4,7 +4,6 @@
 
 import numpy as np
 
-from collections.abc import Mapping
 # TODO: remove this WA and refactor OVDict when Python3.8
 # becomes minimal supported version.
 try:
@@ -12,7 +11,8 @@ try:
 except ImportError:
     from singledispatchmethod import singledispatchmethod
 
-from typing import Union
+from collections.abc import Mapping, KeysView, ItemsView, ValuesView
+from typing import Union, Dict, List, Tuple, Any
 
 from openvino._pyopenvino import Tensor, ConstOutput
 from openvino._pyopenvino import InferRequest as InferRequestBase
@@ -67,20 +67,23 @@ class OVDict(Mapping):
         # ... or alternatively:
         out1, out2, out3, _ = request.infer(...).to_tuple()
     """
-    def __init__(self, d) -> None:
-        self._data = d
+    def __init__(self, _dict: Dict[ConstOutput, np.ndarray]) -> None:
+        self._dict = _dict
+
+    def __bool__(self):
+        return self._dict.__bool__()
 
     def __iter__(self):
-        return self._data.__iter__()
+        return self._dict.__iter__()
 
     def __len__(self) -> int:
-        return len(self._data)
+        return len(self._dict)
 
-    def __repr__(self):
-        return self._data.__repr__()
+    def __repr__(self) -> str:
+        return self._dict.__repr__()
 
     def __get_key(self, index: int) -> ConstOutput:
-        return list(self._data.keys())[index]
+        return list(self._dict.keys())[index]
 
     @singledispatchmethod
     def __getitem_impl(self, key: Union[ConstOutput, int, str]):
@@ -88,40 +91,40 @@ class OVDict(Mapping):
 
     @__getitem_impl.register
     def _(self, key: ConstOutput) -> np.ndarray:
-        return self._data[key]
+        return self._dict[key]
 
     @__getitem_impl.register
     def _(self, key: int) -> np.ndarray:
-        return self._data[self.__get_key(key)]
+        return self._dict[self.__get_key(key)]
 
     @__getitem_impl.register
     def _(self, key: str) -> np.ndarray:
-        return self._data[self.__get_key(self.names().index(key))]
+        return self._dict[self.__get_key(self.names().index(key))]
 
     def __getitem__(self, key):
         return self.__getitem_impl(key)
 
-    def keys(self):
-        return self._data.keys()
+    def keys(self) -> KeysView[Any, np.ndarray]:
+        return self._dict.keys()
 
-    def values(self):
-        return self._data.values()
+    def values(self) -> ValuesView[Any, np.ndarray]:
+        return self._dict.values()
 
-    def items(self):
-        return self._data.items()
+    def items(self) -> ItemsView[Any, np.ndarray]:
+        return self._dict.items()
 
-    def names(self) -> list:
+    def names(self) -> List[str]:
         """Return a name of every output key."""
-        return [key.get_any_name() for key in self._data.keys()]
+        return [key.get_any_name() for key in self._dict.keys()]
 
-    def to_dict(self) -> dict:
-        """Convert to a native dictionary.
+    def to_dict(self) -> Dict[ConstOutput, np.ndarray]:
+        """Return underlaying native dictionary.
 
         Function performs shallow copy, thus any modifications to
-        original values may affect this class as well.
+        returned values may affect this class as well.
         """
-        return self._data
+        return self._dict
 
-    def to_tuple(self) -> tuple:
+    def to_tuple(self) -> Tuple[np.ndarray]:
         """Convert values of this dictionary to a tuple."""
-        return tuple(self._data.values())
+        return tuple(self._dict.values())

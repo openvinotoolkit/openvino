@@ -25,13 +25,6 @@ from openvino.runtime.utils.data_helpers import (
 class InferRequest(_InferRequestWrapper):
     """InferRequest class represents infer request which can be run in asynchronous or synchronous manners."""
 
-    def old_infer(self, inputs: Any = None, shared_memory: bool = False) -> dict:
-        return super().infer(_data_dispatch(
-            self,
-            inputs,
-            is_shared=shared_memory,
-        ))
-
     def infer(self, inputs: Any = None, shared_memory: bool = False) -> dict:
         """Infers specified input(s) in synchronous mode.
 
