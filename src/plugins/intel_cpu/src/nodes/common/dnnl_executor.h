@@ -26,7 +26,8 @@ class DnnlExecutor {
         };
 
     public:
-        void exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::stream strm);
+        explicit DnnlExecutor(const dnnl::primitive_desc& pd);
+        void exec(const std::unordered_map<int, dnnl::memory>& primArgs, dnnl::stream strm);
         bool needReordering() const;
         virtual ~DnnlExecutor() = default;
         dnnl::primitive getExecPrim() const;
@@ -60,7 +61,9 @@ class DnnlExecutor {
         }
 
     protected:
-        DnnlExecutor() = default;
+        void reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, dnnl::stream strm);
+
+    protected:
         dnnl::primitive execPrim;
         // key is the port number for the primitive that needs memory reordering
         std::unordered_map<int, IntermReorder> inputReorders;

@@ -333,7 +333,7 @@ void FullyConnected::prepareParams() {
             }
 
             if (prim_desc) {
-                execPtr = std::make_shared<ExecutorConv1x1>(prim_desc);
+                execPtr = std::make_shared<DnnlExecutor>(prim_desc);
             }
         }
         // fallback
@@ -388,7 +388,7 @@ void FullyConnected::prepareParams() {
                 }
             }
 
-            execPtr = std::make_shared<ExecutorInnerProduct>(prim_desc);
+            execPtr = std::make_shared<DnnlExecutor>(prim_desc);
         }
         return execPtr;
     };
@@ -432,10 +432,8 @@ void FullyConnected::prepareParams() {
             primArgs[DNNL_ARG_BIAS] = biasMemPtr->GetPrimitive();
         }
 
-        if (!scratchPad || !scratchPad->getDesc().isCompatible(*(execPtr->getScratchPadDesc()))) {
-            scratchPad = context->getScratchPad()->createScratchPadMem(execPtr->getScratchPadDesc());
-        }
-        primArgs[DNNL_ARG_SCRATCHPAD] = scratchPad->GetPrimitive();
+        auto schratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
+        primArgs[DNNL_ARG_SCRATCHPAD] = schratchpadMem->GetPrimitive();
 #ifdef CPU_DEBUG_CAPS
         if (result.second == CacheEntryBase::LookUpStatus::Miss) {
             DEBUG_LOG("verbose##", getName(), "##", pd->info(), "\n");
@@ -912,22 +910,6 @@ bool FullyConnected::canBeExecutedInConv1x1() const {
     }
 
     return retVal;
-}
-
-FullyConnected::ExecutorInnerProduct::ExecutorInnerProduct(const dnnl::inner_product_forward::primitive_desc& pd) {
-    src_md = DnnlExtensionUtils::makeDescriptor(pd.src_desc());
-    dst_md = DnnlExtensionUtils::makeDescriptor(pd.dst_desc());
-    wghts_md = DnnlExtensionUtils::makeDescriptor(pd.weights_desc());
-    scrch_md = DnnlExtensionUtils::makeDescriptor(pd.scratchpad_desc());
-    execPrim = dnnl::inner_product_forward(pd);
-}
-
-FullyConnected::ExecutorConv1x1::ExecutorConv1x1(const dnnl::convolution_forward::primitive_desc& pd) {
-    src_md = DnnlExtensionUtils::makeDescriptor(pd.src_desc());
-    dst_md = DnnlExtensionUtils::makeDescriptor(pd.dst_desc());
-    wghts_md = DnnlExtensionUtils::makeDescriptor(pd.weights_desc());
-    scrch_md = DnnlExtensionUtils::makeDescriptor(pd.scratchpad_desc());
-    execPrim = dnnl::convolution_forward(pd);
 }
 
 MemoryPtr FullyConnected::prepareWeightMemory(DnnlMemoryDescPtr weightDesc) {
