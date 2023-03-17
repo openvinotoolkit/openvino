@@ -24,7 +24,7 @@
 #include "snippets/pass/matmul_to_brgemm.hpp"
 #include "utils/cpu_utils.hpp"
 #include "emitters/x64/cpu_generator.hpp"
-#include "transformations/snippets/x64/pass/fuse_load_store_and_convert.hpp"
+#include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
 #include "transformations/snippets/x64/pass/mul_add_to_fma.hpp"
 #include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
 #include "transformations/snippets/x64/pass/remove_converts.hpp"
@@ -508,10 +508,7 @@ void Snippet::prepareParams() {
         }
         snippet->reshape_body(new_shapes);
     }
-//    auto& body_rt_info = snippet->body_ptr()->get_rt_info();
-//    std::vector<std::vector<size_t>> new_shapes(normInputShapes);
-//    std::copy(normOutputShapes.begin(), normOutputShapes.end(), std::back_inserter(new_shapes));
-//    body_rt_info["PluginShapesOverride"] = new_shapes;
+
     snippet->set_master_shape(ov::PartialShape(masterShape));
     snippet->set_tile_rank(tileRank);
 }
@@ -565,22 +562,6 @@ void Snippet::generate(const jit_snippets_compile_args* jcp) {
 
     ov::pass::Manager post_precision;
     CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::RemoveConverts);
-    CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::FuseLoadConvert);
-    CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::FuseStoreConvert);
-    // LoadConvert uses Load emitter that support conversion from any type to only f32
-    post_precision.get_pass_config()->set_callback<ov::intel_cpu::pass::FuseLoadConvert>(
-            [](const std::shared_ptr<const ov::Node>& n) -> bool {
-                if (const auto& convert = std::dynamic_pointer_cast<const ov::op::v0::Convert>(n))
-                    return convert->get_destination_type() != ov::element::f32;
-                return true;
-            });
-    // StoreConvert uses Store emitter that support conversion from only f32 to any types
-    post_precision.get_pass_config()->set_callback<ov::intel_cpu::pass::FuseStoreConvert>(
-            [](const std::shared_ptr<const ov::Node>& n) -> bool {
-                if (const auto& convert = std::dynamic_pointer_cast<const ov::op::v0::Convert>(n))
-                    return convert->get_input_element_type(0) != ov::element::f32;
-                return true;
-            });
     CPU_REGISTER_PASS_X64(post_precision, ov::intel_cpu::pass::MulAddToFMA);
 
     schedule = snippet->generate(

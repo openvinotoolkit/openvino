@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,10 +21,12 @@ void PropagateOffsetAndResetBuffer::propagate_offset(const LoweredExprIR& linear
     {
         if (buffer->is_intermediate_memory()) {
             OPENVINO_ASSERT(buffer_expr->get_inputs().size() == 1, "Buffer with intermediate memory must have one parent");
-            auto parent_expr = linear_ir.get_expr_by_output(buffer_expr->get_inputs()[0]);
-            auto parent_node = parent_expr->get_node();
+            const auto& parent_output = linear_ir.get_expr_by_output(buffer_expr->get_inputs()[0]);
+            const auto& parent_expr = parent_output.expr;
+            const auto port = parent_output.port;
+            const auto& parent_node = parent_expr->get_node();
             if (auto memory_access = ov::as_type_ptr<ngraph::snippets::op::MemoryAccess>(parent_node)) {
-                memory_access->set_output_offset(offset, 0); // TODO
+                memory_access->set_output_offset(offset, port);
             } else {
                 throw ngraph_error(
                         "Buffer::set_offset() was called when Buffer didn't have the corresponding MemoryAccess op for offset propagation");
@@ -33,10 +35,12 @@ void PropagateOffsetAndResetBuffer::propagate_offset(const LoweredExprIR& linear
     }
     // Propagate to down: in Load. Buffer can have several Load and Loops after himself. We should go through all target inputs
     const auto& buffer_out = buffer_expr->get_outputs()[0];
-    for (const auto& child_expr : linear_ir.get_exprs_by_input(buffer_out)) {
+    for (const auto& child_expr_input : linear_ir.get_exprs_by_input(buffer_out)) {
+        const auto& child_expr = child_expr_input.expr;
+        const auto port = child_expr_input.port;
         const auto& child_node = child_expr->get_node();
         if (auto memory_access = ov::as_type_ptr<ngraph::snippets::op::MemoryAccess>(child_node)) {
-            memory_access->set_input_offset(offset, 0); // TODO
+            memory_access->set_input_offset(offset, port);
         } else {
             throw ngraph_error(
                     "Buffer::set_offset() was called when Buffer didn't have the corresponding MemoryAccess op for offset propagation");
@@ -60,10 +64,10 @@ bool PropagateOffsetAndResetBuffer::run(LoweredExprIR& linear_ir) {
             }
 
             if (buffer->is_intermediate_memory()) {
-                const auto& parent_expr = linear_ir.get_expr_by_output(expr_it->get()->get_inputs()[0]);
-                const auto& prent_node = parent_expr->get_node();
+                const auto& parent_expr = linear_ir.get_expr_by_output(expr_it->get()->get_inputs()[0]).expr;
+                const auto& parent_node = parent_expr->get_node();
                 // Brgemm is a special case, since it doesn't allow memory reuse
-                if (ov::is_type<op::Brgemm>(prent_node)) {
+                if (ov::is_type<op::Brgemm>(parent_node)) {
                     offset = m_buffer_scratchpad_size;
                     buffer->set_offset(static_cast<int64_t>(offset));
                     propagate_offset(linear_ir, *expr_it, offset);
@@ -94,23 +98,23 @@ bool PropagateOffsetAndResetBuffer::run(LoweredExprIR& linear_ir) {
             for (int i = 0; i < static_cast<int>(ins.size()) - 1; i++) {
                 const auto& in = ins[i];
                 // If producer of the input expr is buffer: this covers Buffer->Load patterns
-                if (ov::is_type<op::Buffer>(linear_ir.get_expr_by_output(in)->get_node()))
+                if (ov::is_type<op::Buffer>(linear_ir.get_expr_by_output(in).expr->get_node()))
                     buffer_idx.push_back(i);
                 // If consumer of the input is buffer: Store->Buffer patterns
                 for (const auto& consumer : linear_ir.get_exprs_by_input(in)) {
-                    if (ov::is_type<op::Buffer>(consumer->get_node()))
+                    if (ov::is_type<op::Buffer>(consumer.expr->get_node()))
                         buffer_idx.push_back(i);
                 }
             }
-            // This is currently not allowed because all Buffers are implicitly used in-place
-            if (buffer_idx.size() > 2) {
-                throw ngraph_error("More than 2 Buffers connected to a single LoopEnd.");
-            } else if (buffer_idx.size() == 2) {
-                const auto idx_to_drop = buffer_idx.front();
+
+            if (buffer_idx.size() > 1) {
                 auto ptr_increments = loop_end->get_ptr_increments();
                 auto fin_offsets = loop_end->get_finalization_offsets();
-                ptr_increments[idx_to_drop] = 0;
-                fin_offsets[idx_to_drop] = 0;
+                for (size_t i = 0; i < buffer_idx.size() - 1; i++) {
+                    const auto idx_to_drop = buffer_idx[i];
+                    ptr_increments[idx_to_drop] = 0;
+                    fin_offsets[idx_to_drop] = 0;
+                }
                 loop_end->set_ptr_increments(ptr_increments);
                 loop_end->set_finalization_offsets(fin_offsets);
             }

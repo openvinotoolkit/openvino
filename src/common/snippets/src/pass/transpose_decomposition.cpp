@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -39,10 +39,6 @@ ngraph::snippets::pass::TransposeDecomposition::TransposeDecomposition() {
         // number of elements that can be processed on every iteration. For 0,1,2,3 -> 0,2,3,1 we can guarantee only scalar access
         const std::vector<size_t> subtensor_shape {1};
         const auto& layout = order->cast_vector<size_t>();
-        // We need to propagate TensorDescriptor to Parameter, so Kernel would calc correct offsets based on Layouts
-        // This could be done by a separate pass in the future
-//        ngraph::snippets::set_tensor_descriptor_ptr(data_input, std::make_shared<TensorDescriptor>(tensor_shape, subtensor_shape, layout));
-        // dim indexes with respect to SRC
         // todo: LoadReshape used here is essentially Load + an easy way to maintain correct shape propagation
         //  fix this in future and develop a more consistent shape propagation approach.
         auto load = std::make_shared<snippets::op::LoadReshape>(data_input, subtensor_shape[0], 0, layout);

@@ -32,6 +32,7 @@ public:
 
 protected:
     opRegType get_specific_op_reg_type(const std::shared_ptr<ov::Node>& op) const override;
+    ngraph::snippets::pass::lowered::LinearIRTransformationPipeline target_specific_transformations() const override;
 };
 
 }   // namespace intel_cpu

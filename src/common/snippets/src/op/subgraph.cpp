@@ -7,21 +7,16 @@
 
 #include "snippets/op/subgraph.hpp"
 #include "snippets/op/convert_saturation.hpp"
-#include "snippets/pass/insert_load_store.hpp"
 #include "snippets/pass/insert_movebroadcast.hpp"
 #include "snippets/pass/broadcast_to_movebroadcast.hpp"
-#include "snippets/pass/load_movebroadcast_to_broadcastload.hpp"
 #include "snippets/pass/propagate_precision.hpp"
 #include "snippets/pass/assign_registers.hpp"
 #include "snippets/pass/convert_constants.hpp"
 #include "snippets/pass/convert_power_to_powerstatic.hpp"
-#include "snippets/pass/vector_to_scalar.hpp"
-#include "snippets/pass/insert_loops.hpp"
 #include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/pass/transform_convert.hpp"
 #include "snippets/pass/matmul_to_brgemm.hpp"
 #include "snippets/pass/fuse_transpose_brgemm.hpp"
-#include "snippets/pass/softmax_decomposition.hpp"
 #include "snippets/pass/reset_buffer.hpp"
 #include "snippets/utils.hpp"
 
@@ -65,7 +60,9 @@ void snippets::op::Subgraph::init_config() {
             ov::is_type<ov::op::v1::Transpose>(op) ||
             ov::is_type<ov::op::v1::Softmax>(op) ||
             ov::is_type<ov::op::v8::Softmax>(op) ||
-            ov::is_type<ov::op::v0::MatMul>(op);
+            ov::is_type<ov::op::v0::MatMul>(op) ||
+            ov::is_type<ov::op::v1::Broadcast>(op) ||  // Broadcast is domain sensetive op because the output shape depends on
+            ov::is_type<ov::op::v3::Broadcast>(op);    // the both input and broadcast shapes (the both - are inputs of op). Note: is used only in MHA pattern
     }
     // Domain sensitive ops are decomposed with explicit Loops. So, we should explicitly insert Loops in Subgraph if it contains these ops
     config.m_explicit_loop_insertion = config.m_has_domain_sensitive_ops;
@@ -405,34 +402,21 @@ void snippets::op::Subgraph::align_element_types(const BlockedShapeVector& outpu
 void snippets::op::Subgraph::convert_to_snippet_dialect() {
     INTERNAL_OP_SCOPE(Subgraph);
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::convert_to_snippet_dialect")
-    auto skip_matching_domain = [](const std::shared_ptr<const ov::Node>& n) -> bool {
-        const auto& pshape = n->get_input_partial_shape(0);
-        const auto& last_dim = pshape[pshape.size() - 1];
-        return last_dim.is_dynamic() || last_dim.get_length() != 1;
-    };
-
-    // At the moment we support only full vector Load/Store and scalar Load/Store so that count is equal to lanes.
-    // Then we are going to support variadic Load/Store with different element count
-    const size_t count = m_generator->get_target_machine()->get_lanes();
     const auto & params = body_ptr()->get_parameters();
 
     bool inputs_has_dynamic_last_dims = std::any_of(params.begin(), params.end(),
                                                     [](const shared_ptr<ngraph::op::Parameter>& p){
                                                         return p->get_partial_shape().rbegin()->is_dynamic();
                                                     });
-    const auto allocationRank = static_cast<int32_t>(tileRank);
     ngraph::pass::Manager manager;
     if (config.m_has_domain_sensitive_ops) {
         manager.register_pass<snippets::pass::MatMulToBrgemm>();
         manager.register_pass<snippets::pass::FuseTransposeBrgemm>();
-        manager.register_pass<snippets::pass::SoftmaxDecomposition>(count, allocationRank);
         manager.register_pass<snippets::pass::TransposeDecomposition>();
     }
     manager.register_pass<snippets::pass::BroadcastToMoveBroadcast>();
     manager.register_pass<snippets::pass::ConvertConstantsToScalars>();
     manager.register_pass<snippets::pass::ConvertPowerToPowerStatic>();
-    manager.register_pass<snippets::pass::InsertLoad>(count);
-    manager.register_pass<snippets::pass::InsertStore>(count);
     // todo: presently dynamic pipeline is activated even if the last two dimension are static
     //  In general, we can use static kernels in this case, but several parameters (src and dst memory pointers for example)
     //  should be passed as run-time args, so it's a mixed mode: kernel is shape-aware, but some additional runtime args are required
@@ -440,30 +424,6 @@ void snippets::op::Subgraph::convert_to_snippet_dialect() {
     // * ALL last dims are static => broadcasting is handled via MoveBroadcast and pointer arithmetics (even for dynamic upper dims)
     if (!inputs_has_dynamic_last_dims) {
         manager.register_pass<snippets::pass::InsertMoveBroadcast>();
-        manager.register_pass<snippets::pass::LoadMoveBroadcastToBroadcastLoad>();
-        // Note that, BrodacastMove is typically inserted right after the Load. Such cases are typical for
-        // simple subgraphs where one of the ngraph::op's inputs is broadcasted to match the larger one. However, BroadcastMove
-        // could also be inserted after the ngraph::op, if the op input don't need broadcasting, but the output does
-        // (for example, to match the larger output of a child node). In such cases, Loads (and Stores) should be replaced
-        // with ScalarLoads (ScalarStores) to avoid invalid read in vector Loop. Graph example:
-        // Parameter_0    Parameter_1        Parameter_2
-        // [1,2,5,16]      [1,2,5,1]          [1,2,5,1]
-        //   Load        BroadcastLoad         Load*       Scalar
-        //          Add                             Subtract
-        //            \___________     ___________BroadcastMove
-        //                        \   /
-        //                       Multiply
-        //                         Store
-        //                        Result
-        // Note: Load* should be replaced with ScalarLoad in this example to avoid invalid read in vector Loop.
-        if (master_shape.size() != 0 && master_shape[master_shape.size() - 1] != 1) {
-            manager.register_pass<snippets::pass::SetScalarCountForLoad>();
-            manager.register_pass<snippets::pass::SetScalarCountForStore>();
-            manager.get_pass_config()->
-                    set_callback<ngraph::snippets::pass::SetScalarCountForLoad>(skip_matching_domain);
-            manager.get_pass_config()->
-                    set_callback<ngraph::snippets::pass::SetScalarCountForStore>(skip_matching_domain);
-        }
     }
     manager.run_passes(body_ptr());
 }
@@ -516,9 +476,6 @@ snippets::Schedule snippets::op::Subgraph::generate(
     LoweringConfig lowering_config;
     lowering_config.m_save_lowered_code = config.m_has_domain_sensitive_ops;
     lowering_config.m_need_fill_tail_register = config.m_has_domain_sensitive_ops;
-    lowering_config.m_optimize_single_evaluation = std::none_of(ops.begin(), ops.end(), [](const std::shared_ptr<ov::Node>& op) {
-        return ov::is_type<ngraph::snippets::op::Buffer>(op);
-    });
     lowering_config.m_loop_depth = tileRank;
     lowering_config.m_master_shape = master_shape;
     lowering_config.m_explicit_loop_insertion = config.m_explicit_loop_insertion;

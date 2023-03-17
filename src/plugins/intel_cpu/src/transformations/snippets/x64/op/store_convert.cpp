@@ -19,7 +19,7 @@ intel_cpu::StoreConvertSaturation::StoreConvertSaturation(const Output<Node>& x,
 
 bool intel_cpu::StoreConvertSaturation::visit_attributes(AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(StoreConvert_visit_attributes);
-    MemoryAccess::visit_attributes(visitor);
+    Store::visit_attributes(visitor);
     visitor.on_attribute("destination_type", m_destination_type);
     return true;
 }

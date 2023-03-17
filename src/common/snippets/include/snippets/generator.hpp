@@ -12,6 +12,7 @@
 #include "emitter.hpp"
 #include "target_machine.hpp"
 #include "lowered_expr.hpp"
+#include "pass/lowered/linear_IR_transformation.hpp"
 
 namespace ngraph {
 namespace snippets {
@@ -107,6 +108,10 @@ protected:
     * @return register type
     */
     virtual opRegType get_specific_op_reg_type(const std::shared_ptr<ov::Node>& op) const;
+    /**
+    * @brief gets target specific transformations for code generation
+    */
+    virtual pass::lowered::LinearIRTransformationPipeline target_specific_transformations() const;
 
     std::shared_ptr<TargetMachine> target;
     // todo: we need to save lowered code to access compiled brgemm kernels on execution time (normally lowered is destructed by then).

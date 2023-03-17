@@ -20,8 +20,8 @@
 #include "transformations/snippets/x64/op/fused_mul_add.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include "snippets/op/brgemm.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
+#include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
 
 #include <ngraph/opsets/opset5.hpp>
 
@@ -183,4 +183,10 @@ ngraph::snippets::Generator::opRegType ov::intel_cpu::CPUGenerator::get_specific
         return vec2vec;
     else
         OPENVINO_THROW("Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");
+}
+
+ngraph::snippets::pass::lowered::LinearIRTransformationPipeline ov::intel_cpu::CPUGenerator::target_specific_transformations() const {
+    ngraph::snippets::pass::lowered::LinearIRTransformationPipeline target_specific_transformation;
+    target_specific_transformation.register_transformation<ov::intel_cpu::pass::FuseLoadStoreConvert>();
+    return target_specific_transformation;
 }

@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -12,7 +12,7 @@ namespace pass {
 namespace lowered {
 
 bool CleanupLoopOffsets::run(LoweredExprIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::LinearIRTransformation")
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::CleanupLoopOffsets")
     if (linear_ir.empty())
         return false;
     bool is_modified = false;
@@ -24,6 +24,8 @@ bool CleanupLoopOffsets::run(LoweredExprIR& linear_ir) {
                 auto next_expr_it = std::next(expr_it);
                 const auto& next_node = next_expr_it->get()->get_node();
                 // Note: Finalization offsets before the Result can be safely disregarded
+                // TODO: Need verify that Buffers on the inputs doesn't have other consumers (other Loops)
+                //       and this Loop doesn't have Buffer on other outputs.
                 if (is_type<ngraph::op::v0::Result>(next_node)) {
                     const auto& fin_offsets = loop_end->get_finalization_offsets();
                     loop_end->set_finalization_offsets(std::vector<int64_t>(fin_offsets.size(), 0));

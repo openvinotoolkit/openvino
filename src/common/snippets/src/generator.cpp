@@ -9,13 +9,19 @@
 #include <snippets/itt.hpp>
 #include "snippets/pass/lowered/assign_registers.hpp"
 #include "snippets/pass/lowered/insert_tail_loop.hpp"
-#include "snippets/pass/lowered/insert_loops_layout.hpp"
-#include "snippets/pass/lowered/move_scalar_to_consumer.hpp"
+#include "snippets/pass/lowered/loop_markup.hpp"
+#include "snippets/pass/lowered/loop_fusion.hpp"
+#include "snippets/pass/lowered/loop_init.hpp"
+#include "snippets/pass/lowered/buffer_insertion.hpp"
+#include "snippets/pass/lowered/load_store_insertion.hpp"
+#include "snippets/pass/lowered/vector_to_scalar.hpp"
+#include "snippets/pass/lowered/load_movebroadcast_to_broadcastload.hpp"
 #include "snippets/pass/lowered/buffer_propagate_offset_and_reset.hpp"
 #include "snippets/pass/lowered/propagate_layout.hpp"
 #include "snippets/pass/lowered/cleanup_loop_offsets.hpp"
 #include "snippets/pass/lowered/softmax_decomposition.hpp"
-#include "snippets/lowered_expr.hpp"
+#include "snippets/pass/lowered/move_scalar_to_consumer.hpp"
+#include "snippets/pass/lowered/move_result_out_of_loop.hpp"
 #include "snippets/tensor_descriptor.hpp"
 
 namespace ngraph {
@@ -28,25 +34,43 @@ Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, con
         OPENVINO_THROW("unsupported architecture for code generation");
 
     auto linear_ir = LoweredExprIR(m, config);
-    const size_t vector_size = target->get_lanes();
-    // todo: fix buffer allocation rank
-    const int32_t buffer_allocation_rank = -1;
-    auto propagate_buffer_offsets = std::make_shared<pass::lowered::PropagateOffsetAndResetBuffer>();
-    std::vector<std::shared_ptr<pass::lowered::LinearIRTransformation>> transformation_pipeline {
-            std::make_shared<pass::lowered::InsertLoopsLayout>(vector_size, buffer_allocation_rank),
-            std::make_shared<pass::lowered::SoftmaxDecomposition>(vector_size, buffer_allocation_rank),
-            std::make_shared<pass::lowered::MoveScalarToConsumer>(),
-            std::make_shared<pass::lowered::PropagateLayout>(),
-            propagate_buffer_offsets,
-            std::make_shared<pass::lowered::CleanupLoopOffsets>(),
-            std::make_shared<pass::lowered::AssignRegisters>(get_op_reg_type),
-            std::make_shared<pass::lowered::InsertTailLoop>()
+    const size_t vector_size = get_target_machine()->get_lanes();
+    const int32_t buffer_allocation_rank = static_cast<int32_t>(config.m_loop_depth);
+
+    // Note: The pass LoopInit uses LoopInfo that contains entry and exit points of the corresponding Loop.
+    //       To avoid the Loop information corruption, we should call the passes with Load/Store work
+    //       (for example, LoadMoveBroadcastToBroadcastLoad()) after explicit Loop insertion (LoopInit())
+    const auto propagate_buffer_offsets = std::make_shared<pass::lowered::PropagateOffsetAndResetBuffer>();
+    pass::lowered::LinearIRTransformationPipeline common_pipeline;
+    common_pipeline.register_transformation<pass::lowered::LoopMarkup>(vector_size);
+    common_pipeline.register_transformation<pass::lowered::SoftmaxDecomposition>(vector_size);
+    common_pipeline.register_transformation<pass::lowered::LoopFusion>();
+    common_pipeline.register_transformation<pass::lowered::MoveResultOutOfLoop>();
+    common_pipeline.register_transformation<pass::lowered::BufferInsertion>(buffer_allocation_rank);
+    common_pipeline.register_transformation<pass::lowered::LoadStoreInsertion>(vector_size);
+    common_pipeline.register_transformation<pass::lowered::SetScalarCountForLoadStore>();
+    common_pipeline.register_transformation<pass::lowered::LoopInit>();
+    common_pipeline.register_transformation<pass::lowered::MoveScalarToConsumer>();
+    common_pipeline.register_transformation<pass::lowered::LoadMoveBroadcastToBroadcastLoad>();
+    common_pipeline.register_transformation<pass::lowered::PropagateLayout>();
+    common_pipeline.register_transformation(propagate_buffer_offsets);
+    common_pipeline.register_transformation<pass::lowered::CleanupLoopOffsets>();
+    common_pipeline.run(linear_ir);
+
+    pass::lowered::LinearIRTransformationPipeline target_pipeline = target_specific_transformations();
+    target_pipeline.run(linear_ir);
+
+    std::function<opRegType(const std::shared_ptr<Node>& op)> reg_type_mapper = [&](const std::shared_ptr<Node>& op) -> opRegType {
+        return get_op_reg_type(op);
     };
-    for (const auto& transform : transformation_pipeline) {
-        transform->run(linear_ir);
-    }
-    const auto buffer_scratchpad_size = propagate_buffer_offsets->get_scratchpad_size();
+
+    pass::lowered::LinearIRTransformationPipeline final_pipeline;
+    final_pipeline.register_transformation<pass::lowered::AssignRegisters>(reg_type_mapper);
+    final_pipeline.register_transformation<pass::lowered::InsertTailLoop>();
+    final_pipeline.run(linear_ir);
+
     linear_ir.init_emitters(target);
+
     OV_ITT_TASK_NEXT(GENERATE, "::EmitCode")
     auto loops2DKernel = std::make_shared<op::Kernel>(linear_ir);
     loops2DKernel->compile_params = compile_params;
@@ -65,7 +89,7 @@ Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, con
     if (config.m_save_lowered_code)
         lowered_saved = linear_ir;
 
-    return {target->get_snippet(), buffer_scratchpad_size};
+    return {target->get_snippet(), propagate_buffer_offsets->get_scratchpad_size()};
 }
 
 std::shared_ptr<const TargetMachine> Generator::get_target_machine() const {
@@ -107,6 +131,9 @@ Generator::opRegType Generator::get_specific_op_reg_type(const std::shared_ptr<o
     OPENVINO_THROW("Register type of the operation " + std::string(op->get_type_name()) + " isn't determined!");
 }
 
+pass::lowered::LinearIRTransformationPipeline Generator::target_specific_transformations() const {
+    return pass::lowered::LinearIRTransformationPipeline();
+}
 
 }// namespace snippets
 }// namespace ngraph

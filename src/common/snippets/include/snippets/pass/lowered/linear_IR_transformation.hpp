@@ -41,6 +41,25 @@ public:
     virtual bool run(LoweredExprIR& linear_ir) = 0;
 };
 
+class LinearIRTransformationPipeline {
+public:
+    LinearIRTransformationPipeline() = default;
+
+    void register_transformation(const std::shared_ptr<pass::lowered::LinearIRTransformation>& transformation);
+
+    template<typename T, class... Args>
+    void register_transformation(Args&&... args) {
+        static_assert(std::is_base_of<LinearIRTransformation, T>::value, "Transformation not derived from LinearIRTransformation");
+        auto transformation = std::make_shared<T>(std::forward<Args>(args)...);
+        register_transformation(transformation);
+    }
+
+    void run(LoweredExprIR& linear_ir);
+
+private:
+    std::vector<std::shared_ptr<pass::lowered::LinearIRTransformation>> m_transformations;
+};
+
 } // namespace lowered
 } // namespace pass
 } // namespace snippets

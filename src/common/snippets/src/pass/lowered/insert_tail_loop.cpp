@@ -1,4 +1,4 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright (C) 2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -65,7 +65,6 @@ void InsertTailLoop::tail_transformations(LoweredExprIR& linear_ir,
 bool InsertTailLoop::run(LoweredExprIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::insertTailLoop")
     bool modified = false;
-    const auto& lowering_config = linear_ir.get_config();
     // *1* solo vector/tail loop + empty outer loop
     //      => skip increments (both counter & ptr) : set evaluate_once flag
     // *2* solo vector/tail loop + non-empty outer loop
@@ -90,6 +89,28 @@ bool InsertTailLoop::run(LoweredExprIR& linear_ir) {
             return false;
         }
     };
+    auto is_loop_with_buffers = [&linear_ir](const std::shared_ptr<op::LoopEnd>& loop_end) {
+        auto is_buffer_input = [&linear_ir](const TensorDescriptorPtr& input) {
+            const auto parent_expr = linear_ir.get_expr_by_output(input).expr;
+            return ov::is_type<op::Buffer>(parent_expr->get_node());
+        };
+        auto is_buffer_output = [&linear_ir](const TensorDescriptorPtr& output) {
+            const auto child_exprs_inputs = linear_ir.get_exprs_by_input(output);
+            return ov::is_type<op::Buffer>((*child_exprs_inputs.begin()).expr->get_node());
+        };
+
+        const auto loop_end_expr = linear_ir.get_expr_by_node(loop_end);
+        const auto inputs = loop_end_expr->get_inputs();
+        const auto in_num = loop_end->get_input_num();
+        const auto out_num = loop_end->get_output_num();
+        OPENVINO_ASSERT(inputs.size() == (in_num + out_num + 1),
+                        std::string("The LoopEnd expression must have the count of inputs is") +
+                        std::string("equal to count of input and outputs of Loop plus one for work amount"));
+        const std::vector<TensorDescriptorPtr> loop_ins(inputs.begin(), inputs.begin() + in_num);
+        const std::vector<TensorDescriptorPtr> loop_outs(inputs.begin() + in_num, inputs.begin() + in_num + out_num);
+        return std::any_of(loop_ins.begin(), loop_ins.end(), is_buffer_input) ||
+               std::any_of(loop_outs.begin(), loop_outs.end(), is_buffer_output);
+    };
     for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end();) {
         const auto& loop_begin = ov::as_type_ptr<ngraph::snippets::op::LoopBegin>((*expr_it)->get_node());
         // ignore outer loops and possible manual scalar loops
@@ -100,7 +121,7 @@ bool InsertTailLoop::run(LoweredExprIR& linear_ir) {
                 expr_it++;
             // Note that exp_it points to the element AFTER loop_end
             expr_it++;
-            const bool is_followed_by_buffer = is_type<op::Buffer>(expr_it->get()->get_node());
+            const bool is_there_buffer = is_loop_with_buffers(vector_loop_end);
             const auto work_amount = vector_loop_end->get_work_amount();
             const auto increment = vector_loop_end->get_increment();
             const auto tail_size = work_amount % increment;
@@ -118,10 +139,8 @@ bool InsertTailLoop::run(LoweredExprIR& linear_ir) {
                     vector_loop_end->set_finalization_offsets(
                             std::vector<int64_t>(tail_finalization_offsets.size(), 0));
 
-                if (lowering_config.m_optimize_single_evaluation) {
-                    // force ptr increments if there is tail
-                    optimize_single_evaluation(vector_loop_end, need_tail || is_followed_by_buffer);
-                }
+                // force ptr increments if there is tail
+                optimize_single_evaluation(vector_loop_end, need_tail || is_there_buffer);
             }
 
             // tail is required => transform the body into a tail representation
@@ -160,11 +179,9 @@ bool InsertTailLoop::run(LoweredExprIR& linear_ir) {
                 tail_loop_end->set_work_amount(tail_size);
                 tail_loop_end->has_outer_loop = vector_loop_end->has_outer_loop;
 
-                if (lowering_config.m_optimize_single_evaluation) {
-                    // Note: despite the fact that the tail loop is always executed once, we still need
-                    // to keep finalization_offsets to reset Buffer
-                    optimize_single_evaluation(tail_loop_end, is_followed_by_buffer);
-                }
+                // Note: despite the fact that the tail loop is always executed once, we still need
+                // to keep finalization_offsets to reset Buffer
+                optimize_single_evaluation(tail_loop_end, is_there_buffer);
             }
             modified = true;
         } else {

@@ -24,7 +24,6 @@
 #include "op/loop.hpp"
 #include "op/brgemm.hpp"
 #include "op/vector_buffer.hpp"
-#include "op/softmax.hpp"
 
 namespace ngraph {
 namespace snippets {

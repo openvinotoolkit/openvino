@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,16 +74,21 @@ private:
 class LoopEnd : public LoopBase {
 public:
     OPENVINO_OP("LoopEnd", "SnippetsOpset", LoopBase);
-    LoopEnd(const std::vector<Output<Node>>& args, size_t work_amount, size_t work_amount_increment,
-              std::vector<bool> apply_increment, std::vector<int64_t> finalization_offsets);
-    LoopEnd(const std::vector<Output<Node>>& args, size_t work_amount, size_t work_amount_increment,
-            std::vector<int64_t> ptr_increments, std::vector<int64_t> finalization_offsets);
+    LoopEnd(const Output<Node>& loop_begin, size_t work_amount, size_t work_amount_increment,
+              std::vector<bool> apply_increment, std::vector<int64_t> finalization_offsets,
+              std::vector<int64_t> element_type_sizes, size_t input_num, size_t output_num);
+    LoopEnd(const Output<Node>& loop_begin, size_t work_amount, size_t work_amount_increment,
+            std::vector<int64_t> ptr_increments, std::vector<int64_t> finalization_offsets,
+            std::vector<int64_t> element_type_sizes, size_t input_num, size_t output_num);
     LoopEnd() = default;
     std::shared_ptr<LoopBegin> get_loop_begin();
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs)  const override;
     const std::vector<int64_t>& get_finalization_offsets() const;
     const std::vector<int64_t>& get_ptr_increments() const;
+    const std::vector<int64_t>& get_element_type_sizes() const;
+    size_t get_input_num() const;
+    size_t get_output_num() const;
     void set_finalization_offsets(std::vector<int64_t> offsets);
     void set_ptr_increments(std::vector<int64_t> new_ptr_increments);
     // update_ptr_increments resets non-zero increments to the new_increments. It's used when work_amount_increment is
@@ -92,6 +97,7 @@ public:
     void set_work_amount(size_t new_work_amount);
     void set_increment(size_t new_increment);
     void set_evaluate_once(bool once);
+    void set_work_with_buffer(bool buffer);
     // Used to propagate information about Loop structure, needed to simplify some optimizations. For example,
     // to skip pointer increments when outer Loop is empty, and work_amount == vector_size (one inner vector Loop)
     // true by default, the optimizations enabled if it's false;
@@ -101,13 +107,15 @@ public:
     bool get_evaluate_once() const override;
     bool visit_attributes(AttributeVisitor& visitor) override;
 
-
 private:
-    std::vector<int64_t> ptr_increments;
-    std::vector<int64_t> finalization_offsets;
-    size_t work_amount;
-    size_t work_amount_increment;
-    bool evaluate_once; // true if the Loop is executed only once, used to skip setting and testing the loop counter
+    std::vector<int64_t> ptr_increments = {};
+    std::vector<int64_t> finalization_offsets = {};
+    std::vector<int64_t> element_type_sizes = {};
+    size_t work_amount = 0;
+    size_t work_amount_increment = 0;
+    size_t input_num = 0;
+    size_t output_num = 0;
+    bool evaluate_once = false; // true if the Loop is executed only once, used to skip setting and testing the loop counter
 };
 
 } // namespace op
