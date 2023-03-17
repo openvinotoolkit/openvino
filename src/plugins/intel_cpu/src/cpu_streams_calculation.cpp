@@ -30,7 +30,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
 
     if (1 == input_streams) {
         stream_info[NUMBER_OF_STREAMS] = 1;
-        int limit_threads = (input_threads == 0) ? model_prefer_threads : input_threads;
+        int limit_threads = input_threads;
         if ((proc_type_table[0][EFFICIENT_CORE_PROC] > 0) &&
             ((limit_threads == 0) || (limit_threads > proc_type_table[0][MAIN_CORE_PROC]))) {
             stream_info[PROC_TYPE] = ALL_PROC;
