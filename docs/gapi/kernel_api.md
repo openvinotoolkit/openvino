@@ -27,11 +27,11 @@ G-API provides a macro to define a new kernel interface ``G_TYPED_KERNEL()``:
        static cv::GMatDesc                 // outMeta's return value type
        outMeta(cv::GMatDesc    in       ,  // descriptor of input GMat
                int             ddepth   ,  // depth parameter
-               cv::Mat      /* coeffs */,  // (unused)
-               cv::Point    /* anchor */,  // (unused)
-               double       /* scale  */,  // (unused)
-               int          /* border */,  // (unused)
-               cv::Scalar   /* bvalue */ ) // (unused)
+               cv::Mat      /\* coeffs \*/,  // (unused)
+               cv::Point    /\* anchor \*/,  // (unused)
+               double       /\* scale  \*/,  // (unused)
+               int          /\* border \*/,  // (unused)
+               cv::Scalar   /\* bvalue \*/ ) // (unused)
        {
            return in.withDepth(ddepth);
        }
@@ -40,14 +40,14 @@ G-API provides a macro to define a new kernel interface ``G_TYPED_KERNEL()``:
 
 This macro is a shortcut to a new type definition. It takes three arguments to register a new type, and requires type body to be present (see below). The macro arguments are:
 
-| * Kernel interface name -- Also serves as a name of new type defined with this macro;
-| * Kernel signature -- An ``std::function<>``-like signature which defines API of the kernel;
-| * Kernel's unique name -- Used to identify kernel when its type information is stripped within the system.
-| * Kernel declaration may be seen as function declaration -- In both cases a new entity must be used then according to the way it was defined.
+* Kernel interface name -- Also serves as a name of new type defined with this macro;
+* Kernel signature -- An ``std::function<>``-like signature which defines API of the kernel;
+* Kernel's unique name -- Used to identify kernel when its type information is stripped within the system.
+* Kernel declaration may be seen as function declaration -- In both cases a new entity must be used then according to the way it was defined.
 
-Kernel signature defines kernel's usage syntax -- which parameters it takes during graph construction. Implementations can also use this signature to derive it into backend-specific callback signatures (see next chapter).
+Kernel signature defines kernel's usage syntax which parameters it takes during graph construction. Implementations can also use this signature to derive it into backend-specific callback signatures (see next chapter).
 
-Kernel may accept values of any type, and G-API dynamic types are handled in a special way. All other types are opaque to G-API and passed to kernel in `outMeta()` or in execution callbacks as-is.
+Kernel may accept values of any type, and G-API dynamic types are handled in a special way. All other types are opaque to G-API and passed to kernel in ``outMeta()`` or in execution callbacks as-is.
 
 Kernel's return value can only be of G-API dynamic type – ``cv::GMat``, ``cv::GScalar``, or ``cv::GArray<T>``. If an operation has more than one output, it should be wrapped into an ``std::tuple<>`` (which can contain only mentioned G-API types). Arbitrary-output-number operations are not supported.
 
@@ -56,13 +56,13 @@ Once a kernel is defined, it can be used in pipelines with special, G-API-suppli
 .. code-block:: cpp
    
    cv::GMat in;
-   cv::GMat out = GFilter2D::on(/* GMat    */  in,
-                                /* int     */  -1,
-                                /* Mat     */  conv_kernel_mat,
-                                /* Point   */  cv::Point(-1,-1),
-                                /* double  */  0.,
-                                /* int     */  cv::BORDER_DEFAULT,
-                                /* Scalar  */  cv::Scalar(0));
+   cv::GMat out = GFilter2D::on(/\* GMat    \*/  in,
+                                /\* int     \*/  -1,
+                                /\* Mat     \*/  conv_kernel_mat,
+                                /\* Point   \*/  cv::Point(-1,-1),
+                                /\* double  \*/  0.,
+                                /\* int     \*/  cv::BORDER_DEFAULT,
+                                /\* Scalar  \*/  cv::Scalar(0));
 
 
 This example has some verbosity, though, so usually a kernel declaration comes with a C++ function wrapper ("factory method") which enables optional parameters, more compact syntax, Doxygen comments, etc.:

@@ -17,8 +17,9 @@ Prerequisites
 This sample requires:
 
 * PC with GNU/Linux or Microsoft Windows (Apple macOS is supported but was not tested)
-* OpenCV 4.2 or higher built with `Intel® Distribution of OpenVINO™ Toolkit <https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html>`__ (building with `Intel® TBB <https://www.threadingbuildingblocks.org/intel-tbb-tutorial>` is a plus)
+* OpenCV 4.2 or higher built with `Intel® Distribution of OpenVINO™ Toolkit <https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html>`__ (building with `Intel® TBB <https://www.threadingbuildingblocks.org/intel-tbb-tutorial>`__ is a plus)
 * The following pre-trained models from the :doc:`Open Model Zoo <omz_models_group_intel>`
+
       * `face-detection-adas-0001 <https://docs.openvino.ai/latest/omz_models_model_face_detection_adas_0001.html#doxid-omz-models-model-face-detection-adas-0001>`__
       * `facial-landmarks-35-adas-0002 <https://docs.openvino.ai/latest/omz_models_model_facial_landmarks_35_adas_0002.html#doxid-omz-models-model-facial-landmarks-35-adas-0002>`__
 
@@ -33,16 +34,16 @@ We will implement a simple face beautification algorithm using a combination of 
 
 Briefly the algorithm is described as follows:
 
-- Input image \f$I\f$ is passed to unsharp mask and bilateral filters
-  (\f$U\f$ and \f$L\f$ respectively);
-- Input image \f$I\f$ is passed to an SSD-based face detector;
-- SSD result (a \f$[1 \times 1 \times 200 \times 7]\f$ blob) is parsed and converted to an array of faces;
+- Input image :math:`I` is passed to unsharp mask and bilateral filters
+  (\f$U\f$ and :math:`L` respectively);
+- Input image :math:`I` is passed to an SSD-based face detector;
+- SSD result (a :math:`[1 \times 1 \times 200 \times 7]` blob) is parsed and converted to an array of faces;
 - Every face is passed to a landmarks detector;
 - Based on landmarks found for every face, three image masks are generated:
-  - A background mask \f$b\f$ -- indicating which areas from the original image to keep as-is;
-  - A face part mask \f$p\f$ -- identifying regions to preserve (sharpen).
-  - A face skin mask \f$s\f$ -- identifying regions to blur;
-- The final result \f$O\f$ is a composition of features above calculated as \f$O = b*I + p*U + s*L\f$.
+  - A background mask :math:`b` -- indicating which areas from the original image to keep as-is;
+  - A face part mask :math:`p` -- identifying regions to preserve (sharpen).
+  - A face skin mask :math:`s` -- identifying regions to blur;
+- The final result :math:`O` is a composition of features above calculated as :math:`O = b\*I + p\*U + s\*L`.
 
 Generating face element masks based on a limited set of features (just 35 per face, including all its parts) is not very trivial and is described in the sections below.
 
@@ -114,15 +115,16 @@ The code below generates a graph for the algorithm above:
 The resulting graph is a mixture of G-API's standard operations, user-defined operations (namespace custom::), and DNN inference. The generic function ``cv::gapi::infer<>()`` allows you to trigger inference within the pipeline; networks to infer are specified as template parameters. The sample code is using two versions of ``cv::gapi::infer<>()``:
 
 * A frame-oriented one is used to detect faces on the input frame.
-* An ROI-list oriented one is used to run landmarks inference on a list of faces – this version produces an array of landmarks per every face.
-More on this in "Face Analytics pipeline" (:ref:`Building a GComputation <gapi_ifd_gcomputation>` section).
+* An ROI-list oriented one is used to run landmarks inference on a list of faces – this version produces an array of landmarks per every face. More on this in "Face Analytics pipeline" (:ref:`Building a GComputation <gapi_ifd_gcomputation>` section).
 
 Unsharp mask in G-API
 +++++++++++++++++++++
 
 The unsharp mask :math:`U` for image :math:`I` is defined as:
 
-:math:`U = I - s * L(M(I))`
+.. math::
+   
+   U = I - s \* L(M(I))
 
 where :math:`M()` is a median filter, :math:`L()` is the Laplace operator, and :math:`s` is a strength coefficient. While G-API doesn't provide this function out-of-the-box, it is expressed naturally with the existing G-API operations:
 
@@ -134,7 +136,7 @@ where :math:`M()` is a median filter, :math:`L()` is the Laplace operator, and :
    {
        cv::GMat blurred   = cv::gapi::medianBlur(src, sigma);
        cv::GMat laplacian = custom::GLaplacian::on(blurred, CV_8U);
-       return (src - (laplacian * strength));
+       return (src - (laplacian \* strength));
    }
 
 Note that the code snipped above is a regular C++ function defined with G-API types. Users can write functions like this to simplify graph construction; when called, this function just puts the relevant nodes to the pipeline it is used in.
@@ -165,30 +167,30 @@ A face detector output is converted to an array of faces with the following kern
            const cv::Rect borders({0, 0}, inFrame.size());
            outFaces.clear();
            const int    numOfDetections = inDetectResult.size[2];
-           const float *data            = inDetectResult.ptr<float>();
+           const float \*data            = inDetectResult.ptr<float>();
            for (int i = 0; i < numOfDetections; i++)
            {
-               const float faceId         = data[i * kObjectSize + 0];
+               const float faceId         = data[i \* kObjectSize + 0];
                if (faceId < 0.f)  // indicates the end of detections
                {
                    break;
                }
-               const float faceConfidence = data[i * kObjectSize + 2];
+               const float faceConfidence = data[i \* kObjectSize + 2];
                // We can cut detections by the `conf` field
                //  to avoid mistakes of the detector.
                if (faceConfidence > faceConfThreshold)
                {
-                   const float left   = data[i * kObjectSize + 3];
-                   const float top    = data[i * kObjectSize + 4];
-                   const float right  = data[i * kObjectSize + 5];
-                   const float bottom = data[i * kObjectSize + 6];
+                   const float left   = data[i \* kObjectSize + 3];
+                   const float top    = data[i \* kObjectSize + 4];
+                   const float right  = data[i \* kObjectSize + 5];
+                   const float bottom = data[i \* kObjectSize + 6];
                    // These are normalized coordinates and are between 0 and 1;
                    //  to get the real pixel coordinates we should multiply it by
                    //  the image sizes respectively to the directions:
-                   cv::Point tl(toIntRounded(left   * imgCols),
-                                toIntRounded(top    * imgRows));
-                   cv::Point br(toIntRounded(right  * imgCols),
-                                toIntRounded(bottom * imgRows));
+                   cv::Point tl(toIntRounded(left   \* imgCols),
+                                toIntRounded(top    \* imgRows));
+                   cv::Point br(toIntRounded(right  \* imgCols),
+                                toIntRounded(bottom \* imgRows));
                    outFaces.push_back(cv::Rect(tl, br) & borders);
                }
            }
@@ -215,7 +217,7 @@ The algorithm infers locations of face elements (like the eyes, the mouth and th
            CV_Assert(vctFaceContours.size()  == 0ul);
            // vctFaceElemsContours will store all the face elements' contours found
            //  in an input image, namely 4 elements (two eyes, nose, mouth) for every detected face:
-           vctElemsContours.reserve(numFaces * 4);
+           vctElemsContours.reserve(numFaces \* 4);
            // vctFaceElemsContours will store all the faces' contours found in an input image:
            vctFaceContours.reserve(numFaces);
            Contour cntFace, cntLeftEye, cntRightEye, cntNose, cntMouth;
@@ -276,7 +278,7 @@ Eye contours are estimated with the following function:
        if (residual.y == 0 && residual.x == 0)
            return 0;
        else
-           return toIntRounded(atan2(toDouble(residual.y), toDouble(residual.x)) * 180.0 / CV_PI);
+           return toIntRounded(atan2(toDouble(residual.y), toDouble(residual.x)) \* 180.0 / CV_PI);
    }
    inline Contour custom::getEyeEllipse(const cv::Point &ptLeft, const cv::Point &ptRight)
    {
@@ -296,8 +298,9 @@ Eye contours are estimated with the following function:
    }
 
 Briefly, this function restores the bottom side of an eye by a half-ellipse based on two points in left and right eye corners. In fact, ``cv::ellipse2Poly()`` is used to approximate the eye region, and the function only defines ellipse parameters based on just two points: 
-- The ellipse center and the \f$X\f$ half-axis calculated by two eye Points.
-- The \f$Y\f$ half-axis calculated according to the assumption that an average eye width is \f$1/3\f$ of its length.
+
+- The ellipse center and the :math:`X` half-axis calculated by two eye Points.
+- The :math:`Y` half-axis calculated according to the assumption that an average eye width is :math:`1/3` of its length.
 - The start and the end angles which are 0 and 180 (refer to ``cv::ellipse()`` documentation).
 - The angle delta: how much points to produce in the contour.
 - The inclination angle of the axes.
@@ -329,7 +332,7 @@ The function approximates the forehead contour:
        const double jawHeight = cv::norm(ptFaceCenter - ptJawLower);
        // According to research, in average a forehead is approximately 2/3 of
        //  a jaw:
-       const int axisY        = toIntRounded(jawHeight * 2 / 3.0);
+       const int axisY        = toIntRounded(jawHeight \* 2 / 3.0);
        // We need the upper part of an ellipse:
        static constexpr int kAngForeheadStart = 180;
        static constexpr int kAngForeheadEnd   = 360;
@@ -365,13 +368,18 @@ When we have all the contours needed, you are able to draw masks:
 The steps to get the masks are:
 
 * the "sharp" mask calculation:
+    
     * fill the contours that should be sharpened;
     * blur that to get the "sharp" mask (``mskSharpG``);
+
 * the "bilateral" mask calculation:
+    
     * fill all the face contours fully;
     * blur that;
     * subtract areas which intersect with the "sharp" mask --- and get the "bilateral" mask (``mskBlurFinal``);
+
 * the background mask calculation:
+    
     * add two previous masks
     * set all non-zero pixels of the result as 255 (by ``cv::gapi::threshold()``)
     * revert the output (by ``cv::gapi::bitwise_not``) to get the background mask (``mskNoFaces``).
@@ -390,15 +398,15 @@ This sample is using OpenVINO™ Toolkit OpenVINO Runtime backend for DL inferen
    
    auto faceParams  = cv::gapi::ie::Params<custom::FaceDetector>
    {
-       /*std::string*/ faceXmlPath,
-       /*std::string*/ faceBinPath,
-       /*std::string*/ faceDevice
+       /\*std::string\*/ faceXmlPath,
+       /\*std::string\*/ faceBinPath,
+       /\*std::string\*/ faceDevice
    };
    auto landmParams = cv::gapi::ie::Params<custom::LandmDetector>
    {
-       /*std::string*/ landmXmlPath,
-       /*std::string*/ landmBinPath,
-       /*std::string*/ landmDevice
+       /\*std::string\*/ landmXmlPath,
+       /\*std::string\*/ landmBinPath,
+       /\*std::string\*/ landmDevice
    };
 
 Every ``cv::gapi::ie::Params<>`` object is related to the network specified in its template argument. We should pass there the network type we have defined in ``G_API_NET()`` in the early beginning of the tutorial.

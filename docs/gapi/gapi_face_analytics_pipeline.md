@@ -18,6 +18,7 @@ This sample requires:
 * PC with GNU/Linux or Microsoft Windows (Apple macOS is supported but was not tested)
 * OpenCV 4.2 or higher built with `Intel® Distribution of OpenVINO™ Toolkit <https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html>`__ (building with `Intel® TBB <https://www.threadingbuildingblocks.org/intel-tbb-tutorial>`__ is a plus)
 * The following pre-trained models from the :doc:`Open Model Zoo <omz_models_group_intel>`
+
     * `face-detection-adas-0001 <https://docs.openvino.ai/latest/omz_models_model_face_detection_adas_0001.html#doxid-omz-models-model-face-detection-adas-0001>`__
     * `age-gender-recognition-retail-0013 <https://docs.openvino.ai/latest/omz_models_model_age_gender_recognition_retail_0013.html#doxid-omz-models-model-age-gender-recognition-retail-0013>`__
     * `emotions-recognition-retail-0003 <https://docs.openvino.ai/latest/omz_models_model_emotions_recognition_retail_0003.html#doxid-omz-models-model-emotions-recognition-retail-0003>`__
@@ -57,7 +58,7 @@ Constructing a G-API graph for a video streaming case does not differ much from 
 Declare Deep Learning topologies
 ++++++++++++++++++++++++++++++++
 
-In contrast with traditional CV functions (see `core <https://docs.opencv.org/4.5.0/df/d1f/group__gapi__core.html>`__ and `imgproc <https://docs.opencv.org/4.5.0/d2/d00/group__gapi__imgproc.html>`__) where G-API declares distinct operations for every function, inference in G-API is a single generic operation `cv::gapi::infer<>`. As usual, it is just an interface and it can be implemented in a number of ways under the hood. In OpenCV 4.2, only OpenVINO™ Runtime-based backend is available, and OpenCV's own DNN module-based backend is to come.
+In contrast with traditional CV functions (see `core <https://docs.opencv.org/4.5.0/df/d1f/group__gapi__core.html>`__ and `imgproc <https://docs.opencv.org/4.5.0/d2/d00/group__gapi__imgproc.html>`__) where G-API declares distinct operations for every function, inference in G-API is a single generic operation ``cv::gapi::infer<>``. As usual, it is just an interface and it can be implemented in a number of ways under the hood. In OpenCV 4.2, only OpenVINO™ Runtime-based backend is available, and OpenCV's own DNN module-based backend is to come.
 
 The ``cv::gapi::infer<>`` is _parametrized_ by the details of a topology we are going to execute. Like operations, topologies in G-API are strongly typed and are defined with a special macro ``G_API_NET()``:
 
@@ -74,6 +75,7 @@ The ``cv::gapi::infer<>`` is _parametrized_ by the details of a topology we are 
    G_API_NET(Emotions, <cv::GMat(cv::GMat)>, "emotions-recognition");
 
 Similar to how operations are defined with ``G_API_OP()``, network description requires three parameters:
+
 1. A type name. Every defined topology is declared as a distinct C++ type which is used further in the program -- see below.
 2. A ``std::function<>``-like API signature. G-API traits networks as regular "functions" which take and return data. Here network ``Faces`` (a detector) takes a ``cv::GMat`` and returns a ``cv::GMat``, while network ``AgeGender`` is known to provide two outputs (age and gender blobs, respectively) -- so its has a ``std::tuple<>`` as a return type.
 3. A topology name -- can be any non-empty string, G-API is using these names to distinguish networks inside. Names should be unique in the scope of a single graph.
@@ -148,7 +150,7 @@ G-API strictly separates construction from configuration -- with the idea to kee
 
 Platform-specific details arise when the pipeline is *compiled* -- i.e. is turned from a declarative to an executable form. The way *how* to run stuff is specified via compilation arguments, and new inference/streaming features are no exception from this rule. 
 
-G-API is built on backends which implement interfaces (see `Architecture <https://docs.opencv.org/4.5.0/de/d4d/gapi_hld.html>` and :doc:`Kernels <openvino_docs_gapi_kernel_api>` for details) -- thus ``cv::gapi::infer<>`` is a function which can be implemented by different backends. In OpenCV 4.2, only OpenVINO™ Runtime backend for inference is available. Every inference backend in G-API has to provide a special parameterizable structure to express *backend-specific* neural network parameters -- and in this case, it is ``cv::gapi::ie::Params``:
+G-API is built on backends which implement interfaces (see `Architecture <https://docs.opencv.org/4.5.0/de/d4d/gapi_hld.html>`__ and :doc:`Kernels <openvino_docs_gapi_kernel_api>` for details) -- thus ``cv::gapi::infer<>`` is a function which can be implemented by different backends. In OpenCV 4.2, only OpenVINO™ Runtime backend for inference is available. Every inference backend in G-API has to provide a special parameterizable structure to express *backend-specific* neural network parameters -- and in this case, it is ``cv::gapi::ie::Params``:
 
 .. code-block:: cpp
    
@@ -209,7 +211,7 @@ The idea behind streaming API is that user specifies an *input source* to the pi
 Streaming sources are represented by the interface ``cv::gapi::wip::IStreamSource``. Objects implementing this interface may be passed to ``GStreamingCompiled`` as regular inputs via ``cv::gin()`` helper function. In OpenCV 4.2, only one streaming source is allowed per pipeline -- this requirement will be relaxed in the future.
 
 OpenCV comes with a great class cv::VideoCapture and by default G-API ships with a stream source class based on it -- ``cv::gapi::wip::GCaptureSource``. Users can implement their own
-streaming sources e.g. using `VAAPI <https://01.org/vaapi>` or other Media or Networking APIs.
+streaming sources e.g. using `VAAPI <https://01.org/vaapi>`__ or other Media or Networking APIs.
 
 Sample application specifies the input source as follows:
 
@@ -335,14 +337,14 @@ The OpenCV-based SSD post-processing kernel is defined and implemented in this s
            const cv::Size upscale = in_frame.size();
            const cv::Rect surface({0,0}, upscale);
            out_faces.clear();
-           const float *data = in_ssd_result.ptr<float>();
+           const float \*data = in_ssd_result.ptr<float>();
            for (int i = 0; i < MAX_PROPOSALS; i++) {
-               const float image_id   = data[i * OBJECT_SIZE + 0]; // batch id
-               const float confidence = data[i * OBJECT_SIZE + 2];
-               const float rc_left    = data[i * OBJECT_SIZE + 3];
-               const float rc_top     = data[i * OBJECT_SIZE + 4];
-               const float rc_right   = data[i * OBJECT_SIZE + 5];
-               const float rc_bottom  = data[i * OBJECT_SIZE + 6];
+               const float image_id   = data[i \* OBJECT_SIZE + 0]; // batch id
+               const float confidence = data[i \* OBJECT_SIZE + 2];
+               const float rc_left    = data[i \* OBJECT_SIZE + 3];
+               const float rc_top     = data[i \* OBJECT_SIZE + 4];
+               const float rc_right   = data[i \* OBJECT_SIZE + 5];
+               const float rc_bottom  = data[i \* OBJECT_SIZE + 6];
                if (image_id < 0.f) {  // indicates end of detections
                    break;
                }
@@ -352,10 +354,10 @@ The OpenCV-based SSD post-processing kernel is defined and implemented in this s
                // Convert floating-point coordinates to the absolute image
                // frame coordinates; clip by the source image boundaries.
                cv::Rect rc;
-               rc.x      = static_cast<int>(rc_left   * upscale.width);
-               rc.y      = static_cast<int>(rc_top    * upscale.height);
-               rc.width  = static_cast<int>(rc_right  * upscale.width)  - rc.x;
-               rc.height = static_cast<int>(rc_bottom * upscale.height) - rc.y;
+               rc.x      = static_cast<int>(rc_left   \* upscale.width);
+               rc.y      = static_cast<int>(rc_top    \* upscale.height);
+               rc.width  = static_cast<int>(rc_right  \* upscale.width)  - rc.x;
+               rc.height = static_cast<int>(rc_bottom \* upscale.height) - rc.y;
                out_faces.push_back(rc & surface);
            }
        }

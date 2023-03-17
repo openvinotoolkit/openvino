@@ -25,10 +25,13 @@ G-API Concepts
 ##############
 
 * *Graphs* are built by applying operations to data objects.
+
    * API itself has no "graphs", it is expression-based instead.
+
 * *Data objects* do not hold actual data, only capture dependencies.
 * *Operations* consume and produce data objects.
 * A graph is defined by specifying its boundaries with data objects:
+
    * What data objects are inputs to the graph?
    * What are its outputs?
 
@@ -37,14 +40,15 @@ The paragraphs below explain the G-API programming model and development workflo
 Programming Model
 #################
 
-Building graphs is easy with G-API. In fact, there is no notion of graphs exposed in the API, so the user doesn’t need to operate in terms of “nodes” and “edges” — instead, graphs are constructed implicitly via expressions in a "functional" way. Expression-based graphs are built using two major concepts: *:doc:`operations <openvino_docs_gapi_kernel_api>`* and *`data objects <https://docs.opencv.org/4.2.0/db/df1/group__gapi__data__objects.html>`__*.
+Building graphs is easy with G-API. In fact, there is no notion of graphs exposed in the API, so the user doesn’t need to operate in terms of “nodes” and “edges” — instead, graphs are constructed implicitly via expressions in a "functional" way. Expression-based graphs are built using two major concepts: :doc:`*operations* <openvino_docs_gapi_kernel_api>` and `*data objects* <https://docs.opencv.org/4.2.0/db/df1/group__gapi__data__objects.html>`__ .
 
 In G-API, every graph begins and ends with data objects; data objects are passed to operations which produce (“return”) their results — new data objects, which are then passed to other operations, and so on. You can declare their own operations, G-API does not distinguish user-defined operations from its own predefined ones in any way.
 
 After the graph is defined, it needs to be compiled for execution. During the compilation, G-API figures out what the graph looks like, which kernels are available to run the operations in the graph, how to manage heterogeneity and to optimize the execution path. The result of graph compilation is a so-called “compiled” object. This object encapsulates the execution sequence for the graph inside and operates on real image data. You can set up the compilation process using various `compilation arguments <https://docs.opencv.org/4.5.0/dc/d1c/group__gapi__std__backends.html>`__. Backends expose some of their options as these arguments; also, actual kernels and DL network settings are passed into the framework this way.
 
 G-API supports graph compilation for two execution modes, *regular* and *streaming*, producing different types of compiled objects as the result.
-* <strong>Regular</strong> compiled objects are represented with class GCompiled, which follows functor-like semantics and has an overloaded operator(). When called for execution on the given input data, the GCompiled functor blocks the current thread and processes the data immediately — like a regular C++ function. By default, G-API tries to optimize the execution time for latency in this compilation mode.
+
+* **Regular** compiled objects are represented with class GCompiled, which follows functor-like semantics and has an overloaded operator(). When called for execution on the given input data, the GCompiled functor blocks the current thread and processes the data immediately — like a regular C++ function. By default, G-API tries to optimize the execution time for latency in this compilation mode.
 * Starting with OpenCV 4.2, G-API can also produce GStreamingCompiled objects that better fit the asynchronous pipelined execution model. This compilation mode is called **streaming mode**, and G-API tries to optimize the overall throughput by implementing the pipelining technique as described above. We will use both in our example.
 
 The overall process for the regular case is summarized in the diagram below:

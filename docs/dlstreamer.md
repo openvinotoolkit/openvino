@@ -11,7 +11,7 @@ Intel® DL Streamer makes Media analytics easy:
 * Analyze video and audio streams, create actionable results, capture results, and send them to the cloud 
 * Leverage the efficiency and computational power of Intel hardware platforms 
 
-Go to`[Intel® DL Streamer documentation website <https://dlstreamer.github.io>`__ for information on how to download, install, and use.  
+Go to `[Intel® DL Streamer documentation website <https://dlstreamer.github.io>`__ for information on how to download, install, and use.  
 
 **Media analytics** is the analysis of audio & video streams to detect, classify, track, identify and count objects, events and people. The analyzed results can be used to take actions, coordinate events, identify patterns and gain insights across multiple domains. 
 
