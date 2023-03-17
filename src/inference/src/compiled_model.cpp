@@ -6,6 +6,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/properties.hpp"
 
 #define OV_COMPILED_MODEL_CALL_STATEMENT(...)                                \
     OPENVINO_ASSERT(_impl != nullptr, "CompiledModel was not initialized."); \
