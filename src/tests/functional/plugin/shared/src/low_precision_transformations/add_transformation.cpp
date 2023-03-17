@@ -62,7 +62,7 @@ void AddTransformation::SetUp() {
         precision, inputShape, param.broadcast,
         param.fakeQuantize1, param.fakeQuantize2);
 
-    ov::pass::InitNodeInfo().run_on_function(function);
+    ov::pass::InitNodeInfo().run_on_model(function);
 }
 
 TEST_P(AddTransformation, CompareWithRefImpl) {

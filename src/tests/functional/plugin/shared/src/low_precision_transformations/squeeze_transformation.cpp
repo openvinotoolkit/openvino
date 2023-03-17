@@ -75,7 +75,7 @@ void SqueezeTransformation::SetUp() {
         squeezeParam.fakeQuantize,
         squeezeParam.squeezeAxes);
 
-    ov::pass::InitNodeInfo().run_on_function(function);
+    ov::pass::InitNodeInfo().run_on_model(function);
 }
 
 TEST_P(SqueezeTransformation, CompareWithRefImpl) {
