@@ -13,10 +13,10 @@ namespace pass {
  * @ingroup ie_transformation_common_api
  * @brief Converts TopK version 11 to TopK version 3 if TopK 11 stable attribute is set to false
  */
-class TRANSFORMATIONS_API ConvertTopk11ToTopk3 : public MatcherPass {
+class TRANSFORMATIONS_API ConvertTopK11ToTopK3 : public MatcherPass {
 public:
-    OPENVINO_RTTI("ConvertTopk11ToTopk3", "0");
-    ConvertTopk11ToTopk3();
+    OPENVINO_RTTI("ConvertTopK11ToTopK3", "0");
+    ConvertTopK11ToTopK3();
 };
 
 }  // namespace pass

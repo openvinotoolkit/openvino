@@ -15,7 +15,7 @@
 
 using namespace testing;
 
-TEST_F(TransformationTestsF, ConvertTopk11ToTopk3) {
+TEST_F(TransformationTestsF, ConvertTopK11ToTopK3) {
     {
         const auto input = std::make_shared<ov::opset11::Parameter>(ov::element::i32, ov::Shape{2, 3, 4});
         const auto k = std::make_shared<ov::opset11::Parameter>(ov::element::i8, ov::Shape{});
@@ -29,7 +29,7 @@ TEST_F(TransformationTestsF, ConvertTopk11ToTopk3) {
         topk->set_friendly_name("topk11");
 
         function = std::make_shared<ov::Model>(topk->outputs(), ov::ParameterVector{input, k});
-        manager.register_pass<ov::pass::ConvertTopk11ToTopk3>();
+        manager.register_pass<ov::pass::ConvertTopK11ToTopK3>();
     }
 
     {
@@ -47,7 +47,7 @@ TEST_F(TransformationTestsF, ConvertTopk11ToTopk3) {
     }
 }
 
-TEST_F(TransformationTestsF, ConvertTopk11ToTopk3_fail) {
+TEST_F(TransformationTestsF, ConvertTopK11ToTopK3_fail) {
     const auto input = std::make_shared<ov::opset11::Parameter>(ov::element::i32, ov::Shape{2, 3, 4});
     const auto k = std::make_shared<ov::opset11::Parameter>(ov::element::i8, ov::Shape{});
     const auto topk = std::make_shared<ov::opset11::TopK>(input,
@@ -60,5 +60,5 @@ TEST_F(TransformationTestsF, ConvertTopk11ToTopk3_fail) {
     topk->set_friendly_name("topk11");
 
     function = std::make_shared<ov::Model>(topk->outputs(), ov::ParameterVector{input, k});
-    manager.register_pass<ov::pass::ConvertTopk11ToTopk3>();
+    manager.register_pass<ov::pass::ConvertTopK11ToTopK3>();
 }

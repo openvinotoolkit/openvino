@@ -11,8 +11,8 @@
 
 #include "itt.hpp"
 
-ov::pass::ConvertTopk11ToTopk3::ConvertTopk11ToTopk3() {
-    MATCHER_SCOPE(ConvertTopk11ToTopk3);
+ov::pass::ConvertTopK11ToTopK3::ConvertTopK11ToTopK3() {
+    MATCHER_SCOPE(ConvertTopK11ToTopK3);
 
     const auto topk_v11_pattern = pattern::wrap_type<opset11::TopK>();
 
