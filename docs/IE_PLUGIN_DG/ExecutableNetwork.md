@@ -61,7 +61,7 @@ The implementation of the method should write all data to the `model` stream, wh
 
 The method creates an asynchronous inference request and returns it. While the public Inference Engine API has a single interface for inference request, which can be executed in synchronous and asynchronous modes, a plugin library implementation has two separate classes:
 
-- [Synchronous inference request](@ref openvino_docs_ie_plugin_dg_infer_request), which defines pipeline stages and runs them synchronously in the `Infer` method.
+- [Synchronous inference request](@ref openvino_docs_ov_plugin_dg_infer_request), which defines pipeline stages and runs them synchronously in the `Infer` method.
 - [Asynchronous inference request](@ref openvino_docs_ie_plugin_dg_async_infer_request), which is a wrapper for a synchronous inference request and can run a pipeline asynchronously. Depending on a device pipeline structure, it can has one or several stages:
    - For single-stage pipelines, there is no need to define this method and create a class derived from InferenceEngine::AsyncInferRequestThreadSafeDefault. For single stage pipelines, a default implementation of this method creates InferenceEngine::AsyncInferRequestThreadSafeDefault wrapping a synchronous inference request and runs it asynchronously in the `_taskExecutor` executor.
    - For pipelines with multiple stages, such as performing some preprocessing on host, uploading input data to a device, running inference on a device, or downloading and postprocessing output data, schedule stages on several task executors to achieve better device use and performance. You can do it by creating a sufficient number of inference requests running in parallel. In this case, device stages of different inference requests are overlapped with preprocessing and postprocessing stage giving better performance.
@@ -87,4 +87,4 @@ Returns a current value for a configuration key with the name `name`. The method
 
 This function is the only way to get configuration values when a network is imported and compiled by other developers and tools (for example, the [Compile tool](@ref openvino_inference_engine_tools_compile_tool_README).
 
-The next step in plugin library implementation is the [Synchronous Inference Request](@ref openvino_docs_ie_plugin_dg_infer_request) class.
+The next step in plugin library implementation is the [Synchronous Inference Request](@ref openvino_docs_ov_plugin_dg_infer_request) class.

@@ -75,6 +75,10 @@ ov::template_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::
 }
 // ! [infer_request:ctor]
 
+// ! [infer_request:dtor]
+ov::template_plugin::InferRequest::~InferRequest() = default;
+// ! [infer_request:dtor]
+
 std::vector<std::shared_ptr<ov::IVariableState>> ov::template_plugin::InferRequest::query_state() const {
     OPENVINO_NOT_IMPLEMENTED;
 }
@@ -87,11 +91,7 @@ std::shared_ptr<const ov::template_plugin::CompiledModel> ov::template_plugin::I
     return template_model;
 }
 
-// ! [infer_request:dtor]
-ov::template_plugin::InferRequest::~InferRequest() = default;
-// ! [infer_request:dtor]
-
-// ! [infer_request:infer_impl]
+// ! [infer_request:infer]
 void ov::template_plugin::InferRequest::infer() {
     // TODO: fill with actual list of pipeline stages, which are executed synchronously for sync infer requests
     infer_preprocess();
@@ -99,7 +99,7 @@ void ov::template_plugin::InferRequest::infer() {
     wait_pipeline();  // does nothing in current implementation
     infer_postprocess();
 }
-// ! [infer_request:infer_impl]
+// ! [infer_request:infer]
 
 // ! [infer_request:infer_preprocess]
 void ov::template_plugin::InferRequest::infer_preprocess() {
@@ -189,7 +189,7 @@ void ov::template_plugin::InferRequest::infer_postprocess() {
 }
 // ! [infer_request:infer_postprocess]
 
-// ! [infer_request:set_blobs_impl]
+// ! [infer_request:set_tensors_impl]
 void ov::template_plugin::InferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
                                                          const std::vector<ov::Tensor>& tensors) {
     for (const auto& input : get_inputs()) {
@@ -200,9 +200,9 @@ void ov::template_plugin::InferRequest::set_tensors_impl(const ov::Output<const 
     }
     OPENVINO_THROW("Cannot find input tensors for port ", port);
 }
-// ! [infer_request:set_blobs_impl]
+// ! [infer_request:set_tensors_impl]
 
-// ! [infer_request:get_performance_counts]
+// ! [infer_request:get_profiling_info]
 std::vector<ov::ProfilingInfo> ov::template_plugin::InferRequest::get_profiling_info() const {
     std::vector<ov::ProfilingInfo> info;
     const auto fill_profiling_info = [](const std::string& name,
@@ -218,4 +218,4 @@ std::vector<ov::ProfilingInfo> ov::template_plugin::InferRequest::get_profiling_
     info.emplace_back(fill_profiling_info("output postprocessing", m_durations[Postprocess]));
     return info;
 }
-// ! [infer_request:get_performance_counts]
+// ! [infer_request:get_profiling_info]
