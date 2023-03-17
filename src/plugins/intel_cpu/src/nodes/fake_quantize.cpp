@@ -2070,7 +2070,7 @@ bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
         }
     }
 
-    if (!dnnlpoc.appendLinear(f.isc, f.ish, allowBinary))
+    if (!dnnlpoc.appendLinear(f.isc, f.ish, isLastPostOp && skipRoundClipOutputLinear, allowBinary))
         return false;
 
     if (skipRoundClipOutputLinear)
@@ -2079,7 +2079,7 @@ bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
     if (doRounding)
         dnnlpoc.appendRoundHTE();
     dnnlpoc.appendClip(f.clo, f.chi);
-    dnnlpoc.appendLinear(f.osc, f.osh, allowBinary);
+    dnnlpoc.appendLinear(f.osc, f.osh, isLastPostOp, allowBinary);
     return true;
 }
 

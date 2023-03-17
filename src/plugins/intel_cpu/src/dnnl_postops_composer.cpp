@@ -75,7 +75,7 @@ void DnnlPostOpsComposer::appendRoundHTE() {
     appendEltwise(dnnl::algorithm::eltwise_round_half_to_even, 0, 0);
 }
 
-bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool allowBinary) {
+bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool isLastPostOp, bool allowBinary) {
     IE_ASSERT(scale.size() == OC || scale.size() == 1);
     // there are so many possible optimizations can be done, for example:
     //
@@ -95,7 +95,7 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool allo
 
     // fuse into existing output scale (only when isINT8)
     bool can_fuse_into_oscale = false;
-    if (isINT8 && scale.size() == 1) { // oneDNN v3.* limitation does not allow per-channel dst scales
+    if (isINT8 && isLastPostOp && scale.size() == 1) { // oneDNN v3.* limitation does not allow per-channel dst scales
         if (ops.len() == 0)
             can_fuse_into_oscale = true;
 
@@ -189,10 +189,11 @@ bool DnnlPostOpsComposer::appendShift(const std::vector<float>& shift, bool allo
 
 bool DnnlPostOpsComposer::appendLinear(const std::vector<float>& scale,
                                        const std::vector<float>& shift,
+                                       bool isLastPostOp,
                                        bool allowBinary) {
     if (scale.size() == 1 && shift.size() == 1) {
         if (shift[0] == 0.0f)
-            return appendScale(scale, allowBinary);
+            return appendScale(scale, isLastPostOp, allowBinary);
         else
             appendEltwise(dnnl::algorithm::eltwise_linear, scale[0], shift[0]);
     } else {
@@ -200,11 +201,11 @@ bool DnnlPostOpsComposer::appendLinear(const std::vector<float>& scale,
         if (!allowBinary && shift.size() > 1)
             return false;
 
-        if (scale.size() > 0) {
-            if (!appendScale(scale, allowBinary))
+        if (!scale.empty()) {
+            if (!appendScale(scale, isLastPostOp && shift.empty(), allowBinary))
                 return false;
         }
-        if (shift.size() > 0) {
+        if (!shift.empty()) {
             if (!appendShift(shift, allowBinary))
                 return false;
         }

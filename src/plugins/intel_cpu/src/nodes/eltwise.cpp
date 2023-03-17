@@ -2331,7 +2331,7 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp,
             break;
         case dnnl::algorithm::eltwise_linear:
             // call dnnlpoc's specialized API to generate optimized postOps sequence
-            dnnlpoc.appendLinear({getAlpha()}, {getBeta()});
+            dnnlpoc.appendLinear({getAlpha()}, {getBeta()}, isLastPostOp);
             break;
         default: IE_THROW() << errorPrefix << "as post operation is not supported";
         }
@@ -2342,14 +2342,14 @@ bool Eltwise::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc, bool isLastPostOp,
             return dnnlpoc.appendShift(shifts, allowBinary);
         case Algorithm::EltwiseDivide:
         case Algorithm::EltwiseMultiply:
-            return dnnlpoc.appendScale(scales, allowBinary);
+            return dnnlpoc.appendScale(scales, isLastPostOp, allowBinary);
         case Algorithm::EltwiseMulAdd:
-            return dnnlpoc.appendLinear(scales, shifts, allowBinary);
+            return dnnlpoc.appendLinear(scales, shifts, isLastPostOp, allowBinary);
         case Algorithm::EltwisePowerStatic:
             if (beta != 1.0f && gamma != 0.0f) {
-                return dnnlpoc.appendLinear(scales, shifts, allowBinary);
+                return dnnlpoc.appendLinear(scales, shifts, isLastPostOp, allowBinary);
             } else if (beta != 1.0f) {// Multiply if has scales
-                return dnnlpoc.appendScale(scales, allowBinary);
+                return dnnlpoc.appendScale(scales, isLastPostOp, allowBinary);
             } else if (gamma != 0.0f) {// Add only if has shifts
                 return dnnlpoc.appendShift(shifts, allowBinary);
             }
