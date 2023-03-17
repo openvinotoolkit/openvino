@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/binary_convolution.hpp"
+
 #include "binary_convolution_shape_inference.hpp"
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/axis_vector.hpp"
 #include "openvino/core/coordinate_diff.hpp"
-#include "openvino/op/binary_convolution.hpp"
 
 using namespace std;
 

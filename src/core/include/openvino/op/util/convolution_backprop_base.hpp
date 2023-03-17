@@ -55,8 +55,12 @@ private:
     friend void resize_attributes(ConvolutionBackPropBase* op, const size_t num_spatial);
 
     template <class TShape>
+    friend void apply_padding(ConvolutionBackPropBase* op, const TShape& data_shape, const TShape& filters_shape);
+
+    template <class TShape>
     friend void apply_padding(ConvolutionBackPropBase* op,
-                              const std::vector<TShape>& input_shapes,
+                              const TShape& data_shape,
+                              const TShape& filters_shape,
                               const TShape& out_spatial_shape);
 
     friend bool is_attr_validation_required(const ConvolutionBase* op);

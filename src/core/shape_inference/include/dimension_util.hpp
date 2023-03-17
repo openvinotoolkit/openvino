@@ -5,6 +5,7 @@
 
 #include <cstdint>
 
+#include "openvino/core/dimension.hpp"
 #include "openvino/util/common_util.hpp"
 
 namespace ov {
@@ -143,6 +144,24 @@ auto floor_div(const TDim& dim, const typename TDim::value_type divisor) -> TDim
     } else {
         return {dim.get_min_length() / divisor, dim.get_max_length() / divisor};
     }
+}
+
+/**
+ * @brief Check if dimension is evenly divisible.
+ *
+ * @tparam TDim     Dimension type.
+ * @param quotient  Dimension to check.
+ * @param dividend  Dividend to check.
+ * @return true if dimension is divisible other wise false.
+ */
+template <class TDim>
+bool is_divisible(const TDim& quotient, const typename TDim::value_type dividend) {
+    return quotient / dividend != TDim{};
+}
+
+template <>
+inline bool is_divisible<Dimension>(const Dimension& quotient, const typename Dimension::value_type dividend) {
+    return !(quotient / dividend).get_interval().empty();
 }
 
 }  // namespace dim

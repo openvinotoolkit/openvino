@@ -34,12 +34,12 @@ std::vector<TShape> shape_infer(const TFrowardConv* op,
             convolution::validate::data_shape(op, data_shape);
             convolution::validate::common_attributes(op, num_spatial);
         }
-        apply_padding(const_cast<TFrowardConv*>(op), input_shapes);
+        apply_padding(const_cast<TFrowardConv*>(op), data_shape, filters_shape);
 
         output_shape.reserve(convolution::spatial_dim_offset + num_spatial);
         output_shape.emplace_back(data_rank.is_static() ? data_shape[0] : dim::inf_bound);
         output_shape.emplace_back(filters_rank.is_static() ? filters_shape[0] : dim::inf_bound);
-        convolution::append_spatial_shape(op, input_shapes, output_shape);
+        convolution::append_spatial_shape(op, data_shape, filters_shape, output_shape);
     } else {
         output_shape = PartialShape::dynamic();
     }

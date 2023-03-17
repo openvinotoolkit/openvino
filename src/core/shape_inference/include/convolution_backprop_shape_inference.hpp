@@ -36,11 +36,11 @@ std::vector<TShape> shape_infer(const ConvolutionBackpropData* op,
             }
         }
         num_spatial = convolution::get_num_spatial(op, input_shapes, out_spatial_shape);
+        NODE_VALIDATION_CHECK(op,
+                              out_spatial_shape.rank().is_dynamic() || out_spatial_shape.size() == num_spatial,
+                              "Output shape should be defined for all and only spatial dimensions.");
     } else {
         num_spatial = convolution::get_num_spatial(op, input_shapes);
-        if (num_spatial != convolution::num_spatial_undefined) {
-            out_spatial_shape.resize(num_spatial);
-        }
     }
 
     TShape output_shape;
@@ -48,33 +48,25 @@ std::vector<TShape> shape_infer(const ConvolutionBackpropData* op,
         const auto& data_shape = input_shapes[0];
         const auto& filters_shape = input_shapes[1];
 
-        if (out_spatial_shape.rank().is_static()) {
-            NODE_VALIDATION_CHECK(op,
-                                  out_spatial_shape.size() == num_spatial,
-                                  "Output shape should be defined for all and only spatial dimensions.");
-        } else {
-            out_spatial_shape.resize(num_spatial);
-        }
-
         resize_attributes(const_cast<ConvolutionBackpropData*>(op), num_spatial);
         convolution::validate::filter_shape(op, filters_shape, data_shape);
         if (is_attr_validation_required(op)) {
             convolution::validate::data_shape(op, data_shape);
             convolution::validate::common_attributes(op, num_spatial);
         }
-        apply_padding(const_cast<ConvolutionBackpropData*>(op), input_shapes, out_spatial_shape);
 
         output_shape.reserve(convolution::spatial_dim_offset + num_spatial);
-
         output_shape.emplace_back(data_shape.rank().is_static() ? data_shape[0] : dim::inf_bound);
         output_shape.emplace_back(filters_shape.rank().is_static() ? filters_shape[1] : dim::inf_bound);
 
         if (has_spatial_shape) {
+            apply_padding(const_cast<ConvolutionBackpropData*>(op), data_shape, filters_shape, out_spatial_shape);
             output_shape.insert(output_shape.end(),
                                 std::make_move_iterator(out_spatial_shape.begin()),
                                 std::make_move_iterator(out_spatial_shape.end()));
         } else {
-            convolution::append_spatial_shape(op, input_shapes, output_shape);
+            apply_padding(const_cast<ConvolutionBackpropData*>(op), data_shape, filters_shape);
+            convolution::append_spatial_shape(op, data_shape, filters_shape, output_shape);
         }
     } else {
         output_shape = PartialShape::dynamic();

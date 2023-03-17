@@ -34,16 +34,19 @@ constexpr size_t filter_non_spatial_dims_count() {
  *
  * Tries get value from operator member if is not deduced (has -1 value) then tries evaluate it from input shapes.
  *
- * @tparam TConv        Convolution type (this function must be a friend of TConv to access private member).
- * @tparam TShape       Shape type.
- * @param op            Pointer to convolution operator.
- * @param input_shapes  Input shapes (must have two) to spatial dim number evaluation.
+ * @tparam TConv       Convolution type (this function must be a friend of TConv to access private member).
+ * @tparam TShape      Shape type.
+ * @param op           Pointer to convolution operator.
+ * @param data_shape   Input data shape.
+ * @param flter_shape  Input filter shape.
  * @return Value of spatial dimension number or infinite bound (-1) if cannot evaluate.
  */
 template <class TShape>
-int64_t get_num_spatial(const std::vector<TShape>& input_shapes, const size_t filter_non_spatial_dims_count) {
-    const auto& data_rank = input_shapes[0].rank();
-    const auto& filters_rank = input_shapes[1].rank();
+size_t get_num_spatial(const TShape& data_shape,
+                       const TShape& filter_shape,
+                       const size_t filter_non_spatial_dims_count) {
+    const auto& data_rank = data_shape.rank();
+    const auto& filters_rank = filter_shape.rank();
 
     size_t num_spatial;
 
@@ -69,7 +72,7 @@ int64_t get_num_spatial(const std::vector<TShape>& input_shapes, const size_t fi
  */
 template <class TConv, class TShape>
 size_t get_num_spatial(const TConv* op, const std::vector<TShape>& input_shapes) {
-    return get_num_spatial(input_shapes, filter_non_spatial_dims_count<TConv>());
+    return get_num_spatial(input_shapes[0], input_shapes[1], filter_non_spatial_dims_count<TConv>());
 }
 
 template <class TConv, class TShape>
@@ -101,19 +104,24 @@ bool is_auto_pad(const TOp* op) {
  * The auto padding can be applied only if inputs and attributes of operator are validated.
  * The input shapes must have got static ranks.
  *
- * @param op            Pointer to convolution operator.
- * @param input_shapes  Vector with input shapes.
- * @param pads_begin    Iterator to begin of pads begin.
- * @param pads_end      Iterator to begin of pads end.
+ * @param op             Pointer to convolution operator.
+ * @param data_shape     Input data shape (must be static rank).
+ * @param filters_shape  Input filter shape (must be static rank).
+ * @param pads_begin     Iterator to begin of pads begin.
+ * @param pads_end       Iterator to begin of pads end.
  */
 template <class TOp, class TShape, class TIter>
-void apply_auto_pad(const TOp* op, const std::vector<TShape>& input_shapes, TIter pads_begin, TIter pads_end) {
+void apply_auto_pad(const TOp* op,
+                    const TShape& data_shape,
+                    const TShape& filters_shape,
+                    TIter pads_begin,
+                    TIter pads_end) {
     const auto& dilations = op->get_dilations();
     const auto& strides = op->get_strides();
 
     const auto num_spatial = strides.size();
-    auto data_dim = input_shapes[0].cend() - num_spatial;
-    auto kernel_dim = input_shapes[1].cend() - num_spatial;
+    auto data_dim = data_shape.cend() - num_spatial;
+    auto kernel_dim = filters_shape.cend() - num_spatial;
 
     const auto padding_swap = op->get_auto_pad() == PadType::SAME_UPPER;
     auto& pad_b = padding_swap ? pads_begin : pads_end;
@@ -137,14 +145,16 @@ void apply_auto_pad(const TOp* op, const std::vector<TShape>& input_shapes, TIte
  * The input shapes must have got static ranks.
  *
  * @param op                 Pointer to convolution operator.
- * @param input_shapes       Vector with input shapes.
+ * @param data_shape         Input data shape (must be static rank).
+ * @param filters_shape      Input filter shape (must be static rank).
  * @param out_spatial_shape  Reference to input with out spatial shape.
  * @param pads_begin         Iterator to begin of pads begin.
  * @param pads_end           Iterator to begin of pads end.
  */
 template <class TOp, class TShape, class TIter>
 void apply_auto_pad(const TOp* op,
-                    const std::vector<TShape>& input_shapes,
+                    const TShape& data_shape,
+                    const TShape& filters_shape,
                     const TShape& out_spatial_shape,
                     TIter pads_begin,
                     TIter pads_end) {
@@ -153,68 +163,60 @@ void apply_auto_pad(const TOp* op,
     const auto& out_padding = op->get_output_padding();
 
     const auto num_spatial = strides.size();
-    auto data_dim = input_shapes[0].cend() - num_spatial;
-    auto kernel_dim = input_shapes[1].cend() - num_spatial;
+    auto data_dim = data_shape.cend() - num_spatial;
+    auto filter_dim = filters_shape.cend() - num_spatial;
 
     const auto padding_swap = op->get_auto_pad() == PadType::SAME_UPPER;
     auto& pad_b = padding_swap ? pads_end : pads_begin;
     auto& pad_e = padding_swap ? pads_begin : pads_end;
 
-    if (input_shapes.size() == 3) {
-        for (size_t i = 0; i < num_spatial; ++i, ++pad_b, ++pad_e, ++data_dim, ++kernel_dim) {
-            using namespace ov::util;
-            if (data_dim->is_static() && kernel_dim->is_static() && out_spatial_shape[i].is_static()) {
-                const auto dilated_kernel = dim::dilated(*kernel_dim, dilations[i]);
-                const auto dim_len = static_cast<int64_t>(data_dim->get_length() - 1);
-                const auto padding = std::max<int64_t>(dim_len * strides[i] + dilated_kernel.get_length() -
-                                                           out_spatial_shape[i].get_length() + out_padding[i],
-                                                       0);
+    for (size_t i = 0; i < num_spatial; ++i, ++pad_b, ++pad_e, ++data_dim, ++filter_dim) {
+        using namespace ov::util;
+        if (data_dim->is_static() && filter_dim->is_static() && out_spatial_shape[i].is_static()) {
+            const auto dilated_filter = dim::dilated(*filter_dim, dilations[i]);
+            const auto dim_len = static_cast<int64_t>(data_dim->get_length() - 1);
+            const auto padding = std::max<int64_t>(
+                dim_len * strides[i] + dilated_filter.get_length() - out_spatial_shape[i].get_length() + out_padding[i],
+                0);
 
-                *pad_b = padding / 2;
-                *pad_e = padding - *pad_b;
-            } else {
-                *pad_b = 0;
-                *pad_e = 0;
-            }
+            *pad_b = padding / 2;
+            *pad_e = padding - *pad_b;
+        } else {
+            *pad_b = 0;
+            *pad_e = 0;
         }
-    } else {
-        std::fill_n(pad_b, num_spatial, 0);
-        std::fill_n(pad_e, num_spatial, 0);
     }
 }
 
 /**
  * @brief Append spatial dimension at end of output shape of forward propagation convolution.
  *
- * @tparam TOp          Forward propagation convolution operator type.
- * @tparam TShape       Type of shape.
- * @param op            Pointer to operator.
- * @param input_shapes  Input shape of convolution shape inference.
- * @param out_shape     Output shape to append spatial dimensions.
+ * @tparam TOp           Forward propagation convolution operator type.
+ * @tparam TShape        Type of shape.
+ * @param op             Pointer to operator.
+ * @param data_shape     Input data shape.
+ * @param filters_shape  Input filter shape.
+ * @param out_shape      Output shape to append spatial dimensions.
  */
 template <class TOp,
           class TShape,
           typename std::enable_if<!std::is_base_of<ov::op::util::ConvolutionBackPropBase, TOp>::value>::type* = nullptr>
-void append_spatial_shape(const TOp* op, const std::vector<TShape>& input_shapes, TShape& out_shape) {
+void append_spatial_shape(const TOp* op, const TShape& data_shape, const TShape& filters_shape, TShape& out_shape) {
     using namespace ov::util;
     using TDim = typename TShape::value_type;
 
     const auto& strides = op->get_strides();
     const auto spatial_num = strides.size();
 
-    const auto& data_shape = input_shapes[0].rank().is_static() ? input_shapes[0] : PartialShape::dynamic(spatial_num);
-    auto data_dim = data_shape.cend() - spatial_num;
+    const auto& d_shape = data_shape.rank().is_static() ? data_shape : PartialShape::dynamic(spatial_num);
+    auto data_dim = d_shape.cend() - spatial_num;
 
     if (is_auto_pad(op)) {
-        std::transform(data_dim,
-                       data_shape.cend(),
-                       strides.cbegin(),
-                       std::back_inserter(out_shape),
-                       &dim::ceil_div<TDim>);
+        std::transform(data_dim, d_shape.cend(), strides.cbegin(), std::back_inserter(out_shape), &dim::ceil_div<TDim>);
     } else {
-        const auto& filters_shape =
-            input_shapes[1].rank().is_static() ? input_shapes[1] : PartialShape::dynamic(spatial_num);
-        auto filters_dim = filters_shape.cend() - spatial_num;
+        const auto& f_shape = filters_shape.rank().is_static() ? filters_shape : PartialShape::dynamic(spatial_num);
+        auto filters_dim = f_shape.cend() - spatial_num;
+
         const auto& pads_begin = op->get_pads_begin();
         const auto& pads_end = op->get_pads_end();
         const auto& dilations = op->get_dilations();
@@ -238,16 +240,17 @@ void append_spatial_shape(const TOp* op, const std::vector<TShape>& input_shapes
 /**
  * @brief Append spatial dimension at end of output shape of back propagation convolution.
  *
- * @tparam TOp          Back propagation convolution operator type.
- * @tparam TShape       Type of shape.
- * @param op            Pointer to operator.
- * @param input_shapes  Input shape of convolution shape inference.
- * @param out_shape     Output shape to append spatial dimensions.
+ * @tparam TOp           Back propagation convolution operator type.
+ * @tparam TShape        Type of shape.
+ * @param op             Pointer to operator.
+ * @param data_shape     Input data shape.
+ * @param filters_shape  Input filter shape.
+ * @param out_shape      Output shape to append spatial dimensions.
  */
 template <class TOp,
           class TShape,
           typename std::enable_if<std::is_base_of<ov::op::util::ConvolutionBackPropBase, TOp>::value>::type* = nullptr>
-void append_spatial_shape(const TOp* op, const std::vector<TShape>& input_shapes, TShape& out_shape) {
+void append_spatial_shape(const TOp* op, const TShape& data_shape, const TShape& filters_shape, TShape& out_shape) {
     using namespace ov::util;
 
     const auto& strides = op->get_strides();
@@ -258,12 +261,11 @@ void append_spatial_shape(const TOp* op, const std::vector<TShape>& input_shapes
 
     const auto spatial_num = strides.size();
 
-    const auto& data_shape = input_shapes[0].rank().is_static() ? input_shapes[0] : PartialShape::dynamic(spatial_num);
-    auto data_dim = data_shape.cend() - spatial_num;
+    const auto& d_shape = data_shape.rank().is_static() ? data_shape : PartialShape::dynamic(spatial_num);
+    auto data_dim = d_shape.cend() - spatial_num;
 
-    const auto& filters_shape =
-        input_shapes[1].rank().is_static() ? input_shapes[1] : PartialShape::dynamic(spatial_num);
-    auto filters_dim = filters_shape.cend() - spatial_num;
+    const auto& f_shape = filters_shape.rank().is_static() ? filters_shape : PartialShape::dynamic(spatial_num);
+    auto filters_dim = f_shape.cend() - spatial_num;
 
     for (size_t i = 0; i < spatial_num; ++i, ++data_dim, ++filters_dim) {
         auto dim = (*data_dim - 1) * strides[i];
@@ -392,15 +394,13 @@ inline void resize_attributes(ConvolutionBase* op, const size_t num_spatial) {
  *
  * @tparam TShape       Shape type.
  * @param op            Pointer to forward propagation convolution operator.
- * @param input_shapes  Shapes of inputs.
+ * @param data_shape     Input data shape.
+ * @param filters_shape  Input filter shape.
  */
 template <class TShape>
-void apply_padding(ConvolutionBase* op, const std::vector<TShape>& input_shapes) {
-    const auto data_rank = input_shapes[0].rank();
-    const auto filters_rank = input_shapes[1].rank();
-
-    if (convolution::is_auto_pad(op) && data_rank.is_static() && filters_rank.is_static()) {
-        convolution::apply_auto_pad(op, input_shapes, op->m_pads_begin.begin(), op->m_pads_end.begin());
+void apply_padding(ConvolutionBase* op, const TShape& data_shape, const TShape& filters_shape) {
+    if (convolution::is_auto_pad(op) && data_shape.rank().is_static() && filters_shape.rank().is_static()) {
+        convolution::apply_auto_pad(op, data_shape, filters_shape, op->m_pads_begin.begin(), op->m_pads_end.begin());
     } else if (op->get_auto_pad() == op::PadType::VALID) {
         std::fill(op->m_pads_begin.begin(), op->m_pads_begin.end(), 0);
         std::fill(op->m_pads_end.begin(), op->m_pads_end.end(), 0);
@@ -434,25 +434,44 @@ inline void resize_attributes(ConvolutionBackPropBase* op, const size_t num_spat
 /**
  * @brief  Apply auto padding for back propagation convolutions.
  *
- * @tparam TShape       Shape type.
- * @param op            Pointer to back propagation convolution operator.
- * @param input_shapes  Shapes of inputs.
+ * @tparam TShape            Shape type.
+ * @param op                 Pointer to back propagation convolution operator.
+ * @param data_shape         Input data shape.
+ * @param filters_shape      Input filter shape.
+ * @param out_spatial_shape  Input output spatial shape.
  */
 template <class TShape>
 void apply_padding(ConvolutionBackPropBase* op,
-                   const std::vector<TShape>& input_shapes,
+                   const TShape& data_shape,
+                   const TShape& filters_shape,
                    const TShape& out_spatial_shape) {
-    const auto data_rank = input_shapes[0].rank();
-    const auto filters_rank = input_shapes[1].rank();
-
     // apply padding if required
-    if (convolution::is_auto_pad(op) && data_rank.is_static() && filters_rank.is_static()) {
+    if (convolution::is_auto_pad(op) && data_shape.rank().is_static() && filters_shape.rank().is_static()) {
         convolution::apply_auto_pad(op,
-                                    input_shapes,
+                                    data_shape,
+                                    filters_shape,
                                     out_spatial_shape,
                                     op->m_pads_begin.begin(),
                                     op->m_pads_end.begin());
     } else if (op->get_auto_pad() == op::PadType::VALID) {
+        std::fill(op->m_pads_begin.begin(), op->m_pads_begin.end(), 0);
+        std::fill(op->m_pads_end.begin(), op->m_pads_end.end(), 0);
+    }
+}
+
+/**
+ * @brief  Apply auto padding for back propagation convolutions.
+ *
+ * When there is no input with output spatial shape.
+ *
+ * @tparam TShape            Shape type.
+ * @param op                 Pointer to back propagation convolution operator.
+ * @param data_shape         Input data shape.
+ * @param filters_shape      Input filter shape.
+ */
+template <class TShape>
+void apply_padding(ConvolutionBackPropBase* op, const TShape& data_shape, const TShape& filters_shape) {
+    if (convolution::is_auto_pad(op) || op->get_auto_pad() == op::PadType::VALID) {
         std::fill(op->m_pads_begin.begin(), op->m_pads_begin.end(), 0);
         std::fill(op->m_pads_end.begin(), op->m_pads_end.end(), 0);
     }
