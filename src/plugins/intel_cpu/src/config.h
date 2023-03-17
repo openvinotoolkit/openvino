@@ -10,6 +10,7 @@
 #include <openvino/runtime/properties.hpp>
 #include <openvino/util/common_util.hpp>
 #include "utils/debug_caps_config.h"
+#include "openvino/runtime/properties.hpp"
 
 #include <bitset>
 #include <string>
@@ -56,6 +57,7 @@ struct Config {
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
     bool enforceBF16 = true;
+    ov::hint::ExecutionMode executionMode = ov::hint::ExecutionMode::PERFORMANCE;
 #else
     // Currently INT8 mode is not optimized on ARM / RISCV or other non-x86 platforms, fallback to FP32 mode.
     LPTransformsMode lpTransformsMode = LPTransformsMode::Off;

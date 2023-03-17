@@ -220,6 +220,12 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             else
                 IE_THROW() << "Wrong value for property key " << PluginConfigInternalParams::KEY_SNIPPETS_MODE
                             << ". Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
+        } else if (key == ov::hint::execution_mode.name()) {
+            if (val == "PERFORMANCE" || val == "UNDEFINED") {
+                executionMode = ov::hint::ExecutionMode::PERFORMANCE;
+            } else {
+                executionMode = ov::hint::ExecutionMode::ACCURACY;
+            }
         } else {
             IE_THROW(NotFound) << "Unsupported property " << key << " by CPU plugin";
         }
@@ -277,7 +283,8 @@ void Config::updateProperties() {
     IE_SUPPRESS_DEPRECATED_START
         _config.insert({ PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT, dumpToDot });
     IE_SUPPRESS_DEPRECATED_END;
-    if (enforceBF16) {
+    if (enforceBF16 ||
+        (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16) && executionMode == ov::hint::ExecutionMode::PERFORMANCE)) {
         _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::YES });
     } else {
         _config.insert({ PluginConfigParams::KEY_ENFORCE_BF16, PluginConfigParams::NO });
@@ -287,5 +294,5 @@ void Config::updateProperties() {
             std::to_string(perfHintsConfig.ovPerfHintNumRequests) });
 }
 
-}   // namespace intel_cpu
+}  // namespace intel_cpu
 }   // namespace ov
