@@ -15,7 +15,6 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
 
     kernel_selector::cl_kernel_data _cl_kernel_data;
     std::vector<kernel::ptr> _kernels;
-    std::unique_ptr<cldnn::kernel_impl_params> _params;
 
     DECLARE_OBJECT_TYPE_SERIALIZATION
 
@@ -50,7 +49,9 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
     }
 
     void init_kernels(const kernels_cache& kernels_cache, kernel_impl_params& params) override {
-        _kernels.push_back(kernels_cache.get_kernel(params, 0));
+        _kernels.clear();
+        auto compiled_kernels = kernels_cache.get_kernel(params);
+        _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
     }
 
     void set_arguments_impl(generic_layer_inst& instance) override {

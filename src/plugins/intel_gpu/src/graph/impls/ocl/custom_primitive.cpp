@@ -53,7 +53,9 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     }
 
     void init_kernels(const kernels_cache& kernels_cache, kernel_impl_params& params) override {
-        _kernels.emplace_back(kernels_cache.get_kernel(params, 0));
+        _kernels.clear();
+        auto compiled_kernels = kernels_cache.get_kernel(params);
+        _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
     }
 
     void set_arguments_impl(custom_gpu_primitive_inst& instance) override {
