@@ -11,6 +11,7 @@
 #include <ie_algorithm.hpp>
 
 #include "common/gna_target.hpp"
+#include "common/misc_utils.hpp"
 #include "dnn_types.hpp"
 #include "gna_lib_ver_selector.hpp"
 #include "legacy/ngraph_ops/convolution_ie.hpp"
@@ -55,7 +56,7 @@ constexpr uint32_t bytesPerSplitElement = 2;
 // In fp32 mode this is not necessary but is useful for testing
 constexpr uint32_t bytesPerCropElement = 2;
 
-constexpr uint32_t kMemoryAlignmentBytes = 64;
+constexpr uint32_t kMemoryPageSize = 4096;
 
 inline bool isCropAffinedOffset(size_t numberOfElements) {
     const auto cropOffset = numberOfElements * bytesPerCropElement;
@@ -76,6 +77,20 @@ inline bool IsTransposeSupported(const std::vector<size_t>& shape) {
     size_t min, max;
     std::tie(min, max) = std::minmax(shape_no_1[0], shape_no_1[1]);
     return min <= 8 && max % 8 == 0 && max >= 8 && max <= transposeMaxSize;
+}
+
+inline const size_t getMemoryAlignmentBytes(target::DeviceVersion target) {
+    const std::unordered_map<target::DeviceVersion, size_t> mem_alignment_map{
+        {target::DeviceVersion::GNA1_0, 64},
+        {target::DeviceVersion::GNA2_0, 64},
+        {target::DeviceVersion::GNA3_0, 64},
+        {target::DeviceVersion::GNA3_1, 64},
+        {target::DeviceVersion::GNA3_5, 64},
+        {target::DeviceVersion::GNAEmbedded3_5, 64},
+        {target::DeviceVersion::GNA3_6, 16},
+        {target::DeviceVersion::GNA4_0, 16}};
+
+    return common::GetValueForKey<target::DeviceVersion, size_t>(target, mem_alignment_map);
 }
 
 class SupportedElementTypes {

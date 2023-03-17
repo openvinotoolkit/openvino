@@ -49,7 +49,7 @@ GNADeviceHelper::GNADeviceHelper(std::shared_ptr<Target> targetIn, bool isPerfor
 
     maxLayersCount_ = retrieveMaxLayersCount();
 
-    m_mem_alignment = limitations::kMemoryAlignmentBytes;
+    m_mem_alignment = limitations::getMemoryAlignmentBytes(targetIn->get_effective_compile_target());
 }
 
 GNADeviceHelper::~GNADeviceHelper() {
