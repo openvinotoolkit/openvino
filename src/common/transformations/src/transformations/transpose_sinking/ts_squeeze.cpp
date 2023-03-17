@@ -38,9 +38,10 @@ bool shape_to_squeeze_axes(const std::shared_ptr<Node>& reshape,
     const auto input_shape = input_pshape.to_shape();
     if (new_shape.size() < input_shape.size()) {
         for (size_t i = 0, j = 0; i < new_shape.size(); j++) {
-            if (new_shape[i] == input_shape[j]) {
+            const auto input_dim = static_cast<int64_t>(input_shape[j]);
+            if (new_shape[i] == input_dim) {
                 i++;
-            } else if (new_shape[i] != input_shape[j] && input_shape[j] != 1) {
+            } else if (new_shape[i] != input_dim && input_dim != 1) {
                 return false;
             } else {
                 result_axes.push_back(j);

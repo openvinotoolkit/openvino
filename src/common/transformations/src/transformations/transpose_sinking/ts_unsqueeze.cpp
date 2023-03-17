@@ -38,9 +38,10 @@ bool shape_to_unsqueeze_axes(const std::shared_ptr<Node>& reshape,
     const auto input_shape = input_pshape.to_shape();
     if (new_shape.size() > input_shape.size()) {
         for (size_t i = 0, j = 0; i < input_shape.size();j++) {
-            if (input_shape[i] == new_shape[j]) {
+            const auto input_dim = static_cast<int64_t>(input_shape[i]);
+            if (input_dim == new_shape[j]) {
                 i++;
-            } else if (input_shape[i] != new_shape[j] && new_shape[j] != 1) {
+            } else if (input_dim != new_shape[j] && new_shape[j] != 1) {
                 return false;
             } else {
                 result_axes.push_back(j);
@@ -102,20 +103,11 @@ TSUnsqueezeForward::TSUnsqueezeForward() {
         }
         auto ts_order_values = transpose_order->cast_vector<size_t>();
 
-/*        std::vector<size_t> new_values;
-        new_values.reserve(non_negative_axes.size());
-        for (const auto& axis : non_negative_axes) {
-            new_values.push_back(ts_order_values[axis]);
-        }*/
-
         ts_order_values = GetOrderBeforeReduction(non_negative_axes, ts_order_values);
         auto new_transpose_order = Constant::create(transpose_order->get_element_type(),
                                                     {ts_order_values.size()},
                                                     ts_order_values);
 
-        /*if (as_type_ptr<Reshape>(unsqueeze)) {
-            new_values = unsqueeze_axes_to_shape(unsqueeze, new_values);
-        }*/
         auto new_unsqueeze = unsqueeze->clone_with_new_inputs({transpose->input_value(0), unsqueeze->input_value(1)});
         auto new_transpose = transpose->clone_with_new_inputs({new_unsqueeze, new_transpose_order});
 
