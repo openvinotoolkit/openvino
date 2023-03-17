@@ -68,8 +68,8 @@ class InferRequest(_InferRequestWrapper):
 
                               Default value: False
         :type shared_memory: bool, optional
-        :return: Dictionary of results from output tensors with ports as keys.
-        :rtype: Dict[openvino.runtime.ConstOutput, numpy.ndarray]
+        :return: Dictionary of results from output tensors with port/int/str keys.
+        :rtype: OVDict
         """
         return OVDict(super().infer(_data_dispatch(
             self,
@@ -170,7 +170,7 @@ class CompiledModel(CompiledModelBase):
         """
         return InferRequest(super().create_infer_request())
 
-    def infer_new_request(self, inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None) -> dict:
+    def infer_new_request(self, inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None) -> OVDict:
         """Infers specified input(s) in synchronous mode.
 
         Blocks all methods of CompiledModel while request is running.
@@ -196,8 +196,8 @@ class CompiledModel(CompiledModelBase):
 
         :param inputs: Data to be set on input tensors.
         :type inputs: Union[Dict[keys, values], List[values], Tuple[values], Tensor, numpy.ndarray], optional
-        :return: Dictionary of results from output tensors with ports as keys.
-        :rtype: Dict[openvino.runtime.ConstOutput, numpy.array]
+        :return: Dictionary of results from output tensors with port/int/str keys.
+        :rtype: OVDict
         """
         # It returns wrapped python InferReqeust and then call upon
         # overloaded functions of InferRequest class
@@ -205,7 +205,7 @@ class CompiledModel(CompiledModelBase):
 
     def __call__(self,
                  inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None,
-                 shared_memory: bool = True) -> dict:
+                 shared_memory: bool = True) -> OVDict:
         """Callable infer wrapper for CompiledModel.
 
         Infers specified input(s) in synchronous mode.
@@ -257,8 +257,8 @@ class CompiledModel(CompiledModelBase):
                               Default value: True
         :type shared_memory: bool, optional
 
-        :return: Dictionary of results from output tensors with ports as keys.
-        :rtype: Dict[openvino.runtime.ConstOutput, numpy.ndarray]
+        :return: Dictionary of results from output tensors with port/int/str as keys.
+        :rtype: OVDict
         """
         if self._infer_request is None:
             self._infer_request = self.create_infer_request()
