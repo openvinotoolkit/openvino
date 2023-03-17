@@ -324,9 +324,9 @@ struct CPUStreamsExecutor::Impl {
             _usedNumaNodes = numaNodes;
         }
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
-        if ((config._streams > static_cast<int>(numaNodes.size()) &&
-             ThreadBindingType::HYBRID_AWARE == config._threadBindingType) ||
-            ThreadBindingType::CORES == config._threadBindingType) {
+        if (config._streams > static_cast<int>(numaNodes.size()) &&
+            (ThreadBindingType::HYBRID_AWARE == config._threadBindingType ||
+             ThreadBindingType::CORES == config._threadBindingType)) {
             bind_cores = true;
             if (_config._plugin_task >= PLUGIN_USED_START) {
                 _config._threads = _config._streams;
