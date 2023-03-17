@@ -10,8 +10,13 @@
 #include <snippets/itt.hpp>
 #include "snippets/pass/lowered/assign_registers.hpp"
 #include "snippets/pass/lowered/insert_tail_loop.hpp"
-#include "snippets/pass/lowered/insert_loops_layout.hpp"
-#include "snippets/pass/lowered/move_scalar_to_consumer.hpp"
+#include "snippets/pass/lowered/loop_markup.hpp"
+#include "snippets/pass/lowered/loop_fusion.hpp"
+#include "snippets/pass/lowered/loop_init.hpp"
+#include "snippets/pass/lowered/buffer_insertion.hpp"
+#include "snippets/pass/lowered/load_store_insertion.hpp"
+#include "snippets/pass/lowered/vector_to_scalar.hpp"
+#include "snippets/pass/lowered/load_movebroadcast_to_broadcastload.hpp"
 #include "snippets/pass/lowered/buffer_propagate_offset_and_reset.hpp"
 #include "snippets/pass/lowered/propagate_layout.hpp"
 #include "snippets/pass/lowered/cleanup_loop_offsets.hpp"
@@ -28,14 +33,20 @@ Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, con
     if (!target->is_supported())
         throw ngraph_error("unsupported architecture for code generation");
     auto linear_ir = LoweredExprIR(m, config);
-    const size_t vector_size = target->get_lanes();
-    // todo: fix buffer allocation rank
-    const int32_t buffer_allocation_rank = -1;
+    // At the moment we support only full vector Load/Store and scalar Load/Store so that count is equal to lanes.
+    // Then we are going to support variadic Load/Store with different element count
+    const size_t vector_size = get_target_machine()->get_lanes();
+    const int32_t buffer_allocation_rank = static_cast<int32_t>(config.m_loop_depth);
     auto propagate_buffer_offsets = std::make_shared<pass::lowered::PropagateOffsetAndResetBuffer>();
     std::vector<std::shared_ptr<pass::lowered::LinearIRTransformation>> transformation_pipeline {
-            std::make_shared<pass::lowered::InsertLoopsLayout>(vector_size, buffer_allocation_rank),
-            std::make_shared<pass::lowered::SoftmaxDecomposition>(vector_size, buffer_allocation_rank),
-            std::make_shared<pass::lowered::MoveScalarToConsumer>(),
+            std::make_shared<pass::lowered::LoopMarkup>(vector_size),
+            std::make_shared<pass::lowered::SoftmaxDecomposition>(vector_size),
+            std::make_shared<pass::lowered::LoopFusion>(),
+            std::make_shared<pass::lowered::BufferInsertion>(buffer_allocation_rank),
+            std::make_shared<pass::lowered::LoadStoreInsertion>(vector_size),
+            std::make_shared<pass::lowered::SetScalarCountForLoadStore>(),
+            std::make_shared<pass::lowered::LoopInit>(vector_size),
+            std::make_shared<pass::lowered::LoadMoveBroadcastToBroadcastLoad>(),
             std::make_shared<pass::lowered::PropagateLayout>(),
             propagate_buffer_offsets,
             std::make_shared<pass::lowered::CleanupLoopOffsets>(),

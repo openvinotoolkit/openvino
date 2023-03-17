@@ -93,7 +93,7 @@ bool InsertTailLoop::run(LoweredExprIR& linear_ir) {
                 expr_it++;
             // Note that exp_it points to the element AFTER loop_end
             expr_it++;
-            const bool is_followed_by_buffer = is_type<op::Buffer>(expr_it->get()->get_node());
+            const bool is_there_buffer = loop_begin->get_work_with_buffer();
             const auto work_amount = vector_loop_end->get_work_amount();
             const auto increment = vector_loop_end->get_increment();
             const auto tail_size = work_amount % increment;
@@ -113,7 +113,7 @@ bool InsertTailLoop::run(LoweredExprIR& linear_ir) {
 
                 if (lowering_config.m_optimize_single_evaluation) {
                     // force ptr increments if there is tail
-                    optimize_single_evaluation(vector_loop_end, need_tail || is_followed_by_buffer);
+                    optimize_single_evaluation(vector_loop_end, need_tail || is_there_buffer);
                 }
             }
 
@@ -156,7 +156,7 @@ bool InsertTailLoop::run(LoweredExprIR& linear_ir) {
                 if (lowering_config.m_optimize_single_evaluation) {
                     // Note: despite the fact that the tail loop is always executed once, we still need
                     // to keep finalization_offsets to reset Buffer
-                    optimize_single_evaluation(tail_loop_end, is_followed_by_buffer);
+                    optimize_single_evaluation(tail_loop_end, is_there_buffer);
                 }
             }
             modified = true;

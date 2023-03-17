@@ -60,6 +60,10 @@ bool LoopBegin::get_evaluate_once() const {
     return get_loop_end()->get_evaluate_once();
 }
 
+bool LoopBegin::get_work_with_buffer() const {
+    return get_loop_end()->get_work_with_buffer();
+}
+
 LoopEnd::LoopEnd(const std::vector<Output<Node>> &args, size_t work_amount, size_t work_amount_increment,
                  std::vector<bool> apply_increments, std::vector<int64_t> finalization_offsets)
         : LoopBase(args),
@@ -119,6 +123,10 @@ void LoopEnd::set_ptr_increments(std::vector<int64_t> new_ptr_increments) {
     ptr_increments = std::move(new_ptr_increments);
 }
 
+void LoopEnd::set_work_with_buffer(bool buffer) {
+    work_with_buffer = buffer;
+}
+
 void LoopEnd::update_ptr_increments(int64_t new_increment) {
     std::transform(ptr_increments.begin(), ptr_increments.end(), ptr_increments.begin(),
                    [new_increment](int64_t old_increment){
@@ -174,6 +182,10 @@ bool LoopEnd::get_evaluate_once() const {
 
 size_t LoopEnd::get_increment() const {
     return work_amount_increment;
+}
+
+bool LoopEnd::get_work_with_buffer() const {
+    return work_with_buffer;
 }
 
 } // namespace op

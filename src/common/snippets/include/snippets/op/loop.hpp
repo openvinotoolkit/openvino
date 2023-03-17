@@ -25,6 +25,7 @@ public:
     virtual size_t get_work_amount() const = 0;
     virtual size_t get_increment() const = 0;
     virtual bool get_evaluate_once() const = 0;
+    virtual bool get_work_with_buffer() const = 0;
 protected:
 };
 class LoopEnd;
@@ -48,6 +49,7 @@ public:
     size_t get_work_amount() const override;
     size_t get_increment() const override;
     bool get_evaluate_once() const override;
+    bool get_work_with_buffer() const override;
     // begin_address and input_regs are needed to communicate information between LoopBegin and LoopEnd emitters
     const uint8_t* begin_address;
     std::vector<size_t> input_regs;
@@ -92,6 +94,7 @@ public:
     void set_work_amount(size_t new_work_amount);
     void set_increment(size_t new_increment);
     void set_evaluate_once(bool once);
+    void set_work_with_buffer(bool buffer);
     // Used to propagate information about Loop structure, needed to simplify some optimizations. For example,
     // to skip pointer increments when outer Loop is empty, and work_amount == vector_size (one inner vector Loop)
     // true by default, the optimizations enabled if it's false;
@@ -99,6 +102,7 @@ public:
     size_t get_work_amount() const override;
     size_t get_increment() const override;
     bool get_evaluate_once() const override;
+    bool get_work_with_buffer() const override;
     bool visit_attributes(AttributeVisitor& visitor) override;
 
 
@@ -108,6 +112,7 @@ private:
     size_t work_amount;
     size_t work_amount_increment;
     bool evaluate_once; // true if the Loop is executed only once, used to skip setting and testing the loop counter
+    bool work_with_buffer = false;  // true if there is Buffer on inputs or outputs of Loop
 };
 
 } // namespace op

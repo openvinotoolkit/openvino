@@ -101,15 +101,16 @@ bool PropagateOffsetAndResetBuffer::run(LoweredExprIR& linear_ir) {
                         buffer_idx.push_back(i);
                 }
             }
-            // This is currently not allowed because all Buffers are implicitly used in-place
-            if (buffer_idx.size() > 2) {
-                throw ngraph_error("More than 2 Buffers connected to a single LoopEnd.");
-            } else if (buffer_idx.size() == 2) {
+
+            if (buffer_idx.size() > 1) {
                 const auto idx_to_drop = buffer_idx.front();
                 auto ptr_increments = loop_end->get_ptr_increments();
                 auto fin_offsets = loop_end->get_finalization_offsets();
-                ptr_increments[idx_to_drop] = 0;
-                fin_offsets[idx_to_drop] = 0;
+                for (size_t i = 0; i < buffer_idx.size() - 1; i++) {
+                    const auto idx_to_drop = buffer_idx[i];
+                    ptr_increments[idx_to_drop] = 0;
+                    fin_offsets[idx_to_drop] = 0;
+                }
                 loop_end->set_ptr_increments(ptr_increments);
                 loop_end->set_finalization_offsets(fin_offsets);
             }
