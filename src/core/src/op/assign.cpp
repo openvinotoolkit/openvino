@@ -105,7 +105,9 @@ bool op::v6::Assign::evaluate(const HostTensorVector& outputs,
 
     const auto var_value = variable_values.find(m_variable)->second;
     var_value->set_reset(false);
+    OPENVINO_SUPPRESS_DEPRECATED_START
     const auto& buffer = var_value->get_value();
+    OPENVINO_SUPPRESS_DEPRECATED_END
     buffer->set_unary(inputs[0]);
     outputs[0]->set_unary(inputs[0]);
 
