@@ -14,8 +14,6 @@
    QuantizationAlignment <openvino_docs_OV_UG_lpt_QuantizationAlignment>
    QuantizationGranularity <openvino_docs_OV_UG_lpt_QuantizationGranularity>
 
-@endsphinxdirective
-
 Introduction
 ############
 
@@ -26,27 +24,27 @@ Introduction
       - Target
       - Required
       - Mutable
-    * - :ref:`AvgPoolPrecisionPreserved <lpt_attributes__avgpoolprecisionpreserved>`
+    * - :ref:`AvgPoolPrecisionPreserved <openvino_docs_OV_UG_lpt_AvgPoolPrecisionPreserved>`
       - Precision
       - No
       - Yes
-    * - :ref:`IntervalsAlignment <lpt_attributes__intervalsalignment>`
+    * - :ref:`IntervalsAlignment <openvino_docs_OV_UG_lpt_IntervalsAlignment>`
       - Quantization interval
       - Yes
       - Yes
-    * - :ref:`PrecisionPreserved <lpt_attributes__precisionpreserved>`
+    * - :ref:`PrecisionPreserved <openvino_docs_OV_UG_lpt_PrecisionPreserved>`
       - Precision
       - Yes
       - Yes
-    * - :ref:`Precisions <lpt_attributes__precisions>`
+    * - :ref:`Precisions <openvino_docs_OV_UG_lpt_Precisions>`
       - Precision
       - Yes
       - Yes
-    * - :ref:`QuantizationAlignment <lpt_attributes__quantizationalignment>`
+    * - :ref:`QuantizationAlignment <openvino_docs_OV_UG_lpt_QuantizationAlignment>`
       - Quantization granularity
       - Yes
       - Yes
-    * - :ref:`QuantizationGranularity <lpt_attributes__quantizationgranularity>`
+    * - :ref:`QuantizationGranularity <openvino_docs_OV_UG_lpt_QuantizationGranularity>`
       - Quantization granularity
       - Yes
       - No Quantization granularity | Yes      | No      |
@@ -95,3 +93,5 @@ Attributes usage by transformations:
 
 .. note::                                                                     
    The same type of attribute instances can be created in different transformations. This approach is the result of the transformation single-responsibility principle. For example, ``Precision`` attribute instances are created in ``MarkupCanBeQuantized`` and ``MarkupPrecisions`` transformations, but the reasons for their creation are different.
+
+@endsphinxdirective
