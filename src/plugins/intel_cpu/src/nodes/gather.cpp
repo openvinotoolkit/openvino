@@ -42,6 +42,7 @@ bool Gather::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
     return true;
 }
 
+namespace {
 class GatherShapeInfer : public ShapeInferEmptyPads {
 public:
     GatherShapeInfer(bool isAxisInputConst, bool isIndicesScalar, int axis, int batchDims) : m_isAxisInputConst(isAxisInputConst),
@@ -109,6 +110,7 @@ public:
 private:
     std::shared_ptr<ov::Node> m_op;
 };
+} // namespace
 
 Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
     : Node(op, context, GatherShapeInferFactory(op)),
