@@ -308,14 +308,14 @@ if(ENABLE_INTEL_GNA)
             LIST(APPEND FILES_TO_EXTRACT_LIST gna_${GNA_VERSION}/linux)
         endif()
 
-        set(IE_PATH_TO_DEPS "http://10-211-120-125.iotg.sclab.intel.com/dl_score_engine/thirdparty/unified")
+        set(IE_PATH_TO_DEPS "http://10-211-120-125.iotg.sclab.intel.com/dl_score_engine")
         RESOLVE_DEPENDENCY(GNA_EXT_DIR
                 ARCHIVE_UNIFIED "GNA/GNA_${GNA_VERSION}.zip"
                 TARGET_PATH "${TEMP}/GNA_${GNA_VERSION}"
                 VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*"
                 FILES_TO_EXTRACT FILES_TO_EXTRACT_LIST
                 SHA256 ${GNA_HASH}
-                USE_NEW_LOCATION TRUE)
+                USE_NEW_LOCATION FALSE)
         unset(IE_PATH_TO_DEPS)
     update_deps_cache(GNA_EXT_DIR "${GNA_EXT_DIR}" "Path to GNA root folder")
     debug_message(STATUS "gna=" ${GNA_EXT_DIR})
