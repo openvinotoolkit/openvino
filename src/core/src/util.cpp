@@ -82,9 +82,9 @@ size_t ngraph::hash_combine(const std::vector<size_t>& list) {
 }
 
 void* ngraph::ngraph_malloc(size_t size) {
-    auto ptr = malloc(size);
+    auto ptr = calloc(size, 1);
     if (size != 0 && !ptr) {
-        NGRAPH_ERR << "malloc failed to allocate memory of size " << size;
+        NGRAPH_ERR << "calloc failed to allocate memory of size " << size;
         throw std::bad_alloc();
     }
     return ptr;
