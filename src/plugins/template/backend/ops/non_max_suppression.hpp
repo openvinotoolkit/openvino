@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
+#include "ngraph/node.hpp"
+#include "ngraph/ops.hpp"
+#include "ngraph/runtime/reference/non_max_suppression.hpp"
 
 namespace nms_v5 {
 using V5BoxEncoding = ngraph::op::v5::NonMaxSuppression::BoxEncodingType;

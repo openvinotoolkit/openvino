@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
+#include "ngraph/node.hpp"
+#include "ngraph/ops.hpp"
+#include "ngraph/runtime/reference/convert.hpp"
 
 namespace convert_like_v1 {
 template <ngraph::element::Type_t ti, ngraph::element::Type_t to>

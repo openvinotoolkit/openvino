@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
+#include "backend.hpp"
+#include "ngraph/node.hpp"
+#include "ngraph/ops.hpp"
+#include "ngraph/runtime/reference/tensor_iterator.hpp"
+#include "tensor_conversion_util.hpp"
 
 namespace ti_v0 {
 ngraph::runtime::reference::custom_evaluate_function evaluate = [](const std::shared_ptr<ngraph::Function>& function,

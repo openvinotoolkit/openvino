@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
+#include "ngraph/node.hpp"
+#include "ngraph/ops.hpp"
+#include "ngraph/runtime/reference/cum_sum.hpp"
 
 namespace cum_sum_v0 {
 template <ngraph::element::Type_t t1, ngraph::element::Type_t t2>

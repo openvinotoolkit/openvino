@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
+#include "ngraph/node.hpp"
+#include "ngraph/ops.hpp"
+#include "ngraph/runtime/reference/sequences.hpp"
+#include "ov_ops/augru_sequence.hpp"
 
 namespace rnn_seq_v5 {
 template <ngraph::element::Type_t t1, ngraph::element::Type_t t2>

@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
+#include "ngraph/node.hpp"
+#include "ngraph/ops.hpp"
+#include "ngraph/runtime/reference/binary_convolution.hpp"
 
 namespace bin_conv_v1 {
 template <ngraph::element::Type_t t_in, ngraph::element::Type_t t_f>

@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
+#include "ngraph/node.hpp"
+#include "ngraph/ops.hpp"
+#include "ngraph/runtime/reference/experimental_detectron_roi_feature_extractor.hpp"
 
 namespace experimental_roi_feature {
 struct InfoForEDROIFeature {

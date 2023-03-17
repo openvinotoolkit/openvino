@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
+#include "ngraph/node.hpp"
+#include "ngraph/ops.hpp"
+#include "ngraph/runtime/reference/experimental_detectron_prior_grid_generator.hpp"
 
 namespace experimental_prior_grid {
 struct InfoForEDPriorGrid {

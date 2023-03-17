@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
+#include "ngraph/node.hpp"
+#include "ngraph/ops.hpp"
+#include "ngraph/runtime/reference/matrix_nms.hpp"
+#include "ngraph/runtime/reference/utils/nms_common.hpp"
 
 namespace matrix_nms_v8 {
 using SortResultType = ngraph::op::v8::MatrixNms::SortResultType;

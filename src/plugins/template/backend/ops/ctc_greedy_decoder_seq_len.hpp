@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
+#include "ngraph/node.hpp"
+#include "ngraph/ops.hpp"
+#include "ngraph/runtime/reference/ctc_greedy_decoder_seq_len.hpp"
 
 namespace ctc_greedy_decoder_v6 {
 template <ngraph::element::Type_t T1, ngraph::element::Type_t T2, ngraph::element::Type_t TOUT>

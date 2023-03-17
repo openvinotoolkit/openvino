@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
+#include "ngraph/node.hpp"
+#include "ngraph/ops.hpp"
+#include "ngraph/runtime/reference/unique.hpp"
 
 template <typename Data_t, typename Index_t, typename Count_t>
 void execute_unique(const ngraph::HostTensorVector& outputs,

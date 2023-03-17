@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "evaluates_map.hpp"
+#include "ngraph/node.hpp"
+#include "ngraph/ops.hpp"
+#include "ngraph/runtime/reference/convert_color_nv12.hpp"
 
 template <ov::element::Type_t ET>
 inline bool evaluate(const std::shared_ptr<ngraph::op::v8::NV12toRGB>& op,

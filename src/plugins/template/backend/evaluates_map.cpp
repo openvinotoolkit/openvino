@@ -4,6 +4,91 @@
 
 #include "evaluates_map.hpp"
 
+#include "ops/abs.hpp"
+#include "ops/adaptive_avg_pool.hpp"
+#include "ops/adaptive_max_pool.hpp"
+#include "ops/avg_pool.hpp"
+#include "ops/batch_norm.hpp"
+#include "ops/binary_convolution.hpp"
+#include "ops/bucketize.hpp"
+#include "ops/ceiling.hpp"
+#include "ops/convert.hpp"
+#include "ops/convert_color_nv12.hpp"
+#include "ops/convolution.hpp"
+#include "ops/ctc_greedy_decoder.hpp"
+#include "ops/ctc_greedy_decoder_seq_len.hpp"
+#include "ops/ctc_loss.hpp"
+#include "ops/cum_sum.hpp"
+#include "ops/deformable_convolution.hpp"
+#include "ops/deformable_psroi_pooling.hpp"
+#include "ops/detection_output.hpp"
+#include "ops/einsum.hpp"
+#include "ops/elu.hpp"
+#include "ops/embedding_bag_offsets_sum.hpp"
+#include "ops/embedding_bag_packed_sum.hpp"
+#include "ops/embedding_segments_sum.hpp"
+#include "ops/equal.hpp"
+#include "ops/exp.hpp"
+#include "ops/experimental_detectron_detection_output.hpp"
+#include "ops/experimental_detectron_prior_grid_generator.hpp"
+#include "ops/experimental_detectron_proposal_single_image.hpp"
+#include "ops/experimental_detectron_roi_feature_extractor.hpp"
+#include "ops/experimental_detectron_topk_rois.hpp"
+#include "ops/extract_image_patches.hpp"
+#include "ops/fft.hpp"
+#include "ops/gather_elements.hpp"
+#include "ops/gather_nd.hpp"
+#include "ops/gather_tree.hpp"
+#include "ops/gather.hpp"
+#include "ops/gelu.hpp"
+#include "ops/generate_proposal.hpp"
+#include "ops/greater.hpp"
+#include "ops/grid_sample.hpp"
+#include "ops/grn.hpp"
+#include "ops/group_convolution_backprop_data.hpp"
+#include "ops/group_convolution.hpp"
+#include "ops/gru_cell.hpp"
+#include "ops/hard_sigmoid.hpp"
+#include "ops/if.hpp"
+#include "ops/interpolate.hpp"
+#include "ops/irdft.hpp"
+#include "ops/is_finite.hpp"
+#include "ops/is_inf.hpp"
+#include "ops/is_nan.hpp"
+#include "ops/log_softmax.hpp"
+#include "ops/log.hpp"
+#include "ops/lrn.hpp"
+#include "ops/lstm_cell.hpp"
+#include "ops/matrix_nms.hpp"
+#include "ops/mod.hpp"
+#include "ops/multiclass_nms.hpp"
+#include "ops/mvn.hpp"
+#include "ops/non_max_suppression.hpp"
+#include "ops/normalize_l2.hpp"
+#include "ops/pad.hpp"
+#include "ops/prelu.hpp"
+#include "ops/proposal.hpp"
+#include "ops/psroi_pooling.hpp"
+#include "ops/rdft.hpp"
+#include "ops/region_yolo.hpp"
+#include "ops/relu.hpp"
+#include "ops/reorg_yolo.hpp"
+#include "ops/reverse_sequence.hpp"
+#include "ops/rnn_cell.hpp"
+#include "ops/roi_align.hpp"
+#include "ops/roi_pooling.hpp"
+#include "ops/roll.hpp"
+#include "ops/scatter_nd_update.hpp"
+#include "ops/selu.hpp"
+#include "ops/sequences.hpp"
+#include "ops/sigmoid.hpp"
+#include "ops/sign.hpp"
+#include "ops/softsign.hpp"
+#include "ops/squared_difference.hpp"
+#include "ops/tanh.hpp"
+#include "ops/tensor_iterator.hpp"
+#include "ops/unique.hpp"
+
 std::vector<float> get_floats(const std::shared_ptr<ngraph::HostTensor>& input, const ngraph::Shape& shape) {
     size_t input_size = ngraph::shape_size(shape);
     std::vector<float> result(input_size);
@@ -100,17 +185,6 @@ bool evaluate(std::shared_ptr<ngraph::Node> op,
               const ngraph::HostTensorVector& outputs,
               const ngraph::HostTensorVector& inputs) {
     return false;
-}
-
-template <ngraph::element::Type_t ET>
-bool evaluate(const std::shared_ptr<ngraph::op::v0::Relu>& op,
-              const ngraph::HostTensorVector& outputs,
-              const ngraph::HostTensorVector& inputs) {
-    using T = typename ngraph::element_type_traits<ET>::value_type;
-    ngraph::runtime::reference::relu<T>(inputs[0]->get_data_ptr<T>(),
-                                        outputs[0]->get_data_ptr<T>(),
-                                        ngraph::shape_size(inputs[0]->get_shape()));
-    return true;
 }
 
 template <ngraph::element::Type_t ET>
