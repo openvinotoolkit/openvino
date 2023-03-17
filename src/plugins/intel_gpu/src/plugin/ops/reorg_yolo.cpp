@@ -17,7 +17,7 @@ static void CreateReorgYoloOp(Program& p, const std::shared_ptr<ngraph::op::v0::
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    uint32_t stride = op->get_strides()[0];
+    uint32_t stride = static_cast<uint32_t>(op->get_strides()[0]);
 
     auto reorgPrim = cldnn::reorg_yolo(layerName,
                                        inputs[0],
