@@ -83,6 +83,7 @@ Changes in the example model after ``MarkupCanBeQuantized`` transformation:
 Result model:
 
 .. image:: docs/_static/images/step2_markup1.svg
+   :alt: MarkupCanBeQuantize
 
 Model display features (here and below):
 
@@ -105,6 +106,7 @@ No attributes are required before the transformation. Changes in the example mod
 Result model:
 
 .. image:: docs/_static/images/step2_markup2.svg
+   :alt: MarkupPrecisions result
 
 3. MarkupPerTensorQuantization
 ##############################
@@ -118,50 +120,67 @@ Changes in the example model after ``MarkupPerTensorQuantization`` transformatio
 Result model:
 
 .. image:: docs/_static/images/step2_markup3.svg
+   :alt: MarkupPerTensorQuantization result
 
-## 4. MarkupAvgPoolPrecisionPreserved
-The transformation is optional. `MarkupAvgPoolPrecisionPreserved` marks `AvgPool` operations as precision preserved or not precision preserved. `AvgPool` operation is precision preserved if next not precision preserved operation can be inferred in low precision. In other words, `AvgPool` operations become precision preserved operations to speed up model inference. The transformation uses `PrecisionPreserved` attributes created before. The transformation is combined and uses:
+4. MarkupAvgPoolPrecisionPreserved
+##################################
+
+The transformation is optional. ``MarkupAvgPoolPrecisionPreserved`` marks ``AvgPool`` operations as precision preserved or not precision preserved. ``AvgPool`` operation is precision preserved if next not precision preserved operation can be inferred in low precision. In other words, ``AvgPool`` operations become precision preserved operations to speed up model inference. The transformation uses ``PrecisionPreserved`` attributes created before. The transformation is combined and uses:
+
 * CreatePrecisionsDependentAttribute
 * PropagateThroughPrecisionPreserved
 * UpdateSharedPrecisionPreserved
 
-Changes in the example model after `MarkupAvgPoolPrecisionPreserved` transformation:
-* `AvgPool` operations are marked by `PrecisionPreserved` and `AvgPoolPrecisionPreserved` (not used below).
+Changes in the example model after ``MarkupAvgPoolPrecisionPreserved`` transformation:
+
+* ``AvgPool`` operations are marked by ``PrecisionPreserved`` and ``AvgPoolPrecisionPreserved`` (not used below).
 
 Result model:
 
-![MarkupAvgPoolPrecisionPreserved](img/step2_markup4.png)
+.. image:: docs/_static/images/step2_markup4.svg
+   :alt: arkupAvgPoolPrecisionPreserved
 
-## 5. PropagatePrecisions
-The transformation is required. `PropagatePrecision` is a key transformation in the markup pipeline, which marks `FakeQuantize` output port precisions. The transformation uses `PrecisionPreserved` attribute instances created before. The transformation is combined and uses:
+5. PropagatePrecisions
+######################
+
+The transformation is required. ``PropagatePrecision`` is a key transformation in the markup pipeline, which marks ``FakeQuantize`` output port precisions. The transformation uses `PrecisionPreserved` attribute instances created before. The transformation is combined and uses:
 
 * CreateAttribute
 * PropagateThroughPrecisionPreserved
 * PropagateToInput
 
-Changes in the example model after `PropagatePrecisions` transformation:
-* All precision preserved operations are marked by the `Precisions` attribute instance, which defines the required precision for the operation.
-* `FakeQuantize` operation output ports are marked by `Precisions` attribute instances, which define target precision for decomposition. In the sample model, `FakeQuantize` operations have signed intervals, but the `Precisions` attributes are initialized by `u8` (`unsigned int8`) values as the result applied during transformations restrictions for `Convolution` operations.
+Changes in the example model after ``PropagatePrecisions`` transformation:
+
+* All precision preserved operations are marked by the ``Precisions`` attribute instance, which defines the required precision for the operation.
+* ``FakeQuantize`` operation output ports are marked by ``Precisions`` attribute instances, which define target precision for decomposition. In the sample model, ``FakeQuantize`` operations have signed intervals, but the ``Precisions`` attributes are initialized by ``u8`` (``unsigned int8``) values as the result applied during transformations restrictions for ``Convolution`` operations.
 
 Result model:
 
-![PropagatePrecisions](img/step2_markup5.png)
+.. image:: docs/_static/images/step2_markup5.svg
+   :alt: PropagatePrecisions
 
-> **NOTE**: `AlignQuantizationIntervals` and `AlignQuantizationParameters` transformations are required if the model has quantized concatenation operations.
+.. note:: 
+   ``AlignQuantizationIntervals`` and ``AlignQuantizationParameters`` transformations are required if the model has quantized concatenation operations.
 
-## 6. AlignQuantizationIntervals
-The transformation is required for models with the quantized operation. The transformation marks `FakeQuantize` operation and precision preserved consumers to combine quantization information from different `FakeQuantize` operations for future quantization intervals alignment. The transformation is combined and uses:
+6. AlignQuantizationIntervals
+#############################
+
+The transformation is required for models with the quantized operation. The transformation marks ``FakeQuantize`` operation and precision preserved consumers to combine quantization information from different ``FakeQuantize`` operations for future quantization intervals alignment. The transformation is combined and uses:
+
 * CreateAttribute
 * PropagateThroughPrecisionPreserved
 
-Changes in the example model after `AlignQuantizationIntervals` transformation:
-* All `FakeQuantize` operations and their precision preserved consumers are marked by the `IntervalsAlignment` attribute instance.
+Changes in the example model after ``AlignQuantizationIntervals`` transformation:
+
+* All ``FakeQuantize`` operations and their precision preserved consumers are marked by the ``IntervalsAlignment`` attribute instance.
 
 Result model:
 
-![AlignQuantizationIntervals](img/step2_markup6.png)
+.. image:: docs/_static/images/step2_markup6.svg
+   :alt: AlignQuantizationIntervals
 
-## 7. AlignQuantizationParameters
+7. AlignQuantizationParameters
+##############################
 
 The transformation is required for models with quantized concatenation operation. The transformation marks `FakeQuantize` precision preserved consumers to align quantization intervals. The transformation is combined and uses:
 
@@ -170,11 +189,13 @@ The transformation is required for models with quantized concatenation operation
 * UpdateSharedPrecisionPreserved
 
 
-Changes in the example model after `AlignQuantizationParameters` transformation:
-* All `FakeQuantize` precision preserved consumers are marked by `QuantizationAlignment` attribute instance. `convolution1` input ports are marked by `Precisions` attribute instances with empty precisions collection. As a result, the `convolution1` operation was detected as not quantized, and the `QuantizationAlignment` attribute default value `false` does not change. `convolution2` input ports are marked by `Precisions` attribute instances with not empty precisions collection.  `convolution2` operation was detected as quantized with the `PerTensorQuantization` attribute, and the `QuantizationAlignment` attribute default value changed to `true`.
+Changes in the example model after ``AlignQuantizationParameters`` transformation:
+
+* All ``FakeQuantize`` precision preserved consumers are marked by ``QuantizationAlignment`` attribute instance. ``convolution1`` input ports are marked by ``Precisions`` attribute instances with empty precisions collection. As a result, the ``convolution1`` operation was detected as not quantized, and the ``QuantizationAlignment`` attribute default value ``false`` does not change. ``convolution2`` input ports are marked by ``Precisions`` attribute instances with not empty precisions collection.  ``convolution2`` operation was detected as quantized with the ``PerTensorQuantization`` attribute, and the ``QuantizationAlignment`` attribute default value changed to ``true``.
 
 Final model:
 
-![AlignQuantizationParameters](img/step2_markup7.png)
+.. image:: docs/_static/images/step2_markup7.svg
+   :alt: AlignQuantizationParameters
 
 @endsphinxdirective
