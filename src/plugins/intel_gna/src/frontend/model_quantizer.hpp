@@ -147,8 +147,8 @@ private:
             if (inf_loop_history.empty()) {
                 inf_loop_count++;
             } else {
-                if (inf_loop_count > 0 &&
-                    (inf_loop_history.size() % inf_loop_pattern.size() == 0 || sf.allLayersProcessed()) &&
+                if ((inf_loop_count > 0) &&
+                    ((inf_loop_history.size() % inf_loop_pattern.size() == 0) || sf.allLayersProcessed()) &&
                     !std::equal(inf_loop_history.begin() + (inf_loop_history.size() - inf_loop_pattern.size()),
                                 inf_loop_history.end(),
                                 inf_loop_pattern.begin())) {

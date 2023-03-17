@@ -313,12 +313,16 @@ void CNN2DFilter32(intel_dnn_component_t* component) {
 namespace {
 template <class T>
 bool is2D(T&& vec) {
-    return vec.size() >= 2 && vec[0] > 1 && vec[1] > 1;
+    bool value = (vec.size() >= 2 && vec[0] > 1 && vec[1] > 1);
+    return value;
 }
 }  // namespace
 
-void CNNMaxPool(intel_dnn_component_t* component, intel_dnn_number_type_t number_type, const bool sumPoolingOverRide) {
-    if (is2D(component->op.maxpool.poolingStrideXY) || is2D(component->op.maxpool.poolingWindowXY)) {
+void CNNMaxPool(intel_dnn_component_t* component,
+                intel_dnn_number_type_t number_type,
+                const bool enforce_2d,
+                const bool sumPoolingOverRide) {
+    if (enforce_2d || is2D(component->op.maxpool.poolingStrideXY) || is2D(component->op.maxpool.poolingWindowXY)) {
         if (!sumPoolingOverRide) {
             CNNMaxPool2DFloat(component);
         } else {

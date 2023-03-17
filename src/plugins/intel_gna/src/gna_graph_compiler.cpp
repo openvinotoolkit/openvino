@@ -62,7 +62,7 @@ static bool CheckIFLastComponentIsPrecededByConv2D(const backend::DnnComponents:
             auto prev_operation = last_element->dnnComponent.operation;
             last_element++;
             if (last_element->dnnComponent.operation == kDnnConvolutional2dOp) {
-                proceded_by_conv2D = (prev_operation == kDnnMaxPoolOp);
+                proceded_by_conv2D = (prev_operation == kDnnMaxPoolOp || prev_operation == kDnnMaxPool2dOp);
             }
         }
     }
@@ -1026,7 +1026,8 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
                               {pooling._stride[X_AXIS], pooling._stride[Y_AXIS]},
                               GetScaleFactor(layer, QuantizedDataType::output),
                               ptr_inputs,
-                              ptr_outputs);
+                              ptr_outputs,
+                              is2DPooling);
     size_t num_data_bytes_out = InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()));
 
     // Need to reserve more memory otherwise the compiled model would not be
@@ -1034,6 +1035,7 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
     // GNA 2.0 produces more outputs from 1D pooling than later GNA generations (including GNA 3.0)
     // When the model is compiled for some newer GNA generation (than GNA 2.0)
     // but it does not use any specific new GNA features it should be correct to import and run using previous GNA HW
+
     if (!is2DPooling) {
         const auto hLegacy = gna_convolution_layer::outputFromPoolingLegacy(h_dim_in, pooling._stride[X_AXIS]);
         const auto wLegacy = gna_convolution_layer::outputFromPoolingLegacy(w_dim_in, pooling._stride[Y_AXIS]);

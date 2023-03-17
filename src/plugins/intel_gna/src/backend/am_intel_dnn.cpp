@@ -278,10 +278,11 @@ void AMIntelDNN::InitMaxpoolComponentPrivate(intel_dnn_component_t& comp,
                                              float output_scale_factor,
                                              void*& ptr_inputs,
                                              void*& ptr_outputs,
-                                             bool postInitMem) {
+                                             bool postInitMem,
+                                             bool enforce_2D) {
     comp.num_bytes_per_input = num_bytes_per_input;
     comp.num_bytes_per_output = num_bytes_per_output;
-    comp.operation = kDnnMaxPoolOp;
+    comp.operation = enforce_2D ? kDnnMaxPool2dOp : kDnnMaxPoolOp;
     comp.orientation_in = kDnnNonInterleavedOrientation;
     comp.orientation_out = kDnnNonInterleavedOrientation;
     comp.op.maxpool.inCHW = inCHW;
@@ -1235,7 +1236,8 @@ void AMIntelDNN::WriteDnnText(const char* filename, intel_dnn_number_type_t logg
                 }
                 out_file << "\n";
             } break;
-            case kDnnMaxPoolOp: {
+            case kDnnMaxPoolOp:
+            case kDnnMaxPool2dOp: {
                 out_file << "<pool_type> MAX\n";
                 out_file << "<pool_window_x> " << std::dec << component[i].op.maxpool.poolingWindowXY[0] << "\n";
                 out_file << "<pool_window_y> " << std::dec << component[i].op.maxpool.poolingWindowXY[1] << "\n";
@@ -1481,6 +1483,7 @@ void AMIntelDNN::InitGNAStruct(Gna2Model* gnaModel) {
             AdvanceCnnOperationIfAllApplied(component, i, gnaOperation);
             break;
         case kDnnMaxPoolOp:
+        case kDnnMaxPool2dOp:
             if (i == 0) {
                 THROW_GNA_EXCEPTION << "Pooling component with no preceeding component";
             } else if (gnaOperation->Type == Gna2OperationTypeConvolution) {
@@ -1585,7 +1588,7 @@ void AMIntelDNN::InitGNAStruct(Gna2Model* gnaModel) {
                 (component[i - 1].operation == kDnnRecurrentOp) ||
                 (component[i - 1].operation == kDnnConvolutional1dOp) ||
                 (component[i - 1].operation == kDnnConvolutional2dOp) ||
-                ((component[i - 1].operation == kDnnMaxPoolOp) &&
+                ((component[i - 1].operation == kDnnMaxPoolOp || component[i - 1].operation == kDnnMaxPool2dOp) &&
                  (component[i - 2].operation == kDnnConvolutional1dOp ||
                   component[i - 2].operation == kDnnConvolutional2dOp))) {
                 if (gnaOperation->Operands[PwlOpIdx] == nullptr) {

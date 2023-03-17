@@ -166,15 +166,16 @@ const std::vector<size_t> kPadEnd1D = {0, 0};
 const ConvolutionParameters kConvolutionParams1D =
     {kDnnConvolutional1dOp, kInput1D, kKernel1D, kStride1D, kDilation1D, kOutChanneldsNum1D, kPadBegin1D, kPadEnd1D};
 
-const PWLExtraSegmentsParamsWithConv kConvolution1DReluWithoutPoolParams = {kConvolutionParams1D,
-                                                                            kPrecision32,
-                                                                            ngraph::helpers::ActivationTypes::Relu,
-                                                                            2,
-                                                                            false};
+const PWLExtraSegmentsParamsWithConv kConvolution1DReluWithoutPoolParams = {
+    kConvolutionParams1D,
+    kPrecision32,
+    ngraph::helpers::ActivationTypes::Relu,
+    4,  // For GNA_3_5 Conv1d is treated as Conv2D
+    false};
 const PWLExtraSegmentsParamsWithConv kConvolution1DReluWithPoolParams = {kConvolutionParams1D,
                                                                          kPrecision32,
                                                                          ngraph::helpers::ActivationTypes::Relu,
-                                                                         2,
+                                                                         4,  // For GNA_3_5 Conv1d is treated as Conv2D
                                                                          true};
 const PWLExtraSegmentsParamsWithConv kConvolution1DSigmoidWithoutPoolParams =
     {kConvolutionParams1D, kPrecision32, ngraph::helpers::ActivationTypes::Sigmoid, 12, false};

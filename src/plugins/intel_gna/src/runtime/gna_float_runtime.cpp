@@ -74,6 +74,10 @@ void FP::infer() {
             ApplyMaxPoolTransform(comp, kDnnFloat);
             break;
         }
+        case kDnnMaxPool2dOp: {
+            ApplyMaxPoolTransform(comp, kDnnFloat, true);
+            break;
+        }
         case kDnnInterleaveOp: {
             ApplyTranspose(comp);
             break;
