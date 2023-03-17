@@ -25,7 +25,7 @@ from openvino.runtime.utils.data_helpers import (
 class InferRequest(_InferRequestWrapper):
     """InferRequest class represents infer request which can be run in asynchronous or synchronous manners."""
 
-    def infer(self, inputs: Any = None, shared_memory: bool = False) -> dict:
+    def infer(self, inputs: Any = None, shared_memory: bool = False) -> OVDict:
         """Infers specified input(s) in synchronous mode.
 
         Blocks all methods of InferRequest while request is running.
@@ -201,7 +201,7 @@ class CompiledModel(CompiledModelBase):
         """
         # It returns wrapped python InferReqeust and then call upon
         # overloaded functions of InferRequest class
-        return OVDict(self.create_infer_request().infer(inputs))
+        return self.create_infer_request().infer(inputs)
 
     def __call__(self,
                  inputs: Union[dict, list, tuple, Tensor, np.ndarray] = None,
@@ -263,10 +263,10 @@ class CompiledModel(CompiledModelBase):
         if self._infer_request is None:
             self._infer_request = self.create_infer_request()
 
-        return OVDict(self._infer_request.infer(
+        return self._infer_request.infer(
             inputs,
             shared_memory=shared_memory,
-        ))
+        )
 
 
 class AsyncInferQueue(AsyncInferQueueBase):

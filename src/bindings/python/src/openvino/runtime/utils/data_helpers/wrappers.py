@@ -57,9 +57,9 @@ class OVDict(Mapping):
 
     .. code-block:: python
         # Reverts to the previous behavior of the native dict
-        result = dict(request.infer(...))
-        # ... or alternatively:
         result = request.infer(...).to_dict()
+        # ... or alternatively:
+        result = dict(request.infer(...))
 
     .. code-block:: python
         # To dispatch outputs of multi-ouput inference:
@@ -69,9 +69,6 @@ class OVDict(Mapping):
     """
     def __init__(self, _dict: Dict[ConstOutput, np.ndarray]) -> None:
         self._dict = _dict
-
-    def __bool__(self):
-        return self._dict.__bool__()
 
     def __iter__(self):
         return self._dict.__iter__()
@@ -95,11 +92,17 @@ class OVDict(Mapping):
 
     @__getitem_impl.register
     def _(self, key: int) -> np.ndarray:
-        return self._dict[self.__get_key(key)]
+        try:
+            return self._dict[self.__get_key(key)]
+        except IndexError:
+            raise KeyError(key)
 
     @__getitem_impl.register
     def _(self, key: str) -> np.ndarray:
-        return self._dict[self.__get_key(self.names().index(key))]
+        try:
+            return self._dict[self.__get_key(self.names().index(key))]
+        except ValueError:
+            raise KeyError(key)
 
     def __getitem__(self, key):
         return self.__getitem_impl(key)
@@ -114,7 +117,10 @@ class OVDict(Mapping):
         return self._dict.items()
 
     def names(self) -> List[str]:
-        """Return a name of every output key."""
+        """Return a name of every output key.
+        
+        Throws RuntimeError if any of ConstOutput keys has no name.
+        """
         return [key.get_any_name() for key in self._dict.keys()]
 
     def to_dict(self) -> Dict[ConstOutput, np.ndarray]:
