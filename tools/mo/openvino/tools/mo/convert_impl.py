@@ -31,7 +31,7 @@ from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
     get_common_cli_options, get_freeze_placeholder_values, get_kaldi_cli_options, get_layout_values, \
     get_mean_scale_dictionary, get_mxnet_cli_options, get_onnx_cli_options, \
     get_placeholder_shapes, get_tf_cli_options, parse_transform, parse_tuple_pairs, \
-    mo_convert_params, get_model_name_from_args, depersonalize
+    mo_convert_params, get_model_name_from_args, depersonalize, input_to_input_cut_info, input_shape_to_input_cut_info
 
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.find_ie_version import find_ie_version
@@ -49,6 +49,7 @@ from openvino.tools.mo.moc_frontend.shape_utils import parse_input_shapes, get_s
 # pylint: disable=no-name-in-module,import-error
 from openvino.frontend import FrontEndManager, OpConversionFailure, ProgressReporterExtension, TelemetryExtension
 from openvino.runtime import get_version as get_rt_version
+from openvino.runtime import Type, PartialShape
 
 
 def load_extensions(argv: argparse.Namespace, is_tf: bool, is_caffe: bool, is_mxnet: bool, is_kaldi: bool,
@@ -128,6 +129,15 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
     print('\n'.join(lines), flush=True)
 
 
+def common_args_parsing(argv: argparse.Namespace):
+    argv.output = argv.output.split(',') if argv.output else None
+    argv.layout_values = get_layout_values(argv.layout, argv.source_layout, argv.target_layout)
+    mean_values = parse_tuple_pairs(argv.mean_values)
+    scale_values = parse_tuple_pairs(argv.scale_values)
+    mean_scale = get_mean_scale_dictionary(mean_values, scale_values, argv.input)
+    argv.mean_scale_values = mean_scale
+
+
 def arguments_post_parsing(argv: argparse.Namespace):
     use_legacy_frontend = argv.use_legacy_frontend
     use_new_frontend = argv.use_new_frontend
@@ -197,6 +207,7 @@ def arguments_post_parsing(argv: argparse.Namespace):
                         refer_to_faq_msg(20))
         log.info('Deduced name for prototxt: {}'.format(argv.input_proto))
 
+    #TODO: check this
     if not argv.silent:
         print_argv(argv, is_caffe, is_tf, is_mxnet, is_kaldi, is_onnx, argv.model_name)
 
@@ -258,18 +269,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
                 raise Error('Incorrect saved model tag was provided. Specify --saved_model_tags with no spaces in it')
             argv.saved_model_tags = argv.saved_model_tags.split(',')
 
-    argv.output = argv.output.split(',') if argv.output else None
-
-    inputs_list, argv.placeholder_shapes, argv.placeholder_data_types = get_placeholder_shapes(
-        argv.input, argv.input_shape, argv.batch)
-    argv.inputs_list = inputs_list
-
-    mean_values = parse_tuple_pairs(argv.mean_values)
-    scale_values = parse_tuple_pairs(argv.scale_values)
-    mean_scale = get_mean_scale_dictionary(mean_values, scale_values, argv.input)
-    argv.mean_scale_values = mean_scale
-    argv.layout_values = get_layout_values(argv.layout, argv.source_layout, argv.target_layout)
-
     if not os.path.exists(argv.output_dir):
         try:
             os.makedirs(argv.output_dir)
@@ -283,9 +282,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
                         refer_to_faq_msg(22), argv.output_dir)
 
     log.debug("Placeholder shapes : {}".format(argv.placeholder_shapes))
-
-    argv.freeze_placeholder_with_value, argv.input = get_freeze_placeholder_values(argv.input,
-                                                                                   argv.freeze_placeholder_with_value)
 
     load_extensions(argv, is_tf, is_caffe, is_mxnet, is_kaldi, is_onnx)
 
@@ -712,6 +708,69 @@ def input_model_is_object(argv):
     return True
 
 
+def python_api_params_parsing(argv):
+    inputs = input_to_input_cut_info(argv.input)
+
+    input_names_list = []
+    for inp in inputs:
+        if inp.name is not None:
+            input_names_list.append(inp.name)
+    if len(input_names_list) > 0:
+        assert len(input_names_list) == len(inputs), "--input parameter has unnamed inputs and named inputs. " \
+                                                     "Please either set names for all inputs, " \
+                                                     "or do not set names for all inputs."
+    argv.inputs_list = input_names_list
+    argv.input = input_names_list
+
+    input_shape_to_input_cut_info(argv.input_shape, inputs)
+    # TODO: merge into single loop
+    if len(input_names_list) > 0:
+        # named inputs case
+        shape_dict = {}
+        data_type_dict = {}
+        value_dict = {}
+        for inp in inputs:
+            if inp.shape is not None:
+                shape_dict[inp.name] = PartialShape(inp.shape)
+            else:
+                shape_dict[inp.name] = None
+            if inp.type is not None:
+                if isinstance(inp.type, str):
+                    data_type_dict[inp.name] = destination_type_to_np_data_type(inp.type)
+                elif isinstance(inp.type, Type):
+                    data_type_dict[inp.name] = inp.type.to_dtype().type
+                else:
+                    data_type_dict[inp.name] = inp.type
+            if inp.value is not None:
+                value_dict[inp.name] = inp.value
+        argv.placeholder_shapes = shape_dict if len(shape_dict) > 0 else None
+        argv.placeholder_data_types = data_type_dict if len(data_type_dict) > 0 else None
+        argv.freeze_placeholder_with_value = value_dict if len(value_dict) > 0 else {}
+    else:
+        # unnamed inputs case
+        # TODO test this branch
+        shape_list = []
+        data_type_list = []
+        value_list = []
+        for inp in inputs:
+            if inp.shape is not None:
+                shape_list.append(PartialShape(inp.shape))
+            if inp.type is not None:
+                if isinstance(inp.type, str):
+                    data_type_list.append(destination_type_to_np_data_type(inp.type))
+                elif isinstance(inp.type, Type):
+                    data_type_list.append(inp.type.to_dtype().type)
+                else:
+                    data_type_list.append(inp.type)
+            if inp.value is not None:
+                value_list.append(inp.value)
+        argv.placeholder_shapes = shape_list if len(shape_list) > 0 else None
+        argv.placeholder_data_types = data_type_list if len(data_type_list) > 0 else None
+        argv.freeze_placeholder_with_value = value_list if len(value_list) > 0 else {}
+        if argv.placeholder_shapes is not None and len(argv.placeholder_shapes) == 1:
+            argv.placeholder_shapes = argv.placeholder_shapes[0]
+
+
 def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParser):
     if len(args) > 0:
         args_string = params_to_string(**args)
@@ -731,8 +790,16 @@ def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParse
             # so we need to set them in argv separately
             if value is not None and getattr(argv, key, None) != value:
                 setattr(argv, key, value)
+
+        python_api_params_parsing(argv)
     else:
         argv = cli_parser.parse_args()
+
+        argv.inputs_list, argv.placeholder_shapes, argv.placeholder_data_types = get_placeholder_shapes(
+            argv.input, argv.input_shape, argv.batch)
+        argv.freeze_placeholder_with_value, argv.input = get_freeze_placeholder_values(argv.input,
+                                                                                       argv.freeze_placeholder_with_value)
+    common_args_parsing(argv)
     return argv
 
 
@@ -812,4 +879,4 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
         telemetry.send_event('mo', 'conversion_result', 'fail')
         telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)
-        raise e.with_traceback(None)
+        raise e#.with_traceback(None)

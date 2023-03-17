@@ -122,52 +122,6 @@ def is_shape_type(value):
     return False
 
 
-def shape_to_str(shape, separator):
-    if isinstance(shape, str):
-        return shape
-    if isinstance(shape, PartialShape):
-        return shape.to_string()
-    if isinstance(shape, Shape):
-        return PartialShape(shape).to_string()
-    if isinstance(shape, list) or isinstance(shape, tuple):
-        dims = []
-        for dim in shape:
-            if isinstance(dim, Dimension):
-                dims.append(dim.to_string())
-            elif isinstance(dim, int):
-                dims.append(str(dim))
-            else:
-                raise Exception("Incorrect type of dimension. Expected Dimension or int, got {}".format(type(dim)))
-        return "[" + separator.join(dims) + "]"
-    raise Exception("Incorrect shape type. Expected PartialShape, Shape, [Dimension, ...] or [int, ...], "
-                    "got {}".format(type(shape)))
-
-
-def input_shape_to_str(input_shape):
-    if input_shape is None or isinstance(input_shape, str):
-        return input_shape
-    if isinstance(input_shape, list):
-        if len(input_shape) > 0 and isinstance(input_shape[0], int) or isinstance(input_shape[0], Dimension):
-            # The case when shape is specified as list of int or Dimension
-            return shape_to_str(input_shape, ',')
-        # The case when list of shapes is specified
-        shapes = []
-        for shape in input_shape:
-            shapes.append(shape_to_str(shape, ','))
-        return ','.join(shapes)
-    return shape_to_str(input_shape, ',')
-
-
-def type_to_str(type_obj):
-    if isinstance(type_obj, str):
-        return type_obj
-    if isinstance(type_obj, type):
-        return np_data_type_to_destination_type(type_obj)
-    if isinstance(type_obj, Type):
-        return type_obj.get_type_name()
-    raise Exception("Incorrect type. Expected Type or numpy type, got {}".format(type(type_obj)))
-
-
 def value_to_str(value, separator):
     if isinstance(value, np.ndarray):
         values = []
@@ -186,22 +140,18 @@ def value_to_str(value, separator):
     raise Exception("Incorrect value type. Expected np.ndarray or list, got {}".format(type(value)))
 
 
-def single_input_to_str(input):
+def single_input_to_input_cut_info(input):
     if isinstance(input, str):
-        return input
+        node_name, shape, value, data_type = parse_input_value(input)
+        return openvino.tools.mo.InputCutInfo(node_name,
+                                              PartialShape(shape) if shape is not None else None,
+                                              data_type,
+                                              value)
     if isinstance(input, openvino.tools.mo.InputCutInfo):
-        if not isinstance(input.name, str):
-            raise Exception("Input name should be string, got {}".format(input.name))
-        input_str = input.name
-        assert input_str is not None, "Incorrect InputCutInfo. 'name' should be set."
-        if input.shape is not None:
-            input_str += shape_to_str(input.shape, " ")
-        if input.type is not None:
-            input_str += "{" + type_to_str(input.type) + "}"
-        if input.value is not None:
-            input_str += "->" + value_to_str(input.value, " ")
-        return input_str
-    if isinstance(input, tuple):
+        return input
+    if isinstance(input, (tuple, list, PartialShape)):
+        if len(input) > 0 and isinstance(input[0], (int, Dimension)):
+            input = [input]
         name = None
         inp_type = None
         shape = None
@@ -213,35 +163,80 @@ def single_input_to_str(input):
             elif isinstance(val, type) or isinstance(val, Type):
                 if inp_type is not None:
                     raise Exception("More than one input type provided: {}".format(input))
-                inp_type = type_to_str(val)
+                inp_type = val
             elif is_shape_type(val):
                 if shape is not None:
                     raise Exception("More than one input shape provided: {}".format(input))
-                shape = shape_to_str(val, " ")
+                shape = PartialShape(val)
             else:
-                raise Exception("Incorrect input parameters provided. Expected input name and "
-                                "optionally input type or input shape. Got unknown object: {}".format(val))
-        if name is None:
-            raise Exception("Input name was not provided for following input {}.".format(input))
-        if shape is not None:
-            name += shape
-        if inp_type is not None:
-            name += "{" + inp_type + "}"
-        return name
+                raise Exception("Incorrect input parameters provided. Expected tuple with input name, "
+                                "input type or input shape. Got unknown object: {}".format(val))
+        return openvino.tools.mo.InputCutInfo(name,
+                                              PartialShape(shape) if shape is not None else None,
+                                              inp_type,
+                                              None)
 
     raise Exception("Unexpected object provided for input. Expected openvino.tools.mo.InputCutInfo "
                     "or tuple or str. Got {}".format(type(input)))
 
 
-def input_to_str(input):
-    if input is None or isinstance(input, str):
-        return input
+def input_to_input_cut_info(input):
+    if input is None:
+        return []
+    if isinstance(input, str):
+        inputs = []
+        for input_value in split_inputs(input):
+            node_name, shape, value, data_type = parse_input_value(input_value)
+            inputs.append(openvino.tools.mo.InputCutInfo(node_name,
+                                                         PartialShape(shape) if shape is not None else None,
+                                                         data_type,
+                                                         value))
+        return inputs
+    if isinstance(input, openvino.tools.mo.InputCutInfo):
+        return [input]
+    if isinstance(input, tuple):
+        if len(input) > 0 and isinstance(input[0], (int, Dimension)):
+            input = [input]
+        return [single_input_to_input_cut_info(input)]
     if isinstance(input, list):
-        inputs_str = []
+        if len(input) > 0 and isinstance(input[0], (int, Dimension)):
+            input = [input]
+        inputs = []
         for inp in input:
-            inputs_str.append(single_input_to_str(inp))
-        return ','.join(inputs_str)
-    return single_input_to_str(input)
+            inputs.append(single_input_to_input_cut_info(inp))
+        return inputs
+    return [single_input_to_input_cut_info(input)]
+
+
+def input_shape_to_input_cut_info(input_shape, inputs):
+    if input_shape is None:
+        return
+    if isinstance(input_shape, str):
+        input_shape = split_inputs(input_shape)
+    if isinstance(input_shape, (Shape, PartialShape)):
+        input_shape = [input_shape]
+    if isinstance(input_shape, (list, tuple)):
+        if len(input_shape) > 0 and isinstance(input_shape[0], (int, Dimension)):
+            input_shape = [input_shape]
+
+        if len(inputs) > 0 and len(input_shape) > 0:
+            assert len(inputs) == len(input_shape), "Different numbers of inputs were specified in --input parameter " \
+                    "and --input_shapes. --input has {} items, --input_shape has {} item.".format(len(inputs), len(input_shape))
+
+        if len(inputs) > 0:
+            for idx, shape in enumerate(input_shape):
+                shape = PartialShape(shape)
+                assert inputs[idx].shape is None, "Shape was set in both --input and in --input_shape parameter." \
+                                                  "Please use either --input or --input_shape for shape setting."
+                inputs[idx] = openvino.tools.mo.InputCutInfo(inputs[idx].name, shape, inputs[idx].type, inputs[idx].value)
+
+        else:
+            for shape in input_shape:
+                inputs.append(openvino.tools.mo.InputCutInfo(None, shape, None, None))
+        return
+
+    raise Exception("Unexpected object provided for input_shape. Expected PartialShape, Shape, tuple, list or str. "
+                    "Got {}".format(type(input_shape)))
 
 
 def mean_scale_value_to_str(value):
@@ -457,7 +452,7 @@ mo_convert_params = {
         'shapes. Alternatively, specify shapes with the --input option.', '',
         'Input shapes can be defined by passing a list of objects of type '
         'PartialShape, Shape, [Dimension, ...] or [int, ...] or by a string '
-        'of the following format. ', input_shape_to_str),
+        'of the following format. ', None),
     'scale': ParamDescription(
         'All input values coming from original network inputs will be ' +
         'divided by this ' +
@@ -502,7 +497,7 @@ mo_convert_params = {
         'Each tuple should contain input name and optionally input type or input shape. '
         'Example: input=("op_name", PartialShape([-1, 3, 100, 100]), Type(np.float32)). '
         'Alternatively input can be set by a string or list of strings of the following format. ',
-        input_to_str),
+        None),
     'output': ParamDescription(
         'The name of the output operation of the model or list of names. ' +
         'For TensorFlow*, do not add :0 to this name.'
@@ -1989,7 +1984,7 @@ def get_tuple_values(argv_values: str or tuple, num_exp_values: int = 3, t=float
     return mean_values_matches
 
 
-def get_mean_scale_dictionary(mean_values, scale_values, argv_input: str):
+def get_mean_scale_dictionary(mean_values, scale_values, argv_input: list):
     """
     This function takes mean_values and scale_values, checks and processes them into convenient structure
 
@@ -2010,7 +2005,7 @@ def get_mean_scale_dictionary(mean_values, scale_values, argv_input: str):
     res = {}
     # collect input names
     if argv_input:
-        inputs = argv_input.split(',')
+        inputs = argv_input
     else:
         inputs = []
         if type(mean_values) is dict:

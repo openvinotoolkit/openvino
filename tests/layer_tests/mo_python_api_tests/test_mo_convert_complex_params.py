@@ -150,6 +150,8 @@ class TestComplexParams(CommonMOConvertTest):
                        'Input2': LayoutMap(source_layout="nc??", target_layout=Layout("n??c")),
                        'Input3': LayoutMap(source_layout="abcd", target_layout="acdb")}},
             'params_ref': {'layout': "Input1(nchw->nhwc),Input2(nc??->n??c),Input3(abcd->acdb)"}},
+        {'params_test': {'input': [PartialShape([2, 3, 4]), [2, 3, 4], [Dimension(2), Dimension(3), Dimension(4)]]},
+         'params_ref': {'input_shape': "[2,3,4],[2,3,4],[2,3,4]", 'input': 'Input1,Input2,Input3'}},
 
     ]
 
@@ -191,7 +193,13 @@ class TestComplexParams(CommonMOConvertTest):
         {'params_test': {'layout': LayoutMap(source_layout=Layout("nchw"), target_layout="nhwc")},
          'params_ref': {'layout': "nchw->nhwc"}},
         {'params_test': {'layout': Layout("nchw")},
-         'params_ref': {'layout': "nchw"}}
+         'params_ref': {'layout': "nchw"}},
+        {'params_test': {'input': [3, 2]},
+         'params_ref': {'input': "Input[3 2]"}},
+        {'params_test': {'input': [Dimension(3,10), 2]},
+         'params_ref': {'input': "Input[3..10 2]"}},
+        {'params_test': {'input': (-1, 10)},
+         'params_ref': {'input': "Input[? 10]"}}
     ]
 
     @pytest.mark.parametrize("params", test_data)
