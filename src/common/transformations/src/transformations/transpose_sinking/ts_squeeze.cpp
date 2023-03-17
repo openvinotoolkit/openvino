@@ -11,6 +11,7 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/rt_info/transpose_sinking_attr.hpp"
 #include "transformations/transpose_sinking/ts_utils.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -37,15 +38,20 @@ bool shape_to_squeeze_axes(const std::shared_ptr<Node>& reshape,
 
     const auto input_shape = input_pshape.to_shape();
     if (new_shape.size() < input_shape.size()) {
-        for (size_t i = 0, j = 0; i < new_shape.size(); j++) {
-            const auto input_dim = static_cast<int64_t>(input_shape[j]);
-            if (new_shape[i] == input_dim) {
-                i++;
-            } else if (new_shape[i] != input_dim && input_dim != 1) {
+        size_t j = 0;
+        for (size_t i = 0; i < input_shape.size(); i++) {
+            const auto input_dim = static_cast<int64_t>(input_shape[i]);
+            if (j < new_shape.size() && new_shape[j] == input_dim) {
+                j++;
+            } else if (input_dim != 1) {
                 return false;
             } else {
-                result_axes.push_back(j);
+                result_axes.push_back(i);
             }
+        }
+        if (j != new_shape.size()) {
+            // not all new_shape values are in input_shape
+            return false;
         }
     } else {
         // another reshape type, not Squeeze
@@ -152,7 +158,10 @@ TSSqueezeBackward::TSSqueezeBackward() {
     MATCHER_SCOPE(TSSqueezeBackward);
 
     auto squeeze_label = wrap_type<Squeeze, Reshape>({any_input(), wrap_type<Constant>()}, HasSameOutputTransposeNodes);
-    auto transpose_label = wrap_type<Transpose>({squeeze_label, wrap_type<Constant>()});
+    auto transpose_label =
+        wrap_type<Transpose>({squeeze_label, wrap_type<Constant>()}, [](const Output<Node>& output) -> bool {
+            return has_static_rank()(output) && is_sinking_node(output);
+        });
 
     ov::matcher_pass_callback matcher_pass_callback = [=](Matcher& m) {
         const auto& pattern_to_output = m.get_pattern_map();
@@ -220,7 +229,6 @@ TSSqueezeBackward::TSSqueezeBackward() {
 
         replace_node(transpose, new_squeeze);
         copy_runtime_info({transpose, squeeze}, {new_transpose, new_squeeze});
-        UpdateForwardSinkingAbility(new_transpose);
         new_squeeze->set_friendly_name(transpose->get_friendly_name());
         new_transpose->set_friendly_name(squeeze->get_friendly_name());
         register_new_node(new_transpose);

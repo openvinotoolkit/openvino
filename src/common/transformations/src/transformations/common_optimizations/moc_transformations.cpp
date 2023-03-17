@@ -79,6 +79,7 @@
 #include <transformations/smart_reshape/reshape_sinking.hpp>
 
 #include "itt.hpp"
+#include "transformations/transpose_sinking/ts_general.hpp"
 
 bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Function>& f) {
     RUN_ON_FUNCTION_SCOPE(MOCTransformations);
@@ -112,6 +113,9 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ngraph::Fu
     // RemoveConcatZeroDimInput and RemoveMultiSubGraphOpDanglingParamsResults should be called together.
     using namespace ov::pass;
     REGISTER_PASS(manager, EliminateScatterUpdate)
+    REGISTER_PASS(manager, TransposeSinkingGeneral)
+    manager.register_pass<Serialize>("/home/tikhonov/OpenVINO/tmp/test_model/ser_test.xml",
+                                     "/home/tikhonov/OpenVINO/tmp/test_model/ser_test.bin");
     REGISTER_PASS(manager, RemoveConcatZeroDimInput)
     REGISTER_PASS(manager, Validate)
     // todo: ticket 96960
