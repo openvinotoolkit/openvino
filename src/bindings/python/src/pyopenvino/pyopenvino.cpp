@@ -36,6 +36,7 @@
 #include "pyopenvino/core/version.hpp"
 #include "pyopenvino/frontend/decoder.hpp"
 #include "pyopenvino/frontend/extension.hpp"
+#include "pyopenvino/frontend/graph_iterator.hpp"
 #include "pyopenvino/frontend/frontend.hpp"
 #include "pyopenvino/frontend/input_model.hpp"
 #include "pyopenvino/frontend/manager.hpp"
@@ -248,4 +249,5 @@ PYBIND11_MODULE(_pyopenvino, m) {
 
     // transformations - private module
     regmodule_offline_transformations(m);
+    regclass_frontend_IGraphIterator(m);
 }

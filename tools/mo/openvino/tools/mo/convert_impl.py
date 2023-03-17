@@ -395,8 +395,9 @@ def prepare_ir(argv: argparse.Namespace):
     # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
     is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
     path_to_aux_pb = None
+    use_tf_graph_decoder = True
     orig_argv_values = {"input_model": argv.input_model, "model_name": argv.model_name}
-    if not argv.use_legacy_frontend and is_tf:
+    if not argv.use_legacy_frontend and is_tf and not use_tf_graph_decoder:
         from openvino.tools.mo.front.tf.loader import convert_to_pb
         path_to_aux_pb = convert_to_pb(argv)
 
@@ -600,6 +601,8 @@ def check_model_object(argv):
         import tensorflow as tf
         from tensorflow.python.training.tracking.base import Trackable
 
+        if isinstance(model, tf.Graph):
+            return "tf"
         if isinstance(model, tf.compat.v1.GraphDef):
             return "tf"
         if isinstance(model, tf.compat.v1.Session):
@@ -1018,4 +1021,4 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
         telemetry.send_event('mo', 'conversion_result', 'fail')
         telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)
-        raise e.with_traceback(None)
+        raise e#.with_traceback(None)

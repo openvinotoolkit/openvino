@@ -28,9 +28,15 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: FrontEnd):
     :param: moc_front_end: Loaded Frontend for converting input model
     :return: converted nGraph function ready for serialization
     """
+    import tensorflow as tf
     if isinstance(argv.input_model, io.BytesIO):
         raise Exception("ONNX frontend does not support input model as BytesIO object. "
                         "Please use use_legacy_frontend=True to convert the model.")
+    elif isinstance(argv.input_model, tf.Graph):
+        from openvino.frontend.tensorflow.graph_iterator import GraphIteratorTFGraph
+        argv.input_model = GraphIteratorTFGraph(argv.input_model)
+        input_model = moc_front_end.load(argv.input_model)
+
     else:
         input_model = moc_front_end.load(argv.input_model)
 

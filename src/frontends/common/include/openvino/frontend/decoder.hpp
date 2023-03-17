@@ -48,7 +48,7 @@ public:
     virtual ~IDecoder() = default;
 };
 
-class FRONTEND_API DecoderBase {
+class FRONTEND_API DecoderBase: public IDecoder {
 public:
     /// \brief Get attribute value by name
     ///

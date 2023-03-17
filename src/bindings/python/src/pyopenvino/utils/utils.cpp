@@ -13,6 +13,7 @@
 
 #include "Python.h"
 #include "openvino/frontend/decoder.hpp"
+#include "openvino/frontend/graph_iterator.hpp"
 
 using Version = ov::pass::Serialize::Version;
 
@@ -199,12 +200,14 @@ ov::Any py_object_to_any(const py::object& py_obj) {
     } else if (py::isinstance<py::bool_>(py_obj)) {
         return py_obj.cast<bool>();
     } else if (py::isinstance<py::float_>(py_obj)) {
-        return py_obj.cast<double>();
+        return py_obj.cast<float>();
     } else if (py::isinstance<py::int_>(py_obj)) {
         return py_obj.cast<int64_t>();
+    } else if (py::isinstance<py::none>(py_obj)) {
+        return {};
     } else if (py::isinstance<py::list>(py_obj)) {
         auto _list = py_obj.cast<py::list>();
-        enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL };
+        enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL, PARTIAL_SHAPE };
         PY_TYPE detected_type = PY_TYPE::UNKNOWN;
         for (const auto& it : _list) {
             auto check_type = [&](PY_TYPE type) {
@@ -222,6 +225,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
                 check_type(PY_TYPE::FLOAT);
             } else if (py::isinstance<py::bool_>(it)) {
                 check_type(PY_TYPE::BOOL);
+            } else if (py::isinstance<ov::PartialShape>(it)) {
+                check_type(PY_TYPE::PARTIAL_SHAPE);
             }
         }
 
@@ -233,11 +238,13 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         case PY_TYPE::STR:
             return _list.cast<std::vector<std::string>>();
         case PY_TYPE::FLOAT:
-            return _list.cast<std::vector<double>>();
+            return _list.cast<std::vector<float>>();
         case PY_TYPE::INT:
             return _list.cast<std::vector<int64_t>>();
         case PY_TYPE::BOOL:
             return _list.cast<std::vector<bool>>();
+        case PY_TYPE::PARTIAL_SHAPE:
+            return _list.cast<std::vector<ov::PartialShape>>();
         default:
             OPENVINO_ASSERT(false, "Unsupported attribute type.");
         }
@@ -258,9 +265,14 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::streams::Num>(py_obj);
     } else if (py::isinstance<ov::Affinity>(py_obj)) {
         return py::cast<ov::Affinity>(py_obj);
+    } else if (py::isinstance<ov::Tensor>(py_obj)) {
+        return py::cast<ov::Tensor>(py_obj);
         // FrontEnd Decoder
     } else if (py::isinstance<ov::frontend::IDecoder>(py_obj)) {
         return py::cast<std::shared_ptr<ov::frontend::IDecoder>>(py_obj);
+        // TF FrontEnd GraphIterator
+    } else if (py::isinstance<ov::frontend::IGraphIterator>(py_obj)) {
+        return py::cast<std::shared_ptr<ov::frontend::IGraphIterator>>(py_obj);
         // Custom FrontEnd Types
     } else if (py::isinstance<ov::frontend::type::Tensor>(py_obj)) {
         return py::cast<ov::frontend::type::Tensor>(py_obj);
