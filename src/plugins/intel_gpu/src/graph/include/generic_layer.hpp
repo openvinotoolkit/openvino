@@ -37,9 +37,13 @@ struct generic_layer : public primitive_base<generic_layer> {
     const kernel_selector::generic_kernel_params generic_params;
 
     size_t hash() const override {
-        size_t seed = primitive::hash();
+        size_t seed = 0;
         seed = hash_combine(seed, id);
         return seed;
+    }
+
+    bool operator==(const primitive& rhs) const override {
+        return (id == rhs.id);
     }
 
 protected:

@@ -69,8 +69,8 @@ void compile_graph::run(program& p) {
                 try {
                     node->selected_impl = node->type()->choose_impl(*node);
                     if (node->selected_impl) {
-                        auto& params = *node->get_kernel_impl_params();
-                        p.get_kernels_cache().add_kernels_source(params, node->selected_impl->get_kernels_source());
+                        auto params = node->get_kernel_impl_params();
+                        p.get_kernels_cache().add_kernels_source(*params, node->selected_impl->get_kernels_source());
                     }
                 } catch(...) {
                     exception = std::current_exception();

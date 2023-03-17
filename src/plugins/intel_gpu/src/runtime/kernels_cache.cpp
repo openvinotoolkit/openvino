@@ -332,8 +332,13 @@ kernel::ptr kernels_cache::get_kernel(kernel_impl_params params, size_t sub_kern
         throw std::runtime_error("Kernel cache is not compiled, call build_all() first!");
 
     auto res = _kernels.find({params, sub_kernel_idx});
-    if (_kernels.end() == res)
-        throw std::runtime_error("Kernel is not found in the kernel cache!");
+    if (_kernels.end() == res) {
+        std::string issued_id;
+        if (params.desc) {
+            issued_id = params.desc->id;
+        }
+        throw std::runtime_error("Kernel for {" + issued_id + "} is not found in the kernel cache!");
+    }
     return res->second;
 }
 
