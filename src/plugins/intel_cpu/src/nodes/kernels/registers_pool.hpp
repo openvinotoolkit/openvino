@@ -13,8 +13,6 @@
 namespace ov {
 namespace intel_cpu {
 
-using namespace dnnl::impl::cpu;
-
 /**
  * The RegistersPool is the base class for the IsaRegistersPool template:
  *      template <x64::cpu_isa_t isa>
@@ -99,10 +97,10 @@ public:
         checkUniqueAndUpdate(false);
     }
 
-    template <x64::cpu_isa_t isa>
+    template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     static Ptr create(std::initializer_list<Xbyak::Reg> regsToExclude);
 
-    static Ptr create(x64::cpu_isa_t isa, std::initializer_list<Xbyak::Reg> regsToExclude);
+    static Ptr create(dnnl::impl::cpu::x64::cpu_isa_t isa, std::initializer_list<Xbyak::Reg> regsToExclude);
 
     template<typename TReg>
     size_t countFree() const {
@@ -259,21 +257,21 @@ private:
     PhysicalSet simdSet;
 };
 
-template <x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 class IsaRegistersPool : public RegistersPool {
 public:
-    IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude) : RegistersPool(regsToExclude, x64::cpu_isa_traits<isa>::n_vregs) {}
+    IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude) : RegistersPool(regsToExclude, dnnl::impl::cpu::x64::cpu_isa_traits<isa>::n_vregs) {}
 };
 
 template <>
-class IsaRegistersPool<x64::avx512_core> : public RegistersPool {
+class IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core> : public RegistersPool {
 public:
-    IsaRegistersPool() : RegistersPool(x64::cpu_isa_traits<x64::avx512_core>::n_vregs) {
+    IsaRegistersPool() : RegistersPool(dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx512_core>::n_vregs) {
         opmaskSet.exclude(Xbyak::Opmask(0)); // the Opmask(0) has special meaning for some instructions, like gather instruction
     }
 
     IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude)
-            : RegistersPool(regsToExclude, x64::cpu_isa_traits<x64::avx512_core>::n_vregs) {
+        : RegistersPool(regsToExclude, dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx512_core>::n_vregs) {
         for (auto& reg : regsToExclude) {
             if (reg.isOPMASK()) {
                 opmaskSet.exclude(reg);
@@ -300,49 +298,50 @@ protected:
 };
 
 template <>
-class IsaRegistersPool<x64::avx512_core_vnni> : public IsaRegistersPool<x64::avx512_core> {
+class IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core_vnni> : public IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core> {
 public:
-    IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude) : IsaRegistersPool<x64::avx512_core>(regsToExclude) {}
-    IsaRegistersPool() : IsaRegistersPool<x64::avx512_core>() {}
+    IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude) : IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core>(regsToExclude) {}
+    IsaRegistersPool() : IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core>() {}
 };
 
 template <>
-class IsaRegistersPool<x64::avx512_core_bf16> : public IsaRegistersPool<x64::avx512_core> {
+class IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core_bf16> : public IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core> {
 public:
-    IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude) : IsaRegistersPool<x64::avx512_core>(regsToExclude) {}
-    IsaRegistersPool() : IsaRegistersPool<x64::avx512_core>() {}
+    IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude) : IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core>(regsToExclude) {}
+    IsaRegistersPool() : IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core>() {}
 };
 
-template <x64::cpu_isa_t isa>
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 RegistersPool::Ptr RegistersPool::create(std::initializer_list<Xbyak::Reg> regsToExclude) {
     return std::make_shared<IsaRegistersPool<isa>>(regsToExclude);
 }
 
 inline
-RegistersPool::Ptr RegistersPool::create(x64::cpu_isa_t isa, std::initializer_list<Xbyak::Reg> regsToExclude) {
+RegistersPool::Ptr RegistersPool::create(dnnl::impl::cpu::x64::cpu_isa_t isa, std::initializer_list<Xbyak::Reg> regsToExclude) {
 #define ISA_SWITCH_CASE(isa) case isa: return std::make_shared<IsaRegistersPool<isa>>(regsToExclude);
     switch (isa) {
-        ISA_SWITCH_CASE(x64::sse41)
-        ISA_SWITCH_CASE(x64::avx)
-        ISA_SWITCH_CASE(x64::avx2)
-        ISA_SWITCH_CASE(x64::avx2_vnni)
-        ISA_SWITCH_CASE(x64::avx512_core)
-        ISA_SWITCH_CASE(x64::avx512_core_vnni)
-        ISA_SWITCH_CASE(x64::avx512_core_bf16)
-        ISA_SWITCH_CASE(x64::avx512_core_fp16)
-        case x64::avx_vnni: return std::make_shared<IsaRegistersPool<x64::avx>>(regsToExclude);
-        case x64::avx512_core_bf16_ymm: return std::make_shared<IsaRegistersPool<x64::avx512_core>>(regsToExclude);
-        case x64::avx512_core_bf16_amx_int8: return std::make_shared<IsaRegistersPool<x64::avx512_core>>(regsToExclude);
-        case x64::avx512_core_bf16_amx_bf16: return std::make_shared<IsaRegistersPool<x64::avx512_core>>(regsToExclude);
-        case x64::avx512_core_amx: return std::make_shared<IsaRegistersPool<x64::avx512_core>>(regsToExclude);
-        case x64::avx512_vpopcnt: return std::make_shared<IsaRegistersPool<x64::avx512_core>>(regsToExclude);
-        case x64::isa_any:
-        case x64::amx_tile:
-        case x64::amx_int8:
-        case x64::amx_bf16:
-        case x64::isa_all:
+        ISA_SWITCH_CASE(dnnl::impl::cpu::x64::sse41)
+        ISA_SWITCH_CASE(dnnl::impl::cpu::x64::avx)
+        ISA_SWITCH_CASE(dnnl::impl::cpu::x64::avx2)
+        ISA_SWITCH_CASE(dnnl::impl::cpu::x64::avx2_vnni)
+        ISA_SWITCH_CASE(dnnl::impl::cpu::x64::avx512_core)
+        ISA_SWITCH_CASE(dnnl::impl::cpu::x64::avx512_core_vnni)
+        ISA_SWITCH_CASE(dnnl::impl::cpu::x64::avx512_core_bf16)
+        ISA_SWITCH_CASE(dnnl::impl::cpu::x64::avx512_core_fp16)
+        case dnnl::impl::cpu::x64::avx512_core_bf16_ymm:
+            return std::make_shared<IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core>>(regsToExclude);
+        case dnnl::impl::cpu::x64::avx512_core_amx: return std::make_shared<IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core>>(regsToExclude);
+        case dnnl::impl::cpu::x64::avx512_vpopcnt: return std::make_shared<IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core>>(regsToExclude);
+        case dnnl::impl::cpu::x64::isa_undef:
+        case dnnl::impl::cpu::x64::amx_tile:
+        case dnnl::impl::cpu::x64::amx_int8:
+        case dnnl::impl::cpu::x64::amx_bf16:
+        case dnnl::impl::cpu::x64::avx2_vnni_2:
+        case dnnl::impl::cpu::x64::amx_fp16:
+        case dnnl::impl::cpu::x64::avx512_core_amx_fp16:
+        case dnnl::impl::cpu::x64::isa_all:
             IE_THROW() << "Invalid isa argument in RegistersPool::create()";
-    }
+        }
     IE_THROW() << "Invalid isa argument in RegistersPool::create()";
 #undef ISA_SWITCH_CASE
 }

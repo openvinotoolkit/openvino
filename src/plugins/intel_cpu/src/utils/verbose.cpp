@@ -105,12 +105,12 @@ void Verbose::printInfo() {
         shift(written);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", prefix.c_str());
         shift(written);
-        std::string fmt_str = dnnl::impl::md2fmt_str(&desc);
+        std::string fmt_str = dnnl::impl::md2fmt_str(desc);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", fmt_str.c_str());
         shift(written);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, ":");
         shift(written);
-        std::string dim_str = dnnl::impl::md2dim_str(&desc);
+        std::string dim_str = dnnl::impl::md2dim_str(desc);
         written = snprintf(portsInfo + written_total, CPU_VERBOSE_DAT_LEN - written_total, "%s", dim_str.c_str());
         shift(written);
     };
@@ -118,14 +118,14 @@ void Verbose::printInfo() {
     for (int i = 0; i < node->getParentEdges().size(); i++) {
         std::string prefix("src:" + std::to_string(i) + ':');
         formatMemDesc(MemoryDescUtils::convertToDnnlMemoryDesc(
-                          node->getParentEdgeAt(i)->getMemory().getDesc().clone())->getDnnlDesc().data,
+                          node->getParentEdgeAt(i)->getMemory().getDesc().clone())->getDnnlDesc().get(),
                       prefix);
     }
 
     for (int i = 0; i < node->getChildEdges().size(); i++) {
         std::string prefix("dst:" + std::to_string(i) + ':');
         formatMemDesc(MemoryDescUtils::convertToDnnlMemoryDesc(
-                          node->getChildEdgeAt(i)->getMemory().getDesc().clone())->getDnnlDesc().data,
+                          node->getChildEdgeAt(i)->getMemory().getDesc().clone())->getDnnlDesc().get(),
                       prefix);
     }
 

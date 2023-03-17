@@ -7,6 +7,7 @@
 #include <ie_common.h>
 #include <node.h>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <string>
 #include <vector>
 #include "common/dnnl_executor.h"
@@ -36,7 +37,7 @@ public:
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
 
-    size_t descInputNumbers(DnnlDesriptor desc) override {
+    size_t descInputNumbers() override {
         return static_cast<size_t>(getOriginalInputsNumber());
     }
 
@@ -99,17 +100,19 @@ private:
             ExecutorConv1x1(const dnnl::convolution_forward::primitive_desc& pd);
     };
 
-    static DnnlDesriptor createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
-                                                         DnnlMemoryDescCPtr weightDescPtr,
-                                                         DnnlMemoryDescCPtr biasDescPtr,
-                                                         DnnlMemoryDescCPtr outputDescPtr);
+    static dnnl::convolution_forward::primitive_desc
+    createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
+                                    DnnlMemoryDescCPtr weightDescPtr,
+                                    DnnlMemoryDescCPtr biasDescPtr,
+                                    DnnlMemoryDescCPtr outputDescPtr,
+                                    const dnnl::primitive_attr& attr,
+                                    const dnnl::engine& engine);
 
     bool canBeExecutedInConv1x1() const;
     MemoryPtr prepareWeightMemory(const DnnlMemoryDescPtr weightDesc);
 
     // sparse weights
     bool useSparseWeights = false;
-    int nnzCount = -1;
     float minSparseRate = 1.f;
     float weiSparseRate = 0.f;
     bool useSparseWeightsDecompression();

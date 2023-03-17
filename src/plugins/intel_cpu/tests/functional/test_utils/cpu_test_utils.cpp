@@ -336,7 +336,7 @@ std::string CPUTestsBase::makeSelectedTypeStr(std::string implString, ngraph::el
 }
 
 std::vector<CPUSpecificParams> filterCPUSpecificParams(std::vector<CPUSpecificParams> &paramsVector) {
-auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
+    auto adjustBlockedFormatByIsa = [](std::vector<cpu_memory_format_t>& formats) {
         for (int i = 0; i < formats.size(); i++) {
             if (formats[i] == nCw16c)
                 formats[i] = nCw8c;

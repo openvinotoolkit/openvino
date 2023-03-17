@@ -122,9 +122,10 @@ public:
     jit_hswish_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& n,
                         InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32)
             : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
+        // since v3.0 oneDNN has flexible version of hardswish, ov still uses the one with hardcoded alpha and beta
         kind = dnnl_eltwise_hardswish;
-        alpha = 0.f;
-        beta = 0.f;
+        alpha = 1.f / 6.f;
+        beta = 0.5f;
 
         set_injector();
     }

@@ -7,6 +7,8 @@
 #include "fake_quantize.h"
 #include "conv.h"
 #include "concat.h"
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <string>
 #include <vector>
 #include <onednn/dnnl.h>
@@ -15,6 +17,10 @@
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <common/primitive_hashing_utils.hpp>
+
+// to access and change C pooling primitive desc internal padding field
+#include <common/primitive_desc_iface.hpp>
+#include <common/pooling_pd.hpp>
 
 using namespace dnnl;
 using namespace InferenceEngine;
@@ -39,21 +45,21 @@ struct PoolingKey {
     std::vector<ptrdiff_t> effective_dilation;
     std::vector<ptrdiff_t> data_pad_end;
     dnnl::primitive_attr attr;
-    algorithm alg;
+    dnnl::algorithm alg;
     impl_desc_type implType;
 
     size_t hash() const {
         using namespace dnnl::impl;
         using namespace dnnl::impl::primitive_hashing;
         size_t seed = 0;
-        seed = hash_combine(seed, get_md_hash(inp->getDnnlDesc().data));
+        seed = hash_combine(seed, get_md_hash(*inp->getDnnlDesc().get()));
         seed = get_vector_hash(seed, stride);
         seed = get_vector_hash(seed, kernel);
         seed = get_vector_hash(seed, effective_pad_begin);
         seed = get_vector_hash(seed, effective_pad_end);
         seed = get_vector_hash(seed, effective_dilation);
         seed = get_vector_hash(seed, data_pad_end);
-        seed = hash_combine(seed, get_md_hash(out->getDnnlDesc().data));
+        seed = hash_combine(seed, get_md_hash(*out->getDnnlDesc().get()));
         seed = hash_combine(seed, get_attr_hash(*attr.get()));
         seed = hash_combine(seed, alg);
         seed = hash_combine(seed, implType);
@@ -78,15 +84,17 @@ struct PoolingKey {
     }
 };
 
-std::shared_ptr<pooling_v2_forward::desc> createDescriptorHelper(const dnnl::memory::desc& in_candidate,
-                                                                 const dnnl::memory::desc& out_candidate,
-                                                                 const dnnl::algorithm alg,
-                                                                 const std::vector<ptrdiff_t>& stride,
-                                                                 const std::vector<ptrdiff_t>& kernel,
-                                                                 const std::vector<ptrdiff_t>& effective_pad_begin,
-                                                                 const std::vector<ptrdiff_t>& effective_pad_end,
-                                                                 const std::vector<ptrdiff_t>& effective_dilation,
-                                                                 const std::vector<ptrdiff_t>& data_pad_end) {
+dnnl::pooling_forward::primitive_desc createDescriptorHelper(const dnnl::engine& engine,
+                                                             const dnnl::memory::desc& in_candidate,
+                                                             const dnnl::memory::desc& out_candidate,
+                                                             const dnnl::algorithm alg,
+                                                             const std::vector<ptrdiff_t>& stride,
+                                                             const std::vector<ptrdiff_t>& kernel,
+                                                             const std::vector<ptrdiff_t>& effective_pad_begin,
+                                                             const std::vector<ptrdiff_t>& effective_pad_end,
+                                                             const std::vector<ptrdiff_t>& effective_dilation,
+                                                             const std::vector<ptrdiff_t>& data_pad_end,
+                                                             const dnnl::primitive_attr& attr) {
     if (alg == dnnl::algorithm::undef) {
         IE_THROW() << "Unsupported pooling type";
     }
@@ -94,30 +102,39 @@ std::shared_ptr<pooling_v2_forward::desc> createDescriptorHelper(const dnnl::mem
     auto convert = [](std::vector<ptrdiff_t> orig_dims) {
         return memory::dims(orig_dims.begin(), orig_dims.end());
     };
-    std::shared_ptr<pooling_v2_forward::desc> desc_ptr(new pooling_v2_forward::desc(prop_kind::forward_scoring,
-                                                                                    alg,
-                                                                                    in_candidate,
-                                                                                    out_candidate,
-                                                                                    convert(stride),
-                                                                                    convert(kernel),
-                                                                                    convert(effective_dilation),
-                                                                                    convert(effective_pad_begin),
-                                                                                    convert(effective_pad_end)));
 
-    if (alg == dnnl::algorithm::pooling_avg_include_padding) {
+    auto desc = dnnl::pooling_forward::primitive_desc(
+        engine,
+        prop_kind::forward_inference,
+        alg,
+        in_candidate,
+        out_candidate,
+        convert(stride),
+        convert(kernel),
+        convert(effective_dilation),
+        convert(effective_pad_begin),
+        convert(effective_pad_end),
+        attr,
+        true);
+
+    // @ TODO Since oneDNN 3.0 for primitives it is impossible to udpate internal fields of the particular primitive
+    // if (alg == dnnl::algorithm::pooling_avg_include_padding) {
         // In case of AVG including paddings the norm coeff should be calculated
         // with tacking into account original pads. So we need to restore
         // original values for end paddings.
         //
         // WA. Because onednn uses different formula to calculate AVG norm coeff
         //     in compare with Caffe. In onednn coeff is always 1/(KH*KW)
-        for (int i = 0; i < data_pad_end.size(); i++) {
-            if (data_pad_end[i] != effective_pad_end[i])
-                desc_ptr->data.padding[1][i] = static_cast<ptrdiff_t>(data_pad_end[i]);
-        }
-    }
+        //
+        // for (int i = 0; i < data_pad_end.size(); i++) {
+        //     if (data_pad_end[i] != effective_pad_end[i]) {
+        //         auto pooling_pd = static_cast<dnnl::impl::pooling_pd_t*>(desc_ptr->get());;
+        //         pooling_pd->desc()->padding[1][i] = static_cast<ptrdiff_t>(data_pad_end[i]);
+        //     }
+        // }
+    // }
 
-    return desc_ptr;
+    return desc;
 }
 
 }  // namespace
@@ -353,18 +370,18 @@ void Pooling::prepareParams() {
                       selected_pd->getImplementationType()};
     auto engine = getEngine();
     auto builder = [&engine](const PoolingKey& key) -> dnnl::primitive {
-        auto desc_ptr = createDescriptorHelper(key.inp->getDnnlDesc(),
-                                               key.out->getDnnlDesc(),
-                                               key.alg,
-                                               key.stride,
-                                               key.kernel,
-                                               key.effective_pad_begin,
-                                               key.effective_pad_end,
-                                               key.effective_dilation,
-                                               key.data_pad_end);
-        DnnlDesriptor desc{desc_ptr};
-        primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
-        pooling_v2_forward::primitive_desc prim_desc = itpd.get();
+        primitive_desc_iterator itpd = createDescriptorHelper(engine,
+                                                              key.inp->getDnnlDesc(),
+                                                              key.out->getDnnlDesc(),
+                                                              key.alg,
+                                                              key.stride,
+                                                              key.kernel,
+                                                              key.effective_pad_begin,
+                                                              key.effective_pad_end,
+                                                              key.effective_dilation,
+                                                              key.data_pad_end,
+                                                              key.attr);
+        dnnl::pooling_forward::primitive_desc prim_desc = itpd.get();
         while (static_cast<bool>(itpd)) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
 
@@ -375,7 +392,8 @@ void Pooling::prepareParams() {
             if (!itpd.next_impl())
                 break;
         }
-        return pooling_v2_forward(prim_desc);
+
+        return pooling_forward(prim_desc);
     };
 
     auto cache = context->getParamsCache();
@@ -431,11 +449,15 @@ dnnl::algorithm Pooling::getPoolingAlgorithm() const {
     }
 }
 
-std::shared_ptr<pooling_v2_forward::desc> Pooling::createDescriptorInternal(
+dnnl::pooling_forward::primitive_desc Pooling::createDescriptorInternal(
     const dnnl::memory::desc& in_candidate,
     const dnnl::memory::desc& out_candidate,
-    const dnnl::algorithm alg) const {
-    return createDescriptorHelper(in_candidate,
+    const dnnl::algorithm alg) {
+
+    auto attr = initPrimitiveAttr();
+
+    return createDescriptorHelper(getEngine(),
+                                  in_candidate,
                                   out_candidate,
                                   alg,
                                   stride,
@@ -443,11 +465,12 @@ std::shared_ptr<pooling_v2_forward::desc> Pooling::createDescriptorInternal(
                                   effective_pad_begin,
                                   effective_pad_end,
                                   effective_dilation,
-                                  data_pad_end);
+                                  data_pad_end,
+                                  *attr);
 }
 
 void Pooling::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
-                                         const std::vector<MemoryDescPtr> &outputDesc) {
+                               const std::vector<MemoryDescPtr> &outputDesc) {
     auto inDesc = inputDesc[0]->isDefined() ? inputDesc[0] : inputDesc[0]->cloneWithNewDims(inShape.getStaticDims());
     auto dnnlInDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inDesc);
     auto in_candidate = dnnlInDesc->getDnnlDesc();
@@ -463,10 +486,10 @@ void Pooling::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
         initEffectiveAttributes(inDesc->getShape(), outDesc->getShape());
     }
     auto dnnlOutDesc = MemoryDescUtils::convertToDnnlBlockedMemoryDesc(*outDesc);
-    auto out_candidate = dnnlOutDesc.getDnnlDesc();
+    const auto& out_candidate = dnnlOutDesc.getDnnlDesc();
 
-    auto desc_ptr = createDescriptorInternal(in_candidate, out_candidate, getPoolingAlgorithm());
-    descs.emplace_back(desc_ptr);
+    auto desc = createDescriptorInternal(in_candidate, out_candidate, getPoolingAlgorithm());
+    descs.emplace_back(desc);
 }
 
 void Pooling::initSupportedPrimitiveDescriptors() {
@@ -477,11 +500,12 @@ void Pooling::initSupportedPrimitiveDescriptors() {
     setPostOps(attr);
 
     for (auto& desc : descs) {
-        auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
+         auto itpd = desc;
+
         while (static_cast<bool>(itpd)) {
             NodeConfig config;
             config.dynBatchSupport = true;
-            for (size_t i = 0; i < descInputNumbers(desc); i++) {
+            for (size_t i = 0; i < descInputNumbers(); i++) {
                 PortConfig dataConfig;
                 dataConfig.inPlace(-1);
                 dataConfig.constant(false);
@@ -490,7 +514,7 @@ void Pooling::initSupportedPrimitiveDescriptors() {
                 config.inConfs.push_back(dataConfig);
             }
 
-            for (size_t i = 0; i < descOutputNumbers(desc); i++) {
+            for (size_t i = 0; i < descOutputNumbers(); i++) {
                 PortConfig dataConfig;
                 dataConfig.inPlace(canBeInPlace() ? 0 : -1);
                 dataConfig.constant(false);
@@ -518,99 +542,6 @@ void Pooling::initSupportedPrimitiveDescriptors() {
                 break;
         }
     }
-}
-
-void Pooling::initDescriptor(const NodeConfig& config) {
-    auto* selectedPD = getSelectedPrimitiveDescriptor();
-    if (!selectedPD) {
-        return;
-    }
-    std::vector<MemoryDescPtr> inDescs;
-    for (const auto& inConf : config.inConfs)
-        inDescs.push_back(inConf.getMemDesc());
-    std::vector<MemoryDescPtr> outDescs;
-    for (const auto& outConf : config.outConfs)
-        outDescs.push_back(outConf.getMemDesc());
-    createDescriptor(inDescs, outDescs);
-
-    dnnl::primitive_attr attr;
-    setPostOps(attr);
-
-    NodeConfig rightConfig = selectedPD->getConfig();
-    size_t selected_count = 0;
-    for (size_t j = 0; j < descs.size(); j++) {
-        const auto &desc = descs[j];
-        primitive_desc_iterator itpd;
-
-        itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
-
-        while (itpd) {
-            NodeConfig cfg;
-            cfg.dynBatchSupport = true;
-            for (size_t i = 0; i < descInputNumbers(desc); i++) {
-                PortConfig dataConfig;
-                dataConfig.inPlace(canBeInPlace() ? 0 : -1);
-                dataConfig.constant(false);
-                dataConfig.setMemDesc(getSrcMemDesc(itpd, i));
-                cfg.inConfs.push_back(dataConfig);
-            }
-
-            for (size_t i = 0; i < descOutputNumbers(desc); i++) {
-                PortConfig dataConfig;
-                dataConfig.inPlace(-1);
-                dataConfig.constant(false);
-                dataConfig.setMemDesc(getDstMemDesc(itpd, i));
-                cfg.outConfs.push_back(dataConfig);
-            }
-
-            // CPU plugin doesn't support second output of MaxPool-8, but anyway we should have out config for second port as stub
-            if (isMaxPool8) {
-                auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-                PortConfig dataConfig;
-                dataConfig.inPlace(-1);
-                dataConfig.constant(false);
-                dataConfig.setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(cfg.outConfs.front().getMemDesc()->getPrecision(),
-                                                                                         getOutputShapeAtPort(1)));
-
-                cfg.outConfs.push_back(dataConfig);
-            }
-
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
-            if (selected_count == selectedPrimitiveDescriptorIndex) {
-                if (impl_type != selectedPD->getImplementationType()) {
-                    IE_THROW() << "Cannot get the original layer configuration!";
-                }
-                rightConfig = cfg;
-            }
-            if (j == descs.size() - 1) {
-                if (impl_type == selectedPD->getImplementationType()) {
-                    rightConfig = config;
-                }
-            }
-            selected_count++;
-            if (!itpd.next_impl())
-                break;
-        }
-    }
-
-    if (descs.empty()) {
-        const auto& selectedConfig = selectedPD->getConfig();
-        if (selectedConfig.inConfs.size() != config.inConfs.size() || selectedConfig.outConfs.size() != config.outConfs.size())
-            return;
-
-        for (size_t i = 0; i < selectedConfig.inConfs.size(); i++) {
-            if (!selectedConfig.inConfs[i].getPortDesc()->isCompatible(*config.inConfs[i].getPortDesc()))
-                IE_THROW() << "Incorrect descriptor for node: " << getName();
-        }
-
-        for (size_t i = 0; i < selectedConfig.outConfs.size(); i++) {
-            if (!selectedConfig.outConfs[i].getPortDesc()->isCompatible(*config.outConfs[i].getPortDesc()))
-                IE_THROW() << "Incorrect descriptor for node: " << getName();
-        }
-        rightConfig = config;
-    }
-
-    selectedPD->setConfig(rightConfig);
 }
 
 Node::AttrPtr Pooling::initPrimitiveAttr() {

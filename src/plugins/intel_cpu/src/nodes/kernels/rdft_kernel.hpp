@@ -10,10 +10,6 @@
 namespace ov {
 namespace intel_cpu {
 
-using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
-using namespace dnnl::impl::utils;
-
 enum dft_type {
     real_to_complex,
     complex_to_complex,
@@ -55,8 +51,8 @@ struct jit_dft_kernel {
     enum dft_type kernel_type_;
 };
 
-template <cpu_isa_t isa>
-struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+struct jit_dft_kernel_f32 : public jit_dft_kernel, public dnnl::impl::cpu::x64::jit_generator {
     public:
         DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_dft_kernel_f32)
 
@@ -80,13 +76,13 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
         void generate() override;
 
     private:
-        using Vmm = typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm,
-                                          isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
+        using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41, Xbyak::Xmm,
+                                          isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
         void interleave_and_store(const Vmm& real, const Vmm& imag, const Xbyak::RegExp& reg_exp, const Vmm& tmp);
 
         static constexpr int type_size = sizeof(float);
-        static constexpr int vlen = cpu_isa_traits<isa>::vlen;
+        static constexpr int vlen = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen;
 
         Xbyak::Reg8 is_signal_size_even = al;
         Xbyak::Reg64 input_ptr = rbx;

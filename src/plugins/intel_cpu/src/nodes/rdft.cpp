@@ -21,7 +21,8 @@
 #include <openvino/op/irdft.hpp>
 #include <openvino/op/constant.hpp>
 
-using namespace dnnl;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
 using namespace InferenceEngine;
 
 namespace ov {

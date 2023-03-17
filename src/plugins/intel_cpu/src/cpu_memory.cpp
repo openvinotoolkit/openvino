@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <oneapi/dnnl/dnnl.hpp>
 #include <vector>
 #include <numeric>
 #include <unordered_set>
@@ -95,15 +96,17 @@ void Memory::Create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
 void Memory::SetData(const Memory& src, bool ftz) const {
     node::Reorder::reorderData(src, *this);
 
+    dnnl::impl::memory_desc_wrapper wrapper(prim.get_desc().get());
+
     if (ftz
         && src.GetDataType() == memory::data_type::f32
-        && prim.get_desc().data.format_kind != dnnl_format_kind_wino
+        && !wrapper.is_wino_desc()
         // WA: to avoid zero filling auxiliary information
-        && prim.get_desc().data.format_kind != dnnl_format_kind_rnn_packed
+        && !wrapper.is_rnn_packed_desc()
         && GetDataType() != memory::data_type::bf16) {
         // Internal blobs haven't strides yet.
         auto *memData = static_cast<float *>(GetData());
-        memData += prim.get_desc().data.offset0;
+        memData += wrapper.offset0();
         setSubnormalsToZero(memData, GetSize() / sizeof(float));
     }
 }
@@ -116,7 +119,8 @@ void Memory::FillZero() {
 
 void *Memory::GetPtr() const  {
     auto ptr = static_cast<uint8_t*>(GetData());
-    const dnnl_memory_desc_t md = prim.get_desc().data;
+    const memory::desc desc = prim.get_desc();
+    const dnnl_memory_desc_t md = desc.get();
     dnnl::impl::memory_desc_wrapper wrapper(md);
     ptr += wrapper.offset0() * wrapper.data_type_size();
     return ptr;

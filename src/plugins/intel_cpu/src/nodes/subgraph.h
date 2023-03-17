@@ -7,7 +7,6 @@
 #include <ie_common.h>
 
 #include <onednn/dnnl.h>
-#include <cpu/x64/jit_generator.hpp>
 #include "emitters/jit_snippets_emitters.hpp"
 
 #include <node.h>

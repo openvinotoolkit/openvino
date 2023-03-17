@@ -149,7 +149,7 @@ private:
 
     struct StringPropertySetter : PropertySetter {
         StringPropertySetter(const std::string&& name, std::string& ref, const std::string&& valueDescription)
-            : property(ref), propertyValueDescription(valueDescription), PropertySetter(std::move(name)) {}
+            : PropertySetter(std::move(name)), property(ref), propertyValueDescription(valueDescription) {}
         bool parseAndSet(const std::string& str) override {
             property = str;
             return true;
@@ -169,7 +169,7 @@ private:
         };
 
         BitsetFilterPropertySetter(const std::string&& name, std::bitset<NumOfBits>& ref, const std::vector<Token>&& tokens)
-            : property(ref), propertyTokens(tokens), PropertySetter(std::move(name)) {}
+            : PropertySetter(std::move(name)), property(ref), propertyTokens(tokens) {}
         bool parseAndSet(const std::string& str) override {
             const auto& tokens = str.empty() ?
                 std::vector<std::string>{"all"} : ov::util::split(ov::util::to_lower(str), ',');
