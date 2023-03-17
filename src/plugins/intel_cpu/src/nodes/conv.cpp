@@ -1642,8 +1642,7 @@ void Convolution::appendZeroPointsArgs() {
 
 // Due to performance issue, brgconv will only be enabled by default:
 // 1, static shape(dynamic shape may change weights layout if the input shape changes and cause performance issue: 86948)
-// 2, support amx except having input zero point.
-// 3, support avx512 without legacy postops/per channel zero point when avx512
+// 2, support avx2+
 void Convolution::initTryBrgconvFlag() {
     if (isDynamicNode())
         return;

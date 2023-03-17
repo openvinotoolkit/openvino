@@ -19,14 +19,15 @@ namespace SubgraphTestsDefinitions {
 using ElementType = ov::element::Type_t;
 using MatmulBrgemmInt8TestParams = std::tuple<SizeVector,       // input shape
                                               bool,             // true: FullyConnected false: Matmul
-                                              ElementType,      // quant to u8/s8
-                                              fusingSpecificParams>;
+                                              ElementType,      // input u8/s8
+                                              ElementType       // output f32/u8/s8
+                                              >;
 
 // subgraph:
 //   fq->MatMul/FullyConnected->[fq]
 // can cover brgemm avx2:
 //   (u8/s8 + s8)->f32
-//   (u8/s8 + s8)->u8
+//   (u8/s8 + s8)->u8/s8
 class MatmulBrgemmInt8Test : public testing::WithParamInterface<MatmulBrgemmInt8TestParams>, public CpuTestWithFusing,
                       virtual public LayerTestsUtils::LayerTestsCommon {
 public:
@@ -34,58 +35,88 @@ public:
         SizeVector supportedInputShapes;
         bool isFC;
         ElementType inType;
-        fusingSpecificParams fusingParams;
-        std::tie(supportedInputShapes, isFC, inType, fusingParams) = obj.param;
+        ElementType outType;
+        std::tie(supportedInputShapes, isFC, inType, outType) = obj.param;
 
         std::ostringstream result;
         result << "IS=" << CommonTestUtils::vec2str(supportedInputShapes) << "_";
         result << (isFC ? "FullyConnected" : "MatMul") << "_";
-        result << "InputType=" << inType;
-        result << CpuTestWithFusing::getTestCaseName(fusingParams);
+        result << "InputType=" << inType << "_";
+        result << "OutputType=" << outType;
 
         return result.str();
     }
 
 protected:
     bool isFC;
+    std::string nameMatmul = "TestedMatmul";
+    ElementType inType;
+    ElementType outType;
     void SetUp() override {
         targetDevice = CommonTestUtils::DEVICE_CPU;
         SizeVector inShapes;
-        ElementType inType;
-        fusingSpecificParams fusingParams;
-        std::tie(inShapes, isFC, inType, fusingParams) = this->GetParam();
+        std::tie(inShapes, isFC, inType, outType) = this->GetParam();
 
-        std::tie(postOpMgrPtr, fusedOps) = fusingParams;
         const auto ngPrec = element::f32;
         auto inputParams = builder::makeParams(ngPrec, {inShapes});
 
-        std::shared_ptr<Node> fq;
+        std::shared_ptr<Node> fq1;
         std::shared_ptr<Node> matMul;
-        std::shared_ptr<Node> lastNode;
+        std::shared_ptr<Node> nodeBeforeConv;
         if (inType == ElementType::u8)
-            fq = ngraph::builder::makeFakeQuantize(inputParams[0], ngPrec, 256, {}, {0.0f}, {2.55f}, {0.0f}, {2.55f});
+            fq1 = ngraph::builder::makeFakeQuantize(inputParams[0], ngPrec, 256, {}, {0.0f}, {2.55f}, {0.0f}, {2.55f});
         else
-            fq = ngraph::builder::makeFakeQuantize(inputParams[0], ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+            fq1 = ngraph::builder::makeFakeQuantize(inputParams[0], ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
 
         if (isFC) {
             ngraph::Shape weightShape = inShapes;
             std::swap(weightShape[0], weightShape[1]);
             auto weightsNode = ngraph::builder::makeConstant(ngPrec, weightShape, std::vector<float>{0.0f}, true);
             auto fq2 = ngraph::builder::makeFakeQuantize(weightsNode, ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
-            matMul = std::make_shared<ngraph::opset1::MatMul>(fq, fq2, false, false);
+            auto fc = std::make_shared<ngraph::opset1::MatMul>(fq1, fq2, false, false);
+            fc->set_friendly_name(nameMatmul);
 
             auto biasWeightsNode = ngraph::builder::makeConstant(ngPrec, {}, std::vector<float>{0.0f}, true);
-            lastNode = std::make_shared<ngraph::opset1::Add>(matMul, biasWeightsNode);
+            matMul = std::make_shared<ngraph::opset1::Add>(fc, biasWeightsNode);
         } else {
             auto fq2 = ngraph::builder::makeFakeQuantize(inputParams[0], ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
-            matMul = builder::makeMatMul(fq, fq2, false, true);
-            lastNode = matMul;
+            matMul = builder::makeMatMul(fq1, fq2, false, true);
+            matMul->set_friendly_name(nameMatmul);
         }
-        matMul->get_rt_info() = CPUTestsBase::makeCPUInfo({}, {}, {"brgemm_avx2"});
+        if (outType == ElementType::u8)
+            nodeBeforeConv = ngraph::builder::makeFakeQuantize(matMul, ngPrec, 256, {}, {0.0f}, {2.55f}, {0.0f}, {2.55f});
+        else if (outType == ElementType::i8)
+            nodeBeforeConv = ngraph::builder::makeFakeQuantize(matMul, ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+        else
+            nodeBeforeConv = matMul;
 
+        // matmul->fq->matmul can cover x8*s8->x8 case
+        auto filterWeightsShape = matMul->get_output_shape(0);
+        auto filterWeightsNode = ngraph::builder::makeConstant(element::f32, filterWeightsShape, std::vector<float>{}, true);
+        auto fq3 = ngraph::builder::makeFakeQuantize(filterWeightsNode, ngPrec, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+        // only matmul avx2 support s8*s8 input
+        auto matMul2 = builder::makeMatMul(nodeBeforeConv, fq3, false, false);
         selectedType = makeSelectedTypeStr("brgemm_avx2", ElementType::i8);
 
-        function = makeNgraphFunction(ngPrec, inputParams, lastNode, "MatmulBrgemmInt8");
+        function = makeNgraphFunction(ngPrec, inputParams, matMul2, "MatmulBrgemmInt8");
+    }
+
+    void CheckNode(std::shared_ptr<const ov::Model> function, const std::string& nodeName) {
+        ASSERT_NE(nullptr, function);
+        for (const auto &node : function->get_ops()) {
+            const auto & rtInfo = node->get_rt_info();
+            auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
+                auto it = rtInfo.find(paramName);
+                IE_ASSERT(rtInfo.end() != it);
+                return it->second.as<std::string>();
+            };
+            if (node->get_friendly_name() == nodeName) {
+                auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
+                ASSERT_TRUE(primTypeCheck(primType)) << "primType is unexpected: " << primType << " Expected: " << selectedType;
+                ASSERT_EQ(node->get_output_element_type(0), outType);
+                ASSERT_EQ(node->get_input_element_type(0), inType);
+            }
+        }
     }
 };
 
@@ -95,7 +126,9 @@ TEST_P(MatmulBrgemmInt8Test, CompareWithRefs) {
         GTEST_SKIP();
 
     Run();
-    CheckPluginRelatedResults(executableNetwork, isFC ? "FullyConnected" : "MatMul");
+    InferenceEngine::CNNNetwork execGraphInfo = executableNetwork.GetExecGraphInfo();
+    auto exec = execGraphInfo.getFunction();
+    CheckNode(exec, nameMatmul);
 }
 
 namespace {
@@ -105,17 +138,11 @@ const std::vector<SizeVector> supportedInputShapes = {
     {17, 15},
 };
 
-// verify fusing just in case
-std::vector<fusingSpecificParams> fusingParamsSet {
-    emptyFusingSpec,
-    fusingFakeQuantizePerChannel,
-};
-
 INSTANTIATE_TEST_SUITE_P(smoke_matmulBrgemmInt8, MatmulBrgemmInt8Test,
                          ::testing::Combine(::testing::ValuesIn(supportedInputShapes),
                                             ::testing::ValuesIn({true, false}),
                                             ::testing::ValuesIn({ElementType::u8, ElementType::i8}),
-                                            ::testing::ValuesIn(fusingParamsSet)),
+                                            ::testing::ValuesIn({ElementType::f32, ElementType::u8, ElementType::i8})),
                          MatmulBrgemmInt8Test::getTestCaseName);
 
 } // namespace
