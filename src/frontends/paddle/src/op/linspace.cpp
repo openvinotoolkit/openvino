@@ -14,11 +14,7 @@ NamedOutputs linspace(const NodeContext& node) {
     auto start = node.get_input("Start");
     auto stop = node.get_input("Stop");
     auto num = node.get_input("Num");
-    std::unordered_map<int, element::Type> umap{{2, element::i32}, {3, element::i64}, {5, element::f32}};
-    const auto dtype = node.get_attribute<int>("dtype", 5);
-    PADDLE_OP_CHECK(node,
-                    umap.count(dtype),
-                    "linspace don't support current attr dtype, try float32 int32 int64 instead");
+    auto dtype = node.get_attribute<ov::element::Type>("dtype", element::f32);
 
     start = std::make_shared<default_opset::Convert>(start, element::f32);
     stop = std::make_shared<default_opset::Convert>(stop, element::f32);
@@ -41,10 +37,10 @@ NamedOutputs linspace(const NodeContext& node) {
     // compute the result
     Output<Node> linspace = std::make_shared<default_opset::Multiply>(range0_n, step);
     auto result = std::make_shared<default_opset::Add>(linspace, start);
-    if (umap.at(dtype) == element::i32) {
+    if (dtype == element::i32) {
         return node.default_single_output_mapping({std::make_shared<default_opset::Convert>(result, element::i32)},
                                                   {"Out"});
-    } else if (umap.at(dtype) == element::i64) {
+    } else if (dtype == element::i64) {
         return node.default_single_output_mapping({std::make_shared<default_opset::Convert>(result, element::i64)},
                                                   {"Out"});
     } else {
