@@ -59,7 +59,7 @@ struct VIFooter {
         m_metaIndex.read(ptr, ptr_end);
     }
 
-    void Read(std::ifstream& fs) {
+    void read(std::ifstream& fs) {
         fs.seekg(0, std::ios::end);
         size_t size = fs.tellg();
         char footerData[48] = {}, *ptr = &footerData[0];
@@ -124,7 +124,7 @@ void SavedModelVariablesIndex::read_variables_index(std::ifstream& fs,
                                                     std::map<std::string, std::vector<char>>& varIndex) {
     VIFooter footer;
 
-    footer.Read(fs);
+    footer.read(fs);
 
     std::vector<VIBlock> secondLevel;
     std::vector<char> blockData;
@@ -275,14 +275,14 @@ bool SavedModelVariablesIndex::read_variables(std::ifstream& vi_stream, const st
 }
 #endif
 
-struct pNode {
+struct PtrNode {
     const ::tensorflow::NodeDef* node;
-    std::vector<pNode*> inputs;
-    std::vector<pNode*> outputs;
+    std::vector<PtrNode*> inputs;
+    std::vector<PtrNode*> outputs;
 
-    pNode() : node(nullptr), inputs(), outputs() {}
+    PtrNode() : node(nullptr), inputs(), outputs() {}
 
-    pNode(const ::tensorflow::NodeDef& src_node, const std::map<std::string, pNode*>& node_dictionary) {
+    PtrNode(const ::tensorflow::NodeDef& src_node, const std::map<std::string, PtrNode*>& node_dictionary) {
         node = &src_node;
         std::vector<std::string> parsedName;
         for (const auto& input_name : node->input()) {
@@ -298,7 +298,7 @@ struct pNode {
         }
     }
 
-    void find_parent_by_op(const std::string& op, std::vector<pNode*>& result) const {
+    void find_parent_by_op(const std::string& op, std::vector<PtrNode*>& result) const {
         for (auto input : inputs) {
             if (input->op() == op) {
                 result.push_back(input);
@@ -330,7 +330,7 @@ struct pNode {
 
 static void read_stateful_partitioned_call(const std::shared_ptr<::tensorflow::GraphDef> graph_def,
                                            const ::tensorflow::NodeDef& partCall,
-                                           std::map<std::string, pNode*>& node_dictionary) {
+                                           std::map<std::string, PtrNode*>& node_dictionary) {
     FRONT_END_GENERAL_CHECK(partCall.op() == "StatefulPartitionedCall", "Passed node isn't StatefulPartitionedCall");
 
     std::string func_name = partCall.attr().at("f").func().name();
@@ -346,7 +346,7 @@ static void read_stateful_partitioned_call(const std::shared_ptr<::tensorflow::G
     FRONT_END_GENERAL_CHECK(func_def, "Function isn't found in the library");
     FRONT_END_GENERAL_CHECK(graph_def->has_library(), "GraphDef contains functions, but doesn't have the library");
 
-    std::map<std::string, pNode*> nodes;
+    std::map<std::string, PtrNode*> nodes;
 
     // Filling temporary input nodes for exact function
     for (int i = 0; i < func_def->signature().input_arg_size(); ++i) {
@@ -360,7 +360,7 @@ static void read_stateful_partitioned_call(const std::shared_ptr<::tensorflow::G
 
     // Parsing nodes and inline partitioned calls
     for (const auto& node : func_def->node_def()) {
-        nodes[node.name()] = new pNode(node, nodes);
+        nodes[node.name()] = new PtrNode(node, nodes);
 
         if (node.op() == "StatefulPartitionedCall") {
             read_stateful_partitioned_call(graph_def, node, nodes);
@@ -385,10 +385,10 @@ static void read_stateful_partitioned_call(const std::shared_ptr<::tensorflow::G
 
 void GraphIteratorSavedModel::map_assignvariable(const std::shared_ptr<::tensorflow::GraphDef> graph_def,
                                                  std::map<std::string, std::string>& variables_map) const {
-    std::map<std::string, pNode*> nodes;
+    std::map<std::string, PtrNode*> nodes;
 
     for (const auto& node : graph_def->node()) {
-        nodes[node.name()] = new pNode(node, nodes);
+        nodes[node.name()] = new PtrNode(node, nodes);
 
         if (node.op() == "StatefulPartitionedCall") {
             read_stateful_partitioned_call(graph_def, node, nodes);
@@ -400,8 +400,8 @@ void GraphIteratorSavedModel::map_assignvariable(const std::shared_ptr<::tensorf
             continue;
         }
 
-        std::vector<pNode*> restorev2_nodes;
-        std::vector<pNode*> varhandle_nodes;
+        std::vector<PtrNode*> restorev2_nodes;
+        std::vector<PtrNode*> varhandle_nodes;
 
         node.second->find_parent_by_op("RestoreV2", restorev2_nodes);
         node.second->find_parent_by_op("VarHandleOp", varhandle_nodes);
@@ -411,7 +411,7 @@ void GraphIteratorSavedModel::map_assignvariable(const std::shared_ptr<::tensorf
 
         std::vector<std::string> restore_output;
         // Expected path is: RestoreV2 -(output_index)-(0)-> Identity -(0)-(1)-> AssignVariableOp
-        pNode::parse_node_name(node.second->inputs[1]->node->input(0), restore_output);
+        PtrNode::parse_node_name(node.second->inputs[1]->node->input(0), restore_output);
 
         int output_index = std::atoi(restore_output[restore_output.size() - 1].c_str());
 
