@@ -5,6 +5,7 @@
 #include <gmock/gmock.h>
 
 #include "common_test_utils/test_assertions.hpp"
+#include "convolution_backprop_shape_inference.hpp"
 #include "openvino/opsets/opset11.hpp"
 #include "utils.hpp"
 
@@ -19,6 +20,28 @@ protected:
         output_shapes.resize(1);
     }
 };
+
+TEST_F(ConvolutionBackpropDataV1StaticShapeInferenceTest, default_ctor_with_output_shape) {
+    const auto spatial_shape = PartialShape{500, 500};
+
+    op = make_op();
+    op->set_strides({2, 2});
+    op->set_dilations({1, 1});
+    op->set_pads_begin({1, 1});
+    op->set_pads_end({1, 1});
+    op->set_output_padding({0, 0});
+    op->set_auto_pad(op::PadType::EXPLICIT);
+    op->set_output_shape(spatial_shape.to_shape());
+
+    input_shapes = ShapeVector{{1, 20, 224, 224}, {20, 10, 3, 3}, {2}};
+    auto shape_infer = make_shape_inference(op);
+    output_shapes = shape_infer->infer(input_shapes, {}).shapes;
+
+    EXPECT_EQ(output_shapes.size(), 1);
+    EXPECT_EQ(output_shapes.front(), StaticShape({1, 10, 500, 500}));
+    EXPECT_EQ(shape_infer->get_pads_begin(), CoordinateDiff({1, 1}));
+    EXPECT_EQ(shape_infer->get_pads_end(), CoordinateDiff({1, 1}));
+}
 
 TEST_F(ConvolutionBackpropDataV1StaticShapeInferenceTest, default_ctor) {
     op = make_op();

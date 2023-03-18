@@ -141,8 +141,14 @@ const ov::PartialShape op::v1::ConvolutionBackpropData::get_output_shape() const
 }
 
 void op::v1::ConvolutionBackpropData::set_output_shape(const ov::Shape& shape) {
-    this->input(2).replace_source_output(
-        op::v0::Constant::create(this->get_input_element_type(2), ov::Shape{shape.size()}, shape)->output(0));
+    element::Type_t et = (get_input_size() == 3) ? get_input_element_type(2) : element::i64;
+    if (get_input_size() == 0) {
+        // Add dummy inputs when adding output shape and op has no inputs at all.
+        auto dummy = std::make_shared<v0::Constant>(et, ov::Shape{0});
+        set_argument(0, dummy);
+        set_argument(1, dummy);
+    }
+    set_argument(2, v0::Constant::create(et, Shape{shape.size()}, shape));
 }
 
 void op::v1::ConvolutionBackpropData::infer_conv_backprop_output_spatial_shape(
