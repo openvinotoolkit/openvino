@@ -15,10 +15,13 @@ namespace ov {
 namespace intel_cpu {
 /**
  * @brief      Generate streams information table according to processors type table
- * @param[in]  input_streams is target streams set by user via NUM_STREAMS or hints.
+ * @param[in]  input_streams is target streams set by user via ov::num_streams or hints.
  *               - input "0" mean function generate the optimal number of streams
- *               - LATENCY hint equals 1 stream.
- * @param[in]  input_threads is max threads set by user via INFERNECE_NUM_THREADS.
+ *               - LATENCY hint equals 1 stream on one socket platform.
+ * @param[in]  input_threads is max threads set by user via ov::inference_num_threads.
+ *               - input "0" mean function can use all resource in proc_type_table
+ *               - When user limit max threads, streams in output cannot be more than max threads
+ * @param[in]  input_infer_requests is max number of infer requests set by user via ov::hint::num_requests.
  *               - input "0" mean function can use all resource in proc_type_table
  *               - When user limit max threads, streams in output cannot be more than max threads
  * @param[in]  model_prefer_threads is preferred threads per stream based on model generated in previous function
@@ -29,6 +32,7 @@ namespace intel_cpu {
  */
 std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
                                                      const int input_threads,
+                                                     const int input_infer_requests,
                                                      const int model_prefer_threads,
                                                      const std::vector<std::vector<int>> proc_type_table);
 }  // namespace intel_cpu
