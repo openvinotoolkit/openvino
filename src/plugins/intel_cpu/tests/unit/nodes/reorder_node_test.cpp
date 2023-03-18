@@ -30,11 +30,11 @@ inline void checkReorder(const ov::intel_cpu::Memory& inputMemory,
     auto mdInput = inputMemory.GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
     auto mdOutput = outputMemory.GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
 
-    const dnnl::impl::memory_desc_wrapper mdwInput(mdInput.data);
-    const dnnl::impl::memory_desc_wrapper mdwOutput(mdOutput.data);
+    const dnnl::impl::memory_desc_wrapper mdwInput(mdInput.get());
+    const dnnl::impl::memory_desc_wrapper mdwOutput(mdOutput.get());
     auto nelems = mdwInput.nelems();
 
-    for (size_t i = 0; i < nelems; ++i) {
+    for (dnnl::impl::dim_t i = 0; i < nelems; ++i) {
         auto srcOffset = mdwInput.off_l(i, false);
         auto dstOffset = mdwOutput.off_l(i, false);
         switch (prescision) {
@@ -70,16 +70,16 @@ inline std::string layoutName(const LayoutType& layout) {
 
 inline void fillData(const ov::intel_cpu::Memory& inputMemory, const InferenceEngine::Precision& prec) {
     ov::intel_cpu::DnnlMemoryDescPtr dnnlMdInput = inputMemory.GetDescWithType<DnnlMemoryDesc>();
-    const dnnl::impl::memory_desc_wrapper mdInput{dnnlMdInput->getDnnlDesc().data};
+    const dnnl::impl::memory_desc_wrapper mdInput{dnnlMdInput->getDnnlDesc().get()};
     auto elemNum = mdInput.nelems();
     auto inputReorderData = inputMemory.GetData();
     switch (prec) {
     case InferenceEngine::Precision::FP32:
-        for (size_t i = 0; i < elemNum; ++i)
+        for (int64_t i = 0; i < elemNum; ++i)
             *(static_cast<float*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<float>(i);
         break;
     case InferenceEngine::Precision::I8:
-        for (size_t i = 0; i < elemNum; ++i)
+        for (int64_t i = 0; i < elemNum; ++i)
             *(static_cast<int8_t*>(inputReorderData) + mdInput.off_l(i, false)) = static_cast<int8_t>(i);
         break;
     default:

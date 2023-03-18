@@ -70,11 +70,12 @@ void shape_infer(const Slice* op,
                               shape_rank);
 
         if (input_rank.is_static()) {
-            NODE_VALIDATION_CHECK(op,
-                                  shape_rank.is_dynamic() || shape[0].get_min_length() <= input_rank.get_length(),
-                                  "Slice `",
-                                  slice::shape_names[i - 1],
-                                  "` input dim size can't be bigger than `data` rank.");
+            NODE_VALIDATION_CHECK(
+                op,
+                shape_rank.is_dynamic() || static_cast<int64_t>(shape[0].get_min_length()) <= input_rank.get_length(),
+                "Slice `",
+                slice::shape_names[i - 1],
+                "` input dim size can't be bigger than `data` rank.");
         }
     }
 

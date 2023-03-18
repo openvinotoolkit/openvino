@@ -13,11 +13,11 @@
 namespace ngraph {
 namespace onnx_import {
 namespace op {
-namespace set_1 {
+namespace set_7 {
 inline OutputVector acos(const Node& node) {
     return {std::make_shared<default_opset::Acos>(node.get_ng_inputs().at(0))};
 }
-}  // namespace set_1
+}  // namespace set_7
 
 }  // namespace op
 
