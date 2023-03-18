@@ -70,7 +70,7 @@ void MatMulWithConstantTransformation::SetUp() {
         testValues.fqOnWeights,
         testValues.deqOnWeights);
 
-    ov::pass::InitNodeInfo().run_on_function(function);
+    ov::pass::InitNodeInfo().run_on_model(function);
 }
 
 void MatMulWithConstantTransformation::Run() {

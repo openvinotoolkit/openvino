@@ -10,6 +10,8 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "dev/converter_utils.hpp"
+#include "dev/icompiled_model_wrapper.hpp"
+#include "dev/make_tensor.hpp"
 #include "ie_itt.hpp"
 #include "ie_network_reader.hpp"
 #include "iplugin_wrapper.hpp"
@@ -17,6 +19,7 @@
 #include "ngraph/pass/constant_folding.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/itensor.hpp"
 #include "openvino/util/common_util.hpp"
 
 bool ov::CoreImpl::isNewAPI() const {
@@ -113,10 +116,11 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
     const std::function<void(const InferenceEngine::CNNNetwork&)>& val) {
     OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "Core::LoadNetwork::Memory");
 
-    auto compiled_model = compile_model(modelStr,
-                                        ov::Tensor{std::const_pointer_cast<InferenceEngine::Blob>(weights), {}},
-                                        deviceName,
-                                        ov::any_copy(config));
+    auto compiled_model =
+        compile_model(modelStr,
+                      ov::Tensor{ov::make_tensor(std::const_pointer_cast<InferenceEngine::Blob>(weights)), {}},
+                      deviceName,
+                      ov::any_copy(config));
     return {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
 }
 
@@ -125,6 +129,9 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::ImportNetwork(
     const std::string& deviceName,
     const std::map<std::string, std::string>& config) {
     auto compiled_model = import_model(networkModel, deviceName, any_copy(config));
+    if (auto wrapper = std::dynamic_pointer_cast<InferenceEngine::ICompiledModelWrapper>(compiled_model._ptr)) {
+        wrapper->get_executable_network()->loadedFromCache();
+    }
     return {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
 }
 

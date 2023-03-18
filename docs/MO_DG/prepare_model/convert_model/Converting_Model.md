@@ -2,7 +2,13 @@
 
 With Model Optimizer you can increase your model's efficiency by providing an additional shape definition, with these two parameters: `--input_shape` and `--static_shape`.
 
-@anchor when_to_specify_input_shapes
+@sphinxdirective
+
+.. _when_to_specify_input_shapes:
+
+@endsphinxdirective
+
+
 ## Specifying --input_shape Command-line Parameter
 Model Optimizer supports conversion of models with dynamic input shapes that contain undefined dimensions.
 However, if the shape of data is not going to change from one inference request to another,
@@ -58,9 +64,15 @@ For example, launch Model Optimizer for the ONNX OCR model and specify a boundar
 mo --input_model ocr.onnx --input data,seq_len --input_shape [1..3,150,200,1],[1..3]
 ```
 
+@sphinxdirective
+
 Practically, some models are not ready for input shapes change.
 In this case, a new input shape cannot be set via Model Optimizer.
-For more information about shape follow the [inference troubleshooting](@ref troubleshooting_reshape_errors) and [ways to relax shape inference flow](@ref how-to-fix-non-reshape-able-model) guides. 
+For more information about shape follow the :doc:`inference troubleshooting <troubleshooting_reshape_errors>` 
+and :ref:`ways to relax shape inference flow <how-to-fix-non-reshape-able-model>` guides.
+
+@endsphinxdirective
+
 
 ## Specifying --static_shape Command-line Parameter
 Model Optimizer provides the `--static_shape` parameter that allows evaluating shapes of all operations in the model for fixed input shapes
