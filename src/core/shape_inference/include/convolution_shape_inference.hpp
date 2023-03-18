@@ -5,7 +5,6 @@
 
 #include "convolution_shape_inference_util.hpp"
 #include "openvino/op/convolution.hpp"
-#include "openvino/op/group_conv.hpp"
 #include "utils.hpp"
 
 namespace ov {

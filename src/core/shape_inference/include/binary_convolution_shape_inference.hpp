@@ -3,7 +3,6 @@
 //
 #pragma once
 
-#include "convolution_shape_inference.hpp"
 #include "openvino/op/binary_convolution.hpp"
 #include "utils.hpp"
 

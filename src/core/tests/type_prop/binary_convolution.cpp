@@ -336,14 +336,14 @@ TEST(type_prop, bin_convolution_invalid_spatial_dims_parameters) {
     }
 
     try {
-        const auto data_batch = make_shared<op::Parameter>(element::f32, PartialShape{1, 1, 5});
-        const auto filters = make_shared<op::Parameter>(element::u1, PartialShape{1, 1, 3});
+        const auto data_batch = make_shared<op::Parameter>(element::f32, PartialShape{1, 1, 5, 5});
+        const auto filters = make_shared<op::Parameter>(element::u1, PartialShape{1, 1, 3, 3});
         const auto bin_conv = make_shared<op::v1::BinaryConvolution>(data_batch,
                                                                      filters,
-                                                                     strides_1d,
+                                                                     Strides{1, 1},
                                                                      CoordinateDiff{},
                                                                      CoordinateDiff{},
-                                                                     dilations_2d,
+                                                                     dilations_3d,
                                                                      mode,
                                                                      pad_value,
                                                                      auto_pad);
@@ -357,14 +357,14 @@ TEST(type_prop, bin_convolution_invalid_spatial_dims_parameters) {
     }
 
     try {
-        const auto data_batch = make_shared<op::Parameter>(element::f32, PartialShape{1, 1, 5, 5, 5});
-        const auto filters = make_shared<op::Parameter>(element::u1, PartialShape{1, 1, 3, 3, 3});
+        const auto data_batch = make_shared<op::Parameter>(element::f32, PartialShape{1, 1, 5, 5});
+        const auto filters = make_shared<op::Parameter>(element::u1, PartialShape{1, 1, 3, 3});
         const auto bin_conv = make_shared<op::v1::BinaryConvolution>(data_batch,
                                                                      filters,
-                                                                     strides_3d,
+                                                                     Strides{1, 1},
                                                                      pads_begin_3d,
                                                                      pads_end_2d,
-                                                                     dilations_3d,
+                                                                     dilations_2d,
                                                                      mode,
                                                                      pad_value,
                                                                      auto_pad);
@@ -408,8 +408,8 @@ TEST_F(TypePropBinaryConvolutionV1Test, default_ctor) {
 }
 
 TEST_F(TypePropBinaryConvolutionV1Test, interval_shapes) {
-    PartialShape data_batch_pshape{{1, 3}, 1, {1, 5}, {3, 10}, {20, 100}};
-    PartialShape filters_pshape{2, {1, 3}, 3, 3, 3};
+    PartialShape data_batch_pshape{{1, 3}, 1, {1, 5}, {3, 10}};
+    PartialShape filters_pshape{2, {1, 3}, 3, 3};
     set_shape_labels(data_batch_pshape, 10);
     set_shape_labels(filters_pshape, 20);
 
@@ -430,9 +430,8 @@ TEST_F(TypePropBinaryConvolutionV1Test, interval_shapes) {
                             pad_value,
                             auto_pad);
 
-    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)),
-                ElementsAre(10, 20, ov::no_label, ov::no_label, ov::no_label));
-    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{1, 3}, 2, {1, 3}, {1, 8}, {18, 98}}));
-    EXPECT_EQ(op->get_pads_begin(), (CoordinateDiff{0, 0, 0}));
-    EXPECT_EQ(op->get_pads_end(), (CoordinateDiff{0, 0, 0}));
+    EXPECT_THAT(get_shape_labels(op->get_output_partial_shape(0)), ElementsAre(10, 20, ov::no_label, ov::no_label));
+    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape({{1, 3}, 2, {1, 3}, {1, 8}}));
+    EXPECT_EQ(op->get_pads_begin(), (CoordinateDiff{0, 0}));
+    EXPECT_EQ(op->get_pads_end(), (CoordinateDiff{0, 0}));
 }

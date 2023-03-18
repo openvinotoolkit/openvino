@@ -40,7 +40,7 @@ TEST_F(BinaryConvolutionV1StaticShapeInferenceTest, default_ctor) {
     EXPECT_EQ(shape_infer->get_pads_end(), CoordinateDiff({0, 0}));
 }
 
-TEST_F(BinaryConvolutionV1StaticShapeInferenceTest, 2d_auto_pads_same_lower_inputs_dynamic_rank) {
+TEST_F(BinaryConvolutionV1StaticShapeInferenceTest, auto_pads_same_lower_inputs_dynamic_rank) {
     const auto strides = Strides{1, 1};
     const auto dilations = Strides{1, 1};
     const auto pads_begin = CoordinateDiff{0, 0};
@@ -59,45 +59,45 @@ TEST_F(BinaryConvolutionV1StaticShapeInferenceTest, 2d_auto_pads_same_lower_inpu
     EXPECT_EQ(output_shapes[0], StaticShape({3, 7, 5, 5}));
 }
 
-TEST_F(BinaryConvolutionV1StaticShapeInferenceTest, 3d_auto_pad_same_lower_inputs_static_ranks) {
-    const auto strides = Strides{1, 1, 1};
-    const auto dilations = Strides{1, 1, 1};
-    const auto pads_begin = CoordinateDiff{0, 0, 0};
-    const auto pads_end = CoordinateDiff{0, 0, 0};
+TEST_F(BinaryConvolutionV1StaticShapeInferenceTest, auto_pad_same_lower_inputs_static_ranks) {
+    const auto strides = Strides{1, 1};
+    const auto dilations = Strides{1, 1};
+    const auto pads_begin = CoordinateDiff{0, 0};
+    const auto pads_end = CoordinateDiff{0, 0};
     const auto auto_pad = op::PadType::SAME_UPPER;
 
-    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1, -1});
-    const auto filters = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1, -1});
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
+    const auto filters = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
 
     op = make_op(data, filters, strides, pads_begin, pads_end, dilations, mode, pad_value, auto_pad);
 
-    input_shapes = ShapeVector{{3, 6, 5, 5, 5}, {7, 6, 3, 3, 3}};
+    input_shapes = ShapeVector{{3, 6, 5, 5}, {7, 6, 3, 3}};
     shape_inference(op.get(), input_shapes, output_shapes);
 
     EXPECT_EQ(output_shapes.size(), 1);
-    EXPECT_EQ(output_shapes[0], StaticShape({3, 7, 5, 5, 5}));
+    EXPECT_EQ(output_shapes[0], StaticShape({3, 7, 5, 5}));
 }
 
 TEST_F(BinaryConvolutionV1StaticShapeInferenceTest, data_and_filters_num_channels_not_same) {
-    const auto strides = Strides{1, 1, 1};
-    const auto dilations = Strides{1, 1, 1};
-    const auto pads_begin = CoordinateDiff{0, 0, 0};
-    const auto pads_end = CoordinateDiff{0, 0, 0};
+    const auto strides = Strides{1, 1};
+    const auto dilations = Strides{1, 1};
+    const auto pads_begin = CoordinateDiff{0, 0};
+    const auto pads_end = CoordinateDiff{0, 0};
     const auto auto_pad = op::PadType::SAME_UPPER;
 
-    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1, -1});
-    const auto filters = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1, -1});
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
+    const auto filters = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
 
     op = make_op(data, filters, strides, pads_begin, pads_end, dilations, mode, pad_value, auto_pad);
 
-    input_shapes = ShapeVector{{3, 5, 5, 5, 5}, {7, 6, 3, 3, 3}};
+    input_shapes = ShapeVector{{3, 5, 5, 5}, {7, 6, 3, 3}};
 
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
                     NodeValidationFailure,
                     HasSubstr("Data batch channel count (5) does not match filter"));
 }
 
-TEST_F(BinaryConvolutionV1StaticShapeInferenceTest, data_rank_not_compatible_with_filters_rank) {
+TEST_F(BinaryConvolutionV1StaticShapeInferenceTest, data_rank_not_4) {
     const auto strides = Strides{1, 1};
     const auto dilations = Strides{1, 1};
     const auto pads_begin = CoordinateDiff{0, 0};
@@ -105,13 +105,13 @@ TEST_F(BinaryConvolutionV1StaticShapeInferenceTest, data_rank_not_compatible_wit
     const auto auto_pad = op::PadType::SAME_LOWER;
 
     const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
-    const auto filters = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, -1, -1, -1});
+    const auto filters = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
 
     op = make_op(data, filters, strides, pads_begin, pads_end, dilations, mode, pad_value, auto_pad);
 
-    input_shapes = ShapeVector{{3, 6, 5, 5, 5}, {7, 6, 3, 3}};
+    input_shapes = ShapeVector{{3, 6, 5}, {7, 6, 3}};
 
     OV_EXPECT_THROW(shape_inference(op.get(), input_shapes, output_shapes),
                     NodeValidationFailure,
-                    HasSubstr("Data batch and filters rank do not match"));
+                    HasSubstr("Expected 4D for the input. Got:"));
 }

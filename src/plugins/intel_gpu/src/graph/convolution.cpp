@@ -1,14 +1,16 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "pass_manager.h"
+#include <string>
+
 #include "convolution_inst.h"
-#include "primitive_type_base.h"
 #include "convolution_shape_inference.hpp"
-#include "sliding_window_utils.hpp"
+#include "group_convolution_shape_inference.hpp"
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
-#include <string>
+#include "pass_manager.h"
+#include "primitive_type_base.h"
+#include "sliding_window_utils.hpp"
 
 using namespace ov::intel_gpu;
 

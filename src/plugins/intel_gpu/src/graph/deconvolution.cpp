@@ -166,6 +166,7 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
         input_layout.get<ShapeType>()
     };
     std::vector<ShapeType> output_shapes;
+    std::map<size_t, ov::HostTensorPtr> constant_data;
     auto& memory_deps = impl_param.memory_deps;
     // Dimensions order of weights is IOYX, but the selected format is OIYX by default and I/O dimensions are
     // already swapped when creating constant op. So we need to swap I/O dimensions according to the original
@@ -185,10 +186,12 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
             input_shapes.push_back(output_partial_shape);
         } else if (memory_deps.count(2)) {
             auto mem = memory_deps.at(2);
-            std::vector<int64_t> dims = read_vector<int64_t>(mem, impl_param.prog->get_stream());
-            input_shapes.emplace_back(dims);
+            auto dims = read_vector<int64_t>(mem, impl_param.prog->get_stream());
+            auto dims_shape = ov::Shape{dims.size()};
+            constant_data.emplace(2, std::make_shared<ov::HostTensor>(ov::element::i64, dims_shape, dims.data()));
+            input_shapes.push_back(std::move(dims_shape));
         }
-        output_shapes = ov::op::v1::shape_infer(&op, input_shapes);
+        output_shapes = ov::op::v1::shape_infer(&op, input_shapes, constant_data);
     } else {
         ov::op::v1::ConvolutionBackpropData op;
         op.set_strides(strides);
@@ -203,10 +206,12 @@ std::vector<layout> deconvolution_inst::calc_output_layouts(deconvolution_node c
             input_shapes.push_back(output_partial_shape);
         } else if (memory_deps.count(2)) {
             auto mem = memory_deps.at(2);
-            std::vector<int64_t> dims = read_vector<int64_t>(mem, impl_param.prog->get_stream());
-            input_shapes.emplace_back(dims);
+            auto dims = read_vector<int64_t>(mem, impl_param.prog->get_stream());
+            auto dims_shape = ov::Shape{dims.size()};
+            constant_data.emplace(2, std::make_shared<ov::HostTensor>(ov::element::i64, dims_shape, dims.data()));
+            input_shapes.push_back(std::move(dims_shape));
         }
-        output_shapes = ov::op::v1::shape_infer(&op, input_shapes);
+        output_shapes = ov::op::v1::shape_infer(&op, input_shapes, constant_data);
     }
     return {layout{output_shapes[0], output_type, out_fmt.value}};
 }

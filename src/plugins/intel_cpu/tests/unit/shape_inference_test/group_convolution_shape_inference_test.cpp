@@ -37,6 +37,25 @@ TEST_F(GroupConvolutionV1StaticShapeInferenceTest, default_ctor) {
     EXPECT_EQ(shape_infer->get_pads_end(), CoordinateDiff({2, 1}));
 }
 
+TEST_F(GroupConvolutionV1StaticShapeInferenceTest, 1d_explicit_pads_inputs_static_rank) {
+    const auto strides = Strides{1};
+    const auto dilations = Strides{1};
+    const auto pads_begin = CoordinateDiff{0};
+    const auto pads_end = CoordinateDiff{0};
+    const auto auto_pad = op::PadType::EXPLICIT;
+
+    const auto data = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(3));
+    const auto filters = std::make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic(4));
+
+    op = make_op(data, filters, strides, pads_begin, pads_end, dilations, auto_pad);
+
+    input_shapes = ShapeVector{{1, 12, 20}, {12, 1, 1, 3}};
+    shape_inference(op.get(), input_shapes, output_shapes);
+
+    EXPECT_EQ(output_shapes.size(), 1);
+    EXPECT_EQ(output_shapes[0], StaticShape({1, 12, 18}));
+}
+
 TEST_F(GroupConvolutionV1StaticShapeInferenceTest, 2d_auto_pads_same_lower_inputs_dynamic_rank) {
     const auto strides = Strides{1, 1};
     const auto dilations = Strides{1, 1};

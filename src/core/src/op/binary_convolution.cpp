@@ -5,6 +5,7 @@
 #include "openvino/op/binary_convolution.hpp"
 
 #include "binary_convolution_shape_inference.hpp"
+#include "convolution_shape_inference.hpp"
 #include "itt.hpp"
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/axis_vector.hpp"

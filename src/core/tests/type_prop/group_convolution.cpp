@@ -371,12 +371,12 @@ TEST(type_prop, group_convolution_invalid_input_channel_dims) {
         auto filters = make_shared<op::Parameter>(et, filters_pshape);
 
         OV_EXPECT_THROW(
-            make_shared<op::v1::GroupConvolution>(data_batch,
-                                                  filters,
-                                                  Strides{},
-                                                  CoordinateDiff{},
-                                                  CoordinateDiff{},
-                                                  Strides{}),
+            const auto op = make_shared<op::v1::GroupConvolution>(data_batch,
+                                                                  filters,
+                                                                  Strides{},
+                                                                  CoordinateDiff{},
+                                                                  CoordinateDiff{},
+                                                                  Strides{}),
             NodeValidationFailure,
             HasSubstr("Input channels dimension of data batch is incompatible with filter groups or input channels."));
     }
@@ -390,12 +390,12 @@ TEST(type_prop, group_convolution_invalid_input_channel_dims) {
         auto filters = make_shared<op::Parameter>(et, filters_pshape);
 
         OV_EXPECT_THROW(
-            make_shared<op::v1::GroupConvolution>(data_batch,
-                                                  filters,
-                                                  Strides{},
-                                                  CoordinateDiff{},
-                                                  CoordinateDiff{},
-                                                  Strides{}),
+            const auto op = make_shared<op::v1::GroupConvolution>(data_batch,
+                                                                  filters,
+                                                                  Strides{},
+                                                                  CoordinateDiff{},
+                                                                  CoordinateDiff{},
+                                                                  Strides{}),
             NodeValidationFailure,
             HasSubstr("Input channels dimension of data batch is incompatible with filter groups or input channels."));
     }
