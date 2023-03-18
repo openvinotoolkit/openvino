@@ -60,9 +60,6 @@ private:
     /* Explicily configured streams have higher priority than performance hints.
        So track if streams is set explicitly (not auto-configured) */
     bool streamsExplicitlySetForEngine = false;
-    /* Explicily configured inference_precision has higher priority than performance hints.
-       So track if inference_precision is set explicitly (not auto-configured) */
-    bool inferencePrecisionSetForEngine = false;
     const std::string deviceFullName;
 
     std::shared_ptr<void> specialSetup;

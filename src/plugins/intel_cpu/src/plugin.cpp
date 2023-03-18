@@ -154,10 +154,6 @@ static bool streamsSet(const std::map<std::string, std::string>& config) {
            config.count(ov::num_streams.name());
 }
 
-static bool inferencePrecisionSet(const std::map<std::string, std::string>& config) {
-    return config.count(ov::inference_precision.name());
-}
-
 void Engine::ApplyPerformanceHints(std::map<std::string, std::string> &config, const std::shared_ptr<ngraph::Function>& ngraphFunc) const {
     auto getNumStreamsLatency = [&]() {
         return std::pair<std::string, std::string>(CONFIG_VALUE(CPU_THROUGHPUT_NUMA), ov::util::to_string(ov::streams::NUMA));
@@ -410,26 +406,16 @@ StreamCfg Engine::GetNumStreams(InferenceEngine::IStreamsExecutor::ThreadBinding
     return stream_cfg;
 }
 
-static bool shouldEnforceBF16(const std::map<std::string, std::string>& modelConfig, const Config& engineConfig, const bool inferPrecisionSetForEngine) {
+static bool shouldEnforceBF16(const std::map<std::string, std::string>& modelConfig, const Config& engineConfig) {
     const auto& enforceBF16 = modelConfig.find(InferenceEngine::PluginConfigParams::KEY_ENFORCE_BF16);
-    const auto& inferencePrecision = modelConfig.find(ov::hint::inference_precision.name());
+    if (enforceBF16 == modelConfig.end()) { // not set for the model
+        return engineConfig.enforceBF16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core); // use value from engine
+    }
 
-    if (inferencePrecision != modelConfig.end()) { // inference precision from model config has higher priority
-        if (inferencePrecision->second == "bf16") {
-            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
-        } else {
-            return false;
-        }
-    } else if (inferPrecisionSetForEngine) { // inference precision from engine config has the second priority
-        return engineConfig.enforceBF16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
-    } else if (enforceBF16 != modelConfig.end()) { // legacy ENFORCE_BF16
-        if (enforceBF16->second == PluginConfigParams::YES) {
-            return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
-        } else {
-            return false;
-        }
+    if (enforceBF16->second == PluginConfigParams::YES) {
+        return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
     } else {
-        return engineConfig.enforceBF16 && dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
+        return false;
     }
 }
 
@@ -487,7 +473,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
             || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled for the plugin */;
-    const bool enableBF16 = shouldEnforceBF16(config, engConfig, inferencePrecisionSetForEngine);
+    const bool enableBF16 = shouldEnforceBF16(config, engConfig);
     const Config::SnippetsMode snippetsMode = getSnippetsMode(config, engConfig);
 
     auto nGraphFunc = clonedNetwork.getFunction();
@@ -544,7 +530,6 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network, const std
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
     // @todo after Legacy configuration is dropped, use some wrapper class to keep both the property and "ifSetExplicitly" flag
     streamsExplicitlySetForEngine = streamsSet(config);
-    inferencePrecisionSetForEngine = inferencePrecisionSet(config);
 
     engConfig.readProperties(config);
 }
@@ -768,18 +753,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
     const auto& lptProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE);
     const bool enableLPT = (lptProp != config.end() && lptProp->second == PluginConfigParams::YES) /* enabled in the orig_config*/
                         || Config::LPTransformsMode::On == engConfig.lpTransformsMode /* or already enabled */;
-
-    auto snippetsMode = conf.enableDynamicBatch ? Config::SnippetsMode::Disable : Config::SnippetsMode::Enable;
-    const auto& snippetsModeProp = config.find(InferenceEngine::PluginConfigInternalParams::KEY_SNIPPETS_MODE);
-    if (snippetsMode == Config::SnippetsMode::Enable && snippetsModeProp != config.end()) {
-        const auto& val = snippetsModeProp->second;
-        if (val == PluginConfigInternalParams::IGNORE_CALLBACK)
-            snippetsMode =  Config::SnippetsMode::IgnoreCallback;
-        else if (val == PluginConfigInternalParams::DISABLE)
-            snippetsMode =  Config::SnippetsMode::Disable;
-        else
-            IE_THROW() << "Wrong value for property key SNIPPETS_MODE. Expected values: ENABLE/DISABLE/IGNORE_CALLBACK";
-    }
+    const Config::SnippetsMode snippetsMode = getSnippetsMode(config, conf);
 
     auto model = network.getFunction();
     if (model == nullptr) {

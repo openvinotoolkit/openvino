@@ -143,7 +143,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CheckExecutionModeIsAvailableInCoreAndModel) 
     ASSERT_FALSE(model_exec_mode_it->is_mutable());
 }
 
-TEST_F(OVClassConfigTestCPU, smoke_CheckModelInferencePrecisionHasMorePriorityThanCoreInferencePrecision) {
+TEST_F(OVClassConfigTestCPU, smoke_CheckModelInferencePrecisionHasHigherPriorityThanCoreInferencePrecision) {
     ov::Core ie;
     auto inference_precision_value = ov::element::undefined;
 
@@ -191,7 +191,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CheckModelInferencePrecisionHasHigherPriority
     ASSERT_EQ(execution_mode_value, ov::hint::ExecutionMode::ACCURACY);
 
     ASSERT_NO_THROW(inference_precision_value = compiledModel.get_property(ov::inference_precision));
-    ASSERT_EQ(inference_precision_value, bf16_if_can_be_emulated);
+    ASSERT_EQ(inference_precision_value, inference_precision_expected);
 }
 
 const std::vector<ov::AnyMap> multiDevicePriorityConfigs = {

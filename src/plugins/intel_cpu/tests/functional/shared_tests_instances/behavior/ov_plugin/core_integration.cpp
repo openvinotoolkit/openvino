@@ -326,7 +326,7 @@ const std::map<ov::hint::ExecutionMode, ExpectedModeAndType> exectedTypeByMode {
 
 TEST(OVClassBasicTest, smoke_SetConfigExecutionModeExpectCorrespondingInferencePrecision) {
     ov::Core ie;
-    const auto inference_precision_default = ov::element::f32;
+    const auto inference_precision_default = bf16_if_supported;
     const auto execution_mode_default = ov::hint::ExecutionMode::PERFORMANCE;
     auto execution_mode_value = ov::hint::ExecutionMode::UNDEFINED;
     auto inference_precision_value = ov::element::undefined;
@@ -340,14 +340,14 @@ TEST(OVClassBasicTest, smoke_SetConfigExecutionModeExpectCorrespondingInferenceP
     for (const auto& m : exectedTypeByMode) {
         const auto execution_mode = m.first;
         const auto execution_mode_exected = m.second.first;
-        const auto infernce_precision_exected = m.second.second;
+        const auto inference_precision_exected = m.second.second;
 
         OV_ASSERT_NO_THROW(ie.set_property("CPU", ov::hint::execution_mode(execution_mode)));
         OV_ASSERT_NO_THROW(execution_mode_value = ie.get_property("CPU", ov::hint::execution_mode));
         ASSERT_EQ(execution_mode_value, execution_mode_exected);
 
         OV_ASSERT_NO_THROW(inference_precision_value = ie.get_property("CPU", ov::inference_precision));
-        ASSERT_EQ(inference_precision_value, infernce_precision_exected);
+        ASSERT_EQ(inference_precision_value, inference_precision_exected);
     }
 }
 
