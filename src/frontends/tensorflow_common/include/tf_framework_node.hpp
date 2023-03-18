@@ -42,7 +42,7 @@ public:
     }
 
     std::shared_ptr<DecoderBase> get_decoder() const {
-        return m_decoder;
+        return m_decoder;//nullptr;
     }
 
 private:

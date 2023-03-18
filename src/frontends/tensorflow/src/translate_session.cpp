@@ -180,6 +180,8 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             size_t producer_port_idx;
             try {
                 operation_decoder->get_input_node(input_port_idx, producer_name, producer_port_idx, op_type_by_name);
+                //std::cerr << "for consumer: " << operation_decoder->get_op_name() << "\n";
+                //std::cerr << "producer_name = " << producer_name << ", producer_port_idx = " << producer_port_idx << "\n";
             } catch (const std::exception&) {
                 FRONT_END_THROW("[ ERROR ] Exception happened when preparing input " + std::to_string(input_port_idx) +
                                 " for op '" + operation_decoder->get_op_name() + "', expected input name: '" +
@@ -251,7 +253,10 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
                 ov_outputs = fw_node->outputs();
             }
         } else if (auto body_ov_model = get_body_ov_model(operation_type)) {
+            //std::cerr << "Before inject_body_model\n";
             inject_body_model(body_ov_model, operation_type, ov_inputs, ov_outputs);
+            //std::cerr << "Dumping after_inject_body_model.xml\n";
+            //ov::serialize(body_ov_model, "after_inject_body_model.xml");
 
             // set output tensor names
             for (size_t idx = 0; idx < ov_outputs.size(); ++idx) {
@@ -398,6 +403,9 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
     ov::ResultVector ordered_results = reorder_ops_by_names(output_names, results);
 
     ov_model = std::make_shared<ov::Model>(ordered_results, ordered_params, m_model_name);
+    //std::cerr << "Dumping partial_model.xml\n";
+    //ov::serialize(ov_model, "partial_model.xml");
+    //std::cerr << "After serialize\n";
 }
 
 std::shared_ptr<ov::Model> TranslateSession::get_body_ov_model(const std::string& body_graph_name) {

@@ -374,6 +374,7 @@ void DecoderProto::get_input_node(size_t input_port_idx,
                                   std::string& producer_name,
                                   size_t& producer_output_port_index) const {
     const std::string producer_port_name = m_node_def->input(static_cast<int>(input_port_idx));
+    //std::cerr << "producer_port_name:" << producer_port_name << "\n";
     parse_producer_name(producer_port_name, producer_name, producer_output_port_index, {});
 }
 
@@ -382,6 +383,7 @@ void DecoderProto::get_input_node(size_t input_port_idx,
                                   size_t& producer_output_port_index,
                                   const OpTypeByName& op_type_by_name) const {
     const std::string producer_port_name = m_node_def->input(static_cast<int>(input_port_idx));
+    //std::cerr << "producer_port_name:" << producer_port_name << "\n";
     parse_producer_name(producer_port_name, producer_name, producer_output_port_index, op_type_by_name);
 }
 

@@ -188,6 +188,8 @@ std::shared_ptr<ov::Model> FrontEnd::convert(const ov::frontend::InputModel::Ptr
             m_telemetry->send_event("error_cause", "tf_" + unsupported_operation);
         }
     }
+    //std::cerr << "Partial conversion done\n";
+    //ov::serialize(f, "partially_supported.xml");
     FRONT_END_OP_CONVERSION_CHECK(
         unsupported_operations.size() == 0,
         "[TensorFlow Frontend] Internal error: No translator found for " + unsupported_operations[0] + " node.");
@@ -265,7 +267,7 @@ void FrontEnd::convert(const std::shared_ptr<ov::Model>& partiallyConverted) con
 }
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
-    {
+    try {
         // run transformations to convert sub-graphs with intermediate (or FrameworkNode) operations
         // into sub-graphs with only OpenVINO operations
         ov::pass::Manager manager;
@@ -275,6 +277,10 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         manager.register_pass<pass::GRUBlockCellReplacer>();
         manager.register_pass<pass::ConstToResultRemover>();
         manager.run_passes(model);
+    } catch (...) {
+        //std::cerr << "Failed transformations with exception\nDumping not completely transformed graph as partially_converted.tf.normalize.xml\n";
+        //ov::serialize(model, "partially_converted.tf.normalize.xml");
+        throw;
     }
 
     // TODO: TSGeneral can fail on models with Framework nodes (not converted to OV opset)
