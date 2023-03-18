@@ -163,6 +163,7 @@ In the following example, the ``SinkVector`` is used to create the `ov::Model`__
    :language: cpp
    :fragment: [model_create]
 
+
 .. _openvino-state-api:
 
 OpenVINO State API
