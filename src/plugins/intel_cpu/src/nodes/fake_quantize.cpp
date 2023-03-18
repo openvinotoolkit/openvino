@@ -7,23 +7,25 @@
 #include <string>
 #include <vector>
 #include <math.h>
-#include <dnnl_types.h>
-#include <dnnl_extension_utils.h>
-#include "utils/general_utils.h"
-#include "utils/cpu_utils.hpp"
-
 #include <algorithm>
 #include <set>
 #include <cmath>
-#include <cpu/x64/jit_generator.hpp>
-#include "ie_parallel.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
+#include <dnnl_types.h>
+#include <dnnl_extension_utils.h>
+#include <cpu/x64/jit_generator.hpp>
+#include <common/dnnl_thread.hpp>
+
+#include "ie_parallel.hpp"
+#include "utils/general_utils.h"
+#include "utils/cpu_utils.hpp"
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "utils/ngraph_utils.hpp"
 #include "common/cpu_memcpy.h"
 #include <common/primitive_hashing_utils.hpp>
+
+#include <ngraph/opsets/opset1.hpp>
+#include "utils/ngraph_utils.hpp"
 
 // Quantization ranges validation is switched off by default in order to avoid regressions on user side
 // #define VALIDATE_QUANTIZATION_RANGES
@@ -2068,7 +2070,7 @@ bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
         }
     }
 
-    if (!dnnlpoc.appendLinear(f.isc, f.ish, allowBinary))
+    if (!dnnlpoc.appendLinear(f.isc, f.ish, isLastPostOp && skipRoundClipOutputLinear, allowBinary))
         return false;
 
     if (skipRoundClipOutputLinear)
@@ -2077,7 +2079,7 @@ bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposer& dnnlpoc,
     if (doRounding)
         dnnlpoc.appendRoundHTE();
     dnnlpoc.appendClip(f.clo, f.chi);
-    dnnlpoc.appendLinear(f.osc, f.osh, allowBinary);
+    dnnlpoc.appendLinear(f.osc, f.osh, isLastPostOp, allowBinary);
     return true;
 }
 

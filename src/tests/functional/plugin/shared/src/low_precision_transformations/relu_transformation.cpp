@@ -54,7 +54,7 @@ void ReluTransformation::SetUp() {
 
     function = ngraph::builder::subgraph::ReluFunction::getOriginal(inputShape, precision, testValues.fakeQuantize);
 
-    ov::pass::InitNodeInfo().run_on_function(function);
+    ov::pass::InitNodeInfo().run_on_model(function);
 }
 
 TEST_P(ReluTransformation, CompareWithRefImpl) {
