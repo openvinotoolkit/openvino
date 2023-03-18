@@ -25,6 +25,9 @@ find_package(IEDevScripts REQUIRED
              NO_DEFAULT_PATH)
 
 set(ENABLE_SYSTEM_TBB OFF)
+if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
+    set(ENABLE_SYSTEM_TBB ON)
+endif()
 
 include(CTest)
 include(cmake/features.cmake)
