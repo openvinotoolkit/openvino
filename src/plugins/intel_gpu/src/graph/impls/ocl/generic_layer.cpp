@@ -50,7 +50,7 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
 
     void init_kernels(const kernels_cache& kernels_cache, kernel_impl_params& params) override {
         _kernels.clear();
-        auto compiled_kernels = kernels_cache.get_kernel(params);
+        auto compiled_kernels = kernels_cache.get_kernels(params);
         _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
     }
 

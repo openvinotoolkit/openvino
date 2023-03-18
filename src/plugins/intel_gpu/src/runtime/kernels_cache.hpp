@@ -96,7 +96,7 @@ public:
                            uint32_t prog_id,
                            InferenceEngine::CPUStreamsExecutor::Ptr task_executor = nullptr,
                            const std::vector<std::string>& batch_header_str = {});
-    std::vector<kernel::ptr> get_kernel(kernel_impl_params params) const;
+    std::vector<kernel::ptr> get_kernels(kernel_impl_params params) const;
     void set_batch_header_str(const std::vector<std::string> &batch_headers) {
         batch_header_str = std::move(batch_headers);
     }

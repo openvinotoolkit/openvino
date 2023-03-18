@@ -137,7 +137,7 @@ protected:
 
         _kernels.clear();
         if (!_kernel_data.kernels.empty()) {
-            auto compiled_kernels = kernels_cache.get_kernel(params);
+            auto compiled_kernels = kernels_cache.get_kernels(params);
             _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
         }
     }

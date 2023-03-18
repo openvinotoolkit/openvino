@@ -334,7 +334,7 @@ void kernels_cache::build_batch(const engine& build_engine, const batch_program&
     }
 }
 
-std::vector<kernel::ptr> kernels_cache::get_kernel(kernel_impl_params params) const {
+std::vector<kernel::ptr> kernels_cache::get_kernels(kernel_impl_params params) const {
     if (_pending_compilation)
         throw std::runtime_error("Kernel cache is not compiled, call build_all() first!");
 
