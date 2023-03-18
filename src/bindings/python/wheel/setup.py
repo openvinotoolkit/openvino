@@ -314,7 +314,7 @@ class PrepareLibs(build_clib):
         for src_dir in src_dirs:
             local_base_dir = Path(src_dir)
             # record real files and its symlinks, and skip symlinks for higher level like libX.so or libX.dylib
-            file_dict = dict()
+            file_dict = {}
             for symlink in local_base_dir.rglob("*"):
                 if symlink.is_symlink():
                     real_name = self.get_reallink(symlink)
