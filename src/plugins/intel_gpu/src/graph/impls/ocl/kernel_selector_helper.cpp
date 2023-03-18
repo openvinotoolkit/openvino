@@ -106,7 +106,7 @@ bool query_local_block_io_supported(engine& e, const ExecutionConfig& config) {
         _kernels_cache_device_query->add_kernels_source(dummpy_params, {kernel_string}, false);
         _kernels_cache_device_query->build_all();
 
-        auto _kernels = _kernels_cache_device_query->get_kernel(dummpy_params);
+        auto _kernels = _kernels_cache_device_query->get_kernels(dummpy_params);
         cache[device] = _kernels_cache_device_query->validate_simple_kernel_execution(_kernels[0]);
     } catch (std::exception& /*ex*/) {
         cache[device] = false;
