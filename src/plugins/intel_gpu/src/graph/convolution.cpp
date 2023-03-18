@@ -413,29 +413,29 @@ std::vector<layout> convolution_inst::calc_output_layouts(convolution_node const
         input_layout.get<ShapeType>(),
         weights_layout.get<ShapeType>()
     };
-    std::vector<ShapeType> output_shapes = {ShapeType()};
+    std::vector<ShapeType> output_shapes;
 
     if (desc->groups > 1) {
         ov::op::v1::GroupConvolution op;
         op.set_dilations(desc->dilation);
         op.set_strides(desc->stride);
         op.set_auto_pad(ov::op::PadType::EXPLICIT);
-        auto pad_begin = desc->padding_above;
-        auto pad_end = desc->padding_below;
+        op.set_pads_begin(desc->padding_above);
+        op.set_pads_end(desc->padding_below);
         if (input_shapes[1].size() == 4 && input_shapes[0].size() == 3) {
             // 3D
             input_shapes[1][3] = input_shapes[1][2];
             input_shapes[1][2] = input_shapes[0][1].get_length()/input_shapes[1][0].get_length();
         }
-        ov::op::v1::shape_infer(&op, pad_begin, pad_end, input_shapes, output_shapes);
+        output_shapes = ov::op::v1::shape_infer(&op, input_shapes);
     } else {
         ov::op::v1::Convolution op;
         op.set_dilations(desc->dilation);
         op.set_strides(desc->stride);
         op.set_auto_pad(ov::op::PadType::EXPLICIT);
-        auto pad_begin = desc->padding_above;
-        auto pad_end = desc->padding_below;
-        ov::op::v1::shape_infer(&op, pad_begin, pad_end, input_shapes, output_shapes);
+        op.set_pads_begin(desc->padding_above);
+        op.set_pads_end(desc->padding_below);
+        output_shapes = ov::op::v1::shape_infer(&op, input_shapes);
     }
     format::type output_format = input_layout.format.value;
     return {layout{output_shapes[0], output_type, output_format}};
