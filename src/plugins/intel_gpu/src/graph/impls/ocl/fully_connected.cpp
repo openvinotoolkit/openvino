@@ -2,19 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "fully_connected_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "fully_connected_inst.h"
 #include "fully_connected/fully_connected_kernel_selector.h"
 #include "fully_connected/fully_connected_params.h"
-
-#include "intel_gpu/runtime/error_handler.hpp"
-
-#include "intel_gpu/primitives/reorder.hpp"
-#include "intel_gpu/primitives/input_layout.hpp"
-#include <memory>
-#include <algorithm>
 
 namespace cldnn {
 namespace ocl {
@@ -49,7 +41,8 @@ public:
             auto reshape_to_2d = [](const ov::PartialShape& shape, const ov::Dimension& feature) {
                 if (shape.is_static()) {
                     auto static_shape = shape.to_shape();
-                    size_t total = std::accumulate(static_shape.begin(), static_shape.end(), 1, std::multiplies<size_t>());
+                    size_t total =
+                        std::accumulate(static_shape.begin(), static_shape.end(), size_t(1), std::multiplies<size_t>());
                     auto dim = feature.is_static() ? feature.get_length() : static_cast<int64_t>(static_shape.back());
                     return ov::PartialShape{ static_cast<int64_t>(total) / dim, dim };
                 } else {

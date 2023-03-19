@@ -5,7 +5,6 @@
 #include "gather_inst.h"
 
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
@@ -18,7 +17,10 @@ layout gather_inst::calc_output_layout(gather_node const& node, kernel_impl_para
     auto desc = impl_param.typed_desc<gather>();
 
     auto input_layout = impl_param.get_input_layout();
-    std::vector<tensor::value_type> dims_converted(desc->output_shape.begin(), desc->output_shape.end());
+    std::vector<tensor::value_type> dims_converted;
+    for (auto dim : desc->output_shape) {
+        dims_converted.push_back(static_cast<tensor::value_type>(dim));
+    }
     // extend shape to 4d
     for (size_t i = dims_converted.size(); i < 4; i++)
         dims_converted.push_back(1);

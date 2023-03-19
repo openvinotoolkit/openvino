@@ -267,7 +267,7 @@ TEST_F(TransformationTestsF, PropagateMasksBasic) {
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksBasic.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -287,7 +287,6 @@ TEST_F(TransformationTestsF, PropagateMasksBasic) {
     compare_masks(*getMask(conv2->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -353,7 +352,7 @@ TEST_F(TransformationTestsF, PropagateMasksDynamicConvolution) {
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksDynamicConvolution.svg")
-            .run_on_function(function);
+            .run_on_model(function);
 
     {
         pass::Manager m;
@@ -371,7 +370,6 @@ TEST_F(TransformationTestsF, PropagateMasksDynamicConvolution) {
     compare_masks(*getMask(conv2->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -405,7 +403,7 @@ TEST(TransformationTests, PropagateMasksDynamicReshape) {
     auto function = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksDynamicReshape.svg")
-            .run_on_function(function);
+            .run_on_model(function);
 
     pass::Manager m;
     m.register_pass<pass::Pruning>();
@@ -450,7 +448,7 @@ TEST(TransformationTests, PropagateMasksDynamicGroupConvolution) {
 
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksDynamicGroupConvolution.svg")
-            .run_on_function(f);
+            .run_on_model(f);
 
     pass::Manager m;
     m.register_pass<pass::InitMasks>();
@@ -488,7 +486,7 @@ TEST(TransformationTests, PropagateMasksEmpty) {
     auto f = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
 
     if (VISUALIZE_TESTS_TREE)
-        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksEmpty.svg").run_on_function(f);
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksEmpty.svg").run_on_model(f);
 
     pass::Manager m;
     m.register_pass<pass::InitMasks>();
@@ -585,7 +583,7 @@ TEST_F(TransformationTestsF, PropagateMaskPassThrough) {
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMaskPassThrough.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -599,7 +597,6 @@ TEST_F(TransformationTestsF, PropagateMaskPassThrough) {
     compare_masks(*getMask(max_pool->output(0)), Mask({{}, {1, 2, 3}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -738,7 +735,7 @@ TEST_F(TransformationTestsF, PropagateMasksHardDependencies) {
 
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksHardDependencies.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -768,7 +765,6 @@ TEST_F(TransformationTestsF, PropagateMasksHardDependencies) {
     // compare_masks(*getMask(conv2),    Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -890,7 +886,7 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolution) {
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksQuantizedGroupConvolution.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -915,7 +911,6 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolution) {
     compare_masks(*getMask(conv2->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -1058,7 +1053,7 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolutionWithShapeOf)
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) +
                                     "PropagateMasksQuantizedGroupConvolutionWithShapeOf.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -1084,7 +1079,6 @@ TEST_F(TransformationTestsF, PropagateMasksQuantizedGroupConvolutionWithShapeOf)
     compare_masks(*getMask(weights_2->output(0)), Mask({{}, {0, 1, 2, 3}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -1191,7 +1185,7 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerTensor) {
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksFakeQuantizePerTensor.svg")
-            .run_on_function(function);
+            .run_on_model(function);
 
     {
         pass::Manager m;
@@ -1222,7 +1216,6 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerTensor) {
     compare_masks(*getMask(conv2->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -1276,7 +1269,7 @@ TEST(TransformationTests, PropagateMasksFakeQuantizePerTensor1DScale) {
     auto function = std::make_shared<Function>(NodeVector{conv2}, ParameterVector{input});
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksFakeQuantizePerTensor1DScale.svg")
-            .run_on_function(function);
+            .run_on_model(function);
 
     {
         pass::Manager m;
@@ -1394,7 +1387,7 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerChannel) {
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksFakeQuantizePerChannel.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         // Masks for fq input parammeters didn't saved after
@@ -1427,7 +1420,6 @@ TEST_F(TransformationTestsF, PropagateMasksFakeQuantizePerChannel) {
     compare_masks(*getMask(fq->input(4).get_source_output()), Mask({{}, {0, 1, 2, 3, 4}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -1538,7 +1530,7 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagation) {
 
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "TestConcatMaskPropagation.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -1559,7 +1551,6 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagation) {
                   Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -1682,7 +1673,7 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagationUp) {
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "TestConcatMaskPropagationUp.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -1707,7 +1698,6 @@ TEST_F(TransformationTestsF, TestConcatMaskPropagationUp) {
                   Mask({{}, {0, 1, 2, 3, 15, 16, 17, 18, 28, 29, 30, 31}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -1754,7 +1744,7 @@ TEST(TransformationTests, TestConcatMaskPropagationUpEmpty) {
 
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "TestConcatMaskPropagationUpEmpty.svg")
-            .run_on_function(f);
+            .run_on_model(f);
 
     pass::Manager m;
     m.register_pass<pass::InitMasks>();
@@ -1816,7 +1806,7 @@ TEST_F(TransformationTestsF, PruneConvIsClosingAndInGroup) {
 
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneConvIsClosingAndInGroup.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         auto input = std::make_shared<opset10::Parameter>(element::f32, inputShapes);
         auto weights = create_constant_with_zeros(
@@ -1878,7 +1868,6 @@ TEST_F(TransformationTestsF, PruneConvIsClosingAndInGroup) {
     compare_masks(*getMask(end_conv->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -1933,7 +1922,7 @@ TEST(TransformationTests, PruneBranchingStopOp) {
 
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneBranchingStopOp.svg")
-            .run_on_function(function);
+            .run_on_model(function);
 
     pass::Manager m;
     m.register_pass<pass::Pruning>();
@@ -1988,7 +1977,7 @@ TEST(TransformationTests, PruneStopOpUp) {
     auto function = std::make_shared<ngraph::Function>(OutputVector{end_conv}, ParameterVector{input}, "StopOpUp");
 
     if (VISUALIZE_TESTS_TREE)
-        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneStopOpUp.svg").run_on_function(function);
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneStopOpUp.svg").run_on_model(function);
 
     pass::Manager m;
     m.register_pass<pass::Pruning>();
@@ -2055,8 +2044,7 @@ TEST_F(TransformationTestsF, PruneReducelayerUp) {
         function_ref = std::make_shared<ngraph::Function>(OutputVector{conv_1}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneReducelayerUp.svg")
-            .run_on_function(function);
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneReducelayerUp.svg").run_on_model(function);
 
     pass::Manager m;
     m.register_pass<pass::InitMasks>();
@@ -2070,7 +2058,6 @@ TEST_F(TransformationTestsF, PruneReducelayerUp) {
     compare_masks(*getMask(conv_1->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -2154,7 +2141,7 @@ TEST_F(TransformationTestsF, PruneReduceLayerDown) {
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneReduceLayerDown.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -2174,7 +2161,6 @@ TEST_F(TransformationTestsF, PruneReduceLayerDown) {
     compare_masks(*getMask(end_conv->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -2207,7 +2193,7 @@ TEST(TransformationTests, PruneStopReducelayerUp) {
 
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneStopReducelayerUp.svg")
-            .run_on_function(function);
+            .run_on_model(function);
 
     pass::Manager m;
     m.register_pass<pass::Pruning>();
@@ -2265,7 +2251,7 @@ TEST(TransformationTests, PruneStopReduceLayerDown) {
 
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneStopReduceLayerDown.svg")
-            .run_on_function(function);
+            .run_on_model(function);
 
     pass::Manager m;
     m.register_pass<pass::Pruning>();
@@ -2340,7 +2326,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUp) {
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeUp.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -2354,7 +2340,6 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUp) {
     compare_masks(*getMask(conv_1->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -2452,7 +2437,7 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationReshapeUpWithShapeOf) {
         const auto postfix = use_shape_of ? "True" : "False";
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeUpWithShapeOf" + postfix +
                                     ".svg")
-            .run_on_function(function);
+            .run_on_model(function);
     }
     {
         pass::Manager m;
@@ -2467,7 +2452,6 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationReshapeUpWithShapeOf) {
     compare_masks(*getMask(conv_1->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -2565,7 +2549,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUpShapeSubGraph) {
 
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeUpShapeSubGraph.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -2579,7 +2563,6 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUpShapeSubGraph) {
     compare_masks(*getMask(conv_1->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -2658,7 +2641,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeExtend) {
 
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeExtend.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -2678,7 +2661,6 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeExtend) {
     compare_masks(*getMask(conv_1->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -2766,7 +2748,7 @@ TEST_F(DISABLED_TransformationTestsF, MaskPropagationReshapeDownMul) {
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeDownMul.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -2784,7 +2766,6 @@ TEST_F(DISABLED_TransformationTestsF, MaskPropagationReshapeDownMul) {
     compare_masks(*getMask(last_conv->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -2871,7 +2852,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeDownAdd) {
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeDownAdd.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -2889,7 +2870,6 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeDownAdd) {
     compare_masks(*getMask(last_conv->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -2921,7 +2901,7 @@ TEST(TransformationTests, MaskPropagationStopReshapeUp) {
     auto function = std::make_shared<ngraph::Function>(OutputVector{conv_1}, ParameterVector{input});
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationStopReshapeUp.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -2978,7 +2958,7 @@ TEST(TransformationTests, MaskPropagationStopReshapeDown) {
 
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationStopReshapeDown.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -3036,7 +3016,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUnsqueezeUp) {
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeUnsqueezeUp.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -3054,7 +3034,6 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUnsqueezeUp) {
     compare_masks(*getMask(mul_left->output(0)), Mask({{}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -3099,7 +3078,7 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUnsqueezeDown) {
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapeUnsqueezeDown.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -3119,7 +3098,6 @@ TEST_F(TransformationTestsF, MaskPropagationReshapeUnsqueezeDown) {
     compare_masks(*getMask(mul_left->output(0)), Mask({{}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -3161,7 +3139,7 @@ TEST(TransformationTests, MaskPropagationWrongDimsElementwise) {
 
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationWrongDimsElementwise.svg")
-            .run_on_function(function);
+            .run_on_model(function);
 
     pass::Manager m;
     m.register_pass<pass::Pruning>();
@@ -3272,7 +3250,7 @@ TEST_F(TransformationTestsF, PruneSEBlock) {
         function_ref = std::make_shared<ngraph::Function>(OutputVector{end_conv}, ParameterVector{input}, "SEBlock");
     }
     if (VISUALIZE_TESTS_TREE)
-        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneSEBlock.svg").run_on_function(function);
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneSEBlock.svg").run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -3292,7 +3270,6 @@ TEST_F(TransformationTestsF, PruneSEBlock) {
     compare_masks(*getMask(end_conv->output(0)), Mask({{}, {}, {}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -3365,7 +3342,7 @@ TEST_F(TransformationTestsF, PropagateMasksLinear) {
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksLinear.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -3395,7 +3372,6 @@ TEST_F(TransformationTestsF, PropagateMasksLinear) {
     compare_masks(*getMask(last_linear->output(0)), Mask{{}, {}});
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -3418,7 +3394,7 @@ TEST(TransformationTests, MaskPropagationMatMulStopEmptyABranch) {
     auto function = std::make_shared<ngraph::Function>(OutputVector{mul_left}, ParameterVector{input});
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationMatMulStopEmptyABranch.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -3485,7 +3461,7 @@ TEST(TransformationTests, PruneLinearUp) {
     auto function = std::make_shared<ngraph::Function>(OutputVector{last_linear}, ParameterVector{input});
 
     if (VISUALIZE_TESTS_TREE)
-        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneLinearUp.svg").run_on_function(function);
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneLinearUp.svg").run_on_model(function);
 
     pass::Manager m;
     m.register_pass<pass::Pruning>();
@@ -3542,8 +3518,7 @@ TEST(TransformationTests, PruneConvUpShort) {
     auto function = std::make_shared<ngraph::Function>(OutputVector{last_conv}, ParameterVector{input});
 
     if (VISUALIZE_TESTS_TREE)
-        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneConvUpShort.svg")
-            .run_on_function(function);
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneConvUpShort.svg").run_on_model(function);
 
     pass::Manager m;
     m.register_pass<pass::Pruning>();
@@ -3618,7 +3593,7 @@ TEST_F(TransformationTestsF, MaskPropagationLinearOuterDims) {
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationLinearOuterDims.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -3658,7 +3633,6 @@ TEST_F(TransformationTestsF, MaskPropagationLinearOuterDims) {
     compare_masks(*getMask(last_mul->output(0)), Mask({{}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -3698,7 +3672,7 @@ TEST(TransformationTests, MaskPropagationStopLinearOuterDims) {
 
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationStopLinearOuterDims.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -3789,7 +3763,7 @@ TEST_F(TransformationTestsF, PruneMasksMatMulColsStopRowsUp) {
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneMasksMatMulColsStopRowsUp.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -3808,7 +3782,6 @@ TEST_F(TransformationTestsF, PruneMasksMatMulColsStopRowsUp) {
     compare_masks(*getMask(last_linear->output(0)), Mask{{}, {}, {}});
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -3879,7 +3852,7 @@ TEST_F(TransformationTestsF, PruneMasksMatMulRowsStopColsUp) {
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PruneMasksMatMulRowsStopColsUp.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -3898,7 +3871,6 @@ TEST_F(TransformationTestsF, PruneMasksMatMulRowsStopColsUp) {
     compare_masks(*getMask(last_linear->output(0)), Mask{{}, {}, {}});
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -3975,8 +3947,7 @@ TEST_F(TransformationTestsF, PropagateFlattenUp) {
         function_ref = std::make_shared<Function>(NodeVector{linear}, ParameterVector{input});
     }
     if (VISUALIZE_TESTS_TREE)
-        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateFlattenUp.svg")
-            .run_on_function(function);
+        ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateFlattenUp.svg").run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -4003,7 +3974,6 @@ TEST_F(TransformationTestsF, PropagateFlattenUp) {
     compare_masks(*getMask(linear->output(0)), Mask{{}, {}});
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -4052,7 +4022,7 @@ TEST_F(TransformationTestsF, PropagateFlattenDown) {
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateFlattenDown.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -4076,7 +4046,6 @@ TEST_F(TransformationTestsF, PropagateFlattenDown) {
     compare_masks(*getMask(linear->output(0)), {{}, {}});
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -4112,7 +4081,7 @@ TEST_F(TransformationTestsF, PropagateMasksTranspose) {
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksTranspose.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -4126,7 +4095,6 @@ TEST_F(TransformationTestsF, PropagateMasksTranspose) {
     compare_masks(*getMask(last_mul->output(0)), Mask{{}, {}});
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -4186,7 +4154,7 @@ TEST_F(TransformationTestsF, PropagateMasksTransposeComplex) {
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksTransposeComplex.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -4200,7 +4168,6 @@ TEST_F(TransformationTestsF, PropagateMasksTransposeComplex) {
     compare_masks(*getMask(last_mul->output(0)), Mask{{}, {}, {}, {}, {}});
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -4227,7 +4194,7 @@ TEST(TransformationTests, PropagateMasksTransposeStop) {
     auto function = std::make_shared<Function>(NodeVector{last_mul}, ParameterVector{input});
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksTransposeStop.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -4353,7 +4320,7 @@ TEST_F(DISABLED_TransformationTestsF, PropagateMasksBroadcastedEltwiseWithInputs
     }
     if (VISUALIZE_TESTS_TREE) {
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksBroadcastedEltwiseWithInputs.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     }
     {
         pass::Manager m;
@@ -4402,7 +4369,6 @@ TEST_F(DISABLED_TransformationTestsF, PropagateMasksBroadcastedEltwiseWithInputs
     compare_masks(*getMask(last_mul->output(0)), Mask({{}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -4531,7 +4497,7 @@ TEST_F(TransformationTestsF, PropagateMasksBroadcastedEltwise) {
     }
     if (VISUALIZE_TESTS_TREE) {
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "PropagateMasksBroadcastedEltwise.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     }
     {
         pass::Manager m;
@@ -4583,7 +4549,6 @@ TEST_F(TransformationTestsF, PropagateMasksBroadcastedEltwise) {
     compare_masks(*getMask(last_mul->output(0)), Mask({{}, {}}));
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -4695,7 +4660,7 @@ TEST_F(TransformationTestsF, MaskPropagationComplexReshape) {
     }
     if (VISUALIZE_TESTS_TREE) {
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationComplexReshape.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     }
     {
         pass::Manager m;
@@ -4773,7 +4738,6 @@ TEST_F(TransformationTestsF, MaskPropagationComplexReshape) {
             std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationComplexReshapeWithMasks.svg",
             modifier);
     }
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -4889,7 +4853,7 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationReshapedPassThroughP) {
         auto postfix = (add_shape_of) ? "True" : "False";
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReshapedPassThroughP" + postfix +
                                     ".svg")
-            .run_on_function(function);
+            .run_on_model(function);
     }
     {
         pass::Manager m;
@@ -4966,7 +4930,6 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationReshapedPassThroughP) {
     manager.register_pass<ngraph::pass::VisualizeTree>(
         std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationReverseFlattenWithMasks" + postfix + ".svg",
         modifier);
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -5015,7 +4978,7 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationBroadcastedSameRankEltwiseS
         auto postfix = (reverse_mul) ? "True" : "False";
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) +
                                     "MaskPropagationBroadcastedSameRankEltwiseSwappedLayoutP" + postfix + ".svg")
-            .run_on_function(function);
+            .run_on_model(function);
     }
     {
         pass::Manager m;
@@ -5032,7 +4995,6 @@ TEST_P(TransformationTestsBoolParamF, MaskPropagationBroadcastedSameRankEltwiseS
     compare_masks(*getMask(mul_last->output(0)), Mask{{}, {}, {}});
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -5063,7 +5025,7 @@ TEST(TransformationTests, MaskPropagationBroadcastedEltwiseInputAndWeightsBroadc
     if (VISUALIZE_TESTS_TREE) {
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) +
                                     "MaskPropagationBroadcastedEltwiseInputAndWeightsBroadcasted.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     }
     {
         pass::Manager m;
@@ -5113,7 +5075,7 @@ TEST(TransformationTests, MaskPropagationBroadcastedEltwiseWrongBroadcastingMode
     if (VISUALIZE_TESTS_TREE) {
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) +
                                     "MaskPropagationBroadcastedEltwiseWrongBroadcastingMode.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     }
     {
         pass::Manager m;
@@ -5178,7 +5140,7 @@ TEST_F(TransformationTestsF, MaskPropagationMatMulWithSeveralOutputs) {
     }
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "MaskPropagationMatMulWithSeveralOutputs.svg")
-            .run_on_function(function);
+            .run_on_model(function);
     {
         pass::Manager m;
         m.register_pass<pass::InitMasks>();
@@ -5194,7 +5156,6 @@ TEST_F(TransformationTestsF, MaskPropagationMatMulWithSeveralOutputs) {
     compare_masks(*getMask(right_matmul), Mask{{}, {}});
 
     manager.register_pass<pass::ShrinkWeights>();
-    disable_rt_info_check();
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
@@ -5210,7 +5171,7 @@ TEST(TransformationTests, CheckReshapeWithNoConstInShape) {
 
     if (VISUALIZE_TESTS_TREE)
         ngraph::pass::VisualizeTree(std::string(VISUALIZE_TREE_ROOT) + "CheckReshapeWithNoConstInShape.svg")
-            .run_on_function(function);
+            .run_on_model(function);
 
     pass::Manager m;
     m.register_pass<pass::ShrinkWeights>();

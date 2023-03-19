@@ -4,11 +4,6 @@
 
 #pragma once
 
-#include <thread>
-#include "primitive_inst.h"
-#include "intel_gpu/graph/program.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
 #include "intel_gpu/graph/network.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/cl_kernel_data_serializer.hpp"
@@ -16,7 +11,13 @@
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
+#include "intel_gpu/graph/program.hpp"
+
+#include "primitive_inst.h"
+#include "kernel_selector_helper.h"
 #include "register.hpp"
+#include "implementation_map.hpp"
+
 #include <vector>
 #include <list>
 #include <utility>
@@ -33,7 +34,6 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     kernel_selector::kernel_data _kernel_data;
     std::vector<kernel_id> _kernel_ids;
     std::vector<kernel::ptr> _kernels;
-    kernel_arguments_data_idx _kernel_args;
 
     typed_primitive_impl_ocl() :  _kernel_data({}), _kernel_ids({}), _kernels({}) {
         _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
@@ -75,7 +75,6 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         ob << _kernel_data.internalBufferSizes;
         ob << _kernel_data.kernels;
         ob << _kernel_ids;
-        ob << _kernel_args;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -83,7 +82,6 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         ib >> _kernel_data.internalBufferSizes;
         ib >> _kernel_data.kernels;
         ib >> _kernel_ids;
-        ib >> _kernel_args;
     }
 
     template<typename ImplType>
@@ -122,38 +120,6 @@ protected:
         }
 
         args.shape_info = instance.shape_info_memory_ptr();
-
-        return args;
-    }
-
-    kernel_arguments_data get_arguments_by_idx(const typed_primitive_inst<PType>& instance) const {
-        kernel_arguments_data args;
-
-        for (uint32_t i = 0; i < _kernel_args.inputs.size(); i++) {
-            args.inputs.push_back(instance.dep_memory_ptr(_kernel_args.inputs[i]));
-        }
-
-        args.weights = (_kernel_args.weights >= 0) ? instance.dep_memory_ptr(_kernel_args.weights) : args.weights;
-        args.recurrent = (_kernel_args.recurrent >= 0) ? instance.dep_memory_ptr(_kernel_args.recurrent) : args.recurrent;
-        args.hidden = (_kernel_args.hidden >= 0) ? instance.dep_memory_ptr(_kernel_args.hidden) : args.hidden;
-        args.cell = (_kernel_args.cell >= 0) ? instance.dep_memory_ptr(_kernel_args.cell) : args.cell;
-        args.bias = (_kernel_args.bias >= 0) ? instance.dep_memory_ptr(_kernel_args.bias) : args.bias;
-        args.weights_zero_points = (_kernel_args.weights_zero_points >= 0) ?
-                                    instance.dep_memory_ptr(_kernel_args.weights_zero_points) : args.weights_zero_points;
-        args.activations_zero_points = (_kernel_args.activations_zero_points >= 0) ?
-                                        instance.dep_memory_ptr(_kernel_args.activations_zero_points) : args.activations_zero_points;
-        args.compensation = (_kernel_args.compensation >= 0) ? instance.dep_memory_ptr(_kernel_args.compensation) : args.compensation;
-        args.lookup_table = (_kernel_args.lookup_table >= 0) ? instance.dep_memory_ptr(_kernel_args.lookup_table) : args.lookup_table;
-        args.scale_table = (_kernel_args.scale_table >= 0) ? instance.dep_memory_ptr(_kernel_args.scale_table) : args.scale_table;
-        args.slope = (_kernel_args.slope >= 0) ? instance.dep_memory_ptr(_kernel_args.slope) : args.slope;
-
-        for (size_t i = 0; i < _kernel_args.fused_op_inputs.size(); i++) {
-            args.fused_op_inputs.push_back(instance.dep_memory_ptr(_kernel_args.fused_op_inputs[i]));
-        }
-
-        for (size_t i = 0; i < instance.outputs_memory_count(); i++) {
-            args.outputs.push_back(instance.output_memory_ptr(i));
-        }
 
         return args;
     }
@@ -208,32 +174,26 @@ protected:
             return;
         }
 
+        OPENVINO_ASSERT(_kernels.size() == _kernel_data.kernels.size(), "[GPU] Mismatch between compiled kernels count and expected kernels data\n",
+                                                                        "[GPU] Compiled kernels count: ", _kernels.size(), "\n",
+                                                                        "[GPU] KernelData count: ", _kernel_data.kernels.size(), "\n",
+                                                                        "[GPU] Likely some issue with empty tensors hanlding happened");
+
         stream& stream = instance.get_network().get_stream();
-        size_t k_idx = 0;
         for (size_t kd_idx = 0; kd_idx < _kernel_data.kernels.size(); ++kd_idx) {
-            kernel_arguments_data args;
             if (_kernel_data.kernels[kd_idx].skip_execution) {
                 continue;
             }
 
-            if (_kernel_args.inputs.size() > 0) {
-                args = get_arguments_by_idx(instance);
-            } else {
-                args = get_arguments(instance);
-            }
+            auto args = get_arguments(instance);
+            args.scalars = &_kernel_data.kernels[kd_idx].params.scalars;
 
             for (const auto& m : instance.get_intermediates_memories()) {
                 args.intermediates.push_back(m);
             }
 
-            args.scalars = &_kernel_data.kernels[kd_idx].params.scalars;
-
-            stream.set_arguments(*_kernels[k_idx++], _kernel_data.kernels[kd_idx].params, args);
+            stream.set_arguments(*_kernels[kd_idx], _kernel_data.kernels[kd_idx].params, args);
         }
-    }
-
-    void set_arguments_impl(kernel_arguments_data_idx& args_idx) override {
-        this->_kernel_args = args_idx;
     }
 
     kernel_arguments_data get_arguments_impl(const typed_primitive_inst<PType>& instance) const override {
@@ -260,7 +220,10 @@ protected:
         }
         std::vector<event::ptr> tmp_events(events);
         std::vector<event::ptr> all_events;
-        size_t k_idx = 0;
+        OPENVINO_ASSERT(_kernels.size() == _kernel_data.kernels.size(), "[GPU] Mismatch between compiled kernels count and expected kernels data\n",
+                                                                        "[GPU] Compiled kernels count: ", _kernels.size(), "\n",
+                                                                        "[GPU] KernelData count: ", _kernel_data.kernels.size(), "\n",
+                                                                        "[GPU] Likely some issue with empty tensors hanlding happened");
         for (size_t kd_idx = 0; kd_idx < _kernel_data.kernels.size(); ++kd_idx) {
             if (_kernel_data.kernels[kd_idx].skip_execution)
                 continue;
@@ -274,21 +237,14 @@ protected:
                 is_output_event = instance.is_output_event();
             }
 
-            kernel_arguments_data args;
-
-            if (_kernel_args.inputs.size() > 0) {
-                args = get_arguments_by_idx(instance);
-            } else {
-                args = get_arguments(instance);
-
-                for (const auto& m : instance.get_intermediates_memories()) {
-                    args.intermediates.push_back(m);
-                }
-            }
-
+            auto args = get_arguments(instance);
             args.scalars = &_kernel_data.kernels[kd_idx].params.scalars;
 
-            auto ev = stream.enqueue_kernel(*_kernels[k_idx++], _kernel_data.kernels[kd_idx].params, args, tmp_events, is_output_event);
+            for (const auto& m : instance.get_intermediates_memories()) {
+                args.intermediates.push_back(m);
+            }
+
+            auto ev = stream.enqueue_kernel(*_kernels[kd_idx], _kernel_data.kernels[kd_idx].params, args, tmp_events, is_output_event);
             new_events.push_back(ev);
             all_events.push_back(ev);
 
@@ -309,8 +265,7 @@ protected:
     std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {
         std::vector<std::shared_ptr<cldnn::kernel_string>> kernel_strings;
         for (size_t i = 0; i < _kernel_data.kernels.size(); ++i) {
-            if (!_kernel_data.kernels[i].skip_execution)
-                kernel_strings.push_back(_kernel_data.kernels[i].code.kernelString);
+            kernel_strings.push_back(_kernel_data.kernels[i].code.kernelString);
         }
         return kernel_strings;
     }
@@ -323,9 +278,21 @@ protected:
 
     void update_kernels_list_to_skip() {
         for (size_t i = 0; i < _kernel_data.kernels.size(); ++i) {
-            auto gws = _kernel_data.kernels[0].params.workGroups.global;
-            _kernel_data.kernels[0].skip_execution =
-                (std::accumulate(gws.begin(), gws.end(), 1, std::multiplies<size_t>()) == 0);
+            auto gws = _kernel_data.kernels[i].params.workGroups.global;
+            _kernel_data.kernels[i].skip_execution = (std::accumulate(gws.begin(), gws.end(), 1, std::multiplies<size_t>()) == 0);
+        }
+    }
+
+    void set_kernels(std::map<const std::string, kernel::ptr>& kernels) override {
+        if (is_cpu())
+            return;
+
+        _kernel_ids.clear();
+        _kernels.clear();
+        _kernels.reserve(kernels.size());
+        for (auto& k : kernels) {
+            _kernel_ids.push_back(k.first);
+            _kernels.emplace_back(std::move(k.second));
         }
     }
 };

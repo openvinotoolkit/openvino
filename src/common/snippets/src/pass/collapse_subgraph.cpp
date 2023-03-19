@@ -74,7 +74,9 @@ auto is_supported_op(const std::shared_ptr<const Node> &n) -> bool {
                is_type<opset1::Constant>(n->get_input_node_shared_ptr(1)) &&
                is_type<opset1::Constant>(n->get_input_node_shared_ptr(2)) &&
                is_type<opset1::Constant>(n->get_input_node_shared_ptr(3)) &&
-               is_type<opset1::Constant>(n->get_input_node_shared_ptr(4));
+               is_type<opset1::Constant>(n->get_input_node_shared_ptr(4)) &&
+               (fq->get_auto_broadcast() == ov::op::AutoBroadcastType::NUMPY ||
+                fq->get_auto_broadcast() == ov::op::AutoBroadcastType::NONE);
     };
 
     auto is_supported_ternary_eltwise_op = [](const std::shared_ptr<const Node> &n) -> bool {

@@ -24,7 +24,8 @@ static std::vector<T> generateVector(size_t sz) {
     return vec;
 }
 
-TEST(set_output_memory_gpu, basic) {
+template <typename T>
+void test_basic(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     const int b = 3;
@@ -35,7 +36,7 @@ TEST(set_output_memory_gpu, basic) {
     auto input_data = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, x, y } });
     auto output_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, x, y } });
 
-    const int inputSize = input_data->get_layout().count();
+    const auto inputSize = input_data->get_layout().count();
     auto inputVals = generateVector(inputSize);
     set_values(input_data, inputVals);
 
@@ -45,21 +46,25 @@ TEST(set_output_memory_gpu, basic) {
         reorder("reorder", input_info("Input"), input_data->get_layout())
     );
 
-    network network(engine, topology);
+    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
 
-    network.set_input_data("Input", input_data);
-    network.set_output_memory("reorder", output_mem);
+    network->set_input_data("Input", input_data);
+    network->set_output_memory("reorder", output_mem);
 
-    auto outputs = network.execute();
+    auto outputs = network->execute();
 
     auto output = outputs.at("reorder").get_memory();
     ASSERT_TRUE(engine.is_the_same_buffer(*output_mem, *output));
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < inputVals.size(); ++i) {
         ASSERT_TRUE(are_equal(inputVals[i], output_ptr[i])) << i;
     }
+}
+
+TEST(set_output_memory_gpu, basic) {
+    test_basic<float>(false);
 }
 
 TEST(set_output_memory_gpu, basic_const) {
@@ -75,7 +80,7 @@ TEST(set_output_memory_gpu, basic_const) {
     auto output_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, x, y } });
     auto output_const_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, x, y } });
 
-    const int inputSize = input_data->get_layout().count();
+    const int inputSize = static_cast<int>(input_data->get_layout().count());
     auto inputVals = generateVector(inputSize);
     auto constVals = generateVector(inputSize);
     set_values(input_data, inputVals);
@@ -124,7 +129,7 @@ TEST(set_output_memory_gpu, basic_mutable) {
     auto md = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, x, y } });
     auto output_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, x, y } });
     auto output_mutable_mem = engine.allocate_memory({ data_types::f32, format::bfyx, { b, f, x, y } });
-    const int inputSize = input_data->get_layout().count();
+    const auto inputSize = input_data->get_layout().count();
     auto inputVals = generateVector(inputSize);
     auto mutableVals = generateVector(inputSize);
     set_values(input_data, inputVals);
@@ -377,4 +382,8 @@ TEST(set_output_memory_gpu, mutable_output_data) {
     network.execute();
     network.execute();
     network.set_output_memory("pred/sink_port_0", final_output);
+}
+
+TEST(set_output_memory_gpu, basic_cached) {
+    test_basic<float>(true);
 }

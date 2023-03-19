@@ -125,6 +125,46 @@ elif [ -f /etc/redhat-release ] || grep -q "rhel" /etc/os-release ; then
         `# samples and tools` \
         zlib-devel \
         gflags-devel
+elif [ -f /etc/os-release ] && grep -q "SUSE" /etc/os-release ; then
+    zypper refresh
+    zypper install -y \
+        file \
+        `# build tools` \
+        cmake \
+        ccache \
+        ninja \
+        scons \
+        gcc \
+        gcc-c++ \
+        make \
+        `# to determine openvino version via git` \
+        git \
+        git-lfs \
+        `# to build and check pip packages` \
+        patchelf \
+        fdupes \
+        `# to build and check rpm packages` \
+        rpm-build \
+        rpmlint \
+        `# check bash scripts for correctness` \
+        ShellCheck \
+          `# main openvino dependencies` \
+        tbb-devel \
+        pugixml-devel \
+        `# GPU plugin dependency` \
+         libva-devel \
+        `# OpenCL for GPU` \
+        ocl-icd-devel \
+        opencl-cpp-headers \
+        opencl-headers \
+        `# python API` \
+        python39-pip \
+        python39-setuptools \
+        python39-devel \
+        `# samples and tools` \
+        zlib-devel \
+        gflags-devel-static \
+        nlohmann_json-devel
 elif [ -f /etc/os-release ] && grep -q "raspbian" /etc/os-release; then
     # Raspbian
     apt update
@@ -171,13 +211,15 @@ fi
 current_cmake_ver=$($cmake_command --version | sed -ne 's/[^0-9]*\(\([0-9]\.\)\{0,4\}[0-9][^.]\).*/\1/p')
 required_cmake_ver=3.20.0
 if [ ! "$(printf '%s\n' "$required_cmake_ver" "$current_cmake_ver" | sort -V | head -n1)" = "$required_cmake_ver" ]; then
-    installed_cmake_ver=3.23.2
+    installed_cmake_ver=3.24.0
     arch=$(uname -m)
 
     if command -v apt-get &> /dev/null; then
         apt-get install -y --no-install-recommends wget
-    else
+    elif command -v yum &> /dev/null; then
         yum install -y wget
+    elif command -v zypper &> /dev/null; then
+        zypper in -y wget
     fi
 
     cmake_install_bin="cmake-${installed_cmake_ver}-linux-${arch}.sh"

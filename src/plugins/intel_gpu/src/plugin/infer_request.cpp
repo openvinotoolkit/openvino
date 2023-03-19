@@ -592,7 +592,7 @@ void InferRequest::setup_stream_graph() {
     auto& streamGraphs = static_cast<CompiledModel*>(_exeNetwork.get())->m_graphs;
     if (nullptr != streamExecutor) {
         streamID = streamExecutor->GetStreamId();
-        int numGraphs = streamGraphs.size();
+        auto numGraphs = streamGraphs.size();
         streamID = streamID % numGraphs;
     }
     m_graph = streamGraphs[streamID];
@@ -966,7 +966,7 @@ void InferRequest::prepare_input(const cldnn::primitive_id& inputName, Blob::Ptr
 
             auto input_layout = m_graph->GetInputLayouts().find(inputName);
             if (input_layout != m_graph->GetInputLayouts().end()) {
-                if (input_layout->second.format != inputMem->get_layout().format && input_layout->second.is_static()) {
+                if (input_layout->second != inputMem->get_layout() && input_layout->second.is_static()) {
                     inputMem = m_graph->GetNetwork()->get_engine().reinterpret_buffer(*inputMem, input_layout->second);
                 }
             }

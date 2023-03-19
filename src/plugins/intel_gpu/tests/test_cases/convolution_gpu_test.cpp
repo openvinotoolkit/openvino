@@ -8732,15 +8732,18 @@ public:
         auto pad = convolution->pad;
         tensor weights_size = generic_params->input_layouts[1].get_tensor();
 
-        int kernel_extent_y = dilation[dilation.size() - 2] * (weights_size.spatial[1] - 1) + 1;
-        int kernel_extent_x = dilation[dilation.size() - 1] * (weights_size.spatial[0] - 1) + 1;
+        auto kernel_extent_y = dilation[dilation.size() - 2] * (weights_size.spatial[1] - 1) + 1;
+        auto kernel_extent_x = dilation[dilation.size() - 1] * (weights_size.spatial[0] - 1) + 1;
 
         // Calculate output size
-        int output_size_y = 1 + (input_size.spatial[1] - kernel_extent_y + 2 * pad[0]) / stride[0];
-        int output_size_x = 1 + (input_size.spatial[0] - kernel_extent_x + 2 * pad[1]) / stride[1];
-        int output_features = weights_size.batch[0];
+        auto output_size_y = 1 + (input_size.spatial[1] - kernel_extent_y + 2 * pad[0]) / stride[0];
+        auto output_size_x = 1 + (input_size.spatial[0] - kernel_extent_x + 2 * pad[1]) / stride[1];
+        auto output_features = weights_size.batch[0];
 
-        return cldnn::tensor(input_size.batch[0], output_features, output_size_x, output_size_y);
+        return cldnn::tensor(input_size.batch[0],
+                             static_cast<cldnn::tensor::value_type>(output_features),
+                             static_cast<cldnn::tensor::value_type>(output_size_x),
+                             static_cast<cldnn::tensor::value_type>(output_size_y));
     }
 
     void prepare_input_for_test(std::vector<cldnn::memory::ptr>& inputs) override {
@@ -8841,19 +8844,19 @@ public:
                             int output_fi = out_f;
                             int output_yi = y;
                             int output_xi = x;
-                            int output_index = (output_bi * output_buffer_size.feature[0] + output_fi) * output_buffer_size.spatial[1] * output_buffer_size.spatial[0];
+                            auto output_index = (output_bi * output_buffer_size.feature[0] + output_fi) * output_buffer_size.spatial[1] * output_buffer_size.spatial[0];
                             tensor lower_output_padding = convolution->output_paddings[0].lower_size();
                             output_index += (lower_output_padding.spatial[1] + output_yi) * output_buffer_size.spatial[0] + lower_output_padding.spatial[0] + output_xi;
 
                             for (int kernel_y = 0; kernel_y < weights_size.spatial[1]; kernel_y++) {
-                                int input_yi = y * stride[0] - pad[0] + kernel_y * dilation[0];
-                                if ((input_yi < 0) || (input_yi >= input_size.spatial[1])) {
+                                int input_yi = static_cast<int>(y * stride[0] - pad[0] + kernel_y * dilation[0]);
+                                if ((input_yi < 0) || (input_yi >= static_cast<int>(input_size.spatial[1]))) {
                                     continue;
                                 }
 
                                 for (int kernel_x = 0; kernel_x < weights_size.spatial[0]; kernel_x++) {
-                                    int input_xi = x * stride[1] - pad[1] + kernel_x * dilation[1];
-                                    if ((input_xi < 0) || (input_xi >= input_size.spatial[0])) {
+                                    int input_xi = static_cast<int>(x * stride[1] - pad[1] + kernel_x * dilation[1]);
+                                    if ((input_xi < 0) || (input_xi >= static_cast<int>(input_size.spatial[0]))) {
                                         continue;
                                     }
 
@@ -9422,24 +9425,7 @@ void test_convolution_f32_gpu_convolution_gpu_bfyx_f16_depthwise_x_bloxk_size_1(
     config.set_property(ov::intel_gpu::optimize_data(true));
     ov::intel_gpu::ImplementationDesc conv_impl = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_depthwise" };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_fsv", conv_impl } }));
-    cldnn::network::ptr network;
-
-    if (is_caching_test) {
-        membuf mem_buf;
-        {
-            cldnn::network _network(engine, topology, config);
-            std::ostream out_mem(&mem_buf);
-            BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-            _network.save(ob);
-        }
-        {
-            std::istream in_mem(&mem_buf);
-            BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-            network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
-        }
-    } else {
-        network = std::make_shared<cldnn::network>(engine, topology, config);
-    }
+    cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input_mem);
 

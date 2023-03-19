@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <CL/cl2.hpp>
-
+#include "openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp"
 #include "ov_test.hpp"
 
-class ov_remote_context_ocl : public ::testing::TestWithParam<std::string> {
+class ov_remote_context_ocl : public ov_capi_test_base {
 protected:
     void SetUp() override {
         core = nullptr;
@@ -17,11 +16,12 @@ protected:
         remote_tensor = nullptr;
         out_tensor_name = nullptr;
         in_tensor_name = nullptr;
+        ov_capi_test_base::SetUp();
 
         OV_EXPECT_OK(ov_core_create(&core));
         EXPECT_NE(nullptr, core);
 
-        OV_EXPECT_OK(ov_core_read_model(core, xml, bin, &model));
+        OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), bin_file_name.c_str(), &model));
         EXPECT_NE(nullptr, model);
 
         char* info = nullptr;
@@ -69,6 +69,7 @@ protected:
         ov_free(in_tensor_name);
         ov_remote_context_free(context);
         ov_core_free(core);
+        ov_capi_test_base::TearDown();
     }
 
 public:
