@@ -4,6 +4,7 @@
 
 #include "common_op_table.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "utils.hpp"
 
 using namespace std;
 using namespace ov;
@@ -26,10 +27,11 @@ Output<Node> normalize_selected_indices(const Output<Node>& ov_selected_indices,
     selected_indices = make_shared<Squeeze>(selected_indices, axis)->output(0);
 
     if (pad_to_max_output_size) {
-        auto num_selected_indices = make_shared<ShapeOf>(selected_indices, max_output_size.get_element_type());
+        Output<Node> num_selected_indices = make_shared<ShapeOf>(selected_indices);
+        num_selected_indices = make_shared<ConvertLike>(num_selected_indices, max_output_size);
         auto num_padded_elements = make_shared<Subtract>(max_output_size, num_selected_indices);
-        auto pad_element = make_shared<Constant>(selected_indices.get_element_type(), Shape{}, 0);
-        auto pads_begin = make_shared<Constant>(max_output_size.get_element_type(), Shape{1}, 0);
+        auto pad_element = create_same_type_const_scalar<int64_t>(selected_indices, 0);
+        auto pads_begin = create_same_type_const<int64_t>(max_output_size, vector<int64_t>{0}, Shape{1});
         auto pad_mode = ov::op::PadMode::CONSTANT;
         selected_indices =
             make_shared<Pad>(selected_indices, pads_begin, num_padded_elements, pad_element, pad_mode)->output(0);
@@ -128,7 +130,7 @@ OutputVector translate_non_max_suppression_op(const NodeContext& node) {
     if (selected_scores) {
         tf_selected_scores =
             normalize_selected_indices(non_max_suppression->output(1), max_output_size, pad_to_max_output_size);
-        tf_selected_scores = make_shared<Convert>(tf_selected_scores, boxes.get_element_type())->output(0);
+        tf_selected_scores = make_shared<ConvertLike>(tf_selected_scores, boxes)->output(0);
         results.push_back(tf_selected_scores);
     }
 
