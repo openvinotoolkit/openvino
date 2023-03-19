@@ -61,7 +61,7 @@
 #include "debug_new_pass.hpp"
 #include "transformations/transpose_nchw.hpp"
 #include "transformations/gather_sinking.hpp"
-#include "transformations/common_optimizations/transpose_sinking_general.hpp"
+#include "transformations/transpose_sinking/ts_general.hpp"
 #include "transformations/common_optimizations/reshape_sequence_fusion.hpp"
 #include "transformations/common_optimizations/transpose_to_reshape.hpp"
 #include "transformations/reshape_transpose_substitute.hpp"
@@ -103,7 +103,7 @@ void TransformationsPipeline::apply(const std::shared_ptr<ov::Model>& model,
                                                                                   config.gnaPrecision);
     manager.register_pass<ov::intel_gna::pass::Decompose2DConv>(effective_compile_target, config.gnaPrecision);
     // TODO enable this transformation for networks with convolutions
-    if (!ov::op::util::has_op_with_type<ngraph::opset7::Convolution>(model)) {
+    if (!has_convolution) {
         manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithFqToPointWiseConvolution>();
         manager.register_pass<ov::intel_gna::pass::ConvertMatmulWithBiasToPointWiseConvolution>();
         manager.register_pass<ov::intel_gna::pass::ConvertMatmulToPointWiseConvolution>();
