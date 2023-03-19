@@ -352,6 +352,62 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
 static constexpr Property<PerformanceMode> performance_mode{"PERFORMANCE_HINT"};
 
 /**
+ * @enum       SchedulingCoreType
+ * @brief      This enum contains defination of core type can be used for CPU inference.
+ */
+enum class SchedulingCoreType {
+    ANY_CORE = 1,         //!<  All processors can be used.
+    PCORE_ONLY = 2,  //!<  Only processors of performance-cores can be used.
+    ECORE_ONLY = 3,  //!<  Only processors of efficient-cores can be used.
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const SchedulingCoreType& core_type) {
+    switch (core_type) {
+    case SchedulingCoreType::ANY_CORE:
+        return os << "ANY_CORE";
+    case SchedulingCoreType::PCORE_ONLY:
+        return os << "PCORE_ONLY";
+    case SchedulingCoreType::ECORE_ONLY:
+        return os << "ECORE_ONLY";
+    default:
+        throw ov::Exception{"Unsupported core type!"};
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, SchedulingCoreType& core_type) {
+    std::string str;
+    is >> str;
+    if (str == "ANY_CORE") {
+        core_type = SchedulingCoreType::ANY_CORE;
+    } else if (str == "PCORE_ONLY") {
+        core_type = SchedulingCoreType::PCORE_ONLY;
+    } else if (str == "ECORE_ONLY") {
+        core_type = SchedulingCoreType::ECORE_ONLY;
+    } else {
+        throw ov::Exception{"Unsupported core type: " + str};
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief This property defines CPU core type which can be used during inference.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Developer can use this property to select specific CPU cores for inference. Please refer SchedulingCoreType for
+ * all definition of core type.
+ *
+ * The following code is example to only use efficient-cores for inference on hybrid CPU. If user sets this
+ * configuration on a platform with only performance-cores, CPU inference will still run on the performance-cores.
+ *
+ * @code
+ * ie.set_property(ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ECORE_ONLY));
+ * @endcode
+ */
+static constexpr Property<SchedulingCoreType> scheduling_core_type{"SCHEDULING_CORE_TYPE"};
+
+/**
  * @brief (Optional) property that backs the (above) Performance Hints
  * by giving additional information on how many inference requests the application will be keeping in flight
  * usually this value comes from the actual use-case (e.g. number of video-cameras, or other sources of inputs)

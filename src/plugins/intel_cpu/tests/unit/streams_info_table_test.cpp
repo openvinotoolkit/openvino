@@ -16,7 +16,7 @@ using namespace ov;
 namespace {
 
 struct SchedulingCoreTypeTestCase {
-    ov::intel_cpu::SchedulingCoreType input_type;
+    ov::hint::SchedulingCoreType input_type;
     std::vector<std::vector<int>> proc_type_table;
     std::vector<std::vector<int>> result_table;
 };
@@ -35,37 +35,37 @@ public:
 };
 
 SchedulingCoreTypeTestCase _2sockets_ALL = {
-    ov::intel_cpu::SchedulingCoreType::ALL,
+    ov::hint::SchedulingCoreType::ANY_CORE,
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
 };
 
 SchedulingCoreTypeTestCase _2sockets_P_CORE_ONLY = {
-    ov::intel_cpu::SchedulingCoreType::PCORE_ONLY,
+    ov::hint::SchedulingCoreType::PCORE_ONLY,
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
 };
 
 SchedulingCoreTypeTestCase _2sockets_E_CORE_ONLY = {
-    ov::intel_cpu::SchedulingCoreType::ECORE_ONLY,
+    ov::hint::SchedulingCoreType::ECORE_ONLY,
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
     {{208, 104, 0, 104}, {104, 52, 0, 52}, {104, 52, 0, 52}},
 };
 
 SchedulingCoreTypeTestCase _1sockets_ALL = {
-    ov::intel_cpu::SchedulingCoreType::ALL,
+    ov::hint::SchedulingCoreType::ANY_CORE,
     {{20, 6, 8, 6}},
     {{20, 6, 8, 6}},
 };
 
 SchedulingCoreTypeTestCase _1sockets_P_CORE_ONLY = {
-    ov::intel_cpu::SchedulingCoreType::PCORE_ONLY,
+    ov::hint::SchedulingCoreType::PCORE_ONLY,
     {{20, 6, 8, 6}},
     {{12, 6, 0, 6}},
 };
 
 SchedulingCoreTypeTestCase _1sockets_E_CORE_ONLY = {
-    ov::intel_cpu::SchedulingCoreType::ECORE_ONLY,
+    ov::hint::SchedulingCoreType::ECORE_ONLY,
     {{20, 6, 8, 6}},
     {{8, 0, 8, 0}},
 };

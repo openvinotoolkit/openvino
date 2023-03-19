@@ -4,7 +4,7 @@
 
 #include "behavior/ov_plugin/properties_tests.hpp"
 #include <openvino/runtime/auto/properties.hpp>
-#include <openvino/runtime/intel_cpu/properties.hpp>
+#include <openvino/runtime/properties.hpp>
 
 using namespace ov::test::behavior;
 using namespace InferenceEngine::PluginConfigParams;
@@ -15,9 +15,9 @@ const std::vector<ov::AnyMap> cpu_properties = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
     {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
     {ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)},
-    {ov::intel_cpu::scheduling_core_type(ov::intel_cpu::SchedulingCoreType::ALL)},
-    {ov::intel_cpu::scheduling_core_type(ov::intel_cpu::SchedulingCoreType::PCORE_ONLY)},
-    {ov::intel_cpu::scheduling_core_type(ov::intel_cpu::SchedulingCoreType::ECORE_ONLY)},
+    {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ANY_CORE)},
+    {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::PCORE_ONLY)},
+    {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ECORE_ONLY)},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVPropertiesTests,

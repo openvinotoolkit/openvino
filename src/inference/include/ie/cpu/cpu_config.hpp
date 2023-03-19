@@ -42,16 +42,5 @@ DECLARE_CPU_CONFIG_KEY(DENORMALS_OPTIMIZATION);
 
 DECLARE_CPU_CONFIG_KEY(SPARSE_WEIGHTS_DECOMPRESSION_RATE);
 
-/**
- * @brief The name for defining core type can be used for CPU inference.
- *
- *  - ALL_CORE:   All processors can be used.
- *  - PCORE_ONLY: Only processors of performance-cores can be used.
- *  - ECORE_ONLY: Only processors of efficient-cores can be used.
- */
-DECLARE_CPU_CONFIG_KEY(SCHEDULING_CORE_TYPE);
-DECLARE_CPU_CONFIG_VALUE(ALL);
-DECLARE_CPU_CONFIG_VALUE(PCORE_ONLY);
-DECLARE_CPU_CONFIG_VALUE(ECORE_ONLY);
 }  // namespace CPUConfigParams
 }  // namespace InferenceEngine

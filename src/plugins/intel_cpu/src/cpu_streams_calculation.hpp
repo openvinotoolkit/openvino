@@ -11,7 +11,7 @@
 
 #include <vector>
 
-#include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/properties.hpp"
 namespace ov {
 namespace intel_cpu {
 
@@ -21,7 +21,7 @@ namespace intel_cpu {
  * @param[in]  proc_type_table candidate processors available at this time
  * @return     updated proc_type_table which removed unmatched processors
  */
-std::vector<std::vector<int>> apply_core_type(const SchedulingCoreType input_type,
+std::vector<std::vector<int>> apply_core_type(const ov::hint::SchedulingCoreType input_type,
                                               const std::vector<std::vector<int>> proc_type_table);
 
 /**

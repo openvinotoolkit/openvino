@@ -308,6 +308,7 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
             RO_property(ov::inference_precision.name()),
             RO_property(ov::hint::performance_mode.name()),
             RO_property(ov::hint::num_requests.name()),
+            RO_property(ov::hint::scheduling_core_type.name()),
             RO_property(ov::execution_devices.name()),
         };
     }
@@ -348,6 +349,9 @@ InferenceEngine::Parameter ExecNetwork::GetMetric(const std::string &name) const
     } else if (name == ov::hint::performance_mode) {
         const auto perfHint = ov::util::from_string(config.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
         return perfHint;
+    } else if (name == ov::hint::scheduling_core_type) {
+        const auto core_type = ov::util::from_string(config.core_type_cfg, ov::hint::scheduling_core_type);
+        return core_type;
     } else if (name == ov::hint::num_requests) {
         const auto perfHintNumRequests = config.perfHintsConfig.ovPerfHintNumRequests;
         return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);

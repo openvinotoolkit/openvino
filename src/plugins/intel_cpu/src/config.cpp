@@ -16,7 +16,7 @@
 
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
-#include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "utils/debug_capabilities.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
 
@@ -78,15 +78,16 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             streamExecutorConfig.SetConfig(key, val);
         } else if (hintsConfigKeys.end() != std::find(hintsConfigKeys.begin(), hintsConfigKeys.end(), key)) {
             perfHintsConfig.SetConfig(key, val);
-        } else if (key == CPUConfigParams::KEY_CPU_SCHEDULING_CORE_TYPE) {
-            if (val == CPUConfigParams::CPU_ALL || val == CPUConfigParams::CPU_PCORE_ONLY ||
-                val == CPUConfigParams::CPU_ECORE_ONLY) {
+        } else if (key == ov::hint::scheduling_core_type.name()) {
+            const auto core_type = ov::util::from_string(val, ov::hint::scheduling_core_type);
+            if (core_type == ov::hint::SchedulingCoreType::ANY_CORE || core_type == ov::hint::SchedulingCoreType::PCORE_ONLY ||
+                core_type == ov::hint::SchedulingCoreType::ECORE_ONLY) {
                 core_type_cfg = val;
             } else {
                 IE_THROW() << "Wrong value " << val << "for property key "
-                           << CPUConfigParams::KEY_CPU_SCHEDULING_CORE_TYPE << ". Expected only "
-                           << CPUConfigParams::CPU_ALL << "/" << CPUConfigParams::CPU_PCORE_ONLY << "/"
-                           << CPUConfigParams::CPU_ECORE_ONLY << std::endl;
+                           << ov::hint::scheduling_core_type.name() << ". Expected only "
+                           << ov::hint::SchedulingCoreType::ANY_CORE << "/" << ov::hint::SchedulingCoreType::PCORE_ONLY << "/"
+                           << ov::hint::SchedulingCoreType::ECORE_ONLY << std::endl;
             }
         } else if (key == PluginConfigParams::KEY_DYN_BATCH_LIMIT) {
             int val_i = -1;

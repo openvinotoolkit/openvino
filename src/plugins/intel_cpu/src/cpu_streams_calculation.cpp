@@ -17,14 +17,14 @@ using namespace InferenceEngine;
 namespace ov {
 namespace intel_cpu {
 
-std::vector<std::vector<int>> apply_core_type(const SchedulingCoreType input_type,
+std::vector<std::vector<int>> apply_core_type(const ov::hint::SchedulingCoreType input_type,
                                               const std::vector<std::vector<int>> proc_type_table) {
     std::vector<std::vector<int>> result_table = proc_type_table;
 
     switch (input_type) {
-    case SchedulingCoreType::ALL:
+    case ov::hint::SchedulingCoreType::ANY_CORE:
         break;
-    case SchedulingCoreType::PCORE_ONLY:
+    case ov::hint::SchedulingCoreType::PCORE_ONLY:
         if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0) {
             for (auto& i : result_table) {
                 i[ALL_PROC] -= i[EFFICIENT_CORE_PROC];
@@ -32,7 +32,7 @@ std::vector<std::vector<int>> apply_core_type(const SchedulingCoreType input_typ
             }
         }
         break;
-    case SchedulingCoreType::ECORE_ONLY:
+    case ov::hint::SchedulingCoreType::ECORE_ONLY:
         if ((proc_type_table[0][EFFICIENT_CORE_PROC] > 0) &&
             (proc_type_table[0][EFFICIENT_CORE_PROC] != proc_type_table[0][ALL_PROC])) {
                 for (auto& i : result_table) {
