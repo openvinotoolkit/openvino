@@ -9,7 +9,7 @@
 
 namespace ov {
 
-bool Any::equal(std::type_index lhs, std::type_index rhs) {
+bool util::equal(std::type_index lhs, std::type_index rhs) {
     auto result = lhs == rhs;
 #if (defined(__ANDROID__) || defined(__APPLE__)) && defined(__clang__)
     if (!result) {
@@ -20,7 +20,7 @@ bool Any::equal(std::type_index lhs, std::type_index rhs) {
 }
 
 bool Any::Base::is(const std::type_info& other) const {
-    return Any::equal(type_info(), other);
+    return util::equal(type_info(), other);
 }
 
 void Any::Base::type_check(const std::type_info& type_info_) const {
@@ -80,9 +80,7 @@ Any::Any(const char* str) : Any(std::string{str}) {}
 Any::Any(const std::nullptr_t) : Any() {}
 
 void Any::impl_check() const {
-    if (_impl == nullptr) {
-        OPENVINO_UNREACHABLE("Any was not initialized.");
-    }
+    OPENVINO_ASSERT(_impl != nullptr, "Any was not initialized.");
 }
 
 const std::type_info& Any::type_info() const {
@@ -124,14 +122,6 @@ bool Any::operator!=(const Any& other) const {
     return !operator==(other);
 }
 
-Any::Base* Any::operator->() {
-    return _impl.get();
-}
-
-const Any::Base* Any::operator->() const {
-    return _impl.get();
-}
-
 void* Any::addressof() {
     return _impl != nullptr ? _impl->addressof() : nullptr;
 }
@@ -149,7 +139,7 @@ void Read<bool>::operator()(std::istream& is, bool& value) const {
     } else if (str == "NO") {
         value = false;
     } else {
-        OPENVINO_UNREACHABLE("Could not convert to bool from string " + str);
+        OPENVINO_THROW("Could not convert to bool from string " + str);
     }
 }
 
@@ -160,9 +150,9 @@ static auto stream_to(std::istream& is, F&& f) -> decltype(f(std::declval<const 
     try {
         return f(str);
     } catch (std::exception& e) {
-        OPENVINO_UNREACHABLE(std::string{"Could not convert to: "} +
-                             typeid(decltype(f(std::declval<const std::string&>()))).name() + " from string \"" + str +
-                             "\": " + e.what());
+        OPENVINO_THROW(std::string{"Could not convert to: "} +
+                       typeid(decltype(f(std::declval<const std::string&>()))).name() + " from string \"" + str +
+                       "\": " + e.what());
     }
 }
 

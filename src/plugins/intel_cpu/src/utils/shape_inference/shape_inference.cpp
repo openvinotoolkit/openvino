@@ -8,9 +8,12 @@
 #include <openvino/opsets/opset5.hpp>
 #include <openvino/opsets/opset7.hpp>
 
+#include "adaptive_avg_pool_shape_inference.hpp"
+#include "adaptive_max_pool_shape_inference.hpp"
 #include "assign_shape_inference.hpp"
 #include "augru_cell_shape_inference.hpp"
 #include "augru_sequence_shape_inference.hpp"
+#include "avg_pool_shape_inference.hpp"
 #include "batch_to_space_shape_inference.hpp"
 #include "broadcast_shape_inference.hpp"
 #include "bucketize_shape_inference.hpp"
@@ -25,6 +28,7 @@
 #include "einsum_shape_inference.hpp"
 #include "embedding_segments_sum_shape_inference.hpp"
 #include "embeddingbag_offsets_shape_inference.hpp"
+#include "embeddingbag_packed_shape_inference.hpp"
 #include "experimental_detectron_detection_output_shape_inference.hpp"
 #include "experimental_detectron_generate_proposals_shape_inference.hpp"
 #include "experimental_detectron_prior_grid_generator_shape_inference.hpp"
@@ -45,6 +49,7 @@
 #include "irdft_shape_inference.hpp"
 #include "lstm_cell_shape_inference.hpp"
 #include "matmul_shape_inference.hpp"
+#include "max_pool_shape_inference.hpp"
 #include "one_hot_shape_inference.hpp"
 #include "pad_shape_inference.hpp"
 #include "proposal_shape_inference.hpp"
@@ -255,11 +260,7 @@ static inline ov::CoordinateDiff convertPadding(const ov::CoordinateDiff& newPad
 }
 
 static inline ov::CoordinateDiff convertPadding(const ov::Shape& newPads) {
-    std::vector<ptrdiff_t> pads(newPads.size());
-    for (int i = 0; i < newPads.size(); i++) {
-        pads[i] = static_cast<ptrdiff_t>(newPads[i]);
-    }
-    return pads;
+    return {newPads.begin(), newPads.end()};
 }
 
 template <typename OP>
@@ -362,12 +363,47 @@ protected:
 };
 
 template <class TOp>
+class ShapeInferBaseWithPadding : public entryBase {
+public:
+    ShapeInferBaseWithPadding(std::shared_ptr<Node> node) : entryBase{std::move(node)}, m_pads_begin{}, m_pads_end{} {}
+
+    IShapeInferCommon::Result infer(const std::vector<StaticShape>& input_shapes,
+                                    const std::map<size_t, ov::HostTensorPtr>& constant_data) override {
+        auto out_shapes = shape_infer(static_cast<TOp*>(node.get()), input_shapes);
+        on_infer_exit();
+        return {std::move(out_shapes), ShapeInferStatus::success};
+    }
+
+    const ov::CoordinateDiff& get_pads_begin() override {
+        return m_pads_begin;
+    }
+
+    const ov::CoordinateDiff& get_pads_end() override {
+        return m_pads_end;
+    }
+
+protected:
+    void on_infer_exit() {
+        auto op = static_cast<TOp*>(node.get());
+        m_pads_begin = convertPadding(op->get_pads_begin());
+        m_pads_end = convertPadding(op->get_pads_end());
+    }
+
+    ov::CoordinateDiff m_pads_begin, m_pads_end;
+};
+
+/**
+ * @brief Base shape inference object implementing the IStaticShapeInfer without padding support
+ *
+ * @tparam TOp  Type of operator.
+ */
+template <class TOp>
 class ShapeInferBase : public IStaticShapeInfer {
 public:
     using iface_type = IStaticShapeInfer;
     virtual ~ShapeInferBase() = default;
 
-    ShapeInferBase(std::shared_ptr<Node> node) : m_node{node} {
+    ShapeInferBase(std::shared_ptr<Node> node) : m_input_ranks{}, m_node{node} {
         static_assert(std::is_same<int64_t, Dimension::value_type>::value, "Rank type not match to input_ranks type.");
         for (size_t i = 0; i < node->get_input_size(); ++i) {
             const auto& shape = node->get_input_partial_shape(i);
@@ -508,8 +544,10 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG(Selu, entryFirstPassthrough),
     _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG(Softmax, entryCopy),
     _OV_OP_NON_TEMPLATE_SHAPE_INFER_REG(Swish, entryFirstPassthrough),
+    _OV_OP_SHAPE_INFER_REG(AdaptiveAvgPool, entryIOC),
+    _OV_OP_SHAPE_INFER_REG(AdaptiveMaxPool, entryIOC),
     _OV_OP_SHAPE_INFER_REG(Assign, entryIO),
-    _OV_OP_SHAPE_INFER_REG(AvgPool, entryFallbackWithPadding),
+    _OV_OP_SHAPE_INFER_REG(AvgPool, ShapeInferBaseWithPadding),
     _OV_OP_SHAPE_INFER_REG(BatchToSpace, entryIOC),
     _OV_OP_SHAPE_INFER_REG(Broadcast, entryIOC),
     _OV_OP_SHAPE_INFER_REG(Bucketize, entryIO),
@@ -524,6 +562,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(DFT, entryIOC),
     _OV_OP_SHAPE_INFER_REG(Einsum, entryIO),
     _OV_OP_SHAPE_INFER_REG(EmbeddingBagOffsetsSum, entryIO),
+    _OV_OP_SHAPE_INFER_REG(EmbeddingBagPackedSum, entryIO),
     _OV_OP_SHAPE_INFER_REG(EmbeddingSegmentsSum, entryIOC),
     _OV_OP_SHAPE_INFER_REG(ExperimentalDetectronDetectionOutput, entryIO),
     _OV_OP_SHAPE_INFER_REG(ExperimentalDetectronGenerateProposalsSingleImage, entryIO),
@@ -544,7 +583,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(IRDFT, entryIOC),
     _OV_OP_SHAPE_INFER_REG(LSTMCell, entryIO),
     _OV_OP_SHAPE_INFER_REG(MatMul, entryIO),
-    _OV_OP_SHAPE_INFER_REG(MaxPool, entryFallbackWithPadding),
+    _OV_OP_SHAPE_INFER_REG(MaxPool, ShapeInferBaseWithPadding),
     _OV_OP_SHAPE_INFER_REG(OneHot, entryIOC),
     _OV_OP_SHAPE_INFER_REG(ov::op::internal::AUGRUCell, entryIO),
     _OV_OP_SHAPE_INFER_REG(ov::op::internal::AUGRUSequence, entryIO),
@@ -607,7 +646,7 @@ const IShapeInferCommonFactory::TRegistry IShapeInferCommonFactory::registry{
     _OV_OP_SHAPE_INFER_REG(opset1::DetectionOutput, entryIO),
     _OV_OP_SHAPE_INFER_REG(opset1::Interpolate, entryIOC),
     _OV_OP_SHAPE_INFER_REG(opset1::LSTMCell, entryIO),
-    _OV_OP_SHAPE_INFER_REG(opset1::MaxPool, entryFallbackWithPadding),
+    _OV_OP_SHAPE_INFER_REG(opset1::MaxPool, ShapeInferBaseWithPadding),
     _OV_OP_SHAPE_INFER_REG(opset1::Proposal, entryIO),
     _OV_OP_SHAPE_INFER_REG(opset1::Range, entryIOC),
     _OV_OP_SHAPE_INFER_REG(opset1::ShapeOf, entryIO),
