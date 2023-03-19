@@ -17,6 +17,8 @@
 #include "legacy/ngraph_ops/fully_connected.hpp"
 #include "ngraph/opsets/opset7.hpp"
 #include "ngraph/opsets/opset9.hpp"
+#include "ops/gna_convolution.hpp"
+#include "ops/gna_max_pool.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -96,7 +98,7 @@ private:
  * @param is_exception_allowed flag specifies whether exception is allowed
  * @return true if supported
  */
-bool is_conv_supported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie,
+bool is_conv_supported(const std::shared_ptr<ov::intel_gna::op::GNAConvolution>& conv_gna,
                        const target::DeviceVersion& effective_compile_target,
                        const InferenceEngine::Precision gna_precision,
                        bool is_exception_allowed = false);
@@ -108,7 +110,7 @@ bool is_conv_supported(const std::shared_ptr<ngraph::op::ConvolutionIE>& conv_ie
  * @param is_exception_allowed flag specifies whether exception is allowed
  * @return true if precision is found in supported
  */
-bool is_pooling_supported(const std::shared_ptr<ngraph::opset7::MaxPool> max_pool,
+bool is_pooling_supported(const std::shared_ptr<ov::intel_gna::op::GNAMaxPool> max_pool,
                           const target::DeviceVersion& effective_compile_target,
                           bool is_exception_allowed = false);
 

@@ -6,6 +6,7 @@
 
 #include <legacy/ngraph_ops/convolution_ie.hpp>
 #include <ngraph/opsets/opset7.hpp>
+#include "ops/gna_convolution.hpp"
 
 namespace ov {
 namespace intel_gna {
@@ -41,15 +42,30 @@ struct ConvData {
  * @param conv_data convolution data structure to put data into
  * @return void
  */
-void GetConvData(std::shared_ptr<ngraph::opset7::Convolution> conv, ConvData& conv_data);
-
-/**
- * @brief gets all legacy convolution related data into a struct for further processing
- * @param conv legacy convolution node to get data of
- * @param conv_data convolution data structure to put data into
- * @return void
- */
-void GetConvData(std::shared_ptr<ngraph::op::ConvolutionIE> conv, ConvData& conv_data);
+template <class T>
+void GetConvData(const T& conv, ConvData& conv_data) {
+    OPENVINO_ASSERT(conv);
+    conv_data.output_height = conv->get_output_shape(0)[2];
+    conv_data.output_width = conv->get_output_shape(0)[3];
+    conv_data.input_channel_count = conv->input_value(0).get_shape()[1];
+    conv_data.input_height = conv->input_value(0).get_shape()[2];
+    conv_data.input_width = conv->input_value(0).get_shape()[3];
+    conv_data.filter_count = conv->input_value(1).get_shape()[0];
+    conv_data.filter_channel_count = conv->input_value(1).get_shape()[1];
+    conv_data.filter_height = conv->input_value(1).get_shape()[2];
+    conv_data.filter_width = conv->input_value(1).get_shape()[3];
+    conv_data.filter_dilation_height = conv->get_dilations()[0];
+    conv_data.filter_dilation_width = conv->get_dilations()[1];
+    conv_data.filter_stride_height = conv->get_strides()[0];
+    conv_data.filter_stride_width = conv->get_strides()[1];
+    conv_data.output_channel_count = conv_data.filter_count;
+    conv_data.pads_begin_height = conv->get_pads_begin()[0];
+    conv_data.pads_begin_width = conv->get_pads_begin()[1];
+    conv_data.pads_end_height = conv->get_pads_end()[0];
+    conv_data.pads_end_width = conv->get_pads_end()[1];
+    conv_data.padding_type = conv->get_auto_pad();
+    conv_data.element_type = conv->get_element_type();
+}
 
 /**
  * @brief ngraph matcher predicate fusing existing predicates for consumers count and rank of a layer
@@ -93,6 +109,20 @@ std::shared_ptr<ngraph::Node> VerifyBiasGetConst(std::shared_ptr<ngraph::Node> c
  */
 std::shared_ptr<ngraph::Node> InsertFQLayer(const std::shared_ptr<ngraph::opset7::FakeQuantize> fq_layer,
                                             std::shared_ptr<ngraph::Node> last_node);
+
+/**
+ * @brief removes single node from the function and insert Reshape if input and outpur shapes are different
+ * @param node the node to be deleted
+ * @return void
+ */
+void RemoveSingleInputNodeFromFunction(std::shared_ptr<ov::Node> node);
+
+/**
+ * @brief remove all 1 dimentions from the shape vector
+ * @param shape original tensor shape
+ * @return shape without 1 dimentions
+ */
+ov::Shape SqueezeShape(const ov::Shape& shape);
 
 }  // namespace helper
 }  // namespace pass

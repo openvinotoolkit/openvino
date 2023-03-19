@@ -311,7 +311,7 @@ const auto misc2DParams = ::testing::Combine(::testing::ValuesIn(biases2D),
                                              ::testing::ValuesIn(maxpool2DPools),
                                              ::testing::ValuesIn(maxpool2DStrides));
 
-INSTANTIATE_TEST_SUITE_P(smoke_1DPaddedToValid,
+INSTANTIATE_TEST_SUITE_P(smokeX_1DPaddedToValid,
                          PaddedToValidConvTest,
                          ::testing::Combine(conv1DParams,
                                             misc1DParams,
@@ -322,7 +322,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_1DPaddedToValid,
                                             ::testing::ValuesIn(models)),
                          PaddedToValidConvTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_1DPaddedToValid,
+INSTANTIATE_TEST_SUITE_P(smokeX_1DPaddedToValid,
                          Gna35PaddedToValidConvTest,
                          ::testing::Combine(conv1DParams,
                                             misc1DParams,
@@ -333,7 +333,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_1DPaddedToValid,
                                             ::testing::ValuesIn(models)),
                          Gna35PaddedToValidConvTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_2DPaddedToValid,
+INSTANTIATE_TEST_SUITE_P(smokeX_2DPaddedToValid,
                          PaddedToValidConvTest,
                          ::testing::Combine(conv2DParams,
                                             misc2DParams,
@@ -344,7 +344,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_2DPaddedToValid,
                                             ::testing::ValuesIn(models)),
                          PaddedToValidConvTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_2DPaddedToValid,
+INSTANTIATE_TEST_SUITE_P(smokeX_2DPaddedToValid,
                          Gna35PaddedToValidConvTest,
                          ::testing::Combine(conv2DParams,
                                             misc2DParams,

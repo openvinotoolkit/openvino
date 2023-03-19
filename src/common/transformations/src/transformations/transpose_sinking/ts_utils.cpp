@@ -285,6 +285,8 @@ bool CanPropagateForwardThrough(Node* node) {
     CHECK_TRANSPOSE_SINKING_SUPPORTED(Split, node);
     CHECK_TRANSPOSE_SINKING_SUPPORTED(Transpose, node);
     CHECK_TRANSPOSE_SINKING_SUPPORTED(PRelu, node);
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(FakeQuantize, node);
+    CHECK_TRANSPOSE_SINKING_SUPPORTED(StridedSlice, node);
 
     return false;
 }

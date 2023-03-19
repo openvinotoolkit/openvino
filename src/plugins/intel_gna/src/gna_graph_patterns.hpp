@@ -12,9 +12,12 @@
 #include "layers/gna_layer_info.hpp"
 #include "log/debug.hpp"
 #include "ops/util/util.hpp"
+#include "pre_post_process/transposition_info.hpp"
 
 namespace ov {
 namespace intel_gna {
+
+using namespace ::pre_post_process;
 
 /**
  * @brief checks if it's a reshape from 4d to 3d tensor
@@ -232,32 +235,6 @@ inline InferenceEngine::CNNLayerPtr FindPermutationAfterConvolutionInKaldiModel(
     }
 
     return next;
-}
-
-/**
- * @brief identifies if a model must be converted to NHWC, it must not be neither NHWC, nor Kaldi
- * @param layers model sorted layers
- */
-inline bool MustBeConvertedFromNCHWToNHWC(const std::vector<InferenceEngine::CNNLayerPtr>& layers) {
-    for (auto& l : layers) {
-        if (!LayerInfo(l).isConvolution())
-            continue;
-
-        InferenceEngine::CNNLayerPtr next;
-        std::tie(std::ignore, next) = FindPermutationsAroundConvolutionInNHWCModel(l);
-        if (next != nullptr)
-            return false;
-        // If a convolution has only 1-dimension input and output we should skip it
-        auto in_dims = l->insData.begin()->lock()->getDims();
-        auto out_dims = l->outData.front()->getDims();
-
-        if (ov::intel_gna::ngraph_util::is_one_dim_shapes(in_dims, out_dims)) {
-            continue;
-        }
-
-        return FindPermutationAfterConvolutionInKaldiModel(l) == nullptr;
-    }
-    return false;
 }
 
 /**

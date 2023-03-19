@@ -194,7 +194,8 @@ inline bool is_eltwise_add(const std::shared_ptr<ngraph::Node>& node) {
 }
 
 inline bool is_pooling(const std::shared_ptr<ngraph::Node>& node) {
-    return (std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node) != nullptr);
+    return ((std::dynamic_pointer_cast<ngraph::opset7::MaxPool>(node) != nullptr) ||
+             std::dynamic_pointer_cast<ov::intel_gna::op::GNAMaxPool>(node) != nullptr);
 }
 
 template <typename T>
@@ -264,7 +265,7 @@ inline bool has_32bit_output(const std::shared_ptr<ngraph::Node>& node) {
     return ((std::dynamic_pointer_cast<ngraph::op::FullyConnected>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::MatMul>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Convolution>(node) != nullptr) ||
-            (std::dynamic_pointer_cast<ngraph::op::ConvolutionIE>(node) != nullptr) ||
+            (std::dynamic_pointer_cast<ov::intel_gna::op::GNAConvolution>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Add>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::opset9::Multiply>(node) != nullptr) ||
             (std::dynamic_pointer_cast<ngraph::op::Eltwise>(node) != nullptr) ||

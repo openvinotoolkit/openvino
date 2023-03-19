@@ -12,7 +12,10 @@
 #include "descriptions/gna_desc.hpp"
 #include "gna2-model-api.h"
 #include "gna_device_allocation.hpp"
+#include "pre_post_process/transposition_info.hpp"
 #include "serial/headers/latest/gna_model_header.hpp"
+
+using namespace ov::intel_gna::pre_post_process;
 
 /**
  * @brief helper class for GNAGraph serialization tasks
@@ -40,15 +43,12 @@ private:
     ov::intel_gna::header_latest::ModelHeader model_header_;
     GNAVersionSerializer version_;
 
-    void ImportInputs(std::istream& is, void* basePtr, ov::intel_gna::GnaInputs& inputs);
-
-    void ImportOutputs(std::istream& is, void* basePtr, ov::intel_gna::GnaOutputs& outputs);
+    template <class T>
+    void ImportNodes(std::istream& is, void* basePtr, T& inputs);  // inputs or outputs
 
     void ImportTranspositionInfo(std::istream& is,
                                  std::string& name,
                                  std::vector<TranspositionInfo>& transpositionInfo);
-
-    void ExportTranspositionInfo(std::ostream& os, const TranspositionInfoMap& transpositionInfoMap) const;
 
     /**
      * @brief Update input or output description to support importing of < 2.8 format where tensor_names were not

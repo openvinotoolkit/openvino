@@ -11,6 +11,8 @@ set(TARGET_NAME ov_gna_func_tests)
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        INCLUDES
+            ${CMAKE_CURRENT_SOURCE_DIR}
         DEPENDENCIES
             openvino_intel_gna_plugin
         LINK_LIBRARIES
@@ -19,3 +21,7 @@ addIeTargetTest(
         LABELS
             GNA
 )
+
+target_compile_definitions(${TARGET_NAME}
+        PUBLIC ${ARGV}
+            DATA_PATH=\"${DATA_PATH}\")

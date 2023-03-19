@@ -41,6 +41,8 @@
 #include "ops/pwl.hpp"
 #include "runtime/pwl.h"
 
+#include "debug_new_pass.hpp"
+
 using namespace InferenceEngine;
 using namespace std;
 
@@ -301,11 +303,27 @@ void GNAGraphCompiler::ConstPrimitive(InferenceEngine::CNNLayerPtr constLayer) {
 
 void GNAGraphCompiler::assertConvolutionLayoutProper(const InferenceEngine::DataPtr& data) {
     if (data->getLayout() != InferenceEngine::Layout::NHWC && data->getLayout() != InferenceEngine::Layout::NCHW &&
-        data->getLayout() != InferenceEngine::Layout::NC) {
+        data->getLayout() != InferenceEngine::Layout::NC && data->getLayout() != InferenceEngine::Layout::CHW) {
         THROW_GNA_EXCEPTION << "layer: \"Convolution\" with layout " << data->getLayout()
                             << " isn't currently supported on GNA";
     }
 }
+
+#ifdef DEBUG_USE_NEW_PASS
+namespace {
+
+template <typename T>
+PropertyVector<T> PropertyVectorAppend(PropertyVector<T> properties, T value) {
+    std::vector<T> new_values;
+    for (size_t i = 0; i < properties.size(); ++i)
+        new_values.push_back(properties[i]);
+    new_values.push_back(value);
+
+    return PropertyVector<T>(new_values);
+}
+
+} // namespace
+#endif
 
 /**
  * Create AMIntelDNN Convolutional1DComponent from ConvolutionLayer
@@ -332,6 +350,27 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     const auto outputs = layer->outData.front();
     assertConvolutionLayoutProper(inputs);
 
+#ifdef DEBUG_USE_NEW_PASS
+    const auto in_batch = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::N);
+    const auto in_channels = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::C);
+    auto in_height = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::H);
+    auto in_width = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::W);
+    const auto out_batch = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::N);
+    const auto out_channels = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::C);
+    auto out_height = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::H);
+    auto out_width = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::W);
+
+    if (inputs->getLayout() == InferenceEngine::Layout::CHW) {
+        // convolution is ngraph-3D here. Make some fixes to work with it as it's ngraph-4D
+        convolution._kernel_y = 1;
+        convolution._dilation_y = 1;
+        convolution._stride_y = 1;
+
+        convolution._padding = PropertyVectorAppend<unsigned int>(convolution._padding, 0);
+        convolution._pads_end = PropertyVectorAppend<unsigned int>(convolution._pads_end, 0);
+    }
+
+#else
     const auto in_batch = InferenceEngine::GetDataDimByName(inputs, InferenceEngine::DataDimName::N);
     const auto in_channels = InferenceEngine::GetDataDimByName(inputs, InferenceEngine::DataDimName::C);
     auto in_height = InferenceEngine::GetDataDimByName(inputs, InferenceEngine::DataDimName::H);
@@ -341,6 +380,7 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     const auto out_channels = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::C);
     auto out_height = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::H);
     auto out_width = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::W);
+#endif
 
     if (in_height > 1 && in_width == 1) {
         std::swap(in_height, in_width);
@@ -583,6 +623,7 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
         });
     }
 
+#ifndef DEBUG_USE_NEW_PASS
     // TODO: convolution might be not the first layer in sorted order but connected via split for example - dont know
     // how kaldi will handle that
     if (!dnn->do_rotate_input) {
@@ -596,7 +637,7 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
             dnn->do_rotate_input = false;
         }
     }
-
+#endif
     connectOutput(layer, ptr_outputs, num_data_bytes_out);
 
     // Transpose H with W or C with HW
@@ -607,7 +648,11 @@ void GNAGraphCompiler::finalizeConvolution1DPrimitive(InferenceEngine::CNNLayerP
     for (uint32_t k = 0; k < num_filters; k++) {
         uint8_t* ptr_filt_current =
             convolution._weights->cbuffer().as<uint8_t*>() + k * A * B * convolution.precision.size();
-        auto transposedPart = transposeMatrix(ptr_filt_current, convolution.precision.size(), A, B);
+#ifdef DEBUG_USE_NEW_PASS
+        auto transposedPart = copyMatrix(ptr_filt_current, convolution.precision.size(), A, B);
+#else
+         auto transposedPart = transposeMatrix(ptr_filt_current, convolution.precision.size(), A, B);
+#endif
         transposedWeights.insert(transposedWeights.end(), transposedPart.begin(), transposedPart.end());
     }
     if (transposedWeights.size() != convolution._weights->byteSize()) {
@@ -796,7 +841,11 @@ void GNAGraphCompiler::finalizeConvolution2DPrimitive(InferenceEngine::CNNLayerP
     const auto kernelPad = Gna2RoundUp(singleKernelSize, 16) - singleKernelSize;
     for (uint32_t k = 0; k < convolution._out_depth; k++) {
         uint8_t* ptr_filt_current = convolution._weights->cbuffer().as<uint8_t*>() + k * singleKernelSize;
+#ifdef DEBUG_USE_NEW_PASS
+        auto transposedPart = copyMatrix(ptr_filt_current, convolution.precision.size(), in_channels, kernelHW);
+#else
         auto transposedPart = transposeMatrix(ptr_filt_current, convolution.precision.size(), in_channels, kernelHW);
+#endif
         transposedWeights.insert(transposedWeights.end(), transposedPart.begin(), transposedPart.end());
         transposedWeights.resize(transposedWeights.size() + kernelPad);
     }
@@ -972,6 +1021,21 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto inputs = layer->insData.begin()->lock();
     auto outputs = *layer->outData.begin();
 
+#ifdef DEBUG_USE_NEW_PASS
+    uint32_t w_dim_in = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::W);
+    uint32_t h_dim_in = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::H);
+    const uint32_t c_dim_in = GetDataDimSizeNHWC(inputs, InferenceEngine::DataDimName::C);
+
+    uint32_t w_dim_out = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::W);
+    uint32_t h_dim_out = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::H);
+    const uint32_t c_dim_out = GetDataDimSizeNHWC(outputs, InferenceEngine::DataDimName::C);
+
+    if (inputs->getLayout() == InferenceEngine::Layout::CHW) {
+        // Pooling is ngraph-3D here. Make some fixes to work with it as it's ngraph-4D
+        pooling._kernel = PropertyVectorAppend<unsigned int>(pooling._kernel, 1);
+        pooling._stride = PropertyVectorAppend<unsigned int>(pooling._stride, 1);
+    }
+#else
     uint32_t w_dim_in = InferenceEngine::GetDataDimByName(inputs, InferenceEngine::DataDimName::W);
     uint32_t h_dim_in = InferenceEngine::GetDataDimByName(inputs, InferenceEngine::DataDimName::H);
     const uint32_t c_dim_in = InferenceEngine::GetDataDimByName(inputs, InferenceEngine::DataDimName::C);
@@ -979,7 +1043,7 @@ void GNAGraphCompiler::PoolingPrimitive(InferenceEngine::CNNLayerPtr layer) {
     uint32_t w_dim_out = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::W);
     uint32_t h_dim_out = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::H);
     const uint32_t c_dim_out = InferenceEngine::GetDataDimByName(outputs, InferenceEngine::DataDimName::C);
-
+#endif
     if (w_dim_in == 1) {  // swap dimensions if needed to support swapped 1D case
         std::swap(h_dim_in, w_dim_in);
         std::swap(h_dim_out, w_dim_out);
@@ -2804,6 +2868,14 @@ std::vector<uint8_t> GNAGraphCompiler::transposeMatrix(uint8_t* ptr_matrix,
                       element_size);
         }
     }
+    return temp_buffer;
+}
+
+std::vector<uint8_t>
+GNAGraphCompiler::copyMatrix(uint8_t* ptr_matrix, size_t element_size, uint32_t num_rows, uint32_t num_cols) {
+    const size_t dest_size = num_rows * num_cols * element_size;
+    std::vector<uint8_t> temp_buffer(dest_size);
+    ::memcpy(temp_buffer.data(), ptr_matrix, dest_size);
     return temp_buffer;
 }
 
