@@ -222,7 +222,7 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             properties.hint.scheduling_core_type,
             "SCHEDULING_CORE_TYPE",
-            ((properties.hint.SchedulingCoreType.PCORE_ONLY, properties.hint.PerfoSchedulingCoreTypermanceMode.PCORE_ONLY),),
+            ((properties.hint.scheduling_core_type.PCORE_ONLY, properties.hint.scheduling_core_type.PCORE_ONLY),),
         ),
         (
             properties.hint.execution_mode,
