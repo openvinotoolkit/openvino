@@ -129,7 +129,7 @@ void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_fi
 ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "CoreImpl::get_plugin");
 
-    auto deviceName = pluginName == "MULTI" ? "AUTO" : pluginName;
+    auto deviceName = pluginName;
     if (deviceName == ov::DEFAULT_DEVICE_NAME)
         deviceName = "AUTO";
     stripDeviceName(deviceName, "-");
@@ -179,9 +179,6 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
         }
 
         {
-            if (pluginName == "MULTI") {
-                desc.defaultConfig[CONFIG_KEY(PERFORMANCE_HINT)] = CONFIG_VALUE(CUMULATIVE_THROUGHPUT);
-            }
             plugin.set_name(deviceName);
 
             // Set Core class reference to plugins

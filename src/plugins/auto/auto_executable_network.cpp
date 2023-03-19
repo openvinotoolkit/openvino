@@ -18,7 +18,11 @@ AutoExecutableNetwork::AutoExecutableNetwork(AutoScheduleContext::Ptr& context, 
 
 std::shared_ptr<IE::RemoteContext> AutoExecutableNetwork::GetContext() const {
     _autoSchedule->WaitActualNetworkReady();
-    return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetContext();
+    if (_autoSchedule->_pCTPUTLoadContext) {
+        return _autoSchedule->_pCTPUTLoadContext[0].executableNetwork->GetContext();
+    } else {
+        return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetContext();
+    }
 }
 
 void AutoExecutableNetwork::SetConfig(const std::map<std::string, IE::Parameter>
@@ -45,14 +49,19 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
         auto value = _autoSContext->_performanceHint;
         if (!_autoSContext->_core->isNewAPI())
             return value;
-        if (value == InferenceEngine::PluginConfigParams::THROUGHPUT)
+        if (value == InferenceEngine::PluginConfigParams::THROUGHPUT) {
             return ov::hint::PerformanceMode::THROUGHPUT;
-        else if (value == InferenceEngine::PluginConfigParams::LATENCY)
+        } else if (value == InferenceEngine::PluginConfigParams::LATENCY) {
             return ov::hint::PerformanceMode::LATENCY;
-        else if (value == InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT)
-            return ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT;
-        else
+        } else if (value == InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT) {
+            if (_autoSContext->_LogTag == "MULTI") {
+                return ov::hint::PerformanceMode::THROUGHPUT;
+            } else {
+                return ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT;
+            }
+        } else {
             return ov::hint::PerformanceMode::UNDEFINED;
+        }
     } else if (name == ov::device::priorities) {
         auto value = _autoSContext->_config.find(ov::device::priorities.name());
         return decltype(ov::device::priorities)::value_type {value->second.as<std::string>()};

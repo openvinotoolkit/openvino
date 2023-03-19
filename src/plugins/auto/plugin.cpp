@@ -359,21 +359,19 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     auto loadConfig = _pluginConfig;
     // if no perf hint from user with compiled model, or already been set with plugin
     // apply latency for AUTO, tput for MULTI
-    bool isHintSet = _pluginConfig.is_set_by_user(ov::hint::performance_mode) || config.find(ov::hint::performance_mode.name()) != config.end();
-    if (!isHintSet) {
-        if (workModeAuto) {
-            // set performance hint to 'LATENCY' model for AutoExecutable Network.
-            loadConfig.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
-        } else {
-            // set performance hint to 'THROUGHPUT' model for MultiExecutable Network.
-            loadConfig.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT));
-        }
+    auto itorConfig = config.find(ov::hint::performance_mode.name());
+    bool isHintSet = _pluginConfig.is_set_by_user(ov::hint::performance_mode) || itorConfig != config.end();
+    if (!isHintSet && workModeAuto) {
+        // set performance hint to 'LATENCY' model for AutoExecutable Network.
+        loadConfig.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
     }
     // updateFromMap will check config valid
     loadConfig.set_user_property(PreProcessConfig(config), workModeAuto? true : false);
     loadConfig.apply_user_properties();
-    auto perHint = _pluginConfig.get_property(ov::hint::performance_mode.name()).as<ov::hint::PerformanceMode>();
-    if (perHint == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT) {
+    if (GetName() == "MULTI") {
+        if (itorConfig != config.end() && itorConfig->second != InferenceEngine::PluginConfigParams::THROUGHPUT) {
+            LOG_WARNING_TAG("User set perf_hint:%s, but MULTI supports THROUGHPUT only", itorConfig->second.c_str());
+        }
         loadConfig.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
     }
     auto fullProperty = loadConfig.get_full_properties();
@@ -409,6 +407,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         }
     };
 
+    workModeAuto = true;
     // if workMode is AUTO
     // only AUTO uses CheckConfig() to check fullConfig's parameters, MULTI does not
     if (workModeAuto) {
