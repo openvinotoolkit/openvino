@@ -7,6 +7,7 @@
 #include <unordered_map>
 
 #include "Python.h"
+#include "openvino/core/except.hpp"
 #include "openvino/util/common_util.hpp"
 
 #define C_CONTIGUOUS py::detail::npy_api::constants::NPY_ARRAY_C_CONTIGUOUS_
@@ -105,8 +106,7 @@ py::array as_contiguous(py::array& array, ov::element::Type type) {
     case ov::element::bf16:
         return array.view("int16").cast<py::array_t<int16_t, py::array::c_style | py::array::forcecast>>();
     default:
-        throw ov::Exception("Tensor cannot be created as contiguous!");
-        break;
+        OPENVINO_THROW("Tensor cannot be created as contiguous!");
     }
 }
 
@@ -121,7 +121,7 @@ ov::op::v0::Constant create_copied(py::array& array) {
     // Create actual Constant and a constructor is copying data.
     return ov::op::v0::Constant(array_helpers::get_ov_type(array),
                                 array_helpers::get_shape(array),
-                                const_cast<void*>(array.data(0)));
+                                array.ndim() == 0 ? array.data() : array.data(0));
 }
 
 template <>
@@ -135,15 +135,14 @@ ov::op::v0::Constant create_shared(py::array& array) {
     // Check if passed array has C-style contiguous memory layout.
     // If memory is going to be shared it needs to be contiguous before passing to the constructor.
     if (array_helpers::is_contiguous(array)) {
-        auto memory =
-            std::make_shared<ngraph::runtime::SharedBuffer<py::array>>(static_cast<char*>(array.mutable_data(0)),
-                                                                       array.nbytes(),
-                                                                       array);
+        auto memory = std::make_shared<ngraph::runtime::SharedBuffer<py::array>>(
+            static_cast<char*>(array.ndim() == 0 ? array.mutable_data() : array.mutable_data(0)),
+            array.ndim() == 0 ? array.itemsize() : array.nbytes(),
+            array);
         return ov::op::v0::Constant(array_helpers::get_ov_type(array), array_helpers::get_shape(array), memory);
     }
     // If passed array is not C-style, throw an error.
-    throw ov::Exception(
-        "SHARED MEMORY MODE FOR THIS CONSTANT IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
+    OPENVINO_THROW("SHARED MEMORY MODE FOR THIS CONSTANT IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
 }
 
 template <>
@@ -160,9 +159,9 @@ ov::Tensor create_copied(py::array& array) {
     // Create actual Tensor and copy data.
     auto tensor = ov::Tensor(array_helpers::get_ov_type(array), array_helpers::get_shape(array));
     // If ndim of py::array is 0, array is a numpy scalar. That results in size to be equal to 0.
-    // To gain access to actual raw/low-level data, it is needed to use buffer protocol.
-    py::buffer_info buf = array.request();
-    std::memcpy(tensor.data(), buf.ptr, buf.ndim == 0 ? buf.itemsize : buf.itemsize * buf.size);
+    std::memcpy(tensor.data(),
+                array.ndim() == 0 ? array.data() : array.data(0),
+                array.ndim() == 0 ? array.itemsize() : array.nbytes());
     return tensor;
 }
 
@@ -171,14 +170,14 @@ ov::Tensor create_shared(py::array& array) {
     // Check if passed array has C-style contiguous memory layout.
     // If memory is going to be shared it needs to be contiguous before passing to the constructor.
     if (array_helpers::is_contiguous(array)) {
+        // If ndim of py::array is 0, array is a numpy scalar.
         return ov::Tensor(array_helpers::get_ov_type(array),
                           array_helpers::get_shape(array),
-                          const_cast<void*>(array.data(0)),
+                          array.ndim() == 0 ? array.mutable_data() : array.mutable_data(0),
                           array_helpers::get_strides(array));
     }
     // If passed array is not C-style, throw an error.
-    throw ov::Exception(
-        "SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
+    OPENVINO_THROW("SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
 }
 
 ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const ov::element::Type& type) {
@@ -187,8 +186,7 @@ ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const o
     if (array_helpers::is_contiguous(array)) {
         return ov::Tensor(element_type, shape, const_cast<void*>(array.data(0)), {});
     }
-    throw ov::Exception(
-        "SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
+    OPENVINO_THROW("SHARED MEMORY MODE FOR THIS TENSOR IS NOT APPLICABLE! Passed numpy array must be C contiguous.");
 }
 
 ov::PartialShape partial_shape_from_list(const py::list& shape) {
@@ -237,12 +235,9 @@ const Containers::TensorNameMap cast_to_tensor_name_map(const py::dict& inputs) 
         } else {
             throw py::type_error("incompatible function arguments!");
         }
-        if (py::isinstance<ov::Tensor>(input.second)) {
-            auto tensor = Common::cast_to_tensor(input.second);
-            result_map[name] = tensor;
-        } else {
-            throw ov::Exception("Unable to cast tensor " + name + "!");
-        }
+        OPENVINO_ASSERT(py::isinstance<ov::Tensor>(input.second), "Unable to cast tensor ", name, "!");
+        auto tensor = Common::cast_to_tensor(input.second);
+        result_map[name] = tensor;
     }
     return result_map;
 }
@@ -256,12 +251,9 @@ const Containers::TensorIndexMap cast_to_tensor_index_map(const py::dict& inputs
         } else {
             throw py::type_error("incompatible function arguments!");
         }
-        if (py::isinstance<ov::Tensor>(input.second)) {
-            auto tensor = Common::cast_to_tensor(input.second);
-            result_map[idx] = tensor;
-        } else {
-            throw ov::Exception("Unable to cast tensor " + std::to_string(idx) + "!");
-        }
+        OPENVINO_ASSERT(py::isinstance<ov::Tensor>(input.second), "Unable to cast tensor ", idx, "!");
+        auto tensor = Common::cast_to_tensor(input.second);
+        result_map[idx] = tensor;
     }
     return result_map;
 }
@@ -288,17 +280,16 @@ void set_request_tensors(ov::InferRequest& request, const py::dict& inputs) {
 uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
     try {
         auto supported_properties = actual.get_property(ov::supported_properties);
-        if (std::find(supported_properties.begin(), supported_properties.end(), ov::optimal_number_of_infer_requests) !=
-            supported_properties.end()) {
-            return actual.get_property(ov::optimal_number_of_infer_requests);
-        } else {
-            throw ov::Exception("Can't load network: " + std::string(ov::optimal_number_of_infer_requests.name()) +
-                                " is not supported!"
-                                " Please specify number of infer requests directly!");
-        }
+        OPENVINO_ASSERT(
+            std::find(supported_properties.begin(), supported_properties.end(), ov::optimal_number_of_infer_requests) !=
+                supported_properties.end(),
+            "Can't load network: ",
+            ov::optimal_number_of_infer_requests.name(),
+            " is not supported!",
+            " Please specify number of infer requests directly!");
+        return actual.get_property(ov::optimal_number_of_infer_requests);
     } catch (const std::exception& ex) {
-        throw ov::Exception("Can't load network: " + std::string(ex.what()) +
-                            " Please specify number of infer requests directly!");
+        OPENVINO_THROW("Can't load network: ", ex.what(), " Please specify number of infer requests directly!");
     }
 }
 
@@ -379,8 +370,9 @@ ov::pass::Serialize::Version convert_to_version(const std::string& version) {
     if (version == "IR_V11") {
         return Version::IR_V11;
     }
-    throw ov::Exception("Invoked with wrong version argument: '" + version +
-                        "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
+    OPENVINO_THROW("Invoked with wrong version argument: '",
+                   version,
+                   "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
 }
 
 };  // namespace Common

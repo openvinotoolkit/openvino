@@ -897,7 +897,7 @@ bool AreLayersSupported(InferenceEngine::CNNNetwork& network, std::string& errMe
                 }
             } else if (info.isConcat()) {
                 if (!ValidateConcatAxis(layer, errMessage)) {
-                    log::warning() << errMessage;
+                    THROW_GNA_EXCEPTION << errMessage;
                 }
             }
         },

@@ -103,16 +103,16 @@ public:
 
         // make chunk view
         auto chunk_desc = full_blob->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-        chunk_desc.data.dims[axis] = abs_stride;
-        chunk_desc.data.padded_dims[axis] = abs_stride;  // TODO: asamption that plain tensor
+        chunk_desc.get()->dims[axis] = abs_stride;
+        chunk_desc.get()->padded_dims[axis] = abs_stride;  // TODO: asamption that plain tensor
 
         full_mem = full_blob->GetPrimitive();
         const auto full_mem_handler = full_mem.get_data_handle();
         dnnl::memory chunk_mem = {chunk_desc, eng, full_mem_handler};
 
-        auto elem_size = DnnlExtensionUtils::sizeOfDataType(dnnl::memory::data_type(chunk_desc.data.data_type));
+        auto elem_size = DnnlExtensionUtils::sizeOfDataType(chunk_desc.get_data_type());
 
-        chunk_stride_in_byte = chunk_desc.data.format_desc.blocking.strides[axis] * elem_size * abs_stride;
+        chunk_stride_in_byte = chunk_desc.get()->format_desc.blocking.strides[axis] * elem_size * abs_stride;
         chunk_offset_in_byte = sign_of_stride < 0 ? (iter_count - 1) * chunk_stride_in_byte : 0;
         chunk_stride_in_byte *= sign_of_stride;
 
@@ -259,7 +259,7 @@ void DynamicBuffer::init(const dnnl::engine& eng) {
     // We have no idea of "from" node memory dims until the sub_graph has been executed.
     const auto& src_mem = from->GetPrimitive();
     const auto& src_desc = src_mem.get_desc();
-    const auto& dims = src_desc.dims();
+    const auto& dims = src_desc.get_dims();
     count = std::accumulate(dims.begin(), dims.begin() + map_rule.axis, size_t(1), std::multiplies<size_t>());
     len = std::accumulate(dims.begin() + map_rule.axis + 1, dims.end(), elem_size, std::multiplies<size_t>());
     chunk_unit_in_byte = abs_stride * len;
@@ -353,7 +353,7 @@ void DynamicBuffer::transfer(const Node* node) {
 
         const auto& src_mem = from->GetPrimitive();
         const auto& src_desc = src_mem.get_desc();
-        auto dims = src_desc.dims();
+        auto dims = src_desc.get_dims();
         dims[axis] = abs_stride * num_execs;
         const auto desc = node->getBaseMemDescAtOutputPort(map_rule.from)->cloneWithNewDims(
                 DnnlExtensionUtils::convertToVectorDims(dims));

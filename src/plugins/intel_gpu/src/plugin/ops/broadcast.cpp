@@ -69,10 +69,10 @@ static void CreateCommonBroadcastOp(Program& p, const std::shared_ptr<ngraph::No
             case ov::op::AutoBroadcastType::NUMPY: mode = ov::op::BroadcastType::NUMPY; break;
             case ov::op::AutoBroadcastType::PDPD: mode = ov::op::BroadcastType::PDPD; break;
             default:
-                throw ov::Exception("[GPU] Can't match Broadcast v1 mode with v3 version");
+                OPENVINO_THROW("[GPU] Can't match Broadcast v1 mode with v3 version");
         }
     } else {
-        throw ov::Exception("[GPU] Can't cast Broadcast operation to any supported version");
+        OPENVINO_THROW("[GPU] Can't cast Broadcast operation to any supported version");
     }
 
     std::shared_ptr<cldnn::broadcast> broadcast_prim = nullptr;
