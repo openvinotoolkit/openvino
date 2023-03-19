@@ -60,7 +60,7 @@ void regmodule_properties(py::module m) {
     py::enum_<ov::hint::SchedulingCoreType>(m_hint, "SchedulingCoreType", py::arithmetic())
         .value("ANY_CORE", ov::hint::SchedulingCoreType::ANY_CORE)
         .value("PCORE_ONLY", ov::hint::SchedulingCoreType::PCORE_ONLY)
-        .value("ECORE_ONLY", ov::hint::SchedulingCoreType::ECORE_ONLY)
+        .value("ECORE_ONLY", ov::hint::SchedulingCoreType::ECORE_ONLY);
 
     py::enum_<ov::hint::ExecutionMode>(m_hint, "ExecutionMode", py::arithmetic())
         .value("UNDEFINED", ov::hint::ExecutionMode::UNDEFINED)
