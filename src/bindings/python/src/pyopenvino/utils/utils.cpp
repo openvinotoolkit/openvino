@@ -115,6 +115,8 @@ py::object from_ov_any(const ov::Any& any) {
         return py::cast(any.as<ov::hint::Priority>());
     } else if (any.is<ov::hint::PerformanceMode>()) {
         return py::cast(any.as<ov::hint::PerformanceMode>());
+    } else if (any.is<ov::hint::SchedulingCoreType>()) {
+        return py::cast(any.as<ov::hint::SchedulingCoreType>());
     } else if (any.is<ov::hint::ExecutionMode>()) {
         return py::cast(any.as<ov::hint::ExecutionMode>());
     } else if (any.is<ov::log::Level>()) {
@@ -252,6 +254,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
         return py::cast<ov::hint::Priority>(py_obj);
     } else if (py::isinstance<ov::hint::PerformanceMode>(py_obj)) {
         return py::cast<ov::hint::PerformanceMode>(py_obj);
+    } else if (py::isinstance<ov::hint::SchedulingCoreType>(py_obj)) {
+        return py::cast<ov::hint::SchedulingCoreType>(py_obj);        
     } else if (py::isinstance<ov::log::Level>(py_obj)) {
         return py::cast<ov::log::Level>(py_obj);
     } else if (py::isinstance<ov::device::Type>(py_obj)) {
