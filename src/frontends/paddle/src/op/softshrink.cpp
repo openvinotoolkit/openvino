@@ -36,7 +36,7 @@ NamedOutputs softshrink(const NodeContext& node) {
         std::shared_ptr<ngraph::Node> zero_mask =
             std::make_shared<default_opset::LogicalOr>(values_below_neg_lambda, values_above_pos_lambda);
 
-        output = std::make_shared<default_opset::Select>(zero_mask, zero_node, output);
+        output = std::make_shared<default_opset::Select>(zero_mask, output, zero_node);
     } else {
         // Passing -lambd to unsigned type constant will cause an overflow.
         // For unsigned types the lowest possible value is 0. So we just need to compare with lambda.
