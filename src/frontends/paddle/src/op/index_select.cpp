@@ -13,7 +13,7 @@ NamedOutputs index_select(const NodeContext& node) {
     auto data = node.get_input("X");
     auto index = node.get_input("Index");
     Output<Node> axis_node;
-    const auto axis_value = node.get_attribute<int>("dim");
+    const int axis_value = node.get_attribute<int>("dim", 0);
     axis_node = default_opset::Constant::create(element::i32, Shape{}, {axis_value});
     return node.default_single_output_mapping({std::make_shared<default_opset::Gather>(data, index, axis_node)},
                                               {"Out"});
