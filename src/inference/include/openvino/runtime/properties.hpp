@@ -356,9 +356,9 @@ static constexpr Property<PerformanceMode> performance_mode{"PERFORMANCE_HINT"};
  * @brief      This enum contains defination of core type can be used for CPU inference.
  */
 enum class SchedulingCoreType {
-    ANY_CORE = 1,    //!<  Any processors can be used.
-    PCORE_ONLY = 2,  //!<  Only processors of performance-cores can be used.
-    ECORE_ONLY = 3,  //!<  Only processors of efficient-cores can be used.
+    ANY_CORE = 0,    //!<  Any processors can be used.
+    PCORE_ONLY = 1,  //!<  Only processors of performance-cores can be used.
+    ECORE_ONLY = 2,  //!<  Only processors of efficient-cores can be used.
 };
 
 /** @cond INTERNAL */
