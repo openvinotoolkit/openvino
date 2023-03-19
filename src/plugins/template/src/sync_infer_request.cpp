@@ -13,8 +13,12 @@
 #include "itt.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/op/util/variable_context.hpp"
+#include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "plugin.hpp"
+#include "variable_state.hpp"
 
 using Time = std::chrono::high_resolution_clock;
 
@@ -35,17 +39,17 @@ ov::template_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::
     : ov::ISyncInferRequest(model) {
     // TODO: allocate infer request device and host buffers if needed, fill actual list of profiling tasks
 
-    auto requestID = std::to_string(get_template_model()->_requestId.fetch_add(1));
+    auto requestID = std::to_string(get_template_model()->m_request_id.fetch_add(1));
 
     std::string name = get_template_model()->m_model->get_friendly_name() + "_Req" + requestID;
     m_profiling_task = {
-        openvino::itt::handle("Template" + std::to_string(get_template_model()->_cfg.device_id) + "_" + name +
+        openvino::itt::handle("Template" + std::to_string(get_template_model()->m_cfg.device_id) + "_" + name +
                               "_Preprocess"),
-        openvino::itt::handle("Template" + std::to_string(get_template_model()->_cfg.device_id) + "_" + name +
+        openvino::itt::handle("Template" + std::to_string(get_template_model()->m_cfg.device_id) + "_" + name +
                               "_Postprocess"),
-        openvino::itt::handle("Template" + std::to_string(get_template_model()->_cfg.device_id) + "_" + name +
+        openvino::itt::handle("Template" + std::to_string(get_template_model()->m_cfg.device_id) + "_" + name +
                               "_StartPipeline"),
-        openvino::itt::handle("Template" + std::to_string(get_template_model()->_cfg.device_id) + "_" + name +
+        openvino::itt::handle("Template" + std::to_string(get_template_model()->m_cfg.device_id) + "_" + name +
                               "_WaitPipline"),
     };
 
@@ -72,11 +76,27 @@ ov::template_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::
                                  output.get_partial_shape().is_dynamic() ? ov::Shape{0} : output.get_shape());
         });
     }
+
+    // Save variable states
+    ov::op::util::VariableContext variable_context;
+    for (const auto& variable : get_template_model()->m_model->get_variables()) {
+        auto value = std::make_shared<ov::op::util::VariableValue>();
+        if (!variable_context.get_variable_value(variable)) {
+            auto shape = variable->get_info().data_shape.is_dynamic() ? ov::Shape{0}
+                                                                      : variable->get_info().data_shape.to_shape();
+            ov::Tensor tensor = ov::Tensor(variable->get_info().data_type, shape);
+            variable_context.set_variable_value(variable, std::make_shared<ov::op::util::VariableValue>(tensor));
+        }
+        auto state = std::make_shared<VariableState>(variable->get_info().variable_id,
+                                                     variable_context.get_variable_value(variable)->get_state());
+        m_variable_states.emplace_back(state);
+    }
+    m_eval_context.emplace("VariableContext", variable_context);
 }
 // ! [infer_request:ctor]
 
 std::vector<std::shared_ptr<ov::IVariableState>> ov::template_plugin::InferRequest::query_state() const {
-    OPENVINO_NOT_IMPLEMENTED;
+    return m_variable_states;
 }
 
 std::shared_ptr<const ov::template_plugin::CompiledModel> ov::template_plugin::InferRequest::get_template_model()
