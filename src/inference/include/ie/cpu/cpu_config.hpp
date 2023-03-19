@@ -42,10 +42,5 @@ DECLARE_CPU_CONFIG_KEY(DENORMALS_OPTIMIZATION);
 
 DECLARE_CPU_CONFIG_KEY(SPARSE_WEIGHTS_DECOMPRESSION_RATE);
 
-/**
- * @brief The name for defining if using hyper threading processors for CPU inference. If user does not explicitly set
- * value for this property, OpenVINO may choose any desired value based on internal logic.
- */
-DECLARE_CPU_CONFIG_KEY(USE_HYPER_THREADING);
 }  // namespace CPUConfigParams
 }  // namespace InferenceEngine

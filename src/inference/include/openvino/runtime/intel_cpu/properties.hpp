@@ -63,20 +63,5 @@ static constexpr Property<bool> denormals_optimization{"CPU_DENORMALS_OPTIMIZATI
  */
 static constexpr Property<float> sparse_weights_decompression_rate{"CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE"};
 
-/**
- * @brief This property define if using hyper threading for CPU inference.
- * @ingroup ov_runtime_cpu_prop_cpp_api
- *
- * Developer can use this property to use or not use hyper threading for CPU inference. If user does not explicitly set
- * value for this property, OpenVINO may choose any desired value based on internal logic.
- *
- * The following code is example to use this property.
- *
- * @code
- * ie.set_property(ov::intel_cpu::use_hyper_threading(true));
- * ie.set_property(ov::intel_cpu::use_hyper_threading(false));
- * @endcode
- */
-static constexpr Property<bool> use_hyper_threading{"CPU_USE_HYPER_THREADING"};
 }  // namespace intel_cpu
 }  // namespace ov

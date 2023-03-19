@@ -21,7 +21,7 @@
 #include <ie_ngraph_utils.hpp>
 
 #include "performance_heuristics.hpp"
-#include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "weights_cache.hpp"
 #include "utils/denormals.hpp"
 
@@ -512,9 +512,9 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
     } else if (name == ov::hint::performance_mode) {
         const auto perfHint = ov::util::from_string(engConfig.perfHintsConfig.ovPerfHint, ov::hint::performance_mode);
         return perfHint;
-    } else if (name == ov::intel_cpu::use_hyper_threading) {
+    } else if (name == ov::hint::use_hyper_threading) {
         const bool ht_value = engConfig.use_ht_value;
-        return decltype(ov::intel_cpu::use_hyper_threading)::value_type(ht_value);
+        return decltype(ov::hint::use_hyper_threading)::value_type(ht_value);
     } else if (name == ov::hint::num_requests) {
         const auto perfHintNumRequests = engConfig.perfHintsConfig.ovPerfHintNumRequests;
         return decltype(ov::hint::num_requests)::value_type(perfHintNumRequests);
@@ -599,7 +599,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                     RW_property(ov::inference_precision.name()),
                                                     RW_property(ov::hint::performance_mode.name()),
                                                     RW_property(ov::hint::num_requests.name()),
-                                                    RW_property(ov::intel_cpu::use_hyper_threading.name()),
+                                                    RW_property(ov::hint::use_hyper_threading.name()),
         };
 
         std::vector<ov::PropertyName> supportedProperties;

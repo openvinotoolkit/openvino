@@ -16,7 +16,7 @@
 
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
-#include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "utils/debug_capabilities.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
 
@@ -78,17 +78,16 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             streamExecutorConfig.SetConfig(key, val);
         } else if (hintsConfigKeys.end() != std::find(hintsConfigKeys.begin(), hintsConfigKeys.end(), key)) {
             perfHintsConfig.SetConfig(key, val);
-        } else if (key == CPUConfigParams::KEY_CPU_USE_HYPER_THREADING) {
-            if ((CPUConfigParams::KEY_CPU_USE_HYPER_THREADING == key) && (val == PluginConfigParams::YES)) {
+        } else if (key == ov::hint::use_hyper_threading.name()) {
+            if (val == PluginConfigParams::YES) {
                 use_ht_value = true;
                 use_ht_changed = true;
-            } else if ((CPUConfigParams::KEY_CPU_USE_HYPER_THREADING == key) && (val == PluginConfigParams::NO)) {
+            } else if (val == PluginConfigParams::NO) {
                 use_ht_value = false;
                 use_ht_changed = true;
             } else {
-                IE_THROW() << "Wrong value " << val << "for property key "
-                           << CPUConfigParams::KEY_CPU_USE_HYPER_THREADING << ". Expected only true/false."
-                           << std::endl;
+                IE_THROW() << "Wrong value " << val << "for property key " << ov::hint::use_hyper_threading.name()
+                           << ". Expected only true/false." << std::endl;
             }
         } else if (key == PluginConfigParams::KEY_DYN_BATCH_LIMIT) {
             int val_i = -1;
