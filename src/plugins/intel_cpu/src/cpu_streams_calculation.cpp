@@ -30,7 +30,7 @@ std::vector<std::vector<int>> get_streams_info_table(const int input_streams,
 
     if (1 == input_streams) {
         stream_info[NUMBER_OF_STREAMS] = 1;
-        int limit_threads = input_threads;
+        int limit_threads = (input_threads == 0) ? model_prefer_threads : input_threads;
         if ((proc_type_table[0][EFFICIENT_CORE_PROC] > 0) &&
             ((limit_threads == 0) || (limit_threads > proc_type_table[0][MAIN_CORE_PROC]))) {
             stream_info[PROC_TYPE] = ALL_PROC;
@@ -173,17 +173,19 @@ int get_model_prefer_threads(const int num_streams,
                              const InferenceEngine::IStreamsExecutor::Config streamExecutorConfig) {
     const int sockets = static_cast<int>(getAvailableNUMANodes().size());
     auto model_prefer = 0;
-    if (num_streams <= sockets && num_streams > 0 &&
-        streamExecutorConfig._threadBindingType == IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
-        bool fp_intesive = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(ngraphFunc);
-        const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
-        const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
-        // by default the latency case uses (faster) Big cores only, depending on the compute ratio
-        model_prefer = proc_type_table[0][MAIN_CORE_PROC] > (proc_type_table[0][EFFICIENT_CORE_PROC] /
-                                                             (fp_intesive ? fp32_threshold : int8_threshold))
-                           ? proc_type_table[0][MAIN_CORE_PROC]
-                           : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
-    } else {
+    // latency
+    if (num_streams <= sockets && num_streams > 0) {
+        if (streamExecutorConfig._threadBindingType == IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
+            bool fp_intesive = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(ngraphFunc);
+            const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
+            const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
+            // by default the latency case uses (faster) Big cores only, depending on the compute ratio
+            model_prefer = proc_type_table[0][MAIN_CORE_PROC] > (proc_type_table[0][EFFICIENT_CORE_PROC] /
+                                                                 (fp_intesive ? fp32_threshold : int8_threshold))
+                               ? proc_type_table[0][MAIN_CORE_PROC]
+                               : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
+        }
+    } else {  // throughput
         const auto isa = dnnl::get_effective_cpu_isa();
         float isaSpecificThreshold = 1.0f;
         switch (isa) {
