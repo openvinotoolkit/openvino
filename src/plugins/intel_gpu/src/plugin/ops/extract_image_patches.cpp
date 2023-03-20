@@ -28,9 +28,18 @@ static void CreateExtractImagePatchesOp(Program& p, const std::shared_ptr<ngraph
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    std::vector<uint32_t> sizes = std::vector<uint32_t>(op->get_sizes().begin(), op->get_sizes().end());
-    std::vector<uint32_t> strides = std::vector<uint32_t>(op->get_strides().begin(), op->get_strides().end());
-    std::vector<uint32_t> rates = std::vector<uint32_t>(op->get_rates().begin(), op->get_rates().end());
+    std::vector<uint32_t> sizes;
+    std::vector<uint32_t> strides;
+    std::vector<uint32_t> rates;
+    for (auto size : op->get_sizes()) {
+        sizes.push_back(static_cast<uint32_t>(size));
+    }
+    for (auto stride : op->get_strides()) {
+        strides.push_back(static_cast<uint32_t>(stride));
+    }
+    for (auto rate : op->get_rates()) {
+        rates.push_back(static_cast<uint32_t>(rate));
+    }
     std::string auto_pad = PadToString(op->get_auto_pad());
 
     auto extractImagePatchesPrim = cldnn::extract_image_patches(layerName,

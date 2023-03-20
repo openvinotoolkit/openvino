@@ -254,6 +254,7 @@ const std::map<std::string, CreatorFunction> get_supported_ops() {
         {"aten::narrow", op::translate_narrow},
         {"aten::ne", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
         {"aten::neg", op::translate_neg},
+        {"aten::new_empty", op::translate_new_zeros},
         {"aten::new_full", op::translate_new_full},
         {"aten::new_ones", op::translate_new_ones},
         {"aten::new_zeros", op::translate_new_zeros},
