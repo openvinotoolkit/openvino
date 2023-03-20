@@ -150,9 +150,7 @@ Some functions in Python API release the Global Lock Interpreter (GIL) while run
    :fragment: [releasing_gil]
 
 
-.. note::
-
-   While GIL is released, functions can still modify and/or operate on Python objects in C++. Hence, there is no reference counting. You should pay attention to thread safety in case sharing of these objects with another thread occurs. It might affect code only if multiple threads are spawned in Python.
+.. note:: While GIL is released, functions can still modify and/or operate on Python objects in C++. Hence, there is no reference counting. You should pay attention to thread safety in case sharing of these objects with another thread occurs. It might affect code only if multiple threads are spawned in Python.
 
 
 List of Functions that Release the GIL
