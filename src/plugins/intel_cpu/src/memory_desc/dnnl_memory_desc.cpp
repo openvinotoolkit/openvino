@@ -115,5 +115,11 @@ MemoryDescPtr DnnlMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims) const 
     IE_THROW(Unexpected) << "Cannot clone non blocked oneDNN desc with new dims";
 }
 
+size_t DnnlMemoryDesc::getOffsetPadding() const {
+    dnnl::impl::memory_desc_wrapper wrap(desc.get());
+    return DnnlExtensionUtils::convertToDim(wrap.offset0());
+}
+
+
 }   // namespace intel_cpu
 }   // namespace ov
