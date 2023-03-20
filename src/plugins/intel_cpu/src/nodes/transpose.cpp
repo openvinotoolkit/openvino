@@ -40,7 +40,7 @@ bool Transpose::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
 class TransposeDynShapeInfer : public ShapeInferEmptyPads {
 public:
     TransposeDynShapeInfer() = default;
-    std::vector<VectorDims> infer(
+    Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         IE_THROW(NotImplemented) << "TODO: Support parameterized Order input for dynamic shapes.";
@@ -56,7 +56,7 @@ public:
     TransposeShapeInfer(const size_t& out_rank, const std::vector<size_t>& axes_vec)
     : m_out_rank(out_rank), m_axes_vec(axes_vec), m_outputShape(out_rank, 1), m_needReverse(axes_vec.empty()) {}
 
-    std::vector<VectorDims> infer(
+    Result infer(
         const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
         const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         const VectorDims& shapeIn = input_shapes[0].get();
@@ -69,7 +69,7 @@ public:
                 m_outputShape[i] = shapeIn[m_axes_vec[i]];
             }
         }
-        return {m_outputShape};
+        return {{m_outputShape}, ShapeInferStatus::success};
     }
 
     port_mask_t get_port_mask() const override {
@@ -189,7 +189,7 @@ void Transpose::prepareParams() {
         auto& srcMemPtr = getParentEdgeAt(INPUT_DATA_IDX)->getMemoryPtr();
         auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
         auto dstDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-        auto srcDesc = dnnl::memory::desc(dstDesc.dims(), dstDesc.data_type(), memory::format_tag::acdb);
+        auto srcDesc = dnnl::memory::desc(dstDesc.get_dims(), dstDesc.get_data_type(), memory::format_tag::acdb);
         auto result = getReorderPrim(context->getParamsCache(), getEngine(), srcDesc, dstDesc);
         if (!result) {
             IE_THROW() << "Reorder primitive descriptor was not found for Transpose node " << getName() << ".";

@@ -31,13 +31,18 @@ struct CompressQuantizeWeightsParams {
     float zero_point_val;
 };
 
-class CompressQuantizeWeightsTests : public testing::WithParamInterface<CompressQuantizeWeightsParams>,
-                                     public TransformationTestsF {
+class CompressQuantizeWeightsTests
+    : public testing::WithParamInterface<std::tuple<CompressQuantizeWeightsParams, element::Type>>,
+      public TransformationTestsF {
     void SetUp() override {
         TransformationTestsF::SetUp();
-        auto param = GetParam();
+        CompressQuantizeWeightsParams param;
+        ov::element::Type data_prc;
+        std::tie(param, data_prc) = GetParam();
         {
-            auto data = opset8::Constant::create(element::f32, param.shape, param.weights);
+            std::shared_ptr<Node> data = opset8::Constant::create(data_prc, param.shape, param.weights);
+            if (data_prc == element::f16)
+                data = std::make_shared<opset8::Convert>(data, element::f32);
             auto input_low = opset8::Constant::create(element::f32, Shape{}, {param.in_low});
             auto input_high = opset8::Constant::create(element::f32, Shape{}, {param.in_high});
             auto output_low = opset8::Constant::create(element::f32, Shape{}, {param.out_low});
@@ -116,7 +121,11 @@ static std::vector<CompressQuantizeWeightsParams> params = {
      -64.25f},
 };
 
-INSTANTIATE_TEST_SUITE_P(TransformationTests, CompressQuantizeWeightsTests, ::testing::ValuesIn(params));
+static element::TypeVector data_precisions = {element::f32, element::f16};
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         CompressQuantizeWeightsTests,
+                         ::testing::Combine(::testing::ValuesIn(params), ::testing::ValuesIn(data_precisions)));
 
 TEST_F(TransformationTestsF, CompressQuantizeWeightsWithDequantizationSubgraph) {
     {

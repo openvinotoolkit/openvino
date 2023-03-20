@@ -37,7 +37,7 @@ public:
     // Return shape if inputs has torch::Tensor type in the original model, otherwise returns the shape [] of a scalar
     virtual PartialShape get_input_shape(size_t index) const = 0;
 
-    // Return element::Type when it the original type can be represented, otherwise returns PT-sepcific data type object
+    // Return element::Type when it the original type can be represented, otherwise returns PT-specific data type object
     // (see custom_type.hpp)
     virtual Any get_input_type(size_t index) const = 0;
 
@@ -50,7 +50,7 @@ public:
     // Return shape if inputs has torch::Tensor type in the original model, otherwise returns the shape [] of a scalar
     virtual PartialShape get_output_shape(size_t index) const = 0;
 
-    // Return element::Type when it the original type can be represented, otherwise returns PT-sepcific data type object
+    // Return element::Type when it the original type can be represented, otherwise returns PT-specific data type object
     // (see custom_type.hpp)
     virtual Any get_output_type(size_t index) const = 0;
 
