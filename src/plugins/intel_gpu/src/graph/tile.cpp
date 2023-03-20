@@ -51,13 +51,19 @@ std::vector<layout> tile_inst::calc_output_layouts(tile_node const& /*node*/, co
     };
 
     auto& constant_mem = impl_param.memory_deps;
-    if (constant_mem.count(1)) {
-        auto repeats_mem = constant_mem.at(1);
-        cldnn::mem_lock<uint8_t, mem_lock_type::read> repeats_lock(repeats_mem, impl_param.prog->get_stream());
-        const auto& layout = repeats_mem->get_layout();
-        const auto repeats_tensor =
-            ov::Tensor(data_type_to_element_type(layout.data_type), layout.get_shape(), repeats_lock.data());
-        output_shapes = ov::op::v0::shape_infer(&op, input_shapes, {{1, repeats_tensor}});
+    if (desc->input_size() == 2) {
+        if (constant_mem.count(1)) {
+            auto repeats_mem = constant_mem.at(1);
+            cldnn::mem_lock<uint8_t, mem_lock_type::read> repeats_lock(repeats_mem, impl_param.prog->get_stream());
+            const auto& layout = repeats_mem->get_layout();
+            const auto repeats_tensor =
+                ov::Tensor(data_type_to_element_type(layout.data_type), layout.get_shape(), repeats_lock.data());
+            output_shapes = ov::op::v0::shape_infer(&op, input_shapes, {{1, repeats_tensor}});
+        } else if (repeats_shape.size() > 0 && repeats_shape[0].is_static()) {
+            output_shapes = { ov::PartialShape::dynamic(std::max<size_t>(input_shapes[0].size(), repeats_shape[0].get_length())) };
+        } else {
+            output_shapes = { ov::PartialShape::dynamic() };
+        }
     } else {
         auto repeats_data = desc->repeats;
         const auto repeats_tensor =
