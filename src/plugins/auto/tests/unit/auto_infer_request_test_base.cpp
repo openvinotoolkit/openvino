@@ -3,6 +3,21 @@
 //
 
 #include "include/auto_infer_request_test_base.hpp"
+
+mockAsyncInferRequest::mockAsyncInferRequest(const InferenceEngine::IInferRequestInternal::Ptr &inferRequest,
+                                     const ImmediateExecutor::Ptr& taskExecutor,
+                                     const ImmediateExecutor::Ptr& callbackExecutor,
+                                     bool ifThrow)
+    : InferenceEngine::AsyncInferRequestThreadSafeDefault(inferRequest, taskExecutor, callbackExecutor), _throw(ifThrow) {
+    _pipeline = {};
+
+    _pipeline.push_back({taskExecutor,
+                [this] {
+                    if (_throw)
+                        IE_THROW();
+                } });
+}
+
 AutoInferRequestTestBase::AutoInferRequestTestBase() {
     // prepare cpuMockExeNetwork
     mockIExeNet = std::make_shared<NiceMock<MockIExecutableNetworkInternal>>();
@@ -39,6 +54,8 @@ AutoInferRequestTestBase::AutoInferRequestTestBase() {
     ON_CALL(*core, GetMetric(_, StrEq(METRIC_KEY(SUPPORTED_CONFIG_KEYS)), _))
         .WillByDefault(RETURN_MOCK_VALUE(supportConfigs));
     ON_CALL(*core, GetAvailableDevices()).WillByDefault(Return(availableDevs));
+    ON_CALL(*core, GetMetric(StrEq("GPU"),
+                   StrEq(METRIC_KEY(FULL_DEVICE_NAME)), _)).WillByDefault(Return("iGPU"));
     IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, optimalNum, 2);
     ON_CALL(*mockIExeNet.get(), GetMetric(StrEq(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS))))
         .WillByDefault(Return(optimalNum));

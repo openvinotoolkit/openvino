@@ -8,14 +8,13 @@
 #include <ngraph_functions/subgraph_builders.hpp>
 #include <common_test_utils/test_constants.hpp>
 #include <ie_metric_helpers.hpp>
-#include "mock_common.hpp"
+#include "include/mock_common.hpp"
 
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
-#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iinference_plugin.hpp"
-#include "plugin/mock_auto_device_plugin.hpp"
-#include "plugin/mock_infer_request.hpp"
+#include "include/mock_auto_device_plugin.hpp"
+#include "include/auto_infer_request_test_base.hpp"
 
 using ::testing::Throw;
 using ::testing::Matches;
@@ -192,7 +191,7 @@ public:
             });
 
         ON_CALL(*plugin, GetValidDevice)
-            .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
+            .WillByDefault([](const std::vector<DeviceInformation>& metaDevices, const std::string& netPrecision) {
                 std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
                 return devices;
             });

@@ -24,7 +24,7 @@
 using namespace ::testing;
 
 using Config = std::map<std::string, std::string>;
-const std::vector<std::string>  availableDevs = {"CPU", "GPU", "VPUX"};
+const std::vector<std::string>  availableDevs = {"CPU", "GPU"};
 struct DeferedExecutor : public ITaskExecutor {
     using Ptr = std::shared_ptr<DeferedExecutor>;
     DeferedExecutor() = default;
@@ -53,7 +53,7 @@ struct DeferedExecutor : public ITaskExecutor {
 
 class AutoInferRequestTestBase {
 protected:
-    const unsigned int                                                  target_request_num{6};  // by default will create 6 infer request for tests, 2 for each
+    const unsigned int                                                  target_request_num{4};  // by default will create 4 infer request for tests, 2 for each
     std::shared_ptr<ngraph::Function>                                   function;
     InferenceEngine::CNNNetwork                                         cnnNet;
     std::shared_ptr<NiceMock<MockICore>>                                core;
@@ -100,20 +100,28 @@ protected:
         ov::Any targetList;
 };
 
-using AsyncInferenceTestParams = std::tuple<
-        ov::AnyMap                // property for loadnetwork, control if restart after infer fail
-        >;
 class AsyncInferenceTest : public AutoInferRequestTestBase,
-                            public ::testing::TestWithParam<AsyncInferenceTestParams> {
+                            public ::testing::Test {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<AsyncInferenceTestParams> obj);
     void SetUp() override;
     void TearDown() override;
     void makeAsyncRequest();
 
 protected:
-    std::map<std::string, std::string> configToLoad;
     ITaskExecutor::Ptr taskExecutor;
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> exeNetwork;
     std::shared_ptr<InferenceEngine::IInferRequestInternal> auto_request;
+};
+
+class mockAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
+public:
+    using Parent = InferenceEngine::AsyncInferRequestThreadSafeDefault;
+    mockAsyncInferRequest(const InferenceEngine::IInferRequestInternal::Ptr &inferRequest,
+                      const ImmediateExecutor::Ptr& taskExecutor,
+                      const ImmediateExecutor::Ptr& callbackExecutor,
+                      bool ifThrow);
+
+    ~mockAsyncInferRequest() override = default;
+private:
+    bool _throw;
 };
