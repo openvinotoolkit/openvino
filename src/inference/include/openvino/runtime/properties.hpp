@@ -663,7 +663,19 @@ static constexpr Priorities priorities{"MULTI_DEVICE_PRIORITIES"};
  * @brief Type for property to pass set of properties to specified device
  * @ingroup ov_runtime_cpp_prop_api
  */
-struct Properties {
+
+struct Properties : public Property<std::map<std::string, std::map<std::string, Any>>> {
+    using Property<std::map<std::string, std::map<std::string, Any>>>::Property;
+
+    /**
+     * @brief Constructs property
+     * @param configs set of property values with names
+     * @return Pair of string key representation and type erased property value.
+     */
+    inline std::pair<std::string, Any> operator()(const AnyMap& config) const {
+        return {name(), config};
+    }
+
     /**
      * @brief Constructs property
      * @param device_name device plugin alias
@@ -671,7 +683,7 @@ struct Properties {
      * @return Pair of string key representation and type erased property value.
      */
     inline std::pair<std::string, Any> operator()(const std::string& device_name, const AnyMap& config) const {
-        return {device_name, config};
+        return {name() + std::string("_") + device_name, config};
     }
 
     /**
@@ -685,7 +697,7 @@ struct Properties {
     inline util::EnableIfAllStringAny<std::pair<std::string, Any>, Properties...> operator()(
         const std::string& device_name,
         Properties&&... configs) const {
-        return {device_name, AnyMap{std::pair<std::string, Any>{configs}...}};
+        return {name() + std::string("_") + device_name, AnyMap{std::pair<std::string, Any>{configs}...}};
     }
 };
 
@@ -700,7 +712,7 @@ struct Properties {
  *     ov::device::properties("GPU", ov::enable_profiling(false)));
  * @endcode
  */
-static constexpr Properties properties;
+static constexpr Properties properties{"DEVICE_PROPERTIES"};
 
 /**
  * @brief Read-only property to get a std::string value representing a full device name.
