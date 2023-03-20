@@ -90,7 +90,7 @@ Steps to Apply LowLatency2
       }
 
 
-4. Use state API. See the :ref:`OpenVINO state API <openvino-state-api>` and the `Example of stateful network inference <example-of-stateful-network-inference>` sections.
+4. Use state API. See the :ref:`OpenVINO state API <openvino-state-api>` and the `Example of stateful network inference <example-of-stateful-model-inference>` sections.
 
 Known Limitations
 ####################
