@@ -92,6 +92,7 @@
 #include "transformations/op_conversions/convert_softmax_upgrade.hpp"
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
 #include "transformations/op_conversions/convert_subtract.hpp"
+#include "transformations/op_conversions/convert_topk11_downgrade.hpp"
 #include "transformations/op_conversions/convert_xor_to_logical_xor.hpp"
 #include "transformations/op_conversions/detection_output_downgrade.hpp"
 #include "transformations/op_conversions/detection_output_upgrade.hpp"
@@ -209,6 +210,7 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     REGISTER_PASS(manager, ConvertROIAlign9To3)
     REGISTER_PASS(manager, ConvertMulticlassNms8ToMulticlassNms9)
     REGISTER_PASS(manager, ConvertXorToLogicalXor)
+    REGISTER_PASS(manager, ConvertTopK11ToTopK3)
 
     auto fq_fusions = manager.register_pass<GraphRewrite>();
     ADD_MATCHER(fq_fusions, FakeQuantizeMulFusion)

@@ -38,7 +38,7 @@ class IAsyncInferRequest;
 class OPENVINO_RUNTIME_API ICompiledModel : public std::enable_shared_from_this<ICompiledModel> {
 public:
     /**
-     * @brief Main constructor for ICompiledModel interface
+     * @brief Constructor for ICompiledModel interface
      *
      * @param model OpenVINO model representation
      *
@@ -51,6 +51,28 @@ public:
     ICompiledModel(
         const std::shared_ptr<const ov::Model>& model,
         const std::shared_ptr<const ov::IPlugin>& plugin,
+        const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor =
+            std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Default"}),
+        const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor =
+            std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Callback"}));
+
+    /**
+     * @brief Constructor for ICompiledModel interface with remote context
+     *
+     * @param model OpenVINO model representation
+     *
+     * @param plugin Pointer to plugin
+     *
+     * @param context Remote context
+     *
+     * @param task_executor Task executor (CPUStreamsExecutor by default)
+     *
+     * @param callback_executor Callback executor (CPUStreamsExecutor by default)
+     */
+    ICompiledModel(
+        const std::shared_ptr<const ov::Model>& model,
+        const std::shared_ptr<const ov::IPlugin>& plugin,
+        const ov::RemoteContext& context,
         const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor =
             std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Default"}),
         const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor =
@@ -112,12 +134,13 @@ public:
      *
      * @return OpenVINO RemoteContext
      */
-    virtual ov::RemoteContext get_context() const = 0;
+    std::shared_ptr<ov::IRemoteContext> get_context() const;
 
 private:
     std::shared_ptr<const ov::IPlugin> m_plugin;
     std::vector<ov::Output<const ov::Node>> m_inputs;
     std::vector<ov::Output<const ov::Node>> m_outputs;
+    ov::RemoteContext m_context;
 
     std::shared_ptr<ov::threading::ITaskExecutor> m_task_executor = nullptr;      //!< Holds a task executor
     std::shared_ptr<ov::threading::ITaskExecutor> m_callback_executor = nullptr;  //!< Holds a callback executor
