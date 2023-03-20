@@ -304,6 +304,10 @@ protected:
             _kernels.insert(_kernels.end(), k.second.begin(), k.second.end());
         }
     }
+
+    std::vector<kernel::ptr> get_kernels() override {
+        return _kernels;
+    }
 };
 
 }  // namespace ocl
