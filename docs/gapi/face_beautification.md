@@ -18,11 +18,10 @@ This sample requires:
 
 * PC with GNU/Linux or Microsoft Windows (Apple macOS is supported but was not tested)
 * OpenCV 4.2 or higher built with `Intel® Distribution of OpenVINO™ Toolkit <https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html>`__ (building with `Intel® TBB <https://www.threadingbuildingblocks.org/intel-tbb-tutorial>`__ is a plus)
-
 * The following pre-trained models from the :doc:`Open Model Zoo <omz_models_group_intel>`
 
-      * `face-detection-adas-0001 <https://docs.openvino.ai/latest/omz_models_model_face_detection_adas_0001.html#doxid-omz-models-model-face-detection-adas-0001>`__
-      * `facial-landmarks-35-adas-0002 <https://docs.openvino.ai/latest/omz_models_model_facial_landmarks_35_adas_0002.html#doxid-omz-models-model-facial-landmarks-35-adas-0002>`__
+   * `face-detection-adas-0001 <https://docs.openvino.ai/latest/omz_models_model_face_detection_adas_0001.html#doxid-omz-models-model-face-detection-adas-0001>`__
+   * `facial-landmarks-35-adas-0002 <https://docs.openvino.ai/latest/omz_models_model_facial_landmarks_35_adas_0002.html#doxid-omz-models-model-facial-landmarks-35-adas-0002>`__
 
 To download the models from the Open Model Zoo, use the :doc:`Model Downloader <omz_tools_downloader>` tool.
 
@@ -371,20 +370,18 @@ The steps to get the masks are:
 
 * the "sharp" mask calculation:
     
-    * fill the contours that should be sharpened;
-    * blur that to get the "sharp" mask (``mskSharpG``);
-
+  * fill the contours that should be sharpened;
+  * blur that to get the "sharp" mask (``mskSharpG``);
 * the "bilateral" mask calculation:
     
-    * fill all the face contours fully;
-    * blur that;
-    * subtract areas which intersect with the "sharp" mask --- and get the "bilateral" mask (``mskBlurFinal``);
-    
+  * fill all the face contours fully;
+  * blur that;
+  * subtract areas which intersect with the "sharp" mask --- and get the "bilateral" mask (``mskBlurFinal``);
 * the background mask calculation:
     
-    * add two previous masks
-    * set all non-zero pixels of the result as 255 (by ``cv::gapi::threshold()``)
-    * revert the output (by ``cv::gapi::bitwise_not``) to get the background mask (``mskNoFaces``).
+  * add two previous masks
+  * set all non-zero pixels of the result as 255 (by ``cv::gapi::threshold()``)
+  * revert the output (by ``cv::gapi::bitwise_not``) to get the background mask (``mskNoFaces``).
 
 Configuring and Running the Pipeline
 ####################################
