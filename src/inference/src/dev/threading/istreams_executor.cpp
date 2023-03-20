@@ -69,7 +69,7 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
                 _threadBindingType = ThreadBindingType::HYBRID_AWARE;
                 break;
             default:
-                OPENVINO_UNREACHABLE("Unsupported affinity type");
+                OPENVINO_THROW("Unsupported affinity type");
             }
         } else if (key == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
             if (value.as<std::string>() == CONFIG_VALUE(CPU_THROUGHPUT_NUMA)) {
@@ -102,11 +102,11 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
             } else if (streams.num >= 0) {
                 _streams = streams.num;
             } else {
-                OPENVINO_UNREACHABLE("Wrong value for property key ",
-                                     ov::num_streams.name(),
-                                     ". Expected non negative numbers (#streams) or ",
-                                     "ov::streams::NUMA|ov::streams::AUTO, Got: ",
-                                     streams);
+                OPENVINO_THROW("Wrong value for property key ",
+                               ov::num_streams.name(),
+                               ". Expected non negative numbers (#streams) or ",
+                               "ov::streams::NUMA|ov::streams::AUTO, Got: ",
+                               streams);
             }
         } else if (key == CONFIG_KEY(CPU_THREADS_NUM) || key == ov::inference_num_threads) {
             int val_i;
@@ -205,7 +205,7 @@ void IStreamsExecutor::Config::set_property(const ov::AnyMap& property) {
             } else if (value.as<std::string>() == CONFIG_VALUE(NO)) {
                 _enable_hyper_thread = false;
             } else {
-                OPENVINO_UNREACHABLE("Unsupported enable hyper thread type");
+                OPENVINO_THROW("Unsupported enable hyper thread type");
             }
         } else {
             IE_THROW() << "Wrong value for property key " << key;
@@ -276,7 +276,7 @@ ov::Any IStreamsExecutor::Config::get_property(const std::string& key) const {
     } else if (key == CONFIG_KEY_INTERNAL(ENABLE_HYPER_THREAD)) {
         return {_enable_hyper_thread ? CONFIG_VALUE(YES) : CONFIG_VALUE(NO)};
     } else {
-        OPENVINO_UNREACHABLE("Wrong value for property key ", key);
+        OPENVINO_THROW("Wrong value for property key ", key);
     }
     return {};
 }

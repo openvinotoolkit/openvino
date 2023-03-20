@@ -33,6 +33,7 @@ class IAsyncInferRequest;
 
 /**
  * @brief OpenVINO ICompiledModel interface
+ * @ingroup ov_dev_api_compiled_model_api
  */
 class OPENVINO_RUNTIME_API ICompiledModel : public std::enable_shared_from_this<ICompiledModel> {
 public:
@@ -124,11 +125,6 @@ private:
     friend ov::CoreImpl;
     friend ov::IExecutableNetworkWrapper;
     friend InferenceEngine::ICompiledModelWrapper;
-
-    /**
-     * @brief function allows to mark that model was loaded from cache
-     */
-    void loaded_from_cache();
 
     // FIXME: Remove after removing IE API
     std::vector<std::shared_ptr<const ov::Node>> _parameters;

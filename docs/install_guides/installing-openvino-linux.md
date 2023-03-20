@@ -8,7 +8,7 @@ Currently the following ways are provided to install OpenVINO™:
 * [Install OpenVINO from PyPI](installing-openvino-pip.md)
 * [Install OpenVINO Runtime via HomeBrew](installing-openvino-brew.md)
 * [Install OpenVINO with Docker](installing-openvino-docker-linux.md)
-* [Build From Source](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode)
+* [Build From Source](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md)
 
 The other installation methods are temporarily unavailable.
 

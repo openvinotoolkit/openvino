@@ -140,6 +140,7 @@ class UniqueNamesHolder {
 
     size_t m_index{0};
     bool m_soft_names_comparison{false};
+    bool m_result_friendly_names_check{true};
 
     std::string generate_tensor_name() {
         return "tensor_" + std::to_string(m_index++);
@@ -226,27 +227,33 @@ public:
                 }
             }
 
-            // Check that result input node names are preserved
-            bool is_multi_output = m_result_node_names.at(r.get()).second;
-            const auto& ref_node_name = m_result_node_names.at(r.get()).first;
-            const auto& cur_node_name = r->input_value(0).get_node()->get_friendly_name();
-            if (is_multi_output || m_soft_names_comparison) {
-                if (cur_node_name.find(ref_node_name) == std::string::npos) {
+            if (m_result_friendly_names_check) {
+                // Check that result input node names are preserved
+                bool is_multi_output = m_result_node_names.at(r.get()).second;
+                const auto &ref_node_name = m_result_node_names.at(r.get()).first;
+                const auto &cur_node_name = r->input_value(0).get_node()->get_friendly_name();
+                if (is_multi_output || m_soft_names_comparison) {
+                    if (cur_node_name.find(ref_node_name) == std::string::npos) {
+                        std::stringstream ss;
+                        ss << "Output node names mismatch: " << cur_node_name << " and " << ref_node_name
+                           << " (reference)";
+                        throw ngraph_error(ss.str());
+                    }
+                } else if (cur_node_name != ref_node_name) {
                     std::stringstream ss;
-                    ss << "Output node names mismatch: " << cur_node_name << " and " << ref_node_name << " (reference)";
+                    ss << "Output node names are different: " << cur_node_name << " and " << ref_node_name
+                       << " (reference)";
                     throw ngraph_error(ss.str());
                 }
-            } else if (cur_node_name != ref_node_name) {
-                std::stringstream ss;
-                ss << "Output node names are different: " << cur_node_name << " and " << ref_node_name
-                   << " (reference)";
-                throw ngraph_error(ss.str());
             }
         }
     }
 
     void enable_soft_names_comparison() {
         m_soft_names_comparison = true;
+    }
+    void disable_result_friendly_names_check() {
+        m_result_friendly_names_check = false;
     }
 };
 
@@ -265,9 +272,11 @@ class CheckUniqueNames : public ov::pass::ModelPass {
     UniqueNamesHolder::Ptr m_unh;
 
 public:
-    CheckUniqueNames(UniqueNamesHolder::Ptr unh, bool soft_names_comparison = false) : m_unh(unh) {
+    CheckUniqueNames(UniqueNamesHolder::Ptr unh, bool soft_names_comparison = false, bool result_friendly_names_check = true) : m_unh(unh) {
         if (soft_names_comparison)
             m_unh->enable_soft_names_comparison();
+        if (!result_friendly_names_check)
+            m_unh->disable_result_friendly_names_check();
     }
     bool run_on_model(const std::shared_ptr<Function>& f) override {
         m_unh->check_unique_names(f);
@@ -698,8 +707,7 @@ struct Equal<uint8_t*> {
 
         for (size_t bit_idx = 0; bit_idx < lhs_bit_size; bit_idx++) {
             const auto byte_idx_result(bit_idx / BITS_IN_BYTE_COUNT);
-            if (byte_idx_result > std::numeric_limits<uint8_t>::max())
-                throw ov::Exception("(bit_idx / BITS_IN_BYTE_COUNT) bigger than uint8_t::max_value");
+            OPENVINO_ASSERT(byte_idx_result <= std::numeric_limits<uint8_t>::max(), "(bit_idx / BITS_IN_BYTE_COUNT) bigger than uint8_t::max_value");
 
             const auto byte_idx(static_cast<uint8_t>(byte_idx_result));
             const uint8_t bit_in_byte_idx = 7 - (bit_idx % BITS_IN_BYTE_COUNT);

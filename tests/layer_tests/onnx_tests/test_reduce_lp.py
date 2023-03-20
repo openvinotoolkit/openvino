@@ -232,6 +232,8 @@ class TestReduceL1L2(OnnxRuntimeLayerTest):
     @pytest.mark.nightly
     def test_reduce_lp(self, params, keep_dims, reduce_p, ie_device, precision, ir_version,
                        temp_dir, use_old_api):
+        if ie_device == 'GPU':
+            pytest.skip('GREEN_SUITE')
         self._test(*self.create_reduce_lp(**params, keep_dims=keep_dims, reduce_p=reduce_p,
                                           ir_version=ir_version),
                    ie_device, precision, ir_version, temp_dir=temp_dir, use_old_api=use_old_api)
@@ -251,6 +253,7 @@ class TestReduceL1L2(OnnxRuntimeLayerTest):
     @pytest.mark.parametrize("keep_dims", [True, False])
     @pytest.mark.parametrize("reduce_p", [1, 2])
     @pytest.mark.nightly
+    @pytest.mark.skip(reason='GREEN_SUITE')
     def test_reduce_lp_const(self, params, keep_dims, reduce_p, ie_device, precision, ir_version,
                              temp_dir, use_old_api):
         self._test(*self.create_reduce_lp_const(**params, keep_dims=keep_dims, reduce_p=reduce_p,

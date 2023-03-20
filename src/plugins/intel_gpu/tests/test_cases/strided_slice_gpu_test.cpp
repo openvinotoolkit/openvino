@@ -620,6 +620,59 @@ public:
         }
     }
 
+    void test_2x2x2_all_dynamic_bcast() {
+        auto& engine = get_test_engine();
+        auto input_lay = layout{ ov::PartialShape::dynamic(3), data_types::f32, format::bfyx };
+        auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2 }, data_types::f32, format::bfyx });
+        auto begin = engine.allocate_memory({ ov::PartialShape{ 1 }, data_types::i64, format::bfyx });
+        auto end = engine.allocate_memory({ ov::PartialShape{ 1 }, data_types::i64, format::bfyx });
+        auto strides = engine.allocate_memory({ ov::PartialShape{ 1 }, data_types::i64, format::bfyx });
+
+        set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f});
+        set_values<int64_t>(begin, {1});
+        set_values<int64_t>(end, {2});
+        set_values<int64_t>(strides, {1});
+
+        topology topology;
+        topology.add(input_layout("input", input_lay));
+        topology.add(data("input2", begin));
+        topology.add(data("input3", end));
+        topology.add(data("input4", strides));
+        topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {}));
+
+        ExecutionConfig config;
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        network network(engine, topology, config);
+
+        network.set_input_data("input", input);
+
+        auto inst = network.get_primitive("strided_slice");
+        auto impl = inst->get_impl();
+        ASSERT_TRUE(impl != nullptr);
+        ASSERT_TRUE(impl->is_dynamic());
+
+        auto outputs = network.execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "strided_slice");
+
+        auto output = outputs.at("strided_slice").get_memory();
+
+        ov::PartialShape expected_shape{1, 2, 2};
+
+        ASSERT_EQ(output->get_layout().get_partial_shape(), expected_shape);
+
+        std::vector<float> answers = {
+                4.0f, 5.0f, 6.0f, 7.0f
+        };
+
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+        for (size_t i = 0; i < answers.size(); ++i)         {
+            ASSERT_EQ(answers[i], output_ptr[i]) << " i = " << i;
+        }
+    }
+
     void test_2x2x2x1x1_2_negative_all_dynamic_begin() {
         auto& engine = get_test_engine();
         auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2 }, data_types::f32, format::bfyx });
@@ -1593,7 +1646,7 @@ public:
             ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
         }
     }
-}; 
+};
 
 class strided_slice_gpu_i8: public ::testing::Test {
 public:
@@ -1820,6 +1873,10 @@ TEST_F(strided_slice_gpu, test_2x2x2x1x1_2_negative_all_dynamic) {
 
 TEST_F(strided_slice_gpu, test_2x2x2x1x1_2_negative_all_dynamic_begin) {
     this->test_2x2x2x1x1_2_negative_all_dynamic_begin();
+}
+
+TEST_F(strided_slice_gpu, test_2x2x2_all_dynamic_bcast) {
+    this->test_2x2x2_all_dynamic_bcast();
 }
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS

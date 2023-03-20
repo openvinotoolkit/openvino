@@ -36,6 +36,7 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 namespace node {
+namespace {
 
 /* This class implementation is a temporal WA
    TODO: revise the implementation to remove the node reference*/    
@@ -66,6 +67,7 @@ public:
 private:
     Snippet* m_node;
 };
+} // namespace
 
 Snippet::Snippet(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, SnippetShapeInferFactory(this)) {
@@ -116,11 +118,11 @@ void Snippet::initSupportedPrimitiveDescriptors() {
     const size_t ndims = outputShapes[0].getRank();
     // Domain sensitive operations support only Planar layout
     const bool isOnlyPlanarApplicable = snippet->has_domain_sensitive_ops();
-    const bool isChannelsFirstApplicable = dnnl::impl::utils::one_of(ndims, 1, 2, 3, 4, 5) && dimRanksAreEqual && !isOnlyPlanarApplicable;
+    const bool isChannelsFirstApplicable = dnnl::impl::utils::one_of(ndims, 1u, 2u, 3u, 4u, 5u) && dimRanksAreEqual && !isOnlyPlanarApplicable;
     // Todo: Snippets currently don't support per-channel broadcasting of Blocked descriptors because
     //  canonicalization can't distinguish between <N, C, H, W, c> and <N, C, D, H, W> cases.
     //  See snippets::op::Subgraph::canonicalize for details.
-    bool isBlockedApplicable = dnnl::impl::utils::one_of(ndims,  4, 5) && dimRanksAreEqual && !isOnlyPlanarApplicable;
+    bool isBlockedApplicable = dnnl::impl::utils::one_of(ndims,  4u, 5u) && dimRanksAreEqual && !isOnlyPlanarApplicable;
 
     for (const auto& inShape : inputShapes) {
         if (isDynamic && inShape.getRank() != 1)
@@ -388,7 +390,7 @@ std::vector<VectorDims> Snippet::shapeInfer() {
         dst.insert(dst.begin(), new_rank - dst_rank, 1);
         std::vector<Dimension> dims(new_rank);
         bool success = true;
-        for (int64_t i = 0; i < new_rank; i++) {
+        for (size_t i = 0; i < new_rank; i++) {
             auto dsti = i < (new_rank - dst_rank) ? 1 : dst[i - (new_rank - dst_rank)];
             auto srci = i < (new_rank - src_rank) ? 1 : src[i - (new_rank - src_rank)];
             if (dsti != srci && srci != Shape::UNDEFINED_DIM) {

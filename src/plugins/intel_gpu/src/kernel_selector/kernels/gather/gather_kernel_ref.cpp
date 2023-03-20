@@ -180,7 +180,7 @@ CommonDispatchData GatherKernelRef::SetDefault(const gather_params& params) cons
     auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
-    int rank = params.outputs[0].Dimentions();
+    auto rank = params.outputs[0].Dimentions();
     if (rank == 4) {
         dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
         dims_by_gws = {{Tensor::DataChannelName::X},
@@ -297,7 +297,7 @@ KernelsData GatherKernelRef::GetKernelsData(const Params& params, const optional
                      2,
                      GetFusedPrimitiveInputsCount(params),
                      1,
-                     newParams.outputs[0].is_dynamic());
+                     newParams.has_dynamic_tensors());
 
     return {kd};
 }
