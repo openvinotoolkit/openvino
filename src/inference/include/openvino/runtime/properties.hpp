@@ -352,7 +352,7 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
 static constexpr Property<PerformanceMode> performance_mode{"PERFORMANCE_HINT"};
 
 /**
- * @brief This property define if using hyper threading during inference.
+ * @brief This property allows hyper threading during inference.
  * @ingroup ov_runtime_cpp_prop_api
  *
  * Developer can use this property to use or not use hyper threading during inference. If user does not explicitly set
