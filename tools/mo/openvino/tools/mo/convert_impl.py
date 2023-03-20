@@ -444,6 +444,8 @@ def prepare_ir(argv: argparse.Namespace):
                     f"The detailed reason why fallback was executed: not supported {reasons_message} were used. "
                     "You can specify --use_new_frontend flag to force using the Frontend MO path to avoid additional checks. " +
                     refer_to_faq_msg(105))
+        assert not hasattr(argv, 'is_fallback'), '`is_fallback` argument must not exist.'
+        argv.is_fallback = True
 
     t.send_event("mo", "conversion_method", "mo_legacy")
     graph = unified_pipeline(argv)

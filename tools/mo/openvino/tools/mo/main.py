@@ -47,7 +47,8 @@ def main(cli_parser: argparse.ArgumentParser, framework=None):
             print(ov_update_message)
         if ov_api20_message is not None and ngraph_function is not None:
             print(ov_api20_message)
-        if not argv.use_legacy_frontend and is_tf:
+        is_fallback = getattr(argv, 'is_fallback', False)
+        if not argv.use_legacy_frontend and is_tf and not is_fallback:
             # now TF FE is default frontend for TensorFlow models conversion
             print(get_tf_fe_message())
 
