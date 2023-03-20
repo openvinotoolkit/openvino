@@ -19,8 +19,8 @@ OutputVector translate_sort(NodeContext& context) {
         stable = context.const_input<bool>(1);
         dim = context.const_input<int64_t>(2);
         descending = context.const_input<bool>(3);
-        FRONT_END_OP_CONVERSION_CHECK(stable == false, "Stable sorting in aten::sort is not yet supported.");
     } else {
+        stable = false;
         dim = context.const_input<int64_t>(1);
         descending = context.const_input<bool>(2);
     }
@@ -36,7 +36,8 @@ OutputVector translate_sort(NodeContext& context) {
                                                                   dim,
                                                                   mode,
                                                                   ov::op::TopKSortType::SORT_VALUES,
-                                                                  element::i64));
+                                                                  element::i64,
+                                                                  stable));
     return topk->outputs();
 };
 
