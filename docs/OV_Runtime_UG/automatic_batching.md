@@ -37,7 +37,7 @@ To enable Auto-batching in the legacy apps not akin to the notion of performance
 Disabling Automatic Batching
 ++++++++++++++++++++++++++++
 
-Auto-Batching can be disabled (for example, for the GPU device) to prevent being triggered by `ov::hint::PerformanceMode::THROUGHPUT`. To do that, set ``ov::hint::allow_auto_batching`` to **false** in addition to the ``ov::hint::performance_mode``, as shown below:
+Auto-Batching can be disabled (for example, for the GPU device) to prevent being triggered by ``ov::hint::PerformanceMode::THROUGHPUT``. To do that, set ``ov::hint::allow_auto_batching`` to **false** in addition to the ``ov::hint::performance_mode``, as shown below:
 
 .. tab-set::
    
@@ -65,9 +65,9 @@ Following the OpenVINO naming convention, the *batching* device is assigned the 
 | Parameter name             | Parameter description                                                                                | Examples                                                                                                                                                                                                                                         |
 +============================+======================================================================================================+==================================================================================================================================================================================================================================================+
 | ``AUTO_BATCH_DEVICE``      | The name of the device to apply Automatic batching,  with the optional batch size value in brackets. | ``BATCH:GPU`` triggers the automatic batch size selection. ``BATCH:GPU(4)`` directly specifies the batch size.                                                                                                                                   |
++----------------------------+------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | ``ov::auto_batch_timeout`` | The timeout value, in ms. (1000 by default)                                                          | You can reduce the timeout value to avoid performance penalty when the data arrives too unevenly. For example, set it to "100", or the contrary, i.e., make it large enough to accommodate input preparation (e.g. when it is a serial process). |
 +----------------------------+------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-
 
 Automatic Batch Size Selection
 ##############################
@@ -126,8 +126,9 @@ Other Performance Considerations
 
 To achieve the best performance with Automatic Batching, the application should:
 
- - Operate inference requests of the number that represents the multiple of the batch size. In the example above, for batch size 4, the application should operate 4, 8, 12, 16, etc. requests.
- - Use the requests that are grouped by the batch size together. For example, the first 4 requests are inferred, while the second group of the requests is being populated. Essentially, Automatic Batching shifts the asynchronicity from the individual requests to the groups of requests that constitute the batches.
+- Operate inference requests of the number that represents the multiple of the batch size. In the example above, for batch size 4, the application should operate 4, 8, 12, 16, etc. requests.
+- Use the requests that are grouped by the batch size together. For example, the first 4 requests are inferred, while the second group of the requests is being populated. Essentially, Automatic Batching shifts the asynchronicity from the individual requests to the groups of requests that constitute the batches.
+  
   - Balance the ``timeout`` value vs. the batch size. For example, in many cases, having a smaller ``timeout`` value/batch size may yield better performance than having a larger batch size with a ``timeout`` value that is not large enough to accommodate the full number of the required requests.
   - When Automatic Batching is enabled, the ``timeout`` property of ``ov::CompiledModel`` can be changed anytime, even after the loading/compilation of the model. For example, setting the value to 0 disables Auto-batching effectively, as the collection of requests would be omitted.
   - Carefully apply Auto-batching to the pipelines. For example, in the conventional "video-sources -> detection -> classification" flow, it is most beneficial to do Auto-batching over the inputs to the detection stage. The resulting number of detections is usually fluent, which makes Auto-batching less applicable for the classification stage.
@@ -135,10 +136,11 @@ To achieve the best performance with Automatic Batching, the application should:
 The following are limitations of the current implementations:
 
 - Although it is less critical for the throughput-oriented scenarios, the load time with Auto-batching increases by almost double.
- - Certain networks are not safely reshapable by the "batching" dimension (specified as ``N`` in the layout terms). Besides, if the batching dimension is not zeroth, Auto-batching will not be triggered "implicitly" by the throughput hint.
- -  The "explicit" notion, for example, ``BATCH:GPU``, using the relaxed dimensions tracking, often makes Auto-batching possible. For example, this method unlocks most **detection networks**.
- - When *forcing* Auto-batching via the "explicit" device notion, make sure that you validate the results for correctness.   
- - Performance improvements happen at the cost of the growth of memory footprint. However, Auto-batching queries the available memory (especially for dGPU) and limits the selected batch size accordingly.
+  
+  - Certain networks are not safely reshapable by the "batching" dimension (specified as ``N`` in the layout terms). Besides, if the batching dimension is not zeroth, Auto-batching will not be triggered "implicitly" by the throughput hint.
+  -  The "explicit" notion, for example, ``BATCH:GPU``, using the relaxed dimensions tracking, often makes Auto-batching possible. For example, this method unlocks most **detection networks**.
+  - When *forcing* Auto-batching via the "explicit" device notion, make sure that you validate the results for correctness.   
+  - Performance improvements happen at the cost of the growth of memory footprint. However, Auto-batching queries the available memory (especially for dGPU) and limits the selected batch size accordingly.
 
 
 Testing Performance with Benchmark_app
@@ -146,25 +148,27 @@ Testing Performance with Benchmark_app
 
 The ``benchmark_app`` sample, that has both :doc:`C++ <openvino_inference_engine_samples_benchmark_app_README>` and :doc:`Python <openvino_inference_engine_tools_benchmark_tool_README>` versions, is the best way to evaluate the performance of Automatic Batching:
 
- -  The most straightforward way is using the performance hints:
-    - benchmark_app **-hint tput** -d GPU -m 'path to your favorite model'
- -  You can also use the "explicit" device notion to override the strict rules of the implicit reshaping by the batch dimension:
-    - benchmark_app **-hint none -d BATCH:GPU** -m 'path to your favorite model'
- -  or override the automatically deduced batch size as well:
-
-    - $benchmark_app -hint none -d **BATCH:GPU(16)** -m 'path to your favorite model'
-    - This example also applies to CPU or any other device that generally supports batch execution.
-    - Keep in mind that some shell versions (e.g. ``bash``) may require adding quotes around complex device names, i.e. ``-d "BATCH:GPU(16)"`` in this example.
+- The most straightforward way is using the performance hints:
+  
+  - benchmark_app **-hint tput** -d GPU -m 'path to your favorite model'
+- You can also use the "explicit" device notion to override the strict rules of the implicit reshaping by the batch dimension:
+  
+  - benchmark_app **-hint none -d BATCH:GPU** -m 'path to your favorite model'
+- or override the automatically deduced batch size as well:
+  
+  - $benchmark_app -hint none -d **BATCH:GPU(16)** -m 'path to your favorite model'
+  - This example also applies to CPU or any other device that generally supports batch execution.
+  - Keep in mind that some shell versions (e.g. ``bash``) may require adding quotes around complex device names, i.e. ``-d "BATCH:GPU(16)"`` in this example.
 
 Note that Benchmark_app performs a warm-up run of a *single* request. As Auto-Batching requires significantly more requests to execute in batch, this warm-up run hits the default timeout value (1000 ms), as reported in the following example: ::
    
-.. code-block::
+.. code-block:: sh
    
    [ INFO ] First inference took 1000.18ms 
    
 This value also exposed as the final execution statistics on the ``benchmark_app`` exit: :: 
    
-.. code-block::
+.. code-block:: sh
    
    [ INFO ] Latency: 
    [ INFO ] 	Max:      1000.18 ms
