@@ -2177,7 +2177,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_prelu_batch_nd_elementwise) {
 
     // Shape{2, 3, 4, 5}
     std::vector<float> slope(shape_size(Shape{2, 3, 4, 5}));
-    std::iota(std::begin(slope), std::end(slope), 0);
+    std::iota(std::begin(slope), std::end(slope), 0.f);
     inputs.emplace_back(slope);
 
     // Shape{2, 3, 4, 5}
