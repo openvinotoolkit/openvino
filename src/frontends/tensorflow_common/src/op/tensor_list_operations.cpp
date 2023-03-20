@@ -4,6 +4,7 @@
 
 #include "common_op_table.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "utils.hpp"
 
 using namespace std;
 using namespace ov;
@@ -92,7 +93,7 @@ OutputVector translate_tensor_list_set_item_op(const NodeContext& node) {
     auto minus_one = make_shared<Constant>(element::i32, Shape{1}, -1);
     auto new_input_handle_shape = make_shared<Concat>(OutputVector{minus_one, item_shape}, 0);
     input_handle = make_shared<Reshape>(input_handle, new_input_handle_shape, false);
-    input_handle = make_shared<Convert>(input_handle, item.get_element_type());
+    input_handle = make_shared<ConvertLike>(input_handle, item);
 
     // compute the current length of the list
     Output<Node> list_length = make_shared<ShapeOf>(input_handle, element::i32);
@@ -108,7 +109,7 @@ OutputVector translate_tensor_list_set_item_op(const NodeContext& node) {
     Output<Node> dummy_tensor_size = make_shared<Subtract>(max_length, list_length);
 
     // create dummy tensor and concatenate it
-    auto zero_element = make_shared<Constant>(item.get_element_type(), Shape{}, 0);
+    auto zero_element = create_same_type_const_scalar<int32_t>(item, 0);
     auto dummy_tensor_shape = make_shared<Concat>(OutputVector{dummy_tensor_size, item_shape}, 0);
     auto dummy_tensor = make_shared<Broadcast>(zero_element, dummy_tensor_shape);
     input_handle = make_shared<Concat>(OutputVector{input_handle, dummy_tensor}, 0);

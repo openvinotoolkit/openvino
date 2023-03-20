@@ -6,6 +6,7 @@
 
 #include "common_op_table.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "utils.hpp"
 
 using namespace std;
 using namespace ov;
@@ -19,7 +20,6 @@ OutputVector translate_dynamic_partition_op(const NodeContext& node) {
     default_op_checks(node, 2, {"DynamicPartition"});
     auto data = node.get_input(0);
     auto partitions = node.get_input(1);
-    auto partitions_type = partitions.get_element_type();
 
     // normalize partitions input since it can be a scalar or 1D tensor
     auto new_parts_shape = make_shared<Constant>(element::i64, Shape{1}, -1);
@@ -45,14 +45,16 @@ OutputVector translate_dynamic_partition_op(const NodeContext& node) {
     // for stable sorting using TopK operation, we have to re-scale partition indices by the formula:
     // partition = partition * scale + partition_ind, where delta = max_int / num_partitions
     auto squeeze_axis = make_shared<Constant>(element::i64, Shape{1}, 0);
-    auto norm_partitions_shape = make_shared<ShapeOf>(partitions, partitions_type);
+    Output<Node> norm_partitions_shape = make_shared<ShapeOf>(partitions, element::i32);
+    norm_partitions_shape = make_shared<ConvertLike>(norm_partitions_shape, partitions);
     auto partitions_length = make_shared<Squeeze>(norm_partitions_shape, squeeze_axis);
-    auto start2 = make_shared<Constant>(partitions_type, Shape{}, 0);
-    auto step2 = make_shared<Constant>(partitions_type, Shape{}, 1);
-    auto range_part_length = make_shared<Range>(start2, partitions_length, step2, partitions_type);
-    auto scale = make_shared<Constant>(partitions_type,
-                                       Shape{},
-                                       std::numeric_limits<int32_t>::max() / static_cast<int32_t>(num_partitions));
+    auto start2 = create_same_type_const_scalar<int32_t>(partitions, 0);
+    auto step2 = create_same_type_const_scalar<int32_t>(partitions, 1);
+    Output<Node> range_part_length = make_shared<Range>(start2, partitions_length, step2, element::i32);
+    range_part_length = make_shared<ConvertLike>(range_part_length, partitions);
+    auto scale = create_same_type_const_scalar<int32_t>(
+        partitions,
+        std::numeric_limits<int32_t>::max() / static_cast<int32_t>(num_partitions));
     auto term = make_shared<Multiply>(norm_partitions, scale);
     auto rescaled_partitions = make_shared<Add>(term, range_part_length);
 
