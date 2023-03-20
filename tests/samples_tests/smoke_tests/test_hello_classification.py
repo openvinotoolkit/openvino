@@ -164,6 +164,8 @@ class TestHello(SamplesCommonTestClass):
                               f"{retcode}\n\n")
                 else:
                     retcode, stdout, stderr = shell([self.executable_path, cmd_line])
+                    print(f"\n\nStdout:\n{stdout}\n\n")
+                    print(f"\n\nStderr:\n{stderr}\n\n")
 
                 if retcode != 0:
                     passed = False

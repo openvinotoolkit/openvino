@@ -30,7 +30,7 @@ test_data = get_tests(cmd_params={'i': [os.path.join('ark', 'dev93_10.ark')],
                                            'qb': [8, 16],
                                            'sf': ["2175.43"],
                                            'q': ["static", "user"],
-                                           'd': ['GNA_SW_EXACT']},
+                                           'd': ['CPU']},
                                use_device=False
                                )
 							   
@@ -44,7 +44,7 @@ new_format_test_data = get_tests(cmd_params={'i': ['Parameter=' + os.path.join(E
                                            'sf': ["Parameter=2175.43"],
                                            'q': ["static"],
                                            'memory_reuse_off': [" "],
-                                           'd': ['GNA_SW_EXACT']},
+                                           'd': ['CPU']},
                                use_device=False
                                )
 
