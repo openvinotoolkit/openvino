@@ -23,6 +23,7 @@ from openvino.tools.mo.moc_frontend.pipeline import moc_pipeline
 from openvino.tools.mo.moc_frontend.serialize import moc_emit_ir
 from openvino.tools.mo.graph.graph import Graph
 from openvino.tools.mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively
+from openvino.tools.mo.middle.passes.convert_data_type import destination_type_to_np_data_type
 from openvino.tools.mo.pipeline.common import prepare_emit_ir
 from openvino.tools.mo.pipeline.unified import unified_pipeline
 from openvino.tools.mo.utils import import_extensions
@@ -129,15 +130,6 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
     print('\n'.join(lines), flush=True)
 
 
-def common_args_parsing(argv: argparse.Namespace):
-    argv.output = argv.output.split(',') if argv.output else None
-    argv.layout_values = get_layout_values(argv.layout, argv.source_layout, argv.target_layout)
-    mean_values = parse_tuple_pairs(argv.mean_values)
-    scale_values = parse_tuple_pairs(argv.scale_values)
-    mean_scale = get_mean_scale_dictionary(mean_values, scale_values, argv.input)
-    argv.mean_scale_values = mean_scale
-
-
 def arguments_post_parsing(argv: argparse.Namespace):
     use_legacy_frontend = argv.use_legacy_frontend
     use_new_frontend = argv.use_new_frontend
@@ -207,7 +199,6 @@ def arguments_post_parsing(argv: argparse.Namespace):
                         refer_to_faq_msg(20))
         log.info('Deduced name for prototxt: {}'.format(argv.input_proto))
 
-    #TODO: check this
     if not argv.silent:
         print_argv(argv, is_caffe, is_tf, is_mxnet, is_kaldi, is_onnx, argv.model_name)
 
@@ -268,6 +259,22 @@ def arguments_post_parsing(argv: argparse.Namespace):
             if ' ' in argv.saved_model_tags:
                 raise Error('Incorrect saved model tag was provided. Specify --saved_model_tags with no spaces in it')
             argv.saved_model_tags = argv.saved_model_tags.split(',')
+
+    if hasattr(argv, 'is_python_api_used') and argv.is_python_api_used:
+        python_api_params_parsing(argv)
+    else:
+        argv.inputs_list, argv.placeholder_shapes, argv.placeholder_data_types = get_placeholder_shapes(
+            argv.input, argv.input_shape, argv.batch)
+        argv.freeze_placeholder_with_value, argv.input = get_freeze_placeholder_values(
+            argv.input,
+            argv.freeze_placeholder_with_value)
+
+    argv.output = argv.output.split(',') if argv.output else None
+    argv.layout_values = get_layout_values(argv.layout, argv.source_layout, argv.target_layout)
+    mean_values = parse_tuple_pairs(argv.mean_values)
+    scale_values = parse_tuple_pairs(argv.scale_values)
+    mean_scale = get_mean_scale_dictionary(mean_values, scale_values, argv.input)
+    argv.mean_scale_values = mean_scale
 
     if not os.path.exists(argv.output_dir):
         try:
@@ -790,16 +797,10 @@ def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParse
             # so we need to set them in argv separately
             if value is not None and getattr(argv, key, None) != value:
                 setattr(argv, key, value)
-
-        python_api_params_parsing(argv)
+        argv.is_python_api_used = True
     else:
         argv = cli_parser.parse_args()
-
-        argv.inputs_list, argv.placeholder_shapes, argv.placeholder_data_types = get_placeholder_shapes(
-            argv.input, argv.input_shape, argv.batch)
-        argv.freeze_placeholder_with_value, argv.input = get_freeze_placeholder_values(argv.input,
-                                                                                       argv.freeze_placeholder_with_value)
-    common_args_parsing(argv)
+        argv.is_python_api_used = False
     return argv
 
 

@@ -2005,7 +2005,12 @@ def get_mean_scale_dictionary(mean_values, scale_values, argv_input: list):
     res = {}
     # collect input names
     if argv_input:
-        inputs = argv_input
+        if isinstance(argv_input, str):
+            inputs = split_inputs(argv_input)
+        elif isinstance(argv_input, list):
+            inputs = argv_input
+        else:
+            raise Error("Unexpected input type. Expected string of list, got {}".format(type(argv_input)))
     else:
         inputs = []
         if type(mean_values) is dict:
