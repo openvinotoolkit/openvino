@@ -132,6 +132,7 @@ OP_CONVERTER(translate_zeros_like);
 
 const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
     return {
+        {"<built-in function getitem>", op::translate_getitem}, // TODO: Check if there is any other way to handle this
         {"aten::__and__", op::translate_1to1_match_2_inputs<opset10::LogicalAnd>},  // TODO: cover numerical cases
         {"aten::__getitem__", op::translate_getitem},
         {"aten::__not__", op::translate_1to1_match_1_inputs<opset10::LogicalNot>},
