@@ -75,7 +75,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
         const unsigned int defaultNumForLatency = 1u;
         unsigned int real = 0;
         if (_autoSchedule->_pCTPUTLoadContext) {
-            return _autoSContext->_ctputOtimalNums;
+            return _autoSContext->_ctputOptimalNums;
         }
         if (_autoSchedule->_loadContext[ACTUALDEVICE].isAlready) {
             real = _autoSchedule->_loadContext[ACTUALDEVICE].

@@ -157,7 +157,7 @@ public:
     IE::CNNNetwork              _network;
     std::string                 _strDevices;
     unsigned int                _modelPriority = 0;
-    unsigned int                _ctputOtimalNums = 0;
+    unsigned int                _ctputOptimalNums = 0;
     std::string                 _performanceHint;
     std::mutex                  _confMutex;
     std::mutex                  _fallbackMutex;
