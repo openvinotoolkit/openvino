@@ -49,7 +49,7 @@ std::shared_ptr<ov::ICompiledModel> IPluginWrapper::compile_model(const std::sha
     return ov::legacy_convert::convert_compiled_model(
         update_exec_network(m_old_plugin->LoadNetwork(ov::legacy_convert::convert_model(model, is_new_api()),
                                                       any_copy(properties),
-                                                      context._impl)));
+                                                      ov::legacy_convert::convert_remote_context(context._impl))));
 }
 
 void IPluginWrapper::set_property(const ov::AnyMap& properties) {
@@ -64,12 +64,12 @@ ov::Any IPluginWrapper::get_property(const std::string& name, const ov::AnyMap& 
     }
 }
 
-ov::RemoteContext IPluginWrapper::create_context(const ov::AnyMap& remote_properties) const {
-    return ov::RemoteContext{m_old_plugin->CreateContext(remote_properties), {nullptr}};
+std::shared_ptr<ov::IRemoteContext> IPluginWrapper::create_context(const ov::AnyMap& remote_properties) const {
+    return ov::legacy_convert::convert_remote_context(m_old_plugin->CreateContext(remote_properties));
 }
 
-ov::RemoteContext IPluginWrapper::get_default_context(const ov::AnyMap& remote_properties) const {
-    return ov::RemoteContext{m_old_plugin->GetDefaultContext(remote_properties), {nullptr}};
+std::shared_ptr<ov::IRemoteContext> IPluginWrapper::get_default_context(const ov::AnyMap& remote_properties) const {
+    return ov::legacy_convert::convert_remote_context(m_old_plugin->GetDefaultContext(remote_properties));
 }
 
 std::shared_ptr<ov::ICompiledModel> IPluginWrapper::import_model(std::istream& model,
@@ -82,7 +82,9 @@ std::shared_ptr<ov::ICompiledModel> IPluginWrapper::import_model(std::istream& m
                                                                  const ov::RemoteContext& context,
                                                                  const ov::AnyMap& properties) const {
     return ov::legacy_convert::convert_compiled_model(
-        update_exec_network(m_old_plugin->ImportNetwork(model, context._impl, any_copy(properties))));
+        update_exec_network(m_old_plugin->ImportNetwork(model,
+                                                        ov::legacy_convert::convert_remote_context(context._impl),
+                                                        any_copy(properties))));
 }
 
 ov::SupportedOpsMap IPluginWrapper::query_model(const std::shared_ptr<const ov::Model>& model,

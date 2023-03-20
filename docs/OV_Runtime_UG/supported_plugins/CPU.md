@@ -279,7 +279,7 @@ Stateful Models
 
 The CPU plugin supports stateful models without any limitations.
 
-For details, see :doc:`stateful models guide <openvino_docs_OV_UG_network_state_intro>`.
+For details, see :doc:`stateful models guide <openvino_docs_OV_UG_model_state_intro>`.
 
 Supported Properties
 ###########################################################
@@ -398,8 +398,7 @@ weights are loaded from DDR/L3 cache in the packed format this significantly dec
 and as a consequence improve inference performance.
 
 To use this feature, the user is provided with property ``sparse_weights_decompression_rate``, which can take 
-values from the interval \[0.5, 1\] (values from \[0, 0.5\] are not supported in current implementation, 
-see limitations below). ``sparse_weights_decompression_rate`` defines sparse rate threashold: only operations 
+values from the interval \[0, 1\]. ``sparse_weights_decompression_rate`` defines sparse rate threashold: only operations 
 with higher sparse rate will be executed using ``sparse weights decompression feature``. The default value is ``1``, 
 which means the option is disabled.
 
