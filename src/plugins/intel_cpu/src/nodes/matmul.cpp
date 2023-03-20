@@ -50,7 +50,7 @@ size_t MatMulKey::hash() const {
 
     for (const auto& ptr : {inp0, inp1, bias, out}) {
         if (ptr) {
-            seed = hash_combine(seed, get_md_hash(ptr->getDnnlDesc().data));
+            seed = hash_combine(seed, get_md_hash(*ptr->getDnnlDesc().get()));
         }
     }
 
@@ -475,17 +475,24 @@ std::pair<Shape, Shape> MatMul::makeDummyInputShapes(const Shape& in0, const Sha
 }
 
 void MatMul::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
-                                        const std::vector<MemoryDescPtr>& outputDesc) {
-    std::shared_ptr<dnnl::matmul::desc> matmul_desc;
+                              const std::vector<MemoryDescPtr>& outputDesc) {
+    const auto attr = initPrimitiveAttr();
+    dnnl::matmul::primitive_desc matmul_desc;
     if (withBiases) {
-        matmul_desc.reset(new matmul::desc(inDataDesc[0]->getDnnlDesc(),
-                                           inDataDesc[1]->getDnnlDesc(),
-                                           getBiasDescFrom(outDataDesc),
-                                           outDataDesc->getDnnlDesc()));
+        matmul_desc = matmul::primitive_desc(
+            getEngine(),
+            inDataDesc[0]->getDnnlDesc(),
+            inDataDesc[1]->getDnnlDesc(),
+            getBiasDescFrom(outDataDesc),
+            outDataDesc->getDnnlDesc(),
+            *attr);
     } else {
-        matmul_desc.reset(new matmul::desc(inDataDesc[0]->getDnnlDesc(),
-                                           inDataDesc[1]->getDnnlDesc(),
-                                           outDataDesc->getDnnlDesc()));
+        matmul_desc = matmul::primitive_desc(
+            getEngine(),
+            inDataDesc[0]->getDnnlDesc(),
+            inDataDesc[1]->getDnnlDesc(),
+            outDataDesc->getDnnlDesc(),
+            *attr);
     }
 
     descs.emplace_back(matmul_desc);
@@ -495,14 +502,12 @@ void MatMul::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    auto attr = initPrimitiveAttr();
-
     for (auto& desc : descs) {
-        auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), *attr);
-        while (static_cast<bool>(itpd)) {
+        auto itpd = desc;
+        while (itpd) {
             NodeConfig config;
             config.dynBatchSupport = true;
-            for (size_t i = 0; i < descInputNumbers(desc); i++) {
+            for (size_t i = 0; i < descInputNumbers(); i++) {
                 PortConfig portConfig;
                 portConfig.inPlace(-1);
                 portConfig.constant(false);
@@ -511,7 +516,7 @@ void MatMul::initSupportedPrimitiveDescriptors() {
                 config.inConfs.push_back(portConfig);
             }
 
-            for (size_t i = 0; i < descOutputNumbers(desc); i++) {
+            for (size_t i = 0; i < descOutputNumbers(); i++) {
                 PortConfig portConfig;
                 portConfig.inPlace(canBeInPlace() ? 0 : -1);
                 portConfig.constant(false);
@@ -534,7 +539,7 @@ MemoryDescPtr MatMul::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_des
 
     if (idx < 2) // inputs
         return std::make_shared<CpuBlockedMemoryDesc>(
-            DnnlExtensionUtils::DataTypeToIEPrecision(static_cast<dnnl::memory::data_type>(desc.data.data_type)),
+            DnnlExtensionUtils::DataTypeToIEPrecision(desc.get_data_type()),
             getInputShapeAtPort(idx)); /* provide initial shapes, so hide transpose effect */
     else // bias
         return DnnlExtensionUtils::makeDescriptor(desc);
@@ -607,23 +612,29 @@ void MatMul::prepareParams() {
     auto engine = getEngine();
 
     auto builder = [&engine](const MatMulKey& key) -> dnnl::primitive {
-        std::shared_ptr<dnnl::matmul::desc> matmul_desc;
+        dnnl::matmul::primitive_desc matmul_desc;
 
         if (key.bias) {
-            matmul_desc.reset(new dnnl::matmul::desc{key.inp0->getDnnlDesc(),
-                                                       key.inp1->getDnnlDesc(),
-                                                       key.bias->getDnnlDesc(),
-                                                       key.out->getDnnlDesc()});
+            matmul_desc = matmul::primitive_desc(
+                engine,
+                key.inp0->getDnnlDesc(),
+                key.inp1->getDnnlDesc(),
+                key.bias->getDnnlDesc(),
+                key.out->getDnnlDesc(),
+                key.attr);
         } else {
-            matmul_desc.reset(new dnnl::matmul::desc(key.inp0->getDnnlDesc(),
-                                                       key.inp1->getDnnlDesc(),
-                                                       key.out->getDnnlDesc()));
+            matmul_desc = matmul::primitive_desc(
+                engine,
+                key.inp0->getDnnlDesc(),
+                key.inp1->getDnnlDesc(),
+                key.out->getDnnlDesc(),
+                key.attr);
         }
 
-        DnnlDesriptor desc(matmul_desc);
-        primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, key.attr);
+        primitive_desc_iterator itpd = matmul_desc;
         matmul::primitive_desc prim_desc;
 
+        auto itpd_first = itpd;
         while (static_cast<bool>(itpd))  {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
 
@@ -631,8 +642,14 @@ void MatMul::prepareParams() {
                 prim_desc = itpd.get();
                 break;
             }
-            if (!itpd.next_impl())
-                return matmul();
+            if (!itpd.next_impl()) {
+                // In case of dynamic shapes an implementation type chosen as optimal for a primitive_desc with
+                // undefined input shapes, is not necessarily available for the primitive_desc with defined shape.
+                // Example: brgemm_avx512_amx (Intel Sapphire Rapids Platform) is available for a primitive with
+                // undefined input shapes but not available for primitive_desc with input batch 1.
+                prim_desc = itpd_first.get();
+                break;
+            }
         }
         return matmul(prim_desc);
     };

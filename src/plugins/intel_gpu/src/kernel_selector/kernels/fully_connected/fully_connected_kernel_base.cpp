@@ -57,18 +57,11 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
     }
 
     const auto& orgParams = static_cast<const fully_connected_params&>(params);
-    const auto& orgOptParams = static_cast<const fully_connected_optional_params&>(options);
 
     bool bProperInput = orgParams.inputs[0].GetLayout() == dl;
     if (!bProperInput && !orgParams.inputs[0].PitchesDifferFromLogicalDims()) {
         bProperInput = (dl == DataLayout::fb && orgParams.inputs[0].GetLayout() == DataLayout::fyxb) ||
                        (dl == DataLayout::bf && orgParams.inputs[0].GetLayout() == DataLayout::bfyx);
-    }
-
-    const bool bSupportedInput = orgOptParams.allowInputReordering || bProperInput;
-
-    if (!bSupportedInput) {
-        return KernelsData();
     }
 
     KernelData kd = KernelData::Default<fully_connected_params>(params);

@@ -182,8 +182,8 @@ public:
             return;
 
         const auto block_sizes = format::traits(target_layout).block_sizes;
-        const auto index_offset = std::accumulate(block_sizes.begin(), block_sizes.end(), 1u,
-                                                  [](size_t total, const std::pair<size_t, int>& b) {
+        const auto index_offset = std::accumulate(block_sizes.begin(), block_sizes.end(), 1,
+                                                  [](int total, const std::pair<size_t, int>& b) {
                                                       return total * b.second;
                                                   }
         );

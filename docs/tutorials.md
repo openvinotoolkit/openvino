@@ -225,11 +225,10 @@ Demos that demonstrate inference on a particular model.
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
    | `233-blip-visual-language-processing <notebooks/233-blip-visual-language-processing-with-output.html>`__                      | Visual Question Answering and Image Captioning using BLIP and OpenVINO™                                                                    | |n233-img1|                               |
    +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
-
-
-
-
-
+   | `234-encodec-audio-compression <notebooks/234-encodec-audio-compression-with-output.html>`__                                  | Audio compression with EnCodec and OpenVINO™                                                                                               | |n234-img1|                               |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
+   | `235-controlnet-stable-diffusion <notebooks/235-controlnet-stable-diffusion-with-output.html>`__                              | A Text-to-Image Generation with ControlNet Conditioning and OpenVINO™                                                                      | |n235-img1|                               |
+   +-------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------+-------------------------------------------+
 
 
 .. raw:: html
@@ -441,6 +440,10 @@ Made with `contributors-img <https://contrib.rocks>`__.
    :target: https://user-images.githubusercontent.com/29454499/218967961-9858efd5-fff2-4eb0-bde9-60852f4b31cb.JPG
 .. |n233-img1| image:: https://user-images.githubusercontent.com/29454499/221933762-4ff32ecb-5e5d-4484-80e1-e9396cb3c511.png
    :target: https://user-images.githubusercontent.com/29454499/221933762-4ff32ecb-5e5d-4484-80e1-e9396cb3c511.png
+.. |n234-img1| image:: https://github.com/facebookresearch/encodec/raw/main/thumbnail.png
+   :target: https://github.com/facebookresearch/encodec/raw/main/thumbnail.png
+.. |n235-img1| image:: https://user-images.githubusercontent.com/29454499/224541412-9d13443e-0e42-43f2-8210-aa31820c5b44.png
+   :target: https://user-images.githubusercontent.com/29454499/224541412-9d13443e-0e42-43f2-8210-aa31820c5b44.png
 .. |n301-img1| image:: https://user-images.githubusercontent.com/15709723/127779607-8fa34947-1c35-4260-8d04-981c41a2a2cc.png
    :target: https://user-images.githubusercontent.com/15709723/127779607-8fa34947-1c35-4260-8d04-981c41a2a2cc.png
 .. |n401-img1| image:: https://user-images.githubusercontent.com/4547501/141471665-82b28c86-cf64-4bfe-98b3-c314658f2d96.gif
