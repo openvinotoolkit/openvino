@@ -40,13 +40,13 @@
 #include <ie_algorithm.hpp>
 
 #include <ngraph/function.hpp>
-#include <ngraph/variant.hpp>
 #include <ngraph/graph_util.hpp>
 #include <ngraph/op/result.hpp>
 #include <ngraph/op/parameter.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/rt_info.hpp>
-#include <ngraph/pass/visualize_tree.hpp>
+#include "graph_debug_dump.hpp"
+
 // clang-format on
 
 using namespace InferenceEngine;
@@ -136,48 +136,10 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         }
     }
 
-    static const std::array<const char*, 14> colors = {
-        "aliceblue",
-        "antiquewhite4",
-        "aquamarine4",
-        "azure4",
-        "bisque3",
-        "blue1",
-        "brown",
-        "burlywood",
-        "cadetblue",
-        "chartreuse",
-        "chocolate",
-        "coral",
-        "cornflowerblue",
-        "cornsilk4",
-    };
-
     if (dumpDotFile) {
-        ngraph::pass::VisualizeTree{
-            "hetero_affinity_" + _name + ".dot",
-            [&](const ngraph::Node& node, std::vector<std::string>& attributes) {
-                auto nodeDevice = queryNetworkResult.supportedLayersMap.at(node.get_friendly_name());
-                int colorIndex = 0;
-                for (auto&& device : devices) {
-                    if (device == nodeDevice) {
-                        attributes.push_back(std::string{"fillcolor="} + colors[colorIndex % colors.size()] +
-                                             " style=filled");
-                        auto itLabel =
-                            std::find_if(std::begin(attributes), std::end(attributes), [](const std::string& str) {
-                                return str.find("label") != std::string::npos;
-                            });
-                        auto label =
-                            "\\ndevice=" + queryNetworkResult.supportedLayersMap.at(node.get_friendly_name()) + '\"';
-                        IE_ASSERT(itLabel != attributes.end());
-                        itLabel->pop_back();
-                        (*itLabel) += label;
-                        break;
-                    }
-                    colorIndex++;
-                }
-            }}
-            .run_on_model(ngraph::clone_function(*function));
+        ov::hetero::debug::dump_affinities(std::const_pointer_cast<ov::Model>(function),
+                                           queryNetworkResult.supportedLayersMap,
+                                           devices);
     }
 
     NodeMap<InputSet> nodeInputDependencies;
@@ -296,21 +258,9 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         for (auto&& v : subgraphIds) {
             map_id.emplace(v.first->get_friendly_name(), v.second);
         }
-        ngraph::pass::VisualizeTree{
-            "hetero_subgraphs_" + _name + ".dot",
-            [&](const ngraph::Node& node, std::vector<std::string>& attributes) {
-                attributes.push_back(std::string{"fillcolor="} +
-                                     colors[map_id.at(node.get_friendly_name()) % colors.size()] + " style=filled");
-                auto itLabel = std::find_if(std::begin(attributes), std::end(attributes), [](const std::string& str) {
-                    return str.find("label") != std::string::npos;
-                });
-                auto label = "\\nsubgraph=" + std::to_string(map_id.at(node.get_friendly_name())) + "\\n" +
-                             "device=" + queryNetworkResult.supportedLayersMap.at(node.get_friendly_name()) + '\"';
-                IE_ASSERT(itLabel != attributes.end());
-                itLabel->pop_back();
-                (*itLabel) += label;
-            }}
-            .run_on_model(std::const_pointer_cast<ov::Model>(function));
+        ov::hetero::debug::dump_subgraphs(std::const_pointer_cast<ov::Model>(function),
+                                          queryNetworkResult.supportedLayersMap,
+                                          map_id);
     }
 
     // Break graph using insertion of result parameter split
@@ -494,10 +444,12 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     }
     for (auto&& network : _networks) {
         auto metaDevices = _heteroPlugin->GetDevicePlugins(network._device, _config);
-        metaDevices[network._device].emplace(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE), "");
-        network._network = _heteroPlugin->GetCore()->LoadNetwork(network._clonedNetwork,
-                                                                 network._device,
-                                                                 metaDevices[network._device]);
+
+        auto config = metaDevices[network._device];
+        // disable caching for subgraphs, because the whole HERERO model is cached
+        config[ov::cache_dir.name()] = "";
+
+        network._network = _heteroPlugin->GetCore()->LoadNetwork(network._clonedNetwork, network._device, config);
     }
 }
 
@@ -515,7 +467,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
         IE_THROW(NetworkNotRead) << "Error reading HETERO device xml header";
     }
 
-    using namespace XMLParseUtils;
+    using namespace pugixml::utils;
 
     pugi::xml_node heteroNode = heteroXmlDoc.document_element();
     _name = GetStrAttr(heteroNode, "name");

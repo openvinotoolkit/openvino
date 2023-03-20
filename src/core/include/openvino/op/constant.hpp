@@ -225,13 +225,6 @@ public:
     ///        Repeated values are allowed.
     AxisSet get_axis_set_val() const;
 
-    /// \brief Update Constant shape. New shape size must equal to the data elements
-    /// count
-    ///
-    /// \param shape The shape of the tensor constant.
-    OPENVINO_DEPRECATED("Use Constant c-tor with shape argument instead")
-    void set_data_shape(const Shape& shape);
-
     /// \brief Return data size in bytes
     size_t get_byte_size() const {
         return m_data->size();
@@ -359,9 +352,7 @@ public:
     }
     template <typename T>
     const T* get_data_ptr() const {
-        if (sizeof(T) > m_element_type.size() && shape_size(m_shape) > 0) {
-            throw ov::Exception("Buffer over-read");
-        }
+        OPENVINO_ASSERT(sizeof(T) <= m_element_type.size() || shape_size(m_shape) <= 0, "Buffer over-read");
 
         return static_cast<const T*>(get_data_ptr());
     }
@@ -508,7 +499,13 @@ private:
     void fill_data(const T& value) {
 #ifdef __clang__
 #    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wimplicit-const-int-float-conversion"
+#    ifdef __has_warning
+#        if __has_warning("-Wimplicit-const-int-float-conversion")
+#            pragma clang diagnostic ignored "-Wimplicit-const-int-float-conversion"
+#        elif __has_warning("-Wimplicit-int-float-conversion")
+#            pragma clang diagnostic ignored "-Wimplicit-int-float-conversion"
+#        endif
+#    endif
 #elif defined(__GNUC__)
 #    pragma GCC diagnostic push
 #    pragma GCC diagnostic ignored "-Wsign-compare"

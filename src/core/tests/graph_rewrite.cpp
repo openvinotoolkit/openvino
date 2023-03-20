@@ -107,7 +107,7 @@ TEST(GraphRewriteTest, MatcherPassCallback) {
 
     Anchor anchor;
     anchor.add_matcher<TestPass>()->set_callback(get_callback());
-    anchor.run_on_function(f);
+    anchor.run_on_model(f);
 
     ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
 }
@@ -118,7 +118,7 @@ TEST(GraphRewriteTest, GraphRewriteCallback) {
     Anchor anchor;
     anchor.add_matcher<TestPass>();
     anchor.set_callback(get_callback());
-    anchor.run_on_function(f);
+    anchor.run_on_model(f);
 
     ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
 }
@@ -129,7 +129,7 @@ TEST(GraphRewriteTest, ManagerCallbackDeprecated) {
     pass::Manager manager;
     auto anchor = manager.register_pass<Anchor>();
     anchor->add_matcher<TestPass>();
-    manager.set_callback(get_callback());
+    manager.get_pass_config()->set_callback(get_callback());
     manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
@@ -153,7 +153,7 @@ TEST(GraphRewriteTest, ManagerCallback2) {
 
     pass::Manager manager;
     auto anchor = manager.register_pass<TestPass>();
-    manager.set_callback(get_callback());
+    manager.get_pass_config()->set_callback(get_callback());
     manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
@@ -179,7 +179,7 @@ TEST(GraphRewriteTest, MatcherPassCallbackDerived) {
 
     Anchor anchor;
     anchor.add_matcher<TestPass>()->set_callback(get_callback());
-    anchor.run_on_function(f);
+    anchor.run_on_model(f);
 
     ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
 }
@@ -228,7 +228,7 @@ TEST(GraphRewriteTest, TypeBasedMatcherPassCallback) {
 
     Anchor anchor;
     anchor.add_matcher<TypeBasedTestPass>()->set_callback(get_callback());
-    anchor.run_on_function(f);
+    anchor.run_on_model(f);
 
     ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
 }
@@ -238,7 +238,7 @@ TEST(GraphRewriteTest, TypeBasedMatcherPassCallbackDerived) {
 
     Anchor anchor;
     anchor.add_matcher<TypeBasedTestPass>()->set_callback(get_callback());
-    anchor.run_on_function(f);
+    anchor.run_on_model(f);
 
     ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
 }
@@ -249,7 +249,7 @@ TEST(GraphRewriteTest, TypeBasedMatcherPassOrder1) {
     Anchor anchor;
     anchor.add_matcher<TypeBasedTestPass>()->set_callback(get_callback());
     anchor.add_matcher<TypeBasedTestPassDerived>()->set_callback(get_callback());
-    anchor.run_on_function(f);
+    anchor.run_on_model(f);
 
     ASSERT_EQ(count_ops_of_type<opset3::Relu>(f), 1);
 }
@@ -260,7 +260,7 @@ TEST(GraphRewriteTest, TypeBasedMatcherPassOrder2) {
     Anchor anchor;
     anchor.add_matcher<TypeBasedTestPassDerived>()->set_callback(get_callback());
     anchor.add_matcher<TypeBasedTestPass>()->set_callback(get_callback());
-    anchor.run_on_function(f);
+    anchor.run_on_model(f);
 
     ASSERT_EQ(count_ops_of_type<opset3::Tanh>(f), 1);
 }

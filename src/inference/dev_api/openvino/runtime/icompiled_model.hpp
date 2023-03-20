@@ -17,8 +17,8 @@
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/remote_context.hpp"
-#include "threading/ie_cpu_streams_executor.hpp"
-#include "threading/ie_itask_executor.hpp"
+#include "openvino/runtime/threading/cpu_streams_executor.hpp"
+#include "openvino/runtime/threading/itask_executor.hpp"
 
 namespace InferenceEngine {
 class ICompiledModelWrapper;
@@ -33,6 +33,7 @@ class IAsyncInferRequest;
 
 /**
  * @brief OpenVINO ICompiledModel interface
+ * @ingroup ov_dev_api_compiled_model_api
  */
 class OPENVINO_RUNTIME_API ICompiledModel : public std::enable_shared_from_this<ICompiledModel> {
 public:
@@ -47,14 +48,13 @@ public:
      *
      * @param callback_executor Callback executor (CPUStreamsExecutor by default)
      */
-    ICompiledModel(const std::shared_ptr<const ov::Model>& model,
-                   const std::shared_ptr<const ov::IPlugin>& plugin,
-                   const InferenceEngine::ITaskExecutor::Ptr& task_executor =
-                       std::make_shared<InferenceEngine::CPUStreamsExecutor>(InferenceEngine::IStreamsExecutor::Config{
-                           "Default"}),
-                   const InferenceEngine::ITaskExecutor::Ptr& callback_executor =
-                       std::make_shared<InferenceEngine::CPUStreamsExecutor>(InferenceEngine::IStreamsExecutor::Config{
-                           "Callback"}));
+    ICompiledModel(
+        const std::shared_ptr<const ov::Model>& model,
+        const std::shared_ptr<const ov::IPlugin>& plugin,
+        const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor =
+            std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Default"}),
+        const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor =
+            std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Callback"}));
 
     /**
      * @brief Gets all outputs from compiled model
@@ -119,17 +119,12 @@ private:
     std::vector<ov::Output<const ov::Node>> m_inputs;
     std::vector<ov::Output<const ov::Node>> m_outputs;
 
-    InferenceEngine::ITaskExecutor::Ptr m_task_executor = nullptr;      //!< Holds a task executor
-    InferenceEngine::ITaskExecutor::Ptr m_callback_executor = nullptr;  //!< Holds a callback executor
+    std::shared_ptr<ov::threading::ITaskExecutor> m_task_executor = nullptr;      //!< Holds a task executor
+    std::shared_ptr<ov::threading::ITaskExecutor> m_callback_executor = nullptr;  //!< Holds a callback executor
 
     friend ov::CoreImpl;
     friend ov::IExecutableNetworkWrapper;
     friend InferenceEngine::ICompiledModelWrapper;
-
-    /**
-     * @brief function allows to mark that model was loaded from cache
-     */
-    void loaded_from_cache();
 
     // FIXME: Remove after removing IE API
     std::vector<std::shared_ptr<const ov::Node>> _parameters;
@@ -146,7 +141,7 @@ protected:
     /**
      * @brief Default implementation of create async inter request method
      *
-     * @tparam AsyncInferRequestType Async infer request type. InferenceEngine::AsyncInferRequestThreadSafeDefault by
+     * @tparam AsyncInferRequestType Async infer request type. ov::IAsyncInferRequest by
      * default
      *
      * @return Asynchronous infer request
@@ -163,8 +158,8 @@ protected:
      * @return OpenVINO Plugin interface
      */
     const std::shared_ptr<const ov::IPlugin>& get_plugin() const;
-    const InferenceEngine::ITaskExecutor::Ptr get_task_executor() const;
-    const InferenceEngine::ITaskExecutor::Ptr get_callback_executor() const;
+    const std::shared_ptr<ov::threading::ITaskExecutor> get_task_executor() const;
+    const std::shared_ptr<ov::threading::ITaskExecutor> get_callback_executor() const;
 };
 
 }  // namespace ov

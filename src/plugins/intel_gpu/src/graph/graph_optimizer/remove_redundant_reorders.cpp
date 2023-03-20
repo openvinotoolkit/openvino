@@ -23,7 +23,6 @@ using namespace cldnn;
 #define LOG_NODE_REMOVAL(id)      GPU_DEBUG_LOG_PASS << "Remove node: " << (id) << std::endl;
 #define LOG_NODE_REPLACEMENT(id)  GPU_DEBUG_LOG_PASS << "Replace node: " << (id) << std::endl;
 
-
 remove_redundant_reorders::remove_redundant_reorders(layout_optimizer& lo_ref, bool enable_reorder_fusing, bool update_implementations,
     bool remove_output_reorders)
     : base_pass("remove_redundant_reorders"), lo(lo_ref), enable_reorder_fusing(enable_reorder_fusing), update_implementations(update_implementations),
@@ -169,6 +168,18 @@ void remove_redundant_reorders::run(program& p) {
             !r_node.get_primitive()->has_surface_input();
 
         if (remove_dep) {
+            // for chains like
+            // b_fs_yx_fsv16 -> reorder(ofmt:bfyx) -> bfyx -> reorder(ofmt:any) -> bfyx
+            // if output_format of current node is format::any, input format of the dependency node is propagated as it is
+            // b_fs_yx_fsv16 -> reorder(ofmt:any) -> b_fs_yx_fsv16
+            // so output format of dependency node must be stored in output_format of current node
+            // b_fs_yx_fsv16 -> reorder(ofmt:bfyx) -> bfyx
+            auto output_layout = r_dep_node.get_output_layout();
+            auto prim = std::const_pointer_cast<reorder>(r_node.get_primitive());
+            if (prim->output_format == format::any)
+                prim->output_format = output_layout.format;
+
+            LOG_NODE_REMOVAL(r_dep_node.id());
             r_dep_node.can_be_optimized(true);
             p.add_optimized_primitive_info(r_dep_node.id());
             p.extract_and_remove(r_dep_node);
@@ -627,5 +638,18 @@ void remove_redundant_reorders::run(program& p) {
         if (!enable_reorder_fusing && n->get_preferred_impl_type() == impl_types::onednn && !lo.are_layouts_suitable_for_onednn(*n)) {
             throw std::runtime_error("Onednn doesnot support padded input or output");
         }
+    }
+
+    // Recalculate processing order if it is not correct
+    bool is_correct = true;
+    for (auto node : p.get_processing_order()) {
+        if (!p.get_processing_order().is_correct(node)) {
+            is_correct = false;
+            break;
+        }
+    }
+
+    if (!is_correct) {
+        p.get_processing_order().calc_processing_order(p);
     }
 }

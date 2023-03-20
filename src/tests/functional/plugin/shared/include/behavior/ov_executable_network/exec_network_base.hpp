@@ -80,6 +80,8 @@ protected:
     void set_api_entity() override { api_entity = ov::test::utils::ov_entity::ov_compiled_model; }
 };
 
+using OVAutoExecutableNetworkTest = OVExecutableNetworkBaseTest;
+
 TEST_P(OVExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutable) {
     EXPECT_NO_THROW(auto execNet = core->compile_model(function, target_device, configuration));
 }
@@ -679,7 +681,7 @@ TEST_P(OVExecutableNetworkBaseTest, precisionsAsInOriginalIR) {
     auto filePrefix = CommonTestUtils::generateTestFilePrefix();
     const std::string m_out_xml_path_1 = filePrefix + "precisionsAsInOriginalIR.xml";
     const std::string m_out_bin_path_1 = filePrefix + "precisionsAsInOriginalIR.bin";
-    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_function(function);
+    ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(function);
 
     ov::CompiledModel execNet;
     EXPECT_NO_THROW(execNet = core->compile_model(m_out_xml_path_1, target_device, configuration));
@@ -759,6 +761,15 @@ TEST_P(OVExecutableNetworkBaseTest, loadIncorrectV11Model) {
         function->set_friendly_name("SimpleReLU");
     }
     EXPECT_NO_THROW(core->compile_model(function, target_device, configuration));
+}
+
+TEST_P(OVAutoExecutableNetworkTest, AutoNotImplementedSetConfigToExecNet) {
+    std::map<std::string, ov::Any> config;
+    for (const auto& confItem : configuration) {
+        config.emplace(confItem.first, confItem.second);
+    }
+    auto execNet = core->compile_model(function, target_device, config);
+    EXPECT_ANY_THROW(execNet.set_property(config));
 }
 
 }  // namespace behavior

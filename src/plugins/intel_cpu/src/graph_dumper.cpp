@@ -9,7 +9,6 @@
 #include "exec_graph_info.hpp"
 #include "ie_common.h"
 #include <dnnl_debug.h>
-#include <ngraph/variant.hpp>
 #include "ngraph/ngraph.hpp"
 #include <ngraph/pass/manager.hpp>
 #include <openvino/pass/serialize.hpp>
@@ -257,6 +256,9 @@ void serializeToCout(const Graph &graph) {
 }
 
 void summary_perf(const Graph &graph) {
+    if (!graph.getGraphContext()) {
+        return;
+    }
     const std::string& summaryPerf = graph.getConfig().debugCaps.summaryPerf;
 
     if (summaryPerf.empty() || !std::stoi(summaryPerf))
@@ -296,11 +298,11 @@ void summary_perf(const Graph &graph) {
         std::vector<std::pair<std::string, double> > A;
         for (auto& it : perf_by_type)
             A.push_back(it);
-            sort(A.begin(), A.end(),
-                [](std::pair<std::string, double>& a,
-                   std::pair<std::string, double>& b){
-                return a.second > b.second;
-            });
+        sort(A.begin(), A.end(),
+             [](std::pair<std::string, double>& a,
+                std::pair<std::string, double>& b){
+                 return a.second > b.second;
+             });
 
         for (auto& it : A) {
             std::stringstream ss;

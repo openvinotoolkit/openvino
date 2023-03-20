@@ -7,6 +7,7 @@
 #include <ie_common.h>
 #include <node.h>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <string>
 #include <vector>
 #include "common/dnnl_executor.h"
@@ -36,13 +37,13 @@ public:
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
 
-    size_t descInputNumbers(DnnlDesriptor desc) override {
+    size_t descInputNumbers() override {
         return static_cast<size_t>(getOriginalInputsNumber());
     }
 
     void initSupportedPrimitiveDescriptors() override;
     void initOptimalPrimitiveDescriptor() override;
-    // void createPrimitive() override;
+    void createPrimitive() override;
     std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     std::shared_ptr<MemoryDesc> getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
@@ -51,8 +52,6 @@ public:
     bool canFuse(const NodePtr& node) const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
-
-    std::shared_ptr<dnnl::primitive_attr> initPrimitiveAttr() override;
 
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
@@ -69,7 +68,7 @@ private:
     VectorDims inDims;
     VectorDims outDims;
 
-    void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool initWeights = false);
+    void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims);
 
     bool withBiases = false;
 
@@ -89,6 +88,7 @@ private:
     // When weightCache is enabled, it holds weight ptr reference since weightCache does not hold the
     // reference
     std::unordered_map<std::string, MemoryPtr> privateWeightCache;
+    dnnl::primitive_attr attr;
 
     class ExecutorInnerProduct : public DnnlExecutor {
         public:
@@ -100,17 +100,19 @@ private:
             ExecutorConv1x1(const dnnl::convolution_forward::primitive_desc& pd);
     };
 
-    static DnnlDesriptor createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
-                                                         DnnlMemoryDescCPtr weightDescPtr,
-                                                         DnnlMemoryDescCPtr biasDescPtr,
-                                                         DnnlMemoryDescCPtr outputDescPtr);
+    static dnnl::convolution_forward::primitive_desc
+    createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
+                                    DnnlMemoryDescCPtr weightDescPtr,
+                                    DnnlMemoryDescCPtr biasDescPtr,
+                                    DnnlMemoryDescCPtr outputDescPtr,
+                                    const dnnl::primitive_attr& attr,
+                                    const dnnl::engine& engine);
 
     bool canBeExecutedInConv1x1() const;
     MemoryPtr prepareWeightMemory(const DnnlMemoryDescPtr weightDesc);
 
     // sparse weights
     bool useSparseWeights = false;
-    int nnzCount = -1;
     float minSparseRate = 1.f;
     float weiSparseRate = 0.f;
     bool useSparseWeightsDecompression();

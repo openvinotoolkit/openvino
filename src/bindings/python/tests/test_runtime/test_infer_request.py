@@ -925,6 +925,7 @@ def test_array_like_input_request(device, shared_flag):
     request, _, input_data = abs_model_with_data(device, Type.f32, np.single)
     model_input_object = ArrayLikeObject(input_data.tolist())
     model_input_list = [ArrayLikeObject(input_data.tolist())]
+    model_input_dict = {0: ArrayLikeObject(input_data.tolist())}
 
     # Test single array-like object in InferRequest().Infer()
     res_object = request.infer(model_input_object, shared_memory=shared_flag)
@@ -933,6 +934,10 @@ def test_array_like_input_request(device, shared_flag):
     # Test list of array-like objects to use normalize_inputs()
     res_list = request.infer(model_input_list)
     assert np.array_equal(res_list[request.model_outputs[0]], np.abs(input_data))
+
+    # Test dict of array-like objects to use normalize_inputs()
+    res_dict = request.infer(model_input_dict)
+    assert np.array_equal(res_dict[request.model_outputs[0]], np.abs(input_data))
 
 
 @pytest.mark.parametrize("shared_flag", [True, False])
@@ -1009,3 +1014,108 @@ def test_convert_infer_request(device):
     with pytest.raises(TypeError) as e:
         deepcopy(res)
     assert "cannot deepcopy 'openvino.runtime.ConstOutput' object." in str(e)
+
+
+@pytest.mark.parametrize("shared_flag", [True, False])
+@pytest.mark.parametrize("input_data", [
+    np.array(1.0, dtype=np.float32),
+    np.array(1, dtype=np.int32),
+    np.float32(1.0),
+    np.int32(1.0),
+    1.0,
+    1,
+])
+def test_only_scalar_infer(device, shared_flag, input_data):
+    core = Core()
+    param = ops.parameter([], np.float32, name="data")
+    relu = ops.relu(param, name="relu")
+    model = Model([relu], [param], "scalar_model")
+
+    compiled = core.compile_model(model=model, device_name=device)
+    request = compiled.create_infer_request()
+
+    res = request.infer(input_data, shared_memory=shared_flag)
+
+    assert res[request.model_outputs[0]] == np.maximum(input_data, 0)
+
+    input_tensor = request.get_input_tensor()
+    if shared_flag and isinstance(input_data, np.ndarray) and input_data.dtype == input_tensor.data.dtype:
+        assert np.shares_memory(input_data, input_tensor.data)
+    else:
+        assert not np.shares_memory(input_data, input_tensor.data)
+
+
+@pytest.mark.parametrize("shared_flag", [True, False])
+@pytest.mark.parametrize("input_data", [
+    {0: np.array(1.0, dtype=np.float32), 1: np.array([1.0, 2.0], dtype=np.float32)},
+    {0: np.array(1, dtype=np.int32), 1: np.array([1, 2], dtype=np.int32)},
+    {0: np.float32(1.0), 1: np.array([1, 2], dtype=np.float32)},
+    {0: np.int32(1.0), 1: np.array([1, 2], dtype=np.int32)},
+    {0: 1.0, 1: np.array([1.0, 2.0], dtype=np.float32)},
+    {0: 1, 1: np.array([1.0, 2.0], dtype=np.int32)},
+])
+def test_mixed_scalar_infer(device, shared_flag, input_data):
+    core = Core()
+    param0 = ops.parameter([], np.float32, name="data0")
+    param1 = ops.parameter([2], np.float32, name="data1")
+    add = ops.add(param0, param1, name="add")
+    model = Model([add], [param0, param1], "mixed_model")
+
+    compiled = core.compile_model(model=model, device_name=device)
+    request = compiled.create_infer_request()
+
+    res = request.infer(input_data, shared_memory=shared_flag)
+
+    assert np.allclose(res[request.model_outputs[0]], np.add(input_data[0], input_data[1]))
+
+    input_tensor0 = request.get_input_tensor(0)
+    input_tensor1 = request.get_input_tensor(1)
+
+    if shared_flag:
+        if isinstance(input_data[0], np.ndarray) and input_data[0].dtype == input_tensor0.data.dtype:
+            assert np.shares_memory(input_data[0], input_tensor0.data)
+        else:
+            assert not np.shares_memory(input_data[0], input_tensor0.data)
+        if isinstance(input_data[1], np.ndarray) and input_data[1].dtype == input_tensor1.data.dtype:
+            assert np.shares_memory(input_data[1], input_tensor1.data)
+        else:
+            assert not np.shares_memory(input_data[1], input_tensor1.data)
+    else:
+        assert not np.shares_memory(input_data[0], input_tensor0.data)
+        assert not np.shares_memory(input_data[1], input_tensor1.data)
+
+
+@pytest.mark.parametrize("shared_flag", [True, False])
+@pytest.mark.parametrize("input_data", [
+    {0: np.array(1.0, dtype=np.float32), 1: np.array([3.0], dtype=np.float32)},
+    {0: np.array(1.0, dtype=np.float32), 1: np.array([3.0, 3.0, 3.0], dtype=np.float32)},
+])
+def test_mixed_dynamic_infer(device, shared_flag, input_data):
+    core = Core()
+    param0 = ops.parameter([], np.float32, name="data0")
+    param1 = ops.parameter(["?"], np.float32, name="data1")
+    add = ops.add(param0, param1, name="add")
+    model = Model([add], [param0, param1], "mixed_model")
+
+    compiled = core.compile_model(model=model, device_name=device)
+    request = compiled.create_infer_request()
+
+    res = request.infer(input_data, shared_memory=shared_flag)
+
+    assert np.allclose(res[request.model_outputs[0]], np.add(input_data[0], input_data[1]))
+
+    input_tensor0 = request.get_input_tensor(0)
+    input_tensor1 = request.get_input_tensor(1)
+
+    if shared_flag:
+        if isinstance(input_data[0], np.ndarray) and input_data[0].dtype == input_tensor0.data.dtype:
+            assert np.shares_memory(input_data[0], input_tensor0.data)
+        else:
+            assert not np.shares_memory(input_data[0], input_tensor0.data)
+        if isinstance(input_data[1], np.ndarray) and input_data[1].dtype == input_tensor1.data.dtype:
+            assert np.shares_memory(input_data[1], input_tensor1.data)
+        else:
+            assert not np.shares_memory(input_data[1], input_tensor1.data)
+    else:
+        assert not np.shares_memory(input_data[0], input_tensor0.data)
+        assert not np.shares_memory(input_data[1], input_tensor1.data)

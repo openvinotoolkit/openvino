@@ -6,6 +6,7 @@
 #include "utils/general_utils.h"
 #include <vector>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "onednn/iml_type_mapper.h"
 
 using namespace dnnl;
 
@@ -93,6 +94,10 @@ VectorDims DnnlExtensionUtils::convertToVectorDims(const memory::dims& dims) {
     return vecResult;
 }
 
+VectorDims DnnlExtensionUtils::convertToVectorDims(const dnnl::impl::dims_t dims, const int ndims) {
+    return VectorDims(dims, dims + ndims);
+}
+
 memory::dims DnnlExtensionUtils::convertToDnnlDims(const VectorDims& dims) {
     memory::dims vecResult;
     vecResult.reserve(dims.size());
@@ -122,7 +127,11 @@ memory::format_tag DnnlExtensionUtils::GetPlainFormatByRank(size_t rank) {
 }
 
 DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const dnnl::memory::desc &desc) {
-    if (desc.data.format_kind == dnnl_blocked) {
+    return makeDescriptor(desc.get());
+}
+
+DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const_dnnl_memory_desc_t desc) {
+    if (desc->format_kind == dnnl::impl::format_kind_t::dnnl_blocked) {
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(desc));
     } else {
         return std::shared_ptr<DnnlMemoryDesc>(new DnnlMemoryDesc(desc));
@@ -131,17 +140,20 @@ DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const dnnl::memory::desc &d
 
 size_t DnnlExtensionUtils::getMemSizeForDnnlDesc(const dnnl::memory::desc& desc) {
     auto tmpDesc = desc;
-    const auto offset0 = tmpDesc.data.offset0;
-    tmpDesc.data.offset0 = 0;
+
+    const auto offset0 = tmpDesc.get()->offset0;
+    tmpDesc.get()->offset0 = 0;
+
     size_t size = tmpDesc.get_size();
     if (size == DNNL_RUNTIME_SIZE_VAL)
         return MemoryDesc::UNDEFINED_SIZE;
-    size += offset0 * sizeOfDataType(tmpDesc.data_type());
+
+    size += offset0 * sizeOfDataType(tmpDesc.get_data_type());
     return size;
 }
 
 std::shared_ptr<DnnlBlockedMemoryDesc> DnnlExtensionUtils::makeUndefinedDesc(const memory::desc &desc, const Shape &shape) {
-    if (desc.data.format_kind == dnnl_blocked) {
+    if (desc.get_format_kind() == memory::format_kind::blocked) {
         return std::shared_ptr<DnnlBlockedMemoryDesc>(new DnnlBlockedMemoryDesc(desc, shape));
     } else {
         IE_THROW(Unexpected) << "Cannot make undefined descriptor. Only dnnl_blocked type is allowed.";
@@ -150,10 +162,12 @@ std::shared_ptr<DnnlBlockedMemoryDesc> DnnlExtensionUtils::makeUndefinedDesc(con
 
 DnnlMemoryDescPtr DnnlExtensionUtils::query_md(const const_dnnl_primitive_desc_t& pd, const dnnl::query& what, int idx) {
     auto query = dnnl::convert_to_c(what);
-    const dnnl_memory_desc_t* cdesc = dnnl_primitive_desc_query_md(pd, query, idx);
+    const auto* cdesc = dnnl_primitive_desc_query_md(pd, query, idx);
+
     if (!cdesc)
         IE_THROW() << "query_md failed for query=" << query << " idx=" << idx << ".";
-    return DnnlExtensionUtils::makeDescriptor(*cdesc);
+
+    return DnnlExtensionUtils::makeDescriptor(cdesc);
 }
 
 std::string DnnlExtensionUtils::query_impl_info_str(const const_dnnl_primitive_desc_t& pd) {
@@ -162,6 +176,29 @@ std::string DnnlExtensionUtils::query_impl_info_str(const const_dnnl_primitive_d
     if (status != dnnl_success)
         IE_THROW() << "query_impl_info_str failed.";
     return std::string(res);
+}
+
+bool DnnlExtensionUtils::hasProperImplementationType(dnnl::primitive_desc& desc, impl_desc_type implType) {
+    primitive_desc_iterator& itpd = desc;
+
+    while (itpd) {
+        const impl_desc_type descImplType = parse_impl_name(itpd.impl_info_str());
+
+        if (descImplType == implType) {
+            return true;
+        }
+
+        if (!itpd.next_impl())
+            break;
+    }
+
+    return false;
+}
+
+dnnl_memory_desc_t DnnlExtensionUtils::clone_desc(const_dnnl_memory_desc_t cdesc) {
+    dnnl_memory_desc_t cloned_md = nullptr;
+    dnnl_memory_desc_clone(&cloned_md, cdesc);
+    return cloned_md;
 }
 
 }   // namespace intel_cpu

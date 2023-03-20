@@ -11,8 +11,6 @@
 
 #include <openvino/pass/serialize.hpp>
 #include <ngraph/opsets/opset.hpp>
-
-#include "ngraph/variant.hpp"
 #include "shared_test_classes/base/layer_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "functional_test_utils/core_config.hpp"
@@ -367,6 +365,16 @@ void LayerTestsCommon::LoadNetwork() {
     executableNetwork = core->LoadNetwork(cnnNetwork, targetDevice, configuration);
 }
 
+void LayerTestsCommon::ExpectLoadNetworkToThrow(const std::string& msg) {
+    std::string what;
+    try {
+        LoadNetwork();
+    } catch (const std::exception& e) {
+        what.assign(e.what());
+    }
+    EXPECT_STR_CONTAINS(what.c_str(), msg.c_str());
+}
+
 void LayerTestsCommon::GenerateInputs() {
     inputs.clear();
     const auto& inputsInfo = executableNetwork.GetInputsInfo();
@@ -409,8 +417,8 @@ void LayerTestsCommon::Infer() {
 }
 
 void LayerTestsCommon::ConvertRefsParams() {
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_function(functionRefs);
-    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_function(functionRefs);
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::f16, ngraph::element::Type_t::f32>().run_on_model(functionRefs);
+    ngraph::pass::ConvertPrecision<ngraph::element::Type_t::bf16, ngraph::element::Type_t::f32>().run_on_model(functionRefs);
 }
 
 std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>> LayerTestsCommon::CalculateRefs() {

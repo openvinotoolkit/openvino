@@ -2,16 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <set>
+#include "primitive_base.hpp"
 
 #include "resample_inst.h"
-#include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
 #include "kernel_selector/kernels/resample/resample_kernel_selector.h"
 #include "kernel_selector/kernels/resample/resample_kernel_base.h"
-#include "intel_gpu/runtime/half.hpp"
+#include <set>
 
 namespace cldnn {
 namespace ocl {
@@ -83,7 +79,9 @@ inline std::vector<int32_t> convert_pads(const std::vector<size_t>& pad, size_t 
     if (pad.empty()) {
         new_pad = std::vector<int32_t>(rank, 0);
     } else {
-        new_pad = std::vector<int32_t>(pad.begin(), pad.end());
+        for (auto p : pad) {
+            new_pad.push_back(static_cast<int32_t>(p));
+        }
         if (new_pad.size() > 2)
             std::reverse(new_pad.begin() + 2, new_pad.end());
         for (size_t i = new_pad.size(); i < rank || i < 4; ++i)

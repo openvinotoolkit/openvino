@@ -27,8 +27,8 @@ typedef struct ov_infer_request ov_infer_request_t;
  * @brief Completion callback definition about the function and args
  */
 typedef struct {
-    void(OPENVINO_C_API_CALLBACK* callback_func)(void* args); //!< The callback func
-    void* args;                                               //!< The args of callback func
+    void(OPENVINO_C_API_CALLBACK* callback_func)(void* args);  //!< The callback func
+    void* args;                                                //!< The args of callback func
 } ov_callback_t;
 
 /**
@@ -37,11 +37,11 @@ typedef struct {
  * @brief Store profiling info data
  */
 typedef struct {
-    enum Status {       //!< Defines the general status of a node.
-        NOT_RUN,        //!< A node is not executed.
-        OPTIMIZED_OUT,  //!< A node is optimized out during graph optimization phase.
-        EXECUTED        //!< A node is executed.
-    } status;           //!< status
+    enum Status {           //!< Defines the general status of a node.
+        NOT_RUN,            //!< A node is not executed.
+        OPTIMIZED_OUT,      //!< A node is optimized out during graph optimization phase.
+        EXECUTED            //!< A node is executed.
+    } status;               //!< status
     int64_t real_time;      //!< The absolute time, in microseconds, that the node ran (in total).
     int64_t cpu_time;       //!< The net host CPU time that the node ran.
     const char* node_name;  //!< Name of a node.
@@ -55,8 +55,8 @@ typedef struct {
  * @brief A list of profiling info data
  */
 typedef struct {
-    ov_profiling_info_t* profiling_infos;   //!< The list of ov_profilling_info_t
-    size_t size;                            //!< The list size
+    ov_profiling_info_t* profiling_infos;  //!< The list of ov_profilling_info_t
+    size_t size;                           //!< The list size
 } ov_profiling_info_list_t;
 
 /**
@@ -68,9 +68,7 @@ typedef struct {
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_infer_request_set_tensor(ov_infer_request_t* infer_request,
-                            const char* tensor_name,
-                            const ov_tensor_t* tensor);
+ov_infer_request_set_tensor(ov_infer_request_t* infer_request, const char* tensor_name, const ov_tensor_t* tensor);
 
 /**
  * @brief Set an input/output tensor to infer request for the port.
@@ -157,9 +155,7 @@ ov_infer_request_set_output_tensor(ov_infer_request_t* infer_request, const ov_t
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_infer_request_get_tensor(const ov_infer_request_t* infer_request,
-                            const char* tensor_name,
-                            ov_tensor_t** tensor);
+ov_infer_request_get_tensor(const ov_infer_request_t* infer_request, const char* tensor_name, ov_tensor_t** tensor);
 
 /**
  * @brief Get an input/output tensor by const port.
@@ -209,8 +205,7 @@ ov_infer_request_get_input_tensor_by_index(const ov_infer_request_t* infer_reque
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_infer_request_get_input_tensor(const ov_infer_request_t* infer_request,
-                                  ov_tensor_t** tensor);
+ov_infer_request_get_input_tensor(const ov_infer_request_t* infer_request, ov_tensor_t** tensor);
 
 /**
  * @brief Get an output tensor by the index of output tensor.
@@ -235,8 +230,7 @@ ov_infer_request_get_output_tensor_by_index(const ov_infer_request_t* infer_requ
  * @return Status code of the operation: OK(0) for success.
  */
 OPENVINO_C_API(ov_status_e)
-ov_infer_request_get_output_tensor(const ov_infer_request_t* infer_request,
-                                   ov_tensor_t** tensor);
+ov_infer_request_get_output_tensor(const ov_infer_request_t* infer_request, ov_tensor_t** tensor);
 
 /**
  * @brief Infer specified input(s) in synchronous mode.

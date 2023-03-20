@@ -44,18 +44,15 @@ std::string TensorExternalData::load_external_data(const std::string& model_dir)
 #endif
     NGRAPH_SUPPRESS_DEPRECATED_END
 
-    if (external_data_stream.fail())
-        throw error::invalid_external_data{*this};
-
-    auto filesize = external_data_stream.tellg();
-    if (filesize == -1) {
+    if (external_data_stream.fail()) {
         throw error::invalid_external_data{*this};
     }
-    if (m_offset + m_data_length > filesize) {
+    const uint64_t file_size = static_cast<uint64_t>(external_data_stream.tellg());
+    if (m_offset + m_data_length > file_size) {
         throw error::invalid_external_data{*this};
     }
 
-    uint64_t read_data_length = m_data_length > 0 ? m_data_length : static_cast<uint64_t>(filesize) - m_offset;
+    uint64_t read_data_length = m_data_length > 0 ? m_data_length : static_cast<uint64_t>(file_size) - m_offset;
 
     // default value of m_offset is 0
     external_data_stream.seekg(m_offset, std::ios::beg);
