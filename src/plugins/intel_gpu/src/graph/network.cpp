@@ -385,7 +385,7 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
         _primitives[_primitive_id] = new_primitive_inst;
     }
 
-    int exec_order_size;
+    size_t exec_order_size;
     ib >> exec_order_size;
     _exec_order.clear();
 
@@ -540,7 +540,7 @@ void network::save(cldnn::BinaryOutputBuffer& ob) {
         }
     }
 
-    int exec_order_size = _exec_order.size();
+    size_t exec_order_size = _exec_order.size();
     ob << exec_order_size;
 
     for (const auto& p_inst : _exec_order) {
