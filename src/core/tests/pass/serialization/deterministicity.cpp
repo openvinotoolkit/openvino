@@ -10,6 +10,7 @@
 #include "openvino/pass/serialize.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
+#include "transformations/hash.hpp"
 #include "util/test_common.hpp"
 
 class SerializationDeterministicityTest : public ov::test::TestsCommon {
@@ -83,6 +84,23 @@ TEST_F(SerializationDeterministicityTest, ModelWithMultipleLayers) {
     ASSERT_TRUE(files_equal(bin_1, bin_2));
 }
 
+TEST_F(SerializationDeterministicityTest, Hash) {
+    const std::string model =
+        CommonTestUtils::getModelFromTestModelZoo(ov::util::path_join({SERIALIZED_ZOO, "ir/addmul_abc.onnx"}));
+
+    uint64_t seed1 = 0;
+    uint64_t seed2 = 0;
+    {
+        auto expected = ov::test::readModel(model, "");
+        ov::pass::Hash(seed1).run_on_model(expected);
+    }
+    {
+        auto expected = ov::test::readModel(model, "");
+        ov::pass::Hash(seed2).run_on_model(expected);
+    }
+
+    ASSERT_TRUE(seed1 == seed2);
+}
 #endif
 
 TEST_F(SerializationDeterministicityTest, ModelWithMultipleOutputs) {
