@@ -1645,5 +1645,34 @@ void Node::initializeDQScales(const float* scaleData, const size_t scaleSize) {
         DQScales.resize(1);
 }
 
+bool Node::supportedPrmitiveHasSameLayoutPrecisionOnInputPort(LayoutType &type, InferenceEngine::Precision &precision,
+                    int inputIndex, const std::vector<LayoutType>& layoutVec) const {
+    if (supportedPrimitiveDescriptors.empty() || layoutVec.empty())
+        return false;
+    bool found = false;
+    for (const auto& layOutType : layoutVec) {
+        const auto &config = supportedPrimitiveDescriptors[0].getConfig();
+        if (inputIndex < 0 || inputIndex >= config.inConfs.size())
+                IE_THROW() << "Cannot find index of output node";
+        if (config.inConfs[inputIndex].getMemDesc()->hasLayoutType(layOutType)) {
+            type = layOutType;
+            precision = config.inConfs[inputIndex].getMemDesc()->getPrecision();
+            found = true;
+            break;
+        }
+    }
+    if (!found)
+        return false;
+    for (const auto& des : supportedPrimitiveDescriptors) {
+        const auto &config = des.getConfig();
+        if (inputIndex < 0 || inputIndex >= config.inConfs.size())
+                IE_THROW() << "Cannot find index of output node";
+        const auto& memDesc = config.inConfs[inputIndex].getMemDesc();
+        if (!memDesc->hasLayoutType(type) || memDesc->getPrecision() != precision)
+            return false;
+    }
+    return true;
+}
+
 }   // namespace intel_cpu
 }   // namespace ov

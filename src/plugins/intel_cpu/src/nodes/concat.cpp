@@ -224,6 +224,7 @@ void Concat::initSupportedPrimitiveDescriptors() {
     }
 }
 
+
 void Concat::selectOptimalPrimitiveDescriptor() {
     std::vector<size_t> canSelectPrimitive;
 
@@ -237,6 +238,29 @@ void Concat::selectOptimalPrimitiveDescriptor() {
     }
 
     std::map<LayoutType, size_t> formatFrequency;
+#ifdef CPU_DEBUG_CAPS
+    auto layoutToStr = [](const LayoutType& type) {
+        std::string layoutStr;
+        switch (type) {
+            case LayoutType::nspc :
+                layoutStr =  "nspc";
+                break;
+            case LayoutType::ncsp :
+                layoutStr =  "ncsp";
+                break;
+            case LayoutType::nCsp8c :
+                layoutStr =  "nCsp8c";
+                break;
+            case LayoutType::nCsp16c:
+                layoutStr =  "nCsp16c";
+                break;
+            default:
+                layoutStr = "unknown";
+        }
+        return layoutStr;
+    };
+#endif
+
     std::vector<LayoutType> supportedLayouts = {LayoutType::ncsp, LayoutType::nspc, LayoutType::nCsp8c, LayoutType::nCsp16c};
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto parentEdge = getParentEdgeAt(i);
@@ -252,28 +276,43 @@ void Concat::selectOptimalPrimitiveDescriptor() {
             IE_THROW() << "Cannot find index of output node";
         const auto &port_desc = parent_config.outConfs[outputIndex].getMemDesc();
         for (auto& item : supportedLayouts) {
-            if (port_desc->hasLayoutType(item)) {
+            if (port_desc->hasLayoutType(item) && port_desc->getPrecision() == inputPrecision)
                 formatFrequency[item] += 1;
-            }
         }
     }
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto childEdge = getChildEdgeAt(i);
         auto child = childEdge->getChild();
         const auto *prim_desc = child->getSelectedPrimitiveDescriptor();
-        if (prim_desc == nullptr)
-            continue;
-
-        const auto &config = prim_desc->getConfig();
+        MemoryDescPtr port_desc = nullptr;
         int inputIndex = childEdge->getOutputNum();
-        if (inputIndex < 0 || inputIndex >= config.inConfs.size())
-            IE_THROW() << "Cannot find index of output node";
-        const auto &port_desc = config.inConfs[inputIndex].getMemDesc();
-        for (auto& item : supportedLayouts) {
-            if (port_desc->hasLayoutType(item)) {
-                formatFrequency[item] += 1;
+        if (prim_desc != nullptr) {
+            const auto &config = prim_desc->getConfig();
+            if (inputIndex < 0 || inputIndex >= config.inConfs.size())
+                IE_THROW() << "Cannot find index of output node";
+            port_desc = config.inConfs[inputIndex].getMemDesc();
+            for (auto& item : supportedLayouts) {
+                if (port_desc->hasLayoutType(item) && port_desc->getPrecision() == outputPrecision)
+                    formatFrequency[item] += getParentEdges().size();
+            }
+        } else {
+            LayoutType type;
+            InferenceEngine::Precision precision;
+            if (child->supportedPrmitiveHasSameLayoutPrecisionOnInputPort(type, precision, inputIndex, supportedLayouts)) {
+                formatFrequency[type] += getParentEdges().size();
+            } else {
+                continue;
             }
         }
+    }
+    for (auto iter = formatFrequency.begin(); iter != formatFrequency.end(); iter++) {
+        for (size_t i = 0; i < supportedPrimitiveDescriptors.size(); i++) {
+            if (supportedPrimitiveDescriptors[i].getConfig().inConfs[0].getMemDesc()->hasLayoutType(iter->first) &&
+                    supportedPrimitiveDescriptors[i].getImplementationType() == impl_desc_type::unknown && canBeInPlace) {
+                iter->second += 1;
+            }
+        }
+        DEBUG_LOG("Concat selectOptimalPrimitiveDescriptor() on #", getName(),  " layoutType[", layoutToStr(iter->first),  "] = ", iter->second);
     }
 
     size_t maxCount = 0;

@@ -290,7 +290,8 @@ public:
     const std::vector<NodeDesc>& getSupportedPrimitiveDescriptors() const {
         return supportedPrimitiveDescriptors;
     }
-
+    bool supportedPrmitiveHasSameLayoutPrecisionOnInputPort(LayoutType &type, InferenceEngine::Precision &precision,
+            int inputIndex, const std::vector<LayoutType>& layoutVec) const;
     inline const NodeDesc* getSelectedPrimitiveDescriptor() const {
         if (selectedPrimitiveDescriptorIndex < 0 ||
             static_cast<size_t>(selectedPrimitiveDescriptorIndex) >= supportedPrimitiveDescriptors.size())
