@@ -69,12 +69,7 @@ struct roi_align_test : public testing::Test {
                  roi_align::AlignedMode aligned_mode,
                  bool is_caching_test) const {
         auto& engine = get_test_engine();
-        std::shared_ptr<cldnn::stream> stream;
-        if (engine.get_device_info().supports_immad) {
-            stream = get_test_stream_ptr(get_test_default_config(engine));
-        } else {
-            stream = get_test_stream_ptr();
-        }
+        auto stream = get_test_stream_ptr(get_test_default_config(engine));
 
         auto input = get_memory(engine, input_lt, input_data);
         auto coords = get_memory(engine, coords_lt, coords_data);

@@ -291,11 +291,6 @@ public:
 
         auto& engine = get_test_engine();
         std::shared_ptr<cldnn::stream> stream = get_test_stream_ptr();;
-        if (engine.get_device_info().supports_immad) {
-            // Expected to test out-of-order queue-type
-            return;
-        }
-
         const primitive_id input_im_info_id = "InputImInfo";
         const auto input_im_info = engine.allocate_memory({data_type, format::bfyx, tensor{batch(num_batches), feature(3)}});
         set_values(input_im_info, getValues<T>(im_info));

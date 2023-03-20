@@ -64,7 +64,6 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_onednn)
     topology.add(reorder("reorder_conv", input_info("conv"), reorder_layout));
 
     ExecutionConfig cfg = get_test_default_config(engine);
-    cfg.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
     lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
@@ -102,7 +101,6 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_cldnn)
     topology.add(reorder("reorder_conv", input_info("conv"), reorder_layout));
 
     ExecutionConfig cfg = get_test_default_config(engine);
-    cfg.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
     lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, false);
@@ -175,7 +173,6 @@ TEST_P(test_fused_reorder_deep_depth, no_removal_for_deep_depth_conv)
     topology.add(reorder("reorder_conv", input_info("conv"), reorder_layout));
 
     ExecutionConfig cfg = get_test_default_config(engine);
-    cfg.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
     lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
@@ -279,7 +276,6 @@ TEST_P(test_can_fuse_reorder_onednn, reorder_for_firstconv_onednn)
     topology.add(reorder("reorder_result", input_info("conv"), reorder_layout));
 
     ExecutionConfig cfg = get_test_default_config(engine);
-    cfg.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
     lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
@@ -459,7 +455,6 @@ TEST_P(test_can_fuse_reorder_onednn_errata, errata_case_for_conv) {
     topology.add(reorder("reorder_result", input_info("conv"), p.conv_layout));
 
     ExecutionConfig cfg = get_test_default_config(engine);
-    cfg.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
     lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);

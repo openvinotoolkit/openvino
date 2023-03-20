@@ -1006,9 +1006,7 @@ struct fully_connected_random_test : ::testing::TestWithParam<fully_connected_te
         auto bias = net.add_data<BiasT, 2>("bias", format::bfyx, std::move(bias_data));
         auto fc = net.add_fully_connected<OutputT>("fc_prim", input, weights, bias, ov::intel_gpu::ImplementationDesc{ output_format, kernel });
 
-        ExecutionConfig config = get_test_default_config(eng);
-        config.set_property(ov::intel_gpu::optimize_data(true));
-        net.run(config, is_caching_test);
+        net.run(get_test_default_config(eng, ov::intel_gpu::optimize_data(true)), is_caching_test);
     }
 };
 
@@ -1691,7 +1689,6 @@ TEST(fully_connected_onednn_gpu, no_biases_int8) {
     ov::intel_gpu::ImplementationDesc fc_impl = { format::bfyx, "", impl_types::onednn };
 
     ExecutionConfig cfg = get_test_default_config(engine);
-    cfg.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
     cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl} }));
     network network(engine, topology, cfg);
     network.set_input_data("input", input_prim);
@@ -1743,7 +1740,6 @@ TEST(fully_connected_3d_onednn_gpu, no_biases_int8) {
 
     ov::intel_gpu::ImplementationDesc fc_impl = { format::bfyx, "", impl_types::onednn };
     ExecutionConfig cfg = get_test_default_config(engine);
-    cfg.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
     cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"fc_prim", fc_impl} }));
 
     network network(engine, topology, cfg);

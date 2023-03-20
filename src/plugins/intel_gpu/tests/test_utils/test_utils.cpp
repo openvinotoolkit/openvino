@@ -287,7 +287,16 @@ std::vector<std::shared_ptr<test_params>> generic_test::generate_generic_test_pa
 }
 
 cldnn::ExecutionConfig get_test_default_config(const cldnn::engine& engine) {
-    ExecutionConfig config;
+    return get_test_default_config(engine, {});
+}
+
+cldnn::ExecutionConfig get_test_default_config(const cldnn::engine& engine, ov::AnyMap::value_type values) {
+    return get_test_default_config(engine, {values});
+}
+
+cldnn::ExecutionConfig get_test_default_config(const cldnn::engine& engine,
+                                                std::initializer_list<ov::AnyMap::value_type> values) {
+    ExecutionConfig config(values);
 
     // Onednn engine currently does NOT support out_of_order
     if (engine.get_device_info().supports_immad) {
@@ -316,11 +325,7 @@ cldnn::engine& get_test_engine() {
 
 cldnn::stream_ptr get_test_stream_ptr() {
     // Create OOO queue for test purposes. If in-order queue is needed in a test, then it should be created there explicitly
-    cldnn::ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
-
-    // Onednn currently does NOT support out-of-order queue-type : will be removed if supported
-    if (get_test_engine().get_device_info().supports_immad)
-        cfg.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    auto cfg = get_test_default_config(get_test_engine());
 
     return get_test_stream_ptr(cfg);
 }

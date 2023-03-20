@@ -1286,7 +1286,6 @@ TEST(concat_gpu_onednn, basic_input_types) {
     ov::intel_gpu::ImplementationDesc impl = { format::bfyx, std::string(""), impl_types::onednn };
 
     ExecutionConfig cfg = get_test_default_config(engine);
-    cfg.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
     cfg.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "concat" }));
     cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"concat", impl} }));
     network network(engine, topology, cfg);
@@ -1430,7 +1429,6 @@ public:
         config1.set_property(ov::intel_gpu::optimize_data(true));
         ov::intel_gpu::ImplementationDesc impl = { fmt, std::string(""), impl_types::onednn };
         config1.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", impl} }));
-        config1.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
 
         auto out_mem1 = run_concat_network(input, fmt, config1);
         cldnn::mem_lock<Type> out_ptr1(out_mem1, stream);
@@ -1438,7 +1436,6 @@ public:
         // explicit concat
         ExecutionConfig config2 = get_test_default_config(engine);
         config2.set_property(ov::intel_gpu::optimize_data(false));
-        config2.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
         auto out_mem2 = run_concat_network(input, fmt, config2);
         cldnn::mem_lock<Type> out_ptr2(out_mem2, stream);
 
@@ -1599,7 +1596,6 @@ public:
         config1.set_property(ov::intel_gpu::optimize_data(true));
         ov::intel_gpu::ImplementationDesc impl = { fmt, std::string(""), impl_types::onednn };
         config1.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", impl}}));
-        config1.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
 
         auto out_mem1 = run_concat_network(input, fmt, config1);
         cldnn::mem_lock<Type> out_ptr1(out_mem1, stream);
@@ -1607,7 +1603,6 @@ public:
         // explicit concat
         ExecutionConfig config2 = get_test_default_config(engine);
         config2.set_property(ov::intel_gpu::optimize_data(false));
-        config2.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
         auto out_mem2 = run_concat_network(input, fmt, config2);
         cldnn::mem_lock<Type> out_ptr2(out_mem2, stream);
 

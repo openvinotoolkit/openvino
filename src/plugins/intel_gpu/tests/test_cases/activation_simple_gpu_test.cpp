@@ -1693,8 +1693,8 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
         prim.additional_params = additional_params;
         topo.add(prim);
 
-        ExecutionConfig config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"activation"}));
+        ExecutionConfig config = get_test_default_config(engine,
+                                    ov::intel_gpu::custom_outputs(std::vector<std::string>{"activation"}));
 
         cldnn::network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
 
@@ -1715,10 +1715,9 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
 
         auto activation_impl_desc = ov::intel_gpu::ImplementationDesc();
         activation_impl_desc.output_format = input_format;
-        ExecutionConfig config_opt = get_test_default_config(engine);
-        config_opt.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"activation_blocked", "res_to_input_format"}));
-        config_opt.set_property(ov::intel_gpu::force_implementations(
-                            ov::intel_gpu::ImplForcingMap{{"activation_blocked", {input_format, "activation_ref"}}}));
+        ExecutionConfig config_opt = get_test_default_config(engine,
+                                        {ov::intel_gpu::custom_outputs(std::vector<std::string>{"activation_blocked", "res_to_input_format"}),
+                                        ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"activation_blocked", {input_format, "activation_ref"}}})});
 
         network net_opt(engine, topo_opt, config_opt);
 

@@ -62,6 +62,10 @@ cldnn::stream& get_test_stream();
 
 // Set default configuration for test-cases
 cldnn::ExecutionConfig get_test_default_config(const cldnn::engine&);
+cldnn::ExecutionConfig get_test_default_config(const cldnn::engine&, ov::AnyMap::value_type values);
+cldnn::ExecutionConfig get_test_default_config(const cldnn::engine&,
+                                                std::initializer_list<ov::AnyMap::value_type> values);
+
 
 template<typename T>
 bool has_node_with_type(cldnn::program& prog) {

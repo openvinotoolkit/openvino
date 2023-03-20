@@ -3227,7 +3227,6 @@ TEST(pooling_forward_gpu_onednn, basic_max_pooling_int8) {
 
     ov::intel_gpu::ImplementationDesc impl = {format::bfyx, std::string(""), impl_types::onednn};
     ExecutionConfig cfg = get_test_default_config(engine);
-    cfg.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
     cfg.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "reorder2" }));
     cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"pool1", impl}}));
 

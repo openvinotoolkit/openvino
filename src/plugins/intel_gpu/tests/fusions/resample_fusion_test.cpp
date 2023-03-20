@@ -217,6 +217,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_quantize_concat, ::testing::Value
     resample_test_params{ CASE_RESAMPLE_FP16_11, RESAMPLE_QUANTIZE_CONCAT_CNT },
     resample_test_params{ CASE_RESAMPLE_FP16_12, RESAMPLE_QUANTIZE_CONCAT_CNT },
     resample_test_params{ CASE_RESAMPLE_FP16_13, RESAMPLE_QUANTIZE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_14, RESAMPLE_QUANTIZE_CONCAT_CNT },
 }));
 
 class resample_eltwise_concat : public ResamplePrimitiveFusingTest {};
@@ -261,6 +262,7 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, resample_eltwise_concat, ::testing::Values
     resample_test_params{ CASE_RESAMPLE_FP16_11, RESAMPLE_ELTWISE_CONCAT_CNT },
     resample_test_params{ CASE_RESAMPLE_FP16_12, RESAMPLE_ELTWISE_CONCAT_CNT },
     resample_test_params{ CASE_RESAMPLE_FP16_13, RESAMPLE_ELTWISE_CONCAT_CNT },
+    resample_test_params{ CASE_RESAMPLE_FP16_14, RESAMPLE_ELTWISE_CONCAT_CNT },
 
     resample_test_params{ CASE_RESAMPLE_I8_1, RESAMPLE_ELTWISE_CONCAT_CNT },
     resample_test_params{ CASE_RESAMPLE_I8_2, RESAMPLE_ELTWISE_CONCAT_CNT },

@@ -9068,7 +9068,6 @@ TEST_P(convolution_gpu_onednn, conv_onednn_cases) {
     topology.add(reorder("reorder_bfyx", input_info("conv_fsv"), format::bfyx, data_types::f32));
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
     config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"conv_fsv","reorder_bfyx"}));
     network network(engine, topology, config);
 
@@ -9139,14 +9138,12 @@ TEST(convolution_gpu_onednn, padding_for_cldnn_kernel_after_onednn) {
     ov::intel_gpu::ImplementationDesc conv2_impl_test = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16", impl_types::ocl };
     config_test.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv1", conv1_impl_test }, { "conv2", conv2_impl_test } }));
     config_test.set_property(ov::intel_gpu::optimize_data(true));
-    config_test.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
 
     ExecutionConfig config_ref = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc conv1_impl_ref = { format::bfyx, "", impl_types::ocl };
     ov::intel_gpu::ImplementationDesc conv2_impl_ref = { format::bfyx, "", impl_types::ocl };
     config_ref.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv1", conv1_impl_ref }, { "conv2", conv2_impl_ref } }));
     config_ref.set_property(ov::intel_gpu::optimize_data(true));
-    config_ref.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
 
     network network_test(engine, topology_test, config_test);
     network network_ref(engine, topology_ref, config_ref);
@@ -9232,7 +9229,6 @@ TEST(convolution_gpu_onednn, quantized_onednn_convolution_u8s8f32_asymmetric_act
     ov::intel_gpu::ImplementationDesc conv_impl = { format::byxf, "", impl_types::onednn };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl }}));
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
 
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -9323,7 +9319,6 @@ TEST(convolution_gpu_onednn, quantized_onednn_convolution_u8s8f32_asymmetric_act
     ov::intel_gpu::ImplementationDesc conv_impl = { format::byxf, "", impl_types::onednn };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", conv_impl }}));
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
 
     network network(engine, topology, config);
     network.set_input_data("input", input);
