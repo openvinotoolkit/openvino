@@ -182,6 +182,27 @@ bool AutoSchedule::selectOtherDevice(const std::string& currentDeviceName) {
                 return getExecutionDevices(_loadContext[FALLBACKDEVICE].deviceInfo.deviceName.c_str());
             }
         };
+
+        auto removeInferFailDevice = [&](const std::string& deviceName) {
+            if (_autoSContext->_devicePriorities.size() > 1) {
+                const auto CurrentDeviceIter =
+                    std::find_if(_autoSContext->_devicePriorities.begin(),
+                                 _autoSContext->_devicePriorities.end(),
+                                 [=](const DeviceInformation& d) -> bool {
+                                     return d.deviceName.find(deviceName) != std::string::npos;
+                                 });
+                if (CurrentDeviceIter != _autoSContext->_devicePriorities.end()) {
+                    _autoSContext->_devicePriorities.erase(CurrentDeviceIter);
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        if (_pCTPUTLoadContext) {
+            return removeInferFailDevice(currentDeviceName);
+        }
+
         return getExecutionDevices(currentDeviceName);
     }
 }
@@ -684,6 +705,8 @@ bool AutoSchedule::ScheduleToWorkerInferRequest(IE::Task inferPipelineTask, Devi
         }
     } else {
         if (_pCTPUTLoadContext) {
+            // Devices that fail infer will be removed from the priority list in the callback, need lock here
+            std::lock_guard<std::mutex> lock(_autoSContext->_fallbackMutex);
             for (size_t i = 0; i < _autoSContext->_devicePriorities.size(); i++) {
                 devices.push_back(_autoSContext->_devicePriorities[i]);
             }

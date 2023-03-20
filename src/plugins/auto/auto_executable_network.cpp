@@ -165,7 +165,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
             if (ExeDevicesString == "CPU_HELP")
                 ExeDevicesString = "(CPU)";
             exeDevices.push_back(ExeDevicesString);
-            execution_devices = decltype(ov::execution_devices)::value_type{exeDevices};
+            execution_devices = decltype(ov::execution_devices)::value_type {exeDevices};
         };
         if (_autoSchedule->_pCTPUTLoadContext) {
             std::vector<std::string> exeDevices = {};
@@ -173,7 +173,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
             for (auto n : _autoSContext->_devicePriorities) {
                 exeDevices.push_back(n.deviceName);
             }
-            execution_devices = decltype(ov::execution_devices)::value_type{exeDevices};
+            execution_devices = decltype(ov::execution_devices)::value_type {exeDevices};
         } else {
             std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
             for (int i = 0; i < CONTEXTNUM; i++) {
