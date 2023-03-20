@@ -49,8 +49,6 @@ protected:
             case dnnl::memory::format_tag::ab: return dnnl::memory::format_tag::ba;
             case dnnl::memory::format_tag::abc: return dnnl::memory::format_tag::acb;
             case dnnl::memory::format_tag::abcd: return dnnl::memory::format_tag::abdc;
-            case dnnl::memory::format_tag::abcde: return dnnl::memory::format_tag::abced;
-            case dnnl::memory::format_tag::abcdef: return dnnl::memory::format_tag::abcdfe;
             default: throw std::runtime_error("Unsupported fmt in transpose_format gemm function");
         }
     }
@@ -83,15 +81,26 @@ protected:
         const auto& in0_l = in_layouts[0];
         const auto& in1_l = in_layouts[1];
 
+        size_t in0_batched_size = in0_l.count() / (in0_l.spatial(0) * in0_l.spatial(1));
+        size_t in1_batched_size = in1_l.count() / (in1_l.spatial(0) * in1_l.spatial(1));
+        size_t out_batched_size = out_l.count() / (out_l.spatial(0) * out_l.spatial(1));
+
+        auto batched_dims_can_be_removed = in0_batched_size == 1 && in1_batched_size == 1 && out_batched_size == 1;
+        if (gemm_with_bias) {
+            const auto& bias_l = in_layouts[2];
+            size_t bias_batched_size = bias_l.count() / (bias_l.spatial(0) * bias_l.spatial(1));
+            batched_dims_can_be_removed &= bias_batched_size == 1;
+        }
+
         size_t rank = cldnn::format::dimension(out_l.format);
 
         in0_dt = onednn::convert_data_type(in0_l.data_type);
         in1_dt = onednn::convert_data_type(in1_l.data_type);
         out_dt = onednn::convert_data_type(out_l.data_type);
 
-        in0_dims = onednn::convert_tensor(in0_l.get_tensor(), rank);
-        in1_dims = onednn::convert_tensor(in1_l.get_tensor(), rank);
-        out_dims = onednn::convert_tensor(out_l.get_tensor(), rank);
+        in0_dims = onednn::convert_gemm_tensor(in0_l.get_tensor(), rank, batched_dims_can_be_removed);
+        in1_dims = onednn::convert_gemm_tensor(in1_l.get_tensor(), rank, batched_dims_can_be_removed);
+        out_dims = onednn::convert_gemm_tensor(out_l.get_tensor(), rank, batched_dims_can_be_removed);
 
         in0_fmt = onednn::convert_gemm_data_format(in0_dims);
         in1_fmt = onednn::convert_gemm_data_format(in1_dims);
@@ -111,7 +120,7 @@ protected:
             auto bias_l = impl_params.get_input_layout(2);
             auto bias_rank = cldnn::format::dimension(bias_l.format);
             bias_dt = onednn::convert_data_type(bias_l.data_type);
-            bias_dims = onednn::convert_tensor(bias_l.get_tensor(), bias_rank);
+            bias_dims = onednn::convert_gemm_tensor(bias_l.get_tensor(), bias_rank, batched_dims_can_be_removed);
             bias_fmt = onednn::convert_gemm_data_format(bias_dims);
         }
     }
