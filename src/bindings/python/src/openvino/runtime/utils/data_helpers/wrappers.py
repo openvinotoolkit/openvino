@@ -11,8 +11,8 @@ try:
 except ImportError:
     from singledispatchmethod import singledispatchmethod  # type: ignore[no-redef]
 
-from collections.abc import Mapping, KeysView, ItemsView, ValuesView
-from typing import Union, Dict, List, Iterator
+from collections.abc import Mapping
+from typing import Union, Dict, List, Iterator, KeysView, ItemsView, ValuesView
 
 from openvino._pyopenvino import Tensor, ConstOutput
 from openvino._pyopenvino import InferRequest as InferRequestBase
