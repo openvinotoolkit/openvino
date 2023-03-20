@@ -1,4 +1,4 @@
-# Operations Specifications {#openvino_docs_operations_specifications}
+# Operation Specifications {#openvino_docs_operations_specifications}
 
 @sphinxdirective
 
