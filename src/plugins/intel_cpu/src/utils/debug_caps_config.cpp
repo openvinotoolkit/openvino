@@ -12,7 +12,11 @@ namespace intel_cpu {
 
 void DebugCapsConfig::readProperties() {
     auto readEnv = [](const char* envVar) {
-        return std::getenv(envVar);
+        const char* env = std::getenv(envVar);
+        if (env && *env) // set and non-empty
+            return env;
+
+        return (const char*)nullptr;
     };
 
     auto parseDumpFormat = [](const std::string& format) {

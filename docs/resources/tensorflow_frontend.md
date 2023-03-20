@@ -1,8 +1,10 @@
 # OpenVINO TensorFlow Frontend Capabilities and Limitations {#openvino_docs_MO_DG_TensorFlow_Frontend}
 
+@sphinxdirective
+
 TensorFlow Frontend is C++ based Frontend for conversion of TensorFlow models and is available as a preview feature starting from 2022.3.
-That means that you can start experimenting with `--use_new_frontend` option passed to Model Optimizer to enjoy improved conversion time for limited scope of models
-or directly loading TensorFlow models through `read_model()` method.
+That means that you can start experimenting with ``--use_new_frontend`` option passed to Model Optimizer to enjoy improved conversion time for limited scope of models
+or directly loading TensorFlow models through ``read_model()`` method.
 
 The current limitations:
 
@@ -10,4 +12,6 @@ The current limitations:
 * There is no full parity yet between legacy Model Optimizer TensorFlow Frontend and new TensorFlow Frontend so primary path for model conversion is still legacy frontend
 * Model coverage and performance is continuously improving so some conversion phase failures, performance and accuracy issues might occur in case model is not yet covered.
 Known unsupported models: object detection models and all models with transformation configs, models with TF1/TF2 control flow, Complex type and training parts
-* `read_model()` method supports only `*.pb` format while Model Optimizer (or `convert_model` call) will accept other formats as well which are accepted by existing legacy frontend
+* ``read_model()`` method supports only ``*.pb`` format while Model Optimizer (or ``convert_model`` call) will accept other formats as well which are accepted by existing legacy frontend
+
+@endsphinxdirective
