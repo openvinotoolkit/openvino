@@ -30,7 +30,7 @@ OutputVector translate_fake_quant_op(const NodeContext& node) {
     Output<Node> maximum = make_shared<Maximum>(min, max);
 
     // adjust min and max so that min <= 0
-    auto zero = make_shared<Constant>(min.get_element_type(), Shape{}, 0);
+    auto zero = create_same_type_const_scalar<float>(min, 0);
     auto min_greater_zero = make_shared<Greater>(minimum, zero);
     Output<Node> max_minus_min = make_shared<Subtract>(maximum, minimum);
     minimum = make_shared<Select>(min_greater_zero, zero, minimum);

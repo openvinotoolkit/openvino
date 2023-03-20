@@ -41,6 +41,9 @@ std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id);
 std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x);
 
 element::Type convert_dtype(int64_t dtype_value);
+
+Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Output<Node>& input_tensor);
+
 op::PadType convert_pad(const std::string& pt_pad);
 
 std::shared_ptr<Node> concat_list_construct(std::shared_ptr<Node> input);
