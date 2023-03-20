@@ -171,17 +171,19 @@ int get_model_prefer_threads(const int num_streams,
                              const InferenceEngine::IStreamsExecutor::Config streamExecutorConfig) {
     const int sockets = static_cast<int>(getAvailableNUMANodes().size());
     auto model_prefer = 0;
-    if (num_streams <= sockets && num_streams > 0 &&
-        streamExecutorConfig._threadBindingType == IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
-        bool fp_intesive = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(ngraphFunc);
-        const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
-        const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
-        // by default the latency case uses (faster) Big cores only, depending on the compute ratio
-        model_prefer = proc_type_table[0][MAIN_CORE_PROC] > (proc_type_table[0][EFFICIENT_CORE_PROC] /
-                                                             (fp_intesive ? fp32_threshold : int8_threshold))
-                           ? proc_type_table[0][MAIN_CORE_PROC]
-                           : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
-    } else {
+    // latency
+    if (num_streams <= sockets && num_streams > 0) {
+        if (streamExecutorConfig._threadBindingType == IStreamsExecutor::ThreadBindingType::HYBRID_AWARE) {
+            bool fp_intesive = !ov::op::util::has_op_with_type<ngraph::op::FakeQuantize>(ngraphFunc);
+            const int int8_threshold = 4;  // ~relative efficiency of the VNNI-intensive code for Big vs Little cores;
+            const int fp32_threshold = 2;  // ~relative efficiency of the AVX2 fp32 code for Big vs Little cores;
+            // by default the latency case uses (faster) Big cores only, depending on the compute ratio
+            model_prefer = proc_type_table[0][MAIN_CORE_PROC] > (proc_type_table[0][EFFICIENT_CORE_PROC] /
+                                                                 (fp_intesive ? fp32_threshold : int8_threshold))
+                               ? proc_type_table[0][MAIN_CORE_PROC]
+                               : proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
+        }
+    } else { // throughput
         const auto isa = dnnl::get_effective_cpu_isa();
         float isaSpecificThreshold = 1.0f;
         switch (isa) {
@@ -272,8 +274,7 @@ std::pair<std::string, StreamCfg> get_num_streams(
         "[ p_e_core_info ] streams (threads): ",
         streams_info.num_streams,
         "(",
-        streams_info.threads_per_stream_big * (streams_info.big_core_streams + streams_info.big_core_logic_streams) +
-            streams_info.threads_per_stream_small * streams_info.small_core_streams,
+        streams_info.num_threads,
         ") -- PCore: ",
         streams_info.big_core_streams,
         "(",
