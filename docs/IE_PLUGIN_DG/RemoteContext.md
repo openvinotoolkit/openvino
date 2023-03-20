@@ -44,6 +44,6 @@ The implementation returns the remote context properties.
 
 The method creates device specific remote tensor.
 
-@snippet src/remote_context.cpp compiled_model:create_tensor
+@snippet src/remote_context.cpp remote_context:create_tensor
 
 The next step to support device specific tensors is a creation of device specific [Remote Tensor](@ref openvino_docs_ov_plugin_dg_remote_tensor) class.
