@@ -103,7 +103,6 @@ bool PropagateOffsetAndResetBuffer::run(LoweredExprIR& linear_ir) {
             }
 
             if (buffer_idx.size() > 1) {
-                const auto idx_to_drop = buffer_idx.front();
                 auto ptr_increments = loop_end->get_ptr_increments();
                 auto fin_offsets = loop_end->get_finalization_offsets();
                 for (size_t i = 0; i < buffer_idx.size() - 1; i++) {

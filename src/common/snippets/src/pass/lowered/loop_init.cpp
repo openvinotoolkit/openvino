@@ -56,7 +56,7 @@ int64_t get_dim_stride(const size_t dim, const std::vector<size_t>& layout, cons
 }
 }  // namespace
 
-LoopInit::LoopInit(size_t vector_size) : m_vector_size(vector_size), LinearIRTransformation() {}
+LoopInit::LoopInit(size_t vector_size) : LinearIRTransformation(), m_vector_size(vector_size) {}
 
 std::vector<int64_t> LoopInit::init_ptr_increments(LoweredExprIR& linear_ir,
                                                    const std::vector<LoweredExprPtr>& loop_in_exprs,
@@ -141,7 +141,7 @@ bool LoopInit::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::LoweredL
 
     // If we don't need Loop (explicit execution without cycles), we don't explicitly insert the Loop expressions
     const auto subtensor_in = loop_in_exprs.empty() ? std::vector<size_t>{} : loop_in_exprs.front()->get_inputs().front()->get_subtensor();
-    const bool explicit_execution = work_amount == 0 || dim_idx == 0 && subtensor_in.size() > 1 && subtensor_in.back() == work_amount;
+    const bool explicit_execution = (work_amount == 0) || (dim_idx == 0 && subtensor_in.size() > 1 && subtensor_in.back() == work_amount);
     if (explicit_execution) {
         return false;
     }
@@ -211,7 +211,7 @@ bool LoopInit::run(LoweredExprIR& linear_ir) {
         const auto loop_depth = expr_loops.size();
         for (size_t i = 0; i < loop_depth; ++i) {
             const auto loop_id = expr_loops[i];
-            if (loop_id == LoweredExprIR::LoweredLoopManager::NULL_ID)
+            if (loop_id == LoweredExpr::LOOP_NULL_ID)
                 continue;
             bool need_to_insert = loop_identifies.find(loop_id) != loop_identifies.end();
             if (need_to_insert) {

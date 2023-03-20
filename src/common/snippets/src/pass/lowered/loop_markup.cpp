@@ -49,8 +49,7 @@ bool LoopMarkup::run(LoweredExprIR& linear_ir) {
         return ov::is_type<opset1::Result>(node) ||
                ov::is_type<opset1::Constant>(node) ||
                ov::is_type<opset1::Parameter>(node) ||
-               ov::is_type<opset1::Softmax>(node) ||
-               ov::is_type<op::Brgemm>(node);
+               ov::is_type<opset1::Softmax>(node);  // Softmax is decomposed operation. The marking will be in decomposition pass
     };
 
     // Scalars cannot be a single node in Loop
@@ -67,6 +66,10 @@ bool LoopMarkup::run(LoweredExprIR& linear_ir) {
         }
         if (is_not_start_point(node))
             continue;
+        if (ov::is_type<op::Brgemm>(node)) {
+            loop_manager->skipped_marking(expr_it, std::next(expr_it), loop_depth);
+            continue;
+        }
 
         auto loop_begin_pos = expr_it;
         auto loop_end_pos = loop_begin_pos;
@@ -95,17 +98,10 @@ bool LoopMarkup::run(LoweredExprIR& linear_ir) {
                 break;
 
             // If the next expr isn't real customer of prev expr we should finish Loop
-            std::set<LoweredExprPtr> prev_node_customers;
-            const auto prev_outputs = body_exprs.back()->get_outputs();
-            for (const auto& td_output : prev_outputs) {
-                const auto consumers = linear_ir.get_exprs_by_input(td_output);
-                prev_node_customers.insert(consumers.begin(), consumers.end());
-            }
-            auto compare = [&current_node](const LoweredExprPtr& consumer){ return consumer->get_node() == current_node;};
-            if (std::none_of(prev_node_customers.begin(), prev_node_customers.end(), compare))
-                break;
-
             const auto& ins = loop_end_pos->get()->get_inputs();
+            auto connected = [&](const TensorDescriptorPtr& td) {return linear_ir.get_expr_by_output(td) == body_exprs.back();};
+            if (std::none_of(ins.begin(), ins.end(), connected))
+                break;
 
             const auto& layout = ins.front()->get_layout();
             const auto& subtensor = ins.front()->get_subtensor();
@@ -118,8 +114,6 @@ bool LoopMarkup::run(LoweredExprIR& linear_ir) {
 
     scalars_markup(linear_ir, scalars_iterators);
 
-    linear_ir.serialize("/home/a-sidorova/projects/loops/openvino/graphs/lin.xml",
-                        "/home/a-sidorova/projects/loops/openvino/graphs/lin.bin");
     return true;
 }
 

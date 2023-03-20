@@ -46,7 +46,7 @@ bool LoadMoveBroadcastToBroadcastLoad::run(LoweredExprIR& linear_ir) {
             auto outshape = move_broadcast->get_output_partial_shape(0);
             auto broadcastload = std::make_shared<snippets::op::BroadcastLoad>(load->input_value(0), outshape, load->get_offset());
             const auto in_td =  std::vector<TensorDescriptorPtr>{ parent_expr->get_inputs().front() };
-            const auto out_td =  std::vector<TensorDescriptorPtr>{ (*expr_it)->get_outputs().front() };  // should we make a copy or we can use shared_ptr?
+            const auto out_td = std::vector<TensorDescriptorPtr>{ (*expr_it)->get_outputs().front() };
             const auto mv_expr_it = expr_it;
             expr_it = linear_ir.insert(std::next(expr_it), std::make_shared<LoweredExpr>(broadcastload, in_td, out_td));
             linear_ir.erase(std::find(linear_ir.begin(), mv_expr_it, parent_expr));

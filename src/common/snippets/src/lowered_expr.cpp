@@ -17,6 +17,8 @@
 namespace ngraph {
 namespace snippets {
 
+size_t LoweredExpr::LOOP_NULL_ID = SIZE_MAX;
+
 LoweredExpr::LoweredExpr(const std::shared_ptr<Node>& n) : m_source_node{n}, m_emitter{nullptr}, m_reg_info{{}, {}} {
     for (const auto& in : n->inputs())
         m_inputs.emplace_back(get_tensor_descriptor_ptr(in.get_source_output()));
@@ -77,7 +79,7 @@ void LoweredExpr::set_loop_identificator(size_t id, size_t idx) {
     OPENVINO_ASSERT((std::find(m_loop_identifies.begin(), m_loop_identifies.end(), id) == m_loop_identifies.end()),
                     "LoweredExpr cannot have several the same Loops");
     if (m_loop_identifies.size() <= idx) {
-        m_loop_identifies.resize(idx + 1, LoopMarking::LOOP_NULL_ID);
+        m_loop_identifies.resize(idx + 1, LOOP_NULL_ID);
     }
     m_loop_identifies[idx] = id;
 }
@@ -85,7 +87,7 @@ void LoweredExpr::set_loop_identificator(size_t id, size_t idx) {
 void LoweredExpr::remove_loop_identificator(size_t id) {
     auto it = std::find(m_loop_identifies.begin(), m_loop_identifies.end(), id);
     OPENVINO_ASSERT(it == m_loop_identifies.end(), "LoweredExpr doesn't have the Loop with ID " + id);
-    *it = LoopMarking::LOOP_NULL_ID;
+    *it = LoweredExpr::LOOP_NULL_ID;
 }
 
 IOLoweredExpr::IOLoweredExpr(const std::shared_ptr<ov::opset1::Parameter>& par, int64_t index)
@@ -491,25 +493,68 @@ void LoweredExprIR::LoweredLoopManager::get_io_loop_ports(LoweredExprIR& linear_
     }
 }
 
+void LoweredExprIR::LoweredLoopManager::skipped_marking(LoweredExprIR::constExprIt loop_begin_pos,
+                                                        LoweredExprIR::constExprIt loop_end_pos,
+                                                        size_t loop_depth) {
+    const auto loop_identifies = std::vector<size_t>(loop_depth, LoweredExpr::LOOP_NULL_ID);
+    for (auto& expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
+        const auto expr = *expr_it;
+        expr->set_loop_identifies(loop_identifies);
+    }
+}
+
 void LoweredExprIR::LoweredLoopManager::marking(LoweredExprIR& linear_ir,
                                                 LoweredExprIR::constExprIt loop_begin_pos, LoweredExprIR::constExprIt loop_end_pos,
                                                 size_t loop_depth, size_t vector_size, const std::vector<LoweredExprPtr>& body_exprs) {
-    // Note: currently we simply take out td of the last expr in the loop. If needed,
-    // this can be generalized for loops with multiple different out td's.
-    const auto& out_td = std::prev(loop_end_pos)->get()->get_outputs().front();
-    const auto& tensor_out = out_td->get_tensor();
-    const auto& subtensor_in = loop_begin_pos->get()->get_outputs().front()->get_subtensor();
-    const auto& layout_out = out_td->get_layout();
-
     const auto exprs = body_exprs.empty() ? get_body_exprs(loop_begin_pos, loop_end_pos) : body_exprs;
     std::vector<LoweredExprPort> loop_entry_points, loop_exit_points;
     LoweredLoopManager::get_io_loop_ports(linear_ir, exprs, loop_entry_points, loop_exit_points);
 
+    auto broadcast = [](std::vector<size_t>& lhs, const std::vector<size_t>& rhs) -> void {
+        if (rhs == lhs)
+            return;
+        const auto lhs_size = lhs.size();
+        const auto rhs_size = rhs.size();
+        const auto size = std::max(lhs_size, rhs_size);
+        std::vector<size_t> result(size, 1);
+        lhs.resize(size, 1);
+        for (size_t i = 0; i < size; ++i) {
+            const auto lhs_value = i < lhs_size ? *(lhs.crbegin() + i) : 1;
+            const auto rhs_value = i < rhs_size ? *(rhs.crbegin() + i) : 1;
+            OPENVINO_ASSERT(lhs_value == rhs_value || lhs_value == 1 || rhs_value == 1, "Output shapes of Loop must be broadcasted!");
+            *(lhs.rbegin() + i) = std::max(lhs_value, rhs_value);
+        }
+    };
+
+    std::vector<size_t> loop_subtensor;
+    std::vector<size_t> loop_layout;
+    std::vector<size_t> loop_tensor(1, 1);  // Scalar
+    for (const auto& exit_point : loop_exit_points) {
+        const auto expr = exit_point.first;
+        const auto port = exit_point.second;
+        const auto out_td = expr->get_outputs()[port];
+        const auto out_tensor = out_td->get_tensor();
+        const auto out_layout = out_td->get_layout();
+        broadcast(loop_tensor, out_tensor);
+        if (loop_layout.empty())
+            loop_layout = out_layout;
+        OPENVINO_ASSERT(loop_layout == out_layout, "Output layouts of Loop must be the same!");
+    }
+
+    for (const auto& entry_point : loop_entry_points) {
+        const auto expr = entry_point.first;
+        const auto out_td = expr->get_outputs().front();
+        const auto out_subtensor = out_td->get_subtensor();
+        if (loop_subtensor.empty())
+            loop_subtensor = out_subtensor;
+        OPENVINO_ASSERT(loop_subtensor == out_subtensor, "Subtensors of Loop must be the same!");
+    }
+
     for (size_t dim_idx = 0; dim_idx < loop_depth; ++dim_idx) {
-        OPENVINO_ASSERT(dim_idx < tensor_out.size(), "Incorrect indexes of Loop for markup");
-        const auto dim = layout_out.size() >= dim_idx ? *(layout_out.rbegin() + dim_idx) : 0;
-        const auto work_amount = tensor_out.size() > dim ? tensor_out[dim] : 0;
-        const auto work_amount_increment = subtensor_in.size() > dim_idx ? *(subtensor_in.rbegin() + dim_idx) :
+        OPENVINO_ASSERT(dim_idx < loop_tensor.size(), "Incorrect indexes of Loop for markup");
+        const auto dim = loop_layout.size() >= dim_idx ? *(loop_layout.rbegin() + dim_idx) : 0;
+        const auto work_amount = loop_tensor.size() > dim ? loop_tensor[dim] : 0;
+        const auto work_amount_increment = loop_subtensor.size() > dim_idx ? *(loop_subtensor.rbegin() + dim_idx) :
                                            dim_idx == 0 ? vector_size : 1;
 
         marking(linear_ir, loop_begin_pos, loop_end_pos, loop_depth - dim_idx - 1, work_amount, work_amount_increment, loop_entry_points, loop_exit_points);
@@ -524,10 +569,15 @@ void LoweredExprIR::LoweredLoopManager::marking(LoweredExprIR& linear_ir,
                                                 size_t work_amount_increment,
                                                 const std::vector<LoweredExprPort>& entries,
                                                 const std::vector<LoweredExprPort>& exits) {
-    const auto& loop_manager = linear_ir.get_loop_manager();
     const auto loop_info = std::make_shared<LoweredLoopManager::LoweredLoopInfo>(
             work_amount, work_amount_increment, entries, exits);
-    const auto loop_id = loop_manager->add(loop_info);
+    const auto loop_id = this->add(loop_info);
+    exprs_marking(loop_begin_pos, loop_end_pos, loop_id, idx);
+}
+
+void LoweredExprIR::LoweredLoopManager::exprs_marking(LoweredExprIR::constExprIt loop_begin_pos,
+                                                      LoweredExprIR::constExprIt loop_end_pos,
+                                                      size_t loop_id, size_t idx) {
     for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
         const auto& expr = *expr_it;
         expr->set_loop_identificator(loop_id, idx);

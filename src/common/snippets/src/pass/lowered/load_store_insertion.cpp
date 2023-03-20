@@ -19,7 +19,7 @@ LoadStoreInsertion::LoadStoreInsertion(size_t vector_size) : m_vector_size(vecto
 void LoadStoreInsertion::update_loops(const LoweredExprIR::LoweredLoopManagerPtr& loop_manager, const std::vector<size_t>& loop_identifies,
                                       const LoweredExprPort& actual_port, const std::vector<LoweredExprPort>& target_ports, bool is_entry) {
     for (auto loop_id : loop_identifies) {
-        if (loop_id != LoweredLoopManager::NULL_ID)
+        if (loop_id != LoweredExpr::LOOP_NULL_ID)
             update_loop(loop_manager->get(loop_id), actual_port, target_ports, is_entry);
     }
 }
@@ -67,8 +67,9 @@ bool LoadStoreInsertion::insert_load(LoweredExprIR& linear_ir,
     // Copy Loop identifies
     const auto loop_identifies = expr->get_loop_identifies();
     load_expr->set_loop_identifies(loop_identifies);
-    update_loops(loop_manager, loop_identifies, entry_point, {new_entry_point}, true);
 
+    // Need to update all the corresponding Loops with the same Entry Point
+    update_loops(loop_manager, loop_identifies, entry_point, {new_entry_point}, true);
     return true;
 }
 
@@ -113,6 +114,7 @@ bool LoadStoreInsertion::insert_store(LoweredExprIR& linear_ir,
         was_inserted = true;
     }
 
+    // Need to update all the corresponding Loops with the same Exit Point
     update_loops(loop_manager, loop_identifies, exit_point, new_exit_exprs, false);
     return was_inserted;
 }
@@ -143,9 +145,9 @@ bool LoadStoreInsertion::run(LoweredExprIR& linear_ir) {
         }
         prev_expr_loops = expr_loops;
         const auto loop_depth = expr_loops.size();
-        size_t loop_id = LoweredLoopManager::NULL_ID;
+        size_t loop_id = LoweredExpr::LOOP_NULL_ID;
         for (int i = loop_depth - 1; i >= 0; --i) {
-            if (expr_loops[i] != LoweredLoopManager::NULL_ID) {
+            if (expr_loops[i] != LoweredExpr::LOOP_NULL_ID) {
                 loop_id = expr_loops[i];
                 break;
             }
@@ -163,8 +165,6 @@ bool LoadStoreInsertion::run(LoweredExprIR& linear_ir) {
             modified |= insert_store(linear_ir, loop_manager, exit_point, loop_begin_pos, loop_end_pos);
         }
     }
-    linear_ir.serialize("/home/a-sidorova/projects/loops/openvino/graphs/lin.xml",
-                        "/home/a-sidorova/projects/loops/openvino/graphs/lin.bin");
 
     return modified;
 }

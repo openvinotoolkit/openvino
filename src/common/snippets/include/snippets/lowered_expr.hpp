@@ -14,9 +14,6 @@
 namespace ngraph {
 namespace snippets {
 
-namespace LoopMarking {
-constexpr size_t LOOP_NULL_ID = SIZE_MAX;
-}
 
 using code = const uint8_t *;
 using RegInfo = std::pair<std::vector<size_t>, std::vector<size_t>>;
@@ -43,6 +40,8 @@ class LoweredExpr {
     friend LoweredExprIR;
 
 public:
+    static size_t LOOP_NULL_ID;
+
     explicit LoweredExpr(const std::shared_ptr<Node>& n);
     explicit LoweredExpr(const std::shared_ptr<Node>& n, std::vector<TensorDescriptorPtr> inputs, std::vector<TensorDescriptorPtr> outputs = {});
     LoweredExpr() = default;
@@ -139,8 +138,6 @@ public:
 
     class LoweredLoopManager {
     public:
-        constexpr static size_t NULL_ID = LoopMarking::LOOP_NULL_ID;
-
         LoweredLoopManager() = default;
 
         class LoweredLoopInfo {
@@ -167,28 +164,34 @@ public:
         size_t get_loop_count() const { return m_map.size(); }
         std::set<size_t> get_identifies() const;
 
-        static void marking(LoweredExprIR& linear_ir,
-                            LoweredExprIR::constExprIt loop_begin_pos,
-                            LoweredExprIR::constExprIt loop_end_pos,
-                            size_t loop_depth, size_t vector_size,
-                            const std::vector<LoweredExprPtr>& body_exprs = {});
-        static void marking(LoweredExprIR& linear_ir,
-                            LoweredExprIR::constExprIt loop_begin_pos,
-                            LoweredExprIR::constExprIt loop_end_pos,
-                            size_t idx,
-                            size_t work_amount,
-                            size_t work_amount_increment,
-                            const std::vector<LoweredExprPort>& entries,
-                            const std::vector<LoweredExprPort>& exits);
+        static void skipped_marking(LoweredExprIR::constExprIt loop_begin_pos,
+                                    LoweredExprIR::constExprIt loop_end_pos,
+                                    size_t loop_depth);
+        void marking(LoweredExprIR& linear_ir,
+                     LoweredExprIR::constExprIt loop_begin_pos,
+                     LoweredExprIR::constExprIt loop_end_pos,
+                     size_t loop_depth, size_t vector_size,
+                     const std::vector<LoweredExprPtr>& body_exprs = {});
+        void marking(LoweredExprIR& linear_ir,
+                     LoweredExprIR::constExprIt loop_begin_pos,
+                     LoweredExprIR::constExprIt loop_end_pos,
+                     size_t idx,
+                     size_t work_amount,
+                     size_t work_amount_increment,
+                     const std::vector<LoweredExprPort>& entries,
+                     const std::vector<LoweredExprPort>& exits);
 
         static void get_loop_bounds(const LoweredExprIR& linear_ir,
                                     const std::vector<LoweredExprPort>& entries,
                                     const std::vector<LoweredExprPort>& exits,
                                     LoweredExprIR::constExprIt& loop_begin_pos,
                                     LoweredExprIR::constExprIt& loop_end_pos,
-                                    size_t loop_id = NULL_ID);
+                                    size_t loop_id = LoweredExpr::LOOP_NULL_ID);
 
     private:
+        static void exprs_marking(LoweredExprIR::constExprIt loop_begin_pos,
+                                  LoweredExprIR::constExprIt loop_end_pos,
+                                  size_t loop_id, size_t idx);
         static void get_io_loop_ports(LoweredExprIR& linear_ir,
                                       const std::vector<LoweredExprPtr>& body_exprs,
                                       std::vector<LoweredExprPort>& entries,

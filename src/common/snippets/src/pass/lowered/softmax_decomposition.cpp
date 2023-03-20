@@ -39,18 +39,12 @@ bool SoftmaxDecomposition::run(LoweredExprIR& linear_ir) {
             const auto outer_work_amount = *(tensor_out.rbegin() + 1);
 
             expr_it = linear_ir.erase(expr_it);   // Remove Softmax
-            const size_t buffer_allocation_rank = 2;
 
             std::vector<LoweredExprPtr> outer_exprs;
 
             // We need an iterator to the inserted element
             auto push_node = [&linear_ir, &expr_it](const std::shared_ptr<Node>& n) {
                 return std::make_pair(linear_ir.insert(expr_it, n), n);
-            };
-            auto push_node_with_td = [&linear_ir, &expr_it](const std::shared_ptr<Node>& n,
-                                                            const std::vector<TensorDescriptorPtr>& inputs,
-                                                            const std::vector<TensorDescriptorPtr>& outputs = {}) {
-                return std::make_pair(linear_ir.insert(expr_it, std::make_shared<LoweredExpr>(n, inputs, outputs)), n);
             };
 
             // Note: VectorBuffer is a special case, since it should go before the initial Load. So we handle it separately
@@ -112,7 +106,7 @@ bool SoftmaxDecomposition::run(LoweredExprIR& linear_ir) {
 
             // Markup inner loop outside expression with null loop id
             for (const auto& expr : outer_exprs) {
-                expr->set_loop_identificator(LoweredExprIR::LoweredLoopManager::NULL_ID, 1);
+                expr->set_loop_identificator(LoweredExpr::LOOP_NULL_ID, 1);
             }
 
             // Outer Loop
@@ -132,8 +126,7 @@ bool SoftmaxDecomposition::run(LoweredExprIR& linear_ir) {
             modified = true;
         }
     }
-    linear_ir.serialize("/home/a-sidorova/projects/loops/openvino/graphs/lin.xml",
-                        "/home/a-sidorova/projects/loops/openvino/graphs/lin.bin");
+
     return modified;
 }
 

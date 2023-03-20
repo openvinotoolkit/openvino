@@ -231,8 +231,7 @@ bool LoopFusion::run(LoweredExprIR& linear_ir) {
         const auto& node = expr->get_node();
         if (ov::is_type<opset1::Parameter>(node) ||
             ov::is_type<opset1::Constant>(node) ||
-            ov::is_type<opset1::Result>(node) ||
-            ov::is_type<op::Brgemm>(node))
+            ov::is_type<opset1::Result>(node))
             continue;
 
         // Outer Loop ----> Inner Loop
@@ -252,7 +251,7 @@ bool LoopFusion::run(LoweredExprIR& linear_ir) {
 
         for (size_t dim_idx = diff_idx; dim_idx < loop_depth; ++dim_idx) {
             const auto loop_id = expr_loops[dim_idx];
-            if (loop_id == LoweredLoopManager::NULL_ID)
+            if (loop_id == LoweredExpr::LOOP_NULL_ID)
                 continue;
 
             const auto loop_info = loop_manager->get(loop_id);
@@ -274,8 +273,7 @@ bool LoopFusion::run(LoweredExprIR& linear_ir) {
                     const auto parent = parent_expr->get_node();
                     if (ov::is_type<opset1::Constant>(parent) ||
                         ov::is_type<opset1::Parameter>(parent) ||
-                        ov::is_type<op::Buffer>(parent) ||
-                        ov::is_type<op::Brgemm>(parent)) {
+                        ov::is_type<op::Buffer>(parent)) {
                         continue;
                     }
                     const auto loop_identifies_target = parent_expr->get_loop_identifies();
@@ -284,7 +282,7 @@ bool LoopFusion::run(LoweredExprIR& linear_ir) {
                     const auto loop_id_target = loop_identifies_target[dim_idx];
                     OPENVINO_ASSERT(loop_id != loop_id_target,
                                     "Loops cannot have parents of entry points with the same identifier");
-                    if (loop_id_target == LoweredLoopManager::NULL_ID)
+                    if (loop_id_target == LoweredExpr::LOOP_NULL_ID)
                         continue;
                     const auto loop_info_target = loop_manager->get(loop_id_target);
 
@@ -298,8 +296,8 @@ bool LoopFusion::run(LoweredExprIR& linear_ir) {
                     }
                 }
 
-                // If Loops were fused, we should check for possible fusion again
-                if (was_fusion_up)
+                // If Loops were fused and there are new entry_exprs, we should check for possible fusion again
+                if (was_fusion_up && entry_points != loop_info->m_entry_exprs)
                     continue;
 
                 auto exit_points = loop_info->m_exit_exprs;
@@ -313,8 +311,7 @@ bool LoopFusion::run(LoweredExprIR& linear_ir) {
                     for (const auto& consumer_expr : consumer_exprs) {
                         const auto consumer = consumer_expr->get_node();
                         if (ov::is_type<opset1::Result>(consumer) ||
-                            ov::is_type<op::Buffer>(consumer) ||
-                            ov::is_type<op::Brgemm>(consumer)) {
+                            ov::is_type<op::Buffer>(consumer)) {
                             continue;
                         }
 
@@ -324,7 +321,7 @@ bool LoopFusion::run(LoweredExprIR& linear_ir) {
                         // The exit point of Loop can have several consumers where some of them can be in this Loop as well
                         // So we skip this consumer.
                         const auto loop_id_target = loop_identifies_target[dim_idx];
-                        if (loop_id == loop_id_target || loop_id_target == LoweredLoopManager::NULL_ID)
+                        if (loop_id == loop_id_target || loop_id_target == LoweredExpr::LOOP_NULL_ID)
                             continue;
 
                         const auto loop_info_target = loop_manager->get(loop_id_target);
@@ -346,8 +343,6 @@ bool LoopFusion::run(LoweredExprIR& linear_ir) {
         }
     }
 
-    linear_ir.serialize("/home/a-sidorova/projects/loops/openvino/graphs/lin.xml",
-                        "/home/a-sidorova/projects/loops/openvino/graphs/lin.bin");
     return true;
 }
 

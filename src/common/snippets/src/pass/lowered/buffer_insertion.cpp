@@ -66,8 +66,8 @@ void BufferInsertion::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::L
             const auto current_loop_lvl = std::distance(current_loops.begin(), std::find(current_loops.begin(), current_loops.end(), loop_id));
             for (size_t i = current_loop_lvl; i < current_loop_count; i++) {
                 if (current_loops[i] != parent_loops[i] &&
-                    current_loops[i] != LoweredExprIR::LoweredLoopManager::NULL_ID &&
-                    parent_loops[i] != LoweredExprIR::LoweredLoopManager::NULL_ID) {
+                    current_loops[i] != LoweredExpr::LOOP_NULL_ID &&
+                    parent_loops[i] != LoweredExpr::LOOP_NULL_ID) {
                     is_buffer_needed = true;
                     break;
                 }
@@ -124,8 +124,8 @@ void BufferInsertion::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::L
             OPENVINO_ASSERT(current_loop_count == child_loop_count);
             for (size_t i = current_loop_lvl; i < child_loop_count; i++) {
                 if (current_loops[i] != child_loops[i] &&
-                    current_loops[i] != LoweredExprIR::LoweredLoopManager::NULL_ID &&
-                    child_loops[i] != LoweredExprIR::LoweredLoopManager::NULL_ID) {
+                    current_loops[i] != LoweredExpr::LOOP_NULL_ID &&
+                    child_loops[i] != LoweredExpr::LOOP_NULL_ID) {
                     potential_consumers.insert(child_expr);
                     break;
                 }
@@ -196,11 +196,8 @@ bool BufferInsertion::run(LoweredExprIR& linear_ir) {
         std::vector<LoweredExprPort> loop_entries = {{expr, 0}, {expr, 1}};
         std::vector<LoweredExprPort> loop_exits = {{expr, 0}};
 
-        insertion(linear_ir, loop_manager, LoweredExprIR::LoweredLoopManager::NULL_ID, loop_entries, loop_exits);
+        insertion(linear_ir, loop_manager, LoweredExpr::LOOP_NULL_ID, loop_entries, loop_exits);
     }
-
-    linear_ir.serialize("/home/a-sidorova/projects/loops/openvino/graphs/lin.xml",
-                        "/home/a-sidorova/projects/loops/openvino/graphs/lin.bin");
 
     return true;
 }
