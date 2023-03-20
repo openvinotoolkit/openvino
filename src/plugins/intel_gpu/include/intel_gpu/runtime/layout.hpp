@@ -529,9 +529,11 @@ struct layout {
         seed = hash_combine(seed, format.value);
         seed = hash_combine(seed, data_type);
 
-        auto pshape = get_partial_shape();
-        for (size_t idx = 0; idx < pshape.size(); idx++) {
-            seed = hash_combine(seed, pshape[idx].get_length());
+        if (!is_dynamic()) {
+            auto pshape = get_partial_shape();
+            for (size_t idx = 0; idx < pshape.size(); idx++) {
+                seed = hash_combine(seed, pshape[idx].get_length());
+            }
         }
         return seed;
     }
