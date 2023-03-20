@@ -616,6 +616,8 @@ def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, n
     if freeze_placeholder is None:
         _freeze_placeholder = None
     else:
+        if isinstance(freeze_placeholder, list):
+            raise Error('Unnamed inputs with values are not supported for legacy frontend. Please provide input names.')
         for placeholder_name, value in freeze_placeholder.items():
             placeholder_id, direction, port = get_node_id_with_ports(graph, placeholder_name)
             if port is None and placeholder_id in placeholders_ids:
@@ -627,6 +629,9 @@ def input_user_data_repack(graph: Graph, input_user_shapes: [None, list, dict, n
                 _freeze_new_placeholder[placeholder_id].append(
                     {'direction': direction, 'port': port, 'name': placeholder_name, 'id': new_placeholder_id,
                      'value': value})
+
+    if input_user_data_types is not None and isinstance(input_user_data_types, list):
+        raise Error('Unnamed inputs with types are not supported for legacy frontend. Please provide input names.')
 
     # input user shapes restructure
     if input_user_shapes is None:

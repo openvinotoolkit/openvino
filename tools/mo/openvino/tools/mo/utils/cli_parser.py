@@ -20,7 +20,6 @@ from openvino.runtime import Layout, PartialShape, Dimension, Shape, Type
 import openvino
 from openvino.tools.mo.front.extractor import split_node_in_port
 from openvino.tools.mo.middle.passes.convert_data_type import destination_type_to_np_data_type
-from openvino.tools.mo.middle.passes.convert_data_type import np_data_type_to_destination_type
 from openvino.tools.mo.utils import import_extensions
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.utils import refer_to_faq_msg, get_mo_root_dir
@@ -160,7 +159,7 @@ def single_input_to_input_cut_info(input):
                 if name is not None:
                     raise Exception("More than one input name provided: {}".format(input))
                 name = val
-            elif isinstance(val, type) or isinstance(val, Type):
+            elif isinstance(val, (type, Type)):
                 if inp_type is not None:
                     raise Exception("More than one input type provided: {}".format(input))
                 inp_type = val
@@ -175,6 +174,8 @@ def single_input_to_input_cut_info(input):
                                               PartialShape(shape) if shape is not None else None,
                                               inp_type,
                                               None)
+    if isinstance(input, (type, Type)):
+        return openvino.tools.mo.InputCutInfo(None, None, input, None)
 
     raise Exception("Unexpected object provided for input. Expected openvino.tools.mo.InputCutInfo "
                     "or tuple or str. Got {}".format(type(input)))
@@ -237,6 +238,30 @@ def input_shape_to_input_cut_info(input_shape, inputs):
 
     raise Exception("Unexpected object provided for input_shape. Expected PartialShape, Shape, tuple, list or str. "
                     "Got {}".format(type(input_shape)))
+
+
+def freeze_placeholder_to_input_cut_info(argv_freeze_placeholder_with_value: str, inputs: list):
+    if argv_freeze_placeholder_with_value is None:
+        return {}, ""
+    placeholder_values = parse_freeze_placeholder_values(argv_freeze_placeholder_with_value)
+    input_node_names = None
+
+    if inputs is not None and len(inputs) > 0:
+        input_node_names = ''
+        # walkthrough all input values and save values for freezing
+        for input in inputs:
+            node_name = input.name
+            value = input.value
+            if node_name is not None:
+                input_node_names = input_node_names + ',' + node_name if input_node_names != '' else node_name
+            if value is None:
+                continue
+            if node_name in placeholder_values and placeholder_values[node_name] != value:
+                raise Error("Overriding replacement value of the placeholder with name '{}': old value = {}, new value = {}"
+                            ".".format(node_name, placeholder_values[node_name], value))
+            placeholder_values[node_name] = value
+
+    return placeholder_values, input_node_names
 
 
 def mean_scale_value_to_str(value):
@@ -1705,6 +1730,25 @@ def get_layout_values(argv_layout: str = '', argv_source_layout: str = '', argv_
         return res_list
 
 
+def parse_freeze_placeholder_values(argv_freeze_placeholder_with_value):
+    placeholder_values = {}
+    if argv_freeze_placeholder_with_value is not None:
+        for plh_with_value in argv_freeze_placeholder_with_value.split(','):
+            plh_with_value = plh_with_value.split('->')
+            if len(plh_with_value) != 2:
+                raise Error("Wrong replacement syntax. Use --freeze_placeholder_with_value "
+                            "\"node1_name->value1,node2_name->value2\"")
+            node_name = plh_with_value[0]
+            value = plh_with_value[1]
+            if node_name in placeholder_values and placeholder_values[node_name] != value:
+                raise Error("Overriding replacement value of the placeholder with name '{}': old value = {}, new value = {}"
+                            ".".format(node_name, placeholder_values[node_name], value))
+            if '[' in value.strip(' '):
+                value = value.replace('[', '').replace(']', '').split(' ')
+            placeholder_values[node_name] = value
+    return placeholder_values
+
+
 def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_value: str):
     """
     Parses values for placeholder freezing and input node names
@@ -1723,23 +1767,8 @@ def get_freeze_placeholder_values(argv_input: str, argv_freeze_placeholder_with_
         parsed placeholders with values for freezing
         input nodes cleaned from shape info
     """
-    placeholder_values = {}
+    placeholder_values = parse_freeze_placeholder_values(argv_freeze_placeholder_with_value)
     input_node_names = None
-
-    if argv_freeze_placeholder_with_value is not None:
-        for plh_with_value in argv_freeze_placeholder_with_value.split(','):
-            plh_with_value = plh_with_value.split('->')
-            if len(plh_with_value) != 2:
-                raise Error("Wrong replacement syntax. Use --freeze_placeholder_with_value "
-                            "\"node1_name->value1,node2_name->value2\"")
-            node_name = plh_with_value[0]
-            value = plh_with_value[1]
-            if node_name in placeholder_values and placeholder_values[node_name] != value:
-                raise Error("Overriding replacement value of the placeholder with name '{}': old value = {}, new value = {}"
-                            ".".format(node_name, placeholder_values[node_name], value))
-            if '[' in value.strip(' '):
-                value = value.replace('[', '').replace(']', '').split(' ')
-            placeholder_values[node_name] = value
 
     if argv_input is not None:
         input_node_names = ''

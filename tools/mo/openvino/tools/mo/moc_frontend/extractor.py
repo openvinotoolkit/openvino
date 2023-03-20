@@ -252,6 +252,9 @@ def fe_input_user_data_repack(
                         "input_name": input_name
                     }
                 )
+                # case when single unnamed input shape and type was specified
+                if input_name in input_user_data_types:
+                    _input_shapes[-1]['data_type'] = input_user_data_types[input_name]
                 _input_names.append(input_name)
                 break
     else:
@@ -268,6 +271,9 @@ def fe_input_user_data_repack(
                     "input_name": input_name
                 }
             )
+            # case when types were specified for unnamed inputs
+            if input_name in input_user_data_types:
+                _input_shapes[-1]['data_type'] = input_user_data_types[input_name]
             # mark-up Place names we already put into the _input_names
             # to avoid duplicates in updates by freeze_placeholder below
             _input_names.append(input_name)
@@ -324,6 +330,54 @@ def fe_output_user_data_repack(input_model: InputModel, outputs: list, framework
     return _outputs
 
 
+def convert_params_lists_to_dicts(input_model, input_user_shapes, input_user_data_types, freeze_placeholder):
+    from openvino.runtime import PartialShape
+    model_inputs = input_model.get_inputs()
+    freeze_placeholder_dict = {}
+    input_user_data_types_dict = {}
+    input_user_shapes_dict = {}
+
+    if isinstance(input_user_shapes, list):
+        for shape in input_user_shapes:
+            assert isinstance(shape, PartialShape), "Got incorrect format of input shapes."
+
+        assert len(model_inputs) == len(input_user_shapes)
+
+        for idx, model_input in enumerate(model_inputs):
+            input_user_shapes_dict[model_input.get_names()[0]] = input_user_shapes[idx]
+    elif isinstance(input_user_shapes, PartialShape):
+        # single shape case
+        input_name = model_inputs[0].get_names()[0]
+        input_user_shapes_dict[input_name] = input_user_shapes
+    else:
+        input_user_shapes_dict = input_user_shapes
+
+    if isinstance(freeze_placeholder, list):
+        from openvino.runtime import Type
+        for node_value in freeze_placeholder:
+            assert isinstance(node_value, list), "Got incorrect format of input values."
+
+        assert len(model_inputs) == len(freeze_placeholder)
+
+        for idx, model_input in enumerate(model_inputs):
+            freeze_placeholder_dict[model_input.get_names()[0]] = freeze_placeholder[idx]
+    else:
+        freeze_placeholder_dict = freeze_placeholder
+
+    if isinstance(input_user_data_types, list):
+        from openvino.runtime import Type
+        for node_type in input_user_data_types:
+            assert isinstance(node_type, (type, Type)), "Got incorrect format of input types."
+
+        assert len(model_inputs) == len(input_user_data_types)
+
+        for idx, model_input in enumerate(model_inputs):
+            input_user_data_types_dict[model_input.get_names()[0]] = input_user_data_types[idx]
+    else:
+        input_user_data_types_dict = input_user_data_types
+    return input_user_shapes_dict, input_user_data_types_dict, freeze_placeholder_dict
+
+
 def fe_user_data_repack(
         input_model: InputModel,
         input_user_shapes: [None, list, dict, np.array],
@@ -340,6 +394,9 @@ def fe_user_data_repack(
     :param freeze_placeholder: dictionary with placeholder names as keys and freezing value as values
     :return: restructured input, output and freeze placeholder dictionaries or None values
     """
+    input_user_shapes, input_user_data_types, freeze_placeholder = convert_params_lists_to_dicts(
+        input_model, input_user_shapes, input_user_data_types, freeze_placeholder)
+
     _input_shapes, _freeze_placeholder = fe_input_user_data_repack(
         input_model,
         input_user_shapes,

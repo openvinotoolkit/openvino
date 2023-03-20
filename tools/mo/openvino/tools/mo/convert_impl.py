@@ -32,7 +32,8 @@ from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
     get_common_cli_options, get_freeze_placeholder_values, get_kaldi_cli_options, get_layout_values, \
     get_mean_scale_dictionary, get_mxnet_cli_options, get_onnx_cli_options, \
     get_placeholder_shapes, get_tf_cli_options, parse_transform, parse_tuple_pairs, \
-    mo_convert_params, get_model_name_from_args, depersonalize, input_to_input_cut_info, input_shape_to_input_cut_info
+    mo_convert_params, get_model_name_from_args, depersonalize, input_to_input_cut_info, input_shape_to_input_cut_info, \
+    freeze_placeholder_to_input_cut_info
 
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.find_ie_version import find_ie_version
@@ -730,6 +731,7 @@ def python_api_params_parsing(argv):
     argv.input = input_names_list
 
     input_shape_to_input_cut_info(argv.input_shape, inputs)
+    freeze_placeholder_to_input_cut_info(argv.freeze_placeholder_with_value, inputs)
     # TODO: merge into single loop
     if len(input_names_list) > 0:
         # named inputs case
