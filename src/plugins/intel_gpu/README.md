@@ -18,12 +18,12 @@ GPU Plugin contains the following components:
 
 ## Tutorials
 
-* [Source code structure](./docs/source_code_structure.md)
-  * [Basic data structures of gpu graph and overall flow](./docs/basic_data_structures.md)
-  * [Memory allocation in GPU plugin](./docs/memory_allocation_gpu_plugin.md)
 * [Simplified workflow](./docs/simplified_workflow.md)
   * [Graph Optimization Passes](./docs/graph_optimization_passes.md)
   * [Execution of Inference](./docs/execution_of_inference.md)
+* [Source code structure](./docs/source_code_structure.md)
+  * [Basic data structures of gpu graph and overall flow](./docs/basic_data_structures.md)
+  * [Memory allocation in GPU plugin](./docs/memory_allocation_gpu_plugin.md)
 * [Memory formats](./docs/gpu_memory_formats.md)
 * [Kernels and kernel selectors](./docs/gpu_kernels.md)
 * [GPU plugin operations enabling flow](./docs/gpu_plugin_ops_enabling.md)
@@ -55,7 +55,7 @@ are necessary, may provide feedback to guide you. When accepted, your pull
 request will be merged into our GitHub repository.
 
 ## System Requirements
-GPU plugin supports Intel® HD Graphics and Intel® Iris® Graphics and is optimized for Gen9-Gen12LP architectures
+GPU plugin supports Intel® HD Graphics, Intel® Iris® Graphics and Intel® Arc™ Graphics and is optimized for Gen9-Gen12LP, Gen12HP architectures
 
 GPU plugin currently uses OpenCL™ with multiple Intel OpenCL™ extensions and requires Intel® Graphics Driver to run.
 
@@ -70,9 +70,6 @@ The software dependencies are:
     * clang 3.5 or later
     * [Intel® C++ Compiler](https://software.intel.com/en-us/intel-parallel-studio-xe) 17.0 or later
     * Visual C++ 2015 (MSVC++ 19.0) or later
-
-> Intel® CPU intrinsics header (`<immintrin.h>`) must be available during compilation.
-
 - [python™](https://www.python.org/downloads/) 3.7 or later.
 
 ## Trademark Information
@@ -90,7 +87,7 @@ countries.
 OpenCL and the OpenCL logo are trademarks of Apple Inc. used by permission
 by Khronos.
 
-Copyright © 2021, Intel Corporation
+Copyright © 2023, Intel Corporation
 
 ## See also
 

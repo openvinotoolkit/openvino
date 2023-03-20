@@ -203,11 +203,11 @@ ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName,
                                       const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
-    auto parsed = ov::parseDeviceNameIntoConfig(deviceName, config);
+    auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ov::any_copy(config));
     std::ifstream modelStream(modelFileName, std::ios::binary);
     if (!modelStream.is_open())
         IE_THROW(NetworkNotRead) << "Model file " << modelFileName << " cannot be opened!";
-    auto exec = _impl->get_plugin(parsed._deviceName).import_model(modelStream, ov::any_copy(parsed._config));
+    auto exec = _impl->get_plugin(parsed._deviceName).import_model(modelStream, parsed._config);
     return {ov::legacy_convert::convert_compiled_model(exec._ptr), exec._so};
 }
 
@@ -254,11 +254,11 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
     DeviceIDParser device(deviceName_);
     std::string deviceName = device.getDeviceName();
 
-    auto parsed = ov::parseDeviceNameIntoConfig(deviceName, config);
+    auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ov::any_copy(config));
     auto exec = _impl->get_plugin(deviceName)
                     .import_model(networkModel,
                                   ov::RemoteContext{ov::legacy_convert::convert_remote_context(context), {}},
-                                  ov::any_copy(parsed._config));
+                                  parsed._config);
     return {ov::legacy_convert::convert_compiled_model(exec._ptr), exec._so};
 }
 
