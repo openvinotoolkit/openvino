@@ -94,6 +94,14 @@ void regmodule_properties(py::module m) {
 
     wrap_property_RW(m_intel_gpu, ov::intel_gpu::enable_loop_unrolling, "enable_loop_unrolling");
 
+    // Submodule auto
+    py::module m_intel_auto =
+        m_properties.def_submodule("intel_auto",
+                                   "openvino.runtime.properties.intel_auto submodule that simulates ov::intel_auto");
+
+    wrap_property_RW(m_intel_auto, ov::intel_auto::enable_startup_fallback, "enable_startup_fallback");
+    wrap_property_RW(m_intel_auto, ov::intel_auto::enable_runtime_fallback, "enable_runtime_fallback");
+
     // Submodule hint (intel_gpu)
     py::module m_intel_gpu_hint = m_intel_gpu.def_submodule(
         "hint",
