@@ -110,6 +110,7 @@ bool MatMul::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op,
     return true;
 }
 
+namespace {
 class MMShapeInfer : public ShapeInferEmptyPads {
 public:
     MMShapeInfer(const size_t& out_rank, const bool& transpose_a, const bool& transpose_b) :
@@ -181,6 +182,7 @@ public:
 private:
     std::shared_ptr<ngraph::Node> m_op;
 };
+} // namespace
 
 MatMul::MatMul(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
     Node(op, context, MMShapeInferFactory(op)), withBiases(false) {

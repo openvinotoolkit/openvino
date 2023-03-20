@@ -36,6 +36,7 @@ using namespace Xbyak;
 namespace ov {
 namespace intel_cpu {
 namespace node {
+namespace {
 
 /* This class implementation is a temporal WA
    TODO: revise the implementation to remove the node reference*/    
@@ -66,6 +67,7 @@ public:
 private:
     Snippet* m_node;
 };
+} // namespace
 
 Snippet::Snippet(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, SnippetShapeInferFactory(this)) {
