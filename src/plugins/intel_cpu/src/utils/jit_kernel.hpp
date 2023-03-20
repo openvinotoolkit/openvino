@@ -34,7 +34,7 @@ struct reg_traits_by_size<1> {
     using type = Xbyak::Reg8;
     constexpr static size_t size = 1;           // in bytes
     constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa
-                        = dnnl::impl::cpu::x64::cpu_isa_t::isa_any;
+                        = dnnl::impl::cpu::x64::cpu_isa_t::isa_undef;
 };
 
 template<>
@@ -42,7 +42,7 @@ struct reg_traits_by_size<2> {
     using type = Xbyak::Reg16;
     constexpr static size_t size = 2;           // in bytes
     constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa
-                        = dnnl::impl::cpu::x64::cpu_isa_t::isa_any;
+                        = dnnl::impl::cpu::x64::cpu_isa_t::isa_undef;
 };
 
 template<>
@@ -50,7 +50,7 @@ struct reg_traits_by_size<4> {
     using type = Xbyak::Reg32;
     constexpr static size_t size = 4;           // in bytes
     constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa
-                        = dnnl::impl::cpu::x64::cpu_isa_t::isa_any;
+                        = dnnl::impl::cpu::x64::cpu_isa_t::isa_undef;
 };
 
 template<>
@@ -58,7 +58,7 @@ struct reg_traits_by_size<8> {
     using type = Xbyak::Reg64;
     constexpr static size_t size = 8;           // in bytes
     constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa
-                        = dnnl::impl::cpu::x64::cpu_isa_t::isa_any;
+                        = dnnl::impl::cpu::x64::cpu_isa_t::isa_undef;
 };
 
 template<>
@@ -103,7 +103,7 @@ struct reg_traits<float> {
     using type = Xbyak::Fpu;
     constexpr static size_t size = 10;          // in bytes
     constexpr static dnnl::impl::cpu::x64::cpu_isa_t isa
-                        = dnnl::impl::cpu::x64::cpu_isa_t::isa_any;
+                        = dnnl::impl::cpu::x64::cpu_isa_t::isa_undef;
 };
 template<>
 struct reg_traits<double> : public reg_traits<float> {};
