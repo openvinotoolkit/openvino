@@ -5545,8 +5545,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_scan15_ND_b4_input_rev_vals) {
                                                                               "onnx/scan15_ND_b4_input_rev.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
-    test_case.add_input<float>(Shape{4, 3, 2}, {4.f, 0.f});
-    test_case.add_input<float>(Shape{4, 3, 2}, {24.f, 1.f});
+    test_case.add_input<float>(Shape{4, 3, 2}, std::vector<float>(24, 0.f));
+    test_case.add_input<float>(Shape{4, 3, 2}, std::vector<float>(24, 1.f));
     std::vector<float> sequence_vals{
         0.1f,  0.2f,  0.3f,  0.4f,  0.5f, 0.6f,  0.7f,  0.8f,  0.9f,  1.f,   1.1f,  1.2f,  1.3f,  1.4f,  1.5f,
         1.6f,  1.7f,  1.8f,  1.9f,  2.f,  2.1f,  2.2f,  2.3f,  2.4f,  2.5f,  2.6f,  2.7f,  2.8f,  2.9f,  3.f,
@@ -5556,7 +5556,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_scan15_ND_b4_input_rev_vals) {
         7.6f,  7.7f,  7.8f,  7.9f,  8.f,  8.1f,  8.2f,  8.3f,  8.4f,  8.5f,  8.6f,  8.7f,  8.8f,  8.9f,  9.f,
         9.1f,  9.2f,  9.3f,  9.4f,  9.5f, 9.6f,  9.7f,  9.8f,  9.9f,  10.f,  10.1f, 10.2f, 10.3f, 10.4f, 10.5f,
         10.6f, 10.7f, 10.8f, 10.9f, 11.f, 11.1f, 11.2f, 11.3f, 11.4f, 11.5f, 11.6f, 11.7f, 11.8f, 11.9f, 12.f};
-    test_case.add_input<float>(Shape{4, 5, 3, 2}, sequence_vals);  // multiply factor (reverse)
+    test_case.add_input<float>(Shape{4, 5, 3, 2}, sequence_vals);  // multiply factor (areverse)
     test_case.add_input<float>(Shape{4, 5, 3, 2}, sequence_vals);  // div factor
 
     test_case.add_expected_output<float>(
@@ -5619,8 +5619,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_scan8_ND_b4_input_rev_vals) {
                                                                               "onnx/scan8_ND_b4_input_rev.onnx"));
 
     auto test_case = test::TestCase(function, s_device);
-    test_case.add_input<float>(Shape{4, 3, 2}, {24.f, 0.f});
-    test_case.add_input<float>(Shape{4, 3, 2}, {24.f, 1.f});
+    test_case.add_input<float>(Shape{4, 3, 2}, std::vector<float>(24, 0.f));
+    test_case.add_input<float>(Shape{4, 3, 2}, std::vector<float>(24, 1.f));
     std::vector<float> sequence_vals{
         0.1f,  0.2f,  0.3f,  0.4f,  0.5f, 0.6f,  0.7f,  0.8f,  0.9f,  1.f,   1.1f,  1.2f,  1.3f,  1.4f,  1.5f,
         1.6f,  1.7f,  1.8f,  1.9f,  2.f,  2.1f,  2.2f,  2.3f,  2.4f,  2.5f,  2.6f,  2.7f,  2.8f,  2.9f,  3.f,
