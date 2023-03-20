@@ -318,6 +318,8 @@ void parse_producer_name(const std::string& producer_port_name,
     const OutputPortIdxMax output_port_idx_map = {
         {"TopK:indices", 1},
         {"TopKV2:indices", 1},
+        {"Unique:y", 0},
+        {"Unique:idx", 1},
         {"CTCGreedyDecoder:decoded_values", 1},
         {"CTCGreedyDecoder:decoded_shape", 2},
         {"CTCGreedyDecoder:log_probability", 3},
