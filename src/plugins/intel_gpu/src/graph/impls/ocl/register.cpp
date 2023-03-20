@@ -94,6 +94,7 @@ void register_implementations() {
     REGISTER_OCL(count_nonzero);
     REGISTER_OCL(gather_nonzero);
     REGISTER_OCL(eye);
+    REGISTER_OCL(unique);
 }
 
 }  // namespace ocl

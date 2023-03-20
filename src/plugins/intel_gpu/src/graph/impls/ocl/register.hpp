@@ -75,6 +75,7 @@
 #include "intel_gpu/primitives/tile.hpp"
 #include "intel_gpu/primitives/non_zero.hpp"
 #include "intel_gpu/primitives/eye.hpp"
+#include "intel_gpu/primitives/unique.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -174,6 +175,7 @@ REGISTER_OCL(convert_color);
 REGISTER_OCL(count_nonzero);
 REGISTER_OCL(gather_nonzero);
 REGISTER_OCL(eye);
+REGISTER_OCL(unique);
 
 #undef REGISTER_OCL
 
