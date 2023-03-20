@@ -21,5 +21,5 @@ class SqueezeInternal(Squeeze):
             assert is_fully_defined(
                 input_shape), 'Squeeze dimensions are not defined for op "{}"'.format(node_name)
             output_shape = [s for s in shape_array(input_shape).tolist() if s != 1]
-            node.out_port(0).data.set_shape(output_shape)
+            node.out_port(0).data.set_shape(shape_array(output_shape))
 
