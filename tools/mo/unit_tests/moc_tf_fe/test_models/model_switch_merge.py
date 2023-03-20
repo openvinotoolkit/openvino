@@ -9,10 +9,9 @@ with tf.Session() as sess:
     y = tf.placeholder(tf.float32, [2, 3], 'y')
     is_training = tf.placeholder(tf.bool, [], 'is_training')
     switch = tf.raw_ops.Switch(data=x, pred=is_training)
-    #relu = tf.raw_ops.Relu(features=switch[0])
+    relu = tf.raw_ops.Relu(features=switch[0])
     sigmoid = tf.raw_ops.Sigmoid(x=switch[1])
-    #merge = tf.raw_ops.Merge(inputs=[relu, sigmoid])
-    merge = tf.raw_ops.Merge(inputs=[sigmoid])
+    merge = tf.raw_ops.Merge(inputs=[relu, sigmoid])
     tf.raw_ops.AddV2(x=merge[0], y=y)
 
     tf.global_variables_initializer()

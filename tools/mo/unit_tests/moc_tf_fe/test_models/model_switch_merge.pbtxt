@@ -74,6 +74,17 @@ node {
   }
 }
 node {
+  name: "Relu"
+  op: "Relu"
+  input: "Switch"
+  attr {
+    key: "T"
+    value {
+      type: DT_FLOAT
+    }
+  }
+}
+node {
   name: "Sigmoid"
   op: "Sigmoid"
   input: "Switch:1"
@@ -87,11 +98,12 @@ node {
 node {
   name: "Merge"
   op: "Merge"
+  input: "Relu"
   input: "Sigmoid"
   attr {
     key: "N"
     value {
-      i: 1
+      i: 2
     }
   }
   attr {
