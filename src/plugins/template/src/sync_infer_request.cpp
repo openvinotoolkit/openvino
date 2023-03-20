@@ -99,9 +99,24 @@ ov::template_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::
 ov::template_plugin::InferRequest::~InferRequest() = default;
 // ! [infer_request:dtor]
 
+// ! [infer_request:set_tensors_impl]
+void ov::template_plugin::InferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
+                                                         const std::vector<ov::Tensor>& tensors) {
+    for (const auto& input : get_inputs()) {
+        if (input == port) {
+            m_batched_tensors[input.get_tensor_ptr()] = tensors;
+            return;
+        }
+    }
+    OPENVINO_THROW("Cannot find input tensors for port ", port);
+}
+// ! [infer_request:set_tensors_impl]
+
+// ! [infer_request:query_state]
 std::vector<std::shared_ptr<ov::IVariableState>> ov::template_plugin::InferRequest::query_state() const {
     return m_variable_states;
 }
+// ! [infer_request:query_state]
 
 std::shared_ptr<const ov::template_plugin::CompiledModel> ov::template_plugin::InferRequest::get_template_model()
     const {
@@ -208,19 +223,6 @@ void ov::template_plugin::InferRequest::infer_postprocess() {
     m_durations[Postprocess] = Time::now() - start;
 }
 // ! [infer_request:infer_postprocess]
-
-// ! [infer_request:set_tensors_impl]
-void ov::template_plugin::InferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
-                                                         const std::vector<ov::Tensor>& tensors) {
-    for (const auto& input : get_inputs()) {
-        if (input == port) {
-            m_batched_tensors[input.get_tensor_ptr()] = tensors;
-            return;
-        }
-    }
-    OPENVINO_THROW("Cannot find input tensors for port ", port);
-}
-// ! [infer_request:set_tensors_impl]
 
 // ! [infer_request:get_profiling_info]
 std::vector<ov::ProfilingInfo> ov::template_plugin::InferRequest::get_profiling_info() const {

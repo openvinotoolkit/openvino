@@ -1,7 +1,7 @@
 # Synchronous Inference Request {#openvino_docs_ov_plugin_dg_infer_request}
 
 `InferRequest` class functionality:
-- Allocate input and output blobs needed for a backend-dependent network inference.
+- Allocate input and output tensors needed for a backend-dependent network inference.
 - Define functions for inference process stages (for example, `preprocess`, `upload`, `infer`, `download`, `postprocess`). These functions can later be used to define an execution pipeline during [Asynchronous Inference Request](@ref openvino_docs_ie_plugin_dg_async_infer_request) implementation.
 - Call inference stages one by one synchronously.
 
@@ -27,17 +27,29 @@ The example class has several fields:
 
 ### InferRequest Constructor
 
-The constructor initializes helper fields and calls methods which allocate blobs:
+The constructor initializes helper fields and calls methods which allocate tensors:
 
 @snippet src/sync_infer_request.cpp infer_request:ctor
 
-> **NOTE**: Use inputs/outputs information from the compiled model to understand shape and element type of tensors, which you can set with ov::InferRequest::set_tensor and get with ov::InferRequest::get_tensor. A plugin uses these hints to determine its internal layouts and element types for input and output blobs if needed. 
+> **NOTE**: Use inputs/outputs information from the compiled model to understand shape and element type of tensors, which you can set with ov::InferRequest::set_tensor and get with ov::InferRequest::get_tensor. A plugin uses these hints to determine its internal layouts and element types for input and output tensors if needed. 
 
 ### ~InferRequest Destructor
 
 Destructor can contain plugin specific logic to finish and destroy infer request.
 
 @snippet src/sync_infer_request.cpp infer_request:dtor
+
+### set_tensors_impl()
+
+The method allows to set batched tensors in case if the plugin supports it.
+
+@snippet src/sync_infer_request.cpp infer_request:set_tensors_impl
+
+### query_state()
+
+The method returns variable states from the model.
+
+@snippet src/sync_infer_request.cpp infer_request:query_state
 
 ### infer()
 
@@ -63,10 +75,10 @@ Converts backend specific tensors to tensors passed by user:
 
 @snippet src/sync_infer_request.cpp infer_request:infer_postprocess
 
-### `GetPerformanceCounts()`
+### get_profiling_info()
 
-The method sets performance counters which were measured during pipeline stages execution:
+The method returns the profiling info which was measured during pipeline stages execution:
 
-@snippet src/sync_infer_request.cpp infer_request:get_performance_counts
+@snippet src/sync_infer_request.cpp infer_request:get_profiling_info
 
 The next step in the plugin library implementation is the [Asynchronous Inference Request](@ref openvino_docs_ie_plugin_dg_async_infer_request) class.
