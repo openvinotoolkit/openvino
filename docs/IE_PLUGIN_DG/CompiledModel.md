@@ -4,8 +4,8 @@ ov::CompiledModel class functionality:
 - Compile an ov::Model instance to a backend specific graph representation
 - Create an arbitrary number of ov::InferRequest objects
 - Hold some common resources shared between different instances of ov::InferRequest. For example:
-	- ov::ICompiledModel::m_task_executor task executor to implement asynchronous execution
-	- ov::ICompiledModel::m_callback_executor task executor to run an asynchronous inference request callback in a separate thread
+    - ov::ICompiledModel::m_task_executor task executor to implement asynchronous execution
+    - ov::ICompiledModel::m_callback_executor task executor to run an asynchronous inference request callback in a separate thread
 
 CompiledModel Class
 ------------------------

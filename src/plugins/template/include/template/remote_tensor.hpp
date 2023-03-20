@@ -17,6 +17,7 @@ namespace template_plugin {
 /**
  * @brief Template plugin remote tensor which wraps memory from the vector
  */
+// ! [remote_tensor:public_header]
 class VectorTensor : public ov::RemoteTensor {
 public:
     /**
@@ -93,6 +94,7 @@ public:
         }
     }
 };
+// ! [remote_tensor:public_header]
 
 }  // namespace template_plugin
 }  // namespace ov

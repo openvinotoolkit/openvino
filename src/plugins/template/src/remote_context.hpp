@@ -7,6 +7,7 @@
 namespace ov {
 namespace template_plugin {
 
+// ! [remote_context:header]
 class RemoteContext : public ov::IRemoteContext {
 public:
     RemoteContext();
@@ -20,6 +21,7 @@ private:
     std::string m_name;
     ov::AnyMap m_property;
 };
+// ! [remote_context:header]
 
 }  // namespace template_plugin
 }  // namespace ov
