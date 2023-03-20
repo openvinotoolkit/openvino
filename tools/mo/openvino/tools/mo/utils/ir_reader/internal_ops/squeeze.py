@@ -3,8 +3,7 @@
 
 from openvino.tools.mo.graph.graph import Node
 from openvino.tools.mo.ops.squeeze import Squeeze
-from openvino.tools.mo.front.common.partial_infer.utils import shape_array, dynamic_dimension, shape_delete, is_fully_defined, \
-    undefined_shape_of_rank
+from openvino.tools.mo.front.common.partial_infer.utils import shape_array, is_fully_defined
 
 
 class SqueezeInternal(Squeeze):
@@ -19,7 +18,8 @@ class SqueezeInternal(Squeeze):
             # Squeeze without axes provided
             node_name = node.soft_get('name', node.id)
             input_shape = node.in_port(0).data.get_shape()
-            assert is_fully_defined(input_shape), 'Squeeze dimensions are not defined for op "{}"'.format(node_name)
+            assert is_fully_defined(
+                input_shape), 'Squeeze dimensions are not defined for op "{}"'.format(node_name)
             output_shape = [s for s in shape_array(input_shape).tolist() if s != 1]
             node.out_port(0).data.set_shape(output_shape)
 

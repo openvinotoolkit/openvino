@@ -70,8 +70,7 @@ class TestFunction(unittest.TestCase):
         else:
             edges.append(('weights_data', 'group_conv'))
 
-        graph = build_graph(nodes_attributes, edges,
-                            nodes_with_edges_only=True)
+        graph = build_graph(nodes_attributes, edges, nodes_with_edges_only=True)
 
         graph_ref = build_graph(nodes_attributes,
                                 [('input', 'input_data'),
@@ -95,8 +94,7 @@ class TestFunction(unittest.TestCase):
             node = Node(graph_ref, 'weights')
             node.value = weights_const
 
-        (flag, resp) = compare_graphs(
-            graph, graph_ref, 'result', check_op_attrs=True)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
     def test_restore_tensor_names(self):
@@ -121,8 +119,7 @@ class TestFunction(unittest.TestCase):
                  ('add_data', 'result'),
                  ]
 
-        graph = build_graph(nodes_attributes, edges,
-                            nodes_with_edges_only=True)
+        graph = build_graph(nodes_attributes, edges, nodes_with_edges_only=True)
 
         for op in graph.get_op_nodes():
             restore_tensor_names(op)
@@ -131,10 +128,8 @@ class TestFunction(unittest.TestCase):
         node_2 = Node(graph, 'add_data')
         node_3 = Node(graph, 'add_const_data')
 
-        assert node_1['fw_tensor_debug_info'] == [
-            ('abc', 'abc'), ('def', 'def')], 'Restored debug info is wrong!'
-        assert node_2['fw_tensor_debug_info'] == [
-            ('ghi,jkl', 'ghi,jkl')], 'Restored debug info is wrong!'
+        assert node_1['fw_tensor_debug_info'] == [('abc', 'abc'), ('def', 'def')], 'Restored debug info is wrong!'
+        assert node_2['fw_tensor_debug_info'] == [('ghi,jkl', 'ghi,jkl')], 'Restored debug info is wrong!'
         assert node_3['fw_tensor_debug_info'] == [('mno', 'mno'), ('pqr,stu', 'pqr,stu')], \
             'Restored debug info is wrong!'
 
@@ -160,18 +155,15 @@ class TestFunction(unittest.TestCase):
                  ('squeeze_data', 'result'),
                  ]
 
-        graph = build_graph(nodes_attributes, edges,
-                            nodes_with_edges_only=True)
+        graph = build_graph(nodes_attributes, edges, nodes_with_edges_only=True)
 
         squeeze_node = Node(graph, 'squeeze')
         SqueezeInternal.infer(squeeze_node)
 
-        graph_ref = build_graph(nodes_attributes, edges,
-                                nodes_with_edges_only=True)
+        graph_ref = build_graph(nodes_attributes, edges, nodes_with_edges_only=True)
 
         # Check that graph wasn't changed after shape infer
-        (flag, resp) = compare_graphs(
-            graph, graph_ref, 'result', check_op_attrs=True)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
     def test_squeeze_no_axes(self):
@@ -191,18 +183,15 @@ class TestFunction(unittest.TestCase):
                  ('squeeze_data', 'result'),
                  ]
 
-        graph = build_graph(nodes_attributes, edges,
-                            nodes_with_edges_only=True)
+        graph = build_graph(nodes_attributes, edges, nodes_with_edges_only=True)
 
         squeeze_node = Node(graph, 'squeeze')
         SqueezeInternal.infer(squeeze_node)
 
-        graph_ref = build_graph(nodes_attributes, edges,
-                                nodes_with_edges_only=True)
+        graph_ref = build_graph(nodes_attributes, edges, nodes_with_edges_only=True)
 
         # Check that graph wasn't changed after shape infer
-        (flag, resp) = compare_graphs(
-            graph, graph_ref, 'result', check_op_attrs=True)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
     def test_unsqueeze(self):
@@ -227,16 +216,13 @@ class TestFunction(unittest.TestCase):
                  ('unsqueeze_data', 'result'),
                  ]
 
-        graph = build_graph(nodes_attributes, edges,
-                            nodes_with_edges_only=True)
+        graph = build_graph(nodes_attributes, edges, nodes_with_edges_only=True)
 
         unsqueeze_node = Node(graph, 'unsqueeze')
         UnsqueezeInternal.infer(unsqueeze_node)
 
-        graph_ref = build_graph(nodes_attributes, edges,
-                                nodes_with_edges_only=True)
+        graph_ref = build_graph(nodes_attributes, edges, nodes_with_edges_only=True)
 
         # Check that graph wasn't changed after shape infer
-        (flag, resp) = compare_graphs(
-            graph, graph_ref, 'result', check_op_attrs=True)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
