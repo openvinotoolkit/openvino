@@ -47,8 +47,7 @@ void GNAVariableState::SetState(const InferenceEngine::Blob::Ptr& newState) {
     IE_ASSERT(data_ptr != nullptr);
     auto data_size = newState->byteSize();
     auto data_elements = data_size / newState->element_size();
-    if (ALIGN64(state->reserved_size) !=
-        ALIGN64((data_size / (newState->element_size() / state->elementSizeBytes())))) {
+    if (state->reserved_size > (data_size / (newState->element_size() / state->elementSizeBytes()))) {
         THROW_GNA_EXCEPTION << "Failed to SetState. Sizes of new and old states do not match. (" << state->reserved_size
                             << " != " << (newState->element_size() / state->elementSizeBytes()) << ")";
     }

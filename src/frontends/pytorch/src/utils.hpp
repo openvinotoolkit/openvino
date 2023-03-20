@@ -41,6 +41,9 @@ std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id);
 std::shared_ptr<Node> numel(const NodeContext& context, const Output<Node>& x);
 
 element::Type convert_dtype(int64_t dtype_value);
+
+Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Output<Node>& input_tensor);
+
 op::PadType convert_pad(const std::string& pt_pad);
 
 std::shared_ptr<Node> concat_list_construct(std::shared_ptr<Node> input);
@@ -49,13 +52,15 @@ OutputVector make_framework_node(NodeContext& context);
 
 std::shared_ptr<op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node, const std::string& type);
 
-// TODO: Elimitate the need of this function by implementing more accurate custom data type handling
+// TODO: Eliminate the need of this function by implementing more accurate custom data type handling
 Any simplified_type_interpret(Any type);
 
 void align_eltwise_input_types(const NodeContext& context,
                                Output<Node>& lhs,
                                Output<Node>& rhs,
                                bool align_scalars = false);
+
+std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start);
 
 namespace op {
 template <OutputVector (*T)(NodeContext&), size_t idx = 0>

@@ -241,7 +241,7 @@ def test_properties_ro(ov_property_ro, expected_value):
         ),
         (
             properties.intel_cpu.sparse_weights_decompression_rate,
-            "SPARSE_WEIGHTS_DECOMPRESSION_RATE",
+            "CPU_SPARSE_WEIGHTS_DECOMPRESSION_RATE",
             (
                 (0.1, np.float32(0.1)),
                 (2.0, 2.0),
@@ -303,6 +303,30 @@ def test_properties_device_priorities():
         value = 6
         properties.device.priorities("CPU", value)
     assert f"Incorrect passed value: {value} , expected string values." in str(e.value)
+
+
+def test_properties_device_properties():
+    assert properties.device.properties() == "DEVICE_PROPERTIES"
+
+    def make_dict(*arg):
+        return dict(  # noqa: C406
+            [*arg])
+
+    def check(value1, value2):
+        assert properties.device.properties(value1) == ("DEVICE_PROPERTIES", OVAny(value2))
+
+    check({"CPU": {properties.streams.num(): 2}},
+          {"CPU": {"NUM_STREAMS": 2}})
+    check({"CPU": make_dict(properties.streams.num(2))},
+          {"CPU": {"NUM_STREAMS": properties.streams.Num(2)}})
+    check({"GPU": make_dict(properties.inference_precision(Type.f32))},
+          {"GPU": {"INFERENCE_PRECISION_HINT": Type.f32}})
+    check({"CPU": make_dict(properties.streams.num(2), properties.inference_precision(Type.f32))},
+          {"CPU": {"INFERENCE_PRECISION_HINT": Type.f32, "NUM_STREAMS": properties.streams.Num(2)}})
+    check({"CPU": make_dict(properties.streams.num(2), properties.inference_precision(Type.f32)),
+           "GPU": make_dict(properties.streams.num(1), properties.inference_precision(Type.f16))},
+          {"CPU": {"INFERENCE_PRECISION_HINT": Type.f32, "NUM_STREAMS": properties.streams.Num(2)},
+           "GPU": {"INFERENCE_PRECISION_HINT": Type.f16, "NUM_STREAMS": properties.streams.Num(1)}})
 
 
 def test_properties_streams():

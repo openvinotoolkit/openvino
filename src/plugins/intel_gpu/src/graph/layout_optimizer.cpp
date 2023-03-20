@@ -826,11 +826,11 @@ static bool is_node_for_onednn(deconvolution_node const& node) {
 static bool is_node_for_onednn(fully_connected_node const& node) {
     auto fc_prim = node.get_primitive();
     auto ps = node.get_output_layout().get_partial_shape();
-    int non_spatial_count = 2 + (fc_prim->input_size == 3 ? 1 : 0);
-    int rank = ps.size();
+    size_t non_spatial_count = 2 + (fc_prim->input_size == 3 ? 1 : 0);
+    size_t rank = ps.size();
 
     // OneDnn doesn't support spatial dimensions for output
-    for (int i = non_spatial_count; i < rank; i++) {
+    for (auto i = non_spatial_count; i < rank; i++) {
         if (ps[i].is_dynamic() || ps[i] != 1) {
             return false;
         }
@@ -1172,8 +1172,8 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
 }
 
 bool layout_optimizer::are_data_types_suitable_for_onednn(program_node& node) {
-    auto in_dt = node.get_dependency(0).get_output_layout().data_type;
-    auto out_dt = node.get_output_layout().data_type;
+    auto in_dt = node.get_dependency(0).get_output_layout(false).data_type;
+    auto out_dt = node.get_output_layout(false).data_type;
 
     if (in_dt == data_types::f32 && (!node.is_type<fully_connected>() && !node.is_type<convolution>()))
         return false;
@@ -1824,13 +1824,18 @@ void layout_optimizer::select_preferred_formats_for_onednn(program_node& node, d
         for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
             if (node.get_dependency(idx).is_constant())
                 continue;
-            node.set_preferred_input_fmt(idx, cldnn::format::bfyx);
+
+            size_t out_rank = node.get_output_layout().get_rank();
+            auto target_format = format::get_default_format(out_rank);
+
+            node.set_preferred_input_fmt(idx, target_format);
 
             if (node.get_preferred_output_fmt() == format::any) {
-                for (size_t usr = 0; usr < std::max<size_t>(1, node.get_users().size()); usr++)
-                    node.set_preferred_output_fmt(usr, cldnn::format::bfyx);
+                for (size_t usr = 0; usr < std::max<size_t>(1, node.get_users().size()); usr++) {
+                    node.set_preferred_output_fmt(usr, target_format);
+                }
             }
-            GPU_DEBUG_LOG << "select_preferred_formats:" << node.id() << ": " << fmt_to_str(cldnn::format::bfyx) << " --> " << fmt_to_str(cldnn::format::bfyx)
+            GPU_DEBUG_LOG << "select_preferred_formats:" << node.id() << ": " << fmt_to_str(target_format) << " --> " << fmt_to_str(target_format)
                           << " For index : " << idx << std::endl;
         }
     }

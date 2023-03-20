@@ -275,7 +275,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             for (size_t i = 0; i < const_shape.size(); ++i) {
                 if (const_shape[i] != 1) {
                     count_elements_not_one++;
-                    idx_element_not_one = i;
+                    idx_element_not_one = static_cast<int32_t>(i);
                 }
                 if (count_elements_not_one > 1)
                     break;
@@ -790,6 +790,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             if (!should_fuse)
                 return;
+
+            // Onednn reorder does not support eltwise nor binary post operation
+            if (_lo.get_optimization_attributes().use_onednn_impls && input.is_type<reorder>()) {
+                return;
+            }
 
             p.fuse_nodes(input, activation_node, &fusing_history);
         };

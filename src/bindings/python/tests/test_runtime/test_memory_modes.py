@@ -125,3 +125,27 @@ def test_with_tensor_memory(cls, shared_flag_one, shared_flag_two, ov_type, nump
     else:
         assert not (np.shares_memory(arr, ov_object.data))
         assert not (np.shares_memory(ov_tensor.data, ov_object.data))
+
+
+@pytest.mark.parametrize("cls", [Tensor, Constant])
+@pytest.mark.parametrize("shared_flag", [True, False])
+@pytest.mark.parametrize("scalar", [
+    np.array(2),
+    np.array(1.0),
+    np.float32(3.0),
+    np.int64(7.0),
+    4,
+    5.0,
+])
+def test_with_scalars(cls, shared_flag, scalar):
+    # If scalar is 0-dim np.array, create a copy for convinience. Otherwise, it will be
+    # shared by all tests.
+    # If scalar is np.number or native int/float, create 0-dim scalar array from it.
+    _scalar = np.copy(scalar) if isinstance(scalar, np.ndarray) else np.array(scalar)
+    ov_object = cls(array=_scalar, shared_memory=shared_flag)
+    if shared_flag is True:
+        assert np.shares_memory(_scalar, ov_object.data)
+        _scalar[()] = 6
+        assert ov_object.data == 6
+    else:
+        assert not (np.shares_memory(_scalar, ov_object.data))

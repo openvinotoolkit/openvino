@@ -269,17 +269,6 @@ public:
     static const char* getMatch() {
         return T::getMatch();
     }
-    void test_output() {
-        std::stringstream what;
-        std::streambuf* sbuf = std::cout.rdbuf();
-        std::streambuf* ebuf = std::cerr.rdbuf();
-        std::cout.rdbuf(what.rdbuf());
-        std::cerr.rdbuf(what.rdbuf());
-        LoadNetwork();
-        EXPECT_TRUE(what.str().find(getMatch()) != std::string::npos);
-        std::cout.rdbuf(sbuf);
-        std::cerr.rdbuf(ebuf);
-    }
 
 protected:
     void SetUp() override {
@@ -303,7 +292,7 @@ using ConvConcatNHWCRestrictionsNeg = ConcatRestrictions<ConvConcatNHWCAxis>;
 using ConvConcatNHWCRestrictionsPos = ConcatRestrictions<ConvConcatNHWCAxis>;
 
 TEST_P(ReLUConcatRestrictionsNeg, CompareWithRefImpl) {
-    test_output();
+    ExpectLoadNetworkToThrow(getMatch());
 };
 
 // TODO: this test is left for future when GNA plugin handles const tranposition required for concats with interleaved
@@ -313,8 +302,7 @@ TEST_P(ReLUConcatRestrictionsNeg, CompareWithRefImpl) {
 //};
 
 TEST_P(MatMulConcatRestrictionsNeg, CompareWithRefImpl) {
-    test_output();
-    ;
+    ExpectLoadNetworkToThrow(getMatch());
 };
 
 TEST_P(MatMulConcatRestrictionsPos, CompareWithRefImpl) {
@@ -322,13 +310,7 @@ TEST_P(MatMulConcatRestrictionsPos, CompareWithRefImpl) {
 };
 
 TEST_P(ConvNCHWConcatRestrictionsNeg, CompareWithRefImpl) {
-    std::string what;
-    try {
-        LoadNetwork();
-    } catch (const std::exception& e) {
-        what.assign(e.what());
-    }
-    EXPECT_TRUE(what.find(getMatch()) != std::string::npos);
+    ExpectLoadNetworkToThrow(getMatch());
 };
 
 TEST_P(ConvNCHWConcatRestrictionsPos, CompareWithRefImpl) {
@@ -336,7 +318,7 @@ TEST_P(ConvNCHWConcatRestrictionsPos, CompareWithRefImpl) {
 };
 
 TEST_P(ConvNHWCConcatRestrictionsNeg, CompareWithRefImpl) {
-    test_output();
+    ExpectLoadNetworkToThrow(getMatch());
 };
 
 TEST_P(ConvNHWCConcatRestrictionsPos, CompareWithRefImpl) {
@@ -344,7 +326,7 @@ TEST_P(ConvNHWCConcatRestrictionsPos, CompareWithRefImpl) {
 };
 
 TEST_P(ConvConcatNHWCRestrictionsNeg, CompareWithRefImpl) {
-    test_output();
+    ExpectLoadNetworkToThrow(getMatch());
 };
 
 TEST_P(ConvConcatNHWCRestrictionsPos, CompareWithRefImpl) {
@@ -352,8 +334,7 @@ TEST_P(ConvConcatNHWCRestrictionsPos, CompareWithRefImpl) {
 };
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32};
-const std::vector<std::map<std::string, std::string>> configs = {
-    {{"GNA_DEVICE_MODE", "GNA_SW_FP32"}, {"LOG_LEVEL", "LOG_WARNING"}}};
+const std::vector<std::map<std::string, std::string>> configs = {{{"GNA_DEVICE_MODE", "GNA_SW_FP32"}}};
 
 // Negative 4D MatMul cases
 const std::vector<std::vector<size_t>> inputShapesMatMul4D_neg = {{1, 2, 4, 8}};

@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "Python.h"
+#include "openvino/core/except.hpp"
 #include "openvino/frontend/decoder.hpp"
 
 using Version = ov::pass::Serialize::Version;
@@ -98,6 +99,10 @@ py::object from_ov_any(const ov::Any& any) {
     else if (any.is<std::map<ov::element::Type, float>>()) {
         return py::cast(any.as<std::map<ov::element::Type, float>>());
     }
+    // Check for std::map<std::string, Any> {
+    else if (any.is<std::map<std::string, ov::Any>>()) {
+        return py::cast(any.as<std::map<std::string, ov::Any>>());
+    }
     // Check for std::vector<ov::PropertyName>
     else if (any.is<std::vector<ov::PropertyName>>()) {
         auto val = any.as<std::vector<ov::PropertyName>>();
@@ -166,7 +171,7 @@ std::string convert_path_to_string(const py::object& path) {
     str << "Path: '" << path << "'"
         << " does not exist. Please provide valid model's path either as a string, bytes or pathlib.Path. "
            "Examples:\n(1) '/home/user/models/model.onnx'\n(2) Path('/home/user/models/model/model.onnx')";
-    throw ov::Exception(str.str());
+    OPENVINO_THROW(str.str());
 }
 
 Version convert_to_version(const std::string& version) {
@@ -176,8 +181,9 @@ Version convert_to_version(const std::string& version) {
         return Version::IR_V10;
     if (version == "IR_V11")
         return Version::IR_V11;
-    throw ov::Exception("Invoked with wrong version argument: '" + version +
-                        "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
+    OPENVINO_THROW("Invoked with wrong version argument: '",
+                   version,
+                   "'! The supported versions are: 'UNSPECIFIED'(default), 'IR_V10', 'IR_V11'.");
 }
 
 void deprecation_warning(const std::string& function_name, const std::string& version, const std::string& message) {
@@ -190,6 +196,33 @@ void deprecation_warning(const std::string& function_name, const std::string& ve
         ss << ". " << message;
     }
     PyErr_WarnEx(PyExc_DeprecationWarning, ss.str().data(), 2);
+}
+
+bool py_object_is_any_map(const py::object& py_obj) {
+    if (!py::isinstance<py::dict>(py_obj)) {
+        return false;
+    }
+    auto dict = py::cast<py::dict>(py_obj);
+    return std::all_of(dict.begin(), dict.end(), [&](const std::pair<py::object::handle, py::object::handle>& elem) {
+        return py::isinstance<py::str>(elem.first);
+    });
+}
+
+ov::AnyMap py_object_to_any_map(const py::object& py_obj) {
+    OPENVINO_ASSERT(py_object_is_any_map(py_obj), "Unsupported attribute type.");
+    ov::AnyMap return_value = {};
+    for (auto& item : py::cast<py::dict>(py_obj)) {
+        std::string key = py::cast<std::string>(item.first);
+        py::object value = py::cast<py::object>(item.second);
+        if (py::isinstance<ov::Affinity>(value)) {
+            return_value[key] = py::cast<ov::Affinity>(value);
+        } else if (py_object_is_any_map(value)) {
+            return_value[key] = Common::utils::py_object_to_any_map(value);
+        } else {
+            return_value[key] = Common::utils::py_object_to_any(value);
+        }
+    }
+    return return_value;
 }
 
 ov::Any py_object_to_any(const py::object& py_obj) {
@@ -242,6 +275,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
             OPENVINO_ASSERT(false, "Unsupported attribute type.");
         }
         // OV types
+    } else if (py_object_is_any_map(py_obj)) {
+        return py_object_to_any_map(py_obj);
     } else if (py::isinstance<ov::Any>(py_obj)) {
         return py::cast<ov::Any>(py_obj);
     } else if (py::isinstance<ov::element::Type>(py_obj)) {
