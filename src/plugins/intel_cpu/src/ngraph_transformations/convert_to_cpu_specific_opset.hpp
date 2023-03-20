@@ -30,7 +30,8 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ngraph::Function> &nGraphF
 
     ngraph::pass::Manager manager;
     manager.set_per_pass_validation(false);
-    manager.register_pass<ConvertMatMulToFC>();
+    if (getenv("ENABLE_FC"))
+        manager.register_pass<ConvertMatMulToFC>();
     manager.register_pass<AlignMatMulInputRanks>();
     manager.register_pass<ConvertTileToSeqTiles>();
     manager.register_pass<FullyConnectedBiasFusion>();

@@ -30,6 +30,39 @@ namespace intel_cpu {
 namespace node {
 namespace {
 
+struct MatMulDynKey {
+    int64_t K;
+    int64_t N;
+    Precision inp0Prc;
+    Precision weightPrc;
+    Precision outPrc;
+    size_t hash() const;
+    bool operator==(const MatMulDynKey& rhs) const;
+};
+
+size_t MatMulDynKey::hash() const {
+    using namespace dnnl::impl;
+    using namespace dnnl::impl::primitive_hashing;
+
+    size_t seed = 0;
+
+    seed = hash_combine(seed, K);
+    seed = hash_combine(seed, N);
+    seed = hash_combine(seed, static_cast<int>(inp0Prc));
+    seed = hash_combine(seed, static_cast<int>(weightPrc));
+    seed = hash_combine(seed, static_cast<int>(outPrc));
+    return seed;
+}
+
+bool MatMulDynKey::operator==(const MatMulDynKey &rhs) const {
+    bool retVal = true;
+    if (N != rhs.N || K != rhs.K || inp0Prc != rhs.inp0Prc ||
+        weightPrc != rhs.weightPrc || outPrc != rhs.outPrc) {
+        retVal = false;
+    }
+    return retVal;
+}
+
 struct MatMulKey {
     DnnlMemoryDescCPtr inp0;
     DnnlMemoryDescCPtr inp1;
@@ -195,6 +228,13 @@ MatMul::MatMul(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
     if (!matMul) {
         IE_THROW(NotImplemented) << "Operation with name " << op->get_friendly_name() << ":" << op->get_type_name() <<
             " is not an instance of MatMul from opset1";
+    }
+
+    const auto& inputShape = op->get_input_partial_shape(0);
+    if (inputShape.rank() == 3) {
+        if (inputShape[1].is_dynamic() && inputShape[2].is_static()) {
+            isDynM = true;
+        }
     }
 
     transposeIn[0] = matMul->get_transpose_a();
@@ -576,85 +616,128 @@ void MatMul::prepareParams() {
     DnnlMemoryDescPtr src1TransposedDesc;
 
     AttrPtr attr;
-
-    if (isDynamicNode()) {
-        attr = initPrimitiveAttr(dstMemPtr->getStaticDims());
-
-        const auto& src0Desc = src0MemPtr->getDesc();
-        const auto& src1Desc = src1MemPtr->getDesc();
-
-        auto src0Shape = src0Desc.getShape();
-        auto src0Strides = getStridesAndModifyShape(src0Shape, transposeIn[0]);
-        src0TransposedDesc = std::make_shared<DnnlBlockedMemoryDesc>(src0Desc.getPrecision(), src0Shape, src0Strides);
-
-        auto src1Shape = src1Desc.getShape();
-        auto src1Strides = getStridesAndModifyShape(src1Shape, transposeIn[1]);
-        src1TransposedDesc = std::make_shared<DnnlBlockedMemoryDesc>(src1Desc.getPrecision(), src1Shape, src1Strides);
+    if (isDynamicNode() && isDynM && getenv("ENABLE_DYN")) {
+        const auto inpRank = src0MemPtr->GetShape().getRank();
+        if (inpRank == 3) {
+            int K = src0MemPtr->GetShape().getDims()[2];
+            int N = src1MemPtr->GetShape().getDims()[1];
+            const auto& dstDnnlDesc = dstMemPtr->getDesc();
+            const auto& src0Desc = src0MemPtr->getDesc();
+            const auto& src1Desc = src1MemPtr->getDesc();
+            MatMulDynKey dynMKey = {
+                K,
+                N,
+                src0Desc.getPrecision(),
+                src1Desc.getPrecision(),
+                dstDnnlDesc.getPrecision()
+            };
+            auto engine = getEngine();
+            auto builder = [&engine](const MatMulDynKey& key) -> dnnl::primitive {
+                const auto& K = key.K;
+                const auto& N = key.N;
+                memory::dims src_dims = {DNNL_RUNTIME_DIM_VAL, K};
+                memory::dims weights_dims = {K, N};
+                memory::dims dst_dims = {DNNL_RUNTIME_DIM_VAL, N};
+                memory::dims a_strides = {K, 1};
+                memory::dims c_strides = {N, 1};
+                memory::desc src_md(src_dims, DnnlExtensionUtils::IEPrecisionToDataType(key.inp0Prc), a_strides);
+                memory::desc weight_md(weights_dims, DnnlExtensionUtils::IEPrecisionToDataType(key.weightPrc), memory::format_tag::ba);
+                memory::desc dst_md(dst_dims, DnnlExtensionUtils::IEPrecisionToDataType(key.outPrc), c_strides);
+                auto matmul_desc = dnnl::matmul::primitive_desc(engine, src_md, weight_md, dst_md);
+                dnnl::primitive ret;
+                try {
+                    ret = matmul(matmul_desc);
+                } catch(std::exception& ex) {
+                    std::cout << ex.what() << std::endl;
+                }
+                return ret;
+            };
+            auto cache = context->getParamsCache();
+            auto result = cache->getOrCreate(dynMKey, builder);
+            if (!result.first)
+                IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+            prim = result.first;
+        }
     } else {
-        attr = initPrimitiveAttr();
-        src0TransposedDesc = inDataDesc[0];
-        src1TransposedDesc = inDataDesc[1];
-    }
+        if (isDynamicNode()) {
+            attr = initPrimitiveAttr(dstMemPtr->getStaticDims());
 
-    auto dstDnnlDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>();
+            const auto& src0Desc = src0MemPtr->getDesc();
+            const auto& src1Desc = src1MemPtr->getDesc();
 
-    DnnlMemoryDescPtr dnnlBiasMemDesc = nullptr;
-    if (withBiases) {
-        auto& biasMemory = getParentEdgeAt(2)->getMemoryPtr();
-        if (!biasMemory || !biasMemory->isAllocated())
-            IE_THROW()  << errorPrefix << " did not allocate bias memory";
-        dnnlBiasMemDesc = biasMemory->GetDescWithType<DnnlMemoryDesc>();
-    }
+            auto src0Shape = src0Desc.getShape();
+            auto src0Strides = getStridesAndModifyShape(src0Shape, transposeIn[0]);
+            src0TransposedDesc = std::make_shared<DnnlBlockedMemoryDesc>(src0Desc.getPrecision(), src0Shape, src0Strides);
 
-    MatMulKey key = {src0TransposedDesc, src1TransposedDesc, dnnlBiasMemDesc,
-                     dstDnnlDesc, *attr, selected_pd->getImplementationType()};
-
-    auto engine = getEngine();
-
-    auto builder = [&engine](const MatMulKey& key) -> dnnl::primitive {
-        std::shared_ptr<dnnl::matmul::primitive_desc> matmul_desc;
-
-        if (key.bias) {
-            matmul_desc = std::make_shared<matmul::primitive_desc>(
-                engine,
-                key.inp0->getDnnlDesc(),
-                key.inp1->getDnnlDesc(),
-                key.bias->getDnnlDesc(),
-                key.out->getDnnlDesc(),
-                key.attr);
+            auto src1Shape = src1Desc.getShape();
+            auto src1Strides = getStridesAndModifyShape(src1Shape, transposeIn[1]);
+            src1TransposedDesc = std::make_shared<DnnlBlockedMemoryDesc>(src1Desc.getPrecision(), src1Shape, src1Strides);
         } else {
-            matmul_desc = std::make_shared<matmul::primitive_desc>(
-                engine,
-                key.inp0->getDnnlDesc(),
-                key.inp1->getDnnlDesc(),
-                key.out->getDnnlDesc(),
-                key.attr);
+            attr = initPrimitiveAttr();
+            src0TransposedDesc = inDataDesc[0];
+            src1TransposedDesc = inDataDesc[1];
         }
 
-        primitive_desc_iterator itpd = *matmul_desc;
-        matmul::primitive_desc prim_desc;
+        auto dstDnnlDesc = dstMemPtr->GetDescWithType<DnnlMemoryDesc>();
 
-        while (static_cast<bool>(itpd))  {
-            impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+        DnnlMemoryDescPtr dnnlBiasMemDesc = nullptr;
+        if (withBiases) {
+            auto& biasMemory = getParentEdgeAt(2)->getMemoryPtr();
+            if (!biasMemory || !biasMemory->isAllocated())
+                IE_THROW()  << errorPrefix << " did not allocate bias memory";
+            dnnlBiasMemDesc = biasMemory->GetDescWithType<DnnlMemoryDesc>();
+        }
 
-            if (impl_type == key.implType) {
-                prim_desc = itpd.get();
-                break;
+        MatMulKey key = {src0TransposedDesc, src1TransposedDesc, dnnlBiasMemDesc,
+                        dstDnnlDesc, *attr, selected_pd->getImplementationType()};
+
+        auto engine = getEngine();
+
+        auto builder = [&engine](const MatMulKey& key) -> dnnl::primitive {
+            std::shared_ptr<dnnl::matmul::primitive_desc> matmul_desc;
+
+            if (key.bias) {
+                matmul_desc = std::make_shared<matmul::primitive_desc>(
+                    engine,
+                    key.inp0->getDnnlDesc(),
+                    key.inp1->getDnnlDesc(),
+                    key.bias->getDnnlDesc(),
+                    key.out->getDnnlDesc(),
+                    key.attr);
+            } else {
+                matmul_desc = std::make_shared<matmul::primitive_desc>(
+                    engine,
+                    key.inp0->getDnnlDesc(),
+                    key.inp1->getDnnlDesc(),
+                    key.out->getDnnlDesc(),
+                    key.attr);
             }
-            if (!itpd.next_impl())
-                return matmul();
+
+            primitive_desc_iterator itpd = *matmul_desc;
+            matmul::primitive_desc prim_desc;
+
+            while (static_cast<bool>(itpd))  {
+                impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
+
+                if (impl_type == key.implType) {
+                    prim_desc = itpd.get();
+                    break;
+                }
+                if (!itpd.next_impl())
+                    return matmul();
+            }
+            return matmul(prim_desc);
+        };
+
+        auto cache = context->getParamsCache();
+        auto result = cache->getOrCreate(key, builder);
+
+        if (!result.first) {
+            IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
         }
-        return matmul(prim_desc);
-    };
 
-    auto cache = context->getParamsCache();
-    auto result = cache->getOrCreate(key, builder);
-
-    if (!result.first) {
-        IE_THROW() << "Primitive descriptor was not found for node " << getName() << ".";
+        prim = result.first;
     }
-
-    prim = result.first;
 
     auto pd = prim.get_primitive_desc();
     auto scratchpadMem = getScratchPadMem(pd);
@@ -670,6 +753,23 @@ void MatMul::prepareParams() {
 }
 
 void MatMul::executeDynamicImpl(dnnl::stream strm) {
+    if (isDynM) {
+        auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+        auto& src0MemPtr = getParentEdgeAt(0)->getMemoryPtr();
+        auto setBatchPrimArgs = [this](int argType, const dnnl::memory& oldMem) {
+            dnnl::memory::desc newMemDesc(oldMem.get_desc());
+            const auto dims = newMemDesc.get_dims();
+
+            if (dims.size() == 3) {
+                std::vector<dnnl::memory::dim> normalizedDims({dims[0] * dims[1], dims[2]});
+                newMemDesc = newMemDesc.reshape(normalizedDims);
+            }
+
+            primArgs.at(argType) = dnnl::memory(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
+        };
+        setBatchPrimArgs(DNNL_ARG_SRC_0, src0MemPtr->GetPrimitive());
+        setBatchPrimArgs(DNNL_ARG_DST, dstMemPtr->GetPrimitive());
+    }
     execute(strm);
 }
 
