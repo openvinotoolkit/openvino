@@ -31,42 +31,26 @@ namespace ov {
 
 const std::string DEFAULT_DEVICE_NAME = "DEFAULT_DEVICE";
 
-template <typename T>
 struct Parsed {
     std::string _deviceName;
-    std::map<std::string, T> _config;
+    AnyMap _config;
 };
 
-template <typename T = InferenceEngine::Parameter>
-ov::Parsed<T> parseDeviceNameIntoConfig(const std::string& deviceName, const std::map<std::string, T>& config = {}) {
-    auto config_ = config;
-    auto deviceName_ = deviceName;
-    if (deviceName_.find("HETERO:") == 0) {
-        deviceName_ = "HETERO";
-        config_["TARGET_FALLBACK"] = deviceName.substr(7);
-    } else if (deviceName_.find("MULTI:") == 0) {
-        deviceName_ = "MULTI";
-        config_[InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] = deviceName.substr(6);
-    } else if (deviceName == "AUTO" || deviceName.find("AUTO:") == 0) {
-        deviceName_ = "AUTO";
-        if (deviceName.find("AUTO:") == 0) {
-            config_[InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES] =
-                deviceName.substr(std::string("AUTO:").size());
-        }
-    } else if (deviceName_.find("BATCH:") == 0) {
-        deviceName_ = "BATCH";
-        config_[CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG)] = deviceName.substr(6);
-    } else {
-        InferenceEngine::DeviceIDParser parser(deviceName_);
-        deviceName_ = parser.getDeviceName();
-        std::string deviceIDLocal = parser.getDeviceID();
+Parsed parseDeviceNameIntoConfig(const std::string& deviceName, const AnyMap& config = {});
 
-        if (!deviceIDLocal.empty()) {
-            config_[InferenceEngine::PluginConfigParams::KEY_DEVICE_ID] = deviceIDLocal;
-        }
-    }
-    return {deviceName_, config_};
-}
+/**
+ * @brief Checks whether config is applicable for device with 'device_name'
+ * @code
+ * core.compile_model(<device_name>, model, ov::device::properties(<device_name_to_parse>, ...));
+ * @endcode
+ * The common logic behind this is that 'device_name_to_parse' should match 'device_name' or be more
+ * generic (e.g. GPU is more generic than GPU.x)
+ *
+ * @param device_name Target device
+ * @param device_name_to_parse Device ID of property
+ * @return true if ov::device::properties(<device_name_to_parse>, ...) is applicable for device identified by 'device_name
+ */
+bool is_config_applicable(const std::string& device_name, const std::string& device_name_to_parse);
 
 #ifndef OPENVINO_STATIC_LIBRARY
 
@@ -233,8 +217,6 @@ public:
     void apply_auto_batching(const std::shared_ptr<const ov::Model>& model,
                              std::string& deviceName,
                              ov::AnyMap& config) const;
-
-    void clean_properties(std::string& deviceName, ov::AnyMap& config, ov::Any property) const;
 
 #ifdef OPENVINO_STATIC_LIBRARY
 
@@ -425,7 +407,7 @@ public:
 
     ov::RemoteContext create_context(const std::string& device_name, const AnyMap& args) const override;
 
-    ov::AnyMap get_supported_property(const std::string& device_name, const ov::AnyMap& config) const;
+    ov::AnyMap get_supported_property(const std::string& device_name, const ov::AnyMap& config) const override;
 
     bool is_new_api() const override;
 

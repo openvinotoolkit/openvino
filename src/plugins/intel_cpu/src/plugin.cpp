@@ -499,6 +499,8 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
             return ov::Affinity::HYBRID_AWARE;
         }
         return ov::Affinity::NONE;
+    } else if (name == ov::device::id.name()) {
+        return decltype(ov::device::id)::value_type{engConfig.device_id};
     } else if (name == ov::inference_num_threads) {
         const auto num_threads = engConfig.streamExecutorConfig._threads;
         return decltype(ov::inference_num_threads)::value_type(num_threads);
@@ -588,7 +590,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                     RO_property(ov::device::capabilities.name()),
                                                     RO_property(ov::caching_properties.name()),
         };
-        // the whole config is RW before network is loaded.
+        // the whole config is RW before model is loaded.
         std::vector<ov::PropertyName> rwProperties {RW_property(ov::num_streams.name()),
                                                     RW_property(ov::affinity.name()),
                                                     RW_property(ov::inference_num_threads.name()),
@@ -596,6 +598,7 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
                                                     RW_property(ov::inference_precision.name()),
                                                     RW_property(ov::hint::performance_mode.name()),
                                                     RW_property(ov::hint::num_requests.name()),
+                                                    RW_property(ov::device::id.name()),
         };
 
         std::vector<ov::PropertyName> supportedProperties;
@@ -641,11 +644,8 @@ void Engine::AddExtension(const InferenceEngine::IExtensionPtr& extension) {
 }
 
 QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::map<std::string, std::string>& config) const {
-    QueryNetworkResult res;
-
     WeightsSharing::Ptr fake_w_cache;
 
-    // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
     Config conf = engConfig;
     conf.readProperties(config);
 
@@ -693,6 +693,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const std::ma
                                            return true;
                                        });
 
+    QueryNetworkResult res;
     for (auto&& layerName : supported) {
         res.supportedLayersMap.emplace(layerName, GetName());
     }

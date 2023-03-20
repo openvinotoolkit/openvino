@@ -27,7 +27,7 @@ Configuration::Configuration(const ov::AnyMap& config, const Configuration& defa
         } else if (streamExecutorConfigKeys.end() !=
                    std::find(std::begin(streamExecutorConfigKeys), std::end(streamExecutorConfigKeys), key)) {
             streams_executor_config.set_property(key, value);
-        } else if (CONFIG_KEY(DEVICE_ID) == key) {
+        } else if (ov::device::id.name() == key) {
             device_id = std::stoi(value.as<std::string>());
             OPENVINO_ASSERT(device_id <= 0, "Device ID ", device_id, " is not supported");
         } else if (CONFIG_KEY(PERF_COUNT) == key) {

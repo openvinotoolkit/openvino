@@ -255,7 +255,11 @@ int main(int argc, char* argv[]) {
         // -----------------------------------------------------------------------------------------------------
         // --------------------------- Step 2. Loading model to the device ------------------------------------------
         if (useGna) {
-            genericPluginConfig.insert(std::begin(gnaPluginConfig), std::end(gnaPluginConfig));
+            if (useHetero) {
+                genericPluginConfig.insert(ov::device::properties("GNA", gnaPluginConfig));
+            } else {
+                genericPluginConfig.insert(std::begin(gnaPluginConfig), std::end(gnaPluginConfig));
+            }
         }
         auto t0 = Time::now();
         ms loadTime = std::chrono::duration_cast<ms>(Time::now() - t0);

@@ -85,42 +85,40 @@ public:
         for (auto& device : targetDevices) {
             result << device << "_";
         }
-        auto cpuConfig = deviceConfigs.find("CPU");
-        auto gpuConfig = deviceConfigs.find("GPU");
-        result << "device_properties_";
-        if (cpuConfig != deviceConfigs.end())
-            result << "CPU_" << cpuConfig->second << "_";
-        if (gpuConfig != deviceConfigs.end())
-            result << "GPU_" << gpuConfig->second;
-        return result.str();
+        for (auto& item : deviceConfigs) {
+            result << item.first << "_" << item.second << "_";
+        }
+        auto name = result.str();
+        name.pop_back();
+        return name;
     }
 
     static std::vector<ConfigParams> CreateConfigs() {
         testConfigs.clear();
         testConfigs.push_back(
-            ConfigParams{"AUTO", {"CPU"}, {{"CPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
+            ConfigParams{"AUTO", {"CPU"}, {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
         testConfigs.push_back(
-            ConfigParams{"AUTO", {"CPU", "GPU"}, {{"GPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
+            ConfigParams{"AUTO", {"CPU", "GPU"}, {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
         testConfigs.push_back(
-            ConfigParams{"AUTO:CPU", {"CPU"}, {{"CPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});
+            ConfigParams{"AUTO:CPU", {"CPU"}, {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});
         testConfigs.push_back(
-            ConfigParams{"AUTO:CPU,GPU", {"CPU"}, {{"CPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
+            ConfigParams{"AUTO:CPU,GPU", {"CPU"}, {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
         testConfigs.push_back(
-            ConfigParams{"AUTO:GPU", {"GPU"}, {{"GPU", "NUM_STREAMS 5"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});
+            ConfigParams{"AUTO:GPU", {"GPU"}, {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:5}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});
         testConfigs.push_back(ConfigParams{"AUTO:GPU,CPU",
                                            {"CPU", "GPU"},
-                                           {{"GPU", "NUM_STREAMS 5"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
+                                           {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:5}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
 
         testConfigs.push_back(
-            ConfigParams{"MULTI:CPU", {"CPU"}, {{"CPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});
+            ConfigParams{"MULTI:CPU", {"CPU"}, {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});
         testConfigs.push_back(ConfigParams{"MULTI:CPU,GPU",
                                            {"CPU", "GPU"},
-                                           {{"CPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
+                                           {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});
         testConfigs.push_back(
-            ConfigParams{"MULTI:GPU", {"GPU"}, {{"GPU", "NUM_STREAMS 5"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});
+            ConfigParams{"MULTI:GPU", {"GPU"}, {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:5}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});
         testConfigs.push_back(ConfigParams{"MULTI:GPU,CPU",
                                            {"CPU", "GPU"},
-                                           {{"GPU", "NUM_STREAMS 5"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
+                                           {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:5}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});
         return testConfigs;
     }
 

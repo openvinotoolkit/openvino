@@ -9,9 +9,7 @@ const std::set<std::string> PluginConfig::_availableDevices = {"AUTO", "CPU", "G
 PluginConfig::PluginConfig() {
     set_default();
     device_property_validator = std::dynamic_pointer_cast<BaseValidator>(std::make_shared<FuncValidator>([](const ov::Any& target) -> bool {
-        auto deviceName = target.as<std::string>();
-        return _availableDevices.end() != std::find(_availableDevices.begin(), _availableDevices.end(),
-                                                            DeviceIDParser(deviceName).getDeviceName());
+        return (target.as<std::string>().find(ov::device::properties.name()) != std::string::npos);
     }));
 }
 
@@ -60,13 +58,13 @@ void PluginConfig::set_property(const ov::AnyMap& properties) {
             // when user call set_property to set some config to plugin, we also respect this and pass through the config in this case
             user_properties[name] = val;
         } else {
-            OPENVINO_ASSERT(false, "property:", name,  ": not supported");
+            OPENVINO_ASSERT(false, "property: ", name,  ": not supported");
         }
     }
 }
 
 ov::Any PluginConfig::get_property(const std::string& name) const {
-    OPENVINO_ASSERT(internal_properties.find(name) != internal_properties.end(), "[AUTO]", "not supported property ", name);
+    OPENVINO_ASSERT(internal_properties.find(name) != internal_properties.end(), "[AUTO]", " not supported property ", name);
     return internal_properties.at(name);
 }
 
@@ -98,7 +96,7 @@ void PluginConfig::set_user_property(const ov::AnyMap& config, bool checkfirstle
             } else if (!checkfirstlevel) { // for multi, accept it anyway when compiled model
                 user_properties[kv.first] = kv.second;
             } else {
-                OPENVINO_ASSERT(false, "property", name,  ": not supported");
+                OPENVINO_ASSERT(false, "property ", name,  ": not supported");
             }
         }
     }

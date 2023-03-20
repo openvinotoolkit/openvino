@@ -23,6 +23,10 @@ namespace utils {
 
     void deprecation_warning(const std::string& function_name, const std::string& version = std::string(), const std::string& message = std::string());
 
+    bool py_object_is_any_map(const py::object& py_obj);
+
+    ov::AnyMap py_object_to_any_map(const py::object& py_obj);
+
     ov::Any py_object_to_any(const py::object& py_obj);
 
     ov::pass::Serialize::Version convert_to_version(const std::string& version);

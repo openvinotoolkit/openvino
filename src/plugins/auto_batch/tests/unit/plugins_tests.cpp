@@ -323,7 +323,7 @@ TEST_P(PluginMetricTest, GetPluginMetricTest) {
 }
 
 const char supported_metric[] = "SUPPORTED_METRICS FULL_DEVICE_NAME SUPPORTED_CONFIG_KEYS";
-const char supported_config_keys[] = "AUTO_BATCH_DEVICE_CONFIG AUTO_BATCH_TIMEOUT CACHE_DIR";
+const char supported_config_keys[] = "AUTO_BATCH_DEVICE_CONFIG MULTI_DEVICE_PRIORITIES AUTO_BATCH_TIMEOUT CACHE_DIR";
 
 const std::vector<BatchDeviceConfigParams> batchDeviceTestConfigs = {
     BatchDeviceConfigParams{"CPU(4)", "CPU", 4, false},

@@ -99,6 +99,10 @@ py::object from_ov_any(const ov::Any& any) {
     else if (any.is<std::map<ov::element::Type, float>>()) {
         return py::cast(any.as<std::map<ov::element::Type, float>>());
     }
+    // Check for std::map<std::string, Any> {
+    else if (any.is<std::map<std::string, ov::Any>>()) {
+        return py::cast(any.as<std::map<std::string, ov::Any>>());
+    }
     // Check for std::vector<ov::PropertyName>
     else if (any.is<std::vector<ov::PropertyName>>()) {
         auto val = any.as<std::vector<ov::PropertyName>>();
@@ -194,6 +198,33 @@ void deprecation_warning(const std::string& function_name, const std::string& ve
     PyErr_WarnEx(PyExc_DeprecationWarning, ss.str().data(), 2);
 }
 
+bool py_object_is_any_map(const py::object& py_obj) {
+    if (!py::isinstance<py::dict>(py_obj)) {
+        return false;
+    }
+    auto dict = py::cast<py::dict>(py_obj);
+    return std::all_of(dict.begin(), dict.end(), [&](const std::pair<py::object::handle, py::object::handle>& elem) {
+        return py::isinstance<py::str>(elem.first);
+    });
+}
+
+ov::AnyMap py_object_to_any_map(const py::object& py_obj) {
+    OPENVINO_ASSERT(py_object_is_any_map(py_obj), "Unsupported attribute type.");
+    ov::AnyMap return_value = {};
+    for (auto& item : py::cast<py::dict>(py_obj)) {
+        std::string key = py::cast<std::string>(item.first);
+        py::object value = py::cast<py::object>(item.second);
+        if (py::isinstance<ov::Affinity>(value)) {
+            return_value[key] = py::cast<ov::Affinity>(value);
+        } else if (py_object_is_any_map(value)) {
+            return_value[key] = Common::utils::py_object_to_any_map(value);
+        } else {
+            return_value[key] = Common::utils::py_object_to_any(value);
+        }
+    }
+    return return_value;
+}
+
 ov::Any py_object_to_any(const py::object& py_obj) {
     // Python types
     if (py::isinstance<py::str>(py_obj)) {
@@ -244,6 +275,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
             OPENVINO_ASSERT(false, "Unsupported attribute type.");
         }
         // OV types
+    } else if (py_object_is_any_map(py_obj)) {
+        return py_object_to_any_map(py_obj);
     } else if (py::isinstance<ov::Any>(py_obj)) {
         return py::cast<ov::Any>(py_obj);
     } else if (py::isinstance<ov::element::Type>(py_obj)) {

@@ -178,8 +178,6 @@ protected:
     DeviceInformation ParseMetaDevice(const std::string& devicesBatchCfg,
                                       const std::map<std::string, std::string>& config) const;
 
-    std::map<std::string, std::string> GetSupportedConfig(const std::map<std::string, std::string>& config,
-                                                          const DeviceName& deviceName) const;
     static DeviceInformation ParseBatchDevice(const std::string& deviceWithBatch);
 
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetworkImpl(

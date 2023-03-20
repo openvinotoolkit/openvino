@@ -46,8 +46,9 @@ public:
 
     DeviceMetaInformationMap GetDevicePlugins(const std::string& targetFallback, const Configs& localConfig) const;
 
+    std::string GetTargetFallback(const Engine::Configs& config, bool raise_exception = true) const;
+
 private:
-    Configs GetSupportedConfig(const Configs& config, const std::string& deviceName) const;
     std::string DeviceArchitecture(const std::string& targetFallback) const;
 };
 }  // namespace HeteroPlugin

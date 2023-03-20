@@ -28,6 +28,9 @@ namespace ov {
 class Plugin;
 /** @cond INTERNAL */
 class Any;
+
+using AnyMap = std::map<std::string, Any>;
+
 namespace util {
 
 OPENVINO_API bool equal(std::type_index lhs, std::type_index rhs);
@@ -126,6 +129,11 @@ struct OPENVINO_API Read<std::tuple<unsigned int, unsigned int>> {
     void operator()(std::istream& is, std::tuple<unsigned int, unsigned int>& tuple) const;
 };
 
+template <>
+struct OPENVINO_API Read<AnyMap> {
+    void operator()(std::istream& is, AnyMap& map) const;
+};
+
 template <typename T>
 auto from_string(const std::string& str) -> const
     typename std::enable_if<std::is_same<T, std::string>::value, T>::type& {
@@ -210,14 +218,36 @@ struct Read<
     std::map<K, T, C, A>,
     typename std::enable_if<std::is_default_constructible<K>::value && std::is_default_constructible<T>::value>::type> {
     void operator()(std::istream& is, std::map<K, T, C, A>& map) const {
-        while (is.good()) {
-            std::string str;
-            is >> str;
-            auto k = from_string<K>(str);
-            is >> str;
-            auto v = from_string<T>(str);
-            map.emplace(std::move(k), std::move(v));
+        char c;
+
+        is >> c;
+        OPENVINO_ASSERT(c == '{', "Failed to parse std::map<K, T>. Starting symbols is not '{', it's ", c);
+
+        while (c != '}') {
+            std::string key, value;
+            std::getline(is, key, ':');
+            size_t enclosed_container_level = 0;
+
+            while (is.good()) {
+                is >> c;
+                if (c == ',') {                         // delimiter between map's pairs
+                    if (enclosed_container_level == 0)  // we should interrupt after delimiter
+                        break;
+                }
+                if (c == '{' || c == '[')  // case of enclosed maps / arrays
+                    ++enclosed_container_level;
+                if (c == '}' || c == ']') {
+                    if (enclosed_container_level == 0)
+                        break;  // end of map
+                    --enclosed_container_level;
+                }
+
+                value += c;  // accumulate current value
+            }
+            map.emplace(from_string<K>(key), from_string<T>(value));
         }
+
+        OPENVINO_ASSERT(c == '}', "Failed to parse std::map<K, T>. Ending symbols is not '}', it's ", c);
     }
 };
 
@@ -322,14 +352,14 @@ struct Write<std::map<K, T, C, A>> {
     void operator()(std::ostream& os, const std::map<K, T, C, A>& map) const {
         if (!map.empty()) {
             std::size_t i = 0;
+            os << '{';
             for (auto&& v : map) {
-                os << to_string(v.first);
-                os << ' ';
-                os << to_string(v.second);
+                os << to_string(v.first) << ':' << to_string(v.second);
                 if (i < (map.size() - 1))
-                    os << ' ';
+                    os << ',';
                 ++i;
             }
+            os << '}';
         }
     }
 };
@@ -913,8 +943,6 @@ public:
      */
     const void* addressof() const;
 };
-
-using AnyMap = std::map<std::string, Any>;
 
 using RTMap = AnyMap;
 

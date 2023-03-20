@@ -42,7 +42,8 @@ struct Config {
     bool exclusiveAsyncRequests = false;
     bool enableDynamicBatch = false;
     SnippetsMode snippetsMode = SnippetsMode::Enable;
-    std::string dumpToDot = "";
+    std::string dumpToDot = {};
+    std::string device_id = {};
     int batchLimit = 0;
     float fcSparseWeiDecompressionRate = 1.0f;
     size_t rtCacheCapacity = 5000ul;

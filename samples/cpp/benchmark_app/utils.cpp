@@ -107,13 +107,27 @@ std::vector<float> split_float(const std::string& s, char delim) {
     return result;
 }
 
+static const std::vector<std::string> meta_plugins{"MULTI", "HETERO", "AUTO"};
+bool is_virtual_device(const std::string& device_name) {
+    return std::find(meta_plugins.begin(), meta_plugins.end(), device_name) != meta_plugins.end();
+}
+
+bool is_virtual_device_found(const std::vector<std::string>& device_names) {
+    for (const auto& device_name : device_names) {
+        if (is_virtual_device(device_name)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 std::vector<std::string> parse_devices(const std::string& device_string) {
     std::string comma_separated_devices = device_string;
     auto colon = comma_separated_devices.find(":");
     std::vector<std::string> result;
     if (colon != std::string::npos) {
         auto target_device = comma_separated_devices.substr(0, colon);
-        if (target_device == "AUTO" || target_device == "MULTI") {
+        if (is_virtual_device(target_device)) {
             result.push_back(target_device);
         }
         auto bracket = comma_separated_devices.find("(");  // e.g. in BATCH:GPU(4)
@@ -137,8 +151,8 @@ void parse_value_for_virtual_device(const std::string& device, std::map<std::str
             // Remove the element that the key is virtual device MULTI
             // e.g. MULTI:xxx -nstreams 2 will set nstreams 2 to xxx.
             values_string.erase(item_virtual);
-        } else if (device == "AUTO") {
-            // Just keep the element that the key is virtual device AUTO
+        } else if ((device == "AUTO") || (device == "HETERO")) {
+            // Just keep the element that the key is virtual device AUTO/HETERO
             // e.g. AUTO:xxx,xxx -nstreams 2 will trigger exception that AUTO plugin didn't support nstream property.
             auto value = item_virtual->second;
             values_string.clear();
@@ -146,21 +160,90 @@ void parse_value_for_virtual_device(const std::string& device, std::map<std::str
             return;
         }
     }
+    std::stringstream ss;
     auto iter = values_string.begin();
     while (iter != values_string.end()) {
         if (iter->first == device) {
             iter++;
             continue;
         }
-        values_string[device] += iter->first + " " + iter->second + " ";
+        if (ss.str().empty())
+            ss << '{';
+        else
+            ss << ',';
+        ss << iter->first << ":" << iter->second;
         iter = values_string.erase(iter);
     }
-    if (values_string.find(device) != values_string.end()) {
-        auto& nstreams = values_string[device];
-        // Remove the space at the tail.
-        nstreams.pop_back();
+    if (!ss.str().empty()) {
+        ss << '}';
+        values_string[device] = ss.str();
     }
     return;
+}
+
+template <typename T>
+void update_device_config_for_virtual_device(const std::string& value,
+                                             ov::AnyMap& device_config,
+                                             ov::Property<T, ov::PropertyMutability::RW> property,
+                                             std::map<std::string, bool>& is_dev_set_property,
+                                             bool is_load_config) {
+    // check if the element contains the hardware device property
+    if (split(value, ':').size() == 1) {
+        device_config[property.name()] = value;
+    } else {
+        // set device nstreams properties in the AUTO/MULTI/HETERO plugin
+        std::stringstream strm(value);
+        std::map<std::string, std::string> devices_property;
+        ov::util::Read<std::map<std::string, std::string>>{}(strm, devices_property);
+        for (const auto& it : devices_property) {
+            const auto& device_name = it.first;
+            const auto& device_value = it.second;
+            if (device_config.find(ov::device::properties.name()) == device_config.end() ||
+                (is_load_config && is_dev_set_property[device_name])) {
+                // Create ov::device::properties with ov::num_stream/ov::inference_precision and
+                // 1. Insert this ov::device::properties into device config if this
+                // ov::device::properties isn't existed. Otherwise,
+                // 2. Replace the existed ov::device::properties within device config.
+                is_dev_set_property[device_name] = false;
+                device_config.erase(device_name);
+                device_config[ov::device::properties.name()] = ov::AnyMap{};
+                auto& secondary_property = device_config.at(ov::device::properties.name()).as<ov::AnyMap>();
+                secondary_property[device_name] = ov::AnyMap{{property.name(), device_value}};
+            } else {
+                auto& secondary_property = device_config.at(ov::device::properties.name()).as<ov::AnyMap>();
+                if (secondary_property.count(device_name)) {
+                    auto& device_property = secondary_property.at(device_name).as<ov::AnyMap>();
+                    device_property.emplace(property(device_value));
+                } else {
+                    secondary_property[device_name] = ov::AnyMap{{property.name(), device_value}};
+                }
+            }
+        }
+    }
+}
+
+void update_device_config_for_virtual_device(const std::string& value,
+                                             ov::AnyMap& device_config,
+                                             ov::Property<ov::streams::Num, ov::PropertyMutability::RW> property,
+                                             std::map<std::string, bool>& is_dev_set_property,
+                                             bool is_load_config) {
+    return update_device_config_for_virtual_device<ov::streams::Num>(value,
+                                                                     device_config,
+                                                                     property,
+                                                                     is_dev_set_property,
+                                                                     is_load_config);
+}
+
+void update_device_config_for_virtual_device(const std::string& value,
+                                             ov::AnyMap& device_config,
+                                             ov::Property<ov::element::Type, ov::PropertyMutability::RW> property,
+                                             std::map<std::string, bool>& is_dev_set_property,
+                                             bool is_load_config) {
+    return update_device_config_for_virtual_device<ov::element::Type>(value,
+                                                                      device_config,
+                                                                      property,
+                                                                      is_dev_set_property,
+                                                                      is_load_config);
 }
 
 std::map<std::string, std::string> parse_value_per_device(const std::vector<std::string>& devices,
@@ -691,27 +774,12 @@ void dump_config(const std::string& filename, const std::map<std::string, ov::An
     nlohmann::json jsonConfig;
     for (const auto& item : config) {
         std::string deviceName = item.first;
-        std::map<std::string, ov::AnyMap> device_properties;
         for (const auto& option : item.second) {
-            if (option.second.is<ov::AnyMap>()) {
-                // hw device properties
-                device_properties[option.first] = option.second.as<ov::AnyMap>();
-            } else {
-                // primary property
-                std::stringstream strm;
-                option.second.print(strm);
-                auto property_string = strm.str();
-                jsonConfig[deviceName][option.first] = property_string;
-            }
-            if (!device_properties.empty()) {
-                for (auto& item : device_properties) {
-                    auto hw_device_name = item.first;
-                    for (auto& property : item.second) {
-                        jsonConfig[deviceName]["DEVICE_PROPERTIES"][hw_device_name][property.first] =
-                            property.second.as<std::string>();
-                    }
-                }
-            }
+            // primary property
+            std::stringstream strm;
+            option.second.print(strm);
+            auto property_string = strm.str();
+            jsonConfig[deviceName][option.first] = property_string;
         }
     }
 
@@ -740,23 +808,7 @@ void load_config(const std::string& filename, std::map<std::string, ov::AnyMap>&
         const std::string& deviceName = item.key();
         const auto& itemValue = item.value();
         for (auto option = itemValue.cbegin(), itemValueEnd = itemValue.cend(); option != itemValueEnd; ++option) {
-            if (option.key() != "DEVICE_PROPERTIES") {
-                config[deviceName][option.key()] = option.value().get<std::string>();
-                continue;
-            }
-            const auto& optionValue = option.value();
-            for (auto hw_properties = optionValue.cbegin(), optionValueEnd = optionValue.cend();
-                 hw_properties != optionValueEnd;
-                 ++hw_properties) {
-                const std::string& hw_device_name = hw_properties.key();
-                std::map<std::string, ov::Any> hw_device_properties;
-                const auto& hw_propertiesValue = hw_properties.value();
-                for (auto property = hw_propertiesValue.cbegin(), hw_propertiesEnd = hw_propertiesValue.cend();
-                     property != hw_propertiesEnd;
-                     ++property)
-                    hw_device_properties[property.key()] = property.value().get<std::string>();
-                config[deviceName][hw_device_name] = hw_device_properties;
-            }
+            config[deviceName][option.key()] = option.value().get<std::string>();
         }
     }
 }

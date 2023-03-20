@@ -112,10 +112,8 @@ std::vector<std::string> disabledTestPatterns() {
         // CVS-71891
         R"(.*ReferenceTileTest.*rType=i4.*)",
         R"(.*ReferenceTileTest.*rType=u4.*)",
-        R"(.*DeviceID.*)",
         // CVS-95608
         R"(.*CachingSupportCase.*CompileModelCacheTestBase.*)",
-        R"(.*OVClassLoadNetworkTest.*QueryNetworkMULTIWithHETERONoThrow_V10.*)",
         // New plugin API doesn't support legacy NV12 I420 preprocessing
         R"(.*ConvertNV12WithLegacyTest.*)",
         R"(.*ConvertI420WithLegacyTest.*)",
