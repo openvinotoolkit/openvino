@@ -3,8 +3,10 @@
 //
 
 #include "dnnl_postops_composer.h"
+#include <oneapi/dnnl/dnnl_types.h>
 
 #include <common/primitive_attr.hpp>
+#include "utils/debug_capabilities.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -35,13 +37,14 @@ void DnnlPostOpsComposer::updateOutputScales() {
     if (oscale_mask == 0 && oscale_values[0] == 1.0f)
         return;
 
-    attr.set_output_scales(oscale_mask, {DNNL_RUNTIME_F32_VAL});
+    DEBUG_LOG("Set scales mask ", "DNNL_ARG: ", DNNL_ARG_DST, " mask: ", oscale_mask);
+    attr.set_scales_mask(DNNL_ARG_DST, oscale_mask);
 
     DnnlBlockedMemoryDesc memoryDesc(InferenceEngine::Precision::FP32, Shape({oscale_values.size()}));
     auto mem = std::make_shared<Memory>(engine);
     mem->Create(memoryDesc);
     memcpy(mem->GetPtr(), oscale_values.data(), oscale_values.size() * sizeof(float));
-    args[DNNL_ARG_ATTR_OUTPUT_SCALES] = mem;
+    args[DNNL_ARG_ATTR_SCALES | DNNL_ARG_DST] = mem;
 }
 
 void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vector<float>& data) {
@@ -50,6 +53,9 @@ void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vec
         IE_ASSERT(data.size() == OC);
         pdims = &dimsPerOC;
     }
+
+    DEBUG_LOG("Append binary post op with algorithm: ", convert_to_c(alg));
+
     DnnlBlockedMemoryDesc memoryDesc(InferenceEngine::Precision::FP32, Shape(*pdims));
     ops.append_binary(alg, memoryDesc.getDnnlDesc());
 
@@ -60,15 +66,16 @@ void DnnlPostOpsComposer::appendBinary(const dnnl::algorithm alg, const std::vec
     args[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = mem;
 }
 
-void DnnlPostOpsComposer::appendEltwise(float scale, const dnnl::algorithm alg, float alpha, float beta) {
-    ops.append_eltwise(scale, alg, alpha, beta);
+void DnnlPostOpsComposer::appendEltwise(const dnnl::algorithm alg, float alpha, float beta) {
+    DEBUG_LOG("Append eltwise post op with algorithm: ", convert_to_c(alg));
+    ops.append_eltwise(alg, alpha, beta);
 }
 
 void DnnlPostOpsComposer::appendRoundHTE() {
-    ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_round_half_to_even, 0, 0);
+    appendEltwise(dnnl::algorithm::eltwise_round_half_to_even, 0, 0);
 }
 
-bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool allowBinary) {
+bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool isLastPostOp, bool allowBinary) {
     IE_ASSERT(scale.size() == OC || scale.size() == 1);
     // there are so many possible optimizations can be done, for example:
     //
@@ -88,7 +95,7 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool allo
 
     // fuse into existing output scale (only when isINT8)
     bool can_fuse_into_oscale = false;
-    if (isINT8) {
+    if (isINT8 && isLastPostOp && scale.size() == 1) { // oneDNN v3.* limitation does not allow per-channel dst scales
         if (ops.len() == 0)
             can_fuse_into_oscale = true;
 
@@ -96,10 +103,8 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool allo
         // prelu(x)*s = prelu(x*s)
         if (ops.len() == 1) {
             auto& cur_op = ops.get()->entry_[0];
-            if (cur_op.kind == dnnl::impl::primitive_kind::eltwise && cur_op.eltwise.alg == dnnl_eltwise_relu) {
-                can_fuse_into_oscale = true;
-            }
-            if (cur_op.kind == dnnl::impl::primitive_kind::binary && cur_op.binary.alg == dnnl_binary_prelu) {
+            if ((cur_op.kind == dnnl::impl::primitive_kind::eltwise && cur_op.eltwise.alg == dnnl_eltwise_relu) ||
+                (cur_op.kind == dnnl::impl::primitive_kind::binary && cur_op.binary.alg == dnnl_binary_prelu)) {
                 can_fuse_into_oscale = true;
             }
         }
@@ -120,11 +125,12 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool allo
                 oscale_values.resize(scale.size(), oscale_values[0]);
             else
                 IE_ASSERT(oscale_values.size() == OC);
+
             for (int j = 0; j < OC; j++)
-                oscale_values[j] *= scale[j];
+                oscale_values[j] *= 1 / scale[j];
         } else {
             for (int j = 0; j < oscale_values.size(); j++)
-                oscale_values[j] *= scale[0];
+                oscale_values[j] *= 1 / scale[0];
         }
 
         if (oscale_values.size() == 1)
@@ -158,7 +164,7 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool allo
 
     // final fallback
     if (scale.size() == 1) {
-        ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, scale[0], 0);
+        appendEltwise(dnnl::algorithm::eltwise_linear, scale[0], 0);
     } else {
         // this check returns before committing any changes
         if (!allowBinary)
@@ -171,7 +177,7 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool allo
 bool DnnlPostOpsComposer::appendShift(const std::vector<float>& shift, bool allowBinary) {
     if (shift.size() == 1) {
         if (shift[0] != 0.0f) {
-            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, 1.0f, shift[0]);
+            appendEltwise(dnnl::algorithm::eltwise_linear, 1.0f, shift[0]);
         }
     } else {
         if (!allowBinary)
@@ -183,22 +189,23 @@ bool DnnlPostOpsComposer::appendShift(const std::vector<float>& shift, bool allo
 
 bool DnnlPostOpsComposer::appendLinear(const std::vector<float>& scale,
                                        const std::vector<float>& shift,
+                                       bool isLastPostOp,
                                        bool allowBinary) {
     if (scale.size() == 1 && shift.size() == 1) {
         if (shift[0] == 0.0f)
-            return appendScale(scale, allowBinary);
+            return appendScale(scale, isLastPostOp, allowBinary);
         else
-            ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_linear, scale[0], shift[0]);
+            appendEltwise(dnnl::algorithm::eltwise_linear, scale[0], shift[0]);
     } else {
         // return before committing any changes
         if (!allowBinary && shift.size() > 1)
             return false;
 
-        if (scale.size() > 0) {
-            if (!appendScale(scale, allowBinary))
+        if (!scale.empty()) {
+            if (!appendScale(scale, isLastPostOp && shift.empty(), allowBinary))
                 return false;
         }
-        if (shift.size() > 0) {
+        if (!shift.empty()) {
             if (!appendShift(shift, allowBinary))
                 return false;
         }
@@ -208,15 +215,15 @@ bool DnnlPostOpsComposer::appendLinear(const std::vector<float>& scale,
 
 void DnnlPostOpsComposer::appendClip(const std::vector<float>& low, const std::vector<float>& high) {
     if (low.size() == 1 && high.size() == 1) {
-        ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, low[0], high[0]);
+        appendEltwise(dnnl::algorithm::eltwise_clip, low[0], high[0]);
     } else if (low.size() == 1) {
         IE_ASSERT(high.size() == OC);
-        ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, low[0], std::numeric_limits<float>::max());
+        appendEltwise(dnnl::algorithm::eltwise_clip, low[0], std::numeric_limits<float>::max());
         if (high.size() > 0)
             appendBinary(dnnl::algorithm::binary_min, high);
     } else if (high.size() == 1) {
         IE_ASSERT(low.size() == OC);
-        ops.append_eltwise(1.0f, dnnl::algorithm::eltwise_clip, -std::numeric_limits<float>::max(), high[0]);
+        appendEltwise(dnnl::algorithm::eltwise_clip, -std::numeric_limits<float>::max(), high[0]);
         if (low.size() > 0)
             appendBinary(dnnl::algorithm::binary_max, low);
     } else {
