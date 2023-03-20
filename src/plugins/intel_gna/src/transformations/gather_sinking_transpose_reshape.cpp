@@ -133,7 +133,7 @@ NodePair SinkBackward(NodePtr transpose, std::shared_ptr<Constant> transpose_con
     ov::copy_runtime_info({transpose}, {gather, gather_indices, gather_axis, reshape_new, reshape_const_new});
     reshape_new->set_friendly_name(transpose->get_friendly_name());
 
-    return std::make_pair(transpose, reshape_new);
+    return std::make_pair(gather, reshape_new);
 }
 
 bool AreFlattenShapes(const Shape& shape1, const Shape& shape2) {
