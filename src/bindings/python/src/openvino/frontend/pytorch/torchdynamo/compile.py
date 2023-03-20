@@ -21,8 +21,14 @@ def openvino_compile(gm: GraphModule, *args):
     fe_manager = FrontEndManager()
     fe = fe_manager.load_by_framework('pytorch')
 
+    input_shapes = []
+    input_types = []
+    for idx, input_data in enumerate(args): #subgraph.example_inputs):
+        input_types.append(input_data.type())
+        input_shapes.append(input_data.size())
+
     print("type(gm): ", type(gm))
-    decoder = TorchFXPythonDecoder(gm, gm)
+    decoder = TorchFXPythonDecoder(gm, gm, input_shapes=input_shapes, input_types=input_types)
 
     print("@@Executing fe.load(decoder)")
     im = fe.load(decoder)

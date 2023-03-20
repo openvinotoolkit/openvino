@@ -36,6 +36,7 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
     auto getitem = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
+
         auto getitem = cast_fw_node(m.get_match_root(), "aten::__getitem__");
         if (!getitem)
             return false;
