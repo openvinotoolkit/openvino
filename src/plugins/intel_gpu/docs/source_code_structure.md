@@ -1,7 +1,8 @@
 # GPU plugin structure
 
 Historically GPU plugin was built on top of standalone [clDNN library](https://github.com/intel/clDNN) for DNNs inference on Intel® GPUs,
-but at some point clDNN became a part of OpenVINO, so now it's a part of overall GPU plugin code.
+but at some point clDNN became a part of OpenVINO, so now it's a part of overall GPU plugin code. Intel® Arc™ Graphics Xe-HPG is supported
+via embedding of [oneDNN library](https://github.com/oneapi-src/oneDNN) 
 
 OpenVINO GPU plugin is responsible for:
  1. [IE Plugin API](https://docs.openvino.ai/latest/openvino_docs_ie_plugin_dg_overview.html) implementation.
