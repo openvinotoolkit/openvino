@@ -55,7 +55,7 @@ The method returns variable states from the model.
 
 The method calls actual pipeline stages synchronously. Inside the method plugin should check input/output tensors, move external tensors to backend and run the inference.
 
-@snippet src/sync_infer_request.cpp infer_request:infer_impl
+@snippet src/sync_infer_request.cpp infer_request:infer
 
 #### 1. infer_preprocess()
 
