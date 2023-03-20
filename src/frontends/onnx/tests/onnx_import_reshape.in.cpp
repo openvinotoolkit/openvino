@@ -242,7 +242,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_crd) {
                                                                         "onnx/depth_to_space_crd.onnx"));
 
     std::vector<float> input(32);
-    std::iota(input.begin(), input.end(), 0);
+    std::iota(input.begin(), input.end(), 0.f);
 
     std::vector<float> expected_output{0.f,  4.f,  1.f,  5.f,  8.f,  12.f, 9.f,  13.f, 2.f,  6.f,  3.f,
                                        7.f,  10.f, 14.f, 11.f, 15.f, 16.f, 20.f, 17.f, 21.f, 24.f, 28.f,

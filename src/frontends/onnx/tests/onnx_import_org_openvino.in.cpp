@@ -190,7 +190,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm) {
     Shape shape{2, 8, 2, 2};
     int size = shape_size(shape);
     std::vector<float> data(size);
-    std::iota(data.begin(), data.end(), 0);
+    std::iota(data.begin(), data.end(), 0.f);
     std::vector<float> output = {
         -0.52752507f, -0.09108937f, 0.3453464f, 0.78178215f, 2.4364357f, 3.309307f,  4.1821785f, 5.05505f,
         -1.5825753f,  -0.27326822f, 1.0360391f, 2.3453465f,  4.8728714f, 6.618614f,  8.364357f,  10.1101f,
