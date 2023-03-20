@@ -238,6 +238,22 @@ TEST_P(ov_core_test, ov_core_set_property_enum_invalid) {
     OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
     EXPECT_STRNE(invalid_mode, ret);
     ov_free(ret);
+
+    const char* key_ht = ov_property_key_hint_use_hyper_threading;
+    const char* val_ht = "YES";
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key_ht, val_ht));
+    ret = nullptr;
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key_ht, &ret));
+    EXPECT_STREQ(val_ht, ret);
+    ov_free(ret);
+
+    const char* invalid_val = "INVALID_VAL";
+    OV_EXPECT_NOT_OK(ov_core_set_property(core, device_name.c_str(), key_ht, invalid_val));
+    ret = nullptr;
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key_ht, &ret));
+    EXPECT_STRNE(invalid_val, ret);
+    ov_free(ret);
+
     ov_core_free(core);
 }
 
@@ -253,6 +269,14 @@ TEST_P(ov_core_test, ov_core_set_and_get_property_enum) {
     char* ret = nullptr;
     OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key, &ret));
     EXPECT_STREQ(affinity, ret);
+    ov_free(ret);
+
+    const char* key_ht = ov_property_key_hint_use_hyper_threading;
+    const char* val_ht = "YES";
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key_ht, val_ht));
+    ret = nullptr;
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key_ht, &ret));
+    EXPECT_STREQ(val_ht, ret);
     ov_free(ret);
 
     ov_core_free(core);

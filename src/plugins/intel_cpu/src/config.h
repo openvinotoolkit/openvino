@@ -48,7 +48,7 @@ struct Config {
     size_t rtCacheCapacity = 5000ul;
     InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
     InferenceEngine::PerfHintsConfig  perfHintsConfig;
-    bool use_ht_value = false;
+    bool use_ht_value = true;
     bool use_ht_changed = false;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;

@@ -21,7 +21,7 @@ namespace intel_cpu {
  * @param[in]  proc_type_table candidate processors available at this time
  * @return     updated proc_type_table which removed unmatched processors
  */
-std::vector<std::vector<int>> apply_hyper_threading(const bool input_type,
+std::vector<std::vector<int>> apply_hyper_threading(bool input_type,
                                                     const bool input_changed,
                                                     const std::vector<std::vector<int>> proc_type_table);
 

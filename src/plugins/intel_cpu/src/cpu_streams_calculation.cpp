@@ -17,7 +17,7 @@ using namespace InferenceEngine;
 namespace ov {
 namespace intel_cpu {
 
-std::vector<std::vector<int>> apply_hyper_threading(const bool input_value,
+std::vector<std::vector<int>> apply_hyper_threading(bool input_value,
                                                     const bool input_changed,
                                                     const std::vector<std::vector<int>> proc_type_table) {
     std::vector<std::vector<int>> result_table = proc_type_table;
@@ -28,6 +28,7 @@ std::vector<std::vector<int>> apply_hyper_threading(const bool input_value,
             i[ALL_PROC] -= i[HYPER_THREADING_PROC];
             i[HYPER_THREADING_PROC] = 0;
         }
+        input_value = false;
     }
 
     return result_table;
