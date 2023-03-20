@@ -4,6 +4,7 @@
 
 #include "common_op_table.hpp"
 #include "openvino/opsets/opset10.hpp"
+#include "utils.hpp"
 
 using namespace std;
 using namespace ov;
@@ -19,7 +20,7 @@ OutputVector translate_l2_loss_op(const NodeContext& node) {
     default_op_checks(node, 1, {"L2Loss"});
     auto input = node.get_input(0);
 
-    auto const_two = make_shared<Constant>(input.get_element_type(), Shape{}, 2);
+    auto const_two = create_same_type_const_scalar<float>(input, 2);
     auto squared_input = make_shared<Power>(input, const_two);
 
     auto input_rank = compute_subgraph_scalar_rank(input, element::i32, true);
