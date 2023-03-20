@@ -11,6 +11,8 @@
    Implement Compiled Model Functionality <openvino_docs_ov_plugin_dg_compiled_model>
    Implement Synchronous Inference Request <openvino_docs_ov_plugin_dg_infer_request>
    Implement Asynchronous Inference Request <openvino_docs_ie_plugin_dg_async_infer_request>
+   Implement Remote Context <openvino_docs_ov_plugin_dg_remote_context>
+   Implement Remote Tensor <openvino_docs_ov_plugin_dg_remote_tensor>
    openvino_docs_ov_plugin_dg_plugin_build
    openvino_docs_ov_plugin_dg_plugin_testing
    openvino_docs_ie_plugin_detailed_guides
@@ -33,7 +35,7 @@ OpenVINO plugin dynamic library consists of several main components:
     which is backend-independent.
     - Can import an already compiled graph structure from an input stream to an 
     [compiled model](@ref openvino_docs_ov_plugin_dg_compiled_model) object.
-2. [Compiled Modek class](@ref openvino_docs_ov_plugin_dg_compiled_model):
+2. [Compiled Model class](@ref openvino_docs_ov_plugin_dg_compiled_model):
     - Is an execution configuration compiled for a particular device and takes into account its capabilities.
     - Holds a reference to a particular device and a task executor for this device.
     - Can create several instances of [Inference Request](@ref openvino_docs_ov_plugin_dg_infer_request).
