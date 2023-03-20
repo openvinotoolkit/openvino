@@ -40,7 +40,7 @@ class CommonLayerTest:
         os.environ['MO_ENABLED_TRANSFORMS'] = enabled_transforms
         os.environ['MO_DISABLED_TRANSFORMS'] = disabled_transforms
 
-        compress_to_fp16 = False if 'precision' == 'FP32' else False
+        compress_to_fp16 = False if 'precision' == 'FP32' else True
         mo_params = {self.input_model_key: model_path,
                      "output_dir": temp_dir,
                      "compress_to_fp16": compress_to_fp16,
