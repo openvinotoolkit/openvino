@@ -32,13 +32,13 @@ void generate_axes_range_except_c(const Output<Node>& x_rank, bool is_nhwc, Outp
 }
 
 void adjust_coeff(const Output<Node>& x_rank,
-                  element::Type x_type,
+                  const Output<Node>& x,
                   const Output<Node>& coeff,
                   Output<Node>& adjusted_coeff,
                   bool is_nhwc) {
     // adjust types of the normalizing coefficients
     // they can vary for FusedBatchNormV2 and FusedBatchNormV3 operations
-    adjusted_coeff = make_shared<Convert>(coeff, x_type)->output(0);
+    adjusted_coeff = make_shared<ConvertLike>(coeff, x)->output(0);
 
     if (is_nhwc) {
         return;
@@ -81,7 +81,7 @@ void compute_batch_mean_and_variance(const Output<Node>& x,
     auto gather_axis = make_shared<Constant>(element::i32, Shape{}, 0);
     auto needed_dim_values = make_shared<Gather>(x_shape, reduce_axes, gather_axis);
     auto n = make_shared<ReduceProd>(needed_dim_values, gather_axis, false)->output(0);
-    n = make_shared<Convert>(n, batch_variance.get_element_type())->output(0);
+    n = make_shared<ConvertLike>(n, batch_variance)->output(0);
     auto const_one = create_same_type_const_scalar<float>(batch_variance, 1);
     auto bessel_correction = make_shared<Subtract>(n, const_one)->output(0);
     bessel_correction = make_shared<Divide>(n, bessel_correction);
@@ -155,10 +155,10 @@ void compute_fused_batch_norm_inference(const NodeContext& node,
     // adjust normalizing coefficients: scale, offset, mean, and variance
     auto x_rank = compute_subgraph_scalar_rank(x, element::i32, true);
     Output<Node> adjusted_scale, adjusted_offset, adjusted_mean, adjusted_variance;
-    adjust_coeff(x_rank, x.get_element_type(), scale, adjusted_scale, is_nhwc);
-    adjust_coeff(x_rank, x.get_element_type(), offset, adjusted_offset, is_nhwc);
-    adjust_coeff(x_rank, x.get_element_type(), mean, adjusted_mean, is_nhwc);
-    adjust_coeff(x_rank, x.get_element_type(), variance, adjusted_variance, is_nhwc);
+    adjust_coeff(x_rank, x, scale, adjusted_scale, is_nhwc);
+    adjust_coeff(x_rank, x, offset, adjusted_offset, is_nhwc);
+    adjust_coeff(x_rank, x, mean, adjusted_mean, is_nhwc);
+    adjust_coeff(x_rank, x, variance, adjusted_variance, is_nhwc);
 
     // perform the main part of the transformation
     // 1. subtract mean from the input
@@ -197,8 +197,8 @@ void compute_fused_batch_norm_training(const NodeContext& node,
     // adjust normalizing coefficients: scale, offset
     auto x_rank = compute_subgraph_scalar_rank(x, element::i32, true);
     Output<Node> adjusted_scale, adjusted_offset;
-    adjust_coeff(x_rank, x.get_element_type(), scale, adjusted_scale, is_nhwc);
-    adjust_coeff(x_rank, x.get_element_type(), offset, adjusted_offset, is_nhwc);
+    adjust_coeff(x_rank, x, scale, adjusted_scale, is_nhwc);
+    adjust_coeff(x_rank, x, offset, adjusted_offset, is_nhwc);
 
     // generate axes for MVN operations
     Output<Node> mvn_axes;
