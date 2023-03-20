@@ -1,12 +1,16 @@
 # Model Accuracy {#openvino_docs_performance_int8_vs_fp32}
 
-The following table presents the absolute accuracy drop calculated as the accuracy difference between FP32 and INT8 representations of a model on two platforms
+
+@sphinxdirective
+
+The following table presents the absolute accuracy drop calculated as the accuracy difference 
+between FP32 and INT8 representations of a model on two platforms.
 
 * A - Intel® Core™ i9-9000K (AVX2)
 * B - Intel® Xeon® 6338, (VNNI)
 * C - Intel® Flex-170
 
-@sphinxdirective
+
 .. list-table:: Model Accuracy
    :header-rows: 1
 
