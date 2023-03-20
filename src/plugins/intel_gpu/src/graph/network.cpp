@@ -405,7 +405,7 @@ network::network(cldnn::BinaryInputBuffer& ib, const ExecutionConfig& config, st
         ib >> *p_inst;
         _primitives[p_inst->id()] = p_inst;
         if (p_inst->get_impl() != nullptr)
-            p_inst->init_kernels(kernels_cache);
+            p_inst->set_kernels_for_serialization(kernels_cache);
     }
 
     for (auto& item : _primitives) {
@@ -516,11 +516,11 @@ network::~network() {
 //     [ memory reuse information ]
 void network::save(cldnn::BinaryOutputBuffer& ob) {
     kernels_cache kernels_cache(get_engine(), _config, 0, nullptr, {""});
-    // TODO fix issue
-    // for (const auto& p_inst : _exec_order) {
-    //     if (p_inst->get_impl() != nullptr)
-    //         kernels_cache.add_kernels(p_inst->get_impl()->get_kernel_ids(), p_inst->get_impl()->get_kernels());
-    // }
+    for (const auto& p_inst : _exec_order) {
+        if (p_inst->get_impl() != nullptr) {
+            kernels_cache.add_kernels_for_serialization(p_inst->get_impl()->get_kernels_for_serialization());
+        }
+    }
     ob << kernels_cache;
 
     int num_data_nodes = 0;

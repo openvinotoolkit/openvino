@@ -82,6 +82,7 @@ private:
     std::atomic<bool> _pending_compilation{false};
     compiled_kernels _kernels;
     std::vector<std::string> batch_header_str;
+    std::unordered_map<size_t, kernel::ptr> _kernels_for_serialization;
 
     void get_program_source(const kernels_code& kernels_source_code, std::vector<batch_program>*) const;
     void build_batch(const engine& build_engine, const batch_program& batch, compiled_kernels& compiled_kernels);
@@ -114,7 +115,9 @@ public:
                                 std::vector<std::shared_ptr<kernel_string>> kernel_sources,
                                 bool dump_custom_program = false);
 
-    void add_kernels(const std::vector<std::string>& kernel_ids, const std::vector<kernel::ptr>& kernels);
+    void add_kernels_for_serialization(std::vector<std::pair<size_t, kernel::ptr>> dump_kernels);
+    kernel::ptr get_kernels_for_serialization(size_t kernel_hash) const;
+
     void save(BinaryOutputBuffer& ob) const;
     void load(BinaryInputBuffer& ib);
 };

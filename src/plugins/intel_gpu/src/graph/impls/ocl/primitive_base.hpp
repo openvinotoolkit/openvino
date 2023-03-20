@@ -33,6 +33,7 @@ template <class PType>
 struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     kernel_selector::kernel_data _kernel_data;
     std::vector<kernel::ptr> _kernels;
+    mutable std::vector<size_t> _kernel_hash_for_serializations;
 
     typed_primitive_impl_ocl() :  _kernel_data({}), _kernels({}) {
         _kernel_data.weightsReorderParams.engine = kernel_selector::generic_kernel_params::Engine::NONE;
@@ -72,12 +73,14 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
         ob << make_data(&_kernel_data.internalBufferDataType, sizeof(kernel_selector::Datatype));
         ob << _kernel_data.internalBufferSizes;
         ob << _kernel_data.kernels;
+        ob << _kernel_hash_for_serializations;
     }
 
     void load(BinaryInputBuffer& ib) override {
         ib >> make_data(&_kernel_data.internalBufferDataType, sizeof(kernel_selector::Datatype));
         ib >> _kernel_data.internalBufferSizes;
         ib >> _kernel_data.kernels;
+        ib >> _kernel_hash_for_serializations;
     }
 
     template<typename ImplType>
@@ -142,8 +145,22 @@ protected:
         }
     }
 
-    std::vector<kernel::ptr> get_kernels() const override {
-        return _kernels;
+    std::vector<std::pair<size_t, kernel::ptr>> get_kernels_for_serialization() const override {
+        std::vector<std::pair<size_t, kernel::ptr>> dump_kernels;
+        for (size_t idx = 0; idx < _kernel_data.kernels.size(); idx++) {
+            size_t kernel_hash = _kernel_data.kernels[idx].code.kernelString->get_hash();
+            _kernel_hash_for_serializations.push_back(kernel_hash);
+            dump_kernels.push_back(std::make_pair(_kernel_hash_for_serializations[idx], _kernels[idx]));
+        }
+        return dump_kernels;
+    }
+
+    void set_kernels_for_serialization(const kernels_cache& cache) override {
+        for (size_t idx = 0; idx < _kernel_hash_for_serializations.size(); idx++) {
+            size_t hash = _kernel_hash_for_serializations[idx];
+            auto kernel_ptr = cache.get_kernels_for_serialization(hash);
+            _kernels.push_back(kernel_ptr);
+        }
     }
 
     std::vector<layout> get_internal_buffer_layouts_impl() const override {
