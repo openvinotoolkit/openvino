@@ -108,7 +108,7 @@ auto multiConfigs = []() {
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassSetDevicePriorityConfigTest, OVClassSetDevicePriorityConfigTest,
-        ::testing::Combine(::testing::Values("MULTI", "AUTO"),
+        ::testing::Combine(::testing::Values("MULTI", "AUTO", "HETERO"),
                            ::testing::ValuesIn(multiConfigs())));
 //
 // GPU specific metrics
@@ -752,7 +752,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_OVClassLoadNetworkWithCorrectSecondaryPropertiesT
 
 INSTANTIATE_TEST_SUITE_P(smoke_AUTO_OVClassLoadNetworkWithCorrectSecondaryPropertiesTest,
                          OVClassLoadNetworkWithCorrectPropertiesTest,
-                         ::testing::Combine(::testing::Values("AUTO:GPU", "MULTI:GPU"),
+                         ::testing::Combine(::testing::Values("AUTO:GPU", "MULTI:GPU", "HETERO:GPU"),
                                             ::testing::ValuesIn(gpuCorrectConfigsWithSecondaryProperties())));
 
 auto autoCorrectConfigs = []() {

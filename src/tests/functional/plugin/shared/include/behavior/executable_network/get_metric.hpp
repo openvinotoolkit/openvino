@@ -331,15 +331,10 @@ TEST_P(IEClassHeteroExecutableNetworkGetMetricTest_SUPPORTED_METRICS, GetMetricN
     }
     ASSERT_LT(0, heteroMetricValues.size());
 
-    const std::vector<std::string> heteroSpecificMetrics = {
-            METRIC_KEY(SUPPORTED_METRICS),
-            METRIC_KEY(SUPPORTED_CONFIG_KEYS)
-    };
-
-    // check that all device metric values are present in hetero case
+    // check that all device metric values are unavailable in hetero case
     for (auto &&deviceMetricName : deviceMetricValues) {
         auto it = std::find(heteroMetricValues.begin(), heteroMetricValues.end(), deviceMetricName);
-        if (it == heteroMetricValues.end()) {
+        if ((it == heteroMetricValues.end()) && (deviceMetricName != "SUPPORTED_PROPERTIES")) {
             ASSERT_THROW(InferenceEngine::Parameter heteroMetricValue = heteroExeNetwork.GetMetric(deviceMetricName), InferenceEngine::Exception);
         }
     }

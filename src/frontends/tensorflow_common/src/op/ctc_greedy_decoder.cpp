@@ -4,6 +4,7 @@
 
 #include "common_op_table.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "utils.hpp"
 
 using namespace std;
 using namespace ov;
@@ -37,7 +38,7 @@ OutputVector translate_ctc_greedy_decoder_op(const NodeContext& node) {
         ctc_greedy_decoder =
             make_shared<CTCGreedyDecoderSeqLen>(inputs, sequence_length, merge_repeated, element::i64, element::i64);
     } else {
-        auto blank_index_const = make_shared<Constant>(sequence_length.get_element_type(), Shape{}, blank_index);
+        auto blank_index_const = create_same_type_const_scalar<int64_t>(sequence_length, blank_index);
         ctc_greedy_decoder = make_shared<CTCGreedyDecoderSeqLen>(inputs,
                                                                  sequence_length,
                                                                  blank_index_const,
@@ -48,7 +49,7 @@ OutputVector translate_ctc_greedy_decoder_op(const NodeContext& node) {
 
     // CTCGreedyDecoderSeqLen returns dense tensor holding the decoded results.
     // We need to transform this output into a sparse format.
-    auto minus_one_const = make_shared<Constant>(ctc_greedy_decoder->output(0).get_element_type(), Shape{}, -1);
+    auto minus_one_const = make_shared<Constant>(element::i64, Shape{}, -1);
     auto decoded_mask = make_shared<NotEqual>(ctc_greedy_decoder->output(0), minus_one_const);
     auto decoded_indices = make_shared<NonZero>(decoded_mask, element::i64)->output(0);
 
