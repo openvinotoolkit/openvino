@@ -43,10 +43,6 @@ public:
         return offsetPaddingToData;
     }
 
-    size_t getOffsetPadding() const override {
-        return DnnlExtensionUtils::convertToDim(desc.get()->offset0);
-    }
-
     const VectorDims& getStrides() const override {
         return strides;
     }
@@ -68,9 +64,6 @@ public:
     using DnnlMemoryDesc::setPrecision;
     using DnnlMemoryDesc::getPrecision;
 
-    explicit DnnlBlockedMemoryDesc(const dnnl::memory::desc& mdesc);
-    explicit DnnlBlockedMemoryDesc(const_dnnl_memory_desc_t cdesc);
-
 private:
     DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, const Shape& shape, const VectorDims& blockedDims,
                           const VectorDims& order, size_t offsetPadding = 0, const VectorDims& offsetPaddingToData = {},
@@ -80,6 +73,8 @@ private:
     // the mdesc own shape is ignored. The main purpose of this constructor is making dynamic descriptor from some dummy mdesc, which stores info about
     // layout, blocking, strides, etc., and the provided dynamic shape.
     DnnlBlockedMemoryDesc(const dnnl::memory::desc& mdesc, const Shape& shape);
+
+    explicit DnnlBlockedMemoryDesc(const_dnnl_memory_desc_t cdesc);
 
     MemoryDescPtr cloneWithNewDimsImp(const VectorDims& dims) const override;
 
@@ -101,7 +96,7 @@ private:
 
     void recomputeDefaultStrides();
 
-    friend DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const dnnl::memory::desc &desc);
+    friend DnnlMemoryDescPtr DnnlExtensionUtils::makeDescriptor(const_dnnl_memory_desc_t desc);
     friend std::shared_ptr<DnnlBlockedMemoryDesc> DnnlExtensionUtils::makeUndefinedDesc(const dnnl::memory::desc &desc, const Shape& shape);
     friend class MemoryDescUtils;
 };

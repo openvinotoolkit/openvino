@@ -39,7 +39,7 @@ The provided plugin class also has several fields:
 As an example, a plugin configuration has three value parameters:
 
 - `device_id` - particular device ID to work with. Applicable if a plugin supports more than one `Template` device. In this case, some plugin methods, like `set_property`, `query_model`, and `compile_model`, must support the ov::device::id property. 
-- `perf_counts` - boolean value to identify whether to collect performance counters during [Inference Request](@ref openvino_docs_ie_plugin_dg_infer_request) execution.
+- `perf_counts` - boolean value to identify whether to collect performance counters during [Inference Request](@ref openvino_docs_ov_plugin_dg_infer_request) execution.
 - `streams_executor_config` - configuration of `ov::threading::IStreamsExecutor` to handle settings of multi-threaded context.
 - `performance_mode` - configuration of `ov::hint::PerformanceMode` to set the performance mode.
 

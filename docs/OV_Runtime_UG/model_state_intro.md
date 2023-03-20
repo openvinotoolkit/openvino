@@ -1,4 +1,4 @@
-# Stateful models {#openvino_docs_OV_UG_network_state_intro}
+# Stateful models {#openvino_docs_OV_UG_model_state_intro}
 
 @sphinxdirective
 
@@ -11,22 +11,22 @@
 
 
 Several use cases require processing of data sequences. When length of a sequence is known and small enough, 
-it can be processed with RNN like networks that contain a cycle inside. However, in some cases (e.g., online speech recognition of time series 
+it can be processed with RNN like models that contain a cycle inside. However, in some cases (e.g., online speech recognition of time series 
 forecasting) length of data sequence is unknown. Then, data can be divided in small portions and processed step-by-step. The dependency 
-between data portions should be addressed. For that, networks save some data between inferences - a state. When one dependent sequence is over,
+between data portions should be addressed. For that, models save some data between inferences - a state. When one dependent sequence is over,
 a state should be reset to initial value and a new sequence can be started.
 
-Several frameworks have special APIs for states in networks. For example, Keras has ``stateful`` - a special option for RNNs, that turns on saving a state between inferences. Kaldi contains special ``Offset`` specifier to define time offset in a network.
+Several frameworks have special APIs for states in model. For example, Keras has ``stateful`` - a special option for RNNs, that turns on saving a state between inferences. Kaldi contains special ``Offset`` specifier to define time offset in a model.
 
-OpenVINO also contains a special API to simplify work with networks with states. A state is automatically saved between inferences, 
+OpenVINO also contains a special API to simplify work with models with states. A state is automatically saved between inferences, 
 and there is a way to reset a state when needed. A state can also be read or set to some new value between inferences.
 
 OpenVINO State Representation
 #############################
 
-OpenVINO contains the ``Variable``, a special abstraction to represent a state in a network. There are two operations: :doc:`Assign <openvino_docs_ops_infrastructure_Assign_3>` - to save a value in a state and :doc:`ReadValue <openvino_docs_ops_infrastructure_ReadValue_3>` - to read a value saved on previous iteration.
+OpenVINO contains the ``Variable``, a special abstraction to represent a state in a model. There are two operations: :doc:`Assign <openvino_docs_ops_infrastructure_Assign_3>` - to save a value in a state and :doc:`ReadValue <openvino_docs_ops_infrastructure_ReadValue_3>` - to read a value saved on previous iteration.
 
-To get a model with states ready for inference, convert a model from another framework to OpenVINO IR with Model Optimizer or create an nGraph function. 
+To get a model with states ready for inference, convert a model from another framework to OpenVINO IR with Model Optimizer or create an OpenVINO model. 
 (For more information, refer to the :doc:`Build OpenVINO Model section <openvino_docs_OV_UG_Model_Representation>`). 
 
 Below is the graph in both forms:
@@ -47,7 +47,7 @@ The ``bin`` file for this graph should contain ``float 0`` in binary form. The c
    .. code-block:: xml
 
       <?xml version="1.0" ?>
-      <net name="summator" version="10">
+      <net name="summator" version="11">
         <layers>
           <layer id="0" name="init_value" type="Const" version="opset6">
             <data element_type="f32" offset="0" shape="1,1" size="4"/>
@@ -154,65 +154,44 @@ The ``bin`` file for this graph should contain ``float 0`` in binary form. The c
       </net>
 
 
-Example of Creating Model nGraph API
-++++++++++++++++++++++++++++++++++++
+Example of Creating Model OpenVINO API
+++++++++++++++++++++++++++++++++++++++++
 
-In the following example, the ``SinkVector`` is used to create the `ngraph::Function <classngraph.html#doxid-classngraph-1a14d7fe7c605267b52c145579e12d2a5f>`__. For a network with states, except inputs and outputs, the ``Assign`` nodes should also point to the ``Function`` to avoid deleting it during graph transformations. Use the constructor to do it, as shown in the example, or with the special ``add_sinks(const SinkVector& sinks)`` method. After deleting the node from the graph with the ``delete_sink()`` method, a sink can be deleted from ``ngraph::Function``.
+In the following example, the ``SinkVector`` is used to create the ``ov::Model``. For a model with states, except inputs and outputs, the ``Assign`` nodes should also point to the ``Model`` to avoid deleting it during graph transformations. Use the constructor to do it, as shown in the example, or with the special ``add_sinks(const SinkVector& sinks)`` method. After deleting the node from the graph with the ``delete_sink()`` method, a sink can be deleted from ``ov::Model``.
 
-.. code-block:: cpp
-
-   #include <ngraph/opsets/opset6.hpp>
-   #include <ngraph/op/util/variable.hpp>
-   // ...
-
-   auto arg = make_shared<ngraph::opset6::Parameter>(element::f32, Shape{1, 1});
-   auto init_const = ngraph::opset6::Constant::create(element::f32, Shape{1, 1}, {0});
-
-   // The ReadValue/Assign operations must be used in pairs in the network.
-   // For each such a pair, its own variable object must be created.
-   const std::string variable_name("variable0");
-   auto variable = std::make_shared<ngraph::Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, variable_name});
-
-   // Creating ngraph::function
-   auto read = make_shared<ngraph::opset6::ReadValue>(init_const, variable);
-   std::vector<shared_ptr<ngraph::Node>> args = {arg, read};
-   auto add = make_shared<ngraph::opset6::Add>(arg, read);
-   auto assign = make_shared<ngraph::opset6::Assign>(add, variable);
-   auto add2 = make_shared<ngraph::opset6::Add>(add, read);
-   auto res = make_shared<ngraph::opset6::Result>(add2);
-
-   auto f = make_shared<Function>(ResultVector({res}), ParameterVector({arg}), SinkVector({assign}));
-
+.. doxygensnippet:: docs/snippets/ov_model_with_state_infer.cpp
+   :language: cpp
+   :fragment: [model_create]
 
 .. _openvino-state-api:
 
 OpenVINO State API
 ####################
 
-Inference Engine has the ``InferRequest::QueryState`` method to get the list of states from a network and ``IVariableState`` interface to operate with states. Below is a brief description of methods and the example of how to use this interface.
+OpenVINO has the ``InferRequest::query_state`` method to get the list of states from a model and ``ov::IVariableState`` interface to operate with states. Below is a brief description of methods and the example of how to use this interface.
 
-* ``std::string GetName() const`` - returns the name (variable_id) of a corresponding Variable.
-* ``void Reset()`` - resets a state to a default value.
-* ``void SetState(Blob::Ptr newState)`` - sets a new value for a state.
-* ``Blob::CPtr GetState() const`` - returns current value of state.
+* ``std::string get_name() const`` - returns the name (variable_id) of a corresponding Variable.
+* ``void reset()`` - resets a state to a default value.
+* ``void set_state(const ov::Tensor& state)`` - sets a new value for a state.
+* ``const ov::Tensor& get_state() const`` - returns current value of state.
 
 
-.. _example-of-stateful-network-inference:
+.. _example-of-stateful-model-inference:
 
-Example of Stateful Network Inference
+Example of Stateful Model Inference
 #####################################
 
 Based on the IR from the previous section, the example below demonstrates inference of two independent sequences of data. A state should be reset between these sequences.
 
-One infer request and one thread will be used in this example. Using several threads is possible if there are several independent sequences. Then, each sequence can be processed in its own infer request. Inference of one sequence in several infer requests is not recommended. In one infer request, a state will be saved automatically between inferences, but if the first step is done in one infer request and the second in another, a state should be set in a new infer request manually (using the ``IVariableState::SetState`` method).
+One infer request and one thread will be used in this example. Using several threads is possible if there are several independent sequences. Then, each sequence can be processed in its own infer request. Inference of one sequence in several infer requests is not recommended. In one infer request, a state will be saved automatically between inferences, but if the first step is done in one infer request and the second in another, a state should be set in a new infer request manually (using the ``ov::IVariableState::set_state`` method).
 
 
-.. doxygensnippet:: docs/snippets/InferenceEngine_network_with_state_infer.cpp
+.. doxygensnippet:: docs/snippets/ov_model_with_state_infer.cpp
    :language: cpp
    :fragment: [part1]
 
 
-For more elaborate examples demonstrating how to work with networks with states, 
+For more elaborate examples demonstrating how to work with models with states, 
 refer to the speech sample and a demo in the :doc:`Samples Overview <openvino_docs_OV_UG_Samples_Overview>`.
 
 LowLatency Transformations

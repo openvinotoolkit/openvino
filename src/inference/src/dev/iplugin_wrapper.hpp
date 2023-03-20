@@ -80,7 +80,7 @@ public:
      *
      * @return Remote context
      */
-    ov::RemoteContext create_context(const ov::AnyMap& remote_properties) const override;
+    std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override;
 
     /**
      * @brief Create default remote context
@@ -89,7 +89,7 @@ public:
      *
      * @return Remote context
      */
-    ov::RemoteContext get_default_context(const ov::AnyMap& remote_properties) const override;
+    std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override;
 
     /**
      * @brief Import model to the plugin
