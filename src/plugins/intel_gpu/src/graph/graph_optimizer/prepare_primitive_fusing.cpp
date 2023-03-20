@@ -700,14 +700,17 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (_lo.get_optimization_attributes().use_onednn_impls) {
                 if (input.is_type<reshape>() || input.is_type<concatenation>())
                     return;
-                #ifdef ENABLE_ONEDNN_FOR_GPU
-                // Activation should not fused if it isn't supported in onednn
-                try {
-                    onednn::convert_activation_func(activation_node.get_primitive()->activation_function);
-                } catch (...) {
-                    return;
+
+                // Activation should not be fused if oneDNN does NOT support it
+                if (_lo.is_primitive_implemented_for_onednn(input))  {
+                    #ifdef ENABLE_ONEDNN_FOR_GPU
+                    try {
+                        onednn::convert_activation_func(activation_node.get_primitive()->activation_function);
+                    } catch (...) {
+                        return;
+                    }
+                    #endif
                 }
-                #endif
             }
 
             bool should_fuse = input.is_type<binary_convolution>();
