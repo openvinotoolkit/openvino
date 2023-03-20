@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/ov_executable_network/get_metric.hpp"
+#include "behavior/ov_executable_network/properties.hpp"
+#include "behavior/ov_executable_network/hetero_properties.hpp"
 
 #include <gna/gna_config.hpp>
 
@@ -74,13 +75,8 @@ public:
 
 // TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkGetMetricTest,
-                         OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
+                         OVClassCompiledModelProperties_SupportedProperties,
                          ::testing::Values("GNA" /*, "MULTI:GNA", "HETERO:GNA" */));
-
-// TODO: Convolution with 3D input is not supported on GNA
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkGetMetricTest,
-                         OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
-                         ::testing::Values("GNA" /*, "MULTI:GNA",  "HETERO:GNA" */));
 
 // TODO: this metric is not supported by the plugin
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkGetMetricTest,
@@ -94,7 +90,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkGetMetricTest,
 
 // TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkGetMetricTest,
-                         OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
+                         OVClassCompiledModelGetIncorrectProperties,
                          ::testing::Values("GNA", /* "MULTI:GNA", */ "HETERO:GNA"));
 
 //
@@ -102,14 +98,19 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkGetMetricTest,
 //
 
 // TODO: Convolution with 3D input is not supported on GNA
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkGetConfigTest,
-                         OVClassExecutableNetworkGetConfigTest,
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVCompiledModelGetSupportedPropertiesTest,
+                         OVCompiledModelGetSupportedPropertiesTest,
+                         ::testing::Values("GNA"));
+
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassCompiledModelGetIncorrectProperties,
+                         OVClassCompiledModelGetIncorrectProperties,
                          ::testing::Values("GNA"));
 
 // TODO: Convolution with 3D input is not supported on GNA
-INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassExecutableNetworkSetConfigTest,
-                         OVClassExecutableNetworkSetConfigTest,
-                         ::testing::Values("GNA"));
+INSTANTIATE_TEST_SUITE_P(DISABLED_smoke_OVClassCompiledModelSetIncorrectConfigTest,
+                         OVClassCompiledModelUnsupportedConfigTest,
+                         ::testing::Combine(::testing::Values("GNA"),
+                                            ::testing::Values(std::make_pair("unsupported_config", "some_value"))));
 
 IE_SUPPRESS_DEPRECATED_START
 // TODO: Convolution with 3D input is not supported on GNA
@@ -126,8 +127,8 @@ IE_SUPPRESS_DEPRECATED_END
 
 // TODO: Convolution with 3D input is not supported on GNA
 INSTANTIATE_TEST_SUITE_P(
-    DISABLED_smoke_OVClassExecutableNetworkUnsupportedConfigTest,
-    OVClassExecutableNetworkUnsupportedConfigTest,
+    DISABLED_smoke_OVClassCompiledModelUnsupportedConfigTest,
+    OVClassCompiledModelUnsupportedConfigTest,
     ::testing::Combine(::testing::Values("GNA"),
                        ::testing::Values(std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE),
                                                         InferenceEngine::GNAConfigParams::GNA_SW_FP32),

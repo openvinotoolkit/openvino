@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/ov_executable_network/get_metric.hpp"
+#include "behavior/ov_executable_network/properties.hpp"
+#include "behavior/ov_executable_network/hetero_properties.hpp"
 #include "behavior/ov_plugin/properties_tests.hpp"
 #include "openvino/runtime/core.hpp"
 
@@ -20,11 +21,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetMetricTest,
                          ::testing::Values("GPU", "MULTI:GPU", "HETERO:GPU", "AUTO:GPU,CPU", "BATCH:GPU"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetMetricTest,
-                         OVClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
-                         ::testing::Values("GPU", "MULTI:GPU", "HETERO:GPU", "AUTO:GPU,CPU", "BATCH:GPU"));
-
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetMetricTest,
-                         OVClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
+                         OVClassCompiledModelProperties_SupportedProperties,
                          ::testing::Values("GPU", "MULTI:GPU", "HETERO:GPU", "AUTO:GPU,CPU", "BATCH:GPU"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetMetricTest,
@@ -32,7 +29,7 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetMetricTest,
                          ::testing::Values("GPU", "MULTI:GPU", "HETERO:GPU", "AUTO:GPU,CPU", "BATCH:GPU"));
 
 INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetMetricTest,
-                         OVClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
+                         OVClassCompiledModelGetIncorrectProperties,
                          ::testing::Values("GPU", "MULTI:GPU", "HETERO:GPU", "AUTO:GPU,CPU", "BATCH:GPU"));
 
 const std::vector<std::tuple<std::string, std::pair<ov::AnyMap, std::string>>> GetMetricTest_ExecutionDevice_GPU = {
@@ -73,13 +70,14 @@ INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetMetricTest,
 // Executable Network GetConfig / SetConfig
 //
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkGetConfigTest,
-                         OVClassExecutableNetworkGetConfigTest,
+INSTANTIATE_TEST_SUITE_P(nightly_OVCompiledModelGetSupportedPropertiesTest,
+                         OVCompiledModelGetSupportedPropertiesTest,
                          ::testing::Values("GPU"));
 
-INSTANTIATE_TEST_SUITE_P(nightly_OVClassExecutableNetworkSetConfigTest,
-                         OVClassExecutableNetworkSetConfigTest,
-                         ::testing::Values("GPU"));
+INSTANTIATE_TEST_SUITE_P(nightly_OVClassCompiledModelSetIncorrectConfigTest,
+                         OVClassCompiledModelUnsupportedConfigTest,
+                         ::testing::Combine(::testing::Values("GPU"),
+                                            ::testing::Values(std::make_pair("unsupported_config", "some_value"))));
 
 //
 // Hetero Executable Network GetMetric
