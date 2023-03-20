@@ -18,7 +18,7 @@ class TransformationDumper {
 public:
     explicit TransformationDumper(const DebugCapsConfig& config, const DebugCapsConfig::TransformationFilter::Type type,
                                   const std::shared_ptr<ov::Model>& model)
-        : config(config), type(type), model(model) {
+        : config(config), model(model), type(type) {
         for (auto prev = infoMap.at(type).prev; prev != TransformationType::NumOfTypes;
              prev = infoMap.at(prev).prev) {
             // no need to serialize input graph if there was no transformations from previous dump

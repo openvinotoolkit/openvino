@@ -29,7 +29,7 @@ static MemBandwidthPressure MemBandwidthPressureTolerance(
     const float memThresholdAssumeLimited = MemBandwidthPressure::LIMITED) {
     int total_convs = 0, mem_limited_convs = 0, compute_convs = 0, total_gemms = 0, mem_limited_gemms = 0,
         total_deconvs = 0, compute_deconvs = 0, mem_limited_deconvs = 0;
-    auto memLimitedFactor = [&](int size_data_moved, int datatype_size = 4) -> float {
+    auto memLimitedFactor = [&](size_t size_data_moved, int datatype_size = 4) -> float {
         return (cache_size / (size_data_moved * datatype_size));
     };
     auto isLowPrecision = [&](ngraph::element::Type type) -> bool {
@@ -57,7 +57,7 @@ static MemBandwidthPressure MemBandwidthPressureTolerance(
         const bool isBF16orFP16 = isHalfPrecision(type1);
         const int data_type_size = isINT8 ? 1 : isBF16orFP16 ? 2 : 4;
 
-        int dataSizeInput = 0, dataSizeOutput = 0;
+        size_t dataSizeInput = 0, dataSizeOutput = 0;
         if (!std::strcmp("MatMul", node_name)) {
             const auto input0 = node->input(0);
             const auto input1 = node->input(1);
@@ -103,7 +103,7 @@ static MemBandwidthPressure MemBandwidthPressureTolerance(
                     std::accumulate(shapeInput.begin(), shapeInput.end(), size_t(1), std::multiplies<size_t>());
                 dataSizeOutput =
                     std::accumulate(shapeOutput.begin(), shapeOutput.end(), size_t(1), std::multiplies<size_t>());
-                const auto factor = memLimitedFactor(dataSizeInput + dataSizeOutput, data_type_size);
+                const auto factor = memLimitedFactor(static_cast<int>(dataSizeInput + dataSizeOutput), data_type_size);
                 mem_limited_convs += factor < memThresholdAssumeLimited;
                 worst_case = std::min(factor, worst_case);
             }
@@ -124,7 +124,7 @@ static MemBandwidthPressure MemBandwidthPressureTolerance(
                     std::accumulate(shapeInput.begin(), shapeInput.end(), size_t(1), std::multiplies<size_t>());
                 dataSizeOutput =
                     std::accumulate(shapeOutput.begin(), shapeOutput.end(), size_t(1), std::multiplies<size_t>());
-                const auto factor = memLimitedFactor(dataSizeInput + dataSizeOutput, data_type_size);
+                const auto factor = memLimitedFactor(static_cast<int>(dataSizeInput + dataSizeOutput), data_type_size);
                 mem_limited_deconvs += factor < memThresholdAssumeLimited;
                 worst_case = std::min(factor, worst_case);
             }
