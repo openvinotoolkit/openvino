@@ -160,18 +160,19 @@ The ``benchmark_app`` sample, that has both :doc:`C++ <openvino_inference_engine
   - This example also applies to CPU or any other device that generally supports batch execution.
   - Keep in mind that some shell versions (e.g. ``bash``) may require adding quotes around complex device names, i.e. ``-d "BATCH:GPU(16)"`` in this example.
 
-Note that Benchmark_app performs a warm-up run of a *single* request. As Auto-Batching requires significantly more requests to execute in batch, this warm-up run hits the default timeout value (1000 ms), as reported in the following example: ::
+
+Note that Benchmark_app performs a warm-up run of a *single* request. As Auto-Batching requires significantly more requests to execute in batch, this warm-up run hits the default timeout value (1000 ms), as reported in the following example:
+
+.. code-block:: console
+
+   [ INFO ] First inference took 1000.18ms 
+
+This value also exposed as the final execution statistics on the ``benchmark_app`` exit:
    
 .. code-block:: console
 
-    [ INFO ] First inference took 1000.18ms 
-
-This value also exposed as the final execution statistics on the ``benchmark_app`` exit: :: 
-   
-.. code-block:: console
-
-    [ INFO ] Latency: 
-    [ INFO ] 	Max:      1000.18 ms
+   [ INFO ] Latency: 
+   [ INFO ] 	Max:      1000.18 ms
 
 This is NOT the actual latency of the batched execution, so you are recommended to refer to other metrics in the same log, for example, "Median" or "Average" execution. 
 
