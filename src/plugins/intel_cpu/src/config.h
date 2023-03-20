@@ -7,6 +7,7 @@
 #include <threading/ie_istreams_executor.hpp>
 #include <ie_performance_hints.hpp>
 #include <ie/ie_common.h>
+#include <openvino/runtime/properties.hpp>
 #include <openvino/util/common_util.hpp>
 #include "utils/debug_caps_config.h"
 
@@ -49,7 +50,7 @@ struct Config {
     size_t rtCacheCapacity = 5000ul;
     InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
     InferenceEngine::PerfHintsConfig  perfHintsConfig;
-    std::string core_type_cfg = "ANY_CORE";
+    ov::hint::SchedulingCoreType core_type_cfg = ov::hint::SchedulingCoreType::ANY_CORE;
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
     bool enforceBF16 = true;
