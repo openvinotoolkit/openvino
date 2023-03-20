@@ -177,10 +177,11 @@ function(ov_download_tbbbind_2_5)
 
     if(WIN32 AND X86_64)
         RESOLVE_DEPENDENCY(TBBBIND_2_5
-                ARCHIVE_WIN "tbbbind_2_5_static_win_v1.zip"
+                ARCHIVE_WIN "tbbbind_2_5_static_win_v2.zip"
                 TARGET_PATH "${TEMP}/tbbbind_2_5"
                 ENVIRONMENT "TBBBIND_2_5_ROOT"
-                SHA256 "a67afeea8cf194f97968c800dab5b5459972908295242e282045d6b8953573c1")
+                SHA256 "49ae93b13a13953842ff9ae8d01681b269b5b0bc205daf18619ea9a828c44bee"
+                USE_NEW_LOCATION TRUE)
     elseif(LINUX AND X86_64)
         RESOLVE_DEPENDENCY(TBBBIND_2_5
                 ARCHIVE_LIN "tbbbind_2_5_static_lin_v2.tgz"
