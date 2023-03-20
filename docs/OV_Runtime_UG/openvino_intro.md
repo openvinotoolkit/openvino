@@ -13,7 +13,7 @@
    openvino_docs_OV_UG_Working_with_devices
    openvino_docs_OV_UG_ShapeInference
    openvino_docs_OV_UG_DynamicShapes
-   openvino_docs_OV_UG_network_state_intro
+   openvino_docs_OV_UG_model_state_intro
    
 @endsphinxdirective
 
