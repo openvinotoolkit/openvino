@@ -19,9 +19,9 @@ Overview of Artificial Neural Networks Representation
 A deep learning network is usually represented as a directed graph describing the flow of data from the network input data to the inference results.
 Input data can be in the form of images, video, text, audio, or preprocessed information representing objects from the target area of interest.
 
-Here is an illustration of a small graph representing a model that consists of a single Convolutional layer and activation function:
+Here is an illustration sof a small graph representing a model that consists of a single Convolutional layer and activation function:
 
-.. image:: docs/_static/images/small_IR_graph_demonstration.png
+.. image:: _static/images/small_IR_graph_demonstration.png
 
 Vertices in the graph represent layers or operation instances such as convolution, pooling, and element-wise operations with tensors.
 The terms of "layer" and "operation" are used interchangeably within OpenVINO documentation and define how the input data is processed to produce output data for a node in a graph.
