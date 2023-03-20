@@ -6,6 +6,7 @@
 
 #include <cmath>
 
+#include "compare.hpp"
 #include "dimension_util.hpp"
 #include "openvino/op/roi_pooling.hpp"
 
