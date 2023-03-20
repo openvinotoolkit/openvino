@@ -82,6 +82,7 @@ pt_to_ov_type_map = {
     "bool": OVType.boolean,
     "torch.float16": OVType.f16,
     "torch.float32": OVType.f32,
+    torch.float32: OVType.f32,
     "torch.float64": OVType.f64,
     "torch.uint8": OVType.u8,
     "torch.int8": OVType.i8,
@@ -413,15 +414,15 @@ class TorchFXPythonDecoder (Decoder):
         print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         if index < len(self.input_shapes):
             return PartialShape(self.input_shapes[index])
-        #TODO: return a proper shape if self.input_shapes is empty
-        return PartialShape([1])
+        input = self._raw_input(index)
+        return self.get_shape_for_value(input)
 
     def get_input_type(self, index):
         print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
         if index < len(self.input_types):
             return OVAny(pt_to_ov_type_map[self.input_types[index]])
-        #TODO: return a proper type if self.input_types is empty
-        return OVAny(OVType.f32)
+        input = self._raw_input(index)
+        return self.get_type_for_value(input)
 
     def get_output_debug_name(self, index):
         return "output"+str(index)
@@ -468,51 +469,18 @@ class TorchFXPythonDecoder (Decoder):
 
     def get_shape_for_value(self, value):
         print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
-        return PartialShape.dynamic()
-        #TODO TBD
-
-        if value.isCompleteTensor():
-            ps = PartialShape(value.type().sizes())
-            #print(f'SHAPE FOR COMPLETE TENSOR: {ps}')
-            return ps
-        else:
-            #print(f'NOT COMPLETE TENSOR for {value}')
-            # TODO: Recognize types that we can represent as a nested constructs with objects from DecoderType
-            # If recognized, return scalar instead of dynamic. Scalar means a single value of that custom type.
-            # See get_type_for_value for reference
-            pass
+        if value and ('tensor_meta' in value.meta.keys()):
+            return PartialShape(value.meta['tensor_meta'].shape)
         return PartialShape.dynamic()
 
     def get_type_for_value(self, value):
         print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
-        return OVAny(OVType.dynamic)
-        #TODO TBD
-
-        #print(f'Decoding value type for value {value}')
-        full_type = self._get_known_type_for_value(value.type())
-        # DecoderType.print(full_type)    # new (full) type interpretation
-        return full_type
-        # Old version of this function directly treat Tensor[type] as type
-        # assuming that regular type for vaue is Tensor, so it just
-        # decodes its element type.
-        # In full_type we code a complete type according to PT, it allows
-        # to distiguish int from scalar Tensor[int] in particular.
-        # It is necessary to interpreting some operations converting scalar values (not tensors)
-        # to scalar tensors.v
-        # In this new interpretation we leave old beheviout to FE code if it is still needed
-        if value.isCompleteTensor():
-            pt_type = str(value.type().dtype())
-            print(f'Trying to decode tensor element type: {pt_type}')
+        if value and ('tensor_meta' in value.meta.keys()):
+            pt_type = value.meta['tensor_meta'].dtype
             if pt_type in pt_to_ov_type_map:
                 ov_type = pt_to_ov_type_map[pt_type]
-                print(f'[ DEBUG ] Decoded ov type: {ov_type}', flush=True)
                 return OVAny(ov_type)
-            else:
-                print(f'[ DEBUG ] Unrecognized pt element type for a tensor: {pt_type}. Captured it as custom type.', flush=True)
-                # TODO: Replace it by Tensor[dynamic]
-                return OVAny(OVType.dynamic)
-        else:
-            return OVAny(OVType.dynamic)
+        return OVAny(OVType.dynamic)
 
     def get_input_transpose_order(self, index):
         print(f'[ FX DECODER DEBUG ] Decoder method called: {inspect.currentframe().f_code.co_name}')
