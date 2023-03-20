@@ -341,6 +341,10 @@ struct format {
     static bool is_image(type fmt) { return (is_image_2d(fmt)); }
     /// @brief Checks if @p format is blocked format
     static bool is_blocked(type fmt) { return !(block_sizes(fmt).empty()); }
+    /// @brief Checks if @p format is blocked format which has single inner block
+    static bool is_single_blocked(type fmt) { return (block_sizes(fmt).size() == 1); }
+    /// @brief Checks if @p format is blocked format which has multiple inner blocks
+    static bool is_multi_blocked(type fmt) { return (block_sizes(fmt).size() > 1); }
     /// @brief Checks if @p format is nv12 format
     static bool is_nv12(type fmt) { return (fmt == nv12); }
 

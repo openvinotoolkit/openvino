@@ -257,7 +257,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
     auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ov::any_copy(config));
     auto exec = _impl->get_plugin(deviceName)
                     .import_model(networkModel,
-                                  ov::RemoteContext{std::dynamic_pointer_cast<RemoteContext>(context), {}},
+                                  ov::RemoteContext{ov::legacy_convert::convert_remote_context(context), {}},
                                   parsed._config);
     return {ov::legacy_convert::convert_compiled_model(exec._ptr), exec._so};
 }

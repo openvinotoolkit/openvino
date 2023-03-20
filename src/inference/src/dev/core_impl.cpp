@@ -204,7 +204,7 @@ DevicePriority get_device_priority_property(const std::string& device_name) {
                DevicePriority{ov::device::id.name(), MatchType::SUBSTR};
 }
 
-void clean_batch_properties(std::string& deviceName, ov::AnyMap& config, const ov::PropertyName& property_name) {
+void clean_batch_properties(const std::string& deviceName, ov::AnyMap& config, const ov::PropertyName& property_name) {
     // auto-batching is not applicable, if there is auto_batch_timeout, delete it
     if (deviceName.find("BATCH") == std::string::npos) {
         const auto& batch_timeout_mode = config.find(property_name);

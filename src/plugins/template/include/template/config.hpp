@@ -4,7 +4,7 @@
 
 /**
  * @brief A header that defines advanced related properties for DLIA plugins.
- * These properties should be used in SetConfig() and LoadNetwork() methods of plugins
+ * These properties should be used in set_property() and compile_model() methods of plugins
  *
  * @file template/config.hpp
  */
