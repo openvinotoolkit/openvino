@@ -31,9 +31,9 @@ public:
 
     ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
 
-    ov::RemoteContext create_context(const ov::AnyMap& remote_properties) const override;
+    std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const override;
 
-    ov::RemoteContext get_default_context(const ov::AnyMap& remote_properties) const override;
+    std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const override;
 
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override;
 
