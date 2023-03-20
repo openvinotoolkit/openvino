@@ -190,7 +190,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
     std::copy(order.end() - inner_ndims, order.end(), dnn_blk_desc.inner_idxs);
 
     this->order = order;
-    initBlockDims();
+    this->blockedDims = blockedDims;
     initOffsetPadding();
 
     if (strides.empty()) {
@@ -200,7 +200,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(InferenceEngine::Precision prc, con
             auto dnnlStrides = DnnlExtensionUtils::convertToDnnlDims(strides);
             dnn_blk_desc.strides[order[i]] = dnnlStrides[i];
         }
-        initStrides();
+        this->strides = strides;
     }
 }
 
@@ -328,9 +328,6 @@ static VectorDims extractOrder(const dnnl::memory::desc& desc) {
     return blk_order;
 }
 
-DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const dnnl::memory::desc& mdesc) :
-    DnnlBlockedMemoryDesc(mdesc.get()) {}
-
 DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const_dnnl_memory_desc_t cdesc) :
     MemoryDesc(DnnlExtensionUtils::convertToVectorDims(cdesc->dims, cdesc->ndims), DnnlBlocked) {
     desc = dnnl::memory::desc(DnnlExtensionUtils::clone_desc(cdesc));
@@ -456,8 +453,6 @@ MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims)
     }
 
     // TODO [DS]: add stride recalculation for strided blobs
-    getStrides();
-    getBlockDims();
     for (int i = strides.size() - 2; i >= 0 ; i--) {
         if (strides[i] == Shape::UNDEFINED_DIM)
             break;
@@ -466,7 +461,7 @@ MemoryDescPtr DnnlBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims &dims)
             IE_THROW(NotImplemented) << "Can't clone desc with new dims for not dense tensor";
     }
 
-    return DnnlBlockedMemoryDescPtr(new DnnlBlockedMemoryDesc(cloneDescWithNewDims(desc, dims, order)));
+    return DnnlBlockedMemoryDescPtr(new DnnlBlockedMemoryDesc(cloneDescWithNewDims(desc, dims, order).get()));
 }
 
 bool DnnlBlockedMemoryDesc::isSame(dnnl::memory::format_tag fmt) const {
