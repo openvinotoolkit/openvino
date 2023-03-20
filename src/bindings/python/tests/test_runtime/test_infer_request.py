@@ -1092,6 +1092,8 @@ def test_mixed_scalar_infer(device, shared_flag, input_data):
 ])
 def test_mixed_dynamic_infer(device, shared_flag, input_data):
     core = Core()
+    if device == "CPU" and "Intel" not in core.get_property(device, "FULL_DEVICE_NAME"):
+        pytest.skip("This test fails on ARM plugin because it doesn't support dynamic shapes.")
     param0 = ops.parameter([], np.float32, name="data0")
     param1 = ops.parameter(["?"], np.float32, name="data1")
     add = ops.add(param0, param1, name="add")

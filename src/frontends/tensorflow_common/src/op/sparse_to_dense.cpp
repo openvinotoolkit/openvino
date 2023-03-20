@@ -4,6 +4,7 @@
 
 #include "common_op_table.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "utils.hpp"
 
 using namespace std;
 using namespace ov::opset8;
@@ -13,6 +14,7 @@ namespace frontend {
 namespace tensorflow {
 namespace op {
 OutputVector translate_sparse_to_dense_op(const NodeContext& node) {
+    default_op_checks(node, 3, {"SparseToDense"});
     // This replacer substitutes TensorFlow SparseToDense operation with Broadcast -> ScatterND chain.
     // The Broadcast operation creates a tensor filled with default value and of required shape.
     // The ScatterND operation updates the created tensor with required values at required locations.
@@ -26,9 +28,8 @@ OutputVector translate_sparse_to_dense_op(const NodeContext& node) {
     auto values = node.get_input(2);
     shared_ptr<Broadcast> broadcast = nullptr;
     if (input_size == 3) {
-        broadcast = make_shared<Broadcast>(
-            make_shared<Constant>(values.get_element_type(), ov::Shape{}, std::vector<int64_t>{0}),
-            dense_shape);
+        auto const_zero = create_same_type_const_scalar<int32_t>(values, 0);
+        broadcast = make_shared<Broadcast>(const_zero, dense_shape);
     } else {
         auto default_value = node.get_input(3);
         broadcast = make_shared<Broadcast>(default_value, dense_shape);
