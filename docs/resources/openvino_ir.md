@@ -141,7 +141,7 @@ The IR does not use explicit data nodes described in the previous section. In co
 Additional Resources
 ####################
 
-* :doc:`IR and Operation Sets <openvino_docs_MO_DG_IR_and_opsets>`.
-* :doc:`OpenVINO API 2.0 transition guide <openvino_2_0_transition_guide>`. 
+* :doc:`IR and Operation Sets <openvino_docs_MO_DG_IR_and_opsets>`
+* :doc:`OpenVINO API 2.0 transition guide <openvino_2_0_transition_guide>`
 
 @endsphinxdirective

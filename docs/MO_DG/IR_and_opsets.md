@@ -13,17 +13,15 @@
 
 This article provides essential information on the format used for representation of deep learning models in OpenVINO toolkit and supported operation sets.  
 
-.. raw:: html
-
-   <div class="collapsible-section" data-title="Overview of Artificial Neural Networks Representation">
-
+Overview of Artificial Neural Networks Representation
+#####################################################
 
 A deep learning network is usually represented as a directed graph describing the flow of data from the network input data to the inference results.
 Input data can be in the form of images, video, text, audio, or preprocessed information representing objects from the target area of interest.
 
 Here is an illustration of a small graph representing a model that consists of a single Convolutional layer and activation function:
 
-.. image:: docs/_static/small_IR_graph_demonstration.png
+.. image:: docs/_static/images/small_IR_graph_demonstration.png
 
 Vertices in the graph represent layers or operation instances such as convolution, pooling, and element-wise operations with tensors.
 The terms of "layer" and "operation" are used interchangeably within OpenVINO documentation and define how the input data is processed to produce output data for a node in a graph.
@@ -42,27 +40,25 @@ A set of various operations used in a network is usually fixed for each deep lea
 It determines expressiveness and level of representation available in that framework.
 Sometimes, a network that can be represented in one framework is hard or impossible to be represented in another one or should use significantly different graph, because operation sets used in those two frameworks do not match.
 
-.. raw:: html
-
 Operation Sets
 ##############
 
 Operations in OpenVINO Operation Sets are selected based on capabilities of supported deep learning frameworks and hardware capabilities of the target inference device.
 A set consists of several groups of operations:
 
- * Conventional deep learning layers such as ``Convolution``, ``MaxPool``, and ``MatMul`` (also known as ``FullyConnected``).
+* Conventional deep learning layers such as ``Convolution``, ``MaxPool``, and ``MatMul`` (also known as ``FullyConnected``).
 
- * Various activation functions such as ``ReLU``, ``Tanh``, and ``PReLU``.
+* Various activation functions such as ``ReLU``, ``Tanh``, and ``PReLU``.
 
- * Generic element-wise arithmetic tensor operations such as ``Add``, ``Subtract``, and ``Multiply``.
+* Generic element-wise arithmetic tensor operations such as ``Add``, ``Subtract``, and ``Multiply``.
 
- * Comparison operations that compare two numeric tensors and produce boolean tensors, for example, ``Less``, ``Equeal``, ``Greater``.
+* Comparison operations that compare two numeric tensors and produce boolean tensors, for example, ``Less``, ``Equeal``, ``Greater``.
 
- * Logical operations that are dealing with boolean tensors, for example, ``And``, ``Xor``, ``Not``.
+* Logical operations that are dealing with boolean tensors, for example, ``And``, ``Xor``, ``Not``.
 
- * Data movement operations which are dealing with parts of tensors, for example, ``Concat``, ``Split``, ``StridedSlice``, ``Select``.
+* Data movement operations which are dealing with parts of tensors, for example, ``Concat``, ``Split``, ``StridedSlice``, ``Select``.
 
- * Specialized operations that implement complex algorithms dedicated for models of specific type, for example, ``DetectionOutput``, ``RegionYolo``, ``PriorBox``.
+* Specialized operations that implement complex algorithms dedicated for models of specific type, for example, ``DetectionOutput``, ``RegionYolo``, ``PriorBox``.
 
 For more information, refer to the complete description of the supported operation sets in the :doc:`Available Operation Sets <openvino_docs_ops_opset>` article.
 
@@ -75,8 +71,8 @@ Two or more opsets may refer to the same operation.
 That means an operation is kept unchanged from one operation set to another.
 
 The description of each operation has a ``Versioned name`` field.
-For example, the `ReLU` entry point in :doc:`<`opset1` <openvino_docs_ops_opset1>` refers to :doc:`<`ReLU-1` <openvino_docs_ops_activation_ReLU_1>` as the versioned name.
-Meanwhile, `ReLU` in `opset2` refers to the same `ReLU-1` and both `ReLU` operations are the same operation and it has a single :doc:`<description <openvino_docs_ops_activation_ReLU_1>`, which means that ``opset1`` and ``opset2`` share the same operation ``ReLU``.
+For example, the `ReLU` entry point in :doc:`opset1 <openvino_docs_ops_opset1>` refers to :doc:`ReLU-1 <openvino_docs_ops_activation_ReLU_1>` as the versioned name.
+Meanwhile, `ReLU` in `opset2` refers to the same `ReLU-1` and both `ReLU` operations are the same operation and it has a single :doc:`description <openvino_docs_ops_activation_ReLU_1>`, which means that ``opset1`` and ``opset2`` share the same operation ``ReLU``.
 
 To differentiate versions of the same operation type such as ``ReLU``, the ``-N`` suffix is used in a versioned name of the operation.
 The ``N`` suffix usually refers to the first occurrence of ``opsetN`` where this version of the operation is introduced.
@@ -107,6 +103,7 @@ The IR version is specified once.
 Here is an example from the IR snippet:
 
 .. code-block:: cpp
+
    <?xml version="1.0" ?>
    <net name="model_file_name" version="10">  <!-- Version of the whole IR file is here; it is 10 -->
        <layers>
@@ -121,7 +118,6 @@ Here is an example from the IR snippet:
                        <dim>3</dim>
 
                         ...
-
 
 The ``type="Parameter"`` and ``version="opset1"`` attributes in the example above mean "use that version of the ``Parameter`` operation that is included in the ``opset1`` operation set. "
 
