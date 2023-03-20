@@ -24,10 +24,8 @@ find_package(IEDevScripts REQUIRED
              NO_CMAKE_FIND_ROOT_PATH
              NO_DEFAULT_PATH)
 
+#TODO: just for testing prebuilt oneTBB binaries on CI and need to be removed
 set(ENABLE_SYSTEM_TBB OFF)
-if(CPACK_GENERATOR MATCHES "^(DEB|RPM|CONDA-FORGE|BREW)$")
-    set(ENABLE_SYSTEM_TBB ON)
-endif()
 
 include(CTest)
 include(cmake/features.cmake)
