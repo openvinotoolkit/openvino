@@ -35,6 +35,12 @@ class IVariableStateInternalWrapper;
 class ITensor;
 class RemoteTensor;
 
+namespace op {
+namespace util {
+class VariableValue;
+}
+}  // namespace op
+
 /**
  * @brief Tensor API holding host memory
  * It can throw exceptions safely for the application, where it is properly handled.
@@ -64,6 +70,7 @@ protected:
     friend class ov::IVariableStateInternalWrapper;
     friend class InferenceEngine::IAsyncInferRequestWrapper;
     friend class InferenceEngine::IVariableStateWrapper;
+    friend class ov::op::util::VariableValue;
 
 public:
     /// @brief Default constructor
