@@ -7,7 +7,7 @@ To run inference on multiple devices, you can choose either of the following way
 - Use the :ref:`CUMULATIVE_THROUGHPUT option <cumulative throughput>` of the Automatic Device Selection mode. This way, you can use all available devices in the system without the need to specify them.
 - Use the Multi-Device execution mode. This page will explain how it works and how to use it.
 
-@endsphinxdirective
+
 
 ## How MULTI Works
 
@@ -126,34 +126,38 @@ using the [configure devices](supported_plugins/config_properties.md) property:
 
 
 
-## Using the Multi-Device with OpenVINO Samples and Benchmarking Performance
+Using the Multi-Device with OpenVINO Samples and Benchmarking Performance
+#########################################################################
 
 To see how the Multi-Device execution is used in practice and test its performance, take a look at OpenVINO's Benchmark Application which presents the optimal performance of the plugin without the need for additional settings, like the number of requests or CPU threads.
 Here is an example command to evaluate performance of CPU + GPU:
 
-```sh
-./benchmark_app –d MULTI:CPU,GPU –m <model> -i <input> -niter 1000
-```
+.. code-block:: sh
 
-For more information, refer to the [C++](../../samples/cpp/benchmark_app/README.md) or [Python](../../tools/benchmark_tool/README.md) version instructions.
+   ./benchmark_app –d MULTI:CPU,GPU –m <model> -i <input> -niter 1000
 
-@sphinxdirective
+
+For more information, refer to the :doc:`C++ <openvino_inference_engine_samples_benchmark_app_README>` or :doc:`Python <openvino_inference_engine_tools_benchmark_tool_README>` version instructions.
+
+
 .. note::
 
    You can keep using the FP16 IR without converting it to FP32, even if some of the listed devices do not support it. The conversion will be done automatically for you.
 
    No demos are yet fully optimized for MULTI, by means of supporting the ov::optimal_number_of_infer_requests property, using the GPU streams/throttling, and so on.
-@endsphinxdirective
 
 
-## Performance Considerations for the Multi-Device Execution
+
+Performance Considerations for the Multi-Device Execution
+#########################################################
+
 For best performance when using the MULTI execution mode you should consider a few recommendations:
 - MULTI usually performs best when the fastest device is specified first in the device candidate list.
 This is particularly important when the request-level parallelism is not sufficient
 (e.g. the number of requests is not enough to saturate all devices).
 - Just like with any throughput-oriented execution mode, it is highly recommended to query the optimal number of inference requests
-directly from the instance of the `ov:compiled_model`. Refer to the code of the previously mentioned `benchmark_app` for more details.
-- Execution on certain device combinations, for example CPU+GPU, performs better with certain knobs. Refer to the `benchmark_app` code for details. One specific example is disabling GPU driver polling, which in turn requires multiple GPU streams to balance out slower
+directly from the instance of the ``ov:compiled_model``. Refer to the code of the previously mentioned ``benchmark_app`` for more details.
+- Execution on certain device combinations, for example CPU+GPU, performs better with certain knobs. Refer to the ``benchmark_app`` code for details. One specific example is disabling GPU driver polling, which in turn requires multiple GPU streams to balance out slower
 communication of inference completion from the device to the host.
 - The MULTI logic always attempts to save on copying data between device-agnostic and user-facing inference requests,
 and device-specific 'worker' requests that are being actually scheduled behind the scene.
@@ -161,17 +165,18 @@ To facilitate the copy savings, it is recommended to run the requests in the ord
 - While performance of accelerators combines well with MULTI, the CPU+GPU execution may introduce certain performance issues. It is due to the devices sharing some resources, like power or bandwidth. Enabling the GPU throttling hint, which saves a CPU thread for CPU inference, is an example of a recommended solution addressing this issue.
 
 
-
-## Additional Resources
+Additional Resources
+####################
 
 - [Supported Devices](supported_plugins/Supported_Devices.md)
 - [Automatic Device Selection](./auto_device_selection.md)
 
-@sphinxdirective
+
 .. raw:: html
 
     <iframe allowfullscreen mozallowfullscreen msallowfullscreen oallowfullscreen webkitallowfullscreen width="560" height="315" src="https://www.youtube.com/embed/xbORYFEmrqU" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
-@endsphinxdirective
 
-> **NOTE**: This video is currently available only for C++, but many of the same concepts apply to Python.
+.. note:: This video is currently available only for C++, but many of the same concepts apply to Python.
+
+@endsphinxdirective
