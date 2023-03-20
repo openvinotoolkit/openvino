@@ -63,7 +63,8 @@ struct primitive_impl {
     virtual std::unique_ptr<primitive_impl> clone() const = 0;
     virtual std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() { return {}; }
     virtual void reset_kernels_source() {}
-    virtual std::vector<kernel::ptr> get_kernels() const { return {}; }
+    virtual std::vector<std::pair<size_t, kernel::ptr>> get_kernels_for_serialization() const { return {}; }
+    virtual void set_kernels_for_serialization(const kernels_cache& cache) {}
     virtual void save(cldnn::BinaryOutputBuffer& ob) const {}
     virtual void load(cldnn::BinaryInputBuffer& ib) {}
 
@@ -160,6 +161,9 @@ public:
     event::ptr execute(const std::vector<event::ptr>& events);
     void init_kernels(const kernels_cache& kernels_cache) {
         _impl->init_kernels(kernels_cache, *_impl_params);
+    }
+    void set_kernels_for_serialization(const kernels_cache& kernels_cache) {
+        _impl->set_kernels_for_serialization(kernels_cache);
     }
     void set_arguments();
 
