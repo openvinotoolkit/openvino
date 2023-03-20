@@ -13,7 +13,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_embedding(NodeContext& context) {
+OutputVector translate_embedding(const NodeContext& context) {
     // aten::embedding(Tensor weight, Tensor indices, SymInt padding_idx=-1, bool scale_grad_by_freq=False, bool
     // sparse=False)
     num_inputs_check(context, 5, 5);

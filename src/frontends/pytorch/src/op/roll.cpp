@@ -17,7 +17,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_roll(NodeContext& context) {
+OutputVector translate_roll(const NodeContext& context) {
     num_inputs_check(context, 3, 3);
     const auto data = context.get_input(0);
     const auto shifts = context.get_input(1);

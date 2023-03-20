@@ -20,7 +20,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_transpose(NodeContext& context) {
+OutputVector translate_transpose(const NodeContext& context) {
     num_inputs_check(context, 3, 3);
     auto dim0 = context.const_input<int64_t>(1);
     auto dim1 = context.const_input<int64_t>(2);

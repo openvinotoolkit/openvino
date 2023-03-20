@@ -88,7 +88,7 @@ OutputVector translate_instance_norm_train(const NodeContext& context,
 
 }  // namespace
 
-OutputVector translate_instance_norm(NodeContext& context) {
+OutputVector translate_instance_norm(const NodeContext& context) {
     num_inputs_check(context, 8, 9);
     auto input = context.get_input(0);
     auto eps = context.const_input<float>(7);

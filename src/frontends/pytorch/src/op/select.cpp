@@ -20,7 +20,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_select(NodeContext& context) {
+OutputVector translate_select(const NodeContext& context) {
     num_inputs_check(context, 3, 3);
     auto const_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
     auto const_minus_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));

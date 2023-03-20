@@ -13,7 +13,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_unfold(NodeContext& context) {
+OutputVector translate_unfold(const NodeContext& context) {
     num_inputs_check(context, 4, 4);
     // constants
     auto const_0 = context.mark_node(Constant::create(element::i32, Shape{}, {0}));

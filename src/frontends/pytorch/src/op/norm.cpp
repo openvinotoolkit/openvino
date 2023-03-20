@@ -20,7 +20,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_norm(NodeContext& context) {
+OutputVector translate_norm(const NodeContext& context) {
     num_inputs_check(context, 4, 4);
     auto input_tensor = context.get_input(0);
     auto p = context.const_input<float>(1);

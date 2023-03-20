@@ -16,7 +16,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_rsqrt(NodeContext& context) {
+OutputVector translate_rsqrt(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
     auto data = context.get_input(0);
     auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(data, element::i32));

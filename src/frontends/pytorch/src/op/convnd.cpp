@@ -15,7 +15,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_convnd(NodeContext& context) {
+OutputVector translate_convnd(const NodeContext& context) {
     num_inputs_check(context, 7, 7);
     auto strides = context.const_input<Strides>(3);
     // In torch pads at beginning are same as at end

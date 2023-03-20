@@ -17,7 +17,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_arange(NodeContext& context) {
+OutputVector translate_arange(const NodeContext& context) {
     auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     auto one = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
     int dtype_port = -1;

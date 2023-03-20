@@ -16,7 +16,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_selu(NodeContext& context) {
+OutputVector translate_selu(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
     auto x = context.get_input(0);
     auto alpha = context.mark_node(v0::Constant::create(element::f64, Shape{}, {1.6732632423543772848170429916717}));

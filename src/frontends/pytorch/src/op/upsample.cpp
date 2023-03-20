@@ -69,32 +69,32 @@ OutputVector base_translate_upsample(const NodeContext& context,
 };
 }  // namespace
 
-OutputVector translate_upsample_linear1d(NodeContext& context) {
+OutputVector translate_upsample_linear1d(const NodeContext& context) {
     return base_translate_upsample(context, v4::Interpolate::InterpolateMode::LINEAR_ONNX, 1);
 };
 
-OutputVector translate_upsample_bilinear2d(NodeContext& context) {
+OutputVector translate_upsample_bilinear2d(const NodeContext& context) {
     return base_translate_upsample(context, v4::Interpolate::InterpolateMode::LINEAR_ONNX, 2);
 };
 
-OutputVector translate_upsample_trilinear3d(NodeContext& context) {
+OutputVector translate_upsample_trilinear3d(const NodeContext& context) {
     return base_translate_upsample(context, v4::Interpolate::InterpolateMode::LINEAR_ONNX, 3);
 };
 
-OutputVector translate_upsample_nearest1d(NodeContext& context) {
+OutputVector translate_upsample_nearest1d(const NodeContext& context) {
     return base_translate_upsample(context, v4::Interpolate::InterpolateMode::NEAREST, 1);
 };
 
-OutputVector translate_upsample_nearest2d(NodeContext& context) {
+OutputVector translate_upsample_nearest2d(const NodeContext& context) {
     return base_translate_upsample(context, v4::Interpolate::InterpolateMode::NEAREST, 2);
 };
 
-OutputVector translate_upsample_nearest3d(NodeContext& context) {
+OutputVector translate_upsample_nearest3d(const NodeContext& context) {
     return base_translate_upsample(context, v4::Interpolate::InterpolateMode::NEAREST, 3);
 };
 
 // bicubic is only supported for 2d in pytorch
-OutputVector translate_upsample_bicubic2d(NodeContext& context) {
+OutputVector translate_upsample_bicubic2d(const NodeContext& context) {
     return base_translate_upsample(context, v4::Interpolate::InterpolateMode::CUBIC, 2);
 };
 

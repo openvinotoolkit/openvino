@@ -32,7 +32,7 @@ Output<Node> broadcast_const_to_channel_dim(const NodeContext& context,
 }
 }  // namespace
 
-OutputVector translate_batch_norm(NodeContext& context) {
+OutputVector translate_batch_norm(const NodeContext& context) {
     // Schema: aten::batch_norm(Tensor input, Tensor? weight, Tensor? bias, Tensor? running_mean, Tensor? running_var,
     // bool training, float momentum, float eps, bool cudnn_enabled) -> Tensor
     num_inputs_check(context, 8, 9);

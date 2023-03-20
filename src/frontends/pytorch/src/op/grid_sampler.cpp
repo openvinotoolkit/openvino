@@ -13,7 +13,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_grid_sampler(NodeContext& context) {
+OutputVector translate_grid_sampler(const NodeContext& context) {
     num_inputs_check(context, 4, 5);
     auto x = context.get_input(0);
     auto grid = context.get_input(1);

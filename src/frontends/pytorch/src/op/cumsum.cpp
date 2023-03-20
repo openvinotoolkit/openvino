@@ -13,7 +13,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_cumsum(NodeContext& context) {
+OutputVector translate_cumsum(const NodeContext& context) {
     // aten::cumsum(Tensor self, int dim, *, ScalarType? dtype=None, Tensor out=None)
     num_inputs_check(context, 2, 4);
     auto x = context.get_input(0);

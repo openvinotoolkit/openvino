@@ -13,7 +13,7 @@ namespace pytorch {
 namespace op {
 
 using namespace ov::op;
-OutputVector translate_softmax(NodeContext& context) {
+OutputVector translate_softmax(const NodeContext& context) {
     num_inputs_check(context, 2, 3);
     auto x = context.get_input(0);
     auto axis = context.const_input<int64_t>(1);

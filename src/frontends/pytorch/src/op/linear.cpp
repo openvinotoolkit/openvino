@@ -11,7 +11,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_linear(NodeContext& context) {
+OutputVector translate_linear(const NodeContext& context) {
     // schema: aten::linear(Tensor input, Tensor weight, Tensor? bias=None) -> Tensor
     num_inputs_check(context, 2, 3);
     auto x = context.get_input(0);
