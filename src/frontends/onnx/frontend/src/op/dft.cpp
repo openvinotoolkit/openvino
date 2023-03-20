@@ -24,8 +24,8 @@ OutputVector dft(const Node& node) {
     return {dft::make_dft(data,
                           dft_length_provided ? ng_inputs.at(1) : std::make_shared<NullNode>(),
                           axis,
-                          inverse,
-                          onesided)};
+                          inverse == 1,
+                          onesided == 1)};
 }
 
 }  // namespace set_1
