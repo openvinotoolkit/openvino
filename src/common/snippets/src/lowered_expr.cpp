@@ -86,7 +86,7 @@ void LoweredExpr::set_loop_identificator(size_t id, size_t idx) {
 
 void LoweredExpr::remove_loop_identificator(size_t id) {
     auto it = std::find(m_loop_identifies.begin(), m_loop_identifies.end(), id);
-    OPENVINO_ASSERT(it == m_loop_identifies.end(), "LoweredExpr doesn't have the Loop with ID " + id);
+    OPENVINO_ASSERT(it == m_loop_identifies.end(), "LoweredExpr doesn't have the Loop with ID " + std::to_string(id));
     *it = LoweredExpr::LOOP_NULL_ID;
 }
 

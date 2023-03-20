@@ -106,7 +106,7 @@ void BufferInsertion::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::L
         std::set<LoweredExprPtr> potential_consumers;
         std::set<LoweredExprPtr> buffers;
         const auto current_loop_lvl = std::distance(current_loops.begin(), std::find(current_loops.begin(), current_loops.end(), loop_id));
-        for (const auto &child_expr : child_exprs) {
+        for (const auto& child_expr : child_exprs) {
             const auto child = child_expr->get_node();
             if (ov::is_type<opset1::Result>(child))
                 continue;
@@ -167,7 +167,7 @@ void BufferInsertion::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::L
             //            Relu
             const std::vector<TensorDescriptorPtr> buffer_outs = {td};
             linear_ir.insert(pos, std::make_shared<LoweredExpr>(buffer, node_outs, buffer_outs));
-            for (const auto consumer : potential_consumers) {
+            for (const auto& consumer : potential_consumers) {
                 linear_ir.replace_input(consumer, output_td, td);
             }
         }

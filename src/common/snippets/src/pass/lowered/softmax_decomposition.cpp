@@ -20,7 +20,6 @@ bool SoftmaxDecomposition::run(LoweredExprIR& linear_ir) {
     OV_ITT_SCOPED_TASK(itt::domains::SnippetsTransform, "Snippets::SoftmaxDecompositionLowered")
     bool modified = false;
     const auto& loop_manager = linear_ir.get_loop_manager();
-    const auto& config = linear_ir.get_config();
 
     auto match_softmax = ngraph::pattern::wrap_type<opset1::Softmax>();
     auto matcher = std::make_shared<pattern::Matcher>(match_softmax, "SoftmaxDecompositionLowered");

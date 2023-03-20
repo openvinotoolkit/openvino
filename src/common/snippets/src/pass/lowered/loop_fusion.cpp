@@ -222,7 +222,6 @@ bool LoopFusion::run(LoweredExprIR& linear_ir) {
     if (linear_ir.empty())
         return false;
 
-    const auto& lowering_config = linear_ir.get_config();
     const auto& loop_manager = linear_ir.get_loop_manager();
     std::vector<size_t> prev_expr_loops;
 

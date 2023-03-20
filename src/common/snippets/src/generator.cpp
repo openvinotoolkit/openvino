@@ -52,7 +52,7 @@ Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, con
             std::make_shared<pass::lowered::BufferInsertion>(buffer_allocation_rank),
             std::make_shared<pass::lowered::LoadStoreInsertion>(vector_size),
             std::make_shared<pass::lowered::SetScalarCountForLoadStore>(),
-            std::make_shared<pass::lowered::LoopInit>(vector_size),
+            std::make_shared<pass::lowered::LoopInit>(),
             std::make_shared<pass::lowered::LoadMoveBroadcastToBroadcastLoad>(),
             std::make_shared<pass::lowered::PropagateLayout>(),
             propagate_buffer_offsets,

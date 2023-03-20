@@ -19,7 +19,7 @@ namespace lowered {
 class LoopInit : public LinearIRTransformation {
 public:
     OPENVINO_RTTI("InsertLoops", "LinearIRTransformation")
-    LoopInit(size_t vector_size);
+    LoopInit();
     bool run(LoweredExprIR& linear_ir) override;
 
 private:
@@ -30,8 +30,6 @@ private:
                                              const std::vector<LoweredExprPtr>& loop_out_exprs,
                                              size_t dim_idx) const;
     std::vector<int64_t> init_finalization_offsets(const std::vector<int64_t>& ptr_increments, size_t work_amount) const;
-
-    size_t m_vector_size;
 };
 
 } // namespace lowered

@@ -56,7 +56,7 @@ int64_t get_dim_stride(const size_t dim, const std::vector<size_t>& layout, cons
 }
 }  // namespace
 
-LoopInit::LoopInit(size_t vector_size) : LinearIRTransformation(), m_vector_size(vector_size) {}
+LoopInit::LoopInit() : LinearIRTransformation() {}
 
 std::vector<int64_t> LoopInit::init_ptr_increments(LoweredExprIR& linear_ir,
                                                    const std::vector<LoweredExprPtr>& loop_in_exprs,
@@ -192,7 +192,7 @@ bool LoopInit::run(LoweredExprIR& linear_ir) {
     OV_ITT_SCOPED_TASK(itt::domains::SnippetsTransform, "Snippets::LoopInit")
     if (linear_ir.empty())
         return false;
-    const auto& lowering_config = linear_ir.get_config();
+
     const auto& loop_manager = linear_ir.get_loop_manager();
 
     std::set<size_t> inserted_loops;

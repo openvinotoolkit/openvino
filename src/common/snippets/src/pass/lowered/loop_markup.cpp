@@ -81,7 +81,6 @@ bool LoopMarkup::run(LoweredExprIR& linear_ir) {
         std::vector<LoweredExprPtr> body_exprs;
         bool is_inside = true;
         do {
-            const auto& prev_node = loop_end_pos->get()->get_node();
             body_exprs.push_back(*loop_end_pos);
             loop_end_pos++;
             // If iterator is the last, we should finish Loop

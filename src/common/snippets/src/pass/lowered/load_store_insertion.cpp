@@ -123,7 +123,6 @@ bool LoadStoreInsertion::run(LoweredExprIR& linear_ir) {
     OV_ITT_SCOPED_TASK(itt::domains::SnippetsTransform, "Snippets::LoadStoreInsertion")
 
     bool modified = false;
-    const auto& lowering_config = linear_ir.get_config();
     const auto& loop_manager = linear_ir.get_loop_manager();
 
     auto loop_begin_pos = linear_ir.cbegin();
