@@ -155,13 +155,15 @@ The ``bin`` file for this graph should contain ``float 0`` in binary form. The c
 
 
 Example of Creating Model OpenVINO API
-++++++++++++++++++++++++++++++++++++
+++++++++++++++++++++++++++++++++++++++++
 
 In the following example, the ``SinkVector`` is used to create the `ov::Model`__. For a model with states, except inputs and outputs, the ``Assign`` nodes should also point to the ``Model`` to avoid deleting it during graph transformations. Use the constructor to do it, as shown in the example, or with the special ``add_sinks(const SinkVector& sinks)`` method. After deleting the node from the graph with the ``delete_sink()`` method, a sink can be deleted from ``ov::Model``.
 
 .. doxygensnippet:: docs/snippets/ov_model_with_state_infer.cpp
    :language: cpp
    :fragment: [model_create]
+
+.. _openvino-state-api:
 
 OpenVINO State API
 ####################
