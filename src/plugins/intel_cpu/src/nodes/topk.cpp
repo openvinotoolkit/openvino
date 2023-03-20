@@ -1788,30 +1788,32 @@ private:
     }
 };
 
-bool TopK::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept {
+bool TopK::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto topKOp = ngraph::as_type_ptr<const ngraph::op::v1::TopK>(op);
-        if (!topKOp) {
-            errorMessage = "Node is not an instance of the TopK from the operations set v1 or v3";
+        if (!one_of(op->get_type_info(), ov::op::v1::TopK::get_type_info_static(),
+                                         ov::op::v3::TopK::get_type_info_static(),
+                                         ov::op::v11::TopK::get_type_info_static())) {
+            errorMessage = "Node is not an instance of the TopK from the operation sets v1, v3 or v11";
             return false;
         }
 
+        auto topKOp = ov::as_type_ptr<const ov::op::util::TopKBase>(op);
         if (!isDynamicNgraphNode(op)) {
-            auto topKConst = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(topKOp->get_input_node_shared_ptr(TOPK_K));
+            auto topKConst = std::dynamic_pointer_cast<const ov::op::v0::Constant>(topKOp->get_input_node_shared_ptr(TOPK_K));
             if (!topKConst) {
                 errorMessage = "Second tensor is not constant in static shape mode";
                 return false;
             }
         }
 
-        if (topKOp->get_mode() != ngraph::op::TopKMode::MAX &&
-                topKOp->get_mode() != ngraph::op::TopKMode::MIN) {
+        if (topKOp->get_mode() != ov::op::TopKMode::MAX &&
+            topKOp->get_mode() != ov::op::TopKMode::MIN) {
             errorMessage = "Unsupported mode.";
             return false;
         }
-        if (!one_of(topKOp->get_sort_type(), ngraph::op::TopKSortType::NONE,
-                                  ngraph::op::TopKSortType::SORT_VALUES,
-                                  ngraph::op::TopKSortType::SORT_INDICES)) {
+        if (!one_of(topKOp->get_sort_type(), ov::op::TopKSortType::NONE,
+                                             ov::op::TopKSortType::SORT_VALUES,
+                                             ov::op::TopKSortType::SORT_INDICES)) {
             errorMessage = "Unsupported sort type.";
             return false;
         }
@@ -1821,13 +1823,13 @@ bool TopK::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, s
     return true;
 }
 
-TopK::TopK(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+TopK::TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context)
         : Node(op, context, NgraphShapeInferFactory(op, PortMask(TOPK_K))) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         errorPrefix = "TopK layer with name '" + getName() + "'";
 
-        auto topKOp = ngraph::as_type_ptr<ngraph::op::v1::TopK>(op);
+        auto topKOp = ov::as_type_ptr<const ov::op::util::TopKBase>(op);
 
         auto in_dims = topKOp->get_input_partial_shape(TOPK_DATA);
         auto out_dims = topKOp->get_output_partial_shape(TOPK_DATA);
@@ -1835,15 +1837,15 @@ TopK::TopK(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr con
         auto in_dims_size = in_dims.size();
 
         if (!isDynamicNgraphNode(op)) {
-            auto topKConst = std::dynamic_pointer_cast<const ngraph::opset1::Constant>(topKOp->get_input_node_shared_ptr(TOPK_K));
+            auto topKConst = std::dynamic_pointer_cast<const ov::op::v0::Constant>(topKOp->get_input_node_shared_ptr(TOPK_K));
             if (!topKConst) {
                 IE_THROW() << errorPrefix <<  "gets non-constant second tensor in static shape mode!";
             }
         }
 
         axis = topKOp->get_axis();
-        mode_max = topKOp->get_mode() == ngraph::op::TopKMode::MAX;
-        sort_index = topKOp->get_sort_type() == ngraph::op::TopKSortType::SORT_INDICES;
+        mode_max = topKOp->get_mode() == ov::op::TopKMode::MAX;
+        sort_index = topKOp->get_sort_type() == ov::op::TopKSortType::SORT_INDICES;
 
         top_k = 0;
         preset_params_done = false;
