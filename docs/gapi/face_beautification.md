@@ -20,6 +20,7 @@ This sample requires:
 * OpenCV 4.2 or higher built with `Intel® Distribution of OpenVINO™ Toolkit <https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html>`__ (building with `Intel® TBB <https://www.threadingbuildingblocks.org/intel-tbb-tutorial>`__ is a plus)
 
 * The following pre-trained models from the :doc:`Open Model Zoo <omz_models_group_intel>`
+
       * `face-detection-adas-0001 <https://docs.openvino.ai/latest/omz_models_model_face_detection_adas_0001.html#doxid-omz-models-model-face-detection-adas-0001>`__
       * `facial-landmarks-35-adas-0002 <https://docs.openvino.ai/latest/omz_models_model_facial_landmarks_35_adas_0002.html#doxid-omz-models-model-facial-landmarks-35-adas-0002>`__
 
@@ -40,6 +41,7 @@ Briefly the algorithm is described as follows:
 - SSD result (a :math:`[1 \times 1 \times 200 \times 7]` blob) is parsed and converted to an array of faces;
 - Every face is passed to a landmarks detector;
 - Based on landmarks found for every face, three image masks are generated:
+  
   - A background mask :math:`b` -- indicating which areas from the original image to keep as-is;
   - A face part mask :math:`p` -- identifying regions to preserve (sharpen).
   - A face skin mask :math:`s` -- identifying regions to blur;
@@ -368,15 +370,18 @@ When we have all the contours needed, you are able to draw masks:
 The steps to get the masks are:
 
 * the "sharp" mask calculation:
+    
     * fill the contours that should be sharpened;
     * blur that to get the "sharp" mask (``mskSharpG``);
 
 * the "bilateral" mask calculation:
+    
     * fill all the face contours fully;
     * blur that;
     * subtract areas which intersect with the "sharp" mask --- and get the "bilateral" mask (``mskBlurFinal``);
-
+    
 * the background mask calculation:
+    
     * add two previous masks
     * set all non-zero pixels of the result as 255 (by ``cv::gapi::threshold()``)
     * revert the output (by ``cv::gapi::bitwise_not``) to get the background mask (``mskNoFaces``).

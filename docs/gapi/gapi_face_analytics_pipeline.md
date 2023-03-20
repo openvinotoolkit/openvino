@@ -19,6 +19,7 @@ This sample requires:
 * OpenCV 4.2 or higher built with `Intel® Distribution of OpenVINO™ Toolkit <https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit.html>`__ (building with `Intel® TBB <https://www.threadingbuildingblocks.org/intel-tbb-tutorial>`__ is a plus)
 
 * The following pre-trained models from the :doc:`Open Model Zoo <omz_models_group_intel>`
+
     * `face-detection-adas-0001 <https://docs.openvino.ai/latest/omz_models_model_face_detection_adas_0001.html#doxid-omz-models-model-face-detection-adas-0001>`__
     * `age-gender-recognition-retail-0013 <https://docs.openvino.ai/latest/omz_models_model_age_gender_recognition_retail_0013.html#doxid-omz-models-model-age-gender-recognition-retail-0013>`__
     * `emotions-recognition-retail-0003 <https://docs.openvino.ai/latest/omz_models_model_emotions_recognition_retail_0003.html#doxid-omz-models-model-emotions-recognition-retail-0003>`__
@@ -150,7 +151,7 @@ G-API strictly separates construction from configuration -- with the idea to kee
 
 Platform-specific details arise when the pipeline is *compiled* -- i.e. is turned from a declarative to an executable form. The way *how* to run stuff is specified via compilation arguments, and new inference/streaming features are no exception from this rule. 
 
-G-API is built on backends which implement interfaces (see `Architecture <https://docs.opencv.org/4.5.0/de/d4d/gapi_hld.html>`__ and :doc:`Kernels <openvino_docs_gapi_kernel_api>` for details) -- thus ``cv::gapi::infer<>`` is a function which can be implemented by different backends. In OpenCV 4.2, only OpenVINO™ Runtime backend for inference is available. Every inference backend in G-API has to provide a special parameterizable structure to express *backend-specific* neural network parameters -- and in this case, it is ``cv::gapi::ie::Params``:
+G-API is built on backends which implement interfaces (see `Architecture <https://docs.opencv.org/4.5.0/de/d4d/gapi_hld.html>`__ and :doc:`Kernels <openvino_docs_gapi_kernel_api>` for details) thus ``cv::gapi::infer<>`` is a function which can be implemented by different backends. In OpenCV 4.2, only OpenVINO™ Runtime backend for inference is available. Every inference backend in G-API has to provide a special parameterizable structure to express *backend-specific* neural network parameters and in this case, it is ``cv::gapi::ie::Params``:
 
 .. code-block:: cpp
    

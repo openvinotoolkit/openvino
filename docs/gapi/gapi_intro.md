@@ -25,14 +25,15 @@ G-API Concepts
 ##############
 
 * *Graphs* are built by applying operations to data objects.
-   * API itself has no "graphs", it is expression-based instead.
-
+  
+  * API itself has no "graphs", it is expression-based instead.
+  
 * *Data objects* do not hold actual data, only capture dependencies.
 * *Operations* consume and produce data objects.
-
 * A graph is defined by specifying its boundaries with data objects:
-   * What data objects are inputs to the graph?
-   * What are its outputs?
+   
+  * What data objects are inputs to the graph?
+  * What are its outputs?
 
 The paragraphs below explain the G-API programming model and development workflow.   
 
