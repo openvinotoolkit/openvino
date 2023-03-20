@@ -352,6 +352,22 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
 static constexpr Property<PerformanceMode> performance_mode{"PERFORMANCE_HINT"};
 
 /**
+ * @brief This property define if using hyper threading during inference.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Developer can use this property to use or not use CPU pinning during inference. If user does not explicitly set
+ * value for this property, OpenVINO may choose any desired value based on internal logic.
+ *
+ * The following code is example to use this property.
+ *
+ * @code
+ * ie.set_property(ov::hint::use_cpu_pinning(true));
+ * ie.set_property(ov::hint::use_cpu_pinning(false));
+ * @endcode
+ */
+static constexpr Property<bool> use_cpu_pinning{"USE_CPU_PINNING"};
+
+/**
  * @brief (Optional) property that backs the (above) Performance Hints
  * by giving additional information on how many inference requests the application will be keeping in flight
  * usually this value comes from the actual use-case (e.g. number of video-cameras, or other sources of inputs)

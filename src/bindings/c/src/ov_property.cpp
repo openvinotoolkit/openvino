@@ -23,6 +23,7 @@ const char* ov_property_key_num_streams = "NUM_STREAMS";
 const char* ov_property_key_affinity = "AFFINITY";
 const char* ov_property_key_inference_num_threads = "INFERENCE_NUM_THREADS";
 const char* ov_property_key_hint_performance_mode = "PERFORMANCE_HINT";
+const char* ov_property_key_hint_use_cpu_pinning = "USE_CPU_PINNING";
 const char* ov_property_key_hint_inference_precision = "INFERENCE_PRECISION_HINT";
 const char* ov_property_key_hint_num_requests = "PERFORMANCE_HINT_NUM_REQUESTS";
 const char* ov_property_key_hint_model_priority = "MODEL_PRIORITY";

@@ -220,6 +220,16 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((properties.hint.PerformanceMode.UNDEFINED, properties.hint.PerformanceMode.UNDEFINED),),
         ),
         (
+            properties.hint.use_cpu_pinning,
+            "USE_CPU_PINNING",
+            (
+                (True, True),
+                (False, False),
+                (1, True),
+                (0, False),
+            ),
+        ),
+        (
             properties.hint.execution_mode,
             "EXECUTION_MODE_HINT",
             ((properties.hint.ExecutionMode.UNDEFINED, properties.hint.ExecutionMode.UNDEFINED),),
@@ -375,6 +385,7 @@ def test_single_property_setting(device):
                 properties.affinity(properties.Affinity.NONE),
                 properties.inference_precision(Type.f32),
                 properties.hint.performance_mode(properties.hint.PerformanceMode.LATENCY),
+                properties.hint.use_cpu_pinning(True),
                 properties.hint.num_requests(12),
                 properties.streams.num(5),
             ],
@@ -387,6 +398,7 @@ def test_single_property_setting(device):
             properties.affinity(): properties.Affinity.NONE,
             properties.inference_precision(): Type.f32,
             properties.hint.performance_mode(): properties.hint.PerformanceMode.LATENCY,
+            properties.hint.use_cpu_pinning(): True,
             properties.hint.num_requests(): 12,
             properties.streams.num(): 5,
         },

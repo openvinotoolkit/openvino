@@ -13,6 +13,7 @@
 
 namespace ov {
 namespace intel_cpu {
+
 /**
  * @brief      Generate streams information table according to processors type table
  * @param[in]  input_streams is target streams set by user via NUM_STREAMS or hints.

@@ -66,6 +66,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_hint, ov::hint::inference_precision, "inference_precision");
     wrap_property_RW(m_hint, ov::hint::model_priority, "model_priority");
     wrap_property_RW(m_hint, ov::hint::performance_mode, "performance_mode");
+    wrap_property_RW(m_hint, ov::hint::use_cpu_pinning, "use_cpu_pinning");
     wrap_property_RW(m_hint, ov::hint::execution_mode, "execution_mode");
     wrap_property_RW(m_hint, ov::hint::num_requests, "num_requests");
     wrap_property_RW(m_hint, ov::hint::model, "model");
