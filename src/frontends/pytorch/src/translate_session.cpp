@@ -45,7 +45,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
     const std::unordered_map<size_t, PlaceDesc>& external_descriptors) {
     std::shared_ptr<Model> resulting_model;  // define here to make a conversion in a nested scope
     {
-        auto parameters = std::shared_ptr<ParameterVector>();
+        auto parameters = std::make_shared<ParameterVector>();
         auto tensor_map = std::make_shared<TensorMap>();  // tensor map of the current context
         auto mutated_tensors = std::make_shared<std::set<size_t>>();
 
