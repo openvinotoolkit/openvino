@@ -364,7 +364,7 @@ bool program::analyze_output_size_handling_need() {
 
             tensor size(1);
             for (size_t i = 0; i < prim->size.size(); i++) {
-                size.spatial[i] = prim->size[prim->size.size() - i - 1];
+                size.spatial[i] = static_cast<tensor::value_type>(prim->size[prim->size.size() - i - 1]);
             }
             // TODO: Check compatibility of output size calculation (with caffe).
             auto primInputSize = prim_node.input().get_output_layout().get_tensor();
@@ -485,6 +485,11 @@ void program::set_options() {
     assert(prog_id != 0);
     if (!_config.get_property(ov::intel_gpu::force_implementations).empty()) {
         _config.set_property(ov::intel_gpu::optimize_data(true));
+    }
+
+    GPU_DEBUG_GET_INSTANCE(debug_config);
+    GPU_DEBUG_IF(!debug_config->dump_graphs.empty()) {
+        _config.set_property(ov::intel_gpu::dump_graphs(debug_config->dump_graphs));
     }
 }
 
