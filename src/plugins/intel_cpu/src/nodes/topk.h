@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include <ie_common.h>
 #include <node.h>
+
+#include <ie_precision.hpp>
 #include <string>
 #include <memory>
 #include <vector>
@@ -101,13 +102,13 @@ private:
     void topk_ref(const float *in_ptr, float *out_ptr, int32_t *dst_idx);
     inline void topk_kernel_process(const uint8_t *in_p, uint8_t *out_p, uint8_t *src_idx,
                                     uint8_t *process_p, uint8_t *process_idx_p, size_t work_amount);
-    inline static int count(InferenceEngine::SizeVector dims, size_t start_ind, size_t end_ind);
-    inline static int count(InferenceEngine::SizeVector dims, size_t start_ind = 0);
+    inline static int count(const VectorDims& dims, size_t start_ind, size_t end_ind);
+    inline static int count(const VectorDims& dims, size_t start_ind = 0);
     inline void bitonic_push_idx(int p, int n, std::vector<int> &vec, int &cnt, bool cmp_val = true);
     void calc_bitonic_idx(size_t n, int &cnt, bool cmp_val);
-    void calc_dims_size(const InferenceEngine::SizeVector &layout_dims);
+    void calc_dims_size(const VectorDims &layout_dims);
     void topk_ref_process(const float* src_data, float* dst_data, int32_t* dst_idx,
-                   const InferenceEngine::SizeVector &in_dims, std::function<float(float, float)> compare) const;
+                   const VectorDims &in_dims, std::function<float(float, float)> compare) const;
     void preset_params();
     void prepare_original_idx();
 
@@ -128,7 +129,7 @@ private:
     bool bubble_inplace;
     bool preset_params_done;
 
-    InferenceEngine::SizeVector src_dims, dst_dims;
+    VectorDims src_dims, dst_dims;
     TopKLayoutType layout;
     TopKAlgorithm algorithm;
 
