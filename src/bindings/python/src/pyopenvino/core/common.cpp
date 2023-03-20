@@ -346,7 +346,7 @@ uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
 py::dict outputs_to_dict(InferRequestWrapper& request) {
     py::dict res;
     for (const auto& out : request.m_outputs) {
-        res[py::cast(out)] = std::move(array_helpers::array_from_tensor(request.m_request.get_tensor(out)));
+        res[py::cast(out)] = array_helpers::array_from_tensor(request.m_request.get_tensor(out));
     }
     return res;
 }
