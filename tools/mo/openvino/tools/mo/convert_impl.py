@@ -751,7 +751,7 @@ def python_api_params_parsing(argv):
             if inp.value is not None:
                 value_dict[inp.name] = inp.value
         argv.placeholder_shapes = shape_dict if len(shape_dict) > 0 else None
-        argv.placeholder_data_types = data_type_dict if len(data_type_dict) > 0 else None
+        argv.placeholder_data_types = data_type_dict if len(data_type_dict) > 0 else {}
         argv.freeze_placeholder_with_value = value_dict if len(value_dict) > 0 else {}
     else:
         # unnamed inputs case
@@ -772,7 +772,7 @@ def python_api_params_parsing(argv):
             if inp.value is not None:
                 value_list.append(inp.value)
         argv.placeholder_shapes = shape_list if len(shape_list) > 0 else None
-        argv.placeholder_data_types = data_type_list if len(data_type_list) > 0 else None
+        argv.placeholder_data_types = data_type_list if len(data_type_list) > 0 else {}
         argv.freeze_placeholder_with_value = value_list if len(value_list) > 0 else {}
         if argv.placeholder_shapes is not None and len(argv.placeholder_shapes) == 1:
             argv.placeholder_shapes = argv.placeholder_shapes[0]
