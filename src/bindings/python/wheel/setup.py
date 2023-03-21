@@ -295,23 +295,20 @@ class PrepareLibs(build_clib):
                     set_rpath(comp_data["rpath"], os.path.realpath(path))
 
     def get_reallink(self, link_file):
-        real_name = os.readlink(link_file)
-        if not os.path.isabs(real_name):
-            real_name = os.path.join(os.path.dirname(link_file), real_name)
-        while Path(real_name).is_symlink():
+        real_name = link_file
+        while True:
             real_name = os.readlink(real_name)
             if not os.path.isabs(real_name):
                 real_name = os.path.join(os.path.dirname(link_file), real_name)
+            if False == Path(real_name).is_symlink():
+                break
         return real_name
-    
+
     def generate_package(self, src_dirs):
         """Collect package data files from preinstalled dirs and put all runtime libraries to the subpackage."""
         # additional blacklist filter, just to fix cmake install issues
         blacklist = [".lib", ".pdb", "_debug.dll", "_debug.dylib"]
         package_dir = os.path.join(get_package_dir(PY_INSTALL_CFG), WHEEL_LIBS_INSTALL_DIR)
-
-        for src_dir in src_dirs:
-            local_base_dir = Path(src_dir)
 
         for src_dir in src_dirs:
             local_base_dir = Path(src_dir)
@@ -347,10 +344,10 @@ class PrepareLibs(build_clib):
             # step 2:
             # according to the corresponding relationship (file_dict),
             # remove the reserved soft link and rename the real file to the name of its soft link
-            for real_name in file_dict.keys():
-                os.unlink(file_dict[real_name])
-                os.rename(real_name, file_dict[real_name])
-                self.announce(f"Resolved symlink {file_dict[real_name]} as {real_name}", level=3)
+            for real_name, symlink in file_dict.items():
+                os.unlink(symlink)
+                os.rename(real_name, symlink)
+                self.announce(f"Resolved symlink {symlink} as {real_name}", level=3)
 
             # copy so / dylib files to WHEEL_LIBS_INSTALL_DIR
             for file_path in local_base_dir.rglob("*"):
