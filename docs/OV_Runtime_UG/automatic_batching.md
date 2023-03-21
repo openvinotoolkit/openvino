@@ -25,7 +25,7 @@ The below examples show how AUTO Batching can be used in the form of plugin that
 Automatic Batching as underlying plugin configured to other plugins
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-In thie following examples, BATCH plugin will be configured to another plugin in case of tput/ctput mode.
+In thie following examples, BATCH plugin will be configured to another plugin in case of ``tput/ctput mode``.
 
 .. code-block:: sh
 
@@ -168,13 +168,13 @@ Limitations
 
 The following are limitations of the current AUTO Batching implementations:
 
-- BATCH plugin:
+- ``BATCH`` plugin:
 
   - Does not support the dynamic model.
-  - Can only support tput/ctput mode, latency/none mode is not supported.
-  - Only supports models with batch dimension = 1
+  - Can only support ``tput/ctput mode``, ``latency/none mode`` is not supported.
+  - Only supports models with ``batch dimension = 1``.
   - The input/output tensor should come from ``inferRequest``, otherwise the user-created tensor will trigger a memory copying.
-  - The ``OPTIMAL_BATCH_SIZE`` should be greater than 2, if not -- specify a batch size which depends on model and plugin (CPU does not support this property).
+  - The ``OPTIMAL_BATCH_SIZE`` should be greater than ``2``, if not -- specify a batch size which depends on model and plugin (CPU does not support this property).
   - GPU is supported by default, while CPU will not trigger ``auto_batch`` in tput mode.
   - ``AUTO_BATCH`` will bring much more compilation latency.
 
