@@ -206,10 +206,12 @@ if(THREADING MATCHES "^(TBB|TBB_AUTO)$" AND
                                DEPENDS tbb)
         list(APPEND core_dev_components tbb_dev)
 
-        install(FILES "${TBBROOT}/cmake/TBBConfig.cmake"
-                      "${TBBROOT}/cmake/TBBConfigVersion.cmake"
-                DESTINATION "${IE_TBB_DIR_INSTALL}/cmake"
-                COMPONENT tbb_dev)
+        if(EXISTS "${TBBROOT}/cmake")
+            install(FILES "${TBBROOT}/cmake/TBBConfig.cmake"
+                        "${TBBROOT}/cmake/TBBConfigVersion.cmake"
+                    DESTINATION "${IE_TBB_DIR_INSTALL}/cmake"
+                    COMPONENT tbb_dev)
+        endif()
         install(DIRECTORY "${TBBROOT}/include"
                 DESTINATION "${IE_TBB_DIR_INSTALL}"
                 COMPONENT tbb_dev)
