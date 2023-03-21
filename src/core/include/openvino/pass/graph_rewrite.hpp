@@ -257,14 +257,6 @@ public:
         return pass;
     }
 
-    OPENVINO_DEPRECATED("Use MatcherPass instead")
-    void add_matcher(const std::shared_ptr<pattern::Matcher>& m,
-                     const graph_rewrite_callback& callback,
-                     const PassPropertyMask& property);
-
-    OPENVINO_DEPRECATED("Use MatcherPass instead")
-    void add_matcher(const std::shared_ptr<pattern::Matcher>& m, const ov::graph_rewrite_callback& callback);
-
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
     void set_pass_config(const std::shared_ptr<PassConfig>& pass_config) override;

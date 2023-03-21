@@ -197,7 +197,10 @@ std::vector<tensor::value_type> layout::get_dims() const {
     if (is_dynamic())
         throw std::runtime_error("[GPU] get_dims() is called for dynamic shape");
     auto shape = size.to_shape();
-    std::vector<tensor::value_type> res(shape.begin(), shape.end());
+    std::vector<tensor::value_type> res;
+    for (auto dim : shape) {
+        res.push_back(static_cast<tensor::value_type>(dim));
+    }
 
     if (res.size() < format.dimension())
         res.insert(res.end(), format.dimension() - res.size(), 1);
@@ -239,6 +242,8 @@ static format to_weights_format(format f, bool is_grouped) {
             return format::o_is_yx_isv16;
         case format::bs_xs_xsv8_bsv8:
             return format::os_i_osv8__ai8;
+        case format::b_fs_yx_32fp:
+            return format::os_is_yx_osv32_isv32p;
         default:
             throw std::invalid_argument("Unable to convert data format " + f.to_string() + " to weights format");
     }
@@ -331,7 +336,10 @@ tensor layout::get_tensor() const {
         shape = size.to_shape();
     }
 
-    std::vector<tensor::value_type> dims(shape.begin(), shape.end());
+    std::vector<tensor::value_type> dims;
+    for (auto dim : shape) {
+        dims.push_back(static_cast<tensor::value_type>(dim));
+    }
 
     auto rank = std::max(format.dimension(), dims.size());
     auto default_fmt = format::get_default_format(rank, format::is_weights_format(format), format::is_grouped(format));
@@ -511,7 +519,10 @@ ov::PartialShape layout::transform(cldnn::format new_fmt) const {
 
     cldnn::tensor::value_type default_size = -1;
     auto shape = size.to_shape();
-    std::vector<tensor::value_type> dims(shape.begin(), shape.end());
+    std::vector<tensor::value_type> dims;
+    for (auto dim : shape) {
+        dims.push_back(static_cast<tensor::value_type>(dim));
+    }
 
     const cldnn::format default_fmt = cldnn::format::bfwzyx;
     auto old_sizes = convert_dimensions(dims, format.order(), default_fmt.internal_order()); // convert to internal order (bfxyzw)
@@ -612,7 +623,7 @@ ov::PartialShape layout::transform(cldnn::format new_fmt) const {
     }
 
     auto new_dims = convert_dimensions(new_sizes, default_fmt.internal_order(), new_fmt.order());
-    for (int idx = (new_dims.size() - 1); idx >= 0; idx--) {
+    for (int idx = static_cast<int>(new_dims.size() - 1); idx >= 0; idx--) {
         if (new_dims[idx] == -1)
             new_dims.erase((new_dims.begin() + idx));
         else if (new_dims[idx] < 0)

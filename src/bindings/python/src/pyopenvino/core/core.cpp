@@ -362,7 +362,7 @@ void regclass_Core(py::module m) {
             std::stringstream str;
             str << "Provided python object type " << model_path.get_type().str()
                 << " isn't supported as 'model' argument.";
-            throw ov::Exception(str.str());
+            OPENVINO_THROW(str.str());
         },
         py::arg("model"),
         py::arg("weights") = py::none(),

@@ -11,10 +11,10 @@ Google Analytics is used for telemetry purposes. Refer to
 `Google Analytics support <https://support.google.com/analytics/answer/6004245#zippy=%2Cour-privacy-policy%2Cgoogle-analytics-cookies-and-identifiers%2Cdata-collected-by-google-analytics%2Cwhat-is-the-data-used-for%2Cdata-access>`__ to understand how the data is collected and processed.
 
 Enable or disable Telemetry reporting
-======================================
+###########################################################
 
 First-run consent
---------------------------------------
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 On the first run of an application that collects telemetry data, you will be prompted 
 to opt in or out of telemetry collection with the following telemetry message: 
@@ -26,13 +26,13 @@ to opt in or out of telemetry collection with the following telemetry message:
    directly by Intel or through the use of Google Analytics. This data will be stored 
    in countries where Intel or Google operate.
 
-   You can opt-out at any time in the future by running 'opt_in_out --opt_in'.
+   You can opt-out at any time in the future by running ``opt_in_out --opt_in``.
    
    More Information is available at docs.openvino.ai.
 
-   Please type 'Y' to give your consent or 'N' to decline.
+   Please type ``Y`` to give your consent or ``N`` to decline.
 
-Choose your preference by typing 'Y' to enable or 'N' to disable telemetry. Your choice will 
+Choose your preference by typing ``Y`` to enable or ``N`` to disable telemetry. Your choice will 
 be confirmed by a corresponding disclaimer. If you do not reply to the telemetry message, 
 your telemetry data will not be collected. 
 
@@ -42,17 +42,18 @@ if you have explicitly provided consent in another OpenVINO tool.
 
 
 Changing consent decision
---------------------------------------
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 You can change your data collection decision with the following command lines: 
 
-`opt_in_out --opt_in` - enable telemetry
+``opt_in_out --opt_in`` - enable telemetry
 
-`opt_in_out --opt_out` - disable telemetry
+``opt_in_out --opt_out`` - disable telemetry
 
 
 Telemetry Data Collection Details
-======================================
+###########################################################
+
 
 .. tab:: Telemetry Data Collected 
 

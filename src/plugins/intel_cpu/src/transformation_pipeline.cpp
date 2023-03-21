@@ -112,7 +112,12 @@ namespace intel_cpu {
 
 using const_node_ptr = const std::shared_ptr<const ov::Node>;
 
-bool Transformations::fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, ov::element::Type to, size_t idx) {
+bool Transformations::fuse_type_to_convert(const std::shared_ptr<ngraph::Node>& node, const precisions_map& precisions) {
+    const auto& from = node->get_output_element_type(0);
+    auto it = precisions.find(from);
+    if (it == precisions.end())
+        return false;
+    const auto& to = it->second;
     if (auto convert = ov::as_type_ptr<ov::opset10::Convert>(node)) {
         // For Convert node, converting precision from floating point to boolean will lead to mathematical
         // error, because here the output precision boolean is replaced by u8. E.g. floating point value 0.01
@@ -187,7 +192,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     }
 
     auto get_convert_precisions = []() {
-        precisions_array array = {
+        precisions_map map = {
             {ov::element::i64,     ov::element::i32},
             {ov::element::u64,     ov::element::i32},
             {ov::element::i16,     ov::element::i32},
@@ -201,9 +206,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         };
 
         if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core))
-            array.push_back({ov::element::bf16, ov::element::f32});
+            map.insert({ov::element::bf16, ov::element::f32});
 
-        return array;
+        return map;
     };
     static const auto precisions = get_convert_precisions();
     type_to_fuse_map type_to_fuse = {{ov::opset10::Convert::get_type_info_static(), fuse_type_to_convert}};
@@ -538,7 +543,7 @@ void Transformations::PostLpt() {
             // Implementation calls AMX BF16 brgemm only for tensors with K and N aligned on 2, otherwise fallbacks on vector impl
             // Vector madd BF16 instruction on SPR has reduced performance on HW level, which results in overall perf degradation
             size_t bf16Factor = 2;
-            if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16_amx_bf16) &&
+            if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
                 (n->get_input_element_type(0) == element::bf16 || (n->get_input_element_type(0) == element::f32 && enableBF16)) &&
                 (n->get_input_shape(0)[3] % bf16Factor != 0 || n->get_input_shape(1)[1] % bf16Factor != 0 || n->get_input_shape(3)[3] % bf16Factor != 0)) {
                 return true;
@@ -566,7 +571,7 @@ void Transformations::MainSnippets(void) {
     ngraph::pass::Manager snippetsManager;
     snippetsManager.set_per_pass_validation(false);
     if (snippetsMode != Config::SnippetsMode::IgnoreCallback)
-        snippetsManager.register_pass<SnippetsMarkSkipped>();
+        snippetsManager.register_pass<SnippetsMarkSkipped>(enableBF16);
     snippetsManager.register_pass<ngraph::snippets::pass::SnippetsTokenization>();
 
     const bool isMHASupported =
