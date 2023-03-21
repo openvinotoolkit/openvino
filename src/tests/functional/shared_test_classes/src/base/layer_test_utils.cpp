@@ -9,6 +9,7 @@
 
 #include <thread>
 
+#include "openvino/runtime/device_id_parser.hpp"
 #include <openvino/pass/serialize.hpp>
 #include <ngraph/opsets/opset.hpp>
 #include "shared_test_classes/base/layer_test_utils.hpp"
