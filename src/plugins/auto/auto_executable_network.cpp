@@ -17,8 +17,13 @@ AutoExecutableNetwork::AutoExecutableNetwork(AutoScheduleContext::Ptr& context, 
 }
 
 std::shared_ptr<IE::RemoteContext> AutoExecutableNetwork::GetContext() const {
-    _autoSchedule->WaitActualNetworkReady();
-    return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetContext();
+    std::lock_guard<std::mutex> lock(_autoSContext->_fallbackMutex);
+    if (_autoSchedule->_loadContext[FALLBACKDEVICE].isAlready) {
+        return _autoSchedule->_loadContext[FALLBACKDEVICE].executableNetwork->GetContext();
+    } else {
+        _autoSchedule->WaitActualNetworkReady();
+        return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetContext();
+    }
 }
 
 void AutoExecutableNetwork::SetConfig(const std::map<std::string, IE::Parameter>
@@ -40,6 +45,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
             ov::PropertyName{ov::optimal_number_of_infer_requests.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::hint::model_priority.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::device::properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::execution_devices.name(), ov::PropertyMutability::RO}};
     } else if (name == ov::hint::performance_mode) {
         auto value = _autoSContext->_performanceHint;
@@ -56,6 +62,22 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
     } else if (name == ov::device::priorities) {
         auto value = _autoSContext->_config.find(ov::device::priorities.name());
         return decltype(ov::device::priorities)::value_type {value->second.as<std::string>()};
+    } else if (name == ov::device::properties) {
+        ov::AnyMap all_devices = {};
+        if (_autoSchedule->_loadContext[ACTUALDEVICE].isAlready) {
+            ov::AnyMap device_properties = {};
+            auto& context = _autoSchedule->_loadContext[ACTUALDEVICE];
+            auto device_supported_metrics = context.executableNetwork->GetMetric(METRIC_KEY(SUPPORTED_METRICS));
+            for (auto&& property_name : device_supported_metrics.as<std::vector<std::string>>()) {
+                device_properties[property_name] = context.executableNetwork->GetMetric(property_name);
+            }
+            auto device_supported_configs = context.executableNetwork->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+            for (auto&& property_name : device_supported_configs.as<std::vector<std::string>>()) {
+                device_properties[property_name] = context.executableNetwork->GetConfig(property_name);
+            }
+            all_devices[context.deviceInfo.deviceName] = device_properties;
+        }
+        return all_devices;
     } else if (name == ov::hint::model_priority) {
         auto value = _autoSContext->_modelPriority;
         if (_autoSContext->_core->isNewAPI()) {
