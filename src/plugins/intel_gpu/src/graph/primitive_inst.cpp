@@ -242,11 +242,11 @@ void primitive_inst::update_shape() {
     }
 }
 
-void primitive_inst::realloc_if_needed() {
+event::ptr primitive_inst::realloc_if_needed() {
     GPU_DEBUG_GET_INSTANCE(debug_config);
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
 
-
+    event::ptr ev = nullptr;
     // Update param if fake_alignment is available
     auto updated_params = _node->type()->get_fake_aligned_params(*_impl_params);
     auto actual_layout = updated_params.get_output_layout();
@@ -254,28 +254,31 @@ void primitive_inst::realloc_if_needed() {
 
     // input_layout node is supposed to always use external memory in dynamic case
     if (_node->is_type<input_layout>())
-        return;
+        return ev;
 
     bool can_reuse_buffer = _outputs[0] && actual_layout.count() <= max_output_layout_size;
 
     if (can_reuse_buffer) {
         GPU_DEBUG_TRACE_DETAIL << id() << ": reuse previously allocated output buffer" << std::endl;
         _outputs[0] = _network.get_engine().reinterpret_buffer(*_outputs[0], actual_layout);
+        if (need_reset_output_memory()) {
+            ev = _outputs[0]->fill(_network.get_stream());
+        }
     } else {
         GPU_DEBUG_TRACE_DETAIL << id() << ": realloc output memory. "
                                <<  " Current buffer_size=" << max_output_layout_size
                                <<  " Requested buffer_size=" << actual_layout.count() << std::endl;
-        _outputs = allocate_outputs(&updated_params, false);
+        _outputs = allocate_outputs(&updated_params, need_reset_output_memory());
         // TODO : need to handle multiple outputs
         max_output_layout_size = updated_params.output_layouts[0].count();
     }
     // intermediate memory allocation is required for primitives consisting of multiple kernels in dynamic case
     {
         if (_impl == nullptr)
-            return;
+            return ev;
         const auto& ibuf_layouts = _impl->get_internal_buffer_layouts();
         if (ibuf_layouts.empty())
-            return;
+            return ev;
 
         for (size_t i = 0; i < ibuf_layouts.size(); ++i) {
             if (i < _intermediates_memory.size() && ibuf_layouts[i].bytes_count() <= max_intermediates_memory_sizes[i]) {
@@ -293,6 +296,7 @@ void primitive_inst::realloc_if_needed() {
             }
         }
     }
+    return ev;
 }
 
 bool primitive_inst::update_impl() {
@@ -431,7 +435,9 @@ event::ptr primitive_inst::execute(const std::vector<event::ptr>& events) {
                 auto ev = update_weights();
                 if (ev)
                     dependencies.push_back(ev);
-                realloc_if_needed();
+                auto ev_reset = realloc_if_needed();
+                if (ev_reset)
+                    dependencies.push_back(ev_reset);
             }
         }
     }

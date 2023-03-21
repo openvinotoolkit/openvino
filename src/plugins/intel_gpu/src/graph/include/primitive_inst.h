@@ -298,7 +298,7 @@ protected:
     virtual event::ptr update_weights();
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
     bool update_impl();
-    void realloc_if_needed();
+    event::ptr realloc_if_needed();
 
     cldnn::network::ptr get_unfused_subgraph();
 
@@ -332,6 +332,21 @@ protected:
         return { layout(in_layout.get<ShapeType>(), output_type, in_layout.format) };
     }
 
+    virtual bool need_reset_input_memory() const {
+        return false;
+    }
+
+    virtual bool need_reset_output_memory() const {
+        std::vector<primitive_id> users;
+        for (auto u : _node->get_users())
+            users.push_back(u->id());
+
+        for (auto u : _network.get_primitives(users)) {
+            if (u->need_reset_input_memory())
+                return true;
+        }
+        return false;
+    }
 
     // This could be implemented via single map std::unordered_map<instrumentation::perf_counter_key, std::tuple<int64_t, size_t>>
     // but the overhead on using perf_counter_key as map key is too big, thus we use hash as map key

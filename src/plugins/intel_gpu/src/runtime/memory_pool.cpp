@@ -140,7 +140,7 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
     }
     GPU_DEBUG_LOG << "[" << id << ": output]" << std::endl;
     // didn't find anything for you? create new resource
-    auto mem = alloc_memory(layout, type);
+    auto mem = alloc_memory(layout, type, reset);
     {
         _non_padded_pool.emplace(layout.bytes_count(),
                                  memory_record({{id, network_id}}, mem, network_id, type));
