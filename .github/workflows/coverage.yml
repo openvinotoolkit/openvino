@@ -33,7 +33,7 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - { name: "Ubuntu clang", os: ubuntu-latest, cc: "clang", cxx: "clang++" }
+          - { name: "Ubuntu gcc", os: ubuntu-latest, cc: "gcc", cxx: "g++" }
 
     steps:
       - name: Clone OpenVINO
@@ -51,9 +51,6 @@ jobs:
         with:
           version: 1.10.2
       
-      - name: Setup clang
-        uses: egor-tensin/setup-clang@v1
-
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
         with:
