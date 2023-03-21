@@ -120,6 +120,7 @@ using OVClassLoadNetworkTest = OVClassQueryNetworkTest;
 using OVClassSetGlobalConfigTest = OVClassBaseTestP;
 using OVClassSetModelPriorityConfigTest = OVClassBaseTestP;
 using OVClassSetExecutionModeHintConfigTest = OVClassBaseTestP;
+using OVClassSetUseCpuPinningHintConfigTest = OVClassBaseTestP;
 using OVClassSetTBBForceTerminatePropertyTest = OVClassBaseTestP;
 using OVClassSetLogLevelConfigTest = OVClassBaseTestP;
 using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
@@ -429,6 +430,21 @@ TEST_P(OVClassSetExecutionModeHintConfigTest, SetConfigNoThrow) {
     ASSERT_EQ(ov::hint::ExecutionMode::ACCURACY, ie.get_property(target_device, ov::hint::execution_mode));
     ie.set_property(target_device, ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE));
     ASSERT_EQ(ov::hint::ExecutionMode::PERFORMANCE, ie.get_property(target_device, ov::hint::execution_mode));
+}
+
+TEST_P(OVClassSetUseCpuPinningHintConfigTest, SetConfigNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::hint::use_cpu_pinning);
+
+    bool defaultMode{};
+    ASSERT_NO_THROW(defaultMode = ie.get_property(target_device, ov::hint::use_cpu_pinning));
+    (void)defaultMode;
+
+    ie.set_property(target_device, ov::hint::use_cpu_pinning(true));
+    ASSERT_EQ(true, ie.get_property(target_device, ov::hint::use_cpu_pinning));
+    ie.set_property(target_device, ov::hint::use_cpu_pinning(false));
+    ASSERT_EQ(false, ie.get_property(target_device, ov::hint::use_cpu_pinning));
 }
 
 TEST_P(OVClassSetDevicePriorityConfigTest, SetConfigAndCheckGetConfigNoThrow) {
