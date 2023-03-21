@@ -60,9 +60,8 @@ bool shape_to_unsqueeze_axes(const std::shared_ptr<Node>& reshape,
     return true;
 }
 
-std::vector<size_t> unsqueeze_axes_to_shape(const std::shared_ptr<Node>& input_node,
-                                            std::vector<size_t> unsqueeze_axes) {
-    const auto& input_shape = input_node->input(0).get_shape();  // check is static
+std::vector<size_t> unsqueeze_axes_to_shape(const Output<Node>& input_node, std::vector<size_t> unsqueeze_axes) {
+    const auto& input_shape = input_node.get_shape();  // check is static
     std::vector<size_t> to_shape(input_shape.size() + unsqueeze_axes.size());
     std::sort(unsqueeze_axes.begin(), unsqueeze_axes.end());
     for (size_t i = 0, j = 0, k = 0; i < to_shape.size(); ++i) {
@@ -113,7 +112,14 @@ TSUnsqueezeForward::TSUnsqueezeForward() {
         auto new_transpose_order =
             Constant::create(transpose_order->get_element_type(), {ts_order_values.size()}, ts_order_values);
 
-        auto new_unsqueeze = unsqueeze->clone_with_new_inputs({transpose->input_value(0), unsqueeze->input_value(1)});
+        std::shared_ptr<Node> new_unsqueeze;
+        if (as_type_ptr<Reshape>(unsqueeze)) {
+            auto new_values = unsqueeze_axes_to_shape(transpose->input_value(0), non_negative_axes);
+            auto new_const = Constant::create(unsqueeze_axes->get_element_type(), {new_values.size()}, new_values);
+            new_unsqueeze = unsqueeze->clone_with_new_inputs({transpose->input_value(0), new_const});
+        } else {
+            new_unsqueeze = unsqueeze->clone_with_new_inputs({transpose->input_value(0), unsqueeze->input_value(1)});
+        }
         auto new_transpose = transpose->clone_with_new_inputs({new_unsqueeze, new_transpose_order});
 
         replace_node(unsqueeze, new_transpose);
@@ -188,7 +194,7 @@ TSUnsqueezeBackward::TSUnsqueezeBackward() {
 
         auto new_transpose = transpose->clone_with_new_inputs({unsqueeze->input_value(0), new_transpose_order});
         if (as_type_ptr<Reshape>(unsqueeze)) {
-            new_values = unsqueeze_axes_to_shape(new_transpose, new_values);
+            new_values = unsqueeze_axes_to_shape(new_transpose->output(0), new_values);
         }
         auto new_const = Constant::create(unsqueeze_axes->get_element_type(), unsqueeze_axes->get_shape(), new_values);
         auto new_unsqueeze = unsqueeze->clone_with_new_inputs({new_transpose, new_const});
