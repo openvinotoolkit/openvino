@@ -75,7 +75,7 @@ public:
         topology.add(grid_sample("grid_sample", { input_info("reordered_data"), input_info("reordered_grid") }, p.attributes));
         topology.add(reorder("plane_grid_sample", input_info("grid_sample"), plane_format, data_data_type));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         network->set_input_data("data", data);
         network->set_input_data("grid", grid);
         const auto outputs = network->execute();
