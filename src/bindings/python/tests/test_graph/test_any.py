@@ -34,7 +34,7 @@ def test_any_list(values, data_type):
 
 
 @pytest.mark.parametrize(("value_dict", "value_type", "data_type"), [
-    ({"key": "value"}, OVAny, str),
+    ({"key": "value"}, str, str),
     ({21: 37}, int, int),
     ({21.0: 37.0}, float, float),
 ])
