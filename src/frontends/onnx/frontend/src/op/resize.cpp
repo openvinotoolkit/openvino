@@ -24,12 +24,12 @@ static const std::unordered_set<std::string> supported_transforms = {"half_pixel
                                                                      "asymmetric",
                                                                      "tf_half_pixel_for_nn"};
 
-using InterpolateMode = ngraph::op::v4::Interpolate::InterpolateMode;
+using InterpolateMode = default_opset::Interpolate::InterpolateMode;
 static const std::map<std::string, int> interp_mode_map = {{"nearest", static_cast<int>(InterpolateMode::NEAREST)},
                                                            {"linear", static_cast<int>(InterpolateMode::LINEAR_ONNX)},
                                                            {"cubic", static_cast<int>(InterpolateMode::CUBIC)}};
 
-using Transform_mode = ngraph::op::v4::Interpolate::CoordinateTransformMode;
+using Transform_mode = default_opset::Interpolate::CoordinateTransformMode;
 static const std::map<std::string, int> transform_mode_map = {
     {"half_pixel", static_cast<int>(Transform_mode::HALF_PIXEL)},
     {"pytorch_half_pixel", static_cast<int>(Transform_mode::PYTORCH_HALF_PIXEL)},
@@ -37,7 +37,7 @@ static const std::map<std::string, int> transform_mode_map = {
     {"asymmetric", static_cast<int>(Transform_mode::ASYMMETRIC)},
     {"tf_half_pixel_for_nn", static_cast<int>(Transform_mode::TF_HALF_PIXEL_FOR_NN)}};
 
-using Nearest_mode = ngraph::op::v4::Interpolate::NearestMode;
+using Nearest_mode = default_opset::Interpolate::NearestMode;
 static const std::map<std::string, int> nearest_mode_map = {
     {"round_prefer_floor", static_cast<int>(Nearest_mode::ROUND_PREFER_FLOOR)},
     {"round_prefer_ceil", static_cast<int>(Nearest_mode::ROUND_PREFER_CEIL)},
@@ -57,9 +57,9 @@ static int mode_as_int(const std::map<std::string, int>& converting_map, const s
     return result;
 }
 
-using InterpolateV4Attrs = ngraph::op::v4::Interpolate::InterpolateAttrs;
+using InterpolateAttrs = default_opset::Interpolate::InterpolateAttrs;
 
-InterpolateV4Attrs get_resize_attrs(const onnx_import::Node& node) {
+InterpolateAttrs get_resize_attrs(const onnx_import::Node& node) {
     auto get_str_attr = [&node](const std::string& name, const std::string& default_value) {
         return node.get_attribute_value<std::string>(name, default_value);
     };
@@ -98,7 +98,7 @@ InterpolateV4Attrs get_resize_attrs(const onnx_import::Node& node) {
                          supported_modes_str);
     }
 
-    InterpolateV4Attrs attrs;
+    InterpolateAttrs attrs;
     attrs.mode = static_cast<InterpolateMode>(mode_as_int(interp_mode_map, mode));
     attrs.coordinate_transformation_mode = static_cast<Transform_mode>(mode_as_int(transform_mode_map, transform_mode));
     attrs.nearest_mode = static_cast<Nearest_mode>(mode_as_int(nearest_mode_map, nearest_mode));
