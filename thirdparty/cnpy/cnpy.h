@@ -18,17 +18,25 @@
 #include<memory>
 #include<stdint.h>
 #include<numeric>
+#include <sys/sysinfo.h>
 
 namespace cnpy {
 
     struct NpyArray {
+        unsigned long GetFreeMemorySize() {
+            struct sysinfo info{};
+            if (sysinfo(&info))
+                return 0;
+            return info.freeram;
+        }
+
         NpyArray(const std::vector<size_t>& _shape, size_t _word_size, bool _fortran_order) :
             shape(_shape), word_size(_word_size), fortran_order(_fortran_order)
         {
             num_vals = 1;
             for(size_t i = 0;i < shape.size();i++) num_vals *= shape[i];
             if (word_size &&
-                num_vals > std::vector<char>().max_size() / word_size)
+                num_vals > (0.9 * GetFreeMemorySize() / sizeof(char) / word_size))
                 throw std::length_error("NpyArray of " + std::to_string(num_vals) +
                                         "*" + std::to_string(word_size) +
                                         " elements is too big.");
