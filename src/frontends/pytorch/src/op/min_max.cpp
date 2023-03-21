@@ -20,7 +20,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_max(NodeContext& context) {
+OutputVector translate_max(const NodeContext& context) {
     // torch.max (same for torch.min) actually has two interfaces smashed together:
     // torch.max(x, dim, keepdim) and torch.max(x, y)
     num_inputs_check(context, 1, 3);
@@ -49,7 +49,7 @@ OutputVector translate_max(NodeContext& context) {
     return {values, indicies};
 };
 
-OutputVector translate_min(NodeContext& context) {
+OutputVector translate_min(const NodeContext& context) {
     // torch.min (same for torch.max) actually has two interfaces smashed together:
     // torch.min(x, dim, keepdim) and torch.min(x, y)
     num_inputs_check(context, 1, 3);

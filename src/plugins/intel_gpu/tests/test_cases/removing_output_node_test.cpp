@@ -63,7 +63,7 @@ void test_multiple_outputs(bool is_caching_test) {
     std::vector<T> out_vec = { 0.0f, 3.0f, 1.0f, 4.0f, 2.0f, 5.0f };
     set_values(input, input_vec);
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "shuffle_channels", "reshape", "strided_slice" }));
 
     cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
@@ -131,7 +131,7 @@ void test_output_node_optimization(bool is_caching_test) {
     topology.add(convolution("conv", input_info("input"), { "weights" }, { 2, 1 }));
     topology.add(activation("relu", input_info("conv"), activation_func::relu));
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
     network->set_input_data("input", input);
 
     // checking the output node has the same name after output node deleting due to ReLU optimization

@@ -19,6 +19,7 @@
 #include "ie_ngraph_utils.hpp"
 #include "ie_performance_hints.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
@@ -692,8 +693,8 @@ DeviceInformation AutoBatchInferencePlugin::ParseBatchDevice(const std::string& 
 DeviceInformation AutoBatchInferencePlugin::ParseMetaDevice(const std::string& devicesBatchCfg,
                                                             const std::map<std::string, std::string>& config) const {
     auto getDeviceConfig = [&](const DeviceName& deviceWithID) {
-        DeviceIDParser deviceParser(deviceWithID);
-        std::string deviceName = deviceParser.getDeviceName();
+        ov::DeviceIDParser deviceParser(deviceWithID);
+        std::string deviceName = deviceParser.get_device_name();
         std::map<std::string, std::string> tconfig = mergeConfigs(_config, config);
         // passthrough the cache dir to core->loadnetwork when underlying device does not support cache dir
         auto deviceConfig = GetCore()->GetSupportedConfig(deviceWithID, tconfig);
