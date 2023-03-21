@@ -438,12 +438,15 @@ void Graph::InitDescriptors() {
         }
 
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.getSupportedDescriptors);
+        DEBUG_LOG("Get supported primitive descriptors for node: ", node->getName());
         node->getSupportedDescriptors();
 
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.initSupportedPrimitiveDescriptors);
+        DEBUG_LOG("Init supported primitive descriptors for node: ", node->getName());
         node->initSupportedPrimitiveDescriptors();
 
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.filterSupportedPrimitiveDescriptors);
+        DEBUG_LOG("Filter supported primitive descriptors for node: ", node->getName());
         node->filterSupportedPrimitiveDescriptors();
 
 #ifdef CPU_DEBUG_CAPS
@@ -465,6 +468,7 @@ void Graph::InitDescriptors() {
 
     for (auto &node : graphNodes) {
         OV_ITT_SCOPE_NEXT(FIRST_INFERENCE, taskChain, node->profiling.selectOptimalPrimitiveDescriptor);
+        DEBUG_LOG("Select optimal primitive descriptors for node: ", node->getName());
         node->selectOptimalPrimitiveDescriptor();
     }
 }
@@ -473,8 +477,10 @@ void Graph::InitOptimalPrimitiveDescriptors() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, "Graph::InitOptimalPrimitiveDescriptors");
     for (auto &node : graphNodes) {
         OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, node->profiling.initOptimalPrimitiveDescriptor);
+        DEBUG_LOG("Init optimal primitive descriptors for node: ", node->getName());
         node->initOptimalPrimitiveDescriptor();
-        DEBUG_LOG("#", node->getExecIndex(), " ", node->getName(), "\n", *node->getSelectedPrimitiveDescriptor());
+        DEBUG_LOG("#", node->getExecIndex(), " ", node->getName(), "\n",
+                  *node->getSelectedPrimitiveDescriptor(), "selectedPrimitiveDescriptorIdx = ", node->selectedPrimitiveDescriptorIndex);
     }
 }
 
@@ -552,7 +558,7 @@ static bool isReorderAvailable(const MemoryDescPtr& parentDesc, const MemoryDesc
     dnnl::primitive_attr attr;
 
     dnnl_primitive_desc_t result = nullptr;
-    auto status = dnnl_reorder_primitive_desc_create(&result, &srcMemDesc.data, eng.get(), &dstMemDesc.data, eng.get(),
+    auto status = dnnl_reorder_primitive_desc_create(&result, srcMemDesc.get(), eng.get(), dstMemDesc.get(), eng.get(),
                                                      attr.get());
     if (result) {
         dnnl_primitive_desc_destroy(result);
@@ -596,7 +602,7 @@ void Graph::InitEdges() {
     for (auto i = 0; i < numberOfEdges; i++) {
         auto edge = graphEdges[i];
         auto reorderStatus = graphEdges[i]->needReorder();
-        DEBUG_LOG(graphEdges[i]->name(), " reorderStatus = ", static_cast<int>(reorderStatus));
+        DEBUG_LOG(graphEdges[i]->name(), " reorderStatus = ", reorderStatus);
         if (reorderStatus == Edge::ReorderStatus::Regular) {
             Edge::ReorderStatus reorderStatusInternal = Edge::ReorderStatus::Regular;
             // Check if there is a reorder that needs the precision conversion

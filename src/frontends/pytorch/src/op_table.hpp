@@ -10,7 +10,7 @@ namespace ov {
 namespace frontend {
 namespace pytorch {
 
-const std::map<std::string, PytorchCreatorFunction> get_supported_ops();
+const std::map<std::string, CreatorFunction> get_supported_ops();
 
 }  // namespace pytorch
 }  // namespace frontend

@@ -8,6 +8,7 @@
 #include <cstring>
 #include <unordered_set>
 
+using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
 
