@@ -99,8 +99,9 @@ bool is_conv_supported(const std::shared_ptr<ov::intel_gna::op::GNAConvolution>&
     };
     auto input_shape = conv_gna->input_value(0).get_shape();
     auto filter_shape = conv_gna->input_value(1).get_shape();
-    if ((4 == filter_shape.size() && filter_shape[2] > 1 && filter_shape[3] > 1) ||
-        (4 == input_shape.size() && input_shape[2] > 1 && input_shape[3] > 1)) {
+    // GNAConvolution with NHWC layout
+    if ((4 == filter_shape.size() && filter_shape[1] > 1 && filter_shape[2] > 1) ||
+        (4 == input_shape.size() && input_shape[1] > 1 && input_shape[2] > 1)) {
         pass::helper::ConvData conv_data;
         ov::intel_gna::pass::helper::GetConvData(conv_gna, conv_data);
         if (gna_convolution_layer::isMappableFrom2DTo1D(conv_data.input_height,
