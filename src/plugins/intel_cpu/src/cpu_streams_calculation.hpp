@@ -15,10 +15,10 @@ namespace ov {
 namespace intel_cpu {
 /**
  * @brief      Generate streams information table according to processors type table
- * @param[in]  input_streams is target streams set by user via ov::num_streams or hints.
+ * @param[in]  input_streams is the targeted number of sreams set by user via ov::num_streams or hints.
  *               - input "0" mean function generate the optimal number of streams
  *               - LATENCY hint equals 1 stream on one socket platform.
- * @param[in]  input_threads is max threads set by user via ov::inference_num_threads.
+ * @param[in]  input_threads is the max number of threads set by user via ov::inference_num_threads.
  *               - input "0" mean function can use all resource in proc_type_table
  *               - When user limit max threads, streams in output cannot be more than max threads
  * @param[in]  input_infer_requests is max number of infer requests set by user via ov::hint::num_requests.
