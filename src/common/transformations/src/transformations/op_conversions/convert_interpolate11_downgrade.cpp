@@ -42,9 +42,11 @@ ov::pass::ConvertInterpolate11ToInterpolate4::ConvertInterpolate11ToInterpolate4
             ov::op::util::InterpolateBase::ShapeCalcMode::SCALES) {
             v4_input_scales = interpolate_v11->input_value(1);
             v4_input_output_shape = opset4::Constant::create(element::i32, Shape{}, {1});
+            copy_runtime_info(interpolate_v11, v4_input_output_shape.get_node_shared_ptr());
         } else {
             v4_input_output_shape = interpolate_v11->input_value(1);
             v4_input_scales = opset4::Constant::create(element::f32, Shape{}, {1.0f});
+            copy_runtime_info(interpolate_v11, v4_input_scales.get_node_shared_ptr());
         }
 
         if (interpolate_v11->get_input_size() == 3) {  // with axes input
