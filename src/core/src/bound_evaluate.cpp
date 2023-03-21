@@ -179,14 +179,26 @@ ov::Tensor or_tensor(const ov::Tensor& lhs, const ov::Tensor& rhs) {
 }
 
 struct TensorVectorCmp {
+    // Comparing Tensor vectors as numbers composed with pointers as digits.
+    // Indexed loop used to preserve order of comparison.
     bool operator()(const ov::TensorVector& lhs, const ov::TensorVector& rhs) const {
-        auto rhs_it = rhs.begin();
-        return std::any_of(lhs.begin(), lhs.end(), [&rhs_it](const ov::Tensor& lhs) {
-            bool is_less =
-                (lhs && *rhs_it) ? lhs.data() < rhs_it->data() : static_cast<bool>(lhs) < static_cast<bool>(*rhs_it);
-            ++rhs_it;
-            return is_less;
-        });
+        const auto lhs_size = lhs.size();
+        const auto rhs_size = rhs.size();
+
+        if (lhs_size < rhs_size)
+            return true;
+        if (lhs_size > rhs_size)
+            return false;
+
+        for (size_t i = 0; i < lhs_size; ++i) {
+            if (lhs[i].data() < rhs[i].data())
+                return true;
+            if (lhs[i].data() > rhs[i].data())
+                return false;
+        }
+
+        // if all equals
+        return false;
     }
 };
 
@@ -281,16 +293,13 @@ bool ov::interval_bound_evaluator(const Node* node,
     auto low_1 = ov::evaluate_lower_bound(node->get_input_source_output(1));
     auto up_0 = ov::evaluate_upper_bound(node->get_input_source_output(0));
     auto up_1 = ov::evaluate_upper_bound(node->get_input_source_output(1));
+    if (!low_0 || !low_1 || !up_0 || !up_1)
+        return false;
 
     std::set<TensorVector, TensorVectorCmp> input_variants = {{low_0, low_1},
                                                               {low_0, up_1},
                                                               {up_0, low_1},
                                                               {up_0, up_1}};
-
-    for (const auto& variant_of_input_vector : input_variants)
-        for (const auto& input_tensor : variant_of_input_vector)
-            if (!input_tensor)
-                return false;
 
     if (input_variants.size() == 1)
         return node->evaluate(upper_output_values, *input_variants.begin()) &&
