@@ -313,8 +313,18 @@ class PrepareLibs(build_clib):
 
         for src_dir in src_dirs:
             local_base_dir = Path(src_dir)
-            # record real files and its symlinks, and skip symlinks for higher level like libX.so or libX.dylib
+            # Wheel package content must not contain symlinks
+            # the block handles two kinds of soft links, take the library on linux as an example
+            #   the first case: there are two soft links pointing to the real file,
+            #     input is libX.so->libX.so.Y and libX.so.Y->libX.so.Y.Z (e.g. hwloc library in oneTBB package)
+            #     input is libX.so->libX.so.Y.Z and libX.so.Y->libX.so.Y.Z (e.g. oneTBB library)
+            #   the second case: there is one soft link pointing to the real file
+            # process results of the above two cases: remove soft links(libX.so and libX.so.Y), rename libX.so.Y.Z to libX.so.Y/libX.so
             file_dict = {}
+            # step 1:
+            # record real files and its symlinks {real file: soft link}
+            # if there are two soft links pointing to the same file, like libX.so and libX.so.Y(including the above two cases),
+            # only record the libX.so.Y and remove libX.so
             for symlink in local_base_dir.rglob("*"):
                 if symlink.is_symlink():
                     real_name = self.get_reallink(symlink)
@@ -332,7 +342,9 @@ class PrepareLibs(build_clib):
                     else:
                         file_dict[real_name] = symlink
 
-            # transform libX.so.Y / libX.Y.dylib symlinks to real files
+            # step 2:
+            # according to the corresponding relationship (file_dict),
+            # remove the reserved soft link and rename the real file to the name of its soft link
             for real_name in file_dict.keys():
                 os.unlink(file_dict[real_name])
                 os.rename(real_name, file_dict[real_name])
