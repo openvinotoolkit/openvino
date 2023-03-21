@@ -13,7 +13,6 @@ from shutil import rmtree
 import os
 import sys
 import threading
-import platform
 import csv
 import datetime
 import shlex
@@ -22,6 +21,13 @@ if sys.version_info.major >= 3:
     import _thread as thread
 else:
     import thread
+
+has_python_api = True
+try:
+    from utils.get_available_devices import get_available_devices
+except:
+    logger.warning("Please set the above env variable to get the same conformance ir names run by run!")
+    has_python_api = False
 
 FILENAME_LENGTH = 255
 LOG_NAME_REPLACE_STR = "##NAME##"
@@ -38,10 +44,12 @@ def parse_arguments():
     worker_num_help = "Worker number. Default value is `cpu_count-1` "
     working_dir_num_help = "Working dir"
     process_timeout_help = "Process timeout in s"
+    parallel_help = "Parallel over HW devices. For example run tests over GPU.0, GPU.1 and etc"
 
     parser.add_argument("-e", "--exec_file", help=exec_file_path_help, type=str, required=True)
     parser.add_argument("-c", "--cache_path", help=cache_path_help, type=str, required=False, default="")
     parser.add_argument("-j", "--workers", help=worker_num_help, type=int, required=False, default=(os.cpu_count() - 1) if os.cpu_count() > 2 else 1)
+    parser.add_argument("-p", "--parallel_devices", help=parallel_help, type=int, required=False, default=1)
     parser.add_argument("-w", "--working_dir", help=working_dir_num_help, type=str, required=False, default=".")
     parser.add_argument("-t", "--process_timeout", help=process_timeout_help, type=int, required=False, default=DEFAULT_PROCESS_TIMEOUT)
     return parser.parse_args()
@@ -165,6 +173,8 @@ class TestParallelRunner:
         self._is_save_cache = True
         self._disabled_tests = list()
         self._total_test_cnt = 0
+        self._available_devices = None
+        self._device = None
 
     def __init_basic_command_line_for_exec_file(self, test_command_line: list):
         command = f'{self._exec_file_path}'
@@ -344,9 +354,31 @@ class TestParallelRunner:
             runtime_test_list.reverse()
         logger.info(f"Total test counter is {self._total_test_cnt}")
         return cached_test_list, runtime_test_list
+
+    def __generate_commands(self, filters: list()):
+        is_device = False
+        commands = [f'{self._command} --gtest_filter={filter}' for filter in filters]
+        if has_python_api:
+            for argument in self._command.split():
+                if "--device" in argument:
+                    is_device = True
+                    if argument.find("=") == -1:
+                        continue
+                    self._device = argument[argument.find("=")+1:]
+                    break
+                if is_device and argument[0] != "-":
+                    self._device = argument
+                    break
+            # self._available_devices = get_available_devices(self._device)
+            self._available_devices = get_available_devices()
+            logger.info(f"Tests will be run over devices: {self._available_devices} instead of {self._device}")
+            device_cnt = len(self._available_devices)
+            for i in range(len(commands)):
+                commands[i] = commands[i].replace(self._device, self._available_devices[i % device_cnt])
+        return commands
         
     def __execute_tests(self, filters: list(), prev_worker_cnt = 0):
-        commands = [f'{self._command} --gtest_filter={filter}' for filter in filters]
+        commands = self.__generate_commands(filters)
         task_manager = TaskManager(commands, self._working_dir, prev_worker_cnt)
         for _ in progressbar(range(self._worker_num), "Worker initialization: ", 40):
             task_manager.init_worker()
@@ -433,6 +465,11 @@ class TestParallelRunner:
                         test_cnt_expected = line.count(':')
                     if constants.RUN in line:
                         test_name = line[line.find(constants.RUN) + len(constants.RUN) + 1:-1:]
+                        if self._device != None and self._available_devices != None:
+                            for device_name in self._available_devices:
+                                if device_name in test_name:
+                                    test_name = test_name.replace(device_name, self._device)
+                                    break
                     if constants.REF_COEF in line:
                         ref_k = float(line[line.rfind(' ') + 1:])
                     if dir is None:

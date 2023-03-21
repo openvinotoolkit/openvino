@@ -19,12 +19,13 @@ from utils.conformance_utils import get_logger
 from utils import file_utils
 
 logger = get_logger('conformance_runner')
-is_hash = True
+has_python_api = True
 try:
     from rename_conformance_ir import create_hash
+    from utils.get_available_devices import get_available_devices
 except:
     logger.warning("Please set the above env variable to get the same conformance ir names run by run!")
-    is_hash = False
+    has_python_api = False
 
 API_CONFORMANCE_BIN_NAME = "apiConformanceTests"
 OP_CONFORMANCE_BIN_NAME = "conformanceTests"
@@ -135,7 +136,7 @@ class Conformance:
             logger.error("Process failed on step: 'Subgraph dumping'")
             exit(-1)
         self._model_path = conformance_ir_path
-        if is_hash:
+        if has_python_api:
             create_hash(Path(self._model_path))
             logger.info(f"All conformance IRs in {self._ov_bin_path} were renamed based on hash")
         else:
@@ -167,7 +168,7 @@ class Conformance:
                              f"--report_unique_name", f'--output_folder="{parallel_report_dir}"',
                              f'--gtest_filter={self._gtest_filter}', f'--config_path="{self._ov_config_path}"',
                              f'--shape_mode={self._shape_mode}']
-        conformance = TestParallelRunner(f"{conformance_path}", command_line_args, self._workers, logs_dir, "")
+        conformance = TestParallelRunner(f"{conformance_path}", command_line_args, self._workers, logs_dir, "/home/efode/repo/openvino/src/tests/ie_test_utils/functional_test_utils/layer_tests_summary/test_cache.lst")
         conformance.run()
         conformance.postprocess_logs()
 
