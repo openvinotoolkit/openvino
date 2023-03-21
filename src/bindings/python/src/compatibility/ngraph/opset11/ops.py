@@ -6,10 +6,10 @@
 from functools import partial
 from typing import List, Optional
 
-from openvino.runtime import Node
-from openvino.runtime.opset_utils import _get_node_factory
-from openvino.runtime.utils.decorators import nameable_op
-from openvino.runtime.utils.types import (
+from ngraph.impl import Node
+from ngraph.opset_utils import _get_node_factory
+from ngraph.utils.decorators import nameable_op
+from ngraph.utils.types import (
     NodeInput,
     as_nodes,
 )
