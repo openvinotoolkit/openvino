@@ -12,7 +12,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_squeeze(NodeContext& context) {
+OutputVector translate_squeeze(const NodeContext& context) {
     num_inputs_check(context, 1, 2);
     auto x = context.get_input(0);
     if (context.input_is_none(1)) {

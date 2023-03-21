@@ -2552,8 +2552,6 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_REORDER,
                         tests::generic_test::custom_param_name_functor());
 
 
-
-
 struct reorder_test_param {
     tensor in_shape;
     tensor out_shape;
@@ -2586,6 +2584,18 @@ public:
         network_test->set_input_data("input", input_prim);
 
         executed_prims = network_test->get_executed_primitive_ids();
+    }
+
+    std::shared_ptr<primitive_inst> execute_and_query(T& p, primitive_id prim_id) {
+        auto input_prim = this->get_mem(get_input_layout(p));
+
+        cldnn::network::ptr network_test = get_network(this->engine, this->topology_test, this->config, get_test_stream_ptr(), false);
+
+        network_test->set_input_data("input", input_prim);
+
+        executed_prims = network_test->get_executed_primitive_ids();
+
+        return network_test->get_primitive(prim_id);
     }
 
     bool check_optimized_out(T& p, primitive_id target_id) {
@@ -2760,6 +2770,129 @@ INSTANTIATE_TEST_SUITE_P(reorder_gpu_testing, testing_removal_reorder,
                                                                 data_types::f16, format::bfyx, data_types::f16, format::goiyx, data_types::f16, format::b_fs_yx_fsv16},
                                             }));
 
+
+struct redundant_reorder_test_param {
+    tensor in_shape;
+    tensor out_shape;
+    tensor kernel;
+    ov::Strides stride;
+    ov::CoordinateDiff pad;
+    data_types data_type;
+    format input_format;
+    data_types weights_type;
+    format weights_format;
+    data_types default_type;
+    format default_format;
+    bool opt_out;
+};
+
+class testing_removal_1d_reorder : public ReorderTest<redundant_reorder_test_param> {};
+TEST_P(testing_removal_1d_reorder, removal_reorder_1d_along_f_mixed_format) {
+    auto p = GetParam();
+
+    std::vector<int> pad = { 0, 0, static_cast<int>(p.pad[1]), static_cast<int>(p.pad[0]) };
+    layout in_layout{ p.data_type, p.input_format, p.in_shape, padding{pad} };
+
+    create_topologies(input_layout("input", in_layout),
+                data("weights", get_mem(get_weights_layout(p))),
+                data("bias1", get_mem(get_bias_layout(p))),
+                reorder("reorder_bias1", input_info("bias1"), format::b_fs_yx_fsv32, data_types::f16),
+                convolution("conv_prim", input_info("input"), {"weights"}, std::vector<primitive_id>{}, 1, p.stride, p.pad),
+                reorder("reorder_conv", input_info("conv_prim"), format::b_fs_yx_fsv32, data_types::f16),
+                eltwise("add_bias1", { input_info("reorder_conv"), input_info("reorder_bias1") }, eltwise_mode::sum),
+                reorder("reorder_bfyx", input_info("add_bias1"), p.default_format, data_types::f16)
+    );
+
+    const auto& target_reorder = execute_and_query(p, "reorder_conv");
+    ASSERT_EQ(check_optimized_out(p, "reorder_conv"), false);
+    ASSERT_EQ(target_reorder->can_be_optimized(), true);
+}
+
+// Negative : reorder is padded
+TEST_P(testing_removal_1d_reorder, padded_reorder_1d_along_f_mixed_format) {
+    auto p = GetParam();
+
+    std::vector<int> pad = { 0, 0, static_cast<int>(p.pad[1]), static_cast<int>(p.pad[0]) };
+    layout in_layout{ p.data_type, p.input_format, p.in_shape, padding{pad} };
+
+    layout reorder_layout(data_types::f16, format::b_fs_yx_fsv32, p.out_shape, padding({0, 0, 1, 1}, 0));
+
+    create_topologies(input_layout("input", in_layout),
+                data("weights", get_mem(get_weights_layout(p))),
+                data("bias1", get_mem(get_bias_layout(p))),
+                reorder("reorder_bias1", input_info("bias1"), format::b_fs_yx_fsv32, data_types::f16),
+                convolution("conv_prim", input_info("input"), {"weights"}, std::vector<primitive_id>{}, 1, p.stride, p.pad),
+                reorder("reorder_conv", input_info("conv_prim"), reorder_layout),
+                eltwise("add_bias1", { input_info("reorder_conv"), input_info("reorder_bias1") }, eltwise_mode::sum),
+                reorder("reorder_bfyx", input_info("add_bias1"), p.default_format, data_types::f16)
+    );
+
+    const auto& target_reorder = execute_and_query(p, "reorder_conv");
+    ASSERT_EQ(check_optimized_out(p, "reorder_conv"), false);
+    ASSERT_EQ(target_reorder->can_be_optimized(), false);
+}
+
+INSTANTIATE_TEST_SUITE_P(reorder_gpu_testing_1d_removal, testing_removal_1d_reorder,
+                        ::testing::ValuesIn(std::vector<redundant_reorder_test_param>{
+                                            redundant_reorder_test_param{{1, 32, 1, 1}, {1, 32, 1, 1}, {1, 1, 1, 1}, {1, 1}, {0, 0},
+                                                                data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::goiyx, data_types::f16, format::b_fs_yx_fsv16, false},
+                                            }));
+
+class testing_removal_feature_aligned_reorder : public ReorderTest<redundant_reorder_test_param> {};
+TEST_P(testing_removal_feature_aligned_reorder, removal_reorder_aligned_mixed_format) {
+    auto p = GetParam();
+
+    std::vector<int> pad = { 0, 0, static_cast<int>(p.pad[1]), static_cast<int>(p.pad[0]) };
+    layout in_layout{ p.data_type, p.input_format, p.in_shape, padding{pad} };
+
+    create_topologies(input_layout("input", in_layout),
+                data("bias1", get_mem(get_bias_layout(p))),
+                reorder("reorder_bias1", input_info("bias1"), format::b_fs_yx_fsv32, data_types::f16),
+                reorder("reorder_input", input_info("input"), format::b_fs_yx_fsv32, data_types::f16),
+                eltwise("add_bias1", { input_info("reorder_input"), input_info("reorder_bias1") }, eltwise_mode::sum),
+                reorder("reorder_bfyx", input_info("add_bias1"), p.default_format, data_types::f16)
+    );
+
+    const auto& target_reorder = execute_and_query(p, "reorder_input");
+    ASSERT_EQ(check_optimized_out(p, "reorder_input"), false);
+    ASSERT_EQ(target_reorder->can_be_optimized(), p.opt_out);
+}
+
+// Negative : reorder is padded
+TEST_P(testing_removal_feature_aligned_reorder, padded_reorder_aligned_mixed_format) {
+    auto p = GetParam();
+
+    std::vector<int> pad = { 0, 0, static_cast<int>(p.pad[1]), static_cast<int>(p.pad[0]) };
+    layout in_layout{ p.data_type, p.input_format, p.in_shape, padding{pad} };
+
+    layout reorder_layout(data_types::f16, format::b_fs_yx_fsv32, p.out_shape, padding({0, 0, 1, 1}, 0));
+
+    create_topologies(input_layout("input", in_layout),
+                data("bias1", get_mem(get_bias_layout(p))),
+                reorder("reorder_bias1", input_info("bias1"), format::b_fs_yx_fsv32, data_types::f16),
+                reorder("reorder_input", input_info("input"), reorder_layout),
+                eltwise("add_bias1", { input_info("reorder_input"), input_info("reorder_bias1") }, eltwise_mode::sum),
+                reorder("reorder_bfyx", input_info("add_bias1"), p.default_format, data_types::f16)
+    );
+
+    const auto& target_reorder = execute_and_query(p, "reorder_input");
+    ASSERT_EQ(check_optimized_out(p, "reorder_input"), false);
+    ASSERT_EQ(target_reorder->can_be_optimized(), false);
+}
+
+INSTANTIATE_TEST_SUITE_P(reorder_gpu_testing_1d_removal, testing_removal_feature_aligned_reorder,
+                        ::testing::ValuesIn(std::vector<redundant_reorder_test_param>{
+                                            redundant_reorder_test_param{{1, 32, 8, 8}, {1, 32, 8, 8}, {1, 1, 1, 1}, {1, 1}, {0, 0},
+                                                                data_types::f16, format::byxf, data_types::f16, format::goiyx, data_types::f16, format::b_fs_yx_fsv16, true},
+                                            redundant_reorder_test_param{{1, 32, 1, 1}, {1, 32, 1, 1}, {1, 1, 1, 1}, {1, 1}, {0, 0},
+                                                                data_types::f16, format::byxf, data_types::f16, format::goiyx, data_types::f16, format::b_fs_yx_fsv16, true},
+                                            redundant_reorder_test_param{{1, 64, 8, 8}, {1, 64, 8, 8}, {1, 1, 1, 1}, {1, 1}, {0, 0},
+                                                                data_types::f16, format::byxf, data_types::f16, format::goiyx, data_types::f16, format::b_fs_yx_fsv16, false},
+                                            redundant_reorder_test_param{{1, 1, 1, 32}, {1, 1, 1, 32}, {1, 1, 1, 1}, {1, 1}, {0, 0},
+                                                                data_types::f16, format::byxf, data_types::f16, format::goiyx, data_types::f16, format::b_fs_yx_fsv16, false},
+                                            redundant_reorder_test_param{{1, 1, 1, 32}, {1, 1, 1, 32}, {1, 1, 1, 1}, {1, 1}, {0, 0},
+                                                                data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::goiyx, data_types::f16, format::b_fs_yx_fsv16, false},
+                                            }));
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 TEST(reorder_onednn_gpu, basic_convert_int8) {
@@ -2957,6 +3090,7 @@ TEST_P(testing_removal_reorder, removal_reorder_1d_along_f_cached) {
     ASSERT_EQ(check_optimized_out(p, "reorder_bias1"), true);
 }
 #endif
+
 TEST_P(testing_removal_reorder, only_remove_reorder_shallow_depth_input_cached) {
     auto p = GetParam();
     layout reorder_layout(data_types::u8, format::b_fs_yx_fsv32, p.in_shape, padding({0, }, 0));

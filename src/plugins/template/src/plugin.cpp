@@ -11,6 +11,7 @@
 #include "itt.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "remote_context.hpp"
 #include "template/config.hpp"
 #include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
@@ -47,14 +48,16 @@ ov::template_plugin::Plugin::~Plugin() {
 // ! [plugin:dtor]
 
 // ! [plugin:create_context]
-ov::RemoteContext ov::template_plugin::Plugin::create_context(const ov::AnyMap& remote_properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+std::shared_ptr<ov::IRemoteContext> ov::template_plugin::Plugin::create_context(
+    const ov::AnyMap& remote_properties) const {
+    return std::make_shared<ov::template_plugin::RemoteContext>();
 }
 // ! [plugin:create_context]
 
 // ! [plugin:get_default_context]
-ov::RemoteContext ov::template_plugin::Plugin::get_default_context(const ov::AnyMap& remote_properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
+std::shared_ptr<ov::IRemoteContext> ov::template_plugin::Plugin::get_default_context(
+    const ov::AnyMap& remote_properties) const {
+    return std::make_shared<ov::template_plugin::RemoteContext>();
 }
 // ! [plugin:get_default_context]
 
@@ -87,6 +90,15 @@ void transform_model(const std::shared_ptr<ov::Model>& model) {
 std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
     const std::shared_ptr<const ov::Model>& model,
     const ov::AnyMap& properties) const {
+    return compile_model(model, properties, {});
+}
+// ! [plugin:compile_model]
+
+// ! [plugin:compile_model_with_remote]
+std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
+    const std::shared_ptr<const ov::Model>& model,
+    const ov::AnyMap& properties,
+    const ov::RemoteContext& context) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::compile_model");
 
     auto fullConfig = Configuration{properties, m_cfg};
@@ -96,23 +108,23 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
     auto compiled_model =
         std::make_shared<CompiledModel>(model->clone(),
                                         shared_from_this(),
+                                        context,
                                         get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig),
                                         fullConfig);
     return compiled_model;
-}
-// ! [plugin:compile_model]
-
-// ! [plugin:compile_model_with_remote]
-std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::compile_model(
-    const std::shared_ptr<const ov::Model>& model,
-    const ov::AnyMap& properties,
-    const ov::RemoteContext& context) const {
-    OPENVINO_NOT_IMPLEMENTED;
 }
 // ! [plugin:compile_model_with_remote]
 
 // ! [plugin:import_model]
 std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(std::istream& model,
+                                                                              const ov::AnyMap& properties) const {
+    return import_model(model, {}, properties);
+}
+// ! [plugin:import_model]
+
+// ! [plugin:import_model_with_remote]
+std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(std::istream& model,
+                                                                              const ov::RemoteContext& context,
                                                                               const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Plugin::import_model");
 
@@ -139,18 +151,11 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(st
     auto compiled_model =
         std::make_shared<CompiledModel>(ov_model,
                                         shared_from_this(),
+                                        context,
                                         get_executor_manager()->get_idle_cpu_streams_executor(streamsExecutorConfig),
                                         fullConfig,
                                         true);
     return compiled_model;
-}
-// ! [plugin:import_model]
-
-// ! [plugin:import_model_with_remote]
-std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(std::istream& model,
-                                                                              const ov::RemoteContext& context,
-                                                                              const ov::AnyMap& properties) const {
-    OPENVINO_NOT_IMPLEMENTED;
 }
 // ! [plugin:import_model_with_remote]
 
