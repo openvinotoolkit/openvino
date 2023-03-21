@@ -17,7 +17,7 @@ Such a model is called a Low Precision IR and can be generated in two ways:
 Both TensorFlow and ONNX quantized models can be prepared by `Neural Network Compression Framework <https://github.com/openvinotoolkit/nncf/blob/develop/README.md>`__.
 
 For an operation to be executed in INT8, it must have `FakeQuantize` operations as inputs.
-For more details, see the :doc:`specification of `FakeQuantize` operation <openvino_docs_ops_quantization_FakeQuantize_1>`. 
+For more details, see the :doc:`specification of FakeQuantize operation <openvino_docs_ops_quantization_FakeQuantize_1>`. 
 
 To execute the ``Convolution`` operation in INT8 on CPU, both data and weight inputs should have ``FakeQuantize`` as an input operation:
 
