@@ -211,7 +211,10 @@ static constexpr size_t scales_port = 2;
 static constexpr size_t axes_port = 3;
 static constexpr size_t max_num_of_ports = 4;
 
-std::vector<int64_t> get_axes_vector(const ngraph::HostTensorVector& args) {
+std::vector<int64_t> get_axes_vector(const ngraph::HostTensorVector& args,
+                                     size_t default_size = 0,
+                                     size_t axes_port = axes_port,
+                                     size_t max_num_of_ports = max_num_of_ports) {
     ov::Shape input_shape{args[data_port]->get_shape()};
     size_t input_rank = input_shape.size();
     size_t num_of_inputs = args.size();
@@ -234,15 +237,23 @@ std::vector<int64_t> get_axes_vector(const ngraph::HostTensorVector& args) {
             OPENVINO_ASSERT(false, "Failed to process ", axes_arg->get_element_type());
         }
     } else {
-        for (size_t i = 0; i < input_rank; ++i) {
-            axes.push_back(i);
+        if (default_size != 0) {
+            for (size_t i = 0; i < default_size; ++i) {
+                axes.push_back(i);
+            }
+        } else {
+            for (size_t i = 0; i < input_rank; ++i) {
+                axes.push_back(i);
+            }
         }
     }
 
     return axes;
 }
 
-std::vector<int64_t> get_target_shape_vector(const ngraph::HostTensorVector& args, size_t num_of_axes) {
+std::vector<int64_t> get_target_shape_vector(const ngraph::HostTensorVector& args,
+                                             size_t num_of_axes,
+                                             size_t target_shape_port = target_shape_port) {
     std::vector<int64_t> target_shape;
     target_shape.reserve(num_of_axes);
 
@@ -264,7 +275,8 @@ std::vector<int64_t> get_target_shape_vector(const ngraph::HostTensorVector& arg
 std::vector<float> get_scales_vector(const ngraph::HostTensorVector& args,
                                      const ov::Shape& input_shape,
                                      const ov::op::v4::Interpolate::InterpolateAttrs& attrs,
-                                     std::vector<int64_t> axes) {
+                                     std::vector<int64_t> axes,
+                                     size_t scales_port = scales_port) {
     std::vector<float> scales;
     size_t num_of_axes = axes.size();
     if (attrs.shape_calculation_mode == ov::op::util::InterpolateBase::ShapeCalcMode::SCALES) {
@@ -500,4 +512,125 @@ void op::v11::Interpolate::validate_and_infer_types() {
     shape_infer(this, m_attrs.pads_begin, m_attrs.pads_end, input_shapes, output_shapes, {});
     set_output_type(0, get_input_element_type(0), output_shapes[0]);
 }
+
+bool op::v11::Interpolate::evaluate_interpolate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    constexpr size_t scales_sizes_port = 1;
+    constexpr size_t axes_port = 2;
+    constexpr size_t max_num_of_ports = 3;
+
+    element::Type input_et = inputs[0]->get_element_type();
+    size_t type_size = input_et.size();
+
+    ov::PartialShape input_shape{inputs[data_port]->get_shape()};
+    auto m_attrs = get_attrs();
+    util::correct_pads_attr(this, m_attrs.pads_begin, m_attrs.pads_end, std::vector<PartialShape>{input_shape});
+
+    ov::Shape padded_input_shape;
+    for (size_t i = 0; i < input_shape.size(); ++i) {
+        padded_input_shape.emplace_back(m_attrs.pads_begin[i] + m_attrs.pads_end[i] + input_shape[i].get_length());
+    }
+
+    auto axes = get_axes_vector(inputs, inputs[1]->get_shape().size(), axes_port, max_num_of_ports);
+    auto scales = get_scales_vector(inputs, padded_input_shape, m_attrs, axes, scales_sizes_port);
+
+    ov::PartialShape output_shape{padded_input_shape};
+    if (m_attrs.shape_calculation_mode == ShapeCalcMode::SCALES) {
+        util::infer_using_scales(output_shape, axes, scales);
+
+    } else {
+        auto sizes = get_target_shape_vector(inputs, axes.size(), scales_sizes_port);
+        for (size_t i = 0; i < sizes.size(); ++i) {
+            output_shape[axes[i]] = Dimension(sizes[i]);
+        }
+    }
+
+    ov::Shape out_shape = output_shape.to_shape();
+    outputs[0]->set_shape(out_shape);
+    outputs[0]->set_element_type(input_et);
+
+    size_t bytes_in_padded_input = shape_size(padded_input_shape) * type_size;
+    std::vector<uint8_t> padded_input_data(bytes_in_padded_input, 0);
+
+    const uint8_t* data_ptr = inputs[0]->get_data_ptr<uint8_t>();
+    uint8_t* padded_data_ptr = padded_input_data.data();
+
+    pad_input_data(data_ptr,
+                   padded_data_ptr,
+                   type_size,
+                   input_shape.to_shape(),
+                   padded_input_shape,
+                   m_attrs.pads_begin);
+
+    switch (input_et) {
+    case element::Type_t::f32:
+        ngraph::runtime::reference::interpolate<float>(reinterpret_cast<float*>(padded_data_ptr),
+                                                       padded_input_shape,
+                                                       scales,
+                                                       axes,
+                                                       outputs[0]->get_data_ptr<float>(),
+                                                       out_shape,
+                                                       m_attrs);
+        break;
+    case element::Type_t::f16:
+        ngraph::runtime::reference::interpolate<float16>(reinterpret_cast<float16*>(padded_data_ptr),
+                                                         padded_input_shape,
+                                                         scales,
+                                                         axes,
+                                                         outputs[0]->get_data_ptr<float16>(),
+                                                         out_shape,
+                                                         m_attrs);
+        break;
+    case element::Type_t::bf16:
+        ngraph::runtime::reference::interpolate<bfloat16>(reinterpret_cast<bfloat16*>(padded_data_ptr),
+                                                          padded_input_shape,
+                                                          scales,
+                                                          axes,
+                                                          outputs[0]->get_data_ptr<bfloat16>(),
+                                                          out_shape,
+                                                          m_attrs);
+        break;
+    case element::Type_t::i8:
+        ngraph::runtime::reference::interpolate<int8_t>(reinterpret_cast<int8_t*>(padded_data_ptr),
+                                                        padded_input_shape,
+                                                        scales,
+                                                        axes,
+                                                        outputs[0]->get_data_ptr<int8_t>(),
+                                                        out_shape,
+                                                        m_attrs);
+        break;
+    case element::Type_t::u8:
+        ngraph::runtime::reference::interpolate<uint8_t>(reinterpret_cast<uint8_t*>(padded_data_ptr),
+                                                         padded_input_shape,
+                                                         scales,
+                                                         axes,
+                                                         outputs[0]->get_data_ptr<uint8_t>(),
+                                                         out_shape,
+                                                         m_attrs);
+        break;
+    default:;
+    }
+
+    return true;
+}
+
+bool op::v11::Interpolate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
+    OV_OP_SCOPE(v11_Interpolate_evaluate);
+    return evaluate_interpolate(outputs, inputs);
+}
+
+bool op::v11::Interpolate::has_evaluate() const {
+    OV_OP_SCOPE(v11_Interpolate_has_evaluate);
+    switch (get_input_element_type(0)) {
+    case ov::element::i8:
+    case ov::element::u8:
+    case ov::element::bf16:
+    case ov::element::f16:
+    case ov::element::f32:
+        return true;
+    default:
+        break;
+    }
+    return false;
+}
+
 }  // namespace ov
