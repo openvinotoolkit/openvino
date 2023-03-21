@@ -654,7 +654,7 @@ void regclass_InferRequest(py::module m) {
             Common::utils::deprecation_warning("inputs", "2024.0", "Please use 'input_tensors' property instead.");
             return self.get_input_tensors();
         },
-            R"(
+        R"(
             Gets all input tensors of this InferRequest.
             
             :rtype: List[openvino.runtime.Tensor]
@@ -666,7 +666,7 @@ void regclass_InferRequest(py::module m) {
             Common::utils::deprecation_warning("outputs", "2024.0", "Please use 'output_tensors' property instead.");
             return self.get_output_tensors();
         },
-            R"(
+        R"(
             Gets all output tensors of this InferRequest.
             
             :rtype: List[openvino.runtime.Tensor]
