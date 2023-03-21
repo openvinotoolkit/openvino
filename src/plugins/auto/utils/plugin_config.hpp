@@ -205,7 +205,7 @@ public:
         if ((realEndPos = realDevName.find('(')) != std::string::npos) {
             realDevName = realDevName.substr(0, realEndPos);
         }
-        if (_deviceBlocklist.end() != std::find(_deviceBlocklist.begin(), _deviceBlocklist.end(), realDevName)) {
+        if (_availableDevices.end() == std::find(_availableDevices.begin(), _availableDevices.end(), realDevName)) {
             return false;
         }
         return true;
@@ -217,13 +217,17 @@ public:
         std::string::size_type endpos = 0;
         while ((endpos = priorities.find(separator, pos)) != std::string::npos) {
             auto subStr = priorities.substr(pos, endpos - pos);
-            if (!subStr.empty())
-                devices.push_back(subStr);
+            if (!isSupportedDevice(subStr)) {
+                IE_THROW() << "Unavailable device name: " << subStr;
+            }
+            devices.push_back(subStr);
             pos = endpos + 1;
         }
         auto subStr = priorities.substr(pos, priorities.length() - pos);
-        if (!subStr.empty())
-            devices.push_back(subStr);
+        if (!isSupportedDevice(subStr)) {
+            IE_THROW() << "Unavailable device name: " << subStr;
+        }
+        devices.push_back(subStr);
         return devices;
     }
 
@@ -235,6 +239,5 @@ private:
     std::map<std::string, BaseValidator::Ptr> property_validators;
     BaseValidator::Ptr device_property_validator;
     static const std::set<std::string> _availableDevices;
-    static const std::set<std::string> _deviceBlocklist;
 };
 } // namespace MultiDevicePlugin
