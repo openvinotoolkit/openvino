@@ -300,7 +300,7 @@ class PrepareLibs(build_clib):
             real_name = os.readlink(real_name)
             if not os.path.isabs(real_name):
                 real_name = os.path.join(os.path.dirname(link_file), real_name)
-            if False == Path(real_name).is_symlink():
+            if not Path(real_name).is_symlink():
                 break
         return real_name
 
