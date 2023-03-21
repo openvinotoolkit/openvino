@@ -26,12 +26,12 @@ public:
     /**
      * @return A tensor element type
      */
-    virtual const element::Type& get_element_type() const = 0;
+    virtual const ov::element::Type& get_element_type() const = 0;
 
     /**
      * @return A tensor shape
      */
-    virtual const Shape& get_shape() const = 0;
+    virtual const ov::Shape& get_shape() const = 0;
 
     /**
      * @brief Returns the total number of elements (a product of all the dims or 1 for scalar)
@@ -48,7 +48,7 @@ public:
     /**
      * @return Tensor's strides in bytes
      */
-    virtual const Strides& get_strides() const = 0;
+    virtual const ov::Strides& get_strides() const = 0;
 
     /**
      * @brief Provides an access to the underlaying host memory

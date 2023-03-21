@@ -32,11 +32,11 @@ public:
                         bool isINT8);
 
     void appendBinary(const dnnl::algorithm alg, const std::vector<float>& data);
-    void appendEltwise(float scale, const dnnl::algorithm alg, float alpha, float beta);
+    void appendEltwise(const dnnl::algorithm alg, float alpha, float beta);
     void appendRoundHTE();
-    bool appendScale(const std::vector<float>& scale, bool allowBinary = true);
+    bool appendScale(const std::vector<float>& scale, bool isLastPostOp, bool allowBinary = true);
     bool appendShift(const std::vector<float>& shift, bool allowBinary = true);
-    bool appendLinear(const std::vector<float>& scale, const std::vector<float>& shift, bool allowBinary = true);
+    bool appendLinear(const std::vector<float>& scale, const std::vector<float>& shift, bool isLastPostOp, bool allowBinary = true);
     void appendClip(const std::vector<float>& low, const std::vector<float>& high);
 
     const VectorDims& getOutputDims() {

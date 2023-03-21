@@ -81,7 +81,7 @@ TEST(attributes, interpolate_op4) {
 TEST(attributes, interpolate_op11) {
     NodeBuilder::get_ops().register_factory<opset11::Interpolate>();
     const auto img = make_shared<op::Parameter>(element::f32, Shape{1, 3, 32, 32});
-    const auto scales = op::v0::Constant::create(element::f32, {1}, {1.0});
+    const auto scales = op::v0::Constant::create(element::f32, {4}, {1.0, 1.0, 2.0, 2.0});
 
     op::v11::Interpolate::InterpolateAttrs attrs;
     attrs.mode = op::v11::Interpolate::InterpolateMode::BILINEAR_PILLOW;
