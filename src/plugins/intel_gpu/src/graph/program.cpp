@@ -229,8 +229,8 @@ std::shared_ptr<InferenceEngine::CPUStreamsExecutor> program::make_task_executor
     return std::make_shared<InferenceEngine::CPUStreamsExecutor>(task_executor_config);
 }
 
-void program::add_kernel(kernel_impl_params& params, const std::shared_ptr<kernel_string>& kernelSring) {
-    _kernels_cache->add_kernels_source(params, {kernelSring}, false);
+void program::add_kernel(const kernel_impl_params& params, const std::shared_ptr<kernel_string>& kernelString) {
+    _kernels_cache->add_kernels_source(params, {kernelString}, false);
 }
 
 kernels_cache& program::get_kernels_cache() const {
