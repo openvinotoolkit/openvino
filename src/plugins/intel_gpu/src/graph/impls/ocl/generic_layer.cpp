@@ -35,9 +35,12 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
 
     generic_layer_impl(const generic_layer_node& arg)
         : _cl_kernel_data(*arg.get_primitive()->generic_params.clKernel.get())
-        , _kernels() {
-        auto _params = arg.get_kernel_impl_params();
-        arg.get_program().add_kernel(*_params, arg.get_primitive()->generic_params.clKernel->code.kernelString);
+        , _kernels() { }
+
+    std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {
+        std::vector<std::shared_ptr<cldnn::kernel_string>> kernel_strings;
+        kernel_strings.push_back(_cl_kernel_data.code.kernelString);
+        return kernel_strings;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
