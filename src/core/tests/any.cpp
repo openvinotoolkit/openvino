@@ -181,8 +181,8 @@ TEST_F(AnyTests, AnyAsMapOfMapOfAnys) {
 
     ASSERT_NE(testMap.find("refMap1"), testMap.end());
     auto testMap1 = testMap.at("refMap1").as<std::map<std::string, Any>>();
-    ASSERT_NE(testMap1.find("testParamInt"), testMap.end());
-    ASSERT_NE(testMap1.find("testParamString"), testMap.end());
+    ASSERT_NE(testMap1.find("testParamInt"), testMap1.end());
+    ASSERT_NE(testMap1.find("testParamString"), testMap1.end());
 
     int testInt1 = testMap1["testParamInt"].as<int>();
     std::string testString1 = testMap1["testParamString"].as<std::string>();
@@ -192,8 +192,8 @@ TEST_F(AnyTests, AnyAsMapOfMapOfAnys) {
 
     ASSERT_NE(testMap.find("refMap2"), testMap.end());
     auto testMap2 = testMap.at("refMap2").as<std::map<std::string, Any>>();
-    ASSERT_NE(testMap2.find("testParamInt"), testMap.end());
-    ASSERT_NE(testMap2.find("testParamString"), testMap.end());
+    ASSERT_NE(testMap2.find("testParamInt"), testMap2.end());
+    ASSERT_NE(testMap2.find("testParamString"), testMap2.end());
 
     int testInt2 = testMap2["testParamInt"].as<int>();
     std::string testString2 = testMap2["testParamString"].as<std::string>();
