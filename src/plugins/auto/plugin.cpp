@@ -17,6 +17,7 @@
 #include <ie_performance_hints.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include "openvino/runtime/auto/properties.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include "plugin.hpp"
 #include <ie_algorithm.hpp>
 #include <ie_icore.hpp>
@@ -52,10 +53,51 @@ namespace {
         }
         return METRIC_VALUE(FP32);
     }
+    int MapPriorityValues(ov::hint::Priority priority) {
+        switch (priority) {
+            case ov::hint::Priority::HIGH:
+                return 0;
+            case ov::hint::Priority::MEDIUM:
+                return 1;
+            case ov::hint::Priority::LOW:
+                return 2;
+            default:
+                return 1;
+        }
+    }
+    std::map<std::string, std::string> ConvertToStringMap(ov::AnyMap& properties) {
+        std::map<std::string, std::string> configs;
+        for (auto& property : properties) {
+            configs[property.first] = property.second.as<std::string>();
+        }
+        return configs;
+    }
 }  // namespace
 
 std::mutex MultiDeviceInferencePlugin::_mtx;
 std::map<unsigned int, std::list<std::string>> MultiDeviceInferencePlugin::_priorityMap;
+
+ov::AnyMap MultiDeviceInferencePlugin::PreProcessConfig(const std::map<std::string, std::string>& orig_config) const {
+    ov::AnyMap properties = ov::AnyMap(orig_config.begin(), orig_config.end());
+    for (auto& property : properties) {
+        // for model_priority, the values need to be converted
+        if (property.first == ov::hint::model_priority.name()) {
+            ov::Any converted_val{nullptr};
+            auto legacy_val = property.second.as<std::string>();
+            if (legacy_val == InferenceEngine::PluginConfigParams::MODEL_PRIORITY_HIGH) {
+                converted_val = ov::hint::Priority::HIGH;
+            } else if (legacy_val == InferenceEngine::PluginConfigParams::MODEL_PRIORITY_MED) {
+                converted_val = ov::hint::Priority::MEDIUM;
+            } else if (legacy_val == InferenceEngine::PluginConfigParams::MODEL_PRIORITY_LOW) {
+                converted_val = ov::hint::Priority::LOW;
+            } else {
+                converted_val = legacy_val;
+            }
+            property.second = converted_val;
+        }
+    }
+    return properties;
+}
 
 std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(const std::string& priorities,
                                                                           const std::map<std::string, std::string> & config) const {
@@ -94,17 +136,8 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
     };
 
     auto getDeviceConfig = [&] (const DeviceName & deviceWithID) {
-        DeviceIDParser deviceParser(deviceWithID);
-        std::string deviceName = deviceParser.getDeviceName();
-        std::map<std::string, std::string> tconfig = config;
-
-        // set device ID if any
-        std::string deviceIDLocal = deviceParser.getDeviceID();
-        if (!deviceIDLocal.empty()) {
-            tconfig[PluginConfigParams::KEY_DEVICE_ID] = deviceIDLocal;
-        }
-        auto deviceConfig = GetCore()->GetSupportedConfig(deviceName, tconfig);
-        setDefaultHint(deviceName, deviceConfig, tconfig);
+        auto deviceConfig = GetCore()->GetSupportedConfig(deviceWithID, config);
+        setDefaultHint(deviceWithID, deviceConfig, config);
         return deviceConfig;
     };
 
@@ -157,8 +190,8 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             }
         }
 
-        DeviceIDParser parsed{deviceName};
-        std::string deviceid = parsed.getDeviceID();
+        ov::DeviceIDParser parsed{deviceName};
+        std::string deviceid = parsed.get_device_id();
         std::vector<std::string> sameTypeDevices;
         // if AUTO:GPU case, replace GPU with GPU.0 and GPU.1
         // Disable AUTO:MYRIAD here because of below test case
@@ -180,19 +213,19 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
         }
 
         for (auto&& deviceNameWithID : sameTypeDevices) {
-            DeviceIDParser newParsed{deviceNameWithID};
+            ov::DeviceIDParser newParsed{deviceNameWithID};
             std::string defaultDeviceID = "";
             std::string tempDeviceID = "";
-            if (newParsed.getDeviceID().empty()) {
+            if (newParsed.get_device_id().empty()) {
                 defaultDeviceID = getDefaultDeviceID(deviceNameWithID);
                 tempDeviceID = defaultDeviceID;
             } else {
-                tempDeviceID = newParsed.getDeviceID();
+                tempDeviceID = newParsed.get_device_id();
             }
 
             std::string fullDeviceName = "";
             std::string uniqueName = "";
-            if (newParsed.getDeviceName() == "GPU") {
+            if (newParsed.get_device_name() == "GPU") {
                 auto supportedMetrics = GetCore()->GetMetric(deviceNameWithID, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
                 if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(FULL_DEVICE_NAME)) != supportedMetrics.end()) {
                     fullDeviceName = GetCore()->GetMetric(deviceNameWithID, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
@@ -200,7 +233,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             }
 
             if (fullDeviceName.empty()) {
-                uniqueName = newParsed.getDeviceName() + "_" + tempDeviceID;
+                uniqueName = newParsed.get_device_name() + "_" + tempDeviceID;
             } else {
                 uniqueName = fullDeviceName + "_" + tempDeviceID;
             }
@@ -220,48 +253,31 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
 
 InferenceEngine::Parameter MultiDeviceInferencePlugin::GetConfig(const std::string& name,
         const std::map<std::string, InferenceEngine::Parameter> & options) const {
-    Parameter result;
-    const bool is_new_api = IsNewAPI();
-    if (_pluginConfig._keyConfigMap.find(name) != _pluginConfig._keyConfigMap.end()) {
-        std::string val = _pluginConfig._keyConfigMap.find(name)->second;
-        if (is_new_api) {
-            if (name == ov::enable_profiling) {
-                return val == PluginConfigParams::YES ? true : false;
-            } else if (name == ov::hint::model_priority) {
-                return ov::util::from_string(val, ov::hint::model_priority);
-            } else if (name == ov::hint::performance_mode) {
-                return ov::util::from_string(val, ov::hint::performance_mode);
-            } else if (name == ov::hint::num_requests) {
-                auto temp = ov::util::from_string(val, ov::hint::num_requests);
-                return temp;
-            } else if (name == ov::device::id) {
-                return ov::util::from_string(val, ov::device::id);
-            } else if (name == ov::hint::allow_auto_batching) {
-                return val == PluginConfigParams::YES ? true : false;
-            } else if (name == ov::auto_batch_timeout) {
-                return ov::util::from_string(val, ov::auto_batch_timeout);
-            } else if (name == ov::intel_auto::device_bind_buffer) {
-                return val == PluginConfigParams::YES ? true : false;
-            } else if (name == ov::log::level) {
-                return ov::util::from_string(val, ov::log::level);
-            } else if (name == ov::device::priorities) {
-                return ov::util::from_string(val, ov::device::priorities);
-            } else if (name == ov::intel_auto::enable_startup_fallback) {
-                return val == PluginConfigParams::YES ? true : false;
-            } else {
-                return val;
+    auto val = _pluginConfig.get_property(name);
+    if (!IsNewAPI()) {
+        if (name == ov::hint::model_priority.name()) { // need to convert priority values to old API
+            ov::Any legacy_val{nullptr};
+            if (!val.empty()) {
+            switch (val.as<ov::hint::Priority>()) {
+                case ov::hint::Priority::LOW: legacy_val = InferenceEngine::PluginConfigParams::MODEL_PRIORITY_LOW; break;
+                case ov::hint::Priority::MEDIUM: legacy_val = InferenceEngine::PluginConfigParams::MODEL_PRIORITY_MED; break;
+                case ov::hint::Priority::HIGH: legacy_val = InferenceEngine::PluginConfigParams::MODEL_PRIORITY_HIGH; break;
+            default: OPENVINO_ASSERT(false, "Unsupported model priority value");
             }
+        }
+        return legacy_val;
         } else {
             return val;
         }
     } else {
-        IE_THROW() << "Unsupported config key : " << name;
+        return val;
     }
-    return result;
+    return val;
 }
 
 void MultiDeviceInferencePlugin::SetConfig(const std::map<std::string, std::string> & config) {
-    _pluginConfig.UpdateFromMap(config, GetName());
+    // with setConfig, only multi/auto supported internal configs can be accepted
+    _pluginConfig.set_property(PreProcessConfig(config));
 }
 
 static const Version version = {{2, 1}, CI_BUILD_NUMBER, "MultiDevicePlugin"};
@@ -331,31 +347,38 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     }
     // to use plugin's name as the log tag
     _LogTag = GetName();
-    auto loadConfig = _pluginConfig;
-    // updateFromMap will check config valid
-    loadConfig.UpdateFromMap(config, GetName(), true);
-    auto fullConfig = loadConfig._keyConfigMap;
     bool workModeAuto = GetName() == "AUTO";
-    // Remove the performance hint if no setting to this property from user.
-    if (!loadConfig._isSetPerHint) {
-        fullConfig.erase(PluginConfigParams::KEY_PERFORMANCE_HINT);
+    auto loadConfig = _pluginConfig;
+    // if no perf hint from user with compiled model, or already been set with plugin
+    // apply latency for AUTO, tput for MULTI
+    bool isHintSet = _pluginConfig.is_set_by_user(ov::hint::performance_mode) || config.find(ov::hint::performance_mode.name()) != config.end();
+    if (!isHintSet) {
         if (workModeAuto) {
             // set performance hint to 'LATENCY' model for AutoExecutable Network.
-            loadConfig._perfHintsConfig.SetConfig(PluginConfigParams::KEY_PERFORMANCE_HINT,
-                                                  PluginConfigParams::LATENCY);
+            loadConfig.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
         } else {
             // set performance hint to 'THROUGHPUT' model for MultiExecutable Network.
-            loadConfig._perfHintsConfig.SetConfig(PluginConfigParams::KEY_PERFORMANCE_HINT,
-                                                  PluginConfigParams::THROUGHPUT);
+            loadConfig.set_property(ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT));
         }
     }
-    if (!loadConfig._isSetCacheDir)
-        fullConfig.erase(CONFIG_KEY(CACHE_DIR));
+    // updateFromMap will check config valid
+    loadConfig.set_user_property(PreProcessConfig(config), workModeAuto);
+    loadConfig.apply_user_properties();
+    auto fullProperty = loadConfig.get_full_properties();
+    // this can be updated when plugin switch to 2.0 API
+    std::map<std::string, std::string> fullConfig = ConvertToStringMap(fullProperty);
+    // Remove the performance hint as this is set by plugin logic, not from user
+    if (!isHintSet)
+        fullConfig.erase(ov::hint::performance_mode.name());
+    if (!loadConfig.is_set_by_user(ov::cache_dir))
+        fullConfig.erase(ov::cache_dir.name());
+    if (!loadConfig.is_set_by_user(ov::hint::execution_mode))
+        fullConfig.erase(ov::hint::execution_mode.name());
     // collect the settings that are applicable to the devices we are loading the network to
-    std::unordered_map<std::string, InferenceEngine::Parameter> multiNetworkConfig;
+    std::unordered_map<std::string, ov::Any> multiNetworkConfig;
     std::vector<DeviceInformation> metaDevices;
-    auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
-    if (priorities->second.find("AUTO") != std::string::npos || priorities->second.find("MULTI") != std::string::npos) {
+    auto priorities = loadConfig.get_property(ov::device::priorities);
+    if (priorities.find("AUTO") != std::string::npos || priorities.find("MULTI") != std::string::npos) {
         IE_THROW() << "The device candidate list should not include the meta plugin for " << GetName() << " device";
     }
     // If the user sets the property, insert the property into the deviceConfig
@@ -385,17 +408,17 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         std::map<std::string, std::string> filterConfig;
         auto strDevices = GetDeviceList(fullConfig);
         // fill in the context for auto
-        if (loadConfig._useProfiling) {
-            filterConfig.insert({PluginConfigParams::KEY_PERF_COUNT, PluginConfigParams::YES});
+        if (loadConfig.get_property(ov::enable_profiling)) {
+            filterConfig.insert({ov::enable_profiling.name(), PluginConfigParams::YES});
             autoSContext->_needPerfCounters = true;
         }
-        autoSContext->_modelPriority = loadConfig._modelPriority;
-        autoSContext->_batchingDisabled = loadConfig._disableAutoBatching;
-        autoSContext->_performanceHint = loadConfig._perfHintsConfig.GetConfig(PluginConfigParams::KEY_PERFORMANCE_HINT).as<std::string>();
+        autoSContext->_modelPriority = MapPriorityValues(loadConfig.get_property(ov::hint::model_priority));
+        autoSContext->_batchingDisabled = !(loadConfig.get_property(ov::hint::allow_auto_batching));
+        autoSContext->_performanceHint = loadConfig.get_property(ov::hint::performance_mode.name()).as<std::string>();
         // filter the device that supports filter configure
         auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
         auto supportDevicesByConfig = FilterDevice(metaDevices, filterConfig);
-        if (supportDevicesByConfig.size() == 0) {
+        if (supportDevicesByConfig.empty()) {
              IE_THROW() << "There is no device support the configure";
         }
         auto supportDevices = supportDevicesByConfig;
@@ -436,11 +459,11 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                              config.second.c_str());
             }
             // carry on batch configs only if user explicitly sets
-            if (config.find(CONFIG_KEY(ALLOW_AUTO_BATCHING)) != config.end() || loadConfig._isBatchConfigSet)
-                insertPropToConfig(CONFIG_KEY(ALLOW_AUTO_BATCHING), iter->deviceName, configs);
-            if (config.find(CONFIG_KEY(AUTO_BATCH_TIMEOUT)) != config.end())
-                insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), iter->deviceName, configs);
-            insertPropToConfig(CONFIG_KEY(CACHE_DIR), iter->deviceName, configs);
+            if (loadConfig.is_set_by_user(ov::hint::allow_auto_batching))
+                insertPropToConfig(ov::hint::allow_auto_batching.name(), iter->deviceName, configs);
+            if (loadConfig.is_set_by_user(ov::auto_batch_timeout))
+                insertPropToConfig(ov::auto_batch_timeout.name(), iter->deviceName, configs);
+            insertPropToConfig(ov::cache_dir.name(), iter->deviceName, configs);
             LOG_INFO_TAG("device:%s, priority:%ld", iter->deviceName.c_str(), iter->devicePriority);
         }
         autoSContext->_modelPath = clonedModelPath;
@@ -452,12 +475,9 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         autoSContext->_plugin = this;
         autoSContext->_core = GetCore();
         autoSContext->_LogTag = _LogTag;
-        auto tmpiter = fullConfig.find(ov::intel_auto::device_bind_buffer.name());
-        if (tmpiter != fullConfig.end() && tmpiter->second == PluginConfigParams::YES)
-            autoSContext->_bindBuffer = true;
-        auto tmpiter_enableStartupFallback = fullConfig.find(ov::intel_auto::enable_startup_fallback.name());
-        if (tmpiter_enableStartupFallback != fullConfig.end() && tmpiter_enableStartupFallback->second == PluginConfigParams::NO)
-            autoSContext->_startupfallback = false;
+        autoSContext->_bindBuffer = loadConfig.get_property(ov::intel_auto::device_bind_buffer);
+        autoSContext->_startupfallback = loadConfig.get_property(ov::intel_auto::enable_startup_fallback);
+        autoSContext->_runtimeFallback = loadConfig.get_property(ov::intel_auto::enable_runtime_fallback);
         return std::make_shared<AutoExecutableNetwork>(autoSContext, std::make_shared<AutoSchedule>());
     }
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl:MultiMode");
@@ -471,25 +491,24 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         _LogTag = "AUTO";
         LOG_INFO_TAG("CUMULATIVE Call MULTI PERFORMANCE_HINT set to THROUGHPUT");
     }
-    if (priorities->second.empty()) {
+    if (priorities.empty()) {
         IE_THROW() << "KEY_MULTI_DEVICE_PRIORITIES key is not set for " << GetName() << " device";
     } else {  // for use case -d MULTI:xPU or -d AUTO:xPU
-        auto metaDevicesByConfig = ParseMetaDevices(priorities->second, fullConfig);
+        auto metaDevicesByConfig = ParseMetaDevices(priorities, fullConfig);
         metaDevices = modelPath.empty() ? FilterDeviceByNetwork(metaDevicesByConfig, network)
                                         : metaDevicesByConfig;
         if (metaDevicesByConfig.size() != metaDevices.size()) {
             LOG_DEBUG_TAG("stateful/dynamic model, loaded to single device");
-            multiNetworkConfig[MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES]
+            multiNetworkConfig[ov::device::priorities.name()]
                     = metaDevices[0].deviceName;
         } else {
-            multiNetworkConfig.insert(*priorities);
+            multiNetworkConfig[ov::device::priorities.name()] = priorities;
         }
     }
     auto multiSContext = std::make_shared<MultiScheduleContext>();
     DeviceMap<SoExecutableNetworkInternal> executableNetworkPerDevice;
     std::mutex load_mutex;
     std::vector<Task> loads;
-    std::once_flag readNetworkFlag;
 
     auto loadInferEngTask = [&](DeviceInformation& p) {
         auto tmpiter = fullConfig.find(CONFIG_KEY(ALLOW_AUTO_BATCHING));
@@ -498,25 +517,30 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                 LOG_INFO_TAG("set %s=%s", tmpiter->first.c_str(), tmpiter->second.c_str());
                 multiSContext->_batchingDisabled = true;
             }
-            if (config.find(CONFIG_KEY(ALLOW_AUTO_BATCHING)) != config.end() || loadConfig._isBatchConfigSet)
+            if (loadConfig.is_set_by_user(ov::hint::allow_auto_batching))
                 p.config.insert({tmpiter->first, tmpiter->second});
         }
-        if (config.find(CONFIG_KEY(AUTO_BATCH_TIMEOUT)) != config.end())
-            insertPropToConfig(CONFIG_KEY(AUTO_BATCH_TIMEOUT), p.deviceName, p.config);
-        insertPropToConfig(CONFIG_KEY(CACHE_DIR), p.deviceName, p.config);
+        if (loadConfig.is_set_by_user(ov::auto_batch_timeout))
+            insertPropToConfig(ov::auto_batch_timeout.name(), p.deviceName, p.config);
+        insertPropToConfig(ov::cache_dir.name(), p.deviceName, p.config);
         const auto& deviceName = p.deviceName;
         const auto& deviceConfig = p.config;
         SoExecutableNetworkInternal exec_net;
         LOG_DEBUG_TAG("load network to device:%s", deviceName.c_str());
-        if (modelPath.empty()) {
-            exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
-        } else if (GetCore()->DeviceSupportsImportExport(deviceName)) {
-            exec_net = GetCore()->LoadNetwork(modelPath, deviceName, deviceConfig);
-        } else {
-            std::call_once(readNetworkFlag, [&]() {
-                network = GetCore()->ReadNetwork(modelPath, std::string());
-            });
-            exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
+        try {
+            if (modelPath.empty()) {
+                exec_net = GetCore()->LoadNetwork(network, deviceName, deviceConfig);
+            } else {
+                exec_net = GetCore()->LoadNetwork(modelPath, deviceName, deviceConfig);
+            }
+        } catch (const IE::Exception& iie) {
+            if (_LogTag == "AUTO") {
+                LOG_DEBUG_TAG("Failed to load network to device:%s with error: %s", deviceName.c_str(), iie.what());
+                return;
+            } else {
+                IE_THROW() << "Failed to load network to device: " << deviceName.c_str() << " with error:" <<
+                    iie.what();
+            }
         }
 
         try {
@@ -526,8 +550,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
                 sStreamNums = exec_net->GetMetric(ov::num_streams.name()).as<std::string>();
                 sThreadNums = exec_net->GetMetric(ov::inference_num_threads.name()).as<std::string>();
             } else if (deviceName.find("GPU") != std::string::npos) {
-                sStreamNums = exec_net->GetConfig(PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS).as<std::string>();
-                sThreadNums = exec_net->GetConfig(GPUConfigParams::KEY_GPU_MAX_NUM_THREADS).as<std::string>();
+                sStreamNums = exec_net->GetConfig(ov::num_streams.name()).as<std::string>();
+                sThreadNums = exec_net->GetConfig(ov::compilation_num_threads.name()).as<std::string>();
             }
 
             // print CPU or GPU streams num and threads num
@@ -610,8 +634,8 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
     multiSContext->_core = GetCore();
     multiSContext->_LogTag = _LogTag;
     IExecutableNetworkInternal::Ptr impl;
-    auto tmpiter = fullConfig.find(ov::intel_auto::device_bind_buffer.name());
-    if (tmpiter != fullConfig.end() && tmpiter->second == PluginConfigParams::YES) {
+    auto tmp = loadConfig.get_property(ov::intel_auto::device_bind_buffer);
+    if (tmp) {
         multiSContext->_bindBuffer = true;
         impl = std::make_shared<MultiExecutableNetwork>(multiSContext, std::make_shared<BinderMultiSchedule>());
     } else {
@@ -644,9 +668,14 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
 
     auto queryconfig = _pluginConfig;
     // updateFromMap will check config valid
-    queryconfig.UpdateFromMap(config, GetName(), true);
-    auto fullConfig = queryconfig._keyConfigMap;
-    auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
+    queryconfig.set_user_property(PreProcessConfig(config), (GetName() == "AUTO")? true : false);
+    queryconfig.apply_user_properties();
+    auto fullproperty = queryconfig.get_full_properties();
+    // this can be updated when plugin switch to 2.0 API
+    std::map<std::string, std::string> fullConfig =  ConvertToStringMap(fullproperty);
+    if (!queryconfig.is_set_by_user(ov::cache_dir))
+        fullConfig.erase(ov::cache_dir.name());
+    auto priorities = fullConfig.find(ov::device::priorities.name());
     if (!priorities->second.empty()) {
         auto metaDevices = ParseMetaDevices(priorities->second, fullConfig);
         std::unordered_set<std::string> supportedLayers;
@@ -820,82 +849,93 @@ void MultiDeviceInferencePlugin::RegisterPriority(const unsigned int& priority,
 std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string, std::string>& config) const {
     std::string allDevices;
     auto deviceList = GetCore()->GetAvailableDevices();
-    auto deviceListConfig = config.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
-    if (deviceListConfig->second.empty()) {
-        for (auto&& device : deviceList) {
-            // filter out the supported devices
-            if (!_pluginConfig.isSupportedDevice(device))
-                continue;
-            allDevices += device + ",";
-        }
-        // remove the last ',' if exist
-        if (allDevices.back() == ',')
-            allDevices.pop_back();
-    } else {
+    auto deviceListConfig = config.find(ov::device::priorities.name());
+    for (auto&& device : deviceList) {
+        // filter out the supported devices
+        if (!_pluginConfig.isSupportedDevice(device))
+            continue;
+        allDevices += device + ",";
+    }
+    std::vector<std::string> devicesMerged;
+    if (deviceListConfig != config.end() && !deviceListConfig->second.empty()) {
         auto priorities = deviceListConfig->second;
         // parsing the string and splitting the comma-separated tokens
-        std::vector<std::string> deviceVec = _pluginConfig.ParsePrioritiesDevices(priorities);
-        std::vector<std::string> devicesToBeDeleted;
-        auto updateDeviceVec = [&](const std::string& delPattern = "") {
-            auto iter = deviceVec.begin();
-            while (iter != deviceVec.end()) {
-                if (delPattern.empty()) {
-                    if ((*iter).find("-") == 0) {
-                        devicesToBeDeleted.push_back((*iter).erase(0, 1));
-                        iter = deviceVec.erase(iter);
-                    } else {
-                        iter++;
-                    }
-                } else {
-                    if ((*iter).find(delPattern) != std::string::npos)
-                        iter = deviceVec.erase(iter);
-                    else
-                        iter++;
-                }
-            }
+        std::vector<std::string> devicesToBeMerged = _pluginConfig.ParsePrioritiesDevices(priorities);
+        std::vector<std::string> devicesToBeDeleted(devicesToBeMerged.size());
+        const auto& iterDel = std::copy_if(devicesToBeMerged.begin(),
+                                           devicesToBeMerged.end(),
+                                           devicesToBeDeleted.begin(),
+                                           [](const std::string& item) {
+                                               return item.front() == '-';
+                                           });
+        devicesToBeDeleted.resize(std::distance(devicesToBeDeleted.begin(), iterDel));
+        const auto& iterMerge =
+            std::remove_if(devicesToBeMerged.begin(), devicesToBeMerged.end(), [](const std::string& item) {
+                return item.front() == '-';
+            });
+        devicesToBeMerged.resize(std::distance(devicesToBeMerged.begin(), iterMerge));
+        for (auto&& device : devicesToBeDeleted)
+            LOG_INFO_TAG("remove %s from device candidate list", device.c_str());
+        auto isAnyDev = [](std::string& device, const std::vector<std::string>& devices) {
+            auto iter = std::find_if(devices.begin(), devices.end(), [device](const std::string& devItem) {
+                return devItem.find(device) != std::string::npos;
+            });
+            return iter != devices.end();
         };
-        updateDeviceVec();
-        if (devicesToBeDeleted.size() == 0) {
-            allDevices = deviceListConfig->second;
-        } else {
-            auto deviceNeedToMerge = [&](const std::string& devicename) {
-                for (auto&& iter : devicesToBeDeleted) {
-                    if (iter.find(devicename) != std::string::npos)
-                        return true;
-                }
-                return false;
-            };
-            auto mergeDeviceList = [&]() {
-                std::vector<std::string> mergedList;
-                auto prevSize = mergedList.size();
-                for (auto&& iter : deviceVec) {
-                    for (auto&& viter : deviceList) {
-                        if (viter.find(iter) != std::string::npos && deviceNeedToMerge(iter))
-                            mergedList.push_back(std::move(viter));
-                    }
-                    // if virtual devices or mock devices
-                    if (mergedList.size() == prevSize)
-                        mergedList.push_back(std::move(iter));
-                    prevSize = mergedList.size();
-                }
-                return mergedList;
-            };
-
-            deviceVec = deviceVec.size() == 0 ? deviceList : mergeDeviceList();
-            for (auto& iter : devicesToBeDeleted) {
-                LOG_INFO_TAG("remove %s from device candidate list", iter.c_str());
-                updateDeviceVec(iter);
+        auto deviceWithDefaultID = [](std::string& device) {
+            // AUTO assume the default device ID will be "0" for the single device.
+            return device.find(".") == std::string::npos ? device + ".0" : device;
+        };
+        if (devicesToBeMerged.empty()) {
+            for (auto&& device : deviceList) {
+                if (isAnyDev(device, devicesToBeDeleted) || !_pluginConfig.isSupportedDevice(device))
+                    continue;
+                devicesMerged.push_back(device);
             }
-            for (auto&& device : deviceVec) {
-                allDevices += device;
-                allDevices += ((device == deviceVec[deviceVec.size()-1]) ? "" : ",");
+        } else {
+            for (auto&& device : devicesToBeMerged) {
+                if (!isAnyDev(device, deviceList)) {
+                    ov::DeviceIDParser parsed{device};
+                    auto iter = std::find(devicesMerged.begin(), devicesMerged.end(), parsed.get_device_name());
+                    if (iter != devicesMerged.end() && parsed.get_device_name() != device && parsed.get_device_id() == "0")
+                        // The device is the device with default device ID (eg. GPU.0) and
+                        // its wide name (eg. GPU) has been in device candidate list.
+                        continue;
+                    // Add user specified device into candidate list
+                    devicesMerged.push_back(device);
+                } else {
+                    // Update device name if supported device with id existed
+                    for (auto&& item : deviceList) {
+                        auto realDevice = deviceWithDefaultID(item);
+                        if (isAnyDev(realDevice, devicesToBeDeleted) || item.find(device) == std::string::npos)
+                            continue;
+                        auto iter = std::find(devicesMerged.begin(), devicesMerged.end(), deviceWithDefaultID(item));
+                        // Remove the device with default device id from candidate device list (eg. GPU.0)
+                        // if its wide name is a single device (eg. GPU).
+                        ov::DeviceIDParser parsed{item};
+                        if (parsed.get_device_name() == item && iter != devicesMerged.end())
+                            devicesMerged.erase(iter);
+                        // continue if targe device has been in the candidate device list.
+                        if (std::find(devicesMerged.begin(), devicesMerged.end(), item) != devicesMerged.end())
+                            continue;
+                        devicesMerged.push_back(item);
+                    }
+                }
             }
         }
     }
-
+    if (devicesMerged.size()) {
+        allDevices.clear();
+        std::for_each(devicesMerged.begin(), devicesMerged.end(), [&allDevices](const std::string& device) {
+            allDevices += device + ",";
+        });
+    }
     if (allDevices.empty()) {
         IE_THROW() << "Please, check environment due to no supported devices can be used";
     }
+    // remove the last ',' if exist
+    if (allDevices.back() == ',')
+        allDevices.pop_back();
 
     return allDevices;
 }
@@ -961,7 +1001,9 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::FilterDeviceByNetwork
     });
 
     // If CPU is in candidate list, load dynamic network to CPU first
-    if ((model->is_dynamic() || isStateful()) && cpuiter != metaDevices.end()) {
+    // For MULTI do not only load stateful network to CPU
+    // For AUTO CTPUT only load stateful network to CPU
+    if ((model->is_dynamic() || (isStateful() && _LogTag != "MULTI")) && cpuiter != metaDevices.end()) {
         filterDevice.push_back(*cpuiter);
         return filterDevice;
     }

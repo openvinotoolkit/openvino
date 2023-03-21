@@ -129,6 +129,7 @@ OP_CONVERTER(translate_strided_slice_op);
 OP_CONVERTER(translate_sqrt_op);
 OP_CONVERTER(translate_tensor_list_from_tensor_op);
 OP_CONVERTER(translate_tensor_list_get_item_op);
+OP_CONVERTER(translate_tensor_list_push_back_op);
 OP_CONVERTER(translate_tensor_list_reserve_op);
 OP_CONVERTER(translate_tensor_list_set_item_op);
 OP_CONVERTER(translate_tensor_list_stack_op);

@@ -2,9 +2,9 @@
     <navindex>
         <!-- Steps -->
         <tab type="usergroup" url="index.html" visibile="yes" title="GUIDE">
-            <tab type="usergroup" url="index.html" title="Developer Guide for Inference Engine Plugin Library">
+            <tab type="usergroup" url="index.html" title="Developer Guide for OpenVINO Plugin Library">
                 <tab type="user" url="@ref plugin" visibile="yes" title="Implement Plugin Functionality"/>
-                <tab type="user" url="@ref executable_network" visibile="yes" title="Implement Executable Network Functionality">
+                <tab type="user" url="@ref compiled_model" visibile="yes" title="Implement Executable Network Functionality">
                     <tab type="usergroup" title="Low Precision Transformations" url="@ref openvino_docs_OV_UG_lpt">
                         <tab type="user" title="Attributes" url="@ref openvino_docs_OV_UG_lpt_attributes">
                             <tab type="user" title="AvgPoolPrecisionPreserved" url="@ref openvino_docs_OV_UG_lpt_AvgPoolPrecisionPreserved"/>
@@ -79,6 +79,8 @@
                 </tab>
                 <tab type="user" url="@ref infer_request" visibile="yes" title="Implement Synchronous Inference Request"/>
                 <tab type="user" url="@ref async_infer_request" visibile="yes" title="Implement Asynchronous Inference Request"/>
+                <tab type="user" url="@ref remote_context" visibile="yes" title="Implement Remote Context"/>
+                <tab type="user" url="@ref remote_tensor" visibile="yes" title="Implement Remote Tensor"/>
             </tab>
         </tab>
         <!-- Additional resources -->
@@ -89,10 +91,10 @@
         </tab>
         <!-- API References -->
         <tab type="usergroup" title="API REFERENCE">
-            <!-- IE Plugin API -->
-            <tab type="user" url="group__ie__dev__api.html" visible="yes" title="Inference Engine Plugin API Reference"/>
-            <!-- IE Transformations API -->
-            <tab type="user" url="group__ie__transformation__api.html" visible="yes" title="Inference Engine Transformations API Reference"/>
+            <!-- OpenVINO Plugin API -->
+            <tab type="user" url="group__ov__dev__api.html" visible="yes" title="OpenVINO Plugin API Reference"/>
+            <!-- OpenVINO Transformations API -->
+            <tab type="user" url="group__ie__transformation__api.html" visible="yes" title="OpenVINO Transformations API Reference"/>
         </tab>
         <tab type="usergroup" title="MAIN OPENVINO™ DOCS" url="../index.html"/>
     </navindex>

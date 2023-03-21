@@ -47,7 +47,7 @@ ApiSummary &ApiSummary::getInstance() {
     return *p_instance;
 }
 
-void ApiSummary::updateStat(ov_entity entity, const std::string& target_device, PassRate::Statuses status) {
+void ApiSummary::updateStat(ov_entity entity, const std::string& target_device, PassRate::Statuses status, double rel_influence_coef) {
     if (apiStats.empty()) {
         std::string outputFilePath = outputFolder + std::string(CommonTestUtils::FileSeparator) + reportFilename + CommonTestUtils::REPORT_EXTENSION;
         const bool fileExists = CommonTestUtils::fileExists(outputFilePath);
@@ -74,6 +74,7 @@ void ApiSummary::updateStat(ov_entity entity, const std::string& target_device, 
         isHangReported = false;
         return;
     }
+    cur_stat[real_device].rel_all += rel_influence_coef;
     switch (status) {
         case PassRate::Statuses::SKIPPED: {
             cur_stat[real_device].skipped++;
@@ -84,6 +85,7 @@ void ApiSummary::updateStat(ov_entity entity, const std::string& target_device, 
                 cur_stat[real_device].isImplemented = true;
             }
             cur_stat[real_device].passed++;
+            cur_stat[real_device].rel_passed += rel_influence_coef;
             break;
         }
         case PassRate::Statuses::HANGED: {
@@ -129,7 +131,9 @@ void ApiSummary::getStatisticFromReport(const std::string& filePath) {
             auto s = std::stoi(realDeviceNode.attribute("skipped").value());
             auto c = std::stoi(realDeviceNode.attribute("crashed").value());
             auto h = std::stoi(realDeviceNode.attribute("hanged").value());
-            PassRate entity_stat(p, f, s, c, h);
+            auto rel_p = std::stoi(realDeviceNode.attribute("relative_passed").value());
+            auto rel_all = std::stoi(realDeviceNode.attribute("relative_all").value());
+            PassRate entity_stat(p, f, s, c, h, rel_p, rel_all);
             if (apiStats.find(entity) == apiStats.end()) {
                 apiStats.insert({entity, {}});
             }
@@ -206,6 +210,9 @@ void ApiSummary::saveReport() {
             entry.append_attribute("crashed").set_value(static_cast<unsigned long long>(stat_device.second.crashed));
             entry.append_attribute("hanged").set_value(static_cast<unsigned long long>(stat_device.second.hanged));
             entry.append_attribute("passrate").set_value(stat_device.second.getPassrate());
+            entry.append_attribute("relative_passed").set_value(static_cast<unsigned long long>(stat_device.second.rel_passed));
+            entry.append_attribute("relative_all").set_value(static_cast<unsigned long long>(stat_device.second.rel_all));
+            entry.append_attribute("relative_passrate").set_value(stat_device.second.getRelPassrate());
         }
     }
 

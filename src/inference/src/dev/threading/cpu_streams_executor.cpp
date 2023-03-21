@@ -11,12 +11,12 @@
 #include <thread>
 #include <vector>
 
+#include "dev/threading/parallel_custom_arena.hpp"
+#include "dev/threading/thread_affinity.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
-#include "threading/ie_parallel_custom_arena.hpp"
-#include "threading/ie_thread_affinity.hpp"
-#include "threading/ie_thread_local.hpp"
+#include "openvino/runtime/threading/thread_local.hpp"
 
 namespace ov {
 namespace threading {
@@ -24,13 +24,13 @@ struct CPUStreamsExecutor::Impl {
     struct Stream {
 #if OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO
         struct Observer : public custom::task_scheduler_observer {
-            InferenceEngine::CpuSet _mask;
+            CpuSet _mask;
             int _ncpus = 0;
             int _threadBindingStep = 0;
             int _offset = 0;
             int _cpuIdxOffset = 0;
             Observer(custom::task_arena& arena,
-                     InferenceEngine::CpuSet mask,
+                     CpuSet mask,
                      int ncpus,
                      const int streamId,
                      const int threadsPerStream,
@@ -44,14 +44,14 @@ struct CPUStreamsExecutor::Impl {
                   _offset{streamId * threadsPerStream + threadBindingOffset},
                   _cpuIdxOffset(cpuIdxOffset) {}
             void on_scheduler_entry(bool) override {
-                InferenceEngine::PinThreadToVacantCore(_offset + tbb::this_task_arena::current_thread_index(),
-                                                       _threadBindingStep,
-                                                       _ncpus,
-                                                       _mask,
-                                                       _cpuIdxOffset);
+                pin_thread_to_vacant_core(_offset + tbb::this_task_arena::current_thread_index(),
+                                          _threadBindingStep,
+                                          _ncpus,
+                                          _mask,
+                                          _cpuIdxOffset);
             }
             void on_scheduler_exit(bool) override {
-                PinCurrentThreadByMask(_ncpus, _mask);
+                pin_current_thread_by_mask(_ncpus, _mask);
             }
             ~Observer() override = default;
         };
@@ -136,9 +136,9 @@ struct CPUStreamsExecutor::Impl {
                     _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                                 .set_core_type(selected_core_type)
                                                                 .set_max_concurrency(max_concurrency)});
-                    InferenceEngine::CpuSet processMask;
+                    CpuSet processMask;
                     int ncpus = 0;
-                    std::tie(processMask, ncpus) = InferenceEngine::GetProcessMask();
+                    std::tie(processMask, ncpus) = get_process_mask();
                     if (nullptr != processMask) {
                         _observer.reset(new Observer{*_taskArena,
                                                      std::move(processMask),
@@ -157,9 +157,9 @@ struct CPUStreamsExecutor::Impl {
                        (ThreadBindingType::CORES == _impl->_config._threadBindingType)) {
                 _taskArena.reset(new custom::task_arena{concurrency});
                 if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
-                    InferenceEngine::CpuSet processMask;
+                    CpuSet processMask;
                     int ncpus = 0;
-                    std::tie(processMask, ncpus) = InferenceEngine::GetProcessMask();
+                    std::tie(processMask, ncpus) = get_process_mask();
                     if (nullptr != processMask) {
                         _observer.reset(new Observer{*_taskArena,
                                                      std::move(processMask),
@@ -174,33 +174,30 @@ struct CPUStreamsExecutor::Impl {
             }
 #elif OV_THREAD == OV_THREAD_OMP
             omp_set_num_threads(_impl->_config._threadsPerStream);
-            if (!checkOpenMpEnvVars(false) && (ThreadBindingType::NONE != _impl->_config._threadBindingType)) {
-                InferenceEngine::CpuSet processMask;
+            if (!check_open_mp_env_vars(false) && (ThreadBindingType::NONE != _impl->_config._threadBindingType)) {
+                CpuSet processMask;
                 int ncpus = 0;
-                std::tie(processMask, ncpus) = InferenceEngine::GetProcessMask();
+                std::tie(processMask, ncpus) = get_process_mask();
                 if (nullptr != processMask) {
                     parallel_nt(_impl->_config._threadsPerStream, [&](int threadIndex, int threadsPerStream) {
                         int thrIdx = _streamId * _impl->_config._threadsPerStream + threadIndex +
                                      _impl->_config._threadBindingOffset;
-                        InferenceEngine::PinThreadToVacantCore(thrIdx,
-                                                               _impl->_config._threadBindingStep,
-                                                               ncpus,
-                                                               processMask);
+                        pin_thread_to_vacant_core(thrIdx, _impl->_config._threadBindingStep, ncpus, processMask);
                     });
                 }
             }
 #elif OV_THREAD == OV_THREAD_SEQ
             if (ThreadBindingType::NUMA == _impl->_config._threadBindingType) {
-                InferenceEngine::PinCurrentThreadToSocket(_numaNodeId);
+                pin_current_thread_to_socket(_numaNodeId);
             } else if (ThreadBindingType::CORES == _impl->_config._threadBindingType) {
-                InferenceEngine::CpuSet processMask;
+                CpuSet processMask;
                 int ncpus = 0;
-                std::tie(processMask, ncpus) = InferenceEngine::GetProcessMask();
+                std::tie(processMask, ncpus) = get_process_mask();
                 if (nullptr != processMask) {
-                    InferenceEngine::PinThreadToVacantCore(_streamId + _impl->_config._threadBindingOffset,
-                                                           _impl->_config._threadBindingStep,
-                                                           ncpus,
-                                                           processMask);
+                    pin_thread_to_vacant_core(_streamId + _impl->_config._threadBindingOffset,
+                                              _impl->_config._threadBindingStep,
+                                              ncpus,
+                                              processMask);
                 }
             }
 #endif
@@ -342,7 +339,7 @@ struct CPUStreamsExecutor::Impl {
     std::queue<Task> _taskQueue;
     bool _isStopped = false;
     std::vector<int> _usedNumaNodes;
-    InferenceEngine::ThreadLocal<std::shared_ptr<Stream>> _streams;
+    ov::threading::ThreadLocal<std::shared_ptr<Stream>> _streams;
 #if (OV_THREAD == OV_THREAD_TBB || OV_THREAD == OV_THREAD_TBB_AUTO)
     // stream id mapping to the core type
     // stored in the reversed order (so the big cores, with the highest core_type_id value, are populated first)

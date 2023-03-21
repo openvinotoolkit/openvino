@@ -49,10 +49,10 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
             if (rank.get_length() == 0) {
                 // Based on slice_size and output index select size.
                 // Constants required by transformation.
-                auto const_1 = ov::op::v0::Constant::create(element::i64, Shape{1}, {1});
-                auto const_1_0d = ov::op::v0::Constant::create(element::i64, Shape{}, {1});
-                auto const_0 = ov::op::v0::Constant::create(element::i64, Shape{1}, {0});
-                auto const_0_0d = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
+                auto const_1 = ov::op::v0::Constant::create(element::i32, Shape{1}, {1});
+                auto const_1_0d = ov::op::v0::Constant::create(element::i32, Shape{}, {1});
+                auto const_0 = ov::op::v0::Constant::create(element::i32, Shape{1}, {0});
+                auto const_0_0d = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
 
                 // Load and convert op inputs.
                 auto input = torch_split->get_input_source_output(0);
@@ -63,7 +63,7 @@ AtenGetItemReplacer::AtenGetItemReplacer() {
                 auto getitem_idx = getitem->input(1).get_source_output();
 
                 // Calculate number of splits based on input shape and split_size.
-                auto shape = std::make_shared<ov::op::v0::ShapeOf>(input);
+                auto shape = std::make_shared<ov::op::v3::ShapeOf>(input, element::i32);
                 auto len_to_split = std::make_shared<ov::op::v8::Gather>(shape, axis, const_0);
                 // Convert to f64 from int to calculate reminder - last chunk can be smaller if Shape in given axis is
                 // not equally divisible.

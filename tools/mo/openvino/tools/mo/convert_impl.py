@@ -390,12 +390,6 @@ def prepare_ir(argv: argparse.Namespace):
     # TODO: remove this workaround once new TensorFlow frontend supports non-frozen formats: checkpoint, MetaGraph, and SavedModel
     # Now it converts all TensorFlow formats to the frozen .pb format in case new TensorFlow frontend
     is_tf, _, _, _, _ = deduce_legacy_frontend_by_namespace(argv)
-    path_to_aux_pb = None
-    orig_argv_values = {"input_model": argv.input_model, "model_name": argv.model_name}
-    if not argv.use_legacy_frontend and is_tf:
-        from openvino.tools.mo.front.tf.loader import convert_to_pb
-        path_to_aux_pb = convert_to_pb(argv)
-
     argv = arguments_post_parsing(argv)
     t = tm.Telemetry()
     graph = None
@@ -405,6 +399,11 @@ def prepare_ir(argv: argparse.Namespace):
     if moc_front_end:
         fallback_reasons = check_fallback(argv)
         if len(fallback_reasons) == 0:
+            path_to_aux_pb = None
+            orig_argv_values = {"input_model": argv.input_model, "model_name": argv.model_name}
+            if not argv.use_legacy_frontend and is_tf:
+                from openvino.tools.mo.front.tf.loader import convert_to_pb
+                path_to_aux_pb = convert_to_pb(argv)
             try:
                 t.send_event("mo", "conversion_method", moc_front_end.get_name() + "_frontend")
                 moc_front_end.add_extension(TelemetryExtension("mo", t.send_event, t.send_error, t.send_stack_trace))
@@ -445,6 +444,8 @@ def prepare_ir(argv: argparse.Namespace):
                     f"The detailed reason why fallback was executed: not supported {reasons_message} were used. "
                     "You can specify --use_new_frontend flag to force using the Frontend MO path to avoid additional checks. " +
                     refer_to_faq_msg(105))
+        assert not hasattr(argv, 'is_fallback'), '`is_fallback` argument must not exist.'
+        argv.is_fallback = True
 
     t.send_event("mo", "conversion_method", "mo_legacy")
     graph = unified_pipeline(argv)

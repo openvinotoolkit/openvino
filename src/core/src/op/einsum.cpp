@@ -186,7 +186,7 @@ void op::v7::Einsum::validate_and_infer_types() {
     for (size_t input_idx = 1; input_idx < num_inputs; ++input_idx) {
         const auto& input_type_i = get_input_element_type(input_idx);
         NODE_VALIDATION_CHECK(this,
-                              input_type_0 == input_type_i,
+                              input_type_0.compatible(input_type_i),
                               "Inputs to Einsum operation must have the same type.");
     }
 

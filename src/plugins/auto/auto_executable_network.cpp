@@ -17,8 +17,13 @@ AutoExecutableNetwork::AutoExecutableNetwork(AutoScheduleContext::Ptr& context, 
 }
 
 std::shared_ptr<IE::RemoteContext> AutoExecutableNetwork::GetContext() const {
-    _autoSchedule->WaitActualNetworkReady();
-    return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetContext();
+    std::lock_guard<std::mutex> lock(_autoSContext->_fallbackMutex);
+    if (_autoSchedule->_loadContext[FALLBACKDEVICE].isAlready) {
+        return _autoSchedule->_loadContext[FALLBACKDEVICE].executableNetwork->GetContext();
+    } else {
+        _autoSchedule->WaitActualNetworkReady();
+        return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetContext();
+    }
 }
 
 void AutoExecutableNetwork::SetConfig(const std::map<std::string, IE::Parameter>
@@ -40,6 +45,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
             ov::PropertyName{ov::optimal_number_of_infer_requests.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::hint::model_priority.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::device::properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::execution_devices.name(), ov::PropertyMutability::RO}};
     } else if (name == ov::hint::performance_mode) {
         auto value = _autoSContext->_performanceHint;
@@ -56,6 +62,22 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
     } else if (name == ov::device::priorities) {
         auto value = _autoSContext->_config.find(ov::device::priorities.name());
         return decltype(ov::device::priorities)::value_type {value->second.as<std::string>()};
+    } else if (name == ov::device::properties) {
+        ov::AnyMap all_devices = {};
+        if (_autoSchedule->_loadContext[ACTUALDEVICE].isAlready) {
+            ov::AnyMap device_properties = {};
+            auto& context = _autoSchedule->_loadContext[ACTUALDEVICE];
+            auto device_supported_metrics = context.executableNetwork->GetMetric(METRIC_KEY(SUPPORTED_METRICS));
+            for (auto&& property_name : device_supported_metrics.as<std::vector<std::string>>()) {
+                device_properties[property_name] = context.executableNetwork->GetMetric(property_name);
+            }
+            auto device_supported_configs = context.executableNetwork->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+            for (auto&& property_name : device_supported_configs.as<std::vector<std::string>>()) {
+                device_properties[property_name] = context.executableNetwork->GetConfig(property_name);
+            }
+            all_devices[context.deviceInfo.deviceName] = device_properties;
+        }
+        return all_devices;
     } else if (name == ov::hint::model_priority) {
         auto value = _autoSContext->_modelPriority;
         if (_autoSContext->_core->isNewAPI()) {
@@ -151,26 +173,34 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
         }
         return decltype(ov::optimal_number_of_infer_requests)::value_type {real};
     } else if (name == ov::execution_devices) {
-        std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
-        std::vector<std::string> exeDevices = {};
-        for (int i = 0; i < CONTEXTNUM; i++) {
-            if (_autoSchedule->_loadContext[i].isEnabled && _autoSchedule->_loadContext[i].isAlready) {
-                if (i == 0 && !_autoSchedule->_loadContext[CPU].executableNetwork._ptr) {
-                    continue;
-                } else {
-                    std::string exeDevices_string = _autoSchedule->_loadContext[i].workName.substr(_autoSchedule->_loadContext[i].workName.find(":") + 1);
-                    if (exeDevices_string == "CPU_HELP")
-                        exeDevices_string = "(CPU)";
-                    std::stringstream ss(exeDevices_string);
-                    std::string item;
-                    while (getline(ss, item, ',')) {
-                        exeDevices.push_back(item);
+        ov::Any execution_devices;
+        auto GetExecutionDevices = [&execution_devices](std::string ExeDevicesString) {
+            std::vector<std::string> exeDevices = {};
+            if (ExeDevicesString == "CPU_HELP")
+                ExeDevicesString = "(CPU)";
+            exeDevices.push_back(ExeDevicesString);
+            execution_devices = decltype(ov::execution_devices)::value_type {exeDevices};
+        };
+        if (_autoSContext->_performanceHint == IE::PluginConfigParams::CUMULATIVE_THROUGHPUT) {
+            try {
+                execution_devices = _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetMetric(name);
+            } catch(const IE::Exception&) {
+                GetExecutionDevices(_autoSchedule->_loadContext[ACTUALDEVICE].workName);
+            }
+        } else {
+            std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
+            for (int i = 0; i < CONTEXTNUM; i++) {
+                if (_autoSchedule->_loadContext[i].isEnabled && _autoSchedule->_loadContext[i].isAlready) {
+                    if (i == 0 && !_autoSchedule->_loadContext[CPU].executableNetwork._ptr) {
+                        continue;
+                    } else {
+                        GetExecutionDevices(_autoSchedule->_loadContext[i].workName);
+                        break;
                     }
-                    break;
                 }
             }
         }
-        return decltype(ov::available_devices)::value_type {exeDevices};
+        return execution_devices;
     } else if (name == ov::model_name) {
         std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
         if (_autoSchedule->_loadContext[CPU].isEnabled && _autoSchedule->_loadContext[CPU].isAlready)

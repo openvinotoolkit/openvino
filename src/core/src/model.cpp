@@ -46,8 +46,9 @@ void check_all_variables_registered(const std::vector<shared_ptr<ov::Node>>& ord
             std::find(variables.begin(), variables.end(), variable_op->get_variable()) == variables.end())
             unregistered_variables << variable_op->get_variable_id() << std::endl;
     }
-    if (!unregistered_variables.str().empty())
-        throw ov::Exception("Model references undeclared variables: " + unregistered_variables.str());
+    OPENVINO_ASSERT(unregistered_variables.str().empty(),
+                    "Model references undeclared variables: ",
+                    unregistered_variables.str());
 }
 
 void check_all_parameters_registered(const std::vector<shared_ptr<ov::Node>>& ordered_ops,
@@ -60,8 +61,9 @@ void check_all_parameters_registered(const std::vector<shared_ptr<ov::Node>>& or
             std::find(parameters.begin(), parameters.end(), node) == parameters.end())
             unregistered_parameters << node << std::endl;
     }
-    if (!unregistered_parameters.str().empty())
-        throw ov::Exception("Model references undeclared parameters: " + unregistered_parameters.str());
+    OPENVINO_ASSERT(unregistered_parameters.str().empty(),
+                    "Model references undeclared parameters: ",
+                    unregistered_parameters.str());
 }
 
 ov::op::util::VariableVector auto_detect_variables(const std::vector<std::shared_ptr<ov::Node>>& ordered_ops) {
@@ -84,6 +86,12 @@ ngraph::ParameterVector auto_detect_parameters(const std::vector<std::shared_ptr
         }
     }
     return parameter_vector;
+}
+
+// Check that a Node argument for ctor isn't nullptr.
+const std::shared_ptr<ov::Node>& verify_node(const std::shared_ptr<ov::Node>& node) {
+    OPENVINO_ASSERT(node != nullptr, "Model is incorrect! Some Node equals to nullptr.");
+    return node;
 }
 
 }  // namespace
@@ -118,7 +126,7 @@ ov::Model::Model(const NodeVector& results, const ngraph::ParameterVector& param
 ov::Model::Model(const std::shared_ptr<Node>& result,
                  const ngraph::ParameterVector& parameters,
                  const std::string& name)
-    : Model(result->outputs(), parameters, name) {}
+    : Model(verify_node(result)->outputs(), parameters, name) {}
 
 ov::Model::Model(const ngraph::ResultVector& results,
                  const ngraph::SinkVector& sinks,
@@ -254,18 +262,20 @@ void ov::Model::validate_nodes_and_infer_types() const {
         }
     }
 
-    if (!unregistered_parameters.str().empty())
-        throw ov::Exception("Model references undeclared parameters: " + unregistered_parameters.str());
+    OPENVINO_ASSERT(unregistered_parameters.str().empty(),
+                    "Model references undeclared parameters: ",
+                    unregistered_parameters.str());
 
-    if (!unregistered_variables.str().empty())
-        throw ov::Exception("Model references undeclared Variables: " + unregistered_variables.str());
+    OPENVINO_ASSERT(unregistered_variables.str().empty(),
+                    "Model references undeclared Variables: ",
+                    unregistered_variables.str());
     bool only_pairs =
         std::all_of(pair_checker.begin(), pair_checker.end(), [](const std::pair<op::util::Variable*, Counter>& val) {
             return val.second.cnt_assign == 1 && val.second.cnt_read_val == 1;
         });
-    if (!only_pairs)
-        throw ov::Exception("Model is incorrect. Assign and ReadValue operations must be in pairs on the "
-                            "network.");
+    OPENVINO_ASSERT(only_pairs,
+                    "Model is incorrect. Assign and ReadValue operations must be in pairs on the "
+                    "network.");
     for (const auto& output : outputs()) {
         OPENVINO_ASSERT(ov::layout::utils::is_compatible(ov::layout::get_layout(output), output.get_partial_shape()),
                         "Result '",
@@ -386,9 +396,7 @@ shared_ptr<ov::Node> ov::Model::get_output_op(size_t i) const {
 }
 
 shared_ptr<ov::Node> ov::Model::get_result() const {
-    if (m_results.size() != 1) {
-        throw ov::Exception("get_result() must be called on a Model with exactly one result.");
-    }
+    OPENVINO_ASSERT(m_results.size() == 1, "get_result() must be called on a Model with exactly one result.");
     return m_results.at(0);
 }
 
@@ -662,9 +670,7 @@ std::vector<ov::Output<const ov::Node>> ov::Model::outputs() const {
     return results;
 }
 ov::Output<const ov::Node> ov::Model::output() const {
-    if (m_results.size() != 1) {
-        throw ov::Exception("output() must be called on a Model with exactly one result.");
-    }
+    OPENVINO_ASSERT(m_results.size() == 1, "output() must be called on a Model with exactly one result.");
     std::shared_ptr<const ov::Node> result = m_results.at(0);
     return result;
 }
@@ -679,7 +685,7 @@ ov::Output<const ov::Node> ov::Model::output(const std::string& tensor_name) con
             return result;
         }
     }
-    throw ov::Exception("Output for tensor name '" + tensor_name + "' is not found.");
+    OPENVINO_THROW("Output for tensor name '", tensor_name, "' is not found.");
 }
 
 std::vector<ov::Output<ov::Node>> ov::Model::outputs() {
@@ -690,9 +696,7 @@ std::vector<ov::Output<ov::Node>> ov::Model::outputs() {
     return results;
 }
 ov::Output<ov::Node> ov::Model::output() {
-    if (m_results.size() != 1) {
-        throw ov::Exception("output() must be called on a Model with exactly one result.");
-    }
+    OPENVINO_ASSERT(m_results.size() == 1, "output() must be called on a Model with exactly one result.");
     return m_results.at(0);
 }
 ov::Output<ov::Node> ov::Model::output(size_t i) {
@@ -703,7 +707,7 @@ ov::Output<ov::Node> ov::Model::output(const std::string& tensor_name) {
         if (res->get_input_tensor(0).get_names().count(tensor_name))
             return res;
     }
-    throw ov::Exception("Output for tensor name '" + tensor_name + "' is not found.");
+    OPENVINO_THROW("Output for tensor name '", tensor_name, "' is not found.");
 }
 
 /// Input Model
@@ -717,9 +721,7 @@ std::vector<ov::Output<const ov::Node>> ov::Model::inputs() const {
 }
 
 ov::Output<const ov::Node> ov::Model::input() const {
-    if (m_parameters.size() != 1) {
-        throw ov::Exception("input() must be called on a Model with exactly one parameter.");
-    }
+    OPENVINO_ASSERT(m_parameters.size() == 1, "input() must be called on a Model with exactly one parameter.");
     std::shared_ptr<const ov::Node> parameter = m_parameters.at(0);
     return parameter;
 }
@@ -734,7 +736,7 @@ ov::Output<const ov::Node> ov::Model::input(const std::string& tensor_name) cons
             return parameter;
         }
     }
-    throw ov::Exception("Input for tensor name '" + tensor_name + "' is not found.");
+    OPENVINO_THROW("Input for tensor name '", tensor_name, "' is not found.");
 }
 
 std::vector<ov::Output<ov::Node>> ov::Model::inputs() {
@@ -746,9 +748,7 @@ std::vector<ov::Output<ov::Node>> ov::Model::inputs() {
 }
 
 ov::Output<ov::Node> ov::Model::input() {
-    if (m_parameters.size() != 1) {
-        throw ov::Exception("input() must be called on a Model with exactly one parameter.");
-    }
+    OPENVINO_ASSERT(m_parameters.size() == 1, "input() must be called on a Model with exactly one parameter.");
     return m_parameters.at(0);
 }
 ov::Output<ov::Node> ov::Model::input(size_t i) {
@@ -759,13 +759,12 @@ ov::Output<ov::Node> ov::Model::input(const std::string& tensor_name) {
         if (param->get_output_tensor(0).get_names().count(tensor_name))
             return param;
     }
-    throw ov::Exception("Input for tensor name '" + tensor_name + "' is not found.");
+    OPENVINO_THROW("Input for tensor name '", tensor_name, "' is not found.");
 }
 
 void ov::Model::reshape(const ov::PartialShape& partial_shape) {
-    if (m_parameters.size() != 1) {
-        throw ov::Exception("reshape(const ov::PartialShape&) must be called on a Model with exactly one parameter.");
-    }
+    OPENVINO_ASSERT(m_parameters.size() == 1,
+                    "reshape(const ov::PartialShape&) must be called on a Model with exactly one parameter.");
     std::map<size_t, ov::PartialShape> shapes;
     shapes[0] = partial_shape;
     reshape(shapes);
@@ -994,7 +993,7 @@ const ov::AnyMap& ov::Model::get_map_from_attr(const ov::Any& info) const {
         std::shared_ptr<ov::Meta> meta = info.as<std::shared_ptr<ov::Meta>>();
         return *info.as<std::shared_ptr<ov::Meta>>();
     }
-    throw ov::Exception("Cannot get runtime attribute. Path to runtime attribute is incorrect.");
+    OPENVINO_THROW("Cannot get runtime attribute. Path to runtime attribute is incorrect.");
 }
 
 ov::AnyMap& ov::Model::get_map_from_attr(ov::Any& info) const {
@@ -1010,7 +1009,7 @@ ov::AnyMap& ov::Model::get_map_from_attr(ov::Any& info) const {
         std::shared_ptr<ov::Meta> meta = info.as<std::shared_ptr<ov::Meta>>();
         return *info.as<std::shared_ptr<ov::Meta>>();
     }
-    throw ov::Exception("Cannot get runtime attribute. Path to runtime attribute is incorrect.");
+    OPENVINO_THROW("Cannot get runtime attribute. Path to runtime attribute is incorrect.");
 }
 
 const ov::Any& ov::Model::get_attr(const ov::Any& info) const {

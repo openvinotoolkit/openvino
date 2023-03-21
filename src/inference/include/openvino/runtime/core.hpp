@@ -69,41 +69,43 @@ public:
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     /**
-     * @brief Reads models from IR/ONNX/PDPD formats.
+     * @brief Reads models from IR / ONNX / PDPD / TF / TFLite file formats.
      * @param model_path Path to a model.
      * @param bin_path Path to a data file.
      * For IR format (*.bin):
-     *  * if path is empty, will try to read a bin file with the same name as xml and
+     *  * if `bin_path` is empty, will try to read a bin file with the same name as xml and
      *  * if the bin file with the same name is not found, will load IR without weights.
-     * For ONNX format (*.onnx):
-     *  * the bin_path parameter is not used.
-     * For PDPD format (*.pdmodel)
-     *  * the bin_path parameter is not used.
+     * For the following file formats the `bin_path` parameter is not used:
+     *  * ONNX format (*.onnx)
+     *  * PDPD (*.pdmodel)
+     *  * TF (*.pb)
+     *  * TFLite (*.tflite)
      * @return A model.
      */
     std::shared_ptr<ov::Model> read_model(const std::wstring& model_path, const std::wstring& bin_path = {}) const;
 #endif
 
     /**
-     * @brief Reads models from IR/ONNX/PDPD formats.
+     * @brief Reads models from IR / ONNX / PDPD / TF / TFLite file formats.
      * @param model_path Path to a model.
      * @param bin_path Path to a data file.
      * For IR format (*.bin):
-     *  * if path is empty, will try to read a bin file with the same name as xml and
+     *  * if `bin_path` is empty, will try to read a bin file with the same name as xml and
      *  * if the bin file with the same name is not found, will load IR without weights.
-     * For ONNX format (*.onnx):
-     *  * the bin_path parameter is not used.
-     * For PDPD format (*.pdmodel)
-     *  * the bin_path parameter is not used.
+     * For the following file formats the `bin_path` parameter is not used:
+     *  * ONNX format (*.onnx)
+     *  * PDPD (*.pdmodel)
+     *  * TF (*.pb)
+     *  * TFLite (*.tflite)
      * @return A model.
      */
     std::shared_ptr<ov::Model> read_model(const std::string& model_path, const std::string& bin_path = {}) const;
 
     /**
-     * @brief Reads models from IR/ONNX/PDPD formats.
-     * @param model String with a model in IR/ONNX/PDPD format.
+     * @brief Reads models from IR / ONNX / PDPD / TF / TFLite formats.
+     * @param model String with a model in IR / ONNX / PDPD / TF / TFLite format.
      * @param weights Shared pointer to a constant tensor with weights.
-     * Reading ONNX/PDPD models does not support loading weights from the @p weights tensors.
+     * Reading ONNX / PDPD / TF / TFLite models does not support loading weights from the @p weights tensors.
      * @note Created model object shares the weights with the @p weights object.
      * Thus, do not create @p weights on temporary data that can be freed later, since the model
      * constant data will point to an invalid memory.

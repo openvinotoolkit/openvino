@@ -505,6 +505,44 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node) {
     }
     rc += "\\n" + (nvtmn ? string("type_name: ") : "") + std::string(node->get_type_name());
 
+    static const bool nvttn = getenv_bool("OV_VISUALIZE_TREE_TENSORS_NAME");
+    if (nvttn) {
+        auto to_string = [](const std::unordered_set<std::string>& names) {
+            std::stringstream ss;
+            size_t i = 0;
+            for (const auto& name : names) {
+                ss << (i == 0 ? "" : ", ") << name;
+                i++;
+            }
+            return ss.str();
+        };
+
+        if (node->get_input_size() != 0) {
+            rc += "\\n" + (nvtmn ? string("in_tensor_names: ") : "");
+            for (size_t i = 0; i < node->get_input_size(); ++i) {
+                const auto input = node->input(i);
+                const auto tensor_ptr = input.get_tensor_ptr();
+                rc += (i == 0 ? "" : "; ") + std::string("(") + std::to_string((size_t)tensor_ptr.get()) + ") ";
+                const auto str = to_string(node->input_value(0).get_names());
+                if (!str.empty()) {
+                    rc += str;
+                }
+            }
+        }
+        if (node->get_output_size() != 0) {
+            rc += "\\n" + (nvtmn ? string("out_tensor_names: ") : "");
+            for (size_t i = 0; i < node->get_output_size(); ++i) {
+                const auto output = node->output(i);
+                const auto tensor_ptr = output.get_tensor_ptr();
+                rc += (i == 0 ? "" : "; ") + std::string("(") + std::to_string((size_t)tensor_ptr.get()) + ") ";
+                const auto str = to_string(output.get_names());
+                if (!str.empty()) {
+                    rc += str;
+                }
+            }
+        }
+    }
+
     static const bool nvtrti = getenv_bool("OV_VISUALIZE_TREE_RUNTIME_INFO");
     if (nvtrti) {
         const auto rt = node->get_rt_info();

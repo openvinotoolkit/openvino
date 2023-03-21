@@ -91,12 +91,14 @@ void MultiDeviceInferRequest::SetBlob(const std::string& name, const InferenceEn
         IInferRequestInternal::SetBlob(name, blob);
 }
 
+IE_SUPPRESS_DEPRECATED_START
 void MultiDeviceInferRequest::SetBlob(const std::string& name, const Blob::Ptr& blob, const PreProcessInfo& info) {
     if (_sharedRequest)
         _sharedRequest->SetBlob(name, blob, info);
     else
         IInferRequestInternal::SetBlob(name, blob, info);
 }
+IE_SUPPRESS_DEPRECATED_END
 
 InferenceEngine::Blob::Ptr MultiDeviceInferRequest::GetBlob(const std::string& name) {
     if (_sharedRequest)
@@ -121,10 +123,6 @@ std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> MultiDeviceIn
 std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> MultiDeviceInferRequest::QueryState() {
     if (_sharedRequest)
         return _sharedRequest->QueryState();
-    IE_THROW(NotImplemented);
-}
-
-void MultiDeviceInferRequest::InferImpl() {
     IE_THROW(NotImplemented);
 }
 

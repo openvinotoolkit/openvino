@@ -34,7 +34,7 @@ protected:
     void SetUp() override;
 
 private:
-    std::string path_to_model, path_to_cache, source_model;
+    std::string path_to_model, path_to_cache;
     std::vector<std::pair<std::string, size_t>> ocurance_in_models;
 };
 } // namespace subgraph

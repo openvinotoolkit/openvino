@@ -6,11 +6,12 @@
 
 #include <memory>
 
-#include "infer_request.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
+#include "sync_infer_request.hpp"
 
-namespace TemplatePlugin {
+namespace ov {
+namespace template_plugin {
 
 // ! [async_infer_request:header]
 class AsyncInferRequest : public ov::IAsyncInferRequest {
@@ -27,4 +28,5 @@ private:
 };
 // ! [async_infer_request:header]
 
-}  // namespace TemplatePlugin
+}  // namespace template_plugin
+}  // namespace ov

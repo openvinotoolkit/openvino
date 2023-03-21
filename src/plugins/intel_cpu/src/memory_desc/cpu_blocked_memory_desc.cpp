@@ -54,8 +54,7 @@ CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(InferenceEngine::Precision prc, const
         } else if (std::any_of(this->blockedDims.begin(), this->blockedDims.end(), [](size_t val) { return val == Shape::UNDEFINED_DIM; })) {
             this->strides.resize(order.size(), Shape::UNDEFINED_DIM);
         } else {
-            this->strides.resize(order.size());
-            this->strides[order.size() - 1] = 1;
+            this->strides.resize(order.size(), 1);
             for (size_t i = 2; i <= order.size(); i++) {
                 this->strides[order.size() - i] = this->strides[order.size() - (i - 1)] * this->blockedDims[blockedDims.size() - (i - 1)];
             }

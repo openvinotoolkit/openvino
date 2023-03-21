@@ -160,7 +160,7 @@ void dump_graph_init(std::ofstream& graph,
             return invalid_layout_msg;
 
         auto output_layout = ptr->get_output_layout();
-        std::string out = fmt_to_str(output_layout.format);
+        std::string out = output_layout.format.to_string();
 
         return out;
     };

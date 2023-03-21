@@ -105,12 +105,12 @@ private:
                                      m_size);
             OPENVINO_ASSERT(m_data, "Can not create map view for ", path);
         } else {
-            m_data = NULL;
+            m_data = nullptr;
         }
     }
 
 private:
-    void* m_data = NULL;
+    void* m_data = nullptr;
     size_t m_size = 0;
     HandleHolder m_handle;
     HandleHolder m_mapping;

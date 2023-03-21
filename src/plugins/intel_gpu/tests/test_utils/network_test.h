@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 
+using namespace cldnn;
 
 namespace tests {
 

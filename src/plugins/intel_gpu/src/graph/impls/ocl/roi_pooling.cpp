@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "roi_pooling_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "kernel_selector_helper.h"
+
+#include "roi_pooling_inst.h"
 #include "roi_pooling/roi_pooling_kernel_selector.h"
 #include "roi_pooling/roi_pooling_kernel_ref.h"
 

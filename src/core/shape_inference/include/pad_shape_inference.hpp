@@ -125,17 +125,21 @@ std::vector<TShape> shape_infer(const Pad* op,
                 }
             }
         } else {
-            NODE_VALIDATION_CHECK(op,
-                                  pads_begin_rank.is_dynamic() || pads_begin_shape[0].get_length() <= arg_rank_len,
-                                  "Number of elements of pads_begin must be >= 0 and <= arg rank "
-                                  "(pads_begin_shape[0]: ",
-                                  pads_begin_shape[0],
-                                  ").");
-            NODE_VALIDATION_CHECK(op,
-                                  pads_begin_rank.is_dynamic() || pads_end_shape[0].get_length() <= arg_rank_len,
-                                  "Number of elements of pads_end must be >= 0 and <= arg rank (pads_end_shape[0]: ",
-                                  pads_end_shape[0],
-                                  ").");
+            NODE_VALIDATION_CHECK(
+                op,
+                pads_begin_rank.is_dynamic() ||
+                    static_cast<int64_t>(pads_begin_shape[0].get_length()) <= static_cast<int64_t>(arg_rank_len),
+                "Number of elements of pads_begin must be >= 0 and <= arg rank "
+                "(pads_begin_shape[0]: ",
+                pads_begin_shape[0],
+                ").");
+            NODE_VALIDATION_CHECK(
+                op,
+                pads_begin_rank.is_dynamic() ||
+                    static_cast<int64_t>(pads_end_shape[0].get_length()) <= static_cast<int64_t>(arg_rank_len),
+                "Number of elements of pads_end must be >= 0 and <= arg rank (pads_end_shape[0]: ",
+                pads_end_shape[0],
+                ").");
             output_shape.resize(arg_shape_rank.get_length());
         }
 

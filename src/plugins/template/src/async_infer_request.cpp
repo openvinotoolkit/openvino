@@ -4,13 +4,13 @@
 
 #include "async_infer_request.hpp"
 
-#include "infer_request.hpp"
+#include "itt.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
-#include "template_itt.hpp"
+#include "sync_infer_request.hpp"
 
 // ! [async_infer_request:ctor]
-TemplatePlugin::AsyncInferRequest::AsyncInferRequest(
-    const std::shared_ptr<TemplatePlugin::InferRequest>& request,
+ov::template_plugin::AsyncInferRequest::AsyncInferRequest(
+    const std::shared_ptr<ov::template_plugin::InferRequest>& request,
     const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
     const std::shared_ptr<ov::threading::ITaskExecutor>& wait_executor,
     const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor)
@@ -47,7 +47,7 @@ TemplatePlugin::AsyncInferRequest::AsyncInferRequest(
 // ! [async_infer_request:ctor]
 
 // ! [async_infer_request:dtor]
-TemplatePlugin::AsyncInferRequest::~AsyncInferRequest() {
+ov::template_plugin::AsyncInferRequest::~AsyncInferRequest() {
     ov::IAsyncInferRequest::stop_and_wait();
 }
 // ! [async_infer_request:dtor]

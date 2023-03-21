@@ -69,7 +69,7 @@ AppendListUnpackReplacer::AppendListUnpackReplacer() {
             if (index_val[0] < 0) {
                 index = inputs.size() + index;
             }
-            auto axis_0 = ov::op::v0::Constant::create(element::i64, Shape{}, {0});
+            auto axis_0 = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
             auto split = std::make_shared<ov::op::v1::Split>(inputs[index], axis_0, list_unpack->get_output_size());
             NodeVector to_copy_rt{axis_0, split};
             OutputVector res;

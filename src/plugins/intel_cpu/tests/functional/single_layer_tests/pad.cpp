@@ -155,7 +155,7 @@ const std::vector<ngraph::helpers::InputLayerType> inputLayerTypesBlocked = {
     ngraph::helpers::InputLayerType::CONSTANT,
 };
 
-const std::vector<float> argPadValue = {0.f, 2.5f, -1.f};
+const std::vector<float> argPadValue = {0.f, 2.5f};
 
 const std::vector<ngraph::helpers::PadMode> padMode = {
         ngraph::helpers::PadMode::EDGE,
@@ -165,23 +165,23 @@ const std::vector<ngraph::helpers::PadMode> padMode = {
 
 /* *======================* Static Shapes Tests 4D *======================* */
 
-const std::vector<std::vector<int64_t>> padsBegin4DConstBlocked_Smoke = {{0, 0, 1, 3}, {2, 16, 1, 0}};
-const std::vector<std::vector<int64_t>> padsEnd4DConstBlocked_Smoke   = {{0, 0, 2, 1}, {2, 0, 0, 1}};
+const std::vector<std::vector<int64_t>> padsBegin4DConstBlocked_Smoke = {{0, 0, 1, 3}, {2, 16, 1, 0}, {2, -16, 1, 0}};
+const std::vector<std::vector<int64_t>> padsEnd4DConstBlocked_Smoke   = {{0, 0, 2, -1}, {2, 0, 0, 1}, {2, 16, 0, 1}};
 
-const std::vector<std::vector<int64_t>> padsBegin4DBlocked_Smoke = {{0, 0, 1, 3}, {2, 0, 1, 0}};
-const std::vector<std::vector<int64_t>> padsEnd4DBlocked_Smoke   = {{0, 0, 2, 1}, {2, 0, 0, 1}};
+const std::vector<std::vector<int64_t>> padsBegin4DBlocked_Smoke = {{0, 0, -1, 3}, {2, 0, 1, 0}};
+const std::vector<std::vector<int64_t>> padsEnd4DBlocked_Smoke   = {{0, 0, 2, 1}, {2, 0, 0, -1}};
 
-const std::vector<std::vector<int64_t>> padsBegin4D_Smoke = {{0, 1, 1, 1}, {0, 2, 1, 0}};
+const std::vector<std::vector<int64_t>> padsBegin4D_Smoke = {{0, 1, 1, 1}, {0, 2, 1, 0}, {0, 0, -2, 0}};
 const std::vector<std::vector<int64_t>> padsEnd4D_Smoke   = {{0, 2, 1, 1}, {0, 0, 2, 0}};
 
-const std::vector<std::vector<int64_t>> padsBegin4DConstBlocked_Full = {{0, 0, 0, 0}, {0, 0, 1, 3}, {2, 16, 1, 0}, {0, 0, 2, 0}};
-const std::vector<std::vector<int64_t>> padsEnd4DConstBlocked_Full   = {{0, 0, 0, 0}, {0, 0, 2, 1}, {2, 0, 0, 1}, {1, 32, 2, 0}};
+const std::vector<std::vector<int64_t>> padsBegin4DConstBlocked_Full = {{0, 0, 0, 0}, {0, 0, 1, -3}, {2, 16, 1, 0}, {0, 0, 2, 0}};
+const std::vector<std::vector<int64_t>> padsEnd4DConstBlocked_Full   = {{0, 0, 0, 0}, {0, 0, 2, 1}, {2, 0, 0, 1}, {1, -16, 2, 0}};
 
-const std::vector<std::vector<int64_t>> padsBegin4DBlocked_Full = {{0, 0, 0, 0}, {0, 0, 1, 3}, {2, 0, 1, 0}, {0, 0, 2, 0}};
-const std::vector<std::vector<int64_t>> padsEnd4DBlocked_Full   = {{0, 0, 0, 0}, {0, 0, 2, 1}, {2, 0, 0, 1}, {1, 0, 2, 0}};
+const std::vector<std::vector<int64_t>> padsBegin4DBlocked_Full = {{0, 0, 0, 0}, {0, 0, 1, 3}, {2, 0, 1, 0}, {0, 0, -2, 0}};
+const std::vector<std::vector<int64_t>> padsEnd4DBlocked_Full   = {{0, 0, 0, 0}, {0, 0, -2, -1}, {2, 0, 0, 1}, {1, 0, 2, 0}};
 
-const std::vector<std::vector<int64_t>> padsBegin4D_Full = {{0, 0, 0, 0}, {0, 1, 1, 1}, {0, 2, 1, 0}, {0, 0, 0, 1}};
-const std::vector<std::vector<int64_t>> padsEnd4D_Full   = {{0, 0, 0, 0}, {0, 2, 1, 1}, {0, 0, 2, 0}, {1, 1, 0, 0}};
+const std::vector<std::vector<int64_t>> padsBegin4D_Full = {{0, 0, -1, 0}, {0, 0, 1, 0}, {0, 2, 0, 0}, {0, -2, 0, 0}, {0, 0, 0, 2}, {0, 0, 0, -2}};
+const std::vector<std::vector<int64_t>> padsEnd4D_Full   = {{0, 0, -2, 0}, {0, 0, 2, 0}, {0, 1, 0, 0}, {0, -2, 0, 0}, {0, 0, 0, 1}, {0, 0, 0, -2}};
 
 const std::vector<CPUSpecificParams> CPUParams4DBlocked = {
         cpuParams_nChw16c,
@@ -192,7 +192,7 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_CPUPad4DConstBlocked,
         PadLayerCPUTest,
         ::testing::Combine(
-                ::testing::ValuesIn(static_shapes_to_test_representation({{3, 16, 5, 5}})),
+                ::testing::ValuesIn(static_shapes_to_test_representation({{3, 32, 5, 5}})),
                 ::testing::ValuesIn(inputLayerTypesBlocked),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin4DConstBlocked_Smoke),
@@ -222,7 +222,7 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_CPUPad4DBlocked,
         PadLayerCPUTest,
         ::testing::Combine(
-                ::testing::ValuesIn(static_shapes_to_test_representation({{3, 16, 10, 5}})),
+                ::testing::ValuesIn(static_shapes_to_test_representation({{3, 32, 10, 5}})),
                 ::testing::ValuesIn(inputLayerTypesBlocked),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin4DBlocked_Smoke),
@@ -252,7 +252,7 @@ INSTANTIATE_TEST_SUITE_P(
         CPUPad4DConstBlocked,
         PadLayerCPUTest,
         ::testing::Combine(
-                ::testing::ValuesIn(static_shapes_to_test_representation({{3, 16, 5, 5}})),
+                ::testing::ValuesIn(static_shapes_to_test_representation({{3, 32, 5, 5}})),
                 ::testing::ValuesIn(inputLayerTypesBlocked),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin4DConstBlocked_Full),
@@ -282,7 +282,7 @@ INSTANTIATE_TEST_SUITE_P(
         CPUPad4DBlocked,
         PadLayerCPUTest,
         ::testing::Combine(
-                ::testing::ValuesIn(static_shapes_to_test_representation({{3, 16, 10, 5}})),
+                ::testing::ValuesIn(static_shapes_to_test_representation({{3, 32, 10, 5}})),
                 ::testing::ValuesIn(inputLayerTypesBlocked),
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(padsBegin4DBlocked_Full),
@@ -452,23 +452,23 @@ INSTANTIATE_TEST_SUITE_P(
 
 /* *======================* Static Shapes Tests 5D *======================* */
 
-const std::vector<std::vector<int64_t>> padsBegin5DConstBlocked_Smoke = {{0, 0, 1, 1, 0}, {2, 32, 1, 1, 0}};
-const std::vector<std::vector<int64_t>> padsEnd5DConstBlocked_Smoke   = {{1, 16, 1, 1, 0}, {0, 0, 0, 1, 0}};
+const std::vector<std::vector<int64_t>> padsBegin5DConstBlocked_Smoke = {{0, 0, 1, 1, 0}, {2, 32, 1, -1, 0}};
+const std::vector<std::vector<int64_t>> padsEnd5DConstBlocked_Smoke   = {{1, 16, -1, 1, 0}, {0, 0, 0, 1, 0}};
 
-const std::vector<std::vector<int64_t>> padsBegin5DBlocked_Smoke = {{0, 0, 1, 1, 0}, {2, 0, 1, 1, 0}};
-const std::vector<std::vector<int64_t>> padsEnd5DBlocked_Smoke   = {{1, 0, 1, 1, 0}, {0, 0, 0, 1, 0}};
+const std::vector<std::vector<int64_t>> padsBegin5DBlocked_Smoke = {{0, 0, -1, 1, 0}, {2, 0, 1, 1, 0}};
+const std::vector<std::vector<int64_t>> padsEnd5DBlocked_Smoke   = {{1, 0, 1, 1, 0}, {0, 0, 0, -1, 0}};
 
-const std::vector<std::vector<int64_t>> padsBegin5D_Smoke = {{0, 0, 2, 0, 0}, {1, 1, 1, 1, 0}};
-const std::vector<std::vector<int64_t>> padsEnd5D_Smoke   = {{0, 0, 1, 0, 0}, {1, 0, 1, 1, 2}};
+const std::vector<std::vector<int64_t>> padsBegin5D_Smoke = {{0, 0, -2, 0, 0}, {1, 1, 1, 1, 0}};
+const std::vector<std::vector<int64_t>> padsEnd5D_Smoke   = {{0, 0, 1, 0, 0}, {1, 0, 1, 1, -2}};
 
-const std::vector<std::vector<int64_t>> padsBegin5DConstBlocked_Full = {{0, 0, 0, 0, 0}, {0, 0, 1, 1, 0}, {2, 32, 1, 1, 0}, {0, 0, 1, 3, 1}, {0, 0, 0, 1, 0}};
-const std::vector<std::vector<int64_t>> padsEnd5DConstBlocked_Full   = {{0, 0, 0, 0, 0}, {1, 16, 1, 1, 0}, {0, 0, 0, 1, 0}, {0, 0, 0, 1, 1}, {0, 0, 1, 0, 1}};
+const std::vector<std::vector<int64_t>> padsBegin5DConstBlocked_Full = {{0, 0, 0, 0, 0}, {0, 0, 1, 1, 0}, {2, 32, 1, 1, 0}, {0, 0, 1, 3, 1}, {0, 0, 0, -1, 0}};
+const std::vector<std::vector<int64_t>> padsEnd5DConstBlocked_Full   = {{0, 0, 0, 0, 0}, {1, 16, 1, 1, 0}, {0, 0, 0, 1, 0}, {0, 0, 0, -1, 1}, {0, 0, 1, 0, 1}};
 
-const std::vector<std::vector<int64_t>> padsBegin5DBlocked_Full = {{0, 0, 0, 0, 0}, {0, 0, 1, 1, 0}, {2, 0, 1, 1, 0}, {0, 0, 1, 3, 1}, {0, 0, 0, 1, 0}};
-const std::vector<std::vector<int64_t>> padsEnd5DBlocked_Full   = {{0, 0, 0, 0, 0}, {1, 0, 1, 1, 0}, {0, 0, 0, 1, 0}, {0, 0, 0, 1, 1}, {0, 0, 1, 0, 1}};
+const std::vector<std::vector<int64_t>> padsBegin5DBlocked_Full = {{0, 0, 0, 0, 0}, {0, 0, 1, 1, 0}, {2, 0, 1, -1, 0}, {0, 0, 1, 3, 1}, {0, 0, 0, 1, 0}};
+const std::vector<std::vector<int64_t>> padsEnd5DBlocked_Full   = {{0, 0, 0, 0, 0}, {1, 0, 1, 1, 0}, {0, 0, 0, 1, 0}, {0, 0, 0, -1, -1}, {0, 0, 1, 0, 1}};
 
-const std::vector<std::vector<int64_t>> padsBegin5D_Full = {{0, 0, 0, 0, 0}, {0, 0, 2, 0, 0}, {1, 1, 1, 1, 0}, {2, 0, 1, 0, 1}, {0, 2, 1, 3, 1}};
-const std::vector<std::vector<int64_t>> padsEnd5D_Full   = {{0, 0, 0, 0, 0}, {0, 0, 1, 0, 0}, {1, 0, 1, 1, 2}, {2, 2, 0, 1, 0}, {1, 1, 2, 0, 1}};
+const std::vector<std::vector<int64_t>> padsBegin5D_Full = {{0, 0, 0, 0, 0}, {0, 0, -2, 0, 0}, {1, 1, 1, 1, 0}, {2, 0, 1, 0, -1}, {0, 2, 1, 3, 1}};
+const std::vector<std::vector<int64_t>> padsEnd5D_Full   = {{0, 0, 0, 0, 0}, {0, 0, 1, 0, 0}, {1, 0, 1, 1, 2}, {2, 2, 0, 1, 0}, {1, 1, 2, 0, -1}};
 
 const std::vector<CPUSpecificParams> CPUParams5DBlocked = {
         cpuParams_nCdhw16c,

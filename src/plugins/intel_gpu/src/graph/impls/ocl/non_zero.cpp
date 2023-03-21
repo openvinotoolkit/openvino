@@ -2,17 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "non_zero_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "non_zero_inst.h"
 #include "non_zero/count_nonzero_kernel_ref.h"
 #include "non_zero/count_nonzero_kernel_selector.h"
 #include "non_zero/gather_nonzero_kernel_ref.h"
 #include "non_zero/gather_nonzero_kernel_selector.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -59,7 +55,7 @@ struct gather_nonzero_impl : typed_primitive_impl_ocl<gather_nonzero> {
         auto optional_params = get_default_optional_params<kernel_selector::gather_nonzero_optional_params>(impl_param.get_program());
 
         params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
-        params.ov_input_rank = impl_param.get_input_layout().get_partial_shape().size();
+        params.ov_input_rank = static_cast<uint32_t>(impl_param.get_input_layout().get_partial_shape().size());
         return {params, optional_params};
     }
 
