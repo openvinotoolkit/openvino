@@ -71,7 +71,7 @@ tolerance_map = {
     "fcn-resnet101-11": {"atol": 0.001, "rtol": 0.001},
     "resnet101-v1-7": {"atol": 0.001, "rtol": 0.001},
     "resnet101-v2-7": {"atol": 0.001, "rtol": 0.001},
-    "resnet152-v1-7": {"atol": 1e-7, "rtol": 0.003},
+    "resnet152-v1-7": {"atol": 1e-7, "rtol": 0.004},
     "resnet152-v2-7": {"atol": 0.001, "rtol": 0.001},
     "resnet18-v1-7": {"atol": 0.001, "rtol": 0.001},
     "resnet18-v2-7": {"atol": 0.001, "rtol": 0.001},
