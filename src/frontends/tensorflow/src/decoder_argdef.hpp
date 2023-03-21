@@ -60,10 +60,10 @@ public:
 
 private:
     const ::tensorflow::OpDef_ArgDef* m_arg_def;
-    // For existence of NodeDef object corresponding to the main graph node,
+    // For existence of OpDef_ArgDef object corresponding to the main graph node,
     // GraphDef object must live in the memory
     const std::shared_ptr<::tensorflow::GraphDef> m_graph_def;
-    // For existence of NodeDef object corresponding to the body graph node,
+    // For existence of OpDef_ArgDef object corresponding to the body graph node,
     // both GraphDef and FunctionDef objects must be alive in the memory
     const std::shared_ptr<::tensorflow::FunctionDef> m_func_def;
     const std::string m_op_type;
