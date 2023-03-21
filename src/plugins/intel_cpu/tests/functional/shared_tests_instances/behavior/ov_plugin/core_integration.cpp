@@ -252,6 +252,10 @@ TEST(OVClassBasicTest, smoke_SetConfigAffinity) {
     }
 #else
     auto defaultBindThreadParameter = ov::Affinity::CORE;
+    auto coreTypes = InferenceEngine::getAvailableCoresTypes();
+    if (coreTypes.size() > 1) {
+        defaultBindThreadParameter = ov::Affinity::HYBRID_AWARE;
+    }
 #endif
     OV_ASSERT_NO_THROW(value = ie.get_property("CPU", ov::affinity));
     ASSERT_EQ(defaultBindThreadParameter, value);
