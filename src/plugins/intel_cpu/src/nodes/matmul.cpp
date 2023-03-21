@@ -231,7 +231,7 @@ MatMul::MatMul(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
     }
 
     const auto& inputShape = op->get_input_partial_shape(0);
-    if (inputShape.rank() == 3) {
+    if (inputShape.rank() == 3 && ov::is_type<ngraph::opset1::Constant>(op->get_input_node_ptr(1))) {
         if (inputShape[1].is_dynamic() && inputShape[2].is_static()) {
             isDynM = true;
         }
@@ -518,21 +518,56 @@ void MatMul::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                               const std::vector<MemoryDescPtr>& outputDesc) {
     const auto attr = initPrimitiveAttr();
     dnnl::matmul::primitive_desc matmul_desc;
-    if (withBiases) {
-        matmul_desc = matmul::primitive_desc(
-            getEngine(),
-            inDataDesc[0]->getDnnlDesc(),
-            inDataDesc[1]->getDnnlDesc(),
-            getBiasDescFrom(outDataDesc),
-            outDataDesc->getDnnlDesc(),
-            *attr);
+    if (isDynM) {
+        auto create2Dcandidate = [](const dnnl::memory::desc &desc) {
+            if (desc.get_dims().size() != 3) // already 2D
+                return desc;
+
+            auto inDims = desc.get_dims();
+            auto normalizedInDims = {inDims[0] * inDims[1], inDims[2]};
+
+            return dnnl::memory::desc(normalizedInDims, desc.get_data_type(),
+                                    DnnlExtensionUtils::GetPlainFormatByRank(normalizedInDims.size()));
+        };
+        const auto in_candidate  = create2Dcandidate(inDataDesc[0]->getDnnlDesc());
+        const auto wgt_candidate = create2Dcandidate(inDataDesc[1]->getDnnlDesc());
+        const auto out_candidate = create2Dcandidate(outDataDesc->getDnnlDesc());
+        std::cout << getName() << "|weight ndims|"  << inDataDesc[1]->getDnnlDesc().get_ndims() << std::endl;
+
+        if (withBiases) {
+            const auto bias_candidate = create2Dcandidate(getBiasDescFrom(outDataDesc));
+            matmul_desc = matmul::primitive_desc(
+                getEngine(),
+                in_candidate,
+                wgt_candidate,
+                bias_candidate,
+                out_candidate,
+                *attr);
+        } else {
+            matmul_desc = matmul::primitive_desc(
+                getEngine(),
+                in_candidate,
+                wgt_candidate,
+                out_candidate,
+                *attr);
+        }
     } else {
-        matmul_desc = matmul::primitive_desc(
-            getEngine(),
-            inDataDesc[0]->getDnnlDesc(),
-            inDataDesc[1]->getDnnlDesc(),
-            outDataDesc->getDnnlDesc(),
-            *attr);
+        if (withBiases) {
+            matmul_desc = matmul::primitive_desc(
+                getEngine(),
+                inDataDesc[0]->getDnnlDesc(),
+                inDataDesc[1]->getDnnlDesc(),
+                getBiasDescFrom(outDataDesc),
+                outDataDesc->getDnnlDesc(),
+                *attr);
+        } else {
+            matmul_desc = matmul::primitive_desc(
+                getEngine(),
+                inDataDesc[0]->getDnnlDesc(),
+                inDataDesc[1]->getDnnlDesc(),
+                outDataDesc->getDnnlDesc(),
+                *attr);
+        }
     }
 
     descs.emplace_back(matmul_desc);
@@ -543,6 +578,10 @@ void MatMul::initSupportedPrimitiveDescriptors() {
         return;
 
     for (auto& desc : descs) {
+        // 3D FC requires implicit reshape so strides should be defined
+        auto supportsUndefStridesAndOffset = [&]() {
+            return getOutputShapeAtPort(0).getRank() == 2;
+        };
         auto itpd = desc;
         while (itpd) {
             NodeConfig config;
@@ -551,8 +590,12 @@ void MatMul::initSupportedPrimitiveDescriptors() {
                 PortConfig portConfig;
                 portConfig.inPlace(-1);
                 portConfig.constant(false);
-                portConfig.setMemDesc(getSrcMemDesc(itpd, i));
-
+                auto desc = getSrcMemDesc(itpd, i);
+                if (supportsUndefStridesAndOffset() && isDynM) {
+                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
+                } else {
+                    portConfig.setMemDesc(desc);
+                }
                 config.inConfs.push_back(portConfig);
             }
 
@@ -560,7 +603,12 @@ void MatMul::initSupportedPrimitiveDescriptors() {
                 PortConfig portConfig;
                 portConfig.inPlace(canBeInPlace() ? 0 : -1);
                 portConfig.constant(false);
-                portConfig.setMemDesc(getDstMemDesc(itpd, i));
+                auto desc = getDstMemDesc(itpd, i);
+                if (supportsUndefStridesAndOffset() && isDynM) {
+                    portConfig.setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), BLOCKED_DESC_EMPTY_MASK);
+                } else {
+                    portConfig.setMemDesc(desc);
+                }
 
                 config.outConfs.push_back(portConfig);
             }
@@ -576,13 +624,45 @@ void MatMul::initSupportedPrimitiveDescriptors() {
 
 MemoryDescPtr MatMul::getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
     auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1): primitive_desc_it.src_desc(idx);
+    if (isDynM) {
+        std::cout << getName() << "|getSrcMemDesc " << idx << std::endl;
+        if (getInputShapeAtPort(idx).getRank() == 3) {
+            return std::make_shared<CpuBlockedMemoryDesc>(
+                DnnlExtensionUtils::DataTypeToIEPrecision(desc.get_data_type()), getInputShapeAtPort(idx));
+        }
 
-    if (idx < 2) // inputs
-        return std::make_shared<CpuBlockedMemoryDesc>(
+        if (getInputShapeAtPort(idx).isDynamic()) {
+            return DnnlExtensionUtils::makeUndefinedDesc(desc, getInputShapeAtPort(idx));
+        }
+
+        return DnnlExtensionUtils::makeDescriptor(desc);
+    } else {
+        if (idx < 2) // inputs
+            return std::make_shared<CpuBlockedMemoryDesc>(
             DnnlExtensionUtils::DataTypeToIEPrecision(desc.get_data_type()),
             getInputShapeAtPort(idx)); /* provide initial shapes, so hide transpose effect */
-    else // bias
+        else // bias
+            return DnnlExtensionUtils::makeDescriptor(desc);
+    }
+}
+
+MemoryDescPtr MatMul::getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) {
+    auto desc = idx > 0 ? primitive_desc_it.weights_desc(idx - 1): primitive_desc_it.src_desc(idx);
+    std::cout << getName() << "|getDstMemDesc " << idx << std::endl;
+    if (isDynM) {
+        if (getOutputShapeAtPort(idx).getRank() == 3) {
+            return std::make_shared<CpuBlockedMemoryDesc>(
+                DnnlExtensionUtils::DataTypeToIEPrecision(desc.get_data_type()), getOutputShapeAtPort(idx));
+        }
+
+        if (getOutputShapeAtPort(idx).isDynamic()) {
+            return DnnlExtensionUtils::makeUndefinedDesc(desc, getOutputShapeAtPort(idx));
+        }
+
         return DnnlExtensionUtils::makeDescriptor(desc);
+    } else {
+        return Node::getDstMemDesc(primitive_desc_it, idx);
+    }
 }
 
 bool MatMul::created() const {
@@ -754,21 +834,20 @@ void MatMul::prepareParams() {
 
 void MatMul::executeDynamicImpl(dnnl::stream strm) {
     if (isDynM) {
-        auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-        auto& src0MemPtr = getParentEdgeAt(0)->getMemoryPtr();
-        auto setBatchPrimArgs = [this](int argType, const dnnl::memory& oldMem) {
-            dnnl::memory::desc newMemDesc(oldMem.get_desc());
-            const auto dims = newMemDesc.get_dims();
-
-            if (dims.size() == 3) {
-                std::vector<dnnl::memory::dim> normalizedDims({dims[0] * dims[1], dims[2]});
-                newMemDesc = newMemDesc.reshape(normalizedDims);
+        auto updateMemoryPtr = [this](int argType) {
+            auto param = primArgs.find(argType);
+            if (param != primArgs.end()) {
+                if (argType == DNNL_ARG_SRC_0) {
+                    primArgs.at(argType).set_data_handle(getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetData());
+                }
+                if (argType == DNNL_ARG_DST) {
+                    primArgs.at(argType).set_data_handle(getChildEdgesAtPort(0)[0]->getMemoryPtr()->GetData());
+                }
             }
-
-            primArgs.at(argType) = dnnl::memory(newMemDesc, oldMem.get_engine(), oldMem.get_data_handle());
         };
-        setBatchPrimArgs(DNNL_ARG_SRC_0, src0MemPtr->GetPrimitive());
-        setBatchPrimArgs(DNNL_ARG_DST, dstMemPtr->GetPrimitive());
+
+        updateMemoryPtr(DNNL_ARG_SRC_0);
+        updateMemoryPtr(DNNL_ARG_DST);
     }
     execute(strm);
 }
