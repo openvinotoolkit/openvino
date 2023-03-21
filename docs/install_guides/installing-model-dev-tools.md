@@ -165,6 +165,7 @@ Get started with Python
 Try the `Python Quick Start Example <https://docs.openvino.ai/nightly/notebooks/201-vision-monodepth-with-output.html>`__ to estimate depth in a scene using an OpenVINO monodepth model in a Jupyter Notebook inside your web browser.
 
 Visit the :doc:`Tutorials <tutorials>` page for more Jupyter Notebooks to get you started with OpenVINO, such as:
+
 * `OpenVINO Python API Tutorial <https://docs.openvino.ai/nightly/notebooks/002-openvino-api-with-output.html>`__
 * `Basic image classification program with Hello Image Classification <https://docs.openvino.ai/nightly/notebooks/001-hello-world-with-output.html>`__
 * `Convert a PyTorch model and use it for image background removal <https://docs.openvino.ai/nightly/notebooks/205-vision-background-removal-with-output.html>`__
@@ -186,16 +187,17 @@ Visit the :doc:`Samples <openvino_docs_OV_UG_Samples_Overview>` page for other C
 Learn OpenVINO Development Tools
 ++++++++++++++++++++++++++++++++
 
-* Explore a variety of pre-trained deep learning models in the :ref:`Open Model Zoo <model_zoo.html>` and deploy them in demo applications to see how they work.
-* Want to import a model from another framework and optimize its performance with OpenVINO? Visit the :ref:`Model Optimizer Developer Guide <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`.
-* Accelerate your model's speed even further with quantization and other compression techniques using :ref:`Post-Training Optimization Tool <pot_introduction.html>`.
-* Benchmark your model's inference speed with one simple command using the :ref:`Benchmark Tool <openvino_inference_engine_tools_benchmark_tool_README.html`>.
+* Explore a variety of pre-trained deep learning models in the :doc:`Open Model Zoo <model_zoo>` and deploy them in demo applications to see how they work.
+* Want to import a model from another framework and optimize its performance with OpenVINO? Visit the :doc:`Model Optimizer Developer Guide <openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide>`.
+* Accelerate your model's speed even further with quantization and other compression techniques using :doc:`Post-Training Optimization Tool <pot_introduction>`.
+* Benchmark your model's inference speed with one simple command using the :doc:`Benchmark Tool <openvino_inference_engine_tools_benchmark_tool_README>`.
 
-## Additional Resources
+Additional Resources
+####################
 
 - `Intel® Distribution of OpenVINO™ toolkit home page <https://software.intel.com/en-us/openvino-toolkit>`__
 - For IoT Libraries & Code Samples, see `Intel® IoT Developer Kit <https://github.com/intel-iot-devkit>`__ .
-- `OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html`>__
+- `OpenVINO Installation Selector Tool <https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html>`__
 
 @endsphinxdirective
 

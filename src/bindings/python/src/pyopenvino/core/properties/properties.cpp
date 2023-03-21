@@ -6,6 +6,7 @@
 
 #include "pyopenvino/core/common.hpp"
 #include "pyopenvino/graph/any.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -157,6 +158,31 @@ void regmodule_properties(py::module m) {
     wrap_property_RO(m_device, ov::device::thermal, "thermal");
     wrap_property_RO(m_device, ov::device::capabilities, "capabilities");
     wrap_property_RO(m_device, ov::device::uuid, "uuid");
+
+    // Special case: ov::device::properties
+    m_device.def("properties", []() {
+        return ov::device::properties.name();
+    });
+
+    m_device.def("properties", [](py::args& args) {
+        ov::AnyMap value = {};
+        for (auto v : args) {
+            if (!py::isinstance<py::dict>(v)) {
+                throw py::type_error("Incorrect passed value: " + std::string(py::str(v)) +
+                                     ", expected dictionary instead of " + typeid(v).name());
+            }
+            auto dict = py::cast<py::dict>(v);
+            for (auto item : dict) {
+                if (!py::isinstance<py::str>(item.first)) {
+                    throw py::type_error("Incorrect passed key in value: " + std::string(py::str(item.first)) +
+                                         ", expected string instead of " + typeid(item.first).name());
+                }
+                value[py::cast<std::string>(item.first)] =
+                    Common::utils::py_object_to_any(py::cast<py::object>(item.second));
+            }
+        }
+        return ov::device::properties(value);
+    });
 
     // Modules made in pybind cannot easily register attributes, thus workaround is needed.
     // Let's simulate module with attributes by creating empty proxy class called FakeModuleName.

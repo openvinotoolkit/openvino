@@ -161,6 +161,187 @@ TEST_F(AnyTests, AnyAsMapOfAnys) {
     ASSERT_EQ(refMap["testParamString"].as<std::string>(), testString);
 }
 
+TEST_F(AnyTests, AnyAsMapOfMapOfAnys) {
+    std::map<std::string, Any> refMap1;
+    refMap1["testParamInt"] = 4;
+    refMap1["testParamString"] = "test";
+
+    std::map<std::string, Any> refMap2;
+    refMap2["testParamInt"] = 5;
+    refMap2["testParamString"] = "test2";
+
+    std::map<std::string, Any> refMap;
+    refMap["refMap1"] = refMap1;
+    refMap["refMap2"] = refMap2;
+
+    Any p = refMap;
+    bool isMap = p.is<std::map<std::string, Any>>();
+    ASSERT_TRUE(isMap);
+    auto testMap = p.as<std::map<std::string, Any>>();
+
+    ASSERT_NE(testMap.find("refMap1"), testMap.end());
+    auto testMap1 = testMap.at("refMap1").as<std::map<std::string, Any>>();
+    ASSERT_NE(testMap1.find("testParamInt"), testMap1.end());
+    ASSERT_NE(testMap1.find("testParamString"), testMap1.end());
+
+    int testInt1 = testMap1["testParamInt"].as<int>();
+    std::string testString1 = testMap1["testParamString"].as<std::string>();
+
+    ASSERT_EQ(refMap1["testParamInt"].as<int>(), testInt1);
+    ASSERT_EQ(refMap1["testParamString"].as<std::string>(), testString1);
+
+    ASSERT_NE(testMap.find("refMap2"), testMap.end());
+    auto testMap2 = testMap.at("refMap2").as<std::map<std::string, Any>>();
+    ASSERT_NE(testMap2.find("testParamInt"), testMap2.end());
+    ASSERT_NE(testMap2.find("testParamString"), testMap2.end());
+
+    int testInt2 = testMap2["testParamInt"].as<int>();
+    std::string testString2 = testMap2["testParamString"].as<std::string>();
+
+    ASSERT_EQ(refMap2["testParamInt"].as<int>(), testInt2);
+    ASSERT_EQ(refMap2["testParamString"].as<std::string>(), testString2);
+}
+
+TEST_F(AnyTests, AnyAsMapOfMapOfAnysFromString) {
+    const std::string string_props = "{map1:{prop1:1,prop2:2.0},map2:{prop1:value}}";
+    ov::Any any(string_props);
+
+    ov::AnyMap map;
+    ASSERT_TRUE(any.is<std::string>());
+    ASSERT_FALSE(any.is<ov::AnyMap>());
+    ASSERT_NO_THROW(map = any.as<ov::AnyMap>());
+    ASSERT_EQ(string_props, ov::Any(map).as<std::string>());
+
+    // check map1
+    using MapStrDouble = std::map<std::string, double>;
+    MapStrDouble map1;
+    ASSERT_TRUE(map["map1"].is<std::string>());
+    ASSERT_FALSE(map["map1"].is<ov::AnyMap>());
+    ASSERT_FALSE(map["map1"].is<MapStrDouble>());
+    ASSERT_NO_THROW(map1 = map["map1"].as<MapStrDouble>());
+    ASSERT_EQ(2, map1.size());
+
+    // check map1:prop1
+    ASSERT_EQ(1.0, map1["prop1"]);
+    // check map1:prop2
+    ASSERT_EQ(2.0, map1["prop2"]);
+
+    // check map2
+    ov::AnyMap map2;
+    ASSERT_TRUE(map["map2"].is<std::string>());
+    ASSERT_FALSE(map["map2"].is<ov::AnyMap>());
+    ASSERT_NO_THROW(map2 = map["map2"].as<ov::AnyMap>());
+    ASSERT_EQ(1, map2.size());
+
+    // check map1:prop1
+    ASSERT_TRUE(map2["prop1"].is<std::string>());
+    ASSERT_FALSE(map2["prop1"].is<int>());
+    ASSERT_EQ("value", map2["prop1"].as<std::string>());
+}
+
+TEST_F(AnyTests, AnyAsMapOfMapOfMapOfAnysFromString) {
+    const std::string string_props = "{map1:{subprop_map:{prop:value}},prop1:1,prop2:2.0}";
+    ov::Any any(string_props);
+
+    ov::AnyMap map;
+    ASSERT_TRUE(any.is<std::string>());
+    ASSERT_FALSE(any.is<ov::AnyMap>());
+    ASSERT_NO_THROW(map = any.as<ov::AnyMap>());
+    ASSERT_EQ(3, map.size());
+    ASSERT_EQ(string_props, ov::Any(map).as<std::string>());
+
+    // check prop1
+    ASSERT_TRUE(map["prop1"].is<std::string>());
+    ASSERT_FALSE(map["prop1"].is<int>());
+    ASSERT_EQ("1", map["prop1"].as<std::string>());
+    ASSERT_EQ(1, map["prop1"].as<int>());
+
+    // check prop2
+    ASSERT_TRUE(map["prop2"].is<std::string>());
+    ASSERT_FALSE(map["prop2"].is<int>());
+    ASSERT_FALSE(map["prop2"].is<double>());
+    ASSERT_EQ("2.0", map["prop2"].as<std::string>());
+    ASSERT_EQ(2, map["prop2"].as<int>());
+    ASSERT_EQ(2.0, map["prop2"].as<double>());
+
+    // check map1
+    ov::AnyMap map1;
+    ASSERT_TRUE(map["map1"].is<std::string>());
+    ASSERT_FALSE(map["map1"].is<ov::AnyMap>());
+    ASSERT_NO_THROW(map1 = map["map1"].as<ov::AnyMap>());
+
+    // check subprop
+    ov::AnyMap subprop_map;
+    ASSERT_TRUE(map1["subprop_map"].is<std::string>());
+    ASSERT_FALSE(map1["subprop_map"].is<ov::AnyMap>());
+    ASSERT_NO_THROW(subprop_map = map1["subprop_map"].as<ov::AnyMap>());
+
+    // check prop
+    ASSERT_TRUE(subprop_map["prop"].is<std::string>());
+    ASSERT_FALSE(subprop_map["prop"].is<ov::AnyMap>());
+    ASSERT_EQ("value", subprop_map["prop"].as<std::string>());
+}
+
+TEST_F(AnyTests, AnyDoesNotShareValues) {
+    // simple types
+    {
+        Any a = 1;
+        Any b = a;
+        a = 2;
+        ASSERT_EQ(1, b.as<int>());
+        ASSERT_EQ(2, a.as<int>());
+        b = 3;
+        ASSERT_EQ(2, a.as<int>());
+        ASSERT_EQ(3, b.as<int>());
+    }
+
+    // AnyMap's
+    {
+        AnyMap map{
+            {"1", ov::Any(1)},
+            {"2", ov::Any(2)},
+        };
+
+        Any a = map;
+
+        // check initial state
+        ASSERT_EQ(1, a.as<AnyMap>()["1"].as<int>());
+        ASSERT_EQ(2, a.as<AnyMap>()["2"].as<int>());
+
+        map["1"] = 3;                                 // change map
+        ASSERT_EQ(1, a.as<AnyMap>()["1"].as<int>());  // Any is not changed
+
+        a.as<AnyMap>()["2"] = 4;           // change Any
+        ASSERT_EQ(2, map["2"].as<int>());  // map is not changed
+
+        // erase from Any's map
+        AnyMap from_any_map = a.as<AnyMap>();
+        from_any_map.erase(from_any_map.begin());
+        ASSERT_EQ(2, map.size());
+
+        // erase from map
+        map.erase(map.find("2"));
+        ASSERT_NE(from_any_map.end(), from_any_map.find("2"));
+        ASSERT_EQ(4, a.as<AnyMap>()["2"].as<int>());
+    }
+}
+
+TEST_F(AnyTests, DISABLED_AnyMapSharesValues) {
+    AnyMap map{
+        {"1", 1},
+        {"2", 2},
+    };
+
+    AnyMap copy_map = map;
+
+    // check initial state
+    ASSERT_EQ(1, copy_map["1"].as<int>());
+    ASSERT_EQ(2, copy_map["2"].as<int>());
+
+    map["1"].as<int>() = 110;               // change map
+    EXPECT_EQ(1, copy_map["1"].as<int>());  // TODO: why value is changed here?
+}
+
 TEST_F(AnyTests, AnyNotEmpty) {
     Any p = 4;
     ASSERT_FALSE(p.empty());
@@ -401,7 +582,31 @@ TEST_F(AnyTests, PrintToMapOfAnys) {
     {
         Any p = refMap;
         ASSERT_NO_THROW(p.print(stream));
-        ASSERT_EQ(stream.str(), std::string{"testParamInt 4 testParamString test"});
+        ASSERT_EQ(stream.str(), std::string{"{testParamInt:4,testParamString:test}"});
+    }
+}
+
+TEST_F(AnyTests, PrintToMapOfMapsOfAnys) {
+    std::map<std::string, Any> refMap1;
+    refMap1["testParamInt"] = 4;
+    refMap1["testParamString"] = "test";
+
+    std::map<std::string, Any> refMap2;
+    refMap2["testParamInt"] = 5;
+    refMap2["testParamString"] = "test2";
+
+    std::map<std::string, Any> refMap;
+    refMap["refMap1"] = refMap1;
+    refMap["refMap2"] = refMap2;
+
+    std::stringstream stream;
+    {
+        Any p = refMap;
+        ASSERT_NO_THROW(p.print(stream));
+        ASSERT_EQ(
+            stream.str(),
+            std::string{
+                "{refMap1:{testParamInt:4,testParamString:test},refMap2:{testParamInt:5,testParamString:test2}}"});
     }
 }
 
