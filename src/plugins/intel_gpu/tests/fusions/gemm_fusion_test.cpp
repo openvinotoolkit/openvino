@@ -288,7 +288,6 @@ TEST_P(gemm_2in_add, eltwise_postop) {
     if (engine.get_device_info().supports_immad) {
         ov::intel_gpu::ImplementationDesc gemmv_impl = { cldnn::format::type::any, "", impl_types::onednn };
         cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "gemm_prim", gemmv_impl } }));
-        cfg_fused.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
     }
 
     auto add_data_layout = get_output_layout(p);
