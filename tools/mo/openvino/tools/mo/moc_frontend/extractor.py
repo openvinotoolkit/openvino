@@ -345,10 +345,6 @@ def convert_params_lists_to_dicts(input_model, input_user_shapes, input_user_dat
 
         for idx, model_input in enumerate(model_inputs):
             input_user_shapes_dict[model_input.get_names()[0]] = input_user_shapes[idx]
-    elif isinstance(input_user_shapes, PartialShape):
-        # single shape case
-        input_name = model_inputs[0].get_names()[0]
-        input_user_shapes_dict[input_name] = input_user_shapes
     else:
         input_user_shapes_dict = input_user_shapes
 
