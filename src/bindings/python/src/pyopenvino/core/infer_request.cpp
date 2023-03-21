@@ -629,7 +629,6 @@ void regclass_InferRequest(py::module m) {
     cls.def_property_readonly(
         "model_inputs",
         [](InferRequestWrapper& self) {
-            Common::utils::deprecation_warning("model_inputs", "2024.0", "Please use 'inputs' attribute instead.");
             return self.m_inputs;
         },
         R"(
@@ -641,7 +640,6 @@ void regclass_InferRequest(py::module m) {
     cls.def_property_readonly(
         "model_outputs",
         [](InferRequestWrapper& self) {
-            Common::utils::deprecation_warning("model_outputs", "2024.0", "Please use 'outputs' attribute instead.");
             return self.m_outputs;
         },
         R"(
@@ -653,24 +651,26 @@ void regclass_InferRequest(py::module m) {
     cls.def_property_readonly(
         "inputs",
         [](InferRequestWrapper& self) {
-            return self.m_inputs;
+            Common::utils::deprecation_warning("inputs", "2024.0", "Please use 'input_tensors' property instead.");
+            return self.get_input_tensors();
         },
-        R"(
-                                Gets all inputs of a CompiledModel which was used to create this InferRequest.
-                                
-                                :rtype: List[openvino.runtime.ConstOutput]
-                              )");
+            R"(
+            Gets all input tensors of this InferRequest.
+            
+            :rtype: List[openvino.runtime.Tensor]
+            )");
 
     cls.def_property_readonly(
         "outputs",
         [](InferRequestWrapper& self) {
-            return self.m_outputs;
+            Common::utils::deprecation_warning("outputs", "2024.0", "Please use 'output_tensors' property instead.");
+            return self.get_output_tensors();
         },
-        R"(
-                                Gets all outputs of a CompiledModel which was used to create this InferRequest.
-                                
-                                :rtype: List[openvino.runtime.ConstOutput]
-                              )");
+            R"(
+            Gets all output tensors of this InferRequest.
+            
+            :rtype: List[openvino.runtime.Tensor]
+            )");
 
     cls.def_property_readonly("input_tensors",
                               &InferRequestWrapper::get_input_tensors,
