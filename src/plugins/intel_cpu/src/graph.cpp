@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <memory>
 #include <utility>
+#include <queue>
 
 #include "graph.h"
 #include "graph_dumper.h"
@@ -66,8 +67,22 @@ namespace intel_cpu {
 typedef std::unordered_set<EdgePtr> edge_cluster_t;
 typedef std::vector<edge_cluster_t> edge_clusters_t;
 
+size_t g_infer_time = 0;
+std::unordered_map<std::thread::id, size_t> g_thread_counter_prep;
+std::unordered_map<std::thread::id, size_t> g_thread_counter_upd;
+
 Graph::~Graph() {
     CPU_DEBUG_CAP_ENABLE(summary_perf(*this));
+    std::cout << "Total infer time: " << double(g_infer_time) / 1e+6 << " ms" << std::endl;
+    size_t num = 0;
+    for (auto& item : g_thread_counter_prep) {
+        std::cout << "Thread: " << num++ << " id: " << item.first << " time: " << double(item.second) / 1e+6 << " ms" << std::endl;
+    }
+    std::cout << std::endl;
+    num = 0;
+    for (auto& item : g_thread_counter_upd) {
+        std::cout << "Thread: " << num++ << " id: " << item.first << " time: " << double(item.second) / 1e+6 << " ms" << std::endl;
+    }
 }
 
 template<typename NET>
@@ -1072,19 +1087,24 @@ void Graph::InferDynamic(InferRequestBase* request) {
 
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
     std::atomic<size_t> prepareCounter(0);
-    std::vector<std::atomic<uint8_t>> waveFrontCount(executableGraphNodes.size());
-    waveFrontCount.front().store(1);
-    for (size_t i = 1; i < waveFrontCount.size(); ++i) {
-        waveFrontCount[i].store(2);
-    }
+    // std::vector<std::atomic<uint8_t>> waveFrontCount(executableGraphNodes.size());
+    // waveFrontCount.front().store(1);
+    // for (size_t i = 1; i < waveFrontCount.size(); ++i) {
+    //     waveFrontCount[i].store(2);
+    // }
 
     tbb::task_group tg;
     std::function<void(size_t, size_t)> updateShapes;
-    std::function<void(size_t, size_t)> updateDynParams;
+    std::function<void(size_t)> updateDynParams; //size_t, size_t
+
+    std::atomic<bool> completion{false};
+    //std::atomic<size_t> alg2_counter{0};
 
     updateShapes = [&](size_t node_indx, size_t stop_indx) {
+        auto start = std::chrono::steady_clock::now();
         prepareCounter.store(node_indx);
         if (node_indx >= stop_indx) {
+            completion.store(true);
             return;
         }
 
@@ -1092,31 +1112,63 @@ void Graph::InferDynamic(InferRequestBase* request) {
         if (node->isDynamicNode()) {
             node->updateShapes();
         }
-        if (--waveFrontCount[node_indx] == 0) {
-            tg.run([=, &updateDynParams](){ updateDynParams(node_indx, stop_indx); });
-        }
+        auto end = std::chrono::steady_clock::now();
+        g_thread_counter_upd[std::this_thread::get_id()] += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+        // if (0 == prepareCounter) {
+        // //if (--waveFrontCount[node_indx] == 0) {
+        //     tg.run([=, &updateDynParams](){ updateDynParams(); }); //node_indx, stop_indx
+        // }
         updateShapes(node_indx + 1, stop_indx);
+        //tg.run([=, &updateShapes](){ updateShapes(node_indx + 1, stop_indx); });
     };
 
-    updateDynParams = [&](size_t node_indx, size_t stop_indx) {
-        if (node_indx >= stop_indx) {
-            prepareCounter.store(node_indx);
-            return;
-        }
+    updateDynParams = [&](size_t node_indx) { //size_t node_indx, size_t stop_indx
+        // if (node_indx >= stop_indx) {
+        //     prepareCounter.store(node_indx);
+        //     return;
+        // }
 
-        const auto& node = executableGraphNodes[node_indx];
-        if (node->isDynamicNode()) {
-            node->updateDynamicParams();
-        }
-        if (node_indx + 1 < waveFrontCount.size() && --waveFrontCount[node_indx + 1] == 0) {
-            tg.run([=, &updateDynParams](){ updateDynParams(node_indx + 1, stop_indx); });
+        size_t local_counter = node_indx;
+        while (true) {
+            if (completion && local_counter == prepareCounter) {
+                break;
+            }
+            while (local_counter < prepareCounter) {
+                const auto& node = executableGraphNodes[local_counter++];
+                if (node->isDynamicNode()) {
+                    auto start = std::chrono::steady_clock::now();
+                    node->updateDynamicParams();
+                    auto end = std::chrono::steady_clock::now();
+                    g_thread_counter_prep[std::this_thread::get_id()] += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+                }
+                //if (node_indx + 1 < waveFrontCount.size() && --waveFrontCount[node_indx + 1] == 0) {
+                    //tg.run([=, &updateDynParams](){ updateDynParams(node_indx + 1, stop_indx); });
+                    //updateDynParams(); //node_indx + 1, stop_indx
+                //}
+            }
+            // while (alg2_counter == local_counter && !completion) {
+            //     //std::this_thread::yield();
+            // }
         }
     };
 
+    //tbb::task_arena arena(2);
     updateNodes = [&](size_t stopIndx) {
-        auto startCounter = prepareCounter.load();
-        tg.run([=, &updateShapes](){ updateShapes(startCounter, stopIndx); });
-        tg.wait();
+        //arena.execute([&] {
+            completion.store(false, std::memory_order::memory_order_relaxed);
+            auto startCounter = prepareCounter.load();
+            // tg.run_and_wait([=, &updateShapes, &tg](){
+            //     tg.run([=, &updateDynParams](){ updateDynParams(startCounter); });
+            //     updateShapes(startCounter, stopIndx);
+            // });
+            tg.run([=, &updateDynParams](){ updateDynParams(startCounter); });
+            //std::thread worker1([=, &updateDynParams](){ updateDynParams(startCounter); });
+            //tg.run();
+            updateShapes(startCounter, stopIndx);
+            tg.wait();
+            //worker1.join();
+
+        //});
     };
 #else
     size_t prepareCounter = 0;
