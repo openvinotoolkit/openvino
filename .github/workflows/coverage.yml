@@ -54,6 +54,9 @@ jobs:
           sudo apt --assume-yes update
           sudo apt --assume-yes install lcov
 
+      - name: ls all
+        run:  ls -laR .
+
       - name: Build OpenVINO with CMake
         uses: ashutoshvarma/action-cmake-build@master
         with:
