@@ -82,6 +82,7 @@ jobs:
           configure-options: |
             -GNinja
             -DENABLE_PYTHON=ON
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
             -DCMAKE_VERBOSE_MAKEFILE=ON
             -DENABLE_FASTER_BUILD=ON
             -DENABLE_OV_ONNX_FRONTEND=ON
