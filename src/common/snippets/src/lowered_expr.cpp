@@ -87,7 +87,10 @@ IOLoweredExpr::IOLoweredExpr(const std::shared_ptr<ov::opset1::Result>& res, int
 
 LoweredExprIR::LoweredExprIR(const std::shared_ptr<ov::Model>& model, LoweringConfig config)
     : m_io_lowered_ops{}, m_config{std::move(config)}, m_loop_manager(std::make_shared<LoweredLoopManager>()) {
+    constExprIt scalar_pos = m_lowered_ops.begin();
+    LoweredExprPtr last_param = nullptr;
     for (const auto& n : get_ordered_ops(model)) {
+        constExprIt insertion_pos = m_lowered_ops.end();
         std::shared_ptr<LoweredExpr> expr;
         std::vector<TensorDescriptorPtr> input_tds;
         for (const auto& in : n->inputs()) {
@@ -99,16 +102,27 @@ LoweredExprIR::LoweredExprIR(const std::shared_ptr<ov::Model>& model, LoweringCo
             auto io_expr = std::make_shared<IOLoweredExpr>(par, model->get_parameter_index(par));
             m_io_lowered_ops.push_back(io_expr);
             expr = io_expr;
+            last_param = expr;
         } else if (const auto& res = as_type_ptr<opset1::Result>(n)) {
             auto io_expr = std::make_shared<IOLoweredExpr>(res, model->get_result_index(res), input_tds);
             m_io_lowered_ops.push_back(io_expr);
             expr = io_expr;
         } else {
+            if (const auto& scalar = as_type_ptr<op::Scalar>(n)) {
+                // Scalar should be on the Linear IR beginning after Parameters to have valid expression order after Loop passes.
+                // After these passes we must call pass MoveScalarToConsumer() to have a correct accuracy.
+                // For more details, please see the pass description
+                if (scalar_pos == m_lowered_ops.begin()) {
+                    OPENVINO_ASSERT(last_param, "Scalars must be executed after Parameters");
+                    scalar_pos = std::find(m_lowered_ops.begin(), m_lowered_ops.end(), last_param);
+                }
+                insertion_pos = std::next(scalar_pos);
+            }
             // Note that output tds must be empty since they are filled automatically from rt_info and/or tensor shapes
             expr = std::make_shared<LoweredExpr>(n, input_tds, std::vector<TensorDescriptorPtr>{});
         }
         register_expression(expr);
-        m_lowered_ops.emplace_back(expr);
+        m_lowered_ops.insert(insertion_pos, expr);
     }
 }
 
@@ -123,6 +137,7 @@ ov::NodeVector LoweredExprIR::get_ordered_ops(const std::shared_ptr<ov::Model>& 
     std::copy(results.rbegin(), results.rend(), std::back_inserter(nodes));
     const auto& params = m->get_parameters();
     std::copy(params.rbegin(), params.rend(), std::back_inserter(nodes));
+
 
     return ov::topological_sort(nodes);
 }
@@ -419,10 +434,11 @@ void LoweredExprIR::LoweredLoopManager::get_loop_bounds(const LoweredExprIR& lin
                                                         LoweredExprIR::constExprIt& loop_end_pos,
                                                         size_t loop_id) {
     OPENVINO_ASSERT(!entries.empty(), "Loop must have entry points");
+    OPENVINO_ASSERT(!exits.empty(), "Loop must have entry points");
     loop_begin_pos = std::find(linear_ir.begin(), linear_ir.end(), entries.front().first);
     OPENVINO_ASSERT(loop_begin_pos != linear_ir.end(), "Loop begin hasn't been found!");
 
-    // Some operations in Loop can be before first entry points: Scalars.
+    // Some operations in Loop can be before first entry points: Scalars, VectorBuffer.
     // We should iterate by them till the expr is in the corresponding Loop
     auto prev_loop_ids = (*std::prev(loop_begin_pos))->get_loop_identifies();
     while (std::find(prev_loop_ids.begin(), prev_loop_ids.end(), loop_id) != prev_loop_ids.end()) {
@@ -430,18 +446,9 @@ void LoweredExprIR::LoweredLoopManager::get_loop_bounds(const LoweredExprIR& lin
         prev_loop_ids = (*std::prev(loop_begin_pos))->get_loop_identifies();
     }
 
-    // We iterate by expr with the same Loop ID to find accurate LoopEnd in cases when some outputs of Loop aren't exit points
-    // TODO: Is it possible?
-    loop_end_pos = std::next(loop_begin_pos);
-    if (!exits.empty()) {
-        loop_end_pos = std::next(std::find(loop_begin_pos, linear_ir.end(), exits.back().first));
-        OPENVINO_ASSERT(loop_end_pos != linear_ir.end(), "Loop end hasn't been found!");
-    }
-    auto loop_ids = (*loop_end_pos)->get_loop_identifies();
-    while (std::find(loop_ids.begin(), loop_ids.end(), loop_id) != loop_ids.end()) {
-        loop_end_pos = std::next(loop_end_pos);
-        loop_ids = (*loop_end_pos)->get_loop_identifies();
-    }
+    // At the moment all Loops must have exit points
+    loop_end_pos = std::next(std::find(loop_begin_pos, linear_ir.end(), exits.back().first));
+    OPENVINO_ASSERT(loop_end_pos != linear_ir.end(), "Loop end hasn't been found!");
 }
 
 void LoweredExprIR::LoweredLoopManager::get_io_loop_ports(LoweredExprIR& linear_ir,

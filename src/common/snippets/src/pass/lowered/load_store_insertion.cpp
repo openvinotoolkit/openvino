@@ -37,7 +37,8 @@ void LoadStoreInsertion::update_loop(const LoweredExprIR::LoweredLoopManager::Lo
 bool LoadStoreInsertion::insert_load(LoweredExprIR& linear_ir,
                                      const LoweredExprIR::LoweredLoopManagerPtr& loop_manager,
                                      const LoweredExprPort& entry_point,
-                                     LoweredExprIR::constExprIt loop_begin_pos, LoweredExprIR::constExprIt loop_end_pos) {
+                                     LoweredExprIR::constExprIt loop_begin_pos, LoweredExprIR::constExprIt loop_end_pos,
+                                     size_t loop_id) {
     const auto expr = entry_point.first;
     const auto port = entry_point.second;
     const auto node = expr->get_node();
@@ -51,6 +52,11 @@ bool LoadStoreInsertion::insert_load(LoweredExprIR& linear_ir,
     const auto parent_expr = parent_output.first;
     const auto parent_port = parent_output.second;
     const auto parent = parent_expr->get_node();
+
+    // If the parent is in the same Loop, it's incorrect Loop!
+    const auto parent_loop_identifies = parent_expr->get_loop_identifies();
+    OPENVINO_ASSERT(std::find(parent_loop_identifies.begin(), parent_loop_identifies.end(), loop_id) == parent_loop_identifies.end(),
+                    "The parent of Loop entry point must be from another Loop");
 
     if (!ov::is_type<op::Buffer>(parent) && !ov::is_type<opset1::Parameter>(parent)) {
         return false;
@@ -78,7 +84,8 @@ bool LoadStoreInsertion::insert_load(LoweredExprIR& linear_ir,
 bool LoadStoreInsertion::insert_store(LoweredExprIR& linear_ir,
                                       const LoweredExprIR::LoweredLoopManagerPtr& loop_manager,
                                       const LoweredExprPort& exit_point,
-                                      LoweredExprIR::constExprIt loop_begin_pos, LoweredExprIR::constExprIt loop_end_pos) {
+                                      LoweredExprIR::constExprIt loop_begin_pos, LoweredExprIR::constExprIt loop_end_pos,
+                                      size_t loop_id) {
     const auto expr = exit_point.first;
     const auto port = exit_point.second;
     const auto node = expr->get_node();
@@ -97,7 +104,15 @@ bool LoadStoreInsertion::insert_store(LoweredExprIR& linear_ir,
         const auto port = child_expr_input.second;
         const auto child = child_expr->get_node();
 
-        if (!ov::is_type<op::Buffer>(child) && !ov::is_type<opset1::Result>(child)) {
+        // If the consumer is in the same Loop, skip
+        const auto consumer_loop_identifies = child_expr->get_loop_identifies();
+        if (std::find(consumer_loop_identifies.begin(), consumer_loop_identifies.end(), loop_id) != consumer_loop_identifies.end())
+            continue;
+
+        // If the consumer isn't Data expression, we shouldn't insert Store but should save output
+        if (!ov::is_type<op::Buffer>(child) && !ov::is_type<opset1::Result>(child) &&
+            std::find(new_exit_exprs.begin(), new_exit_exprs.end(), exit_point) == new_exit_exprs.end()) {
+            new_exit_exprs.push_back(exit_point);
             continue;
         }
 
@@ -161,10 +176,10 @@ bool LoadStoreInsertion::run(LoweredExprIR& linear_ir) {
         LoweredLoopManager::get_loop_bounds(linear_ir, entry_exprs, exit_exprs, loop_begin_pos, loop_end_pos, loop_id);
 
         for (const auto& entry_point : entry_exprs) {
-            modified |= insert_load(linear_ir, loop_manager, entry_point, loop_begin_pos, loop_end_pos);
+            modified |= insert_load(linear_ir, loop_manager, entry_point, loop_begin_pos, loop_end_pos, loop_id);
         }
         for (const auto& exit_point : exit_exprs) {
-            modified |= insert_store(linear_ir, loop_manager, exit_point, loop_begin_pos, loop_end_pos);
+            modified |= insert_store(linear_ir, loop_manager, exit_point, loop_begin_pos, loop_end_pos, loop_id);
         }
     }
 

@@ -27,8 +27,6 @@ public:
     bool run(LoweredExprIR& linear_ir) override;
 
 private:
-    void scalars_markup(LoweredExprIR& linear_ir, std::vector<LoweredExprIR::constExprIt>& scalars_iterators);
-
     size_t m_vector_size;
 };
 

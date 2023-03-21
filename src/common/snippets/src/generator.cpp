@@ -21,7 +21,7 @@
 #include "snippets/pass/lowered/propagate_layout.hpp"
 #include "snippets/pass/lowered/cleanup_loop_offsets.hpp"
 #include "snippets/pass/lowered/softmax_decomposition.hpp"
-#include "snippets/lowered_expr.hpp"
+#include "snippets/pass/lowered/move_scalar_to_consumer.hpp"
 #include "snippets/tensor_descriptor.hpp"
 
 namespace ngraph {
@@ -52,6 +52,7 @@ Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, con
             std::make_shared<pass::lowered::LoadStoreInsertion>(vector_size),
             std::make_shared<pass::lowered::SetScalarCountForLoadStore>(),
             std::make_shared<pass::lowered::LoopInit>(),
+            std::make_shared<pass::lowered::MoveScalarToConsumer>(),
             std::make_shared<pass::lowered::LoadMoveBroadcastToBroadcastLoad>(),
             std::make_shared<pass::lowered::PropagateLayout>(),
             propagate_buffer_offsets,
