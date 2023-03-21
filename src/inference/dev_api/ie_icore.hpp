@@ -209,22 +209,4 @@ public:
     virtual RemoteContext::Ptr GetDefaultContext(const std::string& deviceName) = 0;
 };
 
-/**
- * @private
- */
-class INFERENCE_ENGINE_API_CLASS(DeviceIDParser) {
-    std::string deviceName;
-    std::string deviceID;
-
-public:
-    explicit DeviceIDParser(const std::string& deviceNameWithID);
-
-    std::string getDeviceID() const;
-    std::string getDeviceName() const;
-
-    static std::vector<std::string> getHeteroDevices(std::string fallbackDevice);
-    static std::vector<std::string> getMultiDevices(std::string devicesList);
-    static std::string getBatchDevice(std::string devicesList);
-};
-
 }  // namespace InferenceEngine

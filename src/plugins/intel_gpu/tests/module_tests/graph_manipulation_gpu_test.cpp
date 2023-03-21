@@ -28,7 +28,7 @@ using namespace ::tests;
    in similar way as it is done in tests utilizing clDNN API */
 TEST(basic, test1) {
     auto& engine = get_test_engine();
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     auto input = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 2 } });
@@ -67,9 +67,9 @@ TEST(basic, test1) {
 // Thus, a single method from program like add_intermediate might be tested separately.
 TEST(add_intermediate_gpu, test1)
 {
-    ExecutionConfig config;
     topology topology;
     auto& engine = get_test_engine();
+    ExecutionConfig config = get_test_default_config(engine);
 
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, {2, 2, 2, 2} });
     auto weights = engine.allocate_memory({ data_types::f32, format::bfyx, {2, 2, 2, 2} });
@@ -124,9 +124,9 @@ TEST(add_intermediate_gpu, test1)
 // Disabled for now as it produces wrong results
 TEST(add_intermediate_gpu, test2)
 {
-    ExecutionConfig config;
     topology topology;
     auto& engine = get_test_engine();
+    ExecutionConfig config = get_test_default_config(engine);
 
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
     auto weights = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });

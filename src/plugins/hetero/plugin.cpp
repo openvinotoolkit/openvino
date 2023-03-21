@@ -4,6 +4,7 @@
 
 // clang-format off
 #include "ie_metric_helpers.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include "plugin.hpp"
 #include <memory>
 #include <vector>
@@ -95,7 +96,7 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Engine::ImportNetwork(
 
 Engine::DeviceMetaInformationMap Engine::GetDevicePlugins(const std::string& targetFallback,
                                                           const Configs& localConfig) const {
-    auto fallbackDevices = InferenceEngine::DeviceIDParser::getHeteroDevices(targetFallback);
+    auto fallbackDevices = ov::DeviceIDParser::get_hetero_devices(targetFallback);
     Engine::DeviceMetaInformationMap metaDevices;
     for (auto&& deviceName : fallbackDevices) {
         auto itPlugin = metaDevices.find(deviceName);
@@ -140,7 +141,7 @@ QueryNetworkResult Engine::QueryNetwork(const CNNNetwork& network, const Configs
     }
 
     //  WARNING: Here is devices with user set priority
-    auto fallbackDevices = InferenceEngine::DeviceIDParser::getHeteroDevices(fallbackDevicesStr);
+    auto fallbackDevices = ov::DeviceIDParser::get_hetero_devices(fallbackDevicesStr);
 
     for (auto&& deviceName : fallbackDevices) {
         for (auto&& layerQueryResult : queryResults[deviceName].supportedLayersMap) {
@@ -187,17 +188,18 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
     }
 }
 std::string Engine::DeviceArchitecture(const std::string& targetFallback) const {
-    auto fallbackDevices = InferenceEngine::DeviceIDParser::getHeteroDevices(targetFallback);
+    auto fallbackDevices = ov::DeviceIDParser::get_hetero_devices(targetFallback);
     std::string resArch;
     for (const auto& device : fallbackDevices) {
-        InferenceEngine::DeviceIDParser parser(device);
+        ov::DeviceIDParser parser(device);
 
-        auto supportedMetricKeys =
-            GetCore()->GetMetric(parser.getDeviceName(), METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
+        auto supportedMetricKeys = GetCore()
+                                       ->GetMetric(parser.get_device_name(), METRIC_KEY(SUPPORTED_METRICS))
+                                       .as<std::vector<std::string>>();
         auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), METRIC_KEY(DEVICE_ARCHITECTURE));
         auto arch = (it != supportedMetricKeys.end())
                         ? GetCore()->GetMetric(device, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>()
-                        : parser.getDeviceName();
+                        : parser.get_device_name();
         resArch += " " + arch;
     }
     return resArch;
