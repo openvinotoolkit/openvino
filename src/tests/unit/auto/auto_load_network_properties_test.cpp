@@ -288,32 +288,29 @@ TEST_P(AutoLoadExeNetworkFailedTest, checkLoadFailMassage) {
     if (device.find("MULTI") != std::string::npos)
         plugin->SetName("MULTI");
 
-    for (auto& deviceName : targetDevices) {
-        auto item = config.find(deviceName);
-        Config deviceConfigs;
-        if (item != config.end()) {
-            std::stringstream strConfigs(item->second);
-            // Parse the device properties to common property into deviceConfigs.
-            ov::util::Read<Config>{}(strConfigs, deviceConfigs);
-        }
-    }
     ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                 ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_GPU)),
                 ::testing::Matcher<const Config&>(_)))
-                .WillByDefault(Throw(InferenceEngine::GeneralError{"Mock GPU Load Failed. "}));
+                .WillByDefault(Throw(InferenceEngine::GeneralError{"Mock GPU Load Failed"}));
     ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
                 ::testing::Matcher<const std::string&>(StrEq(CommonTestUtils::DEVICE_CPU)),
                 ::testing::Matcher<const Config&>(_)))
-                .WillByDefault(Throw(InferenceEngine::GeneralError{"Mock CPU Load Failed. "}));
+                .WillByDefault(Throw(InferenceEngine::GeneralError{"Mock CPU Load Failed"}));
     if (device == "AUTO") {
         EXPECT_THROW_WITH_MESSAGE(plugin->LoadExeNetworkImpl(simpleCnnNetwork, config), InferenceEngine::Exception,
-                                "[AUTO] Load network failed, GPU:Mock GPU Load Failed. ; CPU:Mock CPU Load Failed");
+                                "[AUTO] Load network failed, GPU:Mock GPU Load Failed; CPU:Mock CPU Load Failed");
     } else if (device == "AUTO:CPU") {
         EXPECT_THROW_WITH_MESSAGE(plugin->LoadExeNetworkImpl(simpleCnnNetwork, config), InferenceEngine::Exception,
                                 "[AUTO] Load network failed, CPU:Mock CPU Load Failed");
     } else if (device == "AUTO:GPU") {
         EXPECT_THROW_WITH_MESSAGE(plugin->LoadExeNetworkImpl(simpleCnnNetwork, config), InferenceEngine::Exception,
                                 "[AUTO] Load network failed, GPU:Mock GPU Load Failed");
+    } else if (device == "MULTI" || device == "MULTI:GPU") {
+        EXPECT_THROW_WITH_MESSAGE(plugin->LoadExeNetworkImpl(simpleCnnNetwork, config), InferenceEngine::Exception,
+                                "Failed to load network to device: GPU with error:Mock GPU Load Failed");
+    } else if (device == "MULTI:CPU") {
+        EXPECT_THROW_WITH_MESSAGE(plugin->LoadExeNetworkImpl(simpleCnnNetwork, config), InferenceEngine::Exception,
+                                "Failed to load network to device: CPU with error:Mock CPU Load Failed");
     }
 }
 
@@ -323,9 +320,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoMock_LoadNetworkWithSecondaryConfigs,
                          LoadNetworkWithSecondaryConfigsMockTest::getTestCaseName);
 
 const std::vector<ConfigParams> testConfigsAutoLoadFailed = {
-    ConfigParams{"AUTO", {"CPU", "GPU"}, {{"GPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}},
-    ConfigParams{"AUTO:CPU", {"CPU"}, {{"CPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}},
-    ConfigParams{"AUTO:GPU", {"GPU"}, {{"GPU", "NUM_STREAMS 5"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}}};
+    ConfigParams{"AUTO", {"CPU", "GPU"}, {{"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}},
+    ConfigParams{"AUTO:CPU", {"CPU"}, {{"MULTI_DEVICE_PRIORITIES", "CPU"}}},
+    ConfigParams{"AUTO:GPU", {"GPU"}, {{"MULTI_DEVICE_PRIORITIES", "GPU"}}},
+    ConfigParams{"MULTI", {"CPU", "GPU"}, {{"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}},
+    ConfigParams{"MULTI:CPU", {"CPU"}, {{"MULTI_DEVICE_PRIORITIES", "CPU"}}},
+    ConfigParams{"MULTI:GPU", {"GPU"}, {{"MULTI_DEVICE_PRIORITIES", "GPU"}}}
+    };
 
 INSTANTIATE_TEST_SUITE_P(smoke_AutoLoadExeNetworkFailedTest, AutoLoadExeNetworkFailedTest,
                 ::testing::ValuesIn(testConfigsAutoLoadFailed),
