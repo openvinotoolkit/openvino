@@ -31,7 +31,6 @@ Instead, it refers to a part of the accompanying binary file that stores such va
 Here is an example of a small IR XML file that corresponds to a graph from the previous section:
 
 .. scrollbox::   
-   :height: 450px
 
    .. code-block:: cpp
 
