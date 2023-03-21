@@ -11,7 +11,10 @@ namespace ov {
 namespace frontend {
 namespace pytorch {
 
-InputModel::InputModel(std::shared_ptr<TorchDecoder> model_decoder) : m_model_decoder(model_decoder) {
+InputModel::InputModel(std::shared_ptr<TorchDecoder> model_decoder,
+                       const std::shared_ptr<TelemetryExtension>& telemetry)
+    : m_model_decoder(model_decoder),
+      m_telemetry(telemetry) {
     const auto& inputs = m_model_decoder->inputs();
     for (size_t i = 0; i < inputs.size(); ++i) {
         auto in_place = std::make_shared<pytorch::Place>(*this, inputs[i]);
@@ -37,6 +40,23 @@ InputModel::InputModel(std::shared_ptr<TorchDecoder> model_decoder) : m_model_de
             dtype = type_any.as<element::Type>();
         }
         m_descriptors.emplace(outputs[i], PlaceDesc(dtype, m_model_decoder->get_output_shape(i)));
+    }
+    if (m_telemetry) {
+        // Get op statistics
+        std::map<std::string, uint64_t> op_statistics;
+        std::function<void(std::shared_ptr<TorchDecoder>)> node_visitor;
+        node_visitor = [&](std::shared_ptr<TorchDecoder> node) {
+            op_statistics[node->get_op_type()]++;
+            for (size_t i = 0; i < node->get_subgraph_size(); ++i) {
+                auto subgraph_decoder = node->get_subgraph_decoder(i);
+                subgraph_decoder->visit_subgraph(node_visitor);
+            }
+        };
+        m_model_decoder->visit_subgraph(node_visitor);
+        // Send statistics
+        for (const auto& op : op_statistics) {
+            m_telemetry->send_event("op_count", "pytorch_" + op.first, static_cast<int>(op.second));
+        }
     }
 }
 

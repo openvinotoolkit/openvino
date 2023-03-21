@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/frontend.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/frontend/pytorch/visibility.hpp"
@@ -61,6 +62,7 @@ protected:
     ov::frontend::InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override;
 
     std::map<std::string, CreatorFunction> m_op_translators;
+    TelemetryExtension::Ptr m_telemetry;
 };
 
 }  // namespace pytorch
