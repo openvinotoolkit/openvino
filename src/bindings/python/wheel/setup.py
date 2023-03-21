@@ -319,7 +319,7 @@ class PrepareLibs(build_clib):
             #     input is libX.so->libX.so.Y and libX.so.Y->libX.so.Y.Z (e.g. hwloc library in oneTBB package)
             #     input is libX.so->libX.so.Y.Z and libX.so.Y->libX.so.Y.Z (e.g. oneTBB library)
             #   the second case: there is one soft link pointing to the real file
-            # process results of the above two cases: remove soft links(libX.so and libX.so.Y), rename libX.so.Y.Z to libX.so.Y/libX.so
+            # process results of the above two cases: remove soft links(libX.so and libX.so.Y), rename libX.so.Y.Z to libX.so.Y
             file_dict = {}
             # step 1:
             # record real files and its symlinks {real file: soft link}
