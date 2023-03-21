@@ -734,21 +734,6 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph &graph) {
     }
 }
 
-/**
- * @todo FQ fusing was disabled for BF16 output since oneDNN primitives lack support
- *       for bf16 depthwise postops.
- *       This is not the case anymore, because after migration to oneDNN 2.3 FQ will be fused as
- *       multiple binary post ops.
- *       This check can already be removed for FC fusing, but should be kept for Convolution,
- *       which still uses legacy depthwise postops for performance reasons.
- */
-static bool BF16QuantizeNodeFusing(const NodePtr& parentNode, const NodePtr& childNode) {
-    return childNode->getType() == Type::FakeQuantize &&
-        one_of(Precision::BF16,
-            parentNode->getOriginalOutputPrecisionAtPort(0),
-            childNode->getOriginalOutputPrecisionAtPort(0));
-}
-
 void GraphOptimizer::FuseFullyConnectedAndSimpleOperation(Graph &graph) {
     auto& graphNodes = graph.GetNodes();
 
@@ -768,12 +753,6 @@ void GraphOptimizer::FuseFullyConnectedAndSimpleOperation(Graph &graph) {
 
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
         if (!parentNode->canFuse(childNode)) {
-            parent++;
-            continue;
-        }
-
-        //  BF16 Quantize Layer Fusing Disabling
-        if (BF16QuantizeNodeFusing(parentNode, childNode)) {
             parent++;
             continue;
         }
@@ -1062,12 +1041,6 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperation(Graph &graph) {
 
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
         if (!parentNode->canFuse(childNode)) {
-            parent++;
-            continue;
-        }
-
-        //  BF16 Quantize Layer Fusing Disabling
-        if (BF16QuantizeNodeFusing(parentNode, childNode)) {
             parent++;
             continue;
         }

@@ -136,7 +136,7 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool isLa
         if (oscale_values.size() == 1)
             oscale_mask = 0;
         else
-            oscale_mask = 1 << 1;  // it works for both Conv/Matmul
+            oscale_mask = 1 << idxOC;
         updateOutputScales();
         return true;
     }
