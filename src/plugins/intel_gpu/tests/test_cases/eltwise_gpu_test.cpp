@@ -4331,10 +4331,11 @@ struct eltwise_random_test_param_generator : std::vector<eltwise_random_test_par
 
     eltwise_random_test_param_generator& broadcast_params(data_types type, format::type input_format, format::type output_format) {
         push_back(eltwise_random_test_params{ type, {1, 1, 48, 64},  {1, 10, 48, 64}, input_format, input_format, output_format, eltwise_mode::sum, false });
-        push_back(eltwise_random_test_params{ type, {1, 16, 8, 8},   {1, 1, 8, 8},  input_format, input_format, output_format, eltwise_mode::sum, false });
-        push_back(eltwise_random_test_params{ type, {1, 36, 8, 16},  {1, 36, 1, 1},  input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 16, 8, 8},   {1, 1, 8, 8},    input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 36, 8, 16},  {1, 36, 1, 1},   input_format, input_format, output_format, eltwise_mode::sum, false });
         push_back(eltwise_random_test_params{ type, {1, 36, 4, 4},   {1, 1, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum, false });
         push_back(eltwise_random_test_params{ type, {1, 8, 4, 4},    {1, 1, 1, 1},    input_format, format::bfyx, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 1, 1, 1},    {1, 8, 4, 4},    input_format, format::bfyx, output_format, eltwise_mode::sum, false });
         return *this;
     }
 
@@ -4360,6 +4361,7 @@ struct eltwise_random_test_param_generator : std::vector<eltwise_random_test_par
     eltwise_random_test_param_generator& broadcast_params_zyx(data_types type, format::type input_format, format::type output_format) {
         push_back(eltwise_random_test_params{ type, {1, 1,  4, 4, 8},  {1, 10, 4, 4, 8}, input_format, input_format, output_format, eltwise_mode::sum, false });
         push_back(eltwise_random_test_params{ type, {1, 36, 8, 8, 16}, {1, 36, 1, 1, 1}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 1,  1, 1, 1},  {1, 16, 4, 4, 2}, input_format, input_format, output_format, eltwise_mode::sum, false });
         return *this;
     }
 
@@ -4371,6 +4373,7 @@ struct eltwise_random_test_param_generator : std::vector<eltwise_random_test_par
     eltwise_random_test_param_generator& broadcast_params_bsv_zyx(data_types type, format::type input_format, format::type output_format) {
         push_back(eltwise_random_test_params{ type, {32, 1,  4, 4, 8}, {32, 10, 4, 4, 8}, input_format, input_format, output_format, eltwise_mode::sum, false });
         push_back(eltwise_random_test_params{ type, {32, 36, 4, 4, 4}, {32, 36, 1, 1, 1}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1,  1,  1, 1, 1}, {32, 16, 4, 4, 4}, input_format, input_format, output_format, eltwise_mode::sum, false });
         return *this;
     }
 };
