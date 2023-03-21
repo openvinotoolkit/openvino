@@ -354,5 +354,6 @@ def test_flush_fp32_subnormals_to_zero():
 
     apply_moc_transformations(model, cf=False, smart_reshape=True)  # apply_flush_fp32_subnormals_to_zero is called inside
 
-    assert np.all(weights.data[4:8] != subnorm_val)
-    assert np.all(weights.data[4:8] == 0.0)
+    new_weights = add_node.input_value(1).get_node()
+    assert np.all(new_weights.data[4:8] != subnorm_val)
+    assert np.all(new_weights.data[4:8] == 0.0)
