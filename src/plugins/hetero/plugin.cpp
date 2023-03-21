@@ -17,6 +17,7 @@
 #include "executable_network.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "internal_properties.hpp"
 // clang-format on
 
 using namespace InferenceEngine;
@@ -159,16 +160,21 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
     if (ov::supported_properties == name) {
         return decltype(ov::supported_properties)::value_type{
             ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::caching_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::device::full_name.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::device::architecture.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::device::capabilities.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RW}};
+    } else if (ov::caching_properties == name) {
+        return decltype(ov::caching_properties)::value_type{ov::hetero::caching_device_properties.name()};
+    } else if (ov::hetero::caching_device_properties == name) {
+        auto tconfig = mergeConfigs(_config, options);
+        std::string targetFallback = GetTargetFallback(tconfig);
+        return decltype(ov::hetero::caching_device_properties)::value_type{DeviceCachingProperties(targetFallback)};
     } else if (METRIC_KEY(SUPPORTED_METRICS) == name) {
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS,
                              std::vector<std::string>{METRIC_KEY(SUPPORTED_METRICS),
                                                       ov::device::full_name.name(),
                                                       METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-                                                      ov::device::architecture.name(),
                                                       METRIC_KEY(IMPORT_EXPORT_SUPPORT),
                                                       ov::device::capabilities.name()});
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
@@ -179,30 +185,31 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
         IE_SET_METRIC_RETURN(IMPORT_EXPORT_SUPPORT, true);
     } else if (ov::device::capabilities == name) {
         return decltype(ov::device::capabilities)::value_type{{ov::device::capability::EXPORT_IMPORT}};
-    } else if (ov::device::architecture == name) {
-        auto tconfig = mergeConfigs(_config, options);
-        std::string targetFallback = GetTargetFallback(tconfig);
-        return decltype(ov::device::architecture)::value_type{DeviceArchitecture(targetFallback)};
     } else {
         IE_THROW() << "Unsupported metric key: " << name;
     }
 }
-std::string Engine::DeviceArchitecture(const std::string& targetFallback) const {
-    auto fallbackDevices = ov::DeviceIDParser::get_hetero_devices(targetFallback);
-    std::string resArch;
-    for (const auto& device : fallbackDevices) {
-        ov::DeviceIDParser parser(device);
 
-        auto supportedMetricKeys = GetCore()
-                                       ->GetMetric(parser.get_device_name(), METRIC_KEY(SUPPORTED_METRICS))
-                                       .as<std::vector<std::string>>();
-        auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), METRIC_KEY(DEVICE_ARCHITECTURE));
-        auto arch = (it != supportedMetricKeys.end())
-                        ? GetCore()->GetMetric(device, METRIC_KEY(DEVICE_ARCHITECTURE)).as<std::string>()
-                        : parser.get_device_name();
-        resArch += " " + arch;
+std::string Engine::DeviceCachingProperties(const std::string& targetFallback) const {
+    auto fallbackDevices = ov::DeviceIDParser::get_hetero_devices(targetFallback);
+    ov::AnyMap result;
+    for (const auto& device : fallbackDevices) {
+        auto supported_properties =
+            GetCore()->GetMetric(device, ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
+        if (std::find(supported_properties.begin(), supported_properties.end(), ov::caching_properties.name()) !=
+            supported_properties.end()) {
+            auto caching_properties =
+                GetCore()->GetMetric(device, ov::caching_properties.name()).as<std::vector<ov::PropertyName>>();
+            if (caching_properties.size()) {
+                result[device] = ov::AnyMap{};
+                auto& device_config = result[device].as<ov::AnyMap>();
+                for (auto& property_name : caching_properties) {
+                    device_config[property_name] = GetCore()->GetMetric(device, property_name);
+                }
+            }
+        }
     }
-    return resArch;
+    return result.empty() ? "" : ov::Any(result).as<std::string>();
 }
 
 Parameter Engine::GetConfig(const std::string& name, const std::map<std::string, Parameter>& /*options*/) const {
