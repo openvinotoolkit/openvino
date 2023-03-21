@@ -2,10 +2,40 @@
 
 @sphinxdirective
 
+Introduction
+############
+
 The Automatic Batching Execution mode (or Auto-batching for short) performs automatic batching on-the-fly to improve device utilization by grouping inference requests together, with no programming effort from the user.
 With Automatic Batching, gathering the input and scattering the output from the individual inference requests required for the batch happen transparently, without affecting the application code. 
+AUTO Batching can be used **directly as a device**, and as **an option for to CPU/GPU/VPU plugins** by means of configuration/hint.
 
 This article provides a preview of the new Automatic Batching function, including how it works, its configurations, and testing performance.
+
+Automatic Batching as an explicit plugin
+++++++++++++++++++++++++++++++++++++++++
+
+The below examples show how AUTO Batching can be used in the form of plugin that the user can apply to perform inference directly:
+
+.. code-block:: sh
+
+   ./benchmark_app -m <model> -d “BATCH:GPU”
+   ./benchmark_app -m <model> -d "BATCH:GPU(16)”
+   ./benchmark_app -m <model> -d "BATCH:CPU(16)”
+
+Automatic Batching as underlying plugin configured to other plugins
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+In thie following examples, BATCH plugin will be configured to another plugin in case of tput/ctput mode.
+
+.. code-block:: sh
+
+   ./benchmark_app -m <model> -d GPU -hint tput
+   ./benchmark_app -m <model> -d AUTO -hint tput
+   ./benchmark_app -m <model> -d AUTO -hint ctput  
+   ./benchmark_app -m <model> -d AUTO:GPU -hint ctput
+
+.. note::
+   If you run ``./benchmark_app``, do not set ``batch_size`` by ``-b <batch_size>``, otherwise AUTO plugin will not be applied.
 
 Enabling/Disabling Automatic Batching
 #####################################
@@ -133,7 +163,20 @@ To achieve the best performance with Automatic Batching, the application should:
   - When Automatic Batching is enabled, the ``timeout`` property of ``ov::CompiledModel`` can be changed anytime, even after the loading/compilation of the model. For example, setting the value to 0 disables Auto-batching effectively, as the collection of requests would be omitted.
   - Carefully apply Auto-batching to the pipelines. For example, in the conventional "video-sources -> detection -> classification" flow, it is most beneficial to do Auto-batching over the inputs to the detection stage. The resulting number of detections is usually fluent, which makes Auto-batching less applicable for the classification stage.
 
-The following are limitations of the current implementations:
+Limitations
++++++++++++
+
+The following are limitations of the current AUTO Batching implementations:
+
+- BUTCH plugin:
+
+  - Does not support the dynamic model.
+  - Can only support tput/ctput mode, latency/none mode is not supported.
+  - Only supports models with batch dimension = 1
+  - The input/output tensor should come from ``inferRequest``, otherwise the user-created tensor will trigger a memory copying.
+  - The ``OPTIMAL_BATCH_SIZE`` should be greater than 2, if not -- specify a batch size which depends on model and plugin (CPU does not support this property).
+  - GPU is supported by default, while CPU will not trigger ``auto_batch`` in tput mode.
+  - ``AUTO_BATCH`` will bring much more compilation latency.
 
 - Although it is less critical for the throughput-oriented scenarios, the load time with Auto-batching increases by almost double.
   
@@ -172,7 +215,7 @@ This value also exposed as the final execution statistics on the ``benchmark_app
 .. code-block:: sh
 
    [ INFO ] Latency: 
-   [ INFO ] 	Max:      1000.18 ms
+   [ INFO ]  Max:      1000.18 ms
 
 This is NOT the actual latency of the batched execution, so you are recommended to refer to other metrics in the same log, for example, "Median" or "Average" execution. 
 
