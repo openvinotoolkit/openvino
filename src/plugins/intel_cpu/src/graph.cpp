@@ -54,6 +54,7 @@
 #include <common/primitive_desc.hpp>
 #include <common/primitive_desc_iface.hpp>
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
+#   include <tbb/task.h>
 #   include <tbb/task_group.h>
 #endif
 
@@ -1071,6 +1072,28 @@ void Graph::InferStatic(InferRequestBase* request) {
     }
 }
 
+namespace {
+template <typename Body>
+class processTask : public tbb::detail::d1::task {
+public:
+    processTask(Body& body, tbb::detail::d1::wait_context& wait, size_t node_indx) :
+        my_body(body), my_wait(wait), my_node_indx(node_indx) {}
+    task* execute(tbb::detail::d1::execution_data&) override {
+        my_body(my_node_indx);
+        my_wait.release();
+        return nullptr;
+    }
+    task* cancel(tbb::detail::d1::execution_data&) override {
+        my_wait.release();
+        return nullptr;
+    }
+private:
+    Body& my_body;
+    tbb::detail::d1::wait_context& my_wait;
+    size_t my_node_indx;
+};
+} // namespace
+
 void Graph::InferDynamic(InferRequestBase* request) {
     dnnl::stream stream(getEngine());
 
@@ -1087,18 +1110,12 @@ void Graph::InferDynamic(InferRequestBase* request) {
 
 #if (IE_THREAD == IE_THREAD_TBB || IE_THREAD == IE_THREAD_TBB_AUTO)
     std::atomic<size_t> prepareCounter(0);
-    // std::vector<std::atomic<uint8_t>> waveFrontCount(executableGraphNodes.size());
-    // waveFrontCount.front().store(1);
-    // for (size_t i = 1; i < waveFrontCount.size(); ++i) {
-    //     waveFrontCount[i].store(2);
-    // }
 
-    tbb::task_group tg;
+    tbb::task_group_context ctx;
     std::function<void(size_t, size_t)> updateShapes;
-    std::function<void(size_t)> updateDynParams; //size_t, size_t
+    std::function<void(size_t)> updateDynParams;
 
     std::atomic<bool> completion{false};
-    //std::atomic<size_t> alg2_counter{0};
 
     updateShapes = [&](size_t node_indx, size_t stop_indx) {
         auto start = std::chrono::steady_clock::now();
@@ -1114,20 +1131,10 @@ void Graph::InferDynamic(InferRequestBase* request) {
         }
         auto end = std::chrono::steady_clock::now();
         g_thread_counter_upd[std::this_thread::get_id()] += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-        // if (0 == prepareCounter) {
-        // //if (--waveFrontCount[node_indx] == 0) {
-        //     tg.run([=, &updateDynParams](){ updateDynParams(); }); //node_indx, stop_indx
-        // }
         updateShapes(node_indx + 1, stop_indx);
-        //tg.run([=, &updateShapes](){ updateShapes(node_indx + 1, stop_indx); });
     };
 
     updateDynParams = [&](size_t node_indx) { //size_t node_indx, size_t stop_indx
-        // if (node_indx >= stop_indx) {
-        //     prepareCounter.store(node_indx);
-        //     return;
-        // }
-
         size_t local_counter = node_indx;
         while (true) {
             if (completion && local_counter == prepareCounter) {
@@ -1141,34 +1148,19 @@ void Graph::InferDynamic(InferRequestBase* request) {
                     auto end = std::chrono::steady_clock::now();
                     g_thread_counter_prep[std::this_thread::get_id()] += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
                 }
-                //if (node_indx + 1 < waveFrontCount.size() && --waveFrontCount[node_indx + 1] == 0) {
-                    //tg.run([=, &updateDynParams](){ updateDynParams(node_indx + 1, stop_indx); });
-                    //updateDynParams(); //node_indx + 1, stop_indx
-                //}
             }
-            // while (alg2_counter == local_counter && !completion) {
-            //     //std::this_thread::yield();
-            // }
         }
     };
 
-    //tbb::task_arena arena(2);
-    updateNodes = [&](size_t stopIndx) {
-        //arena.execute([&] {
-            completion.store(false, std::memory_order::memory_order_relaxed);
-            auto startCounter = prepareCounter.load();
-            // tg.run_and_wait([=, &updateShapes, &tg](){
-            //     tg.run([=, &updateDynParams](){ updateDynParams(startCounter); });
-            //     updateShapes(startCounter, stopIndx);
-            // });
-            tg.run([=, &updateDynParams](){ updateDynParams(startCounter); });
-            //std::thread worker1([=, &updateDynParams](){ updateDynParams(startCounter); });
-            //tg.run();
-            updateShapes(startCounter, stopIndx);
-            tg.wait();
-            //worker1.join();
 
-        //});
+    updateNodes = [&](size_t stopIndx) {
+        completion.store(false);
+        auto startCounter = prepareCounter.load();;
+        tbb::detail::d1::wait_context wait_ctx(1);
+        processTask<decltype(updateDynParams)> t1(updateDynParams, wait_ctx, startCounter);
+        tbb::detail::d1::spawn(t1, ctx, /* always submit a task to thread that occupied first slot */ 1);
+        updateShapes(startCounter, stopIndx);
+        tbb::detail::d1::wait(wait_ctx, ctx);
     };
 #else
     size_t prepareCounter = 0;
