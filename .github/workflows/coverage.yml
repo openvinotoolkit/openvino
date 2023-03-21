@@ -81,7 +81,7 @@ jobs:
           build-dir: ${{ github.workspace }}/build
           cc: ${{ matrix.config.cc }}
           cxx: ${{ matrix.config.cxx }}
-          configure-options: |
+          configure-options: >-
             -GNinja
             -DENABLE_PYTHON=ON
             -DCMAKE_VERBOSE_MAKEFILE=ON
