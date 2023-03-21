@@ -163,13 +163,13 @@ The ``benchmark_app`` sample, that has both :doc:`C++ <openvino_inference_engine
 
 Note that Benchmark_app performs a warm-up run of a *single* request. As Auto-Batching requires significantly more requests to execute in batch, this warm-up run hits the default timeout value (1000 ms), as reported in the following example:
 
-.. code-block:: console
+.. code-block:: sh
 
    [ INFO ] First inference took 1000.18ms 
 
 This value also exposed as the final execution statistics on the ``benchmark_app`` exit:
    
-.. code-block:: console
+.. code-block:: sh
 
    [ INFO ] Latency: 
    [ INFO ] 	Max:      1000.18 ms
