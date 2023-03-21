@@ -33,33 +33,33 @@ OutputVector translate_ctc_loss_op(const NodeContext& node) {
         // since OpenVINO CTCLoss accepts only batch-major logist
         // we need to transpose it into [batch_size, time_size, num_classes] format
         // from [time_size, batch_size, num_classes]
-        ov::AxisVector logits_order = {1, 0, 2};
-        logits = ov::frontend::tensorflow::make_transpose(logits, logits_order);
+        AxisVector logits_order = {1, 0, 2};
+        logits = tensorflow::make_transpose(logits, logits_order);
     }
 
     // Transform decoded labels from the sparse format into dense format
     // Convert to the signed type since the mask with minus one is formed below
-    decoded_values = make_shared<Convert>(decoded_values, ov::element::i64);
+    decoded_values = make_shared<Convert>(decoded_values, element::i64);
     // OpenVINO ScatterND operation requires indices to be signed
-    decoded_indices = make_shared<Convert>(decoded_indices, ov::element::i64);
+    decoded_indices = make_shared<Convert>(decoded_indices, element::i64);
     // OpenVINO CTCLoss requires logit_length to be signed
-    logit_length = make_shared<Convert>(logit_length, ov::element::i64);
+    logit_length = make_shared<Convert>(logit_length, element::i64);
 
-    auto logits_shape = make_shared<ShapeOf>(logits, ov::element::i64);
+    auto logits_shape = make_shared<ShapeOf>(logits, element::i64);
     auto dense_shape = make_shared<Slice>(logits_shape,
-                                          make_shared<Constant>(ov::element::i64, ov::Shape{1}, 0),
-                                          make_shared<Constant>(ov::element::i64, ov::Shape{1}, 2),
-                                          make_shared<Constant>(ov::element::i64, ov::Shape{1}, 1));
-    auto minus_one_value = make_shared<Constant>(decoded_values.get_element_type(), ov::Shape{}, -1);
+                                          make_shared<Constant>(element::i64, Shape{}, 0),
+                                          make_shared<Constant>(element::i64, Shape{}, 2),
+                                          make_shared<Constant>(element::i64, Shape{}, 1));
+    auto minus_one_value = make_shared<Constant>(element::i64, Shape{}, -1);
     auto init_decoded_values = make_shared<Broadcast>(minus_one_value, dense_shape);
     auto decoded_values_dense = make_shared<ScatterNDUpdate>(init_decoded_values, decoded_indices, decoded_values);
 
     // Compute label_lenght for each batch
     auto minus_one_mask = make_shared<Equal>(decoded_values_dense, minus_one_value);
     auto mask01 = make_shared<Select>(minus_one_mask,
-                                      make_shared<Constant>(logit_length.get_element_type(), ov::Shape{}, 1),
-                                      make_shared<Constant>(logit_length.get_element_type(), ov::Shape{}, 0));
-    auto label_length_axis = make_shared<Constant>(ov::element::i64, ov::Shape{}, 1);
+                                      make_shared<Constant>(element::i64, Shape{}, 1),
+                                      make_shared<Constant>(element::i64, Shape{}, 0));
+    auto label_length_axis = make_shared<Constant>(element::i64, Shape{}, 1);
     auto label_length = make_shared<ReduceSum>(mask01, label_length_axis, false);
 
     auto ctc_loss = make_shared<CTCLoss>(logits,

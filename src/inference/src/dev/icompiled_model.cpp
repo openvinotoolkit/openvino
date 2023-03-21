@@ -4,6 +4,7 @@
 
 #include "openvino/runtime/icompiled_model.hpp"
 
+#include "dev/converter_utils.hpp"
 #include "icompiled_model_wrapper.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -13,7 +14,15 @@ ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model
                                    const std::shared_ptr<const ov::IPlugin>& plugin,
                                    const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
                                    const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor)
+    : ICompiledModel(model, plugin, {}, task_executor, callback_executor) {}
+
+ov::ICompiledModel::ICompiledModel(const std::shared_ptr<const ov::Model>& model,
+                                   const std::shared_ptr<const ov::IPlugin>& plugin,
+                                   const ov::RemoteContext& context,
+                                   const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
+                                   const std::shared_ptr<ov::threading::ITaskExecutor>& callback_executor)
     : m_plugin(plugin),
+      m_context(context),
       m_task_executor(task_executor),
       m_callback_executor(callback_executor) {
     OPENVINO_ASSERT(m_plugin);
@@ -91,4 +100,13 @@ const std::shared_ptr<ov::threading::ITaskExecutor> ov::ICompiledModel::get_task
 }
 const std::shared_ptr<ov::threading::ITaskExecutor> ov::ICompiledModel::get_callback_executor() const {
     return m_callback_executor;
+}
+
+std::shared_ptr<ov::IRemoteContext> ov::ICompiledModel::get_context() const {
+    if (auto wrapper = dynamic_cast<const InferenceEngine::ICompiledModelWrapper*>(this)) {
+        return ov::legacy_convert::convert_remote_context(wrapper->get_executable_network()->GetContext());
+    }
+    if (m_context._impl)
+        return m_context._impl;
+    return m_plugin->get_default_context({});
 }

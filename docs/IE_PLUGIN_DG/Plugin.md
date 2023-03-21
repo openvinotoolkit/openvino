@@ -1,4 +1,4 @@
-# Plugin {#openvino_docs_ie_plugin_dg_plugin}
+# Plugin {#openvino_docs_ov_plugin_dg_plugin}
 
 OpenVINO Plugin usually represents a wrapper around a backend. Backends can be:
 - OpenCL-like backend (e.g. clDNN library) for GPU devices.
@@ -8,7 +8,7 @@ OpenVINO Plugin usually represents a wrapper around a backend. Backends can be:
 The responsibility of OpenVINO Plugin:
 - Initializes a backend and throw exception in `Engine` constructor if backend cannot be initialized.
 - Provides information about devices enabled by a particular backend, e.g. how many devices, their properties and so on.
-- Loads or imports [compiled model](@ref openvino_docs_ie_plugin_dg_executable_network) objects.
+- Loads or imports [compiled model](@ref openvino_docs_ov_plugin_dg_compiled_model) objects.
 
 In addition to the OpenVINO Public API, the OpenVINO provides the Plugin API, which is a set of functions and helper classes that simplify new plugin development:
 
@@ -16,7 +16,7 @@ In addition to the OpenVINO Public API, the OpenVINO provides the Plugin API, wh
 - implementations in the `src/inference/src/dev/` directory
 - symbols in the OpenVINO shared library
 
-To build an OpenVINO plugin with the Plugin API, see the [OpenVINO Plugin Building](@ref openvino_docs_ie_plugin_dg_plugin_build) guide.
+To build an OpenVINO plugin with the Plugin API, see the [OpenVINO Plugin Building](@ref openvino_docs_ov_plugin_dg_plugin_build) guide.
 
 Plugin Class
 ------------------------
@@ -39,7 +39,7 @@ The provided plugin class also has several fields:
 As an example, a plugin configuration has three value parameters:
 
 - `device_id` - particular device ID to work with. Applicable if a plugin supports more than one `Template` device. In this case, some plugin methods, like `set_property`, `query_model`, and `compile_model`, must support the ov::device::id property. 
-- `perf_counts` - boolean value to identify whether to collect performance counters during [Inference Request](@ref openvino_docs_ie_plugin_dg_infer_request) execution.
+- `perf_counts` - boolean value to identify whether to collect performance counters during [Inference Request](@ref openvino_docs_ov_plugin_dg_infer_request) execution.
 - `streams_executor_config` - configuration of `ov::threading::IStreamsExecutor` to handle settings of multi-threaded context.
 - `performance_mode` - configuration of `ov::hint::PerformanceMode` to set the performance mode.
 
@@ -75,7 +75,7 @@ which holds a backend-dependent compiled model in an internal representation:
 Before a creation of an `CompiledModel` instance via a constructor, a plugin may check if a provided 
 ov::Model object is supported by a device if it is needed.
 
-Actual model compilation is done in the `CompiledModel` constructor. Refer to the [CompiledModel Implementation Guide](@ref openvino_docs_ie_plugin_dg_executable_network) for details.
+Actual model compilation is done in the `CompiledModel` constructor. Refer to the [CompiledModel Implementation Guide](@ref openvino_docs_ov_plugin_dg_compiled_model) for details.
 
 > **NOTE**: Actual configuration map used in `CompiledModel` is constructed as a base plugin 
 > configuration set via `Plugin::set_property`, where some values are overwritten with `config` passed to `Plugin::compile_model`. 
@@ -85,7 +85,7 @@ Actual model compilation is done in the `CompiledModel` constructor. Refer to th
 
 The function accepts a const shared pointer to `ov::Model` object and applies common and device-specific transformations on a copied model to make it more friendly to hardware operations. For details how to write custom device-specific transformation, please, refer to [Writing OpenVINO™ transformations](@ref openvino_docs_transformations) guide. See detailed topics about model representation:
     * [Intermediate Representation and Operation Sets](@ref openvino_docs_MO_DG_IR_and_opsets)
-    * [Quantized models](@ref openvino_docs_ie_plugin_dg_quantized_networks).
+    * [Quantized models](@ref openvino_docs_ov_plugin_dg_quantized_models).
 
 @snippet template/src/plugin.cpp plugin:transform_model
 
@@ -130,7 +130,7 @@ key value to the ov::Any and returns it.
 ### import_model()
 
 The importing of compiled model mechanism allows to import a previously exported backend specific model and wrap it 
-using an [CompiledModel](@ref openvino_docs_ie_plugin_dg_executable_network) object. This functionality is useful if 
+using an [CompiledModel](@ref openvino_docs_ov_plugin_dg_compiled_model) object. This functionality is useful if 
 backend specific model compilation takes significant time and/or cannot be done on a target host 
 device due to other reasons.
 
@@ -167,4 +167,4 @@ OpenVINO plugin library must export only one function creating a plugin instance
 
 @snippet template/src/plugin.cpp plugin:create_plugin_engine
 
-Next step in a plugin library implementation is the [CompiledModel](@ref openvino_docs_ie_plugin_dg_executable_network) class.
+Next step in a plugin library implementation is the [CompiledModel](@ref openvino_docs_ov_plugin_dg_compiled_model) class.

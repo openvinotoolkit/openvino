@@ -10,6 +10,7 @@
 #include "ie_icore.hpp"
 #include "openvino/runtime/auto/properties.hpp"
 #include "log.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include <string>
 #include <map>
 #include <vector>
@@ -159,6 +160,9 @@ public:
         multi_supported_configKeys.erase(std::remove(
                                 multi_supported_configKeys.begin(), multi_supported_configKeys.end(), ov::intel_auto::enable_startup_fallback.name()),
                                 multi_supported_configKeys.end());
+        multi_supported_configKeys.erase(std::remove(
+                                multi_supported_configKeys.begin(), multi_supported_configKeys.end(), ov::intel_auto::enable_runtime_fallback.name()),
+                                multi_supported_configKeys.end());
         return pluginName == "AUTO" ? supported_configKeys : multi_supported_configKeys;
     }
 
@@ -170,6 +174,9 @@ public:
         auto multi_supported_properties = supported_properties;
         multi_supported_properties.erase(std::remove(
                                 multi_supported_properties.begin(), multi_supported_properties.end(), ov::intel_auto::enable_startup_fallback),
+                                multi_supported_properties.end());
+        multi_supported_properties.erase(std::remove(
+                                multi_supported_properties.begin(), multi_supported_properties.end(), ov::intel_auto::enable_runtime_fallback),
                                 multi_supported_properties.end());
         return pluginName == "AUTO" ? supported_properties : multi_supported_properties;
     }
@@ -193,7 +200,7 @@ public:
         if (realDevName.empty()) {
             return false;
         }
-        realDevName = DeviceIDParser(realDevName).getDeviceName();
+        realDevName = ov::DeviceIDParser(realDevName).get_device_name();
         std::string::size_type realEndPos = 0;
         if ((realEndPos = realDevName.find('(')) != std::string::npos) {
             realDevName = realDevName.substr(0, realEndPos);

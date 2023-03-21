@@ -17,6 +17,7 @@
 #include <ie_performance_hints.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include "openvino/runtime/auto/properties.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include "plugin.hpp"
 #include <ie_algorithm.hpp>
 #include <ie_icore.hpp>
@@ -135,17 +136,8 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
     };
 
     auto getDeviceConfig = [&] (const DeviceName & deviceWithID) {
-        DeviceIDParser deviceParser(deviceWithID);
-        std::string deviceName = deviceParser.getDeviceName();
-        std::map<std::string, std::string> tconfig = config;
-
-        // set device ID if any
-        std::string deviceIDLocal = deviceParser.getDeviceID();
-        if (!deviceIDLocal.empty()) {
-            tconfig[PluginConfigParams::KEY_DEVICE_ID] = deviceIDLocal;
-        }
-        auto deviceConfig = GetCore()->GetSupportedConfig(deviceName, tconfig);
-        setDefaultHint(deviceName, deviceConfig, tconfig);
+        auto deviceConfig = GetCore()->GetSupportedConfig(deviceWithID, config);
+        setDefaultHint(deviceWithID, deviceConfig, config);
         return deviceConfig;
     };
 
@@ -198,8 +190,8 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             }
         }
 
-        DeviceIDParser parsed{deviceName};
-        std::string deviceid = parsed.getDeviceID();
+        ov::DeviceIDParser parsed{deviceName};
+        std::string deviceid = parsed.get_device_id();
         std::vector<std::string> sameTypeDevices;
         // if AUTO:GPU case, replace GPU with GPU.0 and GPU.1
         // Disable AUTO:MYRIAD here because of below test case
@@ -221,19 +213,19 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
         }
 
         for (auto&& deviceNameWithID : sameTypeDevices) {
-            DeviceIDParser newParsed{deviceNameWithID};
+            ov::DeviceIDParser newParsed{deviceNameWithID};
             std::string defaultDeviceID = "";
             std::string tempDeviceID = "";
-            if (newParsed.getDeviceID().empty()) {
+            if (newParsed.get_device_id().empty()) {
                 defaultDeviceID = getDefaultDeviceID(deviceNameWithID);
                 tempDeviceID = defaultDeviceID;
             } else {
-                tempDeviceID = newParsed.getDeviceID();
+                tempDeviceID = newParsed.get_device_id();
             }
 
             std::string fullDeviceName = "";
             std::string uniqueName = "";
-            if (newParsed.getDeviceName() == "GPU") {
+            if (newParsed.get_device_name() == "GPU") {
                 auto supportedMetrics = GetCore()->GetMetric(deviceNameWithID, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
                 if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(FULL_DEVICE_NAME)) != supportedMetrics.end()) {
                     fullDeviceName = GetCore()->GetMetric(deviceNameWithID, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
@@ -241,7 +233,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             }
 
             if (fullDeviceName.empty()) {
-                uniqueName = newParsed.getDeviceName() + "_" + tempDeviceID;
+                uniqueName = newParsed.get_device_name() + "_" + tempDeviceID;
             } else {
                 uniqueName = fullDeviceName + "_" + tempDeviceID;
             }
@@ -370,7 +362,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         }
     }
     // updateFromMap will check config valid
-    loadConfig.set_user_property(PreProcessConfig(config), workModeAuto? true : false);
+    loadConfig.set_user_property(PreProcessConfig(config), workModeAuto);
     loadConfig.apply_user_properties();
     auto fullProperty = loadConfig.get_full_properties();
     // this can be updated when plugin switch to 2.0 API
@@ -426,7 +418,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         // filter the device that supports filter configure
         auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
         auto supportDevicesByConfig = FilterDevice(metaDevices, filterConfig);
-        if (supportDevicesByConfig.size() == 0) {
+        if (supportDevicesByConfig.empty()) {
              IE_THROW() << "There is no device support the configure";
         }
         auto supportDevices = supportDevicesByConfig;
@@ -485,6 +477,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         autoSContext->_LogTag = _LogTag;
         autoSContext->_bindBuffer = loadConfig.get_property(ov::intel_auto::device_bind_buffer);
         autoSContext->_startupfallback = loadConfig.get_property(ov::intel_auto::enable_startup_fallback);
+        autoSContext->_runtimeFallback = loadConfig.get_property(ov::intel_auto::enable_runtime_fallback);
         return std::make_shared<AutoExecutableNetwork>(autoSContext, std::make_shared<AutoSchedule>());
     }
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl:MultiMode");
@@ -679,7 +672,9 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
     queryconfig.apply_user_properties();
     auto fullproperty = queryconfig.get_full_properties();
     // this can be updated when plugin switch to 2.0 API
-    std::map<std::string, std::string> fullConfig =  ConvertToStringMap(fullproperty);;
+    std::map<std::string, std::string> fullConfig =  ConvertToStringMap(fullproperty);
+    if (!queryconfig.is_set_by_user(ov::cache_dir))
+        fullConfig.erase(ov::cache_dir.name());
     auto priorities = fullConfig.find(ov::device::priorities.name());
     if (!priorities->second.empty()) {
         auto metaDevices = ParseMetaDevices(priorities->second, fullConfig);
