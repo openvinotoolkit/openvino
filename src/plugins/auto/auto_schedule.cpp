@@ -84,6 +84,7 @@ void AutoSchedule::GenerateWorkers(const std::string& device,
                     };
                     // will fallback to other devices if enable _runtimeFallback
                     if (workerRequestPtr->_exceptionPtr != nullptr && _autoSContext->_runtimeFallback) {
+                        std::cout << "device:" << device << " throw exception" << std::endl;
                         bool selectOtherDeviceFlag = false;
                         // select other device
                         try {
@@ -732,6 +733,7 @@ bool AutoSchedule::ScheduleToWorkerInferRequest(IE::Task inferPipelineTask, Devi
             return true;
         }
     }
+    std::cout << "****** devices is empty do not runPipelineTask ******" << std::endl;
     // no vacant requests this time, storing the task to the respective queue
     if (!preferred_device.empty()) {
         _inferPipelineTasksDeviceSpecific[preferred_device]->push(std::move(inferPipelineTask));
