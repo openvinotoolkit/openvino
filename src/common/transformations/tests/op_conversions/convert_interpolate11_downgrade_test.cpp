@@ -15,7 +15,7 @@
 
 using namespace testing;
 
-TEST_F(TransformationTestsF, ConvertInterpolate11ToInterpolate4) {
+TEST_F(TransformationTestsF, ConvertInterpolate11ToInterpolate4_scales) {
     {
         auto attributes = ov::opset11::Interpolate::InterpolateAttrs{};
         attributes.shape_calculation_mode = ov::opset11::Interpolate::ShapeCalcMode::SCALES;
@@ -51,6 +51,43 @@ TEST_F(TransformationTestsF, ConvertInterpolate11ToInterpolate4) {
     }
 }
 
+TEST_F(TransformationTestsF, ConvertInterpolate11ToInterpolate4_sizes) {
+    {
+        auto attributes = ov::opset11::Interpolate::InterpolateAttrs{};
+        attributes.shape_calculation_mode = ov::opset11::Interpolate::ShapeCalcMode::SIZES;
+        attributes.pads_begin = {0, 0};
+        attributes.pads_end = {0, 0};
+
+        const auto input = std::make_shared<ov::opset11::Parameter>(ov::element::i32, ov::Shape{1, 2, 10, 10});
+        const auto sizes = std::make_shared<ov::opset11::Parameter>(ov::element::i32, ov::Shape{2});
+        const auto axes = std::make_shared<ov::opset11::Parameter>(ov::element::i32, ov::Shape{2});
+        const auto interpolate = std::make_shared<ov::opset11::Interpolate>(input, sizes, axes, attributes);
+        interpolate->set_friendly_name("interpolate11");
+
+        function = std::make_shared<ov::Model>(interpolate->outputs(), ov::ParameterVector{input, sizes, axes});
+        manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
+    }
+
+    {
+        auto attributes = ov::opset4::Interpolate::InterpolateAttrs{};
+        attributes.shape_calculation_mode = ov::opset4::Interpolate::ShapeCalcMode::SIZES;
+        attributes.pads_begin = {0, 0};
+        attributes.pads_end = {0, 0};
+
+        const auto input = std::make_shared<ov::opset4::Parameter>(ov::element::i32, ov::Shape{1, 2, 10, 10});
+        const auto output_shape = std::make_shared<ov::opset4::Parameter>(ov::element::i32, ov::Shape{2});
+        const auto scales = ov::opset4::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
+        const auto axes = std::make_shared<ov::opset4::Parameter>(ov::element::i32, ov::Shape{2});
+
+        const auto interpolate =
+            std::make_shared<ov::opset4::Interpolate>(input, output_shape, scales, axes, attributes);
+        interpolate->set_friendly_name("interpolate11");
+
+        function_ref =
+            std::make_shared<ov::Model>(interpolate->outputs(), ov::ParameterVector{input, output_shape, axes});
+    }
+}
+
 TEST_F(TransformationTestsF, ConvertInterpolate11ToInterpolate4_no_axes) {
     {
         auto attributes = ov::opset11::Interpolate::InterpolateAttrs{};
@@ -81,6 +118,39 @@ TEST_F(TransformationTestsF, ConvertInterpolate11ToInterpolate4_no_axes) {
         interpolate->set_friendly_name("interpolate11");
 
         function_ref = std::make_shared<ov::Model>(interpolate->outputs(), ov::ParameterVector{input, scales});
+    }
+}
+
+TEST_F(TransformationTestsF, ConvertInterpolate11ToInterpolate4_sizes_no_axes) {
+    {
+        auto attributes = ov::opset11::Interpolate::InterpolateAttrs{};
+        attributes.shape_calculation_mode = ov::opset11::Interpolate::ShapeCalcMode::SIZES;
+        attributes.pads_begin = {0, 0};
+        attributes.pads_end = {0, 0};
+
+        const auto input = std::make_shared<ov::opset11::Parameter>(ov::element::i32, ov::Shape{1, 2, 10, 10});
+        const auto sizes = std::make_shared<ov::opset11::Parameter>(ov::element::i32, ov::Shape{4});
+        const auto interpolate = std::make_shared<ov::opset11::Interpolate>(input, sizes, attributes);
+        interpolate->set_friendly_name("interpolate11");
+
+        function = std::make_shared<ov::Model>(interpolate->outputs(), ov::ParameterVector{input, sizes});
+        manager.register_pass<ov::pass::ConvertInterpolate11ToInterpolate4>();
+    }
+
+    {
+        auto attributes = ov::opset4::Interpolate::InterpolateAttrs{};
+        attributes.shape_calculation_mode = ov::opset4::Interpolate::ShapeCalcMode::SIZES;
+        attributes.pads_begin = {0, 0};
+        attributes.pads_end = {0, 0};
+
+        const auto input = std::make_shared<ov::opset4::Parameter>(ov::element::i32, ov::Shape{1, 2, 10, 10});
+        const auto output_shape = std::make_shared<ov::opset4::Parameter>(ov::element::i32, ov::Shape{4});
+        const auto scales = ov::opset4::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
+
+        const auto interpolate = std::make_shared<ov::opset4::Interpolate>(input, output_shape, scales, attributes);
+        interpolate->set_friendly_name("interpolate11");
+
+        function_ref = std::make_shared<ov::Model>(interpolate->outputs(), ov::ParameterVector{input, output_shape});
     }
 }
 
