@@ -84,7 +84,6 @@ void AutoSchedule::GenerateWorkers(const std::string& device,
                     };
                     // will fallback to other devices if enable _runtimeFallback
                     if (workerRequestPtr->_exceptionPtr != nullptr && _autoSContext->_runtimeFallback) {
-                        std::cout << "device:" << device << " throw exception" << std::endl;
                         bool selectOtherDeviceFlag = false;
                         // select other device
                         try {
@@ -682,16 +681,8 @@ bool AutoSchedule::ScheduleToWorkerInferRequest(IE::Task inferPipelineTask, Devi
     // AUTO work mode
     if (!preferred_device.empty()) {
         if (_pCTPUTLoadContext) {
-            auto itPriorityDevice = std::find_if(_autoSContext->_devicePriorities.cbegin(),
-                                                 _autoSContext->_devicePriorities.cend(),
-                                                 [&preferred_device](const DeviceInformation& d) {
-                                                     return d.deviceName == preferred_device;
-                                                 });
-            if (itPriorityDevice != _autoSContext->_devicePriorities.end()) {
-                devices.push_back(*itPriorityDevice);
-            } else {
-                IE_THROW(NotFound) << "The preferred device should be the selected device";
-            }
+            std::lock_guard<std::mutex> lock(_autoSContext->_fallbackMutex);
+            devices = _autoSContext->_devicePriorities;
         } else {
             // if the device needed by customer is not ready, need to wait for it
             WaitActualNetworkReady();
@@ -725,6 +716,9 @@ bool AutoSchedule::ScheduleToWorkerInferRequest(IE::Task inferPipelineTask, Devi
             }
         }
     }
+    if (devices.size() == 0) {
+        IE_THROW(GeneralError) << "No device to run pipeline task";
+    }
     for (auto&& device : devices) {
         if (!preferred_device.empty() && (device.deviceName != preferred_device)) {
             continue;
@@ -733,7 +727,6 @@ bool AutoSchedule::ScheduleToWorkerInferRequest(IE::Task inferPipelineTask, Devi
             return true;
         }
     }
-    std::cout << "****** devices is empty do not runPipelineTask ******" << std::endl;
     // no vacant requests this time, storing the task to the respective queue
     if (!preferred_device.empty()) {
         _inferPipelineTasksDeviceSpecific[preferred_device]->push(std::move(inferPipelineTask));
