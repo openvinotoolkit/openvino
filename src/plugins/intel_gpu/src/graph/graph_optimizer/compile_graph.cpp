@@ -65,7 +65,7 @@ void compile_graph::run(program& p) {
             can_select_impl = false;
 
         if (can_select_impl) {
-            tasks.push_back([node, &p, &exception] {
+            tasks.push_back([node, &exception] {
                 try {
                     node->selected_impl = node->type()->choose_impl(*node);
                 } catch(...) {
