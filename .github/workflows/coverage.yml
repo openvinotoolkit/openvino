@@ -120,7 +120,7 @@ jobs:
           build-dir: ${{ github.workspace }}/build
           cc: ${{ matrix.config.cc }}
           cxx: ${{ matrix.config.cxx }}
-          configure-options: -- -C ${{ github.workspace }}/build
+          configure-options: -C ${{ github.workspace }}/build
           target: ov_coverage
 
       - name: Generate raport
