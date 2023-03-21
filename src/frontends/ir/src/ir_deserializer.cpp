@@ -771,7 +771,7 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::create_node(
     const std::string& type_name = translate_type_name(params.type);
 
     std::shared_ptr<ngraph::Node> ngraphNode;
-    ov::DiscreteTypeInfo type(type_name.c_str(), 0, params.version.c_str());
+    ov::DiscreteTypeInfo type(type_name.c_str(), params.version.c_str());
     auto extensionIt = m_extensions.find(type);
 
     if (extensionIt != m_extensions.end()) {
@@ -885,7 +885,7 @@ std::shared_ptr<ngraph::Node> XmlDeserializer::create_node(
                 item.print(ss);
                 IE_THROW() << "rt_info attribute: " << attribute_name << " has no \"version\" field: " << ss.str();
             }
-            const auto& type_info = ov::DiscreteTypeInfo(attribute_name.c_str(), 0, attribute_version.c_str());
+            const auto& type_info = ov::DiscreteTypeInfo(attribute_name.c_str(), attribute_version.c_str());
             auto attr = attrs_factory.create_by_type_info(type_info);
             if (!attr.empty()) {
                 if (attr.is<ov::RuntimeAttribute>()) {

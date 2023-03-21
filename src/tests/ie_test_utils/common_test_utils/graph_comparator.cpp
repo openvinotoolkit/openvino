@@ -34,11 +34,9 @@ bool is_type_relaxed(const std::string& type) {
 }
 
 bool compare_type_info(const ngraph::DiscreteTypeInfo& info1, const ngraph::DiscreteTypeInfo& info2) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    if (!is_type_relaxed(info1.name) && !is_type_relaxed(info2.name) && (info1.version != info2.version)) {
+    if (!is_type_relaxed(info1.name) && !is_type_relaxed(info2.name) && (std::strcmp(info1.version_id, info2.version_id) != 0)) {
         return false;
     }
-            OPENVINO_SUPPRESS_DEPRECATED_END
 
     const std::string info1Name =
             is_type_relaxed(info1.name) && (info1.parent != nullptr) ? info1.parent->name : info1.name;
@@ -89,9 +87,7 @@ bool less_by_parent_name(const std::shared_ptr<ngraph::op::v0::Result>& l,
 }
 
 std::string typeInfoToStr(const ngraph::Node::type_info_t& typeInfo) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return std::string(typeInfo.name) + "/" + to_str(typeInfo.version);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    return std::string(typeInfo.name) + "/" + std::string(typeInfo.version_id);
 }
 
 std::string tensor_names(const ngraph::descriptor::Tensor& t) {

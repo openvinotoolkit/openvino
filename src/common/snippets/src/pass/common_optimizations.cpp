@@ -17,7 +17,7 @@
 #include "snippets/utils.hpp"
 #include "snippets/itt.hpp"
 
-NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::CommonOptimizations, "Snippets::CommonOptimizations", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::snippets::pass::CommonOptimizations, "Snippets::CommonOptimizations");
 
 namespace ngraph {
 namespace snippets {

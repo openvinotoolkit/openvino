@@ -57,6 +57,6 @@ ov::pass::ModelPass::~ModelPass() = default;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-NGRAPH_RTTI_DEFINITION(ngraph::pass::NodePass, "ngraph::pass::NodePass", 0);
+NGRAPH_RTTI_DEFINITION(ngraph::pass::NodePass, "ngraph::pass::NodePass");
 
 ngraph::pass::NodePass::~NodePass() = default;

@@ -29,14 +29,11 @@ namespace internal {
 template <typename BaseNmsOp>
 class NmsStaticShapeIE : public BaseNmsOp {
 public:
-    OPENVINO_SUPPRESS_DEPRECATED_START
     // TODO: it should be std::string("NmsStaticShapeIE_") + BaseNmsOp::get_type_info_static().name,
     //       but currently it does not pass conversion to Legacy Opset correctly
     OPENVINO_RTTI(BaseNmsOp::get_type_info_static().name,
                   "ie_internal_opset",
-                  BaseNmsOp,
-                  BaseNmsOp::get_type_info_static().version);
-    OPENVINO_SUPPRESS_DEPRECATED_END
+                  BaseNmsOp);
 
     NmsStaticShapeIE() = default;
 
