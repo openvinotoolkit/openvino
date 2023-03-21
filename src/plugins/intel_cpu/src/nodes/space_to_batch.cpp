@@ -106,18 +106,15 @@ static std::vector<size_t> getShape5D(const SizeVector &shape) {
 template<typename T>
 void SpaceToBatch::SpaceToBatchKernel() {
     const auto *blockShapesPtr = reinterpret_cast<int *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
-    size_t typeSize = dnnl::memory::data_type_size(getParentEdgeAt(1)->getMemory().GetDataType());
-    size_t blockShapeSize = getParentEdgeAt(1)->getMemory().GetSize() / typeSize;
+    size_t dataRank = op->get_input_partial_shape(0).rank().get_length();
     blockShapeIn.clear();
-    for (size_t i = 0; i < blockShapeSize; i++) {
+    for (size_t i = 0; i < dataRank; i++) {
         blockShapeIn.push_back(*(blockShapesPtr + i));
     }
 
     const auto *padsBeginPtr = reinterpret_cast<int *>(getParentEdgeAt(2)->getMemoryPtr()->GetPtr());
-    typeSize = dnnl::memory::data_type_size(getParentEdgeAt(2)->getMemory().GetDataType());
-    size_t padsBeginSize = getParentEdgeAt(2)->getMemory().GetSize() / typeSize;
     padsBeginIn.clear();
-    for (size_t i = 0; i < padsBeginSize; i++) {
+    for (size_t i = 0; i < dataRank; i++) {
         padsBeginIn.push_back(*(padsBeginPtr + i));
     }
 
