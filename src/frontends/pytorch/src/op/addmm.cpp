@@ -16,7 +16,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_addmm(NodeContext& context) {
+OutputVector translate_addmm(const NodeContext& context) {
     num_inputs_check(context, 5, 5);
     auto input = context.get_input(0);
     auto m1 = context.get_input(1);

@@ -16,7 +16,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_glu(NodeContext& context) {
+OutputVector translate_glu(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     auto x = context.get_input(0);
     auto dim = context.input_is_none(1) ? context.mark_node(v0::Constant::create(element::i32, Shape{}, {-1}))

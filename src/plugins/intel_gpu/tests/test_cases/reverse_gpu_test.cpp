@@ -76,7 +76,7 @@ public:
             tp.add(reverse(reverse_id, input_info(reverse_input_id), input_info(axes_id), mode));
         }
 
-        cldnn::network::ptr network = get_network(engine, tp, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, tp, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         network->set_input_data(reverse_input_id, reverse_input);
         network->set_input_data(axes_id, reverse_axes);
         auto result = network->execute();

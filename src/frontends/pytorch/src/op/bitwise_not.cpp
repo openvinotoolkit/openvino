@@ -11,7 +11,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_bitwise_not(NodeContext& context) {
+OutputVector translate_bitwise_not(const NodeContext& context) {
     num_inputs_check(context, 1, 2);
     auto x = context.get_input(0);
     FRONT_END_OP_CONVERSION_CHECK(x.get_element_type().compatible(element::boolean),
