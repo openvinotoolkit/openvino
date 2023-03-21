@@ -878,4 +878,4 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
         telemetry.send_event('mo', 'conversion_result', 'fail')
         telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)
-        raise e#.with_traceback(None)
+        raise e.with_traceback(None)
