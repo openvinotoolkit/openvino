@@ -6,6 +6,7 @@
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset6.hpp>
+#include <ngraph/opsets/opset10.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <openvino/pass/serialize.hpp>
 #include <transformations/common_optimizations/softmax_fusion.hpp>
@@ -17,6 +18,7 @@ using namespace testing;
 using namespace ngraph;
 
 class SoftmaxFusionFixture : public ::testing::TestWithParam<std::tuple<int64_t, int64_t>> {};
+class SoftmaxFusionSimplePatternFixture : public ::testing::TestWithParam<std::tuple<int64_t>> {};
 
 TEST_P(SoftmaxFusionFixture, SoftmaxFusion) {
     Shape shape{1, 1, 256};
@@ -66,6 +68,48 @@ INSTANTIATE_TEST_SUITE_P(SoftmaxFusionTests,
                                            std::make_tuple(-1, 2),
                                            std::make_tuple(2, -1),
                                            std::make_tuple(2, 2)));
+
+TEST_P(SoftmaxFusionSimplePatternFixture, SoftmaxFusionSimplePatternTest) {
+    Shape shape{1, 3, 256, 256};
+    auto params = GetParam();
+    auto reduce_axis_val = std::get<0>(params);
+    std::shared_ptr<Function> f(nullptr), f_ref(nullptr);
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, shape);
+        auto exp = std::make_shared<opset10::Exp>(data);
+        auto reduce_axis = opset10::Constant::create(element::i64, Shape{}, {reduce_axis_val});
+        auto reduce_sum = std::make_shared<opset10::ReduceSum>(exp, reduce_axis);
+        auto div = std::make_shared<opset10::Divide>(exp, reduce_sum);
+        f = std::make_shared<Function>(NodeVector{div}, ParameterVector{data});
+
+        auto unh = std::make_shared<ngraph::pass::UniqueNamesHolder>();
+        pass::Manager m;
+        m.register_pass<pass::InitUniqueNames>(unh);
+        m.register_pass<ov::pass::InitNodeInfo>();
+        m.register_pass<ov::pass::SoftmaxFusion>();
+        m.register_pass<pass::CheckUniqueNames>(unh);
+        m.run_passes(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+    {
+        auto data = std::make_shared<opset10::Parameter>(element::f32, shape);
+        auto softmax = std::make_shared<opset10::Softmax>(data, reduce_axis_val);
+        f_ref = std::make_shared<Function>(NodeVector{softmax}, ParameterVector{data});
+    }
+
+    auto fc =
+            FunctionsComparator::no_default().enable(FunctionsComparator::PRECISIONS).enable(FunctionsComparator::NODES);
+    auto res = fc.compare(f, f_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+
+INSTANTIATE_TEST_SUITE_P(SoftmaxFusionSimplePatternTests,
+                         SoftmaxFusionSimplePatternFixture,
+                         ::testing::Values(std::make_tuple(0),
+                                           std::make_tuple(1),
+                                           std::make_tuple(2),
+                                           std::make_tuple(-1),
+                                           std::make_tuple(-2)));
 
 class NegativeSoftmaxFusionFixture
     : public ::testing::TestWithParam<std::tuple<std::vector<int64_t>, std::vector<int64_t>>> {};

@@ -44,6 +44,7 @@
 #include "transformations/common_optimizations/convert_compression_only_to_legacy.hpp"
 #include <transformations/common_optimizations/wrap_interpolate_into_transposes.hpp>
 #include <transformations/common_optimizations/transpose_sinking.hpp>
+#include <transformations/common_optimizations/softmax_fusion.hpp>
 
 #include <transformations/op_conversions/convert_depth_to_space.hpp>
 #include <transformations/op_conversions/convert_space_to_depth.hpp>
@@ -191,6 +192,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         type_to_fuse_map empty_fuse_map = {};
         manager.register_pass<ov::pass::Validate>();
         //  call ConvertPrecision with keep_precision_sensitive_in_fp32 = true
+        manager.register_pass<ov::pass::SoftmaxFusion>();
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map, empty_fuse_map, true);
 
         manager.register_pass<ov::pass::CommonOptimizations>();
