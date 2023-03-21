@@ -18,9 +18,9 @@ The below examples show how AUTO Batching can be used in the form of plugin that
 
 .. code-block:: sh
 
-   ./benchmark_app -m <model> -d “BATCH:GPU”
-   ./benchmark_app -m <model> -d "BATCH:GPU(16)”
-   ./benchmark_app -m <model> -d "BATCH:CPU(16)”
+   ./benchmark_app -m <model> -d "BATCH:GPU"
+   ./benchmark_app -m <model> -d "BATCH:GPU(16)"
+   ./benchmark_app -m <model> -d "BATCH:CPU(16)"
 
 Automatic Batching as underlying plugin configured to other plugins
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -168,7 +168,7 @@ Limitations
 
 The following are limitations of the current AUTO Batching implementations:
 
-- BUTCH plugin:
+- BATCH plugin:
 
   - Does not support the dynamic model.
   - Can only support tput/ctput mode, latency/none mode is not supported.
