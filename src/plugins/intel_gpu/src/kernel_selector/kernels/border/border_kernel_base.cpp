@@ -15,7 +15,7 @@ inline std::string GetInputTypeStr(uint32_t idx) {
 JitConstants BorderKernelBase::GetJitConstants(const border_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    size_t input_offset = 1;
+    uint32_t input_offset = 1;
     if (params.begin_type == base_params::ArgType::Input) {
         jit.AddConstant(MakeJitConstant("BEGIN_TYPE", GetInputTypeStr(input_offset)));
         input_offset += 1;

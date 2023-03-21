@@ -1,4 +1,4 @@
-# Build Plugin Using CMake {#openvino_docs_ie_plugin_dg_plugin_build}
+# Build Plugin Using CMake {#openvino_docs_ov_plugin_dg_plugin_build}
 
 OpenVINO build infrastructure provides the OpenVINO Developer Package for plugin development.
 
@@ -18,20 +18,12 @@ Once the commands above are executed, the OpenVINO Developer Package is generate
  - `OpenVINODeveloperPackageConfig-version.cmake` - a file with a package version.
  - `targets_developer.cmake` - an automatically generated file which contains all targets exported from the OpenVINO build tree. This file is included by `OpenVINODeveloperPackageConfig.cmake` to import the following targets:
    - Libraries for plugin development:
-       * `openvino::ngraph` - shared OpenVINO library
-       * `openvino::openvino_gapi_preproc` - shared library with OpenVINO preprocessing plugin
-       * `openvino::core::dev` - interface library with OpenVINO Core development headers
-       * `openvino::runtime::dev` - interface library with OpenVINO Plugin API headers
+       * `openvino::runtime` - shared OpenVINO library
+       * `openvino::runtime::dev` - interface library with OpenVINO Developer API
        * `openvino::pugixml` - static Pugixml library
        * `openvino::xbyak` - interface library with Xbyak headers
        * `openvino::itt` - static library with tools for performance measurement using Intel ITT
    - Libraries for tests development:
-       * `IE::gtest`, `IE::gtest_main`, `IE::gmock` - Google Tests framework libraries
-       * `IE::commonTestUtils` - static library with common tests utilities
-       * `IE::funcTestUtils` - static library with functional tests utilities
-       * `IE::unitTestUtils` - static library with unit tests utilities
-       * `IE::ngraphFunctions` - static library with the set of `ngraph::Function` builders
-       * `IE::funcSharedTests` - static library with common functional tests
        * `openvino::gtest`, `openvino::gtest_main`, `openvino::gmock` - Google Tests framework libraries
        * `openvino::commonTestUtils` - static library with common tests utilities 
        * `openvino::funcTestUtils` - static library with functional tests utilities 
@@ -39,7 +31,7 @@ Once the commands above are executed, the OpenVINO Developer Package is generate
        * `openvino::ngraphFunctions` - static library with the set of `ov::Model` builders
        * `openvino::funcSharedTests` - static library with common functional tests
 
-> **NOTE**: it's enough just to run `cmake --build . --target ie_dev_targets` command to build only targets from the
+> **NOTE**: it's enough just to run `cmake --build . --target ov_dev_targets` command to build only targets from the
 > OpenVINO Developer package.
 
 Build Plugin using OpenVINO Developer Package
@@ -61,31 +53,7 @@ A common plugin consists of the following components:
 To build a plugin and its tests, run the following CMake scripts:
 
 - Root `CMakeLists.txt`, which finds the OpenVINO Developer Package using the `find_package` CMake command and adds the `src` and `tests` subdirectories with plugin sources and their tests respectively:
-
-```cmake
-cmake_minimum_required(VERSION 3.13)
-
-project(OpenVINOTemplatePlugin)
-
-set(TEMPLATE_PLUGIN_SOURCE_DIR ${OpenVINOTemplatePlugin_SOURCE_DIR})
-
-find_package(OpenVINODeveloperPackage REQUIRED)
-
-if(CMAKE_COMPILER_IS_GNUCXX)
-    ov_add_compiler_flags(-Wall)
-endif()
-
-add_subdirectory(src)
-
-if(ENABLE_TESTS)
-    include(CTest)
-    enable_testing()
-
-    if(ENABLE_FUNCTIONAL_TESTS)
-        add_subdirectory(tests/functional)
-    endif()
-endif()
-```
+@snippet template/CMakeLists.txt cmake:main
    > **NOTE**: The default values of the `ENABLE_TESTS`, `ENABLE_FUNCTIONAL_TESTS` options are shared via the OpenVINO Developer Package and they are the same as for the main OpenVINO build tree. You can override them during plugin build using the command below:
 ```bash
 $ cmake -DENABLE_FUNCTIONAL_TESTS=OFF -DOpenVINODeveloperPackage_DIR=../openvino-release-build ../template-plugin
