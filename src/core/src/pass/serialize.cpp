@@ -1004,7 +1004,6 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         // WA for LSTMCellv0, peephole input shall not be serialized
         if (e.to_port == 6) {
             const auto& type_info = ordered_ops[e.to_layer]->get_type_info();
-            OPENVINO_SUPPRESS_DEPRECATED_START
             if (!strcmp(type_info.name, "LSTMCell")) {
                 continue;
             }
