@@ -99,8 +99,7 @@ def test_pytorch_telemetry():
     fe = fe_manager.load_by_framework("pytorch")
     add_ext(fe, tel_stat)
     im = fe.load(decoder)
-    om = fe.convert(im)
+    fe.convert(im)
     assert tel_stat["send_event"] == 2
     assert tel_stat["send_error"] == 0
     assert tel_stat["send_stack_trace"] == 0
-    assert model
