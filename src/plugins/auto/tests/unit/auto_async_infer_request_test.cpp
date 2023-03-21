@@ -4,8 +4,41 @@
 #include "include/mock_auto_device_plugin.hpp"
 #include "include/auto_infer_request_test_base.hpp"
 
+std::string AsyncInferenceTest::getTestCaseName(testing::TestParamInfo<AsyncInferRequestTestParams> obj) {
+    bool isCpuFast;
+    bool isSingleDevice;
+    std::tie(isCpuFast, isSingleDevice) = obj.param;
+    std::ostringstream result;
+    result << "_isCPUFaster_" << isCpuFast << "_isSingleDevice" << isSingleDevice;
+    return result.str();
+}
+
 void AsyncInferenceTest::SetUp() {
+        std::tie(isCpuFaster, isSingleDevice) = GetParam();
         ON_CALL(*core.get(), isNewAPI()).WillByDefault(Return(true));
+        if (isSingleDevice) {
+            std::vector<std::string>  testDevs = {CommonTestUtils::DEVICE_GPU};
+            ON_CALL(*core, GetAvailableDevices()).WillByDefault(Return(testDevs));
+        } else if (isCpuFaster) {
+             ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                ::testing::Matcher<const std::string&>(Not(HasSubstr(CommonTestUtils::DEVICE_CPU))),
+                ::testing::Matcher<const Config&>(_))).WillByDefault(InvokeWithoutArgs([this]() {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                    return mockExeNetwork; }));
+            ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                ::testing::Matcher<const std::string&>(HasSubstr(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Matcher<const Config&>(_))).WillByDefault(Return(mockExeNetwork));
+        } else {
+            ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                ::testing::Matcher<const std::string&>(HasSubstr(CommonTestUtils::DEVICE_CPU)),
+                ::testing::Matcher<const Config&>(_))).WillByDefault(InvokeWithoutArgs([this]() {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                    return mockExeNetwork; }));
+            ON_CALL(*core, LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                ::testing::Matcher<const std::string&>(Not(HasSubstr(CommonTestUtils::DEVICE_CPU))),
+                ::testing::Matcher<const Config&>(_))).WillByDefault(Return(mockExeNetwork));
+        }
+        taskExecutor = std::make_shared<DeferedExecutor>();
         // replace core with mock Icore
         plugin->SetCore(core);
         makeAsyncRequest();
@@ -13,34 +46,18 @@ void AsyncInferenceTest::SetUp() {
         auto_request = exeNetwork->CreateInferRequest();
 }
 
-void AsyncInferenceTest::makeAsyncRequest() {
-    taskExecutor = std::make_shared<DeferedExecutor>();
-    // set up mock infer request
-    for (size_t i = 0; i < target_request_num; i++) {
-        auto inferReq = std::make_shared<NiceMock<MockIInferRequestInternal>>();
-        auto asyncRequest = std::make_shared<AsyncInferRequestThreadSafeDefault>(inferReq, taskExecutor, taskExecutor);
-        inferReqInternal.push_back(inferReq);
-        asyncInferRequest.push_back(asyncRequest);
-    }
-    EXPECT_CALL(*mockIExeNet.get(), CreateInferRequest()).WillOnce(Return(asyncInferRequest[0]))
-                                                            .WillOnce(Return(asyncInferRequest[1]))
-                                                            .WillOnce(Return(asyncInferRequest[2]))
-                                                            .WillOnce(Return(asyncInferRequest[3]))
-                                                            .WillRepeatedly(Return(asyncInferRequest[0]));
-}
-
 void AsyncInferenceTest::TearDown() {
 }
 
-TEST_F(AsyncInferenceTest, returnRequestBusyOnStartAsync) {
-    for (size_t i = 0; i < target_request_num ; i++)
+TEST_P(AsyncInferenceTest, returnRequestBusyOnStartAsync) {
+    for (size_t i = 0; i < request_num_pool ; i++)
         ON_CALL(*inferReqInternal[i], InferImpl()).WillByDefault(Return());
     ASSERT_NO_THROW(auto_request->StartAsync());
     ASSERT_THROW(auto_request->StartAsync(), RequestBusy);
     std::dynamic_pointer_cast<DeferedExecutor>(taskExecutor)->executeAll();
 }
 
-TEST_F(AsyncInferenceTest, canInferIfStartAsyncSuccess) {
+TEST_P(AsyncInferenceTest, canInferIfStartAsyncSuccess) {
     auto_request->SetCallback([&](std::exception_ptr exceptionPtr_) {
         auto exceptionPtr = exceptionPtr_;
         ASSERT_EQ(exceptionPtr, nullptr);
@@ -50,9 +67,11 @@ TEST_F(AsyncInferenceTest, canInferIfStartAsyncSuccess) {
     ASSERT_NO_THROW(auto_request->Wait(InferRequest::WaitMode::RESULT_READY));
 }
 
-TEST_F(AsyncInferenceTest, canRethrowIfStartAsyncFails) {
-    for (size_t i = 0; i < target_request_num ; i++)
+TEST_P(AsyncInferenceTest, canRethrowIfStartAsyncFails) {
+    // create additional resource for infer fail restart
+    for (size_t i = 0; i < request_num_pool; i++)
         ON_CALL(*inferReqInternal[i], InferImpl()).WillByDefault(Throw(std::exception()));
+    auto_request = exeNetwork->CreateInferRequest();
     auto_request->SetCallback([&](std::exception_ptr exceptionPtr_) {
         auto exceptionPtr = exceptionPtr_;
         ASSERT_NE(exceptionPtr, nullptr);
@@ -62,7 +81,7 @@ TEST_F(AsyncInferenceTest, canRethrowIfStartAsyncFails) {
     EXPECT_THROW(auto_request->Wait(InferRequest::WaitMode::RESULT_READY), std::exception);
 }
 
-TEST_F(AsyncInferenceTest, canStart2AsyncInferRequests) {
+TEST_P(AsyncInferenceTest, canStart2AsyncInferRequests) {
     auto another_auto_request = exeNetwork->CreateInferRequest();
     auto_request->SetCallback([&](std::exception_ptr exceptionPtr_) {
         auto exceptionPtr = exceptionPtr_;
@@ -78,3 +97,22 @@ TEST_F(AsyncInferenceTest, canStart2AsyncInferRequests) {
     ASSERT_NO_THROW(auto_request->Wait(InferRequest::WaitMode::RESULT_READY));
     ASSERT_NO_THROW(another_auto_request->Wait(InferRequest::WaitMode::RESULT_READY));
 }
+
+TEST_P(AsyncInferenceTest, returnRequestBusyOnGetPerformanceCounts) {
+    for (size_t i = 0; i < request_num_pool ; i++)
+        ON_CALL(*inferReqInternal[i], InferImpl()).WillByDefault(Return());
+    ASSERT_NO_THROW(auto_request->StartAsync());
+    ASSERT_THROW(auto_request->GetPerformanceCounts(), RequestBusy);
+    std::dynamic_pointer_cast<DeferedExecutor>(taskExecutor)->executeAll();
+}
+
+const std::vector<AsyncInferRequestTestParams> testConfigs = {
+    AsyncInferRequestTestParams {true, true},
+    AsyncInferRequestTestParams {true, false},
+    AsyncInferRequestTestParams {false, true},
+    AsyncInferRequestTestParams {false, false}
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests, AsyncInferenceTest,
+                ::testing::ValuesIn(testConfigs),
+            AsyncInferenceTest::getTestCaseName);

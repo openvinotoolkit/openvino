@@ -20,11 +20,12 @@
 #include <gmock/gmock.h>
 #include "mock_common.hpp"
 #include "mock_auto_device_plugin.hpp"
+#include <atomic>
 
 using namespace ::testing;
 
 using Config = std::map<std::string, std::string>;
-const std::vector<std::string>  availableDevs = {"CPU", "GPU"};
+const std::vector<std::string>  availableDevs = {CommonTestUtils::DEVICE_CPU, CommonTestUtils::DEVICE_GPU, CommonTestUtils::DEVICE_KEEMBAY};
 struct DeferedExecutor : public ITaskExecutor {
     using Ptr = std::shared_ptr<DeferedExecutor>;
     DeferedExecutor() = default;
@@ -53,7 +54,8 @@ struct DeferedExecutor : public ITaskExecutor {
 
 class AutoInferRequestTestBase {
 protected:
-    const unsigned int                                                  target_request_num{4};  // by default will create 4 infer request for tests, 2 for each
+    // by default will create 4 infer request for tests and 4 reserverd for fallback
+    const unsigned int                                                  request_num_pool{8};
     std::shared_ptr<ngraph::Function>                                   function;
     InferenceEngine::CNNNetwork                                         cnnNet;
     std::shared_ptr<NiceMock<MockICore>>                                core;
@@ -67,6 +69,9 @@ protected:
     std::vector<DeviceInformation>                                      metaDevices;
     std::vector<std::shared_ptr<MockIInferRequestInternal>>             inferReqInternal;
     std::vector<std::shared_ptr<AsyncInferRequestThreadSafeDefault>>    asyncInferRequest;
+
+    std::atomic_int                                                     index{0};
+    ITaskExecutor::Ptr                                                  taskExecutor;
 
 public:
     ~AutoInferRequestTestBase();
@@ -100,17 +105,22 @@ protected:
         ov::Any targetList;
 };
 
+using AsyncInferRequestTestParams = std::tuple<
+        bool,                      // is cpu loaded faster
+        bool                       // is single device
+>;
 class AsyncInferenceTest : public AutoInferRequestTestBase,
-                            public ::testing::Test {
+                            public ::testing::TestWithParam<AsyncInferRequestTestParams> {
 public:
+    static std::string getTestCaseName(testing::TestParamInfo<AsyncInferRequestTestParams> obj);
     void SetUp() override;
     void TearDown() override;
-    void makeAsyncRequest();
 
 protected:
-    ITaskExecutor::Ptr taskExecutor;
     std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> exeNetwork;
     std::shared_ptr<InferenceEngine::IInferRequestInternal> auto_request;
+    bool isCpuFaster;
+    bool isSingleDevice;
 };
 
 class mockAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
@@ -122,6 +132,7 @@ public:
                       bool ifThrow);
 
     ~mockAsyncInferRequest() override = default;
+
 private:
     bool _throw;
 };

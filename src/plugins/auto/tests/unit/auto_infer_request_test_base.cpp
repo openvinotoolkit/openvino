@@ -70,24 +70,23 @@ AutoInferRequestTestBase::AutoInferRequestTestBase() {
         .WillByDefault(Return(4));
     ON_CALL(*mockIExeNet.get(), GetConfig(StrEq(ov::compilation_num_threads.name())))
         .WillByDefault(Return(12));
+    taskExecutor = std::make_shared<ImmediateExecutor>();
     // test auto plugin
     plugin->SetName("AUTO");
 }
 
 void AutoInferRequestTestBase::makeAsyncRequest() {
-    auto taskExecutor = std::make_shared<ImmediateExecutor>();
     // set up mock infer request
-    for (size_t i = 0; i < target_request_num; i++) {
+    // set up mock infer request
+    for (size_t i = 0; i < request_num_pool; i++) {
         auto inferReq = std::make_shared<NiceMock<MockIInferRequestInternal>>();
         auto asyncRequest = std::make_shared<AsyncInferRequestThreadSafeDefault>(inferReq, taskExecutor, taskExecutor);
         inferReqInternal.push_back(inferReq);
         asyncInferRequest.push_back(asyncRequest);
     }
-    EXPECT_CALL(*mockIExeNet.get(), CreateInferRequest()).WillOnce(Return(asyncInferRequest[0]))
-                                                            .WillOnce(Return(asyncInferRequest[1]))
-                                                            .WillOnce(Return(asyncInferRequest[2]))
-                                                            .WillOnce(Return(asyncInferRequest[3]))
-                                                            .WillRepeatedly(Return(asyncInferRequest[0]));
+    ON_CALL(*mockIExeNet.get(), CreateInferRequest()).WillByDefault([this]() {
+        return asyncInferRequest[index++];
+    });
 }
 AutoInferRequestTestBase::~AutoInferRequestTestBase() {
     core.reset();
