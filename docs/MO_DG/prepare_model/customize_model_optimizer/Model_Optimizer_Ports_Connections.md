@@ -1,4 +1,4 @@
-# Graph Traversal and Modification {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections}
+# [Legacy] Graph Traversal and Modification {#openvino_docs_MO_DG_prepare_model_customize_model_optimizer_Customize_Model_Optimizer_Model_Optimizer_Ports_Connections}
 
 @sphinxdirective
 
