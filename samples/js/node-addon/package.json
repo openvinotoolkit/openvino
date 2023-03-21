@@ -5,7 +5,8 @@
 
     "dependencies": {
       "bindings": "~1.2.1",
-      "jimp": "^0.16.1"
+      "jimp": "^0.16.1",
+      "opencv.js": "^1.2.1"
     },
 
     "scripts": {
