@@ -96,7 +96,7 @@ protected:
     void generatePooledVector() {
         std::random_device rd;
         std::uniform_int_distribution<int32_t> distribution(1, 5);
-        for (int i = 0; i < pooledVector.size(); i++) {
+        for (size_t i = 0; i < pooledVector.size(); i++) {
             pooledVector[i] = distribution(rd);
         }
     }
@@ -155,7 +155,7 @@ protected:
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
         inputs.clear();
         const auto& funcInputs = function->inputs();
-        for (int i = 0; i < funcInputs.size(); ++i) {
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
 

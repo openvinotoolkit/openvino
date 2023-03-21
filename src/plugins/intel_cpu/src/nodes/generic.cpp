@@ -155,7 +155,7 @@ void Generic::execLayer() {
         auto inputBlob = MemoryDescUtils::interpretAsBlob(getParentEdgeAt(i)->getMemory());
         inputs.push_back(inputBlob);
         constInputs.push_back(inputBlob);
-        if (isDynBatch && dynBatchLim >= inputs[inputs.size() - 1]->getTensorDesc().getDims()[0]) {
+        if (isDynBatch && static_cast<size_t>(dynBatchLim) >= inputs[inputs.size() - 1]->getTensorDesc().getDims()[0]) {
             isDynBatch = false;
         } else {
             // TODO: Ask the right dims using getShape() from previous node
@@ -192,7 +192,7 @@ void Generic::initDescriptor(const NodeConfig &config) {
             IE_THROW() << resp.msg;
         }
         for (size_t j = 0; j < configs.size(); j++, t++) {
-            if (t == selectedPrimitiveDescriptorIndex) {
+            if (t == static_cast<size_t>(selectedPrimitiveDescriptorIndex)) {
                 selectedImpl = impls[k];
             }
         }
@@ -206,7 +206,7 @@ void Generic::initDescriptor(const NodeConfig &config) {
         }
     }
     for (auto &outConf : rightConfig.outConfs) {
-        if (outConf.inPlace() < getParentEdges().size() &&
+        if (static_cast<size_t>(outConf.inPlace()) < getParentEdges().size() &&
             getParentEdgeAt(static_cast<size_t>(outConf.inPlace()))->getParent()->getChildEdges().size() > 1) {
             outConf.inPlace(-1);
         }

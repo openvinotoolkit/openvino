@@ -58,7 +58,7 @@ void Math::initSupportedPrimitiveDescriptors() {
 
     std::vector<PortConfigurator> inDataConf;
     inDataConf.reserve(inputShapes.size());
-    for (int i = 0; i < inputShapes.size(); ++i)
+    for (size_t i = 0; i < inputShapes.size(); ++i)
         inDataConf.emplace_back(LayoutType::ncsp, Precision::FP32);
 
     addSupportedPrimDesc(inDataConf,

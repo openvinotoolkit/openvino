@@ -155,7 +155,7 @@ KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
             IE_THROW() << "JIT KernelEmitter detected invalid plugin-overriden shapes";
         io_shapes = new_shapes;
     }
-    for (int i = 0; i < io_nodes.size(); i++) {
+    for (size_t i = 0; i < io_nodes.size(); i++) {
         const auto& out = i < num_inputs ? io_nodes[i]->output(0) : io_nodes[i]->input_value(0);
         data_layout.push_back(get_data_layout(out, io_shapes[i]));
         io_data_size.push_back(out.get_element_type().size());
@@ -249,7 +249,7 @@ void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, boo
         // Note: this is an extra copy, but let's keep it for clarity
         if (!layout.empty()) {
             std::vector<size_t> reordered_strides(strides.size());
-            for (auto i = 0; i < layout.size(); i++)
+            for (size_t i = 0; i < layout.size(); i++)
                 reordered_strides[i] = strides[layout[i]];
             strides = std::move(reordered_strides);
         }
@@ -270,7 +270,7 @@ void KernelEmitter::init_data_pointers(size_t num_inputs, size_t num_params, boo
     // master_shape size must be valid in both static and dynamic cases
     std::function<void(Reg64, const std::vector<size_t>&, Reg64)> init_ptr_with_offset;
     init_ptr_with_offset = [&](Reg64 pointer, const std::vector<size_t>& offsets, Reg64 reg_tmp) {
-        for (int j = 0; j < offset_rank; j++) {
+        for (size_t j = 0; j < offset_rank; j++) {
             if (jcp.master_shape[j] != 1 && offsets[j] != 0) {
                 h->mov(reg_tmp, offsets[j]);
                 h->imul(reg_tmp, h->ptr[reg_indexes + j * sizeof(size_t)]);
@@ -395,9 +395,9 @@ LoopEndEmitter::LoopEndEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::imp
     ptr_increments = loop_end->get_ptr_increments();
     finalization_offsets = loop_end->get_finalization_offsets();
     evaluate_once = loop_end->get_evaluate_once();
-    for (int i = 0; i < num_inputs; i++)
+    for (size_t i = 0; i < num_inputs; i++)
         io_data_size.push_back(static_cast<int64_t>(loop_begin->get_input_element_type(i).size()));
-    for (int i = 0; i < num_outputs; i++)
+    for (size_t i = 0; i < num_outputs; i++)
         io_data_size.push_back(static_cast<int64_t>(loop_end->get_output_element_type(i).size()));
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
 }
@@ -433,7 +433,7 @@ void LoopEndEmitter::emit_impl(const std::vector<size_t>& in,
     transform_idxs_to_regs(data_ptr_reg_idxs, data_ptr_regs);
     Reg64 reg_work_amount = Reg64(in.back());
     if (!evaluate_once) {
-        for (int idx = 0; idx < data_ptr_regs.size(); idx++) {
+        for (size_t idx = 0; idx < data_ptr_regs.size(); idx++) {
             if (ptr_increments[idx] != 0)
                 h->add(data_ptr_regs[idx], ptr_increments[idx] * io_data_size[idx]);
         }
@@ -442,7 +442,7 @@ void LoopEndEmitter::emit_impl(const std::vector<size_t>& in,
         h->jge(loop_begin->begin_address);
     }
 
-    for (int idx = 0; idx < data_ptr_regs.size(); idx++) {
+    for (size_t idx = 0; idx < data_ptr_regs.size(); idx++) {
         if (finalization_offsets[idx] != 0)
             h->add(data_ptr_regs[idx], finalization_offsets[idx] * io_data_size[idx]);
     }
@@ -813,7 +813,7 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
 
                 // don't create brgemm kernels for empty tiles
                 if (M_ != 0 && K_ != 0 && N_ != 0) {
-                    if (brg0BaseIdx == -1)
+                    if (brg0BaseIdx == static_cast<size_t>(-1))
                         brg0BaseIdx = getBrgIdx(m, k, n);
                     initBrgemm(brgemmCtx, m_brgKernels0[getBrgIdx(m, k, n)], brgWithAMX);
                 }

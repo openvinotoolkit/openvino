@@ -979,7 +979,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
 
         auto initAxisIdx = [&](const VectorDims& inputDims) {
             size_t axisIdx = 0;
-            for (int i = 1; i < inputDims.size(); i++) {
+            for (size_t i = 1; i < inputDims.size(); i++) {
                 if (inputDims[i] > 1) {
                     axisIdx = i;
                 }
@@ -1048,14 +1048,14 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
         binarization = levels == 2;
 
         if (binarization) {
-            for (int i = 0; i < outputLowAxisSize; i++) {
+            for (size_t i = 0; i < outputLowAxisSize; i++) {
                 if (outputLowData[i] != 1.f && outputLowData[i] != 0.f) {
                     binarization = false;
                     break;
                 }
             }
 
-            for (int i = 0; i < outputHighAxisSize; i++) {
+            for (size_t i = 0; i < outputHighAxisSize; i++) {
                 if (outputHighData[i] != 1.f && outputHighData[i] != 0.f) {
                     binarization = false;
                     break;
@@ -1098,7 +1098,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
                     return true;
 
                 auto first = data[0];
-                for (int i = 1; i < size; i++) {
+                for (size_t i = 1; i < size; i++) {
                     if (data[i] != first)
                         return false;
                 }
@@ -1156,15 +1156,15 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
 
             bool quantizationOnly = true;
 
-            for (int i = 0; i < cropLow.size(); i++) {
+            for (size_t i = 0; i < cropLow.size(); i++) {
                 cropLow[i] = inputLowData[isInputLowBroadcasted ? 0 : i];
             }
 
-            for (int i = 0; i < cropHigh.size(); i++) {
+            for (size_t i = 0; i < cropHigh.size(); i++) {
                 cropHigh[i] = inputHighData[isInputHighBroadcasted ? 0 : i];
             }
 
-            for (int i = 0; i < inputScale.size(); i++) {
+            for (size_t i = 0; i < inputScale.size(); i++) {
                 float il = inputLowData[isInputLowBroadcasted ? 0 : i];
                 float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
 
@@ -1183,7 +1183,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
 #endif
             }
 
-            for (int i = 0; i < outputScale.size(); i++) {
+            for (size_t i = 0; i < outputScale.size(); i++) {
                 float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
                 float oh = outputHighData[isOutputHighBroadcasted ? 0 : i];
 
@@ -1203,7 +1203,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
                     quantizationOnly = false;
             }
 
-            for (int i = 0; i < outputShift.size(); i++) {
+            for (size_t i = 0; i < outputShift.size(); i++) {
                 float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
 
                 outputShift[i] = ol;
@@ -1214,7 +1214,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
 
             bool isFakeQuantization = true;
             bool isFakeQuantizationWithScale = true;
-            for (int i = 0; i < std::max(inputLowAxisSize, std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize))); i++) {
+            for (size_t i = 0; i < std::max(inputLowAxisSize, std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize))); i++) {
                 float il = inputLowData[isInputLowBroadcasted ? 0 : i];
                 float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
                 float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
@@ -1226,7 +1226,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ngraph::Node>& op, const GraphC
             }
 
             if (isFakeQuantizationWithScale) {
-                for (int i = 0; i < std::max(inputLowAxisSize, std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize))); i++) {
+                for (size_t i = 0; i < std::max(inputLowAxisSize, std::max(outputLowAxisSize, std::max(inputHighAxisSize, outputHighAxisSize))); i++) {
                     float il = inputLowData[isInputLowBroadcasted ? 0 : i];
                     float ol = outputLowData[isOutputLowBroadcasted ? 0 : i];
                     float ih = inputHighData[isInputHighBroadcasted ? 0 : i];
@@ -1934,12 +1934,12 @@ void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
                 return abs(val - ref) < zero_thr;
             });
         };
-    int OC = std::max({inputScale.size(),
-                       inputShift.size(),
-                       cropLow.size(),
-                       cropHigh.size(),
-                       outputScale.size(),
-                       outputShift.size()});
+    size_t OC = std::max({inputScale.size(),
+                          inputShift.size(),
+                          cropLow.size(),
+                          cropHigh.size(),
+                          outputScale.size(),
+                          outputShift.size()});
 
     IE_ASSERT(inputScale.size() == 1 || inputScale.size() == OC);
     IE_ASSERT(inputShift.size() == 1 || inputShift.size() == OC);
@@ -1976,7 +1976,7 @@ void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
     if (f.ish.size() == 1)
         f.ish.resize(OC, f.ish[0]);
 
-    for (int i = 0; i < OC; i++) {
+    for (size_t i = 0; i < OC; i++) {
         auto& clo = f.clo[i];
         auto& chi = f.chi[i];
         auto& isc = f.isc[i];

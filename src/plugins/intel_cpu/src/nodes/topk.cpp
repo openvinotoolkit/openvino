@@ -1995,7 +1995,7 @@ void TopK::prepareParams() {
 
     if (isDynamicNode()) {
         const int src_k = reinterpret_cast<int *>(getParentEdgeAt(TOPK_K)->getMemoryPtr()->GetPtr())[0];
-        if (src_k > src_dims[axis])
+        if (static_cast<size_t>(src_k) > src_dims[axis])
             IE_THROW() << errorPrefix << " gets top_k out of range!";
         if (top_k != src_k) {
             top_k = src_k;
@@ -2030,7 +2030,7 @@ void TopK::prepareParams() {
         //           which algorithm should be used for specific N and K.
         if (!isDynamicNode()) {
             const size_t count_xmm = 16; // only 16 vector registers are valid in sse instructions even for avx512_core
-            if (top_k <= count_xmm / 2 - 2) {
+            if (static_cast<size_t>(top_k) <= count_xmm / 2 - 2) {
                 algorithm = TopKAlgorithm::topk_bubble_sort;
                 bubble_inplace = topk_innermost && top_k == 1 ? false : true;
             } else if (stable) {

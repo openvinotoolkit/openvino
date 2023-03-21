@@ -298,7 +298,7 @@ void JitKernelBase::fillRestWorkMask(const Xbyak::Opmask& dstMask,
 void JitKernelBase::fillRestWorkMask(const Xbyak::Xmm& xmmDstMask,
                                      const Xbyak::Reg64& rWorkRest,
                                      const uint64_t typeSize) {
-    if (!one_of(typeSize, 1, 2, 4, 8)) {
+    if (!one_of(typeSize, 1u, 2u, 4u, 8u)) {
         IE_THROW() << "Could not fill data with type size " << typeSize;
     }
     Xbyak::Label lEnd;
@@ -327,7 +327,7 @@ void JitKernelBase::fillRestWorkMask(const Xbyak::Xmm& xmmDstMask,
 void JitKernelBase::fillRestWorkMask(const Xbyak::Ymm& ymmDstMask,
                                      const Xbyak::Reg64& rWorkRest,
                                      const uint64_t typeSize) {
-    if (!one_of(typeSize, 1, 2, 4, 8)) {
+    if (!one_of(typeSize, 1u, 2u, 4u, 8u)) {
         IE_THROW() << "Could not fill data with type size " << typeSize;
     }
     Xbyak::Label lEnd;
@@ -367,7 +367,7 @@ void JitKernelBase::load(const Xbyak::Xmm&     vDst,
                          const Xbyak::Reg64&   rLoadNum,
                          const size_t          typeSize,
                          const bool            zeroFilling) {
-    if (!one_of(typeSize, 1, 2, 4, 8)) {
+    if (!one_of(typeSize, 1u, 2u, 4u, 8u)) {
         IE_THROW() << "Could not load data with type size " << typeSize;
     }
     const uint8_t elPerVec = x64::cpu_isa_traits<x64::sse41>::vlen / typeSize;
@@ -397,7 +397,7 @@ void JitKernelBase::load(const Xbyak::Ymm&     vDst,
                          const Xbyak::Reg64&   rLoadNum,
                          const size_t          typeSize,
                          const bool            zeroFilling) {
-    if (!one_of(typeSize, 1, 2, 4, 8)) {
+    if (!one_of(typeSize, 1u, 2u, 4u, 8u)) {
         IE_THROW() << "Could not load data with type size " << typeSize;
     }
     const size_t elPerXmm = x64::cpu_isa_traits<x64::sse41>::vlen / typeSize;
@@ -436,7 +436,7 @@ void JitKernelBase::store(const Xbyak::Address& dstAddr,
                           const Xbyak::Xmm&     vSrc,
                           const Xbyak::Reg64&   rToStoreNum,
                           const size_t          typeSize) {
-    if (!one_of(typeSize, 1, 2, 4, 8)) {
+    if (!one_of(typeSize, 1u, 2u, 4u, 8u)) {
         IE_THROW() << "Could not store data with type size " << typeSize;
     }
     Xbyak::Label lEnd;
@@ -464,7 +464,7 @@ void JitKernelBase::store(const Xbyak::Address& dstAddr,
                           const Xbyak::Ymm&     vSrc,
                           const Xbyak::Reg64&   rToStoreNum,
                           const size_t          typeSize) {
-    if (!one_of(typeSize, 1, 2, 4, 8)) {
+    if (!one_of(typeSize, 1u, 2u, 4u, 8u)) {
         IE_THROW() << "Could not store data with type size " << typeSize;
     }
     Xbyak::Label lEnd;

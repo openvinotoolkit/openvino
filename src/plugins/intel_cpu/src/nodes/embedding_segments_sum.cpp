@@ -102,7 +102,7 @@ void EmbeddingSegmentsSum::getIndices(int embIndex, const int*& indices, size_t&
     size = 0;
     withWeight = true;
 
-    for (int si = 0; si < indicesSize_; si++) {
+    for (int si = 0; si < static_cast<int>(indicesSize_); si++) {
         if (segmentIds_[si] == embIndex) {
             size++;
             if (indices == nullptr) {

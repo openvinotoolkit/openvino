@@ -115,7 +115,7 @@ void jit_load_emitter::emit_isa(const Xbyak::Reg64 &reg_src, const int out_vec_i
     if (!matched_prc) {
         IE_THROW() << "Load emitter in " << name_ << " only support output precision of FP32 or I32 or the same precision as input.";
     }
-    if (load_num_ > (get_vec_length() / dst_prc_.size())) {
+    if (load_num_ > static_cast<int>((get_vec_length() / dst_prc_.size()))) {
         IE_THROW() << "Load emitter in " << name_ << " have unexpected number of elements to load.";
     }
 

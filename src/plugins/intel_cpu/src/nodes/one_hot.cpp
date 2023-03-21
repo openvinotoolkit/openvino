@@ -133,7 +133,7 @@ OneHot::OneHot(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr
 
 bool OneHot::needShapeInfer() const {
     const auto depthNodePtr = reinterpret_cast<int32_t *>(getParentEdgesAtPort(1)[0]->getMemoryPtr()->GetPtr());
-    if (depth != depthNodePtr[0]) {
+    if (depth != static_cast<size_t>(depthNodePtr[0])) {
         depth = depthNodePtr[0];
         return true;
     }

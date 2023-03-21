@@ -259,7 +259,7 @@ int get_model_prefer_threads(const int num_streams,
 
 StreamCfg parse_streams_table(std::vector<std::vector<int>> streams_table) {
     StreamCfg streams_info = {0};
-    for (int i = 0; i < streams_table.size(); i++) {
+    for (size_t i = 0; i < streams_table.size(); i++) {
         if (streams_table[i][PROC_TYPE] == ALL_PROC) {
             streams_info.num_streams = streams_table[i][NUMBER_OF_STREAMS];
             streams_info.num_threads = streams_table[i][THREADS_PER_STREAM];

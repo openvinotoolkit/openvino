@@ -242,7 +242,7 @@ void Pooling::initEffectiveAttributes(const Shape &inShape, const Shape &outShap
     const auto &inDims = inShape.getStaticDims();
     const auto &outDims = outShape.getStaticDims();
 
-    for (int i = 0; i < poolingAttrs.effective_pad_end.size(); i++) {
+    for (size_t i = 0; i < poolingAttrs.effective_pad_end.size(); i++) {
         int krn = poolingAttrs.kernel[i];
         int dil = poolingAttrs.dilation[i];
         int src = inDims[2 + i];

@@ -1484,7 +1484,7 @@ private:
             uni_vmovdqu(ptr[rsp], vmm_indices);
 
             int repeats = is_scalar ? 1 : vlen / sizeof(float);
-            for (size_t i = 0; i < repeats; ++i) {
+            for (int i = 0; i < repeats; ++i) {
                 mov(reg_tmp_64.cvt32(), ptr[rsp + i * sizeof(int)]);       // sizeof(int)  index_size
                 table_idx = ptr[base + offset + reg_tmp_64 * scale];       // scale: sizeof(float)   value_size
                 mov(reg_tmp_64.cvt32(), table_idx);
@@ -1980,13 +1980,13 @@ void Interpolate::getSupportedDescriptors() {
     int dataRank = getInputShapeAtPort(DATA_ID).getRank();
 
     // get pad
-    for (int i = 0; i < interpAttrs.padBegin.size(); i++) {
+    for (size_t i = 0; i < interpAttrs.padBegin.size(); i++) {
         if (interpAttrs.padBegin[i] != 0) {
             hasPad = true;
             break;
         }
     }
-    for (int i = 0; i < interpAttrs.padEnd.size(); i++) {
+    for (size_t i = 0; i < interpAttrs.padEnd.size(); i++) {
         if (interpAttrs.padEnd[i] != 0) {
             hasPad = true;
             break;
@@ -2834,17 +2834,17 @@ void Interpolate::InterpolateExecutorBase::buildTblNN(const SizeVector& srcDimPa
     bool isDDownsample = (fz < 1) ? true : false;
     bool isHDownsample = (fy < 1) ? true : false;
     bool isWDownsample = (fx < 1) ? true : false;
-    for (int oz = 0; oz < OD; oz++) {
+    for (size_t oz = 0; oz < OD; oz++) {
         float iz = coordTransToInput(oz, fz, ID, OD);
         auxTable[oz] = nearestRound(iz, isDDownsample, nearestMode);
         auxTable[oz] = clipCoord(auxTable[oz], ID);
     }
-    for (int oy = 0; oy < OH; oy++) {
+    for (size_t oy = 0; oy < OH; oy++) {
         float iy = coordTransToInput(oy, fy, IH, OH);
         auxTable[OD + oy] = nearestRound(iy, isHDownsample, nearestMode);
         auxTable[OD + oy] = clipCoord(auxTable[OD + oy], IH);
     }
-    for (int ox = 0; ox < OW; ox++) {
+    for (size_t ox = 0; ox < OW; ox++) {
         float ix = coordTransToInput(ox, fx, IW, OW);
         auxTable[OD + OH + ox] = nearestRound(ix, isWDownsample, nearestMode);
         auxTable[OD + OH + ox] = clipCoord(auxTable[OD + OH + ox], IW);
@@ -3089,7 +3089,7 @@ void Interpolate::InterpolateExecutorBase::buildTblLinear(const SizeVector& srcD
         int *idxOH = static_cast<int*>(&idxTable[sizeOD]);
         int *idxOW = static_cast<int*>(&idxTable[sizeOD + sizeOH]);
 
-        for (int oz = 0; oz < OD; oz++) {
+        for (size_t oz = 0; oz < OD; oz++) {
             float iz = coordTransToInput(oz, fz, ID, OD);
             int iz_r = static_cast<int>(std::round(iz));
             for (int r = iz_r - rz, i = 0; r <= iz_r + rz; r++, i++) {
@@ -3102,7 +3102,7 @@ void Interpolate::InterpolateExecutorBase::buildTblLinear(const SizeVector& srcD
                 }
             }
         }
-        for (int oy = 0; oy < OH; oy++) {
+        for (size_t oy = 0; oy < OH; oy++) {
             float iy = coordTransToInput(oy, fy, IH, OH);
             int iy_r = static_cast<int>(std::round(iy));
             for (int r = iy_r - ry, i = 0; r <= iy_r + ry; r++, i++) {
@@ -3115,7 +3115,7 @@ void Interpolate::InterpolateExecutorBase::buildTblLinear(const SizeVector& srcD
                 }
             }
         }
-        for (int ox = 0; ox < OW; ox++) {
+        for (size_t ox = 0; ox < OW; ox++) {
             float ix = coordTransToInput(ox, fx, IW, OW);
             int ix_r = static_cast<int>(std::round(ix));
             for (int r = ix_r - rx, i = 0; r <= ix_r + rx; r++, i++) {
@@ -3579,11 +3579,11 @@ void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t *in_
     parallel_for2d(B, C, [&](size_t b, size_t c) {
         const uint8_t *in_ptr_nc = in_ptr_ + (IW * IH * ID * C * b + IW * IH * ID * c) * srcDataSize;
         uint8_t *out_ptr_nc = out_ptr_ + (OW * OH * OD * C * b + OW * OH * OD * c) * dstDataSize;
-        for (size_t oz = 0; oz < OD; oz++) {
+        for (int oz = 0; oz < OD; oz++) {
             uint8_t *out_ptr_ncd = out_ptr_nc + (OW * OH * oz) * dstDataSize;
-            for (size_t oy = 0; oy < OH; oy++) {
+            for (int oy = 0; oy < OH; oy++) {
                 uint8_t *out_ptr_ncdh = out_ptr_ncd + (OW * oy) * dstDataSize;
-                for (size_t ox = 0; ox < OW; ox++) {
+                for (int ox = 0; ox < OW; ox++) {
                     float sum = 0.f;
                     float wsum = 0.f;
 

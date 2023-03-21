@@ -79,7 +79,7 @@ void EmbeddingBagPackedSum::initFromInputs() {
 }
 
 void EmbeddingBagPackedSum::getIndices(int embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) {
-    if (embIndex >= _batch * _indicesPerBag)
+    if (static_cast<size_t>(embIndex) >= _batch * _indicesPerBag)
         IE_THROW() << "Invalid embedding bag index.";
 
     withWeight = true;

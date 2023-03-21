@@ -170,7 +170,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model> &subgraph) {
                 ngraph::op::v0::Result::get_type_info_static(),
                 ngraph::op::v3::Assign::get_type_info_static(),
                 ngraph::op::v6::Assign::get_type_info_static())) {
-            for (int oi = 0; oi < op->get_output_size(); oi++) {
+            for (size_t oi = 0; oi < op->get_output_size(); oi++) {
                 if (op->get_output_target_inputs(oi).empty()) {
                     unusedOutputs.push_back(op->output(oi));
                 }
@@ -286,7 +286,7 @@ void Graph::Replicate(const CNNNetwork &network) {
                 ngraph::op::v0::Result::get_type_info_static(),
                 ngraph::op::v3::Assign::get_type_info_static(),
                 ngraph::op::v6::Assign::get_type_info_static())) {
-            for (int oi = 0; oi < op->get_output_size(); oi++) {
+            for (size_t oi = 0; oi < op->get_output_size(); oi++) {
                 if (op->get_output_target_inputs(oi).empty()) {
                     unusedOutputs.push_back(op->output(oi));
                 }
@@ -598,7 +598,7 @@ void Graph::InitEdges() {
         numberOfEdges--;
     };
 
-    for (auto i = 0; i < numberOfEdges; i++) {
+    for (int i = 0; i < static_cast<int>(numberOfEdges); i++) {
         auto edge = graphEdges[i];
         auto reorderStatus = graphEdges[i]->needReorder();
         DEBUG_LOG(graphEdges[i]->name(), " reorderStatus = ", reorderStatus);
@@ -721,8 +721,8 @@ void Graph::AllocateWithReuse() {
 
     std::vector<MemorySolver::Box> definedBoxes;
     std::vector<MemorySolver::Box> undefinedBoxes;
-    for (int i = 0; i < edge_clusters.size(); i++) {
-        MemorySolver::Box box = { std::numeric_limits<int>::max(), 0, 0, i };
+    for (size_t i = 0; i < edge_clusters.size(); i++) {
+        MemorySolver::Box box = {std::numeric_limits<int>::max(), 0, 0, static_cast<int64_t>(i)};
         int64_t boxSize = 0;
         for (auto &edge : edge_clusters[i]) {
             int e_start = edge->getParent()->execIndex;
@@ -1342,7 +1342,7 @@ void Graph::SortTopologically() {
     std::vector<NodePtr> unsorted;
     std::vector<NodePtr> sorted;
 
-    for (int i = 0; i < graphNodes.size(); i++) {
+    for (size_t i = 0; i < graphNodes.size(); i++) {
         NodePtr node = graphNodes[i];
 
         node->permanent = false;
@@ -1358,7 +1358,8 @@ void Graph::SortTopologically() {
         VisitNode(node, sorted);
     }
 
-    for (int i = 0; i < sorted.size(); i++) sorted[i]->execIndex = i;
+    for (int i = 0; i < static_cast<int>(sorted.size()); i++)
+        sorted[i]->execIndex = i;
 
     graphNodes.erase(graphNodes.begin(), graphNodes.end());
     graphNodes.assign(sorted.begin(), sorted.end());
@@ -1374,7 +1375,7 @@ void Graph::SortTopologically() {
             int port_num = node->inputShapes.size();
             std::vector<EdgePtr> res(port_num);
 
-            for (int i = 0; i < node->parentEdges.size(); i++) {
+            for (size_t i = 0; i < node->parentEdges.size(); i++) {
                 auto edge = node->getParentEdgeAt(i);
                 int port = edge->getOutputNum();
                 if (port < port_num && !res[port])
@@ -1388,7 +1389,7 @@ void Graph::SortTopologically() {
             int port_num = node->outputShapes.size();
             std::vector<EdgePtr> res(port_num);
 
-            for (int i = 0; i < node->childEdges.size(); i++) {
+            for (size_t i = 0; i < node->childEdges.size(); i++) {
                 auto edge = node->getChildEdgeAt(i);
                 int port = edge->getInputNum();
                 if (port < port_num && !res[port])
@@ -1426,7 +1427,7 @@ void Graph::GetPerfData(std::map<std::string, InferenceEngine::InferenceEnginePr
         }
     };
 
-    for (int i = 0; i < graphNodes.size(); i++) {
+    for (size_t i = 0; i < graphNodes.size(); i++) {
         if (graphNodes[i]->isConstant())
             continue;
         getPerfMapFor(perfMap, graphNodes[i]);
