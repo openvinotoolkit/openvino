@@ -55,7 +55,7 @@ Common markup transformations can be decomposed into simpler utility markup tran
 
 Let's explore all transformations and their relations in detail, using one and the same model:
 
-.. image:: docs/_static/images/step2_markup_original.svg
+.. image:: _static/images/step2_markup_original.svg
 
 The original model key features:
 
@@ -82,7 +82,7 @@ Changes in the example model after ``MarkupCanBeQuantized`` transformation:
 
 Result model:
 
-.. image:: docs/_static/images/step2_markup1.svg
+.. image:: _static/images/step2_markup1.svg
    :alt: MarkupCanBeQuantize
 
 Model display features (here and below):
@@ -105,7 +105,7 @@ No attributes are required before the transformation. Changes in the example mod
 
 Result model:
 
-.. image:: docs/_static/images/step2_markup2.svg
+.. image:: _static/images/step2_markup2.svg
    :alt: MarkupPrecisions result
 
 3. MarkupPerTensorQuantization
@@ -119,7 +119,7 @@ Changes in the example model after ``MarkupPerTensorQuantization`` transformatio
 
 Result model:
 
-.. image:: docs/_static/images/step2_markup3.svg
+.. image:: _static/images/step2_markup3.svg
    :alt: MarkupPerTensorQuantization result
 
 4. MarkupAvgPoolPrecisionPreserved
@@ -137,7 +137,7 @@ Changes in the example model after ``MarkupAvgPoolPrecisionPreserved`` transform
 
 Result model:
 
-.. image:: docs/_static/images/step2_markup4.svg
+.. image:: _static/images/step2_markup4.svg
    :alt: arkupAvgPoolPrecisionPreserved
 
 5. PropagatePrecisions
@@ -156,7 +156,7 @@ Changes in the example model after ``PropagatePrecisions`` transformation:
 
 Result model:
 
-.. image:: docs/_static/images/step2_markup5.svg
+.. image:: _static/images/step2_markup5.svg
    :alt: PropagatePrecisions
 
 .. note:: 
@@ -176,7 +176,7 @@ Changes in the example model after ``AlignQuantizationIntervals`` transformation
 
 Result model:
 
-.. image:: docs/_static/images/step2_markup6.svg
+.. image:: _static/images/step2_markup6.svg
    :alt: AlignQuantizationIntervals
 
 7. AlignQuantizationParameters
@@ -195,7 +195,7 @@ Changes in the example model after ``AlignQuantizationParameters`` transformatio
 
 Final model:
 
-.. image:: docs/_static/images/step2_markup7.svg
+.. image:: _static/images/step2_markup7.svg
    :alt: AlignQuantizationParameters
 
 @endsphinxdirective

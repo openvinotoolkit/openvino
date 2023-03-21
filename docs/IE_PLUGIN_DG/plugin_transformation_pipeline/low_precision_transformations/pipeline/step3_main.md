@@ -38,12 +38,12 @@ Main transformations are the majority of low precision transformations. Transfor
 
 Let's explore some main transformations on the example model. Original model:
 
-.. image:: docs/_static/images/step3_original.svg
+.. image:: _static/images/step3_original.svg
    :alt: Original model
 
 Result model after main transformations:
 
-.. image:: docs/_static/images/step3_transformed.svg
+.. image:: _static/images/step3_transformed.svg
    :alt: Transformed model
 
 Changes in the example model after main transformation:
