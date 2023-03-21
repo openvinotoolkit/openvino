@@ -18,16 +18,27 @@
 #include<memory>
 #include<stdint.h>
 #include<numeric>
-#include <sys/sysinfo.h>
+#if defined(_WIN32)
+    #include <windows.h>
+#else
+    #include <sys/sysinfo.h>
+#endif
 
 namespace cnpy {
 
     struct NpyArray {
-        unsigned long GetFreeMemorySize() {
+        unsigned long long GetFreeMemorySize() {
+#if defined(_WIN32)
+            MEMORYSTATUSEX status;
+            status.dwLength = sizeof(status);
+            GlobalMemoryStatusEx(&status);
+            return status.ullAvailPhys;
+#else
             struct sysinfo info{};
             if (sysinfo(&info))
                 return 0;
             return info.freeram;
+#endif
         }
 
         NpyArray(const std::vector<size_t>& _shape, size_t _word_size, bool _fortran_order) :
