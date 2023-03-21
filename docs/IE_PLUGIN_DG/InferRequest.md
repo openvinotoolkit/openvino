@@ -2,7 +2,7 @@
 
 `InferRequest` class functionality:
 - Allocate input and output tensors needed for a backend-dependent network inference.
-- Define functions for inference process stages (for example, `preprocess`, `upload`, `infer`, `download`, `postprocess`). These functions can later be used to define an execution pipeline during [Asynchronous Inference Request](@ref openvino_docs_ie_plugin_dg_async_infer_request) implementation.
+- Define functions for inference process stages (for example, `preprocess`, `upload`, `infer`, `download`, `postprocess`). These functions can later be used to define an execution pipeline during [Asynchronous Inference Request](@ref openvino_docs_ov_plugin_dg_async_infer_request) implementation.
 - Call inference stages one by one synchronously.
 
 InferRequest Class
@@ -81,4 +81,4 @@ The method returns the profiling info which was measured during pipeline stages 
 
 @snippet src/sync_infer_request.cpp infer_request:get_profiling_info
 
-The next step in the plugin library implementation is the [Asynchronous Inference Request](@ref openvino_docs_ie_plugin_dg_async_infer_request) class.
+The next step in the plugin library implementation is the [Asynchronous Inference Request](@ref openvino_docs_ov_plugin_dg_async_infer_request) class.

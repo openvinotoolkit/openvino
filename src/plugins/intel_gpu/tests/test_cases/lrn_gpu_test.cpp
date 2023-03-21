@@ -37,7 +37,7 @@ void test_fp32_basic(bool is_caching_test) {
     float beta = 1.f;
     topology.add(lrn("lrn", input_info("input"), size, k, alpha, beta, cldnn::lrn_norm_region_across_channel));
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input);
 
@@ -89,7 +89,7 @@ void test_fp32_basic2(bool is_caching_test) {
     float beta = 1.f;
     topology.add(lrn("lrn", input_info("input"), size, k, alpha, beta, cldnn::lrn_norm_region_across_channel));
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input);
 
@@ -141,7 +141,7 @@ void test_fp16_basic1(bool is_caching_test) {
     float beta = 1.f;
     topology.add(lrn("lrn", input_info("input"), size, k, alpha, beta, cldnn::lrn_norm_region_across_channel));
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input);
 
@@ -193,7 +193,7 @@ void test_fp32_basic3(bool is_caching_test) {
     float beta = 0.75f;
     topology.add(lrn("lrn", input_info("input"), size, k, alpha, beta, cldnn::lrn_norm_region_across_channel));
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input);
 

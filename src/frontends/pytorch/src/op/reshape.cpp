@@ -12,7 +12,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_reshape(NodeContext& context) {
+OutputVector translate_reshape(const NodeContext& context) {
     // Translation is used by both aten::view and aten::reshape.
     // Schema: aten::view(Tensor input, int[] shape) -> Tensor
     // Schema: aten::reshape(Tensor input, int[] shape) -> Tensor
