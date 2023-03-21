@@ -321,9 +321,11 @@ def get_input_shape_for_bias(activations_statistics, input_node_name):
     return input_shape
 
 
-def get_ignored_operations(model):
+def get_ignored_operations(model_type, target_device):
     operation = {"transformer": [{"type": "Add"}, {"type": "Power"},
                                  {"type": "Squeeze"},
                                  {"type": "Subtract"}, {"type": "ReduceMean"},
                                  {"type": "SquaredDifference"}, {"type": "MVN"}]}
-    return operation[model]
+    if target_device != 'CPU_SPR':
+        operation['transformer'].append({"type": "Multiply"})
+    return operation[model_type]
