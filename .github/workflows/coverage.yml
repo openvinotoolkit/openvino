@@ -56,6 +56,8 @@ jobs:
 
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          max-size: 50G
 
       - name: Install lcov dependency
         run: |
