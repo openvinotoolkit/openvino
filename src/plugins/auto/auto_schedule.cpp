@@ -182,6 +182,27 @@ bool AutoSchedule::selectOtherDevice(const std::string& currentDeviceName) {
                 return getExecutionDevices(_loadContext[FALLBACKDEVICE].deviceInfo.deviceName.c_str());
             }
         };
+
+        auto removeInferFailDevice = [&](const std::string& deviceName) {
+            if (_autoSContext->_devicePriorities.size() > 1) {
+                const auto CurrentDeviceIter =
+                    std::find_if(_autoSContext->_devicePriorities.begin(),
+                                 _autoSContext->_devicePriorities.end(),
+                                 [=](const DeviceInformation& d) -> bool {
+                                     return d.deviceName.find(deviceName) != std::string::npos;
+                                 });
+                if (CurrentDeviceIter != _autoSContext->_devicePriorities.end()) {
+                    _autoSContext->_devicePriorities.erase(CurrentDeviceIter);
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        if (_pCTPUTLoadContext) {
+            return removeInferFailDevice(currentDeviceName);
+        }
+
         return getExecutionDevices(currentDeviceName);
     }
 }
@@ -229,29 +250,26 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                       std::back_inserter(_autoSContext->_devicePriorities));
             // Total number of devices in CTPUT
             _nCTputDeviceNums = validDevices.size();
-            DeviceInformation cpuDeviceInformation;
-            const auto CPUIter =
-                std::find_if(validDevices.begin(), validDevices.end(), [](const DeviceInformation& d) -> bool {
-                    return d.deviceName.find("CPU") != std::string::npos;
-                });
-            if (CPUIter != validDevices.end()) {
-                // no user set affinity then set CORE to CPU
-                CPUIter->config.insert({ov::affinity.name(), ov::Any(ov::Affinity::CORE).as<std::string>()});
-                cpuDeviceInformation = *CPUIter;
-                validDevices.erase(CPUIter);
-            }
             // Generate contexts for loading each device
             _pCTPUTLoadContext.reset(new AutoLoadContext[_nCTputDeviceNums]);
             int idx = 0;
+            DeviceInformation cpuDeviceInformation;
             for (auto& device : validDevices) {
-                _pCTPUTLoadContext[idx].deviceInfo = device;
-                _pCTPUTLoadContext[idx].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] = IE::PluginConfigParams::THROUGHPUT;
-                idx++;
+                if (device.deviceName.find("CPU") == std::string::npos) {
+                    _pCTPUTLoadContext[idx].deviceInfo = device;
+                    _pCTPUTLoadContext[idx].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
+                        IE::PluginConfigParams::THROUGHPUT;
+                    idx++;
+                } else {
+                    cpuDeviceInformation = device;
+                    cpuDeviceInformation.config.insert(
+                        {ov::affinity.name(), ov::Any(ov::Affinity::CORE).as<std::string>()});
+                }
             }
-            // If there is a CPU, the CPU is loaded last
-            if (cpuDeviceInformation.deviceName.find("CPU") != std::string::npos) {
+            if (!cpuDeviceInformation.deviceName.empty()) {
                 _pCTPUTLoadContext[idx].deviceInfo = cpuDeviceInformation;
-                _pCTPUTLoadContext[idx].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] = IE::PluginConfigParams::THROUGHPUT;
+                _pCTPUTLoadContext[idx].deviceInfo.config[CONFIG_KEY(PERFORMANCE_HINT)] =
+                    IE::PluginConfigParams::THROUGHPUT;
             }
         }
     } else {
@@ -278,6 +296,8 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                                               contextPtr->deviceInfo.config.end());
             }
             contextPtr->isAlready = true;
+            // reloadsuccess flag only for _loadContext[FALLBACKDEVICE]
+            contextPtr->isReloadSuccess = true;
             auto& deviceName = contextPtr->deviceInfo.deviceName;
             LOG_INFO_TAG("device:%s loading Network finished", deviceName.c_str());
             if (isCumulative) {
@@ -285,7 +305,7 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
                                        .as<unsigned int>();
                 LOG_INFO_TAG("device:%s, optimal_infer_number:%d", deviceName.c_str(), optimalNums);
                 std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
-                _autoSContext->_ctputOtimalNums += optimalNums;
+                _autoSContext->_ctputOptimalNums += optimalNums;
             }
             auto supported_config_keys = _autoSContext->_core->GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS))
                                              .as<std::vector<std::string>>();
