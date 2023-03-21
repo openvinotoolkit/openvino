@@ -178,7 +178,7 @@ def insert_fake_quantize_nodes(config, model, qscheme=None):
         ignored_params.update(deepcopy(config['ignored']))
 
     if config['model_type']:
-        ignored_params['operations'] += get_ignored_operations(config['model_type'])
+        ignored_params['operations'] += get_ignored_operations(config['model_type'], config['target_device'])
 
     if qscheme:
         for key in qscheme:

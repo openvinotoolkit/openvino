@@ -18,6 +18,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "openvino/itt.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/util/common_util.hpp"
@@ -43,7 +44,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::LoadNetwork
 }
 
 InferenceEngine::RemoteContext::Ptr ov::CoreImpl::GetDefaultContext(const std::string& deviceName) {
-    return get_default_context(deviceName)._impl;
+    return ov::legacy_convert::convert_remote_context(get_default_context(deviceName)._impl);
 }
 
 InferenceEngine::CNNNetwork ov::CoreImpl::ReadNetwork(const std::string& modelPath, const std::string& binPath) const {
@@ -64,7 +65,7 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::LoadNetwork
     const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPE(FIRST_INFERENCE, InferenceEngine::itt::domains::IE_LT, "Core::LoadNetwork::RemoteContext");
     if (network.getFunction()) {
-        ov::RemoteContext ctx{context, {nullptr}};
+        ov::RemoteContext ctx{ov::legacy_convert::convert_remote_context(context), {nullptr}};
         auto compiled_model =
             compile_model(ov::legacy_convert::convert_model(network, isNewAPI()), ctx, any_copy(config));
         return {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
@@ -73,11 +74,9 @@ ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> ov::CoreImpl::LoadNetwork
         IE_THROW() << "Remote context is null";
     }
     // have to deduce the device name/config from the context first
-    auto parsed = parseDeviceNameIntoConfig(context->getDeviceName(), config);
-
+    auto parsed = parseDeviceNameIntoConfig(context->getDeviceName(), any_copy(config));
     auto plugin = get_plugin(parsed._deviceName);
-
-    auto res = LoadNetworkImpl(network, plugin, parsed._config, context);
+    auto res = LoadNetworkImpl(network, plugin, any_copy(parsed._config), context);
     return res;
 }
 
@@ -91,9 +90,9 @@ InferenceEngine::SoExecutableNetworkInternal ov::CoreImpl::LoadNetwork(
             compile_model(ov::legacy_convert::convert_model(network, isNewAPI()), deviceName, any_copy(config));
         return {ov::legacy_convert::convert_compiled_model(compiled_model._ptr), compiled_model._so};
     }
-    auto parsed = parseDeviceNameIntoConfig(deviceName, config);
+    auto parsed = parseDeviceNameIntoConfig(deviceName, any_copy(config));
     auto plugin = get_plugin(parsed._deviceName);
-    auto res = LoadNetworkImpl(network, plugin, parsed._config, nullptr);
+    auto res = LoadNetworkImpl(network, plugin, any_copy(parsed._config), nullptr);
     return {res._ptr, res._so};
 }
 
@@ -188,11 +187,7 @@ ov::Any ov::CoreImpl::GetMetric(const std::string& deviceName,
         }
     }
 
-    auto parsed = parseDeviceNameIntoConfig(deviceName);
-    for (auto o : options) {
-        parsed._config.insert(o);
-    }
-
+    auto parsed = parseDeviceNameIntoConfig(deviceName, options);
     return get_plugin(parsed._deviceName).get_property(name, parsed._config);
 }
 
@@ -207,7 +202,7 @@ std::vector<std::string> ov::CoreImpl::GetAvailableDevices() const {
 
 InferenceEngine::RemoteContext::Ptr ov::CoreImpl::CreateContext(const std::string& deviceName,
                                                                 const InferenceEngine::ParamMap& params) {
-    return create_context(deviceName, params)._impl;
+    return ov::legacy_convert::convert_remote_context(create_context(deviceName, params)._impl);
 }
 
 /**
@@ -225,43 +220,7 @@ bool ov::CoreImpl::DeviceSupportsImportExport(const std::string& deviceName) con
 
 std::map<std::string, std::string> ov::CoreImpl::GetSupportedConfig(const std::string& deviceName,
                                                                     const std::map<std::string, std::string>& configs) {
-    std::vector<std::string> supportedConfigKeys;
-    try {
-        supportedConfigKeys = GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)).as<std::vector<std::string>>();
-    } catch (ov::Exception&) {
-    }
-    try {
-        for (auto&& property : ICore::get_property(deviceName, ov::supported_properties)) {
-            if (property.is_mutable()) {
-                supportedConfigKeys.emplace_back(std::move(property));
-            }
-        }
-    } catch (ov::Exception&) {
-    }
-    std::map<std::string, std::string> supportedConfig;
-    for (auto&& key : supportedConfigKeys) {
-        auto itKey = configs.find(key);
-        if (configs.end() != itKey) {
-            supportedConfig[key] = itKey->second;
-        }
-    }
-    for (auto&& config : configs) {
-        auto parsed = parseDeviceNameIntoConfig(config.first);
-        if (deviceName.find(parsed._deviceName) != std::string::npos) {
-            std::stringstream strm(config.second);
-            std::map<std::string, std::string> device_configs;
-            util::Read<std::map<std::string, std::string>>{}(strm, device_configs);
-            for (auto&& device_config : device_configs) {
-                if (ov::util::contains(supportedConfigKeys, device_config.first)) {
-                    supportedConfig[device_config.first] = device_config.second;
-                }
-            }
-            for (auto&& config : parsed._config) {
-                supportedConfig[config.first] = config.second.as<std::string>();
-            }
-        }
-    }
-    return supportedConfig;
+    return ov::any_copy(get_supported_property(deviceName, any_copy(configs)));
 }
 
 std::map<std::string, InferenceEngine::Version> ov::CoreImpl::GetVersions(const std::string& deviceName) const {
@@ -273,25 +232,25 @@ std::map<std::string, InferenceEngine::Version> ov::CoreImpl::GetVersions(const 
         if (deviceName.find("HETERO") == 0) {
             auto pos = deviceName.find_first_of(":");
             if (pos != std::string::npos) {
-                deviceNames = InferenceEngine::DeviceIDParser::getHeteroDevices(deviceName.substr(pos + 1));
+                deviceNames = ov::DeviceIDParser::get_hetero_devices(deviceName.substr(pos + 1));
             }
             deviceNames.push_back("HETERO");
         } else if (deviceName.find("MULTI") == 0) {
             auto pos = deviceName.find_first_of(":");
             if (pos != std::string::npos) {
-                deviceNames = InferenceEngine::DeviceIDParser::getMultiDevices(deviceName.substr(pos + 1));
+                deviceNames = ov::DeviceIDParser::get_multi_devices(deviceName.substr(pos + 1));
             }
             deviceNames.push_back("MULTI");
         } else if (deviceName.find("AUTO") == 0) {
             auto pos = deviceName.find_first_of(":");
             if (pos != std::string::npos) {
-                deviceNames = InferenceEngine::DeviceIDParser::getMultiDevices(deviceName.substr(pos + 1));
+                deviceNames = ov::DeviceIDParser::get_multi_devices(deviceName.substr(pos + 1));
             }
             deviceNames.emplace_back("AUTO");
         } else if (deviceName.find("BATCH") == 0) {
             auto pos = deviceName.find_first_of(":");
             if (pos != std::string::npos) {
-                deviceNames = {InferenceEngine::DeviceIDParser::getBatchDevice(deviceName.substr(pos + 1))};
+                deviceNames = {ov::DeviceIDParser::get_batch_device(deviceName.substr(pos + 1))};
             }
             deviceNames.push_back("BATCH");
         } else {
@@ -300,8 +259,8 @@ std::map<std::string, InferenceEngine::Version> ov::CoreImpl::GetVersions(const 
     }
 
     for (auto&& deviceName_ : deviceNames) {
-        ie::DeviceIDParser parser(deviceName_);
-        std::string deviceNameLocal = parser.getDeviceName();
+        ov::DeviceIDParser parser(deviceName_);
+        std::string deviceNameLocal = parser.get_device_name();
 
         ov::Plugin cppPlugin = get_plugin(deviceNameLocal);
 

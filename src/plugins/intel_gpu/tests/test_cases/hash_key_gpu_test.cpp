@@ -35,7 +35,7 @@ TEST(check_hash_value, eltwise_basic) {
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(eltwise(key_prim_id, { input_info("input"), input_info("input2") }, eltwise_mode::sum));
 
-    auto prog = program::build_program(engine, topology, ExecutionConfig{});
+    auto prog = program::build_program(engine, topology, get_test_default_config(engine));
     network net(prog, 0);
     const auto  prim_inst = net.get_primitive(key_prim_id);
     const auto  primitve  = prim_inst->desc();
@@ -65,7 +65,7 @@ TEST(check_hash_value, fc_basic) {
         fully_connected(key_prim_id, input_info("input"), "weights", "bias")
     );
 
-    auto prog = program::build_program(engine, topology, ExecutionConfig{});
+    auto prog = program::build_program(engine, topology, get_test_default_config(engine));
     network net(prog, 0);
     const auto  prim_inst = net.get_primitive(key_prim_id);
     const auto  primitve  = prim_inst->desc();
@@ -96,7 +96,7 @@ TEST(check_hash_value, gather_basic) {
         gather(key_prim_id, input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{3, 2, 3, 3, 2}, batch_dim, negative_indexes)
     );
 
-    auto prog = program::build_program(engine, topology, ExecutionConfig{});
+    auto prog = program::build_program(engine, topology, get_test_default_config(engine));
     network net(prog, 0);
     const auto  prim_inst = net.get_primitive(key_prim_id);
     const auto  primitve  = prim_inst->desc();
@@ -122,7 +122,7 @@ TEST(check_hash_value, gemm_basic) {
     topology.add(crop("crop.1", input_info("input"), { 1, 1, 4, 3 }, { 0, 1, 0, 0 }));
     topology.add(gemm(key_prim_id, { input_info("crop.1"), input_info("input2") }, data_types::f32, false, true));
 
-    auto prog = program::build_program(engine, topology, ExecutionConfig{});
+    auto prog = program::build_program(engine, topology, get_test_default_config(engine));
     network net(prog, 0);
     const auto  prim_inst = net.get_primitive(key_prim_id);
     const auto  primitve  = prim_inst->desc();
@@ -145,7 +145,7 @@ TEST(check_hash_value, permute_basic) {
         input_layout("input", input->get_layout()),
         permute(key_prim_id, input_info("input"), { 0, 1, 2, 3 }));
 
-    auto prog = program::build_program(engine, topology, ExecutionConfig{});
+    auto prog = program::build_program(engine, topology, get_test_default_config(engine));
     network net(prog, 0);
     const auto  prim_inst = net.get_primitive(key_prim_id);
     const auto  primitve  = prim_inst->desc();
@@ -174,7 +174,7 @@ TEST(check_hash_value, reorder_basic) {
         input_layout("input", input->get_layout()),
         reorder(key_prim_id, input_info("input"), output_layout));
 
-    auto prog = program::build_program(engine, topology, ExecutionConfig{});
+    auto prog = program::build_program(engine, topology, get_test_default_config(engine));
     network net(prog, 0);
     const auto  prim_inst = net.get_primitive(key_prim_id);
     const auto  primitve  = prim_inst->desc();
@@ -200,7 +200,7 @@ TEST(check_hash_value, reshape_basic) {
     topology.add(reorder("reorder", input_info("input"), padded_input_layout));
     topology.add(reshape(key_prim_id, input_info("reorder"), tensor( 1, 1, 4, 1 ), cldnn::reshape::reshape_mode::base, padding({0, 0, 2, 2})));
 
-    auto prog = program::build_program(engine, topology, ExecutionConfig{});
+    auto prog = program::build_program(engine, topology, get_test_default_config(engine));
     network net(prog, 0);
     const auto  prim_inst = net.get_primitive(key_prim_id);
     const auto  primitve  = prim_inst->desc();
@@ -227,7 +227,7 @@ TEST(check_hash_value, conv_basic) {
         data("biases", biases),
         convolution(key_prim_id, input_info("input"), { "weights" }, { "biases" }, {1, 1, 1}, {0, 0, 0}, {1, 1, 1}));
 
-    auto prog = program::build_program(engine, topology, ExecutionConfig{});
+    auto prog = program::build_program(engine, topology, get_test_default_config(engine));
     network net(prog, 0);
     const auto  prim_inst = net.get_primitive(key_prim_id);
     const auto  primitve  = prim_inst->desc();
@@ -260,7 +260,7 @@ TEST(check_hash_value, quantize_basic) {
         quantize(key_prim_id, input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 256, data_types::u8)
     );
 
-    auto prog = program::build_program(engine, topology, ExecutionConfig{});
+    auto prog = program::build_program(engine, topology, get_test_default_config(engine));
     network net(prog, 0);
     const auto  prim_inst = net.get_primitive(key_prim_id);
     const auto  primitve  = prim_inst->desc();

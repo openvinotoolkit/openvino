@@ -63,7 +63,7 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_onednn)
     topology.add(cldnn::convolution("conv", { input_info("reorder_input") }, { "weights" }, { "bias"}, 1, {1, 1}, {0, 0}, {1, 1}, {1, 32, 2, 2}, data_types::f32, false));
     topology.add(reorder("reorder_conv", input_info("conv"), reorder_layout));
 
-    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    ExecutionConfig cfg = get_test_default_config(engine);
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
     lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
@@ -100,7 +100,7 @@ TEST(test_can_fuse_reorder, reorder_for_mixed_type_convolution_fsv32_cldnn)
     topology.add(cldnn::convolution("conv", { input_info("reorder_input") }, { "weights" }, { "bias"}, 1, {1, 1}, {0, 0}, {1, 1}, {1, 32, 2, 2}, data_types::f32, false));
     topology.add(reorder("reorder_conv", input_info("conv"), reorder_layout));
 
-    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    ExecutionConfig cfg = get_test_default_config(engine);
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
     lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, false);
@@ -172,7 +172,7 @@ TEST_P(test_fused_reorder_deep_depth, no_removal_for_deep_depth_conv)
     topology.add(cldnn::convolution("conv", { input_info("reorder_input") }, { "weights" }));
     topology.add(reorder("reorder_conv", input_info("conv"), reorder_layout));
 
-    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    ExecutionConfig cfg = get_test_default_config(engine);
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
     lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
@@ -223,7 +223,13 @@ TEST_P(test_can_fuse_reorder_cldnn, reorder_for_firstconv_cldnn)
     topology.add(cldnn::convolution("conv2", { input_info("reorder_input") }, { "weights" }, { "bias"}, 1, {1, 1}, {0, 0}, {1, 1}, p.out_shape, p.input_data_type, false));
     topology.add(reorder("reorder_conv", input_info("conv2"), reorder_layout));
 
-    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
+    if (engine.get_device_info().supports_immad) {
+        // Enable this test for out_of_order queue-type if Onednn supports out_of_order
+        return;
+    }
+
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
     lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, false);
@@ -269,7 +275,7 @@ TEST_P(test_can_fuse_reorder_onednn, reorder_for_firstconv_onednn)
     topology.add(cldnn::convolution("conv", { input_info("reorder_input") }, { "weights" }));
     topology.add(reorder("reorder_result", input_info("conv"), reorder_layout));
 
-    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    ExecutionConfig cfg = get_test_default_config(engine);
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
     lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);
@@ -326,7 +332,12 @@ TEST_P(can_fuse_reorder, surface_input_reorder) {
 
     topology.add(input_layout_prim, weights_data_prim, surface_input_reorder_prim, conv_input_reorder_prim, conv_prim);
 
-    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
+    if (engine.get_device_info().supports_immad) {
+        // Enable this test for out_of_order queue-type if Onednn supports out_of_order
+        return;
+    }
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
     program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, lo);
@@ -384,7 +395,13 @@ TEST_P(can_fuse_reorder, surface_input_reorder_batched) {
                  surface_input_reorder_prim1, surface_input_reorder_prim2,
                  conv_input_reorder_prim, concat, conv_prim);
 
-    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
+    if (engine.get_device_info().supports_immad) {
+        // Enable this test for out_of_order queue-type if Onednn supports out_of_order
+        return;
+    }
+
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
     program_wrapper::apply_opt_pass<remove_redundant_reorders>(*prog, lo);
@@ -437,7 +454,7 @@ TEST_P(test_can_fuse_reorder_onednn_errata, errata_case_for_conv) {
     topology.add(convolution("conv", { input_info("reorder_conv") }, { "weights" }));
     topology.add(reorder("reorder_result", input_info("conv"), p.conv_layout));
 
-    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    ExecutionConfig cfg = get_test_default_config(engine);
     program::ptr prog = program::build_program(engine, topology, cfg, false, true);
     layout_optimizer lo = layout_optimizer();
     lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::use_onednn_impls, true);

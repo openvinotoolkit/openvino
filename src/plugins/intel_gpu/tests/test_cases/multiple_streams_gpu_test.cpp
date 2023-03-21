@@ -24,7 +24,7 @@ TEST(multistream_gpu, basic) {
     auto task_executor = std::make_shared<InferenceEngine::CPUStreamsExecutor>(task_config);
     auto& engine = get_test_engine();
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     auto input1_dyn_layout = layout{ ov::PartialShape::dynamic(3), data_types::f16,format::bfyx };

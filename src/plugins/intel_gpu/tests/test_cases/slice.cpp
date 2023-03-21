@@ -45,7 +45,7 @@ public:
         }
         topology.add(slice("slice", inputs, tensor{output_shape_}));
 
-        cldnn::network::ptr network = get_network(engine_, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine_, topology, get_test_default_config(engine_), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
