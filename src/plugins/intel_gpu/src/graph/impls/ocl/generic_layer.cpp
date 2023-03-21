@@ -48,7 +48,7 @@ struct generic_layer_impl : typed_primitive_impl<generic_layer> {
         ib >> _cl_kernel_data;
     }
 
-    void init_kernels(const kernels_cache& kernels_cache, kernel_impl_params& params) override {
+    void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) override {
         _kernels.clear();
         auto compiled_kernels = kernels_cache.get_kernels(params);
         _kernels.insert(_kernels.begin(), compiled_kernels.begin(), compiled_kernels.end());
@@ -113,7 +113,7 @@ struct generic_layer_cpu : typed_primitive_impl<generic_layer> {
         return ev;
     }
 
-    void init_kernels(const kernels_cache&, kernel_impl_params&) override {}
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
 };
 
 static std::unique_ptr<primitive_impl> create(const generic_layer_node& arg, const kernel_impl_params&) {

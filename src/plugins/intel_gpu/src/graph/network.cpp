@@ -517,9 +517,8 @@ network::~network() {
 void network::save(cldnn::BinaryOutputBuffer& ob) {
     kernels_cache kernels_cache(get_engine(), _config, 0, nullptr, {""});
     for (const auto& p_inst : _exec_order) {
-        if (p_inst->get_impl() != nullptr) {
+        if (p_inst->get_impl() != nullptr)
             kernels_cache.add_kernels_for_serialization(p_inst->get_impl()->get_kernels_for_serialization());
-        }
     }
     ob << kernels_cache;
 

@@ -133,7 +133,7 @@ protected:
         return stream.enqueue_marker(events, is_output);
     }
 
-    void init_kernels(const kernels_cache& kernels_cache, kernel_impl_params& params) override {
+    void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) override {
         if (is_cpu()) {
             return;
         }
