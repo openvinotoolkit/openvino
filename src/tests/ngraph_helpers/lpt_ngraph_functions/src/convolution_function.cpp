@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "lpt_ngraph_functions/convolution_function.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph_ops/type_relaxed.hpp>
+#include <ov_ops/type_relaxed.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/quantization_granularity_attribute.hpp"
@@ -96,13 +96,13 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginal(
     }
 
     auto convolutionOriginal = ngraph::opset1::Convolution(
-        ngraph::op::TemporaryReplaceOutputType(dequantization, netPrecision).get(),
-        ngraph::op::TemporaryReplaceOutputType(onWeights, netPrecision).get(),
+        ov::op::TemporaryReplaceOutputType(dequantization, netPrecision).get(),
+        ov::op::TemporaryReplaceOutputType(onWeights, netPrecision).get(),
         ngraph::Strides{ 1, 1 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::Strides{ 1, 1 });
-    std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Convolution>>(
+    std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Convolution>>(
         convolutionOriginal,
         std::vector<element::Type>{ netPrecision, netPrecision },
         std::vector<element::Type>{ netPrecision });
@@ -221,14 +221,14 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReferenceWithIncorrect
         weightsValues);
 
     auto convolutionOriginal = ngraph::opset1::Convolution(
-        ngraph::op::TemporaryReplaceOutputType(deqBefore, element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(weights, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(deqBefore, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(weights, element::f32).get(),
         ngraph::Strides{ 1, 1 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::Strides{ 1, 1 });
 
-    std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Convolution>>(
+    std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Convolution>>(
         convolutionOriginal,
         std::vector<element::Type>{ element::f32, element::f32 },
         std::vector<element::Type>{});
@@ -289,14 +289,14 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
             fakeQuantizeOnWeights.outputHighValues);
 
     auto convolutionOriginal = ngraph::opset1::Convolution(
-        ngraph::op::TemporaryReplaceOutputType(deqBefore, netPrecision).get(),
-        ngraph::op::TemporaryReplaceOutputType(onWeights, netPrecision).get(),
+        ov::op::TemporaryReplaceOutputType(deqBefore, netPrecision).get(),
+        ov::op::TemporaryReplaceOutputType(onWeights, netPrecision).get(),
         ngraph::Strides{ 1, 1 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::Strides{ 1, 1 });
 
-    std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Convolution>>(
+    std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Convolution>>(
         convolutionOriginal,
         std::vector<element::Type>{ netPrecision, netPrecision },
         std::vector<element::Type>{ netPrecision });
@@ -360,14 +360,14 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::get(
             fakeQuantizeOnWeights.outputLowValues, fakeQuantizeOnWeights.outputHighValues);
 
     auto convolutionOriginal = ngraph::opset1::Convolution(
-        ngraph::op::TemporaryReplaceOutputType(parentOnData, element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(parentOnWeights, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(parentOnData, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(parentOnWeights, element::f32).get(),
         ngraph::Strides{ 1, 1 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::Strides{ 1, 1 });
 
-    const std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Convolution>>(
+    const std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::Convolution>>(
         convolutionOriginal,
         std::vector<element::Type>{ element::f32, element::f32 },
         std::vector<element::Type>{});

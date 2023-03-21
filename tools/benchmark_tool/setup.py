@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -20,7 +20,6 @@ with open('requirements.txt') as requirements_txt:
         for requirement
         in pkg_resources.parse_requirements(requirements_txt)
     ]
-
 
 setup(
     name='benchmark_tool',
@@ -42,5 +41,5 @@ setup(
     ],
     packages=find_packages(),
     install_requires=reqs,
-    python_requires='>=3.6',
+    python_requires='>=3.7',
 )

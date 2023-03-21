@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -302,6 +302,9 @@ public:
         case InterpolateMode::CUBIC:
             cubic_func(input_data, out);
             break;
+        default:
+            OPENVINO_THROW("Unsupported interpolation mode");
+            break;
         }
     }
 
@@ -484,7 +487,7 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
                 for (int64_t i = 0; i < points_in_neighbor; ++i) {
                     int64_t offset = 0;
                     for (int64_t j = 0; j < spatial_rank; ++j) {
-                        if (i & (1 << (spatial_rank - 1 - j))) {
+                        if (i & (static_cast<int64_t>(1) << (spatial_rank - 1 - j))) {
                             offset += in1[j] * input_index_multipliers[j];
                         } else {
                             offset += in2[j] * input_index_multipliers[j];
@@ -498,9 +501,9 @@ void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out) {
                 for (int64_t i = 0; i < points_in_neighbor; ++i) {
                     float coeff = 1.0f;
                     for (int64_t j = 0; j < spatial_rank; ++j) {
-                        coeff *= (i & (1 << (spatial_rank - 1 - j))) ? d1[j] : d2[j];
+                        coeff *= (i & (static_cast<int64_t>(1) << (spatial_rank - 1 - j))) ? d1[j] : d2[j];
                     }
-                    sum += coeff * values_of_input_points[points_in_neighbor - 1 - i];
+                    sum += coeff * static_cast<float>(values_of_input_points[points_in_neighbor - 1 - i]);
                 }
 
                 // 6. Store result.
@@ -533,7 +536,7 @@ void InterpolateEval<T>::cubic_func(const T* input_data, T* out) {
             int64_t in_coord_int = static_cast<int64_t>(std::floor(in_coord));
             base_coords[axis] = in_coord_int;
             auto s = static_cast<float>(in_coord - in_coord_int);
-            cubic_coeffs[axis] = helper.get_cubic_coeff(s, m_cube_coeff);
+            cubic_coeffs[axis] = helper.get_cubic_coeff(s, static_cast<float>(m_cube_coeff));
         }
 
         float summa = 0.0f;
@@ -553,7 +556,7 @@ void InterpolateEval<T>::cubic_func(const T* input_data, T* out) {
                 coeffs_prod *= cubic_coeffs[axis][idx[i]];
             }
 
-            summa += coeffs_prod * input_data[input_transform.index(coords_for_sum)];
+            summa += coeffs_prod * static_cast<float>(input_data[input_transform.index(coords_for_sum)]);
         }
 
         out[output_transform.index(output_coord)] = static_cast<T>(summa);
@@ -574,7 +577,7 @@ void InterpolateEval<T>::nearest_func(const T* input_data, T* out) {
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
-static void pad_input_data(const uint8_t* data_ptr,
+inline void pad_input_data(const uint8_t* data_ptr,
                            uint8_t* padded_data_ptr,
                            size_t type_size,
                            const ov::Shape& input_shape,
@@ -598,7 +601,7 @@ static void pad_input_data(const uint8_t* data_ptr,
     NGRAPH_SUPPRESS_DEPRECATED_END
 }
 
-static PartialShape get_padded_input_shape(const PartialShape& input_shape,
+inline PartialShape get_padded_input_shape(const PartialShape& input_shape,
                                            const op::v0::Interpolate::Attributes& attrs) {
     const auto input_rank = input_shape.rank().get_length();
 
@@ -614,7 +617,7 @@ static PartialShape get_padded_input_shape(const PartialShape& input_shape,
     return padded_input_shape;
 }
 
-static std::vector<float> get_scales(const PartialShape& input_data_partial_shape,
+inline std::vector<float> get_scales(const PartialShape& input_data_partial_shape,
                                      const Shape& out_shape,
                                      const op::v0::Interpolate::Attributes& attrs) {
     std::vector<float> scales(attrs.axes.size(), 1.0f);
@@ -628,7 +631,7 @@ static std::vector<float> get_scales(const PartialShape& input_data_partial_shap
     return scales;
 }
 
-static op::v4::Interpolate::InterpolateAttrs transform_v0_to_v4(const PartialShape& input_partial_shape,
+inline op::v4::Interpolate::InterpolateAttrs transform_v0_to_v4(const PartialShape& input_partial_shape,
                                                                 const op::v0::Interpolate::Attributes& attrs_v0) {
     auto input_shape_rank = input_partial_shape.rank().get_length();
 

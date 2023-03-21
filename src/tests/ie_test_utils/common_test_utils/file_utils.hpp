@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -227,7 +227,11 @@ inline std::string replaceExt(std::string file, const std::string& newExt) {
     std::string::size_type i = file.rfind('.', file.length());
 
     if (i != std::string::npos) {
-        file.replace(i + 1, newExt.length(), newExt);
+        if (newExt == "") {
+            file = file.substr(0, i);
+        } else {
+            file.replace(i + 1, newExt.length(), newExt);
+        }
     }
     return file;
 }
@@ -270,5 +274,7 @@ inline std::vector<std::string> readListFiles(const std::vector<std::string>& fi
 }
 
 std::string getExecutableDirectory();
+std::string getCurrentWorkingDir();
+std::string getRelativePath(const std::string& from, const std::string& to);
 
 }  // namespace CommonTestUtils

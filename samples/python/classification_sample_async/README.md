@@ -48,7 +48,7 @@ Options:
                         Required. Path to an image file(s).
   -d DEVICE, --device DEVICE
                         Optional. Specify the target device to infer on; CPU,
-                        GPU, MYRIAD, HDDL or HETERO: is acceptable. The sample
+                        GPU or HETERO: is acceptable. The sample
                         will look for a suitable plugin for device specified.
                         Default value is CPU.
 ```
@@ -69,27 +69,24 @@ To run the sample, you need specify a model and image:
 ### Example
 
 1. Install the `openvino-dev` Python package to use Open Model Zoo Tools:
-
-```
-python -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
-```
+   ```
+   python -m pip install openvino-dev[caffe]
+   ```
 
 2. Download a pre-trained model:
-```
-omz_downloader --name alexnet
-```
+   ```
+   omz_downloader --name alexnet
+   ```
 
 3. If a model is not in the IR or ONNX format, it must be converted. You can do this using the model converter:
-
-```
-omz_converter --name alexnet
-```
+   ```
+   omz_converter --name alexnet
+   ```
 
 4. Perform inference of `banana.jpg` and `car.bmp` using the `alexnet` model on a `GPU`, for example:
-
-```
-python classification_sample_async.py -m alexnet.xml -i banana.jpg car.bmp -d GPU
-```
+   ```
+   python classification_sample_async.py -m alexnet.xml -i banana.jpg car.bmp -d GPU
+   ```
 
 ## Sample Output
 
@@ -140,8 +137,8 @@ The sample application logs each step in a standard output stream and outputs to
 - [Model Downloader](@ref omz_tools_downloader)
 - [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
 
-<!-- [openvino.runtime.AsyncInferQueue]:
-[openvino.runtime.AsyncInferQueue.set_callback]:
-[openvino.runtime.AsyncInferQueue.start_async]:
-[openvino.runtime.AsyncInferQueue.wait_all]:
-[openvino.runtime.InferRequest.results]: -->
+[openvino.runtime.AsyncInferQueue]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html
+[openvino.runtime.AsyncInferQueue.set_callback]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html#openvino.runtime.AsyncInferQueue.set_callback
+[openvino.runtime.AsyncInferQueue.start_async]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html#openvino.runtime.AsyncInferQueue.start_async
+[openvino.runtime.AsyncInferQueue.wait_all]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.AsyncInferQueue.html#openvino.runtime.AsyncInferQueue.wait_all
+[openvino.runtime.InferRequest.results]:https://docs.openvino.ai/2022.3/api/ie_python_api/_autosummary/openvino.runtime.InferRequest.html#openvino.runtime.InferRequest.results

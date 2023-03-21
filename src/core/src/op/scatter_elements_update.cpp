@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <scatter_elements_update_shape_inference.hpp>
 
+#include "bound_evaluate.hpp"
 #include "itt.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
@@ -14,8 +15,6 @@
 
 using namespace ngraph;
 using namespace std;
-
-BWDCMP_RTTI_DEFINITION(op::v3::ScatterElementsUpdate);
 
 op::v3::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
                                                      const Output<Node>& indices,
@@ -26,12 +25,12 @@ op::v3::ScatterElementsUpdate::ScatterElementsUpdate(const Output<Node>& data,
 }
 
 bool op::v3::ScatterElementsUpdate::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_visit_attributes);
+    OV_OP_SCOPE(v3_ScatterElementsUpdate_visit_attributes);
     return true;
 }
 
 void op::v3::ScatterElementsUpdate::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_validate_and_infer_types);
+    OV_OP_SCOPE(v3_ScatterElementsUpdate_validate_and_infer_types);
     element::Type data_et = get_input_element_type(0);
     element::Type indices_et = get_input_element_type(1);
     element::Type updates_et = get_input_element_type(2);
@@ -44,30 +43,23 @@ void op::v3::ScatterElementsUpdate::validate_and_infer_types() {
 
     NODE_VALIDATION_CHECK(this, axis_et.is_integral(), "Axis element type must be integral_number, but is: ", axis_et);
 
+    element::Type merged_type;
     NODE_VALIDATION_CHECK(this,
-                          data_et == updates_et,
+                          element::Type::merge(merged_type, data_et, updates_et),
                           "Data type and updates type are required to be the same. ",
                           "Got: ",
                           data_et,
                           " and: ",
                           updates_et);
 
-    const auto& data = get_input_partial_shape(0);
-    const auto& indices = get_input_partial_shape(1);
-    const auto& updates = get_input_partial_shape(2);
-    const auto& axis = get_input_partial_shape(3);
-
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
-    std::vector<ov::PartialShape> input_shapes = {data, indices, updates, axis};
-
-    shape_infer(this, input_shapes, output_shapes);
-    set_output_type(0, data_et, output_shapes[0]);
-    if (output_shapes[0].is_dynamic())
+    const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
+    set_output_type(0, data_et, output_shape);
+    if (output_shape.is_dynamic())
         set_input_is_relevant_to_shape(0);
 }
 
 shared_ptr<Node> op::v3::ScatterElementsUpdate::clone_with_new_inputs(const OutputVector& inputs) const {
-    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_clone_with_new_inputs);
+    OV_OP_SCOPE(v3_ScatterElementsUpdate_clone_with_new_inputs);
     NODE_VALIDATION_CHECK(this,
                           inputs.size() == get_input_size(),
                           "clone_with_new_inputs() required inputs size: ",
@@ -103,10 +95,10 @@ bool evaluate(const HostTensorPtr& data,
     return true;
 }
 
-#define TYPE_AXS_CASE(a, ...)                                          \
-    case element::Type_t::a: {                                         \
-        NGRAPH_OP_SCOPE(OV_PP_CAT3(scatter_element_update_axs, _, a)); \
-        rc = evaluate<DT, IT, element::Type_t::a>(__VA_ARGS__);        \
+#define TYPE_AXS_CASE(a, ...)                                      \
+    case element::Type_t::a: {                                     \
+        OV_OP_SCOPE(OV_PP_CAT3(scatter_element_update_axs, _, a)); \
+        rc = evaluate<DT, IT, element::Type_t::a>(__VA_ARGS__);    \
     } break;
 
 template <element::Type_t DT, element::Type_t IT>
@@ -137,10 +129,10 @@ bool evaluate(const HostTensorPtr& arg0,
     return rc;
 }
 
-#define TYPE_IND_CASE(a, ...)                                          \
-    case element::Type_t::a: {                                         \
-        NGRAPH_OP_SCOPE(OV_PP_CAT3(scatter_element_update_ind, _, a)); \
-        rc = evaluate<DT, element::Type_t::a>(__VA_ARGS__);            \
+#define TYPE_IND_CASE(a, ...)                                      \
+    case element::Type_t::a: {                                     \
+        OV_OP_SCOPE(OV_PP_CAT3(scatter_element_update_ind, _, a)); \
+        rc = evaluate<DT, element::Type_t::a>(__VA_ARGS__);        \
     } break;
 
 template <element::Type_t DT>
@@ -221,12 +213,12 @@ bool op::v3::ScatterElementsUpdate::evaluate_scatter_element_update(const HostTe
 }
 
 bool op::v3::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_evaluate);
+    OV_OP_SCOPE(v3_ScatterElementsUpdate_evaluate);
     return evaluate_scatter_element_update(outputs, inputs);
 }
 
 bool op::v3::ScatterElementsUpdate::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v3_ScatterElementsUpdate_has_evaluate);
+    OV_OP_SCOPE(v3_ScatterElementsUpdate_has_evaluate);
 
     switch (get_output_element_type(0)) {
     case ngraph::element::i16:
@@ -254,4 +246,20 @@ bool op::v3::ScatterElementsUpdate::has_evaluate() const {
         return false;
     }
     return true;
+}
+
+bool op::v3::ScatterElementsUpdate::evaluate_lower(ov::TensorVector& output_values) const {
+    OV_OP_SCOPE(v3_ScatterNDUpdate_evaluate_lower);
+    return get_input_tensor(1).has_and_set_bound() && ov::default_lower_bound_evaluator(this, output_values);
+}
+
+bool op::v3::ScatterElementsUpdate::evaluate_upper(ov::TensorVector& output_values) const {
+    OV_OP_SCOPE(v3_ScatterNDUpdate_evaluate_upper);
+    return get_input_tensor(1).has_and_set_bound() && ov::default_upper_bound_evaluator(this, output_values);
+}
+
+bool op::v3::ScatterElementsUpdate::evaluate_label(TensorLabelVector& output_labels) const {
+    OV_OP_SCOPE(v3_ScatterNDUpdate_evaluate_label);
+
+    return ov::default_label_evaluator(this, {0, 2}, output_labels);
 }

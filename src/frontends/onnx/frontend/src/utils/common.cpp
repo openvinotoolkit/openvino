@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -114,6 +114,7 @@ template OutputVector handle_opset6_binary_op<default_opset::Add>(const Node& no
 template OutputVector handle_opset6_binary_op<default_opset::Divide>(const Node& node);
 template OutputVector handle_opset6_binary_op<default_opset::Multiply>(const Node& node);
 template OutputVector handle_opset6_binary_op<default_opset::Subtract>(const Node& node);
+template OutputVector handle_opset6_binary_op<default_opset::LogicalAnd>(const Node& node);
 
 const std::string FAILSAFE_NODE = "ONNX_FAILSAFE_NODE";
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,7 +6,7 @@
 #include <low_precision/relu.hpp>
 
 #include <ngraph/opsets/opset1.hpp>
-#include "ngraph_ops/type_relaxed.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "low_precision/network_helper.hpp"
 
 #include "lpt_ngraph_functions/common/fake_quantize_on_data.hpp"
@@ -60,7 +60,8 @@ std::shared_ptr<ngraph::Function> MoveFakeQuantize::get(
         const auto split_lengths = std::make_shared<ngraph::opset1::Constant>(element::i32, Shape{split_lengths_values.size()}, split_lengths_values);
         const auto split = std::make_shared<ngraph::opset1::VariadicSplit>(inputs[0], axis_constant, split_lengths);
         for (size_t i = 0; i < concatInputsCount; i++) {
-            concatParents[i] = split->output(i);
+            // added unary op to avoid Split -> Concat pair elimination
+            concatParents[i] = std::make_shared<ngraph::opset1::Sigmoid>(split->output(i));
         }
     } else {
         for (size_t i = 0; i < concatInputsCount; i++) {

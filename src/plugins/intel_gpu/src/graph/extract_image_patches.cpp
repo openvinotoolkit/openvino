@@ -1,24 +1,20 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "extract_image_patches_inst.h"
 
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
 namespace cldnn {
-primitive_type_id extract_image_patches::type_id() {
-    static primitive_type_base<extract_image_patches> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(extract_image_patches)
 
-layout extract_image_patches_inst::calc_output_layout(extract_image_patches_node const& node) {
-    auto desc = node.get_primitive();
+layout extract_image_patches_inst::calc_output_layout(extract_image_patches_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<extract_image_patches>();
 
-    auto input_layout = node.input(0).get_output_layout();
+    auto input_layout = impl_param.get_input_layout();
     auto input_format = input_layout.format;
 
     auto output_shape = desc->output_shape;

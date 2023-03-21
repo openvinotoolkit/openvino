@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,19 +14,17 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v4::HSwish);
-
 op::v4::HSwish::HSwish(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
 bool op::v4::HSwish::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v4_HSwish_visit_attributes);
+    OV_OP_SCOPE(v4_HSwish_visit_attributes);
     return true;
 }
 
 shared_ptr<Node> op::v4::HSwish::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v4_HSwish_clone_with_new_inputs);
+    OV_OP_SCOPE(v4_HSwish_clone_with_new_inputs);
     return make_shared<op::v4::HSwish>(new_args.at(0));
 }
 
@@ -59,13 +57,13 @@ bool evaluate_hswish(const HostTensorPtr& arg, const HostTensorPtr& out) {
 }  // namespace hswish
 
 bool op::v4::HSwish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v4_HSwish_evaluate);
+    OV_OP_SCOPE(v4_HSwish_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     return hswish::evaluate_hswish(inputs[0], outputs[0]);
 }
 
 bool op::v4::HSwish::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v4_HSwish_has_evaluate);
+    OV_OP_SCOPE(v4_HSwish_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::bf16:
     case ngraph::element::f16:

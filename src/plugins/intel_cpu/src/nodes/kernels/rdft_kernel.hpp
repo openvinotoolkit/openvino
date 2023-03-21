@@ -10,10 +10,6 @@
 namespace ov {
 namespace intel_cpu {
 
-using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
-using namespace dnnl::impl::utils;
-
 enum dft_type {
     real_to_complex,
     complex_to_complex,
@@ -55,12 +51,22 @@ struct jit_dft_kernel {
     enum dft_type kernel_type_;
 };
 
-template <cpu_isa_t isa>
-struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+struct jit_dft_kernel_f32 : public jit_dft_kernel, public dnnl::impl::cpu::x64::jit_generator {
     public:
         DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_dft_kernel_f32)
 
-        jit_dft_kernel_f32(bool is_inverse, enum dft_type type) : jit_dft_kernel(is_inverse, type), jit_generator() {}
+        jit_dft_kernel_f32(bool is_inverse, enum dft_type type) : jit_dft_kernel(is_inverse, type), jit_generator(jit_name()) {
+            constexpr int simd_size = vlen / type_size;
+            perm_low_values.reserve(simd_size);
+            perm_high_values.reserve(simd_size);
+            for (int i = 0; i < simd_size / 2; i++) {
+                perm_low_values.push_back(i);
+                perm_low_values.push_back(i + simd_size);
+                perm_high_values.push_back(i + simd_size / 2);
+                perm_high_values.push_back(i + simd_size / 2 + simd_size);
+            }
+        }
 
         void create_ker() override {
             jit_generator::create_kernel();
@@ -70,17 +76,13 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
         void generate() override;
 
     private:
-        void uni_vbroadcastsd(const Xbyak::Xmm& x, const Xbyak::Operand& op);
-        void uni_vbroadcastsd(const Xbyak::Ymm& x, const Xbyak::Operand& op);
+        using Vmm = typename dnnl::impl::utils::conditional3<isa == dnnl::impl::cpu::x64::sse41, Xbyak::Xmm,
+                                          isa == dnnl::impl::cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
-        void uni_vpermilps(const Xbyak::Xmm& x, const Xbyak::Operand& op, int8_t control);
-        void uni_vpermilps(const Xbyak::Ymm& x, const Xbyak::Operand& op, int8_t control);
+        void interleave_and_store(const Vmm& real, const Vmm& imag, const Xbyak::RegExp& reg_exp, const Vmm& tmp);
 
-        void load_and_broadcast_every_other_elem(const Xbyak::Zmm& x, const Xbyak::RegExp& reg_exp, const Xbyak::Xmm& tmp);
-        void load_and_broadcast_every_other_elem(const Xbyak::Ymm& x, const Xbyak::RegExp& reg_exp, const Xbyak::Xmm& tmp);
-        void load_and_broadcast_every_other_elem(const Xbyak::Xmm& x, const Xbyak::RegExp& reg_exp, const Xbyak::Xmm& tmp);
-
-        int type_size = sizeof(float);
+        static constexpr int type_size = sizeof(float);
+        static constexpr int vlen = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen;
 
         Xbyak::Reg8 is_signal_size_even = al;
         Xbyak::Reg64 input_ptr = rbx;
@@ -90,6 +92,12 @@ struct jit_dft_kernel_f32 : public jit_dft_kernel, public jit_generator {
         Xbyak::Reg64 signal_size = r11;
         Xbyak::Reg64 output_start = r12;
         Xbyak::Reg64 output_end = r13;
+
+        std::vector<int> perm_low_values;
+        std::vector<int> perm_high_values;
+
+        Vmm perm_low;
+        Vmm perm_high;
 };
 
 }   // namespace intel_cpu

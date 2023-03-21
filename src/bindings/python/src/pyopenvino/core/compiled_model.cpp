@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +8,7 @@
 #include <pybind11/stl.h>
 
 #include "common.hpp"
+#include "pyopenvino/core/compiled_model.hpp"
 #include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/core/infer_request.hpp"
 #include "pyopenvino/utils/utils.hpp"
@@ -30,6 +31,7 @@ void regclass_CompiledModel(py::module m) {
     cls.def(
         "create_infer_request",
         [](ov::CompiledModel& self) {
+            // Create temporary ov::InferRequest and move it to actual wrapper class.
             return std::make_shared<InferRequestWrapper>(self.create_infer_request(), self.inputs(), self.outputs());
         },
         py::call_guard<py::gil_scoped_release>(),
@@ -133,7 +135,7 @@ void regclass_CompiledModel(py::module m) {
     cls.def(
         "set_property",
         [](ov::CompiledModel& self, const std::pair<std::string, py::object>& property) {
-            ov::AnyMap _properties{{property.first, py_object_to_any(property.second)}};
+            ov::AnyMap _properties{{property.first, Common::utils::py_object_to_any(property.second)}};
             self.set_property(_properties);
         },
         py::arg("property"),
@@ -183,7 +185,7 @@ void regclass_CompiledModel(py::module m) {
                               )");
 
     cls.def("input",
-            (ov::Output<const ov::Node>(ov::CompiledModel::*)() const) & ov::CompiledModel::input,
+            (const ov::Output<const ov::Node>& (ov::CompiledModel::*)() const) & ov::CompiledModel::input,
             R"(
                 Gets a single input of a compiled model.
                 If a model has more than one input, this method throws an exception.
@@ -193,7 +195,7 @@ void regclass_CompiledModel(py::module m) {
             )");
 
     cls.def("input",
-            (ov::Output<const ov::Node>(ov::CompiledModel::*)(size_t) const) & ov::CompiledModel::input,
+            (const ov::Output<const ov::Node>& (ov::CompiledModel::*)(size_t) const) & ov::CompiledModel::input,
             py::arg("index"),
             R"(
                 Gets input of a compiled model identified by an index.
@@ -205,10 +207,11 @@ void regclass_CompiledModel(py::module m) {
                 :rtype: openvino.runtime.ConstOutput
             )");
 
-    cls.def("input",
-            (ov::Output<const ov::Node>(ov::CompiledModel::*)(const std::string&) const) & ov::CompiledModel::input,
-            py::arg("tensor_name"),
-            R"(
+    cls.def(
+        "input",
+        (const ov::Output<const ov::Node>& (ov::CompiledModel::*)(const std::string&)const) & ov::CompiledModel::input,
+        py::arg("tensor_name"),
+        R"(
                 Gets input of a compiled model identified by a tensor_name.
                 If the input with given tensor name is not found, this method throws an exception.
 
@@ -228,7 +231,7 @@ void regclass_CompiledModel(py::module m) {
                               )");
 
     cls.def("output",
-            (ov::Output<const ov::Node>(ov::CompiledModel::*)() const) & ov::CompiledModel::output,
+            (const ov::Output<const ov::Node>& (ov::CompiledModel::*)() const) & ov::CompiledModel::output,
             R"(
                 Gets a single output of a compiled model.
                 If the model has more than one output, this method throws an exception.
@@ -238,7 +241,7 @@ void regclass_CompiledModel(py::module m) {
             )");
 
     cls.def("output",
-            (ov::Output<const ov::Node>(ov::CompiledModel::*)(size_t) const) & ov::CompiledModel::output,
+            (const ov::Output<const ov::Node>& (ov::CompiledModel::*)(size_t) const) & ov::CompiledModel::output,
             py::arg("index"),
             R"(
                 Gets output of a compiled model identified by an index.
@@ -250,10 +253,11 @@ void regclass_CompiledModel(py::module m) {
                 :rtype: openvino.runtime.ConstOutput
             )");
 
-    cls.def("output",
-            (ov::Output<const ov::Node>(ov::CompiledModel::*)(const std::string&) const) & ov::CompiledModel::output,
-            py::arg("tensor_name"),
-            R"(
+    cls.def(
+        "output",
+        (const ov::Output<const ov::Node>& (ov::CompiledModel::*)(const std::string&)const) & ov::CompiledModel::output,
+        py::arg("tensor_name"),
+        R"(
                 Gets output of a compiled model identified by a tensor_name.
                 If the output with given tensor name is not found, this method throws an exception.
 

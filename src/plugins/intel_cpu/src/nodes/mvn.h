@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,8 +14,14 @@ namespace ov {
 namespace intel_cpu {
 namespace node {
 
+enum MVNLayoutType {
+    mvn_planar,
+    mvn_block,
+    mvn_by_channel
+};
+
 struct jit_mvn_config_params {
-    bool planar_layout;
+    MVNLayoutType layout;
     bool across_channels;
     bool normalize_variance;
     InferenceEngine::Precision src_prc;
@@ -69,11 +75,12 @@ struct jit_uni_mvn_kernel {
 
     jit_mvn_config_params jcp_;
     const dnnl_primitive_attr &attr_;
+    int optimized_scaleshift_num = 0;
 };
 
 class MVN : public Node {
 public:
-    MVN(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    MVN(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -102,11 +109,6 @@ public:
         OUTSIDE_SQRT
     };
 
-    enum MVNLayoutType {
-        planar,
-        block,
-        by_channel
-    };
     struct MVNAttrs {
         MVNLayoutType layout;
         std::tuple<size_t, size_t, size_t, size_t, size_t> shape5D;
@@ -152,6 +154,7 @@ private:
         private:
             void mvn_pln(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_);
             void mvn_blk(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_);
+            void mvn_nspc(const uint8_t *in_ptr_, uint8_t *out_ptr_, const void *post_ops_data_);
 
             std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_mean_kernel;
             std::shared_ptr<jit_uni_mvn_mean_variance_kernel> mvn_variance_kernel;

@@ -1,9 +1,10 @@
 # Converting TensorFlow Object Detection API Models {#openvino_docs_MO_DG_prepare_model_convert_model_tf_specific_Convert_Object_Detection_API_Models}
 
-> **NOTES**:
-> * Starting with the 2022.1 release, Model Optimizer can convert the TensorFlow Object Detection API Faster and Mask RCNNs topologies differently. By default, Model Optimizer adds operation "Proposal" to the generated IR. This operation needs an additional input to the model with name "image_info" which should be fed with several values describing the preprocessing applied to the input image (refer to the [Proposal](../../../../ops/detection/Proposal_4.md) operation specification for more information). However, this input is redundant for the models trained and inferred with equal size images. Model Optimizer can generate IR for such models and insert operation [DetectionOutput](../../../../ops/detection/DetectionOutput_1.md) instead of `Proposal`. The `DetectionOutput` operation does not require additional model input "image_info". Moreover, for some models the produced inference results are closer to the original TensorFlow model. In order to trigger new behavior, the attribute "operation_to_add" in the corresponding JSON transformation configuration file should be set to value "DetectionOutput" instead of default one "Proposal".
-> * Starting with the 2021.1 release, Model Optimizer converts the TensorFlow Object Detection API SSDs, Faster and Mask RCNNs topologies keeping shape-calculating sub-graphs by default, so topologies can be re-shaped in the OpenVINO Runtime using dedicated reshape API. Refer to the [Using Shape Inference](../../../../OV_Runtime_UG/ShapeInference.md) guide for more information on how to use this feature. It is possible to change the both spatial dimensions of the input image and batch size.
-> * To generate IRs for TF 1 SSD topologies, Model Optimizer creates a number of `PriorBoxClustered` operations instead of a constant node with prior boxes calculated for the particular input image size. This change allows you to reshape the topology in the OpenVINO Runtime using dedicated API. The reshaping is supported for all SSD topologies except FPNs, which contain hardcoded shapes for some operations preventing from changing topology input shape.
+**NOTES**: 
+
+* Starting with the 2022.1 release, Model Optimizer can convert the TensorFlow Object Detection API Faster and Mask RCNNs topologies differently. By default, Model Optimizer adds operation "Proposal" to the generated IR. This operation needs an additional input to the model with name "image_info" which should be fed with several values describing the preprocessing applied to the input image (refer to the [Proposal](@ref openvino_docs_ops_detection_Proposal_4) operation specification for more information). However, this input is redundant for the models trained and inferred with equal size images. Model Optimizer can generate IR for such models and insert operation [DetectionOutput](@ref openvino_docs_ops_detection_DetectionOutput_1) instead of `Proposal`. The `DetectionOutput` operation does not require additional model input "image_info". Moreover, for some models the produced inference results are closer to the original TensorFlow model. In order to trigger new behavior, the attribute "operation_to_add" in the corresponding JSON transformation configuration file should be set to value "DetectionOutput" instead of default one "Proposal".
+* Starting with the 2021.1 release, Model Optimizer converts the TensorFlow Object Detection API SSDs, Faster and Mask RCNNs topologies keeping shape-calculating sub-graphs by default, so topologies can be re-shaped in the OpenVINO Runtime using dedicated reshape API. Refer to the [Using Shape Inference](@ref openvino_docs_OV_UG_ShapeInference) guide for more information on how to use this feature. It is possible to change the both spatial dimensions of the input image and batch size.
+* To generate IRs for TF 1 SSD topologies, Model Optimizer creates a number of `PriorBoxClustered` operations instead of a constant node with prior boxes calculated for the particular input image size. This change allows you to reshape the topology in the OpenVINO Runtime using dedicated API. The reshaping is supported for all SSD topologies except FPNs, which contain hardcoded shapes for some operations preventing from changing topology input shape.
 
 ## Converting a Model
 
@@ -11,39 +12,46 @@ You can download TensorFlow Object Detection API models from the <a href="https:
 
 > **NOTE**: Before converting, make sure you have configured Model Optimizer. For configuration steps, refer to the [Configuring Model Optimizer](../../../Deep_Learning_Model_Optimizer_DevGuide.md).
 
-To convert a TensorFlow Object Detection API model, run the `mo` command with the following required parameters:
+@sphinxdirective
 
-* `--input_model <path_to_frozen.pb>` --- File with a pretrained model (binary or text .pb file after freezing) OR `--saved_model_dir <path_to_saved_model>` for the TensorFlow 2 models
-* `--transformations_config <path_to_subgraph_replacement_configuration_file.json>` --- A subgraph replacement configuration file with transformations description. For the models downloaded from the TensorFlow Object Detection API zoo, you can find the configuration files in the `<PYTHON_SITE_PACKAGES>/openvino/tools/mo/front/tf` directory. Use:
-    * `ssd_v2_support.json` --- for frozen SSD topologies from the models zoo version up to 1.13.X inclusively
-    * `ssd_support_api_v.1.14.json` --- for SSD topologies trained using the TensorFlow Object Detection API version 1.14 up to 1.14.X inclusively
-    * `ssd_support_api_v.1.15.json` --- for SSD topologies trained using the TensorFlow Object Detection API version 1.15 up to 2.0
-    * `ssd_support_api_v.2.0.json` --- for SSD topologies trained using the TensorFlow Object Detection API version 2.0 up to 2.3.X inclusively
-    * `ssd_support_api_v.2.4.json` --- for SSD topologies trained using the TensorFlow Object Detection API version 2.4 or higher
-    * `efficient_det_support_api_v.2.0.json` --- for EfficientDet topologies trained using the TensorFlow Object Detection API version 2.0 up to 2.3.X inclusively
-    * `efficient_det_support_api_v.2.4.json` --- for EfficientDet topologies trained using the TensorFlow Object Detection API version 2.4 or higher
-    * `faster_rcnn_support.json` --- for Faster R-CNN topologies from the TF 1.X models zoo trained with TensorFlow version up to 1.6.X inclusively
-    * `faster_rcnn_support_api_v1.7.json` --- for Faster R-CNN topologies trained using the TensorFlow Object Detection API version 1.7.0 up to 1.9.X inclusively
-    * `faster_rcnn_support_api_v1.10.json` --- for Faster R-CNN topologies trained using the TensorFlow Object Detection API version 1.10.0 up to 1.12.X inclusively
-    * `faster_rcnn_support_api_v1.13.json` --- for Faster R-CNN topologies trained using the TensorFlow Object Detection API version 1.13.X
-    * `faster_rcnn_support_api_v1.14.json` --- for Faster R-CNN topologies trained using the TensorFlow Object Detection API version 1.14.0 up to 1.14.X inclusively
-    * `faster_rcnn_support_api_v1.15.json` --- for Faster R-CNN topologies trained using the TensorFlow Object Detection API version 1.15.0 up to 2.0
-    * `faster_rcnn_support_api_v2.0.json` --- for Faster R-CNN topologies trained using the TensorFlow Object Detection API version 2.0 up to 2.3.X inclusively
-    * `faster_rcnn_support_api_v2.4.json` --- for Faster R-CNN topologies trained using the TensorFlow Object Detection API version 2.4 or higher
-    * `mask_rcnn_support.json` --- for Mask R-CNN topologies from the TF 1.X models zoo trained with TensorFlow version 1.9.0 or lower.
-    * `mask_rcnn_support_api_v1.7.json` --- for Mask R-CNN topologies trained using the TensorFlow Object Detection API version 1.7.0 up to 1.9.X inclusively
-    * `mask_rcnn_support_api_v1.11.json` --- for Mask R-CNN topologies trained using the TensorFlow Object Detection API version 1.11.0 up to 1.12.X inclusively
-    * `mask_rcnn_support_api_v1.13.json` --- for Mask R-CNN topologies trained using the TensorFlow Object Detection API version 1.13.0 up to 1.13.X inclusively
-    * `mask_rcnn_support_api_v1.14.json` --- for Mask R-CNN topologies trained using the TensorFlow Object Detection API version 1.14.0 up to 1.14.X inclusively
-    * `mask_rcnn_support_api_v1.15.json` --- for Mask R-CNN topologies trained using the TensorFlow Object Detection API version 1.15.0 up to 2.0
-    * `mask_rcnn_support_api_v2.0.json` --- for Mask R-CNN topologies trained using the TensorFlow Object Detection API version 2.0 up to 2.3.X inclusively
-    * `mask_rcnn_support_api_v2.4.json` --- for Mask R-CNN topologies trained using the TensorFlow Object Detection API version 2.4 or higher
-    * `rfcn_support.json` --- for RFCN topology from the models zoo trained with TensorFlow version up to 1.9.X inclusively
-    * `rfcn_support_api_v1.10.json` --- for RFCN topology from the models zoo frozen with TensorFlow version 1.10.0 up to 1.12.X inclusively
-    * `rfcn_support_api_v1.13.json` --- for RFCN topology from the models zoo frozen with TensorFlow version 1.13.X
-    * `rfcn_support_api_v1.14.json` --- for RFCN topology from the models zoo frozen with TensorFlow version 1.14.0 or higher
-* `--tensorflow_object_detection_api_pipeline_config <path_to_pipeline.config>` --- A special configuration file that describes the topology hyper-parameters and structure of the TensorFlow Object Detection API model. For the models downloaded from the TensorFlow Object Detection API zoo, the configuration file is named `pipeline.config`. If you plan to train a model yourself, you can find templates for these files in the [models repository](https://github.com/tensorflow/models/tree/master/research/object_detection/samples/configs).
-* `--input_shape` (optional) --- A custom input image shape. For more information how the `--input_shape` parameter is handled for the TensorFlow Object Detection API models, refer to the [Custom Input Shape](#custom-input-shape) guide.
+To convert a TensorFlow Object Detection API model, run the ``mo`` command with the following required parameters:
+
+* ``--input_model <path_to_frozen.pb>`` - File with a pretrained model (binary or text .pb file after freezing) OR ``--saved_model_dir <path_to_saved_model>`` for the TensorFlow 2 models
+* ``--transformations_config <path_to_subgraph_replacement_configuration_file.json>`` - A subgraph replacement configuration file with transformations description. For the models downloaded from the TensorFlow Object Detection API zoo, you can find the configuration files in the ``<PYTHON_SITE_PACKAGES>/openvino/tools/mo/front/tf`` directory. Use:
+
+  * ``ssd_v2_support.json`` - for frozen SSD topologies from the models zoo version up to 1.13.X inclusively
+  * ``ssd_support_api_v.1.14.json`` - for SSD topologies trained using the TensorFlow Object Detection API version 1.14 up to 1.14.X inclusively
+  * ``ssd_support_api_v.1.15.json`` - for SSD topologies trained using the TensorFlow Object Detection API version 1.15 up to 2.0
+  * ``ssd_support_api_v.2.0.json`` - for SSD topologies trained using the TensorFlow Object Detection API version 2.0 up to 2.3.X inclusively
+  * ``ssd_support_api_v.2.4.json`` - for SSD topologies trained using the TensorFlow Object Detection API version 2.4 or higher
+  * ``efficient_det_support_api_v.2.0.json`` - for EfficientDet topologies trained using the TensorFlow Object Detection API version 2.0 up to 2.3.X inclusively
+  * ``efficient_det_support_api_v.2.4.json`` - for EfficientDet topologies trained using the TensorFlow Object Detection API version 2.4 or higher
+  * ``faster_rcnn_support.json`` - for Faster R-CNN topologies from the TF 1.X models zoo trained with TensorFlow version up to 1.6.X inclusively
+  * ``faster_rcnn_support_api_v1.7.json`` - for Faster R-CNN topologies trained using the TensorFlow Object Detection API version 1.7.0 up to 1.9.X inclusively
+  * ``faster_rcnn_support_api_v1.10.json`` - for Faster R-CNN topologies trained using the TensorFlow Object Detection API version 1.10.0 up to 1.12.X inclusively
+  * ``faster_rcnn_support_api_v1.13.json`` - for Faster R-CNN topologies trained using the TensorFlow Object Detection API version 1.13.X
+  * ``faster_rcnn_support_api_v1.14.json`` - for Faster R-CNN topologies trained using the TensorFlow Object Detection API version 1.14.0 up to 1.14.X inclusively
+  * ``faster_rcnn_support_api_v1.15.json`` - for Faster R-CNN topologies trained using the TensorFlow Object Detection API version 1.15.0 up to 2.0
+  * ``faster_rcnn_support_api_v2.0.json`` - for Faster R-CNN topologies trained using the TensorFlow Object Detection API version 2.0 up to 2.3.X inclusively
+  * ``faster_rcnn_support_api_v2.4.json`` - for Faster R-CNN topologies trained using the TensorFlow Object Detection API version 2.4 or higher
+  * ``mask_rcnn_support.json`` - for Mask R-CNN topologies from the TF 1.X models zoo trained with TensorFlow version 1.9.0 or lower.
+  * ``mask_rcnn_support_api_v1.7.json`` - for Mask R-CNN topologies trained using the TensorFlow Object Detection API version 1.7.0 up to 1.9.X inclusively
+  * ``mask_rcnn_support_api_v1.11.json`` - for Mask R-CNN topologies trained using the TensorFlow Object Detection API version 1.11.0 up to 1.12.X inclusively
+  * ``mask_rcnn_support_api_v1.13.json`` - for Mask R-CNN topologies trained using the TensorFlow Object Detection API version 1.13.0 up to 1.13.X inclusively
+  * ``mask_rcnn_support_api_v1.14.json`` - for Mask R-CNN topologies trained using the TensorFlow Object Detection API version 1.14.0 up to 1.14.X inclusively
+  * ``mask_rcnn_support_api_v1.15.json`` - for Mask R-CNN topologies trained using the TensorFlow Object Detection API version 1.15.0 up to 2.0
+  * ``mask_rcnn_support_api_v2.0.json`` - for Mask R-CNN topologies trained using the TensorFlow Object Detection API version 2.0 up to 2.3.X inclusively
+  * ``mask_rcnn_support_api_v2.4.json`` - for Mask R-CNN topologies trained using the TensorFlow Object Detection API version 2.4 or higher
+  * ``rfcn_support.json`` - for RFCN topology from the models zoo trained with TensorFlow version up to 1.9.X inclusively
+  * ``rfcn_support_api_v1.10.json`` - for RFCN topology from the models zoo frozen with TensorFlow version 1.10.0 up to 1.12.X inclusively
+  * ``rfcn_support_api_v1.13.json`` - for RFCN topology from the models zoo frozen with TensorFlow version 1.13.X
+  * ``rfcn_support_api_v1.14.json`` - for RFCN topology from the models zoo frozen with TensorFlow version 1.14.0 or higher
+
+* ``--tensorflow_object_detection_api_pipeline_config <path_to_pipeline.config>`` - A special configuration file that describes the topology hyper-parameters and structure of the TensorFlow Object Detection API model. For the models downloaded from the TensorFlow Object Detection API zoo, the configuration file is named ``pipeline.config``. If you plan to train a model yourself, you can find templates for these files in the `models repository <https://github.com/tensorflow/models/tree/master/research/object_detection/samples/configs>`__.
+* ``--input_shape`` (optional) - A custom input image shape. For more information how the ``--input_shape`` parameter is handled for the TensorFlow Object Detection API models, refer to the :ref:`Custom Input Shape <custom-input-shape>` guide.
+
+@endsphinxdirective
+
 
 > **NOTE**: The color channel order (RGB or BGR) of an input data should match the channel order of the model training dataset. If they are different, perform the `RGB<->BGR` conversion specifying the command-line parameter: `--reverse_input_channels`. Otherwise, inference results may be incorrect. If you convert a TensorFlow Object Detection API model to use with the OpenVINO sample applications, you must specify the `--reverse_input_channels` parameter. For more information about the parameter, refer to the **When to Reverse Input Channels** section of the [Converting a Model to Intermediate Representation (IR)](../Converting_Model.md) guide.
 
@@ -62,7 +70,7 @@ Open Model Zoo provides set of demo applications to show implementation of close
 based on deep learning in various tasks, including Image Classification, Visual Object Detection, Text Recognition,
 Speech Recognition, Natural Language Processing and others. Refer to the links below for more details.
 
-* [OpenVINO Samples](../../../../OV_Runtime_UG/Samples_Overview.md)
+* [OpenVINO Samples](@ref openvino_docs_OV_UG_Samples_Overview)
 * [Open Model Zoo Demos](@ref omz_demos)
 
 ## Feeding Input Images to the Samples
@@ -77,7 +85,13 @@ There are several important notes about feeding input images to the samples:
 
 4. Read carefully the messages printed by Model Optimizer during a model conversion. They contain important instructions on how to prepare input data before running the inference and how to interpret the output.
 
-@anchor custom-input-shape
+@sphinxdirective
+
+.. _custom-input-shape:
+
+@endsphinxdirective
+
+
 ## Custom Input Shape
 Model Optimizer handles the command line parameter `--input_shape` for TensorFlow Object Detection API models in a special way depending on the image resizer type defined in the `pipeline.config` file. TensorFlow Object Detection API generates different `Preprocessor` sub-graph based on the image resizer type. Model Optimizer supports two types of image resizer:
 * `fixed_shape_resizer` --- *Stretches* input image to the specific height and width. The `pipeline.config` snippet below shows a `fixed_shape_resizer` sample definition:
@@ -134,5 +148,5 @@ It is also important to open the model in the [TensorBoard](https://www.tensorfl
 * `--input_model <path_to_frozen.pb>` --- Path to the frozen model.
 * `--tensorboard_logdir` --- Path to the directory where TensorBoard looks for the event files.
 
-Implementation of the transformations for Object Detection API models is located in the file [https://github.com/openvinotoolkit/openvino/blob/releases/2022/1/tools/mo/openvino/tools/mo/front/tf/ObjectDetectionAPI.py](https://github.com/openvinotoolkit/openvino/blob/releases/2022/1/tools/mo/openvino/tools/mo/front/tf/ObjectDetectionAPI.py). Refer to the code in this file to understand the details of the conversion process.
+Implementation of the transformations for Object Detection API models is located in the [file](https://github.com/openvinotoolkit/openvino/blob/releases/2022/1/tools/mo/openvino/tools/mo/front/tf/ObjectDetectionAPI.py). Refer to the code in this file to understand the details of the conversion process.
 

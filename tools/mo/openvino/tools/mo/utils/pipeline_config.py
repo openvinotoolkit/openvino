@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import logging as log
@@ -75,10 +75,10 @@ class PipelineConfig:
     The class that parses pipeline.config files used to generate TF models generated using Object Detection API.
     The class stores data read from the file in a plain dictionary for easier access using the get_param function.
     """
-    _raw_data_dict = dict()
-    _model_params = dict()
 
     def __init__(self, file_name: str):
+        self._raw_data_dict = dict()
+        self._model_params = dict()
         self._raw_data_dict = SimpleProtoParser().parse_file(file_name)
         if not self._raw_data_dict:
             raise Error('Failed to parse pipeline.config file {}'.format(file_name))

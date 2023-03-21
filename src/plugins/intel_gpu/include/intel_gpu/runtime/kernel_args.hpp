@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -64,7 +64,6 @@ struct argument_desc {
         BIAS,
         SCALE_TABLE,
         SLOPE,
-        SPLIT,
         INTERNAL_BUFFER,
         SCALAR,
         RECURRENT,  // RNN/LSTM/GRU recurrent weights
@@ -74,7 +73,8 @@ struct argument_desc {
         WEIGHTS_ZERO_POINTS,
         ACTIVATIONS_ZERO_POINTS,
         COMPENSATION,
-        INPUT_OF_FUSED_PRIMITIVE
+        INPUT_OF_FUSED_PRIMITIVE,
+        SHAPE_INFO
     };
 
     Types t;
@@ -108,9 +108,9 @@ struct kernel_arguments_data {
     memory::cptr lookup_table;
     memory::cptr scale_table;
     memory::cptr slope;
+    memory::cptr shape_info;
 
     std::vector<memory::cptr> fused_op_inputs;
-    int32_t split = 0;
     const scalars_desc* scalars = nullptr;
 };
 

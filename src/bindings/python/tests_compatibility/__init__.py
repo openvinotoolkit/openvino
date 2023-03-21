@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -24,14 +24,13 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
 
 skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
 xfail_accuracy = xfail_test(reason="Accuracy")
+xfail_unsupported_by_legacy_api = xfail_test(reason="RuntimeError: This feature is not supported via legacy API.")
 xfail_issue_69444 = xfail_test(reason="ONNX Resize - AssertionError: Mismatched elements.")
 xfail_issue_67415 = xfail_test(reason="RuntimeError: Unsupported data type for when filling blob!")
 xfail_issue_33488 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "MaxUnpool")
 skip_issue_38084 = pytest.mark.skip(reason="Aborted (core dumped) Assertion "
                                            "`(layer->get_output_partial_shape(i).is_static())' failed.")
-xfail_issue_33589 = xfail_test(reason="nGraph does not support the following ONNX operations: "
-                                      "IsNaN and isInf")
 xfail_issue_33595 = xfail_test(reason="RuntimeError: nGraph does not support the following ONNX operations: "
                                       "Unique")
 xfail_issue_33596 = xfail_test(reason="RuntimeError: nGraph does not support different sequence operations: "
@@ -45,8 +44,6 @@ xfail_issue_33581 = xfail_test(reason="RuntimeError: nGraph does not support the
                                       "GatherElements")
 xfail_issue_35923 = xfail_test(reason="RuntimeError: PReLU without weights is not supported")
 xfail_issue_35927 = xfail_test(reason="RuntimeError: B has zero dimension that is not allowable")
-xfail_issue_36486 = xfail_test(reason="RuntimeError: HardSigmoid operation should be converted "
-                                      "to HardSigmoid_IE")
 xfail_issue_38084 = xfail_test(reason="RuntimeError: AssertionFailed: layer->get_output_partial_shape(i)."
                                       "is_static() nGraph <value> operation with name: <value> cannot be "
                                       "converted to <value> layer with name: <value> because output "
@@ -127,7 +124,6 @@ xfail_issue_63033 = xfail_test(reason="BatchNormalization: Training mode is not 
 xfail_issue_63036 = xfail_test(reason="Changes in ConvTranspose padding")
 xfail_issue_63039 = xfail_test(reason="Result mismatches with UINT8 operations")
 xfail_issue_63043 = xfail_test(reason="Recurrent node expects constants as W, R, B inputs.")
-xfail_issue_63044 = xfail_test(reason="ONNX opset 14 operation: Trilu")
 
 skip_rng_tests = pytest.mark.skip(reason="Tests use random number generator with no seed.")
 xfail_issue_63137 = xfail_test(reason="Unsupported operations: OptionalHasElement, OptionalGetElement")
@@ -141,4 +137,11 @@ xfail_issue_81976 = xfail_test(reason="RuntimeError: z node not found in graph c
 xfail_issue_82038 = xfail_test(reason="ScatterElements, ScatterND, AssertionError: Result mismatch")
 xfail_issue_82039 = xfail_test(reason="Unsupported data type Optional, RuntimeError: [ NOT_IMPLEMENTED ] "
                                       "CPU plugin: Input image format UNSPECIFIED is not supported yet...")
-skip_issue_86384 = pytest.mark.skip(reason="If op compatibility tests failing only when triggering whole test suite")
+xfail_issue_90649 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations:"
+                                      "BlackmanWindow, DFT, HammingWindow, HannWindow, LayerNormalization, "
+                                      "MelWeightMatrix, SequenceMap, STFT")
+xfail_issue_91151 = xfail_test(reason="RuntimeError: model input (shape={3,4}) and blob (shape=(1)) are incompatible")
+xfail_issue_91490 = xfail_test(reason="y has zero dimension which is not allowed")
+xfail_issue_101965 = xfail_test(reason="Mismatch with numpy-based expected results.")
+
+skip_dynamic_model = pytest.mark.skip(reason="CPU plug-in can't load a model with dynamic output shapes via legacy API")

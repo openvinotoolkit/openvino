@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,29 +17,35 @@ class Node::Impl {
 public:
     Impl() = delete;
 
-    Impl(const ONNX_NAMESPACE::NodeProto& node_proto, const Graph& graph)
+    Impl(const ONNX_NAMESPACE::NodeProto& node_proto, Graph* graph)
         : m_node_proto{&node_proto},
           m_name{node_proto.has_name() ? node_proto.name() : ""},
           m_domain{get_node_domain(node_proto)},
-          m_graph{&graph},
-          m_attributes{std::begin(node_proto.attribute()), std::end(node_proto.attribute())},
+          m_graph{graph},
           m_output_names{std::begin(node_proto.output()), std::end(node_proto.output())} {
-        for (const auto& attribute : m_attributes) {
+        const auto& attributes = node_proto.attribute();
+        m_attributes.reserve(attributes.size());
+        for (const auto& attr_proto : attributes) {
+            m_attributes.emplace_back(attr_proto, m_graph->model_dir());
+            const auto& attribute = m_attributes.back();
             if (attribute.is_graph())
                 m_subgraphs.insert({attribute.get_name(), std::make_shared<Subgraph>(attribute.get_subgraph(m_graph))});
         }
     }
 
     Impl(const ONNX_NAMESPACE::NodeProto& node_proto,
-         const Graph& graph,
+         Graph* graph,
          const std::unordered_map<std::string, std::shared_ptr<Subgraph>>& subgraphs)
         : m_node_proto{&node_proto},
           m_name{node_proto.has_name() ? node_proto.name() : ""},
           m_domain{get_node_domain(node_proto)},
-          m_graph{&graph},
-          m_attributes{std::begin(node_proto.attribute()), std::end(node_proto.attribute())},
+          m_graph{graph},
           m_output_names{std::begin(node_proto.output()), std::end(node_proto.output())},
-          m_subgraphs(subgraphs) {}
+          m_subgraphs(subgraphs) {
+        for (const auto& attr_proto : node_proto.attribute()) {
+            m_attributes.emplace_back(attr_proto, m_graph->model_dir());
+        }
+    }
 
     const std::vector<Attribute>& attributes() const;
     OutputVector get_ng_inputs() const;
@@ -81,7 +87,7 @@ public:
                                                                     element::Type type) const;
 
     const ONNX_NAMESPACE::NodeProto& node_proto() const;
-    const Graph& graph() const;
+    Graph* graph() const;
 
 private:
     Subgraph get_subgraph_from_attribute(const std::string& name) const;
@@ -89,7 +95,7 @@ private:
     const ONNX_NAMESPACE::NodeProto* m_node_proto;
     std::string m_name;
     std::string m_domain;
-    const Graph* m_graph;
+    Graph* m_graph;
     std::vector<Attribute> m_attributes;
     std::vector<std::reference_wrapper<const std::string>> m_output_names;
     mutable std::string m_description;
@@ -100,8 +106,8 @@ private:
 const ONNX_NAMESPACE::NodeProto& Node::Impl::node_proto() const {
     return *m_node_proto;
 }
-const Graph& Node::Impl::graph() const {
-    return *m_graph;
+Graph* Node::Impl::graph() const {
+    return m_graph;
 }
 const std::vector<Attribute>& Node::Impl::attributes() const {
     return m_attributes;
@@ -281,7 +287,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(cons
     return ov::op::v0::Constant::create(type != element::undefined ? type : element::i64, {value.size()}, value);
 }
 
-Node::Node(const ONNX_NAMESPACE::NodeProto& node_proto, const Graph& graph)
+Node::Node(const ONNX_NAMESPACE::NodeProto& node_proto, Graph* graph)
     : m_pimpl{new Impl{node_proto, graph}, [](Impl* impl) {
                   delete impl;
               }} {}

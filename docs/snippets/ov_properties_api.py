@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -39,11 +39,6 @@ compiled_model_latency = core.compile_model(model, "CPU")
 config = {"PERFORMANCE_HINT": "THROUGHPUT"}
 compiled_model_thrp = core.compile_model(model, "CPU", config)
 # [core_set_property_then_compile]
-
-# [device_thermal]
-compiled_model = core.compile_model(model, "MYRIAD")
-temperature = compiled_model.get_property("DEVICE_THERMAL")
-# [device_thermal]
 
 
 # [inference_num_threads]

@@ -1,6 +1,12 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#if defined(_MSC_VER)
+#    pragma warning(push)
+// Protobuf: conversion from 'XXX' to 'YYY', possible loss of data
+#    pragma warning(disable : 4244)
+#endif
 
 #include "core/transform.hpp"
 
@@ -11,7 +17,6 @@
 #include <algorithm>
 
 #include "core/model.hpp"
-#include "ngraph/file_util.hpp"
 #include "ngraph/log.hpp"
 #include "ops_bridge.hpp"
 
@@ -20,12 +25,28 @@ namespace onnx_import {
 namespace transform {
 namespace {
 ONNX_NAMESPACE::TypeProto get_input_type(std::string const& name, ONNX_NAMESPACE::GraphProto& graph) {
-    for (auto& input : graph.input()) {
+    for (const auto& input : graph.input()) {
         if (input.name() == name) {
             return input.type();
         }
     }
-    for (auto& value_info : graph.value_info()) {
+    for (const auto& initializer : graph.initializer()) {
+        if (initializer.name() == name) {
+            ONNX_NAMESPACE::TypeProto ret;
+            auto* tensor_type = ret.mutable_tensor_type();
+            tensor_type->set_elem_type(initializer.data_type());
+
+            auto* tensor_shape = tensor_type->mutable_shape();
+            tensor_shape->clear_dim();
+            const auto& initializer_dims = initializer.dims();
+            for (auto&& dim : initializer_dims) {
+                auto* new_dim = tensor_shape->add_dim();
+                new_dim->set_dim_value(dim);
+            }
+            return ret;
+        }
+    }
+    for (const auto& value_info : graph.value_info()) {
         if (value_info.name() == name) {
             return value_info.type();
         }
@@ -106,34 +127,6 @@ void ngraph::onnx_import::transform::expand_onnx_functions(ONNX_NAMESPACE::Model
     }
 }
 
-void ngraph::onnx_import::transform::update_external_data_paths(ONNX_NAMESPACE::ModelProto& model_proto,
-                                                                const std::string& model_path) {
-    NGRAPH_SUPPRESS_DEPRECATED_START
-    if (model_path.empty()) {
-        return;
-    }
-    const auto model_dir_path = file_util::get_directory(model_path);
-    auto graph_proto = model_proto.mutable_graph();
-    for (auto& initializer_tensor : *graph_proto->mutable_initializer()) {
-        const auto location_key_value_index = 0;
-        if (initializer_tensor.has_data_location() &&
-            initializer_tensor.data_location() ==
-                ONNX_NAMESPACE::TensorProto_DataLocation::TensorProto_DataLocation_EXTERNAL) {
-            const auto external_data_relative_path = initializer_tensor.external_data(location_key_value_index).value();
-            const auto santized_external_data_relative_path = file_util::sanitize_path(external_data_relative_path);
-            auto external_data_full_path = file_util::path_join(model_dir_path, santized_external_data_relative_path);
-
-#if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-            file_util::convert_path_win_style(external_data_full_path);
-#endif
-
-            // Set full paths to the external file
-            initializer_tensor.mutable_external_data(location_key_value_index)->set_value(external_data_full_path);
-        }
-    }
-    NGRAPH_SUPPRESS_DEPRECATED_END
-}
-
 void ngraph::onnx_import::transform::fixup_legacy_operators(ONNX_NAMESPACE::ModelProto& model_proto) {
     auto graph_proto = model_proto.mutable_graph();
     for (auto& node : *graph_proto->mutable_node()) {
@@ -145,3 +138,7 @@ void ngraph::onnx_import::transform::fixup_legacy_operators(ONNX_NAMESPACE::Mode
         }
     }
 }
+
+#if defined(_MSC_VER)
+#    pragma warning(pop)
+#endif

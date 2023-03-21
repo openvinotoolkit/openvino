@@ -1,9 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "test_common.hpp"
 #include "common_utils.hpp"
+#include "test_constants.hpp"
 
 #include <threading/ie_executor_manager.hpp>
 

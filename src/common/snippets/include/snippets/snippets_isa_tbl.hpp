@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,14 +11,13 @@
 
 // SnippetS dialect
 NGRAPH_OP(Load, ngraph::snippets::op)
-NGRAPH_OP(ScalarLoad, ngraph::snippets::op)
-NGRAPH_OP(VectorLoad, ngraph::snippets::op)
-NGRAPH_OP(BlockedLoad, ngraph::snippets::op)
+NGRAPH_OP(LoadReshape, ngraph::snippets::op)
+NGRAPH_OP(LoopBegin, ngraph::snippets::op)
+NGRAPH_OP(LoopEnd, ngraph::snippets::op)
+NGRAPH_OP(Brgemm, ngraph::snippets::op)
 NGRAPH_OP(BroadcastLoad, ngraph::snippets::op)
 
 NGRAPH_OP(Store, ngraph::snippets::op)
-NGRAPH_OP(ScalarStore, ngraph::snippets::op)
-NGRAPH_OP(VectorStore, ngraph::snippets::op)
 
 NGRAPH_OP(BroadcastMove, ngraph::snippets::op)
 NGRAPH_OP(Scalar, ngraph::snippets::op)
@@ -29,9 +28,10 @@ NGRAPH_OP(Nop, ngraph::snippets::op)
 // opset completeness
 NGRAPH_OP(Constant, ngraph::op)
 NGRAPH_OP(Parameter, ngraph::op::v0)
-NGRAPH_OP(BlockedParameter, ngraph::snippets::op)
 NGRAPH_OP(Result, ngraph::op::v0)
 NGRAPH_OP(Broadcast, ngraph::op::v1)
+NGRAPH_OP(ConvertTruncation, ngraph::snippets::op)
+NGRAPH_OP(ConvertSaturation, ngraph::snippets::op)
 
 // unary
 NGRAPH_OP(Abs, ngraph::op::v0)

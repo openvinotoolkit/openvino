@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -50,6 +50,8 @@ public:
     }
     virtual ~Emitter() = default;
 };
+
+using AllocatedEmitter = std::pair<std::shared_ptr<Emitter>, ngraph::snippets::RegInfo>;
 
 } // namespace snippets
 } // namespace ngraph

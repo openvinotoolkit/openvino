@@ -2,26 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <assign_inst.h>
+#include "assign_inst.h"
 #include "primitive_type_base.h"
 #include <sstream>
 #include <json_object.h>
-#include <data_inst.h>
 
 namespace cldnn {
-
-primitive_type_id assign::type_id() {
-    static primitive_type_base<assign> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(assign)
 
 assign_inst::typed_primitive_inst(network& network, const assign_node& node) :
     parent{network, node, false},
     memory_state::variable{node.get_primitive()->variable_id} {
 }
 
-layout assign_inst::calc_output_layout(const assign_node& node) {
-    return node.get_primitive()->output_layout;
+layout assign_inst::calc_output_layout(const assign_node& node, kernel_impl_params const& impl_param) {
+    return impl_param.typed_desc<assign>()->output_layout;
 }
 
 std::string assign_inst::to_string(const assign_node& node) {
@@ -35,4 +30,17 @@ std::string assign_inst::to_string(const assign_node& node) {
     return primitive_description.str();
 }
 
+void assign_inst::save(cldnn::BinaryOutputBuffer& ob) const {
+    parent::save(ob);
+
+    ob << variable_id();
+}
+
+void assign_inst::load(cldnn::BinaryInputBuffer& ib) {
+    parent::load(ib);
+
+    std::string variable_id;
+    ib >> variable_id;
+    set_variable_id(variable_id);
+}
 } // namespace cldnn

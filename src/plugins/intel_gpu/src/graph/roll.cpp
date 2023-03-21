@@ -9,14 +9,10 @@
 #include "roll_inst.hpp"
 
 namespace cldnn {
+GPU_DEFINE_PRIMITIVE_TYPE_ID(roll)
 
-primitive_type_id roll::type_id() {
-    static primitive_type_base<roll> instance;
-    return &instance;
-}
-
-layout roll_inst::calc_output_layout(const roll_node& node) {
-    return node.input().get_output_layout();
+layout roll_inst::calc_output_layout(const roll_node& node, kernel_impl_params const& impl_param) {
+    return impl_param.get_input_layout();
 }
 
 std::string roll_inst::to_string(const roll_node& node) {

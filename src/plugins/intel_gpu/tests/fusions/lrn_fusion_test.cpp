@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,12 +35,12 @@ public:
     void execute(lrn_test_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
 
-        build_options options;
-        implementation_desc lrn_impl = { p.input_format, p.kernel_name };
-        options.set_option(build_option::optimize_data(true));
-        options.set_option(build_option::force_implementations({ { "lrn_norm", lrn_impl } }));
-        network network_fused(this->engine, this->topology_fused, options);
-        network network_not_fused(this->engine, this->topology_non_fused, this->bo_not_fused);
+        ExecutionConfig config;
+        ov::intel_gpu::ImplementationDesc lrn_impl = { p.input_format, p.kernel_name };
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "lrn_norm", lrn_impl } }));
+        network network_fused(this->engine, this->topology_fused, config);
+        network network_not_fused(this->engine, this->topology_non_fused, this->cfg_not_fused);
 
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
@@ -96,7 +96,7 @@ public:
 #define CASE_LRN_FP16_2 { 8, 16, 4, 4 }, data_types::f16, format::yxfb, data_types::f16, format::yxfb
 #define CASE_LRN_FP16_3 { 2, 16, 4, 4 }, data_types::f16, format::byxf, data_types::f16, format::byxf
 #define CASE_LRN_FP16_4 { 2, 16, 4, 4 }, data_types::f16, format::b_fs_yx_fsv4, data_types::f16, format::bfyx
-#define CASE_LRN_FP16_5 { 2, 16, 4, 4 }, data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::bfyx
+// #define CASE_LRN_FP16_5 { 2, 16, 4, 4 }, data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::bfyx
 
 class lrn_fp32_quantize_u8_eltwise_activation : public LrnFusingTest {};
 TEST_P(lrn_fp32_quantize_u8_eltwise_activation, basic) {
@@ -114,14 +114,15 @@ TEST_P(lrn_fp32_quantize_u8_eltwise_activation, basic) {
         data("out_lo", get_mem(get_single_element_layout(p), 0)),
         data("out_hi", get_mem(get_single_element_layout(p), 255)),
         data("eltwise_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
-        lrn("lrn_norm", "input", size, k, alpha, beta, p.lrn_type),
-        quantize("quantize", "lrn_norm", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
-        eltwise("eltwise", { "quantize", "eltwise_data" }, eltwise_mode::prod),
-        activation("activation", "eltwise", activation_func::floor),
-        reorder("reorder", "activation", p.default_format, data_types::f32)
+        lrn("lrn_norm", input_info("input"), size, k, alpha, beta, p.lrn_type),
+        quantize("quantize", input_info("lrn_norm"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 256, data_types::u8),
+        eltwise("eltwise", { input_info("quantize"), input_info("eltwise_data") }, eltwise_mode::prod),
+        activation("activation", input_info("eltwise"), activation_func::floor),
+        reorder("reorder", input_info("activation"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = default_tolerance(data_types::u8);
     execute(p);
 }
 
@@ -140,14 +141,15 @@ TEST_P(lrn_fp32_quantize_u8_eltwise_activation, per_channel) {
         data("out_lo", get_mem(get_single_element_layout(p), 0)),
         data("out_hi", get_mem(get_single_element_layout(p), 255)),
         data("eltwise_data", get_mem(get_per_channel_layout(p), 1.0f / 255)),
-        lrn("lrn_norm", "input", size, k, alpha, beta, p.lrn_type),
-        quantize("quantize", "lrn_norm", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
-        eltwise("eltwise", { "quantize", "eltwise_data" }, eltwise_mode::prod),
-        activation("activation", "eltwise", activation_func::relu),
-        reorder("reorder", "activation", p.default_format, data_types::f32)
+        lrn("lrn_norm", input_info("input"), size, k, alpha, beta, p.lrn_type),
+        quantize("quantize", input_info("lrn_norm"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 256, data_types::u8),
+        eltwise("eltwise", { input_info("quantize"), input_info("eltwise_data") }, eltwise_mode::prod),
+        activation("activation", input_info("eltwise"), activation_func::relu),
+        reorder("reorder", input_info("activation"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = default_tolerance(data_types::u8);
     execute(p);
 }
 
@@ -190,14 +192,15 @@ TEST_P(lrn_fp32_quantize_i8_eltwise_activation, basic) {
         data("out_lo", get_mem(get_single_element_layout(p), -127)),
         data("out_hi", get_mem(get_single_element_layout(p),  127)),
         data("eltwise_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
-        lrn("lrn_norm", "input", size, k, alpha, beta, p.lrn_type),
-        quantize("quantize", "lrn_norm", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::i8),
-        eltwise("eltwise", { "quantize", "eltwise_data" }, eltwise_mode::prod),
-        activation("activation", "eltwise", activation_func::relu),
-        reorder("reorder", "activation", p.default_format, data_types::f32)
+        lrn("lrn_norm", input_info("input"), size, k, alpha, beta, p.lrn_type),
+        quantize("quantize", input_info("lrn_norm"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 256, data_types::i8),
+        eltwise("eltwise", { input_info("quantize"), input_info("eltwise_data") }, eltwise_mode::prod),
+        activation("activation", input_info("eltwise"), activation_func::relu),
+        reorder("reorder", input_info("activation"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = default_tolerance(data_types::i8);
     execute(p);
 }
 
@@ -233,14 +236,15 @@ TEST_P(lrn_fp32_eltwise_activation_quantize_u8, basic) {
         data("out_lo", get_mem(get_single_element_layout(p), 0)),
         data("out_hi", get_mem(get_single_element_layout(p), 255)),
         data("eltwise_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
-        lrn("lrn_norm", "input", size, k, alpha, beta, p.lrn_type),
-        eltwise("eltwise", { "lrn_norm", "eltwise_data" }, eltwise_mode::prod),
-        activation("activation", "eltwise", activation_func::exp),
-        quantize("quantize", "activation", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
-        reorder("reorder", "quantize", p.default_format, data_types::f32)
+        lrn("lrn_norm", input_info("input"), size, k, alpha, beta, p.lrn_type),
+        eltwise("eltwise", { input_info("lrn_norm"), input_info("eltwise_data") }, eltwise_mode::prod),
+        activation("activation", input_info("eltwise"), activation_func::exp),
+        quantize("quantize", input_info("activation"), input_info("in_lo"), input_info("in_hi"),
+                 input_info("out_lo"), input_info("out_hi"), 256, data_types::u8),
+        reorder("reorder", input_info("quantize"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1.0f;
+    tolerance = default_tolerance(data_types::u8);
     execute(p);
 }
 
@@ -269,13 +273,13 @@ TEST_P(lrn_fp16_eltwise_activation, basic) {
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("eltwise_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
-        lrn("lrn_norm", "input", size, k, alpha, beta, p.lrn_type),
-        eltwise("eltwise", { "lrn_norm", "eltwise_data" }, eltwise_mode::prod),
-        activation("activation", "eltwise", activation_func::exp),
-        reorder("reorder", "activation", p.default_format, data_types::f32)
+        lrn("lrn_norm", input_info("input"), size, k, alpha, beta, p.lrn_type),
+        eltwise("eltwise", { input_info("lrn_norm"), input_info("eltwise_data") }, eltwise_mode::prod),
+        activation("activation", input_info("eltwise"), activation_func::exp),
+        reorder("reorder", input_info("activation"), p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-05f;
+    tolerance = default_tolerance(p.data_type);
     execute(p);
 }
 
@@ -288,5 +292,5 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, lrn_fp16_eltwise_activation, ::testing::Va
     lrn_test_params{ CASE_LRN_FP16_1, 2, 4, lrn_norm_region_across_channel, "lrn_gpu_across_channel_ref" },
     lrn_test_params{ CASE_LRN_FP16_3, 2, 4, lrn_norm_region_within_channel, "lrn_within_channel_byxf_opt" },
     lrn_test_params{ CASE_LRN_FP16_4, 2, 4, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features" },
-    lrn_test_params{ CASE_LRN_FP16_5, 2, 4, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features_fsv16" },
+    // lrn_test_params{ CASE_LRN_FP16_5, 2, 4, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features_fsv16" },
 }));

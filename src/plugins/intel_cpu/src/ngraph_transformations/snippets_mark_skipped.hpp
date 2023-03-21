@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,10 @@ namespace intel_cpu {
 class SnippetsMarkSkipped : public ov::pass::ModelPass {
 public:
     OPENVINO_RTTI("SnippetsMarkSkipped", "0");
-    SnippetsMarkSkipped() : ModelPass() {}
+    SnippetsMarkSkipped(bool enableBF16 = false) : ModelPass(), enableBF16(enableBF16) {}
     bool run_on_model(const std::shared_ptr<ov::Model> &) override;
+private:
+    bool enableBF16 = false;
 };
 
 /*
@@ -37,7 +39,7 @@ enum class NodeFusingType : int64_t {
     NotSet,
     FusedTerminator,
     FusedWithConvolution,  FusedWithBinaryConvolution, FusedWithConvolutionSumActivation,
-    FusedWithMatMul, FusedWithMisc, IgnoredAfterInputs};
+    FusedWithMatMul, FusedWithMatMulI8, FusedWithReduce, FusedWithMisc};
 
 }   // namespace intel_cpu
 }   // namespace ov

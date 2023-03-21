@@ -58,7 +58,7 @@ Following the OpenVINO naming convention, the *batching* device is assigned the 
 | Parameter name     | Parameter description      |             Examples                                                      |
 | :---               | :---                  |:-----------------------------------------------------------------------------|
 | `AUTO_BATCH_DEVICE` | The name of the device to apply Automatic batching,  with the optional batch size value in brackets. | `BATCH:GPU` triggers the automatic batch size selection. `BATCH:GPU(4)` directly specifies the batch size.     |
-| `AUTO_BATCH_TIMEOUT` | The timeout value, in ms. (1000 by default) |  You can reduce the timeout value to avoid performance penalty when the data arrives too unevenly). For example, set it to "100", or the contrary, i.e., make it large enough to accommodate input preparation (e.g. when it is a serial process).     |
+| `ov::auto_batch_timeout` | The timeout value, in ms. (1000 by default) |  You can reduce the timeout value to avoid performance penalty when the data arrives too unevenly. For example, set it to "100", or the contrary, i.e., make it large enough to accommodate input preparation (e.g. when it is a serial process).     |
 
 ## Automatic Batch Size Selection
 
@@ -151,4 +151,5 @@ This value also exposed as the final execution statistics on the `benchmark_app`
 This is NOT the actual latency of the batched execution, so you are recommended to refer to other metrics in the same log, for example, "Median" or "Average" execution. 
 
 ### Additional Resources
-[Supported Devices](supported_plugins/Supported_Devices.md)
+
+* [Supported Devices](supported_plugins/Supported_Devices.md)

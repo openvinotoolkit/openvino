@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,14 +14,12 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::Relu);
-
 op::Relu::Relu(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
 shared_ptr<Node> op::Relu::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Relu_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_Relu_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Relu>(new_args.at(0));
 }
@@ -57,13 +55,13 @@ bool evaluate_relu(const HostTensorPtr& arg0, const HostTensorPtr& out) {
 }  // namespace relu
 
 bool op::Relu::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_Relu_evaluate);
+    OV_OP_SCOPE(v0_Relu_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     return relu::evaluate_relu(inputs[0], outputs[0]);
 }
 
 bool op::Relu::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v0_Relu_has_evaluate);
+    OV_OP_SCOPE(v0_Relu_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:
@@ -79,6 +77,6 @@ bool op::Relu::has_evaluate() const {
 }
 
 bool op::Relu::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Relu_visit_attributes);
+    OV_OP_SCOPE(v0_Relu_visit_attributes);
     return true;
 }

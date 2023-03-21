@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -30,6 +30,8 @@ void regclass_graph_Type(py::module m) {
             :rtype: ov.Type
         )");
 
+    type.attr("undefined") = ov::element::undefined;
+    type.attr("dynamic") = ov::element::dynamic;
     type.attr("boolean") = ov::element::boolean;
     type.attr("f16") = ov::element::f16;
     type.attr("f32") = ov::element::f32;
@@ -46,37 +48,78 @@ void regclass_graph_Type(py::module m) {
     type.attr("u32") = ov::element::u32;
     type.attr("u64") = ov::element::u64;
     type.attr("bf16") = ov::element::bf16;
-    type.attr("undefined") = ov::element::undefined;
 
+    type.def("__hash__", &ov::element::Type::hash);
     type.def("__repr__", [](const ov::element::Type& self) {
-        std::string bitwidth = std::to_string(self.bitwidth());
-        if (self == ov::element::undefined) {
-            return "<Type: '" + self.c_type_string() + "'>";
-        } else if (self.is_signed()) {
+        if (self == ov::element::f32 || self == ov::element::f64) {
+            std::string bitwidth = std::to_string(self.bitwidth());
             return "<Type: '" + self.c_type_string() + bitwidth + "'>";
         }
-        return "<Type: 'u" + self.c_type_string() + bitwidth + "'>";
+
+        return "<Type: '" + self.c_type_string() + "'>";
     });
-    type.def("__hash__", &ov::element::Type::hash);
     type.def(
         "__eq__",
         [](const ov::element::Type& a, const ov::element::Type& b) {
             return a == b;
         },
         py::is_operator());
+
+    type.def("is_static", &ov::element::Type::is_static);
+    type.def("is_dynamic", &ov::element::Type::is_dynamic);
+    type.def("is_real", &ov::element::Type::is_real);
+    type.def("is_integral", &ov::element::Type::is_integral);
+    type.def("is_integral_number", &ov::element::Type::is_integral_number);
+    type.def("is_signed", &ov::element::Type::is_signed);
+    type.def("is_quantized", &ov::element::Type::is_quantized);
     type.def("get_type_name", &ov::element::Type::get_type_name);
+    type.def("compatible",
+             &ov::element::Type::compatible,
+             py::arg("other"),
+             R"(
+                Checks whether this element type is merge-compatible with
+                `other`.
+
+                :param other: The element type to compare this element type to.
+                :type other: openvino.runtime.Type
+                :return: `True` if element types are compatible, otherwise `False`.
+                :rtype: bool
+             )");
+    type.def(
+        "merge",
+        [](ov::element::Type& self, ov::element::Type& other) {
+            ov::element::Type dst;
+
+            if (ov::element::Type::merge(dst, self, other)) {
+                return py::cast(dst);
+            }
+
+            return py::none().cast<py::object>();
+        },
+        py::arg("other"),
+        R"(
+            Merge two element types and return result if successful,
+            otherwise return None.
+
+            :param other: The element type to merge with this element type.
+            :type other: openvino.runtime.Type
+            :return: If element types are compatible return the least
+                     restrictive Type, otherwise `None`.
+            :rtype: Union[openvino.runtime.Type|None]
+        )");
+
     type.def(
         "to_dtype",
         [](ov::element::Type& self) {
             return Common::ov_type_to_dtype().at(self);
         },
         R"(
-            Convert Type to numpy dtype
+            Convert Type to numpy dtype.
 
             :return: dtype object
             :rtype: numpy.dtype
         )");
 
+    type.def_property_readonly("size", &ov::element::Type::size);
     type.def_property_readonly("bitwidth", &ov::element::Type::bitwidth);
-    type.def_property_readonly("is_real", &ov::element::Type::is_real);
 }

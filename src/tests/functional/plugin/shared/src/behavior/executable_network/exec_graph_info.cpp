@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -241,27 +241,101 @@ const char expected_serialized_model[] = R"V0G0N(
 </net>
 )V0G0N";
 
+const char expected_serialized_model_cpu[] = R"V0G0N(
+<?xml version="1.0"?>
+<net name="addmul_abc" version="10">
+	<layers>
+		<layer id="0" name="C" type="Input">
+			<data shape="1" element_type="f32" execOrder="2" execTimeMcs="not_executed" originalLayersNames="C" outputLayouts="a" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="1" name="B" type="Input">
+			<data shape="1" element_type="f32" execOrder="1" execTimeMcs="not_executed" originalLayersNames="B" outputLayouts="a" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="2" name="A" type="Input">
+			<data shape="1" element_type="f32" execOrder="0" execTimeMcs="not_executed" originalLayersNames="A" outputLayouts="a" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="3" name="Y" type="Subgraph">
+			<data execOrder="3" execTimeMcs="not_executed" originalLayersNames="add_node1,add_node2,add_node3,add_node4,Y" outputLayouts="a" outputPrecisions="FP32" primitiveType="jit_avx512_FP32" runtimePrecision="FP32" />
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+				</port>
+				<port id="1" precision="FP32">
+					<dim>1</dim>
+				</port>
+				<port id="2" precision="FP32">
+					<dim>1</dim>
+				</port>
+				<port id="3" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</input>
+			<output>
+				<port id="4" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</output>
+		</layer>
+		<layer id="4" name="Y/sink_port_0" type="Output">
+			<data execOrder="4" execTimeMcs="not_executed" originalLayersNames="Y/sink_port_0" outputLayouts="undef" outputPrecisions="FP32" primitiveType="unknown_FP32" runtimePrecision="FP32" />
+			<input>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+				</port>
+			</input>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="0" from-port="0" to-layer="3" to-port="2" />
+		<edge from-layer="0" from-port="0" to-layer="3" to-port="3" />
+		<edge from-layer="1" from-port="0" to-layer="3" to-port="1" />
+		<edge from-layer="2" from-port="0" to-layer="3" to-port="0" />
+		<edge from-layer="3" from-port="4" to-layer="4" to-port="0" />
+	</edges>
+	<rt_info />
+</net>
+)V0G0N";
+
 
 std::string ExecGraphSerializationTest::getTestCaseName(testing::TestParamInfo<std::string> obj) {
     std::ostringstream result;
-    std::string targetDevice = obj.param;
-    result << "TargetDevice=" << targetDevice;
+    std::string target_device = obj.param;
+    std::replace(target_device.begin(), target_device.end(), ':', '.');
+    result << "TargetDevice=" << target_device;
     return result.str();
 }
 
 void ExecGraphSerializationTest::SetUp() {
+    target_device = this->GetParam();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    APIBaseTest::SetUp();
+
     const std::string XML_EXT = ".xml";
     const std::string BIN_EXT = ".bin";
 
-    std::string model_name = GetTestName().substr(0, CommonTestUtils::maxFileNameLength) + "_" + GetTimestamp();;
+    std::string filePrefix = CommonTestUtils::generateTestFilePrefix();
 
-    m_out_xml_path = model_name + XML_EXT;
-    m_out_bin_path = model_name + BIN_EXT;
-
-    deviceName = this->GetParam();
+    m_out_xml_path = filePrefix + XML_EXT;
+    m_out_bin_path = filePrefix + BIN_EXT;
 }
 
 void ExecGraphSerializationTest::TearDown() {
+    APIBaseTest::TearDown();
     CommonTestUtils::removeIRFiles(m_out_xml_path, m_out_bin_path);
 }
 
@@ -340,17 +414,17 @@ std::pair<bool, std::string> ExecGraphSerializationTest::compare_docs(const pugi
 }
 
 TEST_P(ExecGraphSerializationTest, ExecutionGraph) {
-    auto ie = PluginCache::get().ie(deviceName);
+    auto ie = PluginCache::get().ie(target_device);
     InferenceEngine::Blob::Ptr a;
     auto cnnNet = ie->ReadNetwork(serialize_test_model, a);
-    auto execNet = ie->LoadNetwork(cnnNet, deviceName);
+    auto execNet = ie->LoadNetwork(cnnNet, target_device);
     auto execGraph = execNet.GetExecGraphInfo();
     InferenceEngine::InferRequest req = execNet.CreateInferRequest();
     execGraph.serialize(m_out_xml_path, m_out_bin_path);
 
     pugi::xml_document expected;
     pugi::xml_document result;
-    ASSERT_TRUE(expected.load_string(expected_serialized_model));
+    ASSERT_TRUE(expected.load_string(target_device == "CPU" ? expected_serialized_model_cpu : expected_serialized_model));
     ASSERT_TRUE(result.load_file(m_out_xml_path.c_str()));
 
     bool status;
@@ -365,6 +439,7 @@ std::string ExecGraphUniqueNodeNames::getTestCaseName(testing::TestParamInfo<Lay
     InferenceEngine::SizeVector inputShapes, newInputShapes;
     std::string targetDevice;
     std::tie(netPrecision, inputShapes, targetDevice) = obj.param;
+    std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
 
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
@@ -375,11 +450,12 @@ std::string ExecGraphUniqueNodeNames::getTestCaseName(testing::TestParamInfo<Lay
 }
 
 void ExecGraphUniqueNodeNames::SetUp() {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED();
-
     std::vector<size_t> inputShape;
     InferenceEngine::Precision netPrecision;
-    std::tie(netPrecision, inputShape, targetDevice) = this->GetParam();
+    std::tie(netPrecision, inputShape, target_device) = this->GetParam();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    APIBaseTest::SetUp();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
@@ -390,15 +466,11 @@ void ExecGraphUniqueNodeNames::SetUp() {
     fnPtr = std::make_shared<ngraph::Function>(results, params, "SplitConvConcat");
 }
 
-void ExecGraphUniqueNodeNames::TearDown() {
-    fnPtr.reset();
-}
-
 TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {
     InferenceEngine::CNNNetwork cnnNet(fnPtr);
 
-    auto ie = PluginCache::get().ie(targetDevice);
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
+    auto ie = PluginCache::get().ie(target_device);
+    auto execNet = ie->LoadNetwork(cnnNet, target_device);
 
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
 

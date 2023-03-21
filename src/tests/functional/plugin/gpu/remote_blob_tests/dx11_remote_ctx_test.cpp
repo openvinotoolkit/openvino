@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include <common_test_utils/test_common.hpp>
 #include <common_test_utils/test_constants.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
+#include <openvino/core/preprocess/pre_post_process.hpp>
 
 #ifdef _WIN32
 #ifdef  ENABLE_DX11
@@ -29,6 +30,7 @@
 #endif
 
 #include <gpu/gpu_context_api_dx.hpp>
+#include <openvino/runtime/intel_gpu/ocl/dx.hpp>
 #include <atlbase.h>
 #include <d3d11.h>
 #include <d3d11_4.h>
@@ -44,8 +46,6 @@
 #endif
 
 using namespace ::testing;
-using namespace InferenceEngine;
-using namespace InferenceEngine::gpu;
 
 struct DX11RemoteCtx_Test : public CommonTestUtils::TestsCommon {
     virtual ~DX11RemoteCtx_Test() = default;
@@ -147,6 +147,8 @@ TEST_F(DX11RemoteCtx_Test, smoke_make_shared_context) {
 #if defined(ANDROID)
     GTEST_SKIP();
 #endif
+    using namespace InferenceEngine;
+    using namespace InferenceEngine::gpu;
     auto ie = InferenceEngine::Core();
 
     CComPtr<ID3D11Device> device_ptr;
@@ -176,6 +178,8 @@ TEST_F(DX11CachedTexture_Test, smoke_make_shared_nv12_blob_cached) {
 #if defined(ANDROID)
     GTEST_SKIP();
 #endif
+    using namespace InferenceEngine;
+    using namespace InferenceEngine::gpu;
     auto ie = InferenceEngine::Core();
     auto remote_context = make_shared_context(ie, CommonTestUtils::DEVICE_GPU,
                                                   device_ptr);
@@ -196,7 +200,8 @@ TEST_F(DX11CachedTexture_Test, _make_shared_nv12_blob_cached_inference) {
 #if defined(ANDROID)
     GTEST_SKIP();
 #endif
-
+    using namespace InferenceEngine;
+    using namespace InferenceEngine::gpu;
     // inference using remote blob with batch
     auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, texture_description.Height, texture_description.Width});
     auto ie = InferenceEngine::Core();
@@ -233,6 +238,56 @@ TEST_F(DX11CachedTexture_Test, _make_shared_nv12_blob_cached_inference) {
     }
 }
 
+TEST_F(DX11CachedTexture_Test, smoke_make_shared_nv12_tensor_cached) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    ov::Core core;
+    ov::intel_gpu::ocl::D3DContext context(core, device_ptr);
+    const size_t total_run_number = 4;
+    for (size_t i = 0; i < total_run_number; i++) {
+        for (const auto& t : dx11_textures) {
+            ASSERT_NO_THROW(auto tensor = context.create_tensor_nv12(texture_description.Height, texture_description.Width, t));
+        }
+    }
+}
+
+TEST_F(DX11CachedTexture_Test, _make_shared_nv12_tensor_cached_inference) {
+#if defined(ANDROID)
+    GTEST_SKIP();
+#endif
+    // inference using remote blob with batch
+    auto fn_ptr_remote = ngraph::builder::subgraph::makeConvPoolRelu({1, 3, texture_description.Height, texture_description.Width});
+    ov::Core core;
+    ov::intel_gpu::ocl::D3DContext context(core, device_ptr);
+
+    using namespace ov::preprocess;
+    auto p = PrePostProcessor(fn_ptr_remote);
+    p.input().tensor().set_element_type(ov::element::u8)
+                      .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
+                      .set_memory_type(GPU_CONFIG_KEY(SURFACE));
+    p.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+    p.input().model().set_layout("NCHW");
+    auto model = p.build();
+
+    auto param_input_y = model->get_parameters().at(0);
+    auto param_input_uv = model->get_parameters().at(1);
+
+    const size_t total_run_number = 4;
+
+    auto compiled_model = core.compile_model(model, context);
+    auto request = compiled_model.create_infer_request();
+
+    const size_t iteration_count = 10;
+    for (size_t i = 0; i < iteration_count; i++) {
+        auto tensor = context.create_tensor_nv12(texture_description.Height, texture_description.Width, dx11_textures[0]);
+        request.set_tensor(param_input_y, tensor.first);
+        request.set_tensor(param_input_uv, tensor.second);
+
+        ASSERT_NO_THROW(request.infer());
+        auto output_tensor = request.get_tensor(model->get_results().at(0));
+    }
+}
 
 #endif // ENABLE_DX11
 #endif // WIN32

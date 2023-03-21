@@ -65,7 +65,7 @@ All proposals of the whole batch are concated image by image, and distinguishabl
 * *nms_eta*
 
     * **Description**: eta parameter for adaptive NMS.
-    * **Range of values**: a floating-point number in close range `[0, 1.0]`.
+    * **Range of values**: a floating-point number in closed range `[0, 1.0]`.
     * **Type**: float
     * **Default value**: `1.0`
     * **Required**: *no*

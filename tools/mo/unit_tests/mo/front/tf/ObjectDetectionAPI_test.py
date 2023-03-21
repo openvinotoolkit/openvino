@@ -1,9 +1,10 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
 from argparse import Namespace
 from unittest.mock import patch
+import os
 
 from generator import generator, generate
 
@@ -17,6 +18,7 @@ from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.ir_engine.compare_graphs import compare_graphs
 from unit_tests.mo.utils.pipeline_config_test import file_content
 from unit_tests.utils.graph import const, regular_op, result, build_graph, connect_front
+from openvino.runtime import PartialShape
 
 
 class FakePipelineConfig:
@@ -71,7 +73,7 @@ class TestCalculatePlaceholderSpatialShape(unittest.TestCase):
     def test_fixed_shape_resizer_overrided_by_user(self):
         self.pipeline_config._model_params['resizer_image_height'] = 300
         self.pipeline_config._model_params['resizer_image_width'] = 600
-        self.graph.graph['user_shapes'] = {'image_tensor': [{'shape': [1, 400, 500, 3]}]}
+        self.graph.graph['user_shapes'] = {'image_tensor': [{'shape': PartialShape([1, 400, 500, 3])}]}
         self.assertTupleEqual((400, 500),
                               calculate_placeholder_spatial_shape(self.graph, self.match, self.pipeline_config))
 
@@ -84,7 +86,7 @@ class TestCalculatePlaceholderSpatialShape(unittest.TestCase):
     def test_keep_aspect_ratio_resizer_overrided_by_user(self):
         self.pipeline_config._model_params['resizer_min_dimension'] = 600
         self.pipeline_config._model_params['resizer_max_dimension'] = 1024
-        self.graph.graph['user_shapes'] = {'image_tensor': [{'shape': [1, 400, 300, 3]}]}
+        self.graph.graph['user_shapes'] = {'image_tensor': [{'shape': PartialShape([1, 400, 300, 3])}]}
         self.assertTupleEqual((800, 600),
                               calculate_placeholder_spatial_shape(self.graph, self.match, self.pipeline_config))
 
@@ -92,7 +94,7 @@ class TestCalculatePlaceholderSpatialShape(unittest.TestCase):
         self.pipeline_config._model_params['resizer_min_dimension'] = 600
         self.pipeline_config._model_params['resizer_max_dimension'] = 1024
         self.pipeline_config._model_params['pad_to_max_dimension'] = True
-        self.graph.graph['user_shapes'] = {'image_tensor': [{'shape': [1, 400, 300, 3]}]}
+        self.graph.graph['user_shapes'] = {'image_tensor': [{'shape': PartialShape([1, 400, 300, 3])}]}
         self.assertTupleEqual((1024, 1024),
                               calculate_placeholder_spatial_shape(self.graph, self.match, self.pipeline_config))
 
@@ -330,3 +332,19 @@ class TestObjectDetectionAPIPreprocessor2Replacement(unittest.TestCase):
 
         (flag, resp) = compare_graphs(graph, self.build_ref_graph(False), 'result', check_op_attrs=True)
         self.assertTrue(flag, resp)
+
+
+class TestPipelineConfig(unittest.TestCase):
+    def test_pipeline_config_loading(self):
+        from openvino.tools.mo.utils.pipeline_config import PipelineConfig
+        pipeline_config = PipelineConfig(os.path.join(os.path.dirname(__file__), "test_configs/config1.config"))
+        assert pipeline_config.get_param('ssd_anchor_generator_num_layers') == 6
+        assert pipeline_config.get_param('num_classes') == 90
+        assert pipeline_config.get_param('resizer_image_width') == 300
+        assert pipeline_config.get_param('resizer_image_height') == 300
+
+        pipeline_config = PipelineConfig(os.path.join(os.path.dirname(__file__), "test_configs/config2.config"))
+        assert pipeline_config.get_param('ssd_anchor_generator_num_layers') is None
+        assert pipeline_config.get_param('num_classes') == 10
+        assert pipeline_config.get_param('resizer_image_width') == 640
+        assert pipeline_config.get_param('resizer_image_height') == 640

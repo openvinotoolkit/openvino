@@ -1,22 +1,18 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include <vector>
 #include <functional>
 #include "primitive.hpp"
 #include "intel_gpu/graph/topology.hpp"
+#include "intel_gpu/graph/serialization/string_serializer.hpp"
+#include "intel_gpu/graph/serialization/vector_serializer.hpp"
 
 #define DEFAULT_MAX_NUM_ITERATION 256
 namespace cldnn {
-/// @addtogroup cpp_api C++ API
-/// @{
-/// @addtogroup cpp_topology Network Topology
-/// @{
-/// @addtogroup cpp_primitives Primitives
-/// @{
+
 ///
 /// @brief Adds primitive which performs recurrent execution of the topology.
 ///
@@ -58,6 +54,10 @@ namespace cldnn {
 struct loop : public primitive_base<loop> {
     CLDNN_DECLARE_PRIMITIVE(loop)
 
+    loop() : primitive_base("", {}) {}
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     struct io_primitive_map {
         /// @brief Constructs a mapping from external input/output primitive to input/output primitive in body topology
         ///
@@ -76,12 +76,31 @@ struct loop : public primitive_base<loop> {
             end(end),
             stride(stride)
             {}
+        io_primitive_map() {}
         primitive_id external_id;
         primitive_id internal_id;
         int64_t axis;
         int64_t start;
         int64_t end;
         int64_t stride;
+
+        void save(BinaryOutputBuffer& ob) const {
+            ob << external_id;
+            ob << internal_id;
+            ob << axis;
+            ob << start;
+            ob << end;
+            ob << stride;
+        }
+
+        void load(BinaryInputBuffer& ib) {
+            ib >> external_id;
+            ib >> internal_id;
+            ib >> axis;
+            ib >> start;
+            ib >> end;
+            ib >> stride;
+        }
     };
 
     struct backedge_mapping {
@@ -91,8 +110,19 @@ struct loop : public primitive_base<loop> {
         /// @param to Input data primitive id of body topology
         backedge_mapping(primitive_id from, primitive_id to)
             : from(from), to(to) {}
+        backedge_mapping() {}
         primitive_id from;
         primitive_id to;
+
+        void save(BinaryOutputBuffer& ob) const {
+            ob << from;
+            ob << to;
+        }
+
+        void load(BinaryInputBuffer& ib) {
+            ib >> from;
+            ib >> to;
+        }
     };
 
     /// @brief Constructs loop primitive.
@@ -119,7 +149,7 @@ struct loop : public primitive_base<loop> {
     /// @param back_edges Output data primitive id.
     /// @param output_padding     Optional padding for output from primitive.
     loop(const primitive_id& id,
-         const std::vector<primitive_id>& inputs,
+         const std::vector<input_info>& inputs,
          const topology& body,
          const primitive_id& trip_count_id,
          const primitive_id& initial_condition_id,
@@ -130,9 +160,8 @@ struct loop : public primitive_base<loop> {
          int64_t max_iteration = -1,
          const primitive_id& current_iteration_id = primitive_id(),
          const primitive_id& condition_id = primitive_id(),
-         const primitive_id& ext_prim_id = "",
          const padding& output_padding = padding())
-            : primitive_base(id, inputs, ext_prim_id, output_padding),
+            : primitive_base(id, inputs, {output_padding}),
               body(body),
               trip_count_id(trip_count_id),
               initial_execution_id(initial_condition_id),
@@ -172,6 +201,36 @@ struct loop : public primitive_base<loop> {
 
     int64_t max_iteration;
 
+    size_t hash() const override {
+        size_t seed = primitive::hash();
+        seed = hash_combine(seed, id);
+        return seed;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        ob << trip_count_id;
+        ob << initial_execution_id;
+        ob << num_iteration_id;
+        ob << current_iteration_id;
+        ob << condition_id;
+        ob << input_primitive_maps;
+        ob << output_primitive_maps;
+        ob << back_edges;
+        ob << max_iteration;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        ib >> trip_count_id;
+        ib >> initial_execution_id;
+        ib >> num_iteration_id;
+        ib >> current_iteration_id;
+        ib >> condition_id;
+        ib >> input_primitive_maps;
+        ib >> output_primitive_maps;
+        ib >> back_edges;
+        ib >> max_iteration;
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret{
@@ -179,7 +238,10 @@ protected:
         };
         // add external_id in dependencies if not exist
         for (const auto& mapping : input_primitive_maps) {
-            auto target = std::find(input.begin(), input.end(), mapping.external_id);
+            auto target = std::find_if(input.begin(), input.end(),
+                                       [&](const input_info& info) {
+                                           return info.pid == mapping.external_id;
+                                       });
             if (target == input.end()) {
                 ret.push_back(std::ref(mapping.external_id));
             }
@@ -188,7 +250,4 @@ protected:
     }
 };
 
-/// @}
-/// @}
-/// @}
 }  // namespace cldnn

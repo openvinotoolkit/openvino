@@ -1,11 +1,21 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
+if (NOT ENABLE_INTEL_CPU)
+    return()
+endif()
+
 set(TARGET_NAME "openvino_intel_cpu_plugin")
 
-if(CMAKE_COMPILER_IS_GNUCC)
-    ie_add_compiler_flags(-Wno-all)
+if(CMAKE_COMPILER_IS_GNUCXX)
+    ie_add_compiler_flags(-Wno-sign-compare)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # C4267, 4244 issues from mkl-dnn headers conversion from 'XXX' to 'YYY', possible loss of data
+    ie_add_compiler_flags(/wd4267)
+    ie_add_compiler_flags(/wd4244)
+    # mkldnn headers: '<<': result of 32-bit shift implicitly converted to 64 bits
+    ie_add_compiler_flags(/wd4334)
 endif()
 
 if (WIN32)
@@ -24,6 +34,10 @@ addVersionDefines(${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.cpp CI_BUILD_NUMBER)
 
 add_subdirectory(thirdparty)
 
+if(ENABLE_TESTS)
+    add_subdirectory(tests)
+endif()
+
 # create plugin
 
 ie_add_plugin(NAME ${TARGET_NAME}
@@ -35,15 +49,9 @@ set_ie_threading_interface_for(${TARGET_NAME})
 
 ie_mark_target_as_cc(${TARGET_NAME})
 
-if(SELECTIVE_BUILD STREQUAL "ON")
-    # After disabling a block of code, some variables might be unused.
-    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-        target_compile_options(${TARGET_NAME} PRIVATE -Wno-unused-variable)
-    endif()
-endif()
-
 target_link_libraries(${TARGET_NAME} PRIVATE dnnl
                                              ov_shape_inference
+                                             openvino::pugixml
                                              inference_engine_snippets)
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)
@@ -62,17 +70,17 @@ cross_compiled_file(${TARGET_NAME}
         NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
 )
 
+# must be called after all target_link_libraries
 ie_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 
 #  add test object library
 
 if(BUILD_SHARED_LIBS)
     add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
-    link_system_libraries(${TARGET_NAME}_obj PUBLIC dnnl)
+    link_system_libraries(${TARGET_NAME}_obj PUBLIC dnnl openvino::pugixml)
 
     target_include_directories(${TARGET_NAME}_obj
         PRIVATE
-            $<TARGET_PROPERTY:openvino_gapi_preproc_s,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:ov_shape_inference,INTERFACE_INCLUDE_DIRECTORIES>

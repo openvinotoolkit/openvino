@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,8 +7,10 @@
 #include <ie_common.h>
 #include <node.h>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <string>
 #include <vector>
+#include "common/dnnl_executor.h"
 
 namespace ov {
 namespace intel_cpu {
@@ -16,7 +18,7 @@ namespace node {
 
 class FullyConnected : public Node {
 public:
-    FullyConnected(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    FullyConnected(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape &dims) const override;
     void getSupportedDescriptors() override;
@@ -35,11 +37,13 @@ public:
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
 
-    size_t descInputNumbers(DnnlDesriptor desc) override {
+    size_t descInputNumbers() override {
         return static_cast<size_t>(getOriginalInputsNumber());
     }
 
     void initSupportedPrimitiveDescriptors() override;
+    void initOptimalPrimitiveDescriptor() override;
+    void createPrimitive() override;
     std::shared_ptr<MemoryDesc> getSrcMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
     std::shared_ptr<MemoryDesc> getDstMemDesc(dnnl::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 
@@ -48,8 +52,6 @@ public:
     bool canFuse(const NodePtr& node) const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
-
-    std::shared_ptr<dnnl::primitive_attr> initPrimitiveAttr() override;
 
     void prepareParams() override;
     void executeDynamicImpl(dnnl::stream strm) override;
@@ -66,7 +68,7 @@ private:
     VectorDims inDims;
     VectorDims outDims;
 
-    void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims, bool initWeights = false);
+    void setPostOps(dnnl::primitive_attr &attr, const VectorDims &dims);
 
     bool withBiases = false;
 
@@ -75,6 +77,45 @@ private:
     static const size_t WEIGHTS_ID = 1;
     static const size_t BIAS_ID = 2;
     dnnl::memory::data_type outputDataType;
+
+    using executorPtr = std::shared_ptr<DnnlExecutor>;
+    executorPtr execPtr = nullptr;
+    bool useConv1x1 = false;
+    impl_desc_type implementationTypeIP;
+    MemoryDescPtr weightDescIP;
+    // when weightCache is not enabled (such as stream=1), brgconv weights may change due to
+    // different shapes. Weights will be cached in privateWeightCache.
+    // When weightCache is enabled, it holds weight ptr reference since weightCache does not hold the
+    // reference
+    std::unordered_map<std::string, MemoryPtr> privateWeightCache;
+    dnnl::primitive_attr attr;
+
+    class ExecutorInnerProduct : public DnnlExecutor {
+        public:
+            ExecutorInnerProduct(const dnnl::inner_product_forward::primitive_desc& pd);
+    };
+
+    class ExecutorConv1x1 : public DnnlExecutor {
+        public:
+            ExecutorConv1x1(const dnnl::convolution_forward::primitive_desc& pd);
+    };
+
+    static dnnl::convolution_forward::primitive_desc
+    createDescriptorInternalForConv(DnnlMemoryDescCPtr inputDescPtr,
+                                    DnnlMemoryDescCPtr weightDescPtr,
+                                    DnnlMemoryDescCPtr biasDescPtr,
+                                    DnnlMemoryDescCPtr outputDescPtr,
+                                    const dnnl::primitive_attr& attr,
+                                    const dnnl::engine& engine);
+
+    bool canBeExecutedInConv1x1() const;
+    MemoryPtr prepareWeightMemory(const DnnlMemoryDescPtr weightDesc);
+
+    // sparse weights
+    bool useSparseWeights = false;
+    float minSparseRate = 1.f;
+    float weiSparseRate = 0.f;
+    bool useSparseWeightsDecompression();
 };
 
 }   // namespace node

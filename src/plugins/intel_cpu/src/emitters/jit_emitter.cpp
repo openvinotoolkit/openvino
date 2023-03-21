@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,6 +44,10 @@ void jit_emitter::pop_vec(size_t vec_idx, const Xbyak::Address &addr) const {
 
 size_t jit_emitter::aux_vecs_count() const {
     return 0;
+}
+
+emitter_in_out_map jit_emitter::get_in_out_type() const {
+    return in_out_type_;
 }
 
 size_t jit_emitter::aux_gprs_count() const {
@@ -204,17 +208,7 @@ void jit_emitter::emit_code(const std::vector<size_t> &in_idxs, const std::vecto
                             const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) const {
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
-    emit_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, nullptr);
-
-    emitter_postamble();
-}
-
-void jit_emitter::emit_code(const std::vector<size_t> &in_idxs, const std::vector<size_t> &out_idxs,
-                            const std::shared_ptr<const emitter_context> &emit_context,
-                            const std::vector<size_t> &pool_vec_idxs, const std::vector<size_t> &pool_gpr_idxs) {
-    emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
-
-    emit_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, emit_context.get());
+    emit_impl(in_idxs, out_idxs);
 
     emitter_postamble();
 }

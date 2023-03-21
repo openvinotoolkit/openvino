@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,14 +9,8 @@
 
 #include "itt.hpp"
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/builder/autobroadcast.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/multiply.hpp"
-#include "ngraph/op/reshape.hpp"
-#include "ngraph/op/subtract.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/reference/softmax.hpp"
-#include "ngraph/util.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -46,20 +40,19 @@ bool evaluate_softmax(const HostTensorPtr& arg, const HostTensorPtr& out, const 
 }  // namespace
 
 // *** SOFTMAX OP SET V1 ***
-BWDCMP_RTTI_DEFINITION(op::v1::Softmax);
 
 op::v1::Softmax::Softmax(const Output<Node>& arg, const size_t axis) : Op({arg}), m_axis(axis) {
     constructor_validate_and_infer_types();
 }
 
 bool ngraph::op::v1::Softmax::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_Softmax_visit_attributes);
+    OV_OP_SCOPE(v1_Softmax_visit_attributes);
     visitor.on_attribute("axis", m_axis);
     return true;
 }
 
 void op::v1::Softmax::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_Softmax_validate_and_infer_types);
+    OV_OP_SCOPE(v1_Softmax_validate_and_infer_types);
     const ov::PartialShape& input_shape = get_input_partial_shape(0);
     if (input_shape.rank().is_static())
         NODE_VALIDATION_CHECK(this,
@@ -74,20 +67,20 @@ void op::v1::Softmax::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v1::Softmax::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_Softmax_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_Softmax_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v1::Softmax>(new_args.at(0), m_axis);
 }
 
 bool op::v1::Softmax::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_Softmax_evaluate);
+    OV_OP_SCOPE(v1_Softmax_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     outputs[0]->set_unary(inputs[0]);
     return evaluate_softmax(inputs[0], outputs[0], AxisSet{m_axis});
 }
 
 bool op::v1::Softmax::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_Softmax_has_evaluate);
+    OV_OP_SCOPE(v1_Softmax_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::bf16:
     case ngraph::element::f16:
@@ -101,20 +94,18 @@ bool op::v1::Softmax::has_evaluate() const {
 }
 
 // *** SOFTMAX OP SET V8 ***
-BWDCMP_RTTI_DEFINITION(op::v8::Softmax);
-
 op::v8::Softmax::Softmax(const Output<Node>& arg, const int64_t axis) : Op({arg}), m_axis(axis) {
     constructor_validate_and_infer_types();
 }
 
 bool op::v8::Softmax::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v8_Softmax_visit_attributes);
+    OV_OP_SCOPE(v8_Softmax_visit_attributes);
     visitor.on_attribute("axis", m_axis);
     return true;
 }
 
 void op::v8::Softmax::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v8_Softmax_validate_and_infer_types);
+    OV_OP_SCOPE(v8_Softmax_validate_and_infer_types);
     const auto& input_shape = get_input_partial_shape(0);
     if (input_shape.rank().is_static()) {
         auto rank = static_cast<int64_t>(input_shape.size());
@@ -131,13 +122,13 @@ void op::v8::Softmax::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v8::Softmax::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v8_Softmax_clone_with_new_inputs);
+    OV_OP_SCOPE(v8_Softmax_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v8::Softmax>(new_args.at(0), m_axis);
 }
 
 bool op::v8::Softmax::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v8_Softmax_evaluate);
+    OV_OP_SCOPE(v8_Softmax_evaluate);
     NGRAPH_CHECK(validate_host_tensor_vector(outputs, 1) && validate_host_tensor_vector(inputs, 1));
     outputs[0]->set_unary(inputs[0]);
     auto rank = static_cast<int64_t>(inputs[0]->get_shape().size());
@@ -152,7 +143,7 @@ bool op::v8::Softmax::evaluate(const HostTensorVector& outputs, const HostTensor
 }
 
 bool op::v8::Softmax::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v8_Softmax_has_evaluate);
+    OV_OP_SCOPE(v8_Softmax_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::bf16:
     case ngraph::element::f16:

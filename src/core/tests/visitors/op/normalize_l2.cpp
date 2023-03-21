@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -18,7 +18,7 @@ void static test_normalize_l2_attributes(float eps, op::EpsMode eps_mode) {
     const auto axes = make_shared<op::Constant>(element::i32, Shape{}, vector<int32_t>{1});
 
     auto normalize_l2 = make_shared<opset1::NormalizeL2>(data, axes, eps, eps_mode);
-    NodeBuilder builder(normalize_l2);
+    NodeBuilder builder(normalize_l2, {data, axes});
     auto g_normalize_l2 = ov::as_type_ptr<opset1::NormalizeL2>(builder.create());
 
     const auto expected_attr_count = 2;

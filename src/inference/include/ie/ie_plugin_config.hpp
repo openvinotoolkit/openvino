@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -268,6 +268,7 @@ DECLARE_CONFIG_VALUE(MODEL_PRIORITY_LOW);
 DECLARE_CONFIG_KEY(PERFORMANCE_HINT);
 DECLARE_CONFIG_VALUE(LATENCY);
 DECLARE_CONFIG_VALUE(THROUGHPUT);
+DECLARE_CONFIG_VALUE(UNDEFINED);
 DECLARE_CONFIG_VALUE(CUMULATIVE_THROUGHPUT);
 /**
  * @brief (Optional) config key that backs the (above) Performance Hints
@@ -475,9 +476,9 @@ DECLARE_CONFIG_KEY(FORCE_TBB_TERMINATE);
 
 }  // namespace InferenceEngine
 
+#include "gpu/gpu_config.hpp"
 #include "hetero/hetero_plugin_config.hpp"
 #include "multi-device/multi_device_config.hpp"
 
 // remove in 2022.1 major release
-#include "cldnn/cldnn_config.hpp"
 #include "gna/gna_config.hpp"

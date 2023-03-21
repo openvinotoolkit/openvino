@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,8 +38,11 @@ public:
                                      const InferenceEngine::SoIInferRequestInternal & request_to_share_blobs_with,
                                      InferenceEngine::RemoteContext::Ptr ctx = nullptr);
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> GetPerformanceCounts() const override;
-    void InferImpl() override;
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& blob) override;
+    /**
+     * @deprecated This method will be removed in 2024.1 release
+     * @brief Sets blob with a pre-process information
+     */
     void SetBlob(const std::string& name,
                  const InferenceEngine::Blob::Ptr& blob,
                  const InferenceEngine::PreProcessInfo& info) override;
@@ -48,7 +51,7 @@ public:
     // Multi-Device impl specific: sets the data (blobs from the device-less requests to the specific device request)
     void SetBlobsToAnotherRequest(const InferenceEngine::SoIInferRequestInternal& req);
     InferenceEngine::SoIInferRequestInternal& GetSharedRequest() { return _sharedRequest; }
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>  _perfMap;
+    InferenceEngine::SoIInferRequestInternal _scheduledRequest;
 
 private:
     void CreateInferRequest(const InferenceEngine::SoIInferRequestInternal& request_to_share_blobs_with,

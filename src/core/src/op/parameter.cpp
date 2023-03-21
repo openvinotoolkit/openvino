@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v0::Parameter);
-
 op::Parameter::Parameter(const element::Type& element_type, const ov::PartialShape& pshape)
     : m_partial_shape(pshape),
       m_element_type(element_type),
@@ -23,20 +21,20 @@ op::Parameter::Parameter(const element::Type& element_type, const ov::PartialSha
 }
 
 bool op::Parameter::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_Parameter_visit_attributes);
+    OV_OP_SCOPE(v0_Parameter_visit_attributes);
     visitor.on_attribute("shape", m_partial_shape);
     visitor.on_attribute("element_type", m_element_type);
     return true;
 }
 
 void op::Parameter::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_Parameter_validate_and_infer_types);
+    OV_OP_SCOPE(v0_Parameter_validate_and_infer_types);
     Op::validate_and_infer_types();
     set_output_type(0, m_element_type, m_partial_shape);
 }
 
 shared_ptr<Node> op::Parameter::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Parameter_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_Parameter_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Parameter>(m_element_type, m_partial_shape);
 }
@@ -68,8 +66,6 @@ void op::Parameter::set_partial_shape(const PartialShape& partial_shape) {
                     ". Layout is not compatible with shape");
     m_partial_shape = partial_shape;
 }
-
-BWDCMP_RTTI_DEFINITION(ov::AttributeAdapter<ParameterVector>);
 
 ov::AttributeAdapter<ParameterVector>::AttributeAdapter(ParameterVector& ref) : m_ref(ref) {}
 

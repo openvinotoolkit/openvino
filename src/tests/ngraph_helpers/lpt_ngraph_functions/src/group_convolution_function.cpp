@@ -1,11 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "lpt_ngraph_functions/group_convolution_function.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph_ops/type_relaxed.hpp>
+#include <ov_ops/type_relaxed.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "low_precision/network_helper.hpp"
 
@@ -108,9 +108,7 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
     std::shared_ptr<ngraph::opset1::Constant> weightsConst,
     const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights) {
     const auto rankLength = inputShape.size();
-    if ((rankLength != 3) && (rankLength != 4)) {
-        throw ov::Exception("not supported input shape rank: " + std::to_string(rankLength));
-    }
+    OPENVINO_ASSERT(rankLength == 3 || rankLength == 4, "not supported input shape rank: ", rankLength);
 
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     const auto dequantization = makeDequantization(input, dequantizationBefore);
@@ -159,9 +157,7 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
     const FakeQuantizeOnWeights& fakeQuantizeOnWeights,
     const bool addPrecisionPreserved) {
     const auto rankLength = inputShape.rank().is_dynamic() ? 4 : inputShape.rank().get_length();
-    if ((rankLength != 3) && (rankLength != 4)) {
-        throw ov::Exception("not supported input shape rank: " + std::to_string(rankLength));
-    }
+    OPENVINO_ASSERT(rankLength == 3 || rankLength == 4, "not supported input shape rank: ", rankLength);
 
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
 
@@ -259,9 +255,7 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::get(
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
     const ngraph::element::Type precisionAfterDequantization) {
     const auto rankLength = inputShape.rank().is_dynamic() ? 4 : inputShape.rank().get_length();
-    if ((rankLength != 3) && (rankLength != 4)) {
-        throw ov::Exception("not supported input shape rank: " + std::to_string(rankLength));
-    }
+    OPENVINO_ASSERT(rankLength == 3 || rankLength == 4, "not supported input shape rank: ", rankLength);
 
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     const auto deqBefore = makeDequantization(input, dequantizationBefore);
@@ -303,14 +297,14 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::get(
     }
 
     auto convolutionOriginal = ngraph::opset1::GroupConvolution(
-        ngraph::op::TemporaryReplaceOutputType(deqBefore, element::f32).get(),
-        ngraph::op::TemporaryReplaceOutputType(weights, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(deqBefore, element::f32).get(),
+        ov::op::TemporaryReplaceOutputType(weights, element::f32).get(),
         ngraph::Strides{ 1, 1 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::Strides{ 1, 1 });
 
-    std::shared_ptr<ngraph::opset1::GroupConvolution> convolution = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::GroupConvolution>>(
+    std::shared_ptr<ngraph::opset1::GroupConvolution> convolution = std::make_shared<ov::op::TypeRelaxed<ngraph::opset1::GroupConvolution>>(
         convolutionOriginal,
         std::vector<element::Type>{ element::f32, element::f32 },
         std::vector<element::Type>{});

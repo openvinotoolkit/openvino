@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
@@ -26,11 +26,11 @@ def test_simple_loop():
     x_i = ov.parameter(input_shape, np.float32)
     y_i = ov.parameter(input_shape, np.float32)
     m_body = ov.parameter(input_shape, np.float32)
-    bool_val = np.array([1], dtype=np.bool)
+    bool_val = np.array([1], dtype=bool)
     bool_val[0] = True
     body_condition = ov.constant(bool_val)
     trip_count = ov.constant(10, dtype=np.int64)
-    exec_condition = ov.constant(True, dtype=np.bool)
+    exec_condition = ov.constant(True, dtype=bool)
 
     add = ov.add(x_i, y_i)
     zo = ov.multiply(add, m_body)
@@ -66,7 +66,7 @@ def test_simple_loop():
 
 
 def test_loop_basic():
-    bool_val = np.array([1], dtype=np.bool)
+    bool_val = np.array([1], dtype=bool)
     bool_val[0] = True
     condition = ov.constant(bool_val)
     trip_count = ov.constant(16, dtype=np.int32)

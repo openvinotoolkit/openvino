@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
@@ -25,8 +25,8 @@ from unit_tests.utils.graph import regular_op_with_empty_data, connect, result, 
 @generator
 class TestIf(unittest.TestCase):
     @generate(*[
-        (np.array([True], dtype=np.bool), shape_array([3]), shape_array([3])),
-        (np.array([False], dtype=np.bool), shape_array([3]), shape_array([2])),
+        (np.array([True], dtype=bool), shape_array([3]), shape_array([3])),
+        (np.array([False], dtype=bool), shape_array([3]), shape_array([2])),
         (shape_array(dynamic_dimension_value), shape_array([3]), shape_array([dynamic_dimension_value])),
     ])
     def test_simple_shape_inf(self, cond, output_port_0_shape, output_port_1_shape):

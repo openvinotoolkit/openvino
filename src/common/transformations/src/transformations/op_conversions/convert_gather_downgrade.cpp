@@ -1,19 +1,19 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
 
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset7.hpp>
-#include <ngraph/opsets/opset8.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
+#include <openvino/opsets/opset1.hpp>
+#include <openvino/opsets/opset7.hpp>
+#include <openvino/opsets/opset8.hpp>
 
 #include "itt.hpp"
 
 using namespace std;
-using namespace ngraph;
+using namespace ov;
 
 pass::ConvertGather7ToGather1::ConvertGather7ToGather1() {
     MATCHER_SCOPE(ConvertGather7ToGather1);
@@ -34,7 +34,6 @@ pass::ConvertGather7ToGather1::ConvertGather7ToGather1() {
         gather_v1_node->set_friendly_name(gather_v7_node->get_friendly_name());
         ngraph::copy_runtime_info(gather_v7_node, gather_v1_node);
         ngraph::replace_node(gather_v7_node, gather_v1_node);
-        MATCHER_SCOPE_ENABLE(ConvertGather7ToGather1);
         return true;
     };
 
@@ -60,7 +59,6 @@ pass::ConvertGather8ToGather7::ConvertGather8ToGather7() {
         gather_v7_node->set_friendly_name(gather_v8_node->get_friendly_name());
         ngraph::copy_runtime_info(gather_v8_node, gather_v7_node);
         ngraph::replace_node(gather_v8_node, gather_v7_node);
-        MATCHER_SCOPE_ENABLE(ConvertGather8ToGather7);
         return true;
     };
 

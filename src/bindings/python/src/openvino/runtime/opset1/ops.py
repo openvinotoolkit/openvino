@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all openvino ops."""
@@ -67,9 +67,19 @@ def add(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """Return node which applies f(x) = A+B to the input nodes element-wise."""
+    """Return node which applies f(A,B) = A+B to the input nodes element-wise.
+
+    :param left_node: The first input node for add operation.
+    :param right_node: The second input node for add operation.
+    :param auto_broadcast: The type of broadcasting specifies rules used for
+                           auto-broadcasting of input tensors. Defaults to "NUMPY".
+    :param name: The optional name for output new node.
+    :return: The node performing element-wise addition.
+    """
     return _get_node_factory_opset1().create(
-        "Add", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()},
+        "Add",
+        [left_node, right_node],
+        {"auto_broadcast": auto_broadcast.upper()},
     )
 
 
@@ -231,7 +241,9 @@ def broadcast(
     if mode.upper() == "EXPLICIT":
         inputs.append(as_node(axes_mapping))
     return _get_node_factory_opset1().create(
-        "Broadcast", inputs, {"mode": mode.upper()},
+        "Broadcast",
+        inputs,
+        {"mode": mode.upper()},
     )
 
 
@@ -252,7 +264,9 @@ def ctc_greedy_decoder(
     """
     node_inputs = as_nodes(data, sequence_mask)
     return _get_node_factory_opset1().create(
-        "CTCGreedyDecoder", node_inputs, {"ctc_merge_repeated": merge_repeated},
+        "CTCGreedyDecoder",
+        node_inputs,
+        {"ctc_merge_repeated": merge_repeated},
     )
 
 
@@ -299,7 +313,9 @@ def clamp(
             data=max_value
     """
     return _get_node_factory_opset1().create(
-        "Clamp", [as_node(data)], {"min": min_value, "max": max_value},
+        "Clamp",
+        [as_node(data)],
+        {"min": min_value, "max": max_value},
     )
 
 
@@ -347,7 +363,9 @@ def convert(
     if not isinstance(destination_type, str):
         destination_type = get_element_type_str(destination_type)
     return _get_node_factory_opset1().create(
-        "Convert", [as_node(data)], {"destination_type": destination_type.lower()},
+        "Convert",
+        [as_node(data)],
+        {"destination_type": destination_type.lower()},
     )
 
 
@@ -577,7 +595,7 @@ def deformable_psroi_pooling(
 
 
 @nameable_op
-def depth_to_space(node: Node, mode: str, block_size: int = 1, name: str = None) -> Node:
+def depth_to_space(node: Node, mode: str, block_size: int = 1, name: Optional[str] = None) -> Node:
     """Rearranges input tensor from depth into blocks of spatial data.
 
     Values from the height and width dimensions are moved to the depth dimension.
@@ -788,7 +806,9 @@ def divide(
     :return: The node performing element-wise division.
     """
     return _get_node_factory_opset1().create(
-        "Divide", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()},
+        "Divide",
+        [left_node, right_node],
+        {"auto_broadcast": auto_broadcast.upper()},
     )
 
 
@@ -826,7 +846,9 @@ def equal(
     :return: The node performing element-wise equality check.
     """
     return _get_node_factory_opset1().create(
-        "Equal", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()},
+        "Equal",
+        [left_node, right_node],
+        {"auto_broadcast": auto_broadcast.upper()},
     )
 
 
@@ -926,13 +948,18 @@ def floor_mod(
     :return: The node performing element-wise FloorMod operation.
     """
     return _get_node_factory_opset1().create(
-        "FloorMod", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()},
+        "FloorMod",
+        [left_node, right_node],
+        {"auto_broadcast": auto_broadcast.upper()},
     )
 
 
 @nameable_op
 def gather(
-    data: NodeInput, indices: NodeInput, axis: NodeInput, name: Optional[str] = None,
+    data: NodeInput,
+    indices: NodeInput,
+    axis: NodeInput,
+    name: Optional[str] = None,
 ) -> Node:
     """Return Gather node which takes slices from axis of data according to indices.
 
@@ -1001,7 +1028,9 @@ def greater(
     :return: The node performing element-wise check whether left_node is greater than right_node.
     """
     return _get_node_factory_opset1().create(
-        "Greater", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()},
+        "Greater",
+        [left_node, right_node],
+        {"auto_broadcast": auto_broadcast.upper()},
     )
 
 
@@ -1161,7 +1190,10 @@ def group_convolution_backprop_data(
 
 @nameable_op
 def hard_sigmoid(
-    data: Node, alpha: NodeInput, beta: NodeInput, name: Optional[str] = None,
+    data: Node,
+    alpha: NodeInput,
+    beta: NodeInput,
+    name: Optional[str] = None,
 ) -> Node:
     """Perform Hard Sigmoid operation element-wise on data from input node.
 
@@ -1182,7 +1214,10 @@ def hard_sigmoid(
 
 @nameable_op
 def interpolate(
-    image: Node, output_shape: NodeInput, attrs: dict, name: Optional[str] = None,
+    image: Node,
+    output_shape: NodeInput,
+    attrs: dict,
+    name: Optional[str] = None,
 ) -> Node:
     """Perform interpolation of independent slices in input tensor.
 
@@ -1275,7 +1310,9 @@ def less(
     :return: The node performing element-wise check whether left_node is less than the right_node.
     """
     return _get_node_factory_opset1().create(
-        "Less", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()},
+        "Less",
+        [left_node, right_node],
+        {"auto_broadcast": auto_broadcast.upper()},
     )
 
 
@@ -1297,7 +1334,9 @@ def less_equal(
              right_node.
     """
     return _get_node_factory_opset1().create(
-        "LessEqual", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()},
+        "LessEqual",
+        [left_node, right_node],
+        {"auto_broadcast": auto_broadcast.upper()},
     )
 
 
@@ -1363,7 +1402,9 @@ def logical_or(
     :return: The node performing logical or operation on input nodes corresponding elements.
     """
     return _get_node_factory_opset1().create(
-        "LogicalOr", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()},
+        "LogicalOr",
+        [left_node, right_node],
+        {"auto_broadcast": auto_broadcast.upper()},
     )
 
 
@@ -1423,9 +1464,9 @@ def lstm_cell(
     R: NodeInput,
     B: NodeInput,
     hidden_size: int,
-    activations: List[str] = None,
-    activations_alpha: List[float] = None,
-    activations_beta: List[float] = None,
+    activations: Optional[List[str]] = None,
+    activations_alpha: Optional[List[float]] = None,
+    activations_beta: Optional[List[float]] = None,
     clip: float = 0.0,
     name: Optional[str] = None,
 ) -> Node:
@@ -1496,9 +1537,9 @@ def lstm_sequence(
     B: NodeInput,
     hidden_size: int,
     direction: str,
-    activations: List[str] = None,
-    activations_alpha: List[float] = None,
-    activations_beta: List[float] = None,
+    activations: Optional[List[str]] = None,
+    activations_alpha: Optional[List[float]] = None,
+    activations_beta: Optional[List[float]] = None,
     clip: float = 0.0,
     name: Optional[str] = None,
 ) -> Node:
@@ -1645,9 +1686,19 @@ def maximum(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """Return node which applies the maximum operation to input nodes elementwise."""
+    """Return node which applies the maximum operation to input nodes elementwise.
+
+    :param left_node: The first input node for maximum operation.
+    :param right_node: The second input node for maximum operation.
+    :param auto_broadcast: The type of broadcasting specifies rules used for
+                           auto-broadcasting of input tensors. Defaults to "NUMPY".
+    :param name: The optional name for output new node.
+    :return: The node performing element-wise maximum operation.
+    """
     return _get_node_factory_opset1().create(
-        "Maximum", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()},
+        "Maximum",
+        [left_node, right_node],
+        {"auto_broadcast": auto_broadcast.upper()},
     )
 
 
@@ -1658,9 +1709,19 @@ def minimum(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """Return node which applies the minimum operation to input nodes elementwise."""
+    """Return node which applies the minimum operation to input nodes elementwise.
+
+    :param left_node: The first input node for minimum operation.
+    :param right_node: The second input node for minimum operation.
+    :param auto_broadcast: The type of broadcasting specifies rules used for
+                           auto-broadcasting of input tensors. Defaults to "NUMPY".
+    :param name: The optional name for output new node.
+    :return: The node performing element-wise minimum operation.
+    """
     return _get_node_factory_opset1().create(
-        "Minimum", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()},
+        "Minimum",
+        [left_node, right_node],
+        {"auto_broadcast": auto_broadcast.upper()},
     )
 
 
@@ -1680,7 +1741,9 @@ def mod(
     :return: The node performing element-wise Mod operation.
     """
     return _get_node_factory_opset1().create(
-        "Mod", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()},
+        "Mod",
+        [left_node, right_node],
+        {"auto_broadcast": auto_broadcast.upper()},
     )
 
 
@@ -1691,15 +1754,30 @@ def multiply(
     auto_broadcast: str = "NUMPY",
     name: Optional[str] = None,
 ) -> Node:
-    """Return node which applies f(x) = A*B to the input nodes elementwise."""
+    """Return node which applies f(A,B) = A*B to the input nodes elementwise.
+
+    :param left_node: The first input node for multiply operation.
+    :param right_node: The second input node for multiply operation.
+    :param auto_broadcast: The type of broadcasting specifies rules used for
+                           auto-broadcasting of input tensors. Defaults to "NUMPY".
+    :param name: The optional name for output new node.
+    :return: The node performing element-wise multiplication.
+    """
     return _get_node_factory_opset1().create(
-        "Multiply", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()},
+        "Multiply",
+        [left_node, right_node],
+        {"auto_broadcast": auto_broadcast.upper()},
     )
 
 
 @unary_op
 def negative(node: NodeInput, name: Optional[str] = None) -> Node:
-    """Return node which applies f(x) = -x to the input node elementwise."""
+    """Return node which applies f(x) = -x to the input node elementwise.
+
+    :param node: Input node for negative operation.
+    :param name: The optional name for output new node.
+    :return: The node performing element-wise multiplicaion by -1.
+    """
     return _get_node_factory_opset1().create("Negative", [node])
 
 
@@ -1760,7 +1838,9 @@ def normalize_l2(
     :return: New node which performs the L2 normalization.
     """
     return _get_node_factory_opset1().create(
-        "NormalizeL2", as_nodes(data, axes), {"eps": eps, "mode": eps_mode},
+        "NormalizeL2",
+        as_nodes(data, axes),
+        {"eps": eps, "mode": eps_mode},
     )
 
 
@@ -1781,7 +1861,9 @@ def not_equal(
     :return: The node performing element-wise inequality check.
     """
     return _get_node_factory_opset1().create(
-        "NotEqual", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()},
+        "NotEqual",
+        [left_node, right_node],
+        {"auto_broadcast": auto_broadcast.upper()},
     )
 
 
@@ -1808,7 +1890,9 @@ def one_hot(
     :return: New node performing one-hot operation.
     """
     return _get_node_factory_opset1().create(
-        "OneHot", as_nodes(indices, depth, on_value, off_value), {"axis": axis},
+        "OneHot",
+        as_nodes(indices, depth, on_value, off_value),
+        {"axis": axis},
     )
 
 
@@ -1845,7 +1929,13 @@ def parameter(
     dtype: Union[NumericType, Type] = np.float32,
     name: Optional[str] = None,
 ) -> Parameter:
-    """Return an openvino Parameter object."""
+    """Return an openvino Parameter object.
+
+    :param shape: The shape of the output tensor.
+    :param dtype: The type of elements of the output tensor. Defaults to np.float32.
+    :param name: The optional name for output new node.
+    :return: The node that specifies input to the model.
+    """
     return Parameter(
         get_element_type(dtype) if isinstance(dtype, (type, np.dtype)) else dtype,
         PartialShape(shape),
@@ -1869,7 +1959,9 @@ def power(
     :return: The new node performing element-wise exponentiation operation on input nodes.
     """
     return _get_node_factory_opset1().create(
-        "Power", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()},
+        "Power",
+        [left_node, right_node],
+        {"auto_broadcast": auto_broadcast.upper()},
     )
 
 
@@ -1896,7 +1988,10 @@ def prelu(data: NodeInput, slope: NodeInput, name: Optional[str] = None) -> Node
 
 @nameable_op
 def prior_box_clustered(
-    output_size: Node, image_size: NodeInput, attrs: dict, name: Optional[str] = None,
+    output_size: Node,
+    image_size: NodeInput,
+    attrs: dict,
+    name: Optional[str] = None,
 ) -> Node:
     """Generate prior boxes of specified sizes normalized to the input image size.
 
@@ -1976,13 +2071,18 @@ def prior_box_clustered(
     check_valid_attributes("PriorBoxClustered", attrs, requirements)
 
     return _get_node_factory_opset1().create(
-        "PriorBoxClustered", [output_size, as_node(image_size)], attrs,
+        "PriorBoxClustered",
+        [output_size, as_node(image_size)],
+        attrs,
     )
 
 
 @nameable_op
 def prior_box(
-    layer_shape: Node, image_shape: NodeInput, attrs: dict, name: Optional[str] = None,
+    layer_shape: Node,
+    image_shape: NodeInput,
+    attrs: dict,
+    name: Optional[str] = None,
 ) -> Node:
     """Generate prior boxes of specified sizes and aspect ratios across all dimensions.
 
@@ -2094,7 +2194,9 @@ def prior_box(
     check_valid_attributes("PriorBox", attrs, requirements)
 
     return _get_node_factory_opset1().create(
-        "PriorBox", [layer_shape, as_node(image_shape)], attrs,
+        "PriorBox",
+        [layer_shape, as_node(image_shape)],
+        attrs,
     )
 
 
@@ -2322,7 +2424,9 @@ def reduce_logical_and(
     :return: The new node performing reduction operation.
     """
     return _get_node_factory_opset1().create(
-        "ReduceLogicalAnd", as_nodes(node, reduction_axes), {"keep_dims": keep_dims},
+        "ReduceLogicalAnd",
+        as_nodes(node, reduction_axes),
+        {"keep_dims": keep_dims},
     )
 
 
@@ -2342,7 +2446,9 @@ def reduce_logical_or(
     :return: The new node performing reduction operation.
     """
     return _get_node_factory_opset1().create(
-        "ReduceLogicalOr", as_nodes(node, reduction_axes), {"keep_dims": keep_dims},
+        "ReduceLogicalOr",
+        as_nodes(node, reduction_axes),
+        {"keep_dims": keep_dims},
     )
 
 
@@ -2361,7 +2467,9 @@ def reduce_max(
     :param name: Optional name for output node.
     """
     return _get_node_factory_opset1().create(
-        "ReduceMax", as_nodes(node, reduction_axes), {"keep_dims": keep_dims},
+        "ReduceMax",
+        as_nodes(node, reduction_axes),
+        {"keep_dims": keep_dims},
     )
 
 
@@ -2381,7 +2489,9 @@ def reduce_mean(
     :return: The new node performing mean-reduction operation.
     """
     return _get_node_factory_opset1().create(
-        "ReduceMean", as_nodes(node, reduction_axes), {"keep_dims": keep_dims},
+        "ReduceMean",
+        as_nodes(node, reduction_axes),
+        {"keep_dims": keep_dims},
     )
 
 
@@ -2400,7 +2510,9 @@ def reduce_min(
     :param name:           Optional name for output node.
     """
     return _get_node_factory_opset1().create(
-        "ReduceMin", as_nodes(node, reduction_axes), {"keep_dims": keep_dims},
+        "ReduceMin",
+        as_nodes(node, reduction_axes),
+        {"keep_dims": keep_dims},
     )
 
 
@@ -2420,7 +2532,9 @@ def reduce_prod(
     :return: The new node performing product-reduction operation.
     """
     return _get_node_factory_opset1().create(
-        "ReduceProd", as_nodes(node, reduction_axes), {"keep_dims": keep_dims},
+        "ReduceProd",
+        as_nodes(node, reduction_axes),
+        {"keep_dims": keep_dims},
     )
 
 
@@ -2440,7 +2554,9 @@ def reduce_sum(
     :return: The new node performing summation along `reduction_axes` element-wise.
     """
     return _get_node_factory_opset1().create(
-        "ReduceSum", as_nodes(node, reduction_axes), {"keep_dims": keep_dims},
+        "ReduceSum",
+        as_nodes(node, reduction_axes),
+        {"keep_dims": keep_dims},
     )
 
 
@@ -2454,7 +2570,7 @@ def region_yolo(
     mask: List[int],
     axis: int,
     end_axis: int,
-    anchors: List[float] = None,
+    anchors: Optional[List[float]] = None,
     name: Optional[str] = None,
 ) -> Node:
     """Return a node which produces the RegionYolo operation.
@@ -2508,9 +2624,12 @@ def reshape(
                          If special_zero is true, then all zeros in shape implies the copying
                          of corresponding dimensions from data.shape into the output shape.
                          Range of values: False or True
+    :return: The node reshaping an input tensor.
     """
     return _get_node_factory_opset1().create(
-        "Reshape", as_nodes(node, output_shape), {"special_zero": special_zero},
+        "Reshape",
+        as_nodes(node, output_shape),
+        {"special_zero": special_zero},
     )
 
 
@@ -2568,7 +2687,9 @@ def select(
     """
     inputs = as_nodes(cond, then_node, else_node)
     return _get_node_factory_opset1().create(
-        "Select", inputs, {"auto_broadcast": auto_broadcast.upper()},
+        "Select",
+        inputs,
+        {"auto_broadcast": auto_broadcast.upper()},
     )
 
 
@@ -2588,7 +2709,8 @@ def selu(
     :return: The new node performing relu operation on its input element-wise.
     """
     return _get_node_factory_opset1().create(
-        "Selu", as_nodes(data, alpha, lambda_value),
+        "Selu",
+        as_nodes(data, alpha, lambda_value),
     )
 
 
@@ -2658,7 +2780,7 @@ def softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
 
 
 @nameable_op
-def space_to_depth(data: Node, mode: str, block_size: int = 1, name: str = None) -> Node:
+def space_to_depth(data: Node, mode: str, block_size: int = 1, name: Optional[str] = None) -> Node:
     """Perform SpaceToDepth operation on the input tensor.
 
     SpaceToDepth rearranges blocks of spatial data into depth.
@@ -2692,7 +2814,9 @@ def split(data: NodeInput, axis: NodeInput, num_splits: int, name: Optional[str]
     :return: Split node
     """
     return _get_node_factory_opset1().create(
-        "Split", as_nodes(data, axis), {"num_splits": num_splits},
+        "Split",
+        as_nodes(data, axis),
+        {"num_splits": num_splits},
     )
 
 
@@ -2726,7 +2850,9 @@ def squared_difference(
     :return: The new node performing a squared difference between two tensors.
     """
     return _get_node_factory_opset1().create(
-        "SquaredDifference", [x1, x2], {"auto_broadcast": auto_broadcast.upper()},
+        "SquaredDifference",
+        [x1, x2],
+        {"auto_broadcast": auto_broadcast.upper()},
     )
 
 
@@ -2798,7 +2924,9 @@ def strided_slice(
     }
 
     return _get_node_factory_opset1().create(
-        "StridedSlice", as_nodes(data, begin, end, strides), attributes,
+        "StridedSlice",
+        as_nodes(data, begin, end, strides),
+        attributes,
     )
 
 
@@ -2819,7 +2947,9 @@ def subtract(
     :return: The new output node performing subtraction operation on both tensors element-wise.
     """
     return _get_node_factory_opset1().create(
-        "Subtract", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()},
+        "Subtract",
+        [left_node, right_node],
+        {"auto_broadcast": auto_broadcast.upper()},
     )
 
 
@@ -2925,5 +3055,6 @@ def variadic_split(
     :return: VariadicSplit node
     """
     return _get_node_factory_opset1().create(
-        "VariadicSplit", as_nodes(data, axis, split_lengths),
+        "VariadicSplit",
+        as_nodes(data, axis, split_lengths),
     )

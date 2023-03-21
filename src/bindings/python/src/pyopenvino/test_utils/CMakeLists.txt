@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -8,13 +8,12 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/test_utils)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/test_utils)
 set(CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/test_utils)
 set(CMAKE_PDB_OUTPUT_DIRECTORY ${PYTHON_BRIDGE_OUTPUT_DIRECTORY}/test_utils)
-set(PYTHON_BRIDGE_CPACK_PATH "${OV_CPACK_PYTHONDIR}")
 
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/test_utils.cpp)
 
 # create target
 
-pybind11_add_module(${TARGET_NAME} MODULE ${SOURCES})
+pybind11_add_module(${TARGET_NAME} MODULE NO_EXTRAS ${SOURCES})
 
 add_dependencies(${TARGET_NAME} pyopenvino)
 
@@ -23,8 +22,8 @@ if(COMMAND ie_add_vs_version_file)
             FILEDESCRIPTION "Test Utils Python library")
 endif()
 
-if(InferenceEngineDeveloperPackage_FOUND)
-    list(APPEND link_libraries IE::commonTestUtils)
+if(OpenVINODeveloperPackage_FOUND)
+    list(APPEND link_libraries openvino::commonTestUtils)
 else()
     list(APPEND link_libraries commonTestUtils)
 endif()
@@ -40,7 +39,7 @@ endif()
 # perform copy
 add_custom_command(TARGET ${TARGET_NAME}
         POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy  ${PYTHON_SOURCE_DIR}/openvino/test_utils/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
+        COMMAND ${CMAKE_COMMAND} -E copy ${OpenVINOPython_SOURCE_DIR}/src/openvino/test_utils/__init__.py ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/__init__.py
         )
 
 add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
@@ -49,12 +48,12 @@ add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}
 # install
 
 install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/test_utils
+        RUNTIME DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/test_utils
         COMPONENT tests EXCLUDE_FROM_ALL
-        LIBRARY DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/test_utils
+        LIBRARY DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/test_utils
         COMPONENT tests EXCLUDE_FROM_ALL)
 
-install(PROGRAMS  ${PYTHON_SOURCE_DIR}/openvino/test_utils/__init__.py
-        DESTINATION ${PYTHON_BRIDGE_CPACK_PATH}/${PYTHON_VERSION}/openvino/test_utils
+install(PROGRAMS ${OpenVINOPython_SOURCE_DIR}/src/openvino/test_utils/__init__.py
+        DESTINATION ${OV_CPACK_PYTHONDIR}/openvino/test_utils
         COMPONENT tests
         EXCLUDE_FROM_ALL)

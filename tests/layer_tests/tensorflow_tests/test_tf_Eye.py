@@ -1,11 +1,10 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import numpy as np
 import pytest
 import tensorflow as tf
 from common.tf_layer_test_class import CommonTFLayerTest
-from common.utils.tf_utils import permute_nchw_to_nhwc
 
 
 class TestTFEye(CommonTFLayerTest):
@@ -55,10 +54,10 @@ class TestTFEye(CommonTFLayerTest):
     @pytest.mark.nightly
     @pytest.mark.precommit
     def test_tf_eye(self, params, ie_device, precision, ir_version, temp_dir, use_new_frontend,
-                     api_2=True):
+                    use_old_api=True):
         if ie_device == 'GPU':
             pytest.skip("Roll is not supported on GPU")
         self._test(*self.create_tf_eye_net(**params), ie_device,
                    precision,
                    temp_dir=temp_dir, ir_version=ir_version, use_new_frontend=use_new_frontend,
-                   api_2=api_2, **params)
+                   use_old_api=use_old_api, **params)

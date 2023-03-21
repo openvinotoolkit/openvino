@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -6,8 +6,7 @@
 # Configure and install libonnx ...
 #------------------------------------------------------------------------------
 
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE OFF)
-set(OV_ONNX_NAMESPACE ngraph_onnx)
+set(OV_ONNX_NAMESPACE openvino_onnx)
 
 if(NOT DEFINED ONNX_USE_MSVC_STATIC_RUNTIME)
     set(ONNX_USE_MSVC_STATIC_RUNTIME OFF)
@@ -19,13 +18,19 @@ else()
     set(ONNX_USE_LITE_PROTO_DEFAULT ON)
 endif()
 
-set(ONNX_USE_PROTOBUF_SHARED_LIBS CACHE BOOL "Use dynamic protobuf by ONNX library" FORCE)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # 4244 conversion from 'XXX' to 'YYY', possible loss of data
+    ie_add_compiler_flags(/wd4244)
+endif()
+
+set(ONNX_USE_PROTOBUF_SHARED_LIBS OFF CACHE BOOL "Use dynamic protobuf by ONNX library" FORCE)
 set(ONNX_NAMESPACE ${OV_ONNX_NAMESPACE})
 set(ONNX_USE_LITE_PROTO ${ONNX_USE_LITE_PROTO_DEFAULT} CACHE BOOL "Use protobuf lite for ONNX library" FORCE)
 set(ONNX_ML ON CACHE BOOL "Use ONNX ML" FORCE)
-if(CMAKE_CROSSCOMPILING)
-    set(ONNX_CUSTOM_PROTOC_EXECUTABLE ${SYSTEM_PROTOC})
-endif()
+set(ONNX_CUSTOM_PROTOC_EXECUTABLE ${PROTOC_EXECUTABLE})
+
+# clear Python_ADDITIONAL_VERSIONS to find only python library matching PYTHON_EXECUTABLE
+unset(Python_ADDITIONAL_VERSIONS CACHE)
 
 # build targets
 

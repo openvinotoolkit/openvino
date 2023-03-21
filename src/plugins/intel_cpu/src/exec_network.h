@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 
 #include "graph.h"
 #include "extension_mngr.h"
+#include "graph_context.h"
 #include <threading/ie_thread_local.hpp>
 
 #include <vector>
@@ -38,8 +39,6 @@ public:
                 const ExtensionManager::Ptr &extMgr,
                 const std::shared_ptr<InferenceEngine::IInferencePlugin>& plugin);
 
-    void setProperty(const std::map<std::string, std::string> &properties);
-
     InferenceEngine::Parameter GetConfig(const std::string &name) const override;
 
     InferenceEngine::Parameter GetMetric(const std::string &name) const override;
@@ -53,7 +52,9 @@ protected:
     ExtensionManager::Ptr extensionManager;
     std::vector<InferenceEngine::IVariableStateInternal::Ptr> memoryStates;
     const InferenceEngine::CNNNetwork           _network;
-    mutable std::mutex                          _cfgMutex;
+    // Generic synchronization primitive on ExecNetwork level.
+    // Usage example: helps to avoid data races during CPU Graph initialization in multi-streams scenario
+    mutable std::shared_ptr<std::mutex>         _mutex;
     Config                                      _cfg;
     std::atomic_int                             _numRequests = {0};
     std::string                                 _name;
@@ -67,7 +68,7 @@ protected:
 
     // WARNING: Do not use _graphs directly.
     mutable std::deque<GraphGuard>              _graphs;
-    mutable NumaNodesWeights                           _numaNodesWeights;
+    mutable NumaNodesWeights                    _numaNodesWeights;
 
     /* WARNING: Use GetGraph() function to get access to graph in current stream.
      * NOTE: Main thread is interpreted as master thread of external stream so use this function to get access to graphs

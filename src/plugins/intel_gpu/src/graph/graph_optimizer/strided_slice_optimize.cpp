@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "intel_gpu/runtime/error_handler.hpp"
 #include "pass_manager.h"
@@ -19,19 +17,32 @@ void strided_slice_optimize::run(program& p) {
     auto node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
         auto& node = (*node_itr++);
-        if (node->is_type<strided_slice>()) {
+        if (node->is_type<strided_slice>() && node->get_output_layout().is_static()) {
             auto& strided_slice_node = node->as<strided_slice>();
             auto& new_axis_mask = strided_slice_node.get_primitive()->new_axis_mask;
 
             if (std::find(new_axis_mask.begin(), new_axis_mask.end(), 1) == new_axis_mask.end())
                 continue;
 
+            auto node_layout = strided_slice_node.get_output_layout();
+            // only 4D or less dimension output runs optimization
+            if (node_layout.get_rank() > 4)
+                continue;
+
             auto& deps = node->get_dependencies();
+            auto is_other_deps_constant = [deps]() {
+                for (size_t i = 1; i < deps.size(); i++) {
+                    if (!deps[i].first->is_type<data>()) return false;
+                }
+                return true;
+            };
+            if (!is_other_deps_constant())
+                continue;
+
             for (size_t i = deps.size(); i--;)
-                if (deps[i]->is_type<data>())
+                if (deps[i].first->is_type<data>())
                     node->remove_dependency(i);
 
-            auto node_layout = strided_slice_node.get_output_layout();
             auto node_size = node_layout.get_tensor().sizes(format::bfyx);
 
             auto is_shift_possible = [&](const std::vector<int32_t>& dims) -> bool {

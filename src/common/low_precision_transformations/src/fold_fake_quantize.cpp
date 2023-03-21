@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/pattern/op/or.hpp>
 #include "low_precision/network_helper.hpp"
 #include "itt.hpp"
 
@@ -25,7 +26,6 @@ FoldFakeQuantizeTransformation::FoldFakeQuantizeTransformation(const Params& par
         if (transformation_callback(op)) {
             return false;
         }
-        MATCHER_SCOPE_ENABLE(FoldFakeQuantizeTransformation);
         return transform(*context, m);
     };
 
@@ -60,8 +60,27 @@ bool FoldFakeQuantizeTransformation::transform(TransformationContext& context, n
     return false;
 }
 
+bool FoldFakeQuantizeTransformation::isConstantOutput(std::shared_ptr<ngraph::Node> node) const {
+    const auto fakeQuantize = ov::as_type_ptr<opset1::FakeQuantize>(node);
+    if (!fakeQuantize) {
+        return false;
+    }
+
+    const auto outputLow = as_type_ptr<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(3));
+    const auto outputHigh = as_type_ptr<opset1::Constant>(fakeQuantize->get_input_node_shared_ptr(4));
+
+    if (outputLow == nullptr || outputHigh == nullptr) {
+        return false;
+    }
+
+    const auto vecLow = outputLow->cast_vector<float>();
+    const auto vecHigh = outputHigh->cast_vector<float>();
+
+    return vecLow == vecHigh;
+}
+
 bool FoldFakeQuantizeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
-    return NetworkHelper::isConstantPath(op);
+    return NetworkHelper::isConstantPath(op) || isConstantOutput(op);
 }
 
 bool FoldFakeQuantizeTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {

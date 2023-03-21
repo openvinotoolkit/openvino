@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,8 +17,6 @@
 #include <ngraph/op/util/framework_node.hpp>
 #include <transformations/init_node_info.hpp>
 #include <openvino/core/model.hpp>
-
-#include "ie_common.h"
 
 #include "test_common.hpp"
 
@@ -41,8 +39,11 @@ public:
     void disable_rt_info_check();
 
     void enable_soft_names_comparison();
+    void disable_result_friendly_names_check();
 
     std::shared_ptr<ov::Model> function, function_ref;
+    // Aliases to function and function_ref pointers to be more corresponding with ov namespace.
+    std::shared_ptr<ov::Model>&model, &model_ref;
     ngraph::pass::Manager manager;
     FunctionsComparator comparator;
 
@@ -50,6 +51,7 @@ private:
     std::shared_ptr<ngraph::pass::UniqueNamesHolder> m_unh;
     bool m_disable_rt_info_check{false};
     bool m_soft_names_comparison{true};
+    bool m_result_friendly_names_check{true};
 };
 
 void init_unique_names(std::shared_ptr<ngraph::Function> f, const std::shared_ptr<ngraph::pass::UniqueNamesHolder>& unh);
@@ -67,3 +69,11 @@ size_t count_ops_of_type(const std::shared_ptr<ngraph::Function>& f) {
 
     return count;
 }
+
+template<class T>
+std::shared_ptr<ov::opset8::Constant> create_constant(const std::vector<T>& data, const ov::element::Type_t et = ov::element::i64, bool scalar = false) {
+    ov::Shape shape = scalar ? ov::Shape{} : ov::Shape{data.size()};
+    return ov::opset8::Constant::create(et, shape, data);
+}
+
+std::shared_ptr<ov::opset8::Constant> create_zero_constant(const ov::element::Type_t& et, const ov::Shape& shape);

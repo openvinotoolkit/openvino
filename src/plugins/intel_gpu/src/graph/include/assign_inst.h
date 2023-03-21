@@ -6,7 +6,6 @@
 
 #include "intel_gpu/primitives/assign.hpp"
 #include "primitive_inst.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace memory_state {
@@ -16,21 +15,13 @@ public:
     explicit variable(const std::string& variable_id) : variable_id_ {variable_id} {}
 
     const std::string& variable_id() const { return variable_id_; }
+    void set_variable_id(const std::string& variable_id) { variable_id_ = variable_id; }
 
 private:
     std::string variable_id_;
 };
 
 } // namespace memory_state
-
-template<>
-struct typed_program_node<assign> : public typed_program_node_base<assign> {
-    using parent = typed_program_node_base<assign>;
-public:
-    using parent::parent;
-
-    const program_node& input(std::size_t index = 0) const { return get_dependency(index); }
-};
 
 using assign_node = typed_program_node<assign>;
 
@@ -39,12 +30,15 @@ class typed_primitive_inst<assign> : public typed_primitive_inst_base<assign>, p
     using parent = typed_primitive_inst_base<assign>;
 
 public:
-    static layout calc_output_layout(const assign_node& node);
+    static layout calc_output_layout(const assign_node& node, kernel_impl_params const& impl_param);
 
     static std::string to_string(const assign_node& node);
 
-public:
     typed_primitive_inst(network& network, const assign_node& desc);
+    typed_primitive_inst(network& network) : parent(network), memory_state::variable("") {}
+
+    void save(cldnn::BinaryOutputBuffer& ob) const override;
+    void load(cldnn::BinaryInputBuffer& ib) override;
 };
 
 using assign_inst = typed_primitive_inst<assign>;

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,12 +8,7 @@
 #include "openvino/frontend/visibility.hpp"
 #include "openvino/opsets/opset8.hpp"
 
-// Defined if we are building the plugin DLL (instead of using it)
-#ifdef openvino_mock1_frontend_EXPORTS
-#    define MOCK_API OPENVINO_CORE_EXPORTS
-#else
-#    define MOCK_API OPENVINO_CORE_IMPORTS
-#endif  // openvino_mock1_frontend_EXPORTS
+#define MOCK_C_API OPENVINO_EXTERN_C OPENVINO_CORE_EXPORTS
 
 using namespace ngraph;
 using namespace ov::frontend;
@@ -155,7 +150,7 @@ public:
         if (variants.size() == 1 && variants[0].is<std::string>()) {
             std::string command = variants[0].as<std::string>();
             if (command == "throw_now") {
-                OPENVINO_UNREACHABLE("Test throw load input model");
+                OPENVINO_THROW("Test throw load input model");
             } else if (command == "throw_next") {
                 m_throw_next = true;
             } else if (command == "throw_model") {
@@ -198,11 +193,14 @@ public:
     }
 };
 
-extern "C" MOCK_API FrontEndVersion GetAPIVersion() {
+MOCK_C_API FrontEndVersion get_api_version();
+MOCK_C_API void* get_front_end_data();
+
+MOCK_C_API FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;
 }
 
-extern "C" MOCK_API void* GetFrontEndData() {
+MOCK_C_API void* get_front_end_data() {
     auto* res = new FrontEndPluginInfo();
     res->m_name = "mock1";
     res->m_creator = []() {

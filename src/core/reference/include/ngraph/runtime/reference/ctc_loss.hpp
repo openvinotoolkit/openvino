@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,7 @@ void CTCLoss(const T* logits,
     const size_t batchNum = logitsShape[0];
     const size_t maxTime = logitsShape[1];
     const size_t classesNum = logitsShape[2];
-    U blankIndex = classesNum - 1;
+    U blankIndex = static_cast<U>(classesNum - 1);
     if (blankIndexP != nullptr) {
         blankIndex = blankIndexP[0];
     }
@@ -105,9 +105,10 @@ void CTCLoss(const T* logits,
                         res = prevLogProb;
                     } else if (prevLogProb != -type_inf) {
                         if (res > prevLogProb)
-                            res = res + std::log1pf(std::exp(prevLogProb - res));
+                            res = res + static_cast<T>(std::log1pf(static_cast<float>(std::exp(prevLogProb - res))));
                         else
-                            res = prevLogProb + std::log1pf(std::exp(res - prevLogProb));
+                            res = prevLogProb +
+                                  static_cast<T>(std::log1pf(static_cast<float>(std::exp(res - prevLogProb))));
                     }
                     return;
                 }

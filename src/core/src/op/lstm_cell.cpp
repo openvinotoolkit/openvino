@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,9 +17,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v0::LSTMCell);
-BWDCMP_RTTI_DEFINITION(op::v4::LSTMCell);
 
 op::v0::LSTMCell::LSTMCell() : m_input_forget(false), m_weights_format(LSTMWeightsFormat::IFCO) {
     m_activations = {"sigmoid", "tanh", "tanh"};
@@ -113,7 +110,7 @@ op::v0::LSTMCell::LSTMCell(const Output<Node>& X,
 }
 
 bool ngraph::op::v0::LSTMCell::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v0_LSTMCell_visit_attributes);
+    OV_OP_SCOPE(v0_LSTMCell_visit_attributes);
     visitor.on_attribute("hidden_size", m_hidden_size);
     visitor.on_attribute("activations", m_activations);
     visitor.on_attribute("activations_alpha", m_activations_alpha);
@@ -126,7 +123,7 @@ bool ngraph::op::v0::LSTMCell::visit_attributes(AttributeVisitor& visitor) {
 }
 
 void op::v0::LSTMCell::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v0_LSTMCell_validate_and_infer_types);
+    OV_OP_SCOPE(v0_LSTMCell_validate_and_infer_types);
 
     // There should be 7 inputs, if no, it's possible the op can be fixed by
     // generating default ones for input 6 and 7 (bias input, peepholes)
@@ -190,7 +187,7 @@ Output<Node> op::v0::LSTMCell::get_default_peepholes_input() const {
 }
 
 shared_ptr<Node> op::v0::LSTMCell::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_LSTMCell_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_LSTMCell_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 5) {
         return make_shared<op::v0::LSTMCell>(new_args.at(0),
@@ -251,8 +248,22 @@ NGRAPH_API EnumNames<ngraph::op::LSTMWeightsFormat>& EnumNames<ngraph::op::LSTMW
     return enum_names;
 }
 
-BWDCMP_RTTI_DEFINITION(AttributeAdapter<ov::op::LSTMWeightsFormat>);
-
+ov::op::util::LSTMWeightsFormat op::convert_lstm_weights_enums(op::LSTMWeightsFormat format) {
+    switch (format) {
+    case LSTMWeightsFormat::FICO:
+        return ov::op::util::LSTMWeightsFormat::FICO;
+    case LSTMWeightsFormat::ICOF:
+        return ov::op::util::LSTMWeightsFormat::ICOF;
+    case LSTMWeightsFormat::IFCO:
+        return ov::op::util::LSTMWeightsFormat::IFCO;
+    case LSTMWeightsFormat::IFOC:
+        return ov::op::util::LSTMWeightsFormat::IFOC;
+    case LSTMWeightsFormat::IOFC:
+        return ov::op::util::LSTMWeightsFormat::IOFC;
+    default:
+        OPENVINO_ASSERT(false, "Incorrect LSTM weights format");
+    }
+}
 }  // namespace ov
 
 std::ostream& ov::operator<<(std::ostream& s, const op::LSTMWeightsFormat& type) {
@@ -313,12 +324,12 @@ op::v4::LSTMCell::LSTMCell(const Output<Node>& X,
 }
 
 bool ngraph::op::v4::LSTMCell::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v4_LSTMCell_visit_attributes);
+    OV_OP_SCOPE(v4_LSTMCell_visit_attributes);
     return op::util::RNNCellBase::visit_attributes(visitor);
 }
 
 void op::v4::LSTMCell::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v4_LSTMCell_validate_and_infer_types);
+    OV_OP_SCOPE(v4_LSTMCell_validate_and_infer_types);
 
     auto result_et = element::dynamic;
 
@@ -364,7 +375,7 @@ Output<Node> op::v4::LSTMCell::get_default_bias_input() const {
 }
 
 shared_ptr<Node> op::v4::LSTMCell::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v4_LSTMCell_clone_with_new_inputs);
+    OV_OP_SCOPE(v4_LSTMCell_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 5) {
         return make_shared<LSTMCell>(new_args.at(0),

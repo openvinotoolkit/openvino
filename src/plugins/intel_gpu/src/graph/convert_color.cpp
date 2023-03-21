@@ -1,22 +1,18 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "convert_color_inst.h"
 
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
 namespace cldnn {
-primitive_type_id convert_color::type_id() {
-    static primitive_type_base<convert_color> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(convert_color)
 
-layout convert_color_inst::calc_output_layout(convert_color_node const& node) {
-    auto desc = node.get_primitive();
+layout convert_color_inst::calc_output_layout(convert_color_node const& node, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<convert_color>();
     return desc->output_layout;
 }
 

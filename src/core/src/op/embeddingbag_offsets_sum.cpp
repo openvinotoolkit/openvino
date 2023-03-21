@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -9,8 +9,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v3::EmbeddingBagOffsetsSum);
 
 op::v3::EmbeddingBagOffsetsSum::EmbeddingBagOffsetsSum(const Output<Node>& emb_table,
                                                        const Output<Node>& indices,
@@ -31,7 +29,7 @@ op::v3::EmbeddingBagOffsetsSum::EmbeddingBagOffsetsSum(const Output<Node>& emb_t
     : util::EmbeddingBagOffsetsBase(emb_table, indices, offsets) {}
 
 shared_ptr<Node> op::v3::EmbeddingBagOffsetsSum::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v3_EmbeddingBagOffsetsSum_clone_with_new_inputs);
+    OV_OP_SCOPE(v3_EmbeddingBagOffsetsSum_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 3) {
         return make_shared<op::v3::EmbeddingBagOffsetsSum>(new_args.at(0), new_args.at(1), new_args.at(2));

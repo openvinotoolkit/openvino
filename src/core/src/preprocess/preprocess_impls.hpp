@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -217,10 +217,7 @@ private:
     std::vector<std::string> m_planes_sub_names;
 
     element::Type m_type = element::dynamic;
-    bool m_type_set = false;
-
     Layout m_layout = Layout();
-    bool m_layout_set = false;
 
     int m_spatial_width = -1;
     int m_spatial_height = -1;

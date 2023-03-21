@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,8 +23,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v1::SpaceToBatch);
-
 ngraph::op::v1::SpaceToBatch::SpaceToBatch(const ngraph::Output<ngraph::Node>& data,
                                            const ngraph::Output<ngraph::Node>& block_shape,
                                            const ngraph::Output<ngraph::Node>& pads_begin,
@@ -37,7 +35,7 @@ ngraph::op::v1::SpaceToBatch::SpaceToBatch(const ngraph::Output<ngraph::Node>& d
 }
 
 void op::v1::SpaceToBatch::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v1_SpaceToBatch_validate_and_infer_types);
+    OV_OP_SCOPE(v1_SpaceToBatch_validate_and_infer_types);
     const auto& data_type = get_input_element_type(0);
     const auto& block_shape_type = get_input_element_type(1);
     const auto& pads_begin_type = get_input_element_type(2);
@@ -60,35 +58,46 @@ void op::v1::SpaceToBatch::validate_and_infer_types() {
                           "pads_end must be an integral number but got (",
                           pads_end_type,
                           ").");
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}};
-    const std::vector<ov::PartialShape> input_shapes = {get_input_partial_shape(0),
-                                                        get_input_partial_shape(1),
-                                                        get_input_partial_shape(2),
-                                                        get_input_partial_shape(3)};
-    shape_infer(this, input_shapes, output_shapes);
-    set_output_type(0, data_type, output_shapes[0]);
+    const auto output_shape = shape_infer(this, get_node_input_partial_shapes(*this)).front();
+    set_output_type(0, data_type, output_shape);
 }
 
 std::shared_ptr<Node> ngraph::op::v1::SpaceToBatch::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v1_SpaceToBatch_clone_with_new_inputs);
+    OV_OP_SCOPE(v1_SpaceToBatch_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<SpaceToBatch>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));
 }
 
 bool ngraph::op::v1::SpaceToBatch::visit_attributes(ngraph::AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v1_SpaceToBatch_visit_attributes);
+    OV_OP_SCOPE(v1_SpaceToBatch_visit_attributes);
     return true;
 }
 
 bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVector& outputs,
                                                            const HostTensorVector& inputs) const {
+    if (outputs[0]->get_partial_shape().is_dynamic()) {
+        std::map<size_t, HostTensorPtr> constant_data;
+        std::vector<ov::PartialShape> input_shapes;
+        input_shapes.reserve(inputs.size());
+
+        for (size_t i = 0; i < inputs.size(); ++i) {
+            input_shapes.push_back(inputs[i]->get_partial_shape());
+            if (input_shapes.back().is_dynamic()) {
+                return false;
+            }
+            constant_data.emplace(i, inputs[i]);
+        }
+
+        const auto output_shape = shape_infer(this, input_shapes, constant_data).front().to_shape();
+
+        outputs[0]->set_element_type(inputs[0]->get_element_type());
+        outputs[0]->set_shape(output_shape);
+    }
+
     const auto& data = inputs[0];
     const auto& out = outputs[0];
     size_t elem_size = data->get_element_type().size();
 
-    if (data->get_partial_shape().is_dynamic()) {
-        return false;
-    }
     auto data_shape = data->get_shape();
 
     if (!(data->get_shape().size() == 4 || data->get_shape().size() == 5)) {
@@ -194,12 +203,13 @@ bool ngraph::op::v1::SpaceToBatch::evaluate_space_to_batch(const HostTensorVecto
 }
 
 bool ngraph::op::v1::SpaceToBatch::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v1_SpaceToBatch_evaluate);
+    OV_OP_SCOPE(v1_SpaceToBatch_evaluate);
+
     return evaluate_space_to_batch(outputs, inputs);
 }
 
 bool ngraph::op::v1::SpaceToBatch::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_SpaceToBatch_has_evaluate);
+    OV_OP_SCOPE(v1_SpaceToBatch_has_evaluate);
     return !get_input_partial_shape(0).is_dynamic() &&
            (get_input_shape(0).size() == 4 || get_input_shape(0).size() == 5);
 }

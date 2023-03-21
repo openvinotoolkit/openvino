@@ -9,254 +9,430 @@
    openvino_docs_OV_UG_Model_Representation
    openvino_docs_OV_UG_Infer_request
    openvino_docs_OV_UG_Python_API_exclusives
+   openvino_docs_MO_DG_TensorFlow_Frontend
 
-@endsphinxdirective
+Following these steps, you can implement a typical OpenVINO™ Runtime inference 
+pipeline in your application. Before proceeding, make sure you have 
+:doc:`installed OpenVINO Runtime <openvino_docs_install_guides_install_runtime>` and set environment variables (run ``<INSTALL_DIR>/setupvars.sh`` for Linux or ``setupvars.bat`` for Windows, otherwise, the ``OpenVINO_DIR`` variable won't be configured properly to pass ``find_package`` calls).
 
 
-Following these steps, you can implement a typical OpenVINO™ Runtime inference pipeline in your application. Before proceeding, make sure you have [installed OpenVINO Runtime](../install_guides/installing-openvino-runtime.md) and set environment variables (run `<INSTALL_DIR>/setupvars.sh` for Linux or `setupvars.bat` for Windows, otherwise, the `OpenVINO_DIR` variable won't be configured properly to pass `find_package` calls).
+.. image:: _static/images/IMPLEMENT_PIPELINE_with_API_C.svg
 
 
-![ie_api_use_cpp]
-
-## Step 1. Create OpenVINO™ Runtime Core 
+Step 1. Create OpenVINO Runtime Core
+####################################
 
 Include next files to work with OpenVINO™ Runtime:
 
-@sphinxtabset
+.. tab-set::
 
-@sphinxtab{C++}
+    .. tab-item:: C++
+       :sync: cpp
 
-@snippet docs/snippets/src/main.cpp include
+       .. doxygensnippet:: docs/snippets/src/main.cpp
+          :language: cpp
+          :fragment: [include]
 
-@endsphinxtab
+    .. tab-item:: Python
+       :sync: py
 
-@sphinxtab{Python}
+       .. doxygensnippet:: docs/snippets/src/main.py
+          :language: python
+          :fragment: [import]
 
-@snippet docs/snippets/src/main.py import
+    .. tab-item:: C
+       :sync: c
 
-@endsphinxtab
+       .. doxygensnippet:: docs/snippets/src/main.c
+          :language: cpp
+          :fragment: [include]
 
-@endsphinxtabset
 
 Use the following code to create OpenVINO™ Core to manage available devices and read model objects:
 
-@sphinxtabset
+.. tab-set::
 
-@sphinxtab{C++}
+    .. tab-item:: C++
+       :sync: cpp
 
-@snippet docs/snippets/src/main.cpp part1
+       .. doxygensnippet:: docs/snippets/src/main.cpp
+          :language: cpp
+          :fragment: [part1]
 
-@endsphinxtab
+    .. tab-item:: Python
+       :sync: py
 
-@sphinxtab{Python}
+       .. doxygensnippet:: docs/snippets/src/main.py
+          :language: python
+          :fragment: [part1]
 
-@snippet docs/snippets/src/main.py part1
+    .. tab-item:: C
+       :sync: c
 
-@endsphinxtab
+       .. doxygensnippet:: docs/snippets/src/main.c
+          :language: cpp
+          :fragment: [part1]
 
-@endsphinxtabset
 
-## Step 2. Compile the Model
+Step 2. Compile the Model
+#########################
 
-`ov::CompiledModel` class represents a device specific compiled model. `ov::CompiledModel` allows you to get information inputs or output ports by a tensor name or index. This approach is aligned with the majority of frameworks.
+``ov::CompiledModel`` class represents a device specific compiled model. ``ov::CompiledModel`` allows you to get information inputs or output ports by a tensor name or index. This approach is aligned with the majority of frameworks.
 
-Compile the model for a specific device using `ov::Core::compile_model()`:
+Compile the model for a specific device using ``ov::Core::compile_model()``:
 
-@sphinxtabset
+.. tab-set::
 
-@sphinxtab{C++}
+    .. tab-item:: C++
+       :sync: cpp
 
-@sphinxtabset
+       .. tab-set::
 
-@sphinxtab{IR}
+          .. tab-item:: IR
+             :sync: ir
 
-@snippet docs/snippets/src/main.cpp part2_1
+             .. doxygensnippet:: docs/snippets/src/main.cpp
+                :language: cpp
+                :fragment: [part2_1]
 
-@endsphinxtab
+          .. tab-item:: ONNX
+             :sync: onnx
 
-@sphinxtab{ONNX}
+             .. doxygensnippet:: docs/snippets/src/main.cpp
+                :language: cpp
+                :fragment: [part2_2]
 
-@snippet docs/snippets/src/main.cpp part2_2
+          .. tab-item:: PaddlePaddle
+             :sync: pdpd
 
-@endsphinxtab
+             .. doxygensnippet:: docs/snippets/src/main.cpp
+                :language: cpp
+                :fragment: [part2_3]
 
-@sphinxtab{PaddlePaddle}
+          .. tab-item:: TensorFlow
+             :sync: tf
 
-@snippet docs/snippets/src/main.cpp part2_3
+             .. doxygensnippet:: docs/snippets/src/main.cpp
+                :language: cpp
+                :fragment: [part2_4]
 
-@endsphinxtab
+          .. tab-item:: TensorFlow Lite
+             :sync: tflite
 
-@sphinxtab{ov::Model}
+             .. doxygensnippet:: docs/snippets/src/main.cpp
+                :language: cpp
+                :fragment: [part2_5]
 
-@snippet docs/snippets/src/main.cpp part2_4
+          .. tab-item:: ov::Model
+             :sync: ovmodel
 
-@endsphinxtab
+             .. doxygensnippet:: docs/snippets/src/main.cpp
+                :language: cpp
+                :fragment: [part2_6]
 
-@endsphinxtabset
+    .. tab-item:: Python
+       :sync: py
 
-@endsphinxtab
+       .. tab-set::
 
-@sphinxtab{Python}
+          .. tab-item:: IR
+             :sync: ir
 
-@sphinxtabset
+             .. doxygensnippet:: docs/snippets/src/main.py
+                :language: python
+                :fragment: [part2_1]
 
-@sphinxtab{IR}
+          .. tab-item:: ONNX
+             :sync: onnx
 
-@snippet docs/snippets/src/main.py part2_1
+             .. doxygensnippet:: docs/snippets/src/main.py
+                :language: python
+                :fragment: [part2_2]
 
-@endsphinxtab
+          .. tab-item:: PaddlePaddle
+             :sync: pdpd
 
-@sphinxtab{ONNX}
+             .. doxygensnippet:: docs/snippets/src/main.py
+                :language: python
+                :fragment: [part2_3]
 
-@snippet docs/snippets/src/main.py part2_2
+          .. tab-item:: TensorFlow
+             :sync: tf
 
-@endsphinxtab
+             .. doxygensnippet:: docs/snippets/src/main.py
+                :language: python
+                :fragment: [part2_4]
 
-@sphinxtab{PaddlePaddle}
+          .. tab-item:: TensorFlow Lite
+             :sync: tflite
 
-@snippet docs/snippets/src/main.py part2_3
+             .. doxygensnippet:: docs/snippets/src/main.py
+                :language: python
+                :fragment: [part2_5]
 
-@endsphinxtab
+          .. tab-item:: ov::Model
+             :sync: ovmodel
 
-@sphinxtab{ov::Model}
+             .. doxygensnippet:: docs/snippets/src/main.py
+                :language: python
+                :fragment: [part2_6]
 
-@snippet docs/snippets/src/main.py part2_4
+    .. tab-item:: C
+       :sync: c
 
-@endsphinxtab
+       .. tab-set::
 
-@endsphinxtabset
+          .. tab-item:: IR
+             :sync: ir
 
-@endsphinxtab
+             .. doxygensnippet:: docs/snippets/src/main.c
+                :language: cpp
+                :fragment: [part2_1]
 
-@endsphinxtabset
+          .. tab-item:: ONNX
+             :sync: onnx
 
-The `ov::Model` object represents any models inside the OpenVINO™ Runtime.
-For more details please read article about [OpenVINO™ Model representation](model_representation.md).
+             .. doxygensnippet:: docs/snippets/src/main.c
+                :language: cpp
+                :fragment: [part2_2]
+
+          .. tab-item:: PaddlePaddle
+             :sync: pdpd
+
+             .. doxygensnippet:: docs/snippets/src/main.c
+                :language: cpp
+                :fragment: [part2_3]
+
+          .. tab-item:: TensorFlow
+             :sync: tf
+
+             .. doxygensnippet:: docs/snippets/src/main.c
+                :language: cpp
+                :fragment: [part2_4]
+
+          .. tab-item:: TensorFlow Lite
+             :sync: tflite
+
+             .. doxygensnippet:: docs/snippets/src/main.c
+                :language: cpp
+                :fragment: [part2_5]
+
+          .. tab-item:: ov::Model
+             :sync: ovmodel
+
+             .. doxygensnippet:: docs/snippets/src/main.c
+                :language: cpp
+                :fragment: [part2_6]
+
+
+The ``ov::Model`` object represents any models inside the OpenVINO™ Runtime.
+For more details please read article about :doc:`OpenVINO™ Model representation <openvino_docs_OV_UG_Model_Representation>`.
 
 The code above creates a compiled model associated with a single hardware device from the model object.
 It is possible to create as many compiled models as needed and use them simultaneously (up to the limitation of the hardware resources).
-To learn how to change the device configuration, read the [Query device properties](./supported_plugins/config_properties.md) article.
+To learn how to change the device configuration, read the :doc:`Query device properties <openvino_docs_OV_UG_query_api>` article.
 
-## Step 3. Create an Inference Request
+Step 3. Create an Inference Request
+###################################
 
-`ov::InferRequest` class provides methods for model inference in OpenVINO™ Runtime. Create an infer request using the following code (see [InferRequest detailed documentation](./ov_infer_request.md) for more details):
+``ov::InferRequest`` class provides methods for model inference in OpenVINO™ Runtime. 
+Create an infer request using the following code (see 
+:doc:`InferRequest detailed documentation <openvino_docs_OV_UG_Infer_request>` for more details):
 
-@sphinxtabset
+.. tab-set::
 
-@sphinxtab{C++}
+    .. tab-item:: C++
+       :sync: cpp
 
-@snippet docs/snippets/src/main.cpp part3
+       .. doxygensnippet:: docs/snippets/src/main.cpp
+          :language: cpp
+          :fragment: [part3]
 
-@endsphinxtab
+    .. tab-item:: Python
+       :sync: py
 
-@sphinxtab{Python}
+       .. doxygensnippet:: docs/snippets/src/main.py
+          :language: python
+          :fragment: [part3]
 
-@snippet docs/snippets/src/main.py part3
+    .. tab-item:: C
+       :sync: c
 
-@endsphinxtab
+       .. doxygensnippet:: docs/snippets/src/main.c
+          :language: cpp
+          :fragment: [part3]
 
-@endsphinxtabset
 
-## Step 4. Set Inputs
+Step 4. Set Inputs
+####################
 
-You can use external memory to create `ov::Tensor` and use the `ov::InferRequest::set_input_tensor` method to put this tensor on the device:
+You can use external memory to create ``ov::Tensor`` and use the ``ov::InferRequest::set_input_tensor`` method to put this tensor on the device:
 
-@sphinxtabset
+.. tab-set::
 
-@sphinxtab{C++}
+    .. tab-item:: C++
+       :sync: cpp
 
-@snippet docs/snippets/src/main.cpp part4
+       .. doxygensnippet:: docs/snippets/src/main.cpp
+          :language: cpp
+          :fragment: [part4]
 
-@endsphinxtab
+    .. tab-item:: Python
+       :sync: py
 
-@sphinxtab{Python}
+       .. doxygensnippet:: docs/snippets/src/main.py
+          :language: python
+          :fragment: [part4]
 
-@snippet docs/snippets/src/main.py part4
+    .. tab-item:: C
+       :sync: c
 
-@endsphinxtab
+       .. doxygensnippet:: docs/snippets/src/main.c
+          :language: cpp
+          :fragment: [part4]
 
-@endsphinxtabset
 
-## Step 5. Start Inference
+Step 5. Start Inference
+#######################
 
-OpenVINO™ Runtime supports inference in either synchronous or asynchronous mode. Using the Async API can improve application's overall frame-rate: instead of waiting for inference to complete, the app can keep working on the host while the accelerator is busy. You can use `ov::InferRequest::start_async` to start model inference in the asynchronous mode and call `ov::InferRequest::wait` to wait for the inference results:
+OpenVINO™ Runtime supports inference in either synchronous or asynchronous mode. Using the Async API can improve application's overall frame-rate: instead of waiting for inference to complete, the app can keep working on the host while the accelerator is busy. You can use ``ov::InferRequest::start_async`` to start model inference in the asynchronous mode and call ``ov::InferRequest::wait`` to wait for the inference results:
 
-@sphinxtabset
+.. tab-set::
 
-@sphinxtab{C++}
+    .. tab-item:: C++
+       :sync: cpp
 
-@snippet docs/snippets/src/main.cpp part5
+       .. doxygensnippet:: docs/snippets/src/main.cpp
+          :language: cpp
+          :fragment: [part5]
 
-@endsphinxtab
+    .. tab-item:: Python
+       :sync: py
 
-@sphinxtab{Python}
+       .. doxygensnippet:: docs/snippets/src/main.py
+          :language: python
+          :fragment: [part5]
 
-@snippet docs/snippets/src/main.py part5
+    .. tab-item:: C
+       :sync: c
 
-@endsphinxtab
+       .. doxygensnippet:: docs/snippets/src/main.c
+          :language: cpp
+          :fragment: [part5]
 
-@endsphinxtabset
 
-This section demonstrates a simple pipeline. To get more information about other ways to perform inference, read the dedicated ["Run inference" section](./ov_infer_request.md).
+This section demonstrates a simple pipeline. To get more information about other ways to perform inference, read the dedicated 
+:doc:`"Run inference" section <openvino_docs_OV_UG_Infer_request>`.
 
-## Step 6. Process the Inference Results 
+Step 6. Process the Inference Results
+#####################################
 
 Go over the output tensors and process the inference results.
 
-@sphinxtabset
+.. tab-set::
 
-@sphinxtab{C++}
+    .. tab-item:: C++
+       :sync: cpp
 
-@snippet docs/snippets/src/main.cpp part6
+       .. doxygensnippet:: docs/snippets/src/main.cpp
+          :language: cpp
+          :fragment: [part6]
 
-@endsphinxtab
+    .. tab-item:: Python
+       :sync: py
 
-@sphinxtab{Python}
+       .. doxygensnippet:: docs/snippets/src/main.py
+          :language: python
+          :fragment: [part6]
 
-@snippet docs/snippets/src/main.py part6
+    .. tab-item:: C
+       :sync: c
 
-@endsphinxtab
+       .. doxygensnippet:: docs/snippets/src/main.c
+          :language: cpp
+          :fragment: [part6]
 
-@endsphinxtabset
 
-## Step 7. Link and Build Your Application with OpenVINO™ Runtime (example)
+Step 7. Release the allocated objects (only for C)
+##################################################
 
-This step may differ for different projects. In this example, a C++ application is used, together with CMake for project configuration.
+To avoid memory leak, applications developed with C API need to release the allocated objects in order.
 
-For details on additional CMake build options, refer to the [CMake page](https://cmake.org/cmake/help/latest/manual/cmake.1.html#manual:cmake(1)).
+.. tab-set::
 
-### Create a structure for the project:
-   ``` sh
-   project/
-       ├── CMakeLists.txt  - CMake file to build
-       ├── ...             - Additional folders like includes/
-       └── src/            - source folder
-           └── main.cpp
-   build/                  - build directory
-       ...      
-   ```
+    .. tab-item:: C
+       :sync: c
 
-### Include OpenVINO™ Runtime libraries in `project/CMakeLists.txt`
+       .. doxygensnippet:: docs/snippets/src/main.c
+          :language: cpp
+          :fragment: [part8]
 
-   @snippet snippets/CMakeLists.txt cmake:integration_example
+
+Step 8. Link and Build Your Application with OpenVINO™ Runtime (example)
+########################################################################
+
+This step may differ for different projects. In this example, a C++ & C application is used, together with CMake for project configuration.
+
+Create Structure for project:
++++++++++++++++++++++++++++++
+
+.. tab-set::
+
+    .. tab-item:: C++
+       :sync: cpp
+
+       .. doxygensnippet:: docs/snippets/src/main.cpp
+          :language: cpp
+          :fragment: [part7]
+
+    .. tab-item:: C
+       :sync: c
+
+       .. doxygensnippet:: docs/snippets/src/main.c
+          :language: cpp
+          :fragment: [part7]
+
+
+Create Cmake Script
+++++++++++++++++++++
+
+For details on additional CMake build options, refer to the `CMake page <https://cmake.org/cmake/help/latest/manual/cmake.1.html#manual:cmake(1)>`__.
+
+.. tab-set::
+
+    .. tab-item:: C++
+       :sync: cpp
+
+       .. doxygensnippet:: docs/snippets/CMakeLists.txt
+          :language: cpp
+          :fragment: [cmake:integration_example_cpp]
+
+    .. tab-item:: C
+       :sync: c
+
+       .. doxygensnippet:: docs/snippets/CMakeLists.txt
+          :language: cpp
+          :fragment: [cmake:integration_example_c]
+
+
+Build Project
+++++++++++++++++++++
 
 To build your project using CMake with the default build tools currently available on your machine, execute the following commands:
 
-```sh
-cd build/
-cmake ../project
-cmake --build .
-```
+.. code-block:: sh
 
-## Additional Resources
+   cd build/
+   cmake ../project
+   cmake --build .
 
- - See the [OpenVINO Samples](Samples_Overview.md) page or the [Open Model Zoo Demos](https://docs.openvino.ai/latest/omz_demos.html) page for specific examples of how OpenVINO pipelines are implemented for applications like image classification, text prediction, and many others.
- - [OpenVINO™ Runtime Preprocessing](./preprocessing_overview.md)
- - [Using Encrypted Models with OpenVINO&trade;](./protecting_model_guide.md)
- - [OpenVINO Samples](Samples_Overview.md)
- - [Open Model Zoo Demos](https://docs.openvino.ai/latest/omz_demos.html)
 
-[ie_api_flow_cpp]: img/BASIC_IE_API_workflow_Cpp.svg
-[ie_api_use_cpp]: img/IMPLEMENT_PIPELINE_with_API_C.svg
-[ie_api_flow_python]: img/BASIC_IE_API_workflow_Python.svg
-[ie_api_use_python]: img/IMPLEMENT_PIPELINE_with_API_Python.svg
+Additional Resources
+####################
+
+* See the :doc:`OpenVINO Samples <openvino_docs_OV_UG_Samples_Overview>` page or the `Open Model Zoo Demos <https://docs.openvino.ai/nightly/omz_demos.html>`__ page for specific examples of how OpenVINO pipelines are implemented for applications like image classification, text prediction, and many others.
+* :doc:`OpenVINO™ Runtime Preprocessing <openvino_docs_OV_UG_Preprocessing_Overview>`
+* :doc:`Using Encrypted Models with OpenVINO <openvino_docs_OV_UG_protecting_model_guide>`
+* `Open Model Zoo Demos <https://docs.openvino.ai/nightly/omz_demos.html>`__
+
+@endsphinxdirective

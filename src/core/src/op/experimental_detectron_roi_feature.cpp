@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,8 +15,6 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(op::v6::ExperimentalDetectronROIFeatureExtractor);
-
 op::v6::ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatureExtractor(const OutputVector& args,
                                                                                            const Attributes& attrs)
     : Op(args),
@@ -29,7 +27,7 @@ op::v6::ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatur
     : ExperimentalDetectronROIFeatureExtractor(as_output_vector(args), attrs) {}
 
 bool op::v6::ExperimentalDetectronROIFeatureExtractor::visit_attributes(AttributeVisitor& visitor) {
-    NGRAPH_OP_SCOPE(v6_ExperimentalDetectronROIFeatureExtractor_visit_attributes);
+    OV_OP_SCOPE(v6_ExperimentalDetectronROIFeatureExtractor_visit_attributes);
     visitor.on_attribute("output_size", m_attrs.output_size);
     visitor.on_attribute("sampling_ratio", m_attrs.sampling_ratio);
     visitor.on_attribute("pyramid_scales", m_attrs.pyramid_scales);
@@ -38,7 +36,7 @@ bool op::v6::ExperimentalDetectronROIFeatureExtractor::visit_attributes(Attribut
 }
 
 void op::v6::ExperimentalDetectronROIFeatureExtractor::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v6_ExperimentalDetectronROIFeatureExtractor_validate_and_infer_types);
+    OV_OP_SCOPE(v6_ExperimentalDetectronROIFeatureExtractor_validate_and_infer_types);
     NODE_VALIDATION_CHECK(this, get_input_size() >= 2, "At least two argument required.");
 
     std::vector<ov::PartialShape> output_shapes = {ov::PartialShape{}, ov::PartialShape{}};
@@ -57,7 +55,7 @@ void op::v6::ExperimentalDetectronROIFeatureExtractor::validate_and_infer_types(
 
 shared_ptr<Node> op::v6::ExperimentalDetectronROIFeatureExtractor::clone_with_new_inputs(
     const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v6_ExperimentalDetectronROIFeatureExtractor_clone_with_new_inputs);
+    OV_OP_SCOPE(v6_ExperimentalDetectronROIFeatureExtractor_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<op::v6::ExperimentalDetectronROIFeatureExtractor>(new_args, m_attrs);
 }

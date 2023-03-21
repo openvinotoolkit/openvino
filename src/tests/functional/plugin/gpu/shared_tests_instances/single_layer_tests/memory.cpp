@@ -33,4 +33,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_MemoryTest, MemoryTest,
                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
         MemoryTest::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(smoke_MemoryTestV3, MemoryTestV3,
+        ::testing::Combine(
+                ::testing::Values(ngraph::helpers::MemoryTransformation::NONE),
+                ::testing::ValuesIn(iterationCount),
+                ::testing::ValuesIn(inShapes),
+                ::testing::ValuesIn(inputPrecisions),
+                ::testing::Values(CommonTestUtils::DEVICE_GPU)),
+        MemoryTest::getTestCaseName);
+
 } // namespace

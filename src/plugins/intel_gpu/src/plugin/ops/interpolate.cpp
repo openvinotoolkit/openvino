@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,191 +14,121 @@
 namespace ov {
 namespace intel_gpu {
 
-static cldnn::coordinate_transformation_mode GetCoordinateTransformationMode(ngraph::op::v4::Interpolate::CoordinateTransformMode mode) {
-    switch (mode) {
-    case ngraph::op::v4::Interpolate::CoordinateTransformMode::HALF_PIXEL:
-        return cldnn::coordinate_transformation_mode::half_pixel;
-    case ngraph::op::v4::Interpolate::CoordinateTransformMode::PYTORCH_HALF_PIXEL:
-        return cldnn::coordinate_transformation_mode::pytorch_half_pixel;
-    case ngraph::op::v4::Interpolate::CoordinateTransformMode::ASYMMETRIC:
-        return cldnn::coordinate_transformation_mode::asymmetric;
-    case ngraph::op::v4::Interpolate::CoordinateTransformMode::TF_HALF_PIXEL_FOR_NN:
-        return cldnn::coordinate_transformation_mode::tf_half_pixel_for_nn;
-    case ngraph::op::v4::Interpolate::CoordinateTransformMode::ALIGN_CORNERS:
-        return cldnn::coordinate_transformation_mode::align_corners;
-    }
-
-    IE_THROW() << "Unknown coordinate transformation mode: " << static_cast<int>(mode);
-}
-
-static cldnn::nearest_mode GetNearestMode(ngraph::op::v4::Interpolate::NearestMode mode) {
-    switch (mode) {
-    case ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_FLOOR:
-        return cldnn::nearest_mode::round_prefer_floor;
-    case ngraph::op::v4::Interpolate::NearestMode::ROUND_PREFER_CEIL:
-        return cldnn::nearest_mode::round_prefer_ceil;
-    case ngraph::op::v4::Interpolate::NearestMode::FLOOR:
-        return cldnn::nearest_mode::floor;
-    case ngraph::op::v4::Interpolate::NearestMode::CEIL:
-        return cldnn::nearest_mode::ceil;
-    case ngraph::op::v4::Interpolate::NearestMode::SIMPLE:
-        return cldnn::nearest_mode::simple;
-    }
-
-    IE_THROW() << "Unknown nearest mode: " << static_cast<int>(mode);
-}
-
-static cldnn::shape_calculation_mode GetShapeCalculationMode(ngraph::op::v4::Interpolate::ShapeCalcMode mode) {
-    switch (mode) {
-    case ngraph::op::v4::Interpolate::ShapeCalcMode::SIZES:  return cldnn::shape_calculation_mode::sizes;
-    case ngraph::op::v4::Interpolate::ShapeCalcMode::SCALES: return cldnn::shape_calculation_mode::scales;
-    }
-    IE_THROW() << "Unknown shape calculation mode: " << static_cast<int>(mode);
-}
-
-static cldnn::resample_type GetResampleType(ngraph::op::v4::Interpolate::InterpolateMode mode) {
-    switch (mode) {
-    case ngraph::op::v4::Interpolate::InterpolateMode::NEAREST: return cldnn::resample_type::nearest;
-    case ngraph::op::v4::Interpolate::InterpolateMode::LINEAR: return cldnn::resample_type::caffe_bilinear;
-    case ngraph::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX: return cldnn::resample_type::linear_onnx;
-    case ngraph::op::v4::Interpolate::InterpolateMode::CUBIC: return cldnn::resample_type::cubic;
-    }
-    IE_THROW() << "Unknown interpolation mode: " << static_cast<int>(mode);
-}
-
-static cldnn::resample::resample_axis GetInterpolationAxis(int32_t axis, uint32_t sz) {
-    if (axis < 0)
-        axis += sz;
-    if (axis < 0 || axis >=  static_cast<int32_t>(sz))
-        IE_THROW() << "Interpolate axis is not correspond to number of dimensions";
-
-    // Difference in dimension ordering between IE and GPU plugin,
-    // reverse spatial dimensions after batch and feature.
-    uint32_t cldnn_axis = axis;
-    if (axis >= 2) {
-        auto spatial_axis = axis - 2;
-        // Default and minimum number of dimensions is 4
-        auto spatial_size = std::max(sz, 4u) - 2;
-        cldnn_axis = spatial_size - spatial_axis - 1 + 2;
-    }
-
-    switch (cldnn_axis) {
-        case 0:
-            return cldnn::resample::resample_axis::along_b;
-        case 1:
-            return cldnn::resample::resample_axis::along_f;
-        case 2:
-            return cldnn::resample::resample_axis::along_x;
-        case 3:
-            return cldnn::resample::resample_axis::along_y;
-        case 4:
-            return cldnn::resample::resample_axis::along_z;
-        case 5:
-            return cldnn::resample::resample_axis::along_w;
-        default:
-            break;
-    }
-    IE_THROW() << "Unsupported Interpolate axis: " << axis;
-}
-
 static void CreateInterpolateOp(Program& p, const std::shared_ptr<ngraph::op::v4::Interpolate>& op) {
-    p.ValidateInputs(op, {3, 4});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    validate_inputs_count(op, {3, 4});
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
+    static const size_t SIZES_INDEX = 1;
     static const size_t SCALES_INDEX = 2;
     static const size_t AXES_INDEX = 3;
 
     auto attrs = op->get_attrs();
-    auto inputRank = op->get_input_shape(0).size();
-    auto outDims = op->get_output_shape(0).size();
-    auto outTensor = tensor_from_dims(op->get_output_shape(0));
+    auto inputRank = op->get_input_partial_shape(0).size();
 
-    std::vector<int> pad_begin(attrs.pads_begin.begin(), attrs.pads_begin.end());
-    std::vector<int> pad_end(attrs.pads_end.begin(), attrs.pads_end.end());
-
-    for (size_t i = pad_begin.size(); i < outDims || i < 4; ++i)
-        pad_begin.push_back(0);
-    for (size_t i = pad_end.size(); i < outDims || i < 4; ++i)
-        pad_end.push_back(0);
-
-    int antialias = attrs.antialias;
-    float cube_coeff = attrs.cube_coeff;
-
-    auto mode = attrs.mode;
-    auto cldnnSampleType = GetResampleType(mode);
-    auto shapeCalcMode = GetShapeCalculationMode(attrs.shape_calculation_mode);
-    auto coordTransMode = GetCoordinateTransformationMode(attrs.coordinate_transformation_mode);
-    auto nearestMode = GetNearestMode(attrs.nearest_mode);
+    auto sizes_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(SIZES_INDEX));
+    std::vector<int64_t> sizes = sizes_constant ? sizes_constant->cast_vector<int64_t>() : std::vector<int64_t>{};
 
     auto scales_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(SCALES_INDEX));
-    if (!scales_constant) {
-        IE_THROW() << "Unsupported parameter node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
-    }
-    std::vector<float> scales = scales_constant->cast_vector<float>();
+    std::vector<float> scales = scales_constant ? scales_constant->cast_vector<float>() : std::vector<float>{};
 
-    std::vector<cldnn::resample::resample_axis> axes;
+    std::vector<int64_t> axes;
     if (op->get_input_size() == 4) {
         auto axes_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(AXES_INDEX));
-        if (!axes_constant) {
-            IE_THROW() << "Unsupported parameter node type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
-        }
-        auto ie_axes = axes_constant->cast_vector<int32_t>();
-        for (auto axis : ie_axes) {
-            axes.push_back(GetInterpolationAxis(axis, inputRank));
-        }
+        OPENVINO_ASSERT(axes_constant, "Unsupported parameter node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+
+        axes = axes_constant->cast_vector<int64_t>();
+        ov::normalize_axes(op.get(), inputRank, axes);
     } else {
         for (size_t i = 0; i < inputRank; ++i) {
-            axes.push_back(GetInterpolationAxis(i, inputRank));
+            axes.push_back(ov::normalize_axis(op.get(), i, inputRank));
         }
     }
 
-    if (axes.size() != scales.size())
-        IE_THROW() << op->get_friendly_name() << " Incorrect axes and scales should be the same size";
+    OPENVINO_ASSERT(!scales_constant || axes.size() == scales.size(), op->get_friendly_name(), " Incorrect axes and scales should be the same size");
 
-    cldnn::resample::AxesAndScales axesAndScales;
-    for (size_t i = 0; i < axes.size(); ++i) {
-        axesAndScales[axes[i]] = scales[i];
-    }
+    // TODO shouldn't be all this checking done in ngraph::op::v4::Interpolate?
+    auto interpolateMode = attrs.mode;
+    if (interpolateMode == ov::op::v4::Interpolate::InterpolateMode::LINEAR_ONNX) {
+        OPENVINO_ASSERT(inputRank == 2 || inputRank == 4 || inputRank == 5, "Mode 'linear_onnx' supports only 2D or 4D, 5D tensors");
 
-    if (cldnnSampleType == cldnn::resample_type::linear_onnx) {
-        if (inputRank != 2 && inputRank != 4)
-            IE_THROW() << "mode 'linear_onnx' supports only 2D or 4D tensors";
-        if (axes.size() != 2 && inputRank != axes.size())
-            IE_THROW() << "mode 'linear_onnx' supports only axes with size 2 or equal to input rank";
+        OPENVINO_ASSERT(axes.size() == 2 || axes.size() == 3 || inputRank == axes.size(),
+                        "Mode 'linear_onnx' supports only axes with size 2, 3 or equal to input rank");
+
         bool correctAxes =
-            ((axes[0] == cldnn::resample::resample_axis::along_b) &&
-             (axes[1] == cldnn::resample::resample_axis::along_f)) ||
-            ((axes[0] == cldnn::resample::resample_axis::along_y) &&
-             (axes[1] == cldnn::resample::resample_axis::along_x));
-        if (axes.size() == 4 && inputRank == 4) {
-            correctAxes = axes[0] == cldnn::resample::resample_axis::along_b &&
-                          axes[1] == cldnn::resample::resample_axis::along_f &&
-                          axes[2] == cldnn::resample::resample_axis::along_y &&
-                          axes[3] == cldnn::resample::resample_axis::along_x;
+            ((axes.size() == 2 || axes.size() == 4) && inputRank < 5) &&
+            ((axes[0] == 0 && axes[1] == 1) ||
+             (axes[0] == 1 && axes[1] == 0) ||
+             (axes[0] == 2 && axes[1] == 3) ||
+             (axes[0] == 3 && axes[1] == 2));
+
+        correctAxes |=
+            (axes.size() == 3 || axes.size() == 5) && inputRank == 5 &&
+            ((axes[0] == 0 && axes[1] == 1 && axes[2] == 2) ||
+             (axes[0] == 2 && axes[1] == 3 && axes[2] == 4));
+
+        if ((axes.size() == 4 && inputRank == 4) || (axes.size() == 5 && inputRank == 5)) {
+            for (size_t i = 0; i < axes.size(); ++i) {
+                if (std::find(axes.begin(), axes.end(), i) == axes.end()) {
+                    correctAxes = false;
+                    break;
+                }
+            }
         }
-        if (!correctAxes)
-            IE_THROW() <<
-                "mode 'linear_onnx' supports only case when axes = {2, 3} or "
-                "axes = {0, 1} or axes = {0, 1, 2, 3}";
+        OPENVINO_ASSERT(correctAxes, "Mode 'linear_onnx' supports only case when axes = {2, 3} or ",
+                                     "axes = {0, 1} or axes = {0, 1, 2, 3} or axes = {2, 3, 4} for 5d");
     }
 
-    auto resamplePrim = cldnn::resample(layerName,
-                                        inputPrimitives[0],
-                                        outTensor,
-                                        axesAndScales,
-                                        pad_begin,
-                                        pad_end,
-                                        antialias,
-                                        cube_coeff,
-                                        cldnnSampleType,
-                                        shapeCalcMode,
-                                        coordTransMode,
-                                        nearestMode,
-                                        op->get_friendly_name());
+    std::shared_ptr<cldnn::resample> resamplePrim = nullptr;
+    if (p.use_new_shape_infer()) {
+        if (sizes_constant && scales_constant) {
+            resamplePrim = std::make_shared<cldnn::resample>(layerName,
+                                                             inputs[0],
+                                                             sizes,
+                                                             scales,
+                                                             axes,
+                                                             attrs.pads_begin,
+                                                             attrs.pads_end,
+                                                             attrs.antialias,
+                                                             attrs.cube_coeff,
+                                                             interpolateMode,
+                                                             attrs.shape_calculation_mode,
+                                                             attrs.coordinate_transformation_mode,
+                                                             attrs.nearest_mode);
+        } else {
+            resamplePrim = std::make_shared<cldnn::resample>(layerName,
+                                                             inputs[0],
+                                                             inputs[SIZES_INDEX],
+                                                             inputs[SCALES_INDEX],
+                                                             axes,
+                                                             attrs.pads_begin,
+                                                             attrs.pads_end,
+                                                             attrs.antialias,
+                                                             attrs.cube_coeff,
+                                                             interpolateMode,
+                                                             attrs.shape_calculation_mode,
+                                                             attrs.coordinate_transformation_mode,
+                                                             attrs.nearest_mode);
+        }
+    } else {
+        auto outShape = op->get_output_shape(0);
+        auto outputPattern = std::vector<int64_t>(outShape.begin(), outShape.end());
 
-    p.AddPrimitive(resamplePrim);
-    p.AddPrimitiveToProfiler(op);
+        resamplePrim = std::make_shared<cldnn::resample>(layerName,
+                                                         inputs[0],
+                                                         outputPattern,
+                                                         scales,
+                                                         axes,
+                                                         attrs.pads_begin,
+                                                         attrs.pads_end,
+                                                         attrs.antialias,
+                                                         attrs.cube_coeff,
+                                                         interpolateMode,
+                                                         attrs.shape_calculation_mode,
+                                                         attrs.coordinate_transformation_mode,
+                                                         attrs.nearest_mode);
+    }
+    p.add_primitive(*op, resamplePrim);
 }
 
 REGISTER_FACTORY_IMPL(v4, Interpolate);

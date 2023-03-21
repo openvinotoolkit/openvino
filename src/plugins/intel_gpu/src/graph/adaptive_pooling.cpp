@@ -4,19 +4,15 @@
 
 #include "adaptive_pooling_inst.h"
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
 namespace cldnn {
-primitive_type_id adaptive_pooling::type_id() {
-    static primitive_type_base<adaptive_pooling> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(adaptive_pooling)
 
-layout adaptive_pooling_inst::calc_output_layout(const adaptive_pooling_node& node) {
-    const auto data_layout = node.input().get_output_layout();
-    const auto prim = node.get_primitive();
+layout adaptive_pooling_inst::calc_output_layout(const adaptive_pooling_node& node, kernel_impl_params const& impl_param) {
+    const auto data_layout = impl_param.get_input_layout();
+    const auto prim = impl_param.typed_desc<adaptive_pooling>();
     return {data_layout.data_type, data_layout.format, prim->output_size};
 }
 

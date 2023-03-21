@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -91,12 +91,14 @@ void MultiDeviceInferRequest::SetBlob(const std::string& name, const InferenceEn
         IInferRequestInternal::SetBlob(name, blob);
 }
 
+IE_SUPPRESS_DEPRECATED_START
 void MultiDeviceInferRequest::SetBlob(const std::string& name, const Blob::Ptr& blob, const PreProcessInfo& info) {
     if (_sharedRequest)
         _sharedRequest->SetBlob(name, blob, info);
     else
         IInferRequestInternal::SetBlob(name, blob, info);
 }
+IE_SUPPRESS_DEPRECATED_END
 
 InferenceEngine::Blob::Ptr MultiDeviceInferRequest::GetBlob(const std::string& name) {
     if (_sharedRequest)
@@ -106,18 +108,21 @@ InferenceEngine::Blob::Ptr MultiDeviceInferRequest::GetBlob(const std::string& n
 }
 
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> MultiDeviceInferRequest::GetPerformanceCounts() const {
-    if (_sharedRequest)
+    if (_sharedRequest) {
         return _sharedRequest->GetPerformanceCounts();
-    return _perfMap;
+    } else {
+        // get the profiling info directly from target infer request
+        // not thread-safe for plugin like GPU, see CVS-86034
+        if (_scheduledRequest)
+            return _scheduledRequest->GetPerformanceCounts();
+        else
+            IE_THROW() << "Performance counters were not enabled";
+    }
 }
 
 std::vector<std::shared_ptr<InferenceEngine::IVariableStateInternal>> MultiDeviceInferRequest::QueryState() {
     if (_sharedRequest)
         return _sharedRequest->QueryState();
-    IE_THROW(NotImplemented);
-}
-
-void MultiDeviceInferRequest::InferImpl() {
     IE_THROW(NotImplemented);
 }
 

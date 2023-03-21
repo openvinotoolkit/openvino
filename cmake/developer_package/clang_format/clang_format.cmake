@@ -1,24 +1,25 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
 if(ENABLE_CLANG_FORMAT)
-    set(CLANG_FORMAT_FILENAME clang-format-9 clang-format)
+    set(CLANG_FORMAT_REQUIRED_VERSION 9 CACHE STRING "Clang-format version to use")
+    set(CLANG_FORMAT_FILENAME clang-format-${CLANG_FORMAT_REQUIRED_VERSION} clang-format)
     find_host_program(CLANG_FORMAT NAMES ${CLANG_FORMAT_FILENAME} PATHS ENV PATH)
     if(CLANG_FORMAT)
         execute_process(COMMAND ${CLANG_FORMAT} ${CMAKE_CURRENT_SOURCE_DIR} ARGS --version OUTPUT_VARIABLE CLANG_VERSION)
-        if(NOT CLANG_VERSION OR CLANG_VERSION STREQUAL "")
-            message(WARNING "Supported clang-format version is 9!")
+        if(NOT CLANG_VERSION)
+            message(WARNING "Supported clang-format version is ${CLANG_FORMAT_REQUIRED_VERSION}!")
             set(ENABLE_CLANG_FORMAT OFF)
         else()
             string(REGEX REPLACE "[^0-9]+([0-9]+)\\..*" "\\1" CLANG_FORMAT_MAJOR_VERSION ${CLANG_VERSION})
-            if(NOT ${CLANG_FORMAT_MAJOR_VERSION} EQUAL "9")
-                message(WARNING "Supported clang-format version is 9!")
+            if(NOT CLANG_FORMAT_MAJOR_VERSION EQUAL CLANG_FORMAT_REQUIRED_VERSION)
+                message(WARNING "Supported clang-format version is 9! Provided version ${CLANG_FORMAT_MAJOR_VERSION}")
                 set(ENABLE_CLANG_FORMAT OFF)
             endif()
         endif()
     else()
-        message(WARNING "Supported clang-format version is not found!")
+        message(WARNING "Supported clang-format-${CLANG_FORMAT_REQUIRED_VERSION} is not found!")
         set(ENABLE_CLANG_FORMAT OFF)
     endif()
 endif()
@@ -28,9 +29,12 @@ if(ENABLE_CLANG_FORMAT AND NOT TARGET clang_format_check_all)
     add_custom_target(clang_format_fix_all)
     set_target_properties(clang_format_check_all clang_format_fix_all
                           PROPERTIES FOLDER clang_format)
-    set(CLANG_FORMAT_ALL_OUTPUT_FILES "" CACHE INTERNAL "All clang-format output files")
 endif()
 
+#
+# add_clang_format_target(FOR_TARGETS <target1 target2 ...> | FOR_SOURCES <source1 source2 ...>
+#                         [EXCLUDE_PATTERNS <pattern1 pattern2 ...>])
+#
 function(add_clang_format_target TARGET_NAME)
     if(NOT ENABLE_CLANG_FORMAT)
         return()
@@ -66,6 +70,10 @@ function(add_clang_format_target TARGET_NAME)
             continue()
         endif()
 
+        if(IS_DIRECTORY "${source_file}")
+            message(FATAL_ERROR "Directory ${source_file} cannot be passed to clang-format")
+        endif()
+
         file(RELATIVE_PATH source_file_relative "${CMAKE_CURRENT_SOURCE_DIR}" "${source_file}")
         set(output_file "${CMAKE_CURRENT_BINARY_DIR}/clang_format/${source_file_relative}.clang")
         string(REPLACE ".." "__" output_file "${output_file}")
@@ -88,13 +96,9 @@ function(add_clang_format_target TARGET_NAME)
             "[clang-format] ${source_file}"
             VERBATIM)
 
+        list(APPEND all_input_sources "${source_file}")
         list(APPEND all_output_files "${output_file}")
     endforeach()
-
-    set(CLANG_FORMAT_ALL_OUTPUT_FILES
-        ${CLANG_FORMAT_ALL_OUTPUT_FILES} ${all_output_files}
-        CACHE INTERNAL
-        "All clang-format output files")
 
     add_custom_target(${TARGET_NAME}
         DEPENDS ${all_output_files}
@@ -104,11 +108,11 @@ function(add_clang_format_target TARGET_NAME)
         COMMAND
         "${CMAKE_COMMAND}"
         -D "CLANG_FORMAT=${CLANG_FORMAT}"
-        -D "INPUT_FILES=${CLANG_FORMAT_FOR_SOURCES}"
+        -D "INPUT_FILES=${all_input_sources}"
         -D "EXCLUDE_PATTERNS=${CLANG_FORMAT_EXCLUDE_PATTERNS}"
         -P "${IEDevScripts_DIR}/clang_format/clang_format_fix.cmake"
         DEPENDS
-        "${CLANG_FORMAT_FOR_SOURCES}"
+        "${all_input_sources}"
         "${IEDevScripts_DIR}/clang_format/clang_format_fix.cmake"
         COMMENT
         "[clang-format] ${TARGET_NAME}_fix"

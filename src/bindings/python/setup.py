@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -41,7 +41,10 @@ packages = [
     "ngraph.impl.passes",
     "openvino",
     "openvino.frontend",
+    "openvino.preprocess",
     "openvino.offline_transformations",
+    "openvino._offline_transformations",
+    "openvino.runtime",
     "openvino.runtime.opset1",
     "openvino.runtime.opset2",
     "openvino.runtime.opset3",
@@ -50,6 +53,8 @@ packages = [
     "openvino.runtime.opset6",
     "openvino.runtime.opset7",
     "openvino.runtime.opset8",
+    "openvino.runtime.opset9",
+    "openvino.runtime.opset10",
     "openvino.runtime.utils",
     "openvino.runtime.op",
     "openvino.runtime.op.util",
@@ -174,9 +179,8 @@ class BuildCMakeExt(build_ext):
         ov_build_dir = os.path.join(OPENVINO_ROOT_DIR, "build")
         self.spawn(["cmake", "-S" + root_dir, "-B" + self.build_temp,
                     f"-DCMAKE_BUILD_TYPE={self.config}",
-                    f"-DInferenceEngineDeveloperPackage_DIR={ov_build_dir}",
-                    "-DENABLE_PYTHON=ON",
-                    "-DENABLE_OV_ONNX_FRONTEND=ON"] + ext_args)
+                    f"-DOpenVINODeveloperPackage_DIR={ov_build_dir}",
+                    "-DENABLE_PYTHON=ON"] + ext_args)
 
         self.announce("Building binaries", level=3)
 

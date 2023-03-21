@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,6 +14,7 @@
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 #include "utils/log_util.hpp"
 #include "common.hpp"
+#include "utils/plugin_config.hpp"
 
 #ifdef  MULTIUNITTEST
 #define MOCKTESTMACRO virtual
@@ -32,7 +33,7 @@ public:
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::CNNNetwork&        network,
                                                                        const std::map<std::string, std::string>& config) override;
 
-    InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetwork(const std::string& modelPath,
+    ov::SoPtr<InferenceEngine::IExecutableNetworkInternal> LoadNetwork(const std::string& modelPath,
                                                                  const std::map<std::string, std::string>& config) override;
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
@@ -47,7 +48,7 @@ public:
 
     MOCKTESTMACRO std::string GetDeviceList(const std::map<std::string, std::string>& config) const;
 
-    std::list<DeviceInformation> GetValidDevice(const std::vector<DeviceInformation>& metaDevices,
+    MOCKTESTMACRO std::list<DeviceInformation> GetValidDevice(const std::vector<DeviceInformation>& metaDevices,
                                                    const std::string& networkPrecision = METRIC_VALUE(FP32));
 
     MOCKTESTMACRO DeviceInformation SelectDevice(const std::vector<DeviceInformation>& metaDevices,
@@ -57,26 +58,22 @@ public:
     void RegisterPriority(const unsigned int& priority, const std::string& deviceName);
 
 protected:
-    std::map<std::string, std::string> GetSupportedConfig(const std::map<std::string, std::string>& config,
-                                                          const MultiDevicePlugin::DeviceName & deviceName) const;
+    ov::AnyMap PreProcessConfig(const std::map<std::string, std::string>& orig_config) const;
 
 private:
     InferenceEngine::IExecutableNetworkInternal::Ptr LoadNetworkImpl(const std::string& modelPath,
                                                                        InferenceEngine::CNNNetwork network,
                                                                        const std::map<std::string, std::string>& config,
                                                                        const std::string &networkPrecision = METRIC_VALUE(FP32));
-    static void CheckConfig(const std::map<std::string, std::string>& config,
-                            AutoScheduleContext::Ptr& context,
-                            std::map<std::string, std::string>& filterConfig);
     std::vector<DeviceInformation> FilterDevice(const std::vector<DeviceInformation>& metaDevices,
                                                 const std::map<std::string, std::string>& config);
     std::vector<DeviceInformation> FilterDeviceByNetwork(const std::vector<DeviceInformation>& metaDevices,
-                                                InferenceEngine::CNNNetwork network);
+                                                         InferenceEngine::CNNNetwork network);
     std::string GetLogTag() const noexcept;
     static std::mutex _mtx;
     static std::map<unsigned int, std::list<std::string>> _priorityMap;
     std::string _LogTag;
-    static std::set<std::string> _availableDevices;
+    PluginConfig _pluginConfig;
 };
 
 }  // namespace MultiDevicePlugin

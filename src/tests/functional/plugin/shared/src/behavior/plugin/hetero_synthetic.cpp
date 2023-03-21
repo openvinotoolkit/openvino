@@ -1,14 +1,16 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "behavior/plugin/hetero_synthetic.hpp"
 #include <ngraph/op/util/op_types.hpp>
-#include <ngraph/variant.hpp>
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "openvino/util/file_util.hpp"
 #include <random>
 #include "ie_algorithm.hpp"
+
 namespace HeteroTests {
 
 static std::vector<std::function<std::shared_ptr<ngraph::Function>()>> builders = {
@@ -115,11 +117,17 @@ void HeteroSyntheticTest::SetUp() {
     for (auto&& pluginParameter : std::get<Plugin>(param)) {
         bool registred = true;
         try {
-            PluginCache::get().ie()->RegisterPlugin(pluginParameter._location
-                + IE_BUILD_POSTFIX, pluginParameter._name);
+            if (pluginParameter._location == "openvino_template_plugin") {
+                PluginCache::get().ie()->RegisterPlugin(ov::util::make_plugin_library_name(
+                    CommonTestUtils::getExecutableDirectory(), pluginParameter._location + IE_BUILD_POSTFIX),
+                    pluginParameter._name);
+            } else {
+                PluginCache::get().ie()->RegisterPlugin(pluginParameter._location
+                    + IE_BUILD_POSTFIX, pluginParameter._name);
+            }
         } catch (InferenceEngine::Exception& ex) {
             if (std::string{ex.what()}.find("Device with \"" + pluginParameter._name
-                                             + "\"  is already registered in the InferenceEngine")
+                                             + "\"  is already registered in the OpenVINO Runtime")
                 == std::string::npos) {
                 throw ex;
             } else {
@@ -156,19 +164,26 @@ std::string HeteroSyntheticTest::SetUpAffinity() {
     auto& pluginParameters = std::get<Plugin>(param);
     affinities += "\n{\n";
     for (auto&& node : std::get<Function>(param)._function->get_ordered_ops()) {
-        if (!ngraph::op::is_constant(node) &&
-                !(ngraph::op::is_parameter(node)) &&
-                !(ngraph::op::is_output(node))) {
-            std::string affinity;
+        std::string affinity;
+        auto get_affinity = [&](const std::string& name) {
             if (std::get<Function>(param)._majorPluginNodeIds.end() !=
-                std::get<Function>(param)._majorPluginNodeIds.find(node->get_friendly_name())) {
-                affinity = pluginParameters.at(0)._name;
+                std::get<Function>(param)._majorPluginNodeIds.find(name)) {
+                return pluginParameters.at(0)._name;
             } else {
-                affinity = pluginParameters.at(1)._name;
+                return pluginParameters.at(1)._name;
             }
-            node->get_rt_info()["affinity"] = affinity;
-            affinities += "\t{\"" + node->get_friendly_name() + "\",\t\t\"" + affinity + "\"}\n";
+        };
+        if (ngraph::op::is_constant(node) || ngraph::op::is_output(node) || ngraph::op::is_parameter(node)) {
+            auto& node_with_affinity_name =
+                ngraph::op::is_output(node)
+                    ? node->input_value(0).get_node()->get_friendly_name()
+                    : node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name();
+            affinity = get_affinity(node_with_affinity_name);
+        } else {
+            affinity = get_affinity(node->get_friendly_name());
         }
+        node->get_rt_info()["affinity"] = affinity;
+        affinities += "\t{\"" + node->get_friendly_name() + "\",\t\t\"" + affinity + "\"}\n";
     }
     affinities += "}";
     affinities += "\nseed = " + std::to_string(std::get<Function>(param)._seed);

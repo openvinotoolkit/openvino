@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -45,7 +45,7 @@ struct TelemetryFEParam {
     std::string m_frontEndName;
     std::string m_modelsPath;
     std::string m_modelName;
-    std::set<std::tuple<std::string, std::string, std::string, int>> m_expected_events;
+    std::set<std::set<std::tuple<std::string, std::string, std::string, int>>> m_expected_events;
 };
 
 class FrontEndTelemetryTest : public ::testing::TestWithParam<TelemetryFEParam> {

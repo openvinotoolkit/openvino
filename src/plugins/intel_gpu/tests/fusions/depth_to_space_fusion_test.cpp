@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,8 +35,8 @@ public:
     void execute(depth_to_space_test_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
 
-        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+        network network_fused(this->engine, this->topology_fused, cfg_fused);
 
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
@@ -77,13 +77,14 @@ TEST_P(depth_to_space_quantize_i8, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        depth_to_space("depth_to_space", "input", p.block_size, p.mode),
+        depth_to_space("depth_to_space", input_info("input"), p.block_size, p.mode),
         data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_low", get_mem(get_single_element_layout(p), -128)),
         data("out_high", get_mem(get_single_element_layout(p), 127)),
-        quantize("quant", "depth_to_space", "in_low", "in_high", "out_low", "out_high", 256, data_types::i8),
-        reorder("reorder_bfyx", "quant", format::bfyx, data_types::f32)
+        quantize("quant", input_info("depth_to_space"), input_info("in_low"), input_info("in_high"),
+                 input_info("out_low"), input_info("out_high"), 256, data_types::i8),
+        reorder("reorder_bfyx", input_info("quant"), format::bfyx, data_types::f32)
     );
 
     tolerance = 1.f;
@@ -102,18 +103,19 @@ TEST_P(depth_to_space_scale_act_eltwise_quantize_u8, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        depth_to_space("depth_to_space", "input", p.block_size, p.mode),
+        depth_to_space("depth_to_space", input_info("input"), p.block_size, p.mode),
         data("scale1_data", get_mem(get_per_channel_layout(p), -0.125f)),
-        scale("scale1", "depth_to_space", "scale1_data"),
-        activation("actv1", "scale1", activation_func::relu),
+        eltwise("scale1", { input_info("depth_to_space"), input_info("scale1_data") }, eltwise_mode::prod, p.default_type),
+        activation("actv1", input_info("scale1"), activation_func::relu),
         data("eltw_data", get_mem(layout(p.default_type, p.input_format, p.output_size))),
-        eltwise("eltw", { "actv1", "eltw_data" }, eltwise_mode::sum, p.default_type),
+        eltwise("eltw", { input_info("actv1"), input_info("eltw_data") }, eltwise_mode::sum, p.default_type),
         data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
         data("out_low", get_mem(get_single_element_layout(p), 0)),
         data("out_high", get_mem(get_single_element_layout(p), 255)),
-        quantize("quant", "eltw", "in_low", "in_high", "out_low", "out_high", 256, data_types::u8),
-        reorder("reorder_bfyx", "quant", format::bfyx, data_types::f32)
+        quantize("quant", input_info("eltw"), input_info("in_low"), input_info("in_high"),
+                 input_info("out_low"), input_info("out_high"), 256, data_types::u8),
+        reorder("reorder_bfyx", input_info("quant"), format::bfyx, data_types::f32)
     );
 
     tolerance = 1.f;
@@ -137,13 +139,13 @@ TEST_P(depth_to_space_scale_act_eltw, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
-        depth_to_space("depth_to_space", "input", p.block_size, p.mode),
+        depth_to_space("depth_to_space", input_info("input"), p.block_size, p.mode),
         data("scale1_data", get_mem(get_per_channel_layout(p), -0.125f)),
-        scale("scale1", "depth_to_space", "scale1_data"),
-        activation("actv1", "scale1", activation_func::relu),
+        eltwise("scale1", { input_info("depth_to_space"), input_info("scale1_data") }, eltwise_mode::prod, p.default_type),
+        activation("actv1", input_info("scale1"), activation_func::relu),
         data("eltw_data", get_mem(layout(p.default_type, p.input_format, p.output_size))),
-        eltwise("eltw", { "actv1", "eltw_data" }, eltwise_mode::sum, p.default_type),
-        reorder("reorder_bfyx", "eltw", format::bfyx, data_types::f32)
+        eltwise("eltw", { input_info("actv1"), input_info("eltw_data") }, eltwise_mode::sum, p.default_type),
+        reorder("reorder_bfyx", input_info("eltw"), format::bfyx, data_types::f32)
     );
 
     tolerance = 1e-5f;

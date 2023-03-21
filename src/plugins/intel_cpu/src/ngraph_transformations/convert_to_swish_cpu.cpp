@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,7 +34,6 @@ ov::intel_cpu::ConvertToSwishCPU::ConvertToSwishCPU() {
         swish_cpu->set_friendly_name(swish->get_friendly_name());
         ngraph::copy_runtime_info(swish, swish_cpu);
         ngraph::replace_node(swish, swish_cpu);
-        MATCHER_SCOPE_ENABLE(ConvertToSwishCPU);
         return true;
     };
 

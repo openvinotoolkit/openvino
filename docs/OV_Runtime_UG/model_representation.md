@@ -11,10 +11,10 @@ Each operation in `ov::Model` has the `std::shared_ptr<ov::Node>` type.
 ## How OpenVINO Runtime Works with Models
 
 OpenVINO™ Runtime enables you to use different approaches to work with model inputs/outputs:
- - The `ov::Model::inputs()`/`ov::Model::outputs()` methods are used to get vectors of all input/output ports.
- - For a model that has only one input or output, you can use the `ov::Model::input()` or `ov::Model::output()` methods without any arguments to get input or output port respectively.
- - The `ov::Model::input()` and `ov::Model::output()` methods can be used with the index of inputs or outputs from the framework model to get specific ports by index.
- - You can use the tensor name of input or output from the original framework model together with the `ov::Model::input()` or `ov::Model::output()` methods to get specific ports. It means that you do not need to have any additional mapping of names from framework to OpenVINO as it was before. OpenVINO™ Runtime allows the usage of native framework tensor names, for example:
+   - The `ov::Model::inputs()`/`ov::Model::outputs()` methods are used to get vectors of all input/output ports.
+   - For a model that has only one input or output, you can use the `ov::Model::input()` or `ov::Model::output()` methods without any arguments to get input or output port respectively.
+   - The `ov::Model::input()` and `ov::Model::output()` methods can be used with the index of inputs or outputs from the framework model to get specific ports by index.
+   - You can use the tensor name of input or output from the original framework model together with the `ov::Model::input()` or `ov::Model::output()` methods to get specific ports. It means that you do not need to have any additional mapping of names from framework to OpenVINO as it was before. OpenVINO™ Runtime allows the usage of native framework tensor names, for example:
 
         @sphinxtabset
 
@@ -32,7 +32,12 @@ OpenVINO™ Runtime enables you to use different approaches to work with model i
 
         @endsphinxtabset
 
-For details on how to build a model in OpenVINO™ Runtime, see the [Build a Model in OpenVINO™ Runtime](@ref ov_ug_build_model) section.
+
+@sphinxdirective 
+
+For details on how to build a model in OpenVINO™ Runtime, see the :ref:`Build a Model in OpenVINO Runtime <ov_ug_build_model>`  section.
+
+@endsphinxdirective 
 
 OpenVINO™ Runtime model representation uses special classes to work with model data types and shapes. The `ov::element::Type` is used for data types. See the section below for representation of shapes.
 
@@ -77,11 +82,17 @@ Each OpenVINO™ Release introduces new operations and adds them to new operatio
 For a complete list of operation sets supported in OpenVINO™ toolkit, see the [Available Operations Sets](../ops/opset.md).
 To add the support for custom operations, see [OpenVINO Extensibility Mechanism](../Extensibility_UG/Intro.md).
 
-## Building a Model in OpenVINO™ Runtime {#ov_ug_build_model}
+@sphinxdirective 
+
+.. _ov_ug_build_model:
+
+@endsphinxdirective
+
+## Building a Model in OpenVINO™ Runtime
 
 You can create a model from source. This section illustrates how to construct a model composed of operations from an available operation set.
 
-Operation set `opsetX` integrates a list of pre-compiled operations that work for this purpose. In other words, `opsetX` defines a set of operations for building a graph.
+Operation set `opsetX` integrates a list of pre-compiled operations that work for this purpose. In other words, `opsetX` defines a set of operations for building a graph.
 
 To build an `ov::Model` instance from `opset8` operations, include the following files:
 
@@ -192,7 +203,7 @@ OpenVINO™ provides several debug capabilities:
 
      @endsphinxtab
 
-## See Also
+## Additional Resources
 
 * [Available Operation Sets](../ops/opset.md)
 * [OpenVINO™ Runtime Extensibility Developer Guide](../Extensibility_UG/Intro.md)

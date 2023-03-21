@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -36,8 +36,8 @@ bool BatchToSpace::isSupportedOperation(const std::shared_ptr<const ngraph::Node
     return true;
 }
 
-BatchToSpace::BatchToSpace(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng,
-        WeightsSharing::Ptr &cache) : Node(op, eng, cache) {
+BatchToSpace::BatchToSpace(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context)
+    : Node(op, context, NgraphShapeInferFactory(op, PortMask(1, 2, 3))) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
@@ -99,10 +99,6 @@ void BatchToSpace::initSupportedPrimitiveDescriptors() {
     }
 }
 
-std::vector<VectorDims> BatchToSpace::shapeInfer() const {
-    return Node::shapeInferGeneric(PortMask(1, 2, 3));
-}
-
 static std::vector<size_t> getShape5D(const SizeVector &shape) {
     std::vector<size_t> shape5D(5, 1);
     for (int i = 0; i < 2; i++) {
@@ -130,7 +126,7 @@ void BatchToSpace::batchToSpaceKernel() {
     auto outShape5D = getShape5D(outDims);
     auto blockShape = getShape5D(blockShapeIn);
 
-    if (srcDesc->hasLayoutType(LayoutType::nspc) && one_of(srcDesc->getShape().getRank(), 4, 5)) {
+    if (srcDesc->hasLayoutType(LayoutType::nspc) && one_of(srcDesc->getShape().getRank(), 4u, 5u)) {
         inShape5D.push_back(inShape5D[1]);
         inShape5D.erase(inShape5D.begin() + 1);
         outShape5D.push_back(outShape5D[1]);
@@ -178,7 +174,7 @@ void BatchToSpace::batchToSpaceKernel() {
             oAdd[2] = dimsSize == 5 ? bIdx % blockShapeIn[2] - cropsBeginIn[2] : 0lu;
             bIdx = dimsSize == 5 ? bIdx / blockShapeIn[2] : bIdx;
             oAdd[1] = bIdx % blockShapeIn[1] - cropsBeginIn[1];
-            if (srcDesc->hasLayoutType(LayoutType::nspc) && one_of(srcDesc->getShape().getRank(), 4, 5)) {
+            if (srcDesc->hasLayoutType(LayoutType::nspc) && one_of(srcDesc->getShape().getRank(), 4u, 5u)) {
                 oAdd.push_back(oAdd[1]);
                 oAdd.erase(oAdd.begin() + 1);
             }

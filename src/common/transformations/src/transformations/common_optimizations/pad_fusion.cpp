@@ -1,20 +1,20 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "transformations/common_optimizations/pad_fusion.hpp"
 
 #include <memory>
-#include <ngraph/opsets/opset5.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/validation_util.hpp>
+#include <openvino/opsets/opset5.hpp>
 #include <vector>
 
 #include "itt.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ngraph;
+using namespace ov;
 
 template <typename T>
 static bool can_be_fused(const std::shared_ptr<opset5::Pad>& pad,
@@ -143,7 +143,7 @@ pass::PadFusionAvgPool::PadFusionAvgPool() {
 
         copy_runtime_info({pad, avg_pool}, new_avg_pool);
         replace_node(avg_pool, new_avg_pool);
-        MATCHER_SCOPE_ENABLE(PadFusionAvgPool);
+
         return true;
     };
 
@@ -218,7 +218,7 @@ pass::PadFusionConvolution::PadFusionConvolution() {
 
         copy_runtime_info({pad, conv}, new_conv);
         replace_node(conv, new_conv);
-        MATCHER_SCOPE_ENABLE(PadFusionConvolution);
+
         return true;
     };
 
@@ -276,7 +276,7 @@ pass::PadFusionConvolutionBackpropData::PadFusionConvolutionBackpropData() {
 
         copy_runtime_info({pad, conv}, new_conv);
         replace_node(conv, new_conv);
-        MATCHER_SCOPE_ENABLE(PadFusionConvolutionBackpropData);
+
         return true;
     };
 
@@ -324,7 +324,7 @@ pass::PadFusionGroupConvolution::PadFusionGroupConvolution() {
 
         copy_runtime_info({pad, conv}, new_conv);
         replace_node(conv, new_conv);
-        MATCHER_SCOPE_ENABLE(PadFusionGroupConvolution);
+
         return true;
     };
 
@@ -382,7 +382,7 @@ pass::PadFusionGroupConvolutionBackpropData::PadFusionGroupConvolutionBackpropDa
 
         copy_runtime_info({pad, conv}, new_conv);
         replace_node(conv, new_conv);
-        MATCHER_SCOPE_ENABLE(PadFusionGroupConvolutionBackpropData);
+
         return true;
     };
 

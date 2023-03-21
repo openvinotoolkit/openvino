@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -83,6 +83,9 @@
 #include "ngraph/op/if.hpp"
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/op/irdft.hpp"
+#include "ngraph/op/is_finite.hpp"
+#include "ngraph/op/is_inf.hpp"
+#include "ngraph/op/is_nan.hpp"
 #include "ngraph/op/less.hpp"
 #include "ngraph/op/less_eq.hpp"
 #include "ngraph/op/log.hpp"
@@ -175,6 +178,7 @@
 #include "ngraph/op/tile.hpp"
 #include "ngraph/op/topk.hpp"
 #include "ngraph/op/transpose.hpp"
+#include "ngraph/op/unique.hpp"
 #include "ngraph/op/unsqueeze.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/op_types.hpp"

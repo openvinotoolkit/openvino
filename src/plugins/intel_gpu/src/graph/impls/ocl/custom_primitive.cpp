@@ -1,14 +1,11 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "primitive_base.hpp"
+
 #include "custom_gpu_primitive_inst.h"
-#include "intel_gpu/runtime/engine.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
 #include "jitter.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "register.hpp"
 
 #include <map>
 #include <sstream>
@@ -24,7 +21,11 @@ namespace cldnn {
 namespace ocl {
 
 struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
-    const custom_gpu_primitive_node& outer;
+    using parent = typed_primitive_impl<custom_gpu_primitive>;
+    using parent::parent;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION
+
     std::shared_ptr<kernel_selector::cl_kernel_data> cl_kernel;
     std::vector<kernel::ptr> _kernels;
     kernel_id _kernel_id;
@@ -33,31 +34,34 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         return make_unique<custom_gpu_primitive_impl>(*this);
     }
 
+    custom_gpu_primitive_impl()
+    : _kernels() {}
+
     custom_gpu_primitive_impl(const custom_gpu_primitive_impl& other)
-    : outer(other.outer)
-    , cl_kernel(other.cl_kernel)
+    : cl_kernel(other.cl_kernel)
     , _kernels({})
     , _kernel_id(other._kernel_id) {
-        _kernels.emplace_back(std::move(outer.get_program().get_kernel(_kernel_id)->clone()));
+        for (const auto& kernel : other._kernels) {
+            _kernels.emplace_back(kernel->clone());
+        }
     }
 
     custom_gpu_primitive_impl(const custom_gpu_primitive_node& arg,
                              std::shared_ptr<kernel_selector::cl_kernel_data>& cl_kernel)
-        : outer(arg)
-        , cl_kernel(cl_kernel)
+        : cl_kernel(cl_kernel)
         , _kernels() {
-        _kernel_id = outer.get_program().add_kernel(cl_kernel->code.kernelString);
+        _kernel_id = arg.get_program().add_kernel(cl_kernel->code.kernelString);
     }
 
-    void init_kernels() override {
-        _kernels.emplace_back(std::move(outer.get_program().get_kernel(_kernel_id)));
+    void init_kernels(const kernels_cache& kernels_cache) override {
+        _kernels.emplace_back(kernels_cache.get_kernel(_kernel_id));
     }
 
     void set_arguments_impl(custom_gpu_primitive_inst& instance) override {
         auto& stream = instance.get_network().get_stream();
         kernel_arguments_data args;
         for (auto& dep : instance.dependencies()) {
-            args.inputs.push_back(dep->output_memory_ptr());
+            args.inputs.push_back(dep.first->output_memory_ptr());
         }
         args.outputs = { instance.output_memory_ptr() };
         stream.set_arguments(*_kernels.front(), cl_kernel.get()->params, args);
@@ -68,10 +72,29 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         auto& stream = instance.get_network().get_stream();
         kernel_arguments_data args;
         for (auto& dep : instance.dependencies()) {
-            args.inputs.push_back(dep->output_memory_ptr());
+            args.inputs.push_back(dep.first->output_memory_ptr());
         }
         args.outputs = { instance.output_memory_ptr() };
-        return stream.enqueue_kernel(*_kernels.front(), cl_kernel.get()->params, args, events, instance.node.is_output());
+        return stream.enqueue_kernel(*_kernels.front(), cl_kernel.get()->params, args, events, instance.is_output());
+    }
+
+    std::vector<std::string> get_kernel_ids() const override {
+        return {_kernel_id};
+    }
+
+    std::vector<kernel::ptr> get_kernels() const override {
+        return _kernels;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        ob << *cl_kernel;
+        ob << _kernel_id;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        cl_kernel = std::make_shared<kernel_selector::cl_kernel_data>();
+        ib >> *cl_kernel;
+        ib >> _kernel_id;
     }
 };
 
@@ -94,7 +117,7 @@ static kernel_selector::kernel_argument_element get_arg(custom_gpu_primitive::ar
     return ret;
 }
 
-std::string value_macro(const std::string& name, const std::string& value) {
+static std::string value_macro(const std::string& name, const std::string& value) {
     std::ostringstream oss;
     oss << "#define " << name << " " << value << std::endl;
     return oss.str();
@@ -116,9 +139,7 @@ static void add_layout_to_jit(kernel_selector::jit_constants& mem_consts, const 
         {data_types::f32, "float"},
     };
 
-    if (dataTypeToIndex.find(l.data_type) == dataTypeToIndex.end()) {
-        CLDNN_ERROR_MESSAGE("add layout to jit", "Unhandled data type in layout");
-    }
+    OPENVINO_ASSERT(dataTypeToIndex.find(l.data_type) != dataTypeToIndex.end(), "[GPU] Add layout to jit error: unhandled data type in layout");
 
     mem_consts.AddConstant(kernel_selector::MakeJitConstant(name + "_TYPE", dataTypeToIndex.at(l.data_type)));
 
@@ -179,7 +200,7 @@ static void add_layout_to_jit(kernel_selector::jit_constants& mem_consts, const 
     mem_consts.AddConstant(kernel_selector::MakeJitConstant(name + "_OFFSET", std::to_string(offset)));
 }
 
-static std::string get_jit_constant(const custom_gpu_primitive_node& outer) {
+static std::string get_jit_constant(const custom_gpu_primitive_node& outer, const kernel_impl_params& impl_param) {
     kernel_selector::jit_constants mem_consts{
         kernel_selector::MakeJitConstant("NUM_INPUTS", std::to_string(outer.get_dependencies().size()))};
     const auto primitive = outer.get_primitive().get();
@@ -189,11 +210,11 @@ static std::string get_jit_constant(const custom_gpu_primitive_node& outer) {
         kernel_selector::MakeJitConstant("LOCAL_WORKSIZE", primitive->lws),
     });
 
-    for (size_t i = 0; i < outer.get_dependencies().size(); i++) {
-        add_layout_to_jit(mem_consts, "INPUT" + std::to_string(i), outer.input(i).get_output_layout());
+    for (size_t i = 0; i < impl_param.input_layouts.size(); i++) {
+        add_layout_to_jit(mem_consts, "INPUT" + std::to_string(i), impl_param.get_input_layout(i));
     }
 
-    add_layout_to_jit(mem_consts, "OUTPUT0", outer.get_output_layout());
+    add_layout_to_jit(mem_consts, "OUTPUT0", impl_param.get_output_layout());
 
     std::ostringstream oss;
     oss << "// Custom Layer Built-ins\n\n";
@@ -204,14 +225,14 @@ static std::string get_jit_constant(const custom_gpu_primitive_node& outer) {
     return oss.str();
 }
 
-static primitive_impl* create(const custom_gpu_primitive_node& arg) {
+static std::unique_ptr<primitive_impl> create(const custom_gpu_primitive_node& arg, const kernel_impl_params& impl_param) {
     const auto primitive = arg.get_primitive().get();
 
     auto cl_kernel = std::make_shared<kernel_selector::cl_kernel_data>();
     cl_kernel->code.kernelString = std::make_shared<kernel_selector::kernel_string>();
     cl_kernel->code.kernelString->entry_point = primitive->kernel_entry_point;
     cl_kernel->code.kernelString->options = primitive->build_options;
-    cl_kernel->code.kernelString->jit = get_jit_constant(arg);
+    cl_kernel->code.kernelString->jit = get_jit_constant(arg, impl_param);
     for (const auto& s : primitive->kernels_code) {
         cl_kernel->code.kernelString->str += s + "\n";
     }
@@ -223,7 +244,7 @@ static primitive_impl* create(const custom_gpu_primitive_node& arg) {
         cl_kernel->params.arguments.push_back(get_arg(p));
     }
 
-    return new custom_gpu_primitive_impl(arg, cl_kernel);
+    return cldnn::make_unique<custom_gpu_primitive_impl>(arg, cl_kernel);
 }
 
 namespace detail {
@@ -235,3 +256,5 @@ attach_custom_gpu_primitive_impl::attach_custom_gpu_primitive_impl() {
 }  // namespace detail
 }  // namespace ocl
 }  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::custom_gpu_primitive_impl)

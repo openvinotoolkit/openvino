@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,7 +17,7 @@ namespace node {
 
 class If : public Node {
 public:
-    If(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    If(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void initSupportedPrimitiveDescriptors() override;
@@ -26,8 +26,6 @@ public:
     bool created() const override;
     void execute(dnnl::stream strm) override;
     bool isExecutable() const override { return true; }
-
-    void inline setExtManager(const ExtensionManager::Ptr& extMgr) { ext_mng = extMgr; }
 
 protected:
     void executeDynamicImpl(dnnl::stream strm) override;

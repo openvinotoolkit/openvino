@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -177,8 +177,6 @@ string get_results_str(const std::vector<char>& ref_data, const std::vector<char
     }
     return ::testing::AssertionSuccess();
 }
-
-constexpr NodeTypeInfo ngraph::TestOpMultiOut::type_info;
 
 bool ngraph::TestOpMultiOut::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
     inputs[0]->read(outputs[0]->get_data_ptr(), inputs[0]->get_size_in_bytes());

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -71,7 +71,7 @@ bool is_correct_onnx_field(const PbKey& decoded_key) {
  * Each consecutive varint byte needs to be left-shifted "7 x its position in the vector"
  * and bitwise added to the accumulator afterward.
  */
-uint32_t varint_bytes_to_number(const std::vector<char>& bytes) {
+uint32_t varint_bytes_to_number(const std::vector<uint8_t>& bytes) {
     uint32_t accumulator = 0u;
 
     for (size_t i = 0; i < bytes.size(); ++i) {
@@ -84,7 +84,7 @@ uint32_t varint_bytes_to_number(const std::vector<char>& bytes) {
 }
 
 uint32_t decode_varint(std::istream& model) {
-    std::vector<char> bytes;
+    std::vector<uint8_t> bytes;
     // max 4 bytes for a single value because this function returns a 32-bit long decoded varint
     const size_t MAX_VARINT_BYTES = 4u;
     // optimization to avoid allocations during push_back calls
@@ -96,7 +96,7 @@ uint32_t decode_varint(std::istream& model) {
     // keep reading all bytes which have the MSB on from the stream
     while (key_component & 0x80 && bytes.size() < MAX_VARINT_BYTES) {
         // drop the most significant bit
-        const char component = key_component & ~0x80;
+        const uint8_t component = key_component & ~0x80;
         bytes.push_back(component);
         model.get(key_component);
     }
@@ -152,47 +152,6 @@ inline void skip_payload(std::istream& model, uint32_t payload_size) {
     model.seekg(payload_size, std::ios::cur);
 }
 }  // namespace onnx
-
-namespace prototxt {
-bool contains_onnx_model_keys(const std::string& model, const size_t expected_keys_num) {
-    size_t keys_found = 0;
-
-    const std::vector<std::string> onnx_keys = {"ir_version",
-                                                "producer_name",
-                                                "producer_version",
-                                                "domain",
-                                                "model_version",
-                                                "doc_string",
-                                                "graph",
-                                                "opset_import",
-                                                "metadata_props",
-                                                "training_info"};
-
-    size_t search_start_pos = 0;
-
-    while (keys_found < expected_keys_num) {
-        const auto key_finder = [&search_start_pos, &model](const std::string& key) {
-            const auto key_pos = model.find(key, search_start_pos);
-            if (key_pos != model.npos) {
-                // don't search from the beginning each time
-                search_start_pos = key_pos + key.size();
-                return true;
-            } else {
-                return false;
-            }
-        };
-
-        const auto found = std::any_of(std::begin(onnx_keys), std::end(onnx_keys), key_finder);
-        if (!found) {
-            break;
-        } else {
-            ++keys_found;
-        }
-    }
-
-    return keys_found == expected_keys_num;
-}
-}  // namespace prototxt
 }  // namespace
 
 namespace ngraph {

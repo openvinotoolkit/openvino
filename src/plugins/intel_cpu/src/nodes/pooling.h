@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 
 #include <ie_common.h>
 #include <node.h>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <string>
 #include <memory>
 #include <vector>
@@ -16,14 +17,13 @@ namespace node {
 
 class Pooling : public Node {
 public:
-    Pooling(const std::shared_ptr<ov::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr context);
 
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
     std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape &dims) const override;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void initDescriptor(const NodeConfig& config) override;
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
@@ -42,9 +42,9 @@ private:
 
     void initEffectiveAttributes(const Shape &inDims, const Shape &outDims);
     dnnl::algorithm getPoolingAlgorithm() const;
-    std::shared_ptr<dnnl::pooling_v2_forward::desc> createDescriptorInternal(const dnnl::memory::desc& in_candidate,
-                                                                               const dnnl::memory::desc& out_candidate,
-                                                                               const dnnl::algorithm alg) const;
+    dnnl::pooling_forward::primitive_desc createDescriptorInternal(const dnnl::memory::desc& in_candidate,
+                                                                   const dnnl::memory::desc& out_candidate,
+                                                                   const dnnl::algorithm alg);
 
     AttrPtr pAttr;
 

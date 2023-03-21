@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -20,14 +20,12 @@
 using namespace std;
 using namespace ngraph;
 
-BWDCMP_RTTI_DEFINITION(ov::op::v0::Atan);
-
 op::Atan::Atan(const Output<Node>& arg) : UnaryElementwiseArithmetic(arg) {
     constructor_validate_and_infer_types();
 }
 
 shared_ptr<Node> op::Atan::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v0_Atan_clone_with_new_inputs);
+    OV_OP_SCOPE(v0_Atan_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     return make_shared<Atan>(new_args.at(0));
 }
@@ -62,12 +60,12 @@ bool evaluate_atan(const HostTensorPtr& arg0, const HostTensorPtr& out, const si
 }  // namespace atanop
 
 bool op::Atan::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) const {
-    NGRAPH_OP_SCOPE(v0_Atan_evaluate);
+    OV_OP_SCOPE(v0_Atan_evaluate);
     return atanop::evaluate_atan(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
 bool op::Atan::has_evaluate() const {
-    NGRAPH_OP_SCOPE(v1_Atan_has_evaluate);
+    OV_OP_SCOPE(v1_Atan_has_evaluate);
     switch (get_input_element_type(0)) {
     case ngraph::element::i32:
     case ngraph::element::i64:

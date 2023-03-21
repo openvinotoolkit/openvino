@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -34,8 +34,8 @@ TEST_P(data_layout_test, size_check) {
 
     auto l = layout(p.dt, p.fmt, tensor{default_fmt, p.size});
 
-    size_t expected_count = std::accumulate(p.size.begin(), p.size.end(), 1, std::multiplies<size_t>());
-    size_t expected_bytes_count = std::accumulate(p.expected_aligned_size.begin(), p.expected_aligned_size.end(), 1, std::multiplies<size_t>()) *
+    size_t expected_count = std::accumulate(p.size.begin(), p.size.end(), 1, std::multiplies<int>());
+    size_t expected_bytes_count = std::accumulate(p.expected_aligned_size.begin(), p.expected_aligned_size.end(), 1, std::multiplies<int>()) *
                                   data_type_traits::size_of(p.dt);
 
     ASSERT_EQ(l.bytes_count(), expected_bytes_count);
@@ -117,8 +117,11 @@ TEST_P(weights_layout_test, size_check) {
 
     auto l = layout(p.dt, p.fmt, tensor{default_fmt, p.size});
 
-    size_t expected_count = std::accumulate(p.size.begin(), p.size.end(), 1, std::multiplies<size_t>());
-    size_t expected_bytes_count = std::accumulate(p.expected_aligned_size.begin(), p.expected_aligned_size.end(), 1, std::multiplies<size_t>()) *
+    size_t expected_count = std::accumulate(p.size.begin(), p.size.end(), 1, std::multiplies<tensor::value_type>());
+    size_t expected_bytes_count = std::accumulate(p.expected_aligned_size.begin(),
+                                                  p.expected_aligned_size.end(),
+                                                  1,
+                                                  std::multiplies<tensor::value_type>()) *
                                   data_type_traits::size_of(p.dt);
 
     ASSERT_EQ(l.bytes_count(), expected_bytes_count);
@@ -178,4 +181,39 @@ INSTANTIATE_TEST_SUITE_P(smoke, weights_layout_test,
         {data_types::f32, format::giozyx, {4, 2, 15, 3, 5, 6}, {4, 2, 15, 3, 5, 6}, {0, 2, 1, 3, 4, 5}},
         {data_types::f32, format::g_os_is_yx_osa2_isa8_osv16_isv2, {4, 2, 15, 3, 5}, {4, 32, 16, 3, 5}, {0, 1, 2, 3, 4}},
         {data_types::f32, format::g_os_is_zyx_osa4_isa8_osv8_isv4, {4, 2, 15, 3, 5, 6}, {4, 32, 32, 3, 5, 6}, {0, 1, 2, 3, 4, 5}},
+    }));
+
+
+struct layouts_cmp_test_params {
+    layout l1;
+    layout l2;
+    bool is_identical;
+    bool is_compatible;
+};
+
+class layout_cmp_test : public testing::TestWithParam<layouts_cmp_test_params> { };
+
+TEST_P(layout_cmp_test, basic) {
+    auto p = GetParam();
+
+    EXPECT_EQ(p.l1.identical(p.l2), p.is_identical);
+    EXPECT_EQ(p.l1.compatible(p.l2), p.is_compatible);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke, layout_cmp_test,
+    testing::ValuesIn(std::vector<layouts_cmp_test_params>{
+        {layout{ov::PartialShape{1, 2, 3, 4}, data_types::f32, format::bfyx},
+         layout{ov::PartialShape{1, 2, 3, 4}, data_types::f32, format::bfyx}, true, true},
+        {layout{ov::PartialShape{4, 3, 2, 1}, data_types::f32, format::bfyx},
+         layout{ov::PartialShape{1, 2, 3, 4}, data_types::f32, format::bfyx}, false, true},
+        {layout{ov::PartialShape{1, 2, 3, 4}, data_types::f32, format::bfyx},
+         layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::bfyx}, false, false},
+        {layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::bfyx},
+         layout{ov::PartialShape{1, 2, 3, 4, 1}, data_types::f16, format::bfzyx}, false, true},
+        {layout{ov::PartialShape{1, 2, 3, 4}, data_types::f16, format::bfyx},
+         layout{ov::PartialShape{1, 2, 3, 4, 1, 1}, data_types::f16, format::bfwzyx}, false, true},
+        {layout{ov::PartialShape{1, 32, 4, 4}, data_types::f32, format::b_fs_yx_fsv32, padding({0, 0, 1, 1}, 0)},
+         layout{ov::PartialShape{1, 32, 4, 4}, data_types::f32, format::b_fs_yx_fsv32, padding({0, 0, 0, 0}, 0)}, false, false},
+        {layout{ov::PartialShape{1, 32, 4, 4}, data_types::f32, format::b_fs_yx_fsv32, padding({0, 0, 1, 1}, 0)},
+         layout{ov::PartialShape{1, 32, 4, 4}, data_types::f32, format::b_fs_yx_fsv32, padding({0, 0, 1, 1}, 0)}, true, true},
     }));

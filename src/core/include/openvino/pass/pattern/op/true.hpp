@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -15,7 +15,6 @@ namespace op {
 class OPENVINO_API True : public Pattern {
 public:
     OPENVINO_RTTI("patternTrue");
-    BWDCMP_RTTI_DECLARATION;
     /// \brief Always matches, does not add node to match list.
     True() : Pattern(OutputVector{}) {}
     bool match_value(pattern::Matcher* matcher,

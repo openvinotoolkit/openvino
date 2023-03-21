@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -116,6 +116,10 @@ foreach (_tbb_component ${TBB_FIND_COMPONENTS})
         message(FATAL_ERROR "Missed required Intel TBB component: ${_tbb_component}")
     endif()
 endforeach()
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(TBB
+    REQUIRED_VARS TBB_tbb_FOUND)
 
 unset(_tbb_x32_subdir)
 unset(_tbb_x64_subdir)

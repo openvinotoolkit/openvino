@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@ std::shared_ptr<void> load_shared_object(const char* path) {
                                                }};
     if (!shared_object) {
         std::stringstream ss;
-        ss << "Cannot load library '" << path;
+        ss << "Cannot load library '" << path << "'";
         if (auto error = dlerror()) {
             ss << ": " << error;
         }

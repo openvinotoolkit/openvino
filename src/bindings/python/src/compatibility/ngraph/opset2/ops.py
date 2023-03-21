@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 """Factory functions for all ngraph ops."""
@@ -64,9 +64,7 @@ def batch_to_space(
     :param name: Optional output node name.
     :return: The new node performing a BatchToSpace operation.
     """
-    return _get_node_factory_opset2().create(
-        "BatchToSpace", as_nodes(data, block_shape, crops_begin, crops_end)
-    )
+    return _get_node_factory_opset2().create("BatchToSpace", as_nodes(data, block_shape, crops_begin, crops_end))
 
 
 @unary_op
@@ -92,7 +90,7 @@ def mvn(
     across_channels: bool = False,
     normalize_variance: bool = False,
     eps: float = 1e-9,
-    name: str = None,
+    name: Optional[str] = None,
 ) -> Node:
     r"""Perform Mean Variance Normalization operation on data from input node.
 
@@ -174,6 +172,4 @@ def space_to_batch(
     :param name: Optional output node name.
     :return: The new node performing a SpaceToBatch operation.
     """
-    return _get_node_factory_opset2().create(
-        "SpaceToBatch", as_nodes(data, block_shape, pads_begin, pads_end)
-    )
+    return _get_node_factory_opset2().create("SpaceToBatch", as_nodes(data, block_shape, pads_begin, pads_end))

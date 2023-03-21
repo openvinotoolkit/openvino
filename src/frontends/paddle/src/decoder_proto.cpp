@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,17 +21,23 @@ namespace paddle {
 
 using namespace ::paddle::framework;
 
-std::map<proto::VarType_Type, ov::element::Type> TYPE_MAP{
-    {proto::VarType_Type::VarType_Type_BOOL, ov::element::boolean},
-    {proto::VarType_Type::VarType_Type_INT16, ov::element::i16},
-    {proto::VarType_Type::VarType_Type_INT32, ov::element::i32},
-    {proto::VarType_Type::VarType_Type_INT64, ov::element::i64},
-    {proto::VarType_Type::VarType_Type_FP16, ov::element::f16},
-    {proto::VarType_Type::VarType_Type_FP32, ov::element::f32},
-    {proto::VarType_Type::VarType_Type_FP64, ov::element::f64},
-    {proto::VarType_Type::VarType_Type_UINT8, ov::element::u8},
-    {proto::VarType_Type::VarType_Type_INT8, ov::element::i8},
-    {proto::VarType_Type::VarType_Type_BF16, ov::element::bf16}};
+ov::element::Type get_ov_type(const ::paddle::framework::proto::VarType_Type& type) {
+    static const std::map<proto::VarType_Type, ov::element::Type> type_map{
+        {proto::VarType_Type::VarType_Type_BOOL, ov::element::boolean},
+        {proto::VarType_Type::VarType_Type_INT16, ov::element::i16},
+        {proto::VarType_Type::VarType_Type_INT32, ov::element::i32},
+        {proto::VarType_Type::VarType_Type_INT64, ov::element::i64},
+        {proto::VarType_Type::VarType_Type_FP16, ov::element::f16},
+        {proto::VarType_Type::VarType_Type_FP32, ov::element::f32},
+        {proto::VarType_Type::VarType_Type_FP64, ov::element::f64},
+        {proto::VarType_Type::VarType_Type_UINT8, ov::element::u8},
+        {proto::VarType_Type::VarType_Type_INT8, ov::element::i8},
+        {proto::VarType_Type::VarType_Type_BF16, ov::element::bf16}};
+
+    auto it = type_map.find(type);
+    OPENVINO_ASSERT(it != type_map.end(), "Cannot convert PDPD type to ov::element::Type");
+    return it->second;
+}
 
 ov::Any DecoderProto::get_attribute(const std::string& name) const {
     auto attrs = decode_attribute_helper(name);
@@ -71,12 +77,12 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
 
 ov::Any DecoderProto::convert_attribute(const Any& data, const std::type_info& type_info) const {
     if (data.is<int32_t>() && type_info == typeid(ov::element::Type)) {
-        return TYPE_MAP.at(static_cast<proto::VarType_Type>(data.as<int32_t>()));
+        return get_ov_type(static_cast<proto::VarType_Type>(data.as<int32_t>()));
     } else if (data.is<std::vector<int32_t>>() && type_info == typeid(std::vector<ov::element::Type>)) {
         const auto& casted = data.as<std::vector<int32_t>>();
         std::vector<ov::element::Type> types(casted.size());
         for (size_t i = 0; i < casted.size(); ++i) {
-            types[i] = TYPE_MAP.at(static_cast<proto::VarType_Type>(casted[i]));
+            types[i] = get_ov_type(static_cast<proto::VarType_Type>(casted[i]));
         }
         return types;
     }
@@ -86,15 +92,44 @@ ov::Any DecoderProto::convert_attribute(const Any& data, const std::type_info& t
 
 std::vector<paddle::OutPortName> DecoderProto::get_output_names() const {
     std::vector<std::string> output_names;
-    for (const auto& output : op_place->get_desc().outputs()) {
+    for (const auto& output : get_place()->get_desc().outputs()) {
         output_names.push_back(output.parameter());
     }
     return output_names;
 }
 
+std::vector<paddle::TensorName> DecoderProto::get_output_var_names(const std::string& var_name) const {
+    std::vector<std::string> output_names;
+    for (const auto& output : get_place()->get_desc().outputs()) {
+        if (output.parameter() == var_name) {
+            for (int idx = 0; idx < output.arguments_size(); ++idx) {
+                output_names.push_back(output.arguments()[idx]);
+            }
+        }
+    }
+    return output_names;
+}
+
+std::vector<paddle::TensorName> DecoderProto::get_input_var_names(const std::string& var_name) const {
+    std::vector<std::string> input_names;
+    for (const auto& input : get_place()->get_desc().inputs()) {
+        if (input.parameter() == var_name) {
+            for (int idx = 0; idx < input.arguments_size(); ++idx) {
+                input_names.push_back(input.arguments()[idx]);
+            }
+        }
+    }
+    return input_names;
+}
+
+size_t DecoderProto::get_output_size(const std::string& port_name) const {
+    const auto out_port = get_place()->get_output_ports().at(port_name);
+    return out_port.size();
+}
+
 size_t DecoderProto::get_output_size() const {
     size_t res = 0;
-    for (const auto& output : op_place->get_desc().outputs()) {
+    for (const auto& output : get_place()->get_desc().outputs()) {
         res += output.arguments().size();
     }
     return res;
@@ -102,7 +137,7 @@ size_t DecoderProto::get_output_size() const {
 
 std::map<std::string, std::vector<ov::element::Type>> DecoderProto::get_output_type_map() const {
     std::map<std::string, std::vector<ov::element::Type>> output_types;
-    for (const auto& out_port_pair : op_place->get_output_ports()) {
+    for (const auto& out_port_pair : get_place()->get_output_ports()) {
         for (const auto& p_place : out_port_pair.second) {
             output_types[out_port_pair.first].push_back(p_place->get_target_tensor_paddle()->get_element_type());
         }
@@ -110,9 +145,19 @@ std::map<std::string, std::vector<ov::element::Type>> DecoderProto::get_output_t
     return output_types;
 }
 
+std::vector<std::pair<ov::element::Type, ov::PartialShape>> DecoderProto::get_output_port_infos(
+    const std::string& port_name) const {
+    std::vector<std::pair<ov::element::Type, ov::PartialShape>> output_types;
+    for (const auto& out_port : get_place()->get_output_ports().at(port_name)) {
+        output_types.push_back({out_port->get_target_tensor_paddle()->get_element_type(),
+                                out_port->get_target_tensor_paddle()->get_partial_shape()});
+    }
+    return output_types;
+}
+
 ov::element::Type DecoderProto::get_out_port_type(const std::string& port_name) const {
     std::vector<ov::element::Type> output_types;
-    for (const auto& out_port : op_place->get_output_ports().at(port_name)) {
+    for (const auto& out_port : get_place()->get_output_ports().at(port_name)) {
         output_types.push_back(out_port->get_target_tensor_paddle()->get_element_type());
     }
     FRONT_END_GENERAL_CHECK(!output_types.empty(), "Port has no tensors connected.");
@@ -122,12 +167,12 @@ ov::element::Type DecoderProto::get_out_port_type(const std::string& port_name) 
 }
 
 std::string DecoderProto::get_op_type() const {
-    return op_place->get_desc().type();
+    return get_place()->get_desc().type();
 }
 
 std::vector<proto::OpDesc_Attr> DecoderProto::decode_attribute_helper(const std::string& name) const {
     std::vector<proto::OpDesc_Attr> attrs;
-    for (const auto& attr : op_place->get_desc().attrs()) {
+    for (const auto& attr : get_place()->get_desc().attrs()) {
         if (attr.name() == name)
             attrs.push_back(attr);
     }
@@ -135,7 +180,7 @@ std::vector<proto::OpDesc_Attr> DecoderProto::decode_attribute_helper(const std:
                             "An error occurred while parsing the ",
                             name,
                             " attribute of ",
-                            op_place->get_desc().type(),
+                            get_place()->get_desc().type(),
                             "node. Unsupported number of attributes. Current number: ",
                             attrs.size(),
                             " Expected number: 0 or 1");
@@ -162,12 +207,12 @@ inline std::map<std::string, OutputVector> map_for_each_input_impl(
 
 std::map<std::string, OutputVector> DecoderProto::map_for_each_input(
     const std::function<Output<Node>(const std::string&, size_t)>& func) const {
-    return map_for_each_input_impl(op_place->get_desc().inputs(), func);
+    return map_for_each_input_impl(get_place()->get_desc().inputs(), func);
 }
 
 std::map<std::string, OutputVector> DecoderProto::map_for_each_output(
     const std::function<Output<Node>(const std::string&, size_t)>& func) const {
-    return map_for_each_input_impl(op_place->get_desc().outputs(), func);
+    return map_for_each_input_impl(get_place()->get_desc().outputs(), func);
 }
 
 }  // namespace paddle

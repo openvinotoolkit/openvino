@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
@@ -14,7 +14,7 @@ from openvino.helpers import pack_data, unpack_data
 
 import pytest
 
-from ..test_utils.test_utils import generate_image  # TODO: reformat into an absolute path
+from tests.test_utils.test_utils import generate_image
 
 
 @pytest.mark.parametrize(("ov_type", "numpy_dtype"), [
@@ -30,7 +30,7 @@ from ..test_utils.test_utils import generate_image  # TODO: reformat into an abs
     (ov.Type.u16, np.uint16),
     (ov.Type.i64, np.int64),
     (ov.Type.u64, np.uint64),
-    (ov.Type.boolean, np.bool),
+    (ov.Type.boolean, bool),
     (ov.Type.u1, np.uint8),
     (ov.Type.u4, np.uint8),
     (ov.Type.i4, np.int8),
@@ -64,7 +64,7 @@ def test_subprocess():
     (ov.Type.u16, np.uint16),
     (ov.Type.i64, np.int64),
     (ov.Type.u64, np.uint64),
-    (ov.Type.boolean, np.bool),
+    (ov.Type.boolean, bool),
 ])
 def test_init_with_numpy_dtype(ov_type, numpy_dtype):
     shape = (1, 3, 127, 127)
@@ -94,7 +94,7 @@ def test_init_with_numpy_dtype(ov_type, numpy_dtype):
     (ov.Type.u16, np.uint16),
     (ov.Type.i64, np.int64),
     (ov.Type.u64, np.uint64),
-    (ov.Type.boolean, np.bool),
+    (ov.Type.boolean, bool),
 ])
 def test_init_with_numpy_shared_memory(ov_type, numpy_dtype):
     arr = generate_image().astype(numpy_dtype)
@@ -131,7 +131,7 @@ def test_init_with_numpy_shared_memory(ov_type, numpy_dtype):
     (ov.Type.u16, np.uint16),
     (ov.Type.i64, np.int64),
     (ov.Type.u64, np.uint64),
-    (ov.Type.boolean, np.bool),
+    (ov.Type.boolean, bool),
 ])
 def test_init_with_numpy_copy_memory(ov_type, numpy_dtype):
     arr = generate_image().astype(numpy_dtype)
@@ -142,17 +142,10 @@ def test_init_with_numpy_copy_memory(ov_type, numpy_dtype):
     assert isinstance(ov_tensor.data, np.ndarray)
     assert ov_tensor.data.dtype == numpy_dtype
     assert ov_tensor.data.shape == shape
-    assert not(np.shares_memory(arr, ov_tensor.data))
+    assert not (np.shares_memory(arr, ov_tensor.data))
     assert np.array_equal(ov_tensor.data, arr)
     assert ov_tensor.size == arr.size
     assert ov_tensor.byte_size == arr.nbytes
-
-
-def test_init_with_numpy_fail():
-    arr = np.asfortranarray(generate_image())
-    with pytest.raises(RuntimeError) as e:
-        _ = Tensor(array=arr, shared_memory=True)
-    assert "Tensor with shared memory must be C contiguous" in str(e.value)
 
 
 def test_init_with_roi_tensor():
@@ -178,7 +171,7 @@ def test_init_with_roi_tensor():
     (ov.Type.u16, np.uint16),
     (ov.Type.i64, np.int64),
     (ov.Type.u64, np.uint64),
-    (ov.Type.boolean, np.bool),
+    (ov.Type.boolean, bool),
 ])
 def test_write_to_buffer(ov_type, numpy_dtype):
     ov_tensor = Tensor(ov_type, ov.Shape([1, 3, 32, 32]))
@@ -200,7 +193,7 @@ def test_write_to_buffer(ov_type, numpy_dtype):
     (ov.Type.u16, np.uint16),
     (ov.Type.i64, np.int64),
     (ov.Type.u64, np.uint64),
-    (ov.Type.boolean, np.bool),
+    (ov.Type.boolean, bool),
 ])
 def test_set_shape(ov_type, numpy_dtype):
     shape = ov.Shape([1, 3, 32, 32])
@@ -248,7 +241,7 @@ def test_cannot_set_bigger_shape_on_preallocated_memory():
     assert np.shares_memory(ones_arr, ov_tensor.data)
     with pytest.raises(RuntimeError) as e:
         ov_tensor.shape = ref_shape
-    assert "Cannot call setShape for Blobs created on top of preallocated memory" in str(e.value)
+    assert "failed" in str(e.value)
 
 
 @pytest.mark.skip(reason="no support yet")
@@ -265,11 +258,11 @@ def test_can_reset_shape_after_decreasing_on_preallocated_memory():
     assert list(ov_tensor.shape) == ref_shape_2
 
 
-def test_cannot_set_shape_incorrect_dims():
+def test_can_set_shape_other_dims():
     ov_tensor = Tensor(np.float32, [1, 3, 48, 48])
-    with pytest.raises(RuntimeError) as e:
-        ov_tensor.shape = [3, 28, 28]
-    assert "Dims and format are inconsistent" in str(e.value)
+    ref_shape_1 = [3, 28, 28]
+    ov_tensor.shape = ref_shape_1
+    assert list(ov_tensor.shape) == ref_shape_1
 
 
 @pytest.mark.parametrize("ov_type", [

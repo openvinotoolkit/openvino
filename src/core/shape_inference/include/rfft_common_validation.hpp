@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -39,7 +39,7 @@ void validate_input_rank(const ov::op::util::FFTBase* op,
 
     if (rfft_kind == RFFTKind::Forward) {
         NODE_VALIDATION_CHECK(op,
-                              input_rank >= static_cast<int64_t>(axes_shape[0].get_length()),
+                              input_rank >= static_cast<size_t>(axes_shape[0].get_length()),
                               "The input rank must be greater than or equal to the number of RDFT op axes. "
                               "Got input rank: ",
                               input_rank,
@@ -47,7 +47,7 @@ void validate_input_rank(const ov::op::util::FFTBase* op,
                               axes_shape[0].get_length());
     } else {
         NODE_VALIDATION_CHECK(op,
-                              input_rank >= static_cast<int64_t>(axes_shape[0].get_length() + 1),
+                              input_rank >= static_cast<size_t>(axes_shape[0].get_length() + 1),
                               "The input rank must be greater than number of IRDFT op axes. Got "
                               "input rank: ",
                               input_rank,
@@ -108,9 +108,7 @@ void validate_axes(const ov::op::util::FFTBase* op,
 }
 
 template <class T>
-void validate_signal_size(const ov::op::util::FFTBase* op,
-                          const T& axes_shape,
-                          const T& signal_size_shape) {
+void validate_signal_size(const ov::op::util::FFTBase* op, const T& axes_shape, const T& signal_size_shape) {
     NODE_VALIDATION_CHECK(op,
                           signal_size_shape.rank().compatible(1),
                           "(I)RDFT op signal size input must be 1D tensor. Got signal: ",
@@ -149,7 +147,7 @@ void shape_validation(const ov::op::util::FFTBase* op,
         validate_signal_size(op, axes_shape, signal_size_shape);
     }
 }
-}  // rfft_common_validation
+}  // namespace rfft_common_validation
 }  // namespace util
 }  // namespace op
 }  // namespace ov

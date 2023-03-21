@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,12 +8,14 @@
 
 #include "ngraph/type/float16.hpp"
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+
 namespace ngraph {
 namespace runtime {
 namespace jit {
 using namespace Xbyak;
 
-#ifdef XBYAK64
+#    ifdef XBYAK64
 static const Xbyak::Operand::Code abi_save_gpr_regs[] = {
     Xbyak::Operand::RBX,
     Xbyak::Operand::RBP,
@@ -21,27 +23,29 @@ static const Xbyak::Operand::Code abi_save_gpr_regs[] = {
     Xbyak::Operand::R13,
     Xbyak::Operand::R14,
     Xbyak::Operand::R15,
-#    ifdef _WIN32
+#        ifdef _WIN32
     Xbyak::Operand::RDI,
     Xbyak::Operand::RSI,
-#    endif
+#        endif
 };
 
-#    ifdef _WIN32
+#        ifdef _WIN32
 static const Xbyak::Reg64 abi_param1(Xbyak::Operand::RCX), abi_param2(Xbyak::Operand::RDX),
     abi_param3(Xbyak::Operand::R8), abi_param4(Xbyak::Operand::R9), abi_not_param1(Xbyak::Operand::RDI);
-#    else
+#        else
 static const Xbyak::Reg64 abi_param1(Xbyak::Operand::RDI), abi_param2(Xbyak::Operand::RSI),
     abi_param3(Xbyak::Operand::RDX), abi_param4(Xbyak::Operand::RCX), abi_param5(Xbyak::Operand::R8),
     abi_param6(Xbyak::Operand::R9), abi_not_param1(Xbyak::Operand::RCX);
-#    endif
-#endif
+#        endif
+#    endif  // XBYAK64
 
 const size_t Generator::num_abi_save_gpr_regs = sizeof(abi_save_gpr_regs) / sizeof(abi_save_gpr_regs[0]);
 
 const Xbyak::Reg64 Generator::param = abi_param1;
 
 bool Generator::mayiuse(const cpu_isa_t cpu_isa) {
+    // note: MSVC 2022 (17.4) is not able to compile the next line for ARM and ARM64
+    // so, we disable this code since for non-x86 platforms it returns 'false' anyway
     static Xbyak::util::Cpu cpu;
 
     using namespace Xbyak::util;
@@ -88,7 +92,7 @@ void Generator::preamble() {
     if (xmm_to_preserve) {
         sub(rsp, xmm_to_preserve * xmm_len);
         for (size_t i = 0; i < xmm_to_preserve; ++i)
-            movdqu(ptr[rsp + i * xmm_len], Xbyak::Xmm(xmm_to_preserve_start + i));
+            movdqu(ptr[rsp + i * xmm_len], Xbyak::Xmm(static_cast<int>(xmm_to_preserve_start + i)));
     }
     for (size_t i = 0; i < num_abi_save_gpr_regs; ++i)
         push(Xbyak::Reg64(abi_save_gpr_regs[i]));
@@ -102,7 +106,7 @@ void Generator::postamble() {
         pop(Xbyak::Reg64(abi_save_gpr_regs[num_abi_save_gpr_regs - 1 - i]));
     if (xmm_to_preserve) {
         for (size_t i = 0; i < xmm_to_preserve; ++i)
-            movdqu(Xbyak::Xmm(xmm_to_preserve_start + i), ptr[rsp + i * xmm_len]);
+            movdqu(Xbyak::Xmm(static_cast<int>(xmm_to_preserve_start + i)), ptr[rsp + i * xmm_len]);
         add(rsp, xmm_to_preserve * xmm_len);
     }
     if (mayiuse(avx) && !mayiuse(avx512_mic))
@@ -122,7 +126,7 @@ void Generator::foreach (const Xbyak::Reg64& idx,
 
     fn(idx);
 
-    add(idx, step);
+    add(idx, static_cast<uint32_t>(step));
     jmp(loop);
     L(exit);
 }
@@ -207,3 +211,5 @@ void Generator::copy<float>(const Xbyak::Reg64& dst, const Xbyak::Reg64& src, co
 }  // namespace jit
 }  // namespace runtime
 }  // namespace ngraph
+
+#endif  // OPENVINO_ARCH_X86 || OPENVINO_ARCH_X86_64

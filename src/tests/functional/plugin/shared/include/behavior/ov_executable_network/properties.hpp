@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,31 +16,27 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-class OVCompiledModelPropertiesBase : public CommonTestUtils::TestsCommon {
+class OVCompiledModelPropertiesBase : public OVCompiledNetworkTestBase {
 public:
     std::shared_ptr<Core> core = utils::PluginCache::get().core();
     std::shared_ptr<Model> model;
-    std::string device_name;
     AnyMap properties;
 };
 
 class OVCompiledModelEmptyPropertiesTests : public testing::WithParamInterface<std::string>,
-                               public OVCompiledModelPropertiesBase {
+                                            public OVCompiledModelPropertiesBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<std::string> obj);
-
     void SetUp() override;
 };
 
 using PropertiesParams = std::tuple<std::string, AnyMap>;
 
 class OVCompiledModelPropertiesTests : public testing::WithParamInterface<PropertiesParams>,
-                          public OVCompiledModelPropertiesBase {
+                                       public OVCompiledModelPropertiesBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<PropertiesParams> obj);
-
     void SetUp() override;
-
     void TearDown() override;
 };
 

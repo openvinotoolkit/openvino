@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -44,7 +44,7 @@ bool isConvertableToPowerStatic(const std::shared_ptr<BaseOp> &node) {
         return false;
     auto const_shape = node->get_input_shape(constPort);
     return ngraph::shape_size(const_shape) == 1 &&
-           input_rank.get_length() >= const_shape.size() &&
+           input_rank.get_length() >= static_cast<int64_t>(const_shape.size()) &&
            !ov::intel_cpu::one_of(node->get_input_node_shared_ptr(nonConstPort)->get_type_info(),
                                  ngraph::opset1::NormalizeL2::get_type_info_static(),
                                  ngraph::opset4::Interpolate::get_type_info_static(),
@@ -52,6 +52,7 @@ bool isConvertableToPowerStatic(const std::shared_ptr<BaseOp> &node) {
                                  ngraph::opset1::GroupConvolution::get_type_info_static(),
                                  ngraph::opset1::ConvolutionBackpropData::get_type_info_static(),
                                  ngraph::opset1::GroupConvolutionBackpropData::get_type_info_static(),
+                                 ngraph::opset1::MatMul::get_type_info_static(),
                                  ov::intel_cpu::FullyConnectedNode::get_type_info_static(),
                                  ngraph::op::v0::MVN::get_type_info_static(),
                                  ngraph::opset6::MVN::get_type_info_static());
@@ -63,7 +64,9 @@ bool isConvertableToPowerStatic(const std::shared_ptr<ngraph::opset1::Power> &no
     if (input_rank.is_dynamic())
         return false;
     auto const_node =  std::dynamic_pointer_cast<ngraph::opset1::Constant>(node->get_input_node_shared_ptr(1));
-    return const_node && input_rank.get_length() >= const_node->get_shape().size() && ngraph::shape_size(const_node->get_shape()) == 1;
+    return const_node &&
+           input_rank.get_length() >= static_cast<ov::Dimension::value_type>(const_node->get_shape().size()) &&
+           ngraph::shape_size(const_node->get_shape()) == 1;
 }
 
 template <class BaseOp>
@@ -108,7 +111,7 @@ ov::intel_cpu::ConvertToPowerStatic::ConvertToPowerStatic() {
     auto mult = ngraph::pattern::wrap_type<ngraph::opset1::Multiply>(twoInputs);
     const auto candidate = std::make_shared<ngraph::pattern::op::Or>(ngraph::OutputVector{power, add, sub, mult});
 
-    ngraph::matcher_pass_callback callback = [this](ngraph::pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [](ngraph::pattern::Matcher &m) {
         auto node = m.get_match_root();
 
         std::shared_ptr<ngraph::Node> toReplace = node;
@@ -134,7 +137,6 @@ ov::intel_cpu::ConvertToPowerStatic::ConvertToPowerStatic() {
         toReplace->set_friendly_name(node->get_friendly_name());
         ngraph::copy_runtime_info(node, toReplace);
         ngraph::replace_node(node, toReplace);
-        MATCHER_SCOPE_ENABLE(ConvertToPowerStatic);
         return true;
     };
 

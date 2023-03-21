@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -252,7 +252,7 @@ namespace SubgraphTestsDefinitions {
                                                                                 std::vector<size_t>({1, 1, 1, hiddenSize}));
         auto final_reshape = std::make_shared<Reshape>(out_unsqueeze, final_reshape_pattern, false);
 
-        function = std::make_shared<Function>(final_reshape, input_parameter, "PureTI");
+        function = std::make_shared<Function>(OutputVector{final_reshape, out_hidden, out_cell}, input_parameter, "PureTI");
     }
 
     void MemoryLSTMCellTest::LoadNetwork() {

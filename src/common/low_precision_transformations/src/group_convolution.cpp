@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2022 Intel Corporation
+﻿// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,7 +25,6 @@ GroupConvolutionTransformation::GroupConvolutionTransformation(const Params& par
         if (transformation_callback(op)) {
             return false;
         }
-        MATCHER_SCOPE_ENABLE(GroupConvolutionTransformation);
         return transform(*context, m);
     };
 

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace LayerTestsDefinitions {
 
 typedef std::tuple<
         std::vector<size_t>,            // Num splits
-        size_t,                         // Axis
+        int64_t,                        // Axis
         InferenceEngine::Precision,     // Net precision
         InferenceEngine::Precision,     // Input precision
         InferenceEngine::Precision,     // Output precision

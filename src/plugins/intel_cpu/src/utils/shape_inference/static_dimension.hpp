@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,18 +27,27 @@ public:
     /// \param dimension Value of the dimension.
     StaticDimension(value_type dimension);
 
+    /// \brief Construct a static dimension.
+    /// \param ldimension Value of the dimension (must be equal to udimension)
+    /// \param udimension Value of the dimension (must be equal to ldimension)
+    StaticDimension(value_type ldimension, value_type udimension);
+
     /// \brief Construct a zero dimension
     StaticDimension() = default;
 
     StaticDimension(const Dimension &) {
-        OPENVINO_UNREACHABLE("[shape infer] Shoudn't convert from Dimension to StaticDimension.");
+        OPENVINO_THROW("[shape infer] Shoudn't convert from Dimension to StaticDimension.");
     }
 
     bool operator==(const StaticDimension& dimension) const;
     bool operator!=(const StaticDimension& dimension) const;
 
-    static bool is_static() { return true; }
-    static bool is_dynamic() { return false; }
+    static constexpr bool is_static() {
+        return true;
+    }
+    static constexpr bool is_dynamic() {
+        return false;
+    }
 
     value_type get_length() const;
     value_type get_min_length() const;
@@ -46,7 +55,7 @@ public:
 
     Interval& get_interval() const {
         static Interval dummy{};
-        OPENVINO_UNREACHABLE("[shape infer] Shoudn't call get_interval() in StaticDimension.");
+        OPENVINO_THROW("[shape infer] Shoudn't call get_interval() in StaticDimension.");
         return dummy;
     }
 

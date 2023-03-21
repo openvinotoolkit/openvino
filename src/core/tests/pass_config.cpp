@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -56,7 +56,7 @@ class TestFunctionPass : public ngraph::pass::FunctionPass {
 public:
     NGRAPH_RTTI_DECLARATION;
 
-    bool run_on_function(std::shared_ptr<Function> f) override {
+    bool run_on_model(const std::shared_ptr<Function>& f) override {
         pass::Manager manager(get_pass_config());
 
         manager.register_pass<RenameReLU, false /*disabled by default*/>();

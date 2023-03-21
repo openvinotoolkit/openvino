@@ -1,25 +1,21 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "gather_nd_inst.h"
 
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 
 namespace cldnn {
-primitive_type_id gather_nd::type_id() {
-    static primitive_type_base<gather_nd> instance;
-    return &instance;
-}
+GPU_DEFINE_PRIMITIVE_TYPE_ID(gather_nd)
 
-layout gather_nd_inst::calc_output_layout(gather_nd_node const& node) {
-    auto op = node.get_primitive();
+layout gather_nd_inst::calc_output_layout(gather_nd_node const& node, kernel_impl_params const& impl_param) {
+    auto op = impl_param.typed_desc<gather_nd>();
 
-    auto input_layout_origin = node.input(0).get_output_layout();
-    auto indices_layout_origin = node.input(1).get_output_layout();
+    auto input_layout_origin = impl_param.get_input_layout(0);
+    auto indices_layout_origin = impl_param.get_input_layout(1);
 
     auto input_layout = input_layout_origin.get_tensor().sizes(input_layout_origin.format);
     auto indices_layout = indices_layout_origin.get_tensor().sizes(indices_layout_origin.format);
@@ -73,10 +69,10 @@ layout gather_nd_inst::calc_output_layout(gather_nd_node const& node) {
     }
 
     auto output_sizes_tensor = tensor(tensor(final_output_sizes).sizes(output_format));
-    auto padding = op->output_padding;
+    auto padding = op->output_paddings[0];
 
-    if (node.has_fused_primitives()) {
-        input_layout_origin.data_type = node.get_fused_output_layout().data_type;
+    if (impl_param.has_fused_primitives()) {
+        input_layout_origin.data_type = impl_param.get_fused_output_layout().data_type;
     }
 
     return layout(input_layout_origin.data_type, output_format, output_sizes_tensor, padding);

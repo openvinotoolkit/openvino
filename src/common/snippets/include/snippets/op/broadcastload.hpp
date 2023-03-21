@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,25 +21,18 @@ class BroadcastLoad : public BroadcastMove {
 public:
     OPENVINO_OP("BroadcastLoad", "SnippetsOpset", ngraph::snippets::op::BroadcastMove);
 
-    BroadcastLoad(const Output<Node>& x, Shape output_shape);
+    BroadcastLoad(const Output<Node>& x, ov::PartialShape output_shape, size_t offset = 0lu);
     BroadcastLoad() = default;
 
+    size_t get_offset() const { return m_offset; }
+    void set_offset(const size_t offset) { m_offset = offset; }
+
     bool visit_attributes(AttributeVisitor& visitor) override;
-
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
-
     void validate_and_infer_types() override;
 
-    void set_broadcast_info(const Shape& bct) {
-        broadcast_info = bct;
-    }
-
-    bool is_broadcast(size_t idx) {
-        return broadcast_info[idx] == 1;
-    }
-
 private:
-    Shape broadcast_info;
+    size_t m_offset = 0lu;
 };
 
 } // namespace op

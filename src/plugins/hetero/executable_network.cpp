@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -40,13 +40,13 @@
 #include <ie_algorithm.hpp>
 
 #include <ngraph/function.hpp>
-#include <ngraph/variant.hpp>
 #include <ngraph/graph_util.hpp>
 #include <ngraph/op/result.hpp>
 #include <ngraph/op/parameter.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include <ngraph/rt_info.hpp>
-#include <ngraph/pass/visualize_tree.hpp>
+#include "graph_debug_dump.hpp"
+
 // clang-format on
 
 using namespace InferenceEngine;
@@ -92,16 +92,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     }
 
     if (queryNetworkResult.supportedLayersMap.empty()) {
-        auto it = _config.find("TARGET_FALLBACK");
-        if (it == _config.end()) {
-            it = _config.find(ov::device::priorities.name());
-        }
-        if (it != _config.end()) {
-            queryNetworkResult = _heteroPlugin->QueryNetwork(network, _config);
-        } else {
-            IE_THROW() << "The '" << ov::device::priorities.name()
-                       << "' option was not defined for heterogeneous plugin";
-        }
+        queryNetworkResult = _heteroPlugin->QueryNetwork(network, _config);
     }
 
     using Input = ngraph::Input<ngraph::Node>;
@@ -111,23 +102,6 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     auto InputNode = [](const ngraph::Input<ngraph::Node>& input) {
         return input.get_source_output().get_node();
     };
-
-    // Set results, constants and parameters affinity
-    for (auto&& node : clonedFunction->get_ops()) {
-        if (ngraph::op::is_constant(node) || ngraph::op::is_output(node) || ngraph::op::is_parameter(node)) {
-            if (!contains(queryNetworkResult.supportedLayersMap, node->get_friendly_name())) {
-                auto& nodeWithAffinityName =
-                    ngraph::op::is_output(node)
-                        ? node->input_value(0).get_node()->get_friendly_name()
-                        : node->output(0).get_target_inputs().begin()->get_node()->get_friendly_name();
-                auto itAffinity = queryNetworkResult.supportedLayersMap.find(nodeWithAffinityName);
-                if (itAffinity == queryNetworkResult.supportedLayersMap.end()) {
-                    IE_THROW() << "Node " << nodeWithAffinityName << " was not assigned on any pointed device.";
-                }
-                queryNetworkResult.supportedLayersMap.emplace(node->get_friendly_name(), itAffinity->second);
-            }
-        }
-    }
 
     std::unordered_set<std::string> devices;
     NodeMap<std::string> affinities;
@@ -153,48 +127,10 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         }
     }
 
-    static const std::array<const char*, 14> colors = {
-        "aliceblue",
-        "antiquewhite4",
-        "aquamarine4",
-        "azure4",
-        "bisque3",
-        "blue1",
-        "brown",
-        "burlywood",
-        "cadetblue",
-        "chartreuse",
-        "chocolate",
-        "coral",
-        "cornflowerblue",
-        "cornsilk4",
-    };
-
     if (dumpDotFile) {
-        ngraph::pass::VisualizeTree{
-            "hetero_affinity_" + _name + ".dot",
-            [&](const ngraph::Node& node, std::vector<std::string>& attributes) {
-                auto nodeDevice = queryNetworkResult.supportedLayersMap.at(node.get_friendly_name());
-                int colorIndex = 0;
-                for (auto&& device : devices) {
-                    if (device == nodeDevice) {
-                        attributes.push_back(std::string{"fillcolor="} + colors[colorIndex % colors.size()] +
-                                             " style=filled");
-                        auto itLabel =
-                            std::find_if(std::begin(attributes), std::end(attributes), [](const std::string& str) {
-                                return str.find("label") != std::string::npos;
-                            });
-                        auto label =
-                            "\\ndevice=" + queryNetworkResult.supportedLayersMap.at(node.get_friendly_name()) + '\"';
-                        IE_ASSERT(itLabel != attributes.end());
-                        itLabel->pop_back();
-                        (*itLabel) += label;
-                        break;
-                    }
-                    colorIndex++;
-                }
-            }}
-            .run_on_model(ngraph::clone_function(*function));
+        ov::hetero::debug::dump_affinities(std::const_pointer_cast<ov::Model>(function),
+                                           queryNetworkResult.supportedLayersMap,
+                                           devices);
     }
 
     NodeMap<InputSet> nodeInputDependencies;
@@ -233,7 +169,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
                 }
             }
             if (inputs.empty()) {
-                subgraphIds.push_back(subgraphIds.size());
+                subgraphIds.push_back(static_cast<int>(subgraphIds.size()));
                 subgraphIdPtrs.emplace(node.get(), &(subgraphIds.back()));
             } else {
                 auto firstInputSubgraphIdPtr = subgraphIdPtrs[InputNode(inputs.front())];
@@ -313,21 +249,9 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
         for (auto&& v : subgraphIds) {
             map_id.emplace(v.first->get_friendly_name(), v.second);
         }
-        ngraph::pass::VisualizeTree{
-            "hetero_subgraphs_" + _name + ".dot",
-            [&](const ngraph::Node& node, std::vector<std::string>& attributes) {
-                attributes.push_back(std::string{"fillcolor="} +
-                                     colors[map_id.at(node.get_friendly_name()) % colors.size()] + " style=filled");
-                auto itLabel = std::find_if(std::begin(attributes), std::end(attributes), [](const std::string& str) {
-                    return str.find("label") != std::string::npos;
-                });
-                auto label = "\\nsubgraph=" + std::to_string(map_id.at(node.get_friendly_name())) + "\\n" +
-                             "device=" + queryNetworkResult.supportedLayersMap.at(node.get_friendly_name()) + '\"';
-                IE_ASSERT(itLabel != attributes.end());
-                itLabel->pop_back();
-                (*itLabel) += label;
-            }}
-            .run_on_model(std::const_pointer_cast<ov::Model>(function));
+        ov::hetero::debug::dump_subgraphs(std::const_pointer_cast<ov::Model>(function),
+                                          queryNetworkResult.supportedLayersMap,
+                                          map_id);
     }
 
     // Break graph using insertion of result parameter split
@@ -499,7 +423,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
             if (!InferenceEngine::details::contains(externalOutputsData, output.first)) {
                 for (auto&& result : subgraph._results) {
                     auto source_output = result->input_value(0);
-                    auto output_name = ngraph::op::util::create_ie_output_name(source_output);
+                    auto output_name = ov::op::util::create_ie_output_name(source_output);
                     if (output_name == output.first) {
                         output.second->setPrecision(
                             InferenceEngine::details::convertPrecision(toLegacyType(source_output.get_element_type())));
@@ -511,10 +435,12 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::CNNNetwo
     }
     for (auto&& network : _networks) {
         auto metaDevices = _heteroPlugin->GetDevicePlugins(network._device, _config);
-        metaDevices[network._device].emplace(CONFIG_KEY_INTERNAL(FORCE_DISABLE_CACHE), "");
-        network._network = _heteroPlugin->GetCore()->LoadNetwork(network._clonedNetwork,
-                                                                 network._device,
-                                                                 metaDevices[network._device]);
+
+        auto config = metaDevices[network._device];
+        // disable caching for subgraphs, because the whole HERERO model is cached
+        config[ov::cache_dir.name()] = "";
+
+        network._network = _heteroPlugin->GetCore()->LoadNetwork(network._clonedNetwork, network._device, config);
     }
 }
 
@@ -532,7 +458,7 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
         IE_THROW(NetworkNotRead) << "Error reading HETERO device xml header";
     }
 
-    using namespace XMLParseUtils;
+    using namespace pugixml::utils;
 
     pugi::xml_node heteroNode = heteroXmlDoc.document_element();
     _name = GetStrAttr(heteroNode, "name");
@@ -632,7 +558,6 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(std::istream& heteroModel,
             executableNetwork,
         });
     }
-
     const auto parseNode = [](const pugi::xml_node& xml_node, bool is_param) -> std::shared_ptr<const ov::Node> {
         const std::string operation_name = GetStrAttr(xml_node, "operation_name");
         const auto elementType = ov::EnumNames<ov::element::Type_t>::as_enum(GetStrAttr(xml_node, "element_type"));
@@ -693,7 +618,7 @@ void HeteroExecutableNetwork::Export(std::ostream& heteroModel) {
     const auto serializeNode = [&](const std::shared_ptr<const ov::Node>& node, pugi::xml_node& xml_node) {
         const bool is_result = ov::is_type<ov::op::v0::Result>(node);
         const std::string name =
-            is_result ? ngraph::op::util::create_ie_output_name(node->input_value(0)) : node->get_friendly_name();
+            is_result ? ov::op::util::create_ie_output_name(node->input_value(0)) : node->get_friendly_name();
         xml_node.append_attribute("operation_name").set_value(name.c_str());
         xml_node.append_attribute("element_type").set_value(node->get_output_element_type(0).get_type_name().c_str());
 
@@ -837,117 +762,57 @@ IInferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequest() {
 InferenceEngine::Parameter HeteroExecutableNetwork::GetConfig(const std::string& name) const {
     InferenceEngine::Parameter result;
     if (name == "TARGET_FALLBACK" || name == ov::device::priorities.name()) {
-        auto it = _config.find("TARGET_FALLBACK");
-        if (it == _config.end()) {
-            it = _config.find(ov::device::priorities.name());
-        }
-        if (it != _config.end()) {
-            result = it->second;
-        } else {
-            result = std::string{};
-        }
+        result = _heteroPlugin->GetTargetFallback(_config, false);
     } else if (name == HETERO_CONFIG_KEY(DUMP_GRAPH_DOT) || name == CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)) {
         auto it = _config.find(name);
         IE_ASSERT(it != _config.end());
         result = it->second == YES ? true : false;
     } else {
-        // find config key among plugin config keys
-        for (auto&& desc : _networks) {
-            auto execNetwork = desc._network;
-            auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-            for (auto&& configKey : param.as<std::vector<std::string>>()) {
-                if (configKey == name) {
-                    return execNetwork->GetConfig(configKey);
-                }
-            }
-        }
-
         IE_THROW() << "Unsupported ExecutableNetwork config key: " << name;
     }
 
     return result;
 }
 
-using Metrics = std::map<std::string, Parameter>;
-
-namespace {
-
-void collectPluginMetrics(std::vector<std::string>& baseMetrics, const std::vector<::Metrics> pluginMetrics) {
-    // check whether the metric has unique name and value among all the plugins
-    auto isMetricValueUnique = [&](const std::string& key, const Parameter& value) -> bool {
-        if (std::find(baseMetrics.begin(), baseMetrics.end(), key) != baseMetrics.end())
-            return false;
-
-        for (auto&& metrics : pluginMetrics) {
-            for (auto&& metric : metrics)
-                if (key == metric.first && value != metric.second)
-                    return false;
-        }
-
-        return true;
-    };
-
-    // collect only unique metrics
-    std::vector<std::string> uniqueMetrics;
-    for (auto&& metrics : pluginMetrics) {
-        for (auto&& metric : metrics) {
-            if (isMetricValueUnique(metric.first, metric.second)) {
-                uniqueMetrics.push_back(metric.first);
-            }
-        }
-    }
-
-    // add plugin specific metrics which don't conflict with base ones
-    std::copy(uniqueMetrics.begin(), uniqueMetrics.end(), std::back_inserter(baseMetrics));
-}
-
-}  // namespace
-
 InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string& name) const {
-    if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
+    if (ov::supported_properties == name) {
+        return decltype(ov::supported_properties)::value_type{
+            ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::model_name.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::optimal_number_of_infer_requests.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::execution_devices.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::device::properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RO}};
+    } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_METRICS) == name) {
         std::vector<std::string> heteroMetrics = {ov::model_name.name(),
                                                   METRIC_KEY(SUPPORTED_METRICS),
                                                   METRIC_KEY(SUPPORTED_CONFIG_KEYS),
-                                                  ov::optimal_number_of_infer_requests.name()};
-
-        {
-            std::vector<::Metrics> pluginMetrics;
-            for (auto&& desc : _networks) {
-                auto execNetwork = desc._network;
-                auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_METRICS));
-                ::Metrics metrics;
-                for (auto&& metricName : param.as<std::vector<std::string>>()) {
-                    metrics[metricName] = execNetwork->GetMetric(metricName);
-                }
-                pluginMetrics.push_back(std::move(metrics));
-            }
-
-            collectPluginMetrics(heteroMetrics, pluginMetrics);
-        }
-
+                                                  ov::optimal_number_of_infer_requests.name(),
+                                                  ov::execution_devices.name()};
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, heteroMetrics);
     } else if (EXEC_NETWORK_METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
         std::vector<std::string> heteroConfigKeys = {"TARGET_FALLBACK",
                                                      ov::device::priorities.name(),
                                                      HETERO_CONFIG_KEY(DUMP_GRAPH_DOT),
                                                      CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS)};
-
-        {
-            std::vector<::Metrics> pluginConfigKeys;
-            for (auto&& desc : _networks) {
-                auto execNetwork = desc._network;
-                auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
-                ::Metrics configKeys;
-                for (auto&& metricName : param.as<std::vector<std::string>>()) {
-                    configKeys[metricName] = execNetwork->GetConfig(metricName);
-                }
-                pluginConfigKeys.push_back(std::move(configKeys));
-            }
-
-            collectPluginMetrics(heteroConfigKeys, pluginConfigKeys);
-        }
-
         IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, heteroConfigKeys);
+    } else if (ov::device::properties == name) {
+        ov::AnyMap all_devices = {};
+        for (auto&& subnetwork : _networks) {
+            ov::AnyMap device_properties = {};
+            if (all_devices.count(subnetwork._device) == 0) {
+                auto device_supported_metrics = subnetwork._network->GetMetric(METRIC_KEY(SUPPORTED_METRICS));
+                for (auto&& property_name : device_supported_metrics.as<std::vector<std::string>>()) {
+                    device_properties[property_name] = subnetwork._network->GetMetric(property_name);
+                }
+                auto device_supported_configs = subnetwork._network->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+                for (auto&& property_name : device_supported_configs.as<std::vector<std::string>>()) {
+                    device_properties[property_name] = subnetwork._network->GetConfig(property_name);
+                }
+                all_devices[subnetwork._device] = device_properties;
+            }
+        }
+        return all_devices;
     } else if (ov::model_name == name) {
         return decltype(ov::model_name)::value_type{_name};
     } else if (ov::optimal_number_of_infer_requests == name) {
@@ -957,18 +822,17 @@ InferenceEngine::Parameter HeteroExecutableNetwork::GetMetric(const std::string&
                              desc._network->GetMetric(METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)).as<unsigned int>());
         }
         return decltype(ov::optimal_number_of_infer_requests)::value_type{value};
-    } else {
-        // find metric key among plugin metrics
-        for (auto&& desc : _networks) {
-            auto execNetwork = desc._network;
-            auto param = execNetwork->GetMetric(METRIC_KEY(SUPPORTED_METRICS));
-            for (auto&& metricKey : param.as<std::vector<std::string>>()) {
-                if (metricKey == name) {
-                    return execNetwork->GetMetric(metricKey);
-                }
-            }
+    } else if (name == ov::execution_devices) {
+        std::vector<std::string> exeDevices;
+        std::set<std::string> s;
+        for (auto&& subnetwork : _networks) {
+            if (s.count(subnetwork._device) != 0)
+                continue;
+            s.insert(subnetwork._device);
+            exeDevices.push_back(subnetwork._device);
         }
-
+        return decltype(ov::execution_devices)::value_type{exeDevices};
+    } else {
         IE_THROW() << "Unsupported ExecutableNetwork metric key: " << name;
     }
 }

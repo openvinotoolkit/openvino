@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -14,7 +14,7 @@ namespace node {
 
 class Split : public Node {
 public:
-    Split(const std::shared_ptr<ngraph::Node>& op, const dnnl::engine& eng, WeightsSharing::Ptr &cache);
+    Split(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op, std::string& errorMessage) noexcept;
     void getSupportedDescriptors() override;
@@ -30,8 +30,8 @@ public:
     bool isExecutable() const override;
 
     bool needPrepareParams() const override;
+    bool needShapeInfer() const override;
     void prepareParams() override;
-    std::vector<VectorDims> shapeInfer() const override;
     void executeDynamicImpl(dnnl::stream strm) override { execute(strm); }
 
 private:
@@ -64,6 +64,8 @@ private:
     std::vector<std::pair<size_t, MemoryCPtr>> dstMemPtrs;
 
     size_t INPUTS_NUM = 2;
+    bool constSplitLengths = true;
+    std::vector<int> splitLengths;
 };
 
 }   // namespace node

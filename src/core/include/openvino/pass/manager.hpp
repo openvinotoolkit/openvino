@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -60,7 +60,13 @@ public:
         return pass;
     }
 
-    void run_passes(std::shared_ptr<Model>);
+    /// \brief      Runs registered transformations on a given model
+    ///
+    /// \param      model Input model
+    ///
+    /// \return     Returns true if the model was changed by transformations,
+    ///             false otherwise.
+    bool run_passes(std::shared_ptr<Model> model);
 
     void set_pass_visualization(bool new_state) {
         m_visualize = new_state;
@@ -70,36 +76,6 @@ public:
     /// \param new_state Value "true" enables Validate pass run; "false", otherwise
     void set_per_pass_validation(bool new_state);
 
-    /// \brief Callback is a lambda function that can be used by registered transformations.
-    /// The main purpose of this callback is to provide a way for plugins to disable/enable
-    /// transformations based on some conditions. In some cases plugins may want not to
-    /// execute some
-    /// transformations.
-    /// For example plugin can disable unpleasant decompositions because of performance
-    /// reasons for
-    /// some cases.
-    /// Callback example:
-    /// auto callback = [](const std::shared_ptr<const ov::Node> & node) -> bool {
-    ///     return std::dynamic_pointer_cast<const ov::opset3::DepthToSpace>(node) !=
-    ///     nullptr;
-    /// };
-    /// This callback returns true in case of DepthToSpace operation. So when execution
-    /// DepthToSpace
-    /// decomposition pass will check is this decomposition needed or plugin can execute
-    /// this
-    /// operation directly. And of course on transformation side we need to have a response
-    /// for this
-    /// callback.
-    /// if (transformation_callback(batch_to_space)) {
-    ///     return false;
-    /// }
-    /// \param callback lamda function that returns true in case if node is supported by
-    /// plugin and
-    /// transformation is not needed
-    OPENVINO_DEPRECATED("Please use get_pass_config() to configure transformation pipeline")
-    void set_callback(const param_callback& callback) {
-        m_pass_config->set_callback(callback);
-    }
     /// \return PassConfig shared object. This object is used for transformations pipeline
     /// configuration.
     /// This object allows to disable/enable transformations execution, set callback to

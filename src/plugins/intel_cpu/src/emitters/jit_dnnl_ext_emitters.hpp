@@ -5,6 +5,7 @@
 #pragma once
 
 #include "ngraph/opsets/opset5.hpp"
+#include "ngraph_transformations/op/swish_cpu.hpp"
 #include "jit_dnnl_emitters.hpp"
 
 namespace ov {
@@ -102,18 +103,34 @@ public:
         }
 };
 
-class jit_hswish_emitter : public jit_dnnl_emitter {
+class jit_swish_emitter : public jit_dnnl_emitter {
 public:
-    jit_hswish_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& n,
+    jit_swish_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& n,
                         InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32)
             : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
-        kind = dnnl_eltwise_hardswish;
-        alpha = 0.f;
+        kind = dnnl_eltwise_swish;
+        auto op = ngraph::as_type_ptr<ov::intel_cpu::SwishNode>(n);
+        alpha = op->get_alpha();
         beta = 0.f;
 
         set_injector();
     }
 };
+
+class jit_hswish_emitter : public jit_dnnl_emitter {
+public:
+    jit_hswish_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& n,
+                        InferenceEngine::Precision exec_prc = InferenceEngine::Precision::FP32)
+            : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
+        // since v3.0 oneDNN has flexible version of hardswish, ov still uses the one with hardcoded alpha and beta
+        kind = dnnl_eltwise_hardswish;
+        alpha = 1.f / 6.f;
+        beta = 0.5f;
+
+        set_injector();
+    }
+};
+
 class jit_gelu_v0_emitter : public jit_dnnl_emitter {
 public:
     jit_gelu_v0_emitter(dnnl::impl::cpu::x64::jit_generator *host, dnnl::impl::cpu::x64::cpu_isa_t host_isa, const std::shared_ptr<ngraph::Node>& n,

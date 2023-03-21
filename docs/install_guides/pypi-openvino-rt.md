@@ -1,23 +1,19 @@
 # OpenVINO™ Runtime
 
+<!--- The note below is intended for master branch only for pre-release purpose. Remove it for offical releases. --->
+> **NOTE**: This version is pre-release software and has not undergone full release validation or qualification. No support is offered on pre-release software and APIs/behavior are subject to change. It should NOT be incorporated into any production software/solution and instead should be used only for early testing and integration while awaiting a final release version of this software.
+
 Intel® Distribution of OpenVINO™ toolkit is an open-source toolkit for optimizing and deploying AI inference. It can be used to develop applications and solutions based on deep learning tasks, such as: emulation of human vision, automatic speech recognition, natural language processing, recommendation systems, etc. It provides high-performance and rich deployment options, from edge to cloud.
 
-If you have already finished developing your models and converting them to the OpenVINO model format, you can install OpenVINO Runtime to deploy your applications on various devices. The [OpenVINO™ Runtime](https://docs.openvino.ai/2022.2/openvino_docs_OV_UG_OV_Runtime_User_Guide.html) Python package includes a set of libraries for an easy inference integration with your products.
+If you have already finished developing your models and converting them to the OpenVINO model format, you can install OpenVINO Runtime to deploy your applications on various devices. The [OpenVINO™ Runtime](https://docs.openvino.ai/nightly/openvino_docs_OV_UG_OV_Runtime_User_Guide.html) Python package includes a set of libraries for an easy inference integration with your products.
 
 ## System Requirements
-Before you start the installation, check the supported operating systems and required Python* versions. The complete list of supported hardware is available in the [Release Notes](https://www.intel.com/content/www/us/en/developer/articles/release-notes/openvino-relnotes.html).
 
-| Supported Operating System                                   | [Python* Version (64-bit)](https://www.python.org/) |
-| :------------------------------------------------------------| :---------------------------------------------------|
-|   Ubuntu* 18.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8                                       |
-|   Ubuntu* 20.04 long-term support (LTS), 64-bit              | 3.6, 3.7, 3.8, 3.9                                  |
-|   Red Hat* Enterprise Linux* 8, 64-bit                       | 3.6, 3.8                                            |
-|   macOS* 10.15.x versions                                    | 3.6, 3.7, 3.8, 3.9                                  |
-|   Windows 10*, 64-bit                                        | 3.6, 3.7, 3.8, 3.9                                  |
+Before you start the installation, check the supported operating systems and required Python* versions. The complete list of supported hardware is available in the [System Requirements](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html).
+
+**C++ libraries** are also required for the installation on Windows*. To install that, you can [download the Visual Studio Redistributable file (.exe)](https://aka.ms/vs/17/release/vc_redist.x64.exe).
 
 > **NOTE**: This package can be installed on other versions of Linux and Windows OSes, but only the specific versions above are fully validated.
-
-> **NOTE**: The current version of the OpenVINO™ Runtime for macOS* supports inference on Intel® CPUs only.
 
 ## Install the OpenVINO™ Runtime Package
 
@@ -37,7 +33,7 @@ On Linux and macOS:
 python3 -m venv openvino_env
 ```
 
-> **NOTE**: On Linux and macOS, you may need to [install pip](https://pip.pypa.io/en/stable/installing/). For example, on Ubuntu execute the following command to get pip installed: `sudo apt install python3-venv python3-pip`.
+> **NOTE**: On Linux and macOS, you may need to [install pip](https://pip.pypa.io/en/stable/installation/). For example, on Ubuntu execute the following command to get pip installed: `sudo apt install python3-venv python3-pip`.
 
 ### Step 2. Activate Virtual Environment
 
@@ -76,7 +72,18 @@ If installation was successful, you will not see any error messages (no console 
 
 ## Troubleshooting
 
-For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](https://docs.openvino.ai/2022.2/openvino_docs_get_started_guide_troubleshooting.html). The following sections also provide explanations to several error messages. 
+For general troubleshooting steps and issues, see [Troubleshooting Guide for OpenVINO Installation](https://docs.openvino.ai/nightly/openvino_docs_get_started_guide_troubleshooting.html). The following sections also provide explanations to several error messages. 
+
+### Errors with Installing via PIP for Users in China
+
+Users in China might encounter errors while downloading sources via PIP during OpenVINO™ installation. To resolve the issues, try the following solution:
+   
+* Add the download source using the ``-i`` parameter with the Python ``pip`` command. For example: 
+
+   ``` sh
+   pip install openvino -i https://mirrors.aliyun.com/pypi/simple/
+   ```
+   Use the ``--trusted-host`` parameter if the URL above is ``http`` instead of ``https``.
 
 ### ERROR:root:Could not find the Inference Engine or nGraph Python API.
 
@@ -94,6 +101,7 @@ sudo apt-get install libpython3.7
 - [Intel® Distribution of OpenVINO™ toolkit](https://software.intel.com/en-us/openvino-toolkit)
 - [OpenVINO™ Documentation](https://docs.openvino.ai/)
 - [OpenVINO™ Notebooks](https://github.com/openvinotoolkit/openvino_notebooks)
+- [OpenVINO Installation Selector Tool](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/download.html)
 
 Copyright © 2018-2022 Intel Corporation
 > **LEGAL NOTICE**: Your use of this software and any required dependent software (the

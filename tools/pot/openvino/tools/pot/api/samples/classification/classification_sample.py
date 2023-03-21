@@ -212,7 +212,8 @@ def optimize_model(args):
 
     # Step 7 (Optional): Compress model weights quantized precision
     #                    in order to reduce the size of final .bin file.
-    compress_model_weights(compressed_model)
+    if not args.keep_uncompressed_weights:
+        compress_model_weights(compressed_model)
 
     return compressed_model, pipeline
 

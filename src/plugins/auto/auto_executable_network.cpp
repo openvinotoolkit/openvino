@@ -1,8 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+#include <ie_metric_helpers.hpp>
+#include "ie_performance_hints.hpp"
 #include "auto_executable_network.hpp"
 
 // ------------------------------AutoExecutableNetwork----------------------------
@@ -15,8 +17,13 @@ AutoExecutableNetwork::AutoExecutableNetwork(AutoScheduleContext::Ptr& context, 
 }
 
 std::shared_ptr<IE::RemoteContext> AutoExecutableNetwork::GetContext() const {
-    _autoSchedule->WaitActualNetworkReady();
-    return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetContext();
+    std::lock_guard<std::mutex> lock(_autoSContext->_fallbackMutex);
+    if (_autoSchedule->_loadContext[FALLBACKDEVICE].isAlready) {
+        return _autoSchedule->_loadContext[FALLBACKDEVICE].executableNetwork->GetContext();
+    } else {
+        _autoSchedule->WaitActualNetworkReady();
+        return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetContext();
+    }
 }
 
 void AutoExecutableNetwork::SetConfig(const std::map<std::string, IE::Parameter>
@@ -25,13 +32,6 @@ void AutoExecutableNetwork::SetConfig(const std::map<std::string, IE::Parameter>
 }
 
 IE::Parameter AutoExecutableNetwork::GetConfig(const std::string& name) const {
-    {
-        std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
-        auto it = _autoSContext->_config.find(name);
-        if (it != _autoSContext->_config.end()) {
-            return it->second;
-        }
-    }
     IE_THROW(NotFound) << name << " not found in the ExecutableNetwork config";
 }
 
@@ -44,11 +44,40 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
             ov::PropertyName{ov::model_name.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::optimal_number_of_infer_requests.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::hint::model_priority.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RO}
-        };
+            ov::PropertyName{ov::device::priorities.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::device::properties.name(), ov::PropertyMutability::RO},
+            ov::PropertyName{ov::execution_devices.name(), ov::PropertyMutability::RO}};
+    } else if (name == ov::hint::performance_mode) {
+        auto value = _autoSContext->_performanceHint;
+        if (!_autoSContext->_core->isNewAPI())
+            return value;
+        if (value == InferenceEngine::PluginConfigParams::THROUGHPUT)
+            return ov::hint::PerformanceMode::THROUGHPUT;
+        else if (value == InferenceEngine::PluginConfigParams::LATENCY)
+            return ov::hint::PerformanceMode::LATENCY;
+        else if (value == InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT)
+            return ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT;
+        else
+            return ov::hint::PerformanceMode::UNDEFINED;
     } else if (name == ov::device::priorities) {
         auto value = _autoSContext->_config.find(ov::device::priorities.name());
         return decltype(ov::device::priorities)::value_type {value->second.as<std::string>()};
+    } else if (name == ov::device::properties) {
+        ov::AnyMap all_devices = {};
+        if (_autoSchedule->_loadContext[ACTUALDEVICE].isAlready) {
+            ov::AnyMap device_properties = {};
+            auto& context = _autoSchedule->_loadContext[ACTUALDEVICE];
+            auto device_supported_metrics = context.executableNetwork->GetMetric(METRIC_KEY(SUPPORTED_METRICS));
+            for (auto&& property_name : device_supported_metrics.as<std::vector<std::string>>()) {
+                device_properties[property_name] = context.executableNetwork->GetMetric(property_name);
+            }
+            auto device_supported_configs = context.executableNetwork->GetMetric(METRIC_KEY(SUPPORTED_CONFIG_KEYS));
+            for (auto&& property_name : device_supported_configs.as<std::vector<std::string>>()) {
+                device_properties[property_name] = context.executableNetwork->GetConfig(property_name);
+            }
+            all_devices[context.deviceInfo.deviceName] = device_properties;
+        }
+        return all_devices;
     } else if (name == ov::hint::model_priority) {
         auto value = _autoSContext->_modelPriority;
         if (_autoSContext->_core->isNewAPI()) {
@@ -79,7 +108,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
                 bThroughputEnabledInPlugin =
                     _autoSContext->_core->GetConfig(deviceInfo.deviceName,
                         CONFIG_KEY(PERFORMANCE_HINT)).as<std::string>() == CONFIG_VALUE(THROUGHPUT);
-            } catch (...) {
+            } catch (const IE::Exception&) {
                 LOG_DEBUG_TAG("GetMetric:%s for %s", "PERF_HINT config not supported",
                     deviceInfo.deviceName.c_str());
             }
@@ -95,7 +124,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
                             METRIC_KEY(RANGE_FOR_STREAMS),
                             options).as<std::tuple<unsigned int, unsigned int>>();
                     upperBoundStreamsNum = std::get<1>(rangeOfStreams);
-                } catch (const IE::Exception& iie) {
+                } catch (const IE::Exception&) {
                     LOG_DEBUG_TAG("GetMetric RANGE_FOR_STREAMS failed");
                 }
                 if (!_autoSContext->_batchingDisabled) {
@@ -104,7 +133,7 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
                                 METRIC_KEY(OPTIMAL_BATCH_SIZE), options).as<unsigned int>();
                         LOG_DEBUG_TAG("BATCHING:%s:%ld", "optimal batch size",
                             optimalBatchSize);
-                    } catch (...) {
+                    } catch (const IE::Exception&) {
                         LOG_DEBUG_TAG("BATCHING:%s", "metric OPTIMAL_BATCH_SIZE not supported");
                     }
                 }
@@ -143,11 +172,49 @@ IE::Parameter AutoExecutableNetwork::GetMetric(const std::string& name) const {
             }
         }
         return decltype(ov::optimal_number_of_infer_requests)::value_type {real};
+    } else if (name == ov::execution_devices) {
+        ov::Any execution_devices;
+        auto GetExecutionDevices = [&execution_devices](std::string ExeDevicesString) {
+            std::vector<std::string> exeDevices = {};
+            if (ExeDevicesString == "CPU_HELP")
+                ExeDevicesString = "(CPU)";
+            exeDevices.push_back(ExeDevicesString);
+            execution_devices = decltype(ov::execution_devices)::value_type {exeDevices};
+        };
+        if (_autoSContext->_performanceHint == IE::PluginConfigParams::CUMULATIVE_THROUGHPUT) {
+            try {
+                execution_devices = _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetMetric(name);
+            } catch(const IE::Exception&) {
+                GetExecutionDevices(_autoSchedule->_loadContext[ACTUALDEVICE].workName);
+            }
+        } else {
+            std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
+            for (int i = 0; i < CONTEXTNUM; i++) {
+                if (_autoSchedule->_loadContext[i].isEnabled && _autoSchedule->_loadContext[i].isAlready) {
+                    if (i == 0 && !_autoSchedule->_loadContext[CPU].executableNetwork._ptr) {
+                        continue;
+                    } else {
+                        GetExecutionDevices(_autoSchedule->_loadContext[i].workName);
+                        break;
+                    }
+                }
+            }
+        }
+        return execution_devices;
+    } else if (name == ov::model_name) {
+        std::lock_guard<std::mutex> lock(_autoSContext->_confMutex);
+        if (_autoSchedule->_loadContext[CPU].isEnabled && _autoSchedule->_loadContext[CPU].isAlready)
+            return _autoSchedule->_loadContext[CPU].executableNetwork->GetMetric(name);
+        return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetMetric(name);
+    } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS,
+                             {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS),
+                              METRIC_KEY(SUPPORTED_METRICS),
+                              METRIC_KEY(NETWORK_NAME),
+                              METRIC_KEY(SUPPORTED_CONFIG_KEYS)});
+    } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, {});
     }
-    if (_autoSchedule->_loadContext[ACTUALDEVICE].isAlready) {
-        return _autoSchedule->_loadContext[ACTUALDEVICE].executableNetwork->GetMetric(
-                name);
-    }
-    return _autoSchedule->_loadContext[CPU].executableNetwork->GetMetric(name);
+    IE_THROW() << "Unsupported metric key: " << name;
 }
 }  // namespace MultiDevicePlugin

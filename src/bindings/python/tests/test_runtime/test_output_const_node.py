@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+from copy import copy, deepcopy
 
 from ..conftest import model_path
 import openvino.runtime.opset8 as ops
@@ -17,9 +18,10 @@ from openvino.runtime import (
     Core,
 )
 
+import pytest
 
-is_myriad = os.environ.get("TEST_DEVICE") == "MYRIAD"
-test_net_xml, test_net_bin = model_path(is_myriad)
+
+test_net_xml, test_net_bin = model_path()
 
 
 def test_const_output_type(device):
@@ -138,3 +140,23 @@ def test_operations():
     assert outputs[0] == split.output(0)
     assert hash(outputs[0]) == hash(split.output(0))
     assert hash(outputs[0]) != hash(outputs[0].node)
+
+
+def test_copy():
+    node = ops.relu(5)
+    output_node = node.outputs()[0]
+    out_copy = copy(output_node)
+    assert out_copy is not output_node
+    assert out_copy == output_node
+    assert out_copy.get_node() is output_node.get_node()
+    out_copy._add_new_var = True
+    output_node._add_new_var = False
+    assert out_copy._add_new_var != output_node._add_new_var
+
+
+def test_deepcopy():
+    node = ops.relu(5)
+    output_node = node.outputs()[0]
+    with pytest.raises(TypeError) as e:
+        deepcopy(output_node)
+    assert "cannot deepcopy 'openvino.runtime.Output' object." in str(e)

@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -28,8 +28,8 @@ static cldnn::prior_box_code_type PriorBoxCodeFromString(const std::string& str)
 }
 
 static void CreateDetectionOutputOp(Program& p, const std::shared_ptr<ngraph::op::v0::DetectionOutput>& op) {
-    p.ValidateInputs(op, {3});
-    auto inputPrimitives = p.GetInputPrimitiveIDs(op);
+    validate_inputs_count(op, {3});
+    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
     auto attrs = op->get_attrs();
@@ -43,8 +43,8 @@ static void CreateDetectionOutputOp(Program& p, const std::shared_ptr<ngraph::op
     float eta                       = 1.0f;
     int keep_top_k                  = attrs.keep_top_k[0];
     bool variance_encoded_in_target = attrs.variance_encoded_in_target;
-    int input_width                 = attrs.input_width;
-    int input_height                = attrs.input_height;
+    int input_width                 = static_cast<int>(attrs.input_width);
+    int input_height                = static_cast<int>(attrs.input_height);
     bool normalized                 = attrs.normalized;
     std::string code_type           = attrs.code_type;
     bool clip_before_nms            = attrs.clip_before_nms;
@@ -56,9 +56,9 @@ static void CreateDetectionOutputOp(Program& p, const std::shared_ptr<ngraph::op
     int32_t prior_coordinates_offset = normalized != 0 ? 0 : 1;
 
     auto detectionPrim = cldnn::detection_output(layerName,
-                                                 inputPrimitives[0],
-                                                 inputPrimitives[1],
-                                                 inputPrimitives[2],
+                                                 inputs[0],
+                                                 inputs[1],
+                                                 inputs[2],
                                                  num_classes,
                                                  keep_top_k,
                                                  share_location,
@@ -76,11 +76,9 @@ static void CreateDetectionOutputOp(Program& p, const std::shared_ptr<ngraph::op
                                                  input_height,
                                                  decrease_label_id,
                                                  clip_before_nms,
-                                                 clip_after_nms,
-                                                 op->get_friendly_name());
+                                                 clip_after_nms);
 
-    p.AddPrimitive(detectionPrim);
-    p.AddPrimitiveToProfiler(op);
+    p.add_primitive(*op, detectionPrim);
 }
 
 REGISTER_FACTORY_IMPL(v0, DetectionOutput);

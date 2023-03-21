@@ -1,8 +1,6 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include "pass_manager.h"
 #include "prior_box_inst.h"
@@ -20,6 +18,9 @@ void calculate_prior_boxes::run(program& p) {
             continue;
 
         auto& pb_node = node->as<prior_box>();
+        if (pb_node.get_primitive()->support_opset8) {
+            continue;
+        }
 
         pb_node.calc_result();
         p.remove_connection(pb_node.input(), pb_node);

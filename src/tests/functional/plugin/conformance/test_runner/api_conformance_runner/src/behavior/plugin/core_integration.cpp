@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -16,7 +16,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(
         ie_plugin, IEClassBasicTestP,
-        ::testing::Values(std::make_pair(get_plugin_lib_name_by_device(ov::test::conformance::targetDevice), ov::test::conformance::targetDevice)));
+        ::testing::ValuesIn(generate_pairs_plugin_name_by_device()));
 
 INSTANTIATE_TEST_SUITE_P(
         ie_plugin, IEClassNetworkTestP,
@@ -28,43 +28,43 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         ie_plugin, IEClassGetMetricTest_SUPPORTED_CONFIG_KEYS,
-        ::testing::ValuesIn(return_all_possible_device_combination()));
+        ::testing::ValuesIn(return_all_possible_device_combination(false)));
 
 INSTANTIATE_TEST_SUITE_P(
         ie_plugin, IEClassGetMetricTest_SUPPORTED_METRICS,
-        ::testing::ValuesIn(return_all_possible_device_combination()));
+        ::testing::ValuesIn(return_all_possible_device_combination(false)));
 
 INSTANTIATE_TEST_SUITE_P(
         ie_plugin, IEClassGetMetricTest_AVAILABLE_DEVICES,
-        ::testing::ValuesIn(return_all_possible_device_combination()));
+        ::testing::ValuesIn(return_all_possible_device_combination(false)));
 
 INSTANTIATE_TEST_SUITE_P(
         ie_plugin, IEClassGetMetricTest_FULL_DEVICE_NAME,
-        ::testing::ValuesIn(return_all_possible_device_combination()));
+        ::testing::ValuesIn(return_all_possible_device_combination(false)));
 
 INSTANTIATE_TEST_SUITE_P(
         ie_plugin, IEClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
-        ::testing::ValuesIn(return_all_possible_device_combination()));
+        ::testing::ValuesIn(return_all_possible_device_combination(false)));
 
 INSTANTIATE_TEST_SUITE_P(
         ie_plugin, IEClassGetMetricTest_RANGE_FOR_ASYNC_INFER_REQUESTS,
-        ::testing::ValuesIn(return_all_possible_device_combination()));
+        ::testing::ValuesIn(return_all_possible_device_combination(false)));
 
 INSTANTIATE_TEST_SUITE_P(
         ie_plugin, IEClassGetMetricTest_RANGE_FOR_STREAMS,
-        ::testing::ValuesIn(return_all_possible_device_combination()));
+        ::testing::ValuesIn(return_all_possible_device_combination(false)));
 
 INSTANTIATE_TEST_SUITE_P(
         ie_plugin, IEClassGetMetricTest_ThrowUnsupported,
-        ::testing::ValuesIn(return_all_possible_device_combination()));
+        ::testing::ValuesIn(return_all_possible_device_combination(false)));
 
 INSTANTIATE_TEST_SUITE_P(
         ie_plugin, IEClassGetConfigTest_ThrowUnsupported,
-        ::testing::ValuesIn(return_all_possible_device_combination()));
+        ::testing::ValuesIn(return_all_possible_device_combination(false)));
 
 INSTANTIATE_TEST_SUITE_P(
         ie_plugin, IEClassGetAvailableDevices,
-        ::testing::ValuesIn(return_all_possible_device_combination()));
+        ::testing::Values(targetDevice));
 
 //
 // IE Class GetConfig
@@ -72,13 +72,13 @@ INSTANTIATE_TEST_SUITE_P(
 
 INSTANTIATE_TEST_SUITE_P(
         ie_plugin, IEClassGetConfigTest,
-        ::testing::ValuesIn(return_all_possible_device_combination()));
+        ::testing::ValuesIn(return_all_possible_device_combination(false)));
 
 // IE Class Query network
 
 INSTANTIATE_TEST_SUITE_P(
         ie_plugin, IEClassQueryNetworkTest,
-        ::testing::Values(ov::test::conformance::targetDevice));
+        ::testing::ValuesIn(return_all_possible_device_combination()));
 
 // IE Class Load network
 

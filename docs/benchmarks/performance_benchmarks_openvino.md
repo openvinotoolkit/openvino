@@ -6,178 +6,83 @@
    :hidden:
 
    openvino_docs_performance_benchmarks_faq
-   Download Performance Data Spreadsheet in MS Excel Format <https://docs.openvino.ai/downloads/benchmark_files/OV-2022.1-Download-Excel.xlsx>
    openvino_docs_performance_int8_vs_fp32
+   Performance Data Spreadsheet (download xlsx) <https://docs.openvino.ai/2022.3/_static/benchmarks_files/OV-2022.3-Performance-Data.xlsx>
 
 
-@endsphinxdirective
+Click the "Benchmark Graphs" button to see the OpenVINO™ benchmark graphs. Select the models, the hardware platforms (CPU SKUs), 
+precision and performance index from the lists and click the “Build Graphs” button.
 
-Features and benefits of Intel® technologies depend on system configuration and may require enabled hardware, software or service activation. More information on this subject may be obtained from the original equipment manufacturer (OEM), official [Intel® web page](https://www.intel.com) or retailer.
+.. button-link:: #
+   :class: ov-toolkit-benchmark-results
+   :color: primary
+   :outline:
+   
+   :material-regular:`bar_chart;1.4em` Benchmark Graphs
 
-## Platform Configurations
 
-@sphinxdirective
+Measuring inference performance involves many variables and is extremely use-case and application dependent. 
+Below are four parameters for measurements, which are key elements to consider for a successful deep learning inference application:
 
-:download:`A full list of HW platforms used for testing (along with their configuration)<../../../docs/benchmarks/files/Platform_list.pdf>`
 
-@endsphinxdirective
+.. tab:: :material-regular:`keyboard_double_arrow_right;1.4em` Throughput
 
-For more specific information, refer to the [Configuration Details](https://docs.openvino.ai/resources/benchmark_files/system_configurations_2022.1.html) document.
+   Measures the number of inferences delivered within a latency threshold (for example, number of Frames Per Second - FPS). When deploying a system with deep learning inference, select the throughput that delivers the best trade-off between latency and power for the price and performance that meets your requirements.
 
-## Benchmark Setup Information
+.. tab:: :material-regular:`attach_money;1.4em` Value
 
-This benchmark setup includes a single machine on which both the benchmark application and the OpenVINO™ installation reside. The presented performance benchmark numbers are based on realease 2022.1 of Intel® Distribution of OpenVINO™ toolkit.
+   While throughput is important, what is more critical in edge AI deployments is the performance efficiency or performance-per-cost. Application performance in throughput per dollar of system cost is the best measure of value. The value KPI is calculated as “Throughput measured as inferences per second / price of inference engine”. This means for a 2 socket system 2x the price of a CPU is used. Prices are as per date of benchmarking and sources can be found as links in the Hardware Platforms (PDF) description below.
 
-The benchmark application loads the OpenVINO™ Runtime and executes inferences on the specified hardware (CPU, GPU or VPU). It measures the time spent on actual inferencing (excluding any pre or post processing) and then reports on the inferences per second (or Frames Per Second - FPS). For additional information on the benchmark application, refer to the entry 5 in the [FAQ section](performance_benchmarks_faq.md).
+.. tab:: :material-regular:`flash_on;1.4em` Efficiency
 
-Measuring inference performance involves many variables and is extremely use case and application dependent. Below are four parameters used for measurements, which are key elements to consider for a successful deep learning inference application:
+   System power is a key consideration from the edge to the data center. When selecting deep learning solutions, power efficiency (throughput/watt) is a critical factor to consider. Intel designs provide excellent power efficiency for running deep learning workloads. The efficiency KPI is calculated as “Throughput measured as inferences per second / TDP of inference engine”. This means for a 2 socket system 2x the power dissipation (TDP) of a CPU is used. TDP-values are as per date of benchmarking and sources can be found as links in the Hardware Platforms (PDF) description below.
 
-- **Throughput** - Measures the number of inferences delivered within a latency threshold (for example, number of FPS). When deploying a system with deep learning inference, select the throughput that delivers the best trade-off between latency and power for the price and performance that meets your requirements.
-- **Value** - While throughput is important, what is more critical in edge AI deployments is the performance efficiency or performance-per-cost. Application performance in throughput per dollar of system cost is the best measure of value.
-- **Efficiency** - System power is a key consideration from the edge to the data center. When selecting deep learning solutions, power efficiency (throughput/watt) is a critical factor to consider. Intel designs provide excellent power efficiency for running deep learning workloads.
-- **Latency** - This parameter measures the synchronous execution of inference requests and is reported in milliseconds. Each inference request (i.e., preprocess, infer, postprocess) is allowed to complete before the next one is started. This performance metric is relevant in usage scenarios where a single image input needs to be acted upon as soon as possible. An example of that kind of a scenario would be real-time or near real-time applications, i.e., the response of an industrial robot to its environment or obstacle avoidance for autonomous vehicles.
+.. tab:: :material-regular:`hourglass_empty;1.4em` Latency
 
-## Benchmark Performance Results
+   This measures the synchronous execution of inference requests and is reported in milliseconds. Each inference request (for example: preprocess, infer, postprocess) is allowed to complete before the next is started. This performance metric is relevant in usage scenarios where a single image input needs to be acted upon as soon as possible. An example would be the healthcare sector where medical personnel only request analysis of a single ultra sound scanning image or in real-time or near real-time applications for example an industrial robot's response to actions in its environment or obstacle avoidance for autonomous vehicles.
 
-Benchmark performance results below are based on testing as of March 17, 2022. They may not reflect all publicly available updates at the time of testing.
-<!-- See configuration disclosure for details. No product can be absolutely secure. -->
-Performance varies by use, configuration and other factors, which are elaborated further in [here](https://www.intel.com/PerformanceIndex). Used Intel optimizations (for Intel® compilers or other products) may not optimize to the same degree for non-Intel products.
 
-### bert-base-cased [124]
 
-@sphinxdirective
-.. raw:: html
+Platform & Configurations
+####################################
 
-    <div class="chart-block" data-loadcsv="csv/bert-base-cased124.csv"></div>
+For a listing of all platforms and configurations used for testing, refer to the following:
 
-@endsphinxdirective
+.. button-link:: _static/benchmarks_files/platform_list_22.3.pdf
+   :color: primary
+   :outline:
 
+   :material-regular:`download;1.5em` Click for Hardware Platforms [PDF]
 
-### bert-large-uncased-whole-word-masking-squad-int8-0001 [384]
+.. button-link:: _static/benchmarks_files/OV-2022.3-system-info-detailed.xlsx
+   :color: primary
+   :outline:
 
-@sphinxdirective
-.. raw:: html
+   :material-regular:`download;1.5em` Click for Configuration Details [XLSX]
 
-    <div class="chart-block" data-loadcsv="csv/bert-large-uncased-whole-word-masking-squad-int8-0001-384.csv"></div>
 
-@endsphinxdirective
+This benchmark setup includes a single machine on which both the benchmark application and the OpenVINO™ installation reside. The presented performance benchmark numbers are based on the release 2022.3 of the Intel® Distribution of OpenVINO™ toolkit.
+The benchmark application loads the OpenVINO™ Runtime and executes inferences on the specified hardware (CPU, GPU or GNA). 
+It measures the time spent on actual inference (excluding any pre or post processing) and then reports on the inferences per second (or Frames Per Second). 
 
-### deeplabv3-TF [513x513]
 
-@sphinxdirective
-.. raw:: html
+Disclaimers
+####################################
 
-    <div class="chart-block" data-loadcsv="csv/deeplabv3-TF-513x513.csv"></div>
+Intel® Distribution of OpenVINO™ toolkit performance benchmark numbers are based on release 2022.3.
 
-@endsphinxdirective
+Intel technologies’ features and benefits depend on system configuration and may require enabled hardware, software or service activation. Learn more at intel.com, or from the OEM or retailer. Performance results are based on testing as of December 13, 2022 and may not reflect all publicly available updates. See configuration disclosure for details. No product can be absolutely secure.
 
-### densenet-121-TF [224x224]
+Performance varies by use, configuration and other factors. Learn more at `www.intel.com/PerformanceIndex <https://www.intel.com/PerformanceIndex>`__.
 
-@sphinxdirective
-.. raw:: html
+Your costs and results may vary.
 
-    <div class="chart-block" data-loadcsv="csv/densenet-121-TF-224x224.csv"></div>
-
-@endsphinxdirective
-
-### efficientdet-d0 [512x512]
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/efficientdet-d0-512x512.csv"></div>
-
-@endsphinxdirective
-
-### faster-rcnn-resnet50-coco-TF [600x1024]
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/faster_rcnn_resnet50_coco-TF-600x1024.csv"></div>
-
-@endsphinxdirective
-
-### inception-v4-TF [299x299]
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/inception-v4-TF-299x299.csv"></div>
-
-@endsphinxdirective
-
-### mobilenet-ssd-CF [300x300]
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/mobilenet-ssd-CF-300x300.csv"></div>
-
-@endsphinxdirective
-
-### mobilenet-v2-pytorch [224x224]
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/mobilenet-v2-pytorch-224x224.csv"></div>
-
-@endsphinxdirective
-
-### resnet-18-pytorch [224x224]
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/resnet-18-pytorch-224x224.csv"></div>
-
-@endsphinxdirective
-
-
-### resnet_50_TF [224x224]
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/resnet-50-TF-224x224.csv"></div>
-
-@endsphinxdirective
-
-### ssd-resnet34-1200-onnx [1200x1200]
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/ssd-resnet34-1200-onnx-1200x1200.csv"></div>
-
-@endsphinxdirective
-
-### unet-camvid-onnx-0001 [368x480]
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/unet-camvid-onnx-0001-368x480.csv"></div>
-
-@endsphinxdirective
-
-### yolo-v3-tiny-tf [416x416]
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/yolo-v3-tiny-tf-416x416.csv"></div>
-
-@endsphinxdirective
-
-### yolo_v4-tf [608x608]
-
-@sphinxdirective
-.. raw:: html
-
-    <div class="chart-block" data-loadcsv="csv/yolo_v4-tf-608x608.csv"></div>
-
-@endsphinxdirective
+Intel optimizations, for Intel compilers or other products, may not optimize to the same degree for non-Intel products.
 
 © Intel Corporation. Intel, the Intel logo, and other Intel marks are trademarks of Intel Corporation or its subsidiaries. Other names and brands may be claimed as the property of others.
+
+
+
+@endsphinxdirective
+
+

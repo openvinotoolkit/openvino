@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.tools.mo.graph.graph import Graph
@@ -10,8 +10,8 @@ class RemoveIdentity(MiddleReplacementPattern):
     enabled = True
 
     def run_after(self):
-        from openvino.tools.mo.middle.AddMeanScaleValues import AddMeanScaleValues
-        return [AddMeanScaleValues]
+        from openvino.tools.mo.middle.InputCut import MiddleInputCut
+        return [MiddleInputCut]
 
     def run_before(self):
         from openvino.tools.mo.middle.pass_separator import MiddleStart
@@ -31,8 +31,8 @@ class RemoveDropout(MiddleReplacementPattern):
     enabled = True
 
     def run_after(self):
-        from openvino.tools.mo.middle.AddMeanScaleValues import AddMeanScaleValues
-        return [AddMeanScaleValues]
+        from openvino.tools.mo.middle.InputCut import MiddleInputCut
+        return [MiddleInputCut]
 
     def run_before(self):
         from openvino.tools.mo.middle.pass_separator import MiddleStart
@@ -53,8 +53,8 @@ class RemoveNodesWithZeroPhase(MiddleReplacementPattern):
     force_clean_up = True
 
     def run_after(self):
-        from openvino.tools.mo.middle.AddMeanScaleValues import AddMeanScaleValues
-        return [AddMeanScaleValues]
+        from openvino.tools.mo.middle.InputCut import MiddleInputCut
+        return [MiddleInputCut]
 
     def run_before(self):
         from openvino.tools.mo.middle.pass_separator import MiddleStart

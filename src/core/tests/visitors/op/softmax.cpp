@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ TEST(attributes, softmax_op) {
     auto data = make_shared<op::Parameter>(element::i32, Shape{200});
     auto axis = 0;
     auto softmax = make_shared<opset1::Softmax>(data, axis);
-    NodeBuilder builder(softmax);
+    NodeBuilder builder(softmax, {data});
     auto g_softmax = ov::as_type_ptr<opset1::Softmax>(builder.create());
 
     EXPECT_EQ(g_softmax->get_axis(), softmax->get_axis());

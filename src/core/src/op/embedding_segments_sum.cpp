@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -13,8 +13,6 @@
 
 using namespace std;
 using namespace ngraph;
-
-BWDCMP_RTTI_DEFINITION(op::v3::EmbeddingSegmentsSum);
 
 op::v3::EmbeddingSegmentsSum::EmbeddingSegmentsSum(const Output<Node>& emb_table,
                                                    const Output<Node>& indices,
@@ -44,7 +42,7 @@ op::v3::EmbeddingSegmentsSum::EmbeddingSegmentsSum(const Output<Node>& emb_table
 }
 
 void op::v3::EmbeddingSegmentsSum::validate_and_infer_types() {
-    NGRAPH_OP_SCOPE(v3_EmbeddingSegmentsSum_validate_and_infer_types);
+    OV_OP_SCOPE(v3_EmbeddingSegmentsSum_validate_and_infer_types);
     NODE_VALIDATION_CHECK(
         this,
         get_input_element_type(SEGMENT_IDS) == element::i64 || get_input_element_type(SEGMENT_IDS) == element::i32,
@@ -100,15 +98,9 @@ void op::v3::EmbeddingSegmentsSum::validate_and_infer_types() {
                               get_input_element_type(EMB_TABLE),
                               ")");
     }
-
-    element::Type result_et = get_input_element_type(EMB_TABLE);
-
-    std::vector<PartialShape> result_shapes = {PartialShape::dynamic()};
-    std::vector<PartialShape> input_shapes;
-    for (int i = 0; i < get_input_size(); i++)
-        input_shapes.push_back(get_input_partial_shape(i));
-
-    shape_infer(this, input_shapes, result_shapes);
+    const auto& result_et = get_input_element_type(EMB_TABLE);
+    const auto input_shapes = get_node_input_partial_shapes(*this);
+    const auto result_shapes = shape_infer(this, input_shapes);
 
     if (result_shapes[EMB_TABLE].rank().is_dynamic() || result_shapes[EMB_TABLE][0].is_dynamic()) {
         set_input_is_relevant_to_shape(NUM_SEGMENTS, true);
@@ -117,7 +109,7 @@ void op::v3::EmbeddingSegmentsSum::validate_and_infer_types() {
 }
 
 shared_ptr<Node> op::v3::EmbeddingSegmentsSum::clone_with_new_inputs(const OutputVector& new_args) const {
-    NGRAPH_OP_SCOPE(v3_EmbeddingSegmentsSum_clone_with_new_inputs);
+    OV_OP_SCOPE(v3_EmbeddingSegmentsSum_clone_with_new_inputs);
     check_new_args_count(this, new_args);
     if (new_args.size() == 4) {
         return make_shared<op::v3::EmbeddingSegmentsSum>(new_args.at(0),

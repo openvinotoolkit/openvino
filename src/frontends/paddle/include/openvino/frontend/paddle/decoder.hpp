@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -33,9 +33,12 @@ public:
 
     /// \brief Get the output names
     virtual std::vector<OutPortName> get_output_names() const = 0;
+    virtual std::vector<TensorName> get_output_var_names(const std::string& var_name) const = 0;
+    virtual std::vector<TensorName> get_input_var_names(const std::string& var_name) const = 0;
 
     /// \brief Get the output size
     virtual size_t get_output_size() const = 0;
+    virtual size_t get_output_size(const std::string& port_name) const = 0;
 
     /// \brief Get output port type
     ///
@@ -47,6 +50,8 @@ public:
     ///
     /// \return Type of specified output port
     virtual ov::element::Type get_out_port_type(const std::string& port_name) const = 0;
+    virtual std::vector<std::pair<ov::element::Type, ov::PartialShape>> get_output_port_infos(
+        const std::string& port_name) const = 0;
 
     /// \brief Get the type of the operation
     virtual std::string get_op_type() const = 0;

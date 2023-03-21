@@ -1,23 +1,22 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
 #include <memory>
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <openvino/pass/graph_rewrite.hpp>
+#include <openvino/pass/pattern/matcher.hpp>
 #include <transformations_visibility.hpp>
 #include <utility>
 
-#include "ngraph/pattern/matcher.hpp"
-
-namespace ngraph {
+namespace ov {
 namespace pass {
 
 class TRANSFORMATIONS_API NormalizeL2Fusion;
 
 }  // namespace pass
-}  // namespace ngraph
+}  // namespace ov
 
 /**
  * @ingroup ie_transformation_common_api
@@ -30,7 +29,7 @@ class TRANSFORMATIONS_API NormalizeL2Fusion;
  * x*(pow(add(reduce_sum(x[j0, ..., jN]**2, axes), eps), -0.5)
  * with a NormalizeL2(x, axes, eps, eps_mode[MAX|ADD]) op
  */
-class ngraph::pass::NormalizeL2Fusion : public ngraph::pass::MatcherPass {
+class ov::pass::NormalizeL2Fusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_RTTI("NormalizeL2Fusion", "0");
     NormalizeL2Fusion();

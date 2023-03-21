@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
 import sys
@@ -102,7 +102,7 @@ def main():
         if args.batch_size:
             batch_size = args.batch_size if args.context_window_left == args.context_window_right == 0 else 1
 
-            if any([not _input.node.layout.empty for _input in model.inputs]):
+            if any((not _input.node.layout.empty for _input in model.inputs)):
                 set_batch(model, batch_size)
             else:
                 log.warning('Layout is not set for any input, so custom batch size is not set')

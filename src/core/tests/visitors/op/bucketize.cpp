@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,7 +21,7 @@ TEST(attributes, bucketize_v3_op_default_attributes) {
     auto data = make_shared<op::Parameter>(element::f32, Shape{2, 3, 4});
     auto buckets = make_shared<op::Parameter>(element::f32, Shape{5});
     auto bucketize = make_shared<opset3::Bucketize>(data, buckets);
-    NodeBuilder builder(bucketize);
+    NodeBuilder builder(bucketize, {data, buckets});
 
     auto g_bucketize = ov::as_type_ptr<opset3::Bucketize>(builder.create());
 
@@ -37,7 +37,7 @@ TEST(attributes, bucketize_v3_op_custom_attributes) {
     bool with_right_bound = false;
 
     auto bucketize = make_shared<opset3::Bucketize>(data, buckets, output_type, with_right_bound);
-    NodeBuilder builder(bucketize);
+    NodeBuilder builder(bucketize, {data, buckets});
 
     auto g_bucketize = ov::as_type_ptr<opset3::Bucketize>(builder.create());
 

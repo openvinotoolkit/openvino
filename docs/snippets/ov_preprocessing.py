@@ -1,4 +1,4 @@
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2023 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
 
@@ -173,7 +173,10 @@ ppp.output("result_image").postprocess()\
 # ! [ov:preprocess:save_headers]
 from openvino.preprocess import PrePostProcessor, ColorFormat, ResizeAlgorithm
 from openvino.runtime import Core, Layout, Type, set_batch
-from openvino.runtime.passes import Manager
+# First method - imports
+from openvino.runtime import serialize
+# Second method - imports
+from openvino.runtime.passes import Manager, Serialize
 # ! [ov:preprocess:save_headers]
 
 # ! [ov:preprocess:save]
@@ -210,7 +213,13 @@ model = ppp.build()
 set_batch(model, 2)
 
 # ======== Step 3: Save the model ================
+# First method - using serialize runtime wrapper
 serialize(model, '/path/to/some_model_saved.xml', '/path/to/some_model_saved.bin')
+
+# Second method - using Manager and Serialize pass
+manager = Manager()
+manager.register_pass(Serialize('/path/to/some_model_saved.xml', '/path/to/some_model_saved.bin'))
+manager.run_passes(model)
 # ! [ov:preprocess:save]
 
 # ! [ov:preprocess:save_load]

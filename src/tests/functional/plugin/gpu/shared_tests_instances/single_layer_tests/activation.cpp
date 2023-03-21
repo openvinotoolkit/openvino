@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -74,7 +74,7 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> preluBasic = {
-        {{1, 50}, {{1}, {50}}},
+        {{1, 10, 20}, {{10}, {20}, {10, 20}}},
         {{1, 128}, {{1}, {128}}},
 };
 

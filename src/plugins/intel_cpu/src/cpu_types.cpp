@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "cpu_types.h"
@@ -26,6 +26,9 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "AdaptiveMaxPool", Type::AdaptivePooling},
         { "AdaptiveAvgPool", Type::AdaptivePooling},
         { "Add", Type::Eltwise },
+        { "IsFinite", Type::Eltwise },
+        { "IsInf", Type::Eltwise },
+        { "IsNaN", Type::Eltwise },
         { "Subtract", Type::Eltwise },
         { "Multiply", Type::Eltwise },
         { "Divide", Type::Eltwise },
@@ -65,6 +68,7 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "Erf", Type::Eltwise },
         { "SoftPlus", Type::Eltwise },
         { "SoftSign", Type::Eltwise },
+        { "Select", Type::Eltwise},
         { "Reshape", Type::Reshape },
         { "Squeeze", Type::Reshape },
         { "Unsqueeze", Type::Reshape },
@@ -94,9 +98,11 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "Transpose", Type::Transpose },
         { "LSTMCell", Type::RNNCell },
         { "GRUCell", Type::RNNCell },
+        { "AUGRUCell", Type::RNNCell },
         { "RNNCell", Type::RNNCell },
         { "LSTMSequence", Type::RNNSeq },
         { "GRUSequence", Type::RNNSeq },
+        { "AUGRUSequence", Type::RNNSeq },
         { "RNNSequence", Type::RNNSeq },
         { "FakeQuantize", Type::FakeQuantize },
         { "BinaryConvolution", Type::BinaryConvolution },
@@ -135,9 +141,9 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "Gather", Type::Gather},
         { "GatherElements", Type::GatherElements},
         { "GatherND", Type::GatherND},
+        { "GridSample", Type::GridSample},
         { "OneHot", Type::OneHot},
         { "RegionYolo", Type::RegionYolo},
-        { "Select", Type::Select},
         { "ShuffleChannels", Type::ShuffleChannels},
         { "DFT", Type::DFT},
         { "IDFT", Type::DFT},
@@ -197,6 +203,9 @@ const InferenceEngine::details::caseless_unordered_map<std::string, Type> type_t
         { "Subgraph", Type::Subgraph},
         { "PriorBox", Type::PriorBox},
         { "PriorBoxClustered", Type::PriorBoxClustered},
+        {"Interaction", Type::Interaction},
+        { "MHA", Type::MHA},
+        { "Unique", Type::Unique}
 };
 
 Type TypeFromName(const std::string& type) {
@@ -300,6 +309,8 @@ std::string NameFromType(const Type type) {
             return "ScatterElementsUpdate";
         case Type::ScatterNDUpdate:
             return "ScatterNDUpdate";
+        case Type::Interaction:
+            return "Interaction";
         case Type::Interpolate:
             return "Interpolate";
         case Type::Reduce:
@@ -318,12 +329,12 @@ std::string NameFromType(const Type type) {
             return "GatherElements";
         case Type::GatherND:
             return "GatherND";
+        case Type::GridSample:
+            return "GridSample";
         case Type::OneHot:
             return "OneHot";
         case Type::RegionYolo:
             return "RegionYolo";
-        case Type::Select:
-            return "Select";
         case Type::Roll:
             return "Roll";
         case Type::ShuffleChannels:
@@ -388,6 +399,10 @@ std::string NameFromType(const Type type) {
             return "Reference";
         case Type::Subgraph:
             return "Subgraph";
+        case Type::MHA:
+            return "MHA";
+        case Type::Unique:
+            return "Unique";
         default:
             return "Unknown";
     }
@@ -405,6 +420,9 @@ std::string algToString(const Algorithm alg) {
     CASE(DeconvolutionCommon);
     CASE(DeconvolutionGrouped);
     CASE(EltwiseAdd);
+    CASE(EltwiseIsFinite);
+    CASE(EltwiseIsInf);
+    CASE(EltwiseIsNaN);
     CASE(EltwiseMultiply);
     CASE(EltwiseSubtract);
     CASE(EltwiseDivide);
@@ -430,6 +448,7 @@ std::string algToString(const Algorithm alg) {
     CASE(EltwiseGelu);
     CASE(EltwiseElu);
     CASE(EltwiseTanh);
+    CASE(EltwiseSelect);
     CASE(EltwiseSigmoid);
     CASE(EltwiseAbs);
     CASE(EltwiseSqrt);
