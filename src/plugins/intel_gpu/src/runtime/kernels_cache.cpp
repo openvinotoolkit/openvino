@@ -89,6 +89,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::BuildAll::GetProgramSource");
     std::map<std::string, std::tuple<int32_t, std::vector<batch_program>>> program_buckets;
 
+    std::cout << "* kernels_source_code: " << kernels_source_code.size() << std::endl;
     std::vector<std::string> entry_points;
     for (const auto& k : kernels_source_code) {
         auto& code = k.second;

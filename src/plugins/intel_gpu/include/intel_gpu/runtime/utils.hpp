@@ -215,6 +215,12 @@ static size_t hash_range(size_t seed, It first, It last) {
     return seed;
 }
 
+template <typename T>
+static bool is_equal(const std::vector<T>& vec1, const std::vector<T>& vec2) {
+    return (vec1.size() == vec2.size() &&
+                std::equal(vec1.begin(), vec1.end(), vec2.begin()));
+}
+
 /// @}
 /// @endcond
 /// @}
