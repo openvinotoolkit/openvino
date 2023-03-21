@@ -11,7 +11,7 @@ namespace ov {
 namespace frontend {
 namespace pytorch {
 
-InputModel::InputModel(std::shared_ptr<TorchDecoder> model_decoder,
+InputModel::InputModel(const std::shared_ptr<TorchDecoder>& model_decoder,
                        const std::shared_ptr<TelemetryExtension>& telemetry)
     : m_model_decoder(model_decoder),
       m_telemetry(telemetry) {

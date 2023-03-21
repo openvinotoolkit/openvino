@@ -32,7 +32,7 @@ class InputModel : public ov::frontend::InputModel {
     friend class ::ov::frontend::pytorch::Place;
 
 public:
-    explicit InputModel(std::shared_ptr<TorchDecoder> model_decoder,
+    explicit InputModel(const std::shared_ptr<TorchDecoder>& model_decoder,
                         const std::shared_ptr<TelemetryExtension>& telemetry = {});
 
     std::vector<frontend::Place::Ptr> get_inputs() const override;
