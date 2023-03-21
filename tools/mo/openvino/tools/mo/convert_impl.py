@@ -31,7 +31,7 @@ from openvino.tools.mo.utils.cli_parser import check_available_transforms, \
     get_common_cli_options, get_freeze_placeholder_values, get_kaldi_cli_options, get_layout_values, \
     get_mean_scale_dictionary, get_mxnet_cli_options, get_onnx_cli_options, \
     get_placeholder_shapes, get_tf_cli_options, parse_transform, parse_tuple_pairs, \
-    mo_convert_params, get_model_name_from_args, depersonalize
+    get_model_name_from_args, depersonalize, get_mo_convert_params
 
 from openvino.tools.mo.utils.error import Error
 from openvino.tools.mo.utils.find_ie_version import find_ie_version
@@ -662,7 +662,7 @@ def params_to_string(**kwargs):
 
 
 def add_line_breaks(text: str, char_num: int, line_break: str):
-    words = text.split(" ")
+    words = text.replace('\n', "\n ").split(" ")
     cnt = 0
     for i, w in enumerate(words):
         cnt += len(w)
@@ -677,26 +677,12 @@ def add_line_breaks(text: str, char_num: int, line_break: str):
 
 
 def show_mo_convert_help():
+    mo_convert_params = get_mo_convert_params()
     for group_name, group in mo_convert_params.items():
-        if group_name == "optional":
-            print("optional arguments:")
-        elif group_name == "fw_agnostic":
-            print("Framework-agnostic parameters:")
-        elif group_name == "tf":
-            print("TensorFlow*-specific parameters:")
-        elif group_name == "caffe":
-            print("Caffe*-specific parameters:")
-        elif group_name == "mxnet":
-            print("Mxnet-specific parameters:")
-        elif group_name == "kaldi":
-            print("Kaldi-specific parameters:")
-        elif group_name == "pytorch":
-            print("Pytorch-specific parameters:")
-        else:
-            raise Error("Unknown parameters group {}.".format(group_name))
+        print(group_name)
         for param_name in group:
             param_data = group[param_name]
-            text = param_data.description.format(param_data.possible_types_python_api)
+            text = param_data.description.replace("    ", '')
             text = add_line_breaks(text, 56, "\n\t\t\t")
             print("  --{} {}".format(param_name, text))
         print()

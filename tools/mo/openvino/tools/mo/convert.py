@@ -12,13 +12,72 @@ from openvino.tools.mo.utils.logger import get_logger_state, restore_logger_stat
 InputCutInfo = namedtuple("InputInfo", ["name", "shape", "type", "value"])
 LayoutMap = namedtuple("LayoutMap", ["source_layout", "target_layout"])
 
-
-def convert_model(input_model=None, **args):
+# TODO: add types annotation
+def convert_model(
+        help: bool = None,
+        framework: str = None,
+        input_model=None,
+        input_shape=None,
+        scale=None,
+        reverse_input_channels=None,
+        log_level=None,
+        input=None,
+        output=None,
+        mean_values=(),
+        scale_values=(),
+        source_layout=(),
+        target_layout=(),
+        layout=(),
+        compress_to_fp16=None,
+        transform=None,
+        extensions=None,
+        batch=None,
+        silent=None,
+        version=None,
+        static_shape=None,
+        progress=None,
+        stream_output=None,
+        transformations_config=None,
+        use_new_frontend=None,
+        use_legacy_frontend=None,
+        disable_omitting_optional=None,
+        enable_flattening_nested_params=None,
+        input_model_is_text=None,
+        input_checkpoint=None,
+        input_meta_graph=None,
+        saved_model_dir=None,
+        saved_model_tags=None,
+        tensorflow_custom_operations_config_update=None,
+        tensorflow_object_detection_api_pipeline_config=None,
+        tensorboard_logdir=None,
+        tensorflow_custom_layer_libraries=None,
+        input_proto=None,
+        caffe_parser_path=None,
+        k=None,
+        input_symbol=None,
+        nd_prefix_name=None,
+        pretrained_model_name=None,
+        save_params_from_nd=None,
+        legacy_mxnet_model=None,
+        enable_ssd_gluoncv=None,
+        counts=None,
+        remove_output_softmax=None,
+        remove_memory=None,
+        example_input=None,
+        onnx_opset_version=None,
+        input_signature=None
+):
     """
     Converts the model from original framework to OpenVino Model.
 
     Args:
-        input_model:
+        :param help:
+            Print available parameters.
+        :param framework:
+            Name of the framework used to train the input model.
+
+    Framework-agnostic parameters:
+        :param input_model:
             Model object in original framework (PyTorch, Tensorflow) or path to model file.
             Tensorflow*: a file with a pre-trained model (binary or text .pb file after freezing).
             Caffe*: a model proto file with model weights
@@ -43,17 +102,259 @@ def convert_model(input_model=None, **args):
             tf.train.checkpoint
             tf.python.training.tracking.base.Trackable for case when it is output from tf.saved_model.load()
 
-    Run convert(help=true) to list all available parameters.
+        :param input_shape:
+            Input shape(s) that should be fed to an input node(s) of the model. Input
+            shapes can be defined by passing a list of objects of type PartialShape,
+            Shape, [Dimension, ...] or [int, ...] or by a string of the following
+            format. Shape is defined as a comma-separated list of integer numbers
+            enclosed in parentheses or square brackets, for example [1,3,227,227]
+            or (1,227,227,3), where the order of dimensions depends on the framework
+            input layout of the model. For example, [N,C,H,W] is used for ONNX* models
+            and [N,H,W,C] for TensorFlow* models. The shape can contain undefined
+            dimensions (? or -1) and should fit the dimensions defined in the input
+            operation of the graph. Boundaries of undefined dimension can be specified
+            with ellipsis, for example [1,1..10,128,128]. One boundary can be
+            undefined, for example [1,..100] or [1,3,1..,1..]. If there are multiple
+            inputs in the model, --input_shape should contain definition of shape
+            for each input separated by a comma, for example: [1,3,227,227],[2,4]
+            for a model with two inputs with 4D and 2D shapes. Alternatively, specify
+            shapes with the --input option.
+        :param scale:
+            All input values coming from original network inputs will be divided
+            by this value. When a list of inputs is overridden by the --input parameter,
+            this scale is not applied for any input that does not match with the original
+            input of the model. If both --mean_values and --scale  are specified,
+            the mean is subtracted first and then scale is applied regardless of
+            the order of options in command line.
+        :param reverse_input_channels:
+            Switch the input channels order from RGB to BGR (or vice versa). Applied
+            to original inputs of the model if and only if a number of channels equals
+            3. When --mean_values/--scale_values are also specified, reversing
+            of channels will be applied to user's input data first, so that numbers
+            in --mean_values and --scale_values go in the order of channels used
+            in the original model. In other words, if both options are specified,
+            then the data flow in the model looks as following: Parameter -> ReverseInputChannels
+            -> Mean apply-> Scale apply -> the original body of the model.
+        :param log_level:
+            Logger level
+        :param input:
+            Input can be set by passing a list of InputCutInfo objects or by a list
+            of tuples. Each tuple should contain input name and optionally input
+            type or input shape. Example: input=("op_name", PartialShape([-1,
+            3, 100, 100]), Type(np.float32)). Alternatively input can be set by
+            a string or list of strings of the following format. Quoted list of comma-separated
+            input nodes names with shapes, data types, and values for freezing.
+            The order of inputs in converted model is the same as order of specified
+            operation names. The shape and value are specified as comma-separated
+            lists. The data type of input node is specified in braces and can have
+            one of the values: f64 (float64), f32 (float32), f16 (float16), i64
+            (int64), i32 (int32), u8 (uint8), boolean (bool). Data type is optional.
+            If it's not specified explicitly then there are two options: if input
+            node is a parameter, data type is taken from the original node dtype,
+            if input node is not a parameter, data type is set to f32. Example, to set
+            `input_1` with shape [1,100], and Parameter node `sequence_len` with
+            scalar input with value `150`, and boolean input `is_training` with
+            `False` value use the following format: "input_1[1,100],sequence_len->150,is_training->False".
+            Another example, use the following format to set input port 0 of the node
+            `node_name1` with the shape [3,4] as an input node and freeze output
+            port 1 of the node `node_name2` with the value [20,15] of the int32 type
+            and shape [2]: "0:node_name1[3,4],node_name2:1[2]{i32}->[20,15]".
+
+        :param output:
+            The name of the output operation of the model or list of names. For TensorFlow*,
+            do not add :0 to this name.The order of outputs in converted model is the
+            same as order of specified operation names.
+        :param mean_values:
+            Mean values to be used for the input image per channel. Mean values can
+            be set by passing a dictionary, where key is input name and value is mean
+            value. For example mean_values={'data':[255,255,255],'info':[255,255,255]}.
+            Or mean values can be set by a string of the following format. Values to
+            be provided in the (R,G,B) or [R,G,B] format. Can be defined for desired
+            input of the model, for example: "--mean_values data[255,255,255],info[255,255,255]".
+            The exact meaning and order of channels depend on how the original model
+            was trained.
+        :param scale_values:
+            Scale values to be used for the input image per channel. Scale values
+            can be set by passing a dictionary, where key is input name and value is
+            scale value. For example scale_values={'data':[255,255,255],'info':[255,255,255]}.
+            Or scale values can be set by a string of the following format. Values
+            are provided in the (R,G,B) or [R,G,B] format. Can be defined for desired
+            input of the model, for example: "--scale_values data[255,255,255],info[255,255,255]".
+            The exact meaning and order of channels depend on how the original model
+            was trained. If both --mean_values and --scale_values are specified,
+            the mean is subtracted first and then scale is applied regardless of
+            the order of options in command line.
+        :param source_layout:
+            Layout of the input or output of the model in the framework. Layout can
+            be set by passing a dictionary, where key is input name and value is LayoutMap
+            object. Or layout can be set by string of the following format. Layout
+            can be specified in the short form, e.g. nhwc, or in complex form, e.g.
+            "[n,h,w,c]". Example for many names: "in_name1([n,h,w,c]),in_name2(nc),out_name1(n),out_name2(nc)".
+            Layout can be partially defined, "?" can be used to specify undefined
+            layout for one dimension, "..." can be used to specify undefined layout
+            for multiple dimensions, for example "?c??", "nc...", "n...c", etc.
+
+        :param target_layout:
+            Same as --source_layout, but specifies target layout that will be in
+            the model after processing by ModelOptimizer.
+        :param layout:
+            Combination of --source_layout and --target_layout. Can't be used
+            with either of them. If model has one input it is sufficient to specify
+            layout of this input, for example --layout nhwc. To specify layouts
+            of many tensors, names must be provided, for example: --layout "name1(nchw),name2(nc)".
+            It is possible to instruct ModelOptimizer to change layout, for example:
+                --layout "name1(nhwc->nchw),name2(cn->nc)".
+            Also "*" in long layout form can be used to fuse dimensions, for example "[n,c,...]->[n*c,...]".
+        :param compress_to_fp16:
+            If the original model has FP32 weights or biases, they are compressed
+            to FP16. All intermediate data is kept in original precision. Option
+            can be specified alone as "--compress_to_fp16", or explicit True/False
+            values can be set, for example: "--compress_to_fp16=False", or "--compress_to_fp16=True"
+        :param transform:
+            Apply additional transformations. 'transform' can be set by a list
+            of tuples, where the first element is transform name and the second element
+            is transform parameters. For example: [('LowLatency2', {{'use_const_initializer':
+            False}}), ...]"--transform transformation_name1[args],transformation_name2..."
+            where [args] is key=value pairs separated by semicolon. Examples:
+                     "--transform LowLatency2" or
+                     "--transform Pruning" or
+                     "--transform LowLatency2[use_const_initializer=False]" or
+                     "--transform "MakeStateful[param_res_names=
+            {'input_name_1':'output_name_1','input_name_2':'output_name_2'}]""
+            Available transformations: "LowLatency2", "MakeStateful", "Pruning"
+        :param extensions:
+            Paths to libraries (.so or .dll) with extensions, comma-separated
+            list of paths, objects derived from BaseExtension class or lists of
+            objects. For the legacy MO path (if `--use_legacy_frontend` is used),
+            a directory or a comma-separated list of directories with extensions
+            are supported. To disable all extensions including those that are placed
+            at the default location, pass an empty string.
+        :param batch:
+            Input batch size
+        :param silent:
+            Prevent any output messages except those that correspond to log level
+            equals ERROR, that can be set with the following option: --log_level.
+            By default, log level is already ERROR.
+        :param version:
+            Version of Model Optimizer
+        :param static_shape:
+            Enables IR generation for fixed input shape (folding `ShapeOf` operations
+            and shape-calculating sub-graphs to `Constant`). Changing model
+            input shape using the OpenVINO Runtime API in runtime may fail for such
+            an IR.
+        :param progress:
+            Enable model conversion progress display.
+        :param stream_output:
+            Switch model conversion progress display to a multiline mode.
+        :param transformations_config:
+            Use the configuration file with transformations description or pass
+            object derived from BaseExtension class.. Transformations file can
+            be specified as relative path from the current directory, as absolute
+            path or as arelative path from the mo root directory.
+        :param use_new_frontend:
+            Force the usage of new Frontend of Model Optimizer for model conversion
+            into IR. The new Frontend is C++ based and is available for ONNX* and PaddlePaddle*
+            models. Model optimizer uses new Frontend for ONNX* and PaddlePaddle*
+            by default that means `--use_new_frontend` and `--use_legacy_frontend`
+            options are not specified.
+        :param use_legacy_frontend:
+            Force the usage of legacy Frontend of Model Optimizer for model conversion
+            into IR. The legacy Frontend is Python based and is available for TensorFlow*,
+            ONNX*, MXNet*, Caffe*, and Kaldi* models.
+
+    Caffe*-specific parameters:
+        :param input_proto:
+            Deploy-ready prototxt file that contains a topology structure and
+            layer attributes
+        :param caffe_parser_path:
+            Path to Python Caffe* parser generated from caffe.proto
+        :param k:
+            Path to CustomLayersMapping.xml to register custom layers
+        :param disable_omitting_optional:
+            Disable omitting optional attributes to be used for custom layers.
+            Use this option if you want to transfer all attributes of a custom layer
+            to IR. Default behavior is to transfer the attributes with default values
+            and the attributes defined by the user to IR.
+        :param enable_flattening_nested_params:
+            Enable flattening optional params to be used for custom layers. Use
+            this option if you want to transfer attributes of a custom layer to IR
+            with flattened nested parameters. Default behavior is to transfer
+            the attributes without flattening nested parameters.
+
+    TensorFlow*-specific parameters:
+        :param input_model_is_text:
+            TensorFlow*: treat the input model file as a text protobuf format. If
+            not specified, the Model Optimizer treats it as a binary file by default.
+        :param input_checkpoint:
+            TensorFlow*: variables file to load.
+        :param input_meta_graph:
+            Tensorflow*: a file with a meta-graph of the model before freezing
+        :param saved_model_dir:
+            TensorFlow*: directory with a model in SavedModel format of TensorFlow
+            1.x or 2.x version.
+        :param saved_model_tags:
+            Group of tag(s) of the MetaGraphDef to load, in string format, separated
+            by ','. For tag-set contains multiple tags, all tags must be passed in.
+        :param tensorflow_custom_operations_config_update:
+            TensorFlow*: update the configuration file with node name patterns
+            with input/output nodes information.
+        :param tensorflow_object_detection_api_pipeline_config:
+            TensorFlow*: path to the pipeline configuration file used to generate
+            model created with help of Object Detection API.
+        :param tensorboard_logdir:
+            TensorFlow*: dump the input graph to a given directory that should be
+            used with TensorBoard.
+        :param tensorflow_custom_layer_libraries:
+            TensorFlow*: comma separated list of shared libraries with TensorFlow*
+            custom operations implementation.
+
+    Mxnet-specific parameters:
+        :param input_symbol:
+            Symbol file (for example, model-symbol.json) that contains a topology
+            structure and layer attributes
+        :param nd_prefix_name:
+            Prefix name for args.nd and argx.nd files.
+        :param pretrained_model_name:
+            Name of a pretrained MXNet model without extension and epoch number.
+            This model will be merged with args.nd and argx.nd files
+        :param save_params_from_nd:
+            Enable saving built parameters file from .nd files
+        :param legacy_mxnet_model:
+            Enable MXNet loader to make a model compatible with the latest MXNet
+            version. Use only if your model was trained with MXNet version lower
+            than 1.0.0
+        :param enable_ssd_gluoncv:
+            Enable pattern matchers replacers for converting gluoncv ssd topologies.
+
+
+    Kaldi-specific parameters:
+        :param counts:
+            Path to the counts file
+        :param remove_output_softmax:
+            Removes the SoftMax layer that is the output layer
+        :param remove_memory:
+            Removes the Memory layer and use additional inputs outputs instead
+
+
+    Pytorch-specific parameters:
+        :param example_input:
+            Sample of model input in original framework. For PyTorch it can be torch.Tensor.
+
+        :param onnx_opset_version:
+            Version of ONNX opset that is used for converting from PyTorch to ONNX.
+
+        :param input_signature:
+            PyTorch model forward method input signature. It will be detected automatically
+            for torch.nn.Module based model instances, for scripted models
+            may be required to set it manually. Example of usage: for forward method defined
+            as def forward(self, x, y), it will be ["x", "y"]
 
     Returns:
         openvino.runtime.Model
     """
-    args.update({'input_model': input_model})
     logger_state = get_logger_state()
-
+    args = locals()
     cli_parser = get_all_cli_parser(FrontEndManager())
-    framework = None if 'framework' not in args else args['framework']
-
     ov_model, _ = _convert(cli_parser, framework, args)
     restore_logger_state(logger_state)
     return ov_model
