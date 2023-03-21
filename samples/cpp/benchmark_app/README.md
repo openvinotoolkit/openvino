@@ -185,16 +185,7 @@ Statistics dumping options:
                                                "AUTO": {
                                                        "PERFORMANCE_HINT": "",
                                                        "PERF_COUNT": "NO",
-                                                       "DEVICE_PROPERTIES": {
-                                                       "CPU": {
-                                                           "INFERENCE_PRECISION_HINT": "f32",
-                                                           "NUM_STREAMS": "3"
-                                                       },
-                                                       "GPU": {
-                                                           "INFERENCE_PRECISION_HINT": "f32",
-                                                           "NUM_STREAMS": "5"
-                                                       }
-                                                   }
+                                                       "DEVICE_PROPERTIES": "{CPU:{INFERENCE_PRECISION_HINT:f32,NUM_STREAMS:3},GPU:{INFERENCE_PRECISION_HINT:f32,NUM_STREAMS:5}}"
                                                }
                                        }
 ```
