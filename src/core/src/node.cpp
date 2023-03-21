@@ -846,8 +846,6 @@ public:
     }
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
-        using BodyTargetNames = std::tuple<std::string, std::string, std::vector<std::string>>;
-
         if (const auto& a = ov::as_type<
                 ov::AttributeAdapter<std::vector<std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>>>>(
                 &adapter)) {
