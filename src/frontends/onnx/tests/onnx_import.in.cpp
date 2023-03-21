@@ -4323,7 +4323,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_no_min_no_max_inf) {
     auto test_case = test::TestCase(function, s_device);
     const std::vector<float> data{std::numeric_limits<float>::infinity(),
                                   -std::numeric_limits<float>::infinity(),
-                                  static_cast<float>(std::numeric_limits<double>::max()),
+                                  static_cast<float>(std::numeric_limits<float>::max()),
                                   std::numeric_limits<float>::min(),
                                   std::numeric_limits<float>::max(),
                                   std::numeric_limits<float>::lowest(),
