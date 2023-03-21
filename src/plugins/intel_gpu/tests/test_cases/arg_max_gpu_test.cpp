@@ -83,7 +83,7 @@ TYPED_TEST(argmax_gpu_test, base) {
                                     /*b1f3*/ 4.f,  0.5f,  8.f,   8.2f};
     set_values(input, this->getTypedVector(input_vec));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -127,7 +127,7 @@ TEST(arg_max_gpu_min_axis_batch_bfzyx, i32) {
 
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -194,7 +194,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb, f32) {
 
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -259,7 +259,7 @@ TEST(arg_max_gpu_min_axis_batch_yxfb, f32) {
 
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -316,7 +316,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, f32) {
 
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -360,7 +360,7 @@ TEST(top_k_layer_tests, second_output) {
                                     /*b1f3*/ 4.f,  0.5f,  8.f,   8.2f};
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -454,7 +454,7 @@ TEST(top_k_layer_tests, second_output2) {
 
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -539,7 +539,7 @@ TEST(top_k_layer_tests, multiple_outputs) {
 
     set_values(input, input_vec);
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
@@ -601,7 +601,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_values) {
 
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -658,7 +658,7 @@ TEST(arg_max_gpu_min_axis_y_yxfb_topk_2, sort_by_indices) {
 
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -701,7 +701,7 @@ void test_top_k_layer_tests_sort_probabilities_by_indices(bool is_caching_test) 
 
     set_values(input, input_vec);
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input);
     auto outputs = network->execute();
@@ -851,7 +851,7 @@ void test_top_k_layer_md_sync(bool is_caching_test) {
                              true));
     topology.add(mutable_data("arg_max.1", { input_info("arg_max.0") }, shared_memory));
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input1", input1);
     auto outputs = network->execute();

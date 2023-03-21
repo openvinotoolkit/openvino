@@ -286,10 +286,30 @@ std::vector<std::shared_ptr<test_params>> generic_test::generate_generic_test_pa
     return all_generic_params;
 }
 
+cldnn::ExecutionConfig get_test_default_config(const cldnn::engine& engine) {
+    return get_test_default_config(engine, {});
+}
+
+cldnn::ExecutionConfig get_test_default_config(const cldnn::engine& engine, ov::AnyMap::value_type values) {
+    return get_test_default_config(engine, {values});
+}
+
+cldnn::ExecutionConfig get_test_default_config(const cldnn::engine& engine,
+                                                std::initializer_list<ov::AnyMap::value_type> values) {
+    ExecutionConfig config(values);
+
+    // Onednn engine currently does NOT support out_of_order
+    if (engine.get_device_info().supports_immad) {
+        config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+    }
+
+    return config;
+}
+
 std::shared_ptr<cldnn::engine> create_test_engine() {
     auto ret = cldnn::engine::create(engine_types::ocl, runtime_types::ocl);
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    if(ret->get_device_info().supports_immad)
+    if (ret->get_device_info().supports_immad)
         ret->create_onednn_engine({});
 #endif
     return ret;
@@ -304,12 +324,15 @@ cldnn::engine& get_test_engine() {
 }
 
 cldnn::stream_ptr get_test_stream_ptr() {
+    // Create OOO queue for test purposes. If in-order queue is needed in a test, then it should be created there explicitly
+    auto cfg = get_test_default_config(get_test_engine());
+
+    return get_test_stream_ptr(cfg);
+}
+
+cldnn::stream_ptr get_test_stream_ptr(cldnn::ExecutionConfig cfg) {
     static std::shared_ptr<cldnn::stream> test_stream = nullptr;
-    if (!test_stream) {
-        // Create OOO queue for test purposes. If in-order queue is needed in a test, then it should be created there explicitly
-        ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
-        test_stream = get_test_engine().create_stream(cfg);
-    }
+    test_stream = get_test_engine().create_stream(cfg);
     return test_stream;
 }
 
