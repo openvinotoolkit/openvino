@@ -96,7 +96,7 @@ bool LoopFusion::fuse_up(LoweredExprIR& linear_ir,
                 continue;
             // The fusing is only valid if target Loop consumer (the Consumer is outside of target Loop)
             // is after current Loop (after Loop_down).
-            is_fusion_allowed = std::find(target_loop_begin_pos, target_loop_end_pos, consumer) != target_loop_end_pos || // is inside target Loop
+            is_fusion_allowed = consumer->get_loop_identifies()[dim_idx] == target_loop_id || // is inside target Loop
                                 std::find(current_loop_end_pos, linear_ir.cend(), consumer) != linear_ir.end();  // is after current Loop
         }
     }
@@ -175,7 +175,8 @@ bool LoopFusion::fuse_down(LoweredExprIR& linear_ir,
         const auto parent_expr = parent_expr_output.first;
         if (ov::is_type<opset1::Parameter>(parent_expr->get_node()) || parent_expr == current_exit_point.first)
             continue;
-        is_fusion_allowed = std::find(linear_ir.cbegin(), current_loop_begin_pos, parent_expr) != current_loop_begin_pos;
+        is_fusion_allowed = parent_expr->get_loop_identifies()[dim_idx] == current_loop_id ||  // The parent expr is from the same current Loop
+                            std::find(linear_ir.cbegin(), current_loop_begin_pos, parent_expr) != current_loop_begin_pos; // The parent is before current Loop
     }
 
     if (!is_fusion_allowed)
@@ -349,8 +350,7 @@ bool LoopFusion::run(LoweredExprIR& linear_ir) {
             }
         }
     }
-    linear_ir.serialize("/home/a-sidorova/projects/loops/openvino/graphs/lin_1.xml",
-                        "/home/a-sidorova/projects/loops/openvino/graphs/lin_1.bin");
+
     return true;
 }
 

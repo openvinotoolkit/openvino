@@ -40,13 +40,9 @@ Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, con
     const size_t vector_size = get_target_machine()->get_lanes();
     const int32_t buffer_allocation_rank = static_cast<int32_t>(config.m_loop_depth);
 
-    linear_ir.serialize("/home/a-sidorova/projects/loops/openvino/graphs/lin.xml",
-                        "/home/a-sidorova/projects/loops/openvino/graphs/lin.bin");
-
     // Note: The pass LoopInit uses LoopInfo that contains entry and exit points of the corresponding Loop.
     //       To avoid the Loop information corruption, we should call the passes with Load/Store work
     //       (for example, LoadMoveBroadcastToBroadcastLoad()) after explicit Loop insertion (LoopInit())
-
     auto propagate_buffer_offsets = std::make_shared<pass::lowered::PropagateOffsetAndResetBuffer>();
     std::vector<std::shared_ptr<pass::lowered::LinearIRTransformation>> transformation_pipeline {
             std::make_shared<pass::lowered::LoopMarkup>(vector_size),
@@ -66,6 +62,7 @@ Generator::LoweringResult Generator::generate(std::shared_ptr<ov::Model>& m, con
     for (const auto& transform : transformation_pipeline) {
         transform->run(linear_ir);
     }
+
     const auto buffer_scratchpad_size = propagate_buffer_offsets->get_scratchpad_size();
     linear_ir.init_emitters(target);
     OV_ITT_TASK_NEXT(GENERATE, "::EmitCode")

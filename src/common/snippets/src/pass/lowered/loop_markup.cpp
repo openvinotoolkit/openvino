@@ -113,9 +113,6 @@ bool LoopMarkup::run(LoweredExprIR& linear_ir) {
 
     scalars_markup(linear_ir, scalars_iterators);
 
-    linear_ir.serialize("/home/a-sidorova/projects/loops/openvino/graphs/lin_0.xml",
-                        "/home/a-sidorova/projects/loops/openvino/graphs/lin_0.bin");
-
     return true;
 }
 

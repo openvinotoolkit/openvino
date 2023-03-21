@@ -168,9 +168,6 @@ bool LoadStoreInsertion::run(LoweredExprIR& linear_ir) {
         }
     }
 
-    linear_ir.serialize("/home/a-sidorova/projects/loops/openvino/graphs/lin_4.xml",
-                        "/home/a-sidorova/projects/loops/openvino/graphs/lin_4.bin");
-
     return modified;
 }
 

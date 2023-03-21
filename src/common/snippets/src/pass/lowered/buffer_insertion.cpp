@@ -206,9 +206,6 @@ bool BufferInsertion::run(LoweredExprIR& linear_ir) {
         insertion(linear_ir, loop_manager, LoweredExpr::LOOP_NULL_ID, loop_entries, loop_exits);
     }
 
-    linear_ir.serialize("/home/a-sidorova/projects/loops/openvino/graphs/lin_2.xml",
-                        "/home/a-sidorova/projects/loops/openvino/graphs/lin_2.bin");
-
     return true;
 }
 

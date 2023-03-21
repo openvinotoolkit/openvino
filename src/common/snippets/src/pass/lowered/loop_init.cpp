@@ -225,9 +225,6 @@ bool LoopInit::run(LoweredExprIR& linear_ir) {
         }
     }
 
-    linear_ir.serialize("/home/a-sidorova/projects/loops/openvino/graphs/lin_5.xml",
-                        "/home/a-sidorova/projects/loops/openvino/graphs/lin_5.bin");
-
     return true;
 }
 
