@@ -30,111 +30,114 @@ Instead, it refers to a part of the accompanying binary file that stores such va
 
 Here is an example of a small IR XML file that corresponds to a graph from the previous section:
 
-.. code-block:: cpp
+.. scrollbox::   
+   :height: 450px
 
-   <?xml version="1.0" ?>
-   <net name="model_file_name" version="10">
-      <layers>
-         <layer id="0" name="input" type="Parameter" version="opset1">
-               <data element_type="f32" shape="1,3,32,100"/> <!-- attributes of operation -->
-               <output>
-                  <!-- description of output ports with type of element and tensor dimensions -->
-                  <port id="0" precision="FP32">
-                     <dim>1</dim>
-                     <dim>3</dim>
-                     <dim>32</dim>
-                     <dim>100</dim>
-                  </port>
-               </output>
-         </layer>
-         <layer id="1" name="conv1/weights" type="Const" version="opset1">
-               <!-- Const is only operation from opset1 that refers to the IR binary file by specifying offset and size in bytes relative to the beginning of the file. -->
-               <data element_type="f32" offset="0" shape="64,3,3,3" size="6912"/>
-               <output>
-                  <port id="1" precision="FP32">
-                     <dim>64</dim>
-                     <dim>3</dim>
-                     <dim>3</dim>
-                     <dim>3</dim>
-                  </port>
-               </output>
-         </layer>
-         <layer id="2" name="conv1" type="Convolution" version="opset1">
-               <data auto_pad="same_upper" dilations="1,1" output_padding="0,0" pads_begin="1,1" pads_end="1,1" strides="1,1"/>
-               <input>
-                  <port id="0">
-                     <dim>1</dim>
-                     <dim>3</dim>
-                     <dim>32</dim>
-                     <dim>100</dim>
-                  </port>
-                  <port id="1">
-                     <dim>64</dim>
-                     <dim>3</dim>
-                     <dim>3</dim>
-                     <dim>3</dim>
-                  </port>
-               </input>
-               <output>
-                  <port id="2" precision="FP32">
-                     <dim>1</dim>
-                     <dim>64</dim>
-                     <dim>32</dim>
-                     <dim>100</dim>
-                  </port>
-               </output>
-         </layer>
-         <layer id="3" name="conv1/activation" type="ReLU" version="opset1">
-               <input>
-                  <port id="0">
-                     <dim>1</dim>
-                     <dim>64</dim>
-                     <dim>32</dim>
-                     <dim>100</dim>
-                  </port>
-               </input>
-               <output>
-                  <port id="1" precision="FP32">
-                     <dim>1</dim>
-                     <dim>64</dim>
-                     <dim>32</dim>
-                     <dim>100</dim>
-                  </port>
-               </output>
-         </layer>
-         <layer id="4" name="output" type="Result" version="opset1">
-               <input>
-                  <port id="0">
-                     <dim>1</dim>
-                     <dim>64</dim>
-                     <dim>32</dim>
-                     <dim>100</dim>
-                  </port>
-               </input>
-         </layer>
-      </layers>
-      <edges>
-         <!-- Connections between layer nodes: based on ids for layers and ports used in the descriptions above -->
-         <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
-         <edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
-         <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
-         <edge from-layer="3" from-port="1" to-layer="4" to-port="0"/>
-      </edges>
-      <meta_data>
-         <!-- This section that is not related to a topology; contains auxiliary information that serves for the debugging purposes. -->
-         <MO_version value="2022.3"/>
-         <cli_parameters>
-               <blobs_as_inputs value="True"/>
-               <caffe_parser_path value="DIR"/>
-               <data_type value="float"/>
+   .. code-block:: cpp
 
-               ...
+      <?xml version="1.0" ?>
+      <net name="model_file_name" version="10">
+         <layers>
+            <layer id="0" name="input" type="Parameter" version="opset1">
+                  <data element_type="f32" shape="1,3,32,100"/> <!-- attributes of operation -->
+                  <output>
+                     <!-- description of output ports with type of element and tensor dimensions -->
+                     <port id="0" precision="FP32">
+                        <dim>1</dim>
+                        <dim>3</dim>
+                        <dim>32</dim>
+                        <dim>100</dim>
+                     </port>
+                  </output>
+            </layer>
+            <layer id="1" name="conv1/weights" type="Const" version="opset1">
+                  <!-- Const is only operation from opset1 that refers to the IR binary file by specifying offset and size in bytes relative to the beginning of the file. -->
+                  <data element_type="f32" offset="0" shape="64,3,3,3" size="6912"/>
+                  <output>
+                     <port id="1" precision="FP32">
+                        <dim>64</dim>
+                        <dim>3</dim>
+                        <dim>3</dim>
+                        <dim>3</dim>
+                     </port>
+                  </output>
+            </layer>
+            <layer id="2" name="conv1" type="Convolution" version="opset1">
+                  <data auto_pad="same_upper" dilations="1,1" output_padding="0,0" pads_begin="1,1" pads_end="1,1" strides="1,1"/>
+                  <input>
+                     <port id="0">
+                        <dim>1</dim>
+                        <dim>3</dim>
+                        <dim>32</dim>
+                        <dim>100</dim>
+                     </port>
+                     <port id="1">
+                        <dim>64</dim>
+                        <dim>3</dim>
+                        <dim>3</dim>
+                        <dim>3</dim>
+                     </port>
+                  </input>
+                  <output>
+                     <port id="2" precision="FP32">
+                        <dim>1</dim>
+                        <dim>64</dim>
+                        <dim>32</dim>
+                        <dim>100</dim>
+                     </port>
+                  </output>
+            </layer>
+            <layer id="3" name="conv1/activation" type="ReLU" version="opset1">
+                  <input>
+                     <port id="0">
+                        <dim>1</dim>
+                        <dim>64</dim>
+                        <dim>32</dim>
+                        <dim>100</dim>
+                     </port>
+                  </input>
+                  <output>
+                     <port id="1" precision="FP32">
+                        <dim>1</dim>
+                        <dim>64</dim>
+                        <dim>32</dim>
+                        <dim>100</dim>
+                     </port>
+                  </output>
+            </layer>
+            <layer id="4" name="output" type="Result" version="opset1">
+                  <input>
+                     <port id="0">
+                        <dim>1</dim>
+                        <dim>64</dim>
+                        <dim>32</dim>
+                        <dim>100</dim>
+                     </port>
+                  </input>
+            </layer>
+         </layers>
+         <edges>
+            <!-- Connections between layer nodes: based on ids for layers and ports used in the descriptions above -->
+            <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+            <edge from-layer="1" from-port="1" to-layer="2" to-port="1"/>
+            <edge from-layer="2" from-port="2" to-layer="3" to-port="0"/>
+            <edge from-layer="3" from-port="1" to-layer="4" to-port="0"/>
+         </edges>
+         <meta_data>
+            <!-- This section that is not related to a topology; contains auxiliary information that serves for the debugging purposes. -->
+            <MO_version value="2022.3"/>
+            <cli_parameters>
+                  <blobs_as_inputs value="True"/>
+                  <caffe_parser_path value="DIR"/>
+                  <data_type value="float"/>
 
-               <!-- Omitted a long list of CLI options that always are put here by MO for debugging purposes. -->
+                  ...
 
-         </cli_parameters>
-      </meta_data>
-   </net>
+                  <!-- Omitted a long list of CLI options that always are put here by MO for debugging purposes. -->
+
+            </cli_parameters>
+         </meta_data>
+      </net>
 
 The IR does not use explicit data nodes described in the previous section. In contrast, properties of data such as tensor dimensions and their data types are described as properties of input and output ports of operations. 
 
