@@ -4,13 +4,7 @@
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/constant.hpp"
 #include "openvino/op/deformable_convolution.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/tile.hpp"
-#include "openvino/op/transpose.hpp"
-#include "openvino/op/variadic_split.hpp"
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
 
@@ -22,10 +16,10 @@ namespace op {
 using namespace ov::op;
 
 OutputVector translate_deform_conv(NodeContext& context) {
-    // torchvision::deform_conv2d(const at::Tensor& input, const at::Tensor& weight, const at::Tensor& offset,
-    //                            const at::Tensor& mask, const at::Tensor& bias, int64_t stride_h, int64_t stride_w,
-    //                            int64_t pad_h, int64_t pad_w, int64_t dilation_h, int64_t dilation_w, int64_t
-    //                            n_weight_grps, int64_t n_offset_grps, bool use_mask)
+    // torchvision::deform_conv2d(Tensor input, Tensor weight, Tensor offset,
+    //                            Tensor mask, Tensor bias, int64_t stride_h, int64_t stride_w,
+    //                            int64_t pad_h, int64_t pad_w, int64_t dilation_h, int64_t dilation_w,
+    //                            int64_t n_weight_grps, int64_t n_offset_grps, bool use_mask) -> Tensor
     num_inputs_check(context, 14, 14);
     auto pt_input = context.get_input(0);
     auto pt_weight = context.get_input(1);
@@ -34,17 +28,20 @@ OutputVector translate_deform_conv(NodeContext& context) {
 
     int32_t pt_stride_h = context.const_input<int32_t>(5);
     int32_t pt_stride_w = context.const_input<int32_t>(6);
+    auto strides = Strides({(size_t)pt_stride_h, (size_t)pt_stride_w});
+
     int32_t pt_pad_h = context.const_input<int32_t>(7);
     int32_t pt_pad_w = context.const_input<int32_t>(8);
+    auto pads = CoordinateDiff({pt_pad_h, pt_pad_w});
+
     int32_t pt_dilation_h = context.const_input<int32_t>(9);
     int32_t pt_dilation_w = context.const_input<int32_t>(10);
+    auto dilations = Strides({(size_t)pt_dilation_h, (size_t)pt_dilation_w});
+
     int32_t pt_n_weight_grps = context.const_input<int32_t>(11);
     int32_t pt_n_offset_grps = context.const_input<int32_t>(12);
     bool pt_use_mask = context.const_input<bool>(13);
 
-    auto strides = Strides({(size_t)pt_stride_h, (size_t)pt_stride_w});
-    auto pads = CoordinateDiff({pt_pad_h, pt_pad_w});
-    auto dilations = Strides({(size_t)pt_dilation_h, (size_t)pt_dilation_w});
     std::shared_ptr<ov::Node> deformable_convolution;
     if (!pt_use_mask) {
         deformable_convolution = context.mark_node(std::make_shared<v8::DeformableConvolution>(pt_input,
