@@ -835,7 +835,7 @@ ov::runtime::Tensor generate(const
     // when fill indices
     if (port == 1) {
         auto srcShape = node->get_input_shape(0);
-        // the data in indices must be uniqu.
+        // the data in indices must be unique.
         // so need to select part data from total collection
         // Calculate the collection size
         int k = targetShape[targetShape.size() - 1];
@@ -847,17 +847,19 @@ ov::runtime::Tensor generate(const
         // Calculate the size of part data
         int selectNums = indShapeSize / k;
         // create total collection
-        std::vector<int> collection;
+        std::vector<int> collection(totalSize);
         for (int i = 0; i < totalSize; i++) {
-            collection.push_back(i);
+            collection[i] = i;
         }
         // select part data from collection
-        // the last selectNums data in collection are what want to fill into tensor
+        // the last selectNums data in collection are what want to be filled into tensor
         testing::internal::Random random(1);
+        int r = 0;
+        int tmp = 0;
         for (int i = 0, y = totalSize; i < selectNums; i++, y--) {
-            int r = random.Generate(y);
+            r = random.Generate(y);
             // switch y and r
-            int tmp = collection[y - 1];
+            tmp = collection[y - 1];
             collection[y - 1] = collection[r];
             collection[r] = tmp;
         }
@@ -891,12 +893,14 @@ ov::runtime::Tensor generate(const
                     throw std::runtime_error("indices type should be int32 or int64");
             }
         };
-        // start fo fill data
+        // start to fill data
+        int index = 0;
+        int tmpNum = 0;
         for (int i = totalSize - selectNums, y = 0; i < totalSize; i++, y = y + k) {
-            int tmpNum = collection[i];
+            tmpNum = collection[i];
             for (int z = 0; z < k; z++) {
                 //Calculate index of dims
-                int index = tmpNum / strides[z];
+                index = tmpNum / strides[z];
                 tmpNum = tmpNum % strides[z];
                 fill_data(y + z, index);
             }
