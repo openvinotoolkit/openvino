@@ -8,7 +8,7 @@ OpenVINO Plugin tests are included in the `openvino::funcSharedTests` CMake targ
 
 Test definitions are split into tests class declaration (see `src/tests/functional/plugin/shared/include`) and tests class implementation (see `src/tests/functional/plugin/shared/src`) and include the following scopes of plugin conformance tests:
 
-1. **Behavior tests** (`behavior` sub-folder), which are a separate test group to check that a plugin satisfies basic OpenVINO concepts: plugin creation, multiple executable networks support, multiple synchronous and asynchronous inference requests support, and so on. See the next section with details how to instantiate the tests definition class with plugin-specific parameters.
+1. **Behavior tests** (`behavior` sub-folder), which are a separate test group to check that a plugin satisfies basic OpenVINO concepts: plugin creation, multiple compiled models support, multiple synchronous and asynchronous inference requests support, and so on. See the next section with details how to instantiate the tests definition class with plugin-specific parameters.
 
 2. **Single layer tests** (`single_layer_tests` sub-folder). This groups of tests checks that a particular single layer can be inferenced on a device. An example of test instantiation based on test definition from `openvino::funcSharedTests` library:
 
