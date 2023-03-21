@@ -32,7 +32,7 @@ inline void DoTest(engine& engine,
         gather_elements("gather_elements", input_info("InputData"), input_info("InputIndices"), input1->get_layout().format, output_tensor, axis)
     );
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("InputData", input0);
     network->set_input_data("InputIndices", input1);
@@ -1294,7 +1294,7 @@ TEST(gather_elements_gpu, dynamic) {
     topology.add(input_layout("InputIndices", in1_dyn_layout));
     topology.add(gather_elements("gather_elements", input_info("InputData"), input_info("InputIndices"), axis));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
 

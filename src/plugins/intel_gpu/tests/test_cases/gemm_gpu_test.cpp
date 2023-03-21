@@ -129,7 +129,7 @@ public:
             std::cout << "cached" << std::endl;
             membuf mem_buf;
             {
-                cldnn::network _network(engine, tp);
+                cldnn::network _network(engine, tp, get_test_default_config(engine));
                 process_program(_network.get_program());
                 std::ostream out_mem(&mem_buf);
                 BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
@@ -141,7 +141,7 @@ public:
                 network = std::make_shared<cldnn::network>(ib, get_test_stream_ptr(), engine);
             }
         } else {
-            network = std::make_shared<cldnn::network>(engine, tp);
+            network = std::make_shared<cldnn::network>(engine, tp, get_test_default_config(engine));
             process_program(network->get_program());
         }
 
@@ -292,7 +292,7 @@ void test_basic_bfyx_t2_inplace_crop_with_pad(bool is_caching_test) {
         gemm("output", { input_info("crop.1"), input_info("input2") }, data_types::f32, false, true)
     );
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
     network->set_input_data("input", input);
@@ -343,7 +343,7 @@ TEST(gemm_gpu, dynamic) {
                  gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32, false, true, 1.0f, 0.0f, 4, 2)
     );
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
@@ -412,7 +412,7 @@ TEST(gemm_gpu, dynamic_multi_inference_same_shape) {
                  gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32, false, false, 1.0f, 0.0f, 4, 2)
     );
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
@@ -501,7 +501,7 @@ TEST(gemm_gpu, dynamic_multi_inference_different_shape) {
                  gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f32, false, false, 1.0f, 0.0f, 4, 2)
     );
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
@@ -1311,11 +1311,11 @@ public:
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
         ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, "", impl_types::onednn };
-        ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::in_order));
 #else
         ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, p.kernel_name };
-        ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
 #endif
+
+        ExecutionConfig cfg = get_test_default_config(engine);
         cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm_bfyx", gemm_impl} }));
 
         cldnn::network::ptr network = get_network(engine, topology, cfg, get_test_stream_ptr(), is_caching_test);

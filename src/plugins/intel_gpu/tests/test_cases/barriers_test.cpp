@@ -41,7 +41,13 @@ TEST(DISABLED_oooq_test, simple) {
     tpl.add(reorder("r8", input_info("c6"), concat_layout, std::vector<float>{ 8 }));
     tpl.add(concatenation("c9", { input_info("r7"), input_info("r8") }, 2));
 
-    ExecutionConfig cfg(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
+    ExecutionConfig cfg = get_test_default_config(*eng);
+    cfg.set_property(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
+    if (eng->get_device_info().supports_immad) {
+        // Onednn currently does NOT support out_of_order queue-type
+        return;
+    }
+
     network net{ *eng, tpl, cfg };
 
     net.set_input_data("in", input_mem);

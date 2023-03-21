@@ -53,7 +53,7 @@ public:
         topology.add(input_layout("shape", shape->get_layout()));
         topology.add(input_layout("min_val", min_val->get_layout()));
         topology.add(input_layout("max_val", max_val->get_layout()));
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
 
         cldnn::network::ptr net = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);

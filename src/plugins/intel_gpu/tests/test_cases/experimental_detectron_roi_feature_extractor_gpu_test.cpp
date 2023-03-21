@@ -53,7 +53,7 @@ void test_experimental_detectron_roi_feature_extractor_gpu_fp32_one_level(bool i
     topology.add(activation(activation_abs_id, feature_extractor_id,  activation_func::abs));
     topology.add(mutable_data(second_output_r_id, {feature_extractor_id}, second_output));
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data(input_rois_id, roi_input);
     network->set_input_data(input_level_1_id, level_1);
@@ -150,7 +150,7 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, two_levels) {
     topology.add(activation(activation_abs_id, feature_extractor_id, activation_func::abs));
     topology.add(mutable_data(second_output_r_id, {feature_extractor_id}, second_output));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data(input_rois_id, roi_input);
     network.set_input_data(input_level_1_id, level_1);
@@ -246,7 +246,7 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, multiple_feature_ext
     topology.add(activation(activation_abs_second_instance_id, input_info(feature_extractor_second_instance_id),  activation_func::abs));
     topology.add(mutable_data(second_output_r_second_instance_id, { input_info(feature_extractor_second_instance_id) }, second_output_second_instance));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data(input_rois_first_instance_id, roi_input_first_instance);
     network.set_input_data(input_rois_second_instance_id, roi_input_second_instance);

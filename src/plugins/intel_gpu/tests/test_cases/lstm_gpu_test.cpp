@@ -244,7 +244,7 @@ void generic_lstm_gemm_gpu_test(int sequence_len, int direction, int batch_size,
 
     topology.add(lstm_gemm("lstm_gemm", input_info("input"), "weights", "recurrent", hasBias ? "biases" : "", hasHidden ? "hidden" : ""));
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
     network->set_input_data("input", input);
     if (hasHidden) {
         network->set_input_data("hidden", hidden);
@@ -307,7 +307,7 @@ void generic_lstm_elt_gpu_test(int /* sequence_len */, int direction, int batch_
     }
     topology.add(lstm_elt("lstm_elt", input_info("tempGEMM"), hasCell ? "cell" : "", clip_threshold, input_forget));
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
     network->set_input_data("tempGEMM", tempGEMM);
     if (hasCell) {
         network->set_input_data("cell", cell);
@@ -430,7 +430,7 @@ void generic_lstm_custom_gpu_test(int sequence_len, int direction, int batch_siz
     generate_lstm_topology(topology, input, hidden, cell, weights, recurrent, biases, sequence_len,
         hasBias, hasInitialHidden, hasInitialCell);
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
     network->set_input_data("input", input);
     if (hasInitialHidden) network->set_input_data("hidden", hidden);
     if (hasInitialCell) network->set_input_data("cell", cell);
@@ -596,7 +596,7 @@ void generic_lstm_gpu_test(int layers, int sequence_len, int direction, int batc
         prev_lstm_id = lstm_id;
     }
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
     network->set_input_data("input", input);
     for (int i = 0; i < layers; ++i) {
         std::string sid = get_string_id(i);
@@ -722,7 +722,7 @@ void lstm_gpu_output_test(const lstm_output_selection& output_selection, int dir
         topology.add(crop("crop:last_cell", input_info("lstm"), cell_tensor, tensor{0, concatenation_len - 1, 0, 0}));
     }
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
     network->set_input_data("input", input);
     network->set_input_data("hidden", hidden);
     network->set_input_data("cell", cell);
@@ -886,7 +886,7 @@ void lstm_gpu_format_test(const cldnn::format& format, int directions, bool is_c
         topology.add(crop("crop:last_cell", input_info("lstm"), cell_tensor, tensor{0, concatenation_len - 1, 0, 0}));
     }
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     std::map<primitive_id, network_output> outputs;
 
@@ -1053,7 +1053,7 @@ void lstm_gpu_users_test(bool is_caching_test = false) {
     std::vector<input_info> output_ids_offsets { input_info("lstm"), input_info("hidden") };
     topology.add(concatenation("concatenation", output_ids_offsets, 1));
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     std::map<primitive_id, network_output> outputs;
 
@@ -1212,7 +1212,7 @@ void lstm_gpu_concatenated_input_test(int layers, int sequence_len, int directio
 		prev_node_id = output_crop_id;
 	}
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 	network->set_input_data("input", input);
 	for (int i = 0; i < layers; ++i) {
 		std::string sid = get_string_id(i);
@@ -1555,7 +1555,7 @@ void lstm_gpu_chain_test(int batch_size, int input_size, int hidden_size,
     }
 
     // Creating network out of the above designed topology
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
     network->set_input_data("input", input);
     for (size_t layer = 0; layer < layers; layer++) {
         std::string sid = get_string_id(layer);

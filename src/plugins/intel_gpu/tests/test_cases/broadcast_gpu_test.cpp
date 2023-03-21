@@ -64,7 +64,8 @@ void start_broadcast_test(format cldnn_format, data_types cldnn_data_type, std::
 
     set_values(input, input_data);
 
-    network network(engine, topology);
+    ExecutionConfig cfg = get_test_default_config(engine);
+    network network(engine, topology, cfg);
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -140,7 +141,7 @@ void start_broadcast_test_dynamic(format input_format,
         set_values<int32_t>(target_shape_mem, target_shape_data);
     }
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     set_values(input, input_data);
@@ -215,7 +216,7 @@ void start_broadcast_test_5d(format cldnn_format, data_types cldnn_data_type, st
 
     set_values(input, input_data);
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input);
     auto outputs = network->execute();

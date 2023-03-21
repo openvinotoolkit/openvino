@@ -35,7 +35,7 @@ public:
     void execute(lrn_test_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
 
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         ov::intel_gpu::ImplementationDesc lrn_impl = { p.input_format, p.kernel_name };
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "lrn_norm", lrn_impl } }));

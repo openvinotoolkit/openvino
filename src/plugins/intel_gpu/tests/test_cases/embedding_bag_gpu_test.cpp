@@ -53,7 +53,7 @@ TEST(embedding_bag_fp16_gpu, packed_sum_basic) {
             embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2") }, type, output_shape)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -106,7 +106,7 @@ TEST(embedding_bag_fp16_gpu, packed_sum_basic_without_weights) {
             embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1") }, type, output_shape)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -187,7 +187,7 @@ TEST(embedding_bag_fp16_gpu, packed_sum_dim2) {
             embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2") }, type, output_shape)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -310,7 +310,7 @@ TEST(embedding_bag_fp16_gpu, packed_sum_dim3) {
             embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2") }, type, output_shape)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -404,7 +404,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic) {
     topology.add(
             embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3") }, type, output_shape, 0)
     );
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -469,7 +469,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic_first_empty) {
             embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3") }, type, output_shape, 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -534,7 +534,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_basic_last_empty) {
             embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3") }, type, output_shape, 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -592,7 +592,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_without_weights_and_def_index) {
             embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2") }, type, output_shape)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -707,7 +707,7 @@ TEST(embedding_bag_fp16_gpu, offsets_sum_dim3) {
             embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3") }, type, output_shape, 0)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -803,7 +803,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic) {
             embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3") }, type, output_shape, 0)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -868,7 +868,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_first_empty) {
             embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3") }, type, output_shape, 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -933,7 +933,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_basic_last_empty) {
             embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3") }, type, output_shape, 2)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -991,7 +991,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_without_weights_and_def_index) {
             embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2") }, type, output_shape)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -1106,7 +1106,7 @@ TEST(embedding_bag_fp16_gpu, segments_sum_dim3) {
             embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2"), input_info("Input3") }, type, output_shape, 0)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -1199,7 +1199,7 @@ TEST(embedding_bag_fp32_gpu, packed_sum_basic) {
             embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2") }, type, output_shape)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -1309,7 +1309,7 @@ TEST(embedding_bag_fp32_gpu, packed_sum_dim3) {
             embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2") }, type, output_shape)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("Input0", emb_table);
     network.set_input_data("Input1", indices);
@@ -1394,7 +1394,7 @@ void test_embedding_bag_fp32_gpu_extended5_6(bool is_caching_test) {
             embedding_bag("embedding_bag", { input_info("Input0"), input_info("Input1"), input_info("Input2") }, type, output_shape)
     );
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("Input0", emb_table);
     network->set_input_data("Input1", indices);

@@ -100,7 +100,7 @@ struct pyramid_roi_align_typed_test : testing::Test {
                                 { P2_scale, P3_scale, P4_scale, P5_scale },
                                 starting_level));
 
-        cldnn::network::ptr net = get_network(engine, topo, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr net = get_network(engine, topo, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         net->set_input_data("rois", rois_mem);
 

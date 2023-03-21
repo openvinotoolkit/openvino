@@ -42,7 +42,7 @@ TEST(softmax_gpu_dynamic_f32_test_upper_bound, input_same_values) {
         layout(ov::PartialShape{ov::Dimension{1, 10}, ov::Dimension{1, 10}, ov::Dimension{1, 10}, ov::Dimension{1, 10}},
                data_types::f32,
                format::bfyx);
-    network network(engine, topology(input_layout("input", in_layout), softmax("softmax", input_info("input"), 3)));
+    network network(engine, topology(input_layout("input", in_layout), softmax("softmax", input_info("input"), 3)), get_test_default_config(engine));
 
     // First run
     float out_buffer_1[out_size_1];

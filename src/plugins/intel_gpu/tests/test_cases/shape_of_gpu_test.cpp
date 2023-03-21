@@ -25,7 +25,7 @@ TEST(shape_of_gpu, bfyx) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(shape_of("shape_of", input_info("input"), 4, data_types::i32));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -50,7 +50,7 @@ TEST(shape_of_gpu, bfyx_i64) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(shape_of("shape_of", input_info("input"), 4, data_types::i64));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -75,7 +75,7 @@ TEST(shape_of_gpu, yxfb) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(shape_of("shape_of", input_info("input"), 4, data_types::i32));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -100,7 +100,7 @@ TEST(shape_of_gpu, bfzyx) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(shape_of("shape_of", input_info("input"), 5, data_types::i32));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -129,7 +129,7 @@ TEST(shape_of_gpu, dynamic) {
     topology.add(input_layout("input", in_layout));
     topology.add(shape_of("shape_of", input_info("input"), 5, data_types::i32));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
 

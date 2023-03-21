@@ -135,7 +135,7 @@ public:
         topology.add(adaptive_pooling("adaptive_avg_pooling_blocked", input_info("input_reordered"), params.outputTensor));
         topology.add(reorder("adaptive_avg_pooling", input_info("adaptive_avg_pooling_blocked"), plain_layout, data_type));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 

@@ -32,7 +32,7 @@ public:
                 input_layout("input", input->get_layout()),
                 activation("relu", input_info("input"), activation_func::relu_negative_slope, activation_additional_params{ 0.5f, 0.f }, padding{ { 0, 0, 0, 0 }, 0 }));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input);
         auto outputs = network->execute();
         ASSERT_EQ(outputs.size(), size_t(1));
@@ -82,7 +82,7 @@ public:
             membuf mem_buf0;
             membuf mem_buf1;
             {
-                auto prog = program::build_program(engine, topology, ExecutionConfig{});
+                auto prog = program::build_program(engine, topology, get_test_default_config(engine));
                 {
                     network0 = std::make_shared<cldnn::network>(prog, 0);
                     std::ostream out_mem0(&mem_buf0);
@@ -109,7 +109,7 @@ public:
                 }
             }
         } else {
-            auto prog = program::build_program(engine, topology, ExecutionConfig{});
+            auto prog = program::build_program(engine, topology, get_test_default_config(engine));
             network0 = std::make_shared<cldnn::network>(prog, 0);
             network1 = std::make_shared<cldnn::network>(prog, 1);
         }
@@ -185,7 +185,7 @@ public:
             membuf mem_buf0;
             membuf mem_buf1;
             {
-                auto prog = program::build_program(engine, topology, ExecutionConfig{});
+                auto prog = program::build_program(engine, topology, get_test_default_config(engine));
                 {
                     network0 = std::make_shared<cldnn::network>(prog, 0);
                     std::ostream out_mem0(&mem_buf0);
@@ -212,7 +212,7 @@ public:
                 }
             }
         } else {
-            auto prog = program::build_program(engine, topology, ExecutionConfig{});
+            auto prog = program::build_program(engine, topology, get_test_default_config(engine));
             network0 = std::make_shared<cldnn::network>(prog, 0);
             network1 = std::make_shared<cldnn::network>(prog, 1);
         }

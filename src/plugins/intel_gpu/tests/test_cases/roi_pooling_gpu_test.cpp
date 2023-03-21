@@ -185,7 +185,7 @@ public:
 
         topology.add(reorder("reordered_roi_pooling", input_info("roi_pooling"), plane_format, type_to_data_type<T>::value));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         for (auto& input : inputs) {
             network->set_input_data(input.first, input.second);

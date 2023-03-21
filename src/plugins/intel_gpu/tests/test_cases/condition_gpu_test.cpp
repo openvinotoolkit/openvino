@@ -87,7 +87,7 @@ std::pair<std::vector<float>, std::vector<float>> get_values_to_compare(const cl
 
 TEST(DISABLED_condition_gpu, basic_equal_comp) {
     auto& engine = get_test_engine();
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
     auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
@@ -139,7 +139,7 @@ TEST(DISABLED_condition_gpu, basic_equal_comp) {
 
 TEST(DISABLED_condition_gpu, basic_range_equal_comp) {
     auto& engine = get_test_engine();
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto input0 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
     auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
@@ -212,7 +212,7 @@ TEST(DISABLED_condition_gpu, basic_range_equal_comp) {
 
 TEST(DISABLED_condition_gpu, generic_test_true_false) {
     auto& engine = get_test_engine();
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 5, 2, 5, 1 } });
     std::vector<float> input_data(50);
@@ -321,7 +321,7 @@ TEST(DISABLED_condition_gpu, basic_stacked_ifs) {
         <prims...>
     */
     auto& engine = get_test_engine();
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
     auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
@@ -391,7 +391,7 @@ TEST(DISABLED_condition_gpu, basic_nested_ifs) {
     <prims...>
     */
     auto& engine = get_test_engine();
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
     auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
@@ -473,7 +473,7 @@ TEST(DISABLED_condition_gpu, basic_nested_ifs) {
 
 TEST(DISABLED_condition_gpu, negative_compare_wrong_layout) {
     auto& engine = get_test_engine();
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
     auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 5, 1 } });
@@ -497,7 +497,7 @@ TEST(DISABLED_condition_gpu, negative_compare_wrong_layout) {
 
 TEST(DISABLED_condition_gpu, negative_too_big_offset) {
     auto& engine = get_test_engine();
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
     auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 3, 1 } });
@@ -521,7 +521,7 @@ TEST(DISABLED_condition_gpu, negative_too_big_offset) {
 
 TEST(DISABLED_condition_gpu, negative_not_same_layouts) {
     auto& engine = get_test_engine();
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
     auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });
@@ -552,7 +552,7 @@ TEST(DISABLED_condition_gpu, negative_not_same_layouts) {
 
 TEST(DISABLED_condition_gpu, negative_same_names_within_different_networks) {
     auto& engine = get_test_engine();
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 4, 1 } });
     auto compare = engine.allocate_memory({ data_types::f32, format::bfyx,{ 1, 1, 1, 1 } });

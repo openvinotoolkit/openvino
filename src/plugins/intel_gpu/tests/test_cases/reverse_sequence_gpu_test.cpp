@@ -36,7 +36,7 @@ void test_fp32_d2_2_ba1_sa0(bool is_caching_test) {
             reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input);
     network->set_input_data("seq_lengths", seq_lengths);
@@ -85,7 +85,7 @@ void test_fp32_d3_3_3_ba0_sa1(bool is_caching_test) {
             reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input);
     network->set_input_data("seq_lengths", seq_lengths);
@@ -135,7 +135,7 @@ TEST(reverese_sequence_gpu_test, fp32_d3_3_3_ba2_sa0) {
             reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("seq_lengths", seq_lengths);
@@ -181,7 +181,7 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba0_sa3) {
             reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("seq_lengths", seq_lengths);
@@ -228,7 +228,7 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba0_sa2) {
             reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("seq_lengths", seq_lengths);
@@ -275,7 +275,7 @@ TEST(reverese_sequence_gpu_test, fp32_d2_2_3_2ba2_sa0) {
             reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("seq_lengths", seq_lengths);
@@ -320,7 +320,7 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_ba1_sa0) {
             reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("seq_lengths", seq_lengths);
@@ -362,7 +362,7 @@ TEST(reverese_sequence_gpu_test, fp16x2_d2_2_ba1_sa0) {
         reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("seq_lengths", seq_lengths);
@@ -406,7 +406,7 @@ TEST(reverese_sequence_gpu_test, fp16_d3_3_3_ba0_sa1) {
             reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("seq_lengths", seq_lengths);
@@ -452,7 +452,7 @@ TEST(reverese_sequence_gpu_test, fp16_d3_3_3_ba2_sa0) {
             reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("seq_lengths", seq_lengths);
@@ -498,7 +498,7 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba0_sa3) {
             reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("seq_lengths", seq_lengths);
@@ -545,7 +545,7 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba0_sa2) {
             reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("seq_lengths", seq_lengths);
@@ -592,7 +592,7 @@ TEST(reverese_sequence_gpu_test, fp16_d2_2_3_2ba2_sa0) {
             reverse_sequence("reverse_sequence", input_info("input"), input_info("seq_lengths"), seq_axis, batch_axis)
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("seq_lengths", seq_lengths);

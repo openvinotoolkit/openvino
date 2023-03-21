@@ -81,7 +81,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_buffer_fp32) {
     topology.add(convert_color("convert_color", { input_info("input_y"), input_info("input_uv") }, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::RGB,
                                cldnn::convert_color::memory_type::buffer, output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input_y", input_y);
     network.set_input_data("input_uv", input_uv);
 
@@ -120,7 +120,7 @@ TEST(convert_color, nv12_to_bgr_two_planes_buffer_fp32) {
     topology.add(convert_color("convert_color", { input_info("input_y"), input_info("input_uv") }, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::BGR,
                                cldnn::convert_color::memory_type::buffer, output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input_y", input_y);
     network.set_input_data("input_uv", input_uv);
 
@@ -160,7 +160,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_buffer_u8) {
     topology.add(convert_color("convert_color", { input_info("input_y"), input_info("input_uv") }, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::RGB,
                                cldnn::convert_color::memory_type::buffer, output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input_y", input_y);
     network.set_input_data("input_uv", input_uv);
 
@@ -200,7 +200,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_buffer_fp16) {
     topology.add(convert_color("convert_color", { input_info("input_y"), input_info("input_uv") }, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::RGB,
                                cldnn::convert_color::memory_type::buffer, output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input_y", input_y);
     network.set_input_data("input_uv", input_uv);
 
@@ -238,7 +238,7 @@ TEST(convert_color, nv12_to_rgb_single_plane_buffer_fp32) {
     topology.add(convert_color("convert_color", { input_info("input") }, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::RGB,
                                cldnn::convert_color::memory_type::buffer, output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -274,7 +274,7 @@ TEST(convert_color, nv12_to_rgb_single_plane_buffer_u8) {
     topology.add(convert_color("convert_color", { input_info("input") }, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::RGB,
                                cldnn::convert_color::memory_type::buffer, output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
 
     auto outputs = network.execute();
@@ -350,7 +350,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_surface_u8) {
     topology.add(convert_color("convert_color", { input_info("input"), input_info("input2") }, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::RGB,
                                cldnn::convert_color::memory_type::image, output_layout));
 
-    network network(*engine, topology);
+    network network(*engine, topology, get_test_default_config(*engine));
     network.set_input_data("input", input_memory);
     network.set_input_data("input2", input_memory2);
 
@@ -414,7 +414,7 @@ TEST(convert_color, nv12_to_rgb_single_plane_surface_u8) {
     topology.add(convert_color("convert_color", { input_info("input") }, cldnn::convert_color::color_format::NV12, cldnn::convert_color::color_format::RGB,
                                cldnn::convert_color::memory_type::image, output_layout));
 
-    network network(*engine, topology);
+    network network(*engine, topology, get_test_default_config(*engine));
     network.set_input_data("input", input_memory);
 
     auto outputs = network.execute();
@@ -507,7 +507,7 @@ TEST(convert_color, i420_to_rgb_three_planes_buffer_fp32) {
     topology.add(convert_color("convert_color", { input_info("input_y"), input_info("input_u"), input_info("input_v") }, cldnn::convert_color::color_format::I420, cldnn::convert_color::color_format::RGB,
                                cldnn::convert_color::memory_type::buffer, output_layout));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input_y", input_y);
     network.set_input_data("input_u", input_u);
     network.set_input_data("input_v", input_v);
@@ -593,7 +593,7 @@ void test_convert_color_i420_to_rgb_three_planes_surface_u8(bool is_caching_test
     topology.add(convert_color("convert_color", { input_info("input"), input_info("input2"), input_info("input3") }, cldnn::convert_color::color_format::I420, cldnn::convert_color::color_format::RGB,
                                cldnn::convert_color::memory_type::image, output_layout));
 
-    cldnn::network::ptr network = get_network(*engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(*engine, topology, get_test_default_config(*engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("input", input_memory);
     network->set_input_data("input2", input_memory2);

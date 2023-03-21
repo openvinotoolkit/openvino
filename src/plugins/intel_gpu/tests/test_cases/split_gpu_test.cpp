@@ -74,7 +74,7 @@ void split_test(int batch_num, int feature_num, int x_size, int y_size, std::vec
     std::vector<T> input_vec = generate_random_input<T>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
     network->set_input_data("input", input);
 
     auto outputs = network->execute();
@@ -225,7 +225,7 @@ TEST(split_gpu_f32, basic_split_concat_optimization) {
     topology.add(concatenation("concat", inputs, 1));
     topology.add(reorder("output", input_info("concat"), format::bfyx, data_types::f32));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
 
@@ -265,7 +265,7 @@ TEST(split_gpu_i64, basic_split_concat_optimization) {
     topology.add(concatenation("concat", inputs, 1));
     topology.add(reorder("output", input_info("concat"), format::bfyx, data_types::i64));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
 
@@ -540,7 +540,7 @@ TEST(split_gpu_f32, basic_in2x3x2x2_split_feature_bfyx) {
     std::vector<float> input_vec = generate_random_input<float>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -586,7 +586,7 @@ TEST(split_gpu_i64, basic_in2x3x2x2_split_feature_bfyx) {
     std::vector<int64_t> input_vec = generate_random_input<int64_t>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -649,7 +649,7 @@ TEST(split_gpu_f32, basic_in2x3x2x2_split_scale_feature_bfyx) {
     std::vector<float> input_vec = generate_random_input<float>(batch_num, feature_num, y_size, x_size, -10, 10);
     set_values(input, input_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("scale_input0", scale_input0);

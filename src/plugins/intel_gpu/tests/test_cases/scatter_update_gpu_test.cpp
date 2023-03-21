@@ -95,7 +95,7 @@ void test_d2411_axisB(bool is_caching_test) {
         );
         topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::f16));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("InputDictionary", input1);
         network->set_input_data("InputText", input2);
@@ -176,7 +176,7 @@ TEST(scatter_update_gpu_fp32, d8111_axisB) {
         );
         topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::f32));
 
-        network network(engine, topology);
+        network network(engine, topology, get_test_default_config(engine));
 
 
         network.set_input_data("InputDictionary", input1);
@@ -270,7 +270,7 @@ TEST(scatter_update_gpu_fp16, d4311_axisB) {
         );
         topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::f16));
 
-        network network(engine, topology);
+        network network(engine, topology, get_test_default_config(engine));
 
         network.set_input_data("InputDictionary", input1);
         network.set_input_data("InputText", input2);
@@ -397,7 +397,7 @@ TEST(scatter_update_gpu_fp16, d2521_axisF) {
         );
         topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::f16));
 
-        network network(engine, topology);
+        network network(engine, topology, get_test_default_config(engine));
 
         network.set_input_data("InputDictionary", input1);
         network.set_input_data("InputText", input2);
@@ -510,7 +510,7 @@ TEST(scatter_update_gpu_fp16, d2241_axisY) {
         );
         topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::f16));
 
-        network network(engine, topology);
+        network network(engine, topology, get_test_default_config(engine));
 
         network.set_input_data("InputDictionary", input1);
         network.set_input_data("InputText", input2);
@@ -671,7 +671,7 @@ TEST(scatter_update_gpu_fp16, d8x2x20x1_axisB) {
         );
         topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::f16));
 
-        network network(engine, topology);
+        network network(engine, topology, get_test_default_config(engine));
 
         network.set_input_data("InputDictionary", input1);
         network.set_input_data("InputText", input2);
@@ -797,7 +797,7 @@ TEST(scatter_update_gpu_fp32, d2214_axisX) {
         );
         topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::f32));
 
-        network network(engine, topology);
+        network network(engine, topology, get_test_default_config(engine));
 
         network.set_input_data("InputDictionary", input1);
         network.set_input_data("InputText", input2);
@@ -899,7 +899,7 @@ TEST(scatter_update_gpu_int32, d6211_axisB) {
         );
         topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::i32));
 
-        network network(engine, topology);
+        network network(engine, topology, get_test_default_config(engine));
 
         network.set_input_data("InputDictionary", input1);
         network.set_input_data("InputText", input2);
@@ -998,7 +998,7 @@ TEST(scatter_update_gpu_int32, d3151_axisY) {
         );
         topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::i32));
 
-        network network(engine, topology);
+        network network(engine, topology, get_test_default_config(engine));
 
         network.set_input_data("InputDictionary", input1);
         network.set_input_data("InputText", input2);
@@ -1082,7 +1082,7 @@ TEST(scatter_update_gpu_fp32, d24111_axisF_bfzyx) {
             );
             topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::f32));
 
-            network network(engine, topology);
+            network network(engine, topology, get_test_default_config(engine));
 
             network.set_input_data("InputDictionary", input1);
             network.set_input_data("InputText", input2);
@@ -1188,7 +1188,7 @@ TEST(scatter_update_gpu_int32, d121251_bfwzyx_axisB) {
                 scatter_update("scatter_update", input_info("InputDictionary"), input_info("TextReordered"), input_info("InputUpdates"), axis)
         );
 
-        network network(engine, topology);
+        network network(engine, topology, get_test_default_config(engine));
 
         network.set_input_data("InputDictionary", input1);
         network.set_input_data("InputText", input2);
@@ -1279,7 +1279,7 @@ TEST(scatter_update_gpu_fp32, d21511_bfzyx_axisX) {
             );
             topology.add(reorder("out", input_info("scatter_update"), plain_3d_format, data_types::f32));
 
-            network network(engine, topology);
+            network network(engine, topology, get_test_default_config(engine));
 
 
             network.set_input_data("InputDictionary", input1);
@@ -1385,7 +1385,7 @@ TEST(scatter_update_gpu_fp32, d1252_axisY_bfwzyx) {
         );
         topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::f32));
 
-        network network(engine, topology);
+        network network(engine, topology, get_test_default_config(engine));
 
         network.set_input_data("InputDictionary", input1);
         network.set_input_data("InputText", input2);
@@ -1475,7 +1475,7 @@ TEST(scatter_update_gpu_int32, d2115_axisX_bfwzyx) {
         );
         topology.add(reorder("out", input_info("scatter_update"), plain_2d_format, data_types::i32));
 
-        network network(engine, topology);
+        network network(engine, topology, get_test_default_config(engine));
 
         network.set_input_data("InputDictionary", input1);
         network.set_input_data("InputText", input2);
@@ -1569,7 +1569,7 @@ void test_d21214_bfzyx_axisX_bfwzyx(bool is_caching_test) {
             );
             topology.add(reorder("out", input_info("scatter_update"), plain_3d_format, data_types::f16));
 
-            cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+            cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
             network->set_input_data("InputDictionary", input1);
             network->set_input_data("InputText", input2);
@@ -1656,7 +1656,7 @@ TEST(scatter_update_gpu_fp32, dynamic) {
     );
     topology.add(reorder("out", input_info("scatter_update"), format::bfyx, data_types::f32));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
 

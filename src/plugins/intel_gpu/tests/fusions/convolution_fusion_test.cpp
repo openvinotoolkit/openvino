@@ -208,7 +208,7 @@ class ConvFusingForceKernelTest : public BaseFusingTest<bc_force_kernel_params> 
     public:
     void execute(bc_force_kernel_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
         ov::intel_gpu::ImplementationDesc conv_impl = { p.input_format, p.kernel_name };
         config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
@@ -4178,8 +4178,6 @@ public:
         p.expected_fused_primitives = p.expected_fused_primitives_onednn;
 
         cldnn::memory::ptr input_prim = get_mem(get_input_layout(p));
-        cfg_fused.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
-        cfg_not_fused.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
 
         network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
         network network_fused(this->engine, this->topology_fused, cfg_fused);

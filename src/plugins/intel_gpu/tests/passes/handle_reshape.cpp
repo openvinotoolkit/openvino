@@ -35,7 +35,7 @@ TEST(handle_reshape, dont_remove_reshape_that_changes_rank) {
     topology.add(reshape("reshape", input_info("e1"), false, {1}, {1}));
     topology.add(eltwise("e2", input_info("reshape"), input_info("data1"), eltwise_mode::sum));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto prog = program::build_program(engine, topology, config, false, true);

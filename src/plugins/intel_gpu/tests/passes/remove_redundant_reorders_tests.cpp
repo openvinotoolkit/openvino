@@ -45,7 +45,7 @@ TEST(remove_redundant_reorders, remove_dep_dynamic) {
     topology.add(reorder("reorder", input_info("conv"), format::any, data_types::f32));
     topology.add(softmax("softmax", input_info("reorder"), 1));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);

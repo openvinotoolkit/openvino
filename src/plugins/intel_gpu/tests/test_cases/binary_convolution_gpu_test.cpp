@@ -185,7 +185,7 @@ TEST_P(binary_convolution_test, conv) {
     if(engine.get_device_info().supports_immad)
         return;
 
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     topology topology_bin;
 
@@ -382,7 +382,7 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel) {
                                padding{ { 0,0,0,0 }, 0 })
     );
 
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network network(engine, topology, config);
@@ -468,7 +468,7 @@ TEST(binary_convolution, basic_convolution_1x1_single_packed_channel_fp16) {
                                padding{ { 0,0,0,0 }, 0 })
     );
 
-    ov::intel_gpu::ExecutionConfig config;
+    ov::intel_gpu::ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network network(engine, topology, config);

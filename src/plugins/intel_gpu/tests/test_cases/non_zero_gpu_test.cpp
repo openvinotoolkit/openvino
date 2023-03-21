@@ -60,7 +60,7 @@ void test_count_non_zero(layout in_layout, std::vector<T> in_data) {
     topology.add(count_nonzero("count_nonzero", input_info("InputData"))
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("InputData", input_mem);
     auto outputs = network.execute();
     auto output = outputs.at("count_nonzero").get_memory();
@@ -132,7 +132,7 @@ TEST(test_count_non_zero, dynamic_2d_f32_bfyx) {
     topology.add(input_layout("InputData", in_dyn_layout));
     topology.add(count_nonzero("count_nonzero", input_info("InputData")));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     std::vector<size_t> input_shapes = {171, 531, 168, 169, 174, 172, 168, 167, 1169, 16, 677};
@@ -180,7 +180,7 @@ void test_gather_non_zero(layout in_layout, std::vector<T> in_data) {
         gather_nonzero("gather_nonzero", input_info("InputData"), input_info("OutputShape"))
     );
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("InputData", input_mem);
     auto outputs = network.execute();
@@ -290,7 +290,7 @@ TEST(non_zero_gpu, dynamic) {
     topology.add(count_nonzero("count_nonzero", input_info("InputData")));
     topology.add(gather_nonzero("gather_nonzero", input_info("InputData"), input_info("count_nonzero")));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
@@ -335,7 +335,7 @@ void test_non_zero(layout in_layout, std::vector<T> in_data) {
     topology.add(count_nonzero("count_nonzero", input_info("InputData")));
     topology.add(gather_nonzero("gather_nonzero", input_info("InputData"), input_info("count_nonzero")));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("InputData", input_mem);
     auto outputs = network.execute();

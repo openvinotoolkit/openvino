@@ -241,7 +241,7 @@ public:
         const primitive_id reorder_result_id = edgpsi_id + "Reordered";
         topology.add(reorder(reorder_result_id, input_info(edgpsi_primitive), format::bfyx, data_type));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data(input_im_info_id, input_im_info);
         network->set_input_data(input_anchors_id, input_anchors);
@@ -258,7 +258,7 @@ public:
         cldnn::topology reorder_topology;
         reorder_topology.add(input_layout("scores", rois_scores_layout));
         reorder_topology.add(reorder("plane_scores", input_info("scores"), format::bfyx, data_type));
-        cldnn::network reorder_net{engine, reorder_topology};
+        cldnn::network reorder_net{engine, reorder_topology, get_test_default_config(engine)};
         reorder_net.set_input_data("scores", output_roi_scores);
         const auto second_output_result = reorder_net.execute();
         const auto plane_data_mem = second_output_result.at("plane_scores").get_memory();

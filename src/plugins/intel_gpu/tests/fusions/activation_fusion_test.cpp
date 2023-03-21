@@ -32,7 +32,7 @@ public:
     void execute(activation_test_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
 
-        ExecutionConfig cfg;
+        ExecutionConfig cfg = get_test_default_config(engine);
         ov::intel_gpu::ImplementationDesc activation_impl = { p.input_format, p.kernel_name };
         cfg.set_property(ov::intel_gpu::optimize_data(true));
         cfg.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "act", activation_impl } }));

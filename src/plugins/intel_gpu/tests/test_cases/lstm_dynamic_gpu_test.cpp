@@ -245,7 +245,7 @@ struct lstm_dynamic_input_layer_test : public ::testing::Test
             "weights",
             bias_id));
 
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
         network network(engine, topology, config);
 
@@ -407,7 +407,7 @@ struct lstm_dynamic_single_layer_test : public ::testing::Test
             initial_hidden_id,
             initial_cell_id));
 
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
         network network(engine, topology, config);
         network.set_input_data("input", input_mem);
@@ -888,7 +888,7 @@ TEST(lstm_dynamic_negative, wrong_weights_size) {
         "dyn_len",
         "weights",
         "recurrent"));
-    ASSERT_ANY_THROW(network network(engine, topology));
+    ASSERT_ANY_THROW(network network(engine, topology, get_test_default_config(engine)));
 }
 
 TEST(lstm_dynamic_negative, wrong_recurrent_size_0) {
@@ -913,7 +913,7 @@ TEST(lstm_dynamic_negative, wrong_recurrent_size_0) {
         "dyn_len",
         "weights",
         "recurrent"));
-    ASSERT_ANY_THROW(network network(engine, topology));
+    ASSERT_ANY_THROW(network network(engine, topology, get_test_default_config(engine)));
 }
 
 TEST(lstm_dynamic_negative, wrong_recurrent_size_1) {
@@ -938,7 +938,7 @@ TEST(lstm_dynamic_negative, wrong_recurrent_size_1) {
         "dyn_len",
         "weights",
         "recurrent"));
-    ASSERT_ANY_THROW(network network(engine, topology));
+    ASSERT_ANY_THROW(network network(engine, topology, get_test_default_config(engine)));
 }
 
 TEST(lstm_dynamic_negative, wrong_dynamic_length_size_0) {
@@ -963,7 +963,7 @@ TEST(lstm_dynamic_negative, wrong_dynamic_length_size_0) {
         "dyn_len",
         "weights",
         "recurrent"));
-    ASSERT_ANY_THROW(network network(engine, topology));
+    ASSERT_ANY_THROW(network network(engine, topology, get_test_default_config(engine)));
 }
 
 TEST(lstm_dynamic_negative, wrong_dynamic_length_size_1) {
@@ -988,5 +988,5 @@ TEST(lstm_dynamic_negative, wrong_dynamic_length_size_1) {
         "dyn_len",
         "weights",
         "recurrent"));
-    ASSERT_ANY_THROW(network network(engine, topology));
+    ASSERT_ANY_THROW(network network(engine, topology, get_test_default_config(engine)));
 }

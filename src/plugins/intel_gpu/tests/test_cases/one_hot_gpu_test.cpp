@@ -84,7 +84,7 @@ void generic_one_hot_test_int(cldnn::format test_input_fmt, int input_b, int inp
     topology.add(input_layout("input", input->get_layout()));
     topology.add(one_hot("output", input_info("input"), shape, one_hot_axis, one_hot_limit));
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
     network->set_input_data("input", input);
     auto outputs = network->execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -183,7 +183,7 @@ TEST(one_hot_gpu_i32, bfzyx_ax4) {
 
     set_values(input, input_rnd_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -242,7 +242,7 @@ TEST(one_hot_gpu_i64, bfzyx_ax4) {
 
     set_values(input, input_rnd_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -301,7 +301,7 @@ TEST(one_hot_gpu_i32_to_f32, bfyx_ax4) {
 
     set_values(input, input_rnd_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -354,7 +354,7 @@ TEST(one_hot_gpu_i64_to_f32, bfyx_ax4) {
 
     set_values(input, input_rnd_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -405,7 +405,7 @@ TEST(one_hot_gpu_i32, bfzyx_ax0) {
 
     set_values(input, input_rnd_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -460,7 +460,7 @@ TEST(one_hot_gpu_i64, bfzyx_ax0) {
 
     set_values(input, input_rnd_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -515,7 +515,7 @@ TEST(one_hot_gpu_i32, bfzyx_ax1) {
 
     set_values(input, input_rnd_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -570,7 +570,7 @@ TEST(one_hot_gpu_i64, bfzyx_ax1) {
 
     set_values(input, input_rnd_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -625,7 +625,7 @@ TEST(one_hot_gpu_i32, bfzyx_ax2) {
 
     set_values(input, input_rnd_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -680,7 +680,7 @@ TEST(one_hot_gpu_i64, bfzyx_ax2) {
 
     set_values(input, input_rnd_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -735,7 +735,7 @@ TEST(one_hot_gpu_i32, bfzyx_ax3) {
 
     set_values(input, input_rnd_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
@@ -790,7 +790,7 @@ TEST(one_hot_gpu_i64, bfzyx_ax3) {
 
     set_values(input, input_rnd_vec);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));

@@ -170,7 +170,7 @@ public:
 
             topology.add(primitive);
             topology.add(reorder("multiclass_nms", input_info("multiclass_nms_reordered"), plain_format, data_type));
-            ExecutionConfig config;
+            ExecutionConfig config = get_test_default_config(engine);
             config.set_property(ov::intel_gpu::optimize_data(false));
 
             cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), param.is_caching_test);
@@ -195,7 +195,7 @@ public:
                 cldnn::topology reorder_topology;
                 reorder_topology.add(input_layout("data", from_layout));
                 reorder_topology.add(reorder("plane_data", input_info("data"), plain_format, data_type));
-                cldnn::network reorder_net{engine, reorder_topology};
+                cldnn::network reorder_net{engine, reorder_topology, get_test_default_config(engine)};
                 reorder_net.set_input_data("data", mem);
                 const auto second_output_result = reorder_net.execute();
                 const auto plane_data_mem = second_output_result.at("plane_data").get_memory();

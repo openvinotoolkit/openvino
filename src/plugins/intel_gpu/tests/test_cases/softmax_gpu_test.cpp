@@ -73,7 +73,7 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(softmax("softmax", input_info("input"), 3));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -108,7 +108,7 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(softmax("softmax", input_info("input"), 3));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         network->set_input_data("input", input);
 
         auto outputs = network->execute();
@@ -165,7 +165,7 @@ public:
         topology.add(input_layout("input", input->get_layout()));
         topology.add(softmax("softmax", input_info("input"), 3));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
 
@@ -238,7 +238,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_y) {
         0.993307149f    //b=1, f=2, x=1
     };
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -318,7 +318,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_f) {
         0.977054322f //b=1, y=1, x=1
     };
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -403,7 +403,7 @@ TEST(softmax_gpu_bfzyx_f32, normalize_z) {
         0.880797f, 0.952574f,
     };
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -486,7 +486,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_b) {
         0.977054322f //f=1, y=1, x=1
     };
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     auto outputs = network.execute();
@@ -946,9 +946,9 @@ public:
 
         set_values(input, params.input);
 
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(false));
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
         const auto outputs = network->execute();
@@ -1048,7 +1048,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_f_dynamic) {
         0.977054322f //b=1, y=1, x=1
     };
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -1153,7 +1153,7 @@ TEST(softmax_gpu_bfyx_f32, bf_opt_normalize_f_dynamic) {
         0.719294981f  //b=1, y=0, x=0
     };
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
