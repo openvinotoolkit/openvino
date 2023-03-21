@@ -150,19 +150,18 @@ using ov::check_new_args_count;
         }
 #endif
 
-#define _NGRAPH_RTTI_DEFINITION_WITH_PARENT(CLASS, TYPE_NAME, PARENT_CLASS)               \
-    const ::ngraph::Node::type_info_t& CLASS::get_type_info_static() {                                    \
-        static const ::ngraph::Node::type_info_t type_info_static{TYPE_NAME,                              \
-                                                                  &PARENT_CLASS::get_type_info_static()}; \
-        return type_info_static;                                                                          \
-    }                                                                                                     \
-    _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)
-
-#define _NGRAPH_RTTI_DEFINITION_NO_PARENT(CLASS, TYPE_NAME)                                          \
+#define _NGRAPH_RTTI_DEFINITION_WITH_PARENT(CLASS, TYPE_NAME, PARENT_CLASS)                                          \
     const ::ngraph::Node::type_info_t& CLASS::get_type_info_static() {                                               \
-        static const ::ngraph::Node::type_info_t type_info_static{TYPE_NAME}; \
+        static const ::ngraph::Node::type_info_t type_info_static{TYPE_NAME, &PARENT_CLASS::get_type_info_static()}; \
         return type_info_static;                                                                                     \
     }                                                                                                                \
+    _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)
+
+#define _NGRAPH_RTTI_DEFINITION_NO_PARENT(CLASS, TYPE_NAME)                   \
+    const ::ngraph::Node::type_info_t& CLASS::get_type_info_static() {        \
+        static const ::ngraph::Node::type_info_t type_info_static{TYPE_NAME}; \
+        return type_info_static;                                              \
+    }                                                                         \
     _NGRAPH_RTTI_DEFINITION_COMMON(CLASS)
 #define NGRAPH_RTTI_DEFINITION(...)                                                               \
     _OPENVINO_RTTI_EXPAND(_OPENVINO_RTTI_DEFINITION_SELECTOR(__VA_ARGS__,                         \
