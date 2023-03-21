@@ -895,9 +895,9 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
         } else {
             for (auto&& device : devicesToBeMerged) {
                 if (!isAnyDev(device, deviceList)) {
-                    DeviceIDParser parsed{device};
-                    auto iter = std::find(devicesMerged.begin(), devicesMerged.end(), parsed.getDeviceName());
-                    if (iter != devicesMerged.end() && parsed.getDeviceName() != device && parsed.getDeviceID() == "0")
+                    ov::DeviceIDParser parsed{device};
+                    auto iter = std::find(devicesMerged.begin(), devicesMerged.end(), parsed.get_device_name());
+                    if (iter != devicesMerged.end() && parsed.get_device_name() != device && parsed.get_device_id() == "0")
                         // The device is the device with default device ID (eg. GPU.0) and
                         // its wide name (eg. GPU) has been in device candidate list.
                         continue;
@@ -912,8 +912,8 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
                         auto iter = std::find(devicesMerged.begin(), devicesMerged.end(), deviceWithDefaultID(item));
                         // Remove the device with default device id from candidate device list (eg. GPU.0)
                         // if its wide name is a single device (eg. GPU).
-                        DeviceIDParser parsed{item};
-                        if (parsed.getDeviceName() == item && iter != devicesMerged.end())
+                        ov::DeviceIDParser parsed{item};
+                        if (parsed.get_device_name() == item && iter != devicesMerged.end())
                             devicesMerged.erase(iter);
                         // continue if targe device has been in the candidate device list.
                         if (std::find(devicesMerged.begin(), devicesMerged.end(), item) != devicesMerged.end())
