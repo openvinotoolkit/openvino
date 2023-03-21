@@ -133,7 +133,7 @@ AtenIndexToSelect::AtenIndexToSelect() {
                 auto index = masked_indicies[0];
                 index = std::make_shared<v0::Convert>(index, element::i32);
                 if (is_masked_bool[0]) {
-                    //return false;
+                    // return false;
                     auto gather = std::make_shared<v8::GatherND>(input_node, index);
                     copy_runtime_info({index_op, indicies}, gather);
                     gather->set_friendly_name(index_op->get_friendly_name());
