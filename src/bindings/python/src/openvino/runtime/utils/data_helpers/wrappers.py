@@ -36,7 +36,7 @@ class OVDict(Mapping):
     """Custom OpenVINO dictionary with inference results.
 
     This class is a dict-like object. It provides possibility to
-    address each element with three key types:
+    address data tensors with three key types:
 
     * `openvino.runtime.ConstOutput` - port of the output
     * `int` - index of the output
@@ -50,7 +50,7 @@ class OVDict(Mapping):
     Note: It removes addressing feature! New dictionary keeps
           only `ConstOutput` keys.
 
-    If a tuple return value is needed, use `to_tuple` method which
+    If a tuple returns value is needed, use `to_tuple` method which
     converts values to the tuple.
 
     :Example:
