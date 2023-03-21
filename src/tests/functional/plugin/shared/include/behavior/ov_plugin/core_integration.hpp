@@ -216,10 +216,10 @@ TEST(OVClassBasicTest, compile_model_no_property_unicode) {
     std::string model_bin_name = "test_model.bin";
     generateModelFile();
     for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
-        GTEST_COUT << testIndex;
         std::wstring postfix = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
         std::wstring modelXmlPathW = CommonTestUtils::addUnicodePostfixToPath(model_xml_name, postfix);
         std::wstring modelBinPathW = CommonTestUtils::addUnicodePostfixToPath(model_bin_name, postfix);
+        GTEST_COUT << testIndex << ": " << ::ov::util::wstring_to_string(modelXmlPathW) << std::endl;
 
         try {
             bool is_copy_successfully;
@@ -258,10 +258,10 @@ TEST(OVClassBasicTest, compile_model_with_property_unicode) {
     std::string model_bin_name = "test_model.bin";
     generateModelFile();
     for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
-        GTEST_COUT << testIndex;
         std::wstring postfix = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
         std::wstring modelXmlPathW = CommonTestUtils::addUnicodePostfixToPath(model_xml_name, postfix);
         std::wstring modelBinPathW = CommonTestUtils::addUnicodePostfixToPath(model_bin_name, postfix);
+        GTEST_COUT << testIndex << ": " << ::ov::util::wstring_to_string(modelXmlPathW) << std::endl;
 
         try {
             bool is_copy_successfully;
@@ -296,16 +296,15 @@ TEST(OVClassBasicTest, compile_model_with_property_unicode) {
     CommonTestUtils::removeFile(model_bin_name);
 }
 
-TEST(OVClassBasicTest, compile_model_with_device_no_property_unicode) {
+TEST_P(OVClassBasicTestP, compile_model_with_device_no_property_unicode) {
     std::string model_xml_name = "test_model.xml";
     std::string model_bin_name = "test_model.bin";
     generateModelFile();
     for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
-        GTEST_COUT << testIndex;
         std::wstring postfix = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
         std::wstring modelXmlPathW = CommonTestUtils::addUnicodePostfixToPath(model_xml_name, postfix);
         std::wstring modelBinPathW = CommonTestUtils::addUnicodePostfixToPath(model_bin_name, postfix);
-
+        GTEST_COUT << testIndex << ": " << ::ov::util::wstring_to_string(modelXmlPathW) << std::endl;
         try {
             bool is_copy_successfully;
             is_copy_successfully = CommonTestUtils::copyFile(model_xml_name, modelXmlPathW);
@@ -322,7 +321,7 @@ TEST(OVClassBasicTest, compile_model_with_device_no_property_unicode) {
 
             ov::Core core = createCoreWithTemplate();
 
-            OV_ASSERT_NO_THROW(core.compile_model(modelXmlPathW, CommonTestUtils::DEVICE_CPU));
+            OV_ASSERT_NO_THROW(core.compile_model(modelXmlPathW, target_device));
             CommonTestUtils::removeFile(modelXmlPathW);
             CommonTestUtils::removeFile(modelBinPathW);
             GTEST_COUT << "OK" << std::endl;
@@ -338,15 +337,15 @@ TEST(OVClassBasicTest, compile_model_with_device_no_property_unicode) {
     CommonTestUtils::removeFile(model_bin_name);
 }
 
-TEST(OVClassBasicTest, compile_model_with_device_with_property_unicode) {
+TEST_P(OVClassBasicTestP, compile_model_with_device_with_property_unicode) {
     std::string model_xml_name = "test_model.xml";
     std::string model_bin_name = "test_model.bin";
     generateModelFile();
     for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
-        GTEST_COUT << testIndex;
         std::wstring postfix = L"_" + CommonTestUtils::test_unicode_postfix_vector[testIndex];
         std::wstring modelXmlPathW = CommonTestUtils::addUnicodePostfixToPath(model_xml_name, postfix);
         std::wstring modelBinPathW = CommonTestUtils::addUnicodePostfixToPath(model_bin_name, postfix);
+        GTEST_COUT << testIndex << ": " << ::ov::util::wstring_to_string(modelXmlPathW) << std::endl;
 
         try {
             bool is_copy_successfully;
@@ -364,8 +363,9 @@ TEST(OVClassBasicTest, compile_model_with_device_with_property_unicode) {
 
             ov::Core core = createCoreWithTemplate();
 
-            OV_ASSERT_NO_THROW(core.compile_model(modelXmlPathW, CommonTestUtils::DEVICE_CPU,
-                               ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
+            OV_ASSERT_NO_THROW(core.compile_model(modelXmlPathW,
+                                                  target_device,
+                                                  ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)));
             CommonTestUtils::removeFile(modelXmlPathW);
             CommonTestUtils::removeFile(modelBinPathW);
             GTEST_COUT << "OK" << std::endl;
