@@ -538,7 +538,7 @@ void AutoSchedule::WaitFirstNetworkReady() {
     }
     std::ostringstream result;
     //print errMessage
-    result << "Load network failed.";
+    result << "Load network failed, ";
     for (int i = CONTEXTNUM - 2; i >= 0; i--) {
         if (_loadContext[i].isEnabled) {
             result << _loadContext[i].errMessage.c_str();
