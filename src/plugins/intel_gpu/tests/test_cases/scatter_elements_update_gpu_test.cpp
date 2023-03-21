@@ -71,7 +71,7 @@ void test_d2411_axisF(bool is_caching_test) {
         scatter_elements_update("scatter_elements_update", input_info("InputData"), input_info("InputIndices"), input_info("InputUpdates"), axis)
     );
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("InputData", input1);
     network->set_input_data("InputIndices", input2);
@@ -296,7 +296,7 @@ public:
         );
         topology.add(reorder("ScatterEelementsUpdatePlain", input_info("ScatterEelementsUpdate"), plain_format, data_type));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Data", data);
         network->set_input_data("Indices", indices);

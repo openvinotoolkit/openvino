@@ -20,7 +20,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_group_norm(NodeContext& context) {
+OutputVector translate_group_norm(const NodeContext& context) {
     // aten::group_norm(Tensor input, int num_groups, Tensor? weight=None, Tensor? bias=None, float
     // eps=1.0000000000000001e-05, bool cudnn_enabled=True) -> Tensor
     num_inputs_check(context, 2, 6);

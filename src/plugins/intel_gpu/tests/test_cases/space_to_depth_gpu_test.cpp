@@ -36,7 +36,7 @@ public:
                 space_to_depth("space_to_depth", input_info("Input0"), space_to_depth::blocks_first, block_size)
         );
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input0", input1);
 
@@ -78,7 +78,7 @@ public:
                 space_to_depth("space_to_depth", input_info("Input0"), space_to_depth::blocks_first, block_size)
         );
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input0", input1);
 
@@ -126,7 +126,7 @@ public:
         space_to_depth("space_to_depth", input_info("Input0"), space_to_depth::blocks_first, block_size)
         );
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input0", input1);
 
@@ -188,7 +188,7 @@ public:
                 space_to_depth("space_to_depth", input_info("Input0"), space_to_depth::blocks_first, block_size)
         );
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input0", input1);
 
@@ -236,7 +236,7 @@ public:
                 space_to_depth("space_to_depth", input_info("Input0"), space_to_depth::depth_first, block_size)
         );
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input0", input1);
 
@@ -278,7 +278,7 @@ public:
                 space_to_depth("space_to_depth", input_info("Input0"), space_to_depth::depth_first, block_size)
         );
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input0", input1);
 
@@ -326,7 +326,7 @@ public:
                 space_to_depth("space_to_depth", input_info("Input0"), space_to_depth::depth_first, block_size)
         );
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input0", input1);
 
@@ -388,7 +388,7 @@ public:
                 space_to_depth("space_to_depth", input_info("Input0"), space_to_depth::depth_first, block_size)
         );
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input0", input1);
 
@@ -438,7 +438,7 @@ public:
                 space_to_depth("space_to_depth", input_info("Input0"), space_to_depth::blocks_first, block_size)
         );
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input0", input1);
 
@@ -477,7 +477,7 @@ public:
                 space_to_depth("space_to_depth", input_info("Input0"), space_to_depth::blocks_first, block_size)
         );
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input0", input1);
 
@@ -525,7 +525,7 @@ public:
             space_to_depth("space_to_depth", input_info("Input0"), space_to_depth::blocks_first, block_size)
         );
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input0", input1);
 
@@ -579,7 +579,7 @@ public:
                 space_to_depth("space_to_depth", input_info("Input0"), space_to_depth::blocks_first, block_size)
         );
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input0", input1);
 
@@ -626,7 +626,7 @@ public:
                 space_to_depth("space_to_depth", input_info("Input0"), space_to_depth::depth_first, block_size)
         );
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input0", input1);
 
@@ -665,7 +665,7 @@ public:
                 space_to_depth("space_to_depth", input_info("Input0"), space_to_depth::depth_first, block_size)
         );
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input0", input1);
 
@@ -713,7 +713,7 @@ public:
                 space_to_depth("space_to_depth", input_info("Input0"), space_to_depth::depth_first, block_size)
         );
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input0", input1);
 
@@ -767,7 +767,7 @@ public:
                 space_to_depth("space_to_depth", input_info("Input0"), space_to_depth::depth_first, block_size)
         );
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input0", input1);
 
@@ -822,7 +822,7 @@ public:
         topology.add(space_to_depth("space_to_depth", input_info("reorder"), space_to_depth::depth_first, block_size));
         topology.add(reorder("reorder_out", input_info("space_to_depth"), format::bfyx, data_types::f32));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input0", input1);
 
@@ -877,7 +877,7 @@ public:
         topology.add(space_to_depth("space_to_depth", input_info("reorder"), space_to_depth::depth_first, block_size));
         topology.add(reorder("reorder_out", input_info("space_to_depth"), format::bfyx, data_types::f32));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input0", input1);
 

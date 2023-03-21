@@ -209,8 +209,8 @@ std::istream& operator>>(std::istream& stream, CompiledBlobHeader& header) {
     }
 
     pugi::xml_node compiledBlobNode = document.document_element();
-    header.m_ieVersion = XMLParseUtils::GetStrAttr(compiledBlobNode, "ie_version");
-    header.m_fileInfo = XMLParseUtils::GetStrAttr(compiledBlobNode, "file_info");
+    header.m_ieVersion = pugixml::utils::GetStrAttr(compiledBlobNode, "ie_version");
+    header.m_fileInfo = pugixml::utils::GetStrAttr(compiledBlobNode, "file_info");
 
     return stream;
 }

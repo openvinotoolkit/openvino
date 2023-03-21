@@ -5,13 +5,15 @@
 
 namespace MultiDevicePlugin {
 const std::set<std::string> PluginConfig::_availableDevices = {"AUTO", "CPU", "GPU", "TEMPLATE", "NVIDIA", "VPUX", "MULTI", "HETERO", "mock"};
+// AUTO will enable the blocklist if
+// 1.No device priority passed to AUTO/MULTI.(eg. core.compile_model(model, "AUTO", configs);)
+// 2.No valid device parsed out from device priority (eg. core.compile_model(model, "AUTO:-CPU,-GPU", configs);).
+const std::set<std::string> PluginConfig::_deviceBlocklist = {"VPUX", "GNA"};
 
 PluginConfig::PluginConfig() {
     set_default();
     device_property_validator = std::dynamic_pointer_cast<BaseValidator>(std::make_shared<FuncValidator>([](const ov::Any& target) -> bool {
-        auto deviceName = target.as<std::string>();
-        return _availableDevices.end() != std::find(_availableDevices.begin(), _availableDevices.end(),
-                                                            DeviceIDParser(deviceName).getDeviceName());
+        return (target.as<std::string>().find(ov::device::properties.name()) != std::string::npos);
     }));
 }
 
@@ -26,6 +28,7 @@ void PluginConfig::set_default() {
         std::make_tuple(ov::hint::execution_mode, ov::hint::ExecutionMode::UNDEFINED),
         std::make_tuple(ov::hint::num_requests, 0, UnsignedTypeValidator()),
         std::make_tuple(ov::intel_auto::enable_startup_fallback, true),
+        std::make_tuple(ov::intel_auto::enable_runtime_fallback, true),
         // TODO 1) cache_dir 2) allow_auto_batch 3) auto_batch_timeout
         std::make_tuple(ov::cache_dir, ""),
         std::make_tuple(ov::hint::allow_auto_batching, true),
@@ -59,13 +62,13 @@ void PluginConfig::set_property(const ov::AnyMap& properties) {
             // when user call set_property to set some config to plugin, we also respect this and pass through the config in this case
             user_properties[name] = val;
         } else {
-            OPENVINO_ASSERT(false, "property:", name,  ": not supported");
+            OPENVINO_ASSERT(false, "property: ", name,  ": not supported");
         }
     }
 }
 
 ov::Any PluginConfig::get_property(const std::string& name) const {
-    OPENVINO_ASSERT(internal_properties.find(name) != internal_properties.end(), "[AUTO]", "not supported property ", name);
+    OPENVINO_ASSERT(internal_properties.find(name) != internal_properties.end(), "[AUTO]", " not supported property ", name);
     return internal_properties.at(name);
 }
 
@@ -97,7 +100,7 @@ void PluginConfig::set_user_property(const ov::AnyMap& config, bool checkfirstle
             } else if (!checkfirstlevel) { // for multi, accept it anyway when compiled model
                 user_properties[kv.first] = kv.second;
             } else {
-                OPENVINO_ASSERT(false, "property", name,  ": not supported");
+                OPENVINO_ASSERT(false, "property ", name,  ": not supported");
             }
         }
     }

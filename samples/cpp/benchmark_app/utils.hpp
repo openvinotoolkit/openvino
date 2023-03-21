@@ -58,11 +58,19 @@ using InputsInfo = std::map<std::string, InputInfo>;
 using PartialShapes = std::map<std::string, ngraph::PartialShape>;
 }  // namespace benchmark_app
 
+bool is_virtual_device(const std::string& device_name);
+bool is_virtual_device_found(const std::vector<std::string>& device_names);
 std::vector<std::string> parse_devices(const std::string& device_string);
 uint32_t device_default_device_duration_in_seconds(const std::string& device);
 std::map<std::string, std::string> parse_value_per_device(const std::vector<std::string>& devices,
                                                           const std::string& values_string);
 void parse_value_for_virtual_device(const std::string& device, std::map<std::string, std::string>& values_string);
+template <typename T>
+void update_device_config_for_virtual_device(const std::string& value,
+                                             ov::AnyMap& device_config,
+                                             ov::Property<T, ov::PropertyMutability::RW> property,
+                                             std::map<std::string, bool>& is_dev_set_property,
+                                             bool is_load_config = false);
 std::string get_shapes_string(const benchmark_app::PartialShapes& shapes);
 size_t get_batch_size(const benchmark_app::InputsInfo& inputs_info);
 std::vector<std::string> split(const std::string& s, char delim);

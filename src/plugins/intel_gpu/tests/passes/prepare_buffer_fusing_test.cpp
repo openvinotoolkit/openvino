@@ -34,7 +34,7 @@ TEST(prepare_buffer_fusing, optimize_reshape) {
     topology.add(permute("permute2", input_info("reshape"), {0, 3, 2, 1}));
     topology.add(reorder("reorder", input_info("permute2"), format::bfyx, data_types::f32));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     auto prog = program::build_program(engine, topology, config, false, true);
 
@@ -76,7 +76,7 @@ TEST(prepare_buffer_fusing, static_node_after_optimized_out_dyn_reshape) {
     topology.add(fully_connected("fc", input_info("reshape"), "weights", "", {}, 2));
     topology.add(reorder("reorder", input_info("fc"), format::bfyx, data_types::f32));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     auto prog = program::build_program(engine, topology, config, false, true);
     ASSERT_NE(prog, nullptr);
@@ -86,8 +86,7 @@ TEST(prepare_buffer_fusing, static_node_after_optimized_out_dyn_reshape) {
     program_wrapper::apply_opt_pass<compile_graph>(*prog);
     ASSERT_NO_THROW(prog->get_node("reshape"));
     ASSERT_FALSE(prog->get_node("reshape").can_be_optimized());
-    prog->compile();
-    prog->init_kernels();
+    program_wrapper::apply_opt_pass<build_implementations>(*prog);
 
     ASSERT_TRUE(has_node_with_type<reshape>(*prog));
 

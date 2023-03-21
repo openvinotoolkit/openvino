@@ -162,7 +162,7 @@ public:
             result_id = reorder_result_id;
         }
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data(input_data_id, input_mem);
 
@@ -182,8 +182,8 @@ public:
             return;
 
         const auto block_sizes = format::traits(target_layout).block_sizes;
-        const auto index_offset = std::accumulate(block_sizes.begin(), block_sizes.end(), 1u,
-                                                  [](size_t total, const std::pair<size_t, int>& b) {
+        const auto index_offset = std::accumulate(block_sizes.begin(), block_sizes.end(), 1,
+                                                  [](int total, const std::pair<size_t, int>& b) {
                                                       return total * b.second;
                                                   }
         );
@@ -192,7 +192,7 @@ public:
             cldnn::topology reorder_topology;
             reorder_topology.add(input_layout("indices", indices_layout));
             reorder_topology.add(reorder("plane_indices", input_info("indices"), plain_layout, data_types::i32));
-            cldnn::network reorder_net{engine, reorder_topology};
+            cldnn::network reorder_net{engine, reorder_topology, get_test_default_config(engine)};
             reorder_net.set_input_data("indices", indices_mem);
             const auto second_output_result = reorder_net.execute();
             const auto plane_indices_mem = second_output_result.at("plane_indices").get_memory();

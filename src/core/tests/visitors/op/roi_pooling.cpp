@@ -25,7 +25,7 @@ TEST(attributes, roi_pooling_op) {
     NodeBuilder builder(op, {data, coords});
     const auto g_op = ov::as_type_ptr<opset3::ROIPooling>(builder.create());
 
-    EXPECT_EQ(g_op->get_output_size(), op->get_output_size());
+    EXPECT_EQ(g_op->get_output_roi(), op->get_output_roi());
     EXPECT_EQ(g_op->get_spatial_scale(), op->get_spatial_scale());
     EXPECT_EQ(g_op->get_method(), op->get_method());
 }

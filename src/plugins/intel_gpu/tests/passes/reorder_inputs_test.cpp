@@ -42,7 +42,7 @@ TEST(reorder_inputs, propagation) {
     topology.add(pooling("pool", input_info("conv1"), pooling_mode::max, { 1, 1 }, { 1, 1 }));
     topology.add(convolution("conv2", input_info("pool"), { "weights" }));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     auto prog = program::build_program(engine, topology, config);
 
@@ -79,7 +79,7 @@ TEST(reorder_inputs, impl_forcing_basic_format) {
 
     ov::intel_gpu::ImplementationDesc pool_impl = { format::yxfb, "" };
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"pool", pool_impl} }));
 
     network network(engine, topology, config);
@@ -117,7 +117,7 @@ TEST(reorder_inputs, impl_forcing_not_existing) {
 
     ov::intel_gpu::ImplementationDesc pool_impl = { format::any, "NOT_EXISTING" };
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"pool", pool_impl} }));
 
     ASSERT_ANY_THROW(network network(engine, topology, config));
@@ -133,7 +133,7 @@ TEST(reorder_inputs, impl_forcing_basic_format_kernel) {
 
     ov::intel_gpu::ImplementationDesc actv_impl = { format::yxfb, "activation_ref" };
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"actv", actv_impl} }));
 
     network network(engine, topology, config);
@@ -189,7 +189,7 @@ TEST(reorder_inputs, impl_forcing_basic_format_kernel) {
 //    for (auto impl : possible_impls) {
 //        SCOPED_TRACE(to_string(impl));
 //
-//        ExecutionConfig config;
+//        ExecutionConfig config = get_test_default_config(engine);
 //        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", impl} }));
 //
 //        network network(engine, topology, config);
