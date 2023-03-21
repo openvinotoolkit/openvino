@@ -56,9 +56,8 @@ namespace ov {
  * @defgroup ov_dev_api_system_conf System configuration utilities
  * @brief API to get information about the system, core processor capabilities
  *
- * TODO: Move execution node
- * defgroup ie_dev_exec_graph Execution graph utilities
- * brief Contains `ExecutionNode` and its properties
+ * @defgroup ov_dev_exec_model Execution model utilities
+ * @brief Contains `ExecutionNode` and its properties
  *
  * @defgroup ov_dev_api_error_debug Error handling and debug helpers
  * @brief Utility methods to works with errors or exceptional situations
@@ -279,8 +278,8 @@ OPENVINO_RUNTIME_API std::unordered_set<std::string> get_supported_nodes(
             plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                                        \
             plugin->set_version(version);                                                                \
         } catch (const InferenceEngine::Exception& ex) {                                                 \
-            OPENVINO_UNREACHABLE(ex.what());                                                             \
+            OPENVINO_THROW(ex.what());                                                                   \
         } catch (const std::exception& ex) {                                                             \
-            OPENVINO_UNREACHABLE(ex.what());                                                             \
+            OPENVINO_THROW(ex.what());                                                                   \
         }                                                                                                \
     }

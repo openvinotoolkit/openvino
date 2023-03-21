@@ -13,6 +13,7 @@
 #include "cpp_interfaces/interface/ie_iexecutable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 #include "cpp_interfaces/interface/ie_ivariable_state_internal.hpp"
+#include "dev/make_tensor.hpp"
 #include "icompiled_model_wrapper.hpp"
 #include "ie_blob.h"
 #include "ie_common.h"
@@ -30,6 +31,7 @@
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/remote_context.hpp"
@@ -206,11 +208,11 @@ public:
     }
 
     void SetState(const InferenceEngine::Blob::Ptr& newState) override {
-        m_state->set_state(ov::Tensor(newState, {}));
+        m_state->set_state(ov::Tensor(ov::make_tensor(newState), {}));
     }
 
     InferenceEngine::Blob::CPtr GetState() const override {
-        return m_state->get_state()._impl;
+        return tensor_to_blob(m_state->get_state()._impl);
     }
 };
 
@@ -499,7 +501,7 @@ public:
 
     void SetBlob(const std::string& name, const InferenceEngine::Blob::Ptr& data) override {
         try {
-            m_request->set_tensor(find_port(name), ov::Tensor{data, {}});
+            m_request->set_tensor(find_port(name), ov::Tensor{ov::make_tensor(data), {}});
         } catch (const ov::Exception& ex) {
             const std::string what = ex.what();
             if (what.find("Failed to set tensor") != std::string::npos) {
@@ -513,7 +515,7 @@ public:
         try {
             std::vector<ov::Tensor> tensors;
             for (const auto& blob : blobs) {
-                tensors.emplace_back(ov::Tensor{blob, {}});
+                tensors.emplace_back(ov::Tensor{ov::make_tensor(blob), {}});
             }
             m_request->set_tensors(find_port(name), tensors);
         } catch (const ov::Exception& ex) {
@@ -522,14 +524,14 @@ public:
     }
 
     InferenceEngine::Blob::Ptr GetBlob(const std::string& name) override {
-        return m_request->get_tensor(find_port(name))._impl;
+        return tensor_to_blob(m_request->get_tensor(find_port(name))._impl);
     }
 
     InferenceEngine::BatchedBlob::Ptr GetBlobs(const std::string& name) override {
         auto tensors = m_request->get_tensors(find_port(name));
         std::vector<InferenceEngine::Blob::Ptr> blobs;
         for (const auto& tensor : tensors) {
-            blobs.emplace_back(tensor._impl);
+            blobs.emplace_back(tensor_to_blob(tensor._impl));
         }
         return std::make_shared<InferenceEngine::BatchedBlob>(blobs);
     }
@@ -604,11 +606,12 @@ public:
     }
 
     void set_state(const ov::Tensor& state) override {
-        m_state->SetState(state._impl);
+        m_state->SetState(ov::tensor_to_blob(state._impl));
     }
 
     const ov::Tensor& get_state() const override {
-        m_converted_state = ov::Tensor(std::const_pointer_cast<InferenceEngine::Blob>(m_state->GetState()), {});
+        m_converted_state =
+            ov::Tensor(ov::make_tensor(std::const_pointer_cast<InferenceEngine::Blob>(m_state->GetState())), {});
         return m_converted_state;
     }
 };
@@ -641,9 +644,9 @@ public:
         } catch (const InferenceEngine::InferCancelled& e) {
             throw ov::Cancelled{e.what()};
         } catch (const std::exception& ex) {
-            OPENVINO_UNREACHABLE(ex.what());
+            OPENVINO_THROW(ex.what());
         } catch (...) {
-            OPENVINO_UNREACHABLE("Unexpected exception");
+            OPENVINO_THROW("Unexpected exception");
         }
     }
     bool wait_for(const std::chrono::milliseconds& timeout) override {
@@ -652,9 +655,9 @@ public:
         } catch (const InferenceEngine::InferCancelled& e) {
             throw ov::Cancelled{e.what()};
         } catch (const std::exception& ex) {
-            OPENVINO_UNREACHABLE(ex.what());
+            OPENVINO_THROW(ex.what());
         } catch (...) {
-            OPENVINO_UNREACHABLE("Unexpected exception");
+            OPENVINO_THROW("Unexpected exception");
         }
     }
 
@@ -706,11 +709,11 @@ public:
                         name,
                         "'");
         auto blob = m_request->GetBlob(name);
-        ov::Tensor tensor = {blob, {m_request->getPointerToSo()}};
+        ov::Tensor tensor = {ov::make_tensor(blob), {m_request->getPointerToSo()}};
         return tensor;
     }
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::Tensor& tensor) override {
-        m_request->SetBlob(get_legacy_name_from_port(port), tensor._impl);
+        m_request->SetBlob(get_legacy_name_from_port(port), ov::tensor_to_blob(tensor._impl));
     }
 
     std::vector<ov::Tensor> get_tensors(const ov::Output<const ov::Node>& port) const override {
@@ -719,14 +722,14 @@ public:
         if (!blobs)
             return ret;
         for (size_t i = 0; i < blobs->size(); i++) {
-            ret.emplace_back(ov::Tensor{blobs->getBlob(i), {m_request->getPointerToSo()}});
+            ret.emplace_back(ov::Tensor{ov::make_tensor(blobs->getBlob(i)), {m_request->getPointerToSo()}});
         }
         return ret;
     }
     void set_tensors(const ov::Output<const ov::Node>& port, const std::vector<ov::Tensor>& tensors) override {
         std::vector<InferenceEngine::Blob::Ptr> blobs;
         for (const auto& tensor : tensors) {
-            blobs.emplace_back(tensor._impl);
+            blobs.emplace_back(ov::tensor_to_blob(tensor._impl));
         }
         m_request->SetBlobs(get_legacy_name_from_port(port), blobs);
     }
