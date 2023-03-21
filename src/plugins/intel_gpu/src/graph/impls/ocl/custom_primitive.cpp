@@ -47,9 +47,12 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     custom_gpu_primitive_impl(const custom_gpu_primitive_node& arg,
                              std::shared_ptr<kernel_selector::cl_kernel_data>& cl_kernel)
         : cl_kernel(cl_kernel)
-        , _kernels() {
-        auto _params = arg.get_kernel_impl_params();
-        arg.get_program().add_kernel(*_params, cl_kernel->code.kernelString);
+        , _kernels() { }
+
+    std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() override {
+        std::vector<std::shared_ptr<cldnn::kernel_string>> kernel_strings;
+        kernel_strings.push_back(cl_kernel->code.kernelString);
+        return kernel_strings;
     }
 
     void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) override {
@@ -78,10 +81,6 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
         args.outputs = { instance.output_memory_ptr() };
         return stream.enqueue_kernel(*_kernels.front(), cl_kernel.get()->params, args, events, instance.is_output());
     }
-
-    // std::vector<kernel::ptr> get_kernels() const override {
-    //     return _kernels;
-    // }
 
     void save(BinaryOutputBuffer& ob) const override {
         ob << *cl_kernel;
