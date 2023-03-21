@@ -104,36 +104,10 @@ InterpolateAttrs get_resize_attrs(const onnx_import::Node& node) {
     attrs.nearest_mode = static_cast<Nearest_mode>(mode_as_int(nearest_mode_map, nearest_mode));
     attrs.antialias = false;
     attrs.cube_coeff = node.get_attribute_value<float>("cubic_coeff_a", -0.75);
-
-    auto zero_pad = std::vector<size_t>(1, 0);
-
-    attrs.pads_begin = zero_pad;
-    attrs.pads_end = zero_pad;
+    attrs.pads_begin = {0};
+    attrs.pads_end = {0};
 
     return attrs;
-}
-
-std::shared_ptr<ngraph::Node> calculate_output_shape_based_on_scales(const Output<ngraph::Node>& data,
-                                                                     const Output<ngraph::Node>& scales) {
-    const auto shape_of_data = std::make_shared<default_opset::Convert>(std::make_shared<default_opset::ShapeOf>(data),
-                                                                        scales.get_element_type());
-    const auto multiply = std::make_shared<default_opset::Multiply>(shape_of_data, scales);
-    const auto output_shape = std::make_shared<default_opset::Convert>(multiply, ngraph::element::i64);
-
-    return output_shape;
-}
-
-std::shared_ptr<ngraph::Node> calculate_scales_based_on_sizes(const Output<ngraph::Node>& data,
-                                                              const Output<ngraph::Node>& sizes) {
-    const float epsilon = 1.0e-5f;
-    const auto shape_of_data =
-        std::make_shared<default_opset::Convert>(std::make_shared<default_opset::ShapeOf>(data), ngraph::element::f32);
-    const auto converted_sizes = std::make_shared<default_opset::Convert>(sizes, ngraph::element::f32);
-    const auto divide = std::make_shared<default_opset::Divide>(converted_sizes, shape_of_data);
-    const auto eps_node = std::make_shared<default_opset::Constant>(ngraph::element::f32, Shape{}, epsilon);
-    const auto scales = std::make_shared<default_opset::Add>(divide, eps_node);
-
-    return scales;
 }
 }  // namespace
 
@@ -149,16 +123,12 @@ OutputVector resize(const onnx_import::Node& node) {
     if (inputs.size() == 4 && !ngraph::op::is_null(inputs[3])) {
         attrs.shape_calculation_mode = default_opset::Interpolate::ShapeCalcMode::SIZES;
         const auto& sizes = inputs.at(3);
-        const auto scales = calculate_scales_based_on_sizes(data, sizes);
-
-        return {std::make_shared<default_opset::Interpolate>(data, sizes, scales, attrs)};
+        return {std::make_shared<default_opset::Interpolate>(data, sizes, attrs)};
+    } else {
+        attrs.shape_calculation_mode = default_opset::Interpolate::ShapeCalcMode::SCALES;
+        const auto& scales = inputs.at(2);
+        return {std::make_shared<default_opset::Interpolate>(data, scales, attrs)};
     }
-
-    attrs.shape_calculation_mode = default_opset::Interpolate::ShapeCalcMode::SCALES;
-
-    const auto& scales = inputs.at(2);
-    const auto output_shape = calculate_output_shape_based_on_scales(data, scales);
-    return {std::make_shared<default_opset::Interpolate>(data, output_shape, scales, attrs)};
 }
 }  // namespace set_11
 
@@ -169,6 +139,7 @@ OutputVector resize(const onnx_import::Node& node) {
     const auto& scales = inputs.at(1);
 
     auto attrs = get_resize_attrs(node);
+    attrs.shape_calculation_mode = default_opset::Interpolate::ShapeCalcMode::SCALES;
 
     if (attrs.mode == InterpolateMode::NEAREST) {
         attrs.nearest_mode = Nearest_mode::FLOOR;
@@ -177,8 +148,7 @@ OutputVector resize(const onnx_import::Node& node) {
         attrs.coordinate_transformation_mode = Transform_mode::ASYMMETRIC;
     }
 
-    const auto output_shape = calculate_output_shape_based_on_scales(data, scales);
-    return {std::make_shared<default_opset::Interpolate>(data, output_shape, scales, attrs)};
+    return {std::make_shared<default_opset::Interpolate>(data, scales, attrs)};
 }
 
 }  // namespace set_1
