@@ -143,7 +143,7 @@ public:
         const primitive_id eddo_id = "experimental_detectron_detection_output";
         topology.add(reorder(eddo_id, input_info(b_eddo_primitive) /*b_eddo_id*/, format::bfyx, data_type));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data(input_boxes_id, input_boxes);
         network->set_input_data(input_deltas_id, input_deltas);
@@ -159,7 +159,7 @@ public:
         cldnn::topology reorder_score_topology;
         reorder_score_topology.add(input_layout(b_output_scores_id, output_scores_layout));
         reorder_score_topology.add(reorder(output_scores_id, input_info(b_output_scores_id), format::bfyx, data_type));
-        cldnn::network reorder_score_net{engine, reorder_score_topology};
+        cldnn::network reorder_score_net{engine, reorder_score_topology, get_test_default_config(engine)};
         reorder_score_net.set_input_data(b_output_scores_id, b_output_scores);
         const auto score_result = reorder_score_net.execute();
         const auto output_scores = score_result.at(output_scores_id).get_memory();
@@ -170,7 +170,7 @@ public:
         cldnn::topology reorder_classes_topology;
         reorder_classes_topology.add(input_layout(b_output_classes_id, output_classes_layout));
         reorder_classes_topology.add(reorder(output_classes_id, input_info(b_output_classes_id), format::bfyx, data_types::i32));
-        cldnn::network reorder_classes_net{engine, reorder_classes_topology};
+        cldnn::network reorder_classes_net{engine, reorder_classes_topology, get_test_default_config(engine)};
         reorder_classes_net.set_input_data(b_output_classes_id, b_output_classes);
         const auto classes_result = reorder_classes_net.execute();
         const auto output_classes = classes_result.at(output_classes_id).get_memory();

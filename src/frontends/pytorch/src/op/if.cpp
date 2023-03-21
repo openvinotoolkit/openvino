@@ -13,7 +13,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_if(NodeContext& context) {
+OutputVector translate_if(const NodeContext& context) {
     auto if_node = std::make_shared<opset10::If>(context.get_input(0));
     context.mark_node(if_node);
     auto decoder = context.get_decoder();

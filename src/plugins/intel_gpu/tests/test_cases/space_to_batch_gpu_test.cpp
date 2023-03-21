@@ -40,7 +40,7 @@ public:
                                                                         tensor(format::bfyx, {0,0,0,0}, 0),
                                                                         tensor(format::bfyx, {8,1,1,1}, 1)));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input", input);
 
@@ -84,7 +84,7 @@ public:
                                                                         tensor(format::bfyx, {0,0,2,0}, 0),
                                                                         tensor(format::bfyx, {0,0,0,0}, 0),
                                                                         tensor(format::bfyx, {4,1,3,2}, 1)));
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input", input);
 
@@ -130,7 +130,7 @@ public:
                                                                         tensor(format::bfyx, {0,0,1,0}, 0),
                                                                         tensor(format::bfyx, {0,1,0,0}, 0),
                                                                         tensor(format::bfyx, {16,1,2,1}, 1)));
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input", input);
 
@@ -176,7 +176,7 @@ public:
                                                                         tensor(format::bfzyx, {0,0,0,1,0}, 0),
                                                                         tensor(format::bfzyx, {0,0,0,0,0}, 0),
                                                                         tensor(format::bfzyx, {8,1,1,2,1}, 1)));
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input", input);
 
@@ -224,7 +224,7 @@ public:
                                                                         tensor(format::bfwzyx, {0,1,0,1,0,0}, 0),
                                                                         tensor(format::bfwzyx, {0,0,0,0,0,0}, 0),
                                                                         tensor(format::bfwzyx, {16,1,2,2,1,1}, 1)));
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input", input);
 
@@ -277,7 +277,7 @@ public:
                                                                             tensor(format::bfyx, {0,0,0,1}, 0),
                                                                             tensor(format::bfyx, {8,8,1,1}, 1)));
         topology.add(reorder("stb_to_bfyx", input_info("space_to_batch"), format::bfyx, data_types::f16));
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input", input);
 
@@ -330,7 +330,7 @@ public:
                                                                             tensor(format::bfyx, {0,2,0,0}, 0),
                                                                             tensor(format::bfyx, {4,5,1,2}, 1)));
         topology.add(reorder("stb_to_bfyx", input_info("space_to_batch"), format::bfyx, data_types::f16));
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input", input);
 
@@ -406,7 +406,7 @@ public:
                                                                         tensor(format::bfyx, {0,0,0,0}, 0),
                                                                         tensor(format::bfyx, {0,0,0,0}, 0),
                                                                         tensor(format::bfyx, {8,1,1,1}, 1)));
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input", input);
 
@@ -450,7 +450,7 @@ public:
                                                                         tensor(format::bfyx, {0,0,2,0}, 0),
                                                                         tensor(format::bfyx, {0,0,0,0}, 0),
                                                                         tensor(format::bfyx, {4,1,3,2}, 1)));
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input", input);
 
@@ -496,7 +496,7 @@ public:
                                                                         tensor(format::bfyx, {0,0,1,0}, 0),
                                                                         tensor(format::bfyx, {0,1,0,0}, 0),
                                                                         tensor(format::bfyx, {16,1,2,1}, 1)));
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input", input);
 
@@ -542,7 +542,7 @@ public:
                                                                         tensor(format::bfzyx, {0,0,0,1,0}, 0),
                                                                         tensor(format::bfzyx, {0,0,0,0,0}, 0),
                                                                         tensor(format::bfzyx, {8,1,1,2,1}, 1)));
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input", input);
 
@@ -588,7 +588,7 @@ public:
                                                                         tensor(format::bfwzyx, {0,1,0,1,0,0}, 0),
                                                                         tensor(format::bfwzyx, {0,0,0,0,0,0}, 0),
                                                                         tensor(format::bfwzyx, {16,1,2,2,1,1}, 1)));
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input", input);
 
@@ -645,7 +645,7 @@ public:
                                                                             tensor(format::bfyx, {0,0,0,0}, 0),
                                                                             tensor(format::bfyx, {8,4,1,2}, 1)));
         topology.add(reorder("stb_to_bfyx", input_info("space_to_batch"), format::bfyx, data_types::f32));
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input", input);
 
@@ -699,7 +699,7 @@ public:
                                                                             tensor(format::bfyx, {0,0,0,0}, 0),
                                                                             tensor(format::bfyx, {6,2,2,2}, 1)));
         topology.add(reorder("stb_to_bfyx", input_info("space_to_batch"), format::bfyx, data_types::f32));
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("Input", input);
 

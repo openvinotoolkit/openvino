@@ -87,7 +87,19 @@ INSTANTIATE_TEST_SUITE_P(
 const std::vector<ov::AnyMap> multiConfigs = {
     {ov::device::priorities(CommonTestUtils::DEVICE_CPU)}
 };
-const std::vector<ov::AnyMap> configsDeviceProperties = {{ov::device::properties("CPU", ov::num_streams(3))}};
+const std::vector<ov::AnyMap> configsDeviceProperties = {{ov::device::properties("CPU", ov::num_streams(3))},
+                                                         {ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::num_streams(3)}}})}};
+const std::vector<ov::AnyMap> configsDevicePropertiesDouble = {{ov::device::properties("CPU", ov::num_streams(5)),
+                                                                ov::num_streams(3)},
+                                                               {ov::device::properties("CPU", ov::num_streams(5)),
+                                                                ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::num_streams(7)}}}),
+                                                                ov::num_streams(3)},
+                                                               {ov::device::properties("CPU", ov::num_streams(3)),
+                                                                ov::device::properties("CPU", ov::num_streams(5))},
+                                                               {ov::device::properties("CPU", ov::num_streams(3)),
+                                                                ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::num_streams(5)}}})},
+                                                               {ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::num_streams(3)}}}),
+                                                                ov::device::properties(ov::AnyMap{{"CPU", ov::AnyMap{ov::num_streams(5)}}})}};
 const std::vector<ov::AnyMap> configsWithSecondaryProperties = {
     {ov::device::properties("CPU", ov::num_streams(4))},
     {ov::device::properties("CPU",
@@ -130,10 +142,41 @@ const std::vector<ov::AnyMap> autoConfigsWithSecondaryProperties = {
      ov::device::properties("CPU",
                             ov::num_streams(4),
                             ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
-    {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+    {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
      ov::device::properties("AUTO",
                             ov::enable_profiling(false),
-                            ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+                            ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)),
+     ov::device::properties("CPU",
+                            ov::num_streams(4),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
+     ov::device::properties("GPU", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))}};
+
+const std::vector<ov::AnyMap> heteroConfigsWithSecondaryProperties = {
+    {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+     ov::device::properties("HETERO",
+                            ov::enable_profiling(false),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
+    {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+     ov::device::properties("CPU",
+                            ov::num_streams(4),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
+    {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+     ov::device::properties("CPU",
+                            ov::num_streams(4),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)),
+     ov::device::properties("GPU", ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY))},
+    {ov::device::priorities(CommonTestUtils::DEVICE_CPU),
+     ov::device::properties("HETERO",
+                            ov::enable_profiling(false),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)),
+     ov::device::properties("CPU",
+                            ov::num_streams(4),
+                            ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT))},
+    {ov::device::priorities(CommonTestUtils::DEVICE_GPU),
+     ov::device::properties("HETERO",
+                            ov::enable_profiling(false),
+                            ov::device::priorities(CommonTestUtils::DEVICE_CPU),
                             ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)),
      ov::device::properties("CPU",
                             ov::num_streams(4),
@@ -142,7 +185,7 @@ const std::vector<ov::AnyMap> autoConfigsWithSecondaryProperties = {
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassSetDevicePriorityConfigTest, OVClassSetDevicePriorityConfigTest,
-        ::testing::Combine(::testing::Values("MULTI", "AUTO"),
+        ::testing::Combine(::testing::Values("MULTI", "AUTO", "HETERO"),
                            ::testing::ValuesIn(multiConfigs)));
 //
 // IE Class GetConfig
@@ -265,7 +308,7 @@ INSTANTIATE_TEST_SUITE_P(
 // IE Class Load network
 INSTANTIATE_TEST_SUITE_P(smoke_CPU_OVClassLoadNetworkWithCorrectSecondaryPropertiesTest,
                          OVClassLoadNetworkWithCorrectPropertiesTest,
-                         ::testing::Combine(::testing::Values("CPU", "AUTO:CPU", "MULTI:CPU"),
+                         ::testing::Combine(::testing::Values("CPU", "AUTO:CPU", "MULTI:CPU", "HETERO:CPU"),
                                             ::testing::ValuesIn(configsWithSecondaryProperties)));
 
 INSTANTIATE_TEST_SUITE_P(smoke_Multi_OVClassLoadNetworkWithSecondaryPropertiesTest,
@@ -278,12 +321,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_AUTO_OVClassLoadNetworkWithSecondaryPropertiesTes
                          ::testing::Combine(::testing::Values("AUTO"),
                                             ::testing::ValuesIn(autoConfigsWithSecondaryProperties)));
 
+INSTANTIATE_TEST_SUITE_P(smoke_HETERO_OVClassLoadNetworkWithSecondaryPropertiesTest,
+                         OVClassLoadNetworkWithCorrectPropertiesTest,
+                         ::testing::Combine(::testing::Values("HETERO"),
+                                            ::testing::ValuesIn(heteroConfigsWithSecondaryProperties)));
+
 // IE Class load and check network with ov::device::properties
 INSTANTIATE_TEST_SUITE_P(smoke_CPU_OVClassLoadNetworkAndCheckWithSecondaryPropertiesTest,
                          OVClassLoadNetworkAndCheckSecondaryPropertiesTest,
                          ::testing::Combine(::testing::Values("CPU", "MULTI:CPU"),
                                             ::testing::ValuesIn(configsDeviceProperties)));
 
+INSTANTIATE_TEST_SUITE_P(smoke_CPU_OVClassLoadNetworkAndCheckWithSecondaryPropertiesDoubleTest,
+                         OVClassLoadNetworkAndCheckSecondaryPropertiesTest,
+                         ::testing::Combine(::testing::Values("CPU", "MULTI:CPU"),
+                                            ::testing::ValuesIn(configsDevicePropertiesDouble)));
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassLoadNetworkTest, OVClassLoadNetworkTest,
         ::testing::Values("CPU"));
