@@ -20,7 +20,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_var_mean(NodeContext& context) {
+OutputVector translate_var_mean(const NodeContext& context) {
     num_inputs_check(context, 1, 4);
     auto data = context.get_input(0);
     bool unbiased = true;
@@ -75,7 +75,7 @@ OutputVector translate_var_mean(NodeContext& context) {
     return {var, mean};
 };
 
-OutputVector translate_var(NodeContext& context) {
+OutputVector translate_var(const NodeContext& context) {
     auto res = translate_var_mean(context);
     return {res[0]};
 }
