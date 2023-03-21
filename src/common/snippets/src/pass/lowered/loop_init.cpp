@@ -161,12 +161,12 @@ bool LoopInit::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::LoweredL
     managed_outputs.push_back(loop_begin->output(0));
 
     auto is_buffer_input = [&linear_ir](const LoweredExprPtr& expr) {
-        const auto parent_expr = linear_ir.get_expr_by_output(expr->get_inputs().front());
+        const auto parent_expr = linear_ir.get_expr_by_output(expr->get_inputs().front()).first;
         return ov::is_type<op::Buffer>(parent_expr->get_node());
     };
     auto is_buffer_output = [&linear_ir](const LoweredExprPtr& expr) {
-        const auto child_exprs = linear_ir.get_exprs_by_input(expr->get_outputs().front());
-        return ov::is_type<op::Buffer>((*child_exprs.begin())->get_node());
+        const auto child_exprs_inputs = linear_ir.get_exprs_by_input(expr->get_outputs().front());
+        return ov::is_type<op::Buffer>((*child_exprs_inputs.begin()).first->get_node());
     };
     auto there_is_buffer = std::any_of(loop_in_exprs.begin(), loop_in_exprs.end(), is_buffer_input) ||
                            std::any_of(loop_out_exprs.begin(), loop_out_exprs.end(), is_buffer_output);
@@ -224,6 +224,9 @@ bool LoopInit::run(LoweredExprIR& linear_ir) {
             }
         }
     }
+
+    linear_ir.serialize("/home/a-sidorova/projects/loops/openvino/graphs/lin_5.xml",
+                        "/home/a-sidorova/projects/loops/openvino/graphs/lin_5.bin");
 
     return true;
 }

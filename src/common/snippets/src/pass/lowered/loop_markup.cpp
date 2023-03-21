@@ -24,7 +24,7 @@ void LoopMarkup::scalars_markup(LoweredExprIR& linear_ir, std::vector<LoweredExp
         const auto output_td = scalar_expr->get_outputs().front();
         const auto consumers = linear_ir.get_exprs_by_input(output_td);
         OPENVINO_ASSERT(consumers.size() == 1, "Scalar must have only one consumer!");
-        const auto consumer = *(consumers.begin());
+        const auto consumer = (*(consumers.begin())).first;
         scalar_expr->set_loop_identifies(consumer->get_loop_identifies());
 
         const auto consumer_it = std::find(scalar_it, linear_ir.cend(), consumer);
@@ -98,7 +98,7 @@ bool LoopMarkup::run(LoweredExprIR& linear_ir) {
 
             // If the next expr isn't real customer of prev expr we should finish Loop
             const auto& ins = loop_end_pos->get()->get_inputs();
-            auto connected = [&](const TensorDescriptorPtr& td) {return linear_ir.get_expr_by_output(td) == body_exprs.back();};
+            auto connected = [&](const TensorDescriptorPtr& td) {return linear_ir.get_expr_by_output(td).first == body_exprs.back();};
             if (std::none_of(ins.begin(), ins.end(), connected))
                 break;
 
@@ -112,6 +112,9 @@ bool LoopMarkup::run(LoweredExprIR& linear_ir) {
     }
 
     scalars_markup(linear_ir, scalars_iterators);
+
+    linear_ir.serialize("/home/a-sidorova/projects/loops/openvino/graphs/lin_0.xml",
+                        "/home/a-sidorova/projects/loops/openvino/graphs/lin_0.bin");
 
     return true;
 }

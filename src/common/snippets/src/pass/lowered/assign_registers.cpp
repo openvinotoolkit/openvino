@@ -82,19 +82,19 @@ bool AssignRegisters::run(LoweredExprIR& linear_ir) {
             // We should manually set the one vector register for VectorBuffer and Max/Sum output to simulate a accumulator
             // TODO [96351]: We should rewrite accumulator pattern using another way
             const auto input_td = expr->get_inputs()[0];
-            const auto& input_expr = linear_ir.get_expr_by_output(input_td);
+            const auto& input_expr = linear_ir.get_expr_by_output(input_td).first;
             const auto& input_expr_input_tds = input_expr->get_inputs();
             for (const auto& td : input_expr_input_tds) {
-                if (ov::is_type<op::VectorBuffer>(linear_ir.get_expr_by_output(td)->get_node())) {
+                if (ov::is_type<op::VectorBuffer>(linear_ir.get_expr_by_output(td).first->get_node())) {
                     manually_assigned_vecs[td] = static_cast<Reg>(accumulator_reg);
                 }
             }
             const auto output_td = expr->get_outputs()[0];
             manually_assigned_vecs[input_td] = static_cast<Reg>(accumulator_reg);
             manually_assigned_vecs[output_td] = static_cast<Reg>(accumulator_reg);
-            for (const auto& child_expr : linear_ir.get_exprs_by_input(output_td)) {
-                if (ov::is_type<op::BroadcastMove>(child_expr->get_node())) {
-                    manually_assigned_vecs[child_expr->get_outputs()[0]] =
+            for (const auto& child_expr_input : linear_ir.get_exprs_by_input(output_td)) {
+                if (ov::is_type<op::BroadcastMove>(child_expr_input.first->get_node())) {
+                    manually_assigned_vecs[child_expr_input.first->get_outputs()[0]] =
                             static_cast<Reg>(accumulator_reg);
                 }
             }
@@ -197,7 +197,8 @@ bool AssignRegisters::run(LoweredExprIR& linear_ir) {
             if (is_type<op::LoopEnd>(expr->get_node()) || is_type<opset1::Result>(expr->get_node()))
                 continue;
             for (const auto& out : expr->get_outputs()) {
-                for (const auto& child_expr : linear_ir.get_exprs_by_input(out)) {
+                for (const auto& child_expr_input : linear_ir.get_exprs_by_input(out)) {
+                    const auto& child_expr = child_expr_input.first;
                     auto child_it = linear_ir.begin();
                     std::advance(child_it, n);
                     size_t k = n;

@@ -45,10 +45,12 @@ bool LoadStoreInsertion::insert_load(LoweredExprIR& linear_ir,
         return false;
     }
 
-    const auto input_td = expr->get_inputs()[port];
-    const auto parent_expr = linear_ir.get_expr_by_output(input_td);
+    const auto inputs = expr->get_inputs();
+    const auto input_td = inputs[port];
+    const auto parent_output = linear_ir.get_expr_by_output(input_td);
+    const auto parent_expr = parent_output.first;
+    const auto parent_port = parent_output.second;
     const auto parent = parent_expr->get_node();
-    const auto parent_port = parent_expr->get_output_port_num(input_td);
 
     if (!ov::is_type<op::Buffer>(parent) && !ov::is_type<opset1::Parameter>(parent)) {
         return false;
@@ -62,7 +64,7 @@ bool LoadStoreInsertion::insert_load(LoweredExprIR& linear_ir,
     const auto param_outs = std::vector<TensorDescriptorPtr>{ input_td };
     const auto load_expr = std::make_shared<LoweredExpr>(load, param_outs, load_outs);
     linear_ir.insert(std::find(loop_begin_pos, loop_end_pos, expr), load_expr);
-    linear_ir.replace_input(expr, input_td, load_td);
+    linear_ir.replace_input({expr, port}, load_td);
     const auto new_entry_point = LoweredExprPort{load_expr, 0};
     // Copy Loop identifies
     const auto loop_identifies = expr->get_loop_identifies();
@@ -87,12 +89,13 @@ bool LoadStoreInsertion::insert_store(LoweredExprIR& linear_ir,
     bool was_inserted = false;
     std::vector<LoweredExprPort> new_exit_exprs;
     const auto output_td = expr->get_outputs()[port];
-    const auto child_exprs = linear_ir.get_exprs_by_input(output_td);
+    const auto child_exprs_inputs = linear_ir.get_exprs_by_input(output_td);
     const auto loop_identifies = expr->get_loop_identifies();
     auto store_pos = std::next(std::find(loop_begin_pos, linear_ir.cend(), expr));
-    for (const auto& child_expr : child_exprs) {
+    for (const auto& child_expr_input : child_exprs_inputs) {
+        const auto child_expr = child_expr_input.first;
+        const auto port = child_expr_input.second;
         const auto child = child_expr->get_node();
-        const auto port = child_expr->get_input_port_num(output_td);
 
         if (!ov::is_type<op::Buffer>(child) && !ov::is_type<opset1::Result>(child)) {
             continue;
@@ -106,7 +109,7 @@ bool LoadStoreInsertion::insert_store(LoweredExprIR& linear_ir,
         const std::vector<TensorDescriptorPtr> store_outs { store_td };
         const auto store_expr = std::make_shared<LoweredExpr>(store, parent_outs, store_outs);
         linear_ir.insert(store_pos, store_expr);
-        linear_ir.replace_input(child_expr, output_td, store_td);
+        linear_ir.replace_input({child_expr, port}, store_td);
         // Copy Loop identifies
         store_expr->set_loop_identifies(loop_identifies);
         // Update entry expressions.
@@ -164,6 +167,9 @@ bool LoadStoreInsertion::run(LoweredExprIR& linear_ir) {
             modified |= insert_store(linear_ir, loop_manager, exit_point, loop_begin_pos, loop_end_pos);
         }
     }
+
+    linear_ir.serialize("/home/a-sidorova/projects/loops/openvino/graphs/lin_4.xml",
+                        "/home/a-sidorova/projects/loops/openvino/graphs/lin_4.bin");
 
     return modified;
 }

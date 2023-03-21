@@ -53,16 +53,14 @@ public:
     void set_reg_info(RegInfo rinfo) {m_reg_info = std::move(rinfo);}
     const std::vector<TensorDescriptorPtr>& get_inputs() {return m_inputs; }
     const std::vector<TensorDescriptorPtr>& get_outputs() {return m_outputs; }
-    size_t get_input_port_num(const TensorDescriptorPtr& input) const;
-    size_t get_output_port_num(const TensorDescriptorPtr& output) const;
     std::vector<size_t> get_loop_identifies() const { return m_loop_identifies; }
     void set_loop_identifies(const std::vector<size_t>& loops) { m_loop_identifies = loops; }
     void set_loop_identificator(size_t id, size_t idx);
     void remove_loop_identificator(size_t id);
 
 protected:
-    void replace_input(const TensorDescriptorPtr& from, TensorDescriptorPtr to);
-    void replace_output(const TensorDescriptorPtr& from, TensorDescriptorPtr to);
+    void replace_input(size_t port, TensorDescriptorPtr to);
+    void replace_output(size_t port, TensorDescriptorPtr to);
     std::shared_ptr<Node> m_source_node{nullptr};
     std::shared_ptr<Emitter> m_emitter{nullptr};
     std::vector<TensorDescriptorPtr> m_inputs;
@@ -85,7 +83,7 @@ private:
 };
 
 using LoweredExprPtr = std::shared_ptr<LoweredExpr>;
-using LoweredExprPort = std::pair<ngraph::snippets::LoweredExprPtr, size_t>;
+using LoweredExprPort = std::pair<LoweredExprPtr, size_t>;
 class LoweredExprIR {
 public:
     using container = std::list<LoweredExprPtr>;
@@ -102,10 +100,10 @@ public:
     void init_emitters(const std::shared_ptr<TargetMachine>& target);
     LoweringConfig get_config() {return m_config; }
     LoweredExprPtr get_expr_by_node(const std::shared_ptr<Node>& n) const;
-    LoweredExprPtr get_expr_by_output(const TensorDescriptorPtr& n) const;
-    const std::set<LoweredExprPtr>& get_exprs_by_input(const TensorDescriptorPtr& n) const;
-    void replace_input(const LoweredExprPtr& expr, const TensorDescriptorPtr& from, TensorDescriptorPtr to);
-    void replace_output(const LoweredExprPtr& expr, const TensorDescriptorPtr& from, const TensorDescriptorPtr& to);
+    LoweredExprPort get_expr_by_output(const TensorDescriptorPtr& n) const;
+    const std::set<LoweredExprPort>& get_exprs_by_input(const TensorDescriptorPtr& n) const;
+    void replace_input(const LoweredExprPort& expr_port, TensorDescriptorPtr to);
+    void replace_output(const LoweredExprPort& expr_port, const TensorDescriptorPtr& to);
     exprIt insert(constExprIt pos, const ov::NodeVector& nodes);
     exprIt insert(constExprIt pos, const std::shared_ptr<Node>& n);
     exprIt insert(constExprIt pos, container::value_type&& value);
@@ -218,10 +216,10 @@ private:
     container m_lowered_ops{};
     std::unordered_map<std::shared_ptr<Node>, std::shared_ptr<LoweredExpr>> m_node2expression_map;
     // Expression must be uniquely identified by an output, so there can't be expressions that have the same output
-    std::unordered_map<TensorDescriptorPtr , LoweredExprPtr> m_output2expression_map;
+    std::unordered_map<TensorDescriptorPtr, LoweredExprPort> m_output2expression_map;
     // At the same time, several expressions can have the same input if they are connected to the same parent
     // E.g. LoopEnd will always have the same input as a Load inside the loop (since it has to increment the same reg)
-    std::unordered_map<TensorDescriptorPtr , std::set<LoweredExprPtr>> m_input2expression_map;
+    std::unordered_map<TensorDescriptorPtr, std::set<LoweredExprPort>> m_input2expression_map;
     io_container m_io_lowered_ops;
     LoweringConfig m_config{};
     LoweredLoopManagerPtr m_loop_manager = nullptr;

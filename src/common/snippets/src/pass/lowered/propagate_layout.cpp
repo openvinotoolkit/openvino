@@ -26,11 +26,12 @@ bool PropagateLayout::run(LoweredExprIR& linear_ir) {
             const auto& target_td = tds[0];
             // If input - we should be looking downstream, if output - upstream
             if (is_input) {
-                const auto& child_exprs = linear_ir.get_exprs_by_input(target_td);
+                const auto& child_exprs_inputs = linear_ir.get_exprs_by_input(target_td);
                 // Note that here we consider only the first child (which is usually load),
                 // but often there is another child - LoopEnd
                 std::vector<size_t> child_layout{};
-                for (const auto& child : child_exprs) {
+                for (const auto& child_input : child_exprs_inputs) {
+                    const auto child = child_input.first;
                     const auto& n = child->get_node();
                     if (is_type<op::MemoryAccess>(n) || is_type<op::BroadcastLoad>(n)) {
                         // Note: this limitation could be relaxed to multiple ops,

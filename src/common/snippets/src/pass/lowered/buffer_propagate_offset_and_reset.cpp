@@ -17,7 +17,7 @@ void PropagateOffsetAndResetBuffer::propagate_offset(const LoweredExprIR& linear
 
     // Propagate to up: in Store. Buffer can have only one Store
     {
-        auto parent_expr = linear_ir.get_expr_by_output(buffer_expr->get_inputs()[0]);
+        auto parent_expr = linear_ir.get_expr_by_output(buffer_expr->get_inputs()[0]).first;
         auto parent_node = parent_expr->get_node();
         if (auto store = ov::as_type_ptr<snippets::op::Store>(parent_node)) {
             store->set_offset(offset);
@@ -30,7 +30,8 @@ void PropagateOffsetAndResetBuffer::propagate_offset(const LoweredExprIR& linear
     }
     // Propagate to down: in Load. Buffer can have several Load and Loops after himself. We should go through all target inputs
     const auto& buffer_out = buffer_expr->get_outputs()[0];
-    for (const auto& child_expr : linear_ir.get_exprs_by_input(buffer_out)) {
+    for (const auto& child_expr_input : linear_ir.get_exprs_by_input(buffer_out)) {
+        const auto& child_expr = child_expr_input.first;
         const auto& child_node = child_expr->get_node();
          if (const auto load = ov::as_type_ptr<op::Load>(child_node)) {
             load->set_offset(offset);
@@ -66,7 +67,7 @@ bool PropagateOffsetAndResetBuffer::run(LoweredExprIR& linear_ir) {
                 m_buffer_scratchpad_size += buffer_size;
                 continue;
             }
-            const auto& parent_expr = linear_ir.get_expr_by_output(expr_it->get()->get_inputs()[0]);
+            const auto& parent_expr = linear_ir.get_expr_by_output(expr_it->get()->get_inputs()[0]).first;
             const auto& prent_node = parent_expr->get_node();
             // Brgemm is a special case, since it doesn't allow memory reuse
             if (ov::is_type<op::Brgemm>(prent_node)) {
@@ -93,11 +94,11 @@ bool PropagateOffsetAndResetBuffer::run(LoweredExprIR& linear_ir) {
             for (int i = 0; i < static_cast<int>(ins.size()) - 1; i++) {
                 const auto& in = ins[i];
                 // If producer of the input expr is buffer: this covers Buffer->Load patterns
-                if (ov::is_type<op::Buffer>(linear_ir.get_expr_by_output(in)->get_node()))
+                if (ov::is_type<op::Buffer>(linear_ir.get_expr_by_output(in).first->get_node()))
                     buffer_idx.push_back(i);
                 // If consumer of the input is buffer: Store->Buffer patterns
                 for (const auto& consumer : linear_ir.get_exprs_by_input(in)) {
-                    if (ov::is_type<op::Buffer>(consumer->get_node()))
+                    if (ov::is_type<op::Buffer>(consumer.first->get_node()))
                         buffer_idx.push_back(i);
                 }
             }

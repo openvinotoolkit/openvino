@@ -47,32 +47,14 @@ void LoweredExpr::init_emitter(const std::shared_ptr<const TargetMachine>& targe
     m_emitter = target->get(m_source_node->get_type_info())(m_source_node);
 }
 
-void LoweredExpr::replace_input(const TensorDescriptorPtr& from, TensorDescriptorPtr to) {
-    const auto& found = std::find(m_inputs.begin(), m_inputs.end(), from);
-    if (found == m_inputs.end())
-        throw ngraph_error("Failed to replace: target input is not found");
-    *found = std::move(to);
+void LoweredExpr::replace_input(size_t port, TensorDescriptorPtr to) {
+    OPENVINO_ASSERT(port < m_inputs.size(), "Failed to replace: target input port must be less than input count!");
+    m_inputs[port] = std::move(to);
 }
 
-void LoweredExpr::replace_output(const TensorDescriptorPtr& from, TensorDescriptorPtr to) {
-    const auto& found = std::find(m_outputs.begin(), m_outputs.end(), from);
-    if (found == m_outputs.end())
-        throw ngraph_error("Failed to replace: target output is not found");
-    *found = std::move(to);
-}
-
-size_t LoweredExpr::get_input_port_num(const TensorDescriptorPtr& input) const {
-    const auto iter = std::find(m_inputs.begin(), m_inputs.end(), input);
-    if (iter == m_inputs.end())
-        throw ngraph_error("Failed to get input port: target input is not found");
-    return std::distance(m_inputs.begin(), iter);
-}
-
-size_t LoweredExpr::get_output_port_num(const TensorDescriptorPtr& output) const {
-    const auto iter = std::find(m_outputs.begin(), m_outputs.end(), output);
-    if (iter == m_outputs.end())
-        throw ngraph_error("Failed to get output port: target output is not found");
-    return std::distance(m_outputs.begin(), iter);
+void LoweredExpr::replace_output(size_t port, TensorDescriptorPtr to) {
+    OPENVINO_ASSERT(port < m_outputs.size(), "Failed to replace: target output port must be less than output count!");
+    m_outputs[port] = std::move(to);
 }
 
 void LoweredExpr::set_loop_identificator(size_t id, size_t idx) {
@@ -242,42 +224,50 @@ LoweredExprPtr LoweredExprIR::get_expr_by_node(const std::shared_ptr<Node>& n) c
     return found == m_node2expression_map.end() ? nullptr : found->second;
 }
 
-LoweredExprPtr LoweredExprIR::get_expr_by_output(const TensorDescriptorPtr& td) const {
+LoweredExprPort LoweredExprIR::get_expr_by_output(const TensorDescriptorPtr& td) const {
     auto found = m_output2expression_map.find(td);
     if (found == m_output2expression_map.end())
         throw ngraph_error("Failed to find expression by output tensor descriptor");
     return found->second;
 }
 
-const std::set<LoweredExprPtr>& LoweredExprIR::get_exprs_by_input(const TensorDescriptorPtr& td) const {
+const std::set<LoweredExprPort>& LoweredExprIR::get_exprs_by_input(const TensorDescriptorPtr& td) const {
     auto found = m_input2expression_map.find(td);
     if (found == m_input2expression_map.end())
         throw ngraph_error("Failed to find expression by input tensor descriptor");
     return found->second;
 }
 
-void LoweredExprIR::replace_input(const LoweredExprPtr& expr, const TensorDescriptorPtr& from, TensorDescriptorPtr to) {
+void LoweredExprIR::replace_input(const LoweredExprPort& expr_port, TensorDescriptorPtr to) {
+    const auto& expr = expr_port.first;
+    const auto port = expr_port.second;
+    OPENVINO_ASSERT(port < expr->m_inputs.size(), "Failed to replace: target input port must be less than input count!");
+    const auto from = expr->m_inputs[port];
     auto found = m_input2expression_map.find(from);
-    if (found == m_input2expression_map.end() || found->second.count(expr) == 0)
+    if (found == m_input2expression_map.end() || found->second.count(expr_port) == 0)
         throw ngraph_error("Invalid expression of input was provided to replace_input");
-    found->second.erase(expr);
+    found->second.erase(expr_port);
     {
-        const auto& res = m_input2expression_map.insert({to, std::set<LoweredExprPtr> {expr}});
+        const auto& res = m_input2expression_map.insert({to, std::set<LoweredExprPort>{expr_port}});
         // If input is already in the map => add ExprPtr to the mapped set
         if (!res.second) {
-            res.first->second.insert(expr);
+            res.first->second.insert(expr_port);
         }
     }
-    expr->replace_input(from, std::move(to));
+    expr->replace_input(port, std::move(to));
 }
 
-void LoweredExprIR::replace_output(const LoweredExprPtr& expr, const TensorDescriptorPtr& from, const TensorDescriptorPtr& to) {
+void LoweredExprIR::replace_output(const LoweredExprPort& expr_port, const TensorDescriptorPtr& to) {
+    const auto& expr = expr_port.first;
+    const auto port = expr_port.second;
+    OPENVINO_ASSERT(port < expr->m_outputs.size(), "Failed to replace: target output port must be less than output count!");
+    const auto from = expr->m_outputs[port];
     auto found = m_output2expression_map.find(from);
-    if (found == m_output2expression_map.end() || found->second != expr)
+    if (found == m_output2expression_map.end() || found->second != expr_port)
         throw ngraph_error("Invalid expression of output was provided to replace_output");
     m_output2expression_map.erase(found);
-    m_output2expression_map[to] = expr;
-    expr->replace_output(from, to);
+    m_output2expression_map[to] = expr_port;
+    expr->replace_output(port, to);
 }
 
 void LoweredExprIR::register_regular_expression(const LoweredExprPtr& expr) {
@@ -293,14 +283,18 @@ void LoweredExprIR::register_expression(const LoweredExprPtr& expr) {
         if (!res.second)
             throw ngraph_error("Duplicate node is detected in linear IR: " + std::string(node->get_friendly_name()));
     }
-    for (const auto& out : expr->m_outputs)
-        m_output2expression_map[out] = expr;
+    for (size_t i = 0; i < expr->m_outputs.size(); ++i) {
+        const auto& out = expr->m_outputs[i];
+        m_output2expression_map[out] = { expr, i };
+    }
 
-    for (const auto& in : expr->m_inputs) {
-        const auto& res = m_input2expression_map.insert({in, std::set<LoweredExprPtr>{expr}});
+    for (size_t i = 0; i < expr->m_inputs.size(); ++i) {
+        const auto& in = expr->m_inputs[i];
+        const auto expr_port = LoweredExprPort{expr, i};
+        const auto& res = m_input2expression_map.insert({in, std::set<LoweredExprPort>{expr_port}});
         // If input is already in the map => add ExprPtr to the mapped set
         if (!res.second) {
-            res.first->second.insert(expr);
+            res.first->second.insert(expr_port);
         }
     }
 }
@@ -309,6 +303,7 @@ void LoweredExprIR::unregister_expression(const LoweredExprPtr& expr) {
     for (const auto& out : expr->m_outputs)
         m_output2expression_map.erase(out);
 
+    size_t in_port = 0;
     for (const auto& in : expr->m_inputs) {
         const auto& found = m_input2expression_map.find(in);
         if (found != m_input2expression_map.end()) {
@@ -318,8 +313,9 @@ void LoweredExprIR::unregister_expression(const LoweredExprPtr& expr) {
             if (users.size() == 1)
                 m_input2expression_map.erase(found);
             else
-                users.erase(expr);
+                users.erase({expr, in_port});
         }
+        ++in_port;
     }
 
     m_node2expression_map.erase(expr->get_node());
@@ -473,7 +469,7 @@ void LoweredExprIR::LoweredLoopManager::get_io_loop_ports(LoweredExprIR& linear_
 
         for (size_t in_port = 0; in_port < inputs.size(); ++in_port) {
             const auto in_td = inputs[in_port];
-            const auto parent_expr = linear_ir.get_expr_by_output(in_td);
+            const auto parent_expr = linear_ir.get_expr_by_output(in_td).first;
             if (!ov::is_type<opset1::Constant>(parent_expr->get_node()) &&
                 std::find(body_exprs.begin(), body_exprs.begin() + i, parent_expr) == body_exprs.begin() + i) {
                 entries.push_back({expr, in_port});
@@ -484,7 +480,7 @@ void LoweredExprIR::LoweredLoopManager::get_io_loop_ports(LoweredExprIR& linear_
             const auto out_td = outputs[out_port];
             const auto consumer_exprs = linear_ir.get_exprs_by_input(out_td);
             for (const auto& conumer_expr : consumer_exprs) {
-                if (std::find(body_exprs.begin() + i, body_exprs.end(), conumer_expr) == body_exprs.end()) {
+                if (std::find(body_exprs.begin() + i, body_exprs.end(), conumer_expr.first) == body_exprs.end()) {
                     exits.push_back({expr, out_port});
                     break;
                 }

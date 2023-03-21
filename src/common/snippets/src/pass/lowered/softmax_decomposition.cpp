@@ -93,9 +93,9 @@ bool SoftmaxDecomposition::run(LoweredExprIR& linear_ir) {
             const auto mul = push_node(std::make_shared<ov::op::v1::Multiply>(exp.second, broadcast_pow.second));
 
             // Transfer original TensorDescriptors
-            linear_ir.replace_input(*max.first, (*max.first)->get_inputs()[0], input_tds.front());
-            linear_ir.replace_input(*sub.first, (*sub.first)->get_inputs()[0], input_tds.front());
-            linear_ir.replace_output(*mul.first, (*mul.first)->get_outputs()[0], output_tds.front());
+            linear_ir.replace_input({*max.first, 0}, input_tds.front());
+            linear_ir.replace_input({*sub.first, 0}, input_tds.front());
+            linear_ir.replace_output({*mul.first, 0}, output_tds.front());
 
             // Markup of Mul Loop
             loop_manager->marking(linear_ir, mul.first, expr_it, 1, inner_work_amount, m_vector_size,
