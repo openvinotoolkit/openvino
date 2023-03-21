@@ -16,7 +16,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_layer_norm(NodeContext& context) {
+OutputVector translate_layer_norm(const NodeContext& context) {
     num_inputs_check(context, 5, 6);
     auto eps = context.const_input<float>(4);
     auto normalized_shape = context.const_input<Shape>(1);

@@ -4,8 +4,8 @@ ov::CompiledModel class functionality:
 - Compile an ov::Model instance to a backend specific graph representation
 - Create an arbitrary number of ov::InferRequest objects
 - Hold some common resources shared between different instances of ov::InferRequest. For example:
-	- ov::ICompiledModel::m_task_executor task executor to implement asynchronous execution
-	- ov::ICompiledModel::m_callback_executor task executor to run an asynchronous inference request callback in a separate thread
+    - ov::ICompiledModel::m_task_executor task executor to implement asynchronous execution
+    - ov::ICompiledModel::m_callback_executor task executor to run an asynchronous inference request callback in a separate thread
 
 CompiledModel Class
 ------------------------
@@ -53,8 +53,8 @@ The method creates an synchronous inference request and returns it.
 
 While the public OpenVINO API has a single interface for inference request, which can be executed in synchronous and asynchronous modes, a plugin library implementation has two separate classes:
 
-- [Synchronous inference request](@ref openvino_docs_ie_plugin_dg_infer_request), which defines pipeline stages and runs them synchronously in the `infer` method.
-- [Asynchronous inference request](@ref openvino_docs_ie_plugin_dg_async_infer_request), which is a wrapper for a synchronous inference request and can run a pipeline asynchronously. Depending on a device pipeline structure, it can has one or several stages:
+- [Synchronous inference request](@ref openvino_docs_ov_plugin_dg_infer_request), which defines pipeline stages and runs them synchronously in the `infer` method.
+- [Asynchronous inference request](@ref openvino_docs_ov_plugin_dg_async_infer_request), which is a wrapper for a synchronous inference request and can run a pipeline asynchronously. Depending on a device pipeline structure, it can has one or several stages:
    - For single-stage pipelines, there is no need to define this method and create a class derived from ov::IAsyncInferRequest. For single stage pipelines, a default implementation of this method creates ov::IAsyncInferRequest wrapping a synchronous inference request and runs it asynchronously in the `m_request_executor` executor.
    - For pipelines with multiple stages, such as performing some preprocessing on host, uploading input data to a device, running inference on a device, or downloading and postprocessing output data, schedule stages on several task executors to achieve better device use and performance. You can do it by creating a sufficient number of inference requests running in parallel. In this case, device stages of different inference requests are overlapped with preprocessing and postprocessing stage giving better performance.
    > **IMPORTANT**: It is up to you to decide how many task executors you need to optimally execute a device pipeline.
@@ -86,4 +86,4 @@ The methods returns the runtime model with backend specific information.
 
 @snippet src/compiled_model.cpp compiled_model:get_runtime_model
 
-The next step in plugin library implementation is the [Synchronous Inference Request](@ref openvino_docs_ie_plugin_dg_infer_request) class.
+The next step in plugin library implementation is the [Synchronous Inference Request](@ref openvino_docs_ov_plugin_dg_infer_request) class.

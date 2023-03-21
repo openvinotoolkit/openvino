@@ -73,7 +73,7 @@ Intel® Distribution of OpenVINO™ toolkit performance benchmark numbers are ba
 
 Intel technologies’ features and benefits depend on system configuration and may require enabled hardware, software or service activation. Learn more at intel.com, or from the OEM or retailer. Performance results are based on testing as of December 13, 2022 and may not reflect all publicly available updates. See configuration disclosure for details. No product can be absolutely secure.
 
-Performance varies by use, configuration and other factors. Learn more at :ref:`www.intel.com/PerformanceIndex<https://www.intel.com/PerformanceIndex>`.
+Performance varies by use, configuration and other factors. Learn more at `www.intel.com/PerformanceIndex <https://www.intel.com/PerformanceIndex>`__.
 
 Your costs and results may vary.
 
@@ -81,4 +81,8 @@ Intel optimizations, for Intel compilers or other products, may not optimize to 
 
 © Intel Corporation. Intel, the Intel logo, and other Intel marks are trademarks of Intel Corporation or its subsidiaries. Other names and brands may be claimed as the property of others.
 
+
+
 @endsphinxdirective
+
+

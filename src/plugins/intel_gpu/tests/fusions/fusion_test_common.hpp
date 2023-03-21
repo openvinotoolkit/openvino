@@ -31,13 +31,12 @@ public:
     static const int max_random = 200;
 
     void SetUp() override {
+        cfg_fused = get_test_default_config(engine);
+        cfg_not_fused = get_test_default_config(engine);
+
         cfg_fused.set_property(ov::intel_gpu::optimize_data(true));
         cfg_not_fused.set_property(ov::intel_gpu::optimize_data(false));
         cfg_not_fused.set_property(ov::intel_gpu::allow_static_input_reorder(true));
-        if (engine.get_device_info().supports_immad) {
-            cfg_fused.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
-            cfg_not_fused.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
-        }
     }
 
     void compare(network& not_fused, network& fused, T& p, bool count_reorder = false) {

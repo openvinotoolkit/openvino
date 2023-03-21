@@ -17,7 +17,7 @@ namespace pytorch {
 class TranslateSession {
 public:
     TranslateSession(const frontend::InputModel::Ptr& input_model,
-                     const std::map<std::string, PytorchCreatorFunction>& translator_map);
+                     const std::map<std::string, CreatorFunction>& translator_map);
     std::shared_ptr<Model> get_converted_model();
     std::shared_ptr<Model> translate_graph(const frontend::InputModel::Ptr& input_model);
 
@@ -38,10 +38,10 @@ public:
     size_t m_friendly_name_counter = 0;
 
 private:
-    OutputVector convert_node(NodeContext& context);
+    OutputVector convert_node(const NodeContext& context);
 
     const frontend::InputModel::Ptr m_input_model;
-    const std::map<std::string, PytorchCreatorFunction>& m_translator_map;
+    const std::map<std::string, CreatorFunction>& m_translator_map;
 
     std::shared_ptr<Model> m_ov_model;
     std::map<size_t, std::pair<size_t, Output<Node>>> m_counter_map;
