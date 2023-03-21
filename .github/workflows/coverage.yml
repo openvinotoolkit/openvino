@@ -41,10 +41,10 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup GNinja
-        uses: ashutoshvarma/setup-ninja@master
-        with:
-          version: 1.10.2
+      #- name: Setup GNinja
+        #uses: ashutoshvarma/setup-ninja@master
+        #with:
+          #version: 1.10.2
 
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
@@ -71,7 +71,7 @@ jobs:
           build-dir: ${{ github.workspace }}/build
           cc: ${{ matrix.config.cc }}
           cxx: ${{ matrix.config.cxx }}
-          configure-options: -GNinja -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DENABLE_INTEL_MYRIAD_COMMON=OFF -DENABLE_FASTER_BUILD=ON -DENABLE_OV_ONNX_FRONTEND=ON -DENABLE_TESTS=ON -DENABLE_COVERAGE=ON -DENABLE_INTEL_GPU=OFF -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_LINKER_LAUNCHER=ccache -DCMAKE_CXX_LINKER_LAUNCHER=ccache
+          configure-options: -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DENABLE_INTEL_MYRIAD_COMMON=OFF -DENABLE_FASTER_BUILD=ON -DENABLE_OV_ONNX_FRONTEND=ON -DENABLE_TESTS=ON -DENABLE_COVERAGE=ON -DENABLE_INTEL_GPU=OFF -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_LINKER_LAUNCHER=ccache -DCMAKE_CXX_LINKER_LAUNCHER=ccache
           build-type: Release
           target: all
           parallel: ${{ steps.cpu-cores.outputs.count }}
@@ -87,7 +87,7 @@ jobs:
           build-dir: ${{ github.workspace }}/build
           cc: ${{ matrix.config.cc }}
           cxx: ${{ matrix.config.cxx }}
-          configure-options: -GNinja -- -C ${{ github.workspace }}/build
+          configure-options: -- -C ${{ github.workspace }}/build
           target: ov_coverage
 
       - name: Generate raport
