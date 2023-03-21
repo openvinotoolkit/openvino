@@ -39,7 +39,7 @@ inline void DoTestBase(engine& engine,
     topology.add(input_layout("InputIndices", input1->get_layout()));
     topology.add(gather_nd_inst);
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("InputData", input0);
     network->set_input_data("InputIndices", input1);

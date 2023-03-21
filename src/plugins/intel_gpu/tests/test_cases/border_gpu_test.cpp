@@ -87,7 +87,7 @@ public:
                                    pad_mode,
                                    pad_value),
                             reorder("output", input_info("border"), cldnn::format::bfyx, T_dt));
-        cldnn::network::ptr target_network = get_network(engine, target_topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr target_network = get_network(engine, target_topology,  get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         target_network->set_input_data("input", input);
         auto target_output = target_network->execute().at("output").get_memory();
         cldnn::mem_lock<T> target_output_ptr(target_output, get_test_stream());
@@ -102,7 +102,7 @@ public:
                                  pad_mode,
                                  pad_value));
 
-        cldnn::network base_network(engine, base_topology);
+        cldnn::network base_network(engine, base_topology, get_test_default_config(engine));
         base_network.set_input_data("input", input);
         auto base_output = base_network.execute().at("border").get_memory();
         cldnn::mem_lock<T> base_output_ptr(base_output, get_test_stream());
@@ -233,7 +233,7 @@ TEST(border_gpu, bsv16fsv16_without_reorder) {
                                ov::CoordinateDiff(cd_rb.begin(), cd_rb.end()),
                                pad_mode,
                                pad_value));
-    cldnn::network target_network(engine, target_topology);
+    cldnn::network target_network(engine, target_topology, get_test_default_config(engine));
     target_network.set_input_data("input", input_b16f16);
     auto target_output = target_network.execute().at("border").get_memory();
     cldnn::mem_lock<T> target_output_ptr(target_output, get_test_stream());
@@ -247,7 +247,7 @@ TEST(border_gpu, bsv16fsv16_without_reorder) {
                              ov::CoordinateDiff(cd_rb.begin(), cd_rb.end()),
                              pad_mode,
                              pad_value));
-    cldnn::network base_network(engine, base_topology);
+    cldnn::network base_network(engine, base_topology, get_test_default_config(engine));
     base_network.set_input_data("input", input);
     auto base_output = base_network.execute().at("border").get_memory();
     cldnn::mem_lock<T> base_output_ptr(base_output, get_test_stream());
@@ -290,7 +290,7 @@ TEST(border_gpu, zyx_bsv16fsv16) {
                                pad_mode,
                                pad_value),
                         reorder("output", input_info("border"), cldnn::format::bfzyx, T_dt));
-    cldnn::network target_network(engine, target_topology);
+    cldnn::network target_network(engine, target_topology, get_test_default_config(engine));
     target_network.set_input_data("input", input);
     auto target_output = target_network.execute().at("output").get_memory();
     cldnn::mem_lock<T> target_output_ptr(target_output, get_test_stream());
@@ -304,7 +304,7 @@ TEST(border_gpu, zyx_bsv16fsv16) {
                              ov::CoordinateDiff(cd_rb.begin(), cd_rb.end()),
                              pad_mode,
                              pad_value));
-    cldnn::network base_network(engine, base_topology);
+    cldnn::network base_network(engine, base_topology, get_test_default_config(engine));
     base_network.set_input_data("input", input);
     auto base_output = base_network.execute().at("border").get_memory();
     cldnn::mem_lock<T> base_output_ptr(base_output, get_test_stream());
@@ -364,7 +364,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_constant) {
     };
     set_values(input, input_data);
 
-    cldnn::network network(engine, topology);
+    cldnn::network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -441,7 +441,7 @@ TEST(border_gpu, basic_fsv16_0x0x1x2_0x0x3x4_border_constant) {
     };
     set_values(input, input_data);
 
-    cldnn::network network(engine, topology);
+    cldnn::network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -541,7 +541,7 @@ TEST(border_gpu, basic_bfzyx_0x0x1x01_0x0x0x0x3_border_constant) {
     };
     set_values(input, input_data);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -647,7 +647,7 @@ TEST(border_gpu, basic_bfwzyx_0x0x0x1x0x1_0x0x0x1x0x1_border_constant) {
     };
     set_values(input, input_data);
 
-    cldnn::network network(engine, topology);
+    cldnn::network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -725,7 +725,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_constant_non_constant) {
     };
     set_values(input, input_data);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -798,7 +798,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_mirror) {
     };
     set_values(input, input_data);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -862,7 +862,7 @@ TEST(border_gpu, basic_bfzyx_0x0x0x0x1_0x0x0x0x1_border_mirror) {
     std::vector<float> input_data = generate_rnd_real_input<float>(sizes, -8.0f, 8.0f);
     set_values(input, input_data);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -940,7 +940,7 @@ TEST(border_gpu, basic_bfzyxw_0x0x0x0x1_0x0x0x0x1_border_mirror) {
     std::vector<float> input_data = generate_rnd_real_input<float>(sizes, -8.0f, 8.0f);
     set_values(input, input_data);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -1026,7 +1026,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_mirror_101) {
     };
     set_values(input, input_data);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -1103,7 +1103,7 @@ TEST(border_gpu, basic_bfzyx_0x0x0x0x1_0x0x0x0x1_border_mirror_101) {
     };
     set_values(input, input_data);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -1197,7 +1197,7 @@ TEST(border_gpu, basic_bfwzyx_0x0x0x0x1x1_0x0x0x0x1x1_border_mirror_101) {
     };
     set_values(input, input_data);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -1276,7 +1276,7 @@ TEST(border_gpu, basic_yxfb_0x0x1x2_0x0x3x4_border_edge) {
     };
     set_values(input, input_data);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -1336,7 +1336,7 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_constant) {
     std::vector<float> input_data = generate_rnd_real_input<float>(sizes, -8.0f, 8.0f);
     set_values(input, input_data);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -1401,7 +1401,7 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_mirror) {
     std::vector<float> input_data = generate_rnd_real_input<float>(sizes, -8.0f, 8.0f);
     set_values(input, input_data);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -1464,7 +1464,7 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_mirror_101) {
     std::vector<float> input_data = generate_rnd_real_input<float>(sizes, -8.0f, 8.0f);
     set_values(input, input_data);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -1527,7 +1527,7 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_edge) {
     std::vector<float> input_data = generate_rnd_real_input<float>(sizes, -8.0f, 8.0f);
     set_values(input, input_data);
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
@@ -1594,7 +1594,7 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_constant_dynamic) {
     std::vector<float> input_data = generate_rnd_real_input<float>(sizes, -8.0f, 8.0f);
     set_values(input, input_data);
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
