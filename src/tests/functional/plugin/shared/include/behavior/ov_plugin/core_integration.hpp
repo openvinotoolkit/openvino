@@ -120,6 +120,7 @@ using OVClassLoadNetworkTest = OVClassQueryNetworkTest;
 using OVClassSetGlobalConfigTest = OVClassBaseTestP;
 using OVClassSetModelPriorityConfigTest = OVClassBaseTestP;
 using OVClassSetExecutionModeHintConfigTest = OVClassBaseTestP;
+using OVClassSetUseHyperThreadingHintConfigTest = OVClassBaseTestP;
 using OVClassSetTBBForceTerminatePropertyTest = OVClassBaseTestP;
 using OVClassSetLogLevelConfigTest = OVClassBaseTestP;
 using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
@@ -429,6 +430,21 @@ TEST_P(OVClassSetExecutionModeHintConfigTest, SetConfigNoThrow) {
     ASSERT_EQ(ov::hint::ExecutionMode::ACCURACY, ie.get_property(target_device, ov::hint::execution_mode));
     ie.set_property(target_device, ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE));
     ASSERT_EQ(ov::hint::ExecutionMode::PERFORMANCE, ie.get_property(target_device, ov::hint::execution_mode));
+}
+
+TEST_P(OVClassSetUseHyperThreadingHintConfigTest, SetConfigNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::hint::use_hyper_threading);
+
+    bool defaultMode{};
+    ASSERT_NO_THROW(defaultMode = ie.get_property(target_device, ov::hint::use_hyper_threading));
+    (void)defaultMode;
+
+    ie.set_property(target_device, ov::hint::use_hyper_threading(true));
+    ASSERT_EQ(true, ie.get_property(target_device, ov::hint::use_hyper_threading));
+    ie.set_property(target_device, ov::hint::use_hyper_threading(false));
+    ASSERT_EQ(false, ie.get_property(target_device, ov::hint::use_hyper_threading));
 }
 
 TEST_P(OVClassSetDevicePriorityConfigTest, SetConfigAndCheckGetConfigNoThrow) {

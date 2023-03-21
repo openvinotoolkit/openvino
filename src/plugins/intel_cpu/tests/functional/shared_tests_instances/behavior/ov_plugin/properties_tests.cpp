@@ -11,11 +11,9 @@ using namespace InferenceEngine::PluginConfigParams;
 namespace {
 
 const std::vector<ov::AnyMap> cpu_properties = {
-    {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
-    {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
-    {ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)},
-    {ov::hint::use_hyper_threading(true)},
-    {ov::hint::use_hyper_threading(false)},
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVPropertiesTests,

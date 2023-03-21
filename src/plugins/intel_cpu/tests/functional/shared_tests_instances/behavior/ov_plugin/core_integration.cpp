@@ -48,6 +48,10 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetMetricTest, OVClassGetMetricTest_FULL_DEVICE_NAME,
         ::testing::Values("CPU", "MULTI", "HETERO", "AUTO"));
 
+INSTANTIATE_TEST_SUITE_P(smoke_OVClassSetConfigTest,
+                         OVClassSetUseHyperThreadingHintConfigTest,
+                         ::testing::Values("CPU"));
+
 INSTANTIATE_TEST_SUITE_P(
         smoke_OVClassGetMetricTest, OVClassGetMetricTest_OPTIMIZATION_CAPABILITIES,
         ::testing::Values("CPU"));
