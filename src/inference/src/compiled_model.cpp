@@ -121,9 +121,7 @@ Any CompiledModel::get_property(const std::string& name) const {
 RemoteContext CompiledModel::get_context() const {
     OV_COMPILED_MODEL_CALL_STATEMENT({
         auto ctx = _impl->get_context();
-        auto so_vec = ctx._so;
-        so_vec.emplace_back(_so);
-        return {ctx._impl, so_vec};
+        return {ctx, {_so}};
     });
 }
 

@@ -13,7 +13,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_loop(NodeContext& context) {
+OutputVector translate_loop(const NodeContext& context) {
     const auto& inputs = context.inputs();
     FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= 2, "Loop must have at least 2 inputs.");
     auto loop = std::make_shared<ov::op::v5::Loop>(inputs[0], inputs[1]);

@@ -81,17 +81,12 @@ public:
         for (auto& device : targetDevices) {
             result << device << "_";
         }
-        auto cpuConfig = deviceConfigs.find("CPU");
-        auto gpuConfig = deviceConfigs.find("GPU");
-        auto priority = deviceConfigs.find("MULTI_DEVICE_PRIORITIES");
-        result << "properties_";
-        if (cpuConfig != deviceConfigs.end())
-            result << "CPU_" << cpuConfig->second << "_";
-        if (gpuConfig != deviceConfigs.end())
-            result << "GPU_" << gpuConfig->second << "_";
-        if (priority != deviceConfigs.end())
-            result << "priority_" << priority->second;
-        return result.str();
+        for (auto& item : deviceConfigs) {
+            result << item.first << "_" << item.second << "_";
+        }
+        auto name = result.str();
+        name.pop_back();
+        return name;
     }
 
     static std::vector<ConfigParams> CreateNumStreamsAndDefaultPerfHintTestConfigs() {
@@ -101,7 +96,7 @@ public:
         testConfigs.push_back(
             ConfigParams{"AUTO",
                          {"CPU"},
-                         {{"CPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});  // CPU: no perf_hint
+                         {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});  // CPU: no perf_hint
         testConfigs.push_back(
             ConfigParams{"AUTO",
                          {"CPU", "GPU"},
@@ -110,23 +105,23 @@ public:
         testConfigs.push_back(ConfigParams{
             "AUTO",
             {"CPU", "GPU"},
-            {{"CPU", "NUM_STREAMS 3"},
+            {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"},
              {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});  // CPU: as helper, get default_hint:lantency GPU:get default_hint:lantency
         testConfigs.push_back(ConfigParams{
             "AUTO",
             {"CPU", "GPU"},
-            {{"GPU", "NUM_STREAMS 3"},
+            {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:3}}"},
              {"MULTI_DEVICE_PRIORITIES", "GPU,CPU"}}});  // CPU: as helper, get default_hint:lantency GPU:no perf_hint
         testConfigs.push_back(
             ConfigParams{"AUTO",
                          {"CPU"},
-                         {{"CPU", "NUM_STREAMS 5"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint
+                         {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:5}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint
         testConfigs.push_back(
             ConfigParams{"AUTO", {"GPU"}, {{"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: get default_hint:lantency
         testConfigs.push_back(
             ConfigParams{"AUTO",
                          {"GPU"},
-                         {{"GPU", "NUM_STREAMS 3"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: no perf_hint
+                         {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:3}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: no perf_hint
 
         testConfigs.push_back(ConfigParams{
             "MULTI:CPU,GPU",
@@ -135,18 +130,17 @@ public:
         testConfigs.push_back(
             ConfigParams{"MULTI:CPU,GPU",
                          {"CPU", "GPU"},
-                         {{"CPU", "NUM_STREAMS 3"},
+                         {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3}}"},
                           {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint  GPU: get default_hint:tput
         testConfigs.push_back(
             ConfigParams{"MULTI:CPU,GPU",
                          {"CPU", "GPU"},
-                         {{"GPU", "NUM_STREAMS 3"},
+                         {{"DEVICE_PROPERTIES", "{GPU:{NUM_STREAMS:3}}"},
                           {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: get default_hint:tput  GPU: no perf_hint
         testConfigs.push_back(
             ConfigParams{"MULTI:CPU,GPU",
                          {"CPU", "GPU"},
-                         {{"CPU", "NUM_STREAMS 3"},
-                          {"GPU", "NUM_STREAMS 3"},
+                         {{"DEVICE_PROPERTIES", "{CPU:{NUM_STREAMS:3},{GPU:{NUM_STREAMS:3}}"},
                           {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint  GPU: no perf_hint
         return testConfigs;
     }
@@ -156,44 +150,42 @@ public:
         testConfigs.push_back(ConfigParams{
             "AUTO",
             {"CPU"},
-            {{"CPU", "PERFORMANCE_HINT THROUGHPUT"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});  // CPU: get perf_hint:tput
+            {{"DEVICE_PROPERTIES", "{CPU:{PERFORMANCE_HINT:THROUGHPUT}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});  // CPU: get perf_hint:tput
         testConfigs.push_back(
             ConfigParams{"AUTO",
                          {"CPU", "GPU"},
-                         {{"CPU", "PERFORMANCE_HINT THROUGHPUT"},
+                         {{"DEVICE_PROPERTIES", "{CPU:{PERFORMANCE_HINT:THROUGHPUT}}"},
                           {"MULTI_DEVICE_PRIORITIES",
                            "GPU,CPU"}}});  // CPU: as helper, get perf_hint:lantency GPU:get default_hint:lantency
         testConfigs.push_back(
             ConfigParams{"AUTO",
                          {"CPU", "GPU"},
-                         {{"CPU", "PERFORMANCE_HINT THROUGHPUT"},
-                          {"GPU", "PERFORMANCE_HINT THROUGHPUT"},
+                         {{"DEVICE_PROPERTIES", "{CPU:{PERFORMANCE_HINT:THROUGHPUT},GPU:{PERFORMANCE_HINT:THROUGHPUT}}"},
                           {"MULTI_DEVICE_PRIORITIES",
                            "GPU,CPU"}}});  // CPU: as helper, get perf_hint:lantency GPU:get perf_hint:tput
         testConfigs.push_back(ConfigParams{"AUTO",
                                            {"CPU"},
-                                           {{"CPU", "PERFORMANCE_HINT THROUGHPUT"},
+                                           {{"DEVICE_PROPERTIES", "{CPU:{PERFORMANCE_HINT:THROUGHPUT}}"},
                                             {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: get perf_hint:tput
         testConfigs.push_back(ConfigParams{
             "AUTO",
             {"GPU"},
-            {{"GPU", "PERFORMANCE_HINT THROUGHPUT"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: get perf_hint:tput
+            {{"DEVICE_PROPERTIES", "GPU:{PERFORMANCE_HINT:THROUGHPUT}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: get perf_hint:tput
 
         testConfigs.push_back(ConfigParams{
             "MULTI:CPU,GPU",
             {"CPU", "GPU"},
-            {{"CPU", "PERFORMANCE_HINT LATENCY"},
+            {{"DEVICE_PROPERTIES", "{CPU:{PERFORMANCE_HINT:LATENCY}}"},
              {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: get perf_hint:latency  GPU: get default_hint:tput
         testConfigs.push_back(ConfigParams{
             "MULTI:CPU,GPU",
             {"CPU", "GPU"},
-            {{"GPU", "PERFORMANCE_HINT LATENCY"},
+            {{"DEVICE_PROPERTIES", "{GPU:{PERFORMANCE_HINT:LATENCY}}"},
              {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: get default_hint:tput  GPU: get perf_hint:latency
         testConfigs.push_back(ConfigParams{
             "MULTI:CPU,GPU",
             {"CPU", "GPU"},
-            {{"CPU", "PERFORMANCE_HINT LATENCY"},
-             {"GPU", "PERFORMANCE_HINT LATENCY"},
+            {{"DEVICE_PROPERTIES", "{CPU:{PERFORMANCE_HINT:LATENCY},GPU:{PERFORMANCE_HINT:LATENCY}}"},
              {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: get perf_hint:lantency  GPU: get perf_hint:lantency
         return testConfigs;
     }
@@ -203,44 +195,42 @@ public:
         testConfigs.push_back(ConfigParams{
             "AUTO",
             {"CPU"},
-            {{"CPU", "ALLOW_AUTO_BATCHING TRUE"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});  // CPU: no perf_hint
+            {{"DEVICE_PROPERTIES", "{CPU:{ALLOW_AUTO_BATCHING:TRUE}}"}, {"MULTI_DEVICE_PRIORITIES", "CPU"}}});  // CPU: no perf_hint
         testConfigs.push_back(
             ConfigParams{"AUTO",
                          {"CPU", "GPU"},
-                         {{"CPU", "ALLOW_AUTO_BATCHING TRUE"},
+                         {{"DEVICE_PROPERTIES", "{CPU:{ALLOW_AUTO_BATCHING:TRUE}}"},
                           {"MULTI_DEVICE_PRIORITIES",
                            "GPU,CPU"}}});  // CPU: as helper, get perf_hint:lantency GPU:get default_hint:lantency
         testConfigs.push_back(
             ConfigParams{"AUTO",
                          {"CPU", "GPU"},
-                         {{"CPU", "ALLOW_AUTO_BATCHING TRUE"},
-                          {"GPU", "ALLOW_AUTO_BATCHING TRUE"},
+                         {{"DEVICE_PROPERTIES", "{CPU:{ALLOW_AUTO_BATCHING:TRUE},GPU:{ALLOW_AUTO_BATCHING:TRUE}}"},
                           {"MULTI_DEVICE_PRIORITIES",
                            "GPU,CPU"}}});  // CPU: as helper, get perf_hint:lantency GPU:no perf_hint
         testConfigs.push_back(ConfigParams{"AUTO",
                                            {"CPU"},
-                                           {{"CPU", "ALLOW_AUTO_BATCHING FALSE"},
+                                           {{"DEVICE_PROPERTIES", "{CPU:{ALLOW_AUTO_BATCHING:FALSE}}"},
                                             {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint
         testConfigs.push_back(ConfigParams{
             "AUTO",
             {"GPU"},
-            {{"GPU", "ALLOW_AUTO_BATCHING FALSE"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: no perf_hint
+            {{"DEVICE_PROPERTIES", "GPU:{ALLOW_AUTO_BATCHING:FALSE}}"}, {"MULTI_DEVICE_PRIORITIES", "GPU"}}});  // GPU: no perf_hint
 
         testConfigs.push_back(ConfigParams{
             "MULTI:CPU,GPU",
             {"CPU", "GPU"},
-            {{"CPU", "ALLOW_AUTO_BATCHING FALSE"},
+            {{"CPU", "{ALLOW_AUTO_BATCHING:FALSE}"},
              {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint  GPU: get default_hint:tput
         testConfigs.push_back(ConfigParams{
             "MULTI:CPU,GPU",
             {"CPU", "GPU"},
-            {{"GPU", "ALLOW_AUTO_BATCHING FALSE"},
+            {{"DEVICE_PROPERTIES", "GPU:{ALLOW_AUTO_BATCHING:FALSE}}"},
              {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: get default_hint:tput  GPU: no perf_hint
         testConfigs.push_back(ConfigParams{
             "MULTI:CPU,GPU",
             {"CPU", "GPU"},
-            {{"CPU", "ALLOW_AUTO_BATCHING TRUE"},
-             {"GPU", "ALLOW_AUTO_BATCHING FALSE"},
+            {{"DEVICE_PROPERTIES", "CPU:{ALLOW_AUTO_BATCHING:TRUE},GPU:{ALLOW_AUTO_BATCHING:FALSE}}"},
              {"MULTI_DEVICE_PRIORITIES", "CPU,GPU"}}});  // CPU: no perf_hint GPU: no perf_hint
         return testConfigs;
     }

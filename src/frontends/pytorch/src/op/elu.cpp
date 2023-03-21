@@ -12,7 +12,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_elu(NodeContext& context) {
+OutputVector translate_elu(const NodeContext& context) {
     // aten::elu(Tensor self, Scalar alpha=1, Scalar scale=1, Scalar input_scale=1) -> Tensor
     num_inputs_check(context, 2, 4);
     auto x = context.get_input(0);
