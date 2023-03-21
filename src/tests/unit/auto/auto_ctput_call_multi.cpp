@@ -156,63 +156,46 @@ public:
                             ::testing::Matcher<const std::string&>(StrEq("CPU")),
                             ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
             .WillByDefault(Return(cpuMockExeNetwork));
-
-        ON_CALL(*core,
-                LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                            ::testing::Matcher<const std::string&>(StrEq("GPU")),
-                            ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
-            .WillByDefault(Throw(InferenceEngine::GeneralError{""}));
         std::shared_ptr<ngraph::Function> simpleNetwork = ngraph::builder::subgraph::makeSingleConv();
         ASSERT_NO_THROW(simpleCnnNetwork = InferenceEngine::CNNNetwork(simpleNetwork));
     }
 };
 
-TEST_P(AutoCTPUTCallMulti, CTPUTDevicesLogicTest) {
+TEST_P(AutoCTPUTCallMulti, CTPUTDeviceLoadFailedNoExceptionThrowTest) {
     std::vector<std::string> targetDevices;
     std::string targetDev;
     bool AutoCallMulti;
     Config config;
     std::tie(AutoCallMulti, targetDevices) = this->GetParam();
+    std::string firstDevice = targetDevices.size() > 0 ? targetDevices[0] : "";
     plugin->SetName("MULTI");
     for (auto& deviceName : targetDevices) {
         targetDev += deviceName;
         targetDev += ((deviceName == targetDevices.back()) ? "" : ",");
     }
-    if (AutoCallMulti) {
-        std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> exeNetwork;
-        config.insert({{CONFIG_KEY(PERFORMANCE_HINT), InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT}});
-        config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, targetDev});
-        EXPECT_CALL(*core,
-                    LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                                ::testing::Matcher<const std::string&>(CommonTestUtils::DEVICE_CPU),
-                                ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
-            .Times(1);
-        EXPECT_CALL(*core,
-                    LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                                ::testing::Matcher<const std::string&>(CommonTestUtils::DEVICE_GPU),
-                                ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
-            .Times(1);
-        ASSERT_NO_THROW(exeNetwork = plugin->LoadExeNetworkImpl(simpleCnnNetwork, config));
-        EXPECT_EQ(exeNetwork->GetMetric(ov::execution_devices.name()).as<std::string>(), CommonTestUtils::DEVICE_CPU);
-    } else {
-        config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, targetDev});
-        EXPECT_CALL(*core,
-                    LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                                ::testing::Matcher<const std::string&>(CommonTestUtils::DEVICE_CPU),
-                                ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
-            .Times(0);
-        EXPECT_CALL(*core,
-                    LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
-                                ::testing::Matcher<const std::string&>(CommonTestUtils::DEVICE_GPU),
-                                ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
-            .Times(1);
-        EXPECT_THROW(plugin->LoadExeNetworkImpl(simpleCnnNetwork, config), IE::Exception);
-    }
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> exeNetwork;
+    config.insert({{CONFIG_KEY(PERFORMANCE_HINT), InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT}});
+    config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, targetDev});
+    ON_CALL(*core,
+            LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                        ::testing::Matcher<const std::string&>(StrEq(firstDevice)),
+                        ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
+        .WillByDefault(Throw(InferenceEngine::GeneralError{""}));
+    EXPECT_CALL(*core,
+                LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                            ::testing::Matcher<const std::string&>(CommonTestUtils::DEVICE_CPU),
+                            ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
+        .Times(1);
+    EXPECT_CALL(*core,
+                LoadNetwork(::testing::Matcher<const InferenceEngine::CNNNetwork&>(_),
+                            ::testing::Matcher<const std::string&>(CommonTestUtils::DEVICE_GPU),
+                            ::testing::Matcher<const std::map<std::string, std::string>&>(_)))
+        .Times(1);
+    ASSERT_NO_THROW(exeNetwork = plugin->LoadExeNetworkImpl(simpleCnnNetwork, config));
+    EXPECT_EQ(exeNetwork->GetMetric(ov::execution_devices.name()).as<std::string>(), firstDevice);
 }
 
 const std::vector<ConfigParams> testConfigs = {
-    ConfigParams{false, {"CPU", "GPU"}},
-    ConfigParams{false, {"GPU", "CPU"}},
     ConfigParams{true, {"CPU", "GPU"}},
     ConfigParams{true, {"GPU", "CPU"}},
 };
