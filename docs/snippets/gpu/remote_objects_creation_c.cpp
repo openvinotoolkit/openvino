@@ -7,7 +7,7 @@
 #include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
 
 #ifdef WIN32
-#include <openvino/runtime/intel_gpu/ocl/dx.hpp>
+typedef void* ID3D11Device;
 #elif defined(ENABLE_LIBVA)
 #include <openvino/runtime/intel_gpu/ocl/va.hpp>
 #endif

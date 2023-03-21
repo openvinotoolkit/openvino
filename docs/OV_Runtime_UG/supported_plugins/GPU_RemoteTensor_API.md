@@ -172,119 +172,122 @@ of the ``ov::RemoteContext`` sub-classes.
 ``ov::intel_gpu::ocl::ClContext`` has multiple overloads of ``create_tensor`` methods which allow to wrap pre-allocated native handles with the ``ov::RemoteTensor``
 object or request plugin to allocate specific device memory. For more details, see the code snippets below:
 
+C++
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 .. tab-set::
 
-   .. tab-set:: C++
-
-      .. tab-item:: Wrap native handles
-
-         .. tab-set::
-
-            .. tab-item:: USM pointer
-
-               .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-                  :language: sh
-                  :fragment: wrap_usm_pointer
-
-            .. tab-item:: cl_mem
-
-               .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-                  :language: sh
-                  :fragment: wrap_cl_mem
-
-            .. tab-item:: cl::Buffer
-
-               .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-                  :language: sh
-                  :fragment: wrap_cl_buffer
-
-            .. tab-item:: cl::Image2D
-
-               .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-                  :language: sh
-                  :fragment: wrap_cl_image
-
-            .. tab-item:: biplanar NV12 surface
-
-               .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-                  :language: sh
-                  :fragment: wrap_nv12_surface
-
-      .. tab-item:: Allocate device memory
-
-         .. tab-set::
-
-            .. tab-item:: USM host memory
-
-               .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-                  :language: sh
-                  :fragment: allocate_usm_host
-
-            .. tab-item:: USM device memory
-
-               .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-                  :language: sh
-                  :fragment: allocate_usm_device
-
-            .. tab-item:: cl::Buffer
-
-               .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
-                  :language: sh
-                  :fragment: allocate_cl_buffer
-
-   .. tab-item:: C
+   .. tab-item:: Wrap native handles
 
       .. tab-set::
 
-         .. tab-item:: Wrap native handles
+         .. tab-item:: USM pointer
 
-            .. tab-set::
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+               :language: sh
+               :fragment: wrap_usm_pointer
 
-               .. tab-item:: USM pointer
+         .. tab-item:: cl_mem
 
-                  .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
-                     :language: c
-                     :fragment: wrap_usm_pointer
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+               :language: sh
+               :fragment: wrap_cl_mem
 
-               .. tab-item:: cl_mem
+         .. tab-item:: cl::Buffer
 
-                  .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
-                     :language: c
-                     :fragment: wrap_cl_mem
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+               :language: sh
+               :fragment: wrap_cl_buffer
 
-               .. tab-item:: cl::Buffer
+         .. tab-item:: cl::Image2D
 
-                  .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
-                     :language: c
-                     :fragment: wrap_cl_buffer
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+               :language: sh
+               :fragment: wrap_cl_image
 
-               .. tab-item:: cl::Image2D
+         .. tab-item:: biplanar NV12 surface
 
-                  .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
-                     :language: c
-                     :fragment: wrap_cl_image
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+               :language: sh
+               :fragment: wrap_nv12_surface
 
-               .. tab-item:: biplanar NV12 surface
+   .. tab-item:: Allocate device memory
 
-                  .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
-                     :language: c
-                     :fragment: create_nv12_surface
+      .. tab-set::
 
-         .. tab-item:: Allocate device memory
+         .. tab-item:: USM host memory
 
-            .. tab-set::
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+               :language: sh
+               :fragment: allocate_usm_host
 
-               .. tab-item:: USM host memory
+         .. tab-item:: USM device memory
 
-                  .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
-                     :language: c
-                     :fragment: allocate_usm_host
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+               :language: sh
+               :fragment: allocate_usm_device
 
-               .. tab-item:: USM device memory
+         .. tab-item:: cl::Buffer
 
-                  .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
-                     :language: c
-                     :fragment: allocate_usm_device
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
+               :language: sh
+               :fragment: allocate_cl_buffer
+
+
+C
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+.. tab-set::
+
+   .. tab-item:: Wrap native handles
+
+      .. tab-set::
+
+         .. tab-item:: USM pointer
+
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+               :language: c
+               :fragment: wrap_usm_pointer
+
+         .. tab-item:: cl_mem
+
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+               :language: c
+               :fragment: wrap_cl_mem
+
+         .. tab-item:: cl::Buffer
+
+             .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+               :language: c
+               :fragment: wrap_cl_buffer
+
+         .. tab-item:: cl::Image2D
+
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+               :language: c
+               :fragment: wrap_cl_image
+
+         .. tab-item:: biplanar NV12 surface
+
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+               :language: c
+               :fragment: create_nv12_surface
+
+   .. tab-item:: Allocate device memory
+
+      .. tab-set::
+
+         .. tab-item:: USM host memory
+
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+               :language: c
+               :fragment: allocate_usm_host
+
+         .. tab-item:: USM device memory
+
+            .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
+               :language: c
+               :fragment: allocate_usm_device
 
 The ``ov::intel_gpu::ocl::D3DContext`` and ``ov::intel_gpu::ocl::VAContext`` classes are derived from ``ov::intel_gpu::ocl::ClContext``.
 Therefore, they provide the functionality described above and extend it
@@ -308,26 +311,28 @@ should be added before model compilation:
 .. tab:: two-plane
 
    .. tab:: C++
+
       .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_two_planes.cpp
          :language: cpp
-         :fragment: [init_preproc]
+         :fragment: init_preproc
 
    .. tab:: C
+
       .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_two_planes_c.cpp
          :language: c
-         :fragment: [init_preproc]
+         :fragment: init_preproc
 
 .. tab:: single-plane
 
    .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_single_plane.cpp
       :language: cpp
-      :fragment: [init_preproc]
+      :fragment: init_preproc
 
 .. tab:: NV12 to Grey
 
    .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_to_gray.cpp
       :language: cpp
-      :fragment: [init_preproc]
+      :fragment: init_preproc
 
 
 Since the ``ov::intel_gpu::ocl::ClImage2DTensor`` and its derived classes do not support batched surfaces, 
@@ -340,11 +345,13 @@ inputs need to be set via the ``ov::InferRequest::set_tensors`` method with vect
    .. tab:: two-plane
 
       .. tab:: C++
+
          .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_two_planes.cpp
             :language: cpp
             :fragment: single_batch
 
       .. tab:: C
+
          .. doxygensnippet:: docs/snippets/gpu/preprocessing_nv12_two_planes_c.cpp
             :language: c
             :fragment: single_batch
@@ -454,11 +461,13 @@ To see pseudo-code of usage examples, refer to the sections below.
 .. dropdown:: Direct Consuming of the NV12 VAAPI Video Decoder Surface on Linux
 
    .. tab:: C++
+
       .. doxygensnippet:: docs/snippets/gpu/context_sharing_va.cpp
          :language: cpp
          :fragment: context_sharing_va
 
    .. tab:: C
+
       .. doxygensnippet:: docs/snippets/gpu/context_sharing_va_c.cpp
          :language: c
          :fragment: context_sharing_va
