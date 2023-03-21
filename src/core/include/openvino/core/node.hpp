@@ -464,9 +464,9 @@ public:
 
     virtual bool match_node(ov::pass::pattern::Matcher* matcher, const Output<Node>& graph_value);
 
-
     bool operator==(const Node& other) const;
     bool operator!=(const Node& other) const;
+
 protected:
     /// \brief Check constant folding disabled attribute.
     ///
