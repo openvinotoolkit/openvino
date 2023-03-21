@@ -158,7 +158,6 @@ void setDeviceProperty(ov::Core& core,
                        std::string& device,
                        ov::AnyMap& device_config,
                        const std::pair<std::string, ov::Any>& property,
-                       std::map<std::string, bool>& is_dev_set_property,
                        const std::pair<std::string, ov::Any>& config = {}) {
     auto supported_properties = core.get_property(device, ov::supported_properties);
     auto supported = [&](const std::string& key) {
@@ -175,18 +174,26 @@ void setDeviceProperty(ov::Core& core,
     if (device_property.first.empty())
         return;
 
-    if (device_config.find(device) == device_config.end() ||  // device properties not existed
-        (config.first.empty() &&                              // not setting default value to property
-         (!FLAGS_load_config.empty() &&
-          is_dev_set_property[device]))) {  // device properties loaded from file and overwrite is not happened
-        is_dev_set_property[device] = false;
-        device_config.erase(device);
-        device_config.insert(ov::device::properties(device, device_property));
-    } else {
-        auto& properties = device_config[device].as<ov::AnyMap>();
-        // property present in device properties has higher priority than property set with default value
-        properties.emplace(device_property);
+    if (device_config.find(ov::device::properties.name()) == device_config.end()) {
+        device_config[ov::device::properties.name()] = ov::AnyMap{};
     }
+
+    // because of legacy API 1.0. eg the config from JSON file.
+    if (device_config[ov::device::properties.name()].is<std::string>())
+        device_config[ov::device::properties.name()] = device_config[ov::device::properties.name()].as<ov::AnyMap>();
+
+    auto& device_properties = device_config[ov::device::properties.name()].as<ov::AnyMap>();
+    if (device_properties.find(device) == device_properties.end()) {
+        device_properties.insert({device, ov::AnyMap{}});
+    }
+    // because of legacy API 1.0. eg the config from JSON file.
+    if (device_properties[device].is<std::string>())
+        device_properties[device] = device_properties[device].as<ov::AnyMap>();
+
+    auto& secondary_property = device_properties[device].as<ov::AnyMap>();
+    // overwrite if this config existed
+    secondary_property.erase(device_property.first);
+    secondary_property.insert(device_property);
 }
 
 void warn_if_no_batch(const benchmark_app::InputsInfo& first_inputs) {
@@ -281,10 +288,6 @@ int main(int argc, char* argv[]) {
         // Parse devices
         auto devices = parse_devices(device_name);
 
-        std::map<std::string, bool> is_dev_set_property = {};
-        // initialize flags to ensure ov::device::properties should only be set once per device.
-        for (auto& dev : devices)
-            is_dev_set_property[dev] = true;
         // Parse nstreams per device
         std::map<std::string, std::string> device_nstreams = parse_value_per_device(devices, FLAGS_nstreams);
         std::map<std::string, std::string> device_infer_precision =
@@ -292,10 +295,8 @@ int main(int argc, char* argv[]) {
 
         // Load device config file if specified
         std::map<std::string, ov::AnyMap> config;
-        bool is_load_config = false;
         if (!FLAGS_load_config.empty()) {
             load_config(FLAGS_load_config, config);
-            is_load_config = true;
         }
 
         /** This vector stores paths to the processed images with input names**/
@@ -373,20 +374,19 @@ int main(int argc, char* argv[]) {
         // Update config per device according to command line parameters
         for (auto& device : devices) {
             auto& device_config = config[device];
-
-            // high-level performance modes
-            if (!device_config.count(ov::hint::performance_mode.name())) {
-                device_config.emplace(ov::hint::performance_mode(get_performance_hint(device, core)));
+            auto ov_perf_hint = get_performance_hint(device, core);
+            if (FLAGS_hint != "") {
+                // setting hint and overwrite if hint existd
+                device_config[ov::hint::performance_mode.name()] = ov_perf_hint;
             }
-            auto ov_perf_hint = device_config.at(ov::hint::performance_mode.name()).as<ov::hint::PerformanceMode>();
 
             if (FLAGS_nireq != 0)
-                device_config.emplace(ov::hint::num_requests(unsigned(FLAGS_nireq)));
+                device_config[ov::hint::num_requests.name()] = unsigned(FLAGS_nireq);
 
             // Set performance counter
             if (isFlagSetInCommandLine("pc")) {
                 // set to user defined value
-                device_config.emplace(ov::enable_profiling(FLAGS_pc));
+                device_config[ov::enable_profiling.name()] = FLAGS_pc;
             } else if (device_config.count(ov::enable_profiling.name()) &&
                        (device_config.at(ov::enable_profiling.name()).as<bool>())) {
                 slog::warn << "Performance counters for " << device
@@ -395,18 +395,18 @@ int main(int argc, char* argv[]) {
                        FLAGS_report_type == sortDetailedCntReport) {
                 slog::warn << "Turn on performance counters for " << device << " device since report type is "
                            << FLAGS_report_type << "." << slog::endl;
-                device_config.emplace(ov::enable_profiling(true));
+                device_config[ov::enable_profiling.name()] = true;
             } else if (!FLAGS_exec_graph_path.empty()) {
                 slog::warn << "Turn on performance counters for " << device << " device due to execution graph dumping."
                            << slog::endl;
-                device_config.emplace(ov::enable_profiling(true));
+                device_config[ov::enable_profiling.name()] = true;
             } else if (!FLAGS_pcsort.empty()) {
                 slog::warn << "Turn on sorted performance counters for " << device << " device since pcsort value is "
                            << FLAGS_pcsort << "." << slog::endl;
-                device_config.emplace(ov::enable_profiling(true));
+                device_config[ov::enable_profiling.name()] = true;
             } else {
                 // set to default value
-                device_config.emplace(ov::enable_profiling(FLAGS_pc));
+                device_config[ov::enable_profiling.name()] = FLAGS_pc;
             }
             perf_counts = (device_config.at(ov::enable_profiling.name()).as<bool>()) ? true : perf_counts;
 
@@ -432,9 +432,7 @@ int main(int argc, char* argv[]) {
                         key = ov::num_streams.name();
                         update_device_config_for_virtual_device(it_device_nstreams->second,
                                                                 device_config,
-                                                                ov::num_streams,
-                                                                is_dev_set_property,
-                                                                is_load_config);
+                                                                ov::num_streams);
                     } else {
                         throw std::logic_error("Device " + device + " doesn't support config key '" + key + "' " +
                                                "and '" + ov::num_streams.name() + "'!" +
@@ -467,7 +465,6 @@ int main(int argc, char* argv[]) {
                                               hwdevice,
                                               device_config,
                                               ov::num_streams(ov::streams::AUTO),
-                                              is_dev_set_property,
                                               std::make_pair(key, value));
                         }
                     }
@@ -486,9 +483,7 @@ int main(int argc, char* argv[]) {
                     } else if (is_virtual_device(device)) {
                         update_device_config_for_virtual_device(it_device_infer_precision->second,
                                                                 device_config,
-                                                                ov::inference_precision,
-                                                                is_dev_set_property,
-                                                                is_load_config);
+                                                                ov::inference_precision);
                     } else {
                         throw std::logic_error("Device " + device + " doesn't support config key '" +
                                                ov::inference_precision.name() + "'! " +
@@ -514,13 +509,13 @@ int main(int argc, char* argv[]) {
                                                   : ov::affinity(fix_pin_option(FLAGS_pin));
                 if (supported(property_name) || device_name == "AUTO") {
                     // create nthreads/pin primary property for HW device or AUTO if -d is AUTO directly.
-                    device_config.emplace(property);
+                    device_config[property.first] = property.second;
                 } else if (is_virtual) {
                     // Create secondary property of -nthreads/-pin only for CPU if CPU device appears in the devices
                     // list specified by -d.
                     for (auto& device : hardware_devices) {
                         if (device == "CPU")
-                            setDeviceProperty(core, device, device_config, property, is_dev_set_property);
+                            setDeviceProperty(core, device, device_config, property);
                     }
                 }
             };

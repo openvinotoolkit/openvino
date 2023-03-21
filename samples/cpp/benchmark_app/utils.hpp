@@ -68,9 +68,7 @@ void parse_value_for_virtual_device(const std::string& device, std::map<std::str
 template <typename T>
 void update_device_config_for_virtual_device(const std::string& value,
                                              ov::AnyMap& device_config,
-                                             ov::Property<T, ov::PropertyMutability::RW> property,
-                                             std::map<std::string, bool>& is_dev_set_property,
-                                             bool is_load_config = false);
+                                             ov::Property<T, ov::PropertyMutability::RW> property);
 std::string get_shapes_string(const benchmark_app::PartialShapes& shapes);
 size_t get_batch_size(const benchmark_app::InputsInfo& inputs_info);
 std::vector<std::string> split(const std::string& s, char delim);
