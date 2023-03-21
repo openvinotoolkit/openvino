@@ -52,16 +52,16 @@ class TestChunk(PytorchLayerTest):
 
     @pytest.mark.parametrize("input_tensor", [
         np.random.rand(4, 4),
-        # np.random.rand(1, 4),
-        # np.random.rand(4, 4, 4),
-        # np.random.rand(10, 10, 10),
-        # np.random.rand(8, 8, 8, 8, 8)
+        np.random.rand(1, 4),
+        np.random.rand(4, 4, 4),
+        np.random.rand(10, 10, 10),
+        np.random.rand(8, 8, 8, 8, 8)
     ])
     @pytest.mark.parametrize("chunks", [
-        # 1,
+        # 1, Does not work for 1 without translate
+        2,
         3,
-        # 7,
-        # 10
+        4
     ])
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -69,9 +69,12 @@ class TestChunk(PytorchLayerTest):
         self.input_tensor = input_tensor
         
         for dim in range(len(input_tensor.shape)):
-            output_chunks = input_tensor.shape[dim] // chunks
-            output_chunks += 1 if input_tensor.shape[dim] % chunks > 0 else 0
+            chunk_size = input_tensor.shape[dim] // chunks
+            chunk_size += 1 if input_tensor.shape[dim] % chunks > 0 else 0
 
+            output_chunks = input_tensor.shape[dim] // chunk_size
+            output_chunks += 1 if input_tensor.shape[dim] % chunk_size > 0 else 0
+            
             if output_chunks == 2:
                 cls = aten_chunk_2
             elif output_chunks == 3:
