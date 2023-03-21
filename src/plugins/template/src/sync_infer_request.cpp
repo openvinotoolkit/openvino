@@ -11,13 +11,13 @@
 #include <utility>
 
 #include "itt.hpp"
-#include "ngraph/runtime/host_tensor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/util/variable_context.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "plugin.hpp"
+#include "template/remote_tensor.hpp"
 #include "variable_state.hpp"
 
 using Time = std::chrono::high_resolution_clock;
@@ -95,9 +95,28 @@ ov::template_plugin::InferRequest::InferRequest(const std::shared_ptr<const ov::
 }
 // ! [infer_request:ctor]
 
+// ! [infer_request:dtor]
+ov::template_plugin::InferRequest::~InferRequest() = default;
+// ! [infer_request:dtor]
+
+// ! [infer_request:set_tensors_impl]
+void ov::template_plugin::InferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
+                                                         const std::vector<ov::Tensor>& tensors) {
+    for (const auto& input : get_inputs()) {
+        if (input == port) {
+            m_batched_tensors[input.get_tensor_ptr()] = tensors;
+            return;
+        }
+    }
+    OPENVINO_THROW("Cannot find input tensors for port ", port);
+}
+// ! [infer_request:set_tensors_impl]
+
+// ! [infer_request:query_state]
 std::vector<std::shared_ptr<ov::IVariableState>> ov::template_plugin::InferRequest::query_state() const {
     return m_variable_states;
 }
+// ! [infer_request:query_state]
 
 std::shared_ptr<const ov::template_plugin::CompiledModel> ov::template_plugin::InferRequest::get_template_model()
     const {
@@ -107,11 +126,7 @@ std::shared_ptr<const ov::template_plugin::CompiledModel> ov::template_plugin::I
     return template_model;
 }
 
-// ! [infer_request:dtor]
-ov::template_plugin::InferRequest::~InferRequest() = default;
-// ! [infer_request:dtor]
-
-// ! [infer_request:infer_impl]
+// ! [infer_request:infer]
 void ov::template_plugin::InferRequest::infer() {
     // TODO: fill with actual list of pipeline stages, which are executed synchronously for sync infer requests
     infer_preprocess();
@@ -119,7 +134,7 @@ void ov::template_plugin::InferRequest::infer() {
     wait_pipeline();  // does nothing in current implementation
     infer_postprocess();
 }
-// ! [infer_request:infer_impl]
+// ! [infer_request:infer]
 
 // ! [infer_request:infer_preprocess]
 void ov::template_plugin::InferRequest::infer_preprocess() {
@@ -132,7 +147,19 @@ void ov::template_plugin::InferRequest::infer_preprocess() {
     OPENVINO_ASSERT(get_inputs().size() == m_backend_input_tensors.size());
     for (size_t i = 0; i < get_inputs().size(); i++) {
         auto tensor = get_tensor(get_inputs()[i]);
-        if (tensor.is_continuous()) {
+        if (tensor.is<ov::RemoteTensor>()) {
+            OPENVINO_ASSERT(tensor.is<ov::template_plugin::VectorTensor>(),
+                            "Template plugin supports only VectorTensor with remote context.");
+            auto vector_tensor = tensor.as<ov::template_plugin::VectorTensor>();
+            auto element_type = vector_tensor.get_element_type();
+            void* data = vector_tensor.get_data();
+            OPENVINO_ASSERT(data != nullptr);
+            // Create backend tenor
+            m_backend_input_tensors[i] =
+                get_template_model()->get_template_plugin()->m_backend->create_tensor(element_type,
+                                                                                      vector_tensor.get_shape(),
+                                                                                      data);
+        } else if (tensor.is_continuous()) {
             // No ROI extraction is needed
             m_backend_input_tensors[i] =
                 get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor.get_element_type(),
@@ -150,7 +177,6 @@ void ov::template_plugin::InferRequest::infer_preprocess() {
             m_backend_input_tensors[i] =
                 get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor.get_element_type(),
                                                                                       tensor.get_shape());
-            auto* src_data = static_cast<uint8_t*>(tensor.data());
             tensor.copy_to(m_backend_input_tensors[i]);
         }
     }
@@ -163,10 +189,15 @@ void ov::template_plugin::InferRequest::infer_preprocess() {
             continue;
         }
         auto tensor = get_tensor(get_outputs()[i]);
-        m_backend_output_tensors[i] =
-            get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor.get_element_type(),
-                                                                                  tensor.get_shape(),
-                                                                                  tensor.data());
+        if (tensor.is_continuous() && !tensor.is<ov::RemoteTensor>())
+            m_backend_output_tensors[i] =
+                get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor.get_element_type(),
+                                                                                      tensor.get_shape(),
+                                                                                      tensor.data());
+        else
+            m_backend_output_tensors[i] =
+                get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor.get_element_type(),
+                                                                                      tensor.get_shape());
     }
     m_durations[Preprocess] = Time::now() - start;
 }
@@ -196,33 +227,30 @@ void ov::template_plugin::InferRequest::infer_postprocess() {
     OPENVINO_ASSERT(get_outputs().size() == m_backend_output_tensors.size());
     for (size_t i = 0; i < get_outputs().size(); i++) {
         const auto& result = get_template_model()->m_model->get_results()[i];
+        auto host_tensor = m_backend_output_tensors[i];
+        auto tensor = get_tensor(get_outputs()[i]);
         if (result->get_output_partial_shape(0).is_dynamic()) {
-            auto host_tensor = m_backend_output_tensors[i];
             ov::Output<const ov::Node> output{result->output(0).get_node(), result->output(0).get_index()};
             allocate_tensor(output, [host_tensor](ov::Tensor& tensor) {
                 allocate_tensor_impl(tensor, host_tensor.get_element_type(), host_tensor.get_shape());
                 host_tensor.copy_to(tensor);
             });
+        } else if (!tensor.is_continuous()) {
+            host_tensor.copy_to(tensor);
+        } else if (tensor.is<ov::RemoteTensor>()) {
+            OPENVINO_ASSERT(tensor.is<ov::template_plugin::VectorTensor>(),
+                            "Template plugin supports only VectorTensor with remote context.");
+            auto vector_tensor = tensor.as<ov::template_plugin::VectorTensor>();
+            void* data = vector_tensor.get_data();
+            // Copy to vector
+            std::memcpy(data, host_tensor.data(), tensor.get_byte_size());
         }
     }
     m_durations[Postprocess] = Time::now() - start;
 }
 // ! [infer_request:infer_postprocess]
 
-// ! [infer_request:set_blobs_impl]
-void ov::template_plugin::InferRequest::set_tensors_impl(const ov::Output<const ov::Node> port,
-                                                         const std::vector<ov::Tensor>& tensors) {
-    for (const auto& input : get_inputs()) {
-        if (input == port) {
-            m_batched_tensors[input.get_tensor_ptr()] = tensors;
-            return;
-        }
-    }
-    OPENVINO_THROW("Cannot find input tensors for port ", port);
-}
-// ! [infer_request:set_blobs_impl]
-
-// ! [infer_request:get_performance_counts]
+// ! [infer_request:get_profiling_info]
 std::vector<ov::ProfilingInfo> ov::template_plugin::InferRequest::get_profiling_info() const {
     std::vector<ov::ProfilingInfo> info;
     const auto fill_profiling_info = [](const std::string& name,
@@ -238,4 +266,4 @@ std::vector<ov::ProfilingInfo> ov::template_plugin::InferRequest::get_profiling_
     info.emplace_back(fill_profiling_info("output postprocessing", m_durations[Postprocess]));
     return info;
 }
-// ! [infer_request:get_performance_counts]
+// ! [infer_request:get_profiling_info]

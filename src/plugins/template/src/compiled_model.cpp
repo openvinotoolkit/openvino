@@ -18,10 +18,11 @@
 // ! [compiled_model:ctor]
 ov::template_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                   const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                  const ov::RemoteContext& context,
                                                   const std::shared_ptr<ov::threading::ITaskExecutor>& task_executor,
                                                   const Configuration& cfg,
                                                   bool loaded_from_cache)
-    : ov::ICompiledModel(model, plugin, task_executor),  // Disable default threads creation
+    : ov::ICompiledModel(model, plugin, context, task_executor),  // Disable default threads creation
       m_cfg(cfg),
       m_model(model),
       m_loaded_from_cache(loaded_from_cache) {
@@ -77,10 +78,6 @@ void ov::template_plugin::CompiledModel::set_property(const ov::AnyMap& properti
     OPENVINO_NOT_IMPLEMENTED;
 }
 // ! [compiled_model:set_property]
-
-ov::RemoteContext ov::template_plugin::CompiledModel::get_context() const {
-    OPENVINO_NOT_IMPLEMENTED;
-}
 
 // ! [compiled_model:get_runtime_model]
 std::shared_ptr<const ov::Model> ov::template_plugin::CompiledModel::get_runtime_model() const {
