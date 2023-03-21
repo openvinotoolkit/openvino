@@ -108,11 +108,11 @@ public:
     void build_all();
     void reset();
 
-    void add_kernels_source(const kernel_impl_params params,
-                                const std::vector<std::shared_ptr<kernel_string>> kernel_sources,
+    void add_kernels_source(const kernel_impl_params& params,
+                                const std::vector<std::shared_ptr<kernel_string>>& kernel_sources,
                                 bool dump_custom_program = false);
-    compiled_kernels compile(const kernel_impl_params params,
-                                const std::vector<std::shared_ptr<kernel_string>> kernel_sources,
+    compiled_kernels compile(const kernel_impl_params& params,
+                                const std::vector<std::shared_ptr<kernel_string>>& kernel_sources,
                                 bool dump_custom_program = false);
 
     void add_kernels_for_serialization(std::vector<std::pair<size_t, kernel::ptr>> dump_kernels);

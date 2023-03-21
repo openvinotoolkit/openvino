@@ -441,8 +441,8 @@ void kernels_cache::reset() {
     _pending_compilation = false;
 }
 
-void kernels_cache::add_kernels_source(const kernel_impl_params params,
-                                        std::vector<std::shared_ptr<kernel_string>> kernel_sources,
+void kernels_cache::add_kernels_source(const kernel_impl_params& params,
+                                        const std::vector<std::shared_ptr<kernel_string>>& kernel_sources,
                                         bool dump_custom_program) {
     std::lock_guard<std::mutex> lock(_mutex);
 
@@ -544,8 +544,8 @@ void kernels_cache::load(BinaryInputBuffer& ib) {
     }
 }
 
-kernels_cache::compiled_kernels kernels_cache::compile(const kernel_impl_params params,
-                                            std::vector<std::shared_ptr<kernel_string>> kernel_sources,
+kernels_cache::compiled_kernels kernels_cache::compile(const kernel_impl_params& params,
+                                            const std::vector<std::shared_ptr<kernel_string>>& kernel_sources,
                                             bool dump_custom_program) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "KernelsCache::Compile_ThreadSafe");
     kernels_code t_kernels_code;
