@@ -59,6 +59,10 @@ jobs:
           ls -laR .
           echo $GITHUB_WORKSPACE
           echo ${{ github.workspace }}
+      
+      - name: Get number of CPU cores
+        uses: SimenB/github-actions-cpu-cores@v1
+        id: cpu-cores
 
       - name: Build OpenVINO with CMake
         uses: ashutoshvarma/action-cmake-build@master
@@ -70,7 +74,7 @@ jobs:
           configure-options: -GNinja -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DENABLE_INTEL_MYRIAD_COMMON=OFF -DENABLE_FASTER_BUILD=ON -DENABLE_OV_ONNX_FRONTEND=ON -DENABLE_TESTS=ON -DENABLE_COVERAGE=ON -DENABLE_INTEL_GPU=OFF -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_LINKER_LAUNCHER=ccache -DCMAKE_CXX_LINKER_LAUNCHER=ccache
           build-type: Release
           target: all
-          parallel: $(nproc --all)
+          parallel: ${{ steps.cpu-cores.outputs.count }}
           run-test: true
           ctest-options: -V -L OV IR_FE TF_FE ONNX_FE PADDLE_FE
 
