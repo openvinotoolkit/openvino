@@ -12,12 +12,9 @@ using namespace InferenceEngine::PluginConfigParams;
 namespace {
 
 const std::vector<ov::AnyMap> cpu_properties = {
-    {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
-    {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
-    {ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)},
-    {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ANY_CORE)},
-    {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::PCORE_ONLY)},
-    {ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ECORE_ONLY)},
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)},
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::UNDEFINED)},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests, OVPropertiesTests,

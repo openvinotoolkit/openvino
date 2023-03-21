@@ -120,6 +120,7 @@ using OVClassLoadNetworkTest = OVClassQueryNetworkTest;
 using OVClassSetGlobalConfigTest = OVClassBaseTestP;
 using OVClassSetModelPriorityConfigTest = OVClassBaseTestP;
 using OVClassSetExecutionModeHintConfigTest = OVClassBaseTestP;
+using OVClassSetSchedulingCoreTypeHintConfigTest = OVClassBaseTestP;
 using OVClassSetTBBForceTerminatePropertyTest = OVClassBaseTestP;
 using OVClassSetLogLevelConfigTest = OVClassBaseTestP;
 using OVClassSpecificDeviceTestSetConfig = OVClassBaseTestP;
@@ -429,6 +430,23 @@ TEST_P(OVClassSetExecutionModeHintConfigTest, SetConfigNoThrow) {
     ASSERT_EQ(ov::hint::ExecutionMode::ACCURACY, ie.get_property(target_device, ov::hint::execution_mode));
     ie.set_property(target_device, ov::hint::execution_mode(ov::hint::ExecutionMode::PERFORMANCE));
     ASSERT_EQ(ov::hint::ExecutionMode::PERFORMANCE, ie.get_property(target_device, ov::hint::execution_mode));
+}
+
+TEST_P(OVClassSetSchedulingCoreTypeHintConfigTest, SetConfigNoThrow) {
+    ov::Core ie = createCoreWithTemplate();
+
+    OV_ASSERT_PROPERTY_SUPPORTED(ov::hint::scheduling_core_type);
+
+    ov::hint::SchedulingCoreType defaultMode{};
+    ASSERT_NO_THROW(defaultMode = ie.get_property(target_device, ov::hint::scheduling_core_type));
+    (void)defaultMode;
+
+    ie.set_property(target_device, ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ANY_CORE));
+    ASSERT_EQ(ov::hint::SchedulingCoreType::ANY_CORE, ie.get_property(target_device, ov::hint::scheduling_core_type));
+    ie.set_property(target_device, ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::PCORE_ONLY));
+    ASSERT_EQ(ov::hint::SchedulingCoreType::PCORE_ONLY, ie.get_property(target_device, ov::hint::scheduling_core_type));
+    ie.set_property(target_device, ov::hint::scheduling_core_type(ov::hint::SchedulingCoreType::ECORE_ONLY));
+    ASSERT_EQ(ov::hint::SchedulingCoreType::ECORE_ONLY, ie.get_property(target_device, ov::hint::scheduling_core_type));
 }
 
 TEST_P(OVClassSetDevicePriorityConfigTest, SetConfigAndCheckGetConfigNoThrow) {
