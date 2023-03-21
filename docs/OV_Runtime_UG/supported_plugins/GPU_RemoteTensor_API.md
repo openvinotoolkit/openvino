@@ -136,6 +136,7 @@ Once the plugin options have been changed, the internal context is replaced by t
 To request the current default context of the plugin, use one of the following methods:
 
 .. tab:: C++
+
    .. tab:: Get context from Core
 
       .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation.cpp
@@ -149,6 +150,7 @@ To request the current default context of the plugin, use one of the following m
          :fragment: default_context_from_model
 
 .. tab:: C
+
    .. tab:: Get context from Core
 
       .. doxygensnippet:: docs/snippets/gpu/remote_objects_creation_c.cpp
@@ -167,10 +169,11 @@ Memory Sharing Between Application and GPU Plugin
 The classes that implement the ``ov::RemoteTensor`` interface are the wrappers for native API
 memory handles (which can be obtained from them at any time).
 
-To create a shared tensor from a native memory handle, use dedicated ``create_tensor``or ``create_tensor_nv12`` methods
+To create a shared tensor from a native memory handle, use dedicated ``create_tensor`` or ``create_tensor_nv12`` methods
 of the ``ov::RemoteContext`` sub-classes.
 ``ov::intel_gpu::ocl::ClContext`` has multiple overloads of ``create_tensor`` methods which allow to wrap pre-allocated native handles with the ``ov::RemoteTensor``
-object or request plugin to allocate specific device memory. For more details, see the code snippets below:
+object or request plugin to allocate specific device memory. There also provides C APIs to do the same things with C++ APIs.
+For more details, see the code snippets below:
 
 C++
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

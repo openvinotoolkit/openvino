@@ -149,18 +149,20 @@ int main() {
     int64_t y_plane_size = width * height;
     int64_t uv_plane_size = width * height / 2;
 
-    ov_shape_t shape_y = {0, nullptr};
+    ov_shape_t shape_y = {0, NULL};
     int64_t dims_y[4] = {1, 1, height, width};
-    ov_shape_t shape_uv = {0, nullptr};
+    ov_shape_t shape_uv = {0, NULL};
     int64_t dims_uv[4] = {1, 2, height / 2, width / 2};
-
-    //! [create_nv12_surface]
-    cl::Image2D y_plane_surface = allocate_image(y_plane_size);
-    cl::Image2D uv_plane_surface = allocate_image(uv_plane_size);
     ov_tensor_t* remote_tensor_y = NULL;
     ov_tensor_t* remote_tensor_uv = NULL;
 
     ov_shape_create(4, dims_y, &shape_y);
+    ov_shape_create(4, dims_uv, &shape_uv);
+
+    //! [create_nv12_surface]
+    cl::Image2D y_plane_surface = allocate_image(y_plane_size);
+    cl::Image2D uv_plane_surface = allocate_image(uv_plane_size);
+
     ov_remote_context_create_tensor(gpu_context,
                                     input_type,
                                     shape_y,
@@ -171,7 +173,6 @@ int main() {
                                     ov_property_key_intel_gpu_mem_handle,
                                     y_plane_surface.get());
 
-    ov_shape_create(4, dims_uv, &shape_uv);
     ov_remote_context_create_tensor(gpu_context,
                                     input_type,
                                     shape_uv,
