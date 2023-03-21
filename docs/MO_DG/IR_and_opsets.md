@@ -1,4 +1,4 @@
-# Operation Sets in OpenVINO™ {#openvino_docs_MO_DG_IR_and_opsets}
+# Operation Sets in OpenVINO {#openvino_docs_MO_DG_IR_and_opsets}
 
 @sphinxdirective
 
