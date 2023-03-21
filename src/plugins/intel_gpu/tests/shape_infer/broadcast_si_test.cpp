@@ -104,10 +104,9 @@ TEST_P(broadcast_test_two_inputs_blocked_format, shape_infer) {
                 broadcast("output", input_info("data"), input_info("target_shape"), p.axes_mapping_data, p.mode)
     );
 
-    ExecutionConfig config {
-        ov::intel_gpu::optimize_data(true),
-        ov::intel_gpu::allow_new_shape_infer(true)
-    };
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
     std::vector<int32_t> input_data(p.data_layout.get_linear_size(), 1);
 

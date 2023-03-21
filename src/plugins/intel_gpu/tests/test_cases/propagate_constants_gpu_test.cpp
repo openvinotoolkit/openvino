@@ -18,7 +18,7 @@ using namespace ::tests;
 template <typename T>
 void test_copy_dependecies_from_nodes(bool is_caching_test) {
     auto& engine = get_test_engine();
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     auto input = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 2 } });
