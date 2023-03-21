@@ -862,6 +862,14 @@ auto test_forward_reshape_unsqueeze = []() {
         new_out_vec[0] = make_shared<Transpose>(out_vec[0], order);
         return new_out_vec;
     };
+    auto new_constant = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector new_out_vec(out_vec.size());
+        new_out_vec[0] = out_vec[0];
+        new_out_vec[1] =
+                make_shared<Constant>(out_vec[1].get_element_type(), out_vec[1].get_shape(), std::vector<int64_t>{6, 1, 5, 1, 4});
+        return new_out_vec;
+    };
+    test_case.model_ref.preprocess_inputs_to_main = {{new_constant}, {{1}}};
     test_case.model_ref.main_op = {CREATE_RESHAPE_FACTORY(Reshape)};
     test_case.model_ref.preprocess_outputs_of_main = {{new_transpose}, {{0}}};
     test_case.model_ref.model_template = create_model;
@@ -1283,7 +1291,15 @@ auto test_backward_reshape_squeeze = []() {
         new_out_vec[1] = out_vec[1];
         return new_out_vec;
     };
-    test_case.model_ref.preprocess_inputs_to_main = {{new_transpose}, {{0}}};
+    auto new_constant = [](const vector<size_t>& idxs, const OutputVector& out_vec) -> OutputVector {
+        OutputVector new_out_vec(out_vec.size());
+        new_out_vec[0] = out_vec[0];
+        new_out_vec[1] = make_shared<Constant>(out_vec[1].get_element_type(),
+                                               out_vec[1].get_shape(),
+                                               std::vector<int64_t>{6, 5, 4});
+        return new_out_vec;
+    };
+    test_case.model_ref.preprocess_inputs_to_main = {{new_transpose, new_constant}, {{0}, {1}}};
     test_case.model_ref.main_op = {CREATE_RESHAPE_FACTORY(Reshape)};
     test_case.model_ref.model_template = create_model;
 
