@@ -27,50 +27,63 @@ concurrency:
 
 jobs:
   Coverage:
+    runs-on: ${{ matrix.config.os }}
     strategy:
       fail-fast: false
-    runs-on: ubuntu-latest-16-cores
+      matrix:
+        config:
+          - { name: "Ubuntu gcc", os: ubuntu-latest-16-cores, cc: "gcc", cxx: "g++" }
+
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@v3
         with:
           submodules: recursive
 
+      - name: Setup GNinja
+        uses: ashutoshvarma/setup-ninja@master
+        with:
+          version: 1.10.2
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+
       - name: Install lcov dependency
         run: |
           sudo apt --assume-yes update
           sudo apt --assume-yes install lcov
-      - name: CMake configure
-        run: cmake -DENABLE_INTEL_MYRIAD_COMMON=OFF -DCMAKE_BUILD_TYPE=Release -DENABLE_FASTER_BUILD=ON -DENABLE_OV_ONNX_FRONTEND=ON -DENABLE_TESTS=ON -DENABLE_COVERAGE=ON -DENABLE_INTEL_GPU=OFF -B build
 
-      - name: Build OpenVINO
-        run:  cmake --build build --target all --parallel $(nproc --all)
+      - name: Build OpenVINO with CMake
+        uses: ashutoshvarma/action-cmake-build@master
+        with:
+          source-dir: ${{ runner.workspace }}
+          build-dir: ${{ runner.workspace }}/build
+          cc: ${{ matrix.config.cc }}
+          cxx: ${{ matrix.config.cxx }}
+          configure-options: -GNinja -DCMAKE_VERBOSE_MAKEFILE=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DENABLE_INTEL_MYRIAD_COMMON=OFF -DENABLE_FASTER_BUILD=ON -DENABLE_OV_ONNX_FRONTEND=ON -DENABLE_TESTS=ON -DENABLE_COVERAGE=ON -DENABLE_INTEL_GPU=OFF -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_LINKER_LAUNCHER=ccache -DCMAKE_CXX_LINKER_LAUNCHER=ccache
+          build-type: Release
+          target: all
+          parallel: $(nproc --all)
+          run-test: true
+          ctest-options: -V -L OV IR_FE TF_FE ONNX_FE PADDLE_FE
 
       - name: ls all
         run:  ls -laR .
 
-      - name: Run Core tests
-        run: ctest -V -L OV
-
-      - name: Run IR tests
-        run: ctest -V -L IR_FE
-
-      - name: Run Tensorflow tests
-        run: ctest -V -L TF_FE
-
-      - name: Run ONNX tests
-        run: ctest -V -L ONNX_FE
-
-      - name: Run Paddle tests
-        run: ctest -V -L PADDLE_FE
-
-      - name: Build coverage
-        run:  cmake --build build --target ov_coverage
+      - name: Build coverage with CMake
+        uses: ashutoshvarma/action-cmake-build@master
+        with:
+          build-dir: ${{ runner.workspace }}/build
+          cc: ${{ matrix.config.cc }}
+          cxx: ${{ matrix.config.cxx }}
+          configure-options: -GNinja -- -C ${{ runner.workspace }}/build
+          target: ov_coverage
 
       - name: Generate raport
         run: |
           lcov --capture --directory . --output-file coverage.info
           genhtml coverage.info --output-directory coverage-report
+
       - name: Collect coverage
         uses: codecov/codecov-action@v3
         with:
