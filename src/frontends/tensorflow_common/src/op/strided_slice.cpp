@@ -27,9 +27,10 @@ OutputVector translate_strided_slice_op(const NodeContext& node) {
             return vector<int64_t>{};
         }
         size_t max_length = sizeof(mask) * CHAR_BIT;
-        vector<int64_t> vec{};
+        vector<int64_t> vec;
+        vec.reserve(max_length);
         for (size_t i = 0; i < max_length; ++i) {
-            if ((mask >> i & 0x1) == 1) {
+            if (((mask >> i) & 0x1) == 1) {
                 // resize the vector by appending with required number of zeros
                 vec.resize(i + 1, 0);
                 vec[i] = 1;
