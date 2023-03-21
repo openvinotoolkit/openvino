@@ -225,7 +225,7 @@ TEST(type_prop, interpolate_v4_incorrect_mode) {
     attrs.mode = ov::op::util::InterpolateBase::InterpolateMode::BICUBIC_PILLOW;
     attrs.pads_begin = {0, 0, 0, 0};
     attrs.pads_end = {0, 0, 0, 0};
-    
+
     OV_EXPECT_THROW(auto interp = std::make_shared<ov::op::v4::Interpolate>(image, target_shape, scales, axes, attrs),
                     ov::NodeValidationFailure,
                     HasSubstr("Unsupported interpolation mode used with version 4 of the Interpolate op"));
