@@ -528,7 +528,7 @@ TEST(type_prop, matmul_propagate_labels_on_interval_dims) {
 }
 
 TEST(type_prop, matmul_propagate_label_on_b_input_after_reshape) {
-    constexpr size_t my_label = 2;
+    constexpr ov::label_t my_label = 2;
     auto marked_dim = Dimension(2, 3);
     ov::DimensionTracker::set_label(marked_dim, my_label);
 
@@ -552,6 +552,6 @@ TEST(type_prop, matmul_propagate_label_on_b_input_after_reshape) {
     const auto& output_shape = matmul->get_output_partial_shape(0);
     const auto labels = get_shape_labels(output_shape);
 
-    ASSERT_THAT(labels, ElementsAre((int)my_label, 0, 0));
+    ASSERT_THAT(labels, ElementsAre(my_label, 0, 0));
     ASSERT_EQ(output_shape, (PartialShape{marked_dim, 5, 8}));
 }
