@@ -35,7 +35,7 @@ void align_result_types(const NodeContext& context,
 }
 }  // namespace
 
-OutputVector translate_if(NodeContext& context) {
+OutputVector translate_if(const NodeContext& context) {
     auto if_node = std::make_shared<opset10::If>(context.get_input(0));
     context.mark_node(if_node);
     auto decoder = context.get_decoder();
@@ -159,7 +159,7 @@ OutputVector translate_if(NodeContext& context) {
         }
     }
     for (const auto& output_idx : extra_output_idxs) {
-        // align_result_types(context, extra_then_body_results.at(output_idx), extra_else_body_results.at(output_idx));
+        align_result_types(context, extra_then_body_results.at(output_idx), extra_else_body_results.at(output_idx));
         context.add_tensor_to_context(
             output_idx,
             if_node->set_output(extra_then_body_results.at(output_idx), extra_else_body_results.at(output_idx)));

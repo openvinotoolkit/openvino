@@ -44,7 +44,7 @@ TEST_P(test_empty_tensor, concat_two_inputs) {
     topology.add(gather_nonzero("gather_nonzero", input_info("nonzero_input"), input_info("count_nonzero")));
     topology.add(concatenation("concat", { input_info("gather_nonzero"), input_info("concat_data") }, p.concat_axis));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);

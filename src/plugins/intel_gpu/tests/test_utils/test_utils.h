@@ -9,6 +9,7 @@
 #include <intel_gpu/runtime/memory.hpp>
 #include <intel_gpu/runtime/tensor.hpp>
 #include <intel_gpu/runtime/engine.hpp>
+#include <intel_gpu/runtime/execution_config.hpp>
 #include <intel_gpu/runtime/stream.hpp>
 #include <intel_gpu/graph/program.hpp>
 #include <intel_gpu/graph/network.hpp>
@@ -55,8 +56,16 @@ namespace tests {
 
 std::shared_ptr<cldnn::engine> create_test_engine();
 cldnn::engine& get_test_engine();
+cldnn::stream_ptr get_test_stream_ptr(cldnn::ExecutionConfig cfg);
 cldnn::stream_ptr get_test_stream_ptr();
 cldnn::stream& get_test_stream();
+
+// Set default configuration for test-cases
+cldnn::ExecutionConfig get_test_default_config(const cldnn::engine&);
+cldnn::ExecutionConfig get_test_default_config(const cldnn::engine&, ov::AnyMap::value_type values);
+cldnn::ExecutionConfig get_test_default_config(const cldnn::engine&,
+                                                std::initializer_list<ov::AnyMap::value_type> values);
+
 
 template<typename T>
 bool has_node_with_type(cldnn::program& prog) {
@@ -607,6 +616,23 @@ inline std::vector<float> get_output_values_to_float(cldnn::network& net, const 
         default:
             IE_THROW() << "Unknown output data_type";
     }
+}
+
+inline cldnn::memory::ptr get_generated_random_1d_mem(cldnn::engine& engine, cldnn::layout l) {
+    auto prim = engine.allocate_memory(l);
+    cldnn::tensor s = l.get_tensor();
+    if (l.data_type == cldnn::data_types::i8 || l.data_type == cldnn::data_types::u8) {
+        VF<uint8_t> rnd_vec = generate_random_1d<uint8_t>(s.count(), -200, 200);
+        set_values(prim, rnd_vec);
+    } else if (l.data_type == cldnn::data_types::f16) {
+        VF<FLOAT16> rnd_vec = generate_random_1d<FLOAT16>(s.count(), -1, 1);
+        set_values(prim, rnd_vec);
+    } else {
+        VF<float> rnd_vec = generate_random_1d<float>(s.count(), -1, 1);
+        set_values(prim, rnd_vec);
+    }
+
+    return prim;
 }
 
 double default_tolerance(cldnn::data_types dt);

@@ -16,7 +16,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_select(NodeContext& context) {
+OutputVector translate_select(const NodeContext& context) {
     // aten::select.int(Tensor(a) self, int dim, SymInt index) -> Tensor(a)
     num_inputs_check(context, 3, 3);
     auto data = context.get_input(0);

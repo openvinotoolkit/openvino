@@ -415,4 +415,10 @@ public:
     void run(program& p) override;
 };
 
+class build_implementations : public base_pass {
+public:
+    build_implementations() : base_pass("build_implementations") {}
+    void run(program& p) override;
+};
+
 }  // namespace cldnn

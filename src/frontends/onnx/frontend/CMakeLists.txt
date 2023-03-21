@@ -19,7 +19,7 @@ set(ONNX_OPSET_VERSION 17 CACHE INTERNAL "Supported version of ONNX operator set
 target_compile_definitions(${TARGET_NAME} PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}
-                    SOURCE_DIRECTORY "${${TARGET_NAME}_INCLUDE_DIR}"
+                    SOURCE_DIRECTORIES "${${TARGET_NAME}_INCLUDE_DIR}"
                     DEFINITIONS
                         $<TARGET_PROPERTY:onnx,INTERFACE_COMPILE_DEFINITIONS>
                     ADDITIONAL_INCLUDE_DIRECTORIES

@@ -5,10 +5,8 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "pt_framework_node.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -23,27 +21,6 @@ Output<Node> base_translate_full(const NodeContext& context, const Output<Node>&
     return context.mark_node(std::make_shared<v3::Broadcast>(value, sizes));
 }
 
-Output<Node> base_translate_full_with_convert(const NodeContext& context,
-                                              const Output<Node>& sizes,
-                                              const Output<Node>& value,
-                                              size_t dtype_id) {
-    auto filled_tensor = base_translate_full(context, sizes, value);
-    if (!context.input_is_none(dtype_id)) {
-        if (std::dynamic_pointer_cast<v0::Constant>(
-                context.get_input_from_visible_context(dtype_id).get_node_shared_ptr())) {
-            auto dtype = convert_dtype(context.const_input<int64_t>(dtype_id));
-            filled_tensor = context.mark_node(std::make_shared<v0::Convert>(filled_tensor, dtype));
-        } else if (const auto& fw_node =
-                       cast_fw_node(context.get_input(dtype_id).get_node_shared_ptr(), "prim::dtype")) {
-            filled_tensor =
-                context.mark_node(std::make_shared<v1::ConvertLike>(filled_tensor, fw_node->input_value(0)));
-        } else {
-            FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
-        }
-    }
-    return filled_tensor;
-}
-
 Output<Node> base_translate_full_with_convertlike(const NodeContext& context,
                                                   const Output<Node>& sizes,
                                                   const Output<Node>& value,
@@ -51,9 +28,21 @@ Output<Node> base_translate_full_with_convertlike(const NodeContext& context,
     auto filled_tensor = base_translate_full(context, sizes, value);
     return context.mark_node(std::make_shared<v1::ConvertLike>(filled_tensor, out));
 }
+
+Output<Node> base_translate_full_with_convert(const NodeContext& context,
+                                              const Output<Node>& sizes,
+                                              Output<Node> value,
+                                              size_t dtype_id) {
+    if (!context.input_is_none(dtype_id)) {
+        value = apply_dtype(context, dtype_id, value);
+    }
+
+    auto filled_tensor = base_translate_full(context, sizes, value);
+    return filled_tensor;
+}
 }  // namespace
 
-OutputVector translate_full(NodeContext& context) {
+OutputVector translate_full(const NodeContext& context) {
     num_inputs_check(context, 2, 6);
     auto sizes = context.get_input(0);
     auto value = context.get_input(1);
@@ -70,19 +59,19 @@ OutputVector translate_full(NodeContext& context) {
     return {base_translate_full_with_convert(context, sizes, value, dtype_id)};
 };
 
-OutputVector translate_full_like(NodeContext& context) {
+OutputVector translate_full_like(const NodeContext& context) {
     num_inputs_check(context, 2, 7);
     auto input = context.get_input(0);
     auto value = context.get_input(1);
     auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
-    if (context.get_input_size() == 7) {
+    if (context.get_input_size() == 7 && !context.input_is_none(2)) {
         return {base_translate_full_with_convert(context, sizes, value, 2)};
     }
     auto out = context.input_is_none(3) ? input : context.get_input(3);
     return {base_translate_full_with_convertlike(context, sizes, value, out)};
 };
 
-OutputVector translate_fill_(NodeContext& context) {
+OutputVector translate_fill_(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     auto input = context.get_input(0);
     auto value = context.get_input(1);
@@ -90,7 +79,7 @@ OutputVector translate_fill_(NodeContext& context) {
     return {base_translate_full_with_convertlike(context, sizes, value, input)};
 };
 
-OutputVector translate_new_full(NodeContext& context) {
+OutputVector translate_new_full(const NodeContext& context) {
     num_inputs_check(context, 3, 7);
     auto input = context.get_input(0);
     auto sizes = context.get_input(1);
@@ -101,7 +90,7 @@ OutputVector translate_new_full(NodeContext& context) {
     return {base_translate_full_with_convertlike(context, sizes, value, input)};
 };
 
-OutputVector translate_zeros(NodeContext& context) {
+OutputVector translate_zeros(const NodeContext& context) {
     num_inputs_check(context, 2, 5);
     auto sizes = context.get_input(0);
     auto value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
@@ -114,25 +103,23 @@ OutputVector translate_zeros(NodeContext& context) {
         }
         return {base_translate_full(context, sizes, value)};
     }
-    // aten::zeros(SymInt[] size, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool?
-    // pin_memory=None) -> Tensor
     size_t dtype_id = num_inputs == 5 ? 1 : 2;
     return {base_translate_full_with_convert(context, sizes, value, dtype_id)};
 };
 
-OutputVector translate_zeros_like(NodeContext& context) {
+OutputVector translate_zeros_like(const NodeContext& context) {
     num_inputs_check(context, 1, 6);
     auto input = context.get_input(0);
     auto value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
     auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
-    if (context.get_input_size() == 6) {
+    if (context.get_input_size() == 6 && !context.input_is_none(1)) {
         return {base_translate_full_with_convert(context, sizes, value, 1)};
     }
     auto out = context.input_is_none(2) ? input : context.get_input(2);
     return {base_translate_full_with_convertlike(context, sizes, value, out)};
 };
 
-OutputVector translate_new_zeros(NodeContext& context) {
+OutputVector translate_new_zeros(const NodeContext& context) {
     num_inputs_check(context, 2, 6);
     auto input = context.get_input(0);
     auto sizes = context.get_input(1);
@@ -143,7 +130,7 @@ OutputVector translate_new_zeros(NodeContext& context) {
     return {base_translate_full_with_convertlike(context, sizes, value, input)};
 };
 
-OutputVector translate_ones(NodeContext& context) {
+OutputVector translate_ones(const NodeContext& context) {
     num_inputs_check(context, 1, 5);
     auto sizes = context.get_input(0);
     auto value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {1}));
@@ -160,19 +147,19 @@ OutputVector translate_ones(NodeContext& context) {
     return {base_translate_full_with_convert(context, sizes, value, dtype_id)};
 };
 
-OutputVector translate_ones_like(NodeContext& context) {
+OutputVector translate_ones_like(const NodeContext& context) {
     num_inputs_check(context, 1, 6);
     auto input = context.get_input(0);
     auto value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {1}));
     auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(input, element::i32));
-    if (context.get_input_size() == 6) {
+    if (context.get_input_size() == 6 && !context.input_is_none(1)) {
         return {base_translate_full_with_convert(context, sizes, value, 1)};
     }
     auto out = context.input_is_none(2) ? input : context.get_input(2);
     return {base_translate_full_with_convertlike(context, sizes, value, out)};
 };
 
-OutputVector translate_new_ones(NodeContext& context) {
+OutputVector translate_new_ones(const NodeContext& context) {
     num_inputs_check(context, 2, 6);
     auto input = context.get_input(0);
     auto sizes = context.get_input(1);
@@ -183,8 +170,11 @@ OutputVector translate_new_ones(NodeContext& context) {
     return {base_translate_full_with_convertlike(context, sizes, value, input)};
 };
 
-OutputVector translate_empty(NodeContext& context) {
-    num_inputs_check(context, 1, 5);
+OutputVector translate_empty(const NodeContext& context) {
+    // aten::empty(SymInt[] size, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None, bool?
+    // pin_memory=None, MemoryFormat? memory_format=None) -> Tensor layout, device and work with memory ignored on our
+    // side, so just skip these parameters
+    num_inputs_check(context, 1, 6);
     auto sizes = context.get_input(0);
     // In OV uninitialised data is not supported, so we create a tensor filled with zeros with a given shape and type.
     auto value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
@@ -197,24 +187,6 @@ OutputVector translate_empty(NodeContext& context) {
     }
     return {empty};
 };
-
-OutputVector translate_new_empty(NodeContext& context) {
-    // aten::new_empty(Tensor self, SymInt[] size, *, ScalarType? dtype=None, Layout? layout=None, Device? device=None,
-    // bool? pin_memory=None) -> Tensor
-    num_inputs_check(context, 2, 6);
-    auto input = context.get_input(0);
-    auto sizes = context.get_input(1);
-    auto value = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
-    int dtype_id = 2;
-    Output<Node> empty;
-    if (!context.input_is_none(dtype_id)) {
-        empty = base_translate_full_with_convert(context, sizes, value, dtype_id);
-    } else {
-        empty = base_translate_full_with_convertlike(context, sizes, value, input);
-    }
-    return {empty};
-};
-
 }  // namespace op
 }  // namespace pytorch
 }  // namespace frontend
