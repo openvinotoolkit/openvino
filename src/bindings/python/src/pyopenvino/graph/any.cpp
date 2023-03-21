@@ -99,7 +99,7 @@ void regclass_graph_Any(py::module m) {
         [](ov::Any& self, py::object dtype) {
             // before serialization
             if (self.is<Common::utils::EmptyList>() || dtype.is_none()) {
-                return py::cast(std::vector<int>());
+                return py::cast<py::object>(py::list());
             } else if (self.is<std::vector<double>>()) {
                 return py::cast(self.as<std::vector<double>>());
             } else if (self.is<std::vector<std::string>>()) {
