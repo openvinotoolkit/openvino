@@ -227,6 +227,8 @@ void Concat::initSupportedPrimitiveDescriptors() {
 
 void Concat::selectOptimalPrimitiveDescriptor() {
     std::vector<size_t> canSelectPrimitive;
+    LayoutType type;
+    InferenceEngine::Precision precision;
 
     // The double connection marks that some tensor should
     // be replicated. Inplace approach is not applicable
@@ -280,6 +282,7 @@ void Concat::selectOptimalPrimitiveDescriptor() {
                 formatFrequency[item] += 1;
         }
     }
+
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto childEdge = getChildEdgeAt(i);
         auto child = childEdge->getChild();
@@ -295,14 +298,11 @@ void Concat::selectOptimalPrimitiveDescriptor() {
                 if (port_desc->hasLayoutType(item) && port_desc->getPrecision() == outputPrecision)
                     formatFrequency[item] += getParentEdges().size();
             }
-        } else {
-            LayoutType type;
-            InferenceEngine::Precision precision;
-            if (child->supportedPrmitiveHasSameLayoutPrecisionOnInputPort(type, precision, inputIndex, supportedLayouts)) {
+        } else if (child->supportedPrmitiveHasSameLayoutPrecisionOnInputPort(type, precision, inputIndex, supportedLayouts) &&
+                precision == outputPrecision) {
                 formatFrequency[type] += getParentEdges().size();
-            } else {
+        } else {
                 continue;
-            }
         }
     }
     for (auto iter = formatFrequency.begin(); iter != formatFrequency.end(); iter++) {
