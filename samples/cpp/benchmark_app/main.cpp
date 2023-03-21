@@ -174,26 +174,8 @@ void setDeviceProperty(ov::Core& core,
     if (device_property.first.empty())
         return;
 
-    if (device_config.find(ov::device::properties.name()) == device_config.end()) {
-        device_config[ov::device::properties.name()] = ov::AnyMap{};
-    }
-
-    // because of legacy API 1.0. eg the config from JSON file.
-    if (device_config[ov::device::properties.name()].is<std::string>())
-        device_config[ov::device::properties.name()] = device_config[ov::device::properties.name()].as<ov::AnyMap>();
-
-    auto& device_properties = device_config[ov::device::properties.name()].as<ov::AnyMap>();
-    if (device_properties.find(device) == device_properties.end()) {
-        device_properties.insert({device, ov::AnyMap{}});
-    }
-    // because of legacy API 1.0. eg the config from JSON file.
-    if (device_properties[device].is<std::string>())
-        device_properties[device] = device_properties[device].as<ov::AnyMap>();
-
-    auto& secondary_property = device_properties[device].as<ov::AnyMap>();
-    // overwrite if this config existed
-    secondary_property.erase(device_property.first);
-    secondary_property.insert(device_property);
+    // Update device properties for HW device.
+    update_device_properties_setting(device, device_config, device_property);
 }
 
 void warn_if_no_batch(const benchmark_app::InputsInfo& first_inputs) {

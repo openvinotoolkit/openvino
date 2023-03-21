@@ -121,6 +121,41 @@ bool is_virtual_device_found(const std::vector<std::string>& device_names) {
     return false;
 }
 
+void update_device_properties_setting(const std::string& device_name,
+                                      ov::AnyMap& config,
+                                      std::pair<std::string, ov::Any> device_property) {
+    // overriding if property {key, value} is already existed in config["DEVICE_PROPERTIES"][device_name],
+    // if not, insert this {key, value} into config["DEVICE_PROPERTIES"][device_name].
+
+    // check and create property {"DEVICE_PROPERTIES": ov::AnyMap{hw_device, ov::AnyMap{}}} if not exist in config
+    if (config.find(ov::device::properties.name()) == config.end()) {
+        config[ov::device::properties.name()] = ov::AnyMap{};
+        config[ov::device::properties.name()].as<ov::AnyMap>().insert({device_name, ov::AnyMap{device_property}});
+        return;
+    }
+
+    // because of legacy API 1.0. eg the config from JSON file.
+    if (config[ov::device::properties.name()].is<std::string>()) {
+        config[ov::device::properties.name()] = config[ov::device::properties.name()].as<ov::AnyMap>();
+    }
+
+    auto& device_properties = config[ov::device::properties.name()].as<ov::AnyMap>();
+    if (device_properties.find(device_name) == device_properties.end()) {
+        device_properties.insert({device_name, ov::AnyMap{device_property}});
+        return;
+    }
+
+    // because of legacy API 1.0. eg the config from JSON file.
+    if (device_properties[device_name].is<std::string>()) {
+        device_properties[device_name] = device_properties[device_name].as<ov::AnyMap>();
+    }
+
+    auto& secondary_property = device_properties[device_name].as<ov::AnyMap>();
+    // overwrite if this config existed
+    secondary_property.erase(device_property.first);
+    secondary_property.insert(device_property);
+}
+
 std::vector<std::string> parse_devices(const std::string& device_string) {
     std::string comma_separated_devices = device_string;
     auto colon = comma_separated_devices.find(":");
@@ -196,31 +231,8 @@ void update_device_config_for_virtual_device(const std::string& value,
         for (const auto& it : devices_property) {
             const auto& device_name = it.first;
             const auto& device_value = it.second;
-            if (device_config.find(ov::device::properties.name()) == device_config.end()) {
-                device_config[ov::device::properties.name()] = ov::AnyMap{};
-                device_config[ov::device::properties.name()].as<ov::AnyMap>().insert({device_name, ov::AnyMap{}});
-            }
-
-            // because of legacy API 1.0. eg the config from JSON file.
-            if (device_config[ov::device::properties.name()].is<std::string>()) {
-                device_config[ov::device::properties.name()] =
-                    device_config[ov::device::properties.name()].as<ov::AnyMap>();
-            }
-
-            auto& device_properties = device_config[ov::device::properties.name()].as<ov::AnyMap>();
-            if (device_properties.find(device_name) == device_properties.end()) {
-                device_properties.insert({device_name, ov::AnyMap{}});
-            }
-
-            // because of legacy API 1.0. eg the config from JSON file.
-            if (device_properties[device_name].is<std::string>()) {
-                device_properties[device_name] = device_properties[device_name].as<ov::AnyMap>();
-            }
-
-            auto& secondary_property = device_properties[device_name].as<ov::AnyMap>();
-            // overwrite if this config existed
-            secondary_property.erase(property.name());
-            secondary_property.insert({property.name(), device_value});
+            // Update device properties for HW device.
+            update_device_properties_setting(device_name, device_config, property(device_value));
         }
     }
 }

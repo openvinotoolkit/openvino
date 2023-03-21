@@ -60,6 +60,9 @@ using PartialShapes = std::map<std::string, ngraph::PartialShape>;
 
 bool is_virtual_device(const std::string& device_name);
 bool is_virtual_device_found(const std::vector<std::string>& device_names);
+void update_device_properties_setting(const std::string& device_name,
+                                      ov::AnyMap& config,
+                                      std::pair<std::string, ov::Any> device_property);
 std::vector<std::string> parse_devices(const std::string& device_string);
 uint32_t device_default_device_duration_in_seconds(const std::string& device);
 std::map<std::string, std::string> parse_value_per_device(const std::vector<std::string>& devices,
