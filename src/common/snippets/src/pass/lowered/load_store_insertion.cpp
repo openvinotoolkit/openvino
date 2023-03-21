@@ -123,7 +123,7 @@ bool LoadStoreInsertion::insert_store(LoweredExprIR& linear_ir,
 }
 
 bool LoadStoreInsertion::run(LoweredExprIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(itt::domains::SnippetsTransform, "Snippets::LoadStoreInsertion")
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::LoadStoreInsertion")
 
     bool modified = false;
     const auto& loop_manager = linear_ir.get_loop_manager();

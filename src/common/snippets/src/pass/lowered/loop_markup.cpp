@@ -36,7 +36,7 @@ void LoopMarkup::scalars_markup(LoweredExprIR& linear_ir, std::vector<LoweredExp
 }
 
 bool LoopMarkup::run(LoweredExprIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(itt::domains::SnippetsTransform, "Snippets::LoopMarkup")
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::LoopMarkup")
     if (linear_ir.empty())
         return false;
 

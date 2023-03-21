@@ -189,7 +189,7 @@ bool LoopInit::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::LoweredL
 }
 
 bool LoopInit::run(LoweredExprIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(itt::domains::SnippetsTransform, "Snippets::LoopInit")
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::LoopInit")
     if (linear_ir.empty())
         return false;
 

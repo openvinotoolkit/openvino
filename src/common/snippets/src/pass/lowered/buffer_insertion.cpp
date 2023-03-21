@@ -182,7 +182,7 @@ void BufferInsertion::insertion(LoweredExprIR& linear_ir, const LoweredExprIR::L
 }
 
 bool BufferInsertion::run(LoweredExprIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(itt::domains::SnippetsTransform, "Snippets::BufferInsertion")
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::BufferInsertion")
     if (linear_ir.empty())
         return false;
 

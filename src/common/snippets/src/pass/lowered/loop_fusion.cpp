@@ -223,7 +223,7 @@ bool LoopFusion::fuse_down(LoweredExprIR& linear_ir,
 }
 
 bool LoopFusion::run(LoweredExprIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(itt::domains::SnippetsTransform, "Snippets::LoopFusion")
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::LoopFusion")
     if (linear_ir.empty())
         return false;
 

@@ -14,7 +14,7 @@ namespace lowered {
 SetScalarCountForLoadStore::SetScalarCountForLoadStore() {}
 
 bool SetScalarCountForLoadStore::run(LoweredExprIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(itt::domains::SnippetsTransform, "Snippets::SetScalarCountForLoadStore")
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::SetScalarCountForLoadStore")
     bool modified = false;
     for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {
         const auto &op = expr_it->get()->get_node();
