@@ -10,6 +10,7 @@
 #include "ie_icore.hpp"
 #include "openvino/runtime/auto/properties.hpp"
 #include "log.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include <string>
 #include <map>
 #include <vector>
@@ -199,7 +200,7 @@ public:
         if (realDevName.empty()) {
             return false;
         }
-        realDevName = DeviceIDParser(realDevName).getDeviceName();
+        realDevName = ov::DeviceIDParser(realDevName).get_device_name();
         std::string::size_type realEndPos = 0;
         if ((realEndPos = realDevName.find('(')) != std::string::npos) {
             realDevName = realDevName.substr(0, realEndPos);

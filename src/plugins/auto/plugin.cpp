@@ -17,6 +17,7 @@
 #include <ie_performance_hints.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include "openvino/runtime/auto/properties.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include "plugin.hpp"
 #include <ie_algorithm.hpp>
 #include <ie_icore.hpp>
@@ -189,8 +190,8 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             }
         }
 
-        DeviceIDParser parsed{deviceName};
-        std::string deviceid = parsed.getDeviceID();
+        ov::DeviceIDParser parsed{deviceName};
+        std::string deviceid = parsed.get_device_id();
         std::vector<std::string> sameTypeDevices;
         // if AUTO:GPU case, replace GPU with GPU.0 and GPU.1
         // Disable AUTO:MYRIAD here because of below test case
@@ -212,19 +213,19 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
         }
 
         for (auto&& deviceNameWithID : sameTypeDevices) {
-            DeviceIDParser newParsed{deviceNameWithID};
+            ov::DeviceIDParser newParsed{deviceNameWithID};
             std::string defaultDeviceID = "";
             std::string tempDeviceID = "";
-            if (newParsed.getDeviceID().empty()) {
+            if (newParsed.get_device_id().empty()) {
                 defaultDeviceID = getDefaultDeviceID(deviceNameWithID);
                 tempDeviceID = defaultDeviceID;
             } else {
-                tempDeviceID = newParsed.getDeviceID();
+                tempDeviceID = newParsed.get_device_id();
             }
 
             std::string fullDeviceName = "";
             std::string uniqueName = "";
-            if (newParsed.getDeviceName() == "GPU") {
+            if (newParsed.get_device_name() == "GPU") {
                 auto supportedMetrics = GetCore()->GetMetric(deviceNameWithID, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
                 if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(FULL_DEVICE_NAME)) != supportedMetrics.end()) {
                     fullDeviceName = GetCore()->GetMetric(deviceNameWithID, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
@@ -232,7 +233,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             }
 
             if (fullDeviceName.empty()) {
-                uniqueName = newParsed.getDeviceName() + "_" + tempDeviceID;
+                uniqueName = newParsed.get_device_name() + "_" + tempDeviceID;
             } else {
                 uniqueName = fullDeviceName + "_" + tempDeviceID;
             }

@@ -9,6 +9,7 @@
 #include "dev/converter_utils.hpp"
 #include "dev/core_impl.hpp"
 #include "ie_itt.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include "so_extension.hpp"
 
 #ifdef OPENVINO_STATIC_LIBRARY
@@ -252,8 +253,8 @@ void Core::register_plugin(const std::string& plugin, const std::string& device_
 
 void Core::unload_plugin(const std::string& device_name) {
     OV_CORE_CALL_STATEMENT({
-        ie::DeviceIDParser parser(device_name);
-        std::string devName = parser.getDeviceName();
+        ov::DeviceIDParser parser(device_name);
+        std::string devName = parser.get_device_name();
 
         _impl->unload_plugin(devName);
     });

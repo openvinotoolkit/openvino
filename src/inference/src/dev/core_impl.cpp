@@ -28,6 +28,7 @@
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/remote_context.hpp"
@@ -276,9 +277,9 @@ ov::Parsed ov::parseDeviceNameIntoConfig(const std::string& deviceName, const An
         updated_device_name = deviceName.substr(0, pos);
         parsed_device_priority = deviceName.substr(pos + 1);
     } else {
-        InferenceEngine::DeviceIDParser parser(deviceName);
-        updated_device_name = parser.getDeviceName();
-        parsed_device_priority = parser.getDeviceID();
+        ov::DeviceIDParser parser(deviceName);
+        updated_device_name = parser.get_device_name();
+        parsed_device_priority = parser.get_device_id();
     }
 
     // checks and updates device priority
@@ -416,8 +417,7 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
         } else {
             so = ov::util::load_shared_object(desc.libraryLocation.c_str());
             std::shared_ptr<ov::IPlugin> plugin_impl;
-            reinterpret_cast<InferenceEngine::CreatePluginEngineFunc*>(
-                ov::util::get_symbol(so, InferenceEngine::create_plugin_function))(plugin_impl);
+            reinterpret_cast<ov::CreatePluginFunc*>(ov::util::get_symbol(so, ov::create_plugin_function))(plugin_impl);
             plugin = Plugin{plugin_impl, so};
         }
 
@@ -425,8 +425,8 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
             plugin.set_name(deviceName);
 
             // Set Core class reference to plugins
-            std::weak_ptr<InferenceEngine::ICore> mutableCore =
-                std::const_pointer_cast<InferenceEngine::ICore>(shared_from_this());
+            std::weak_ptr<ov::ICore> mutableCore =
+                std::const_pointer_cast<ov::ICore>(std::dynamic_pointer_cast<const ov::ICore>(shared_from_this()));
             plugin.set_core(mutableCore);
         }
 
@@ -472,9 +472,9 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                     // for each such .0, .1, .# device to make sure plugin can handle different settings for different
                     // device IDs
                     for (auto pluginDesc : pluginRegistry) {
-                        InferenceEngine::DeviceIDParser parser(pluginDesc.first);
-                        if (pluginDesc.first.find(deviceName) != std::string::npos && !parser.getDeviceID().empty()) {
-                            pluginDesc.second.defaultConfig[deviceKey] = parser.getDeviceID();
+                        ov::DeviceIDParser parser(pluginDesc.first);
+                        if (pluginDesc.first.find(deviceName) != std::string::npos && !parser.get_device_id().empty()) {
+                            pluginDesc.second.defaultConfig[deviceKey] = parser.get_device_id();
                             plugin.set_property(pluginDesc.second.defaultConfig);
                         }
                     }
@@ -795,7 +795,7 @@ void ov::CoreImpl::apply_auto_batching(const std::shared_ptr<const ov::Model>& m
         if (pos == std::string::npos)
             return;  // BATCH device is already configured via the config
         deviceNameWithBatchSize = deviceName.substr(pos + 1);
-        deviceNameWithoutBatch = InferenceEngine::DeviceIDParser::getBatchDevice(deviceNameWithBatchSize);
+        deviceNameWithoutBatch = ov::DeviceIDParser::get_batch_device(deviceNameWithBatchSize);
         // when user sets the BATCH device explicitly, we may check the dims less strictly
         // as the result is being checked by the user
         strictly_check_dims = false;
@@ -982,8 +982,8 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
         return;
     }
 
-    InferenceEngine::DeviceIDParser parser(deviceName);
-    std::string clearDeviceName = parser.getDeviceName();
+    ov::DeviceIDParser parser(deviceName);
+    std::string clearDeviceName = parser.get_device_name();
 
     std::vector<std::pair<std::string, ov::Plugin>> created_plugins;
     {
@@ -1065,8 +1065,8 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
                 const std::string deviceKey =
                     supportsConfigDeviceID ? CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID) : CONFIG_KEY(DEVICE_ID);
 
-                if (!parser.getDeviceID().empty()) {
-                    configCopy[deviceKey] = parser.getDeviceID();
+                if (!parser.get_device_id().empty()) {
+                    configCopy[deviceKey] = parser.get_device_id();
                 }
             }
             plugin.second.set_property(configCopy);
