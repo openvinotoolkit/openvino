@@ -38,7 +38,7 @@ public:
         tpl.add(input_layout("in2", input2->get_layout()));
         tpl.add(concatenation("conc", { input_info("in1"), input_info("in2") }, 3));
 
-        cldnn::network::ptr net = get_network(engine, tpl, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr net = get_network(engine, tpl, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         net->set_input_data("in1", input1);
         net->set_input_data("in2", input2);
 
@@ -93,7 +93,7 @@ public:
         tpl.add(input_layout("in2", input2->get_layout()));
         tpl.add(concatenation("conc", { input_info("in1"), input_info("in2") }, 2));
 
-        cldnn::network::ptr net = get_network(engine, tpl, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr net = get_network(engine, tpl, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         net->set_input_data("in1", input1);
         net->set_input_data("in2", input2);
 
@@ -150,7 +150,7 @@ public:
         tpl.add(input_layout("in2", input2->get_layout()));
         tpl.add(concatenation("conc", { input_info("in1"), input_info("in2") }, 2, padding({ 0, 0, 1, 1 }, 0.0f)));
 
-        cldnn::network::ptr net = get_network(engine, tpl, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr net = get_network(engine, tpl, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         net->set_input_data("in1", input1);
         net->set_input_data("in2", input2);
 
@@ -205,7 +205,7 @@ public:
         tpl.add(input_layout("in2", input2->get_layout()));
         tpl.add(concatenation("conc", { input_info("in1"), input_info("in2") }, 3, padding({ 0, 0, 2, 0 }, { 0, 0, 0, 0 })));
 
-        cldnn::network::ptr net = get_network(engine, tpl, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr net = get_network(engine, tpl, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         net->set_input_data("in1", input1);
         net->set_input_data("in2", input2);
 
@@ -265,7 +265,7 @@ public:
         tpl.add(input_layout("in3", input3->get_layout()));
         tpl.add(concatenation("conc", { input_info("in1"), input_info("in2"), input_info("in3") }, 3));
 
-        cldnn::network::ptr net = get_network(engine, tpl, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr net = get_network(engine, tpl, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         net->set_input_data("in1", input1);
         net->set_input_data("in2", input2);
         net->set_input_data("in3", input3);
@@ -353,7 +353,7 @@ public:
         tpl.add(input_layout("in3", input3->get_layout()));
         tpl.add(concatenation("conc", { input_info("in1"), input_info("in2"), input_info("in3") }, 0));
 
-        cldnn::network::ptr net = get_network(engine, tpl, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr net = get_network(engine, tpl, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         net->set_input_data("in1", input1);
         net->set_input_data("in2", input2);
         net->set_input_data("in3", input3);
@@ -413,7 +413,7 @@ public:
         tpl.add(input_layout("in2", input2->get_layout()));
         tpl.add(concatenation("conc", { input_info("in1"), input_info("in2") }, 4));
 
-        cldnn::network::ptr net = get_network(engine, tpl, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr net = get_network(engine, tpl, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         net->set_input_data("in1", input1);
         net->set_input_data("in2", input2);
 
@@ -477,7 +477,7 @@ public:
         tpl.add(input_layout("in2", input2->get_layout()));
         tpl.add(concatenation("conc", { input_info("in1"), input_info("in2") }, 3));
 
-        cldnn::network::ptr net = get_network(engine, tpl, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr net = get_network(engine, tpl, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         net->set_input_data("in1", input1);
         net->set_input_data("in2", input2);
 
@@ -541,7 +541,7 @@ public:
         tpl.add(input_layout("in2", input2->get_layout()));
         tpl.add(concatenation("conc", { input_info("in1"), input_info("in2") }, 2));
 
-        cldnn::network::ptr net = get_network(engine, tpl, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr net = get_network(engine, tpl, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         net->set_input_data("in1", input1);
         net->set_input_data("in2", input2);
 
@@ -616,7 +616,7 @@ public:
         tpl.add(input_layout("in2", input2->get_layout()));
         tpl.add(concatenation("conc", { input_info("in1"), input_info("in2") }, 0));
 
-        cldnn::network::ptr net = get_network(engine, tpl, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr net = get_network(engine, tpl, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         net->set_input_data("in1", input1);
         net->set_input_data("in2", input2);
 
@@ -746,7 +746,7 @@ public:
         tpl.add(input_layout("in3", input3->get_layout()));
         tpl.add(concatenation("conc", { input_info("in1"), input_info("in2"), input_info("in3") }, 0));
 
-        cldnn::network::ptr net = get_network(engine, tpl, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr net = get_network(engine, tpl, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
         net->set_input_data("in1", input1);
         net->set_input_data("in2", input2);
         net->set_input_data("in3", input3);
