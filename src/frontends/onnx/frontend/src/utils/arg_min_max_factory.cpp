@@ -4,6 +4,8 @@
 
 #include "utils/arg_min_max_factory.hpp"
 
+#include <openvino/opsets/opset11.hpp>
+
 #include "default_opset.hpp"
 #include "ngraph/opsets/opset1.hpp"
 #include "ngraph/validation_util.hpp"
@@ -18,14 +20,14 @@ ArgMinMaxFactory::ArgMinMaxFactory(const Node& node)
       m_select_last_index{node.get_attribute_value<std::int64_t>("select_last_index", 0)} {}
 
 std::shared_ptr<ngraph::Node> ArgMinMaxFactory::make_arg_max() const {
-    return make_topk_subgraph(default_opset::TopK::Mode::MAX);
+    return make_topk_subgraph(ov::opset11::TopK::Mode::MAX);
 }
 
 std::shared_ptr<ngraph::Node> ArgMinMaxFactory::make_arg_min() const {
-    return make_topk_subgraph(default_opset::TopK::Mode::MIN);
+    return make_topk_subgraph(ov::opset11::TopK::Mode::MIN);
 }
 
-std::shared_ptr<ngraph::Node> ArgMinMaxFactory::make_topk_subgraph(default_opset::TopK::Mode mode) const {
+std::shared_ptr<ngraph::Node> ArgMinMaxFactory::make_topk_subgraph(ov::opset11::TopK::Mode mode) const {
     const auto k_node = default_opset::Constant::create(ngraph::element::i64, Shape{}, {1});
 
     if (m_select_last_index == 1) {
@@ -59,11 +61,11 @@ std::shared_ptr<ngraph::Node> ArgMinMaxFactory::make_topk_subgraph(default_opset
         const auto axis_node = default_opset::Constant::create(ngraph::element::i64, Shape{1}, {normalized_axis});
         const auto reverse = std::make_shared<opset1::Reverse>(m_input_node, axis_node, opset1::Reverse::Mode::INDEX);
 
-        const auto topk = std::make_shared<default_opset::TopK>(reverse,
-                                                                k_node,
-                                                                normalized_axis,
-                                                                mode,
-                                                                default_opset::TopK::SortType::NONE);
+        const auto topk = std::make_shared<ov::opset11::TopK>(reverse,
+                                                              k_node,
+                                                              normalized_axis,
+                                                              mode,
+                                                              ov::opset11::TopK::SortType::NONE);
 
         const auto data_shape = std::make_shared<default_opset::ShapeOf>(m_input_node);
         const auto dims_on_axis = std::make_shared<default_opset::Gather>(
@@ -88,7 +90,7 @@ std::shared_ptr<ngraph::Node> ArgMinMaxFactory::make_topk_subgraph(default_opset
     }
 
     const auto topk =
-        std::make_shared<default_opset::TopK>(m_input_node, k_node, m_axis, mode, default_opset::TopK::SortType::NONE);
+        std::make_shared<ov::opset11::TopK>(m_input_node, k_node, m_axis, mode, ov::opset11::TopK::SortType::NONE);
 
     const auto result = std::make_shared<default_opset::Convert>(topk->output(1), element::i64);
 
