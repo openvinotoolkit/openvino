@@ -34,12 +34,30 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
+    /// \brief Set the output ROI feature map (pooled_h, pooled_w).
+    /// \param output_size Shape with pooling attributes pooled_h and pooled_w sizes.
+    void set_output_roi(Shape output_size);
+
+    /// \brief Get the output ROI feature map shape (H x W)
+    /// \return Shape with pooled_h and pooled_w attributes.
+    const Shape& get_output_roi() const;
+
+    OPENVINO_DEPRECATED("Use 'get_output_roi' instead. Use of this member can be ambiguous with Node base "
+                        "'get_output_size' which return number of outputs.")
     const Shape& get_output_size() const {
         return m_output_size;
     }
+
+    /// \brief Set the spatial scale value.
+    /// \param scale Scale value to set.
+    void set_spatial_scale(float scale);
     float get_spatial_scale() const {
         return m_spatial_scale;
     }
+
+    /// \brief Set the method of pooling
+    /// \param method_name Pooling method name.
+    void set_method(std::string method_name);
     const std::string& get_method() const {
         return m_method;
     }
@@ -47,7 +65,7 @@ public:
 
 private:
     Shape m_output_size{0, 0};
-    float m_spatial_scale{0};
+    float m_spatial_scale{0.0f};
     std::string m_method = "max";
 };
 }  // namespace v0

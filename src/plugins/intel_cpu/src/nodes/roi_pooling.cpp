@@ -393,10 +393,10 @@ ROIPooling::ROIPooling(const std::shared_ptr<ngraph::Node>& op, const GraphConte
     std::string errorPrefix = "ROIPooling layer with name '" + getName() + "' ";
 
     auto roiPooling = ngraph::as_type_ptr<const ngraph::opset2::ROIPooling>(op);
-    refParams.pooled_h = roiPooling->get_output_size()[0];
-    refParams.pooled_w = roiPooling->get_output_size()[1];
+    refParams.pooled_h = roiPooling->get_output_roi()[0];
+    refParams.pooled_w = roiPooling->get_output_roi()[1];
     refParams.spatial_scale = roiPooling->get_spatial_scale();
-    std::string m = roiPooling->get_method();
+    const auto& m = roiPooling->get_method();
     if (m == "max") {
         algorithm = Algorithm::ROIPoolingMax;
     } else if (m == "bilinear") {
