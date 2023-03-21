@@ -4327,8 +4327,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_no_min_no_max_inf) {
                                   std::numeric_limits<float>::min(),
                                   std::numeric_limits<float>::max(),
                                   std::numeric_limits<float>::lowest(),
-                                  0,
-                                  -1};
+                                  0.f,
+                                  -1.f};
 
     const std::vector<float> expected_output{std::numeric_limits<float>::max(),
                                              std::numeric_limits<float>::lowest(),
@@ -4336,8 +4336,8 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_no_min_no_max_inf) {
                                              std::numeric_limits<float>::min(),
                                              std::numeric_limits<float>::max(),
                                              std::numeric_limits<float>::lowest(),
-                                             0,
-                                             -1};
+                                             0.f,
+                                             -1.f};
 
     test_case.add_input<float>(data);
 
