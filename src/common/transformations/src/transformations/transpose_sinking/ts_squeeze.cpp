@@ -61,10 +61,10 @@ bool shape_to_squeeze_axes(const std::shared_ptr<Node>& reshape,
     return true;
 }
 
-std::vector<size_t> squeeze_axes_to_shape(const std::shared_ptr<Node>& input_node, std::vector<size_t> squeeze_axes) {
+std::vector<size_t> squeeze_axes_to_shape(const Output<Node>& input_node, std::vector<size_t> squeeze_axes) {
     std::vector<size_t> to_shape;
     std::sort(squeeze_axes.begin(), squeeze_axes.end());
-    const auto& input_shape = input_node->input(0).get_shape();  // check is static
+    const auto& input_shape = input_node.get_shape();  // check is static
     for (size_t i = 0, j = 0; i < input_shape.size(); ++i) {
         if (j < squeeze_axes.size() && i == squeeze_axes[j]) {
             ++j;
@@ -133,7 +133,7 @@ TSSqueezeForward::TSSqueezeForward() {
                                                     transpose_order_values);
 
         if (as_type_ptr<Reshape>(squeeze)) {
-            new_values = squeeze_axes_to_shape(transpose, new_values);
+            new_values = squeeze_axes_to_shape(transpose->input_value(0), new_values);
         }
 
         auto new_const = Constant::create(squeeze_axes->get_element_type(), squeeze_axes->get_shape(), new_values);
@@ -213,12 +213,12 @@ TSSqueezeBackward::TSSqueezeBackward() {
         auto new_transpose_order = Constant::create(transpose_order->get_element_type(),
                                                     {transpose_order_values.size()},
                                                     transpose_order_values);
+        auto new_transpose = transpose->clone_with_new_inputs({squeeze->input_value(0), new_transpose_order});
         if (as_type_ptr<Reshape>(squeeze)) {
-            new_values = squeeze_axes_to_shape(squeeze, new_values);
+            new_values = squeeze_axes_to_shape(new_transpose->output(0), new_values);
         }
 
         std::shared_ptr<Node> new_squeeze;
-        auto new_transpose = transpose->clone_with_new_inputs({squeeze->input_value(0), new_transpose_order});
         if (squeeze_all_dims) {
             new_squeeze = squeeze->clone_with_new_inputs({new_transpose, squeeze->input_value(1)});
         } else {
