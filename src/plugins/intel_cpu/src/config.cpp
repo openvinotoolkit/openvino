@@ -139,13 +139,11 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             if (val == PluginConfigParams::YES) {
                 if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
                     enforceBF16 = true;
-                    manualEnforceBF16 = true;
                 } else {
                     IE_THROW() << "Platform doesn't support BF16 format";
                 }
             } else if (val == PluginConfigParams::NO) {
                 enforceBF16 = false;
-                manualEnforceBF16 = false;
             } else {
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_ENFORCE_BF16
                     << ". Expected only YES/NO";
@@ -154,13 +152,11 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
             if (val == "bf16") {
                 if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
                     enforceBF16 = true;
-                    manualEnforceBF16 = true;
                 } else {
                     IE_THROW() << "Platform doesn't support BF16 format";
                 }
             } else if (val == "f32") {
                 enforceBF16 = false;
-                manualEnforceBF16 = false;
             } else {
                 IE_THROW() << "Wrong value for property key " << ov::inference_precision.name()
                     << ". Supported values: bf16, f32";
