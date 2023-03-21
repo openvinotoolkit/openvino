@@ -10,8 +10,10 @@
 #include <pybind11/iostream.h>
 
 #include <openvino/core/type/element_type.hpp>
+#include <ngraph/runtime/shared_buffer.hpp>
 #include <string>
 #include <iterator>
+#include <climits>
 
 #include "Python.h"
 #include "openvino/runtime/compiled_model.hpp"
@@ -20,21 +22,61 @@
 #include "openvino/pass/serialize.hpp"
 #include "pyopenvino/core/containers.hpp"
 #include "pyopenvino/graph/any.hpp"
+#include "pyopenvino/graph/ops/constant.hpp"
 
 namespace py = pybind11;
 
 namespace Common {
+
+namespace values {
+
+// Minimum amount of bits for common numpy types. Used to perform checks against OV types.
+constexpr size_t min_bitwidth = sizeof(int8_t) * CHAR_BIT;
+
+}; // namespace values
+
 const std::map<ov::element::Type, py::dtype>& ov_type_to_dtype();
 
 const std::map<std::string, ov::element::Type>& dtype_to_ov_type();
 
-ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const ov::element::Type& ov_type);
+// Helpers for numpy arrays
+namespace array_helpers {
 
-ov::Tensor tensor_from_numpy(py::array& array, bool shared_memory);
+bool is_contiguous(const py::array& array);
 
-ov::PartialShape partial_shape_from_list(const py::list& shape);
+ov::element::Type get_ov_type(const py::array& array);
+
+std::vector<size_t> get_shape(const py::array& array);
+
+std::vector<size_t> get_strides(const py::array& array);
 
 py::array as_contiguous(py::array& array, ov::element::Type type);
+
+}; // namespace array_helpers
+
+template <typename T>
+T create_copied(py::array& array);
+
+template <typename T>
+T create_copied(ov::Tensor& array);
+
+template <typename T>
+T create_shared(py::array& array);
+
+template <typename T>
+T create_shared(ov::Tensor& array);
+
+template <typename T, typename D>
+T object_from_data(D& data, bool shared_memory) {
+    if (shared_memory) {
+        return create_shared<T>(data);
+    }
+    return create_copied<T>(data);
+}
+
+ov::Tensor tensor_from_pointer(py::array& array, const ov::Shape& shape, const ov::element::Type& ov_type);
+
+ov::PartialShape partial_shape_from_list(const py::list& shape);
 
 const ov::Tensor& cast_to_tensor(const py::handle& tensor);
 

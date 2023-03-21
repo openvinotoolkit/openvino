@@ -4,7 +4,7 @@
 
 #include "fully_connected_inst.h"
 #include "primitive_onednn_base.h"
-#include "impls/implementation_map.hpp"
+#include "implementation_map.hpp"
 
 #include "kernel_selector_common.h"
 
@@ -24,7 +24,8 @@ struct fully_connected_onednn : typed_primitive_onednn_impl<fully_connected> {
 private:
     static std::vector<int64_t> reshape_to_2d(const ov::PartialShape& shape, int64_t feature) {
         auto staticShape = shape.to_shape();
-        size_t total = std::accumulate(staticShape.begin(), staticShape.end(), 1, std::multiplies<size_t>());
+        size_t total =
+            std::accumulate(staticShape.begin(), staticShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
         std::vector<int64_t> reshapeSize = { static_cast<int64_t>(total) / feature, feature };
         return reshapeSize;
     }

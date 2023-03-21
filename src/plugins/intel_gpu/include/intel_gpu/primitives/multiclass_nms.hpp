@@ -141,6 +141,27 @@ struct multiclass_nms : public primitive_base<multiclass_nms> {
         return seed;
     }
 
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const multiclass_nms>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(has_roisnum) &&
+               cmp_fields(attrs.background_class) &&
+               cmp_fields(attrs.indices_output_type) &&
+               cmp_fields(attrs.iou_threshold) &&
+               cmp_fields(attrs.keep_top_k) &&
+               cmp_fields(attrs.nms_eta) &&
+               cmp_fields(attrs.nms_top_k) &&
+               cmp_fields(attrs.normalized) &&
+               cmp_fields(attrs.score_threshold) &&
+               cmp_fields(attrs.sort_result) &&
+               cmp_fields(attrs.sort_result_across_batch);
+        #undef cmp_fields
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;

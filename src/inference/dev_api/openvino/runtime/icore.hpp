@@ -13,15 +13,15 @@
 
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "so_ptr.hpp"
 
 namespace ov {
 
 /**
  * @interface ICore
- * @brief Minimal ICore interface to allow plugin to get information from Core Inference Engine class.
- * @ingroup ie_dev_api_plugin_api
+ * @brief Minimal ICore interface to allow plugin to get information from Core OpenVINO class.
+ * @ingroup ov_dev_api_plugin_api
  */
 class ICore {
 public:
@@ -202,6 +202,14 @@ public:
     T get_property(const std::string& device_name, const Property<T, M>& property, const AnyMap& arguments) const {
         return get_property(device_name, property.name(), arguments).template as<T>();
     }
+
+    /**
+     * @brief Get only properties that are suppored by specified device
+     * @param full_device_name Name of a device (can be either virtual or hardware)
+     * @param properties Properties that can contains configs that are not supported by device
+     * @return map of properties that are supported by device
+     */
+    virtual AnyMap get_supported_property(const std::string& full_device_name, const AnyMap& properties) const = 0;
 
     /**
      * @brief Default virtual destructor

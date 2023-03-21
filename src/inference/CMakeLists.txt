@@ -14,6 +14,7 @@ file (GLOB LIBRARY_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dev/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dev/preprocessing/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dev/threading/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/threading/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp_interfaces/interface/*.cpp
@@ -99,6 +100,7 @@ add_library(${TARGET_NAME}_plugin_api INTERFACE)
 
 target_include_directories(${TARGET_NAME}_plugin_api INTERFACE
     $<TARGET_PROPERTY:openvino_gapi_preproc,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dev_api>
     $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>
     $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}/ie>)
@@ -116,7 +118,7 @@ file(GLOB_RECURSE plugin_api_src "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/*.hpp"
 add_clang_format_target(${TARGET_NAME}_plugin_api_clang FOR_SOURCES ${plugin_api_src})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_plugin_api
-                    SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/openvino"
+                    SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/dev_api/openvino"
                     ADDITIONAL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Create object library
@@ -176,7 +178,7 @@ target_include_directories(${TARGET_NAME} INTERFACE $<BUILD_INTERFACE:${PUBLIC_H
 add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${IE_STATIC_DEPENDENT_FILES} ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
-                    SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/openvino"
+                    SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/openvino"
                     ADDITIONAL_INCLUDE_DIRECTORIES $<TARGET_PROPERTY:ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Static library used for unit tests which are always built

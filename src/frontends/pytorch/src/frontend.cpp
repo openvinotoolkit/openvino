@@ -5,23 +5,30 @@
 #include "openvino/frontend/pytorch/frontend.hpp"
 
 #include "input_model.hpp"
+#include "op_table.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/util/log.hpp"
 #include "pt_framework_node.hpp"
 #include "transformations/common_optimizations/push_constant_to_subgraph.hpp"
 #include "transformations/common_optimizations/remove_multi_subgraph_op_dangling_params.hpp"
+#include "transformations/common_optimizations/reverse_shape_and_type_infer.hpp"
 #include "transformations/control_flow/unroll_if.hpp"
 #include "transforms.hpp"
 #include "transforms/append_list_unpack_replacer.hpp"
 #include "transforms/aten_cat_replacer.hpp"
 #include "transforms/aten_getitem_replacer.hpp"
+#include "transforms/aten_index_put_replacer.hpp"
+#include "transforms/aten_index_replacer.hpp"
 #include "transforms/aten_stack_list_construct_replacer.hpp"
+#include "transforms/einsum_list_construct.hpp"
 #include "transforms/listconstruct_replacer.hpp"
 #include "transforms/min_max_prim_list_construct_replacer.hpp"
 #include "transforms/prim_list_construct_pad.hpp"
 #include "transforms/prim_list_tuple_construct_replacer.hpp"
 #include "transforms/prim_list_unpack_replacer.hpp"
+#include "transforms/string_equality_replacer.hpp"
+#include "translate_session.hpp"
 
 namespace ov {
 namespace frontend {
@@ -46,6 +53,8 @@ std::set<std::string> get_unconverted_types_from_model(const std::shared_ptr<Mod
 }
 }  // namespace
 
+FrontEnd::FrontEnd() : m_op_translators(get_supported_ops()) {}
+
 std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     auto converted_model = convert_partially(model);
     normalize(converted_model);
@@ -64,11 +73,10 @@ void FrontEnd::convert(const std::shared_ptr<Model>& partiallyConverted) const {
 }
 
 std::shared_ptr<Model> FrontEnd::convert_partially(const ov::frontend::InputModel::Ptr& model) const {
+    FRONT_END_GENERAL_CHECK(std::dynamic_pointer_cast<pytorch::InputModel>(model), "Invalid input model");
     try {
-        auto pytorch_model = std::dynamic_pointer_cast<pytorch::InputModel>(model);
-        auto model = convert_pytorch_model(pytorch_model->m_model);
-
-        return model;
+        TranslateSession translate_session(model, m_op_translators);
+        return translate_session.get_converted_model();
     } catch (const std::runtime_error& e) {
         std::cerr << "[ ERROR ] Unexpected error while converting pytorch model: " << e.what() << '\n';
         std::cerr << "Rethrowing. Misleading error message from pybind11 may come next. TODO.";
@@ -92,10 +100,15 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::PrimListUnpackReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenGetItemReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::ListConstructReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
+    manager.register_pass<ov::frontend::pytorch::pass::AtenIndexPutReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::PrimListConstructPadReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::AtenEinsumListConstructReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::MinMaxPrimListConstructReplacer>();
+    manager.register_pass<ov::frontend::pytorch::pass::StringEqualityReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::DecomposeListTupleResults>();
-    manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParams>();
+    manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
+    manager.register_pass<ov::pass::ReverseShapeAndTypeInfer>();
 
     manager.run_passes(model);
 
@@ -125,7 +138,11 @@ void FrontEnd::add_extension(const std::shared_ptr<ov::Extension>& extension) {
 }
 
 bool FrontEnd::supported_impl(const std::vector<ov::Any>& variants) const {
-    return false;
+    // Currently PyTorch FrontEnd only support TorchDecoder as input
+    if (variants.size() != 1 || !variants[0].is<std::shared_ptr<IDecoder>>())
+        return false;
+    auto decoder = variants[0].as<std::shared_ptr<IDecoder>>();
+    return decoder && std::dynamic_pointer_cast<TorchDecoder>(decoder);
 }
 
 ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const {

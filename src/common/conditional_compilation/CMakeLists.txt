@@ -33,9 +33,9 @@ elseif(SELECTIVE_BUILD STREQUAL "ON")
                                 -Wno-unused-variable
                                 -Wno-unused-parameter
                                 -Wno-unused-local-typedefs)
-        if(CMAKE_COMPILER_IS_GNUCXX)
-            target_compile_options(${TARGET_NAME} INTERFACE -Wno-unused-but-set-variable)
-        endif()
+    endif()
+    if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)
+        target_compile_options(${TARGET_NAME} INTERFACE -Wno-unused-but-set-variable)
     endif()
 
     set(GENERATED_HEADER ${CMAKE_CURRENT_BINARY_DIR}/conditional_compilation_gen.h CACHE FILEPATH "")

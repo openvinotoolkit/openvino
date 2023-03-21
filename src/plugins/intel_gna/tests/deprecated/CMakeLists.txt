@@ -16,7 +16,6 @@ endif()
 
 if(NOT MSVC)
     ie_add_compiler_flags(-Wno-missing-declarations)
-    ie_add_compiler_flags(-Wno-sign-compare)
     ie_add_compiler_flags(-Wno-all)
     ie_add_compiler_flags(-Wno-unused-variable)
     ie_add_compiler_flags(-Wno-unused-function)

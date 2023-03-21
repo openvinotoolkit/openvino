@@ -4,14 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <openvino/core/coordinate_diff.hpp>
-#include <openvino/op/convolution.hpp>
-#include <openvino/op/group_conv.hpp>
-#include <openvino/op/parameter.hpp>
-#include <openvino/op/relu.hpp>
-#include <openvino/op/constant.hpp>
-#include <utils/shape_inference/shape_inference.hpp>
-#include <utils/shape_inference/static_shape.hpp>
+#include "utils.hpp"
 
 using namespace ov;
 using namespace ov::intel_cpu;

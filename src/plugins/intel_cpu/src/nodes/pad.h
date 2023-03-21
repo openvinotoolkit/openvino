@@ -32,6 +32,8 @@ protected:
     void executeDynamicImpl(dnnl::stream strm) override;
 
 private:
+    using VectorIdxs = std::vector<int32_t>;
+
     enum PadMode {
         CONSTANT = 0,
         EDGE = 1,
@@ -42,8 +44,8 @@ private:
     struct PadAttrs {
         PadMode padMode = CONSTANT;
         float padValue = 0.f;
-        std::vector<unsigned int> padsBegin;
-        std::vector<unsigned int> padsEnd;
+        VectorIdxs padsBegin;
+        VectorIdxs padsEnd;
         int beginPadIdx = 0;
         int endPadIdx = 0;
         InferenceEngine::Precision prc;
@@ -65,10 +67,11 @@ private:
         void padEdge(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr);
         void padReflectOrSymmetric(MemoryPtr& srcMemPtr, MemoryPtr& dstMemPtr, const bool isSymmetric = false);
         void paramsInitialization(const PadAttrs& attrs,
-                            const std::vector<MemoryCPtr>& srcMemory,
-                            const std::vector<MemoryCPtr>& dstMemory);
+                                  const std::vector<MemoryCPtr>& srcMemory,
+                                  const std::vector<MemoryCPtr>& dstMemory);
         void workPartition();
-        inline void getDstIdx(const VectorDims& indexes, size_t& dstIdx) const;
+        void innerParamsInitialization();
+        inline void getDstIdx(const VectorIdxs& indexes, size_t& dstIdx) const;
 
         struct PadContext {
             PadExecutor* executor;
@@ -99,6 +102,12 @@ private:
             size_t lastDstDim = 1lu;
             size_t shift = 0lu;
             size_t dataSize = 1lu;
+            size_t innerBeginShift = 0lu;
+            size_t innerEndShift = 0lu;
+            size_t innerSrcShift = 0lu;
+            size_t innerCopySize = 0lu;
+            size_t innerBeginPadCount = 0lu;
+            size_t innerEndPadCount = 0lu;
             PadMode padMode;
         } params;
         const std::string errorPrefix;

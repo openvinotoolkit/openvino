@@ -131,6 +131,7 @@ def convert_pytorch_to_onnx(model, input_shape, opset_version, example_inputs, o
     torch.onnx.export(model,
                       inputs,
                       model_onnx,
+                      operator_export_type=torch.onnx.OperatorExportTypes.ONNX_FALLTHROUGH,
                       **additional_params)
     return model_onnx
 

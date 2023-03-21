@@ -70,6 +70,10 @@ TEST_P(ExecutableNetworkBaseTest, checkGetMetric) {
 
 TEST_P(ExecutableNetworkBaseTest, canLoadCorrectNetworkToGetExecutableAndCheckConfig) {
     auto execNet = ie->LoadNetwork(cnnNet, target_device, configuration);
+    if (target_device == CommonTestUtils::DEVICE_AUTO) {
+        // AUTO executable network didn't support to read any config.
+        GTEST_SKIP();
+    }
     for (const auto& configItem : configuration) {
         InferenceEngine::Parameter param;
         ASSERT_NO_THROW(param = execNet.GetConfig(configItem.first));

@@ -18,8 +18,9 @@
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/icore.hpp"
-#include "openvino/runtime/remote_context.hpp"
-#include "threading/ie_executor_manager.hpp"
+#include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
+#include "openvino/util/pp.hpp"
 
 namespace InferenceEngine {
 
@@ -29,6 +30,44 @@ class IExtension;
 }  // namespace InferenceEngine
 
 namespace ov {
+
+/**
+ * @defgroup ov_dev_api OpenVINO Plugin API
+ * @brief Defines Inference Engine Plugin API which can be used in plugin development
+ *
+ * @{
+ * @defgroup ov_dev_api_plugin_api Plugin base classes
+ * @brief A set of base and helper classes to implement a plugin class
+ *
+ * @defgroup ov_dev_api_compiled_model_api Compiled Model base classes
+ * @brief A set of base and helper classes to implement an compiled model class
+ *
+ * @defgroup ov_dev_api_sync_infer_request_api Inference Request base classes
+ * @brief A set of base and helper classes to implement a syncrhonous inference request class.
+ *
+ * @defgroup ov_dev_api_async_infer_request_api Asynchronous Inference Request base classes
+ * @brief A set of base and helper classes to implement asynchronous inference request class
+ *
+ * @defgroup ov_dev_api_variable_state_api Variable state base classes
+ * @brief A set of base and helper classes to implement variable state
+ *
+ * @defgroup ov_dev_api_threading Threading utilities
+ * @brief Threading API providing task executors for asynchronous operations
+ *
+ * @defgroup ov_dev_api_system_conf System configuration utilities
+ * @brief API to get information about the system, core processor capabilities
+ *
+ * @defgroup ov_dev_exec_model Execution model utilities
+ * @brief Contains `ExecutionNode` and its properties
+ *
+ * @defgroup ov_dev_api_error_debug Error handling and debug helpers
+ * @brief Utility methods to works with errors or exceptional situations
+ *
+ * @defgroup ov_dev_profiling ITT profiling utilities
+ * @brief Configurable macro wrappers for ITT profiling
+ *
+ * @}
+ */
 
 /**
  * @brief OpenVINO Plugin Interface 2.0
@@ -115,7 +154,7 @@ public:
      *
      * @return A remote context object
      */
-    virtual ov::RemoteContext create_context(const ov::AnyMap& remote_properties) const = 0;
+    virtual std::shared_ptr<ov::IRemoteContext> create_context(const ov::AnyMap& remote_properties) const = 0;
 
     /**
      * @brief Provides a default remote context instance if supported by a plugin
@@ -123,7 +162,7 @@ public:
      *
      * @return The default context.
      */
-    virtual ov::RemoteContext get_default_context(const ov::AnyMap& remote_properties) const = 0;
+    virtual std::shared_ptr<ov::IRemoteContext> get_default_context(const ov::AnyMap& remote_properties) const = 0;
 
     /**
      * @brief Creates an compiled model from an previously exported model using plugin implementation
@@ -188,7 +227,7 @@ public:
      * @brief Gets reference to tasks execution manager
      * @return Reference to ExecutorManager interface
      */
-    const std::shared_ptr<InferenceEngine::ExecutorManager>& get_executor_manager() const;
+    const std::shared_ptr<ov::threading::ExecutorManager>& get_executor_manager() const;
 
     ~IPlugin() = default;
 
@@ -198,22 +237,46 @@ protected:
 private:
     friend ::InferenceEngine::IPluginWrapper;
 
-    std::string m_plugin_name;                                             //!< A device name that plugins enables
-    std::weak_ptr<ov::ICore> m_core;                                       //!< A pointer to ICore interface
-    std::shared_ptr<InferenceEngine::ExecutorManager> m_executor_manager;  //!< A tasks execution manager
-    ov::Version m_version;                                                 //!< Member contains plugin version
-    bool m_is_new_api;                                                     //!< A flag which shows used API
+    std::string m_plugin_name;                                           //!< A device name that plugins enables
+    std::weak_ptr<ov::ICore> m_core;                                     //!< A pointer to ICore interface
+    std::shared_ptr<ov::threading::ExecutorManager> m_executor_manager;  //!< A tasks execution manager
+    ov::Version m_version;                                               //!< Member contains plugin version
+    bool m_is_new_api;                                                   //!< A flag which shows used API
 };
 
-}  // namespace ov
+/**
+ * @brief Returns set of nodes from original model which are
+ * determined as supported after applied transformation pipeline.
+ * @param model Original model
+ * @param transform Transformation pipeline function
+ * @param is_node_supported Function returning whether node is supported or not
+ * @return Set of strings which contains supported node names
+ */
+OPENVINO_RUNTIME_API std::unordered_set<std::string> get_supported_nodes(
+    const std::shared_ptr<const ov::Model>& model,
+    std::function<void(std::shared_ptr<ov::Model>&)> transform,
+    std::function<bool(const std::shared_ptr<ov::Node>)> is_node_supported);
+
+/**
+ * @private
+ */
+using CreatePluginFunc = void(std::shared_ptr<::ov::IPlugin>&);
+
 /**
  * @def OV_CREATE_PLUGIN
  * @brief Defines a name of a function creating plugin instance
- * @ingroup ie_dev_api_plugin_api
+ * @ingroup ov_dev_api_plugin_api
  */
 #ifndef OV_CREATE_PLUGIN
 #    define OV_CREATE_PLUGIN CreatePluginEngine
 #endif
+
+/**
+ * @private
+ */
+constexpr static const auto create_plugin_function = OV_PP_TOSTRING(OV_CREATE_PLUGIN);
+
+}  // namespace ov
 
 /**
  * @def OV_DEFINE_PLUGIN_CREATE_FUNCTION(PluginType, version)
@@ -227,8 +290,8 @@ private:
             plugin = ::std::make_shared<PluginType>(__VA_ARGS__);                                        \
             plugin->set_version(version);                                                                \
         } catch (const InferenceEngine::Exception& ex) {                                                 \
-            throw ov::Exception(ex.what());                                                              \
+            OPENVINO_THROW(ex.what());                                                                   \
         } catch (const std::exception& ex) {                                                             \
-            throw ov::Exception(ex.what());                                                              \
+            OPENVINO_THROW(ex.what());                                                                   \
         }                                                                                                \
     }

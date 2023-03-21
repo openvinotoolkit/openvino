@@ -122,9 +122,6 @@ NGRAPH_API EnumNames<ngraph::op::RecurrentSequenceDirection>& EnumNames<ngraph::
     return enum_names;
 }
 
-const op::AutoBroadcastSpec op::AutoBroadcastSpec::NUMPY(AutoBroadcastType::NUMPY, 0);
-const op::AutoBroadcastSpec op::AutoBroadcastSpec::NONE{AutoBroadcastType::NONE, 0};
-
 std::ostream& op::operator<<(std::ostream& s, const ngraph::op::PadMode& type) {
     return s << as_string(type);
 }

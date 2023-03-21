@@ -482,7 +482,7 @@ protected:
     }
 
 public:
-    void execute() {
+    void execute(bool is_caching_test) {
         int input_dim = static_cast<int>(input_format.dimension());
         cldnn::format layout_format = input_format;
 
@@ -526,16 +526,15 @@ public:
         }
         topology.add(input_layout("input", input_mem->get_layout()));
         topology.add(red);
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
         ov::intel_gpu::ImplementationDesc reduce_impl = {input_format, kernel_name};
         config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"reduce", reduce_impl}}));
-        network network(engine, topology, config);
-        network.set_input_data("input", input_mem);
+        cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input_mem);
+        network->execute();
 
-        network.execute();
-
-        auto out_mem = network.get_output("reduce").get_memory();
+        auto out_mem = network->get_output("reduce").get_memory();
         cldnn::mem_lock<output_t> out_ptr(out_mem, get_test_stream());
         auto out_lay = out_mem->get_layout();
 
@@ -573,13 +572,13 @@ public:
 };
 
 class general_reduce_gpu_i8_i8 : public ReduceTestBase<data_types::i8, data_types::i8> {};
-TEST_P(general_reduce_gpu_i8_i8, base) { execute(); }
+TEST_P(general_reduce_gpu_i8_i8, base) { execute(false); }
 
 class general_reduce_gpu_i8_f32 : public ReduceTestBase<data_types::i8, data_types::f32> {};
-TEST_P(general_reduce_gpu_i8_f32, base) { execute(); }
+TEST_P(general_reduce_gpu_i8_f32, base) { execute(false); }
 
 class general_reduce_gpu_f32_f32 : public ReduceTestBase<data_types::f32, data_types::f32> {};
-TEST_P(general_reduce_gpu_f32_f32, base) { execute(); }
+TEST_P(general_reduce_gpu_f32_f32, base) { execute(false); }
 
 INSTANTIATE_TEST_SUITE_P(reduce_gpu_b_fs_yx_fsv16_i8_i8,
                         general_reduce_gpu_i8_i8,
@@ -770,7 +769,8 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_reduce_gpu_ref_f32_f32,
                         ),
                         general_reduce_gpu::PrintToStringParamName);
 
-TEST(reduce_gpu, common_bfyx) {
+template <typename T>
+void test_common_bfyx(bool is_caching_test) {
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 1, 1}});
 
@@ -780,24 +780,28 @@ TEST(reduce_gpu, common_bfyx) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::sum, {0}, 0));
 
-    network network(engine, topology);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
-    network.set_input_data("input", input);
+    network->set_input_data("input", input);
 
-    auto outputs = network.execute();
+    auto outputs = network->execute();
 
     ASSERT_EQ(outputs.size(), size_t(1));
     ASSERT_EQ(outputs.begin()->first, "reduce");
 
     auto output = outputs.at("reduce").get_memory();
 
-    std::vector<float> ref_data = {1.0f};
+    std::vector<T> ref_data = {1.0f};
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_data.size(); ++i) {
         ASSERT_TRUE(are_equal(ref_data[i], output_ptr[i]));
     }
+}
+
+TEST(reduce_gpu, common_bfyx) {
+    test_common_bfyx<float>(false);
 }
 
 TEST(reduce_gpu, common_bfyx_keepdims) {
@@ -810,7 +814,7 @@ TEST(reduce_gpu, common_bfyx_keepdims) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::sum, {3, 2}, 1));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -840,7 +844,7 @@ TEST(reduce_gpu, regr_bfyx_keepdims) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::sum, { 0, 3 }, 1));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -870,7 +874,7 @@ TEST(reduce_gpu, common_bfzyx) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::sum, {0}, 0));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -900,7 +904,7 @@ TEST(reduce_gpu, common_bfzyx_keepdims) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::sum, {0}, 1));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -930,7 +934,7 @@ TEST(reduce_gpu, common_bfwzyx) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::sum, {2, 3, 4, 5}, 0));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -960,7 +964,7 @@ TEST(reduce_gpu, common_bfwzyx_keepdims) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::sum, {1, 2, 3}, 1));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -991,7 +995,7 @@ TEST(reduce_gpu, common_bfwzyx_max_keepdims) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::max, {0, 1}, 1));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -1021,7 +1025,7 @@ TEST(reduce_gpu, common_bfwzyx_min) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::min, {1, 2}, 0));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -1051,7 +1055,7 @@ TEST(reduce_gpu, common_bfwzyx_min_keepdims) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::min, {1, 2}, 1));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -1081,7 +1085,7 @@ TEST(reduce_gpu, common_bfwzyx_mean) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::mean, {1, 2}, 0));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -1111,7 +1115,7 @@ TEST(reduce_gpu, common_bfwzyx_mean_keepdims) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::mean, {1, 2}, 1));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -1141,7 +1145,7 @@ TEST(reduce_gpu, common_bfwzyx_prod) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::prod, {1, 2}, 0));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -1171,7 +1175,7 @@ TEST(reduce_gpu, common_bfwzyx_prod_keepdims) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::prod, {1, 2}, 1));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -1202,7 +1206,7 @@ TEST(reduce_gpu, common_bfwzyx_sum_keepdims) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::sum, {0, 1}, 1));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -1232,7 +1236,7 @@ TEST(reduce_gpu, common_bfwzyx_logical_and) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::logical_and, {1, 2}, 0));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -1262,7 +1266,7 @@ TEST(reduce_gpu, common_bfwzyx_logical_and_keepdims) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::logical_and, {1, 2}, 1));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -1292,7 +1296,7 @@ TEST(reduce_gpu, common_bfwzyx_logical_or) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::logical_or, {1, 2}, 0));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -1322,7 +1326,7 @@ TEST(reduce_gpu, common_bfwzyx_logical_or_keepdims) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::logical_or, {1, 2}, 1));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -1352,7 +1356,7 @@ TEST(reduce_gpu, common_bfwzyx_sum_square) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::sum_square, {1, 2}, 0));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -1382,7 +1386,7 @@ TEST(reduce_gpu, common_bfwzyx_sum_square_keepdims) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::sum_square, {1, 2}, 1));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -1412,7 +1416,7 @@ TEST(reduce_gpu, common_bfwzyx_l1) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::l1, {1, 2}, 0));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -1442,7 +1446,7 @@ TEST(reduce_gpu, common_bfwzyx_l1_keepdims) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::l1, {1, 2}, 1));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -1472,7 +1476,7 @@ TEST(reduce_gpu, common_bfwzyx_l2) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::l2, {1, 2}, 0));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -1502,7 +1506,7 @@ TEST(reduce_gpu, common_bfwzyx_l2_keepdims) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::l2, {1, 2}, 1));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -1532,7 +1536,7 @@ TEST(reduce_gpu, common_bfwzyx_log_sum) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::log_sum, {1, 2}, 0));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -1562,7 +1566,7 @@ TEST(reduce_gpu, common_bfwzyx_log_sum_keepdims) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::log_sum, {1, 2}, 1));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -1592,7 +1596,7 @@ TEST(reduce_gpu, common_bfwzyx_log_sum_exp) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::log_sum_exp, {1, 2}, 0));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -1622,7 +1626,7 @@ TEST(reduce_gpu, common_bfwzyx_log_sum_exp_keepdims) {
     topology.add(input_layout("input", input->get_layout()));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::log_sum_exp, {1, 2}, 1));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
 
@@ -1654,7 +1658,7 @@ TEST(reduce_gpu, dynamic) {
     topology.add(input_layout("input", in_dyn_layout));
     topology.add(reduce("reduce", input_info("input"), reduce_mode::prod, {1, 2}, 1));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
     network.set_input_data("input", input);
@@ -1711,7 +1715,7 @@ TEST(reduce_gpu, b_fs_yx_fsv16_min_dynamic) {
     topology.add(reorder("reorder", input_info("input"), used_layout));
     topology.add(reduce("reduce", input_info("reorder"), reduce_mode::min, {1}, 0));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     network network(engine, topology, config);
@@ -1766,7 +1770,7 @@ TEST(reduce_gpu, b_fs_yx_fsv16_max_dynamic) {
     topology.add(reorder("reorder", input_info("input"), used_layout));
     topology.add(reduce("reduce", input_info("reorder"), reduce_mode::max, {1}, 0)); 
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     network network(engine, topology, config);
@@ -1823,7 +1827,7 @@ protected:
     }
 
 public:
-    void execute() {
+    void execute(bool is_caching_test) {
 
         int input_dim = static_cast<int>(input_format.dimension());
         cldnn::format layout_format = input_format;
@@ -1887,16 +1891,16 @@ public:
             }
             topology.add(input_layout("input", input_mem->get_layout()));
             topology.add(red);
-            ExecutionConfig config;
+            ExecutionConfig config = get_test_default_config(engine);
             config.set_property(ov::intel_gpu::optimize_data(true));
             ov::intel_gpu::ImplementationDesc reduce_impl = {input_format, kernel_name};
             config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"reduce", reduce_impl}}));
-            network network(engine, topology, config);
-            network.set_input_data("input", input_mem);
+            cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+            network->set_input_data("input", input_mem);
 
-            network.execute();
+            network->execute();
 
-            auto out_mem = network.get_output("reduce").get_memory();
+            auto out_mem = network->get_output("reduce").get_memory();
             cldnn::mem_lock<output_t> out_ptr(out_mem, get_test_stream());
             auto out_lay = out_mem->get_layout();
 
@@ -1939,10 +1943,10 @@ public:
 
 
 class general_reduce_gpu_xy_f32 : public ReduceXYWithBigTensorTestBase<data_types::f32, data_types::f32> {};
-TEST_P(general_reduce_gpu_xy_f32, base) { execute(); }
+TEST_P(general_reduce_gpu_xy_f32, base) { execute(false); }
 
 class general_reduce_gpu_xy_i8 : public ReduceXYWithBigTensorTestBase<data_types::i8, data_types::i8> {};
-TEST_P(general_reduce_gpu_xy_i8, base) { execute(); }
+TEST_P(general_reduce_gpu_xy_i8, base) { execute(false); }
 
 INSTANTIATE_TEST_SUITE_P(reduce_gpu_b_fs_yx_fsv16_xy_f32,
                         general_reduce_gpu_xy_f32,
@@ -2041,7 +2045,7 @@ public:
         }
         topology.add(input_layout("input", input_mem->get_layout()));
         topology.add(red);
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
         ov::intel_gpu::ImplementationDesc reduce_impl = {input_format, kernel_name, impl_types::onednn};
         config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"reduce", reduce_impl}}));
@@ -2111,7 +2115,7 @@ INSTANTIATE_TEST_SUITE_P(onednn_reduce_gpu_b_fs_yx_fsv16_i8_f32,
                             TestParamType_general_reduce_gpu(17, 3, 1, 1, 14, 11, format::b_fs_yx_fsv16, reduce_mode::mean, {1}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::i8, false, data_types::f32)
                         ), general_reduce_gpu::PrintToStringParamName);
 
- INSTANTIATE_TEST_SUITE_P(onednn_reduce_gpu_b_fs_yx_fsv16_f16_f16,
+INSTANTIATE_TEST_SUITE_P(onednn_reduce_gpu_b_fs_yx_fsv16_f16_f16,
                         onednn_reduce_gpu_f16_f16,
                         ::testing::Values(
                             TestParamType_general_reduce_gpu(3, 3, 1, 1, 3, 2, format::b_fs_yx_fsv16, reduce_mode::sum, {3, 2, 1, 0}, "reduce_gpu_b_fs_yx_fsv16", false, data_types::f16, false, data_types::f16),
@@ -2134,3 +2138,19 @@ INSTANTIATE_TEST_SUITE_P(onednn_reduce_gpu_b_fs_yx_fsv16_i8_f32,
                             TestParamType_general_reduce_gpu(17, 3, 1, 1, 14, 11, format::b_fs_yx_fsv16, reduce_mode::mean, {1}, "reduce_gpu_b_fs_yx_fsv16", true, data_types::f16, false, data_types::f16)
                         ), general_reduce_gpu::PrintToStringParamName);
 #endif  // ENABLE_ONEDNN_FOR_GPU
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST_P(general_reduce_gpu_i8_i8, base_cached) { execute(true); }
+
+TEST_P(general_reduce_gpu_i8_f32, base_cached) { execute(true); }
+
+TEST_P(general_reduce_gpu_f32_f32, base_cached) { execute(true); }
+
+TEST_P(general_reduce_gpu_xy_f32, base_cached) { execute(true); }
+
+TEST_P(general_reduce_gpu_xy_i8, base_cached) { execute(true); }
+#endif  // RUN_ALL_MODEL_CACHING_TESTS
+
+TEST(reduce_gpu, common_bfyx_cached) {
+    test_common_bfyx<float>(true);
+}

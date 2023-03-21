@@ -13,6 +13,21 @@
 
 #pragma once
 
+namespace ov {
+namespace intel_cpu {
+template <class TIface = IShapeInferCommon, class TTensorPtr = HostTensorPtr>
+void shape_inference(ov::Node* op,
+                     const std::vector<StaticShape>& input_shapes,
+                     std::vector<StaticShape>& output_shapes,
+                     const std::map<size_t, TTensorPtr>& constant_data = {}) {
+    const auto shape_infer = make_shape_inference<TIface>(op->shared_from_this());
+    auto result = shape_infer->infer(input_shapes, constant_data);
+    OPENVINO_ASSERT(ShapeInferStatus::success == result.status, "shape inference result has unexpected status");
+    output_shapes = std::move(result.shapes);
+}
+}  // namespace intel_cpu
+}  // namespace ov
+
 struct TestTensor {
     std::shared_ptr<ngraph::runtime::HostTensor> tensor;
     ov::intel_cpu::StaticShape static_shape;
@@ -90,6 +105,8 @@ using ShapeVector = std::vector<ov::intel_cpu::StaticShape>;
 template <class TOp>
 class OpStaticShapeInferenceTest : public testing::Test {
 protected:
+    using op_type = TOp;
+
     ShapeVector input_shapes, output_shapes;
     ov::intel_cpu::StaticShape exp_shape;
     std::shared_ptr<TOp> op;

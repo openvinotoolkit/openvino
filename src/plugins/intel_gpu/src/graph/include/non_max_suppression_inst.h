@@ -91,6 +91,27 @@ class typed_primitive_inst<non_max_suppression> : public typed_primitive_inst_ba
     using parent = typed_primitive_inst_base<non_max_suppression>;
     using parent::parent;
 
+    size_t get_iou_threshold_offset() const {
+        size_t offset = 2;
+        offset += has_num_select_per_class();
+        return offset;
+    }
+
+    size_t get_score_threshold_offset() const {
+        size_t offset = 2;
+        offset += has_num_select_per_class();
+        offset += has_iou_threshold();
+        return offset;
+    }
+
+    size_t get_soft_nms_sigma_offset() const {
+        size_t offset = 2;
+        offset += has_num_select_per_class();
+        offset += has_iou_threshold();
+        offset += has_score_threshold();
+        return offset;
+    }
+
 public:
     typed_primitive_inst(network& network, non_max_suppression_node const& node)
         : parent(network, node)
@@ -113,29 +134,32 @@ public:
     memory::ptr num_select_per_class_mem() const {
         return dep_memory_ptr(2);
     }
+    std::shared_ptr<const primitive_inst> num_select_per_class_inst() const {
+        return dependencies().at(2).first;
+    }
 
     bool has_iou_threshold() const { return !get_typed_desc<non_max_suppression>()->iou_threshold.empty(); }
     memory::ptr iou_threshold_mem() const {
-        size_t offset = 2;
-        offset += has_num_select_per_class();
-        return dep_memory_ptr(offset);
+        return dep_memory_ptr(get_iou_threshold_offset());
+    }
+    std::shared_ptr<const primitive_inst> iou_threshold_inst() const {
+        return dependencies().at(get_iou_threshold_offset()).first;
     }
 
     bool has_score_threshold() const { return !get_typed_desc<non_max_suppression>()->score_threshold.empty(); }
     memory::ptr score_threshold_mem() const {
-        size_t offset = 2;
-        offset += has_num_select_per_class();
-        offset += has_iou_threshold();
-        return dep_memory_ptr(offset);
+        return dep_memory_ptr(get_score_threshold_offset());
+    }
+    std::shared_ptr<const primitive_inst> score_threshold_inst() const {
+        return dependencies().at(get_score_threshold_offset()).first;
     }
 
     bool has_soft_nms_sigma() const { return !get_typed_desc<non_max_suppression>()->soft_nms_sigma.empty(); }
     memory::ptr soft_nms_sigma_mem() const {
-        size_t offset = 2;
-        offset += has_num_select_per_class();
-        offset += has_iou_threshold();
-        offset += has_score_threshold();
-        return dep_memory_ptr(offset);
+        return dep_memory_ptr(get_soft_nms_sigma_offset());
+    }
+    std::shared_ptr<const primitive_inst> soft_nms_sigma_inst() const {
+        return dependencies().at(get_soft_nms_sigma_offset()).first;
     }
 
     bool has_second_output() const { return !get_typed_desc<non_max_suppression>()->second_output.empty(); }

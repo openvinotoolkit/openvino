@@ -6,7 +6,6 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/variant.hpp>
 
 using namespace ngraph;
 

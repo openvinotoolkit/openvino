@@ -14,7 +14,8 @@
 namespace cldnn {
 class BinaryOutputBuffer : public OutputBuffer<BinaryOutputBuffer> {
 public:
-    BinaryOutputBuffer(std::ostream& stream) : OutputBuffer<BinaryOutputBuffer>(this), stream(stream) {}
+    BinaryOutputBuffer(std::ostream& stream)
+    : OutputBuffer<BinaryOutputBuffer>(this), stream(stream), _impl_params(nullptr) {}
 
     void write(void const * data, std::streamsize size) {
         auto const written_size = stream.rdbuf()->sputn(reinterpret_cast<const char*>(data), size);
@@ -32,7 +33,8 @@ private:
 
 class BinaryInputBuffer : public InputBuffer<BinaryInputBuffer> {
 public:
-    BinaryInputBuffer(std::istream& stream, engine& engine) : InputBuffer(this, engine), stream(stream) {}
+    BinaryInputBuffer(std::istream& stream, engine& engine)
+    : InputBuffer(this, engine), stream(stream), _impl_params(nullptr), _network(nullptr) {}
 
     void read(void* const data, std::streamsize size) {
         auto const read_size = stream.rdbuf()->sgetn(reinterpret_cast<char*>(data), size);
@@ -42,10 +44,16 @@ public:
 
     void setKernlImplParams(void* impl_params) { _impl_params = impl_params; }
     void* getKernlImplParams() const { return _impl_params; }
+    void setNetwork(void* network) { _network = network; }
+    void* getNetwork() const { return _network; }
+
+    std::streampos tellg() { return stream.tellg(); }
+    void seekg(std::streampos pos) { stream.seekg(pos); }
 
 private:
     std::istream& stream;
     void* _impl_params;
+    void* _network;
 };
 
 template <typename T>

@@ -73,6 +73,25 @@ struct generate_proposals
         return seed;
     }
 
+    bool operator==(const primitive& rhs) const override {
+        if (!compare_common_params(rhs))
+            return false;
+
+        auto rhs_casted = downcast<const generate_proposals>(rhs);
+
+        #define cmp_fields(name) name == rhs_casted.name
+        return cmp_fields(min_size) &&
+               cmp_fields(nms_threshold) &&
+               cmp_fields(pre_nms_count) &&
+               cmp_fields(post_nms_count) &&
+               cmp_fields(normalized) &&
+               cmp_fields(nms_eta) &&
+               cmp_fields(roi_num_type) &&
+               cmp_fields(output_rois_scores.empty()) &&
+               cmp_fields(output_rois_num.empty());
+        #undef cmp_fields
+    }
+
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;

@@ -591,7 +591,7 @@ constexpr size_t score_threshold_port = 4;
 constexpr size_t soft_nms_sigma_port = 5;
 
 inline bool is_float_type_admissible(const element::Type& t) {
-    return t == element::f32 || t == element::f16 || t == element::bf16;
+    return t == element::dynamic || t == element::f32 || t == element::f16 || t == element::bf16;
 }
 
 inline bool is_scalar_or_1d_tensor_with_1_element(const ov::PartialShape& p) {

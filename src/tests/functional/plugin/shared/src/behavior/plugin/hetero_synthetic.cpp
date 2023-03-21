@@ -4,7 +4,6 @@
 
 #include "behavior/plugin/hetero_synthetic.hpp"
 #include <ngraph/op/util/op_types.hpp>
-#include <ngraph/variant.hpp>
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "common_test_utils/file_utils.hpp"

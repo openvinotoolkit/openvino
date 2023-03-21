@@ -17,6 +17,7 @@ namespace test {
 namespace conformance {
 extern const char* targetDevice;
 extern const char *targetPluginName;
+extern const char* refCachePath;
 
 extern std::vector<std::string> IRFolderPaths;
 extern std::vector<std::string> disabledTests;
@@ -103,8 +104,23 @@ static std::set<std::string> get_element_type_names() {
 static auto unique_ops = get_unique_ops();
 static auto element_type_names = get_element_type_names();
 
-inline std::vector<std::string> getModelPaths(const std::vector<std::string>& conformance_ir_paths,
-                                              const std::string& opName = "Other") {
+inline std::string get_ref_path(const std::string& model_path) {
+    if (std::string(refCachePath) == "") {
+        return "";
+    }
+    if (!CommonTestUtils::directoryExists(refCachePath)) {
+        CommonTestUtils::createDirectoryRecursive(refCachePath);
+    }
+    std::string path_to_cache = refCachePath + std::string(CommonTestUtils::FileSeparator);
+    std::string ref_name = model_path.substr(model_path.rfind(CommonTestUtils::FileSeparator) + 1);
+    ref_name = CommonTestUtils::replaceExt(ref_name, "bin");
+    path_to_cache +=  ref_name;
+    return path_to_cache;
+}
+
+// vector<ir_path, ref_path>
+inline std::vector<std::pair<std::string, std::string>> getModelPaths(const std::vector<std::string>& conformance_ir_paths,
+                                                                      const std::string& opName = "Other") {
     // This is required to prevent re-scan folders each call in case there is nothing found
     static bool listPrepared = false;
     if (!listPrepared) {
@@ -125,7 +141,7 @@ inline std::vector<std::string> getModelPaths(const std::vector<std::string>& co
         listPrepared = true;
     }
 
-    std::vector<std::string> result;
+    std::vector<std::pair<std::string, std::string>> result;
     if (!opName.empty() && opName != "Other") {
         for (const auto& op_version : unique_ops[opName]) {
             std::string final_op_name = op_version == "" ? opName : opName + "-" + op_version;
@@ -133,7 +149,7 @@ inline std::vector<std::string> getModelPaths(const std::vector<std::string>& co
             auto it = dirList.begin();
             while (it != dirList.end()) {
                 if (it->find(strToFind) != std::string::npos) {
-                    result.push_back(*it);
+                    result.push_back({*it, get_ref_path(*it)});
                     it = dirList.erase(it);
                 } else {
                     ++it;
@@ -142,7 +158,10 @@ inline std::vector<std::string> getModelPaths(const std::vector<std::string>& co
         }
     } else if (opName == "Other") {
         // For "Undefined" operation name - run all applicable files in "Undefined" handler
-        result.insert(result.end(), dirList.begin(), dirList.end());
+        // result.insert(result.end(), dirList.begin(), dirList.end());
+        for (const auto& file : dirList) {
+            result.push_back({file, get_ref_path(file)});
+        }
     }
     return result;
 }

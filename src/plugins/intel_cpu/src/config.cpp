@@ -150,6 +150,11 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 IE_THROW() << "Wrong value for property key " << PluginConfigParams::KEY_ENFORCE_BF16
                     << ". Expected only YES/NO";
             }
+        } else if (key == ov::device::id.name()) {
+            device_id = val;
+            if (!device_id.empty()) {
+                IE_THROW() << "CPU plugin supports only '' as device id";
+            }
         } else if (key == ov::inference_precision.name()) {
             if (val == "bf16") {
                 if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core)) {
@@ -165,8 +170,6 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 IE_THROW() << "Wrong value for property key " << ov::inference_precision.name()
                     << ". Supported values: bf16, f32";
             }
-        } else if (key == PluginConfigParams::KEY_CACHE_DIR) {
-            cache_dir = val;
         } else if (PluginConfigInternalParams::KEY_CPU_RUNTIME_CACHE_CAPACITY == key) {
             int val_i = -1;
             try {
@@ -250,6 +253,8 @@ void Config::updateProperties() {
 
     _config.insert({ PluginConfigParams::KEY_CPU_THREADS_NUM, std::to_string(streamExecutorConfig._threads) });
 
+    _config.insert({ PluginConfigParams::KEY_DEVICE_ID, device_id });
+
     IE_SUPPRESS_DEPRECATED_START
         _config.insert({ PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT, dumpToDot });
     IE_SUPPRESS_DEPRECATED_END;
@@ -261,7 +266,6 @@ void Config::updateProperties() {
     _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT, perfHintsConfig.ovPerfHint });
     _config.insert({ PluginConfigParams::KEY_PERFORMANCE_HINT_NUM_REQUESTS,
             std::to_string(perfHintsConfig.ovPerfHintNumRequests) });
-    _config.insert({PluginConfigParams::KEY_CACHE_DIR, cache_dir});
 }
 
 }   // namespace intel_cpu

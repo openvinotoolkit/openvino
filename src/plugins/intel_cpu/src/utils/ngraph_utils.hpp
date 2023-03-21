@@ -5,7 +5,6 @@
 #pragma once
 
 #include <cassert>
-#include <ngraph/variant.hpp>
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 namespace ov {

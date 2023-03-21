@@ -8,7 +8,6 @@
 
 #include "primitive_inst.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "to_string_utils.h"
 #include "register.hpp"
@@ -324,10 +323,8 @@ private:
     void build_primitive(const ExecutionConfig& config) {
         auto cache_outpath = get_cache_directory(config);
 
-        if (const char* env_p = std::getenv("OV_GPU_CACHE_MODEL")) {
-            if (env_p[0] == '1') {
-                cache_outpath = "";
-            }
+        if (!config.get_property(ov::intel_gpu::allow_new_shape_infer)) {
+            cache_outpath = "";
         }
 
         if (cache_outpath.empty()) {

@@ -2,17 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "reduce_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "reduce_inst.h"
 #include "reduce/reduce_kernel_selector.h"
 #include "reduce/reduce_kernel_ref.h"
-#include "reduce/reduce_kernel_b_fs_yx_fsv16.h"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include "data_inst.h"
-
-using namespace cldnn;
 
 namespace cldnn {
 namespace ocl {
@@ -28,7 +22,7 @@ static std::vector<uint16_t> convert_axes(std::vector<int64_t> axes, size_t rank
         if (axis < 0)
             axis = axis + rank;
 
-        converted_axes.push_back(rank + 1 - axis);
+        converted_axes.push_back(static_cast<uint16_t>(rank + 1 - axis));
     }
 
     return converted_axes;

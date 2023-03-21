@@ -2,14 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "primitive_base.hpp"
+
+#include "gemm_inst.h"
 #include "gemm/gemm_kernel_base.h"
 #include "gemm/gemm_kernel_selector.h"
-#include "gemm_inst.h"
-#include "impls/implementation_map.hpp"
-#include "intel_gpu/runtime/error_handler.hpp"
-#include <algorithm>
-#include "kernel_selector_helper.h"
-#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {

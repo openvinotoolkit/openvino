@@ -3,11 +3,12 @@
 
 from collections import defaultdict
 from datetime import timedelta
-from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type, serialize
+import enum
+from openvino.runtime import Core, Model, PartialShape, Dimension, Layout, Type, serialize, properties
 from openvino.preprocess import PrePostProcessor
 
 from .constants import DEVICE_DURATION_IN_SECS, UNKNOWN_DEVICE_TYPE, \
-    AUTO_DEVICE_NAME, MULTI_DEVICE_NAME
+    AUTO_DEVICE_NAME, MULTI_DEVICE_NAME, HETERO_DEVICE_NAME
 from .logging import logger
 
 import json
@@ -275,6 +276,12 @@ def can_measure_as_static(app_input_info):
             return False
     return True
 
+meta_plugins = [ MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, AUTO_DEVICE_NAME ]
+def is_virtual_device(device_name) -> bool:
+    return device_name in meta_plugins
+
+def is_virtual_device_found(device_names) -> bool:
+    return any(is_virtual_device(device_name) for device_name in device_names)
 
 def parse_devices(device_string):
     result = []
@@ -282,7 +289,10 @@ def parse_devices(device_string):
     result.append(target_device)
     if device_string.find(":") != -1:
         hw_devices_str = device_string.partition(":")[-1]
-        result.extend(hw_devices_str.split(','))
+        for hw_device in hw_devices_str.split(','):
+            if hw_device[0] == '-':
+                hw_device = hw_device[1:]
+            result.append(hw_device)
     return result
 
 def parse_value_per_device(devices, values_string, value_type):
@@ -320,8 +330,8 @@ def parse_value_for_virtual_device(device, values_string):
             # Remove the element that the key is virtual device MULTI
             # e.g. MULTI:xxx -nstreams 2 will set nstreams 2 to xxx.
             values_string.pop(device)
-        elif device == AUTO_DEVICE_NAME:
-            # Just keep the element that the key is virtual device AUTO
+        elif device == AUTO_DEVICE_NAME or device == HETERO_DEVICE_NAME:
+            # Just keep the element that the key is virtual device AUTO/HETERO
             # e.g. AUTO:xxx,xxx -nstreams 2 will trigger exception that AUTO plugin didn't support nstream property.
             value = values_string.get(device)
             values_string.clear()
@@ -329,11 +339,15 @@ def parse_value_for_virtual_device(device, values_string):
     keys = values_string.keys()
     for key in list(values_string):
         if device not in list(values_string):
-            values_string[device] = ''
-        values_string[device] += key + " " + values_string.get(key) + " "
+            values_string[device] = '{'
+        else:
+            values_string[device] += ','
+        values_string[device] += key + ":" + values_string.get(key)
         del values_string[key]
     if device in values_string.keys():
         values_string[device] = values_string[device].strip()
+        if values_string[device] != '':
+            values_string[device] += '}'
     return
 
 def process_help_inference_string(benchmark_app, device_number_streams):
@@ -399,14 +413,14 @@ def print_perf_counters_sort(perf_counts_list,sort_flag="sort"):
         elif sort_flag=="simple_sort":
             total_detail_data = sorted(total_detail_data,key=lambda tmp_data:tmp_data[-4],reverse=True)
             total_detail_data = [tmp_data for tmp_data in total_detail_data if str(tmp_data[1])!="Status.NOT_RUN"]
-        print_detail_result(total_detail_data)        
+        print_detail_result(total_detail_data)
         print(f'Total time:       {total_time / 1000:.3f} milliseconds')
         print(f'Total CPU time:   {total_time_cpu / 1000:.3f} milliseconds')
         print(f'Total proportion: {"%.2f"%(round(total_real_time_proportion)*100)} % \n')
     return total_detail_data
 
 def print_detail_result(result_list):
-    """ Print_perf_counters_sort result 
+    """ Print_perf_counters_sort result
     """
     max_print_length = 20
     for tmp_result in result_list:
@@ -423,8 +437,8 @@ def print_detail_result(result_list):
                 f"{str(layerStatus):<20} "
                 f"layerType: {layerType[:max_print_length - 4] + '...' if (len(layerType) >= max_print_length) else layerType:<20} "
                 f"execType: {execType:<20} "
-                f"realTime (ms): {real_time / timedelta(milliseconds=1):<10.3f} "
-                f"cpuTime (ms): {cpu_time / timedelta(milliseconds=1):<10.3f}"
+                f"realTime (ms): {real_time / 1000:<10.3f} "
+                f"cpuTime (ms): {cpu_time / 1000:<10.3f}"
                 f"proportion: {str(real_proportion +'%'):<8}")
 
 def print_perf_counters(perf_counts_list):
@@ -745,28 +759,15 @@ def show_available_devices():
 
 
 def dump_config(filename, config):
-    properties = {}
-    for device in config:
-        properties[device] = {}
-        supported_properties = Core().get_property(device, 'SUPPORTED_PROPERTIES')
-        # check if ov::device::properties exists in the config
-        if device not in (AUTO_DEVICE_NAME, MULTI_DEVICE_NAME):
-            properties[device] = config[device]
-            continue
-        for property_name in config[device]:
-            property_value = config[device][property_name]
-            if property_name in supported_properties:
-                properties[device][property_name] = property_value
-            else:
-                properties[device].setdefault('DEVICE_PROPERTIES', {})
-                properties[device]['DEVICE_PROPERTIES'].setdefault(property_name, {})
-                array = property_value.split(' ')
-                properties_dict = {array[i]: array[i + 1] for i in range(0, len(array), 2)}
-                for key in properties_dict:
-                    properties[device]['DEVICE_PROPERTIES'][property_name][key] = properties_dict[key]
+    json_config = {}
+    for device_name, device_config in config.items():
+        json_config[device_name] = {}
+        for key, value in device_config.items():
+            value_string = value.name if isinstance(value, properties.hint.PerformanceMode) else str(value)
+            json_config[device_name][key] = value_string
 
     with open(filename, 'w') as f:
-        json.dump(properties, f, indent=4)
+        json.dump(json_config, f, indent=4)
 
 
 def load_config(filename, config):
@@ -775,14 +776,4 @@ def load_config(filename, config):
     for device in original_config:
         config[device] = {}
         for property_name in original_config[device]:
-            property_value = original_config[device][property_name]
-            if property_name != 'DEVICE_PROPERTIES':
-                config[device][property_name] = property_value
-                continue
-            for hw_device in property_value:
-                hw_device_config = property_value[hw_device]
-                array = ""
-                for key in hw_device_config:
-                    value = hw_device_config[key]
-                    array += key + ' ' + value + ' '
-                config[device][hw_device] = array.strip()
+            config[device][property_name] = original_config[device][property_name]

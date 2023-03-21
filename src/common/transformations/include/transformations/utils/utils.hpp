@@ -188,12 +188,8 @@ template <class T>
 Output<Node> eltwise_fold(const Output<Node>& input0, const Output<Node>& input1) {
     auto eltwise = std::make_shared<T>(input0, input1);
     OutputVector output(eltwise->get_output_size());
-    if (!eltwise->constant_fold(output, {input0, input1})) {
-        throw ov::Exception("Can not constant fold eltwise node");
-    }
-    if (output.size() != 1) {
-        throw ov::Exception("Eltwise constant fold has unexpected number of outputs: " + std::to_string(output.size()));
-    }
+    OPENVINO_ASSERT(eltwise->constant_fold(output, {input0, input1}), "Can not constant fold eltwise node");
+    OPENVINO_ASSERT(output.size() == 1, "Eltwise constant fold has unexpected number of outputs: ", output.size());
     return output[0];
 }
 

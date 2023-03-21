@@ -8,6 +8,8 @@
 #include <unordered_map>
 #include <functional>
 #include <iostream>
+#include <thread>
+#include <mutex>
 
 #include "kernel.hpp"
 
@@ -16,7 +18,7 @@ namespace cldnn {
 struct primitive_impl;
 
 /// @brief LRU cache which remove the least recently used data when cache is full.
-template<typename Key, typename Value>
+template<typename Key, typename Value, typename KeyHasher = std::hash<Key>>
 class LruCache {
 public:
     using data_type = std::pair<Key, Value>;
@@ -30,15 +32,15 @@ public:
     }
 
     /**
-     * @brief Get the least recently used element object in the cache
+     * @brief Get the least recently used element with key and value pair in the cache
      *
      * @return Value
      */
-    Value get_lru_element() const {
+    std::pair<Key, Value> get_lru_element() const {
         if (_lru_data_list.size()) {
-            return _lru_data_list.back().second;
+            return _lru_data_list.back();
         } else {
-            return Value();
+            return std::make_pair(Key(), Value());
         }
     }
 
@@ -139,7 +141,7 @@ private:
     using lru_data_list_iter = typename lru_data_list_type::iterator;
 
     std::list<data_type> _lru_data_list;
-    std::unordered_map<Key, lru_data_list_iter> _key_map;
+    std::unordered_map<Key, lru_data_list_iter, KeyHasher> _key_map;
     const size_t _capacity;
 
     /**
@@ -164,6 +166,45 @@ private:
     }
 };
 
-using ImplementationsCache = cldnn::LruCache<size_t, std::shared_ptr<primitive_impl>>;
 using KernelsCache = cldnn::LruCache<size_t, cldnn::kernel::ptr>;
+
+template<typename Key, typename Value, typename KeyHasher = std::hash<Key>>
+class LruCacheThreadSafe : public LruCache<Key, Value, KeyHasher> {
+public:
+    using parent = LruCache<Key, Value, KeyHasher>;
+    using ItemType = std::pair<Key, Value>;
+    using FuncRemoveItem = std::function<void(ItemType&)>;
+    using parent::parent;
+
+    explicit LruCacheThreadSafe(size_t caps) : parent(caps) { }
+
+    bool add(const Key& key, const Value& value) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        auto popped_item = parent::get_lru_element();
+        auto ret = parent::add(key, value);
+        if (ret && _remove_popped_item) {
+            _remove_popped_item(popped_item);
+        }
+        return ret;
+    }
+
+    bool has(const Key& key) const {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return parent::has(key);
+    }
+
+    Value get(const Key& key) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return parent::get(key);
+    }
+
+    void set_remove_item_callback(FuncRemoveItem callback) {
+        _remove_popped_item = callback;
+    }
+
+private:
+    FuncRemoveItem _remove_popped_item;
+    mutable std::mutex _mutex;
+};
+
 }  // namespace cldnn

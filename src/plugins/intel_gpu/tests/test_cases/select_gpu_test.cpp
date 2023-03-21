@@ -12,7 +12,8 @@ using namespace cldnn;
 using namespace ::tests;
 
 // select_gpu_f32
-TEST(select_gpu_f32, select_basic) {
+template <typename T>
+void test_select_basic(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ data_types::f32, format::yxfb, { 2, 2, 2, 2 } });
@@ -44,12 +45,12 @@ TEST(select_gpu_f32, select_basic) {
         0.f,   1.f,  0.f,  1.f,
         1.f,   0.f,  1.f,  0.f });
 
-    network network(engine, topology);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
-    network.set_input_data("input", input);
-    network.set_input_data("input2", input2);
-    network.set_input_data("mask", mask);
-    auto outputs = network.execute();
+    network->set_input_data("input", input);
+    network->set_input_data("input2", input2);
+    network->set_input_data("mask", mask);
+    auto outputs = network->execute();
 
     auto output = outputs.at("select").get_memory();
 
@@ -58,12 +59,16 @@ TEST(select_gpu_f32, select_basic) {
                           15.f,   0.5f,   8.f,  12.f,
                            4.f,   6.5f,   8.f,  -2.5f };
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {
         ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
+}
+
+TEST(select_gpu_f32, select_basic) {
+    test_select_basic<float>(false);
 }
 
 TEST(select_gpu_f32, select_basic_negative) {
@@ -98,7 +103,7 @@ TEST(select_gpu_f32, select_basic_negative) {
         -0.f,   -1.f,  -0.f,  -1.f,
         -1.f,   -0.f,  -1.f,  -0.f });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -175,7 +180,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_mask_2x2x1x2) {
         0.f,
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -251,7 +256,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_mask_1x1x1x1) {
         0.f
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -331,7 +336,7 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_mask_2x2x2x1) {
         -0.f,  -0.5f,
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -417,7 +422,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in2_2x2x1x2) {
         1.f,  0.f
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -499,7 +504,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in1_2x2x2x1_bcast_in2_2x2x1
         1.f,  0.f
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -573,7 +578,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_mask_2x1x2x2_in1_1x2x2x2_in
         0.f,  1.f,
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -649,7 +654,7 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_mask_2x1x2x2_in1_2x2x
         -0.f
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -725,7 +730,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in2_1x1x1x1) {
         1.f,  0.f
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -805,7 +810,7 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_in2_2x2x2x1) {
         -1.5f, -0.f
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -891,7 +896,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in1_2x2x1x2) {
         1.f,  0.f
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -967,7 +972,7 @@ TEST(select_gpu_f32, select_basic_bfyx_2x2x2x2_bcast_in1_1x1x1x1) {
         1.f,  0.f
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -1047,7 +1052,7 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_in1_2x2x2x1) {
         -1.5f, -0.f
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -1127,7 +1132,7 @@ TEST(select_gpu_f32, select_basic_comma_byxf_2x2x2x2_bcast_mask_2x1x2x2_in1_2x2x
         -0.f
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -1190,7 +1195,7 @@ TEST(select_gpu_f32, select_basic_comma) {
         -0.f,   -0.1f,  -0.f,  -0.5f,
         -0.7f,   -0.f,  -1.5f,  -0.f });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -1225,7 +1230,7 @@ TEST(select_gpu_f32, select_basic_error_input_sizes) {
     topology.add(input_layout("mask", mask->get_layout()));
     topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
-    EXPECT_ANY_THROW(network(engine, topology));
+    EXPECT_ANY_THROW(network(engine, topology, get_test_default_config(engine)));
 }
 
 TEST(select_gpu_f32, select_basic_error_mask_sizes) {
@@ -1241,7 +1246,7 @@ TEST(select_gpu_f32, select_basic_error_mask_sizes) {
     topology.add(input_layout("mask", mask->get_layout()));
     topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
-    EXPECT_ANY_THROW(network(engine, topology));
+    EXPECT_ANY_THROW(network(engine, topology, get_test_default_config(engine)));
 }
 
 TEST(select_gpu_f32, select_basic_error_input_types) {
@@ -1256,23 +1261,7 @@ TEST(select_gpu_f32, select_basic_error_input_types) {
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(input_layout("mask", mask->get_layout()));
     topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
-    EXPECT_ANY_THROW(network(engine, topology));
-}
-
-TEST(select_gpu_f32, select_basic_error_input_formats) {
-    auto& engine = get_test_engine();
-
-    auto input = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto input2 = engine.allocate_memory({ data_types::f32, format::yxfb,{ 2, 2, 2, 2 } });
-    auto mask = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 2, 2, 2 } });
-
-    topology topology;
-    topology.add(input_layout("input", input->get_layout()));
-    topology.add(input_layout("input2", input2->get_layout()));
-    topology.add(input_layout("mask", mask->get_layout()));
-    topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
-
-    EXPECT_ANY_THROW(network(engine, topology));
+    EXPECT_ANY_THROW(network(engine, topology, get_test_default_config(engine)));
 }
 
 TEST(select_gpu_f32, select_basic_byxf) {
@@ -1307,7 +1296,7 @@ TEST(select_gpu_f32, select_basic_byxf) {
         0.f,   1.f,  0.f,  1.f,
         1.f,   0.f,  1.f,  0.f });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -1361,7 +1350,7 @@ TEST(select_gpu_f32, select_basic_mask_f16) {
         0,   1,  0,  1,
         1,   0,  1,  0 });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -1415,7 +1404,7 @@ TEST(select_gpu_f32, select_basic_mask_i8) {
         0,   1,  0,  1,
         1,   0,  1,  0 });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -1469,7 +1458,7 @@ TEST(select_gpu_f32, select_basic_mask_u8) {
         0,   211,  0,  255,
         199,   0,  160,  0 });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -1516,7 +1505,7 @@ TEST(select_gpu_f32, select_basic_1x1x2x2) {
         0.f,    0.f,    1.f,    1.f
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -1565,7 +1554,7 @@ TEST(select_gpu_f32, select_basic_bfyx_1x1x2x2) {
         1.f,   1.f
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -1615,7 +1604,7 @@ TEST(select_gpu_f32, select_basic_byxf_1x1x2x2) {
         1.f,   1.f
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -1638,7 +1627,8 @@ TEST(select_gpu_f32, select_basic_byxf_1x1x2x2) {
 }
 
 // select_gpu_f16
-TEST(select_gpu_f16, select_basic_1x1x2x2) {
+template <typename T>
+void test_f16_select_basic_1x1x2x2(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ data_types::f16, format::yxfb,{ 1, 1, 2, 2 } });
@@ -1651,41 +1641,45 @@ TEST(select_gpu_f16, select_basic_1x1x2x2) {
     topology.add(input_layout("mask", mask->get_layout()));
     topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
-    set_values<uint16_t>(input, {
+    set_values<T>(input, {
         1,   0,
         2,   0
     });
 
-    set_values<uint16_t>(input2, {
+    set_values<T>(input2, {
         0,   2,
         5,   7
     });
 
-    set_values<uint16_t>(mask, {
+    set_values<T>(mask, {
         0,   0,
         1,   1
     });
 
-    network network(engine, topology);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
-    network.set_input_data("input", input);
-    network.set_input_data("input2", input2);
-    network.set_input_data("mask", mask);
-    auto outputs = network.execute();
+    network->set_input_data("input", input);
+    network->set_input_data("input2", input2);
+    network->set_input_data("mask", mask);
+    auto outputs = network->execute();
 
     auto output = outputs.at("select").get_memory();
 
-    uint16_t answers[4] = {
+    T answers[4] = {
         0,  2,
         2,   0
     };
 
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 4; i++)
     {
         ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
+}
+
+TEST(select_gpu_f16, select_basic_1x1x2x2) {
+    test_f16_select_basic_1x1x2x2<uint16_t>(false);
 }
 
 TEST(select_gpu_f16, select_basic_mask_f32_1x1x2x2) {
@@ -1716,7 +1710,7 @@ TEST(select_gpu_f16, select_basic_mask_f32_1x1x2x2) {
         1.5f,   0.4f
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -1766,7 +1760,7 @@ TEST(select_gpu_f16, select_basic_mask_i8_1x1x2x2) {
         1,   1
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -1816,7 +1810,7 @@ TEST(select_gpu_f16, select_basic_mask_u8_1x1x2x2) {
         128,   255
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -1839,7 +1833,8 @@ TEST(select_gpu_f16, select_basic_mask_u8_1x1x2x2) {
 }
 
 // select_gpu_i8
-TEST(select_gpu_i8, select_basic_1x1x2x2) {
+template <typename T>
+void test_i8_select_basic_1x1x2x2(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ data_types::i8, format::yxfb,{ 1, 1, 2, 2 } });
@@ -1852,27 +1847,27 @@ TEST(select_gpu_i8, select_basic_1x1x2x2) {
     topology.add(input_layout("mask", mask->get_layout()));
     topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
-    set_values<char>(input, {
+    set_values<T>(input, {
         1,   0,
         2,   0
     });
 
-    set_values<char>(input2, {
+    set_values<T>(input2, {
         0,   2,
         5,   7
     });
 
-    set_values<char>(mask, {
+    set_values<T>(mask, {
         0,   0,
         3,   5
     });
 
-    network network(engine, topology);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
-    network.set_input_data("input", input);
-    network.set_input_data("input2", input2);
-    network.set_input_data("mask", mask);
-    auto outputs = network.execute();
+    network->set_input_data("input", input);
+    network->set_input_data("input2", input2);
+    network->set_input_data("mask", mask);
+    auto outputs = network->execute();
 
     auto output = outputs.at("select").get_memory();
 
@@ -1881,12 +1876,16 @@ TEST(select_gpu_i8, select_basic_1x1x2x2) {
         2,  0
     };
 
-    cldnn::mem_lock<char> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 4; i++)
     {
         ASSERT_EQ(answers[i], output_ptr[i]);
     }
+}
+
+TEST(select_gpu_i8, select_basic_1x1x2x2) {
+    test_i8_select_basic_1x1x2x2<char>(false);
 }
 
 TEST(select_gpu_i8, select_basic_mask_f32_1x1x2x2) {
@@ -1917,7 +1916,7 @@ TEST(select_gpu_i8, select_basic_mask_f32_1x1x2x2) {
         1.5f,  0.4f
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -1967,7 +1966,7 @@ TEST(select_gpu_i8, select_basic_mask_f16_1x1x2x2) {
         3,   5
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -2017,7 +2016,7 @@ TEST(select_gpu_i8, select_basic_mask_u8_1x1x2x2) {
         128,   255
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -2040,7 +2039,8 @@ TEST(select_gpu_i8, select_basic_mask_u8_1x1x2x2) {
 }
 
 // select_gpu_u8
-TEST(select_gpu_u8, select_basic_1x1x2x2) {
+template <typename T>
+void test_u8_select_basic_1x1x2x2(bool is_caching_test) {
     auto& engine = get_test_engine();
 
     auto input = engine.allocate_memory({ data_types::u8, format::yxfb,{ 1, 1, 2, 2 } });
@@ -2053,41 +2053,45 @@ TEST(select_gpu_u8, select_basic_1x1x2x2) {
     topology.add(input_layout("mask", mask->get_layout()));
     topology.add(cldnn::select("select", input_info("mask"), input_info("input"), input_info("input2")));
 
-    set_values<unsigned char>(input, {
+    set_values<T>(input, {
         128,   0,
         255,   0
     });
 
-    set_values<unsigned char>(input2, {
+    set_values<T>(input2, {
         0,   255,
         205,   128
     });
 
-    set_values<unsigned char>(mask, {
+    set_values<T>(mask, {
         0,   0,
         128,   255
     });
 
-    network network(engine, topology);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
-    network.set_input_data("input", input);
-    network.set_input_data("input2", input2);
-    network.set_input_data("mask", mask);
-    auto outputs = network.execute();
+    network->set_input_data("input", input);
+    network->set_input_data("input2", input2);
+    network->set_input_data("mask", mask);
+    auto outputs = network->execute();
 
     auto output = outputs.at("select").get_memory();
 
-    unsigned char answers[4] = {
+    T answers[4] = {
         0,  255,
         255,  0
     };
 
-    cldnn::mem_lock<unsigned char> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 4; i++)
     {
         ASSERT_EQ(answers[i], output_ptr[i]);
     }
+}
+
+TEST(select_gpu_u8, select_basic_1x1x2x2) {
+    test_u8_select_basic_1x1x2x2<unsigned char>(false);
 }
 
 TEST(select_gpu_u8, select_basic_mask_f32_1x1x2x2) {
@@ -2118,7 +2122,7 @@ TEST(select_gpu_u8, select_basic_mask_f32_1x1x2x2) {
         1.5f,  0.4f
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -2168,7 +2172,7 @@ TEST(select_gpu_u8, select_basic_mask_f16_1x1x2x2) {
         1,   1
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -2218,7 +2222,7 @@ TEST(select_gpu_u8, select_basic_mask_i8_1x1x2x2) {
         1,   1
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -2265,7 +2269,7 @@ TEST(select_gpu_fp32, select_numpy_broadcast_mask_u8_1x1x3) {
         1,   0,   1
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -2290,6 +2294,64 @@ TEST(select_gpu_fp32, select_numpy_broadcast_mask_u8_1x1x3) {
 
     for (int i = 0; i < 27; i++)
     {
+        ASSERT_EQ(answers[i], output_ptr[i]);
+    }
+}
+
+TEST(select_gpu_f32, select_different_formats) {
+    auto& engine = get_test_engine();
+
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 1, 2, 2 } });
+    auto input2 = engine.allocate_memory({ data_types::f32, format::byxf, { 2, 1, 2, 2 } });
+    auto mask   = engine.allocate_memory({ data_types::f32, format::yxfb, { 1, 1, 2, 2 } });
+
+    topology topology;
+    topology.add(input_layout("input1", input1->get_layout()));
+    topology.add(input_layout("input2", input2->get_layout()));
+    topology.add(input_layout("mask", mask->get_layout()));
+    topology.add(cldnn::select("select", input_info("mask"), input_info("input1"), input_info("input2")));
+
+    set_values(input1, {
+        1.f, 2.f,
+        3.f, 4.f,
+
+        5.f, 6.f,
+        7.f, 8.f
+    });
+
+    set_values(input2, {
+        9.f,  10.f,
+        11.f, 12.f,
+
+        13.f, 14.f,
+        15.f, 16.f
+    });
+
+    set_values(mask, {
+        0.f, 0.f,
+        1.f, 1.f
+    });
+
+    network network(engine, topology, get_test_default_config(engine));
+
+    network.set_input_data("input1", input1);
+    network.set_input_data("input2", input2);
+    network.set_input_data("mask", mask);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("select").get_memory();
+
+    std::vector<float> answers {
+        9.f,  10.f,
+        3.f,  4.f,
+
+        13.f, 14.f,
+        7.f,  8.f
+    };
+
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    for (size_t i = 0; i < answers.size(); ++i) {
         ASSERT_EQ(answers[i], output_ptr[i]);
     }
 }
@@ -2357,7 +2419,7 @@ TEST(select_gpu_f32, dynamic) {
     topology.add(input_layout("mask", mask_layout));
     topology.add(cldnn::select("select", input_info("mask"), input_info("input1"), input_info("input2")));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
 
@@ -2393,4 +2455,21 @@ TEST(select_gpu_f32, dynamic) {
     for (int i = 0; i < 16; i++) {
         ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
     }
+}
+
+#ifdef RUN_ALL_MODEL_CACHING_TESTS
+TEST(select_gpu_f32, select_basic_cached) {
+    test_select_basic<float>(true);
+}
+
+TEST(select_gpu_f16, select_basic_1x1x2x2_cached) {
+    test_f16_select_basic_1x1x2x2<uint16_t>(true);
+}
+
+TEST(select_gpu_i8, select_basic_1x1x2x2_cached) {
+    test_i8_select_basic_1x1x2x2<char>(true);
+}
+#endif
+TEST(select_gpu_u8, select_basic_1x1x2x2_cached) {
+    test_u8_select_basic_1x1x2x2<unsigned char>(true);
 }

@@ -125,27 +125,10 @@ struct non_max_suppression_basic : public testing::Test {
         topo.add(non_max_suppression("nms", input_info("reformat_boxes"), input_info("reformat_scores"), 6, false, true));
         topo.add(reorder("plane_nms", input_info("nms"), format::bfyx, cldnn::data_types::i32));
 
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
 
-        cldnn::network::ptr net;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topo, config);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, get_test_engine());
-                net = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
-            }
-        } else {
-            net = std::make_shared<cldnn::network>(engine, topo, config);
-        }
+        cldnn::network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
 
         auto boxes_mem = this->get_boxes_memory(engine);
         auto scores_mem = this->get_scores_memory(engine);
@@ -203,27 +186,10 @@ struct non_max_suppression_basic : public testing::Test {
                                     "num_per_class"));
         topo.add(reorder("plane_nms", input_info("nms"), format::bfyx, cldnn::data_types::i32));
 
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
 
-        cldnn::network::ptr net;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topo, config);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, get_test_engine());
-                net = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
-            }
-        } else {
-            net = std::make_shared<cldnn::network>(engine, topo, config);
-        }
+        cldnn::network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
 
         auto boxes_mem = this->get_boxes_memory(engine);
         auto scores_mem = this->get_scores_memory(engine);
@@ -291,27 +257,10 @@ struct non_max_suppression_basic : public testing::Test {
         topo.add(reorder("plane_nms", input_info("nms"), format::bfyx, cldnn::data_types::i32));
         topo.add(reorder("plane_scores", input_info("selected_scores"), format::bfyx, this->data_type));
 
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
 
-        cldnn::network::ptr net;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topo, config);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, get_test_engine());
-                net = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
-            }
-        } else {
-            net = std::make_shared<cldnn::network>(engine, topo, config);
-        }
+        cldnn::network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
 
         auto boxes_mem = this->get_boxes_memory(engine);
         auto scores_mem = this->get_scores_memory(engine);
@@ -368,7 +317,7 @@ struct non_max_suppression_basic : public testing::Test {
         second_output_topology.add(input_layout("num_outputs", this->valid_outputs_layout));
         second_output_topology.add(reorder("plane_scores", input_info("selected_scores"), format::bfyx, this->data_type));
         second_output_topology.add(reorder("plane_num", input_info("num_outputs"), format::bfyx, cldnn::data_types::i32));
-        network second_output_net{engine, second_output_topology};
+        network second_output_net{engine, second_output_topology, get_test_default_config(engine)};
         second_output_net.set_input_data("selected_scores", selected_scores_mem);
         second_output_net.set_input_data("num_outputs", valid_outputs_mem);
         auto second_output_result = second_output_net.execute();
@@ -426,28 +375,11 @@ struct non_max_suppression_basic : public testing::Test {
         topo.add(reorder("plane_scores", input_info("nms", 1), format::bfyx, this->data_type));
         topo.add(reorder("plane_outputs", input_info("nms", 2), format::bfyx, cldnn::data_types::i32));
 
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
-        cldnn::network::ptr net;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topo, config);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, get_test_engine());
-                net = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
-            }
-        } else {
-            net = std::make_shared<cldnn::network>(engine, topo, config);
-        }
+        cldnn::network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
 
         auto boxes_mem = this->get_boxes_memory(engine);
         auto scores_mem = this->get_scores_memory(engine);
@@ -505,7 +437,7 @@ struct non_max_suppression_basic : public testing::Test {
         second_output_topology.add(input_layout("num_outputs", valid_outputs_mem->get_layout()));
         second_output_topology.add(reorder("plane_scores", input_info("selected_scores"), format::bfyx, this->data_type));
         second_output_topology.add(reorder("plane_num", input_info("num_outputs"), format::bfyx, cldnn::data_types::i32));
-        network second_output_net{engine, second_output_topology};
+        network second_output_net{engine, second_output_topology, get_test_default_config(engine)};
         second_output_net.set_input_data("selected_scores", selected_scores_mem);
         second_output_net.set_input_data("num_outputs", valid_outputs_mem);
         auto second_output_result = second_output_net.execute();
@@ -553,27 +485,10 @@ struct non_max_suppression_basic : public testing::Test {
                                     "iou_threshold"));
         topo.add(reorder("plane_nms", input_info("nms"), format::bfyx, cldnn::data_types::i32));
 
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
 
-        cldnn::network::ptr net;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topo, config);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, get_test_engine());
-                net = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
-            }
-        } else {
-            net = std::make_shared<cldnn::network>(engine, topo, config);
-        }
+        cldnn::network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
 
         auto boxes_mem = this->get_boxes_memory(engine);
         auto scores_mem = this->get_scores_memory(engine);
@@ -627,27 +542,10 @@ struct non_max_suppression_basic : public testing::Test {
                                     "score_threshold"));
         topo.add(reorder("plane_nms", input_info("nms"), format::bfyx, cldnn::data_types::i32));
 
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
 
-        cldnn::network::ptr net;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topo, config);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, get_test_engine());
-                net = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
-            }
-        } else {
-            net = std::make_shared<cldnn::network>(engine, topo, config);
-        }
+        cldnn::network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
 
         auto boxes_mem = this->get_boxes_memory(engine);
         auto scores_mem = this->get_scores_memory(engine);
@@ -705,27 +603,10 @@ struct non_max_suppression_basic : public testing::Test {
                                     "soft_nms_sigma"));
         topo.add(reorder("plane_nms", input_info("nms"), format::bfyx, cldnn::data_types::i32));
 
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
 
-        cldnn::network::ptr net;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topo, config);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, get_test_engine());
-                net = std::make_shared<cldnn::network>(ib, config, get_test_stream_ptr(), engine);
-            }
-        } else {
-            net = std::make_shared<cldnn::network>(engine, topo, config);
-        }
+        cldnn::network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
 
         auto boxes_mem = this->get_boxes_memory(engine);
         auto scores_mem = this->get_scores_memory(engine);

@@ -465,11 +465,6 @@ ov::AxisSet ov::op::v0::Constant::get_axis_set_val() const {
     return output_axis_set;
 }
 
-void ov::op::v0::Constant::set_data_shape(const ov::Shape& shape) {
-    NGRAPH_CHECK(shape_size(shape) == shape_size(m_shape));
-    m_shape = shape;
-}
-
 shared_ptr<ov::Node> ov::op::v0::Constant::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v0_Constant_clone_with_new_inputs);
     check_new_args_count(this, new_args);

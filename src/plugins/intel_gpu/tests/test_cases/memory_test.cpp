@@ -11,6 +11,7 @@
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/crop.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -76,7 +77,7 @@ TEST(memory_pool, basic_non_padded_relu_pipe) {
 
     std::vector<float> input_vec = { -1.f, 2.f, -3.f, 4.f };
     set_values(input, input_vec);
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(*engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network network(*engine, topology, config);
@@ -108,7 +109,7 @@ TEST(memory_pool, basic_non_padded_relu_and_pooling_pipe) {
     topology.add(activation("relu4", input_info("relu3"), activation_func::relu));
     topology.add(activation("relu5", input_info("relu4"), activation_func::relu));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(*engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network network(*engine, topology, config);
@@ -143,7 +144,7 @@ TEST(memory_pool, multi_outputs_network) {
     topology.add(activation("relu6", input_info("relu5"), activation_func::relu));
     topology.add(activation("relu7", input_info("relu6"), activation_func::relu));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(*engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network network(*engine, topology, config);
@@ -181,7 +182,7 @@ TEST(memory_pool, oooq) {
     topology.add(concatenation("concat2", { input_info("relu4"), input_info("relu5") }, 1));
     topology.add(activation("relu6", input_info("concat2"), activation_func::relu));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(*engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network network(*engine, topology, config);
@@ -226,7 +227,7 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice) {
     topology.add(concatenation("concat2", { input_info("relu4"), input_info("relu5") }, 1));
     topology.add(activation("relu6", input_info("concat2"), activation_func::linear, { 1.0f, 0.5f }));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(*engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network network_first(*engine, topology, config);
@@ -301,7 +302,7 @@ TEST(memory_pool, DISABLED_shared_mem_pool_same_topology_twice_weights) {
         convolution("conv", input_info("input"), { "weights" }, { 1, 1, 1, 2 }),
         softmax("softmax", input_info("conv")));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(*engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network network_first(*engine, topology, config);
@@ -387,7 +388,7 @@ TEST(memory_pool, shared_mem_pool_diff_batches) {
         convolution("conv", input_info("input"), { "weights" }, { 2, 1 }),
         softmax("softmax", input_info("conv")));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(*engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network network_first(*engine, topo, config);
@@ -420,7 +421,7 @@ TEST(memory_pool, shared_dep_two_output) {
     topo.add(cldnn::concatenation("result_1_0", { input_info("constant_0_0") }, 0));
     topo.add(cldnn::concatenation("result_2_0", { input_info("constant_0_0") }, 0));
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(*engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
 
     network network(*engine, topo, config);
@@ -461,7 +462,9 @@ TEST(memory_pool, non_opt_intermidate_opt_after) {
         data_memory
     );
 
-    ExecutionConfig config(ov::intel_gpu::optimize_data(false));
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(false));
+
     network network(engine, topology, config);
     network.set_input_data("input1", input_memory1);
     network.set_input_data("input2", input_memory2);
@@ -509,7 +512,7 @@ TEST(memory_pool, add_mem_dep_test) {
         actv3, actv4
     );
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
     network.set_input_data("input1", input_memory1);

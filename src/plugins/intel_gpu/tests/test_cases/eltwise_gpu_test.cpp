@@ -102,7 +102,7 @@ void generic_eltwise_test(cldnn::format test_input_fmt, int input_b, int input_f
         topology.add(activation("out", out_id, activation_func::relu, { slope, 0.0f }));
         out_id = "out";
     }
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
@@ -240,7 +240,7 @@ void generic_eltwise_bool_test(cldnn::format test_input_fmt, int input_b, int in
     topology.add(reorder("reorder1", input_info("input1"), input1->get_layout().with_padding(padding{{ 0, 0, input_padding_x, input_padding_y }, 0 })));
     topology.add(eltwise("eltwise", { input_info("reorder1"), input_info("input2") }, mode, DEFAULT_BROADCAST_SPEC, padding{ { 0, 0, output_padding_x, output_padding_y }, 0 }));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
     auto outputs = network.execute();
@@ -343,7 +343,7 @@ TEST(eltwise_gpu_f32, equal_in2_float_out1_int) {
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(eltwise("eltwise", { input_info("input"), input_info("input2") }, eltwise_mode::eq));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input1);
     network.set_input_data("input2", input2);
@@ -413,7 +413,7 @@ TEST(eltwise_gpu_f32, not_equal_in2_float_out1_int) {
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(eltwise("eltwise", { input_info("input"), input_info("input2") }, eltwise_mode::ne));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input1);
     network.set_input_data("input2", input2);
@@ -483,7 +483,7 @@ TEST(eltwise_gpu_f32, less_in2_float_out1_int) {
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(eltwise("eltwise", { input_info("input"), input_info("input2") }, eltwise_mode::lt));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input1);
     network.set_input_data("input2", input2);
@@ -553,7 +553,7 @@ TEST(eltwise_gpu_f32, less_equal_in2_float_out1_int) {
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(eltwise("eltwise", { input_info("input"), input_info("input2") }, eltwise_mode::le));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input1);
     network.set_input_data("input2", input2);
@@ -623,7 +623,7 @@ TEST(eltwise_gpu_f32, greater_in2_float_out1_int) {
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(eltwise("eltwise", { input_info("input"), input_info("input2") }, eltwise_mode::gt));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input1);
     network.set_input_data("input2", input2);
@@ -693,7 +693,7 @@ TEST(eltwise_gpu_f32, greater_equal_in2_float_out1_int) {
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(eltwise("eltwise", { input_info("input"), input_info("input2") }, eltwise_mode::ge));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input1);
     network.set_input_data("input2", input2);
@@ -763,7 +763,7 @@ TEST(eltwise_gpu_f32, logicalAND_in2_float_out1_int) {
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(eltwise("eltwise", { input_info("input"), input_info("input2") }, eltwise_mode::logic_and));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input1);
     network.set_input_data("input2", input2);
@@ -849,7 +849,7 @@ TEST(eltwise_gpu_f32, logicalAND_in3_float_out1_int) {
     topology.add(input_layout("input3", input2->get_layout()));
     topology.add(eltwise("eltwise", { input_info("input"), input_info("input2"), input_info("input3") }, eltwise_mode::logic_and));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input1);
     network.set_input_data("input2", input2);
@@ -920,7 +920,7 @@ TEST(eltwise_gpu_f32, logicalOR_in2_float_out1_int) {
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(eltwise("eltwise", { input_info("input"), input_info("input2") }, eltwise_mode::logic_or));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input1);
     network.set_input_data("input2", input2);
@@ -1006,7 +1006,7 @@ TEST(eltwise_gpu_f32, logicalOR_in3_float_out1_int) {
     topology.add(input_layout("input3", input2->get_layout()));
     topology.add(eltwise("eltwise", { input_info("input"), input_info("input2"), input_info("input3") }, eltwise_mode::logic_or));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input1);
     network.set_input_data("input2", input2);
@@ -1077,7 +1077,7 @@ TEST(eltwise_gpu_f32, logicalXOR_in2_float_out1_int) {
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(eltwise("eltwise", { input_info("input"), input_info("input2") }, eltwise_mode::logic_xor));
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input1);
     network.set_input_data("input2", input2);
@@ -1095,6 +1095,149 @@ TEST(eltwise_gpu_f32, logicalXOR_in2_float_out1_int) {
                                     0, 0, 0, 0,
                                     0, 0, 0, 0 };
 
+    for (size_t i = 0; i < answers.size(); ++i) {
+        ASSERT_EQ(answers[i], output_ptr[i]);
+    }
+}
+
+TEST(eltwise_gpu_f32, isfinite_in1_float_out1_int) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {2, 2, 2, 2}});
+    set_values(input,
+               {
+                   1.f,
+                   2.5f,
+                   5.f,
+                   std::numeric_limits<float>::infinity(),
+                   2.f,
+                   0.f,
+                   6.f,
+                   -std::numeric_limits<float>::infinity(),
+                   3.f,
+                   0.5f,
+                   7.f,
+                   std::numeric_limits<float>::quiet_NaN(),
+                   4.f,
+                   0.f,
+                   8.f,
+                   -std::numeric_limits<float>::quiet_NaN(),
+               });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(eltwise("eltwise", {input_info("input")}, eltwise_mode::is_finite));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+
+    const auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
+
+    const auto output = outputs.at("eltwise").get_memory();
+    const cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+
+    const std::vector<int8_t> answers = {1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0};
+    for (size_t i = 0; i < answers.size(); ++i) {
+        ASSERT_EQ(answers[i], output_ptr[i]);
+    }
+}
+
+TEST(eltwise_gpu_f32, isinf_in1_float_out1_int) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {2, 2, 2, 2}});
+    set_values(input,
+               {
+                   1.f,
+                   2.5f,
+                   5.f,
+                   std::numeric_limits<float>::infinity(),
+                   2.f,
+                   0.f,
+                   6.f,
+                   -std::numeric_limits<float>::infinity(),
+                   3.f,
+                   0.5f,
+                   7.f,
+                   std::numeric_limits<float>::quiet_NaN(),
+                   4.f,
+                   0.f,
+                   8.f,
+                   -std::numeric_limits<float>::quiet_NaN(),
+               });
+
+    const std::vector<std::pair<std::vector<float>, std::vector<int8_t>>> params = {
+        {{0.f, 0.f}, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+        {{0.f, 1.f}, {0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+        {{1.f, 0.f}, {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0}},
+        {{1.f, 1.f}, {0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0}},
+    };
+
+    for (const auto& param : params) {
+        const auto& coefficients = param.first;
+        const auto& answers = param.second;
+
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(eltwise("eltwise", {input_info("input")}, eltwise_mode::is_inf, coefficients, data_types::i8));
+
+        network network(engine, topology, get_test_default_config(engine));
+        network.set_input_data("input", input);
+
+        const auto outputs = network.execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "eltwise");
+
+        const auto output = outputs.at("eltwise").get_memory();
+        const cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+
+        for (size_t i = 0; i < answers.size(); ++i) {
+            ASSERT_EQ(answers[i], output_ptr[i]);
+        }
+    }
+}
+
+TEST(eltwise_gpu_f32, isnan_in1_float_out1_int) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({data_types::f32, format::bfyx, {2, 2, 2, 2}});
+    set_values(input,
+               {
+                   1.f,
+                   2.5f,
+                   5.f,
+                   std::numeric_limits<float>::infinity(),
+                   2.f,
+                   0.f,
+                   6.f,
+                   -std::numeric_limits<float>::infinity(),
+                   3.f,
+                   0.5f,
+                   7.f,
+                   std::numeric_limits<float>::quiet_NaN(),
+                   4.f,
+                   0.f,
+                   8.f,
+                   -std::numeric_limits<float>::quiet_NaN(),
+               });
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(eltwise("eltwise", {input_info("input")}, eltwise_mode::is_nan));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+
+    const auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "eltwise");
+
+    const auto output = outputs.at("eltwise").get_memory();
+    const cldnn::mem_lock<int8_t> output_ptr(output, get_test_stream());
+
+    const std::vector<int8_t> answers = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1};
     for (size_t i = 0; i < answers.size(); ++i) {
         ASSERT_EQ(answers[i], output_ptr[i]);
     }
@@ -1127,7 +1270,7 @@ TEST(eltwise_gpu_f32, dynamic_kernel_no_broadcast) {
         15.f,  17.f,    8.f,  10.f,
         -2.f,  6.5f,  -0.5f, -2.5f });
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
     network.set_input_data("input1", input1);
@@ -1183,7 +1326,7 @@ TEST(eltwise_gpu_f32, dynamic_kernel_broadcast) {
 
     set_values(input2, { 0.5f, -0.5f });
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network network(engine, topology, config);
     network.set_input_data("input1", input1);
@@ -1260,7 +1403,7 @@ TEST(eltwise_gpu_f32, add_basic_in4x4x2x2) {
         15.f,  17.f,    8.f,  10.f,
         -2.f,  6.5f,  -0.5f, -2.5f });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -1316,7 +1459,7 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_channel) {
          -2.f,  6.5f,
         -0.5f, -2.5f });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -1385,7 +1528,7 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_x) {
         -0.5f,
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -1448,7 +1591,7 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_y) {
         4.f, -0.5f,
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -1513,7 +1656,7 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_batch) {
         4.f, -0.5f,
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -1572,7 +1715,7 @@ TEST(eltwise_gpu_f32, add_in2x2x2x2_broadcast_multiple_dims) {
             1.f,
             2.f });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -1629,7 +1772,7 @@ TEST(eltwise_gpu_f32, pow_in2x2x2x2_broadcast_all) {
 
     set_values(input2, { 2.0f });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -1706,7 +1849,7 @@ TEST(eltwise_gpu_f32, add_basic_in2x2x2x2_broadcast_2_inputs_same_dim) {
         -4.f, 0.5f,
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -1782,7 +1925,7 @@ TEST(eltwise_gpu_f32, add_basic_in2x2x2x2_broadcast_2_inputs_diff_dim) {
         -4.f, 0.5f,
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -1860,7 +2003,7 @@ TEST(eltwise_gpu_f32, max_basic_in4x4x4x4) {
         15.f,  17.f,   8.f,  10.f,
          6.f,   8.f, -0.5f, -2.5f });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -1931,7 +2074,7 @@ TEST(eltwise_gpu_f32, sub_basic_in4x4x4x4) {
        15.f,  17.f,   8.f,   8.5f,
         6.f,   8.f, -0.5f,  10.5f });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -2002,7 +2145,7 @@ TEST(eltwise_gpu_int, basic_in4x4x4x4) {
                 6.f,   8.f, 0.f,  10.f };
             set_values(input2, input_2_vec);
 
-            network network(engine, topology);
+            network network(engine, topology, get_test_default_config(engine));
             network.set_input_data("input", input);
             network.set_input_data("input2", input2);
             auto outputs = network.execute();
@@ -2080,7 +2223,7 @@ TEST(eltwise_gpu_f32_int, basic_in4x4x4x4) {
                 6.f,   8.f, 0.f,  10.f };
             set_values(input2, input_2_vec);
 
-            network network(engine, topology);
+            network network(engine, topology, get_test_default_config(engine));
             network.set_input_data("input", input);
             network.set_input_data("input2", input2);
             auto outputs = network.execute();
@@ -2161,7 +2304,7 @@ TEST(eltwise_gpu_f32, prod_basic_in4x4x4x4) {
         2.5f,   7.f,  17.f,    8.f,
         2.5f,   4.f,  10.f,   -2.5f });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -2235,7 +2378,7 @@ TEST(eltwise_gpu_f32, max_basic_in4x4x4x4_input_padding) {
         15.f,  17.f,   8.f,  10.f,
         6.f,   8.f, -0.5f, -2.5f });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -2307,7 +2450,7 @@ TEST(eltwise_gpu_f32, add_basic_in4x4x2x2_with_coefficients) {
             15.f,  17.f,    8.f,  10.f,
             -2.f,  6.5f,  -0.5f, -2.5f });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -2423,7 +2566,7 @@ TEST(eltwise_gpu_f32, add_basic_in4x4x2x2_with_coefficients_3inputs) {
             6.f,  0.f,  2.f, 0.f,
             5.f,  1.f,  1.f, 1.f });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -2513,7 +2656,7 @@ TEST(eltwise_gpu_f32, max_3inputs_in4x4x4x4_input_padding) {
         15.f,  3.f,  9.f, 1.f,
         -1.f,  6.f, 0.5f, 8.f });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -2603,7 +2746,7 @@ TEST(eltwise_gpu_f32, stride_test_2x2) {
         15, 31, 47, 63,
         16, 32, 48, 64 });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -2671,7 +2814,7 @@ TEST(eltwise_gpu_f32, broadcast_test_in4x4x2x2) {
         0.5f,   2.5f,  0.5f,  2.5f
     });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -2739,7 +2882,7 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_basic)
     golden_topology.add(input_layout("input2", input2->get_layout()));
     golden_topology.add(eltwise("eltwise", input_info("input1"), input_info("input2"), eltwise_mode::sum));
 
-    network golden_network(engine, golden_topology);
+    network golden_network(engine, golden_topology, get_test_default_config(engine));
     golden_network.set_input_data("input1", input1);
     golden_network.set_input_data("input2", input2);
 
@@ -2756,7 +2899,7 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_basic)
     FSV32_topology.add(eltwise("eltwise", input_info("reorder1"), input_info("reorder2"), eltwise_mode::sum));
     FSV32_topology.add(reorder("reorderOutput", input_info("eltwise"), layout(data_types::f16, format::bfyx, input_tensor)));
 
-    network FSV32_network(engine, FSV32_topology);
+    network FSV32_network(engine, FSV32_topology, get_test_default_config(engine));
     FSV32_network.set_input_data("input1", input1);
     FSV32_network.set_input_data("input2", input2);
 
@@ -2781,10 +2924,10 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast)
         return;
     }
 
-    size_t input_b = 2;
-    size_t input_f = 72;
-    size_t input1_y = 10, input1_x = 10;
-    size_t input2_y = 1, input2_x = 1;
+    tensor::value_type input_b = 2;
+    tensor::value_type input_f = 72;
+    tensor::value_type input1_y = 10, input1_x = 10;
+    tensor::value_type input2_y = 1, input2_x = 1;
 
     tensor input1_tensor(input_b, input_f, input1_x, input1_y);
     tensor input2_tensor(input_b, input_f, input2_x, input2_y);
@@ -2806,7 +2949,7 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast)
     ref_topology.add(input_layout("input2", input2->get_layout()));
     ref_topology.add(eltwise("eltwise", input_info("input1"), input_info("input2"), eltwise_mode::prod));
 
-    network ref_network(engine, ref_topology);
+    network ref_network(engine, ref_topology, get_test_default_config(engine));
     ref_network.set_input_data("input1", input1);
     ref_network.set_input_data("input2", input2);
 
@@ -2822,7 +2965,7 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast)
     fsv32_topology.add(eltwise("eltwise", input_info("reorder1"), input_info("reorder2"), eltwise_mode::prod));
     fsv32_topology.add(reorder("reorder_bfyx", input_info("eltwise"), layout(data_types::f16, format::bfyx, input1_tensor)));
 
-    network fsv32_network(engine, fsv32_topology);
+    network fsv32_network(engine, fsv32_topology, get_test_default_config(engine));
     fsv32_network.set_input_data("input1", input1);
     fsv32_network.set_input_data("input2", input2);
 
@@ -2846,9 +2989,9 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast_bfyx)
         return;
     }
 
-    size_t input_b = 2;
-    size_t input_f = 72;
-    size_t input1_y = 10, input1_x = 10;
+    tensor::value_type input_b = 2;
+    tensor::value_type input_f = 72;
+    tensor::value_type input1_y = 10, input1_x = 10;
 
     tensor input1_tensor(input_b, input_f, input1_x, input1_y);
     tensor input2_tensor(1, input_f, 1, 1);
@@ -2870,7 +3013,7 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast_bfyx)
     ref_topology.add(input_layout("input2", input2->get_layout()));
     ref_topology.add(eltwise("eltwise", input_info("input1"), input_info("input2"), eltwise_mode::prod));
 
-    network ref_network(engine, ref_topology);
+    network ref_network(engine, ref_topology, get_test_default_config(engine));
     ref_network.set_input_data("input1", input1);
     ref_network.set_input_data("input2", input2);
 
@@ -2885,7 +3028,7 @@ TEST(eltwise_gpu_f16, fs_b_yx_fsv32_broadcast_bfyx)
     fsv32_topology.add(eltwise("eltwise", input_info("reorder1"), input_info("input2"), eltwise_mode::prod));
     fsv32_topology.add(reorder("reorder_bfyx", input_info("eltwise"), layout(data_types::f16, format::bfyx, input1_tensor)));
 
-    network fsv32_network(engine, fsv32_topology);
+    network fsv32_network(engine, fsv32_topology, get_test_default_config(engine));
     fsv32_network.set_input_data("input1", input1);
     fsv32_network.set_input_data("input2", input2);
 
@@ -2924,7 +3067,7 @@ TEST(eltwise_gpu_f32, broadcast_test_in4x4x2x2x2) {
 
     set_values(input2, { 0.5f, 2.5f, 0.5f, 2.5f, 1.f, 2.f, 3.f, 4.f });
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input", input);
     network.set_input_data("input2", input2);
@@ -2981,7 +3124,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_basic)
     golden_topology.add(input_layout("input2", input2->get_layout()));
     golden_topology.add(eltwise("eltwise", input_info("input1"), input_info("input2"), eltwise_mode::sum));
 
-    network golden_network(engine, golden_topology);
+    network golden_network(engine, golden_topology, get_test_default_config(engine));
     golden_network.set_input_data("input1", input1);
     golden_network.set_input_data("input2", input2);
 
@@ -2998,7 +3141,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_basic)
     FS_B_YX_FSV32_OUTPUT_topology.add(eltwise("eltwise", input_info("reorder1"), input_info("reorder2"), eltwise_mode::sum));
     FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorderOutput", input_info("eltwise"), layout(data_types::f16, format::bfyx, input_tensor)));
 
-    network FS_B_YX_FSV32_OUTPUT_network(engine, FS_B_YX_FSV32_OUTPUT_topology);
+    network FS_B_YX_FSV32_OUTPUT_network(engine, FS_B_YX_FSV32_OUTPUT_topology, get_test_default_config(engine));
     FS_B_YX_FSV32_OUTPUT_network.set_input_data("input1", input1);
     FS_B_YX_FSV32_OUTPUT_network.set_input_data("input2", input2);
 
@@ -3015,7 +3158,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_basic)
     BYXF_OUTPUT_topology.add(eltwise("eltwise", input_info("reorder1"), input_info("reorder2"), eltwise_mode::sum));
     BYXF_OUTPUT_topology.add(reorder("reorderOutput", input_info("eltwise"), layout(data_types::f16, format::bfyx, input_tensor)));
 
-    network BYXF_OUTPUT_network(engine, BYXF_OUTPUT_topology);
+    network BYXF_OUTPUT_network(engine, BYXF_OUTPUT_topology, get_test_default_config(engine));
     BYXF_OUTPUT_network.set_input_data("input1", input1);
     BYXF_OUTPUT_network.set_input_data("input2", input2);
 
@@ -3061,7 +3204,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding) {
     golden_topology.add(input_layout("input2", input2->get_layout()));
     golden_topology.add(eltwise("eltwise", input_info("input1"), input_info("input2"), eltwise_mode::sum, DEFAULT_BROADCAST_SPEC, padding{ {0,0,5,10} , 0 }));
 
-    network golden_network(engine, golden_topology);
+    network golden_network(engine, golden_topology, get_test_default_config(engine));
     golden_network.set_input_data("input1", input1);
     golden_network.set_input_data("input2", input2);
 
@@ -3079,7 +3222,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding) {
     FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorderOutput", input_info("eltwise"), layout(data_types::f16, format::bfyx, input_tensor,
                                               padding{ {0,0,5,10} , 0 })));
 
-    network FS_B_YX_FSV32_OUTPUT_network(engine, FS_B_YX_FSV32_OUTPUT_topology);
+    network FS_B_YX_FSV32_OUTPUT_network(engine, FS_B_YX_FSV32_OUTPUT_topology, get_test_default_config(engine));
     FS_B_YX_FSV32_OUTPUT_network.set_input_data("input1", input1);
     FS_B_YX_FSV32_OUTPUT_network.set_input_data("input2", input2);
 
@@ -3097,7 +3240,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_output_padding) {
     BYXF_OUTPUT_topology.add(reorder("reorderOutput", input_info("eltwise"), layout(data_types::f16, format::bfyx, input_tensor,
                                      padding{ {0,0,5,10} , 0 })));
 
-    network BYXF_OUTPUT_network(engine, BYXF_OUTPUT_topology);
+    network BYXF_OUTPUT_network(engine, BYXF_OUTPUT_topology, get_test_default_config(engine));
     BYXF_OUTPUT_network.set_input_data("input1", input1);
     BYXF_OUTPUT_network.set_input_data("input2", input2);
 
@@ -3146,7 +3289,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_input_padding)
     golden_topology.add(reorder("reorder2", input_info("input2"), layout(data_types::f16, format::bfyx, input_tensor, padding{ {0,0,5,7},0.0f })));
     golden_topology.add(eltwise("eltwise", input_info("input1"), input_info("input2"), eltwise_mode::sum));
 
-    network golden_network(engine, golden_topology);
+    network golden_network(engine, golden_topology, get_test_default_config(engine));
     golden_network.set_input_data("input1", input1);
     golden_network.set_input_data("input2", input2);
 
@@ -3163,7 +3306,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_input_padding)
     FS_B_YX_FSV32_OUTPUT_topology.add(eltwise("eltwise", input_info("reorder1"), input_info("reorder2"), eltwise_mode::sum));
     FS_B_YX_FSV32_OUTPUT_topology.add(reorder("reorderOutput", input_info("eltwise"), layout(data_types::f16, format::bfyx, input_tensor)));
 
-    network FS_B_YX_FSV32_OUTPUT_network(engine, FS_B_YX_FSV32_OUTPUT_topology);
+    network FS_B_YX_FSV32_OUTPUT_network(engine, FS_B_YX_FSV32_OUTPUT_topology, get_test_default_config(engine));
     FS_B_YX_FSV32_OUTPUT_network.set_input_data("input1", input1);
     FS_B_YX_FSV32_OUTPUT_network.set_input_data("input2", input2);
 
@@ -3180,7 +3323,7 @@ TEST(eltwise_gpu_f16, bfyx_and_fs_b_yx_fsv32_input_padding)
     BYXF_OUTPUT_topology.add(eltwise("eltwise", input_info("reorder1"), input_info("reorder2"), eltwise_mode::sum));
     BYXF_OUTPUT_topology.add(reorder("reorderOutput", input_info("eltwise"), layout(data_types::f16, format::bfyx, input_tensor)));
 
-    network BYXF_OUTPUT_network(engine, BYXF_OUTPUT_topology);
+    network BYXF_OUTPUT_network(engine, BYXF_OUTPUT_topology, get_test_default_config(engine));
     BYXF_OUTPUT_network.set_input_data("input1", input1);
     BYXF_OUTPUT_network.set_input_data("input2", input2);
 
@@ -3312,7 +3455,7 @@ TEST(eltwise_gpu, b_fs_yx_fsv4_wo_callib) {
                          eltw, actv);
 
             // Network processing
-            network network(engine, topology);
+            network network(engine, topology, get_test_default_config(engine));
             network.set_input_data("input1", input1);
             network.set_input_data("input2", input2);
             network.set_input_data("input3", input3);
@@ -3368,7 +3511,7 @@ TEST(eltwise_gpu, b_fs_yx_fsv4_wo_callib) {
                                      { in_B, in_F, in_X, in_Y })));
 
             // Network processing
-            network network(engine, topology);
+            network network(engine, topology, get_test_default_config(engine));
             network.set_input_data("input1", input1);
             network.set_input_data("input2", input2);
             network.set_input_data("input3", input3);
@@ -3528,7 +3671,7 @@ struct eltwise_same_input_test : testing::TestWithParam<eltwise_same_input_test_
         auto prim = eltwise("eltwise", { input_info("input1"), input_info("input2") }, eltwise_mode::sum);
         topo.add(prim);
 
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"eltwise"}));
 
         cldnn::network net(engine, topo, config);
@@ -3692,7 +3835,7 @@ TEST_P(eltwise_test, fsv16) {
     topology.add(reorder("out", input_info("eltwise"), fmt_pln, data_types::f32));
     primitive_id out_id = "out";
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
 
@@ -3798,7 +3941,7 @@ TEST_P(eltwise_test_6d, bfwzyx) {
     topology.add(reorder("out", input_info("eltwise"), format::bfwzyx, data_types::f32));
     primitive_id out_id = "out";
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
 
@@ -3883,7 +4026,7 @@ TEST_P(eltwise_test_mixed_precision, fsv16) {
     topology.add(reorder("out", input_info("eltwise"), fmt_pln, data_types::f32));
     primitive_id out_id = "out";
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
     network network(engine, topology, config);
 
@@ -3923,9 +4066,9 @@ struct eltwise_layout_test_params {
 };
 
 #define CASE_ELTWISE_TEST1  eltwise_mode::sum, {1, 2, 1, 1}, {4, 2, 4, 4}, format::b_fs_yx_fsv16, format::bfyx, "generic_eltwise_ref"
-#define CASE_ELTWISE_TEST2  eltwise_mode::sum, {4, 1, 4, 4}, {1, 5, 1, 1}, format::b_fs_yx_fsv16, format::bfyx, "eltwise_b_fs_yx_fsv16"
+#define CASE_ELTWISE_TEST2  eltwise_mode::sum, {4, 1, 4, 4}, {1, 5, 1, 1}, format::b_fs_yx_fsv16, format::bfyx, "eltwise_blocked_opt"
 #define CASE_ELTWISE_TEST3  eltwise_mode::sum, {4, 5, 4, 1}, {4, 1, 4, 1}, format::b_fs_yx_fsv16, format::bfyx, "generic_eltwise_ref"
-#define CASE_ELTWISE_TEST4  eltwise_mode::sum, {4, 2, 4, 4}, {1, 1, 1, 1}, format::b_fs_yx_fsv16, format::bfyx, "eltwise_b_fs_yx_fsv16"
+#define CASE_ELTWISE_TEST4  eltwise_mode::sum, {4, 2, 4, 4}, {1, 1, 1, 1}, format::b_fs_yx_fsv16, format::bfyx, "eltwise_blocked_opt"
 #define CASE_ELTWISE_TEST5  eltwise_mode::sum, {1, 2, 1, 1}, {4, 2, 4, 4}, format::bfyx, format::b_fs_yx_fsv16, "generic_eltwise_ref"
 #define CASE_ELTWISE_TEST6  eltwise_mode::sum, {4, 1, 4, 4}, {1, 5, 1, 1}, format::bfyx, format::b_fs_yx_fsv16, "generic_eltwise_ref"
 #define CASE_ELTWISE_TEST7  eltwise_mode::sum, {4, 5, 4, 1}, {4, 1, 4, 1}, format::bfyx, format::b_fs_yx_fsv16, "generic_eltwise_ref"
@@ -3988,7 +4131,7 @@ TEST_P(eltwise_test_mixed_layout, mixed_layout) {
     topology.add(reorder("out", input_info("eltwise"), format::bfyx, data_types::f32));
     primitive_id out_id = "out";
 
-    network network(engine, topology);
+    network network(engine, topology, get_test_default_config(engine));
 
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
@@ -4135,7 +4278,7 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
         auto prim = eltwise("eltwise", { input_info("input1"), input_info("input2") }, params.mode);
         topo.add(prim);
 
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"eltwise"}));
         config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"eltwise", {params.in_format, "generic_eltwise_ref"}} }));
 
@@ -4152,27 +4295,10 @@ struct eltwise_random_test : testing::TestWithParam<eltwise_random_test_params>
         auto prim_opt = eltwise("eltwise_opt", { input_info("input1"), input_info("input2") }, params.mode);
         topo_opt.add(prim_opt);
 
-        ExecutionConfig config_opt;
+        ExecutionConfig config_opt = get_test_default_config(engine);
         config_opt.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"eltwise_opt"}));
 
-        std::shared_ptr<cldnn::network> net_opt;
-
-        if (is_caching_test) {
-            membuf mem_buf;
-            {
-                cldnn::network _network(engine, topo_opt, config_opt);
-                std::ostream out_mem(&mem_buf);
-                BinaryOutputBuffer ob = BinaryOutputBuffer(out_mem);
-                _network.save(ob);
-            }
-            {
-                std::istream in_mem(&mem_buf);
-                BinaryInputBuffer ib = BinaryInputBuffer(in_mem, engine);
-                net_opt = std::make_shared<cldnn::network>(ib, config_opt, get_test_stream_ptr(), engine);
-            }
-        } else {
-            net_opt = std::make_shared<cldnn::network>(engine, topo_opt, config_opt);
-        }
+        cldnn::network::ptr net_opt = get_network(engine, topo_opt, config_opt, get_test_stream_ptr(), is_caching_test);
 
         net_opt->set_input_data("input1", input1);
         net_opt->set_input_data("input2", input2);
@@ -4205,8 +4331,8 @@ struct eltwise_random_test_param_generator : std::vector<eltwise_random_test_par
 
     eltwise_random_test_param_generator& broadcast_params(data_types type, format::type input_format, format::type output_format) {
         push_back(eltwise_random_test_params{ type, {1, 1, 48, 64},  {1, 10, 48, 64}, input_format, input_format, output_format, eltwise_mode::sum, false });
-        push_back(eltwise_random_test_params{ type, {1, 16, 48, 64}, {1, 1, 48, 64},  input_format, input_format, output_format, eltwise_mode::sum, false });
-        push_back(eltwise_random_test_params{ type, {1, 36, 48, 64}, {1, 1, 48, 64},  input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 16, 8, 8},   {1, 1, 8, 8},  input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 36, 8, 16},  {1, 36, 1, 1},  input_format, input_format, output_format, eltwise_mode::sum, false });
         push_back(eltwise_random_test_params{ type, {1, 36, 4, 4},   {1, 1, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum, false });
         push_back(eltwise_random_test_params{ type, {1, 8, 4, 4},    {1, 1, 1, 1},    input_format, format::bfyx, output_format, eltwise_mode::sum, false });
         return *this;
@@ -4217,6 +4343,34 @@ struct eltwise_random_test_param_generator : std::vector<eltwise_random_test_par
         push_back(eltwise_random_test_params{ type, {1, 20, 10, 10}, {1, 20, 10, 10}, input_format, input_format, output_format, eltwise_mode::sum, false });
         push_back(eltwise_random_test_params{ type, {1, 5, 4, 4},    {1, 5, 4, 4},    input_format, input_format, output_format, eltwise_mode::sum, false });
         push_back(eltwise_random_test_params{ type, {1, 32, 16, 16}, {1, 32, 16, 16}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        return *this;
+    }
+
+    eltwise_random_test_param_generator& simple_params_bsv(data_types type, format::type input_format, format::type output_format) {
+        push_back(eltwise_random_test_params{ type, {16, 32, 4, 4}, {16, 32, 4, 4}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {20, 16, 4, 1}, {20, 16, 4, 1}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        return *this;
+    }
+
+    eltwise_random_test_param_generator& simple_params_zyx(data_types type, format::type input_format, format::type output_format) {
+        push_back(eltwise_random_test_params{ type, {1, 32, 4, 4, 4}, {1, 32, 4, 4, 4}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        return *this;
+    }
+
+    eltwise_random_test_param_generator& broadcast_params_zyx(data_types type, format::type input_format, format::type output_format) {
+        push_back(eltwise_random_test_params{ type, {1, 1,  4, 4, 8},  {1, 10, 4, 4, 8}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {1, 36, 8, 8, 16}, {1, 36, 1, 1, 1}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        return *this;
+    }
+
+    eltwise_random_test_param_generator& simple_params_bsv_zyx(data_types type, format::type input_format, format::type output_format) {
+        push_back(eltwise_random_test_params{ type, {48, 32, 4, 4, 4}, {48, 32, 4, 4, 4}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        return *this;
+    }
+
+    eltwise_random_test_param_generator& broadcast_params_bsv_zyx(data_types type, format::type input_format, format::type output_format) {
+        push_back(eltwise_random_test_params{ type, {32, 1,  4, 4, 8}, {32, 10, 4, 4, 8}, input_format, input_format, output_format, eltwise_mode::sum, false });
+        push_back(eltwise_random_test_params{ type, {32, 36, 4, 4, 4}, {32, 36, 1, 1, 1}, input_format, input_format, output_format, eltwise_mode::sum, false });
         return *this;
     }
 };
@@ -4240,7 +4394,7 @@ INSTANTIATE_TEST_SUITE_P(eltwise_smoke_fsv4,
                             .simple_params(data_types::u8, format::b_fs_yx_fsv4, format::b_fs_yx_fsv4)
                         ));
 
-INSTANTIATE_TEST_SUITE_P(export_import,
+INSTANTIATE_TEST_SUITE_P(eltwise_smoke_export_import,
                          eltwise_random_test,
                          testing::ValuesIn(
                             eltwise_random_test_param_generator()
@@ -4288,4 +4442,40 @@ INSTANTIATE_TEST_SUITE_P(eltwise_smoke_bsv_fsv,
                             .simple_params(data_types::f16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16)
                             .simple_params(data_types::i8, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32)
                             .simple_params(data_types::u8, format::bs_fs_yx_bsv16_fsv32, format::bs_fs_yx_bsv16_fsv32)
+                        ));
+
+INSTANTIATE_TEST_SUITE_P(eltwise_smoke_batch_case_neg,
+                        eltwise_random_test,
+                        testing::ValuesIn(
+                            eltwise_random_test_param_generator()
+                            .simple_params(data_types::f16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .simple_params_bsv(data_types::f16, format::b_fs_yx_fsv16, format::b_fs_yx_fsv16)
+                            .simple_params(data_types::u8, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                            .simple_params_bsv(data_types::u8, format::b_fs_yx_fsv32, format::b_fs_yx_fsv32)
+                        ));
+
+INSTANTIATE_TEST_SUITE_P(eltwise_smoke_batch_case_pos,
+                        eltwise_random_test,
+                        testing::ValuesIn(
+                            eltwise_random_test_param_generator()
+                            .simple_params(data_types::f16, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32)
+                            .simple_params_bsv(data_types::f16, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32)
+                            .simple_params_bsv(data_types::u8, format::bs_fs_yx_bsv32_fsv32, format::bs_fs_yx_bsv32_fsv32)
+                            .simple_params_bsv(data_types::f16, format::bs_fs_yx_bsv32_fsv16, format::bs_fs_yx_bsv32_fsv16)
+                        ));
+
+INSTANTIATE_TEST_SUITE_P(eltwise_smoke_zyx,
+                        eltwise_random_test,
+                        testing::ValuesIn(
+                            eltwise_random_test_param_generator()
+                            .simple_params_zyx(data_types::f16, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16)
+                            .simple_params_zyx(data_types::u8, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32)
+                            .broadcast_params_zyx(data_types::f16, format::b_fs_zyx_fsv16, format::b_fs_zyx_fsv16)
+                            .broadcast_params_zyx(data_types::u8, format::b_fs_zyx_fsv32, format::b_fs_zyx_fsv32)
+                            .simple_params_bsv_zyx(data_types::f16, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32)
+                            .simple_params_bsv_zyx(data_types::u8, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32)
+                            .simple_params_bsv_zyx(data_types::f16, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16)
+                            .broadcast_params_bsv_zyx(data_types::f16, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32)
+                            .broadcast_params_bsv_zyx(data_types::u8, format::bs_fs_zyx_bsv32_fsv32, format::bs_fs_zyx_bsv32_fsv32)
+                            .broadcast_params_bsv_zyx(data_types::f16, format::bs_fs_zyx_bsv32_fsv16, format::bs_fs_zyx_bsv32_fsv16)
                         ));

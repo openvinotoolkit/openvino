@@ -49,10 +49,10 @@ public:
     std::map<std::string, PassRate> getStatisticFromReport();
     void saveReport() override;
 
-    void updateOPsStats(const std::shared_ptr<ov::Model> &model, const PassRate::Statuses &status);
+    void updateOPsStats(const std::shared_ptr<ov::Model> &model, const PassRate::Statuses &status, double rel_influence_coef = 1);
     void updateOPsImplStatus(const std::shared_ptr<ov::Model> &model, const bool implStatus);
 
-    void updateOPsStats(const ov::NodeTypeInfo &op, const PassRate::Statuses &status);
+    void updateOPsStats(const ov::NodeTypeInfo &op, const PassRate::Statuses &status, double rel_influence_coef = 1);
     void updateOPsImplStatus(const ov::NodeTypeInfo &op, const bool implStatus);
 };
 

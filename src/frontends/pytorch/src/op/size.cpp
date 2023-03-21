@@ -15,13 +15,13 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_size(NodeContext& context) {
+OutputVector translate_size(const NodeContext& context) {
     num_inputs_check(context, 1, 2);
     auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(context.get_input(0), element::i32));
     if (context.input_is_none(1)) {
         return shape->outputs();
     } else {
-        auto axis_0 = context.mark_node(v0::Constant::create(element::i64, Shape{}, {0}));
+        auto axis_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
         return {context.mark_node(std::make_shared<v8::Gather>(shape, context.get_input(1), axis_0))};
     }
 };

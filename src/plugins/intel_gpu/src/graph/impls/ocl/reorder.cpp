@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "reorder_inst.h"
 #include "primitive_base.hpp"
-#include "impls/implementation_map.hpp"
-#include "kernel_selector_helper.h"
+
+#include "reorder_inst.h"
 #include "reorder/reorder_kernel_selector.h"
 #include "reorder/reorder_kernel_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -140,3 +138,4 @@ attach_reorder_impl::attach_reorder_impl() {
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reorder_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::reorder)

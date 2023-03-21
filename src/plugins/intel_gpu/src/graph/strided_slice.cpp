@@ -4,9 +4,7 @@
 
 #include "strided_slice_inst.h"
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
-#include "data_inst.h"
 #include <string>
 #include <vector>
 
@@ -20,7 +18,10 @@ layout strided_slice_inst::calc_output_layout(strided_slice_node const& node, ke
     auto input_layout = impl_param.get_input_layout();
     auto output_format = format::get_default_format(desc->out_size.size());
     auto out_shape = desc->out_size;
-    std::vector<tensor::value_type> dims_converted(out_shape.begin(), out_shape.end());
+    std::vector<tensor::value_type> dims_converted;
+    for (auto dim : out_shape) {
+        dims_converted.push_back(static_cast<tensor::value_type>(dim));
+    }
     // extend shape to 4d
     for (size_t i = dims_converted.size(); i < 4; i++) {
         dims_converted.push_back(1);

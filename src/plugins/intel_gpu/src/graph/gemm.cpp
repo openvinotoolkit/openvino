@@ -3,7 +3,6 @@
 //
 #include "gemm_inst.h"
 #include "primitive_type_base.h"
-#include "intel_gpu/runtime/error_handler.hpp"
 #include "json_object.h"
 #include <string>
 #include <utility>
@@ -77,6 +76,10 @@ layout gemm_inst::calc_output_layout(gemm_node const& node, kernel_impl_params c
     }
 
     auto output_format = input0_layout.format;
+
+    if (node.get_preferred_impl_type() == impl_types::onednn && node.get_preferred_output_fmt() != format::any) {
+        output_format = node.get_preferred_output_fmt();
+    }
 
     return layout(output_shape, output_type, output_format, prim->output_paddings[0]);
 }
