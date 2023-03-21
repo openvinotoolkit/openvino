@@ -663,7 +663,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_inside_if) {
     // case when condition == true and all(x < y)
     // expected value == x + y
     std::iota(x.begin(), x.end(), -static_cast<float>(x.size()));
-    std::iota(y.begin(), y.end(), 1);
+    std::iota(y.begin(), y.end(), 1.f);
     std::transform(x.begin(), x.end(), y.begin(), expected.begin(), [](float i, float j) -> float {
         return i + j;
     });
@@ -703,13 +703,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_branches_with_multiple_outputs) {
 
     // case when condition == true so split is along axis 0
     std::vector<float> x(36);
-    std::iota(x.begin(), x.end(), 0);
+    std::iota(x.begin(), x.end(), 0.f);
     std::vector<float> expected1(12);
-    std::iota(expected1.begin(), expected1.end(), 0);
+    std::iota(expected1.begin(), expected1.end(), 0.f);
     std::vector<float> expected2(12);
-    std::iota(expected2.begin(), expected2.end(), 12);
+    std::iota(expected2.begin(), expected2.end(), 12.f);
     std::vector<float> expected3(12);
-    std::iota(expected3.begin(), expected3.end(), 24);
+    std::iota(expected3.begin(), expected3.end(), 24.f);
     test_case.add_input<bool>({true});  // condition
     test_case.add_input<float>(x);
     test_case.add_expected_output<float>(expected1);
@@ -768,7 +768,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_with_only_indentity_in_else_branch) {
     auto test_case = test::TestCase(function, s_device);
 
     std::vector<float> x(shape_size(Shape{1, 5, 2, 2}));
-    std::iota(x.begin(), x.end(), 0);
+    std::iota(x.begin(), x.end(), 0.f);
     std::vector<float> expected{1.333333f, 3.f,  4.666666f, 6.333333f, 8.f,        10.f,     12.f,
                                 14.f,      16.f, 18.f,      20.f,      22.f,       24.f,     26.f,
                                 28.f,      30.f, 25.33333f, 27.f,      28.666667f, 30.33333f};
@@ -821,7 +821,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_dynamic_inputs) {
     auto test_case = test::TestCase(function, s_device);
     std::vector<float> x(40, 2);
     std::vector<float> y(40);
-    std::iota(y.begin(), y.end(), -20);
+    std::iota(y.begin(), y.end(), -20.f);
     std::vector<float> expected;
     std::transform(x.begin(), x.end(), y.begin(), std::back_inserter(expected), [](float i, float j) -> float {
         return i + j;

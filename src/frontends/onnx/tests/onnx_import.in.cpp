@@ -2852,7 +2852,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lp_norm_p1) {
 
     Shape data_shape{2, 3, 4};
     std::vector<float> data(shape_size(data_shape));
-    std::iota(std::begin(data), std::end(data), 1);
+    std::iota(std::begin(data), std::end(data), 1.f);
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>(data);
@@ -2871,7 +2871,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lp_norm_p2) {
 
     Shape data_shape{2, 3, 4};
     std::vector<float> data(shape_size(data_shape));
-    std::iota(std::begin(data), std::end(data), 1);
+    std::iota(std::begin(data), std::end(data), 1.f);
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>(data);
@@ -2890,7 +2890,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lp_norm_default) {
 
     Shape data_shape{2, 3, 4};
     std::vector<float> data(shape_size(data_shape));
-    std::iota(std::begin(data), std::end(data), 1);
+    std::iota(std::begin(data), std::end(data), 1.f);
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>(data);
@@ -2910,7 +2910,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_lp_norm_default_dynamic) {
 
     Shape data_shape{2, 3, 4};
     std::vector<float> data(shape_size(data_shape));
-    std::iota(std::begin(data), std::end(data), 1);
+    std::iota(std::begin(data), std::end(data), 1.f);
 
     auto test_case = test::TestCase(function, s_device);
     test_case.add_input<float>(data_shape, data);
@@ -2929,7 +2929,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization) {
 
     Shape data_shape{1, 2, 3, 4};
     std::vector<float> data(shape_size(data_shape));
-    std::iota(std::begin(data), std::end(data), 1);
+    std::iota(std::begin(data), std::end(data), 1.f);
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -4012,7 +4012,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mul_v6_broadcast_axis_1) {
 
     Shape shape{1, 3, 2, 2};
     std::vector<float> A(shape_size(shape));
-    std::iota(A.begin(), A.end(), 1);
+    std::iota(A.begin(), A.end(), 1.f);
     test_case.add_input<float>(A);
     test_case.add_input<float>({3.0f, 4.0f, 5.0f});
     test_case.add_expected_output<float>(
@@ -4044,7 +4044,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mul_v6_broadcast_no_axis) {
 
     Shape shape{2, 2};
     std::vector<float> A(shape_size(shape));
-    std::iota(A.begin(), A.end(), 1);
+    std::iota(A.begin(), A.end(), 1.f);
     test_case.add_input<float>(A);
     test_case.add_input<float>({3.0f});
     test_case.add_expected_output<float>(shape, {3.0f, 6.0f, 9.0f, 12.0f});
@@ -4069,7 +4069,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_mul_v7_broadcast) {
 
     Shape shape{1, 2, 3};
     std::vector<float> A(shape_size(shape));
-    std::iota(A.begin(), A.end(), 1);
+    std::iota(A.begin(), A.end(), 1.f);
     test_case.add_input<float>(A);
     test_case.add_input<float>({3.0f, 4.0f, 5.0f});
     test_case.add_expected_output<float>(shape, {3.0f, 8.0f, 15.0f, 12.0f, 20.0f, 30.0f});
@@ -4084,7 +4084,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_add_v6_broadcast_axis_1) {
 
     Shape shape{1, 3, 2, 2};
     std::vector<float> A(shape_size(shape));
-    std::iota(A.begin(), A.end(), 1);
+    std::iota(A.begin(), A.end(), 1.f);
     test_case.add_input<float>(A);
     test_case.add_input<float>({3.0f, 4.0f, 5.0f});
     test_case.add_expected_output<float>(
@@ -4115,7 +4115,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_add_v6_broadcast_no_axis) {
 
     Shape shape{2, 2};
     std::vector<float> A(shape_size(shape));
-    std::iota(A.begin(), A.end(), 1);
+    std::iota(A.begin(), A.end(), 1.f);
     test_case.add_input<float>(A);
     test_case.add_input<float>({3.0f});
     test_case.add_expected_output<float>(shape, {4.0f, 5.0f, 6.0f, 7.0f});
@@ -4141,7 +4141,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sub_v6_broadcast_axis_1) {
 
     Shape shape{1, 3, 2, 2};
     std::vector<float> A(shape_size(shape));
-    std::iota(A.begin(), A.end(), 1);
+    std::iota(A.begin(), A.end(), 1.f);
     test_case.add_input<float>(A);
     test_case.add_input<float>({3.0f, 4.0f, 5.0f});
     test_case.add_expected_output<float>(shape,
@@ -4172,7 +4172,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sub_v6_broadcast_no_axis) {
 
     Shape shape{2, 2};
     std::vector<float> A(shape_size(shape));
-    std::iota(A.begin(), A.end(), 1);
+    std::iota(A.begin(), A.end(), 1.f);
     test_case.add_input<float>(A);
     test_case.add_input<float>({3.0f});
     test_case.add_expected_output<float>(shape, {-2.0f, -1.0f, 0.0f, 1.0f});
@@ -4197,7 +4197,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_sub_v7_broadcast) {
 
     Shape shape{1, 2, 3};
     std::vector<float> A(shape_size(shape));
-    std::iota(A.begin(), A.end(), 1);
+    std::iota(A.begin(), A.end(), 1.f);
     test_case.add_input<float>(A);
     test_case.add_input<float>({3.0f, 4.0f, 5.0f});
     test_case.add_expected_output<float>(shape, {-2.0f, -2.0f, -2.0f, 1.0f, 1.0f, 1.0f});
@@ -4212,7 +4212,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_div_v6_broadcast_axis_1) {
 
     Shape shape{1, 3, 2, 2};
     std::vector<float> A(shape_size(shape));
-    std::iota(A.begin(), A.end(), 1);
+    std::iota(A.begin(), A.end(), 1.f);
     test_case.add_input<float>(A);
     test_case.add_input<float>({3.0f, 4.0f, 5.0f});
     test_case.add_expected_output<float>(
@@ -4245,7 +4245,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_div_v6_broadcast_no_axis) {
 
     Shape shape{2, 2};
     std::vector<float> A(shape_size(shape));
-    std::iota(A.begin(), A.end(), 1);
+    std::iota(A.begin(), A.end(), 1.f);
     test_case.add_input<float>(A);
     test_case.add_input<float>({2.0f});
     test_case.add_expected_output<float>(shape, {0.5f, 1.0f, 1.5f, 2.0f});
@@ -4270,7 +4270,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_div_v7_broadcast) {
 
     Shape shape{1, 2, 3};
     std::vector<float> A(shape_size(shape));
-    std::iota(A.begin(), A.end(), 1);
+    std::iota(A.begin(), A.end(), 1.f);
     test_case.add_input<float>(A);
     test_case.add_input<float>({3.0f, 4.0f, 5.0f});
     test_case.add_expected_output<float>(shape, {0.3333333f, 0.5f, 0.6f, 1.3333333f, 1.25f, 1.2f});

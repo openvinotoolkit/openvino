@@ -304,7 +304,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth) {
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/space_to_depth.onnx"));
 
     std::vector<float> input(32);
-    std::iota(input.begin(), input.end(), 0);
+    std::iota(input.begin(), input.end(), 0.f);
 
     std::vector<float> expected_output{
         0.f, 2.f, 8.f,  10.f, 16.f, 18.f, 24.f, 26.f, 1.f, 3.f, 9.f,  11.f, 17.f, 19.f, 25.f, 27.f,

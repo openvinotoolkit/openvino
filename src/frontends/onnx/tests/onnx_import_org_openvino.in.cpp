@@ -214,7 +214,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_group_norm_5d) {
     Shape shape{2, 8, 1, 2, 1};
     int size = shape_size(shape);
     std::vector<float> data(size);
-    std::iota(data.begin(), data.end(), 0);
+    std::iota(data.begin(), data.end(), 0.f);
     std::vector<float> output = {-0.34163546562f, 0.55278813838f,  2.89442372322f,  4.68327093124f,  -1.02490639686f,
                                  1.65836453437f,  5.78884744644f,  9.36654186248f,  -1.70817732810f, 2.76394081115f,
                                  8.68327140808f,  14.04981231689f, -2.39144825935f, 3.86951708793f,  11.57769489288f,
@@ -233,7 +233,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_normalize) {
         file_util::path_join(CommonTestUtils::getExecutableDirectory(), SERIALIZED_ZOO, "onnx/normalize.onnx"));
     auto test_case = test::TestCase(function, s_device);
     std::vector<float> data(12);
-    std::iota(data.begin(), data.end(), 1);
+    std::iota(data.begin(), data.end(), 1.f);
     std::vector<float> output = {
         0.19334731f,
         0.33806169f,
@@ -443,7 +443,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_group_norm) {
     Shape shape{2, 8, 2, 2};
     int size = shape_size(shape);
     std::vector<float> data(size);
-    std::iota(data.begin(), data.end(), 0);
+    std::iota(data.begin(), data.end(), 0.f);
     std::vector<float> output = {
         -0.52752507f, -0.09108937f, 0.3453464f, 0.78178215f, 2.4364357f, 3.309307f,  4.1821785f, 5.05505f,
         -1.5825753f,  -0.27326822f, 1.0360391f, 2.3453465f,  4.8728714f, 6.618614f,  8.364357f,  10.1101f,
@@ -469,13 +469,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_prior_grid_genera
     auto test_case = test::TestCase(function, s_device);
 
     std::vector<float> priors(shape_size(Shape{3, 4}));
-    std::iota(priors.begin(), priors.end(), 0);
+    std::iota(priors.begin(), priors.end(), 0.f);
 
     std::vector<float> feature_map(shape_size(Shape{1, 1, 1, 3}));
-    std::iota(feature_map.begin(), feature_map.end(), 0);
+    std::iota(feature_map.begin(), feature_map.end(), 0.f);
 
     std::vector<float> im_data(shape_size(Shape{1, 3, 4, 7}));
-    std::iota(im_data.begin(), im_data.end(), 0);
+    std::iota(im_data.begin(), im_data.end(), 0.f);
 
     test_case.add_input<float>(priors);
     test_case.add_input<float>(feature_map);
@@ -496,10 +496,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_experimental_detectron_roi_feature_extra
     auto test_case = test::TestCase(function, s_device);
 
     std::vector<float> rois(shape_size(Shape{2, 4}));
-    std::iota(rois.begin(), rois.end(), 0);
+    std::iota(rois.begin(), rois.end(), 0.f);
 
     std::vector<float> pyramid_layer_0(shape_size(Shape{1, 2, 2, 3}));
-    std::iota(pyramid_layer_0.begin(), pyramid_layer_0.end(), 0);
+    std::iota(pyramid_layer_0.begin(), pyramid_layer_0.end(), 0.f);
 
     test_case.add_input<float>(rois);
     test_case.add_input<float>(pyramid_layer_0);

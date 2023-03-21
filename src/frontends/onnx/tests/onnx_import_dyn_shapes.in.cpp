@@ -93,7 +93,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_ab_plus_c_inference) {
         const auto elems_in_tensor = shape_size(shape);
 
         std::vector<int64_t> input_values(elems_in_tensor);
-        std::iota(input_values.begin(), input_values.end(), 1);
+        std::iota(input_values.begin(), input_values.end(), 1.f);
 
         test_case.add_input<int64_t>(shape, input_values);
         test_case.add_input<int64_t>(shape, input_values);
@@ -754,7 +754,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_axis_0) {
         const auto elems_in_tensor = shape_size(shape);
 
         std::vector<float> input_values(elems_in_tensor);
-        std::iota(input_values.begin(), input_values.end(), 1);
+        std::iota(input_values.begin(), input_values.end(), 1.f);
 
         test_case.add_input<float>(shape, input_values);
 
@@ -781,7 +781,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_axis) {
         const auto elems_in_tensor = shape_size(shape);
 
         std::vector<float> input_values(elems_in_tensor);
-        std::iota(input_values.begin(), input_values.end(), 1);
+        std::iota(input_values.begin(), input_values.end(), 1.f);
 
         test_case.add_input<float>(shape, input_values);
 
@@ -808,7 +808,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_flatten_neg_axis) {
         const auto elems_in_tensor = shape_size(shape);
 
         std::vector<float> input_values(elems_in_tensor);
-        std::iota(input_values.begin(), input_values.end(), 1);
+        std::iota(input_values.begin(), input_values.end(), 1.f);
 
         test_case.add_input<float>(shape, input_values);
 
@@ -910,7 +910,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input) {
 
     const Shape input_shape{3, 4, 1};
     std::vector<float> input_values(shape_size(input_shape));
-    std::iota(input_values.begin(), input_values.end(), 0);
+    std::iota(input_values.begin(), input_values.end(), 0.f);
     test_case.add_input<float>(input_values);
     test_case.add_input<int64_t>({0, 0});
     test_case.add_input<int64_t>({2, 3});
@@ -929,7 +929,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_neg_axes) {
 
     const Shape input_shape{3, 4, 1};
     std::vector<float> input_values(shape_size(input_shape));
-    std::iota(input_values.begin(), input_values.end(), 0);
+    std::iota(input_values.begin(), input_values.end(), 0.f);
     test_case.add_input<float>(input_values);
     test_case.add_input<int64_t>({0, 0});
     test_case.add_input<int64_t>({2, 3});
@@ -948,7 +948,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_12_axes) {
 
     const Shape input_shape{4, 3, 2};
     std::vector<float> input_values(shape_size(input_shape));
-    std::iota(input_values.begin(), input_values.end(), 0);
+    std::iota(input_values.begin(), input_values.end(), 0.f);
     test_case.add_input<float>(input_values);
     test_case.add_input<int64_t>({0, 0});
     test_case.add_input<int64_t>({2, 1});
@@ -966,7 +966,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_3d_input_20_axes) {
 
     const Shape input_shape{4, 3, 2};
     std::vector<float> input_values(shape_size(input_shape));
-    std::iota(input_values.begin(), input_values.end(), 0);
+    std::iota(input_values.begin(), input_values.end(), 0.f);
     test_case.add_input<float>(input_shape, input_values);
     test_case.add_input<int64_t>({0, 1});
     test_case.add_input<int64_t>({1, 3});
@@ -985,7 +985,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_23_axes) {
 
     const Shape input_shape{2, 2, 2, 2};
     std::vector<float> input_values(shape_size(input_shape));
-    std::iota(input_values.begin(), input_values.end(), 0);
+    std::iota(input_values.begin(), input_values.end(), 0.f);
     test_case.add_input<float>(input_values);
     test_case.add_input<int64_t>({0, 0});
     test_case.add_input<int64_t>({1, 1});
@@ -1003,7 +1003,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_0231_axes_ends_ma
 
     const Shape input_shape{2, 2, 2, 2};
     std::vector<float> input_values(shape_size(input_shape));
-    std::iota(input_values.begin(), input_values.end(), 0);
+    std::iota(input_values.begin(), input_values.end(), 0.f);
     test_case.add_input<float>(input_values);
     test_case.add_input<int64_t>({0, 1, 1, 0});
     test_case.add_input<int64_t>({std::numeric_limits<int64_t>::max(),
@@ -1024,7 +1024,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_2103_axes_ends_ma
 
     const Shape input_shape{2, 2, 2, 5};
     std::vector<float> input_values(shape_size(input_shape));
-    std::iota(input_values.begin(), input_values.end(), 0);
+    std::iota(input_values.begin(), input_values.end(), 0.f);
     test_case.add_input<float>(input_values);
     test_case.add_input<int64_t>({1, 0, 0, 1});
     test_case.add_input<int64_t>({2,
@@ -1046,7 +1046,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_4d_input_23_axes_21_steps)
 
     const Shape input_shape{2, 2, 6, 2};
     std::vector<float> input_values(shape_size(input_shape));
-    std::iota(input_values.begin(), input_values.end(), 0);
+    std::iota(input_values.begin(), input_values.end(), 0.f);
     test_case.add_input<float>(input_values);
     test_case.add_input<int64_t>({0, 1});
     test_case.add_input<int64_t>({5, 2});
@@ -1063,7 +1063,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_10_default_axes) {
 
     const Shape input_shape{4, 3, 2};
     std::vector<float> input_values(shape_size(input_shape));
-    std::iota(input_values.begin(), input_values.end(), 0);
+    std::iota(input_values.begin(), input_values.end(), 0.f);
     test_case.add_input<float>(input_values);
     test_case.add_input<int64_t>({1, 1, 1});
     test_case.add_input<int64_t>({2, 2, 2});
@@ -1187,7 +1187,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape) {
 
     Shape data_shape{1, 2, 3, 4};
     std::vector<float> data(shape_size(data_shape));
-    std::iota(std::begin(data), std::end(data), 1);
+    std::iota(std::begin(data), std::end(data), 1.f);
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -1210,7 +1210,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape2) {
 
     Shape data_shape{1, 2, 3, 4};
     std::vector<float> data(shape_size(data_shape));
-    std::iota(std::begin(data), std::end(data), 1);
+    std::iota(std::begin(data), std::end(data), 1.f);
 
     auto test_case = test::TestCase(function, s_device);
 
@@ -1278,7 +1278,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max) 
 
     const Shape input_shape{1, 2, 3, 4};
     std::vector<float> input_values(shape_size(input_shape));
-    std::iota(input_values.begin(), input_values.end(), 0);
+    std::iota(input_values.begin(), input_values.end(), 0.f);
     test_case.add_input<float>(input_shape, input_values);
     test_case.add_expected_output<float>(Shape{1, 1, 3, 3}, {13, 14, 15, 17, 18, 19, 21, 22, 23});
     test_case.run();
@@ -1318,7 +1318,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_dyn_rank_without_default_attrs)
 
     Shape input_shape{1, 1, 4, 4};
     std::vector<float> input(shape_size(input_shape));
-    std::iota(input.begin(), input.end(), 0);
+    std::iota(input.begin(), input.end(), 0.f);
     test_case.add_input<float>(input_shape, input);
     test_case.add_expected_output<float>(Shape{1, 1, 3, 3}, {5, 6, 7, 9, 10, 11, 13, 14, 15});
     test_case.run();
@@ -1330,7 +1330,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_depth_to_space_dynamic_input) {
                                                                         "onnx/dynamic_shapes/depth_to_space.onnx"));
 
     std::vector<float> input(32);
-    std::iota(input.begin(), input.end(), 0);
+    std::iota(input.begin(), input.end(), 0.f);
 
     std::vector<float> expected_output{0.f,  8.f,  1.f,  9.f,  16.f, 24.f, 17.f, 25.f, 2.f,  10.f, 3.f,
                                        11.f, 18.f, 26.f, 19.f, 27.f, 4.f,  12.f, 5.f,  13.f, 20.f, 28.f,
@@ -1348,7 +1348,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_space_to_depth_dynamic_input) {
                                                                         "onnx/dynamic_shapes/space_to_depth.onnx"));
 
     std::vector<float> input(32);
-    std::iota(input.begin(), input.end(), 0);
+    std::iota(input.begin(), input.end(), 0.f);
 
     std::vector<float> expected_output{
         0.f, 2.f, 8.f,  10.f, 16.f, 18.f, 24.f, 26.f, 1.f, 3.f, 9.f,  11.f, 17.f, 19.f, 25.f, 27.f,
