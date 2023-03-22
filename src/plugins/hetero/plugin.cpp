@@ -210,12 +210,13 @@ std::string Engine::DeviceCachingProperties(const std::string& targetFallback) c
                     device_config[property_name] = GetCore()->GetMetric(device, property_name);
                 }
             }
-        // If caching properties are not supported by device, try to add at least device architecture
-        } else if (std::find(supported_properties.begin(), supported_properties.end(), ov::device::architecture.name()) !=
-            supported_properties.end()) {
+            // If caching properties are not supported by device, try to add at least device architecture
+        } else if (std::find(supported_properties.begin(),
+                             supported_properties.end(),
+                             ov::device::architecture.name()) != supported_properties.end()) {
             auto device_architecture = GetCore()->GetMetric(device, ov::device::architecture.name());
             result[device_name] = ov::AnyMap{{ov::device::architecture.name(), device_architecture}};
-        // Device architecture is not supported, add device name as achitecture
+            // Device architecture is not supported, add device name as achitecture
         } else {
             result[device_name] = ov::AnyMap{{ov::device::architecture.name(), device_name}};
         }
