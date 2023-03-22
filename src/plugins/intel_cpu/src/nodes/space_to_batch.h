@@ -32,7 +32,6 @@ public:
 private:
     std::vector<size_t> blockShapeIn;
     std::vector<size_t> padsBeginIn;
-    std::shared_ptr<ngraph::Node> op;
 
     std::string errorPrefix;
 

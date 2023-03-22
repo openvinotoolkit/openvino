@@ -36,7 +36,6 @@ private:
 private:
     std::vector<size_t> blockShapeIn;
     std::vector<size_t> cropsBeginIn;
-    std::shared_ptr<ngraph::Node> op;
 
     std::string errorPrefix;
 };

@@ -48,7 +48,6 @@ BatchToSpace::BatchToSpace(const std::shared_ptr<ngraph::Node>& op, const GraphC
         IE_THROW() << errorPrefix << " has unsupported 'data' input rank: " << inDims.size();
     if (inDims.size() != outDims.size())
         IE_THROW() << errorPrefix << " has incorrect number of input/output dimensions";
-    this->op = op;
 }
 
 void BatchToSpace::initSupportedPrimitiveDescriptors() {
@@ -62,30 +61,30 @@ void BatchToSpace::initSupportedPrimitiveDescriptors() {
         IE_THROW() << errorPrefix << " has unsupported precision: " << precision.name();
 
     addSupportedPrimDesc({{LayoutType::nspc, precision},
-                          {LayoutType::ncsp},
-                          {LayoutType::ncsp},
-                          {LayoutType::ncsp}},
+                          {LayoutType::ncsp, Precision::I32},
+                          {LayoutType::ncsp, Precision::I32},
+                          {LayoutType::ncsp, Precision::I32}},
                          {{LayoutType::nspc, precision}},
                          impl_desc_type::ref_any);
     addSupportedPrimDesc({{LayoutType::ncsp, precision},
-                          {LayoutType::ncsp},
-                          {LayoutType::ncsp},
-                          {LayoutType::ncsp}},
+                          {LayoutType::ncsp, Precision::I32},
+                          {LayoutType::ncsp, Precision::I32},
+                          {LayoutType::ncsp, Precision::I32}},
                          {{LayoutType::ncsp, precision}},
                          impl_desc_type::ref_any);
     if (inDims[1] != Shape::UNDEFINED_DIM && inDims[1] % 8 == 0) {
         addSupportedPrimDesc({{LayoutType::nCsp8c, precision},
-                              {LayoutType::ncsp},
-                              {LayoutType::ncsp},
-                              {LayoutType::ncsp}},
+                              {LayoutType::ncsp, Precision::I32},
+                              {LayoutType::ncsp, Precision::I32},
+                              {LayoutType::ncsp, Precision::I32}},
                              {{LayoutType::nCsp8c, precision}},
                              impl_desc_type::ref_any);
     }
     if (inDims[1] != Shape::UNDEFINED_DIM && inDims[1] % 16 == 0) {
         addSupportedPrimDesc({{LayoutType::nCsp16c, precision},
-                              {LayoutType::ncsp},
-                              {LayoutType::ncsp},
-                              {LayoutType::ncsp}},
+                              {LayoutType::ncsp, Precision::I32},
+                              {LayoutType::ncsp, Precision::I32},
+                              {LayoutType::ncsp, Precision::I32}},
                              {{LayoutType::nCsp16c, precision}},
                              impl_desc_type::ref_any);
     }
@@ -105,7 +104,7 @@ template<typename T>
 void BatchToSpace::batchToSpaceKernel() {
     const auto *srcData = reinterpret_cast<const T *>(getParentEdgeAt(0)->getMemoryPtr()->GetPtr());
     const auto *blockShapesPtr = reinterpret_cast<int *>(getParentEdgeAt(1)->getMemoryPtr()->GetPtr());
-    size_t dataRank = op->get_input_partial_shape(0).rank().get_length();
+    size_t dataRank = getParentEdgesAtPort(0)[0]->getMemoryPtr()->GetShape().getRank();
     blockShapeIn.clear();
     for (size_t i = 0; i < dataRank; i++) {
         blockShapeIn.push_back(*(blockShapesPtr + i));
