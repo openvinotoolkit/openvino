@@ -45,20 +45,18 @@ jobs:
       #  with:
       #    python-version: '3.8'
 
-      #- name: Setup GNinja
-      #  uses: ashutoshvarma/setup-ninja@master
-      #  with:
-      #    version: 1.10.2
+      - name: Setup GNinja
+        uses: ashutoshvarma/setup-ninja@master
+        with:
+          version: 1.10.2
       
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
         with:
           max-size: 50G
 
-      - name: Install lcov dependency
-        run: |
-          sudo apt --assume-yes update
-          sudo apt --assume-yes install lcov
+      - name: Install build dependencies
+        run: sudo -E ${{ github.workspace }}/install_build_dependencies.sh
       
      # - name: Install python dependencies
      #   run: |
@@ -107,8 +105,8 @@ jobs:
           parallel: ${{ steps.cpu-cores.outputs.count }}
           run-test: true
 
-      - name: ls all
-        run:  ls -laR .
+      #- name: ls all
+      #  run:  ls -laR .
 
       - name: Build coverage with CMake
         run: cmake --build build --target ov_coverage
