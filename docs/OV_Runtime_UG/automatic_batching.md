@@ -6,69 +6,60 @@ The Automatic Batching Execution mode (or Auto-batching for short) performs auto
 With Automatic Batching, gathering the input and scattering the output from the individual inference requests required for the batch happen transparently, without affecting the application code. 
 Auto Batching can be used **directly as a virtual device** or as an **option for inference on CPU/GPU/VPU** (by means of configuration/hint).
 
-This article provides a preview of the Automatic Batching function, including how it works, its configurations, and testing performance.
-
-Enabling/Disabling Automatic Batching
-#####################################
-
-Auto-batching primarily targets the existing code written for inferencing many requests, each instance with the batch size 1. To obtain corresponding performance improvements, the application **must be running many inference requests simultaneously**. 
+Auto-batching primarily targets the existing code written for inferencing many requests, each instance with the batch size 1. To get corresponding performance improvements, the application **must be running multiple inference requests simultaneously**. 
 Auto-batching can also be used via a particular *virtual* device.       
 
-Batching is a straightforward way of leveraging the compute power of GPU and saving on communication overheads. Automatic Batching is "implicitly" triggered on the GPU when ``ov::hint::PerformanceMode::THROUGHPUT`` is specified for the ``ov::hint::performance_mode`` property for the ``compile_model`` or ``set_property`` calls.
+This article provides a preview of the Automatic Batching function, including how it works, its configurations, and testing performance.
+
+How Automatic Batching Works
+############################
 
 .. tab-set::
    
-   .. tab-item:: C++
-      :sync: cpp
+   .. tab-item:: Enabling Automatic Batching
+      :sync: enabling-automatic-batching
          
-      .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
-         :language: cpp
-         :fragment: [compile_model]
+      Batching is a straightforward way of leveraging the compute power of GPU and saving on communication overheads. Automatic Batching is "implicitly" triggered on the GPU when ``ov::hint::PerformanceMode::THROUGHPUT`` is specified for the ``ov::hint::performance_mode`` property for the ``compile_model`` or ``set_property`` calls.
 
-   .. tab-item:: Python
-      :sync: py
-
-      .. doxygensnippet:: docs/snippets/ov_auto_batching.py
-         :language: Python
-         :fragment: [compile_model]
-
-
-To enable Auto-batching in the legacy apps not akin to the notion of performance hints, you need to use the **explicit** device notion, such as ``BATCH:GPU``.
-
-Disabling Automatic Batching
-++++++++++++++++++++++++++++
-
-Auto-Batching can be disabled (for example, for the GPU device) to prevent being triggered by ``ov::hint::PerformanceMode::THROUGHPUT``. To do that, set ``ov::hint::allow_auto_batching`` to **false** in addition to the ``ov::hint::performance_mode``, as shown below:
-
-.. tab-set::
+      .. tab-set::
    
-   .. tab-item:: C++
-      :sync: cpp
+         .. tab-item:: C++
+            :sync: cpp
+               
+            .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
+               :language: cpp
+               :fragment: [compile_model]
+      
+         .. tab-item:: Python
+            :sync: py
+      
+            .. doxygensnippet:: docs/snippets/ov_auto_batching.py
+               :language: Python
+               :fragment: [compile_model]
          
-      .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
-         :language: cpp
-         :fragment: [compile_model_no_auto_batching]
+      To enable Auto-batching in the legacy apps not akin to the notion of performance hints, you need to use the **explicit** device notion, such as ``BATCH:GPU``.
 
-   .. tab-item:: Python
-      :sync: py
+   .. tab-item:: Disabling Automatic Batching
+      :sync: disabling-automatic-batching
 
-      .. doxygensnippet:: docs/snippets/ov_auto_batching.py
-         :language: Python
-         :fragment: [compile_model_no_auto_batching]
+      Auto-Batching can be disabled (for example, for the GPU device) to prevent being triggered by ``ov::hint::PerformanceMode::THROUGHPUT``. To do that, set ``ov::hint::allow_auto_batching`` to **false** in addition to the ``ov::hint::performance_mode``, as shown below:
 
+      .. tab-set::
+   
+         .. tab-item:: C++
+            :sync: cpp
+               
+            .. doxygensnippet:: docs/snippets/ov_auto_batching.cpp
+               :language: cpp
+               :fragment: [compile_model_no_auto_batching]
+      
+         .. tab-item:: Python
+            :sync: py
+      
+            .. doxygensnippet:: docs/snippets/ov_auto_batching.py
+               :language: Python
+               :fragment: [compile_model_no_auto_batching]
 
-Configuring Automatic Batching
-##############################
-
-Following the OpenVINO naming convention, the *batching* device is assigned the label of *BATCH*. The configuration options are as follows:
-
-+----------------------------+------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| Parameter name             | Parameter description                                                                                | Examples                                                                                                                                                                                                                                         |
-+============================+======================================================================================================+==================================================================================================================================================================================================================================================+
-| ``AUTO_BATCH_DEVICE``      | The name of the device to apply Automatic batching,  with the optional batch size value in brackets. | ``BATCH:GPU`` triggers the automatic batch size selection. ``BATCH:GPU(4)`` directly specifies the batch size.                                                                                                                                   |
-+----------------------------+------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-| ``ov::auto_batch_timeout`` | The timeout value, in ms. (1000 by default)                                                          | You can reduce the timeout value to avoid performance penalty when the data arrives too unevenly. For example, set it to "100", or the contrary, i.e., make it large enough to accommodate input preparation (e.g. when it is a serial process). |
-+----------------------------+------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 Automatic Batching as an explicit device
 ++++++++++++++++++++++++++++++++++++++++
@@ -96,8 +87,22 @@ In thie following examples, BATCH device will be configured to another device in
 .. note::
    If you run ``./benchmark_app``, do not set ``batch_size`` by ``-b <batch_size>``, otherwise AUTO mode will not be applied.
 
+
+Configuring Automatic Batching
+++++++++++++++++++++++++++++++
+
+Following the OpenVINO naming convention, the *batching* device is assigned the label of *BATCH*. The configuration options are as follows:
+
++----------------------------+------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| Parameter name             | Parameter description                                                                                | Examples                                                                                                                                                                                                                                         |
++============================+======================================================================================================+==================================================================================================================================================================================================================================================+
+| ``AUTO_BATCH_DEVICE``      | The name of the device to apply Automatic batching,  with the optional batch size value in brackets. | ``BATCH:GPU`` triggers the automatic batch size selection. ``BATCH:GPU(4)`` directly specifies the batch size.                                                                                                                                   |
++----------------------------+------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| ``ov::auto_batch_timeout`` | The timeout value, in ms. (1000 by default)                                                          | You can reduce the timeout value to avoid performance penalty when the data arrives too unevenly. For example, set it to "100", or the contrary, i.e., make it large enough to accommodate input preparation (e.g. when it is a serial process). |
++----------------------------+------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
 Automatic Batch Size Selection
-##############################
+++++++++++++++++++++++++++++++
 
 In both the THROUGHPUT hint and the explicit BATCH device cases, the optimal batch size is selected automatically, as the implementation queries the ``ov::optimal_batch_size`` property from the device and passes the model graph as the parameter. The actual value depends on the model and device specifics, for example, the on-device memory for dGPUs.
 The support for Auto-batching is not limited to GPU. However, if a device does not support ``ov::optimal_batch_size`` yet, to work with Auto-batching, an explicit batch size must be specified, e.g., ``BATCH:<device>(16)``.
@@ -122,7 +127,7 @@ This "automatic batch size selection" works on the presumption that the applicat
 
 
 Optimizing Performance by Limiting Batch Size
-+++++++++++++++++++++++++++++++++++++++++++++
+---------------------------------------------
 
 If not enough inputs were collected, the ``timeout`` value makes the transparent execution fall back to the execution of individual requests. This value can be configured via the ``AUTO_BATCH_TIMEOUT`` property.
 The timeout, which adds itself to the execution time of the requests, heavily penalizes the performance. To avoid this, when your parallel slack is bounded, provide OpenVINO with an additional hint.
@@ -176,11 +181,10 @@ The following are limitations of the current AUTO Batching implementations:
   - ``AUTO_BATCH`` will bring much more compilation latency.
 
 - Although it is less critical for the throughput-oriented scenarios, the load time with Auto-batching increases by almost double.
-  
-  - Certain networks are not safely reshapable by the "batching" dimension (specified as ``N`` in the layout terms). Besides, if the batching dimension is not zeroth, Auto-batching will not be triggered "implicitly" by the throughput hint.
-  -  The "explicit" notion, for example, ``BATCH:GPU``, using the relaxed dimensions tracking, often makes Auto-batching possible. For example, this method unlocks most **detection networks**.
-  - When *forcing* Auto-batching via the "explicit" device notion, make sure that you validate the results for correctness.   
-  - Performance improvements happen at the cost of the growth of memory footprint. However, Auto-batching queries the available memory (especially for dGPU) and limits the selected batch size accordingly.
+- Certain networks are not safely reshapable by the "batching" dimension (specified as ``N`` in the layout terms). Besides, if the batching dimension is not zeroth, Auto-batching will not be triggered "implicitly" by the throughput hint.
+-  The "explicit" notion, for example, ``BATCH:GPU``, using the relaxed dimensions tracking, often makes Auto-batching possible. For example, this method unlocks most **detection networks**.
+- When *forcing* Auto-batching via the "explicit" device notion, make sure that you validate the results for correctness.   
+- Performance improvements happen at the cost of the growth of memory footprint. However, Auto-batching queries the available memory (especially for dGPU) and limits the selected batch size accordingly.
 
 
 Testing Performance with Benchmark_app
