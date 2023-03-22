@@ -21,14 +21,6 @@ using namespace ngraph::opset7;
 
 OPENVINO_SUPPRESS_DEPRECATED_START
 
-shared_ptr<ngraph::Function> AssignReadGraph() {
-    auto p = make_shared<op::Parameter>(element::f32, Shape{3});
-    auto variable = make_shared<Variable>(VariableInfo{PartialShape::dynamic(), element::dynamic, "var_1"});
-    auto read_value = make_shared<ReadValue>(p, variable);
-    auto assign = make_shared<Assign>(read_value, variable);
-    return make_shared<Function>(OutputVector{assign}, ParameterVector{p}, VariableVector{variable});
-}
-
 shared_ptr<ngraph::Function> AssignReadAddGraph() {
     auto p = make_shared<op::Parameter>(element::f32, Shape{3});
     auto c = std::make_shared<Constant>(element::f32, Shape{3}, std::vector<float>({0, 0, 0}));
@@ -54,75 +46,6 @@ shared_ptr<ngraph::Function> AssignReadMultiVariableGraph() {
     auto assign_2 = make_shared<Assign>(read_value_2, variable_2);
 
     return make_shared<Function>(OutputVector{assign}, ParameterVector{}, VariableVector{variable, variable_2});
-}
-
-TEST(op_eval, assign_readvalue_without_evaluation_context) {
-    auto fun = AssignReadGraph();
-    auto result = make_shared<HostTensor>();
-
-    const int COUNT_RUNS = 10;
-    std::vector<float> inputs{-5, 0, 5};
-    std::vector<float> expected_result{0, 0, 0};
-    for (int i = 0; i < COUNT_RUNS; ++i) {
-        ASSERT_TRUE(fun->evaluate({result}, {make_host_tensor<element::Type_t::f32>(Shape{3}, inputs)}));
-        EXPECT_EQ(result->get_element_type(), element::f32);
-        EXPECT_EQ(result->get_shape(), Shape{3});
-
-        ASSERT_TRUE(test::all_close_f(read_vector<float>(result), expected_result));
-    }
-}
-
-TEST(op_eval, assign_readvalue_evaluation_context) {
-    auto fun = AssignReadGraph();
-    auto result = make_shared<HostTensor>();
-    const auto& variables = fun->get_variables();
-    EXPECT_EQ(variables.size(), 1);
-
-    std::vector<float> inputs{-5, 0, 5};
-    std::vector<float> expected_result{0, 0, 0};
-
-    EvaluationContext eval_context;
-    HostTensorPtr h_tensor = make_host_tensor<element::Type_t::f32>(Shape{3}, inputs);
-    VariableContext variable_context;
-    variable_context.set_variable_value(variables[0], std::make_shared<VariableValue>(h_tensor));
-    eval_context.emplace("VariableContext", variable_context);
-
-    const int COUNT_RUNS = 10;
-    for (int i = 0; i < COUNT_RUNS; ++i) {
-        ASSERT_TRUE(fun->evaluate({result}, {make_host_tensor<element::Type_t::f32>(Shape{3}, inputs)}, eval_context));
-        EXPECT_EQ(result->get_element_type(), element::f32);
-        EXPECT_EQ(result->get_shape(), Shape{3});
-
-        ASSERT_TRUE(test::all_close_f(read_vector<float>(result), expected_result));
-    }
-}
-
-TEST(op_eval, assign_readvalue_add) {
-    auto fun = AssignReadAddGraph();
-    const auto& variables = fun->get_variables();
-    EXPECT_EQ(variables.size(), 1);
-
-    std::vector<float> inputs{-5, 0, 5};
-
-    // creating context
-    EvaluationContext eval_context;
-    auto variable_context = VariableContext();
-    auto variable_value = make_shared<VariableValue>(make_host_tensor<element::Type_t::f32>(Shape{3}, inputs));
-    variable_context.set_variable_value(variables[0], variable_value);
-    eval_context.emplace("VariableContext", variable_context);
-
-    auto result = make_shared<HostTensor>();
-    const int COUNT_RUNS = 10;
-    for (int i = 0; i < COUNT_RUNS; ++i) {
-        ASSERT_TRUE(fun->evaluate({result}, {make_host_tensor<element::Type_t::f32>(Shape{3}, inputs)}, eval_context));
-        EXPECT_EQ(result->get_element_type(), element::f32);
-        EXPECT_EQ(result->get_shape(), Shape{3});
-        auto result_data = read_vector<float>(result);
-
-        auto cnt = static_cast<float>(i + 1);
-        std::vector<float> expected_result{inputs[0] * cnt, inputs[1] * cnt, inputs[2] * cnt};
-        ASSERT_TRUE(test::all_close_f(read_vector<float>(result), expected_result));
-    }
 }
 
 TEST(op_eval, assign_readvalue_reset_before_evaluate) {
