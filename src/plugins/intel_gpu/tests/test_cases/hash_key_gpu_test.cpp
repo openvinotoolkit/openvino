@@ -35,19 +35,17 @@ TEST(check_hash_value, eltwise_basic) {
     topology.add(input_layout("input2", input2->get_layout()));
     topology.add(eltwise(key_prim_id, { input_info("input"), input_info("input2") }, eltwise_mode::sum));
 
-    auto prog = program::build_program(engine, topology, ExecutionConfig{});
+    auto prog = program::build_program(engine, topology, get_test_default_config(engine));
     network net(prog, 0);
     const auto  prim_inst = net.get_primitive(key_prim_id);
     const auto  primitve  = prim_inst->desc();
     const auto& prog_node = net.get_program()->get_node(key_prim_id);
 
     const auto primitive_hash = primitve->hash();
-    const auto prog_node_hash = prog_node.get_hash();
-    const auto prim_inst_hash = prim_inst->get_impl_key();
+    const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 11385140218618178073UL);
-    ASSERT_EQ(prog_node_hash, 11385140218618178073UL);
-    ASSERT_EQ(prim_inst_hash, 10460622021476296271UL);
+    ASSERT_EQ(params_hash, 10460622021476296271UL);
 }
 
 TEST(check_hash_value, fc_basic) {
@@ -67,19 +65,17 @@ TEST(check_hash_value, fc_basic) {
         fully_connected(key_prim_id, input_info("input"), "weights", "bias")
     );
 
-    auto prog = program::build_program(engine, topology, ExecutionConfig{});
+    auto prog = program::build_program(engine, topology, get_test_default_config(engine));
     network net(prog, 0);
     const auto  prim_inst = net.get_primitive(key_prim_id);
     const auto  primitve  = prim_inst->desc();
     const auto& prog_node = net.get_program()->get_node(key_prim_id);
 
     const auto primitive_hash = primitve->hash();
-    const auto prog_node_hash = prog_node.get_hash();
-    const auto prim_inst_hash = prim_inst->get_impl_key();
+    const auto params_hash = prog_node.type()->get_fake_aligned_params(*prog_node.get_kernel_impl_params()).hash();
 
     ASSERT_EQ(primitive_hash, 7881065839556591629UL);
-    ASSERT_EQ(prog_node_hash, 7881065839556591629UL);
-    ASSERT_EQ(prim_inst_hash, 12327057149074647711UL);
+    ASSERT_EQ(params_hash, 12327057149074647711UL);
 }
 
 TEST(check_hash_value, gather_basic) {
@@ -100,19 +96,17 @@ TEST(check_hash_value, gather_basic) {
         gather(key_prim_id, input_info("InputDictionary"), input_info("InputText"), axis, ov::Shape{3, 2, 3, 3, 2}, batch_dim, negative_indexes)
     );
 
-    auto prog = program::build_program(engine, topology, ExecutionConfig{});
+    auto prog = program::build_program(engine, topology, get_test_default_config(engine));
     network net(prog, 0);
     const auto  prim_inst = net.get_primitive(key_prim_id);
     const auto  primitve  = prim_inst->desc();
     const auto& prog_node = net.get_program()->get_node(key_prim_id);
 
     const auto primitive_hash = primitve->hash();
-    const auto prog_node_hash = prog_node.get_hash();
-    const auto prim_inst_hash = prim_inst->get_impl_key();
+    const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 93320679543770233UL);
-    ASSERT_EQ(prog_node_hash, 93320679543770233UL);
-    ASSERT_EQ(prim_inst_hash, 18126277300376770566UL);
+    ASSERT_EQ(params_hash, 18126277300376770566UL);
 }
 
 TEST(check_hash_value, gemm_basic) {
@@ -128,19 +122,17 @@ TEST(check_hash_value, gemm_basic) {
     topology.add(crop("crop.1", input_info("input"), { 1, 1, 4, 3 }, { 0, 1, 0, 0 }));
     topology.add(gemm(key_prim_id, { input_info("crop.1"), input_info("input2") }, data_types::f32, false, true));
 
-    auto prog = program::build_program(engine, topology, ExecutionConfig{});
+    auto prog = program::build_program(engine, topology, get_test_default_config(engine));
     network net(prog, 0);
     const auto  prim_inst = net.get_primitive(key_prim_id);
     const auto  primitve  = prim_inst->desc();
     const auto& prog_node = net.get_program()->get_node(key_prim_id);
 
     const auto primitive_hash = primitve->hash();
-    const auto prog_node_hash = prog_node.get_hash();
-    const auto prim_inst_hash = prim_inst->get_impl_key();
+    const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 8009877756431655269UL);
-    ASSERT_EQ(prog_node_hash, 8009877756431655269UL);
-    ASSERT_EQ(prim_inst_hash, 2966249915421110547UL);
+    ASSERT_EQ(params_hash, 2966249915421110547UL);
 }
 
 TEST(check_hash_value, permute_basic) {
@@ -153,19 +145,17 @@ TEST(check_hash_value, permute_basic) {
         input_layout("input", input->get_layout()),
         permute(key_prim_id, input_info("input"), { 0, 1, 2, 3 }));
 
-    auto prog = program::build_program(engine, topology, ExecutionConfig{});
+    auto prog = program::build_program(engine, topology, get_test_default_config(engine));
     network net(prog, 0);
     const auto  prim_inst = net.get_primitive(key_prim_id);
     const auto  primitve  = prim_inst->desc();
     const auto& prog_node = net.get_program()->get_node(key_prim_id);
 
     const auto primitive_hash = primitve->hash();
-    const auto prog_node_hash = prog_node.get_hash();
-    const auto prim_inst_hash = prim_inst->get_impl_key();
+    const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 4658575237077439700UL);
-    ASSERT_EQ(prog_node_hash, 4658575237077439700UL);
-    ASSERT_EQ(prim_inst_hash, 4319508487906266226UL);
+    ASSERT_EQ(params_hash, 4319508487906266226UL);
 }
 
 TEST(check_hash_value, reorder_basic) {
@@ -184,19 +174,17 @@ TEST(check_hash_value, reorder_basic) {
         input_layout("input", input->get_layout()),
         reorder(key_prim_id, input_info("input"), output_layout));
 
-    auto prog = program::build_program(engine, topology, ExecutionConfig{});
+    auto prog = program::build_program(engine, topology, get_test_default_config(engine));
     network net(prog, 0);
     const auto  prim_inst = net.get_primitive(key_prim_id);
     const auto  primitve  = prim_inst->desc();
     const auto& prog_node = net.get_program()->get_node(key_prim_id);
 
     const auto primitive_hash = primitve->hash();
-    const auto prog_node_hash = prog_node.get_hash();
-    const auto prim_inst_hash = prim_inst->get_impl_key();
+    const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 16293979194373117693UL);
-    ASSERT_EQ(prog_node_hash, 16293979194373117693UL);
-    ASSERT_EQ(prim_inst_hash, 1719378641386629286UL);
+    ASSERT_EQ(params_hash, 1719378641386629286UL);
 }
 
 TEST(check_hash_value, reshape_basic) {
@@ -212,19 +200,17 @@ TEST(check_hash_value, reshape_basic) {
     topology.add(reorder("reorder", input_info("input"), padded_input_layout));
     topology.add(reshape(key_prim_id, input_info("reorder"), tensor( 1, 1, 4, 1 ), cldnn::reshape::reshape_mode::base, padding({0, 0, 2, 2})));
 
-    auto prog = program::build_program(engine, topology, ExecutionConfig{});
+    auto prog = program::build_program(engine, topology, get_test_default_config(engine));
     network net(prog, 0);
     const auto  prim_inst = net.get_primitive(key_prim_id);
     const auto  primitve  = prim_inst->desc();
     const auto& prog_node = net.get_program()->get_node(key_prim_id);
 
     const auto primitive_hash = primitve->hash();
-    const auto prog_node_hash = prog_node.get_hash();
-    const auto prim_inst_hash = prim_inst->get_impl_key();
+    const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
     ASSERT_EQ(primitive_hash, 1534749073560581535UL);
-    ASSERT_EQ(prog_node_hash, 1534749073560581535UL);
-    ASSERT_EQ(prim_inst_hash, 1686780870642992006UL);
+    ASSERT_EQ(params_hash, 1686780870642992006UL);
 }
 
 TEST(check_hash_value, conv_basic) {
@@ -241,19 +227,17 @@ TEST(check_hash_value, conv_basic) {
         data("biases", biases),
         convolution(key_prim_id, input_info("input"), { "weights" }, { "biases" }, {1, 1, 1}, {0, 0, 0}, {1, 1, 1}));
 
-    auto prog = program::build_program(engine, topology, ExecutionConfig{});
+    auto prog = program::build_program(engine, topology, get_test_default_config(engine));
     network net(prog, 0);
     const auto  prim_inst = net.get_primitive(key_prim_id);
     const auto  primitve  = prim_inst->desc();
     const auto& prog_node = net.get_program()->get_node(key_prim_id);
 
     const auto primitive_hash = primitve->hash();
-    const auto prog_node_hash = prog_node.get_hash();
-    const auto prim_inst_hash = prim_inst->get_impl_key();
+    const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
-    ASSERT_EQ(primitive_hash, 12460716932918224126UL);
-    ASSERT_EQ(prog_node_hash, 14591386802538030726UL);
-    ASSERT_EQ(prim_inst_hash, 3099955169197623490UL);
+    ASSERT_EQ(primitive_hash, 14591385718963138714UL);
+    ASSERT_EQ(params_hash, 6876197578014654797UL);
 }
 
 TEST(check_hash_value, quantize_basic) {
@@ -276,17 +260,15 @@ TEST(check_hash_value, quantize_basic) {
         quantize(key_prim_id, input_info("input"), input_info("input_low"), input_info("input_high"), input_info("output_low"), input_info("output_high"), 256, data_types::u8)
     );
 
-    auto prog = program::build_program(engine, topology, ExecutionConfig{});
+    auto prog = program::build_program(engine, topology, get_test_default_config(engine));
     network net(prog, 0);
     const auto  prim_inst = net.get_primitive(key_prim_id);
     const auto  primitve  = prim_inst->desc();
     const auto& prog_node = net.get_program()->get_node(key_prim_id);
 
     const auto primitive_hash = primitve->hash();
-    const auto prog_node_hash = prog_node.get_hash();
-    const auto prim_inst_hash = prim_inst->get_impl_key();
+    const auto params_hash = prog_node.get_kernel_impl_params()->hash();
 
-    ASSERT_EQ(primitive_hash, 1569171484239412698UL);
-    ASSERT_EQ(prog_node_hash, 4135863035456568493UL);
-    ASSERT_EQ(prim_inst_hash, 13898649554943348250UL);
+    ASSERT_EQ(primitive_hash, 4135863035456568493UL);
+    ASSERT_EQ(params_hash, 13898649554943348250UL);
 }

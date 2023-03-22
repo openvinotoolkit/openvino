@@ -94,6 +94,15 @@ void regclass_graph_Dimension(py::module m) {
                 :return: Value of the dimension.
                 :rtype: int
             )");
+    dim.def_property_readonly("min_length",
+                              &ov::Dimension::get_min_length,
+                              R"(
+                Return this dimension's min_dimension as integer.
+                This dimension must be dynamic and non-negative.
+
+                :return: Value of the dimension.
+                :rtype: int
+            )");
     dim.def("get_max_length",
             &ov::Dimension::get_max_length,
             R"(
@@ -103,7 +112,15 @@ void regclass_graph_Dimension(py::module m) {
                 :return: Value of the dimension.
                 :rtype: int
             )");
+    dim.def_property_readonly("max_length",
+                              &ov::Dimension::get_max_length,
+                              R"(
+                Return this dimension's max_dimension as integer.
+                This dimension must be dynamic and non-negative.
 
+                :return: Value of the dimension.
+                :rtype: int
+            )");
     dim.def("same_scheme",
             &ov::Dimension::same_scheme,
             py::arg("dim"),

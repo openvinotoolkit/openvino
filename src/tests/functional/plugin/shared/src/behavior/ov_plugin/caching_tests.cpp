@@ -321,7 +321,7 @@ void CompileModelLoadFromFileTestBase::run() {
     }
 }
 
-TEST_P(CompileModelLoadFromFileTestBase, CanLoadFromFileWithoutExecption) {
+TEST_P(CompileModelLoadFromFileTestBase, CanLoadFromFileWithoutException) {
     run();
 }
 

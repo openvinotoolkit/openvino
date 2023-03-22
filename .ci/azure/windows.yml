@@ -122,19 +122,16 @@ jobs:
 
   - checkout: self
     clean: 'true'
-    fetchDepth: '1'
     submodules: 'true'
     path: openvino
 
   - checkout: openvino_contrib
     clean: 'true'
-    fetchDepth: '1'
     submodules: 'true'
     path: openvino_contrib
 
   - checkout: testdata
     clean: 'true'
-    fetchDepth: '1'
     lfs: 'true'
     path: testdata
 
@@ -179,6 +176,7 @@ jobs:
         -DENABLE_STRICT_DEPENDENCIES=OFF ^
         -DENABLE_PYTHON=ON ^
         -DBUILD_nvidia_plugin=OFF ^
+        -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" ^
         -DPYTHON_EXECUTABLE="C:\hostedtoolcache\windows\Python\3.10.7\x64\python.exe" ^
         -DPYTHON_INCLUDE_DIR="C:\hostedtoolcache\windows\Python\3.10.7\x64\include" ^
         -DPYTHON_LIBRARY="C:\hostedtoolcache\windows\Python\3.10.7\x64\libs\python310.lib" ^
@@ -305,6 +303,9 @@ jobs:
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ieMultiPluginUnitTests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ieMultiPluginUnitTests.xml
     displayName: 'MULTI UT'
 
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_auto_batch_unit_tests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_auto_batch_unit_tests.xml
+    displayName: 'AutoBatch UT'
+
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_template_func_tests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-templateFuncTests.xml
     displayName: 'TEMPLATE FuncTests'
 
@@ -314,16 +315,10 @@ jobs:
 
   - script: |
       call $(SETUPVARS) && $(INSTALL_TEST_DIR)\InferenceEngineCAPITests --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-InferenceEngineCAPITests.xml
-    env:
-      DATA_PATH: $(MODELS_PATH)
-      MODELS_PATH: $(MODELS_PATH)
     displayName: 'IE CAPITests'
 
   - script: |
       call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ov_capi_test --gtest_output=xml:$(INSTALL_TEST_DIR)\TEST-ov_capi_test.xml
-    env:
-      DATA_PATH: $(MODELS_PATH)
-      MODELS_PATH: $(MODELS_PATH)
     displayName: 'OV CAPITests'
 
   - task: PublishTestResults@2

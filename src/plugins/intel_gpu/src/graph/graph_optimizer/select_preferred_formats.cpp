@@ -33,6 +33,9 @@ void select_preferred_formats::run(program& p) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
     engine.create_onednn_engine(p.get_config());
     for (auto n : p.get_processing_order()) {
+        if (n->is_input() || !_lo.are_data_types_suitable_for_onednn(*n)) {
+            continue;
+        }
         // Onednn primitive descriptor creation may fail, for example, due to asymmetric weight.
         try {
             if (n->is_type<convolution>()) {
@@ -52,5 +55,7 @@ void select_preferred_formats::run(program& p) {
             GPU_DEBUG_INFO << "WARNING(select_preferred_formats): " << exception.what() << std::endl;
         }
     }
+#else
+    (void)_lo;
 #endif  // ENABLE_ONEDNN_FOR_GPU
 }

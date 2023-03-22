@@ -1018,13 +1018,13 @@ void ROIAlign::executeSpecified() {
                         auto sampleXLow = static_cast<unsigned int>(sampleX);
                         unsigned int sampleYHigh;
                         unsigned int sampleXHigh;
-                        if (sampleYLow >= H - 1) {
+                        if (static_cast<int>(sampleYLow) >= H - 1) {
                             sampleYHigh = sampleYLow = H - 1;
                             sampleY = static_cast<float>(sampleYLow);
                         } else {
                             sampleYHigh = sampleYLow + 1;
                         }
-                        if (sampleXLow >= W - 1) {
+                        if (static_cast<int>(sampleXLow) >= W - 1) {
                             sampleXHigh = sampleXLow = W - 1;
                             sampleX = static_cast<float>(sampleXLow);
                         } else {
@@ -1132,7 +1132,7 @@ void ROIAlign::executeSpecified() {
             float numSamplesInBinInvert = 1.f / numSamplesROI;
 
             float pooledValue = 0;
-            for (unsigned int binSampleInd = 0; binSampleInd < numSamplesROI; binSampleInd++) {
+            for (auto binSampleInd = 0; binSampleInd < numSamplesROI; binSampleInd++) {
                 float src0 = srcData[channelSrcOffset + srcIndexTbl[n][paramOffset]];
                 float src1 = srcData[channelSrcOffset + srcIndexTbl[n][paramOffset + 1]];
                 float src2 = srcData[channelSrcOffset + srcIndexTbl[n][paramOffset + 2]];

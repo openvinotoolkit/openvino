@@ -11,7 +11,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_mean(NodeContext& context) {
+OutputVector translate_mean(const NodeContext& context) {
     num_inputs_check(context, 3, 4);
     auto x = context.get_input(0);
     auto y = context.get_input(1);

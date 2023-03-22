@@ -1,48 +1,90 @@
-Supported Devices {#openvino_docs_OV_UG_supported_plugins_Supported_Devices}
-==================
+# Supported Devices {#openvino_docs_OV_UG_supported_plugins_Supported_Devices}
 
-The OpenVINO Runtime can infer models in different formats with various input and output formats. This section provides supported and optimal configurations per device. In OpenVINO™ documentation, "device" refers to an Intel® processors used for inference, which can be a supported CPU, GPU, or GNA (Gaussian neural accelerator coprocessor), or a combination of those devices.
 
-> **NOTE**: With OpenVINO™ 2020.4 release, Intel® Movidius™ Neural Compute Stick support has been cancelled.
+@sphinxdirective
 
-The OpenVINO Runtime provides unique capabilities to infer deep learning models on the following device types with corresponding plugins:
 
-| Plugin                                   | Device types                                                                                                                                                |
-|------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|[GPU plugin](GPU.md)            |Intel&reg; Processor Graphics, including Intel&reg; HD Graphics and Intel&reg; Iris&reg; Graphics                                                            |
-|[CPU plugin](CPU.md)              |Intel&reg; Xeon&reg; with Intel® Advanced Vector Extensions 2 (Intel® AVX2), Intel® Advanced Vector Extensions 512 (Intel® AVX-512), and AVX512_BF16, Intel&reg; Core&trade; Processors with Intel&reg; AVX2, Intel&reg; Atom&reg; Processors with Intel® Streaming SIMD Extensions (Intel® SSE) |
-|[GNA plugin](GNA.md) (available in the Intel® Distribution of OpenVINO™ toolkit)              |Intel&reg; Speech Enabling Developer Kit, Amazon Alexa* Premium Far-Field Developer Kit, Intel&reg; Pentium&reg; Silver J5005 Processor, Intel&reg; Pentium&reg; Silver N5000 Processor, Intel&reg; Celeron&reg; J4005 Processor, Intel&reg; Celeron&reg; J4105 Processor, Intel&reg; Celeron&reg; Processor N4100, Intel&reg; Celeron&reg; Processor N4000, Intel&reg; Core&trade; i3-8121U Processor, Intel&reg; Core&trade; i7-1065G7 Processor, Intel&reg; Core&trade; i7-1060G7 Processor, Intel&reg; Core&trade; i5-1035G4 Processor, Intel&reg; Core&trade; i5-1035G7 Processor, Intel&reg; Core&trade; i5-1035G1 Processor, Intel&reg; Core&trade; i5-1030G7 Processor, Intel&reg; Core&trade; i5-1030G4 Processor, Intel&reg; Core&trade; i3-1005G1 Processor, Intel&reg; Core&trade; i3-1000G1 Processor, Intel&reg; Core&trade; i3-1000G4 Processor|
-|[Arm® CPU plugin](ARM_CPU.md) (unavailable in the Intel® Distribution of OpenVINO™ toolkit) |Raspberry Pi™ 4 Model B, Apple® Mac mini with M1 chip, NVIDIA® Jetson Nano™, Android™ devices    |
-|[Multi-Device execution](../multi_device.md) |Multi-Device execution enables simultaneous inference of the same model on several devices in parallel    |
-|[Auto-Device plugin](../auto_device_selection.md) |Auto-Device plugin enables selecting Intel&reg; device for inference automatically |
-|[Heterogeneous plugin](../hetero_execution.md) |Heterogeneous execution enables automatic inference splitting between several devices (for example if a device doesn't [support certain operation](#supported-layers)).                                                           |
+The OpenVINO runtime can infer various models of different input and output formats. Here, you can find configurations 
+supported by OpenVINO devices, which are CPU, GPU, or GNA (Gaussian neural accelerator coprocessor).
 
-> **NOTE**: ARM® CPU plugin is a community-level add-on to OpenVINO™. Intel® welcomes community participation in the OpenVINO™ ecosystem, technical questions and code contributions on community forums. However, this component has not undergone full release validation or qualification from Intel®, hence no official support is offered. 
+.. note::
 
-Devices similar to the ones we have used for benchmarking can be accessed using [Intel® DevCloud for the Edge](https://devcloud.intel.com/edge/), a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution of the OpenVINO™ Toolkit. [Learn more](https://devcloud.intel.com/edge/get_started/devcloud/) or [Register here](https://inteliot.force.com/DevcloudForEdge/s/).
+   With OpenVINO™ 2023.0 release, support has been cancelled for all VPU accelerators based on Intel® Movidius™.
 
-## Supported Configurations
+The OpenVINO Runtime provides unique capabilities to infer deep learning models on the following devices:
+
+
++--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
+| OpenVINO Device                                                          | Supported Hardware                                                                                            |
++==========================================================================+===============================================================================================================+
+|| :doc:`GPU <openvino_docs_OV_UG_supported_plugins_GPU>`                  | Intel&reg; Processor Graphics, including Intel&reg; HD Graphics and Intel&reg; Iris&reg; Graphics             |
++--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
+|| :doc:`CPU <openvino_docs_OV_UG_supported_plugins_CPU>`                  | Intel&reg; Xeon&reg; with Intel® Advanced Vector Extensions 2 (Intel® AVX2), Intel® Advanced Vector           |
+||                                                                         | Extensions 512 (Intel® AVX-512), and AVX512_BF16, Intel&reg; Core&trade; Processors with Intel&reg;           |
+||                                                                         | AVX2, Intel&reg; Atom&reg; Processors with Intel® Streaming SIMD Extensions (Intel® SSE)                      |
++--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
+|| :doc:`GNA plugin <openvino_docs_OV_UG_supported_plugins_GNA>`           | Intel&reg; Speech Enabling Developer Kit, Amazon Alexa* Premium Far-Field Developer Kit, Intel&reg;           |
+|| (available in the Intel® Distribution of OpenVINO™ toolkit)             | Pentium&reg; Silver J5005 Processor, Intel&reg; Pentium&reg; Silver N5000 Processor, Intel&reg;               |
+||                                                                         | Celeron&reg; J4005 Processor, Intel&reg; Celeron&reg; J4105 Processor, Intel&reg; Celeron&reg;                |
+||                                                                         | Processor N4100, Intel&reg; Celeron&reg; Processor N4000, Intel&reg; Core&trade; i3-8121U Processor,          |
+||                                                                         | Intel&reg; Core&trade; i7-1065G7 Processor, Intel&reg; Core&trade; i7-1060G7 Processor, Intel&reg;            |
+||                                                                         | Core&trade; i5-1035G4 Processor, Intel&reg; Core&trade; i5-1035G7 Processor, Intel&reg; Core&trade;           |
+||                                                                         | i5-1035G1 Processor, Intel&reg; Core&trade; i5-1030G7 Processor, Intel&reg; Core&trade; i5-1030G4 Processor,  |
+||                                                                         | Intel&reg; Core&trade; i3-1005G1 Processor, Intel&reg; Core&trade; i3-1000G1 Processor,                       |
+||                                                                         | Intel&reg; Core&trade; i3-1000G4 Processor                                                                    |
++--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
+|| :doc:`Arm® CPU <openvino_docs_OV_UG_supported_plugins_ARM_CPU>`         | Raspberry Pi™ 4 Model B, Apple® Mac mini with M1 chip, NVIDIA® Jetson Nano™, Android™ devices                 |
+|| (unavailable in the Intel® Distribution of OpenVINO™ toolkit)           |                                                                                                               |
++--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
+|| :doc:`Multi-Device <openvino_docs_OV_UG_Running_on_multiple_devices>`   | Multi-Device execution enables simultaneous inference of the same model on several devices in parallel        |
++--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
+|| :doc:`Auto-Device plugin <openvino_docs_OV_UG_supported_plugins_AUTO>`  | Auto-Device enables selecting devices for inference automatically                                             |
++--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
+|| :doc:`Heterogeneous plugin <openvino_docs_OV_UG_Hetero_execution>`      | Heterogeneous execution enables automatically splitting inference between several devices (for example if     |
+||                                                                         | a device doesn't support certain operations)                                                                  |
++--------------------------------------------------------------------------+---------------------------------------------------------------------------------------------------------------+
+
+.. note::
+
+   ARM® CPU plugin is a community-level add-on to OpenVINO™. Intel® welcomes community participation in the OpenVINO™ 
+   ecosystem, technical questions and code contributions on community forums. However, this component has not 
+   undergone full release validation or qualification from Intel®, hence no official support is offered. 
+
+
+Devices similar to the ones we have used for benchmarking can be accessed using `Intel® DevCloud for the Edge <https://devcloud.intel.com/edge/>`__, 
+a remote development environment with access to Intel® hardware and the latest versions of the Intel® Distribution 
+of OpenVINO™ Toolkit. `Learn more <https://devcloud.intel.com/edge/get_started/devcloud/>`__ or `Register here <https://inteliot.force.com/DevcloudForEdge/s/>`__.
+
+
+Supported Configurations
+###########################################################
 
 The OpenVINO Runtime can inference models in different formats with various input and output formats.
 This page shows supported and optimal configurations for each plugin.
 
-### Terminology
 
-| Acronym/Term      | Description                                   |
-| :-----------------| :---------------------------------------------|
-|   FP32 format     | Single-precision floating-point format        |
-|   BF16 format     | Brain floating-point format                   |
-|   FP16 format     | Half-precision floating-point format          |
-|   I16 format      | 2-byte signed integer format                  |
-|   I8 format       | 1-byte signed integer format                  |
-|   U16 format      | 2-byte unsigned integer format                |
-|   U8 format       | 1-byte unsigned integer format                |
+Terminology
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+===================  =============================================
+ Acronym/Term         Description                                 
+===================  =============================================
+ FP32 format          Single-precision floating-point format       
+ BF16 format          Brain floating-point format                  
+ FP16 format          Half-precision floating-point format         
+ I16 format           2-byte signed integer format                 
+ I8 format            1-byte signed integer format                 
+ U16 format           2-byte unsigned integer format               
+ U8 format            1-byte unsigned integer format               
+===================  =============================================
 
 NHWC, NCHW, and NCDHW refer to the data ordering in batches of images:
+
 * NHWC and NCHW refer to image data layout.
 * NCDHW refers to image sequence data layout.
 
 Abbreviations in the support tables are as follows:
+
 * N: Number of images in a batch
 * D: Depth. Depend on model it could be spatial or time dimension
 * H: Number of pixels in the vertical dimension
@@ -52,66 +94,91 @@ Abbreviations in the support tables are as follows:
 CHW, NC, C  - Tensor memory layout.
 For example, the CHW value at index (c,h,w) is physically located at index (c\*H+h)\*W+w, for others by analogy.
 
-### Supported Model Formats
 
-|Plugin             |FP32                    |FP16                    |I8                      |
-|:------------------|:----------------------:|:----------------------:|:----------------------:|
-|CPU plugin         |Supported and preferred |Supported               |Supported               |
-|GPU plugin         |Supported               |Supported and preferred |Supported               |
-|GNA plugin         |Supported               |Supported               |Not supported           |
-|Arm® CPU plugin    |Supported and preferred |Supported               |Supported (partially)   |
+Supported Model Formats
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-For [Multi-Device](../multi_device.md) and [Heterogeneous](../hetero_execution.md) executions
-the supported models formats depends on the actual underlying devices. _Generally, FP16 is preferable as it is most ubiquitous and performant_.
+==================  ===========================  ============================  ==========================
+ Plugin              FP32                         FP16                          I8                              
+==================  ===========================  ============================  ========================== 
+ CPU plugin          Supported and preferred      Supported                     Supported                                                        
+ GPU plugin          Supported                    Supported and preferred       Supported                                                        
+ GNA plugin          Supported                    Supported                     Not supported                                                    
+ Arm® CPU plugin     Supported and preferred      Supported                     Supported (partially)                                            
+==================  ===========================  ============================  ==========================
 
-### Supported Input Precision
 
-|Plugin             |FP32      |FP16           |U8             |U16            |I8            |I16            |
-|:------------------|:--------:|:-------------:|:-------------:|:-------------:|:------------:|:-------------:|
-|CPU plugin         |Supported |Supported      |Supported      |Supported      |Supported     |Supported      |
-|GPU plugin         |Supported |Supported\*    |Supported\*    |Supported\*    |Not supported |Supported\*    |
-|GNA plugin         |Supported |Not supported  |Supported      |Not supported  |Supported     |Supported      |
-|Arm® CPU plugin    |Supported |Supported      |Supported      |Supported      |Not supported |Not supported  |
+For :doc:`Multi-Device <openvino_docs_OV_UG_Running_on_multiple_devices>` and
+:doc:`Heterogeneous <openvino_docs_OV_UG_Hetero_execution>` executions, the supported models formats depends 
+on the actual underlying devices. *Generally, FP16 is preferable as it is most ubiquitous and performant*.
 
-<br>\* - Supported via `SetBlob` only, `GetBlob` returns FP32<br>
-For [Multi-Device](../multi_device.md) and [Heterogeneous](../hetero_execution.md) executions
-the supported input precision  depends on the actual underlying devices. _Generally, U8 is preferable as it is most ubiquitous_.
+Supported Input Precision
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-### Supported Output Precision
+=================  ===========  ===============  ==============  ===============  ==============  =================
+ Plugin             FP32         FP16             U8              U16              I8              I16            
+=================  ===========  ===============  ==============  ===============  ==============  =================
+ CPU plugin         Supported    Supported        Supported       Supported        Supported       Supported      
+ GPU plugin         Supported    Supported\*      Supported\*     Supported\*      Not supported   Supported\*    
+ GNA plugin         Supported    Not supported    Supported       Not supported    Supported       Supported      
+ Arm® CPU plugin    Supported    Supported        Supported       Supported        Not supported   Not supported  
+=================  ===========  ===============  ==============  ===============  ==============  =================
 
-|Plugin             |FP32      |FP16          |
-|:------------------|:--------:|:------------:|
-|CPU plugin         |Supported |Supported     |
-|GPU plugin         |Supported |Supported     |
-|GNA plugin         |Supported |Not supported |
-|Arm® CPU plugin    |Supported |Supported     |
+\* - Supported via ``SetBlob`` only, ``GetBlob`` returns FP32
 
-For [Multi-Device](../multi_device.md) and [Heterogeneous](../hetero_execution.md) executions
-the supported output precision  depends on the actual underlying devices. _Generally, FP32 is preferable as it is most ubiquitous_.
+For :doc:`Multi-Device <openvino_docs_OV_UG_Running_on_multiple_devices>` and
+:doc:`Heterogeneous <openvino_docs_OV_UG_Hetero_execution>` executions, the supported input precision 
+depends on the actual underlying devices. *Generally, U8 is preferable as it is most ubiquitous*.
 
-### Supported Input Layout
+Supported Output Precision
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-|Plugin             |NCDHW         |NCHW          |NHWC          |NC            |
-|:------------------|:------------:|:------------:|:------------:|:------------:|
-|CPU plugin         |Supported     |Supported     |Supported     |Supported     |
-|GPU plugin         |Supported     |Supported     |Supported     |Supported     |
-|GNA plugin         |Not supported |Supported     |Supported     |Supported     |
-|Arm® CPU plugin    |Not supported |Supported     |Supported     |Supported     |
+==================  ==========  ================
+ Plugin              FP32        FP16          
+==================  ==========  ================
+ CPU plugin          Supported   Supported     
+ GPU plugin          Supported   Supported     
+ GNA plugin          Supported   Not supported 
+ Arm® CPU plugin     Supported   Supported     
+==================  ==========  ================
 
-### Supported Output Layout
+For :doc:`Multi-Device <openvino_docs_OV_UG_Running_on_multiple_devices>` and
+:doc:`Heterogeneous <openvino_docs_OV_UG_Hetero_execution>` executions, the supported output precision 
+depends on the actual underlying devices. *Generally, FP32 is preferable as it is most ubiquitous*.
 
-|Number of dimensions|5    |4    |3    |2    |1    |
-|:-------------------|:---:|:---:|:---:|:---:|:---:|
-|Layout              |NCDHW|NCHW |CHW  |NC   |C    |
+Supported Input Layout
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+==================  ===============  ============  ============  ============
+ Plugin              NCDHW            NCHW          NHWC          NC           
+==================  ===============  ============  ============  ============
+ CPU plugin          Supported        Supported     Supported     Supported     
+ GPU plugin          Supported        Supported     Supported     Supported     
+ GNA plugin          Not supported    Supported     Supported     Supported     
+ Arm® CPU plugin     Not supported    Supported     Supported     Supported     
+==================  ===============  ============  ============  ============
+
+Supported Output Layout
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+======================  =======  ======  =====  ====  ====
+ Number of dimensions    5        4       3      2     1    
+======================  =======  ======  =====  ====  ====
+ Layout                  NCDHW    NCHW    CHW    NC    C    
+======================  =======  ======  =====  ====  ====
+
 
 For setting relevant configuration, refer to the
-[Integrate with Customer Application](../integrate_with_your_application.md) topic
-(step 3 "Configure input and output").
+:doc:`Integrate with Customer Application <openvino_docs_OV_UG_Integrate_OV_with_your_application>` 
+topic (step 3 "Configure input and output").
 
-### <a name="supported-layers"></a> Supported Layers
+
+Supported Layers
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 The following layers are supported by the plugins:
 
-@sphinxdirective
+
 ==============================  ==============  ===============  ==============  ==================
 Layers                          GPU             CPU              GNA             Arm® CPU    
 ==============================  ==============  ===============  ==============  ==================  
@@ -260,13 +327,16 @@ Unpooling                       Supported       Not Supported    Not Supported  
 Unsqueeze                       Supported       Supported\*\*    Supported       Supported       
 Upsampling                      Supported       Not Supported    Not Supported   Not Supported   
 ==============================  ==============  ===============  ==============  ==================
+
+
+\* - support is limited to the specific parameters. Refer to "Known Layer Limitations" section for the device :doc:`from the list of supported <openvino_docs_OV_UG_supported_plugins_Supported_Devices>`.
+
+\*\* - support is implemented via :doc:`Extensibility mechanism <openvino_docs_Extensibility_UG_Intro>`.
+
+\*\*\* - supports NCDHW layout.
+
+\*\*\*\* - support is implemented via runtime reference.
+
 @endsphinxdirective
 
 
-\*- support is limited to the specific parameters. Refer to "Known Layers Limitation" section for the device [from the list of supported](Supported_Devices.md).
-
-\*\*- support is implemented via [Extensibility mechanism](../../Extensibility_UG/Intro.md).
-
-\*\*\*- supports NCDHW layout.
-
-\*\*\*\*- support is implemented via runtime reference.

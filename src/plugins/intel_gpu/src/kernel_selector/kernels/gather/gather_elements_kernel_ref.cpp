@@ -55,6 +55,7 @@ ParamsKey GatherElementsKernelRef::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableBatching();
     k.EnableDifferentTypes();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
@@ -71,7 +72,7 @@ static inline std::vector<std::string> GetDefaultOrder(size_t size) {
     return default_order;
 }
 
-CommonDispatchData GatherElementsKernelRef::SetDefault(const gather_elements_params& params, const optional_params&) const {
+CommonDispatchData GatherElementsKernelRef::SetDefault(const gather_elements_params& params) const {
     CommonDispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
@@ -134,10 +135,10 @@ bool GatherElementsKernelRef::Validate(const Params& p, const optional_params& o
     }
 
     const gather_elements_params& params = static_cast<const gather_elements_params&>(p);
-    auto input_dims = params.inputs[0].LogicalDims();
-    auto indices_dims = params.inputs[1].LogicalDims();
+    size_t input_rank = params.inputs[0].GetDims().size();
+    size_t indices_rank = params.inputs[1].GetDims().size();
 
-    if (input_dims.size() != indices_dims.size()) {
+    if (input_rank != indices_rank) {
         return false;
     }
 
@@ -157,13 +158,22 @@ KernelsData GatherElementsKernelRef::GetKernelsData(const Params& params, const 
     KernelData kd = KernelData::Default<gather_elements_params>(params);
     gather_elements_params& newParams = *static_cast<gather_elements_params*>(kd.params.get());
 
-    auto dispatchData = SetDefault(newParams, options);
+    auto dispatchData = SetDefault(newParams);
     auto cldnn_jit = GetJitConstants(newParams);
-
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
+
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const gather_elements_params&>(params);
+        auto dispatchData = SetDefault(prim_params);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+    };
+
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, "", false, false, 2, GetFusedPrimitiveInputsCount(params));
+    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
+                     "", false, false, 2, GetFusedPrimitiveInputsCount(params), 1, newParams.has_dynamic_tensors());
     return { kd };
 }
 

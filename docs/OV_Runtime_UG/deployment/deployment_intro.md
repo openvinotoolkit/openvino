@@ -26,7 +26,7 @@ Furthermore, to customize your OpenVINO Docker image, use the [Docker CI Framewo
 - Grab a necessary functionality of OpenVINO together with your application, also called "local distribution":
     - using [OpenVINO Deployment Manager](deployment-manager-tool.md) - providing a convenient way for creating a distribution package;
     - using the advanced [local distribution](local-distribution.md) approach;
-    - using [a static version of OpenVINO Runtime linked to the final app](https://github.com/openvinotoolkit/openvino/wiki/StaticLibraries).
+    - using [a static version of OpenVINO Runtime linked to the final app](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/static_libaries.md).
 
 The table below shows which distribution type can be used for what target operating system:
 
@@ -38,7 +38,7 @@ The table below shows which distribution type can be used for what target operat
 | PyPI (PIP package manager) | See [https://pypi.org/project/openvino/](https://pypi.org/project/openvino/) |
 | [OpenVINO Deployment Manager](deployment-manager-tool.md) | All operating systems |
 | [Local distribution](local-distribution.md) | All operating systems |
-| [Build OpenVINO statically and link to the final app](https://github.com/openvinotoolkit/openvino/wiki/StaticLibraries) | All operating systems |
+| [Build OpenVINO statically and link to the final app](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/static_libaries.md) | All operating systems |
 
 ## Granularity of Major Distribution Types
 

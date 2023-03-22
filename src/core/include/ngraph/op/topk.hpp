@@ -20,5 +20,9 @@ using ov::op::v1::TopK;
 namespace v3 {
 using ov::op::v3::TopK;
 }  // namespace v3
+
+namespace v11 {
+using ov::op::v11::TopK;
+}  // namespace v11
 }  // namespace op
 }  // namespace ngraph

@@ -18,6 +18,7 @@ using ::testing::MatcherCast;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::StrEq;
+using ::testing::Throw;
 
 using namespace MockMultiDevice;
 using Config = std::map<std::string, std::string>;
@@ -239,6 +240,27 @@ TEST_P(LoadNetworkWithCTPUTMockTest, CTPUTSingleDevLogicTest) {
     ASSERT_NO_THROW(plugin->LoadExeNetworkImpl(simpleCnnNetwork, config));
 }
 
+using LoadNetworkWithCTPUTMockTestExeDevice = LoadNetworkWithCTPUTMockTest;
+TEST_P(LoadNetworkWithCTPUTMockTestExeDevice, CTPUTSingleDevExecutionDevie) {
+    std::vector<std::string> targetDevices;
+    Config config;
+    std::shared_ptr<InferenceEngine::IExecutableNetworkInternal> exeNetwork;
+    std::tie(targetDevices) = this->GetParam();
+
+    plugin->SetName("AUTO");
+    config.insert({{CONFIG_KEY(PERFORMANCE_HINT), InferenceEngine::PluginConfigParams::CUMULATIVE_THROUGHPUT}});
+
+    std::string targetDevice = targetDevices[0];
+    config.insert({InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, targetDevices[0]});
+    // Call single device logic and performance hint is THROUGHPUT
+
+    ON_CALL(*cpuMockIExeNet.get(), GetMetric(StrEq(ov::execution_devices.name())))
+        .WillByDefault(Throw(InferenceEngine::GeneralError{""}));
+
+    ASSERT_NO_THROW(exeNetwork = plugin->LoadExeNetworkImpl(simpleCnnNetwork, config));
+    EXPECT_EQ(exeNetwork->GetMetric(ov::execution_devices.name()).as<std::string>(), CommonTestUtils::DEVICE_CPU);
+}
+
 const std::vector<ConfigParams> testConfigs = {
     ConfigParams{{"CPU"}},
     ConfigParams{{"GPU"}},
@@ -250,3 +272,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_AutoMock_CTPUTSingleDevLogicTest,
                          LoadNetworkWithCTPUTMockTest,
                          ::testing::ValuesIn(testConfigs),
                          LoadNetworkWithCTPUTMockTest::getTestCaseName);
+
+const std::vector<ConfigParams> executionDevieTestConfigs = {
+    ConfigParams{{"CPU"}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_AutoCTPUTExecutionDevice,
+                         LoadNetworkWithCTPUTMockTestExeDevice,
+                         ::testing::ValuesIn(executionDevieTestConfigs),
+                         LoadNetworkWithCTPUTMockTestExeDevice::getTestCaseName);

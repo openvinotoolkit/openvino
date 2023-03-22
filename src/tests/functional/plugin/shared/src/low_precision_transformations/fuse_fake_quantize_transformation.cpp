@@ -46,7 +46,7 @@ void FuseFakeQuantizeTransformation::SetUp() {
         testValues.actual.precisionAfterDequantization,
         testValues.actual.fakeQuantizeOnData);
 
-    ov::pass::InitNodeInfo().run_on_function(function);
+    ov::pass::InitNodeInfo().run_on_model(function);
 }
 
 TEST_P(FuseFakeQuantizeTransformation, CompareWithRefImpl) {

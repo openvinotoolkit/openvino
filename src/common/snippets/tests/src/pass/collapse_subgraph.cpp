@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 #include <pass/collapse_subgraph.hpp>
 #include <subgraph_simple.hpp>
+#include <subgraph_fq.hpp>
 #include <subgraph_converts.hpp>
 #include "snippets/pass/tokenization.hpp"
 
@@ -87,6 +88,13 @@ TEST_F(CollapseSubgraphTests, smoke_Snippets_EltwiseTwoResultsFunction) {
     function = f.getOriginal();
     function_ref = f.getReference();
     comparator.enable(FunctionsComparator::CmpValues::NAMES);
+    run();
+}
+
+TEST_F(CollapseSubgraphTests, smoke_Snippets_ThreeFQFunction) {
+    const auto &f = ThreeFQFunction(std::vector<PartialShape>{});
+    function = f.getOriginal();
+    function_ref = f.getReference();
     run();
 }
 

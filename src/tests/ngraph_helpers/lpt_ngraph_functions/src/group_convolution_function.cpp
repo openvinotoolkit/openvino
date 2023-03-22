@@ -108,9 +108,7 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
     std::shared_ptr<ngraph::opset1::Constant> weightsConst,
     const ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights) {
     const auto rankLength = inputShape.size();
-    if ((rankLength != 3) && (rankLength != 4)) {
-        throw ov::Exception("not supported input shape rank: " + std::to_string(rankLength));
-    }
+    OPENVINO_ASSERT(rankLength == 3 || rankLength == 4, "not supported input shape rank: ", rankLength);
 
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     const auto dequantization = makeDequantization(input, dequantizationBefore);
@@ -159,9 +157,7 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
     const FakeQuantizeOnWeights& fakeQuantizeOnWeights,
     const bool addPrecisionPreserved) {
     const auto rankLength = inputShape.rank().is_dynamic() ? 4 : inputShape.rank().get_length();
-    if ((rankLength != 3) && (rankLength != 4)) {
-        throw ov::Exception("not supported input shape rank: " + std::to_string(rankLength));
-    }
+    OPENVINO_ASSERT(rankLength == 3 || rankLength == 4, "not supported input shape rank: ", rankLength);
 
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
 
@@ -259,9 +255,7 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::get(
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter,
     const ngraph::element::Type precisionAfterDequantization) {
     const auto rankLength = inputShape.rank().is_dynamic() ? 4 : inputShape.rank().get_length();
-    if ((rankLength != 3) && (rankLength != 4)) {
-        throw ov::Exception("not supported input shape rank: " + std::to_string(rankLength));
-    }
+    OPENVINO_ASSERT(rankLength == 3 || rankLength == 4, "not supported input shape rank: ", rankLength);
 
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     const auto deqBefore = makeDequantization(input, dequantizationBefore);

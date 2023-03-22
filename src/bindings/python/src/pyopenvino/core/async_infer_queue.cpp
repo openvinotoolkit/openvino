@@ -104,7 +104,7 @@ public:
                         std::rethrow_exception(exception_ptr);
                     }
                 } catch (const std::exception& e) {
-                    throw ov::Exception(e.what());
+                    OPENVINO_THROW(e.what());
                 }
             });
         }
@@ -145,7 +145,7 @@ public:
                         std::rethrow_exception(exception_ptr);
                     }
                 } catch (const std::exception& e) {
-                    throw ov::Exception(e.what());
+                    OPENVINO_THROW(e.what());
                 }
             });
         }

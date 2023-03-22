@@ -8,6 +8,7 @@
 #include <node.h>
 #include <string>
 #include <ie_precision.hpp>
+#include <graph_context.h>
 
 namespace ov {
 namespace intel_cpu {
