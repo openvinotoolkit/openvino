@@ -35,7 +35,7 @@ std::basic_string<wchar_t> get_variables_index_name<wchar_t>();
 // Loads graph from Tensorflow Saved Model file (saved_model.pb)
 class GraphIteratorSavedModel : public GraphIteratorProto {
     std::shared_ptr<::tensorflow::SavedModel> m_saved_model;
-    std::shared_ptr<SavedModelVariablesIndex> m_variables_index;
+    std::shared_ptr<VariablesIndex> m_variables_index;
     std::shared_ptr<std::map<std::string, std::string>> m_inputs_map;
     std::shared_ptr<std::map<std::string, std::string>> m_outputs_map;
 
@@ -51,7 +51,7 @@ public:
     static bool is_supported(const std::wstring& path);
 #endif
 
-    std::shared_ptr<SavedModelVariablesIndex> get_variables_index() {
+    std::shared_ptr<VariablesIndex> get_variables_index() {
         return m_variables_index;
     }
 
@@ -73,7 +73,7 @@ private:
 
         std::basic_string<T> varIndexPath = path + get_variables_index_name<T>();
         if (ov::util::file_exists(varIndexPath)) {
-            m_variables_index = std::make_shared<SavedModelVariablesIndex>();
+            m_variables_index = std::make_shared<VariablesIndex>();
             std::ifstream vi_stream{varIndexPath, std::ifstream::in | std::ifstream::binary};
             FRONT_END_GENERAL_CHECK(vi_stream && vi_stream.is_open(),
                                     "Saved Model's variable index file does not exist");

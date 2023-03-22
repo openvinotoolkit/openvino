@@ -21,7 +21,7 @@ namespace op {
 
 // Reading variable from shard file
 template <typename T>
-static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<SavedModelVariablesIndex> var_index,
+static std::shared_ptr<ov::Node> read_variable(std::shared_ptr<VariablesIndex> var_index,
                                                const ov::element::Type ov_type,
                                                const ov::Shape shape,
                                                const ::tensorflow::BundleEntryProto& entry,
