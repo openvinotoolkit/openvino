@@ -40,15 +40,15 @@ jobs:
         with:
           submodules: recursive
       
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.8'
-
-      #- name: Setup GNinja
-      #  uses: ashutoshvarma/setup-ninja@master
+      #- name: Setup Python
+      #  uses: actions/setup-python@v4
       #  with:
-      #    version: 1.10.2
+      #    python-version: '3.8'
+
+      - name: Setup GNinja
+        uses: ashutoshvarma/setup-ninja@master
+        with:
+          version: 1.10.2
       
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
@@ -60,25 +60,25 @@ jobs:
           sudo apt --assume-yes update
           sudo apt --assume-yes install lcov
       
-      - name: Install python dependencies
-        run: |
-          pip install --upgrade pip
-          pip install -r ${{ github.workspace }}/src/frontends/tensorflow/tests/requirements.txt
-          pip install -r ${{ github.workspace }}/src/frontends/tensorflow_lite/tests/requirements.txt
-          pip install -r ${{ github.workspace }}/src/frontends/tensorflow/tests/requirements.txt
-          pip install -r ${{ github.workspace }}/src/bindings/python/wheel/requirements-dev.txt
-          pip install -r ${{ github.workspace }}/src/bindings/python/requirements.txt
-          pip install -r ${{ github.workspace }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
-          pip install -r ${{ github.workspace }}/src/frontends/paddle/tests/requirements.txt
-          pip install -r ${{ github.workspace }}/src/frontends/onnx/tests/requirements.txt
-          pip install -r ${{ github.workspace }}/tools/mo/requirements.txt
-          pip install -r ${{ github.workspace }}/tools/mo/requirements_dev.txt
+     # - name: Install python dependencies
+     #   run: |
+     #     pip install --upgrade pip
+     #     pip install -r ${{ github.workspace }}/src/frontends/tensorflow/tests/requirements.txt
+     #     pip install -r ${{ github.workspace }}/src/frontends/tensorflow_lite/tests/requirements.txt
+     #     pip install -r ${{ github.workspace }}/src/frontends/tensorflow/tests/requirements.txt
+     #     pip install -r ${{ github.workspace }}/src/bindings/python/wheel/requirements-dev.txt
+     #     pip install -r ${{ github.workspace }}/src/bindings/python/requirements.txt
+     #     pip install -r ${{ github.workspace }}/src/bindings/python/src/compatibility/openvino/requirements-dev.txt
+     #     pip install -r ${{ github.workspace }}/src/frontends/paddle/tests/requirements.txt
+     #     pip install -r ${{ github.workspace }}/src/frontends/onnx/tests/requirements.txt
+     #     pip install -r ${{ github.workspace }}/tools/mo/requirements.txt
+     #     pip install -r ${{ github.workspace }}/tools/mo/requirements_dev.txt
 
-      - name: ls all
-        run: |
-          ls -laR .
-          echo $GITHUB_WORKSPACE
-          echo ${{ github.workspace }}
+     # - name: ls all
+     #   run: |
+     #     ls -laR .
+     #     echo $GITHUB_WORKSPACE
+     #     echo ${{ github.workspace }}
       
       - name: Get number of CPU cores
         uses: SimenB/github-actions-cpu-cores@v1
@@ -92,7 +92,7 @@ jobs:
           cc: ${{ matrix.config.cc }}
           cxx: ${{ matrix.config.cxx }}
           configure-options: >
-            -DENABLE_PYTHON=ON
+            -GNinja
             -DCMAKE_VERBOSE_MAKEFILE=ON
             -DENABLE_FASTER_BUILD=ON
             -DENABLE_OV_ONNX_FRONTEND=ON
