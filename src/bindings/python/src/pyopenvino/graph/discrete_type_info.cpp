@@ -9,6 +9,7 @@
 #include <pybind11/stl_bind.h>
 
 #include "openvino/core/type.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -29,7 +30,10 @@ void regclass_graph_DiscreteTypeInfo(py::module m) {
     discrete_type_info.def_readonly("version_id", &ov::DiscreteTypeInfo::version_id);
     discrete_type_info.def_readonly("parent", &ov::DiscreteTypeInfo::parent);
 
-    discrete_type_info.def("get_version", &ov::DiscreteTypeInfo::get_version);
+    discrete_type_info.def("get_version", []() {
+        Common::utils::deprecation_warning("get_version()", "2024.0", "Please use version attribute instead.");
+        return &ov::DiscreteTypeInfo::get_version;
+    });
     discrete_type_info.def("hash", [](const ov::DiscreteTypeInfo& self) {
         return self.hash();
     });
