@@ -36,14 +36,28 @@ ov::pass::FlushFP32SubnormalsToZero::FlushFP32SubnormalsToZero() {
         bool has_subnormals = false;
         for (size_t i = 0; i < size; ++i) {
             if (fpclassify(std::abs(data[i])) == FP_SUBNORMAL) {
-                data[i] = 0.0f;
                 has_subnormals = true;
+                break;
             }
         }
-        if (has_subnormals)
-            return true;
+        if (!has_subnormals)
+            return false;
 
-        return false;
+        auto new_constant = std::make_shared<ov::opset8::Constant>(ov::element::f32, node->get_shape());
+        auto* dst_data = const_cast<float*>(new_constant->get_data_ptr<float>());
+
+        for (size_t i = 0; i < size; ++i) {
+            if (fpclassify(std::abs(data[i])) != FP_SUBNORMAL)
+                dst_data[i] = data[i];
+            else
+                dst_data[i] = 0.0f;
+        }
+
+        new_constant->set_friendly_name(node->get_friendly_name());
+        ov::copy_runtime_info(node, new_constant);
+        ov::replace_node(node, new_constant);
+
+        return true;
     };
 
     auto m = make_shared<pattern::Matcher>(node_pattern, matcher_name);
