@@ -23,6 +23,7 @@ else:
     import thread
 
 has_python_api = True
+logger = get_logger('test_parallel_runner')
 try:
     from utils.get_available_devices import get_available_devices
 except:
@@ -34,8 +35,6 @@ LOG_NAME_REPLACE_STR = "##NAME##"
 DEFAULT_PROCESS_TIMEOUT = 3600
 DEFAULT_TEST_TIMEOUT = 900
 MAX_LENGHT = 4096 if not constants.IS_WIN else 8191
-
-logger = get_logger('test_parallel_runner')
 
 def parse_arguments():
     parser = ArgumentParser()
