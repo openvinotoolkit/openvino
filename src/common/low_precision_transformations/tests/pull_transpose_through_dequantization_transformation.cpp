@@ -134,8 +134,8 @@ const std::vector<ngraph::Shape> inputShapes = {
 };
 
 const std::vector<std::pair<ngraph::Shape, ngraph::Shape>> dequantizationOnWeightElementwiseConstantShapes = {
-    {ngraph::Shape({}), ngraph::Shape({1, 1, 1, 1, 1})},
-    {ngraph::Shape({1}), ngraph::Shape({1, 1, 1, 1, 1})}};
+    {ngraph::Shape({}), ngraph::Shape({1, 1, 1, 1})},
+    {ngraph::Shape({1}), ngraph::Shape({1, 1, 1, 1})}};
 
 const std::vector<PullTransposeThroughDequantizationTestValues> testValues = {
     // Actual:
@@ -214,7 +214,7 @@ const std::vector<PullTransposeThroughDequantizationTestValues> testValues = {
                 {{127.f}, element::f32, {}, false, 1ul, element::u8, true},
                 {{0.02f}, element::f32, {}, false}
             },
-            {std::vector<float>{2.f}, ngraph::element::i8, {960, 1, 1, 3, 3}},
+            {std::vector<float>{2.f}, ngraph::element::i8, {960, 1, 3, 3}},
             {
                 {ngraph::element::f32, false},
                 {{127.f}, element::f32, {/* from parameter */}, false},
@@ -223,7 +223,7 @@ const std::vector<PullTransposeThroughDequantizationTestValues> testValues = {
             {},
             {},
             {},
-            {},
+            {{960, 1, 1, 3, 3}},
             ngraph::element::f32,
             {}
         }

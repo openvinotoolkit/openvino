@@ -141,8 +141,8 @@ const std::vector<ngraph::Shape> inputShapes = {
 };
 
 const std::vector<std::pair<ngraph::Shape, ngraph::Shape>> dequantizationOnWeightElementwiseConstantShapes = {
-    {ngraph::Shape({1, 960}), ngraph::Shape({960, 1, 1, 1, 1})},
-    {ngraph::Shape({9, 960}), ngraph::Shape({960, 1, 1, 3, 3})}
+    {ngraph::Shape({1, 960}), ngraph::Shape({960, 1, 1, 1})},
+    {ngraph::Shape({9, 960}), ngraph::Shape({960, 1, 3, 3})}
 };
 
 const std::vector<ngraph::Shape> multiplyShapes = {ngraph::Shape({1, 1, 960, 1})};
@@ -230,7 +230,7 @@ const std::vector<PullReshapeThroughDequantizationTestValues> testValues = {
                 { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
                 { {0.02f}, element::f32, {}, false }
             },
-            { std::vector<float>{ 2.f }, ngraph::element::i8, {960, 1, 1, 3, 3}},
+            { std::vector<float>{ 2.f }, ngraph::element::i8, {960, 1, 3, 3}},
             {
                 { ngraph::element::f32, false },
                 { {127.f}, element::f32, {/* from parameter */}, false },
@@ -239,7 +239,7 @@ const std::vector<PullReshapeThroughDequantizationTestValues> testValues = {
             {},
             {},
             {},
-            {},
+            {{960, 1, 1, 3, 3}},
             ngraph::element::f32,
             {}
         }
@@ -327,7 +327,7 @@ const std::vector<PullReshapeThroughDequantizationTestValues> testValues = {
                 { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
                 { {0.02f}, element::f32, {}, false }
             },
-            { std::vector<float>{ 2.f }, ngraph::element::i8, {960, 1, 1, 3, 3}},
+            { std::vector<float>{ 2.f }, ngraph::element::i8, {960, 1, 3, 3}},
             {
                 { ngraph::element::f32, false },
                 { {127.f}, element::f32, {/* from parameter */}, false, 1ul, element::i8, true },
@@ -336,7 +336,7 @@ const std::vector<PullReshapeThroughDequantizationTestValues> testValues = {
             {},
             {},
             {},
-            {},
+            {{960, 1, 1, 3, 3}},
             ngraph::element::f32,
             {}
         }
