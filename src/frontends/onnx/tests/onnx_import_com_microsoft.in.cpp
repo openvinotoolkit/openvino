@@ -265,7 +265,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_segment_e
     test_case.add_input<int>(segment_ids);
     test_case.add_expected_output<float>(expected_output);
     test_case.add_expected_output<int>(expected_mask_index);
-    test_case.run_with_tolerance_as_fp(1e-7);
+    test_case.run_with_tolerance_as_fp(1e-7f);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_segment_embedding_and_mask) {
@@ -312,7 +312,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_segment_e
     test_case.add_input<int>(mask);
     test_case.add_expected_output<float>(expected_output);
     test_case.add_expected_output<int>(expected_mask_index);
-    test_case.run_with_tolerance_as_fp(1e-7);
+    test_case.run_with_tolerance_as_fp(1e-7f);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_dynamic_shapes) {
@@ -411,7 +411,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_dynamic_shapes
     test_case.add_input<int>(Shape{3, 8}, mask);
     test_case.add_expected_output<float>(Shape{3, 8, 5}, expected_output);
     test_case.add_expected_output<int>(Shape{3}, expected_mask_index);
-    test_case.run_with_tolerance_as_fp(1e-6);
+    test_case.run_with_tolerance_as_fp(1e-6f);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_diff_seq_len_pos_embed_len) {
@@ -511,7 +511,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_diff_seq_len_p
     test_case.add_input<int>(Shape{3, 8}, mask);
     test_case.add_expected_output<float>(Shape{3, 8, 5}, expected_output);
     test_case.add_expected_output<int>(Shape{3}, expected_mask_index);
-    test_case.run_with_tolerance_as_fp(1e-6);
+    test_case.run_with_tolerance_as_fp(1e-6f);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_position_ids) {
@@ -615,7 +615,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_embed_layer_normalization_with_position_
     test_case.add_input<int>(Shape{3, 8}, position_ids);
     test_case.add_expected_output<float>(Shape{3, 8, 5}, expected_output);
     test_case.add_expected_output<int>(Shape{3}, expected_mask_index);
-    test_case.run_with_tolerance_as_fp(1e-6);
+    test_case.run_with_tolerance_as_fp(1e-6f);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention) {
