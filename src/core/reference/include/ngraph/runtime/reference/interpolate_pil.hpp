@@ -48,17 +48,15 @@ namespace ngraph {
 namespace runtime {
 namespace reference {
 
-// #define ROUND_UP(f) ((int)((f) >= 0.0 ? (f) + 0.5F : (f)-0.5F))
-
-template <typename T_out, typename T_in>
-T_out round_up(T_in f) {
-    return (T_out)(f >= 0.0 ? f + 0.5F : f - 0.5F);
-}
-
 struct filter {
     double (*filter)(double x);
     double support;
 };
+
+template <typename T_out, typename T_in>
+T_out round_up(T_in x) {
+    return (T_out)(x >= 0.0 ? x + 0.5F : x - 0.5F);
+}
 
 template <typename T_out, typename T_in>
 T_out clip(const T_in& x,
@@ -92,17 +90,8 @@ static inline double bicubic_filter(double x) {
 #undef a
 }
 
-// static struct filter BILINEAR = {bilinear_filter, 1.0};
-// static struct filter BICUBIC = {bicubic_filter, 2.0};
-
-static int precompute_coeffs(int inSize,
-                             float in0,
-                             float in1,
-                             int outSize,
-                             struct filter* filterp,
-                             // std::function<double(double)> filterp,
-                             int** boundsp,
-                             double** kkp) {
+static int
+precompute_coeffs(int inSize, float in0, float in1, int outSize, struct filter* filterp, int** boundsp, double** kkp) {
     double support, scale, filterscale;
     double center, ww, ss;
     int xx, x, ksize, xmin, xmax;
@@ -121,16 +110,11 @@ static int precompute_coeffs(int inSize,
     /* maximum number of coeffs */
     ksize = (int)ceil(support) * 2 + 1;
 
-    // check for overflow
-    // if (outSize > INT_MAX / (ksize * (int)sizeof(double))) {
-    //     return 0;
-    // }
-
     /* coefficient buffer */
     /* malloc check ok, overflow checked above */
     kk = (double*)malloc(outSize * ksize * sizeof(double));
     if (!kk) {
-        // ImagingError_MemoryError();
+        // TODO: Throw error or use std::vector
         return 0;
     }
 
@@ -138,7 +122,7 @@ static int precompute_coeffs(int inSize,
     bounds = (int*)malloc(outSize * 2 * sizeof(int));
     if (!bounds) {
         free(kk);
-        // ImagingError_MemoryError();
+        // TODO: Throw error or use std::vector
         return 0;
     }
 
@@ -191,8 +175,6 @@ void ImagingResampleHorizontal(T* imOut,
                                double* kk) {
     double ss;
     int x, xmin, xmax;
-    // int xx, yy, x, xmin, xmax;
-
     double* k;
 
     for (size_t yy = 0; yy < imOutShape[0]; yy++) {
@@ -202,11 +184,9 @@ void ImagingResampleHorizontal(T* imOut,
             k = &kk[xx * ksize];
             ss = 0.0;
             for (x = 0; x < xmax; x++) {
-                // ss += IMAGING_PIXEL_I(imIn, x + xmin, yy + offset) * k[x];
                 size_t in_idx = ((yy + offset)) * imInShape[1] + (x + xmin);
                 ss += imIn[in_idx] * k[x];
             }
-            // IMAGING_PIXEL_I(imOut, xx, yy) = ROUND_UP(ss);
             size_t out_idx = (yy)*imOutShape[1] + xx;
             if (std::is_integral<T>()) {
                 imOut[out_idx] = T(clip<T, int64_t>(round_up<int64_t, double>(ss)));
@@ -237,13 +217,9 @@ void ImagingResampleVertical(T* imOut,
         for (size_t xx = 0; xx < imOutShape[1]; xx++) {
             ss = 0.0;
             for (y = 0; y < ymax; y++) {
-                // ss += IMAGING_PIXEL_I(imIn, xx, y + ymin) * k[y];
                 size_t in_idx = ((y + ymin)) * imInShape[1] + xx;
                 ss += imIn[in_idx] * k[y];
             }
-            // IMAGING_PIXEL_I(imOut, xx, yy) = ROUND_UP(ss);
-            // imOut[(imOutShape[0] + yy) * imOutShape[1] + xx] = T(round_up<int, double>(ss));
-
             size_t out_idx = (yy)*imOutShape[1] + xx;
             if (std::is_integral<T>()) {
                 imOut[out_idx] = T(clip<T, int64_t>(round_up<int64_t, double>(ss)));
@@ -261,12 +237,8 @@ void ImagingResampleInner(const T* imIn,
                           size_t xsize,
                           size_t ysize,
                           struct filter* filterp,
-                          // float box[4],
                           float* box,
                           T* imOut) {
-    // ResampleFunction ResampleHorizontal,
-    // ResampleFunction ResampleVertical) {
-
     int need_horizontal, need_vertical;
     int ybox_first, ybox_last;
     int ksize_horiz, ksize_vert;
@@ -295,9 +267,7 @@ void ImagingResampleInner(const T* imIn,
     // Last used row in the source image
     ybox_last = bounds_vert[ysize * 2 - 2] + bounds_vert[ysize * 2 - 1];
 
-    // auto out_elem_count = (ybox_last - ybox_first) * xsize;
     size_t imTemp_ysize = (ybox_last - ybox_first);
-    // size_t imTemp_ysize = imIn_ysize;
     auto imTemp_elem_count = imTemp_ysize * xsize;
     auto imTemp = std::vector<T>(imTemp_elem_count, 0);
 
@@ -308,8 +278,7 @@ void ImagingResampleInner(const T* imIn,
             bounds_vert[i * 2] -= ybox_first;
         }
 
-        // imTemp = ImagingNewDirty(imIn->mode, xsize, ybox_last - ybox_first);
-        if (imTemp.size()) {
+        if (imTemp.size() > 0) {
             ImagingResampleHorizontal(imTemp.data(),
                                       Shape{imTemp_ysize, xsize},
                                       imIn,
@@ -318,29 +287,16 @@ void ImagingResampleInner(const T* imIn,
                                       ksize_horiz,
                                       bounds_horiz,
                                       kk_horiz);
-            // ImagingResampleHorizontal(
-            //     imTemp.data(), imIn, ybox_first, ksize_horiz, bounds_horiz, kk_horiz);
         }
         free(bounds_horiz);
         free(kk_horiz);
-        // if (!imTemp.size()) {
-        //     free(bounds_vert);
-        //     free(kk_vert);
-        //     return;
-        // }
-        // imOut = imIn = imTemp.data();
     } else {
-        // Free in any case
         free(bounds_horiz);
         free(kk_horiz);
     }
 
-    // std::copy(imTemp.begin(), imTemp.end(), imOut);
-
     /* vertical pass */
     if (need_vertical) {
-        // imOut = ImagingNewDirty(imIn->mode, imIn->xsize, ysize);
-        // imOut = std::vector<std::vector<T>>(ysize, std::vector<T>(xsize, 0));
         if (imOut) {
             /* imIn can be the original image or horizontally resampled one */
             if (need_horizontal) {
@@ -363,9 +319,6 @@ void ImagingResampleInner(const T* imIn,
                                         kk_vert);
             }
         }
-        /* it's safe to call ImagingDelete with empty value
-           if previous step was not performed. */
-        // ImagingDelete(imTemp);
         free(bounds_vert);
         free(kk_vert);
 
@@ -373,7 +326,6 @@ void ImagingResampleInner(const T* imIn,
             return;
         }
     } else {
-        // Free in any case
         free(bounds_vert);
         free(kk_vert);
     }
@@ -387,24 +339,6 @@ void ImagingResampleInner(const T* imIn,
 
     return;
 }
-
-// void
-// normalize_coeffs_8bpc(int outSize, int ksize, double *prekk) {
-//     int x;
-//     INT32 *kk;
-
-//     // use the same buffer for normalized coefficients
-//     kk = (INT32 *)prekk;
-
-//     for (x = 0; x < outSize * ksize; x++) {
-//         if (prekk[x] < 0) {
-//             kk[x] = (int)(-0.5 + prekk[x] * (1 << PRECISION_BITS));
-//         } else {
-//             kk[x] = (int)(0.5 + prekk[x] * (1 << PRECISION_BITS));
-//         }
-//     }
-// }
-
 }  // namespace reference
 }  // namespace runtime
 }  // namespace ngraph
