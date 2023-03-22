@@ -500,6 +500,12 @@ void AutoSchedule::init(const ScheduleContext::Ptr& sContext) {
         _loadContext[ACTUALDEVICE].task();
     } else {
         if (_pCTPUTLoadContext) {
+            for (auto&& device : _autoSContext->_devicePriorities) {
+                // initialize containers before run async task, if not initialized, it will hang during infer
+                _idleWorkerRequests[device.deviceName];
+                _workerRequests[device.deviceName];
+                _inferPipelineTasksDeviceSpecific[device.deviceName] = nullptr;
+            }
             _executor = _autoSContext->_plugin->executorManager()->getIdleCPUStreamsExecutor(IStreamsExecutor::Config{
                 "CTPUTDeviceAsyncLoad",
                 static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
