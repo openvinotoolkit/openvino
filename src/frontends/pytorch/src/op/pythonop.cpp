@@ -11,7 +11,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_pythonop(NodeContext& context) {
+OutputVector translate_pythonop(const NodeContext& context) {
     auto decoder = context.get_decoder();
     FRONT_END_OP_CONVERSION_CHECK(decoder->get_subgraph_size() == 1,
                                   "PythonOp must have 1 subgraph to be able to translate it to OV.");

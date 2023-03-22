@@ -180,7 +180,7 @@ void runRegionTest(region_yolo_test_params& params, bool is_caching_test = false
                              params.regionNum, static_cast<uint32_t>(params.mask.size()), params.softMax));
     topology.add(reorder("reorder_post", input_info("region_yolo"), format::bfyx, params.dataType));
 
-    cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("InputData", inputPrim);
 
