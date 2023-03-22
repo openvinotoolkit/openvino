@@ -12,7 +12,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_cat(NodeContext& context) {
+OutputVector translate_cat(const NodeContext& context) {
     // This translator is only needed to get axis as constant from external scope
     num_inputs_check(context, 2, 2);
     const auto&& list_elems = get_list_as_outputs(context.get_input(0));

@@ -113,6 +113,9 @@ public:
 #define CASE_GEMM_2IN_FP16_3 { { 1, 1, 64, 64 }, { 1, 1, 64, 64 } }, { 1, 1, 64, 64 }, tensor{ 1 }, tensor{ 0 }, data_types::f16, data_types::f16, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 #define CASE_GEMM_2IN_FP16_4 { { 1, 2, 64, 128 }, { 1, 2, 256, 64 } }, { 1, 2, 256, 128 }, tensor{ 1 }, tensor{ 0 }, data_types::f16, data_types::f16, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 #define CASE_GEMM_2IN_FP16_5 { { 2, 3, 2, 2 }, { 2, 3, 2, 2 } }, { 2, 3, 2, 2 }, tensor{ 1 }, tensor{ 0 }, data_types::f16, data_types::f16, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_GEMM_2IN_FP16_5D_1 { { 2, 3, 4, 6, 5 }, { 2, 3, 6, 4, 5 } }, { 2, 3, 6, 6, 5 }, tensor{ 1 }, tensor{ 0 }, data_types::f16, data_types::f16, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
+#define CASE_GEMM_2IN_FP16_6D_1 { { 2, 3, 7, 5, 3, 2 }, { 2, 3, 5, 7, 3, 2 } }, { 2, 3, 5, 5, 3, 2 }, tensor{ 1 }, tensor{ 0 }, data_types::f16, data_types::f16, data_types::f16, format::bfwzyx, data_types::f16, format::bfwzyx
+
 #define CASE_GEMM_2IN_U8U8_1 { { 1, 1, 2, 2 }, { 1, 1, 2, 2 } }, { 1, 1, 2, 2 }, tensor{ 1 }, tensor{ 0 }, data_types::u8, data_types::u8, data_types::u8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_GEMM_2IN_U8U8_2 { { 1, 2, 64, 128 }, { 1, 2, 256, 64 } }, { 1, 2, 256, 128 }, tensor{ 1 }, tensor{ 0 }, data_types::u8, data_types::u8, data_types::u8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_GEMM_2IN_U8U8_3 { { 1, 1, 16, 32 }, { 1, 1, 32, 16 } }, { 1, 1, 32, 32 }, tensor{ 1 }, tensor{ 0 }, data_types::u8, data_types::u8, data_types::u8, format::bfyx, data_types::f32, format::bfyx
@@ -288,7 +291,6 @@ TEST_P(gemm_2in_add, eltwise_postop) {
     if (engine.get_device_info().supports_immad) {
         ov::intel_gpu::ImplementationDesc gemmv_impl = { cldnn::format::type::any, "", impl_types::onednn };
         cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "gemm_prim", gemmv_impl } }));
-        cfg_fused.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
     }
 
     auto add_data_layout = get_output_layout(p);
@@ -299,11 +301,14 @@ TEST_P(gemm_2in_add, eltwise_postop) {
         add_data_size.feature[0] = 1;
     add_data_layout.set_tensor(add_data_size);
 
+    auto in_layout0 = get_input_layout(p, 0);
+    auto in_layout1 = get_input_layout(p, 1);
+
     create_topologies(
-        input_layout("input0", get_input_layout(p, 0)),
-        input_layout("input1", get_input_layout(p, 1)),
+        input_layout("input0", in_layout0),
+        input_layout("input1", in_layout1),
         data("add_data", get_mem(add_data_layout, 1.0f/p.kernel.count())),
-        gemm("gemm_prim", { input_info("input0"), input_info("input1") }, data_types::f32),
+        gemm("gemm_prim", { input_info("input0"), input_info("input1") }, data_types::f32, false, false, 1.f, 0.f, in_layout0.get_rank(), in_layout1.get_rank()),
         eltwise("add_prim", { input_info("gemm_prim"), input_info("add_data") }, p.eltwise_m, p.default_type),
         reorder("reorder_bfyx", input_info("add_prim"), p.default_format, data_types::f32)
     );
@@ -319,6 +324,12 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, gemm_2in_add, ::testing::ValuesIn(std::vec
     gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", dim_vec_kind::feature, eltwise_mode::sum },
     gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", dim_vec_kind::feature, eltwise_mode::prod },
     gemm_test_params{ CASE_GEMM_2IN_FP16_5, 3, 4, "", dim_vec_kind::feature, eltwise_mode::sub },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_5D_1, 3, 4, "", dim_vec_kind::batch, eltwise_mode::sum },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_5D_1, 3, 4, "", dim_vec_kind::batch, eltwise_mode::prod },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_5D_1, 3, 4, "", dim_vec_kind::batch, eltwise_mode::sub },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_6D_1, 3, 4, "", dim_vec_kind::feature, eltwise_mode::sum },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_6D_1, 3, 4, "", dim_vec_kind::feature, eltwise_mode::prod },
+    gemm_test_params{ CASE_GEMM_2IN_FP16_6D_1, 3, 4, "", dim_vec_kind::feature, eltwise_mode::sub },
 }));
 
 class gemm_2in_act_scale_quantize_i8 : public GemmFusingTest {};

@@ -118,7 +118,7 @@ public:
         // It's simpler to use "bfwzyx" format for all cases, as input and output can have different ranks
         topology.add(reorder("out", input_info("dft"), format::bfwzyx, data_type));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
         network->set_input_data("input", input);
         const auto outputs = network->execute();
@@ -2054,7 +2054,7 @@ TEST(dft_gpu_test, irdft_output_shape) {
         topology.add(dft("dft", input_info("reorder_input"), p.axes, p.signal_size, p.output_shape, type.direction, type.mode));
 
         {
-            network network(engine, topology);
+            network network(engine, topology, get_test_default_config(engine));
             network.set_input_data("input", input);
             const auto outputs = network.execute();
 
@@ -2069,7 +2069,7 @@ TEST(dft_gpu_test, irdft_output_shape) {
 
         topology.add(reorder("out", input_info("dft"), format::bfwzyx, data_type));
 
-        network network(engine, topology);
+        network network(engine, topology, get_test_default_config(engine));
         network.set_input_data("input", input);
         const auto outputs = network.execute();
 
