@@ -213,8 +213,8 @@ static constexpr size_t max_num_of_ports = 4;
 
 std::vector<int64_t> get_axes_vector(const ngraph::HostTensorVector& args,
                                      size_t default_size = 0,
-                                     size_t axes_port = axes_port,
-                                     size_t max_num_of_ports = max_num_of_ports) {
+                                     size_t axes_port = 3,
+                                     size_t max_num_of_ports = 4) {
     ov::Shape input_shape{args[data_port]->get_shape()};
     size_t input_rank = input_shape.size();
     size_t num_of_inputs = args.size();
@@ -253,7 +253,7 @@ std::vector<int64_t> get_axes_vector(const ngraph::HostTensorVector& args,
 
 std::vector<int64_t> get_target_shape_vector(const ngraph::HostTensorVector& args,
                                              size_t num_of_axes,
-                                             size_t target_shape_port = target_shape_port) {
+                                             size_t target_shape_port = 1) {
     std::vector<int64_t> target_shape;
     target_shape.reserve(num_of_axes);
 
@@ -276,7 +276,7 @@ std::vector<float> get_scales_vector(const ngraph::HostTensorVector& args,
                                      const ov::Shape& input_shape,
                                      const ov::op::v4::Interpolate::InterpolateAttrs& attrs,
                                      std::vector<int64_t> axes,
-                                     size_t scales_port = scales_port) {
+                                     size_t scales_port = 2) {
     std::vector<float> scales;
     size_t num_of_axes = axes.size();
     if (attrs.shape_calculation_mode == ov::op::util::InterpolateBase::ShapeCalcMode::SCALES) {
