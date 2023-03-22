@@ -84,7 +84,7 @@ struct VIFooter {
     }
 };
 
-void SavedModelVariablesIndex::read_variables_index_block(std::ifstream& fs,
+void VariablesIndex::read_variables_index_block(std::ifstream& fs,
                                                           const VIBlock& index,
                                                           std::vector<char>& data,
                                                           uint32_t& offset,
@@ -117,7 +117,7 @@ void SavedModelVariablesIndex::read_variables_index_block(std::ifstream& fs,
     offset = smReadFixed<uint32_t>(data.data() + offset_end);
 }
 
-void SavedModelVariablesIndex::read_variables_index_pair(char*& ptr,
+void VariablesIndex::read_variables_index_pair(char*& ptr,
                                                          const char* ptr_end,
                                                          std::string& key,
                                                          char*& value,
@@ -140,7 +140,7 @@ void SavedModelVariablesIndex::read_variables_index_pair(char*& ptr,
     ptr = value + val_length;
 }
 
-void SavedModelVariablesIndex::read_variables_index(std::ifstream& fs,
+void VariablesIndex::read_variables_index(std::ifstream& fs,
                                                     std::map<std::string, std::vector<char>>& varIndex) {
     VIFooter footer;
 
@@ -178,7 +178,7 @@ void SavedModelVariablesIndex::read_variables_index(std::ifstream& fs,
     }
 }
 
-void SavedModelVariablesIndex::read_bundle_header() {
+void VariablesIndex::read_bundle_header() {
     auto item = m_variables_index.find("");
     FRONT_END_GENERAL_CHECK(item != m_variables_index.end(), "Bundle Header isn't found in index");
 
@@ -192,7 +192,7 @@ void SavedModelVariablesIndex::read_bundle_header() {
     m_total_shards = bundleHeader.num_shards();
 }
 
-void SavedModelVariablesIndex::read_checkpointable_object_graph() {
+void VariablesIndex::read_checkpointable_object_graph() {
     m_variables_map.clear();
 
     auto item = m_variables_index.find("_CHECKPOINTABLE_OBJECT_GRAPH");
@@ -231,7 +231,7 @@ void SavedModelVariablesIndex::read_checkpointable_object_graph() {
     }
 }
 
-bool SavedModelVariablesIndex::read_variables(std::ifstream& vi_stream, const std::string& path) {
+bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::string& path) {
     m_variables_index.clear();
     read_variables_index(vi_stream, m_variables_index);
     read_bundle_header();
@@ -250,7 +250,7 @@ bool SavedModelVariablesIndex::read_variables(std::ifstream& vi_stream, const st
 }
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
-bool SavedModelVariablesIndex::read_variables(std::ifstream& vi_stream, const std::wstring& path) {
+bool VariablesIndex::read_variables(std::ifstream& vi_stream, const std::wstring& path) {
     m_variables_index.clear();
     read_variables_index(vi_stream, m_variables_index);
     read_bundle_header();
