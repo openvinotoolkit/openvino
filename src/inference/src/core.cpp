@@ -9,12 +9,9 @@
 #include "dev/converter_utils.hpp"
 #include "dev/core_impl.hpp"
 #include "ie_itt.hpp"
+#include "ie_plugins.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "so_extension.hpp"
-
-#ifdef OPENVINO_STATIC_LIBRARY
-#    include "ie_plugins.hpp"
-#endif
 
 namespace {
 std::string resolve_extension_path(const std::string& path) {
@@ -31,8 +28,6 @@ std::string resolve_extension_path(const std::string& path) {
 }  // namespace
 
 namespace ov {
-
-#ifndef OPENVINO_STATIC_LIBRARY
 
 std::string findPluginXML(const std::string& xmlFile) {
     std::string xmlConfigFile_ = xmlFile;
@@ -56,13 +51,9 @@ std::string findPluginXML(const std::string& xmlFile) {
         xmlConfigFileDefault = FileUtils::makePath(ielibraryDir, ov::util::to_file_path("plugins.xml"));
         if (FileUtils::fileExist(xmlConfigFileDefault))
             return xmlConfigFile_ = ov::util::from_file_path(xmlConfigFileDefault);
-
-        OPENVINO_THROW("Failed to find plugins.xml file");
     }
     return xmlConfigFile_;
 }
-
-#endif  // OPENVINO_STATIC_LIBRARY
 
 #define OV_CORE_CALL_STATEMENT(...)             \
     try {                                       \
@@ -81,13 +72,13 @@ public:
 Core::Core(const std::string& xml_config_file) {
     _impl = std::make_shared<Impl>();
 
-#ifdef OPENVINO_STATIC_LIBRARY
-    OV_CORE_CALL_STATEMENT(_impl->register_plugins_in_registry(::getStaticPluginsRegistry());)
-#else
-    OV_CORE_CALL_STATEMENT(
-        // If XML is default, load default plugins by absolute paths
-        _impl->register_plugins_in_registry(findPluginXML(xml_config_file), xml_config_file.empty());)
-#endif
+    std::string xmlConfigFile = ov::findPluginXML(xml_config_file);
+    if (!xmlConfigFile.empty())
+        OV_CORE_CALL_STATEMENT(
+            // If XML is default, load default plugins by absolute paths
+            _impl->register_plugins_in_registry(xmlConfigFile, xml_config_file.empty());)
+    // Load plugins from the pre-compiled list
+    OV_CORE_CALL_STATEMENT(_impl->register_compile_time_plugins();)
 }
 
 std::map<std::string, Version> Core::get_versions(const std::string& device_name) const {
@@ -131,12 +122,26 @@ CompiledModel Core::compile_model(const std::string& model_path, const AnyMap& c
     return compile_model(model_path, ov::DEFAULT_DEVICE_NAME, config);
 }
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+CompiledModel Core::compile_model(const std::wstring& model_path, const AnyMap& config) {
+    return compile_model(ov::util::wstring_to_string(model_path), config);
+}
+#endif
+
 CompiledModel Core::compile_model(const std::string& model_path, const std::string& device_name, const AnyMap& config) {
     OV_CORE_CALL_STATEMENT({
         auto exec = _impl->compile_model(model_path, device_name, config);
         return {exec._ptr, exec._so};
     });
 }
+
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+CompiledModel Core::compile_model(const std::wstring& model_path,
+                                  const std::string& device_name,
+                                  const AnyMap& config) {
+    return compile_model(ov::util::wstring_to_string(model_path), device_name, config);
+}
+#endif
 
 CompiledModel Core::compile_model(const std::string& model,
                                   const ov::Tensor& weights,

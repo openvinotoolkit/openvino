@@ -15,6 +15,7 @@
 #include "ie_cache_manager.hpp"
 #include "ie_extension.h"
 #include "ie_icore.hpp"
+#include "ie_plugins.hpp"
 #include "multi-device/multi_device_config.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/extension.hpp"
@@ -22,10 +23,7 @@
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
-
-#ifdef OPENVINO_STATIC_LIBRARY
-#    include "ie_plugins.hpp"
-#endif
+#include "openvino/util/file_util.hpp"
 
 namespace ov {
 
@@ -48,15 +46,12 @@ Parsed parseDeviceNameIntoConfig(const std::string& deviceName, const AnyMap& co
  *
  * @param device_name Target device
  * @param device_name_to_parse Device ID of property
- * @return true if ov::device::properties(<device_name_to_parse>, ...) is applicable for device identified by 'device_name
+ * @return true if ov::device::properties(<device_name_to_parse>, ...) is applicable for device identified by
+ * 'device_name
  */
 bool is_config_applicable(const std::string& device_name, const std::string& device_name_to_parse);
 
-#ifndef OPENVINO_STATIC_LIBRARY
-
 std::string findPluginXML(const std::string& xmlFile);
-
-#endif
 
 class CoreImpl : public InferenceEngine::ICore, public std::enable_shared_from_this<InferenceEngine::ICore> {
 private:
@@ -94,8 +89,7 @@ private:
 
         // Creating thread-safe copy of config including shared_ptr to ICacheManager
         // Passing empty or not-existing name will return global cache config
-        CacheConfig get_cache_config_for_device(const ov::Plugin& plugin,
-                                                ov::AnyMap& parsedConfig) const;
+        CacheConfig get_cache_config_for_device(const ov::Plugin& plugin, ov::AnyMap& parsedConfig) const;
 
     private:
         mutable std::mutex _cacheConfigMutex;
@@ -158,16 +152,17 @@ private:
     const bool m_new_api;
 
     ov::SoPtr<ov::ICompiledModel> compile_model_and_cache(const std::shared_ptr<const ov::Model>& model,
-                                                     ov::Plugin& plugin,
-                                                     const ov::AnyMap& parsedConfig,
-                                                     const ov::RemoteContext& context,
-                                                     const CacheContent& cacheContent) const;
+                                                          ov::Plugin& plugin,
+                                                          const ov::AnyMap& parsedConfig,
+                                                          const ov::RemoteContext& context,
+                                                          const CacheContent& cacheContent) const;
 
-    static ov::SoPtr<ov::ICompiledModel> load_model_from_cache(const CacheContent& cacheContent,
-                                                               ov::Plugin& plugin,
-                                                               const ov::AnyMap& config,
-                                                               const ov::RemoteContext& context,
-                                                               std::function<ov::SoPtr<ov::ICompiledModel>()> compile_model_lambda);
+    static ov::SoPtr<ov::ICompiledModel> load_model_from_cache(
+        const CacheContent& cacheContent,
+        ov::Plugin& plugin,
+        const ov::AnyMap& config,
+        const ov::RemoteContext& context,
+        std::function<ov::SoPtr<ov::ICompiledModel>()> compile_model_lambda);
 
     bool device_supports_import_export(const ov::Plugin& plugin) const;
 
@@ -177,12 +172,11 @@ private:
     bool device_supports_cache_dir(const ov::Plugin& plugin) const;
 
     ov::SoPtr<ov::ICompiledModel> compile_model_with_preprocess(ov::Plugin& plugin,
-                                                const std::shared_ptr<const ov::Model>& model,
-                                                const ov::RemoteContext& context,
-                                                const ov::AnyMap& config) const;
+                                                                const std::shared_ptr<const ov::Model>& model,
+                                                                const ov::RemoteContext& context,
+                                                                const ov::AnyMap& config) const;
 
-    ov::AnyMap create_compile_config(const ov::Plugin& plugin,
-                                     const ov::AnyMap& origConfig) const;
+    ov::AnyMap create_compile_config(const ov::Plugin& plugin, const ov::AnyMap& origConfig) const;
 
     // Legacy API
     void AddExtensionUnsafe(const InferenceEngine::IExtensionPtr& extension) const;
@@ -218,30 +212,10 @@ public:
                              std::string& deviceName,
                              ov::AnyMap& config) const;
 
-#ifdef OPENVINO_STATIC_LIBRARY
-
-    /**
-     * @brief Register plugins for devices using statically defined configuration
-     * @note The function supports UNICODE path
-     * @param static_registry a statically defined configuration with device / plugin information
+    /*
+     * @brief Register plugins according to the build configuration
      */
-    void register_plugins_in_registry(const decltype(::getStaticPluginsRegistry())& static_registry) {
-        std::lock_guard<std::mutex> lock(get_mutex());
-
-        for (const auto& plugin : static_registry) {
-            const auto& deviceName = plugin.first;
-            if (deviceName.find('.') != std::string::npos) {
-                IE_THROW() << "Device name must not contain dot '.' symbol";
-            }
-            const auto& value = plugin.second;
-            ov::AnyMap config = any_copy(value.m_default_config);
-            PluginDescriptor desc{value.m_create_plugin_func, config, value.m_create_extension_func};
-            pluginRegistry[deviceName] = desc;
-            add_mutex(deviceName);
-        }
-    }
-
-#endif
+    void register_compile_time_plugins();
 
     //
     // ICore public API
