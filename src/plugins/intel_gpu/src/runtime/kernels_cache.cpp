@@ -346,7 +346,13 @@ std::vector<kernel::ptr> kernels_cache::get_kernels(kernel_impl_params params) c
         }
         throw std::runtime_error("Kernel for {" + issued_id + "} is not found in the kernel cache!");
     }
-    return res->second;
+
+    std::vector<kernel::ptr> kernels;
+    kernels.reserve(res->second.size());
+    for (auto& k : res->second) {
+        kernels.emplace_back(k->clone());
+    }
+    return kernels;
 }
 
 bool kernels_cache::validate_simple_kernel_execution(kernel::ptr krl) {
