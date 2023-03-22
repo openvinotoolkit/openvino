@@ -34,6 +34,7 @@
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "preprocessing/preprocessing.hpp"
 #include "xml_parse_utils.h"
@@ -335,7 +336,7 @@ void ov::CoreImpl::register_compile_time_plugins() {
         const auto& deviceName = plugin.first;
         const auto& pluginPath = ov::util::get_compiled_plugin_path(plugin.second.m_plugin_path);
 
-        if (pluginRegistry.find(deviceName) == pluginRegistry.end() && FileUtils::fileExist(pluginPath)) {
+        if (pluginRegistry.find(deviceName) == pluginRegistry.end() && ov::util::file_exists(pluginPath)) {
             ov::AnyMap config = any_copy(plugin.second.m_default_config);
             PluginDescriptor desc{pluginPath, config};
             pluginRegistry[deviceName] = desc;
