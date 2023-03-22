@@ -117,7 +117,7 @@ def main():
                         logger.warning(f"No device {device} performance hint is set.")
                         perf_hint = properties.hint.PerformanceMode.UNDEFINED
                     else:
-                        perf_hint = properties.hint.PerformanceMode(args.perf_hint.upper())
+                        perf_hint = args.perf_hint.upper()
                 else:
                     perf_hint = properties.hint.PerformanceMode.THROUGHPUT if benchmark.api_type == "async" else properties.hint.PerformanceMode.LATENCY
                     logger.warning(f"Performance hint was not explicitly specified in command line. " +
