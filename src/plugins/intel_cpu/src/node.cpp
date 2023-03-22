@@ -1047,26 +1047,27 @@ void Node::initOptimalPrimitiveDescriptor() {
     if (selected_pd == nullptr)
         IE_THROW() << "Preferable primitive descriptor is not set.";
     auto config = selected_pd->getConfig();
-    if (isDynamicNode()) {
-        // it is assumed that the nodes will define dense tensors on output edges
-        // if it is not the case the implementation must redefine this behaviour
-        for (size_t i = 0; i < config.outConfs.size(); i++) {
-            auto outMemDesc = config.outConfs[i].getMemDesc();
-            if (outMemDesc && (outMemDesc->getType() & Blocked)) {
-                config.outConfs[i].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), BLOCKED_DESC_FULL_MASK);
-            }
-        }
-    } else {
-        for (size_t i = 0; i < config.inConfs.size(); i++) {
+    for (size_t i = 0; i < config.inConfs.size(); i++) {
+        if (!isDynamicNode() || config.inConfs[i].getMemDesc()->isDefined()) {
             auto inpPortDesc = getConsistentInputDesc(config, i);
             config.inConfs[i].setMemDesc(inpPortDesc->getMemDesc());
         }
+    }
 
-        for (size_t i = 0; i < config.outConfs.size(); i++) {
+    for (size_t i = 0; i < config.outConfs.size(); i++) {
+        auto outMemDesc = config.outConfs[i].getMemDesc();
+        if (!isDynamicNode() || outMemDesc->isDefined()) {
             auto outPortDesc = getConsistentOutputDesc(config, i);
             config.outConfs[i].setMemDesc(outPortDesc->getMemDesc());
+        } else {
+            // it is assumed that the nodes will define dense tensors on output edges
+            // if it is not the case the implementation must redefine this behaviour
+            if (outMemDesc->getType() & Blocked) {
+                config.outConfs[i].setMemDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(outMemDesc), BLOCKED_DESC_FULL_MASK);
+            }
         }
     }
+
     if (getType() != Type::RNNSeq && getType() != Type::RNNCell) {
         initDescriptor(config);
     }
