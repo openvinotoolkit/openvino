@@ -3,6 +3,7 @@
 //
 
 #include "reshape.h"
+#include "utils.hpp"
 #include <string>
 #include <dnnl_types.h>
 #include <dnnl_extension_utils.h>
@@ -10,6 +11,7 @@
 #include <ie_ngraph_utils.hpp>
 #include <utils/shape_inference/static_shape.hpp>
 #include <utils/shape_inference/shape_inference.hpp>
+#include "utils/shape_inference/shape_inference_cpu.hpp"
 
 #include "common/cpu_memcpy.h"
 
@@ -34,8 +36,74 @@ bool Reshape::isSupportedOperation(const std::shared_ptr<const ngraph::Node>& op
     return true;
 }
 
+namespace {
+class ReshapeShapeInfer : public ShapeInferEmptyPads {
+public:
+    ReshapeShapeInfer(bool specialZero) : m_specialZero(specialZero) {}
+    Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
+                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+        static constexpr size_t RESHAPE_DATA = 0, RESHAPE_SHAPE = 1;
+        const auto& inputShape = input_shapes[RESHAPE_DATA].get();
+        const size_t inputShapeSize = inputShape.size();
+        const auto memPtr = data_dependency.at(RESHAPE_SHAPE);
+        const auto data = memPtr->GetPtr();
+        const auto outputPatternSize = shape_size(ov::Shape(memPtr->getStaticDims()));
+        std::vector<int32_t> outPattern = ov::get_raw_data_as<int32_t>(
+                InferenceEngine::details::convertPrecision(memPtr->getDesc().getPrecision()),
+                data,
+                outputPatternSize,
+                ov::util::Cast<int32_t>());
+        VectorDims outputShape(outputPatternSize);
+        size_t outputProduct(1);
+        size_t minusOneIdx = -1;
+        size_t minusOneCount = 0;
+        for (size_t i = 0; i < outputPatternSize; ++i) {
+            if (outPattern[i] == 0 && m_specialZero && i < inputShapeSize) {
+                outputShape[i] = inputShape[i];
+                outputProduct *= outputShape[i];
+            } else if (outPattern[i] == -1) {
+                minusOneIdx = i;
+                minusOneCount++;
+            } else {
+                outputShape[i] = outPattern[i];
+                outputProduct *= outputShape[i];
+            }
+        }
+        size_t inputProduct(1);
+        for (size_t i = 0; i < inputShape.size(); ++i) {
+            inputProduct *= inputShape[i];
+        }
+        if (outputProduct != 0 && inputProduct != 0) {
+            outputShape[minusOneIdx] = inputProduct / outputProduct;
+            outputProduct *= outputShape[minusOneIdx];
+        }
+        if (minusOneCount > 1  || inputProduct != outputProduct) {
+            IE_THROW(Unexpected) << "the shape of input data is conflict with shape pattern";
+        }
+        return {{std::move(outputShape)}, ShapeInferStatus::success};
+    }
+    port_mask_t get_port_mask() const override {
+        return PortMask(1);
+    }
+
+private:
+    bool m_specialZero;
+};
+
+class ReshapeShapeInferFactory : public ShapeInferFactory {
+public:
+    ReshapeShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(op) {}
+    ShapeInferPtr makeShapeInfer() const override {
+        const auto reshapeOp = ov::as_type_ptr<const ov::op::v1::Reshape>(m_op);
+        return std::make_shared<ReshapeShapeInfer>(reshapeOp->get_special_zero());
+    }
+private:
+    std::shared_ptr<ov::Node> m_op;
+};
+} // namespace
+
 Reshape::Reshape(const std::shared_ptr<ngraph::Node>& op, const GraphContext::CPtr context) :
-        Node(op, context, NgraphShapeInferFactory(op, PortMask(1))) {
+        Node(op, context, ReshapeShapeInferFactory(op)) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         IE_THROW(NotImplemented) << errorMessage;
