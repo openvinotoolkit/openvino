@@ -3,7 +3,6 @@
 //
 
 #include "system_allocator.hpp"
-#include "ie_api.h"
 
 namespace InferenceEngine {
 
