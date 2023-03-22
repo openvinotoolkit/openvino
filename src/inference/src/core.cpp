@@ -9,7 +9,6 @@
 #include "dev/converter_utils.hpp"
 #include "dev/core_impl.hpp"
 #include "ie_itt.hpp"
-#include "ie_plugins.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "so_extension.hpp"
 

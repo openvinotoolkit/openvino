@@ -281,9 +281,9 @@ function(ie_target_link_plugins TARGET_NAME)
 endfunction()
 
 #
-# ie_generate_plugins_hpp()
+# ov_generate_plugins_hpp()
 #
-function(ie_generate_plugins_hpp)
+function(ov_generate_plugins_hpp)
     set(device_mapping)
     set(device_configs)
     set(as_extension)
@@ -321,22 +321,22 @@ function(ie_generate_plugins_hpp)
         endif()
     endforeach()
 
-    # add plugins to libraries including ie_plugins.hpp
+    # add plugins to libraries including ov_plugins.hpp
     ie_target_link_plugins(openvino)
     if(TARGET inference_engine_s)
         ie_target_link_plugins(inference_engine_s)
     endif()
 
-    set(ie_plugins_hpp "${CMAKE_BINARY_DIR}/src/inference/ie_plugins.hpp")
+    set(ov_plugins_hpp "${CMAKE_BINARY_DIR}/src/inference/ov_plugins.hpp")
     set(plugins_hpp_in "${IEDevScripts_DIR}/plugins/plugins.hpp.in")
 
-    add_custom_command(OUTPUT "${ie_plugins_hpp}"
+    add_custom_command(OUTPUT "${ov_plugins_hpp}"
                        COMMAND
                         "${CMAKE_COMMAND}"
-                        -D "IE_DEVICE_MAPPING=${device_mapping}"
                         -D "BUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}"
-                        -D "IE_PLUGINS_HPP_HEADER_IN=${plugins_hpp_in}"
-                        -D "IE_PLUGINS_HPP_HEADER=${ie_plugins_hpp}"
+                        -D "OV_DEVICE_MAPPING=${device_mapping}"
+                        -D "OV_PLUGINS_HPP_HEADER_IN=${plugins_hpp_in}"
+                        -D "OV_PLUGINS_HPP_HEADER=${ov_plugins_hpp}"
                         ${device_configs}
                         ${as_extension}
                         -P "${IEDevScripts_DIR}/plugins/create_plugins_hpp.cmake"
@@ -344,13 +344,13 @@ function(ie_generate_plugins_hpp)
                          "${plugins_hpp_in}"
                          "${IEDevScripts_DIR}/plugins/create_plugins_hpp.cmake"
                        COMMENT
-                         "Generate ie_plugins.hpp for build"
+                         "Generate ov_plugins.hpp for build"
                        VERBATIM)
 
     # for some reason dependency on source files does not work
     # so, we have to use explicit target and make it dependency for inference_engine
-    add_custom_target(_ie_plugins_hpp DEPENDS ${ie_plugins_hpp})
-    add_dependencies(inference_engine_obj _ie_plugins_hpp)
+    add_custom_target(_ov_plugins_hpp DEPENDS ${ov_plugins_hpp})
+    add_dependencies(inference_engine_obj _ov_plugins_hpp)
 
     # add dependency for object files
     get_target_property(sources inference_engine_obj SOURCES)
@@ -367,5 +367,5 @@ function(ie_generate_plugins_hpp)
     endforeach()
 
     # add dependency on header file generation for all inference_engine source files
-    set_source_files_properties(${all_sources} PROPERTIES OBJECT_DEPENDS ${ie_plugins_hpp})
+    set_source_files_properties(${all_sources} PROPERTIES OBJECT_DEPENDS ${ov_plugins_hpp})
 endfunction()
