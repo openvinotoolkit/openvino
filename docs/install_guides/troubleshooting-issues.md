@@ -13,23 +13,23 @@ Users in China might encounter errors while downloading sources via PIP during O
    
 * Add the download source using the ``-i`` parameter with the Python ``pip`` command. For example: 
 
-   .. code-block:: sh
-      
-      pip install openvino-dev -i https://mirrors.aliyun.com/pypi/simple/
+  .. code-block:: sh
+     
+     pip install openvino-dev -i https://mirrors.aliyun.com/pypi/simple/
+  
+  Use the ``--trusted-host`` parameter if the URL above is ``http`` instead of ``https``.
+  You can also run the following command to install specific framework. For example:
    
-   Use the ``--trusted-host`` parameter if the URL above is ``http`` instead of ``https``.
-   You can also run the following command to install specific framework. For example:
-   
-   .. code-block:: sh
-      
-      pip install openvino-dev[tensorflow2] -i https://mirrors.aliyun.com/pypi/simple/
+  .. code-block:: sh
+     
+     pip install openvino-dev[tensorflow2] -i https://mirrors.aliyun.com/pypi/simple/
    
 
 * For C++ developers, if you have installed OpenVINO Runtime via APT, YUM, or the archive file, and then installed OpenVINO Development Tools via PyPI, you may run into issues. To resolve that, install the components in ``requirements.txt`` by using the following command: 
    
-   .. code-block:: sh
-      
-      pip install -r <INSTALL_DIR>/tools/requirements.txt
+  .. code-block:: sh
+     
+     pip install -r <INSTALL_DIR>/tools/requirements.txt
    
   For APT and YUM users, replace the ``INSTALL_DIR`` with ``/usr/share/openvino``.
 

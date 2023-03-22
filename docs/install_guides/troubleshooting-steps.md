@@ -9,15 +9,15 @@ Check the versions of OpenVINO Runtime and Developement Tools
 
 * To check the version of OpenVINO Development Tools, use the following command:
    
-   .. code-block:: sh
-      
-      mo --version
+  .. code-block:: sh
+     
+     mo --version
    
 * To check the version of OpenVINO Runtime, use the following code:
    
-   .. code-block:: sh
-      
-      from openvino.runtime import get_version get_version()
+  .. code-block:: sh
+     
+     from openvino.runtime import get_version get_version()
    
 
 Check the versions of Python and PIP
@@ -54,13 +54,13 @@ Check if environment variables are set correctly
 - For Python developers, if you previously installed OpenVINO using the archive file, and are now installing OpenVINO using PIP, remove all the PATH settings and the lines with ``setupvars`` from ``.bashrc``. Note that if you installed OpenVINO with PIP in a virtual environment, you don't need to set any environment variables.
 - If you have installed OpenVINO before, you probably have added ``setupvars`` to your ``PATH /.bashrc`` or Windows environment variables. After restarting your environment, you should see similar information as below: 
 
-   .. code-block:: sh
-      
-      [setupvars.sh] OpenVINO™ environment initialized
-      
+  .. code-block:: sh
+     
+     [setupvars.sh] OpenVINO™ environment initialized
+     
 
-   - If you don't see the information above, your PATH variables may be configured incorrectly. Check if you have typed the correct <INSTALL_DIR> or you are trying to activate in the correct directory.
-   - If you added it to a ``.bashrc`` file, make sure that the command is correctly written and the file is found in the ``~/.bashrc`` folder.
+  - If you don't see the information above, your PATH variables may be configured incorrectly. Check if you have typed the correct <INSTALL_DIR> or you are trying to activate in the correct directory.
+  - If you added it to a ``.bashrc`` file, make sure that the command is correctly written and the file is found in the ``~/.bashrc`` folder.
 
 Verify that OpenVINO is correctly installed
 ###########################################
@@ -91,9 +91,9 @@ Check firewall and network settings
 
 Make sure that your firewall and network settings are configured correctly. For example, consider configuring system-wide proxy settings and specifying options for using PIP behind the proxy: 
 
-   .. code-block:: sh
+.. code-block:: sh
 
-      pip install --proxy http://address:port --trusted-host pypi.org openvino 
+   pip install --proxy http://address:port --trusted-host pypi.org openvino 
 
 
 For specific issues, see :ref:`Errors with Installing via PIP for Users in China <install_for_prc>` and :ref:`proxy issues with installing OpenVINO on Linux from Docker <proxy-issues>`. 
