@@ -28,6 +28,9 @@ foreach(option IN LISTS ov_options)
 endforeach()
 message(" ")
 
+# activate generation of plugins.xml
+set(ENABLE_PLUGINS_XML ON)
+
 # for samples in 3rd party projects
 if(ENABLE_SAMPLES)
     set_and_check(gflags_DIR "@gflags_BINARY_DIR@")
