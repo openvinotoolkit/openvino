@@ -20,7 +20,6 @@ on:
       - /**/*.md
       - README.md
       - /**/layer_tests_summary/**
-  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -115,13 +114,7 @@ jobs:
         run:  ls -laR .
 
       - name: Build coverage with CMake
-        uses: ashutoshvarma/action-cmake-build@master
-        with:
-          build-dir: ${{ github.workspace }}/build
-          cc: ${{ matrix.config.cc }}
-          cxx: ${{ matrix.config.cxx }}
-          configure-options: -C ${{ github.workspace }}/build
-          target: ov_coverage
+        run: cmake --build build --target ov_coverage
 
       - name: Generate raport
         run: |
