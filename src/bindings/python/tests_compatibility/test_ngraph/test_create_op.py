@@ -2260,8 +2260,7 @@ def test_interpolate_opset10(dtype, expected_shape, shape_calculation_mode):
     mode = "cubic"
 
     node = ng_opset10.interpolate(image=image_node, output_shape=output_shape, scales=scales,
-                                  axes=axes,
-                                  mode=mode, shape_calculation_mode=shape_calculation_mode)
+                                  axes=axes,mode=mode, shape_calculation_mode=shape_calculation_mode)
     assert node.get_type_name() == "Interpolate"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == expected_shape
