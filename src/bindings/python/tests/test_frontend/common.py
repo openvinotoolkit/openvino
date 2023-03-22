@@ -16,4 +16,4 @@ def get_builtin_extensions_path():
     for path in paths:
         if re.search(r"(lib)?test_builtin_extensions.?\.(dll|so)", path):
             return path
-    raise RuntimeError("Unable to find test_builtin_extensions")
+    return None

@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from openvino.frontend import FrontEndManager, ConversionExtension
-from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
 from openvino.frontend import OpExtension
 from openvino.frontend import NodeContext
 
@@ -17,13 +16,17 @@ import torch
 
 from tests.test_frontend.common import get_builtin_extensions_path
 
+try:
+    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+    pytorch_frontend_disabled = False
+except:
+    pytorch_frontend_disabled = True
 
 fem = FrontEndManager()
 
 
 def skip_if_pytorch_frontend_is_disabled():
-    front_ends = fem.get_available_front_ends()
-    if "pytorch" not in front_ends:
+    if pytorch_frontend_disabled:
         pytest.skip()
 
 
@@ -77,6 +80,8 @@ def test_conversion_extension():
                                                                               "Multiply", "Select", "Result"]
 
 
+@pytest.mark.skipif(get_builtin_extensions_path() == None,
+                    reason="The extension library path was not found")
 def test_op_extension():
     skip_if_pytorch_frontend_is_disabled()
 

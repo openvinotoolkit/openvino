@@ -683,6 +683,8 @@ def test_op_extension_via_frontend_extension_map_attributes():
     assert model
 
 
+@pytest.mark.skipif(get_builtin_extensions_path() == None,
+                    reason="The extension library path was not found")
 def test_so_extension_via_frontend_convert_input_model():
     skip_if_onnx_frontend_is_disabled()
 
@@ -698,6 +700,8 @@ def test_so_extension_via_frontend_convert_input_model():
     assert all(op.get_type_name() != "Relu" for op in model.get_ops())
 
 
+@pytest.mark.skipif(get_builtin_extensions_path() == None,
+                    reason="The extension library path was not found")
 def test_so_extension_via_frontend_decode_input_model():
     skip_if_onnx_frontend_is_disabled()
 

@@ -240,7 +240,7 @@ public:
                             "\" is not set or mapping between "
                             "framework and openvino node attributes is incorrect.");
             try {
-                auto a = m_context.const_input(it->second);
+                auto a = m_context.const_input(static_cast<int>(it->second));
                 adapter.set_as_any(a);
             } catch (::ov::AssertFailure& ex) {
                 OPENVINO_ASSERT(false,
