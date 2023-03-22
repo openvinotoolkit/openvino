@@ -71,12 +71,12 @@ std::shared_ptr<ov::Model> create_v4_model(const bool with_axes,
     if (shape_calc_mode == ov::opset4::Interpolate::ShapeCalcMode::SCALES) {
         scales = std::make_shared<ov::opset4::Parameter>(ov::element::f32, ov::Shape{num_scales_or_sizes});
         model_params.push_back(std::dynamic_pointer_cast<ov::opset4::Parameter>(scales));
-        output_shape = ov::opset4::Constant::create(ov::element::i32, ov::Shape{}, {1});
+        output_shape = ov::opset4::Constant::create(ov::element::i32, ov::Shape{1}, {1});
 
     } else {
         output_shape = std::make_shared<ov::opset4::Parameter>(ov::element::i32, ov::Shape{num_scales_or_sizes});
         model_params.push_back(std::dynamic_pointer_cast<ov::opset4::Parameter>(output_shape));
-        scales = ov::opset4::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
+        scales = ov::opset4::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
     }
 
     if (with_axes) {
