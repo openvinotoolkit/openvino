@@ -4,8 +4,14 @@
 
 import torch
 import numpy as np
-from openvino.frontend import FrontEndManager
+from openvino.frontend import FrontEndManager, ConversionExtension, NodeContext, OpExtension
 from openvino.runtime import PartialShape, Type
+import openvino.runtime.opset10 as ops
+
+from pathlib import Path
+import glob
+import re
+import os
 
 
 class aten_relu(torch.nn.Module):
@@ -65,3 +71,86 @@ def test_pytorch_fe_set_input_value():
     im.set_tensor_value(place, np.random.randn(1, 2, 3, 4).astype(np.float32))
     om = fe.convert(im)
     assert len(om.get_parameters()) == 0
+
+
+def test_conversion_extension():
+    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+
+    class Elu(torch.nn.Module):
+        def __init__(self, alpha):
+            super(Elu, self).__init__()
+            self.alpha = alpha
+
+        def forward(self, inp):
+            return torch.nn.functional.elu(inp, self.alpha)
+
+    model = Elu(alpha=0.123)
+    decoder = TorchScriptPythonDecoder(get_scripted_model(model))
+
+    fem = FrontEndManager()
+    fe = fem.load_by_framework(framework="pytorch")
+    assert fe
+
+    input_model = fe.load(decoder)
+    assert input_model
+    converted_model = fe.convert(input_model)
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == ["Parameter", "Elu", "Result"]
+
+    def convert_elu(node: NodeContext):
+        inp = node.get_input(0)
+        alpha = node.get_input(1)
+        zero = ops.constant(np.array([0], dtype=np.float32))
+        greater = ops.greater(inp, zero)
+        exp = ops.exp(inp)
+        one = ops.constant(np.array([0], dtype=np.float32))
+        sub = ops.subtract(exp, one)
+        mul = ops.multiply(sub, alpha)
+        select = ops.select(greater, inp, mul)
+        return select.outputs()
+
+    fe.add_extension(ConversionExtension("aten::elu", convert_elu))
+    converted_model = fe.convert(input_model)
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == ["Parameter", "Constant", "Greater", "Exp",
+                                                                              "Constant", "Subtract", "Constant",
+                                                                              "Multiply", "Select", "Result"]
+
+
+def get_builtin_extensions_path():
+    base_path = Path(__file__).parent.parent.parent.parent
+    paths = glob.glob(os.path.join(base_path, "bin", "*", "*", "*test_builtin_extensions*"))
+    for path in paths:
+        if re.search(r"(lib)?test_builtin_extensions.?\.(dll|so)", path):
+            return path
+    raise RuntimeError("Unable to find test_builtin_extensions")
+
+
+def test_op_extension():
+    from openvino.frontend.pytorch.decoder import TorchScriptPythonDecoder
+
+    class Elu(torch.nn.Module):
+        def __init__(self, alpha):
+            super(Elu, self).__init__()
+            self.alpha = alpha
+
+        def forward(self, inp):
+            return torch.nn.functional.elu(inp, self.alpha)
+
+    model = Elu(alpha=0.123)
+    decoder = TorchScriptPythonDecoder(get_scripted_model(model))
+
+    fem = FrontEndManager()
+    fe = fem.load_by_framework(framework="pytorch")
+    assert fe
+
+    input_model = fe.load(decoder)
+    assert input_model
+    converted_model = fe.convert(input_model)
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == ["Parameter", "Elu", "Result"]
+
+    fe.add_extension(get_builtin_extensions_path())
+    converted_model = fe.convert(input_model)
+    assert converted_model
+    assert [n.get_type_name() for n in converted_model.get_ordered_ops()] == ["Parameter", "CustomElu", "Result"]
