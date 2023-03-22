@@ -12,7 +12,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_reshape_as(NodeContext& context) {
+OutputVector translate_reshape_as(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     auto input_tensor = context.get_input(0);
     auto shape_tesnor = context.get_input(1);

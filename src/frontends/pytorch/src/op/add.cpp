@@ -15,7 +15,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-OutputVector translate_add(NodeContext& context) {
+OutputVector translate_add(const NodeContext& context) {
     num_inputs_check(context, 2, 3);
     auto lhs = context.get_input(0);
     auto rhs = context.get_input(1);

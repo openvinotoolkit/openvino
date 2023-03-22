@@ -14,6 +14,7 @@
 
 namespace {
 
+// ! [vector_impl_t:implementation]
 template <class T>
 class VectorTensorImpl : public ov::IRemoteTensor {
     void update_strides() {
@@ -78,9 +79,11 @@ public:
         return m_dev_name;
     }
 };
+// ! [vector_impl_t:implementation]
 
 }  // namespace
 
+// ! [vector_impl:implementation]
 class VectorImpl : public ov::IRemoteTensor {
 private:
     std::shared_ptr<ov::IRemoteTensor> m_tensor;
@@ -127,16 +130,25 @@ public:
         return m_tensor->get_device_name();
     }
 };
+// ! [vector_impl:implementation]
 
+// ! [remote_context:ctor]
 ov::template_plugin::RemoteContext::RemoteContext() : m_name("TEMPLATE") {}
+// ! [remote_context:ctor]
 
+// ! [remote_context:get_device_name]
 const std::string& ov::template_plugin::RemoteContext::get_device_name() const {
     return m_name;
 }
+// ! [remote_context:get_device_name]
+
+// ! [remote_context:get_property]
 const ov::AnyMap& ov::template_plugin::RemoteContext::get_property() const {
     return m_property;
 }
+// ! [remote_context:get_property]
 
+// ! [remote_context:create_tensor]
 std::shared_ptr<ov::IRemoteTensor> ov::template_plugin::RemoteContext::create_tensor(const ov::element::Type& type,
                                                                                      const ov::Shape& shape,
                                                                                      const ov::AnyMap& params) {
@@ -189,3 +201,4 @@ std::shared_ptr<ov::IRemoteTensor> ov::template_plugin::RemoteContext::create_te
     }
     return std::make_shared<VectorImpl>(tensor);
 }
+// ! [remote_context:create_tensor]
