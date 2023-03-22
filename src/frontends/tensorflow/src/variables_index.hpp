@@ -17,7 +17,7 @@ namespace tensorflow {
 struct VIBlock;
 
 // Stores information about variables index
-class SavedModelVariablesIndex {
+class VariablesIndex {
     // Contains maximum amount of shards, used for creating corrext extension
     int32_t m_total_shards;
     // Contains BundleEntryProto variables list, readed from .index file
