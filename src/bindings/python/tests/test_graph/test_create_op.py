@@ -11,7 +11,8 @@ from openvino.runtime.utils.types import make_constant_node
 
 import openvino.runtime.opset1 as ov_opset1
 import openvino.runtime.opset5 as ov_opset5
-import openvino.runtime.opset10 as ov
+import openvino.runtime.opset10 as ov_opset10
+import openvino.runtime.opset11 as ov
 from openvino.runtime import Type
 
 np_types = [np.float32, np.int32]
@@ -2145,8 +2146,29 @@ def test_interpolate_opset10(dtype, expected_shape, shape_calculation_mode):
     axes = [2, 3]
     mode = "cubic"
 
-    node = ov.interpolate(image=image_node, output_shape=output_shape, scales=scales,
-                          axes=axes, mode=mode,
+    node = ov_opset10.interpolate(image=image_node, output_shape=output_shape, scales=scales,
+                                  axes=axes, mode=mode, shape_calculation_mode=shape_calculation_mode)
+    assert node.get_type_name() == "Interpolate"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == expected_shape
+
+
+@pytest.mark.parametrize(
+    ("expected_shape", "shape_calculation_mode", "input_value"),
+    [
+        ([1, 3, 64, 64], "scales", np.array([1 / 16, 1 / 16], dtype=np.float32)),
+        ([1, 3, 256, 256], "sizes", np.array([256, 256], dtype=np.int32)),
+    ],
+)
+@pytest.mark.parametrize("dtype", np_types)
+def test_interpolate_opset11(dtype, expected_shape, shape_calculation_mode, input_value):
+
+    image_shape = [1, 3, 1024, 1024]
+    image_node = ov.parameter(image_shape, dtype, name="Image")
+    axes = [2, 3]
+    mode = "bilinear_pillow"
+
+    node = ov.interpolate(image=image_node, scales_or_sizes=input_value, axes=axes, mode=mode,
                           shape_calculation_mode=shape_calculation_mode)
     assert node.get_type_name() == "Interpolate"
     assert node.get_output_size() == 1

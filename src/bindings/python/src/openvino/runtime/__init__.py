@@ -56,6 +56,7 @@ from openvino.runtime import opset7
 from openvino.runtime import opset8
 from openvino.runtime import opset9
 from openvino.runtime import opset10
+from openvino.runtime import opset11
 
 # Import properties API
 from openvino._pyopenvino import properties
@@ -66,19 +67,19 @@ from openvino.runtime.ie_api import compile_model
 
 
 # Extend Node class to support binary operators
-Node.__add__ = opset10.add
-Node.__sub__ = opset10.subtract
-Node.__mul__ = opset10.multiply
-Node.__div__ = opset10.divide
-Node.__truediv__ = opset10.divide
-Node.__radd__ = lambda left, right: opset10.add(right, left)
-Node.__rsub__ = lambda left, right: opset10.subtract(right, left)
-Node.__rmul__ = lambda left, right: opset10.multiply(right, left)
-Node.__rdiv__ = lambda left, right: opset10.divide(right, left)
-Node.__rtruediv__ = lambda left, right: opset10.divide(right, left)
-Node.__eq__ = opset10.equal
-Node.__ne__ = opset10.not_equal
-Node.__lt__ = opset10.less
-Node.__le__ = opset10.less_equal
-Node.__gt__ = opset10.greater
-Node.__ge__ = opset10.greater_equal
+Node.__add__ = opset11.add
+Node.__sub__ = opset11.subtract
+Node.__mul__ = opset11.multiply
+Node.__div__ = opset11.divide
+Node.__truediv__ = opset11.divide
+Node.__radd__ = lambda left, right: opset11.add(right, left)
+Node.__rsub__ = lambda left, right: opset11.subtract(right, left)
+Node.__rmul__ = lambda left, right: opset11.multiply(right, left)
+Node.__rdiv__ = lambda left, right: opset11.divide(right, left)
+Node.__rtruediv__ = lambda left, right: opset11.divide(right, left)
+Node.__eq__ = opset11.equal
+Node.__ne__ = opset11.not_equal
+Node.__lt__ = opset11.less
+Node.__le__ = opset11.less_equal
+Node.__gt__ = opset11.greater
+Node.__ge__ = opset11.greater_equal

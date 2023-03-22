@@ -11,6 +11,7 @@ import ngraph as ng
 import ngraph.opset1 as ng_opset1
 import ngraph.opset5 as ng_opset5
 import ngraph.opset10 as ng_opset10
+import ngraph.opset11 as ng_opset11
 from ngraph.utils.types import make_constant_node
 from ngraph.exceptions import UserInputError
 from ngraph.impl import Type
@@ -2259,13 +2260,33 @@ def test_interpolate_opset10(dtype, expected_shape, shape_calculation_mode):
     mode = "cubic"
 
     node = ng_opset10.interpolate(image=image_node, output_shape=output_shape, scales=scales,
-                                  axes=axes,
-                                  mode=mode, shape_calculation_mode=shape_calculation_mode)
+                                  axes=axes,mode=mode, shape_calculation_mode=shape_calculation_mode)
     assert node.get_type_name() == "Interpolate"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == expected_shape
 
 
+@pytest.mark.parametrize(
+    ("expected_shape", "shape_calculation_mode", "input_value"),
+    [
+        ([1, 3, 64, 64], "scales", np.array([1 / 16, 1 / 16], dtype=np.float32)),
+        ([1, 3, 256, 256], "sizes", np.array([256, 256], dtype=np.int32)),
+    ],
+)
+@pytest.mark.parametrize("dtype", np_types)
+def test_interpolate_opset11(dtype, expected_shape, shape_calculation_mode, input_value):
+
+    image_shape = [1, 3, 1024, 1024]
+    image_node = ng.parameter(image_shape, dtype, name="Image")
+    axes = [2, 3]
+    mode = "bilinear_pillow"
+
+    node = ng_opset11.interpolate(image=image_node, scales_or_sizes=input_value, axes=axes, mode=mode,
+                                  shape_calculation_mode=shape_calculation_mode)
+    assert node.get_type_name() == "Interpolate"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == expected_shape
+    
 def test_is_finite_opset10():
     input_shape = [1, 2, 3, 4]
     input_node = ng.parameter(input_shape, np.float32, name="InputData")
