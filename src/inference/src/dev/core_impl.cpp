@@ -317,10 +317,10 @@ void ov::CoreImpl::register_compile_time_plugins() {
 
     const decltype(::getCompiledPluginsRegistry())& plugins = getCompiledPluginsRegistry();
 #ifdef OPENVINO_STATIC_LIBRARY
-    for (const auto& plugin : static_registry) {
+    for (const auto& plugin : plugins) {
         const auto& deviceName = plugin.first;
         if (deviceName.find('.') != std::string::npos) {
-            OPENVINO_THROW() << "Device name must not contain dot '.' symbol";
+            OPENVINO_THROW("Device name must not contain dot '.' symbol");
         }
         if (pluginRegistry.find(deviceName) == pluginRegistry.end()) {
             const auto& value = plugin.second;
