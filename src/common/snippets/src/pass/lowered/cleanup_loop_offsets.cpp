@@ -12,7 +12,7 @@ namespace pass {
 namespace lowered {
 
 bool CleanupLoopOffsets::run(LoweredExprIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::LinearIRTransformation")
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::CleanupLoopOffsets")
     if (linear_ir.empty())
         return false;
     bool is_modified = false;

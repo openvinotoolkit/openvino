@@ -15,7 +15,7 @@ namespace pass {
 namespace lowered {
 
 bool AssignRegisters::run(LoweredExprIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::AssignRegisters")
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::AssignRegisters")
     using Reg = size_t;
     using tensor = snippets::TensorDescriptorPtr;
     auto& expressions = linear_ir.get_ops();

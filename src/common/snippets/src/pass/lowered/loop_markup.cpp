@@ -80,6 +80,9 @@ bool LoopMarkup::run(LoweredExprIR& linear_ir) {
         expr_it = std::prev(loop_end_pos);
     }
 
+    linear_ir.serialize("/home/a-sidorova/projects/loops/openvino/graphs/lin_markup.xml",
+                        "/home/a-sidorova/projects/loops/openvino/graphs/lin_markup.bin");
+
     return true;
 }
 

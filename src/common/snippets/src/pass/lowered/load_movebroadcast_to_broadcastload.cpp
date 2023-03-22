@@ -16,7 +16,7 @@ namespace lowered {
 LoadMoveBroadcastToBroadcastLoad::LoadMoveBroadcastToBroadcastLoad() {}
 
 bool LoadMoveBroadcastToBroadcastLoad::run(LoweredExprIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::op::LoadMoveBroadcastToBroadcastLoad")
+    OV_ITT_SCOPED_TASK(ngraph::pass::itt::domains::SnippetsTransform, "Snippets::LoadMoveBroadcastToBroadcastLoad")
     bool modified = false;
 
     for (auto expr_it = linear_ir.begin(); expr_it != linear_ir.end(); expr_it++) {

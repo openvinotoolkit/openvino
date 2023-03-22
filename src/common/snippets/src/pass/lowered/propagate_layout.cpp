@@ -47,14 +47,6 @@ bool PropagateLayout::run(LoweredExprIR& linear_ir) {
                     (*target_td) = new_td;
                 }
             }
-//            else {
-//                const auto& parent_expr = linear_ir.get_expr_by_output(target_td);
-//                const auto& parent_ins = parent_expr->get_inputs();
-//                const auto& parent_in_layout = parent_ins[0]->get_layout();
-//                auto new_td = TensorDescriptor(target_td.get()->get_tensor(), target_td.get()->get_subtensor(),
-//                                               parent_in_layout);
-//                (*target_td) = new_td;
-//            }
         }
     }
 return true;
