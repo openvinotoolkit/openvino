@@ -4,7 +4,7 @@
 
 This page lists issues that you may encounter during the installation and configuration of OpenVINO™, as well as their possible solutions.
 
-.. _install_for_prc:
+.. _install_for_prc::
 
 Errors with Installing via PIP for Users in China
 #################################################
@@ -38,14 +38,14 @@ Users in China might encounter errors while downloading sources via PIP during O
 Issues with Installing OpenVINO on Linux from Docker
 ####################################################
 
-.. _proxy-issues:
+.. _proxy-issues::
 
 Proxy Issues
 ++++++++++++
 
 If you met proxy issues during the installation with Docker, you need set up proxy settings for Docker. See the `Docker guide <https://docs.docker.com/network/proxy/>`__ for more details.
 
-.. _yocto_install_issues:
+.. _yocto_install_issues::
 
 Issues with Creating a Yocto Image for OpenVINO
 ###############################################
