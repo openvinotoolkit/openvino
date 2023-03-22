@@ -903,6 +903,13 @@ public:
         } else if (const auto& a = ov::as_type<ov::AttributeAdapter<ov::element::TypeVector>>(&adapter)) {
             const auto& attrs = a->get();
             m_hash = ov::util::hash_combine({m_hash, std::hash<std::string>()(name + ov::util::join(attrs))});
+        } else if (const auto& a = ov::as_type<ov::AttributeAdapter<ov::Shape>>(&adapter)) {
+            const auto& attrs = a->get();
+            std::vector<size_t> hashes = {m_hash};
+            for (const auto& attr : attrs) {
+                hashes.emplace_back(std::hash<int64_t>()(attr));
+            }
+            m_hash = ov::util::hash_combine(hashes);
         } else {
             throw ov::Exception("Unsupported attribute type for serialization: " + name);
         }
