@@ -90,8 +90,8 @@ Core::Core(const std::string& xmlConfigFile) {
 
     std::string xmlConfigFile_ = ov::findPluginXML(xmlConfigFile);
     if (!xmlConfigFile_.empty())
-            // If XML is default, load default plugins by absolute paths
-            _impl->register_plugins_in_registry(xmlConfigFile_, xmlConfigFile.empty());
+        // If XML is default, load default plugins by absolute paths
+        _impl->register_plugins_in_registry(xmlConfigFile_, xmlConfigFile.empty());
 #ifdef OPENVINO_STATIC_LIBRARY
     // Load statically linked plugins
     _impl->register_plugins_in_registry(::getStaticPluginsRegistry());
