@@ -29,8 +29,6 @@ std::string resolve_extension_path(const std::string& path) {
 
 namespace ov {
 
-#ifndef OPENVINO_STATIC_LIBRARY
-
 std::string findPluginXML(const std::string& xmlFile) {
     std::string xmlConfigFile_ = xmlFile;
     if (xmlConfigFile_.empty()) {
@@ -58,8 +56,6 @@ std::string findPluginXML(const std::string& xmlFile) {
     }
     return xmlConfigFile_;
 }
-
-#endif  // OPENVINO_STATIC_LIBRARY
 
 #define OV_CORE_CALL_STATEMENT(...)             \
     try {                                       \

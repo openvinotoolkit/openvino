@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <map>
+#include <string>
+
 #ifdef OPENVINO_STATIC_LIBRARY
 
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
