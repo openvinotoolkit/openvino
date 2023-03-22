@@ -60,6 +60,13 @@ struct filter {
     double support;
 };
 
+template <typename T_out, typename T_in>
+T_out clip(const T_in& x,
+           const T_out& min = std::numeric_limits<T_out>::min(),
+           const T_out& max = std::numeric_limits<T_out>::max()) {
+    return T_out(std::max(T_in(min), std::min(x, T_in(max))));
+}
+
 static inline double bilinear_filter(double x) {
     if (x < 0.0) {
         x = -x;
@@ -201,15 +208,11 @@ void ImagingResampleHorizontal(T* imOut,
             }
             // IMAGING_PIXEL_I(imOut, xx, yy) = ROUND_UP(ss);
             size_t out_idx = (yy)*imOutShape[1] + xx;
-            imOut[out_idx] = T(round_up<int, double>(ss));
-
-            // TODO: Enable with precision tests
-            // if (std::is_integral<T>()) {
-            //     imOut[out_idx] = T(round_up<int, double>(ss));
-            // }
-            // else {
-            //     imOut[out_idx] = T(ss);
-            // }
+            if (std::is_integral<T>()) {
+                imOut[out_idx] = T(clip<T, int64_t>(round_up<int64_t, double>(ss)));
+            } else {
+                imOut[out_idx] = T(ss);
+            }
         }
     }
 }
@@ -242,15 +245,11 @@ void ImagingResampleVertical(T* imOut,
             // imOut[(imOutShape[0] + yy) * imOutShape[1] + xx] = T(round_up<int, double>(ss));
 
             size_t out_idx = (yy)*imOutShape[1] + xx;
-            imOut[out_idx] = T(round_up<int, double>(ss));
-
-            // TODO: Enable with precision tests
-            // if (std::is_integral<T>()) {
-            //     imOut[out_idx] = T(round_up<int, double>(ss));
-            // }
-            // else {
-            //     imOut[out_idx] = T(ss);
-            // }
+            if (std::is_integral<T>()) {
+                imOut[out_idx] = T(clip<T, int64_t>(round_up<int64_t, double>(ss)));
+            } else {
+                imOut[out_idx] = T(ss);
+            }
         }
     }
 }
