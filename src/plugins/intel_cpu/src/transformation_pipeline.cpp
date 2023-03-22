@@ -81,6 +81,7 @@
 
 // LPT transformations
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
+#include "low_precision/add.hpp"
 #include "low_precision/convolution_backprop_data.hpp"
 #include "low_precision/convert_subtract_constant.hpp"
 #include "low_precision/network_helper.hpp"
@@ -496,6 +497,17 @@ void Transformations::Lpt(const bool hasINT16orINT32Levels, const std::vector<ov
         [&defaultPrecisions](const_node_ptr& node) -> bool {
             return LayerTransformation::isAsymmetricQuantization(node, defaultPrecisions) ||
                 WeightableLayerTransformation::isAsymmetricOnWeights(node, defaultPrecisions);
+        });
+    lptManager.get_pass_config()->set_callback<ngraph::pass::low_precision::AddTransformation>(
+        [](const_node_ptr& node) -> bool {
+            auto check_input = [&node](const size_t idx) {
+                const auto dq = ngraph::pass::low_precision::NetworkHelper::getDequantization(node, {}, idx);
+                const auto data = dq.data.get_node_shared_ptr();
+                return data != nullptr &&
+                       (ov::is_type<ov::opset1::Convolution>(data) || ov::is_type<ov::opset1::GroupConvolution>(data) ||
+                        ov::is_type<ov::opset1::ConvolutionBackpropData>(data) || ov::is_type<ov::opset1::MatMul>(data));
+            };
+            return check_input(0) || check_input(1);
         });
 
     lptManager.get_pass_config()->disable<ngraph::pass::low_precision::MultiplyToGroupConvolutionTransformation>();
