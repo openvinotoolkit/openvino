@@ -45,10 +45,10 @@ jobs:
         with:
           python-version: '3.8'
 
-      - name: Setup GNinja
-        uses: ashutoshvarma/setup-ninja@master
-        with:
-          version: 1.10.2
+      #- name: Setup GNinja
+      #  uses: ashutoshvarma/setup-ninja@master
+      #  with:
+      #    version: 1.10.2
       
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
@@ -92,7 +92,6 @@ jobs:
           cc: ${{ matrix.config.cc }}
           cxx: ${{ matrix.config.cxx }}
           configure-options: >
-            -GNinja
             -DENABLE_PYTHON=ON
             -DCMAKE_VERBOSE_MAKEFILE=ON
             -DENABLE_FASTER_BUILD=ON
@@ -108,7 +107,7 @@ jobs:
           target: all
           parallel: ${{ steps.cpu-cores.outputs.count }}
           run-test: true
-          ctest-options: -V -L OV IR_FE TF_FE ONNX_FE PADDLE_FE
+          ctest-options: -V -L OV
 
       - name: ls all
         run:  ls -laR .
