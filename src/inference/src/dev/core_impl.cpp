@@ -311,6 +311,40 @@ ov::CoreImpl::CoreImpl(bool _newAPI) : m_new_api(_newAPI) {
     }
 }
 
+void ov::CoreImpl::register_compile_time_plugins() {
+    std::lock_guard<std::mutex> lock(get_mutex());
+
+    const decltype(::getCompiledPluginsRegistry())& plugins = getCompiledPluginsRegistry();
+#ifdef OPENVINO_STATIC_LIBRARY
+    for (const auto& plugin : static_registry) {
+        const auto& deviceName = plugin.first;
+        if (deviceName.find('.') != std::string::npos) {
+            OPENVINO_THROW() << "Device name must not contain dot '.' symbol";
+        }
+        if (pluginRegistry.find(deviceName) == pluginRegistry.end()) {
+            const auto& value = plugin.second;
+            ov::AnyMap config = any_copy(value.m_default_config);
+            PluginDescriptor desc{value.m_create_plugin_func, config, value.m_create_extension_func};
+            pluginRegistry[deviceName] = desc;
+            add_mutex(deviceName);
+        }
+    }
+#else
+
+    for (const auto& plugin : plugins) {
+        const auto& deviceName = plugin.first;
+        const auto& pluginPath = ov::util::get_compiled_plugin_path(plugin.second.m_plugin_path);
+
+        if (pluginRegistry.find(deviceName) == pluginRegistry.end() && FileUtils::fileExist(pluginPath)) {
+            ov::AnyMap config = any_copy(plugin.second.m_default_config);
+            PluginDescriptor desc{pluginPath, config};
+            pluginRegistry[deviceName] = desc;
+            add_mutex(deviceName);
+        }
+    }
+#endif
+}
+
 void ov::CoreImpl::register_plugins_in_registry(const std::string& xml_config_file, const bool& by_abs_path) {
     std::lock_guard<std::mutex> lock(get_mutex());
 

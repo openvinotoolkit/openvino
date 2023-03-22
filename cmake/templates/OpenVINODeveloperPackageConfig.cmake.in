@@ -29,7 +29,7 @@ endforeach()
 message(" ")
 
 # activate generation of plugins.xml
-set(GENERATE_PLUGINS_XML ON)
+set(ENABLE_PLUGINS_XML ON)
 
 # for samples in 3rd party projects
 if(ENABLE_SAMPLES)

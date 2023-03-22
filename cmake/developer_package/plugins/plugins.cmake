@@ -227,7 +227,7 @@ macro(ie_register_plugins_dynamic)
 
     # Combine all <device_name>.xml files into plugins.xml
 
-    if(GENERATE_PLUGINS_XML)
+    if(ENABLE_PLUGINS_XML)
         add_custom_command(TARGET ${IE_REGISTER_MAIN_TARGET} POST_BUILD
                           COMMAND
                             "${CMAKE_COMMAND}"
@@ -286,7 +286,6 @@ endfunction()
 function(ie_generate_plugins_hpp)
     set(device_mapping)
     set(device_configs)
-    set(plugin_mapping)
     set(as_extension)
     foreach(name IN LISTS PLUGIN_FILES)
         string(REPLACE ":" ";" name "${name}")
@@ -297,15 +296,21 @@ function(ie_generate_plugins_hpp)
 
         # create device mapping: pseudo device => actual device
         list(GET name 0 device_name)
-        if(${device_name}_PSEUDO_PLUGIN_FOR)
-            list(APPEND device_mapping "${device_name}:${${device_name}_PSEUDO_PLUGIN_FOR}")
+        if(BUILD_SHARED_LIBS)
+            list(GET name 1 library_name)
+            ie_plugin_get_file_name(${library_name} library_name)
+            list(APPEND device_mapping "${device_name}:${library_name}")
         else()
-            list(APPEND device_mapping "${device_name}:${device_name}")
-        endif()
+            if(${device_name}_PSEUDO_PLUGIN_FOR)
+                list(APPEND device_mapping "${device_name}:${${device_name}_PSEUDO_PLUGIN_FOR}")
+            else()
+                list(APPEND device_mapping "${device_name}:${device_name}")
+            endif()
 
-        # register plugin as extension
-        if(${device_name}_AS_EXTENSION)
-            list(APPEND as_extension -D "${device_name}_AS_EXTENSION=ON")
+            # register plugin as extension
+            if(${device_name}_AS_EXTENSION)
+                list(APPEND as_extension -D "${device_name}_AS_EXTENSION=ON")
+            endif()
         endif()
 
         # add default plugin config options
@@ -314,10 +319,6 @@ function(ie_generate_plugins_hpp)
             string(REPLACE ";" "@" config "${${device_name}_CONFIG}")
             list(APPEND device_configs -D "${device_name}_CONFIG=${config}")
         endif()
-
-        list(GET name 1 library_name)
-        ie_plugin_get_file_name(${library_name} library_name)
-        list(APPEND plugin_mapping "${device_name}:${library_name}")
     endforeach()
 
     # add plugins to libraries including ie_plugins.hpp
@@ -333,7 +334,7 @@ function(ie_generate_plugins_hpp)
                        COMMAND
                         "${CMAKE_COMMAND}"
                         -D "IE_DEVICE_MAPPING=${device_mapping}"
-                        -D "IE_PLUGIN_MAPPING=${plugin_mapping}"
+                        -D "OV_DYNAMIC=${BUILD_SHARED_LIBS}"
                         -D "IE_PLUGINS_HPP_HEADER_IN=${plugins_hpp_in}"
                         -D "IE_PLUGINS_HPP_HEADER=${ie_plugins_hpp}"
                         ${device_configs}

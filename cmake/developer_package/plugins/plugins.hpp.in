@@ -19,23 +19,20 @@ struct Value {
     std::map<std::string, std::string> m_default_config;
 };
 
+#else
+
+struct Value {
+    std::string m_plugin_path;
+    std::map<std::string, std::string> m_default_config;
+};
+
+#endif
+
 using Key = std::string;
 using PluginsStaticRegistry = std::map<Key, Value>;
 
-inline const std::map<Key, Value> getStaticPluginsRegistry() {
+
+inline const std::map<Key, Value> getCompiledPluginsRegistry() {
 @IE_PLUGINS_MAP_DEFINITION@
     return plugins_hpp;
 }
-
-#else
-
-using Key = std::string;
-using Value = std::string;
-using PluginsCompiledRegistry = std::map<Key, Value>;
-
-inline const std::map<Key, Value> getCompiledPluginsRegistry() {
-@IE_PLUGINS_COMPILED@
-    return plugins_hpp;
-}
-
-#endif

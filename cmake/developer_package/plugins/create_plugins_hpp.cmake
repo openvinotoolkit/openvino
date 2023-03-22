@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-foreach(var IE_DEVICE_MAPPING IE_PLUGIN_MAPPING IE_PLUGINS_HPP_HEADER IE_PLUGINS_HPP_HEADER_IN)
+foreach(var IE_DEVICE_MAPPING OV_DYNAMIC IE_PLUGINS_HPP_HEADER IE_PLUGINS_HPP_HEADER_IN)
     if(NOT DEFINED ${var})
         message(FATAL_ERROR "${var} is required, but not defined")
     endif()
@@ -19,20 +19,6 @@ foreach(dev_map IN LISTS IE_DEVICE_MAPPING)
     list(GET dev_map 0 mapped_dev_name)
     list(GET dev_map 1 actual_dev_name)
 
-    # common
-    set(_IE_CREATE_PLUGIN_FUNC "CreatePluginEngine${actual_dev_name}")
-    set(_IE_CREATE_EXTENSION_FUNC "CreateExtensionShared${actual_dev_name}")
-
-    # declarations
-    set(IE_PLUGINS_DECLARATIONS "${IE_PLUGINS_DECLARATIONS}
-IE_DEFINE_PLUGIN_CREATE_FUNCTION_DECLARATION(${_IE_CREATE_PLUGIN_FUNC});")
-    if(${actual_dev_name}_AS_EXTENSION)
-        set(IE_PLUGINS_DECLARATIONS "${IE_PLUGINS_DECLARATIONS}
-IE_DEFINE_EXTENSION_CREATE_FUNCTION_DECLARATION(${_IE_CREATE_EXTENSION_FUNC});")
-    else()
-        set(_IE_CREATE_EXTENSION_FUNC "nullptr")
-    endif()
-
     # definitions
     set(dev_config "{")
     if(${mapped_dev_name}_CONFIG)
@@ -48,24 +34,31 @@ IE_DEFINE_EXTENSION_CREATE_FUNCTION_DECLARATION(${_IE_CREATE_EXTENSION_FUNC});")
     endif()
     set(dev_config "${dev_config}}")
 
-    set(IE_PLUGINS_MAP_DEFINITION "${IE_PLUGINS_MAP_DEFINITION}
+
+    if(NOT OV_DYNAMIC)
+        # common
+        set(_IE_CREATE_PLUGIN_FUNC "CreatePluginEngine${actual_dev_name}")
+        set(_IE_CREATE_EXTENSION_FUNC "CreateExtensionShared${actual_dev_name}")
+
+        # declarations
+        set(IE_PLUGINS_DECLARATIONS "${IE_PLUGINS_DECLARATIONS}
+        IE_DEFINE_PLUGIN_CREATE_FUNCTION_DECLARATION(${_IE_CREATE_PLUGIN_FUNC});")
+        if(${actual_dev_name}_AS_EXTENSION)
+            set(IE_PLUGINS_DECLARATIONS "${IE_PLUGINS_DECLARATIONS}
+            IE_DEFINE_EXTENSION_CREATE_FUNCTION_DECLARATION(${_IE_CREATE_EXTENSION_FUNC});")
+        else()
+            set(_IE_CREATE_EXTENSION_FUNC "nullptr")
+        endif()
+
+        set(IE_PLUGINS_MAP_DEFINITION "${IE_PLUGINS_MAP_DEFINITION}
         { \"${mapped_dev_name}\", Value { ${_IE_CREATE_PLUGIN_FUNC}, ${_IE_CREATE_EXTENSION_FUNC}, ${dev_config} } },")
+    else()
+        set(IE_PLUGINS_MAP_DEFINITION "${IE_PLUGINS_MAP_DEFINITION}
+        { \"${mapped_dev_name}\", Value { \"${actual_dev_name}\", ${dev_config} } },")
+    endif()
 endforeach()
 
 set(IE_PLUGINS_MAP_DEFINITION "${IE_PLUGINS_MAP_DEFINITION}
-    };\n")
-
-
-set(IE_PLUGINS_COMPILED
-    "    static const std::map<Key, Value> plugins_hpp = {")
-foreach(plugin IN LISTS IE_PLUGIN_MAPPING)
-    string(REPLACE ":" ";" plugin "${plugin}")
-    list(GET plugin 0 key)
-    list(GET plugin 1 value)
-    set(IE_PLUGINS_COMPILED       "${IE_PLUGINS_COMPILED}
-        { \"${key}\", \"${value}\" },")
-endforeach()
-set(IE_PLUGINS_COMPILED       "${IE_PLUGINS_COMPILED}
     };\n")
 
 configure_file("${IE_PLUGINS_HPP_HEADER_IN}" "${IE_PLUGINS_HPP_HEADER}" @ONLY)

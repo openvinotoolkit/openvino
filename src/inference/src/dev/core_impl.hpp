@@ -212,54 +212,10 @@ public:
                              std::string& deviceName,
                              ov::AnyMap& config) const;
 
-#ifdef OPENVINO_STATIC_LIBRARY
-
-    /**
-     * @brief Register plugins for devices using statically defined configuration
-     * @note The function supports UNICODE path
-     * @param static_registry a statically defined configuration with device / plugin information
-     */
-    void register_plugins_in_registry(const decltype(::getStaticPluginsRegistry())& static_registry) {
-        std::lock_guard<std::mutex> lock(get_mutex());
-
-        for (const auto& plugin : static_registry) {
-            const auto& deviceName = plugin.first;
-            if (deviceName.find('.') != std::string::npos) {
-                IE_THROW() << "Device name must not contain dot '.' symbol";
-            }
-            if (pluginRegistry.find(deviceName) == pluginRegistry.end()) {
-                const auto& value = plugin.second;
-                ov::AnyMap config = any_copy(value.m_default_config);
-                PluginDescriptor desc{value.m_create_plugin_func, config, value.m_create_extension_func};
-                pluginRegistry[deviceName] = desc;
-                add_mutex(deviceName);
-            }
-        }
-    }
-
-#else
-
     /*
-     * @brief Register plugins according to the build configuration in the shared library case
+     * @brief Register plugins according to the build configuration
      */
-    void register_compile_time_plugins() {
-        std::lock_guard<std::mutex> lock(get_mutex());
-
-        std::map<std::string, std::string> plugins = getCompiledPluginsRegistry();
-
-        for (const auto& plugin : plugins) {
-            const auto& deviceName = plugin.first;
-            const auto& pluginPath = ov::util::get_compiled_plugin_path(plugin.second);
-
-            if (pluginRegistry.find(deviceName) == pluginRegistry.end() && FileUtils::fileExist(pluginPath)) {
-                PluginDescriptor desc{pluginPath};
-                pluginRegistry[deviceName] = desc;
-                add_mutex(deviceName);
-            }
-        }
-    }
-
-#endif
+    void register_compile_time_plugins();
 
     //
     // ICore public API

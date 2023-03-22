@@ -77,13 +77,8 @@ Core::Core(const std::string& xml_config_file) {
         OV_CORE_CALL_STATEMENT(
             // If XML is default, load default plugins by absolute paths
             _impl->register_plugins_in_registry(xmlConfigFile, xml_config_file.empty());)
-#ifdef OPENVINO_STATIC_LIBRARY
-    // Load statically linked plugins
-    OV_CORE_CALL_STATEMENT(_impl->register_plugins_in_registry(::getStaticPluginsRegistry());)
-#else
-    // Load plugins from pre-compiled list
+    // Load plugins from the pre-compiled list
     OV_CORE_CALL_STATEMENT(_impl->register_compile_time_plugins();)
-#endif
 }
 
 std::map<std::string, Version> Core::get_versions(const std::string& device_name) const {
