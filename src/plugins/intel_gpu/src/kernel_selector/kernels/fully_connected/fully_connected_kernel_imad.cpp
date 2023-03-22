@@ -91,7 +91,7 @@ bool FullyConnectedKernelIMAD::Validate(const Params& params, const optional_par
     const auto& wei = fc_params.weights;
     auto out_l = fc_params.outputs[0].GetLayout();
 
-    // Dynamic kernel doesn't support dynamic weights yet
+    // Dynamic kernel doesn't support dynamic weights
     if (fc_params.is_shape_agnostic && in.is_dynamic()) {
         if ((out_l == DataLayout::bfyx && in.Y().v == 0) ||
             (out_l == DataLayout::bf && in.Feature().v == 0))
