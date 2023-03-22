@@ -4342,7 +4342,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_no_min_no_max_inf) {
     test_case.add_input<float>(data);
 
     test_case.add_expected_output<float>(Shape{2, 4}, expected_output);
-    test_case.run_with_tolerance_as_fp(0);
+    test_case.run_with_tolerance_as_fp(0.f);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_clip_no_min_set_max) {

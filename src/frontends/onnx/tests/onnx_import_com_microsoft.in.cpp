@@ -829,7 +829,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_3) {
     test_case.add_input<int>(mask);
     test_case.add_expected_output<float>(output);
     test_case.add_expected_output<float>(present);
-    test_case.run_with_tolerance_as_fp(1e-7);
+    test_case.run_with_tolerance_as_fp(1e-7f);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_4) {
@@ -868,7 +868,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_mask_index_4) {
     test_case.add_input<int>(mask);
     test_case.add_expected_output<float>(output);
     test_case.add_expected_output<float>(present);
-    test_case.run_with_tolerance_as_fp(1e-7);
+    test_case.run_with_tolerance_as_fp(1e-7f);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_past) {
@@ -947,7 +947,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_past) {
     test_case.add_input<float>(past);
     test_case.add_expected_output<float>(output);
     test_case.add_expected_output<float>(present);
-    test_case.run_with_tolerance_as_fp(1e-6);
+    test_case.run_with_tolerance_as_fp(1e-6f);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_extra_add) {
@@ -1004,7 +1004,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_extra_add) {
     test_case.add_input<float>(extra_add);
     test_case.add_expected_output<float>(output);
     test_case.add_expected_output<float>(present);
-    test_case.run_with_tolerance_as_fp(1e-7);
+    test_case.run_with_tolerance_as_fp(1e-7f);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_dynamic_shapes) {
@@ -1106,7 +1106,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_attention_dynamic_shapes) {
     test_case.add_input<float>(Shape{2, 2, 2, 5, 2}, past);
     test_case.add_expected_output<float>(Shape{2, 4, 4}, output);
     test_case.add_expected_output<float>(Shape{2, 2, 2, 9, 2}, present);
-    test_case.run_with_tolerance_as_fp(1e-6);
+    test_case.run_with_tolerance_as_fp(1e-6f);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fusedgemm_abc) {
@@ -1177,7 +1177,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fusedgemm_abc) {
     test_case.add_input<float>(Shape{6, 4}, inputB);
     test_case.add_input<float>(Shape{3, 4}, inputC);
     test_case.add_expected_output<float>(Shape{3, 4}, output);
-    test_case.run_with_tolerance_as_fp(1e-6);
+    test_case.run_with_tolerance_as_fp(1e-6f);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_com_microsoft_fused_conv_hard_sigmoid) {
