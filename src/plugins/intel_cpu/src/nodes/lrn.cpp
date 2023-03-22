@@ -3,13 +3,16 @@
 //
 
 #include "lrn.h"
-#include <string>
+
 #include <dnnl_extension_utils.h>
 #include <ngraph/opsets/opset1.hpp>
 #include <memory_desc/cpu_memory_desc_utils.h>
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include <common/primitive_hashing_utils.hpp>
 #include <utils/shape_inference/shape_inference_pass_through.hpp>
+
+#include <memory>
+#include <string>
 
 using namespace InferenceEngine;
 
@@ -26,6 +29,7 @@ struct LrnKey {
     int k;
     float alpha;
     float beta;
+    dnnl::primitive_attr attr;
 
     size_t hash() const;
     bool operator==(const LrnKey& rhs) const;
@@ -37,7 +41,7 @@ size_t LrnKey::hash() const {
 
     size_t seed = 0;
 
-    seed = hash_combine(seed, get_md_hash(inp0->getDnnlDesc().data));
+    seed = hash_combine(seed, get_md_hash(*inp0->getDnnlDesc().get()));
     seed = hash_combine(seed, implType);
     seed = hash_combine(seed, alg);
     seed = hash_combine(seed, size);
@@ -172,18 +176,29 @@ void Lrn::prepareParams() {
 
     auto inpDesc = getParentEdgeAt(0)->getMemory().GetDescWithType<DnnlMemoryDesc>();
 
-    LrnKey key = {inpDesc, selected_pd->getImplementationType(), alg, size, k, alpha, beta};
+    dnnl::primitive_attr attr;
+    attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
+
+    LrnKey key = {inpDesc, selected_pd->getImplementationType(), alg, size, k, alpha, beta, attr};
     auto engine = getEngine();
 
     auto builder = [&engine](const LrnKey& key) -> dnnl::primitive {
-        DnnlDesriptor desc(std::shared_ptr<dnnl::lrn_forward::desc>(
-            new dnnl::lrn_forward::desc(dnnl::prop_kind::forward_scoring, key.alg, key.inp0->getDnnlDesc(), key.size, key.alpha, key.beta, key.k)));
+        auto desc = std::make_shared<dnnl::lrn_forward::primitive_desc>(
+            engine,
+            dnnl::prop_kind::forward_inference,
+            key.alg,
+            key.inp0->getDnnlDesc(),
+            key.inp0->getDnnlDesc(),
+            key.size,
+            key.alpha,
+            key.beta,
+            key.k,
+            key.attr);
 
-        dnnl::primitive_attr attr;
-        attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
         dnnl::lrn_forward::primitive_desc prim_desc;
-        dnnl::primitive_desc_iterator itpd = desc.createPrimitiveDescriptorIterator(engine, attr);
-        while (static_cast<bool>(itpd)) {
+        dnnl::primitive_desc_iterator itpd = *desc;
+
+        while (itpd) {
             impl_desc_type impl_type = parse_impl_name(itpd.impl_info_str());
             if (impl_type == key.implType) {
                 prim_desc = itpd.get();
@@ -192,6 +207,7 @@ void Lrn::prepareParams() {
             if (!itpd.next_impl())
                 return dnnl::lrn_forward();
         }
+
         return dnnl::lrn_forward(prim_desc);
     };
 
@@ -215,13 +231,22 @@ bool Lrn::created() const {
 }
 
 void Lrn::createDescriptor(const std::vector<MemoryDescPtr> &inputDesc,
-                                     const std::vector<MemoryDescPtr> &outputDesc) {
+                           const std::vector<MemoryDescPtr> &outputDesc) {
     auto inpDesc = inputDesc[0]->isDefined() ? inputDesc[0] : MemoryDescUtils::makeDummyDesc(*inputDesc[0]);
     DnnlMemoryDescPtr definedInpMemDesc = MemoryDescUtils::convertToDnnlMemoryDesc(inpDesc);
     const auto& in_candidate = definedInpMemDesc->getDnnlDesc();
 
-    DnnlDesriptor desc(std::shared_ptr<dnnl::lrn_forward::desc>(
-            new dnnl::lrn_forward::desc(dnnl::prop_kind::forward_scoring, alg, in_candidate, size, alpha, beta, k)));
+    auto desc = dnnl::lrn_forward::primitive_desc(
+        getEngine(),
+        dnnl::prop_kind::forward_inference,
+        alg,
+        in_candidate,
+        in_candidate,
+        size,
+        alpha,
+        beta,
+        k);
+
     descs.push_back(desc);
 }
 

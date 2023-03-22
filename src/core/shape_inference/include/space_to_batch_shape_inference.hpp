@@ -5,10 +5,11 @@
 #pragma once
 
 #include <cstdint>
-#include <openvino/core/validation_util.hpp>
-#include <openvino/op/space_to_batch.hpp>
-#include <openvino/opsets/opset2.hpp>
 
+#include "dimension_util.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/space_to_batch.hpp"
+#include "openvino/opsets/opset2.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -19,6 +20,7 @@ template <class TShape>
 std::vector<TShape> shape_infer(const SpaceToBatch* op,
                                 const std::vector<TShape>& input_shapes,
                                 const std::map<size_t, HostTensorPtr>& constant_data = {}) {
+    using namespace ov::util;
     using TVal = typename TShape::value_type::value_type;
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 4);
 
@@ -45,30 +47,45 @@ std::vector<TShape> shape_infer(const SpaceToBatch* op,
 
     if (data_shape.rank().is_static()) {
         constexpr size_t spatial_dim_offset = 1;
+        const auto data_rank_size = data_shape.size();
         NODE_VALIDATION_CHECK(op,
-                              (data_shape.size() > spatial_dim_offset),
+                              (data_rank_size > spatial_dim_offset),
                               "The data tensor with rank lower than 2 is not supported (data rank: ",
-                              data_shape.size(),
+                              data_rank_size,
                               ")");
 
-        auto out_shape = data_shape;
-        std::vector<int64_t> block, pads_begin, pads_end;
-        if (get_data_as_int64<TShape>(1, op, block, constant_data) &&
-            get_data_as_int64<TShape>(2, op, pads_begin, constant_data) &&
-            get_data_as_int64<TShape>(3, op, pads_end, constant_data)) {
-            TVal block_prod = std::accumulate(begin(block), end(block), 1, std::multiplies<int64_t>());
+        TShape out_shape;
+        out_shape.reserve(data_rank_size);
 
-            out_shape[0] *= block_prod;
-            for (auto idx = spatial_dim_offset; idx < out_shape.size(); ++idx) {
-                NODE_VALIDATION_CHECK(op, block[idx] > 0, "block_shape values must be greater than 0");
-                if (out_shape[idx].is_static() || out_shape[idx] != Dimension::dynamic()) {
-                    const auto padded_dim = out_shape[idx] + static_cast<TVal>(pads_begin[idx] + pads_end[idx]);
-                    const auto divisor = static_cast<TVal>(block[idx]);
-                    out_shape[idx] = padded_dim / divisor;
-                    check_divided_result(op, out_shape[idx], padded_dim, divisor);
-                }
-            }
+        auto blocks = get_input_const_data_as<TShape, int64_t>(op, 1, constant_data);
+        if (blocks) {
+            TVal block_prod = std::accumulate(begin(*blocks), end(*blocks), 1, std::multiplies<int64_t>());
+            out_shape.push_back(data_shape[0] * block_prod);
+        } else {
+            out_shape.emplace_back(dim::inf_bound);
         }
+
+        std::vector<int64_t> pads_begin, pads_end;
+        if (blocks && get_data_as_int64<TShape>(2, op, pads_begin, constant_data) &&
+            get_data_as_int64<TShape>(3, op, pads_end, constant_data)) {
+            for (auto idx = spatial_dim_offset; idx < data_rank_size; ++idx) {
+                NODE_VALIDATION_CHECK(op, (*blocks)[idx] > 0, "block_shape values must be greater than 0");
+
+                const auto padded_dim = data_shape[idx] + static_cast<TVal>(pads_begin[idx] + pads_end[idx]);
+                const auto divisor = static_cast<TVal>((*blocks)[idx]);
+
+                if (padded_dim.get_max_length() == dim::inf_bound) {
+                    out_shape.emplace_back(ceil_div(padded_dim.get_min_length(), divisor), dim::inf_bound);
+                } else {
+                    out_shape.push_back(padded_dim / divisor);
+                }
+
+                check_divided_result(op, out_shape[idx], padded_dim, divisor);
+            }
+        } else {
+            out_shape.insert(out_shape.end(), data_rank_size - spatial_dim_offset, dim::inf_bound);
+        }
+
         return {out_shape};
     } else {
         return {PartialShape::dynamic()};

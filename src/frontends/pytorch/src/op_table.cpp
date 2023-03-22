@@ -12,7 +12,7 @@ namespace frontend {
 namespace pytorch {
 namespace op {
 
-#define OP_CONVERTER(op) OutputVector op(NodeContext& node)
+#define OP_CONVERTER(op) OutputVector op(const NodeContext& node)
 
 OP_CONVERTER(translate_adaptive_avg_pool3d);
 OP_CONVERTER(translate_adaptive_max_pool2d);
@@ -25,6 +25,7 @@ OP_CONVERTER(translate_as_tensor);
 OP_CONVERTER(translate_avg_poolnd);
 OP_CONVERTER(translate_bool);
 OP_CONVERTER(translate_batch_norm);
+OP_CONVERTER(translate_bitwise_not);
 OP_CONVERTER(translate_cat);
 OP_CONVERTER(translate_clamp);
 OP_CONVERTER(translate_constant);
@@ -129,11 +130,12 @@ OP_CONVERTER(translate_zeros_like);
 
 }  // namespace op
 
-const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
+const std::map<std::string, CreatorFunction> get_supported_ops() {
     return {
         {"aten::__and__", op::translate_1to1_match_2_inputs<opset10::LogicalAnd>},  // TODO: cover numerical cases
         {"aten::__getitem__", op::translate_getitem},
         {"aten::__not__", op::translate_1to1_match_1_inputs<opset10::LogicalNot>},
+        {"aten::__or__", op::translate_1to1_match_2_inputs<opset10::LogicalOr>},
         {"aten::_convolution", op::translate_convolution},
         {"aten::_convolution_mode", op::translate_convolution_mode},
         {"aten::_set_item", op::translate_set_item},
@@ -163,7 +165,9 @@ const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
         {"aten::avg_pool1d", op::translate_avg_poolnd},
         {"aten::avg_pool2d", op::translate_avg_poolnd},
         {"aten::avg_pool3d", op::translate_avg_poolnd},
+        {"aten::baddbmm", op::translate_addmm},
         {"aten::batch_norm", op::translate_batch_norm},
+        {"aten::bitwise_not", op::translate_bitwise_not},
         {"aten::bmm", op::translate_1to1_match_2_inputs<opset10::MatMul>},
         {"aten::Bool", op::translate_bool},
         {"aten::cat", op::translate_cat},
@@ -254,6 +258,7 @@ const std::map<std::string, PytorchCreatorFunction> get_supported_ops() {
         {"aten::narrow", op::translate_narrow},
         {"aten::ne", op::translate_1to1_match_2_inputs_align_types<opset10::NotEqual>},
         {"aten::neg", op::translate_neg},
+        {"aten::new_empty", op::translate_new_zeros},
         {"aten::new_full", op::translate_new_full},
         {"aten::new_ones", op::translate_new_ones},
         {"aten::new_zeros", op::translate_new_zeros},

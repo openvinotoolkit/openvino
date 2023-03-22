@@ -98,7 +98,7 @@ TEST(pattern, matcher_pass) {
 
         pass::GraphRewrite pass;
         pass.add_matcher<TestMatcherPass>();
-        pass.run_on_function(f);
+        pass.run_on_model(f);
 
         // Parameter->Relu->Result
         ASSERT_TRUE(f->get_ops().size() == 3);

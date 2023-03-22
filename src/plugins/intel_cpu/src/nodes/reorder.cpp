@@ -118,9 +118,58 @@ void Reorder::executeDynamicImpl(dnnl::stream strm) {
 }
 
 void Reorder::prepareParams() {
-    if (!isOptimized) {
-        auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-        auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    if (isOptimized)
+        return;
+
+    auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    if (!dstMemPtr || !dstMemPtr->isAllocated())
+        IE_THROW() << "Destination memory didn't allocate.";
+    if (!srcMemPtr || !srcMemPtr->isAllocated())
+        IE_THROW() << "Input memory didn't allocate.";
+    if (getSelectedPrimitiveDescriptor() == nullptr)
+        IE_THROW() << "Preferable primitive descriptor is not set.";
+
+    auto isSupportedDesc = [](const MemoryDesc& desc) {
+        if (!desc.isDefined()) {
+            return false;
+        }
+        if (!(desc.getType() & MemoryDescType::Blocked)) {
+            return false;
+        }
+        if ((desc.getType() & MemoryDescType::Dnnl) && !desc.as<const DnnlMemoryDesc>()->hasEmptyExtraData()) {
+            return false;
+        }
+        return true;
+    };
+
+    const auto&  parentDesc = srcMemPtr->getDesc();
+    const auto&  childDesc = dstMemPtr->getDesc();
+    if ((isNspc2NcspCase || isNcsp2NspcCase) && isSupportedDesc(childDesc) && isSupportedDesc(parentDesc)) {
+        const auto &inDims = srcMemPtr->getStaticDims();
+        // Check that child strides are consistent with parent dims if the child is inplace.
+        // The strides must be dense except for the channel one (since the child num channels might differ)
+        const auto childSubBlocksAreDense = [&]() {
+            const auto& dstStrides = childDesc.as<BlockedMemoryDesc>()->getStrides();
+            const auto& dstOrder = childDesc.as<BlockedMemoryDesc>()->getOrder();
+            const size_t channelDim = 1;
+            if (dstStrides.back() != 1)
+                return false;
+            for (int i = inDims.size() - 1; i > 0; i--) {
+                if (dstStrides[i-1] != dstStrides[i] * inDims[dstOrder[i]] && dstOrder[i] != channelDim)
+                    return false;
+            }
+            return true;
+        };
+        if (isNspc2NcspCase) {
+            canUseNspc2Ncsp = inDims[1] <= 64 && inDims[1] >= 16 &&
+                (parentDesc.as<BlockedMemoryDesc>()->getPaddedElementsCount() / inDims[1]) >= 128 &&
+                childSubBlocksAreDense();
+        } else if (isNcsp2NspcCase) {
+            canUseNcsp2Nspc = childSubBlocksAreDense();
+        }
+    }
+    if (!canUseNcsp2Nspc && !canUseNspc2Ncsp) {
         if (!dstMemPtr || !dstMemPtr->isAllocated())
             IE_THROW() << "Destination memory didn't allocate.";
         if (!srcMemPtr || !srcMemPtr->isAllocated())
@@ -128,63 +177,15 @@ void Reorder::prepareParams() {
         if (getSelectedPrimitiveDescriptor() == nullptr)
             IE_THROW() << "Preferable primitive descriptor is not set.";
 
-        auto isSupportedDesc = [](const MemoryDesc& desc) {
-            if (!desc.isDefined()) {
-                return false;
-            }
-            if (!(desc.getType() & MemoryDescType::Blocked)) {
-                return false;
-            }
-            if ((desc.getType() & MemoryDescType::Dnnl) && !desc.as<const DnnlMemoryDesc>()->hasEmptyExtraData()) {
-                return false;
-            }
-            return true;
-        };
-
-        const auto&  parentDesc = srcMemPtr->getDesc();
-        const auto&  childDesc = dstMemPtr->getDesc();
-        if ((isNspc2NcspCase || isNcsp2NspcCase) && isSupportedDesc(childDesc) && isSupportedDesc(parentDesc)) {
-            const auto &inDims = srcMemPtr->getStaticDims();
-            // Check that child strides are consistent with parent dims if the child is inplace.
-            // The strides must be dense except for the channel one (since the child num channels might differ)
-            const auto childSubBlocksAreDense = [&]() {
-                const auto& dstStrides = childDesc.as<BlockedMemoryDesc>()->getStrides();
-                const auto& dstOrder = childDesc.as<BlockedMemoryDesc>()->getOrder();
-                const size_t channelDim = 1;
-                if (dstStrides.back() != 1)
-                    return false;
-                for (int i = inDims.size() - 1; i > 0; i--) {
-                    if (dstStrides[i-1] != dstStrides[i] * inDims[dstOrder[i]] && dstOrder[i] != channelDim)
-                        return false;
-                }
-                return true;
-            };
-            if (isNspc2NcspCase) {
-                canUseNspc2Ncsp = inDims[1] <= 64 && inDims[1] >= 16 &&
-                                  (parentDesc.as<BlockedMemoryDesc>()->getPaddedElementsCount() / inDims[1]) >= 128 &&
-                                  childSubBlocksAreDense();
-            } else if (isNcsp2NspcCase) {
-                canUseNcsp2Nspc = childSubBlocksAreDense();
-            }
-        }
-        if (!canUseNcsp2Nspc && !canUseNspc2Ncsp) {
-            if (!dstMemPtr || !dstMemPtr->isAllocated())
-                IE_THROW() << "Destination memory didn't allocate.";
-            if (!srcMemPtr || !srcMemPtr->isAllocated())
-                IE_THROW() << "Input memory didn't allocate.";
-            if (getSelectedPrimitiveDescriptor() == nullptr)
-                IE_THROW() << "Preferable primitive descriptor is not set.";
-
-            createReorderPrimitive(srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), srcMemPtr->GetData(),
-                                   dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), dstMemPtr->GetData());
-        }
+        createReorderPrimitive(srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), srcMemPtr->GetData(),
+                               dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc(), dstMemPtr->GetData());
     }
 }
 
 void Reorder::createReorderPrimitive(const dnnl::memory::desc& srcDesc,
-                                               void* srcPtr,
-                                               const dnnl::memory::desc& dstDesc,
-                                               void* dstPtr) {
+                                     void* srcPtr,
+                                     const dnnl::memory::desc& dstDesc,
+                                     void* dstPtr) {
     auto selectedPD = getSelectedPrimitiveDescriptor();
     if (!selectedPD)
         IE_THROW() << "Preferable primitive descriptor is not set.";
@@ -340,23 +341,28 @@ void Reorder::execute(dnnl::stream strm) {
 }
 
 void Reorder::setDynamicBatchLim(int lim) {
+    std::cout << getName() << " setDynamicBatchLim" << "\n";
+
     dynBatchLim = lim;
-    if (prim) {
-        auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-        auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-        memory::desc src_d = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-        memory::desc dst_d = dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-        void *src_data_hdl = srcMemPtr->GetData();
-        void *dst_data_hdl = dstMemPtr->GetData();
 
-        src_d.data.dims[0] = batchToProcess();
-        src_d.data.padded_dims[0] = batchToProcess();
+    if (!prim)
+        return;
 
-        dst_d.data.dims[0] = batchToProcess();
-        dst_d.data.padded_dims[0] = batchToProcess();
+    auto &dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
+    auto &srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
+    memory::desc src_d = srcMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+    memory::desc dst_d = dstMemPtr->GetDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
+    void *src_data_hdl = srcMemPtr->GetData();
+    void *dst_data_hdl = dstMemPtr->GetData();
 
-        createReorderPrimitive(src_d, src_data_hdl, dst_d, dst_data_hdl);
-    }
+    // @ TODO ONEDNN_3_0 direct access to internal elements should be avoided
+    src_d.get()->dims[0] = batchToProcess();
+    src_d.get()->padded_dims[0] = batchToProcess();
+
+    dst_d.get()->dims[0] = batchToProcess();
+    dst_d.get()->padded_dims[0] = batchToProcess();
+
+    createReorderPrimitive(src_d, src_data_hdl, dst_d, dst_data_hdl);
 }
 
 std::string Reorder::getReorderArgs(const MemoryDesc &parentDesc, const MemoryDesc &childDesc) {

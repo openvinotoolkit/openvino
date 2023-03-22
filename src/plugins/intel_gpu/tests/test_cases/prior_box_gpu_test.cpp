@@ -90,7 +90,7 @@ public:
         topo.add(prior_box);
         topo.add(reorder("prior_box", input_info("blocked_prior_box"), plain_format, output_data_type));
 
-        ExecutionConfig config;
+        ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(false));
 
         cldnn::network::ptr network = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);

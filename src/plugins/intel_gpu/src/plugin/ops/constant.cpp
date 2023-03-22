@@ -154,7 +154,7 @@ void createClDnnConstant(Program& p, const ngraph::Shape& constDims, const std::
     auto constFormat = cldnn::format::get_default_format(constDims.size());
 
     if (props.needsBatchInterpretation) {
-        constTensor.batch[0] = constTensor.count();
+        constTensor.batch[0] = static_cast<cldnn::tensor::value_type>(constTensor.count());
         constTensor.feature[0] = 1;
     }
 

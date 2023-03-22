@@ -17,6 +17,7 @@
 #include <ie_performance_hints.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include "openvino/runtime/auto/properties.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include "plugin.hpp"
 #include <ie_algorithm.hpp>
 #include <ie_icore.hpp>
@@ -135,17 +136,8 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
     };
 
     auto getDeviceConfig = [&] (const DeviceName & deviceWithID) {
-        DeviceIDParser deviceParser(deviceWithID);
-        std::string deviceName = deviceParser.getDeviceName();
-        std::map<std::string, std::string> tconfig = config;
-
-        // set device ID if any
-        std::string deviceIDLocal = deviceParser.getDeviceID();
-        if (!deviceIDLocal.empty()) {
-            tconfig[PluginConfigParams::KEY_DEVICE_ID] = deviceIDLocal;
-        }
-        auto deviceConfig = GetCore()->GetSupportedConfig(deviceName, tconfig);
-        setDefaultHint(deviceName, deviceConfig, tconfig);
+        auto deviceConfig = GetCore()->GetSupportedConfig(deviceWithID, config);
+        setDefaultHint(deviceWithID, deviceConfig, config);
         return deviceConfig;
     };
 
@@ -198,8 +190,8 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             }
         }
 
-        DeviceIDParser parsed{deviceName};
-        std::string deviceid = parsed.getDeviceID();
+        ov::DeviceIDParser parsed{deviceName};
+        std::string deviceid = parsed.get_device_id();
         std::vector<std::string> sameTypeDevices;
         // if AUTO:GPU case, replace GPU with GPU.0 and GPU.1
         // Disable AUTO:MYRIAD here because of below test case
@@ -221,19 +213,19 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
         }
 
         for (auto&& deviceNameWithID : sameTypeDevices) {
-            DeviceIDParser newParsed{deviceNameWithID};
+            ov::DeviceIDParser newParsed{deviceNameWithID};
             std::string defaultDeviceID = "";
             std::string tempDeviceID = "";
-            if (newParsed.getDeviceID().empty()) {
+            if (newParsed.get_device_id().empty()) {
                 defaultDeviceID = getDefaultDeviceID(deviceNameWithID);
                 tempDeviceID = defaultDeviceID;
             } else {
-                tempDeviceID = newParsed.getDeviceID();
+                tempDeviceID = newParsed.get_device_id();
             }
 
             std::string fullDeviceName = "";
             std::string uniqueName = "";
-            if (newParsed.getDeviceName() == "GPU") {
+            if (newParsed.get_device_name() == "GPU") {
                 auto supportedMetrics = GetCore()->GetMetric(deviceNameWithID, METRIC_KEY(SUPPORTED_METRICS)).as<std::vector<std::string>>();
                 if (std::find(supportedMetrics.begin(), supportedMetrics.end(), METRIC_KEY(FULL_DEVICE_NAME)) != supportedMetrics.end()) {
                     fullDeviceName = GetCore()->GetMetric(deviceNameWithID, METRIC_KEY(FULL_DEVICE_NAME)).as<std::string>();
@@ -241,7 +233,7 @@ std::vector<DeviceInformation> MultiDeviceInferencePlugin::ParseMetaDevices(cons
             }
 
             if (fullDeviceName.empty()) {
-                uniqueName = newParsed.getDeviceName() + "_" + tempDeviceID;
+                uniqueName = newParsed.get_device_name() + "_" + tempDeviceID;
             } else {
                 uniqueName = fullDeviceName + "_" + tempDeviceID;
             }
@@ -370,7 +362,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         }
     }
     // updateFromMap will check config valid
-    loadConfig.set_user_property(PreProcessConfig(config), workModeAuto? true : false);
+    loadConfig.set_user_property(PreProcessConfig(config), workModeAuto);
     loadConfig.apply_user_properties();
     auto fullProperty = loadConfig.get_full_properties();
     // this can be updated when plugin switch to 2.0 API
@@ -426,7 +418,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         // filter the device that supports filter configure
         auto metaDevices = ParseMetaDevices(strDevices, fullConfig);
         auto supportDevicesByConfig = FilterDevice(metaDevices, filterConfig);
-        if (supportDevicesByConfig.size() == 0) {
+        if (supportDevicesByConfig.empty()) {
              IE_THROW() << "There is no device support the configure";
         }
         auto supportDevices = supportDevicesByConfig;
@@ -485,6 +477,7 @@ IExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadNetworkImpl(cons
         autoSContext->_LogTag = _LogTag;
         autoSContext->_bindBuffer = loadConfig.get_property(ov::intel_auto::device_bind_buffer);
         autoSContext->_startupfallback = loadConfig.get_property(ov::intel_auto::enable_startup_fallback);
+        autoSContext->_runtimeFallback = loadConfig.get_property(ov::intel_auto::enable_runtime_fallback);
         return std::make_shared<AutoExecutableNetwork>(autoSContext, std::make_shared<AutoSchedule>());
     }
     OV_ITT_SCOPED_TASK(itt::domains::MULTIPlugin, "MultiDeviceInferencePlugin::LoadNetworkImpl:MultiMode");
@@ -679,7 +672,9 @@ QueryNetworkResult MultiDeviceInferencePlugin::QueryNetwork(const CNNNetwork&   
     queryconfig.apply_user_properties();
     auto fullproperty = queryconfig.get_full_properties();
     // this can be updated when plugin switch to 2.0 API
-    std::map<std::string, std::string> fullConfig =  ConvertToStringMap(fullproperty);;
+    std::map<std::string, std::string> fullConfig =  ConvertToStringMap(fullproperty);
+    if (!queryconfig.is_set_by_user(ov::cache_dir))
+        fullConfig.erase(ov::cache_dir.name());
     auto priorities = fullConfig.find(ov::device::priorities.name());
     if (!priorities->second.empty()) {
         auto metaDevices = ParseMetaDevices(priorities->second, fullConfig);
@@ -855,83 +850,92 @@ std::string MultiDeviceInferencePlugin::GetDeviceList(const std::map<std::string
     std::string allDevices;
     auto deviceList = GetCore()->GetAvailableDevices();
     auto deviceListConfig = config.find(ov::device::priorities.name());
-    if (deviceListConfig->second.empty()) {
-        for (auto&& device : deviceList) {
-            // filter out the supported devices
-            if (!_pluginConfig.isSupportedDevice(device))
-                continue;
-            allDevices += device + ",";
-        }
-    } else {
+    for (auto&& device : deviceList) {
+        // filter out the supported devices
+        if (!_pluginConfig.isSupportedDevice(device))
+            continue;
+        allDevices += device + ",";
+    }
+    std::vector<std::string> devicesMerged;
+    if (deviceListConfig != config.end() && !deviceListConfig->second.empty()) {
         auto priorities = deviceListConfig->second;
         // parsing the string and splitting the comma-separated tokens
-        std::vector<std::string> deviceVec = _pluginConfig.ParsePrioritiesDevices(priorities);
-        std::vector<std::string> devicesToBeDeleted;
-        auto updateDeviceVec = [&](const std::string& delPattern = "") {
-            auto iter = deviceVec.begin();
-            while (iter != deviceVec.end()) {
-                if (delPattern.empty()) {
-                    if ((*iter).find("-") == 0) {
-                        devicesToBeDeleted.push_back((*iter).erase(0, 1));
-                        iter = deviceVec.erase(iter);
-                    } else {
-                        iter++;
-                    }
-                } else {
-                    if ((*iter).find(delPattern) != std::string::npos)
-                        iter = deviceVec.erase(iter);
-                    else
-                        iter++;
-                }
-            }
+        std::vector<std::string> devicesToBeMerged = _pluginConfig.ParsePrioritiesDevices(priorities);
+        std::vector<std::string> devicesToBeDeleted(devicesToBeMerged.size());
+        const auto& iterDel = std::copy_if(devicesToBeMerged.begin(),
+                                           devicesToBeMerged.end(),
+                                           devicesToBeDeleted.begin(),
+                                           [](const std::string& item) {
+                                               return item.front() == '-';
+                                           });
+        devicesToBeDeleted.resize(std::distance(devicesToBeDeleted.begin(), iterDel));
+        const auto& iterMerge =
+            std::remove_if(devicesToBeMerged.begin(), devicesToBeMerged.end(), [](const std::string& item) {
+                return item.front() == '-';
+            });
+        devicesToBeMerged.resize(std::distance(devicesToBeMerged.begin(), iterMerge));
+        for (auto&& device : devicesToBeDeleted)
+            LOG_INFO_TAG("remove %s from device candidate list", device.c_str());
+        auto isAnyDev = [](std::string& device, const std::vector<std::string>& devices) {
+            auto iter = std::find_if(devices.begin(), devices.end(), [device](const std::string& devItem) {
+                return devItem.find(device) != std::string::npos;
+            });
+            return iter != devices.end();
         };
-        updateDeviceVec();
-        if (devicesToBeDeleted.size() == 0) {
-            allDevices = deviceListConfig->second;
-        } else {
-            auto deviceNeedToMerge = [&](const std::string& devicename) {
-                for (auto&& iter : devicesToBeDeleted) {
-                    if (iter.find(devicename) != std::string::npos)
-                        return true;
-                }
-                return false;
-            };
-            auto mergeDeviceList = [&]() {
-                std::vector<std::string> mergedList;
-                auto prevSize = mergedList.size();
-                for (auto&& iter : deviceVec) {
-                    for (auto&& viter : deviceList) {
-                        if (viter.find(iter) != std::string::npos && deviceNeedToMerge(iter))
-                            mergedList.push_back(std::move(viter));
-                    }
-                    // if virtual devices or mock devices
-                    if (mergedList.size() == prevSize)
-                        mergedList.push_back(std::move(iter));
-                    prevSize = mergedList.size();
-                }
-                return mergedList;
-            };
-
-            deviceVec = deviceVec.size() == 0 ? deviceList : mergeDeviceList();
-            for (auto& iter : devicesToBeDeleted) {
-                LOG_INFO_TAG("remove %s from device candidate list", iter.c_str());
-                updateDeviceVec(iter);
-            }
-            for (auto&& device : deviceVec) {
-                if (!_pluginConfig.isSupportedDevice(device))
+        auto deviceWithDefaultID = [](std::string& device) {
+            // AUTO assume the default device ID will be "0" for the single device.
+            return device.find(".") == std::string::npos ? device + ".0" : device;
+        };
+        if (devicesToBeMerged.empty()) {
+            for (auto&& device : deviceList) {
+                if (isAnyDev(device, devicesToBeDeleted) || !_pluginConfig.isSupportedDevice(device))
                     continue;
-                allDevices += device + ",";
+                devicesMerged.push_back(device);
+            }
+        } else {
+            for (auto&& device : devicesToBeMerged) {
+                if (!isAnyDev(device, deviceList)) {
+                    ov::DeviceIDParser parsed{device};
+                    auto iter = std::find(devicesMerged.begin(), devicesMerged.end(), parsed.get_device_name());
+                    if (iter != devicesMerged.end() && parsed.get_device_name() != device && parsed.get_device_id() == "0")
+                        // The device is the device with default device ID (eg. GPU.0) and
+                        // its wide name (eg. GPU) has been in device candidate list.
+                        continue;
+                    // Add user specified device into candidate list
+                    devicesMerged.push_back(device);
+                } else {
+                    // Update device name if supported device with id existed
+                    for (auto&& item : deviceList) {
+                        auto realDevice = deviceWithDefaultID(item);
+                        if (isAnyDev(realDevice, devicesToBeDeleted) || item.find(device) == std::string::npos)
+                            continue;
+                        auto iter = std::find(devicesMerged.begin(), devicesMerged.end(), deviceWithDefaultID(item));
+                        // Remove the device with default device id from candidate device list (eg. GPU.0)
+                        // if its wide name is a single device (eg. GPU).
+                        ov::DeviceIDParser parsed{item};
+                        if (parsed.get_device_name() == item && iter != devicesMerged.end())
+                            devicesMerged.erase(iter);
+                        // continue if targe device has been in the candidate device list.
+                        if (std::find(devicesMerged.begin(), devicesMerged.end(), item) != devicesMerged.end())
+                            continue;
+                        devicesMerged.push_back(item);
+                    }
+                }
             }
         }
     }
-
-    // remove the last ',' if exist
-    if (allDevices.back() == ',')
-        allDevices.pop_back();
-
+    if (devicesMerged.size()) {
+        allDevices.clear();
+        std::for_each(devicesMerged.begin(), devicesMerged.end(), [&allDevices](const std::string& device) {
+            allDevices += device + ",";
+        });
+    }
     if (allDevices.empty()) {
         IE_THROW() << "Please, check environment due to no supported devices can be used";
     }
+    // remove the last ',' if exist
+    if (allDevices.back() == ',')
+        allDevices.pop_back();
 
     return allDevices;
 }

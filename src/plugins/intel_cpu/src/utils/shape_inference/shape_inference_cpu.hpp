@@ -82,7 +82,7 @@ constexpr IShapeInfer::port_mask_t FULL_PORT_MASK = 0xffffffff;
 
 class ShapeInferFactory {
 public:
-    ~ShapeInferFactory() = default;
+    virtual ~ShapeInferFactory() = default;
     virtual ShapeInferPtr makeShapeInfer() const = 0;
 };
 

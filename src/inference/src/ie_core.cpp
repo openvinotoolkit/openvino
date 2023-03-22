@@ -40,6 +40,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
@@ -203,11 +204,11 @@ ExecutableNetwork Core::ImportNetwork(const std::string& modelFileName,
                                       const std::string& deviceName,
                                       const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(ov::itt::domains::IE, "Core::ImportNetwork");
-    auto parsed = ov::parseDeviceNameIntoConfig(deviceName, config);
+    auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ov::any_copy(config));
     std::ifstream modelStream(modelFileName, std::ios::binary);
     if (!modelStream.is_open())
         IE_THROW(NetworkNotRead) << "Model file " << modelFileName << " cannot be opened!";
-    auto exec = _impl->get_plugin(parsed._deviceName).import_model(modelStream, ov::any_copy(parsed._config));
+    auto exec = _impl->get_plugin(parsed._deviceName).import_model(modelStream, parsed._config);
     return {ov::legacy_convert::convert_compiled_model(exec._ptr), exec._so};
 }
 
@@ -251,14 +252,14 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
     }
 
     std::string deviceName_ = context->getDeviceName();
-    DeviceIDParser device(deviceName_);
-    std::string deviceName = device.getDeviceName();
+    ov::DeviceIDParser device(deviceName_);
+    std::string deviceName = device.get_device_name();
 
-    auto parsed = ov::parseDeviceNameIntoConfig(deviceName, config);
+    auto parsed = ov::parseDeviceNameIntoConfig(deviceName, ov::any_copy(config));
     auto exec = _impl->get_plugin(deviceName)
                     .import_model(networkModel,
-                                  ov::RemoteContext{std::dynamic_pointer_cast<RemoteContext>(context), {}},
-                                  ov::any_copy(parsed._config));
+                                  ov::RemoteContext{ov::legacy_convert::convert_remote_context(context), {}},
+                                  parsed._config);
     return {ov::legacy_convert::convert_compiled_model(exec._ptr), exec._so};
 }
 
@@ -350,8 +351,8 @@ void Core::RegisterPlugins(const std::string& xmlConfigFile) {
 }
 
 void Core::UnregisterPlugin(const std::string& deviceName_) {
-    DeviceIDParser parser(deviceName_);
-    std::string deviceName = parser.getDeviceName();
+    ov::DeviceIDParser parser(deviceName_);
+    std::string deviceName = parser.get_device_name();
 
     _impl->unload_plugin(deviceName);
 }

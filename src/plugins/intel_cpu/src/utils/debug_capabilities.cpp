@@ -2,6 +2,11 @@
 // Copyright (C) 2018-2023 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <common/primitive_desc_iface.hpp>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include "memory_desc/blocked_memory_desc.h"
+#include "onednn/iml_type_mapper.h"
 #ifdef CPU_DEBUG_CAPS
 
 #include "debug_capabilities.h"
@@ -41,12 +46,10 @@ DebugLogEnabled::DebugLogEnabled(const char* file, const char* func, int line, c
     }
 
     // check each filter patten:
-    bool filter_match_action;
+    bool filter_match_action = true;
     if (p_filters[0] == '-') {
         p_filters++;
         filter_match_action = false;
-    } else {
-        filter_match_action = true;
     }
 
     bool match = false;
@@ -85,40 +88,10 @@ void DebugLogEnabled::break_at(const std::string & log) {
     }
 }
 
-std::ostream & operator<<(std::ostream & os, const dnnl::memory::desc& desc) {
-    char sep = '(';
-    os << "dims:";
-    for (int i = 0; i < desc.data.ndims; i++) {
-        os << sep << desc.data.dims[i];
-        sep = ',';
-    }
-    os << ")";
-
-    sep = '(';
-    os << "strides:";
-    for (int i = 0; i < desc.data.ndims; i++) {
-        os << sep << desc.data.format_desc.blocking.strides[i];
-        sep = ',';
-    }
-    os << ")";
-
-    for (int i = 0; i < desc.data.format_desc.blocking.inner_nblks; i++) {
-        os << desc.data.format_desc.blocking.inner_blks[i] << static_cast<char>('a' + desc.data.format_desc.blocking.inner_idxs[i]);
-    }
-
-    os << " " << dnnl_dt2str(desc.data.data_type);
-    return os;
-}
-
 std::ostream & operator<<(std::ostream & os, const MemoryDesc& desc) {
     os << desc.getShape().toString()
        << " " << desc.getPrecision().name()
        << " " << desc.serializeFormat();
-    return os;
-}
-
-std::ostream & operator<<(std::ostream & os, const dnnl::memory::data_type& dtype) {
-    os << " " << dnnl_dt2str(static_cast<dnnl_data_type_t>(dtype));
     return os;
 }
 
@@ -506,11 +479,6 @@ std::ostream & operator<<(std::ostream & os, const PrintableModel& model) {
         os << std::endl;
 
         // recursively output subgraphs
-        if (auto subgraph = std::dynamic_pointer_cast<ngraph::snippets::op::Subgraph>(op)) {
-            os << "\t\t snippets Subgraph: " << subgraph->get_friendly_name() << " is_quantized:" << subgraph->is_quantized() << std::endl;
-            os << PrintableModel(subgraph->body(), tag, prefix + "\t\t");
-        }
-
         if (auto msubgraph = std::dynamic_pointer_cast<op::util::MultiSubGraphOp>(op)) {
             auto cnt = msubgraph->get_internal_subgraphs_size();
             for (int i = 0; i < cnt; i++) {
@@ -531,6 +499,68 @@ std::ostream& operator<<(std::ostream& os, const PrintableDelta& d) {
     double us_all = d.us_all;
     os << "[+ " << std::setw(8) << std::setfill(' ') << std::fixed << std::setprecision(3) << us_last / 1000 << "/"
        << us_all / 1000 << " ms]";
+    return os;
+}
+
+std::ostream & operator<<(std::ostream & os, const Edge::ReorderStatus reorderStatus) {
+    switch (reorderStatus) {
+    case Edge::ReorderStatus::Regular: os << "Regular"; break;
+    case Edge::ReorderStatus::Optimized: os << "Optimizer"; break;
+    case Edge::ReorderStatus::No: os << "No"; break;
+    }
+    return os;
+}
+
+std::ostream & operator<<(std::ostream & os, const dnnl::primitive_desc& desc) {
+    os << desc.get()->info();
+    return os;
+}
+
+std::ostream & operator<<(std::ostream & os, const dnnl::memory::desc& desc) {
+    char sep = '(';
+    os << "dims:";
+    const auto& ndims = desc.get()->ndims;
+    const auto& dims = desc.get()->dims;
+    for (int i = 0; i < ndims; i++) {
+        os << sep << dims[i];
+        sep = ',';
+    }
+    os << ")";
+
+    const auto& strides = desc.get()->format_desc.blocking.strides;
+    sep = '(';
+    os << "strides:";
+    for (int i = 0; i < ndims; i++) {
+        os << sep << strides[i];
+        sep = ',';
+    }
+    os << ")";
+
+    const auto& inner_blks  = desc.get()->format_desc.blocking.inner_blks;
+    const auto& inner_nblks = desc.get()->format_desc.blocking.inner_nblks;
+    const auto& inner_idxs  = desc.get()->format_desc.blocking.inner_idxs;
+
+    for (int i = 0; i < inner_nblks; i++) {
+        os << inner_blks[i] << static_cast<char>('a' + inner_idxs[i]);
+    }
+
+    os << " " << dnnl_dt2str(desc.get()->data_type);
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const impl_desc_type impl_type) {
+    os <<  impl_type_to_string(impl_type);
+    return os;
+}
+
+std::ostream & operator<<(std::ostream & os, const dnnl::memory::data_type dtype) {
+    os << " " << dnnl_dt2str(static_cast<dnnl_data_type_t>(dtype));
+    return os;
+}
+
+std::ostream & operator<<(std::ostream & os, const dnnl::memory::format_tag format_tag) {
+    const auto c_format_tag = dnnl::memory::convert_to_c(format_tag);
+    os << dnnl_fmt_tag2str(c_format_tag);
     return os;
 }
 
