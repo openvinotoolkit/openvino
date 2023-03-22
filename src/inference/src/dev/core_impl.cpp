@@ -331,7 +331,6 @@ void ov::CoreImpl::register_compile_time_plugins() {
         }
     }
 #else
-
     for (const auto& plugin : plugins) {
         const auto& deviceName = plugin.first;
         const auto& pluginPath = ov::util::get_compiled_plugin_path(plugin.second.m_plugin_path);
