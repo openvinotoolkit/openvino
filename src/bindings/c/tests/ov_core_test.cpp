@@ -147,6 +147,27 @@ TEST_P(ov_core_test, ov_core_compile_model_with_property) {
     ov_core_free(core);
 }
 
+TEST_P(ov_core_test, ov_core_compile_model_with_excution_mode) {
+    std::string device_name = "AUTO";
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    ov_model_t* model = nullptr;
+    OV_EXPECT_OK(ov_core_read_model(core, xml_file_name.c_str(), nullptr, &model));
+    EXPECT_NE(nullptr, model);
+
+    ov_compiled_model_t* compiled_model = nullptr;
+    const char* key = ov_property_key_hint_execution_mode;
+    const char* value = "PERFORMANCE";
+    OV_EXPECT_OK(ov_core_compile_model(core, model, device_name.c_str(), 2, &compiled_model, key, value));
+    EXPECT_NE(nullptr, compiled_model);
+
+    ov_compiled_model_free(compiled_model);
+    ov_model_free(model);
+    ov_core_free(core);
+}
+
 TEST_P(ov_core_test, ov_core_compile_model_with_property_invalid) {
     auto device_name = GetParam();
     ov_core_t* core = nullptr;
@@ -303,6 +324,30 @@ TEST_P(ov_core_test, ov_core_get_property) {
     OV_EXPECT_OK(
         ov_core_get_property(core, device_name.c_str(), ov_property_key_supported_properties, &property_value));
     ov_free(property_value);
+    ov_core_free(core);
+}
+
+TEST_P(ov_core_test, ov_core_set_and_get_property_execution_mode) {
+    std::string device_name = "AUTO";
+    ov_core_t* core = nullptr;
+    OV_EXPECT_OK(ov_core_create(&core));
+    EXPECT_NE(nullptr, core);
+
+    const char* key = ov_property_key_hint_execution_mode;
+    char* property_value = nullptr;
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key, &property_value));
+    ov_free(property_value);
+
+    const char* value1 = "ACCURACY";
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key, value1));
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key, &property_value));
+    EXPECT_STREQ(value1, property_value);
+
+    const char* value2 = "PERFORMANCE";
+    OV_EXPECT_OK(ov_core_set_property(core, device_name.c_str(), key, value2));
+    OV_EXPECT_OK(ov_core_get_property(core, device_name.c_str(), key, &property_value));
+    EXPECT_STREQ(value2, property_value);
+
     ov_core_free(core);
 }
 
