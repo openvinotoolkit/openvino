@@ -44,9 +44,11 @@ struct RangeArgs {
         step.addTo(topology);
         topology.add(range { "range", { input_info(start.name), input_info(stop.name), input_info(step.name) }, { dt, format::bfyx, tensor{batch(outLen)} } });
 
-        ExecutionConfig config(ov::intel_gpu::allow_new_shape_infer(use_new_shape_infer));
+        auto& engine = get_test_engine();
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(use_new_shape_infer));
 
-        network network { tests::get_test_engine(), topology, config };
+        network network { engine, topology, config };
 
         start.setData(network);
         stop.setData(network);
@@ -207,7 +209,7 @@ TEST(range_gpu_test, range_with_select) {
     set_values<int32_t>(input0, {start_val});
     set_values<int32_t>(input2, {step_val});
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     network network { tests::get_test_engine(), topology, config };
@@ -243,7 +245,7 @@ TEST(range_gpu_test, constant_folding) {
     topology.add(data("input2", input2));
     topology.add(range{ "range", { input_info("input0"), input_info("input1"), input_info("input2") }, data_types::i32});
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     network network(engine, topology, config);
@@ -281,7 +283,7 @@ TEST(range_gpu_test, dynamic_all) {
     topology.add(input_layout("input2", dynamic_input_layout));
     topology.add(range{ "range", { input_info("input0"), input_info("input1"), input_info("input2") }, data_types::i32});
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     network network(engine, topology, config);
@@ -327,7 +329,7 @@ TEST(range_gpu_test, dynamic_stop) {
     topology.add(data("input2", input2));
     topology.add(range{ "range", { input_info("input0"), input_info("input1"), input_info("input2") }, data_types::i32});
 
-    ExecutionConfig config;
+    ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
     network network(engine, topology, config);

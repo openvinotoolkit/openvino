@@ -229,7 +229,7 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
     kd.internalBufferDataType = GetUnitType(detectOutParams);
 
     for (size_t i = 0; i < kKernelsNum; i++) {
-        DispatchData dispatchData = SetDefault(detectOutParams, i);
+        DispatchData dispatchData = SetDefault(detectOutParams, static_cast<int>(i));
         auto cldnnJit = GetJitConstants(detectOutParams);
         auto entryPoint = GetEntryPoint(kernelName, detectOutParams.layerID, params, options, i);
         cldnnJit.AddConstant(MakeJitConstant("BUFFER_STRIDE", buffer_stride));
@@ -256,7 +256,7 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
                 cldnnJit.AddConstant(MakeJitConstant("USE_LOCAL_MEMORY_FOR_STACK", true));
                 cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_MXNET", "true"),
                                        MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2]),
-                                       MakeJitConstant("PARTITION_STEP", GetPartitionStep(dispatchData.lws[2]))});
+                                       MakeJitConstant("PARTITION_STEP", GetPartitionStep(static_cast<int>(dispatchData.lws[2])))});
             } else {
                 // Limit local memory usage for two buffers: __range [LWS1 * LWS2 * 2 * 4 (int size) bytes]
                 //                                           stack [LWS1 * LWS2 * 100 (stack_size) * 4 (int size) bytes]
@@ -267,7 +267,7 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params, const
                 cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"),
                                        MakeJitConstant("LOCAL_CLASS_NUM", dispatchData.lws[1]),
                                        MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2]),
-                                       MakeJitConstant("PARTITION_STEP", GetPartitionStep(dispatchData.lws[2]))});
+                                       MakeJitConstant("PARTITION_STEP", GetPartitionStep(static_cast<int>(dispatchData.lws[2])))});
             }
         } else if (i == 2) {
             if (detectOutParams.detectOutParams.decrease_label_id) {

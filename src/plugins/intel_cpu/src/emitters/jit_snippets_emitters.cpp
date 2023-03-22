@@ -10,8 +10,12 @@
 #include "snippets/op/subgraph.hpp"
 #include "snippets/utils.hpp"
 
-using namespace Xbyak;
+using namespace InferenceEngine;
 using ngraph::snippets::op::Subgraph;
+using ngraph::snippets::AllocatedEmitter;
+using namespace Xbyak;
+using namespace dnnl::impl;
+using namespace dnnl::impl::cpu::x64;
 
 namespace ov {
 namespace intel_cpu {
@@ -95,7 +99,10 @@ void jit_container_emitter::map_abstract_registers(mapping_info& gpr_map_pool,  
 }
 
 KernelEmitter::KernelEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl::cpu::x64::cpu_isa_t isa,
-                             const std::shared_ptr<ov::Node>& n) : jit_container_emitter(h, isa, n) {
+                             const std::shared_ptr<ov::Node>& n) :
+    jit_container_emitter(h, isa, n),
+    reg_indexes_idx(abi_param1.getIdx()),
+    reg_const_params_idx(abi_param2.getIdx()) {
     const auto kernel = ov::as_type_ptr<ngraph::snippets::op::Kernel>(n);
     if (!kernel)
         IE_THROW() << "KernelEmitter invoked with invalid op argument";
@@ -728,7 +735,7 @@ BrgemmEmitter::BrgemmEmitter(dnnl::impl::cpu::x64::jit_generator* h, dnnl::impl:
         }
     }
     // todo: leave AMX and VNNI related code for now, it'll help to enable int8 and bf16 support
-    bool isAMXSupported = mayiuse(avx512_core_bf16_amx_int8) || mayiuse(avx512_core_bf16_amx_bf16);
+    bool isAMXSupported = mayiuse(avx512_core_amx);
 
     const auto& A_shape = io_values[0].get_shape();
     const auto& A_layout = io_layouts[0];

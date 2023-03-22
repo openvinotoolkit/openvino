@@ -80,14 +80,17 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node, ke
                              3,
                              "As for now, deconvolutions with more than 3 dimensions are not supported");
 
-    int32_t x = off_factor * pad[pad.size() - 1] + (input_layout.spatial(0) - 1) * strd[strd.size() - 1] + weights_layout.spatial(0);
+    int32_t x = static_cast<int32_t>(
+        off_factor * pad[pad.size() - 1] + (input_layout.spatial(0) - 1) * strd[strd.size() - 1] + weights_layout.spatial(0));
     int32_t y = 1;
     if (spatial_dims > 1) {
-        y = off_factor * pad[pad.size() - 2] + (input_layout.spatial(1) - 1) * strd[strd.size() - 2] + weights_layout.spatial(1);
+        y = static_cast<int32_t>(
+            off_factor * pad[pad.size() - 2] + (input_layout.spatial(1) - 1) * strd[strd.size() - 2] + weights_layout.spatial(1));
     }
     int32_t z = 1;
     if (spatial_dims > 2) {
-        z = off_factor * pad[pad.size() - 3] + (input_layout.spatial(2) - 1) * strd[strd.size() - 3] + weights_layout.spatial(2);
+        z = static_cast<int32_t>(
+            off_factor * pad[pad.size() - 3] + (input_layout.spatial(2) - 1) * strd[strd.size() - 3] + weights_layout.spatial(2));
     }
 
     tensor output_size(input_layout.batch(),
@@ -226,12 +229,6 @@ std::string deconvolution_inst::to_string(deconvolution_node const& node) {
     auto node_info = node.desc_to_json();
 
     std::stringstream primitive_description;
-    std::stringstream ss_weights, ss_biases;
-
-    ss_weights << node.weights().id();
-    ss_weights << ", count: " << node.weights().get_output_layout().count();
-    ss_biases << node.bias().id();
-    ss_biases << ", count: " << node.bias().get_output_layout().count();
 
     json_composite deconv_info;
     deconv_info.add("stride", cldnn::to_string(strd));
@@ -242,6 +239,17 @@ std::string deconvolution_inst::to_string(deconvolution_node const& node) {
         ud_out_size_info.add("size", desc->output_size.to_string());
         deconv_info.add("with_user_defined_output_size", ud_out_size_info);
     }
+    std::stringstream ss_weights;
+    ss_weights << node.weights().id();
+    ss_weights << ", count: " << node.weights().get_output_layout().count();
+    deconv_info.add("weights", ss_weights.str());
+    if (node.bias_term()) {
+        std::stringstream ss_biases;
+        ss_biases << node.bias().id();
+        ss_biases << ", count: " << node.bias().get_output_layout().count();
+        deconv_info.add("bias", ss_biases.str());
+    }
+
     node_info->add("deconvolution info", deconv_info);
     node_info->dump(primitive_description);
     return primitive_description.str();

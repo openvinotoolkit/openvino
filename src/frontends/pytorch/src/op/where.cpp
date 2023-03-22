@@ -14,7 +14,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_where(NodeContext& context) {
+OutputVector translate_where(const NodeContext& context) {
     num_inputs_check(context, 1, 3);
     auto cond = context.get_input(0);
     FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(1), "aten::where(cond) unsupported");

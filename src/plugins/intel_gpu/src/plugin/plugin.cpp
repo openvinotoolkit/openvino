@@ -32,6 +32,7 @@
 #include "ie_plugin_config.hpp"
 #include "gpu/gpu_config.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include "ie_icore.hpp"
 
 #include "dimension_tracker.hpp"
@@ -53,6 +54,9 @@
 using namespace InferenceEngine;
 using namespace InferenceEngine::gpu;
 using namespace InferenceEngine::details;
+
+using ms = std::chrono::duration<double, std::ratio<1, 1000>>;
+using Time = std::chrono::high_resolution_clock;
 
 namespace ov {
 namespace intel_gpu {
@@ -109,7 +113,10 @@ void Plugin::transform_model(std::shared_ptr<ov::Model>& model, const ExecutionC
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::transform_model");
     auto deviceInfo = device_map.at(config.get_property(ov::device::id))->get_info();
     TransformationsPipeline transformations(config, deviceInfo);
+
+    auto start = Time::now();
     transformations.apply(model);
+    GPU_DEBUG_LOG << "Transformations time: " << std::chrono::duration_cast<ms>(Time::now() - start).count() << " ms" << std::endl;
 }
 
 InferenceEngine::CNNNetwork Plugin::clone_and_transform_model(const InferenceEngine::CNNNetwork& network,
@@ -169,18 +176,6 @@ auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
     }
 };
 
-void Plugin::update_memory_statistics(const RemoteContextImpl::Ptr& context) const {
-    OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::update_memory_statistics");
-    {
-        std::lock_guard<std::mutex> lock(engine_mutex);
-
-        // if the same context exists, the statistics is replaced with the latest one
-        // (currently, memory usage is accumulated for several networks in the same context)
-        // if it does not exist, a new statistics is added
-        statistics_map[context] = context->get_engine().get_memory_statistics();
-    }
-}
-
 IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine::CNNNetwork &network,
                                                            const std::map<std::string, std::string> &orig_config) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::LoadExeNetworkImpl");
@@ -202,7 +197,6 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     {
         OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Plugin::LoadExeNetworkImpl::CreateExeNetwork");
         CompiledModel::Ptr exeNetwork = std::make_shared<CompiledModel>(transformedNetwork, context, config);
-        update_memory_statistics(context->get_impl());
         return exeNetwork;
     }
 }
@@ -214,7 +208,7 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     check_inputs(_networkInputs);
 
     auto context_impl = get_context_impl(context);
-    auto device_id = InferenceEngine::DeviceIDParser{context_impl->get_device_name()}.getDeviceID();
+    auto device_id = ov::DeviceIDParser{context_impl->get_device_name()}.get_device_id();
 
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] LoadExeNetworkImpl: Couldn't find config for GPU with id ", device_id);
 
@@ -536,7 +530,6 @@ InferenceEngine::IExecutableNetworkInternal::Ptr Plugin::ImportNetwork(std::istr
         exeNetwork->setNetworkOutputs(outputs);
         exeNetwork->setInputs(new_params);
         exeNetwork->setOutputs(new_results);
-        update_memory_statistics(context->get_impl());
         return exeNetwork;
     }
 }
@@ -666,19 +659,8 @@ Parameter Plugin::GetMetric(const std::string& name, const std::map<std::string,
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, range);
     } else if (name == GPU_METRIC_KEY(MEMORY_STATISTICS) ||
                name == ov::intel_gpu::memory_statistics) {
-        std::map<std::string, uint64_t> statistics;
-        for (auto const &item : statistics_map) {
-            // Before collecting memory statistics of each context, it's updated with the latest memory statistics from engine.
-            update_memory_statistics(item.first);
-            for (auto const &kv : item.second) {
-                if (!statistics.count(kv.first)) {
-                    statistics[kv.first] = kv.second;
-                } else {
-                    statistics[kv.first] += kv.second;
-                }
-            }
-        }
-        return decltype(ov::intel_gpu::memory_statistics)::value_type {statistics};
+        const auto& ctx = get_default_context(device_id)->get_impl();
+        return decltype(ov::intel_gpu::memory_statistics)::value_type {ctx->get_engine().get_memory_statistics()};
     } else if (name == METRIC_KEY(MAX_BATCH_SIZE) ||
                name == ov::max_batch_size) {
         return decltype(ov::max_batch_size)::value_type {static_cast<uint32_t>(get_max_batch_size(options))};
