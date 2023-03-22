@@ -354,6 +354,14 @@ bool primitive_inst::update_impl() {
     if (!_node->is_type<data>() && !(_node->is_type<mutable_data>() && _node->get_dependencies().empty())) {
         // Update param if fake_alignment is available
         auto updated_params = _node->type()->get_fake_aligned_params(*_impl_params);
+        // Change weights layout of `updated_params` to original one to have valid information
+        // in _impl->_weights_reorder_params about required weights format after impl selection
+        if (_node->is_type<fully_connected>() || _node->is_type<convolution>() || _node->is_type<deconvolution>()) {
+            const auto weights_idx = _node->get_primitive()->input.size();
+            const auto original_weights_memory = dep_memory_ptr(weights_idx);
+            updated_params.weights_layout = optional_layout(original_weights_memory->get_layout());
+        }
+
         auto& cache = get_network().get_program()->get_implementations_cache();
         std::shared_ptr<primitive_impl> cached_impl = nullptr;
         {
@@ -558,7 +566,7 @@ primitive_inst::primitive_inst(network& network)
     , _impl(nullptr)
     , _dynamic_impl(nullptr)
     , _outputs({memory::ptr()})
-    , _reordered_weights_cache(_weights_cache_capacity)
+    , _reordered_weights_cache(network.get_weights_cache_capacity())
     , _output_changed(false)
     , _mem_allocated(false) {}
 
@@ -570,7 +578,7 @@ primitive_inst::primitive_inst(network& network, program_node const& node, bool 
     , _impl(node.get_selected_impl() ? node.get_selected_impl()->clone() : nullptr)
     , _dynamic_impl(nullptr)
     , _outputs({memory::ptr()})
-    , _reordered_weights_cache(_weights_cache_capacity)
+    , _reordered_weights_cache(network.get_weights_cache_capacity())
     , _output_changed(false)
     , _mem_allocated(allocate_memory)
     , _is_dynamic(node.is_dynamic() || node.generates_dynamic_output())
@@ -713,18 +721,20 @@ event::ptr primitive_inst::update_weights() {
 
     const auto weights_idx = _node->get_primitive()->input.size();
     const auto original_weights_memory = dep_memory_ptr(weights_idx);
-    const auto expected_layout = requires_reorder ? from_weights_tensor(weights_params.dest)
-                                                  : original_weights_memory->get_layout();
-    const auto expected_layout_hash = expected_layout.hash();
+    auto expected_layout = requires_reorder ? from_weights_tensor(weights_params.dest)
+                                            : original_weights_memory->get_layout();
 
-    if (requires_reorder && !_reordered_weights_cache.has(expected_layout_hash)) {
+    // Set original patrial shape, because it may be lost during kernel_selector::weights_tensor -> layout conversion
+    expected_layout.set_partial_shape(original_weights_memory->get_layout().get_partial_shape());
+
+    if (requires_reorder && !_reordered_weights_cache.has(expected_layout)) {
         GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(false);
         auto original_layout = original_weights_memory->get_layout();
         auto& engine = _network.get_engine();
 
         auto get_kernel_key = [&]() -> size_t {
             auto seed = _node->get_primitive()->hash();
-            seed = hash_combine(seed, expected_layout_hash);
+            seed = hash_combine(seed, expected_layout.hash());
             seed = hash_combine(seed, original_layout.hash());
             return seed;
         };
@@ -734,12 +744,12 @@ event::ptr primitive_inst::update_weights() {
         auto& cache = get_network().get_in_mem_kernels_cache();
         if (cache.has(kernel_key)) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": reorder weights (cached) from " << original_layout.to_short_string()
-                                    << " to " << expected_layout.to_short_string() << std::endl;
+                                   << " to " << expected_layout.to_short_string() << std::endl;
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
             kernel = cache.get(kernel_key);
         } else {
             GPU_DEBUG_TRACE_DETAIL << id() << ": reorder weights from " << original_layout.to_short_string()
-                                    << " to " << expected_layout.to_short_string() << std::endl;
+                                   << " to " << expected_layout.to_short_string() << std::endl;
             auto& kernels_cache = get_network().get_program()->get_kernels_cache();
             auto kernels = kernels_cache.compile(*_impl_params, {weights_params.clKernel->code.kernelString});
             OPENVINO_ASSERT(kernels.size() == 1, "The output of kernel compile has issue");
@@ -765,7 +775,10 @@ event::ptr primitive_inst::update_weights() {
             weights_memory = engine.allocate_memory(expected_layout, alloc_type);
         }
 
-        _reordered_weights_cache.add(expected_layout_hash, weights_memory);
+        _reordered_weights_cache.add(expected_layout, weights_memory);
+        _impl_params->weights_layout = optional_layout(expected_layout);
+        GPU_DEBUG_TRACE_DETAIL << id() << ": update weights cache: " << expected_layout.to_short_string() << " cache_size="
+                               << _reordered_weights_cache.size() << "/" << _reordered_weights_cache.capacity() << std::endl;
 
         kernel_arguments_data args;
         args.inputs.push_back(original_weights_memory);
@@ -783,7 +796,8 @@ event::ptr primitive_inst::update_weights() {
         // If kernel doesn't says that it doesn't require weights reorder, but weights were reordered previously, then
         // incorrect memory buffer may be assigned, so push front original memory in LRU cache
         if (weights_params.engine == kernel_selector::GenericKernelParams::Engine::NONE) {
-            _reordered_weights_cache.add(expected_layout_hash, original_weights_memory);
+            _reordered_weights_cache.add(expected_layout, original_weights_memory);
+            _impl_params->weights_layout = optional_layout(expected_layout);
         }
     }
     GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
