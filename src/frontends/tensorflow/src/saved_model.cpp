@@ -420,6 +420,8 @@ void GraphIteratorSavedModel::map_assignvariable(const std::shared_ptr<::tensorf
             continue;
         }
 
+        // TODO: assets reading
+
         std::vector<PtrNode*> restorev2_nodes;
         std::vector<PtrNode*> varhandle_nodes;
 

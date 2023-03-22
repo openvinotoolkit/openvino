@@ -56,7 +56,9 @@ public:
     InputModelTFImpl(const GraphIterator::Ptr& graph_iterator,
                      const ov::frontend::InputModel& input_model,
                      const std::shared_ptr<TelemetryExtension>& telemetry,
-                     const std::shared_ptr<SavedModelVariablesIndex>& variables_index);
+                     const std::shared_ptr<SavedModelVariablesIndex>& variables_index,
+                     const std::shared_ptr<std::map<std::string, std::string>> saved_model_input_names,
+                     const std::shared_ptr<std::map<std::string, std::string>> saved_model_output_names);
     std::vector<ov::frontend::Place::Ptr> get_inputs() const;
     std::vector<ov::frontend::Place::Ptr> get_outputs() const;
     ov::frontend::Place::Ptr get_place_by_tensor_name(const std::string& tensorName) const;
@@ -81,6 +83,8 @@ public:
     std::vector<std::string> get_input_names() const;
     std::vector<std::string> get_output_names() const;
     std::shared_ptr<SavedModelVariablesIndex> get_variables_index() const;
+    std::shared_ptr<std::map<std::string, std::string>> get_saved_model_input_names() const;
+    std::shared_ptr<std::map<std::string, std::string>> get_saved_model_output_names() const;
 
 private:
     void load_places();
@@ -102,6 +106,8 @@ private:
     std::shared_ptr<TelemetryExtension> m_telemetry;
 
     std::shared_ptr<SavedModelVariablesIndex> m_variables_index;
+    std::shared_ptr<std::map<std::string, std::string>> m_saved_model_input_names;
+    std::shared_ptr<std::map<std::string, std::string>> m_saved_model_output_names;
 
     // shows if some nodes might be deleted from graph
     bool m_graph_changed = false;
@@ -208,6 +214,14 @@ void InputModel::InputModelTFImpl::load_places() {
 }
 std::shared_ptr<SavedModelVariablesIndex> InputModel::InputModelTFImpl::get_variables_index() const {
     return m_variables_index;
+}
+
+std::shared_ptr<std::map<std::string, std::string>> InputModel::InputModelTFImpl::get_saved_model_input_names() const {
+    return m_saved_model_input_names;
+}
+
+std::shared_ptr<std::map<std::string, std::string>> InputModel::InputModelTFImpl::get_saved_model_output_names() const {
+    return m_saved_model_output_names;
 }
 
 std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelTFImpl::get_op_places() const {
@@ -344,14 +358,19 @@ std::shared_ptr<InputModel> InputModel::InputModelTFImpl::get_body_input_model(
     return std::make_shared<InputModel>(body_graph_iterator, m_telemetry);
 }
 
-InputModel::InputModelTFImpl::InputModelTFImpl(const GraphIterator::Ptr& graph_iterator,
-                                               const ov::frontend::InputModel& input_model,
-                                               const std::shared_ptr<TelemetryExtension>& telemetry,
-                                               const std::shared_ptr<SavedModelVariablesIndex>& variables_index)
+InputModel::InputModelTFImpl::InputModelTFImpl(
+    const GraphIterator::Ptr& graph_iterator,
+    const ov::frontend::InputModel& input_model,
+    const std::shared_ptr<TelemetryExtension>& telemetry,
+    const std::shared_ptr<SavedModelVariablesIndex>& variables_index,
+    const std::shared_ptr<std::map<std::string, std::string>> saved_model_input_names,
+    const std::shared_ptr<std::map<std::string, std::string>> saved_model_output_names)
     : m_graph_iterator(graph_iterator),
       m_input_model(input_model),
       m_telemetry(telemetry),
-      m_variables_index(variables_index) {
+      m_variables_index(variables_index),
+      m_saved_model_input_names(saved_model_input_names),
+      m_saved_model_output_names(saved_model_output_names) {
     FRONT_END_GENERAL_CHECK(m_graph_iterator, "Null pointer specified for GraphIterator");
     m_input_names = graph_iterator->get_input_names();
     m_output_names = graph_iterator->get_output_names();
@@ -456,11 +475,26 @@ void InputModel::InputModelTFImpl::set_tensor_value(ov::frontend::Place::Ptr pla
 
 InputModel::InputModel(const GraphIterator::Ptr& graph_iterator,
                        const std::shared_ptr<TelemetryExtension>& telemetry,
-                       const std::shared_ptr<SavedModelVariablesIndex>& variables_index)
-    : _impl{std::make_shared<InputModelTFImpl>(graph_iterator, *this, telemetry, variables_index)} {}
+                       const std::shared_ptr<SavedModelVariablesIndex>& variables_index,
+                       const std::shared_ptr<std::map<std::string, std::string>> saved_model_input_names,
+                       const std::shared_ptr<std::map<std::string, std::string>> saved_model_output_names)
+    : _impl{std::make_shared<InputModelTFImpl>(graph_iterator,
+                                               *this,
+                                               telemetry,
+                                               variables_index,
+                                               saved_model_input_names,
+                                               saved_model_output_names)} {}
 
 std::shared_ptr<SavedModelVariablesIndex> InputModel::get_variables_index() {
     return _impl->get_variables_index();
+}
+
+std::shared_ptr<std::map<std::string, std::string>> InputModel::get_saved_model_input_names() const {
+    return _impl->get_saved_model_input_names();
+}
+
+std::shared_ptr<std::map<std::string, std::string>> InputModel::get_saved_model_output_names() const {
+    return _impl->get_saved_model_output_names();
 }
 
 std::vector<std::string> InputModel::get_input_names() const {

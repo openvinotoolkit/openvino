@@ -10,6 +10,7 @@
 #include "helper_transforms/const_to_result_remover.hpp"
 #include "helper_transforms/embedding_segments_feature_fusing.hpp"
 #include "helper_transforms/gru_block_cell_replacer.hpp"
+#include "helper_transforms/saved_model_unused_remover.hpp"
 #include "input_model.hpp"
 #include "op_table.hpp"
 #include "openvino/frontend/tensorflow/extension/conversion.hpp"
@@ -130,7 +131,11 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
             } else {
                 graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, std::string("serve"));
             }
-            return std::make_shared<InputModel>(graph_iterator, m_telemetry, graph_iterator->get_variables_index());
+            return std::make_shared<InputModel>(graph_iterator,
+                                                m_telemetry,
+                                                graph_iterator->get_variables_index(),
+                                                graph_iterator->get_saved_model_input_names(),
+                                                graph_iterator->get_saved_model_output_names());
         }
     }
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
@@ -148,7 +153,11 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
             } else {
                 graph_iterator = std::make_shared<GraphIteratorSavedModel>(model_path, std::string("serve"));
             }
-            return std::make_shared<InputModel>(graph_iterator, m_telemetry, graph_iterator->get_variables_index());
+            return std::make_shared<InputModel>(graph_iterator,
+                                                m_telemetry,
+                                                graph_iterator->get_variables_index(),
+                                                graph_iterator->get_saved_model_input_names(),
+                                                graph_iterator->get_saved_model_output_names());
         }
     }
 #endif
@@ -255,6 +264,7 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
         // run transformations to convert sub-graphs with intermediate (or FrameworkNode) operations
         // into sub-graphs with only OpenVINO operations
         ov::pass::Manager manager;
+        manager.register_pass<pass::SavedModelUnusedRemover>();
         manager.register_pass<pass::EmbeddingSegmentSingleFeatureFusion>();
         manager.register_pass<pass::BlockLSTMReplacer>();
         manager.register_pass<pass::GRUBlockCellReplacer>();

@@ -4,8 +4,8 @@
 
 #include "helper_transforms/const_to_result_remover.hpp"
 
-#include "helper_ops/unsupported_constant.hpp"
 #include "helper_ops/string_constant.hpp"
+#include "helper_ops/unsupported_constant.hpp"
 #include "openvino/opsets/opset10.hpp"
 
 using namespace std;

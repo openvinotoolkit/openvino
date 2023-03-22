@@ -157,6 +157,8 @@ private:
 class GraphIteratorSavedModel : public GraphIteratorProto {
     std::shared_ptr<::tensorflow::SavedModel> m_saved_model;
     std::shared_ptr<SavedModelVariablesIndex> m_variables_index;
+    std::shared_ptr<std::map<std::string, std::string>> m_inputs_map;
+    std::shared_ptr<std::map<std::string, std::string>> m_outputs_map;
 
 public:
     template <typename T>
@@ -172,6 +174,14 @@ public:
 
     std::shared_ptr<SavedModelVariablesIndex> get_variables_index() {
         return m_variables_index;
+    }
+
+    std::shared_ptr<std::map<std::string, std::string>> get_saved_model_input_names() const {
+        return m_inputs_map;
+    }
+
+    std::shared_ptr<std::map<std::string, std::string>> get_saved_model_output_names() const {
+        return m_outputs_map;
     }
 
 private:
@@ -213,16 +223,27 @@ private:
                 }
             }
 
-            std::vector<std::string> validSignatures = {};
-            for (auto& sit : meta_graph.signature_def()) {
+            std::map<std::string, const ::tensorflow::SignatureDef*> validSignatures = {};
+            for (const auto& sit : meta_graph.signature_def()) {
                 const std::string& key = sit.first;
                 const ::tensorflow::SignatureDef& val = sit.second;
                 if (is_valid_signature(val)) {
-                    validSignatures.push_back(key);
+                    validSignatures[key] = &val;
                 }
             }
 
-            // TODO: assets reading
+            auto serving_default = validSignatures.find("serving_default");
+
+            if (serving_default != validSignatures.end()) {
+                m_inputs_map = std::make_shared<std::map<std::string, std::string>>();
+                m_outputs_map = std::make_shared<std::map<std::string, std::string>>();
+                for (const auto& input : serving_default->second->inputs()) {
+                    (*m_inputs_map)[input.second.name()] = input.first;
+                }
+                for (const auto& output : serving_default->second->outputs()) {
+                    (*m_outputs_map)[output.second.name()] = output.first;
+                }
+            }
 
             m_graph_def = std::make_shared<::tensorflow::GraphDef>(meta_graph.graph_def());
 
@@ -236,7 +257,7 @@ private:
             auto nodes_size = m_graph_def->node_size();
             m_decoders.resize(static_cast<size_t>(nodes_size));
             for (int node_ind = 0; node_ind < nodes_size; ++node_ind) {
-                m_decoders[node_ind] = std::make_shared<DecoderProto>(&m_graph_def->node(node_ind));
+                m_decoders[node_ind] = std::make_shared<DecoderProto>(&m_graph_def->node(node_ind), m_graph_def);
             }
 
             // initialize a library map
