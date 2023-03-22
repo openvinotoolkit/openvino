@@ -378,6 +378,16 @@ bool program_node::has_padded_dependency() const {
     });
 }
 
+bool program_node::is_fused_dep(size_t dep_idx) const {
+    for (auto fused : get_fused_primitives()) {
+        if (dep_idx >= fused.dep_start_idx) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
     std::map<size_t, memory::ptr> mem_deps;
     for (auto& i : get_shape_infer_dependencies()) {
@@ -385,6 +395,12 @@ std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
         if (i >= get_dependencies().size())
             continue;
 
+        // exclude fused dependency
+        if (is_fused_dep(i)) {
+            continue;
+        }
+
+        // constant type only
         auto& dep = get_dependency(i);
         if (dep.is_type<data>()) {
             mem_deps.insert({i, dep.as<data>().get_attached_memory_ptr()});
