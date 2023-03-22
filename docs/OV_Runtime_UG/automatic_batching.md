@@ -8,32 +8,6 @@ Auto Batching can be used **directly as a virtual device** or as an **option for
 
 This article provides a preview of the Automatic Batching function, including how it works, its configurations, and testing performance.
 
-Automatic Batching as an explicit device
-++++++++++++++++++++++++++++++++++++++++
-
-The below examples show how AUTO Batching can be used in the form of device that the user can apply to perform inference directly:
-
-.. code-block:: sh
-
-   ./benchmark_app -m <model> -d "BATCH:GPU"
-   ./benchmark_app -m <model> -d "BATCH:GPU(16)"
-   ./benchmark_app -m <model> -d "BATCH:CPU(16)"
-
-Automatic Batching as underlying device configured to other devices
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-In thie following examples, BATCH device will be configured to another device in case of ``tput/ctput mode``.
-
-.. code-block:: sh
-
-   ./benchmark_app -m <model> -d GPU -hint tput
-   ./benchmark_app -m <model> -d AUTO -hint tput
-   ./benchmark_app -m <model> -d AUTO -hint ctput  
-   ./benchmark_app -m <model> -d AUTO:GPU -hint ctput
-
-.. note::
-   If you run ``./benchmark_app``, do not set ``batch_size`` by ``-b <batch_size>``, otherwise AUTO mode will not be applied.
-
 Enabling/Disabling Automatic Batching
 #####################################
 
@@ -95,6 +69,32 @@ Following the OpenVINO naming convention, the *batching* device is assigned the 
 +----------------------------+------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 | ``ov::auto_batch_timeout`` | The timeout value, in ms. (1000 by default)                                                          | You can reduce the timeout value to avoid performance penalty when the data arrives too unevenly. For example, set it to "100", or the contrary, i.e., make it large enough to accommodate input preparation (e.g. when it is a serial process). |
 +----------------------------+------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+Automatic Batching as an explicit device
+++++++++++++++++++++++++++++++++++++++++
+
+The below examples show how AUTO Batching can be used in the form of device that the user can apply to perform inference directly:
+
+.. code-block:: sh
+
+   ./benchmark_app -m <model> -d "BATCH:GPU"
+   ./benchmark_app -m <model> -d "BATCH:GPU(16)"
+   ./benchmark_app -m <model> -d "BATCH:CPU(16)"
+
+Automatic Batching as underlying device configured to other devices
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+In thie following examples, BATCH device will be configured to another device in case of ``tput/ctput mode``.
+
+.. code-block:: sh
+
+   ./benchmark_app -m <model> -d GPU -hint tput
+   ./benchmark_app -m <model> -d AUTO -hint tput
+   ./benchmark_app -m <model> -d AUTO -hint ctput  
+   ./benchmark_app -m <model> -d AUTO:GPU -hint ctput
+
+.. note::
+   If you run ``./benchmark_app``, do not set ``batch_size`` by ``-b <batch_size>``, otherwise AUTO mode will not be applied.
 
 Automatic Batch Size Selection
 ##############################
