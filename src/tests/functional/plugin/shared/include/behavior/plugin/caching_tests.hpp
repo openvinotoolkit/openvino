@@ -94,6 +94,9 @@ protected:
         std::replace(test_name.begin(), test_name.end(), '\\', '_');
         cache_path = "LoadNetwork" + test_name + "_cache";
     }
+    void TearDown() override {
+        APIBaseTest::TearDown();
+    }
 };
 
 DISABLE_WARNING_MSVC_END(4250)
