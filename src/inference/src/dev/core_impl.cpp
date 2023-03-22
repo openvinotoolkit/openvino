@@ -495,10 +495,8 @@ ov::Plugin ov::CoreImpl::get_plugin(const std::string& pluginName) const {
                 {
                     auto supportedConfigKeys =
                         plugin.get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {}).as<std::vector<std::string>>();
-                    auto config_iter = std::find(supportedConfigKeys.begin(),
-                                                 supportedConfigKeys.end(),
-                                                 CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID));
-                    const bool supportsConfigDeviceID = config_iter != supportedConfigKeys.end();
+                    const bool supportsConfigDeviceID =
+                        ov::util::contains(supportedConfigKeys, CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID));
                     const std::string deviceKey =
                         supportsConfigDeviceID ? CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID) : CONFIG_KEY(DEVICE_ID);
 
@@ -742,6 +740,26 @@ ov::RemoteContext ov::CoreImpl::create_context(const std::string& device_name, c
 
 ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_name,
                                                 const ov::AnyMap& user_properties) const {
+    if (is_virtual_device(full_device_name)) {
+        // Considerations:
+        // 1. in case of virtual devices all the magic will happen on the level when
+        // virtual device calls ICore::get_supported_property for real HW devices
+        // so, for now we can returns user properties almost as is without any
+        // filtering / flattening
+        // 2. The only exception here: while common properties like ov::num::streams or
+        // ov::hint::performance_mode are shared across all the devices, the
+        // ov::device::priority cannot be shared, because it's specific for current virtual
+        // plugin. So, we need to remove ov::device::priorities from the list, because it's
+        // supposed to be set for current virtual plugin and cannot be propogated down
+        ov::AnyMap return_properties = clone_map(user_properties);
+        auto device_priorities_it = return_properties.find(ov::device::priorities.name());
+        if (device_priorities_it != return_properties.end()) {
+            return_properties.erase(device_priorities_it);
+        }
+
+        return return_properties;
+    }
+
     static const std::vector<std::string> core_level_properties = {
         ov::cache_dir.name(),
         ov::force_tbb_terminate.name(),
@@ -753,28 +771,6 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
     const auto flattened = ov::parseDeviceNameIntoConfig(full_device_name, user_properties);
     const std::string& device_name = flattened._deviceName;
     const auto& flattened_config = flattened._config;
-    ov::AnyMap supported_config, options;
-
-    // fill 'options' to provide more information to ICore::get_property calls
-    {
-        auto priority_prop_name = get_device_priority_property(device_name).prop_name;
-        auto it = flattened_config.find(priority_prop_name);
-        if (it != flattened_config.end())
-            options[it->first] = it->second;
-        else if (device_name == "HETERO") {
-            // TODO: remove together with API 1.0
-            priority_prop_name = "TARGET_FALLBACK";
-            it = flattened_config.find(priority_prop_name);
-            if (it != flattened_config.end())
-                options[it->first] = it->second;
-        } else if (device_name == "BATCH") {
-            // TODO: remove together with API 1.0
-            priority_prop_name = CONFIG_KEY(AUTO_BATCH_DEVICE_CONFIG);
-            it = flattened_config.find(priority_prop_name);
-            if (it != flattened_config.end())
-                options[it->first] = it->second;
-        }
-    }
 
     // virtual plugins should bypass core-level properties to HW plugins
     // so, we need to report them as supported
@@ -783,16 +779,16 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
     // try to search against IE API 1.0' SUPPORTED_CONFIG_KEYS
     try {
         const auto supported_keys =
-            GetMetric(device_name, METRIC_KEY(SUPPORTED_CONFIG_KEYS), options).as<std::vector<std::string>>();
+            GetMetric(device_name, METRIC_KEY(SUPPORTED_CONFIG_KEYS), {}).as<std::vector<std::string>>();
         for (auto&& config_key : supported_keys) {
             supported_config_keys.emplace_back(config_key);
         }
     } catch (ov::Exception&) {
     }
 
-    // try to search against OV API 2.0' supported_properties
+    // try to search against OV API 2.0' mutable supported_properties
     try {
-        for (auto&& property : ICore::get_property(device_name, ov::supported_properties, options)) {
+        for (auto&& property : ICore::get_property(device_name, ov::supported_properties, {})) {
             if (property.is_mutable()) {
                 supported_config_keys.emplace_back(std::move(property));
             }
@@ -800,11 +796,14 @@ ov::AnyMap ov::CoreImpl::get_supported_property(const std::string& full_device_n
     } catch (ov::Exception&) {
     }
 
+    // collect supported properties for HW device
+    AnyMap supported_config;
     for (auto&& kvp : flattened_config) {
         if (util::contains(supported_config_keys, kvp.first)) {
             supported_config[kvp.first] = kvp.second;
         }
     }
+
     return supported_config;
 }
 
@@ -911,10 +910,10 @@ void ov::CoreImpl::set_property(const std::string& device_name, const AnyMap& pr
     // unsupport to set ov::device::properties to HW device through this function
     auto devices = get_registered_devices();
     for (auto&& config : properties) {
-        auto is_secondary_config_for_hw_device = config.first.find(ov::device::properties.name()) != std::string::npos;
-        OPENVINO_ASSERT(!is_secondary_config_for_hw_device,
+        const auto is_secondary_property = config.first.find(ov::device::properties.name()) != std::string::npos;
+        OPENVINO_ASSERT(!is_secondary_property,
                         "set_property do not support ov::device::propreties. "
-                        "You can configure the devices through the compile_model()/loadNetwork() API.");
+                        "You can configure the devices through the compile_model()/query_model() API.");
     }
     set_property_for_device(properties, device_name);
 }
@@ -1090,16 +1089,11 @@ void ov::CoreImpl::set_property_for_device(const ov::AnyMap& configMap, const st
             }
             // Add device specific value to support device_name.device_id cases
             {
-                auto supportedConfigKeys =
-                    plugin.second.get_property(METRIC_KEY(SUPPORTED_CONFIG_KEYS), {}).as<std::vector<std::string>>();
-                auto config_iter = std::find(supportedConfigKeys.begin(),
-                                             supportedConfigKeys.end(),
-                                             CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID));
-                const bool supportsConfigDeviceID = config_iter != supportedConfigKeys.end();
-                const std::string deviceKey =
-                    supportsConfigDeviceID ? CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID) : CONFIG_KEY(DEVICE_ID);
-
                 if (!parser.get_device_id().empty()) {
+                    const std::string deviceKey =
+                        device_supports_property(plugin.second, CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID))
+                            ? CONFIG_KEY_INTERNAL(CONFIG_DEVICE_ID)
+                            : CONFIG_KEY(DEVICE_ID);
                     configCopy[deviceKey] = parser.get_device_id();
                 }
             }
@@ -1129,17 +1123,16 @@ bool ov::CoreImpl::device_supports_import_export(const std::string& deviceName) 
     return device_supports_import_export(get_plugin(parsed._deviceName));
 }
 
-bool ov::CoreImpl::device_supports_property(const ov::Plugin& plugin, const std::string& key) const {
+bool ov::CoreImpl::device_supports_property(const ov::Plugin& plugin, const ov::PropertyName& key) const {
     return util::contains(plugin.get_property(ov::supported_properties), key);
 }
 
 bool ov::CoreImpl::device_supports_import_export(const ov::Plugin& plugin) const {
     auto supportedMetricKeys = plugin.get_property(METRIC_KEY(SUPPORTED_METRICS), {}).as<std::vector<std::string>>();
-    auto it = std::find(supportedMetricKeys.begin(), supportedMetricKeys.end(), METRIC_KEY(IMPORT_EXPORT_SUPPORT));
-    auto supported =
-        (it != supportedMetricKeys.end()) && plugin.get_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT), {}).as<bool>();
+    auto supported = ov::util::contains(supportedMetricKeys, METRIC_KEY(IMPORT_EXPORT_SUPPORT)) &&
+                     plugin.get_property(METRIC_KEY(IMPORT_EXPORT_SUPPORT), {}).as<bool>();
     if (!supported) {
-        if (device_supports_property(plugin, ov::device::capabilities.name())) {
+        if (device_supports_property(plugin, ov::device::capabilities)) {
             supported =
                 util::contains(plugin.get_property(ov::device::capabilities), ov::device::capability::EXPORT_IMPORT);
         }
@@ -1242,26 +1235,28 @@ ov::AnyMap ov::CoreImpl::create_compile_config(const ov::Plugin& plugin, const o
     }
 
     // 1. Move DEVICE_ID key to property_config
+    const bool supports_device_id = device_supports_property(plugin, ov::device::id);
     auto deviceIt = user_config.find(ov::device::id.name());
     if (deviceIt != user_config.end()) {
         property_config[deviceIt->first] = deviceIt->second.as<std::string>();
-    } else {
-        // we likely need to extract default device_id from the plugin,
-        // but we suppose when we call plugin.get_property it will provide the answer
-        // for the default device (e.g. DEVICE_ID = 0 for GPU)
+    } else if (supports_device_id) {
+        property_config[ov::device::id.name()] = plugin.get_property(ov::device::id, {});
     }
 
     // 2. Replace DEVICE_ID with DEVICE_ARCHITECTURE value to identify device
-    if (device_supports_property(plugin, ov::device::architecture.name())) {
+    if (device_supports_property(plugin, ov::device::architecture)) {
         compile_config[ov::device::architecture.name()] =
             plugin.get_property(ov::device::architecture, property_config);
     } else {
-        // Take device name if device does not support DEVICE_ARCHITECTURE metric
-        compile_config[ov::device::architecture.name()] = plugin.get_name();
+        // Take full device name if device does not support DEVICE_ARCHITECTURE metric
+        std::string full_device_name = plugin.get_name();
+        if (supports_device_id)
+            full_device_name += "." + property_config[ov::device::id.name()].as<std::string>();
+        compile_config[ov::device::architecture.name()] = full_device_name;
     }
 
     // 3. Extract config keys which affect compilation process
-    if (device_supports_property(plugin, ov::caching_properties.name())) {
+    if (device_supports_property(plugin, ov::caching_properties)) {
         auto cachingProps = plugin.get_property(ov::caching_properties);
         for (const auto& prop : cachingProps) {
             // user_config values have higher priority than plugin parameters
@@ -1295,7 +1290,7 @@ void ov::CoreImpl::CoreConfig::set_and_update(ov::AnyMap& config) {
         std::lock_guard<std::mutex> lock(_cacheConfigMutex);
         // fill global cache config
         _cacheConfig = CoreConfig::CacheConfig::create(it->second.as<std::string>());
-        // sets cache config per-device if it's set explicitly before
+        // sets cache config per-device if it's not set explicitly before
         for (auto& deviceCfg : _cacheConfigPerDevice) {
             deviceCfg.second = CoreConfig::CacheConfig::create(it->second.as<std::string>());
         }

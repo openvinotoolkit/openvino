@@ -166,7 +166,7 @@ private:
 
     bool device_supports_import_export(const ov::Plugin& plugin) const;
 
-    bool device_supports_property(const ov::Plugin& plugin, const std::string& key) const;
+    bool device_supports_property(const ov::Plugin& plugin, const ov::PropertyName& key) const;
 
     OPENVINO_DEPRECATED("Don't use this method, it will be removed soon")
     bool device_supports_cache_dir(const ov::Plugin& plugin) const;
