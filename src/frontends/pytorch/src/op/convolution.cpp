@@ -16,7 +16,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_convolution(NodeContext& context) {
+OutputVector translate_convolution(const NodeContext& context) {
     // Schema: aten::_convolution(Tensor input, Tensor weight, Tensor? bias, int[] stride, int[] padding, int[]
     // dilation, bool transposed, int[] output_padding, int groups, bool benchmark, bool deterministic, bool
     // cudnn_enabled, bool allow_tf32) -> Tensor

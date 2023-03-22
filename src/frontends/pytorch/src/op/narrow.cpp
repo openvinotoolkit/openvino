@@ -16,7 +16,7 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_narrow(NodeContext& context) {
+OutputVector translate_narrow(const NodeContext& context) {
     num_inputs_check(context, 4, 4);
 
     auto const_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));

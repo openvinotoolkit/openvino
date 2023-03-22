@@ -60,7 +60,7 @@ protected:
     bool supported_impl(const std::vector<ov::Any>& variants) const override;
     ov::frontend::InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override;
 
-    std::map<std::string, PytorchCreatorFunction> m_op_translators;
+    std::map<std::string, CreatorFunction> m_op_translators;
 };
 
 }  // namespace pytorch
