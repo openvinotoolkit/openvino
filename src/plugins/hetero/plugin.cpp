@@ -194,6 +194,9 @@ std::string Engine::DeviceCachingProperties(const std::string& targetFallback) c
     auto fallbackDevices = ov::DeviceIDParser::get_hetero_devices(targetFallback);
     ov::AnyMap result;
     for (const auto& device : fallbackDevices) {
+        ov::DeviceIDParser parser(device);
+        // Use name without id
+        auto device_name = parser.get_device_name();
         auto supported_properties =
             GetCore()->GetMetric(device, ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
         if (std::find(supported_properties.begin(), supported_properties.end(), ov::caching_properties.name()) !=
@@ -201,12 +204,20 @@ std::string Engine::DeviceCachingProperties(const std::string& targetFallback) c
             auto caching_properties =
                 GetCore()->GetMetric(device, ov::caching_properties.name()).as<std::vector<ov::PropertyName>>();
             if (caching_properties.size()) {
-                result[device] = ov::AnyMap{};
-                auto& device_config = result[device].as<ov::AnyMap>();
+                result[device_name] = ov::AnyMap{};
+                auto& device_config = result[device_name].as<ov::AnyMap>();
                 for (auto& property_name : caching_properties) {
                     device_config[property_name] = GetCore()->GetMetric(device, property_name);
                 }
             }
+        // If caching properties are not supported by device, try to add at least device architecture
+        } else if (std::find(supported_properties.begin(), supported_properties.end(), ov::device::architecture.name()) !=
+            supported_properties.end()) {
+            auto device_architecture = GetCore()->GetMetric(device, ov::device::architecture.name());
+            result[device_name] = ov::AnyMap{{ov::device::architecture.name(), device_architecture}};
+        // Device architecture is not supported, add device name as achitecture
+        } else {
+            result[device_name] = ov::AnyMap{{ov::device::architecture.name(), device_name}};
         }
     }
     return result.empty() ? "" : ov::Any(result).as<std::string>();
