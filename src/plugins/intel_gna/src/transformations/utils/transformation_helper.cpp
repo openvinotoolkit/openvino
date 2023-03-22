@@ -9,6 +9,7 @@
 #include <ngraph/rt_info.hpp>
 #include "ops/gna_convolution.hpp"
 #include "ops/gna_max_pool.hpp"
+#include "log/debug.hpp"
 
 using namespace ov::opset7;
 
@@ -123,11 +124,26 @@ void RemoveSingleInputNodeFromFunction(std::shared_ptr<ov::Node> node) {
 }
 
 ov::Shape SqueezeShape(const ov::Shape& shape) {
-    ov::Shape squeezed_shape;
-    std::copy_if(shape.begin(), shape.end(), std::back_inserter(squeezed_shape), [](size_t x) {
-        return x != 1;
-    });
-    return squeezed_shape;
+    auto comp = [](size_t x) { return x != 1; };
+
+    auto start_it = std::find_if(shape.begin(), shape.end(), comp);
+    auto end_it = std::find_if(shape.rbegin(), shape.rend(), comp).base();
+    if (start_it == shape.end() || end_it == shape.end() || start_it < end_it) {
+        return ov::Shape(shape.begin(), shape.end());
+    }
+    return ov::Shape(start_it, end_it);
+}
+
+ov::Shape TransposeShape(const ov::Shape& shape, std::vector<size_t> order) {
+    if (shape.size() != order.size()) {
+        THROW_GNA_EXCEPTION << "Sizes of the shape " << shape.size()
+                            << " and transpose axis " << order.size() << " are different";
+    }
+    ov::Shape transposed(shape.size());
+    for (size_t i = 0; i < shape.size(); ++i) {
+        transposed[i] = shape[order[i]];
+    }
+    return transposed;
 }
 
 }  // namespace helper
