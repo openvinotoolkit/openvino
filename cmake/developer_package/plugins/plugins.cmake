@@ -334,7 +334,7 @@ function(ie_generate_plugins_hpp)
                        COMMAND
                         "${CMAKE_COMMAND}"
                         -D "IE_DEVICE_MAPPING=${device_mapping}"
-                        -D "OV_DYNAMIC=${BUILD_SHARED_LIBS}"
+                        -D "BUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}"
                         -D "IE_PLUGINS_HPP_HEADER_IN=${plugins_hpp_in}"
                         -D "IE_PLUGINS_HPP_HEADER=${ie_plugins_hpp}"
                         ${device_configs}

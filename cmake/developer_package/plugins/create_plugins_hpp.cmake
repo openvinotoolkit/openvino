@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-foreach(var IE_DEVICE_MAPPING OV_DYNAMIC IE_PLUGINS_HPP_HEADER IE_PLUGINS_HPP_HEADER_IN)
+foreach(var IE_DEVICE_MAPPING BUILD_SHARED_LIBS IE_PLUGINS_HPP_HEADER IE_PLUGINS_HPP_HEADER_IN)
     if(NOT DEFINED ${var})
         message(FATAL_ERROR "${var} is required, but not defined")
     endif()
@@ -35,7 +35,7 @@ foreach(dev_map IN LISTS IE_DEVICE_MAPPING)
     set(dev_config "${dev_config}}")
 
 
-    if(NOT OV_DYNAMIC)
+    if(NOT BUILD_SHARED_LIBS)
         # common
         set(_IE_CREATE_PLUGIN_FUNC "CreatePluginEngine${actual_dev_name}")
         set(_IE_CREATE_EXTENSION_FUNC "CreateExtensionShared${actual_dev_name}")
