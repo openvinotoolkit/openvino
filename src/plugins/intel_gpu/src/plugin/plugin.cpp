@@ -32,6 +32,7 @@
 #include "ie_plugin_config.hpp"
 #include "gpu/gpu_config.hpp"
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include "ie_icore.hpp"
 
 #include "dimension_tracker.hpp"
@@ -207,7 +208,7 @@ IExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine
     check_inputs(_networkInputs);
 
     auto context_impl = get_context_impl(context);
-    auto device_id = InferenceEngine::DeviceIDParser{context_impl->get_device_name()}.getDeviceID();
+    auto device_id = ov::DeviceIDParser{context_impl->get_device_name()}.get_device_id();
 
     OPENVINO_ASSERT(m_configs_map.find(device_id) != m_configs_map.end(), "[GPU] LoadExeNetworkImpl: Couldn't find config for GPU with id ", device_id);
 

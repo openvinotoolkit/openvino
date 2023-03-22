@@ -69,6 +69,7 @@ struct roi_align_test : public testing::Test {
                  roi_align::AlignedMode aligned_mode,
                  bool is_caching_test) const {
         auto& engine = get_test_engine();
+        auto stream = get_test_stream_ptr(get_test_default_config(engine));
 
         auto input = get_memory(engine, input_lt, input_data);
         auto coords = get_memory(engine, coords_lt, coords_data);
@@ -91,7 +92,7 @@ struct roi_align_test : public testing::Test {
                                aligned_mode));
         topology.add(reorder("out", input_info("roi_align"), plain_format, device_data_type));
 
-        cldnn::network::ptr network = get_network(engine, topology, ExecutionConfig(), get_test_stream_ptr(), is_caching_test);
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), stream, is_caching_test);
 
         network->set_input_data("input", input);
         network->set_input_data("coords", coords);
