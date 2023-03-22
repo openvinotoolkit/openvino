@@ -97,6 +97,7 @@ inline std::pair<bool, std::string> compare_functions(const std::shared_ptr<ngra
 
     using Cmp = FunctionsComparator::CmpValues;
     fc.enable(Cmp::NODES);
+    fc.enable(Cmp::SUBGRAPH_DESCRIPTORS);
     if (compareConstValues)
         fc.enable(Cmp::CONST_VALUES);
     if (compareNames)

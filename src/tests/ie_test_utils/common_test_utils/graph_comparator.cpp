@@ -691,7 +691,7 @@ Comparator::Result Comparator::compare(ngraph::Node* node1, ngraph::Node* node2,
     auto type_info2 = node2->get_type_info();
 
     if (!compare_type_info(type_info1, type_info2)) {
-        return Result::error(name(node1) + " and " + name(node2) + "have different type info: " +
+        return Result::error(name(node1) + " and " + name(node2) + " have different type info: " +
                              typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2));
     }
 
@@ -827,6 +827,11 @@ void Comparator::compare_nodes(ngraph::Node* node1, ngraph::Node* node2, std::os
 }
 
 void Comparator::add_nodes_inputs_to_queue(ngraph::Node* node1, ngraph::Node* node2) {
+    const auto subgraph1 = dynamic_cast<ov::op::util::SubGraphOp*>(node1);
+    const auto subgraph2 = dynamic_cast<ov::op::util::SubGraphOp*>(node2);
+    if (subgraph1 || subgraph2)
+        return;  // skip as subgraphs comparizon is handled with subgraph::compare_io
+
     for (int i = 0; i < node1->inputs().size(); ++i) {
         if (!used.count(node1->input_value(i).get_node())) {
             q.push({node1->input_value(i).get_node(), node2->input_value(i).get_node()});
