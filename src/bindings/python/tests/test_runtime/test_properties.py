@@ -248,14 +248,34 @@ def test_properties_ro(ov_property_ro, expected_value):
             ),
         ),
         (
+            properties.intel_auto.device_bind_buffer,
+            "DEVICE_BIND_BUFFER",
+            (
+                (True, True),
+                (False, False),
+                (1, True),
+                (0, False),
+            ),
+        ),
+        (
             properties.intel_auto.enable_startup_fallback,
             "ENABLE_STARTUP_FALLBACK",
-            ((True, True),),
+            (
+                (True, True),
+                (False, False),
+                (1, True),
+                (0, False),
+            ),
         ),
         (
             properties.intel_auto.enable_runtime_fallback,
             "ENABLE_RUNTIME_FALLBACK",
-            ((True, True),),
+            (
+                (True, True),
+                (False, False),
+                (1, True),
+                (0, False),
+            ),
         ),
         (properties.device.id, "DEVICE_ID", (("0", "0"),)),
         (
