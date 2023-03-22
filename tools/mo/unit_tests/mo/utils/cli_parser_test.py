@@ -1978,7 +1978,7 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
                 'layout': {"a": LayoutMap("nchw","nhwc"), "b": "nc"},
                 'transform': ('LowLatency2', {'use_const_initializer': False})}
 
-        cli_parser = get_all_cli_parser(FrontEndManager())
+        cli_parser = get_all_cli_parser()
         argv = pack_params_to_args_namespace(args, cli_parser)
 
         assert argv.input_model == args['input_model']
@@ -2001,7 +2001,7 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
 
     def test_not_existing_dir(self):
         args = {"input_model": "abc"}
-        cli_parser = get_all_cli_parser(FrontEndManager())
+        cli_parser = get_all_cli_parser()
 
         with self.assertRaisesRegex(Error, "The \"abc\" is not existing file or directory"):
             pack_params_to_args_namespace(args, cli_parser)
@@ -2009,7 +2009,7 @@ class TestPackParamsToArgsNamespace(unittest.TestCase):
     def test_unknown_params(self):
         args = {"input_model": os.path.dirname(__file__),
                 "a": "b"}
-        cli_parser = get_all_cli_parser(FrontEndManager())
+        cli_parser = get_all_cli_parser()
 
         with self.assertRaisesRegex(Error, "Unrecognized argument: a"):
             pack_params_to_args_namespace(args, cli_parser)

@@ -131,6 +131,8 @@ def print_argv(argv: argparse.Namespace, is_caffe: bool, is_tf: bool, is_mxnet: 
 def arguments_post_parsing(argv: argparse.Namespace):
     use_legacy_frontend = argv.use_legacy_frontend
     use_new_frontend = argv.use_new_frontend
+    if argv.extensions is None:
+        argv.extensions = [import_extensions.default_path()]
 
     if use_new_frontend and use_legacy_frontend:
         raise Error('Options --use_new_frontend and --use_legacy_frontend must not be used simultaneously '
@@ -636,15 +638,22 @@ def args_dict_to_list(cli_parser, **kwargs):
 
 def get_non_default_params(argv, cli_parser):
     import numbers
+    import inspect
+    from openvino.tools.mo import convert_model
+
+    signature = inspect.signature(convert_model)
     # make dictionary with parameters which have non-default values to be serialized in IR in rt_info
     non_default_params = {}
     for arg, arg_value in vars(argv).items():
-        if arg_value != cli_parser.get_default(arg):
-            value = depersonalize(arg_value, arg)
-            # Skip complex classes in params to prevent
-            # serializing it to rt_info
-            if isinstance(value, (str, bool, numbers.Number)):
-                non_default_params[arg] = value
+        if arg in signature.parameters and arg_value == signature.parameters[arg].default:
+            continue
+        if arg_value == cli_parser.get_default(arg):
+            continue
+        value = depersonalize(arg_value, arg)
+        # Skip complex classes in params to prevent
+        # serializing it to rt_info
+        if isinstance(value, (str, bool, numbers.Number)):
+            non_default_params[arg] = value
     return non_default_params
 
 
@@ -769,7 +778,12 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
 
         argv = pack_params_to_args_namespace(args, cli_parser)
 
+        argv.feManager = FrontEndManager()
+        frameworks = list(set(['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'] + (get_available_front_ends(argv.feManager)
+                                                                           if argv.feManager else [])))
         if framework is not None:
+            assert framework in frameworks, "Unknown framework type. " \
+                                            "Expected one of {}, got {}.".format(frameworks, framework)
             setattr(argv, 'framework', framework)
 
         # send telemetry with params info
@@ -793,7 +807,6 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
             else:
                 argv.framework = model_framework
 
-        argv.feManager = FrontEndManager()
         ov_model, legacy_path = driver(argv, {"conversion_parameters": non_default_params})
 
         # add MO meta data to model

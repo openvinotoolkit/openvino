@@ -149,7 +149,7 @@ def transformations_config_to_str(value):
 
 def extensions_to_str_or_extensions_class(extensions):
     if extensions is None:
-        return [import_extensions.default_path()]
+        return None
     extensions_list = []
     if isinstance(extensions, str):
         extensions_list = extensions.split(',')
@@ -834,31 +834,46 @@ def add_args_by_description(args_group, params_description):
     signature = inspect.signature(openvino.tools.mo.convert_model)
     filepath_args = get_params_with_paths_list()
 
+    special_actions = {'transformations_config': CanonicalizeTransformationPathCheckExistenceAction,
+                       'input_model': CanonicalizePathCheckExistenceAction,
+                       'extensions': CanonicalizeExtensionsPathCheckExistenceAction,
+                       'counts': CanonicalizePathCheckExistenceIfNeededAction}
+    special_types = {'input_model': readable_file_or_dir, 'scale': float, 'extensions': readable_dirs_or_files_or_empty, 'batch': check_positive}
+    param_aliases = {'input_model': {'-w', '-m'}, 'scale': {'-s'}, 'batch': {'-b'}, 'input_proto': {'-d'}}
+
     for param_name, param_description in params_description.items():
+        if param_name == 'help':
+            continue
         cli_param_name = "--"+param_name
         if cli_param_name not in args_group._option_string_actions:
             help_text = cli_tool_specific_descriptions[param_name] if param_name in cli_tool_specific_descriptions \
                 else param_description.description
-            if signature.parameters[param_name].annotation == [bool, str]:
+            action = special_actions[param_name] if param_name in special_actions else None
+            param_type = special_types[param_name] if param_name in special_types else None
+            param_alias = param_aliases[param_name] if param_name in param_aliases else {}
+            if signature.parameters[param_name].annotation == bool:
                 args_group.add_argument(
-                    cli_param_name,
-                    type=check_bool,
+                    cli_param_name, *param_alias,
+                    type=check_bool if param_type is None else param_type,
                     nargs="?",
                     const=True,
                     help=help_text,
                     default=signature.parameters[param_name].default)
             elif param_name in filepath_args:
+                action = action if action is not None else CanonicalizePathCheckExistenceAction
                 args_group.add_argument(
-                    cli_param_name,
-                    type=str,
-                    action=CanonicalizePathCheckExistenceAction,
+                    cli_param_name, *param_alias,
+                    type=str if param_type is None else param_type,
+                    action=action,
                     help=help_text,
                     default=signature.parameters[param_name].default)
             else:
                 args_group.add_argument(
-                    cli_param_name,
+                    cli_param_name, *param_alias,
                     help=help_text,
-                    default=signature.parameters[param_name].default)
+                    default=signature.parameters[param_name].default,
+                    action=action,
+                    type=param_type)
 
 
 def get_common_cli_parser(parser: argparse.ArgumentParser = None):
@@ -868,10 +883,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
     mo_convert_params = get_mo_convert_params()
     mo_convert_params_common = mo_convert_params['Framework-agnostic parameters:']
 
-    # Common parameters
-    common_group.add_argument('--input_model', '-w', '-m',
-                              action=CanonicalizePathCheckExistenceAction,
-                              type=readable_file_or_dir)
+    # Command line tool specific params
     common_group.add_argument('--model_name', '-n',
                               help='Model_name parameter passed to the final create_ir transform. ' +
                                    'This parameter is used to name ' +
@@ -882,22 +894,8 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               default=get_absolute_path('.'),
                               action=CanonicalizePathAction,
                               type=writable_dir)
-    common_group.add_argument('--scale', '-s',
-                              type=float,
-                              help='All input values coming from original network inputs will be ' +
-                                   'divided by this ' +
-                                   'value. When a list of inputs is overridden by the --input ' +
-                                   'parameter, this scale ' +
-                                   'is not applied for any input that does not match with ' +
-                                   'the original input of the model.' +
-                                   'If both --mean_values and --scale  are specified, ' +
-                                   'the mean is subtracted first and then scale is applied ' +
-                                   'regardless of the order of options in command line.')
-    common_group.add_argument('--log_level',
-                              help='Logger level',
-                              choices=['CRITICAL', 'ERROR', 'WARN', 'WARNING', 'INFO',
-                                       'DEBUG', 'NOTSET'],
-                              default='ERROR')
+
+    # Deprecated params
     # TODO: isn't it a weights precision type
     common_group.add_argument('--data_type',
                               help='[DEPRECATED] Data type for model weights and biases. '
@@ -907,25 +905,12 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               choices=["FP16", "FP32", "half", "float"],
                               default='FP16',
                               action=DeprecatedOptionCommon)
-    # we use CanonicalizeDirCheckExistenceAction instead of readable_dirs to handle empty strings
-    common_group.add_argument("--extensions",
-                              help=cli_tool_specific_descriptions['extensions'],
-                              default=[import_extensions.default_path()],
-                              action=CanonicalizeExtensionsPathCheckExistenceAction,
-                              type=readable_dirs_or_files_or_empty)
-    common_group.add_argument("--batch", "-b",
-                              type=check_positive,
-                              default=None,
-                              help=mo_convert_params_common['batch'].description)
     common_group.add_argument('--freeze_placeholder_with_value',
                               help='Replaces input layer with constant node with '
                                    'provided value, for example: "node_name->True". '
                                    'It will be DEPRECATED in future releases. '
                                    'Use --input option to specify a value for freezing.',
                               default=None)
-    common_group.add_argument('--transformations_config',
-                              help=cli_tool_specific_descriptions['transformations_config'],
-                              action=CanonicalizeTransformationPathCheckExistenceAction)
     add_args_by_description(common_group, mo_convert_params_common)
     return parser
 
@@ -1037,11 +1022,6 @@ def get_caffe_cli_parser(parser: argparse.ArgumentParser = None):
 
     caffe_group = parser.add_argument_group('Caffe*-specific parameters')
     mo_convert_params_caffe = get_mo_convert_params()['Caffe*-specific parameters:']
-
-    caffe_group.add_argument('--input_proto', '-d',
-                             help=mo_convert_params_caffe['input_proto'].description,
-                             type=str,
-                             action=CanonicalizePathCheckExistenceAction)
     add_args_by_description(caffe_group, mo_convert_params_caffe)
     return parser
 
@@ -1101,11 +1081,6 @@ def get_kaldi_cli_parser(parser: argparse.ArgumentParser = None):
 
     kaldi_group = parser.add_argument_group('Kaldi-specific parameters')
     mo_convert_params_kaldi = get_mo_convert_params()['Kaldi-specific parameters:']
-
-    kaldi_group.add_argument("--counts",
-                             help=mo_convert_params_kaldi['counts'].description,
-                             default=None,
-                             action=CanonicalizePathCheckExistenceIfNeededAction)
     add_args_by_description(kaldi_group, mo_convert_params_kaldi)
     return parser
 
@@ -1125,7 +1100,7 @@ def get_onnx_cli_parser(parser: argparse.ArgumentParser = None):
     return parser
 
 
-def get_all_cli_parser(frontEndManager=None):
+def get_all_cli_parser():
     """
     Specifies cli arguments for Model Optimizer
 
@@ -1134,17 +1109,10 @@ def get_all_cli_parser(frontEndManager=None):
         ArgumentParser instance
     """
     parser = argparse.ArgumentParser(usage='%(prog)s [options]')
-
-    frameworks = list(set(['tf', 'caffe', 'mxnet', 'kaldi', 'onnx'] +
-                          (get_available_front_ends(frontEndManager) if frontEndManager else [])))
-
-    parser.add_argument('--framework',
-                        help='Name of the framework used to train the input model.',
-                        type=str,
-                        choices=frameworks)
+    mo_convert_params_optional = get_mo_convert_params()['Optional parameters:']
+    add_args_by_description(parser, mo_convert_params_optional)
 
     get_common_cli_parser(parser=parser)
-
     get_tf_cli_parser(parser=parser)
     get_caffe_cli_parser(parser=parser)
     get_mxnet_cli_parser(parser=parser)

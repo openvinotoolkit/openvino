@@ -65,6 +65,9 @@ class TagFilter(log.Filter):
 
 
 def init_logger(lvl: str, silent: bool):
+    log_levels = ['CRITICAL', 'ERROR', 'WARN', 'WARNING', 'INFO', 'DEBUG', 'NOTSET']
+    assert isinstance(lvl, str) and lvl.upper() in log_levels, \
+        "Incorrect logger level. Expected one of {}, got {}.".format(log_levels, lvl)
     global handler_num
     log_exp = os.environ.get('MO_LOG_PATTERN')
     if silent:

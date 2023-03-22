@@ -5,11 +5,9 @@ import pathlib
 from collections import namedtuple
 from typing import Any
 
-from openvino.frontend import FrontEndManager
 from openvino.runtime import PartialShape, Shape, Layout
 
 from openvino.tools.mo.convert_impl import _convert
-from openvino.tools.mo.utils import import_extensions
 from openvino.tools.mo.utils.cli_parser import get_all_cli_parser
 from openvino.tools.mo.utils.logger import get_logger_state, restore_logger_state
 
@@ -34,7 +32,7 @@ def convert_model(
         layout: [str, Layout, LayoutMap, list, dict] = (),
         compress_to_fp16: bool = True,
         transform: [str, list, tuple] = "",
-        extensions: [str, pathlib.Path, list, Any] = [import_extensions.default_path()],
+        extensions: [str, pathlib.Path, list, Any] = None,
         batch: int = None,
         silent: bool = True,
         version: bool = None,
@@ -361,7 +359,7 @@ def convert_model(
     logger_state = get_logger_state()
     del params['args']
     params.update(args)
-    cli_parser = get_all_cli_parser(FrontEndManager())
+    cli_parser = get_all_cli_parser()
     ov_model, _ = _convert(cli_parser, framework, params)
     restore_logger_state(logger_state)
     return ov_model
