@@ -51,8 +51,6 @@ std::string findPluginXML(const std::string& xmlFile) {
         xmlConfigFileDefault = FileUtils::makePath(ielibraryDir, ov::util::to_file_path("plugins.xml"));
         if (FileUtils::fileExist(xmlConfigFileDefault))
             return xmlConfigFile_ = ov::util::from_file_path(xmlConfigFileDefault);
-
-        OPENVINO_THROW("Failed to find plugins.xml file");
     }
     return xmlConfigFile_;
 }
