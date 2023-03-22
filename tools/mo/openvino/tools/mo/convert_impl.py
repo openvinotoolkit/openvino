@@ -730,14 +730,6 @@ def pack_params_to_args_namespace(args: dict, cli_parser: argparse.ArgumentParse
                 setattr(argv, key, value)
     else:
         argv = cli_parser.parse_args()
-    # Set complex default value
-    if not hasattr(argv, 'extensions') or argv.extensions is None:
-        argv.extensions = [import_extensions.default_path()]
-    if not hasattr(argv, 'k') or argv.k is None:
-        argv.k = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir,
-                              'extensions', 'front', 'caffe', 'CustomLayersMapping.xml')
-    if not hasattr(argv, 'caffe_parser_path') or argv.caffe_parser_path is None:
-        argv.caffe_parser_path = os.path.join(os.path.dirname(__file__), os.pardir, 'front', 'caffe', 'proto')
     return argv
 
 
@@ -824,4 +816,4 @@ def _convert(cli_parser: argparse.ArgumentParser, framework, args):
         telemetry.send_event('mo', 'conversion_result', 'fail')
         telemetry.end_session('mo')
         telemetry.force_shutdown(1.0)
-        raise e#.with_traceback(None)
+        raise e.with_traceback(None)
