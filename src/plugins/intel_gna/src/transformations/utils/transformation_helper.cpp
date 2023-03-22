@@ -128,7 +128,7 @@ ov::Shape SqueezeShape(const ov::Shape& shape) {
 
     auto start_it = std::find_if(shape.begin(), shape.end(), comp);
     auto end_it = std::find_if(shape.rbegin(), shape.rend(), comp).base();
-    if (start_it == shape.end() || end_it == shape.end() || start_it < end_it) {
+    if (start_it == shape.end() || end_it == shape.end()) {
         return ov::Shape(shape.begin(), shape.end());
     }
     return ov::Shape(start_it, end_it);
