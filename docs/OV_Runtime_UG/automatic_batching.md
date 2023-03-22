@@ -2,19 +2,16 @@
 
 @sphinxdirective
 
-Introduction
-############
-
 The Automatic Batching Execution mode (or Auto-batching for short) performs automatic batching on-the-fly to improve device utilization by grouping inference requests together, with no programming effort from the user.
 With Automatic Batching, gathering the input and scattering the output from the individual inference requests required for the batch happen transparently, without affecting the application code. 
-AUTO Batching can be used **directly as a device**, and as **an option for to CPU/GPU/VPU plugins** by means of configuration/hint.
+Auto Batching can be used **directly as a virtual device** or as an **option for inference on CPU/GPU/VPU** (by means of configuration/hint).
 
-This article provides a preview of the new Automatic Batching function, including how it works, its configurations, and testing performance.
+This article provides a preview of the Automatic Batching function, including how it works, its configurations, and testing performance.
 
-Automatic Batching as an explicit plugin
+Automatic Batching as an explicit device
 ++++++++++++++++++++++++++++++++++++++++
 
-The below examples show how AUTO Batching can be used in the form of plugin that the user can apply to perform inference directly:
+The below examples show how AUTO Batching can be used in the form of device that the user can apply to perform inference directly:
 
 .. code-block:: sh
 
@@ -22,10 +19,10 @@ The below examples show how AUTO Batching can be used in the form of plugin that
    ./benchmark_app -m <model> -d "BATCH:GPU(16)"
    ./benchmark_app -m <model> -d "BATCH:CPU(16)"
 
-Automatic Batching as underlying plugin configured to other plugins
+Automatic Batching as underlying device configured to other devices
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-In thie following examples, BATCH plugin will be configured to another plugin in case of ``tput/ctput mode``.
+In thie following examples, BATCH device will be configured to another device in case of ``tput/ctput mode``.
 
 .. code-block:: sh
 
@@ -35,7 +32,7 @@ In thie following examples, BATCH plugin will be configured to another plugin in
    ./benchmark_app -m <model> -d AUTO:GPU -hint ctput
 
 .. note::
-   If you run ``./benchmark_app``, do not set ``batch_size`` by ``-b <batch_size>``, otherwise AUTO plugin will not be applied.
+   If you run ``./benchmark_app``, do not set ``batch_size`` by ``-b <batch_size>``, otherwise AUTO mode will not be applied.
 
 Enabling/Disabling Automatic Batching
 #####################################
@@ -168,13 +165,13 @@ Limitations
 
 The following are limitations of the current AUTO Batching implementations:
 
-- ``BATCH`` plugin:
+- ``BATCH`` device:
 
   - Does not support the dynamic model.
   - Can only support ``tput/ctput mode``, ``latency/none mode`` is not supported.
   - Only supports models with ``batch dimension = 1``.
   - The input/output tensor should come from ``inferRequest``, otherwise the user-created tensor will trigger a memory copying.
-  - The ``OPTIMAL_BATCH_SIZE`` should be greater than ``2``, if not -- specify a batch size which depends on model and plugin (CPU does not support this property).
+  - The ``OPTIMAL_BATCH_SIZE`` should be greater than ``2``, if not -- specify a batch size which depends on model and device (CPU does not support this property).
   - GPU is supported by default, while CPU will not trigger ``auto_batch`` in tput mode.
   - ``AUTO_BATCH`` will bring much more compilation latency.
 
