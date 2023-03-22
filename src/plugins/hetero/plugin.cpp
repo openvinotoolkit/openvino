@@ -192,9 +192,11 @@ Parameter Engine::GetMetric(const std::string& name, const std::map<std::string,
 
 std::string Engine::DeviceCachingProperties(const std::string& targetFallback) const {
     auto fallbackDevices = ov::DeviceIDParser::get_hetero_devices(targetFallback);
-    ov::AnyMap result;
+    // Vector of caching configs for devices
+    std::vector<ov::AnyMap> result = {};
     for (const auto& device : fallbackDevices) {
         ov::DeviceIDParser parser(device);
+        ov::AnyMap properties = {};
         // Use name without id
         auto device_name = parser.get_device_name();
         auto supported_properties =
@@ -204,10 +206,8 @@ std::string Engine::DeviceCachingProperties(const std::string& targetFallback) c
             auto caching_properties =
                 GetCore()->GetMetric(device, ov::caching_properties.name()).as<std::vector<ov::PropertyName>>();
             if (caching_properties.size()) {
-                result[device_name] = ov::AnyMap{};
-                auto& device_config = result[device_name].as<ov::AnyMap>();
                 for (auto& property_name : caching_properties) {
-                    device_config[property_name] = GetCore()->GetMetric(device, property_name);
+                    properties[property_name] = GetCore()->GetMetric(device, property_name);
                 }
             }
             // If caching properties are not supported by device, try to add at least device architecture
@@ -215,11 +215,12 @@ std::string Engine::DeviceCachingProperties(const std::string& targetFallback) c
                              supported_properties.end(),
                              ov::device::architecture.name()) != supported_properties.end()) {
             auto device_architecture = GetCore()->GetMetric(device, ov::device::architecture.name());
-            result[device_name] = ov::AnyMap{{ov::device::architecture.name(), device_architecture}};
+            properties = ov::AnyMap{{ov::device::architecture.name(), device_architecture}};
             // Device architecture is not supported, add device name as achitecture
         } else {
-            result[device_name] = ov::AnyMap{{ov::device::architecture.name(), device_name}};
+            properties = ov::AnyMap{{ov::device::architecture.name(), device_name}};
         }
+        result.emplace_back(properties);
     }
     return result.empty() ? "" : ov::Any(result).as<std::string>();
 }
