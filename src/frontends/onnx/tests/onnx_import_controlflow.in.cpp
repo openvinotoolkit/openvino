@@ -577,7 +577,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_branches_with_different_inputs) {
     auto test_case = test::TestCase(function, s_device);
     std::vector<float> x(40, 2);
     std::vector<float> y(40);
-    std::iota(y.begin(), y.end(), -20);
+    std::iota(y.begin(), y.end(), -20.f);
 
     // condition
     test_case.add_input<bool>({true});
@@ -649,7 +649,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_if_inside_if) {
     // expected value == x * y
     std::vector<float> x(40, 2);
     std::vector<float> y(40);
-    std::iota(y.begin(), y.end(), -20);
+    std::iota(y.begin(), y.end(), -20.f);
     std::vector<float> expected;
     std::transform(x.begin(), x.end(), y.begin(), std::back_inserter(expected), [](float i, float j) -> float {
         return i * j;
