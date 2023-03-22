@@ -1080,8 +1080,126 @@ std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_i
         }};
 }
 
+template <typename Data_t = float>
+std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bilinear_pil_float() {
+    return {
+        {
+            "bilinear.downsample_2D_sizes",
+            Shape{5, 6},
+            {2, 4},
+            Shape{2, 4},
+            {},
+            {0, 1},
+            {InterpolateMode::BILINEAR_PILLOW, ShapeCalcMode::SIZES, {0, 0}, {0, 0}},
+            std::vector<Data_t>{121.14, 131.03, 193.32, 243.32, 8.92,   36.9,   210.67, 242.85, 63.8,  79.83,
+                                222.47, 108.37, 69.93,  211.89, 65.79,  104.75, 164.82, 140.7,  21.95, 7.06,
+                                221.59, 192.9,  214.5,  137.76, 209.29, 84.41,  115.89, 201.84, 31.72, 77.62},
+            std::vector<Data_t>{159.58046, 141.59782, 138.78581, 111.842384, 96.50358, 129.36433, 159.38596, 128.2533},
+        },
+        {
+            "bilinear.downsample_to_2x4_2D_scales",
+            Shape{5, 6},
+            {},
+            Shape{2, 4},
+            {0.4f, 0.7f},
+            {0, 1},
+            {InterpolateMode::BILINEAR_PILLOW, ShapeCalcMode::SCALES, {0, 0}, {0, 0}},
+            std::vector<Data_t>{121.14, 131.03, 193.32, 243.32, 8.92,   36.9,   210.67, 242.85, 63.8,  79.83,
+                                222.47, 108.37, 69.93,  211.89, 65.79,  104.75, 164.82, 140.7,  21.95, 7.06,
+                                221.59, 192.9,  214.5,  137.76, 209.29, 84.41,  115.89, 201.84, 31.72, 77.62},
+            std::vector<Data_t>{159.58046, 141.59782, 138.78581, 111.842384, 96.50358, 129.36433, 159.38596, 128.2533},
+        },
+        {
+            "bilinear.downsample_to_2x3_2D_scales",
+            Shape{5, 6},
+            {},
+            Shape{2, 4},
+            {0.4f, 0.6666f},
+            {0, 1},
+            {InterpolateMode::BILINEAR_PILLOW, ShapeCalcMode::SCALES, {0, 0}, {0, 0}},
+            std::vector<Data_t>{121.14, 131.03, 193.32, 243.32, 8.92,   36.9,   210.67, 242.85, 63.8,  79.83,
+                                222.47, 108.37, 69.93,  211.89, 65.79,  104.75, 164.82, 140.7,  21.95, 7.06,
+                                221.59, 192.9,  214.5,  137.76, 209.29, 84.41,  115.89, 201.84, 31.72, 77.62},
+            std::vector<Data_t>{158.00597, 137.05489, 121.252205, 102.18909, 147.77483, 137.24052},
+        },
+        {
+            "bilinear.upsample_2D_sizes",
+            Shape{2, 4},
+            {5, 6},
+            Shape{5, 6},
+            {},
+            {0, 1},
+            {InterpolateMode::BILINEAR_PILLOW, ShapeCalcMode::SIZES, {0, 0}, {0, 0}},
+            std::vector<Data_t>{214.42, 66.97, 27.98, 76.41, 105.94, 208.44, 115.53, 23.53},
+            std::vector<Data_t>{214.42,  140.695, 60.47167, 34.478333, 52.195,    76.41,      203.57199, 142.34451,
+                                73.72,   44.132,  53.9285,  71.122,    160.18,    148.9425,   126.71333, 82.746666,
+                                60.8625, 49.97,   116.788,  155.5405,  179.70667, 121.361336, 67.7965,   28.818,
+                                105.94,  157.19,  192.955,  131.015,   69.53,     23.53},
+        }};
+}
+
+template <typename Data_t = float>
+std::vector<InterpolateV11TestParams> generateParamsForInterpolate_bicubic_pil_float() {
+    return {
+        {
+            "bicubic.downsample_2D_sizes",
+            Shape{5, 6},
+            {2, 4},
+            Shape{2, 4},
+            {},
+            {0, 1},
+            {InterpolateMode::BICUBIC_PILLOW, ShapeCalcMode::SIZES, {0, 0}, {0, 0}},
+            std::vector<Data_t>{121.14, 131.03, 193.32, 243.32, 8.92,   36.9,   210.67, 242.85, 63.8,  79.83,
+                                222.47, 108.37, 69.93,  211.89, 65.79,  104.75, 164.82, 140.7,  21.95, 7.06,
+                                221.59, 192.9,  214.5,  137.76, 209.29, 84.41,  115.89, 201.84, 31.72, 77.62},
+            std::vector<Data_t>{162.90814, 143.26627, 138.46507, 109.5325, 92.69513, 126.17204, 164.13477, 127.86513},
+        },
+        {
+            "bicubic.downsample_to_2x4_2D_scales",
+            Shape{5, 6},
+            {},
+            Shape{2, 4},
+            {0.4f, 0.7f},
+            {0, 1},
+            {InterpolateMode::BICUBIC_PILLOW, ShapeCalcMode::SCALES, {0, 0}, {0, 0}},
+            std::vector<Data_t>{121.14, 131.03, 193.32, 243.32, 8.92,   36.9,   210.67, 242.85, 63.8,  79.83,
+                                222.47, 108.37, 69.93,  211.89, 65.79,  104.75, 164.82, 140.7,  21.95, 7.06,
+                                221.59, 192.9,  214.5,  137.76, 209.29, 84.41,  115.89, 201.84, 31.72, 77.62},
+            std::vector<Data_t>{162.90814, 143.26627, 138.46507, 109.5325, 92.69513, 126.17204, 164.13477, 127.86513},
+        },
+        {
+            "bicubic.downsample_to_2x3_2D_scales",
+            Shape{5, 6},
+            {},
+            Shape{2, 3},
+            {0.4f, 0.6666f},
+            {0, 1},
+            {InterpolateMode::BICUBIC_PILLOW, ShapeCalcMode::SCALES, {0, 0}, {0, 0}},
+            std::vector<Data_t>{121.14, 131.03, 193.32, 243.32, 8.92,   36.9,   210.67, 242.85, 63.8,  79.83,
+                                222.47, 108.37, 69.93,  211.89, 65.79,  104.75, 164.82, 140.7,  21.95, 7.06,
+                                221.59, 192.9,  214.5,  137.76, 209.29, 84.41,  115.89, 201.84, 31.72, 77.62},
+            std::vector<Data_t>{162.16028, 136.76193, 118.96405, 95.98418, 151.06361, 137.54117},
+        },
+        {
+            "bicubic.upsample_2D_sizes",
+            Shape{2, 4},
+            {5, 6},
+            Shape{5, 6},
+            {},
+            {0, 1},
+            {InterpolateMode::BICUBIC_PILLOW, ShapeCalcMode::SIZES, {0, 0}, {0, 0}},
+            std::vector<Data_t>{214.42, 66.97, 27.98, 76.41, 105.94, 208.44, 115.53, 23.53},
+            std::vector<Data_t>{236.49521, 146.10538, 38.218796, 17.75709,  50.332058, 85.74947,  215.93185, 148.13255,
+                                63.085896, 35.050694, 51.983547, 75.524284, 161.65862, 153.48294, 128.71808, 80.69401,
+                                56.342354, 48.53678,  107.38538, 158.83333, 194.35027, 126.33732, 60.70116,  21.549273,
+                                86.82202,  160.8605,  219.21736, 143.63092, 62.35265,  11.32409},
+        }};
+}
+
 std::vector<InterpolateV11TestParams> generateCombinedParamsForInterpolate_v11() {
     const std::vector<std::vector<InterpolateV11TestParams>> allTypeParamsV11{
+        generateParamsForInterpolate_bilinear_pil_float<float>(),
+        generateParamsForInterpolate_bicubic_pil_float<float>(),
         generateParamsForInterpolate_bilinear_pil_int<uint8_t>(),
         generateParamsForInterpolate_bicubic_pil_int<uint8_t>()};
 
@@ -1116,6 +1234,7 @@ public:
         const auto& param = obj.param;
         std::ostringstream result;
         result << "data_type=" << param.inType << "; ";
+        result << "data_shape=" << param.input_data_shape << "; ";
         if (!param.test_name.empty()) {
             result << "tested_case=" << param.test_name << "; ";
         }
